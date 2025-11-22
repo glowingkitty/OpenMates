@@ -20,6 +20,7 @@
     import { requireInviteCode } from '../../../../stores/signupRequirements';
     import * as cryptoService from '../../../../services/cryptoService';
     import { get } from 'svelte/store';
+    import { generateDeviceName } from '../../../../utils/deviceName';
     
     const dispatch = createEventDispatcher();
     
@@ -287,6 +288,13 @@
                 return;
             }
             
+            // Step 13.5: Generate and encrypt device name for passkey
+            const deviceName = generateDeviceName();
+            const encryptedDeviceName = await encryptWithMasterKeyDirect(deviceName, masterKey);
+            if (!encryptedDeviceName) {
+                console.warn('Failed to encrypt device name, continuing without it');
+            }
+            
             // Step 14: Encrypt email with master key for client storage (IndexedDB)
             const emailStoredSuccessfully = await cryptoService.saveEmailEncryptedWithMasterKey(storeData.email, storeData.stayLoggedIn);
             if (!emailStoredSuccessfully) {
@@ -294,7 +302,7 @@
                 return;
             }
             
-            // Step 14: Extract credential data for backend
+            // Step 15: Extract credential data for backend
             const credentialId = arrayBufferToBase64Url(credential.rawId);
             const clientDataJSON = new TextDecoder().decode(response.clientDataJSON);
             const clientDataJSONB64 = cryptoService.uint8ArrayToBase64(new Uint8Array(response.clientDataJSON));
@@ -307,7 +315,7 @@
             const authenticatorData = attestationObject.slice(0, 37); // Simplified
             const authenticatorDataB64 = cryptoService.uint8ArrayToBase64(authenticatorData);
             
-            // Step 15: Complete passkey registration with backend
+            // Step 16: Complete passkey registration with backend
             const completeResponse = await fetch(getApiEndpoint(apiEndpoints.auth.passkey_registration_complete), {
                 method: 'POST',
                 headers: {
@@ -327,6 +335,7 @@
                     invite_code: requireInviteCodeValue ? storeData.inviteCode : "",
                     encrypted_email: encryptedEmailForServer,
                     encrypted_email_with_master_key: encryptedEmailWithMasterKey, // For passwordless login
+                    encrypted_device_name: encryptedDeviceName || null, // Encrypted device name (client-side encrypted)
                     user_email_salt: emailSaltB64,
                     encrypted_master_key: encryptedMasterKey,
                     key_iv: keyIv,

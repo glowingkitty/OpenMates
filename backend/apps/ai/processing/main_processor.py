@@ -421,20 +421,25 @@ async def _charge_skill_credits(
             return
         
         # Prepare usage details
+        # Include chat_id and message_id when skill is triggered in a chat context
+        # These fields are important for linking usage entries to chat sessions
+        # The billing service will validate and only include non-empty values
         usage_details = {
-            "chat_id": request_data.chat_id,
-            "message_id": request_data.message_id,
+            "chat_id": request_data.chat_id,  # Always available in AskSkillRequest
+            "message_id": request_data.message_id,  # Always available in AskSkillRequest
             "units_processed": units_processed
         }
         
         # Charge credits via internal API (this will also create usage entry)
+        # app_id and skill_id are required and must be non-empty - they come from tool call parsing
+        # The billing service will validate these fields before creating the usage entry
         charge_payload = {
             "user_id": request_data.user_id,
             "user_id_hash": request_data.user_id_hash,
             "credits": credits_charged,
-            "skill_id": skill_id,
-            "app_id": app_id,
-            "usage_details": usage_details
+            "skill_id": skill_id,  # Required: ID of the skill that was executed
+            "app_id": app_id,  # Required: ID of the app that contains the skill
+            "usage_details": usage_details  # Contains chat_id, message_id, and other optional metadata
         }
         
         headers = {"Content-Type": "application/json"}
@@ -708,7 +713,25 @@ async def handle_main_processing(
                 
                 # Extract app_id and skill_id from tool name (format: "app_id-skill_id")
                 # Use hyphen separator for LLM provider compatibility (Cerebras and others don't allow dots in function names)
-                app_id, skill_id = tool_name.split('-', 1)
+                try:
+                    app_id, skill_id = tool_name.split('-', 1)
+                except ValueError as e:
+                    logger.error(f"{log_prefix} Invalid tool name format '{tool_name}': expected 'app_id-skill_id' format. Error: {e}")
+                    raise ValueError(f"Invalid tool name format '{tool_name}': expected 'app_id-skill_id' format") from e
+                
+                # Validate that app_id and skill_id are non-empty after split
+                # This ensures we have valid identifiers before proceeding with skill execution and billing
+                if not app_id or not app_id.strip():
+                    logger.error(f"{log_prefix} Empty app_id extracted from tool name '{tool_name}'. Cannot proceed with skill execution.")
+                    raise ValueError(f"Empty app_id in tool name '{tool_name}'")
+                
+                if not skill_id or not skill_id.strip():
+                    logger.error(f"{log_prefix} Empty skill_id extracted from tool name '{tool_name}'. Cannot proceed with skill execution.")
+                    raise ValueError(f"Empty skill_id in tool name '{tool_name}'")
+                
+                # Normalize by stripping whitespace
+                app_id = app_id.strip()
+                skill_id = skill_id.strip()
                 
                 # Validate arguments against original schema (with min/max constraints)
                 # The schema sent to LLM providers has min/max removed, but we validate against the original
@@ -1008,16 +1031,69 @@ async def handle_main_processing(
                     preview_data=preview_data if preview_data else None
                 )
                 
+                # Create embeds from skill results (immediately after skill execution)
+                # This enables immediate rendering of results while LLM continues processing
+                embed_reference_data = None
+                if cache_service and user_vault_key_id and directus_service:
+                    try:
+                        from backend.core.api.app.services.embed_service import EmbedService
+                        from backend.core.api.app.utils.encryption import EncryptionService
+                        
+                        encryption_service = EncryptionService()
+                        embed_service = EmbedService(
+                            cache_service=cache_service,
+                            directus_service=directus_service,
+                            encryption_service=encryption_service
+                        )
+                        
+                        # Create embeds from skill results
+                        embed_reference_data = await embed_service.create_embeds_from_skill_results(
+                            app_id=app_id,
+                            skill_id=skill_id,
+                            results=results,
+                            chat_id=request_data.chat_id,
+                            message_id=request_data.message_id,
+                            user_id=request_data.user_id,
+                            user_id_hash=request_data.user_id_hash,
+                            user_vault_key_id=user_vault_key_id,
+                            task_id=task_id,
+                            log_prefix=log_prefix
+                        )
+                        
+                        if embed_reference_data:
+                            logger.info(
+                                f"{log_prefix} Created embeds for skill '{tool_name}': "
+                                f"parent_embed_id={embed_reference_data.get('parent_embed_id')}, "
+                                f"child_count={len(embed_reference_data.get('child_embed_ids', []))}"
+                            )
+                        else:
+                            logger.warning(f"{log_prefix} Failed to create embeds for skill '{tool_name}'")
+                    except Exception as e:
+                        logger.error(f"{log_prefix} Error creating embeds for skill '{tool_name}': {e}", exc_info=True)
+                        # Continue without embeds - don't fail the entire skill execution
+                
+                # Stream embed reference immediately after skill execution (flexible placement)
+                # This allows the embed to appear early in the response, before LLM interpretation
+                if embed_reference_data and embed_reference_data.get("embed_reference"):
+                    embed_reference_json = embed_reference_data.get("embed_reference")
+                    # Yield embed reference as a JSON code block chunk
+                    embed_code_block = f"```json\n{embed_reference_json}\n```\n\n"
+                    yield embed_code_block
+                    logger.debug(
+                        f"{log_prefix} Streamed embed reference chunk for '{tool_name}': "
+                        f"embed_id={embed_reference_data.get('parent_embed_id')}"
+                    )
+                
                 # Track tool call info for code block generation
-                # This will be prepended to the assistant response as a TOON code block
-                # NOTE: We don't include output_toon here - it's already in preview_data.results_toon
-                # This avoids duplicating the same TOON data and wasting tokens
+                # NOTE: With new embeds architecture, embed references are streamed as chunks
+                # We still track tool_call_info for TOON code block (for backward compatibility and follow-up questions)
                 tool_call_info = {
                     "app_id": app_id,
                     "skill_id": skill_id,
                     "input": parsed_args,  # Tool input arguments
                     "preview_data": preview_data,  # Metadata + results_toon (contains full TOON-encoded results)
-                    "ignore_fields_for_inference": ignore_fields_for_inference  # Fields excluded from LLM inference
+                    "ignore_fields_for_inference": ignore_fields_for_inference,  # Fields excluded from LLM inference
+                    "embed_reference": embed_reference_data.get("embed_reference") if embed_reference_data else None  # Embed reference JSON (already streamed)
                 }
                 tool_calls_info.append(tool_call_info)
                 logger.debug(

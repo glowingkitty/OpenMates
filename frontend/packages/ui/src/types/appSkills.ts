@@ -44,6 +44,46 @@ export interface WebSearchResult {
 }
 
 /**
+ * Video Transcript skill preview data
+ */
+export interface VideoTranscriptSkillPreviewData extends BaseSkillPreviewData {
+  app_id: 'videos';
+  skill_id: 'get_transcript';
+  status: SkillExecutionStatus;
+  results?: VideoTranscriptResult[]; // Only present when status is 'finished'
+  video_count?: number; // Number of videos requested
+  success_count?: number; // Number of successful transcript fetches
+  failed_count?: number; // Number of failed transcript fetches
+}
+
+/**
+ * Individual video transcript result
+ */
+export interface VideoTranscriptResult {
+  type: 'video_transcript';
+  video_id: string;
+  url: string;
+  transcript?: string;
+  word_count?: number;
+  language?: string;
+  is_generated?: boolean;
+  success: boolean;
+  error?: string;
+  metadata?: {
+    title?: string;
+    description?: string;
+    channel_title?: string;
+    channel_id?: string;
+    published_at?: string;
+    duration?: string;
+    view_count?: number;
+    like_count?: number;
+    comment_count?: number;
+    thumbnail_url?: string;
+  };
+}
+
+/**
  * WebSocket event payload for skill execution status updates
  */
 export interface SkillExecutionStatusUpdatePayload {

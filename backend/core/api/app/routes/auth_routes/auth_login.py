@@ -317,7 +317,14 @@ async def login(
             
             # Get encryption key - use appropriate login method
             hashed_user_id = hashlib.sha256(user_id.encode()).hexdigest()
-            login_method_for_key = "recovery_key" if is_recovery_key_login else "password"
+            # Use the login_method from the request if provided, otherwise default based on recovery_key flag
+            if login_data.login_method:
+                login_method_for_key = login_data.login_method
+            elif is_recovery_key_login:
+                login_method_for_key = "recovery_key"
+            else:
+                login_method_for_key = "password"
+            logger.debug(f"Using login_method '{login_method_for_key}' for encryption key lookup (requested: {login_data.login_method})")
             encryption_key_data = await directus_service.get_encryption_key(hashed_user_id, login_method_for_key)
             if not encryption_key_data:
                 logger.error(f"Encryption key not found for user {user_id} with login method {login_method_for_key}. Login failed.")
@@ -1010,6 +1017,12 @@ async def finalize_login_session(
             # Get existing cached user data and update it with session info
             cached_user_data = await cache_service.get_user_by_id(user_id)
             if cached_user_data:
+                # Ensure user_id is always present in cached data (required for WebSocket auth)
+                if "user_id" not in cached_user_data:
+                    cached_user_data["user_id"] = user_id
+                # Also ensure "id" is present for compatibility
+                if "id" not in cached_user_data:
+                    cached_user_data["id"] = user_id
                 # Update last_online_timestamp in cached data
                 cached_user_data["last_online_timestamp"] = current_time
                 # Store stay_logged_in preference for session endpoint to use

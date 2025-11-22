@@ -499,7 +499,10 @@ async def lifespan(app: FastAPI):
     logger.info("Preloading invite codes into cache...")
     try:
         # Pass app.state to preload_invite_codes
-        await preload_invite_codes(app.state) 
+        await preload_invite_codes(app.state)
+        
+        # Preload gift cards into cache
+        await preload_gift_cards(app.state) 
         logger.info("Successfully preloaded invite codes into cache")
         
         # Run initial metrics update, passing services from backend.core.api.app.state
@@ -909,6 +912,37 @@ async def preload_invite_codes(app_state): # Accepts app_state now
                 skipped_count += 1
     
     logger.info(f"Preloaded {imported_count} new invite codes into cache (skipped {skipped_count} existing codes)")
+
+async def preload_gift_cards(app_state):
+    """Load all unredeemed gift cards into cache for faster lookup"""
+    directus_service = app_state.directus_service 
+    cache_service = app_state.cache_service
+    
+    all_gift_cards = await directus_service.get_all_gift_cards()
+    if not all_gift_cards:
+        logger.warning("No gift cards found to preload")
+        return
+    
+    imported_count = 0
+    skipped_count = 0
+    
+    # Cache each gift card with its data
+    for gift_card_data in all_gift_cards:
+        code = gift_card_data.get("code")
+        if code:
+            # Use the gift card code as the key
+            cache_key = f"gift_card:{code}"
+            
+            # Check if gift card already exists in cache
+            existing_data = await cache_service.get(cache_key)
+            if existing_data is None:
+                # Only add to cache if it doesn't already exist
+                await cache_service.set(cache_key, gift_card_data)
+                imported_count += 1
+            else:
+                skipped_count += 1
+    
+    logger.info(f"Preloaded {imported_count} new gift cards into cache (skipped {skipped_count} existing cards)")
 
 # Create the application at module level to make it available for import
 app = create_app()

@@ -1047,3 +1047,106 @@ class ChatCacheMixin:
         except Exception as e:
             logger.error(f"Error getting queued messages for chat {chat_id}: {e}", exc_info=True)
             return []
+    
+    # Embed caching methods
+    def _get_embed_cache_key(self, embed_id: str) -> str:
+        """Returns the cache key for an embed (global cache, one entry per embed)."""
+        return f"embed:{embed_id}"
+    
+    def _get_chat_embed_ids_key(self, chat_id: str) -> str:
+        """Returns the cache key for tracking embed IDs in a chat (for eviction)."""
+        return f"chat:{chat_id}:embed_ids"
+    
+    async def get_embed_from_cache(self, embed_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Get an embed from cache by embed_id.
+        
+        Args:
+            embed_id: The embed identifier
+            
+        Returns:
+            Embed dictionary if found, None otherwise
+        """
+        client = await self.client
+        if not client:
+            return None
+        
+        key = self._get_embed_cache_key(embed_id)
+        try:
+            import json
+            embed_json = await client.get(key)
+            if embed_json:
+                embed_data = json.loads(embed_json.decode('utf-8'))
+                logger.debug(f"Cache HIT: Retrieved embed {embed_id} from cache")
+                return embed_data
+            else:
+                logger.debug(f"Cache MISS: Embed {embed_id} not in cache")
+                return None
+        except Exception as e:
+            logger.error(f"Error getting embed {embed_id} from cache: {e}", exc_info=True)
+            return None
+    
+    async def set_embed_in_cache(
+        self,
+        embed_id: str,
+        embed_data: Dict[str, Any],
+        chat_id: str,
+        ttl: int = 86400  # 24 hours, same as message cache
+    ) -> bool:
+        """
+        Cache an embed with vault encryption.
+        
+        Args:
+            embed_id: The embed identifier
+            embed_data: Embed data dictionary (should already be vault-encrypted)
+            chat_id: Chat ID for indexing (for eviction tracking)
+            ttl: Time to live in seconds (default: 24 hours)
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        client = await self.client
+        if not client:
+            logger.warning(f"Redis client not available, skipping embed cache for {embed_id}")
+            return False
+        
+        key = self._get_embed_cache_key(embed_id)
+        try:
+            import json
+            embed_json = json.dumps(embed_data)
+            await client.set(key, embed_json, ex=ttl)
+            
+            # Add to chat index for eviction tracking
+            chat_embed_index_key = self._get_chat_embed_ids_key(chat_id)
+            await client.sadd(chat_embed_index_key, embed_id)
+            await client.expire(chat_embed_index_key, ttl)
+            
+            logger.debug(f"Cached embed {embed_id} at {key} with TTL {ttl}s")
+            return True
+        except Exception as e:
+            logger.error(f"Error caching embed {embed_id}: {e}", exc_info=True)
+            return False
+    
+    async def get_chat_embed_ids(self, chat_id: str) -> List[str]:
+        """
+        Get all embed IDs for a chat (for eviction tracking).
+        
+        Args:
+            chat_id: The chat ID
+            
+        Returns:
+            List of embed IDs
+        """
+        client = await self.client
+        if not client:
+            return []
+        
+        key = self._get_chat_embed_ids_key(chat_id)
+        try:
+            embed_ids_bytes = await client.smembers(key)
+            embed_ids = [embed_id.decode('utf-8') for embed_id in embed_ids_bytes]
+            logger.debug(f"Retrieved {len(embed_ids)} embed IDs for chat {chat_id}")
+            return embed_ids
+        except Exception as e:
+            logger.error(f"Error getting embed IDs for chat {chat_id}: {e}", exc_info=True)
+            return []

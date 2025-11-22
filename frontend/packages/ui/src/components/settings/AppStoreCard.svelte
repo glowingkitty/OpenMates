@@ -13,10 +13,11 @@
 -->
 
 <script lang="ts">
-    // @ts-expect-error - Svelte components are default exports
     import Icon from '../../components/Icon.svelte';
+    import ProviderIcon from './ProviderIcon.svelte';
     import type { AppMetadata } from '../../types/apps';
     import { text } from '@repo/ui';
+    import { onMount } from 'svelte';
     
     /**
      * Props for AppStoreCard component.
@@ -24,9 +25,18 @@
     interface Props {
         app: AppMetadata;
         onSelect: (appId: string) => void;
+        /**
+         * Optional: Skill-specific providers to display below description.
+         * When provided, these will be shown instead of app-level providers.
+         * Used when displaying skills in the app details page.
+         */
+        skillProviders?: string[];
     }
     
-    let { app, onSelect }: Props = $props();
+    let { app, onSelect, skillProviders }: Props = $props();
+    
+    // Reference to the app icon container for checking icon existence
+    let appIconContainer: HTMLDivElement | null = $state(null);
     
     /**
      * Get the translated app name.
@@ -50,9 +60,15 @@
     
     /**
      * Get all providers for this app.
-     * Checks app-level providers first, then extracts from skills if needed.
+     * If skillProviders prop is provided, use those (for skill cards).
+     * Otherwise, checks app-level providers first, then extracts from skills if needed.
      */
     let allProviders = $derived.by(() => {
+        // If skillProviders prop is provided, use those (for skill cards in app details)
+        if (skillProviders && skillProviders.length > 0) {
+            return skillProviders;
+        }
+        
         // First check if app has providers at the app level
         if (app.providers && app.providers.length > 0) {
             return app.providers;
@@ -67,8 +83,15 @@
                 }
             }
         }
-        return Array.from(providersSet);
+        const extracted = Array.from(providersSet);
+        return extracted;
     });
+    
+    /**
+     * Check if this card is displaying a skill (has skillProviders prop).
+     * Used to determine if we should show providers below description.
+     */
+    let isSkillCard = $derived(skillProviders !== undefined && skillProviders.length > 0);
     
     /**
      * Get icon name from icon_image filename.
@@ -97,6 +120,64 @@
             .replace(/\./g, '');
         return normalized;
     }
+    
+    /**
+     * Check if a provider icon exists by checking if the CSS variable is defined.
+     * 
+     * @param providerName - The provider name to check
+     * @returns true if icon exists, false otherwise
+     */
+    function checkProviderIconExists(providerName: string): boolean {
+        if (typeof document === 'undefined') return false;
+        
+        const iconName = getProviderIconName(providerName);
+        const cssVarName = `--icon-url-${iconName}`;
+        
+        // Check if the CSS variable exists by trying to get it from computed styles
+        const rootStyles = getComputedStyle(document.documentElement);
+        const iconUrl = rootStyles.getPropertyValue(cssVarName).trim();
+        
+        // If the variable is empty or undefined, the icon is missing
+        if (!iconUrl || iconUrl === 'none' || iconUrl === '') {
+            return false;
+        }
+        
+        return true;
+    }
+    
+    /**
+     * Get valid providers - those that have corresponding icon CSS variables.
+     * This is a derived value that automatically updates when allProviders changes.
+     * 
+     * Note: We check for CSS variables, but if they're not loaded yet, we still return
+     * the providers list and let the icons render (they'll show as empty if CSS var missing).
+     */
+    let validProviders = $derived.by(() => {
+        if (allProviders.length === 0) {
+            return [];
+        }
+        
+        // If document is not available (SSR), return all providers
+        if (typeof document === 'undefined') {
+            return allProviders;
+        }
+        
+        // Check which providers have CSS variables available
+        const valid: string[] = [];
+        for (const provider of allProviders) {
+            if (checkProviderIconExists(provider)) {
+                valid.push(provider);
+            }
+        }
+        
+        // If no valid providers found but we have providers, return them anyway
+        // (CSS variables might not be loaded yet, or icon might exist but check failed)
+        if (valid.length === 0 && allProviders.length > 0) {
+            return allProviders;
+        }
+        
+        return valid;
+    });
     
     /**
      * Get app gradient from theme.css based on app id.
@@ -128,6 +209,7 @@
             onSelect(app.id);
         }
     }
+    
 </script>
 
 <div 
@@ -141,17 +223,21 @@
     <!-- App icon and name side by side -->
     <div class="app-header-row">
         <!-- App icon container - 38px x 38px with provider icons behind it -->
-        <div class="app-icon-container">
-            <!-- Provider icons behind the app icon - 30x30px -->
-            {#if allProviders.length > 0}
+        <div class="app-icon-container" bind:this={appIconContainer}>
+            <!-- Provider icons behind the app icon - first centered, others to the right (max 5) -->
+            <!-- Only show above app icon if NOT a skill card (skill cards show icons next to "via") -->
+            {#if validProviders.length > 0 && !isSkillCard}
                 <div class="provider-icons-background">
-                    {#each allProviders.slice(0, 3) as provider}
-                        <Icon 
-                            name={getProviderIconName(provider)}
-                            type="provider"
+                    {#each validProviders.slice(0, 5) as provider, index}
+                        <div 
+                            class="provider-icon-container"
+                            class:provider-icon-first={index === 0}
+                        >
+                            <ProviderIcon 
+                                name={provider}
                             size="30px"
-                            className="provider-icon-bg"
                         />
+                        </div>
                     {/each}
                 </div>
             {/if}
@@ -182,18 +268,15 @@
     <!-- App description below -->
     <p class="app-card-description">{appDescription}</p>
     
-    <!-- Provider icons section -->
-    {#if allProviders.length > 0}
-        <div class="providers-section">
-            {#each allProviders.slice(0, 3) as provider}
-                <div class="provider-icon-container">
-                    <Icon 
-                        name={getProviderIconName(provider)}
-                        type="app"
-                        size="24px"
-                        className="provider-app-icon"
-                        borderColor="#ffffff"
-                    />
+    <!-- Skill-specific providers below description (only for skill cards) -->
+    <!-- Show provider icons next to "via" text instead of above app icon -->
+    {#if isSkillCard && validProviders.length > 0}
+        {@const displayedProviders = validProviders.slice(0, 3)}
+        <div class="skill-providers">
+            <span class="via-text">via</span>
+            {#each displayedProviders as provider}
+                <div class="skill-provider-icon">
+                    <ProviderIcon name={provider} size="30px" />
                 </div>
             {/each}
         </div>
@@ -221,6 +304,21 @@
         position: relative;
         overflow: hidden;
         box-sizing: border-box; /* Ensure padding is included in width/height */
+        padding-top: 25px;
+    }
+    
+    /* When displaying a skill card with providers, move content up */
+    /* This creates more space at the bottom for the larger 30px provider icons */
+    .app-store-card:has(.skill-providers) {
+        padding-top: 5px; /* Reduce from 25px to move content up */
+    }
+    
+    .app-store-card:has(.skill-providers) .app-header-row {
+        margin-top: 0px; /* Move up from original 6px to create space below */
+    }
+    
+    .app-store-card:has(.skill-providers) .app-card-description {
+        margin-top: 0px; /* Move up to create space below for provider icons */
     }
     
     .app-store-card:focus {
@@ -234,54 +332,54 @@
     }
     
     /* App header row - icon and name side by side */
+    /* Move down slightly to accommodate provider icons above */
     .app-header-row {
         display: flex;
         align-items: center;
         gap: 0.75rem;
         margin-bottom: 0.5rem;
+        margin-top: 6px; /* Move down to make room for provider icons above */
         flex-shrink: 0;
     }
     
-    /* App icon container - 38px x 38px with provider icons behind */
+    /* App icon container - 38px x 38px with provider icons above */
     .app-icon-container {
         position: relative;
         width: 38px;
         height: 38px;
         display: flex;
-        align-items: center;
+        align-items: flex-end; /* Align content to bottom */
         justify-content: center;
         flex-shrink: 0;
     }
     
-    /* Provider icons behind the app icon - 30x30px */
+    /* Provider icons above the app icon - centered at top of container */
     .provider-icons-background {
         position: absolute;
-        width: 100%;
-        height: 100%;
+        top: 0; /* Position at top of container */
+        left: 50%;
+        transform: translate(-14px, -20px);
         display: flex;
         align-items: center;
-        justify-content: center;
-        gap: 2px;
-        opacity: 0.5;
-        z-index: 0;
+        justify-content: center; /* Center the icons */
+        gap: 6px;
+        z-index: 1; /* Above the app icon */
+        pointer-events: none; /* Prevent interaction with background icons */
     }
     
-    .provider-icon-bg {
-        width: 30px;
-        height: 30px;
+    /* All provider icon containers (wraps ProviderIcon component) */
+    /* App cards: provider icons above app icon have reduced opacity */
+    .provider-icon-container {
+        position: relative;
+        flex-shrink: 0;
     }
     
     .app-icon-wrapper {
         position: relative;
         width: 38px;
         height: 38px;
-        z-index: 1; /* Ensure app icon is above provider icons */
-    }
-    
-    .app-icon-main {
-        border: 2px solid #ffffff !important;
-        border-radius: 8px;
-        box-sizing: border-box;
+        z-index: 1; /* Below provider icons */
+        /* Icon will naturally sit at bottom due to container's align-items: flex-end */
     }
     
     /* Remove fade-in animation for app icons */
@@ -312,6 +410,7 @@
         color: #ffffff;
         line-height: 1.2;
         flex: 1;
+        margin-top: 10px;
     }
     
     .app-card-description {
@@ -324,25 +423,28 @@
         flex-grow: 1;
     }
     
-    /* Provider icons section - displayed as app icons */
-    .providers-section {
+    /* Skill providers section - shown below description for skill cards */
+    .skill-providers {
         display: flex;
-        gap: 0.5rem;
         align-items: center;
-        margin-top: 0.5rem;
+        gap: 6px;
+        margin-top: 4px;
+        font-size: 12px;
+        color: rgba(255, 255, 255, 0.8);
+        flex-wrap: wrap;
+    }
+    
+    .via-text {
+        color: rgba(255, 255, 255, 0.7);
+        font-style: italic;
+    }
+    
+    .skill-provider-icon {
+        display: flex;
+        align-items: center;
         flex-shrink: 0;
+        opacity: 1; /* Full opacity for skill provider icons (unlike app cards) */
     }
     
-    .provider-icon-container {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
-    
-    .provider-app-icon {
-        border: 1.5px solid rgba(255, 255, 255, 0.6) !important;
-        border-radius: 6px;
-        box-sizing: border-box;
-    }
 </style>
 

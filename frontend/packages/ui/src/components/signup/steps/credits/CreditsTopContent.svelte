@@ -60,15 +60,50 @@ step_9_top_content_svelte:
     import { text } from '@repo/ui';
     import { settingsDeepLink } from '../../../../stores/settingsDeepLinkStore';
     import { panelState } from '../../../../stores/panelStateStore'; // Added panelState import
+    import { createEventDispatcher } from 'svelte';
+    import GiftCardRedeem from '../../../../components/settings/billing/GiftCardRedeem.svelte';
     
+    const dispatch = createEventDispatcher();
+    
+    // State to track if gift card input is shown
+    let showGiftCardInput = $state(false);
+    
+    /**
+     * Open the app store in settings using deep linking.
+     * Sets both the store and the URL hash for proper deep linking support.
+     */
     function openAppSettings() {
-        // First set the deep link path
-        settingsDeepLink.set('apps');
+        // Update URL hash for deep linking support (format: #settings/appstore)
+        if (typeof window !== 'undefined') {
+            window.location.hash = '#settings/appstore';
+        }
+        
+        // Set the deep link path to app_store (not apps)
+        settingsDeepLink.set('app_store');
         
         // Then make sure menu is visible using panelState with a slight delay
         setTimeout(() => {
             panelState.openSettings();
         }, 10);
+    }
+    
+    /**
+     * Handle gift card redemption success.
+     * Since credits are already added to the account, skip payment and go to auto_top_up.
+     */
+    function handleGiftCardRedeemed() {
+        // Credits are already added to the account via the gift card redemption API
+        // Skip payment step and go directly to auto_top_up
+        dispatch('step', {
+            step: 'auto_top_up'
+        });
+    }
+    
+    /**
+     * Cancel gift card input and return to credit selection.
+     */
+    function cancelGiftCard() {
+        showGiftCardInput = false;
     }
 </script>
 
@@ -83,36 +118,48 @@ step_9_top_content_svelte:
     
     <div class="bottom-container">
         <div class="main-content">
-            <div>{@html $text('signup.only_pay_what_you_use.text')}</div>
+            {#if showGiftCardInput}
+                <!-- Gift Card Redemption Form -->
+                <div class="gift-card-container">
+                    <GiftCardRedeem
+                        on:redeemed={handleGiftCardRedeemed}
+                        on:cancel={cancelGiftCard}
+                    />
+                </div>
+            {:else}
+                <div>{@html $text('signup.only_pay_what_you_use.text')}</div>
 
-            <div class="benefits-container">
-                <div class="benefit-item">
-                    <div class="check-icon"></div>
-                    <div>{@html $text('signup.no_subscription.text')}</div>
+                <div class="benefits-container">
+                    <div class="benefit-item">
+                        <div class="check-icon"></div>
+                        <div>{@html $text('signup.no_subscription.text')}</div>
+                    </div>
+                    <div class="benefit-item">
+                        <div class="check-icon"></div>
+                        <div>{@html $text('signup.no_expiration_of_credits.text')}</div>
+                    </div>
+                    <div class="benefit-item">
+                        <div class="check-icon"></div>
+                        <div>{@html $text('signup.no_selling_of_user_data.text')}</div>
+                    </div>
+                    <div class="benefit-item">
+                        <div class="check-icon"></div>
+                        <div>{@html $text('signup.no_ads.text')}</div>
+                    </div>
                 </div>
-                <div class="benefit-item">
-                    <div class="check-icon"></div>
-                    <div>{@html $text('signup.no_expiration_of_credits.text')}</div>
+                
+                <div class="footer-container">
+                    <!-- Gift Card Button -->
+                    <button onclick={() => showGiftCardInput = true} class="text-button gift-card-button">
+                        {@html $text('settings.billing.gift_card.have_code.text')}
+                    </button>
+                    
+                    <!-- App Store Link -->
+                    <button onclick={openAppSettings} class="text-button">
+                        {@html $text('signup.prices_on_app_store_soon.text')}
+                    </button>
                 </div>
-                <div class="benefit-item">
-                    <div class="check-icon"></div>
-                    <div>{@html $text('signup.no_selling_of_user_data.text')}</div>
-                </div>
-                <div class="benefit-item">
-                    <div class="check-icon"></div>
-                    <div>{@html $text('signup.no_ads.text')}</div>
-                </div>
-            </div>
-            
-            <div class="footer-container">
-                <div class="pricing-details-text">
-                    {@html $text('signup.prices_on_app_store_soon.text')}
-                    <!-- {@html $text('signup.pricing_details_on_page_of_app_skill.text')} -->
-                </div>
-                <!-- <button onclick={openAppSettings} class="text-button">
-                    {$text('signup.open_app_settings.text')}
-                </button> -->
-            </div>
+            {/if}
         </div>
     </div>
 </div>
@@ -232,6 +279,32 @@ step_9_top_content_svelte:
         color: var(--color-grey-60);
         font-size: 14px;
         text-align: center;
+    }
+
+    .text-button {
+        all: unset;
+        position: relative;
+        display: inline-block;
+        color: transparent;
+        background: var(--color-primary);
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+        cursor: pointer;
+        padding: 4px;
+        margin: -4px;
+        -webkit-tap-highlight-color: transparent;
+        font-size: 14px;
+        text-align: center;
+    }
+    
+    .gift-card-button {
+        margin-bottom: 8px;
+    }
+    
+    .gift-card-container {
+        width: 100%;
+        max-width: 400px;
     }
 
 </style>

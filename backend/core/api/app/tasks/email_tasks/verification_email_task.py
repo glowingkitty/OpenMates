@@ -29,26 +29,27 @@ def generate_and_send_verification_email(
     darkmode: bool = False
 ) -> bool:
     """
-    Generate a verification code, store it in cache, and send email
+    Generate a verification code, store it in cache, and send email.
+    
+    Uses asyncio.run() which properly handles event loop creation and cleanup,
+    ensuring all async resources (like httpx clients) are properly closed before
+    the loop is destroyed. This prevents "Event loop is closed" errors during cleanup.
     """
     logger.info(f"Starting email verification task for {email[:2]}***")
     try:
-        # Create a new event loop for async operations
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-
-        # Run the async function and return its result
-        result = loop.run_until_complete(_async_generate_and_send_verification_email(
-            email, invite_code, language, darkmode
-        ))
+        # Use asyncio.run() which handles loop creation and cleanup properly
+        # This ensures all async cleanup operations (like closing httpx clients) 
+        # complete before the event loop is closed
+        result = asyncio.run(
+            _async_generate_and_send_verification_email(
+                email, invite_code, language, darkmode
+            )
+        )
         logger.info(f"Email verification task completed for {email[:2]}***")
         return result
     except Exception as e:
         logger.error(f"Failed to run email verification task for {email[:2]}***: {str(e)}", exc_info=True)
         return False
-    finally:
-        # Clean up
-        loop.close()
 
 async def _async_generate_and_send_verification_email(
     email: str,

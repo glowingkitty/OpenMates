@@ -5,7 +5,7 @@
 
 import { get } from 'svelte/store';
 import { getApiEndpoint, apiEndpoints } from '../config/api';
-import { currentSignupStep, isInSignupProcess, getStepFromPath, isResettingTFA, STEP_ONE_TIME_CODES } from './signupState';
+import { currentSignupStep, isInSignupProcess, getStepFromPath, isResettingTFA, STEP_ONE_TIME_CODES, isSignupPath } from './signupState';
 import { userDB } from '../services/userDB';
 import { chatDB } from '../services/db';
 // Import defaultProfile directly for logout reset
@@ -87,10 +87,10 @@ export async function login(
                 console.debug("Login fully successful.");
                 // Check if user exists before accessing last_opened
                 // A user is in signup flow if:
-                // 1. last_opened starts with '/signup/' (explicit signup path), OR
+                // 1. last_opened starts with '/signup/' or '#signup/' (explicit signup path), OR
                 // 2. tfa_enabled is false (2FA not set up - signup incomplete)
                 // This handles cases where last_opened was overwritten to demo-welcome in a previous session
-                const inSignupFlow = (data.user?.last_opened?.startsWith('/signup/')) || 
+                const inSignupFlow = isSignupPath(data.user?.last_opened) || 
                                     (data.user?.tfa_enabled === false);
 
                 if (inSignupFlow) {
@@ -100,7 +100,7 @@ export async function login(
                     });
                     // Determine step: use last_opened if it's a signup path, otherwise default to one_time_codes
                     // (the actual OTP setup step, not the app reminder step)
-                    const step = data.user?.last_opened?.startsWith('/signup/') 
+                    const step = isSignupPath(data.user?.last_opened)
                         ? getStepFromPath(data.user.last_opened)
                         : STEP_ONE_TIME_CODES; // Default to one_time_codes (OTP setup) if last_opened doesn't indicate signup
                     currentSignupStep.set(step);

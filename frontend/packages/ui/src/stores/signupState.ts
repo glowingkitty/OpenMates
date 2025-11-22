@@ -58,18 +58,37 @@ export const isSignupSettingsStep = writable(false);
 // Store to explicitly control footer visibility during signup
 export const showSignupFooter = writable(true);
 
+/**
+ * Check if a path indicates the user is in signup flow
+ * Supports both /signup/ and #signup/ formats for backward compatibility
+ * @param path The last_opened path to check
+ * @returns True if the path indicates signup flow
+ */
+export function isSignupPath(path: string | null | undefined): boolean {
+    if (!path) return false;
+    // Support both /signup/ and #signup/ formats
+    return path.startsWith('/signup/') || path.startsWith('#signup/');
+}
+
 // Stores related to gifted credits check in Step 9
 export const isLoadingGiftCheck = writable<boolean>(true); // Track loading state for gift check API call
 export const hasGiftForSignup = writable<boolean>(false); // Track if user has a gift
 
 // Parse step name from last_opened path
+// Supports both /signup/ and #signup/ formats for backward compatibility
 export function getStepFromPath(path: string): string {
     if (!path) return STEP_BASICS;
     
-    // New URL format would be like /signup/basics, /signup/confirm-email, etc.
-    const pathParts = path.split('/');
-    if (pathParts.length >= 3 && pathParts[1] === 'signup') {
-        const stepSlug = pathParts[2];
+    // Normalize path: remove leading # if present, and handle both /signup/ and #signup/ formats
+    let normalizedPath = path;
+    if (path.startsWith('#')) {
+        normalizedPath = path.substring(1); // Remove leading #
+    }
+    
+    // Parse path format: /signup/basics or signup/basics (after removing #)
+    const pathParts = normalizedPath.split('/');
+    if (pathParts.length >= 2 && pathParts[pathParts.length - 2] === 'signup') {
+        const stepSlug = pathParts[pathParts.length - 1];
         
         // Handle both hyphenated and underscore formats
         const normalizedSlug = stepSlug.replace(/_/g, '-');
@@ -109,16 +128,17 @@ export function getStepFromPath(path: string): string {
 
 /**
  * Convert step name to last_opened path format
- * This is the reverse of getStepFromPath - converts step names like 'one_time_codes' to paths like '/signup/one-time-codes'
+ * This is the reverse of getStepFromPath - converts step names like 'one_time_codes' to hash-based paths like '#signup/one-time-codes'
+ * Uses hash-based format for consistency with other deep linking (e.g., #settings, #chat_id=)
  * @param stepName The step name constant (e.g., STEP_ONE_TIME_CODES)
- * @returns The path format (e.g., '/signup/one-time-codes')
+ * @returns The hash-based path format (e.g., '#signup/one-time-codes')
  */
 export function getPathFromStep(stepName: string): string {
-    if (!stepName) return '/signup/basics';
+    if (!stepName) return '#signup/basics';
     
     // Map step names to URL slugs (convert underscores to hyphens)
     const stepSlug = stepName.replace(/_/g, '-');
     
-    // Return the path format
-    return `/signup/${stepSlug}`;
+    // Return the hash-based path format for consistency with other deep linking
+    return `#signup/${stepSlug}`;
 }

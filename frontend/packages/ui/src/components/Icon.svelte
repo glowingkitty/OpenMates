@@ -268,10 +268,12 @@
     --icon-url-bias: url('@openmates/ui/static/icons/bias.svg');
     --icon-url-billing: url('@openmates/ui/static/icons/billing.svg');
     --icon-url-book: url('@openmates/ui/static/icons/book.svg');
+    --icon-url-brave: url('@openmates/ui/static/icons/brave.svg');
     --icon-url-business: url('@openmates/ui/static/icons/business.svg');
     --icon-url-calculator: url('@openmates/ui/static/icons/calculator.svg');
     --icon-url-calendar: url('@openmates/ui/static/icons/calendar.svg');
     --icon-url-camera: url('@openmates/ui/static/icons/camera.svg');
+    --icon-url-cerebras: url('@openmates/ui/static/icons/cerebras.svg');
     --icon-url-chat: url('@openmates/ui/static/icons/chat.svg');
     --icon-url-check: url('@openmates/ui/static/icons/check.svg');
     --icon-url-claude: url('@openmates/ui/static/icons/claude.svg');
@@ -397,6 +399,7 @@
     --icon-url-web: url('@openmates/ui/static/icons/web.svg');
     --icon-url-whiteboard: url('@openmates/ui/static/icons/whiteboard.svg');
     --icon-url-workflow: url('@openmates/ui/static/icons/workflow.svg');
+    --icon-url-youtube: url('@openmates/ui/static/icons/youtube.svg');
   }
 
   /* Base icon container with common styles */

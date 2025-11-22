@@ -18,6 +18,7 @@ const __dirname = dirname(__filename);
 
 // Paths
 const BACKEND_APPS_DIR = resolve(__dirname, '../../../../backend/apps');
+const BACKEND_PROVIDERS_DIR = resolve(__dirname, '../../../../backend/providers');
 const OUTPUT_FILE = resolve(__dirname, '../src/data/appsMetadata.ts');
 
 // Check if we should include development items
@@ -82,6 +83,137 @@ function normalizeTranslationKey(key, prefix) {
 }
 
 /**
+ * Load provider YAML file and return parsed data.
+ * 
+ * @param {string} providerId - Provider ID (e.g., "brave", "alibaba")
+ * @returns {Object|null} Parsed provider YAML data, or null if not found
+ */
+function loadProviderYaml(providerId) {
+    try {
+        const providerPath = join(BACKEND_PROVIDERS_DIR, `${providerId}.yml`);
+        if (!statSync(providerPath).isFile()) {
+            return null;
+        }
+        const content = readFileSync(providerPath, 'utf-8');
+        return yaml.parse(content);
+    } catch (err) {
+        // Provider file doesn't exist or can't be read
+        return null;
+    }
+}
+
+/**
+ * Extract pricing from provider YAML for a specific model.
+ * 
+ * @param {string} providerId - Provider ID (e.g., "alibaba", "brave")
+ * @param {string} modelId - Model ID (e.g., "qwen3-235b-a22b-2507" or null for provider-level pricing)
+ * @returns {Object|null} Pricing object in SkillPricing format, or null if not found
+ */
+function extractProviderPricing(providerId, modelId = null) {
+    const providerData = loadProviderYaml(providerId);
+    if (!providerData) {
+        return null;
+    }
+    
+    // For provider-level pricing (e.g., Brave per_request_credits)
+    if (!modelId && providerData.pricing) {
+        const pricing = {};
+        
+        // Check for per_request_credits (Brave)
+        if (providerData.pricing.per_request_credits !== undefined) {
+            pricing.fixed = providerData.pricing.per_request_credits;
+        }
+        
+        // Check for per_unit pricing
+        if (providerData.pricing.per_unit) {
+            pricing.per_unit = providerData.pricing.per_unit;
+        }
+        
+        // Check for per_minute pricing
+        if (providerData.pricing.per_minute !== undefined) {
+            pricing.per_minute = providerData.pricing.per_minute;
+        }
+        
+        if (Object.keys(pricing).length > 0) {
+            return pricing;
+        }
+    }
+    
+    // For model-level pricing (e.g., Alibaba models)
+    if (modelId && providerData.models) {
+        const model = providerData.models.find(m => m.id === modelId);
+        if (model && model.pricing) {
+            const pricing = {};
+            
+            // Extract token-based pricing
+            if (model.pricing.tokens) {
+                pricing.tokens = {};
+                if (model.pricing.tokens.input && model.pricing.tokens.input.per_credit_unit !== undefined) {
+                    pricing.tokens.input = { per_credit_unit: model.pricing.tokens.input.per_credit_unit };
+                }
+                if (model.pricing.tokens.output && model.pricing.tokens.output.per_credit_unit !== undefined) {
+                    pricing.tokens.output = { per_credit_unit: model.pricing.tokens.output.per_credit_unit };
+                }
+            }
+            
+            // Extract per_unit pricing
+            if (model.pricing.per_unit) {
+                pricing.per_unit = model.pricing.per_unit;
+            }
+            
+            // Extract per_minute pricing
+            if (model.pricing.per_minute !== undefined) {
+                pricing.per_minute = model.pricing.per_minute;
+            }
+            
+            // Extract fixed pricing
+            if (model.pricing.fixed !== undefined) {
+                pricing.fixed = model.pricing.fixed;
+            }
+            
+            if (Object.keys(pricing).length > 0) {
+                return pricing;
+            }
+        }
+    }
+    
+    return null;
+}
+
+/**
+ * Extract pricing from skill_config.default_llms for AI ask skill.
+ * Looks up the default model and extracts pricing from provider YAML.
+ * 
+ * @param {Object} skillConfig - skill_config object from app.yml
+ * @returns {Object|null} Pricing object in SkillPricing format, or null if not found
+ */
+function extractPricingFromSkillConfig(skillConfig) {
+    if (!skillConfig || !skillConfig.default_llms) {
+        return null;
+    }
+    
+    const defaultLlms = skillConfig.default_llms;
+    
+    // Use main_processing_simple as the default model (primary model for AI ask skill)
+    const mainModelId = defaultLlms.main_processing_simple;
+    if (!mainModelId) {
+        return null;
+    }
+    
+    // Parse model ID format: "provider/model_id" (e.g., "alibaba/qwen3-235b-a22b-2507")
+    const modelParts = mainModelId.split('/');
+    if (modelParts.length !== 2) {
+        return null;
+    }
+    
+    const providerId = modelParts[0].toLowerCase(); // Normalize to lowercase
+    const modelId = modelParts[1];
+    
+    // Extract pricing from provider YAML
+    return extractProviderPricing(providerId, modelId);
+}
+
+/**
  * Parse app.yml file and convert to frontend AppMetadata format.
  * Only includes production-stage skills.
  * 
@@ -135,7 +267,7 @@ function parseAppYaml(appId, filePath) {
             } : undefined,
             skills: [],
             focus_modes: [],
-            memory_fields: [],
+            settings_and_memories: [],
             providers: [], // Will be populated from skills
             category: appData.category ? (appData.category || '').trim() : undefined,
             last_updated: appData.last_updated ? (appData.last_updated || '').trim() : undefined
@@ -177,8 +309,11 @@ function parseAppYaml(appId, filePath) {
                 }
                 
                 // Process pricing if present
+                let pricing = null;
+                
+                // First, check if skill has explicit pricing in app.yml
                 if (skill.pricing) {
-                    const pricing = {};
+                    pricing = {};
                     
                     if (skill.pricing.tokens) {
                         pricing.tokens = skill.pricing.tokens;
@@ -193,9 +328,31 @@ function parseAppYaml(appId, filePath) {
                         pricing.fixed = skill.pricing.fixed;
                     }
                     
-                    if (Object.keys(pricing).length > 0) {
-                        skillMetadata.pricing = pricing;
+                    if (Object.keys(pricing).length === 0) {
+                        pricing = null;
                     }
+                }
+                
+                // If no explicit pricing, try to extract from skill_config.default_llms (for AI ask skill)
+                if (!pricing && skill.skill_config && skill.skill_config.default_llms) {
+                    pricing = extractPricingFromSkillConfig(skill.skill_config);
+                }
+                
+                // If still no pricing, try to extract from provider YAML based on skill providers
+                if (!pricing && skill.providers && skill.providers.length > 0) {
+                    // Normalize provider name to provider ID (e.g., "Brave" -> "brave")
+                    const providerId = skill.providers[0].toLowerCase();
+                    
+                    // For web search skill (Brave), extract provider-level pricing
+                    if (skill.id === 'search' && appId === 'web') {
+                        pricing = extractProviderPricing(providerId);
+                    }
+                    // For videos get_transcript skill, YouTube doesn't have a provider yml file
+                    // so we skip pricing extraction for now (can be added later if needed)
+                }
+                
+                if (pricing && Object.keys(pricing).length > 0) {
+                    skillMetadata.pricing = pricing;
                 }
                 
                 // Only add skill if it has required fields
@@ -238,7 +395,7 @@ function parseAppYaml(appId, filePath) {
         }
         
         // Process settings_and_memories - include production-stage items, and development if INCLUDE_DEVELOPMENT is true
-        // Note: settings_and_memories is the field name in app.yml, which maps to memory_fields in the metadata
+        // Note: settings_and_memories is the field name in app.yml and is used consistently in the frontend
         const settingsAndMemories = appData.settings_and_memories || [];
         if (Array.isArray(settingsAndMemories)) {
             for (const item of settingsAndMemories) {
@@ -267,12 +424,12 @@ function parseAppYaml(appId, filePath) {
                 };
                 
                 if (memoryMetadata.id && memoryMetadata.name_translation_key && memoryMetadata.description_translation_key) {
-                    appMetadata.memory_fields.push(memoryMetadata);
+                    appMetadata.settings_and_memories.push(memoryMetadata);
                 }
             }
         }
         
-        // Also process legacy memory_fields for backward compatibility
+        // Also process legacy memory_fields/memory for backward compatibility
         const memoryFields = appData.memory_fields || appData.memory || [];
         if (Array.isArray(memoryFields)) {
             for (const memory of memoryFields) {
@@ -301,7 +458,7 @@ function parseAppYaml(appId, filePath) {
                 };
                 
                 if (memoryMetadata.id && memoryMetadata.name_translation_key && memoryMetadata.description_translation_key) {
-                    appMetadata.memory_fields.push(memoryMetadata);
+                    appMetadata.settings_and_memories.push(memoryMetadata);
                 }
             }
         }
@@ -313,7 +470,7 @@ function parseAppYaml(appId, filePath) {
         const hasContent = 
             appMetadata.skills.length > 0 || 
             appMetadata.focus_modes.length > 0 || 
-            appMetadata.memory_fields.length > 0;
+            appMetadata.settings_and_memories.length > 0;
         
         if (!hasContent) {
             const stageType = INCLUDE_DEVELOPMENT ? 'production or development' : 'production';
@@ -419,15 +576,17 @@ function generateTypeScript(appsMetadata) {
             }
             lines.push(`        ],`);
             
-            // Memory fields array
-            lines.push(`        memory_fields: [`);
-            for (const memory of app.memory_fields) {
-                lines.push(`            {`);
-                lines.push(`                id: ${JSON.stringify(memory.id)},`);
-                lines.push(`                name_translation_key: ${JSON.stringify(memory.name_translation_key)},`);
-                lines.push(`                description_translation_key: ${JSON.stringify(memory.description_translation_key)},`);
-                lines.push(`                type: ${JSON.stringify(memory.type)}`);
-                lines.push(`            },`);
+            // Settings and memories array (maps to 'settings_and_memories' in app.yml)
+            lines.push(`        settings_and_memories: [`);
+            if (app.settings_and_memories && Array.isArray(app.settings_and_memories)) {
+                for (const memory of app.settings_and_memories) {
+                    lines.push(`            {`);
+                    lines.push(`                id: ${JSON.stringify(memory.id)},`);
+                    lines.push(`                name_translation_key: ${JSON.stringify(memory.name_translation_key)},`);
+                    lines.push(`                description_translation_key: ${JSON.stringify(memory.description_translation_key)},`);
+                    lines.push(`                type: ${JSON.stringify(memory.type)}`);
+                    lines.push(`            },`);
+                }
             }
             lines.push(`        ]`);
             
@@ -501,7 +660,7 @@ function main() {
             appsMetadata[appId] = appMetadata;
             const skillsCount = appMetadata.skills.length;
             const focusCount = appMetadata.focus_modes.length;
-            const memoryCount = appMetadata.memory_fields.length;
+            const memoryCount = appMetadata.settings_and_memories.length;
             console.log(`[generate-apps-metadata]   ✓ ${appId}: ${skillsCount} skill(s), ${focusCount} focus mode(s), ${memoryCount} settings/memory field(s)`);
         } else {
             console.warn(`[generate-apps-metadata]   ✗ ${appId}: Failed to parse or excluded (no production content)`);

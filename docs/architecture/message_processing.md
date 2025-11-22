@@ -64,7 +64,7 @@
 4. **If cache miss or decryption fails** (stale vault keys): Server detects failures (line 334-348) and sends [`request_chat_history`](../../backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py:337) event to client
 5. **Client responds**: [`handleRequestChatHistoryImpl()`](../../frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts:543) loads all messages from IndexedDB and resends with `message_history` field
    - Messages are sent as stored: containing embed references (JSON blocks with `embed_id`), not resolved embed content
-   - **Embeds sent together**: Client parses messages to detect embed references, loads actual embed content from ContentStore/IndexedDB (decrypted), and sends embeds as cleartext along with messages in the payload
+   - **Embeds sent together**: Client parses messages to detect embed references, loads actual embed content from EmbedStore/IndexedDB (decrypted), and sends embeds as cleartext along with messages in the payload
 6. **Server re-caches**: Server uses client-provided history (line 261-310), re-encrypts with current vault key, and caches for future use
    - **Message Caching**: Messages are cached exactly as received from client - with embed references intact (JSON blocks with `embed_id`). Server does NOT replace embed placeholders before caching.
    - **Embed Processing**: Server receives embeds along with messages (cleartext). For each embed:
@@ -242,6 +242,61 @@ For detailed documentation on tool preselection and scalability, see [Function C
 
 For detailed documentation on how function calling works, see [Function Calling Architecture](./apps/function_calling.md).
 
+### Embed Creation During Skill Execution
+
+**Status**: ⚠️ **TO BE IMPLEMENTED** - This is the new architecture for handling skill results.
+
+**Flow**: Immediately after skill execution completes (before LLM inference continues):
+
+1. **Skill Results Received**:
+   - Skill executes and returns results in JSON format
+   - Results are received in [`main_processor.py`](../../backend/apps/ai/processing/main_processor.py) after tool call execution
+
+2. **Embed Creation** (Server-Side):
+   - **For composite results** (web search, places, events):
+     - Convert each result to TOON format (30-60% space savings vs JSON)
+     - Create child embed entries (one per result): `website`, `place`, or `event` embeds
+       - Each child embed: `content` field contains TOON-encoded result data
+     - Create parent embed entry: `app_skill_use` embed
+       - Parent embed `content`: TOON-encoded metadata (query, provider, skill name, etc.)
+       - Parent embed `embed_ids`: Array of child embed IDs
+   - **For single results** (code generation, image generation):
+     - Convert result to TOON format
+     - Create single `app_skill_use` embed entry
+     - Embed `content`: TOON-encoded result data
+     - `embed_ids`: null (no child embeds)
+
+3. **Server-Side Caching**:
+   - Encrypt embeds with vault key (`encryption_key_user_server`) - server can decrypt for AI
+   - Cache at `embed:{embed_id}` (24h TTL, global cache - one entry per embed)
+   - Add to `chat:{chat_id}:embed_ids` index for eviction tracking
+   - Content stored as TOON string (no conversion needed until inference)
+
+4. **Stream Embed Reference Chunk**:
+   - Create embed reference JSON: `{"type": "app_skill_use", "embed_id": "..."}`
+   - Stream as markdown code block chunk to frontend immediately via [`stream_consumer.py`](../../backend/apps/ai/tasks/stream_consumer.py)
+   - Frontend receives chunk, parses embed reference, loads embed from cache
+   - Frontend renders embed preview immediately (user sees results while LLM continues processing!)
+
+5. **LLM Inference Continues**:
+   - LLM receives filtered skill results (for inference efficiency - excludes non-essential fields)
+   - LLM processes results and generates response
+   - LLM can place additional embed references anywhere in response (flexible placement)
+   - Embed references are streamed as JSON code blocks in markdown
+
+**Benefits**:
+- ✅ **Immediate Results**: Users see skill results instantly (before LLM finishes processing)
+- ✅ **Space Efficient**: TOON format saves 30-60% storage vs JSON
+- ✅ **Flexible Placement**: LLM can place embed references contextually within response
+- ✅ **No Repeated Conversion**: Store as TOON, decode only when needed (rendering/inference)
+- ✅ **Fast Inference**: Server cache stores TOON, decodes only when building AI context
+
+**Implementation Files**:
+- Embed creation: [`backend/core/api/app/services/embed_service.py`](../../backend/core/api/app/services/embed_service.py) (to be created)
+- Embed caching: [`backend/core/api/app/services/cache_chat_mixin.py`](../../backend/core/api/app/services/cache_chat_mixin.py) (update)
+- Streaming: [`backend/apps/ai/tasks/stream_consumer.py`](../../backend/apps/ai/tasks/stream_consumer.py) (update)
+- Skill execution: [`backend/apps/ai/processing/main_processor.py`](../../backend/apps/ai/processing/main_processor.py) (update)
+
 ### Embed Processing During Inference
 
 **Embed Resolution Flow**:
@@ -266,12 +321,14 @@ For detailed documentation on how function calling works, see [Function Calling 
 
 4. **Embed Resolution on Every Inference**:
    - **Every time messages are used for AI inference** (including follow-up requests), the server:
-     - Parses message markdown to detect embed reference JSON blocks
+     - Parses message markdown to detect embed reference JSON blocks (e.g., `{"type": "app_skill_use", "embed_id": "..."}`)
      - Loads embeds from cache (`embed:{embed_id}`) for each `embed_id` found
      - Decrypts embeds using vault key (server can decrypt for AI processing)
-     - Replaces embed reference JSON blocks in messages with actual embed content (TOON format)
+     - **Decodes TOON content** from embed `content` field (stored as TOON string, decoded for inference)
+     - Replaces embed reference JSON blocks in messages with actual embed content (decoded from TOON)
      - Includes resolved messages with embed content in AI context sent to LLM
    - This ensures LLM always receives full embed content, not just references, for proper context understanding
+   - **TOON Decoding**: Content is decoded from TOON only when building AI context (not on every cache read)
 
 5. **Fallback if Embed Missing from Cache**:
    - If embed not found in cache, server requests embed from client
@@ -387,7 +444,7 @@ When local storage is constrained (e.g., IndexedDB quota), parsing and rendering
 
 - Lightweight parsing output
     - `parse_message()` emits minimal embed nodes (id, type, status, contentRef, contentHash?, small metadata). It never stores full preview text in the node.
-    - Previews are derived at render time from the ContentStore; if missing, show a placeholder and load on-demand when user enters fullscreen.
+    - Previews are derived at render time from the EmbedStore; if missing, show a placeholder and load on-demand when user enters fullscreen.
 
 - Behavior under budget pressure
     - If the sync layer stored only metadata (no message bodies), `parse_message()` can still render previews from existing `contentRef` (if present) and show truncated text around them.

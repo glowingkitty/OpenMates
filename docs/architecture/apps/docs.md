@@ -38,7 +38,7 @@ Let me generate the document you requested.
 
 - tiptap node (lightweight) with:
     - word count (number)
-    - contentRef (string) pointing to full document content in client ContentStore (memory + IndexedDB)
+    - contentRef (string) pointing to full document content in client EmbedStore (memory + IndexedDB)
     - contentHash? (string, sha256 when finished; used for preview caching)
     - preview is derived at render-time (first 200 words only)
 
@@ -49,7 +49,7 @@ Let me generate the document you requested.
 
 ##### Document | Processing | Fullscreen view
 
-Show document in fullscreen mode, with preview element in bottom of the screen (with word count). The download and copy to clipboard buttons are also available in the top left corner. Top right corner has the minimize button, which closes the fullscreen view. Full content is resolved via `contentRef` from the client ContentStore and instantiated with CKEditor in fullscreen.
+Show document in fullscreen mode, with preview element in bottom of the screen (with word count). The download and copy to clipboard buttons are also available in the top left corner. Top right corner has the minimize button, which closes the fullscreen view. Full content is resolved via `contentRef` from the client EmbedStore and instantiated with CKEditor in fullscreen.
 
 Figma design:
 
@@ -85,7 +85,7 @@ Let me generate the document you requested.
 - tiptap node (lightweight) with:
     - pages count (number)
     - title or filename (string)
-    - contentRef (string) pointing to full document content in client ContentStore (memory + IndexedDB)
+    - contentRef (string) pointing to full document content in client EmbedStore (memory + IndexedDB)
     - contentHash? (string, sha256 when finished; used for preview caching)
     - preview is derived at render-time (first 200 words only)
 

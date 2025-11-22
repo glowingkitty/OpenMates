@@ -1,0 +1,70 @@
+account:
+  context: Account settings menu item
+  en: Account
+  de: Konto
+  zh: 账户
+  es: Cuenta
+  fr: Compte
+  pt: ''
+  ru: ''
+  ja: アカウント
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+security:
+  context: Security submenu under Account settings
+  en: Security
+  de: Sicherheit
+  zh: 安全
+  es: Seguridad
+  fr: Sécurité
+  pt: ''
+  ru: ''
+  ja: セキュリティ
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+passkeys:
+  context: Passkeys submenu under Security settings
+  en: Passkeys
+  de: Passkeys
+  zh: 通行密钥
+  es: Claves de acceso
+  fr: Clés d'accès
+  pt: ''
+  ru: ''
+  ja: パスキー
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+

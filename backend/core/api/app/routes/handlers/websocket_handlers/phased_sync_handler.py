@@ -988,8 +988,93 @@ async def _handle_phase3_sync(
         except Exception as clear_error:
             logger.warning(f"Failed to clear sync cache for user {user_id[:8]}... after Phase 3: {clear_error}")
         
+        # After Phase 3 completes, trigger app settings and memories sync
+        try:
+            await _handle_app_settings_memories_sync(
+                manager, directus_service, user_id, device_fingerprint_hash
+            )
+        except Exception as app_data_error:
+            logger.warning(f"Failed to sync app settings/memories for user {user_id[:8]}... after Phase 3: {app_data_error}", exc_info=True)
+        
     except Exception as e:
         logger.error(f"Error in Phase 3 sync for user {user_id}: {e}", exc_info=True)
+
+
+async def _handle_app_settings_memories_sync(
+    manager: ConnectionManager,
+    directus_service: DirectusService,
+    user_id: str,
+    device_fingerprint_hash: str
+):
+    """
+    Handles app settings and memories sync after Phase 3 chat sync completes.
+    
+    This function:
+    1. Fetches all app settings and memories entries for the user from Directus
+    2. Sends encrypted data via WebSocket "app_settings_memories_sync_ready" event
+    3. Client stores encrypted entries in IndexedDB and handles conflict resolution
+    
+    **Zero-Knowledge Architecture**: Server never decrypts the data - it only forwards
+    encrypted entries from Directus to the client. All decryption happens client-side.
+    """
+    try:
+        logger.info(f"Starting app settings/memories sync for user {user_id}")
+        
+        # Fetch all app settings and memories entries for the user
+        # Note: This returns encrypted data - server never decrypts it
+        all_user_app_data = await directus_service.app_settings_and_memories.get_all_user_app_data_raw(user_id)
+        
+        if not all_user_app_data:
+            logger.info(f"No app settings/memories found for user {user_id}")
+            # Still send sync event with empty array so client knows sync is complete
+            await manager.send_personal_message(
+                {
+                    "type": "app_settings_memories_sync_ready",
+                    "payload": {
+                        "entries": [],
+                        "entry_count": 0
+                    }
+                },
+                user_id,
+                device_fingerprint_hash
+            )
+            return
+        
+        # Prepare entries for client (all data is already encrypted)
+        entries = []
+        for item_data in all_user_app_data:
+            # Include all fields needed for client-side storage and conflict resolution
+            entry = {
+                "id": item_data.get("id"),
+                "app_id": item_data.get("app_id"),
+                "item_key": item_data.get("item_key"),
+                "encrypted_item_json": item_data.get("encrypted_item_json"),
+                "encrypted_app_key": item_data.get("encrypted_app_key"),
+                "created_at": item_data.get("created_at"),
+                "updated_at": item_data.get("updated_at"),
+                "item_version": item_data.get("item_version", 1),
+                "sequence_number": item_data.get("sequence_number")
+            }
+            entries.append(entry)
+        
+        # Send encrypted app settings/memories data to client
+        await manager.send_personal_message(
+            {
+                "type": "app_settings_memories_sync_ready",
+                "payload": {
+                    "entries": entries,
+                    "entry_count": len(entries)
+                }
+            },
+            user_id,
+            device_fingerprint_hash
+        )
+        
+        logger.info(f"App settings/memories sync complete for user {user_id}, sent: {len(entries)} entries")
+        
+    except Exception as e:
+        logger.error(f"Error in app settings/memories sync for user {user_id}: {e}", exc_info=True)
+        # Don't raise - this is a non-critical sync that shouldn't block Phase 3 completion
 
 
 async def handle_sync_status_request(

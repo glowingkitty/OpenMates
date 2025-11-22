@@ -240,7 +240,9 @@
                     // Check if 2FA is actually configured (tfa_enabled indicates encrypted_tfa_secret exists)
                     // tfa_app_name is optional and doesn't indicate if 2FA is configured
                     const isTfaConfigured = data.user?.tfa_enabled === true;
-                    const isInSignupFlow = data.user?.last_opened?.startsWith('/signup/') || false;
+                    // Import isSignupPath helper for checking signup paths
+                    const { isSignupPath } = await import('../stores/signupState');
+                    const isInSignupFlow = isSignupPath(data.user?.last_opened) || false;
                     
                     // If account exists but 2FA is not configured (user hasn't finished signup),
                     // hide the 2FA field and redirect to signup to complete setup
@@ -302,7 +304,9 @@
                     // Check if 2FA is actually configured (tfa_enabled indicates encrypted_tfa_secret exists)
                     // tfa_app_name is optional and doesn't indicate if 2FA is configured
                     const isTfaConfigured = data.user?.tfa_enabled === true;
-                    const isInSignupFlow = data.user?.last_opened?.startsWith('/signup/') || false;
+                    // Import isSignupPath helper for checking signup paths
+                    const { isSignupPath } = await import('../stores/signupState');
+                    const isInSignupFlow = isSignupPath(data.user?.last_opened) || false;
                     
                     // If 2FA is required but not actually configured (tfa_enabled is false) AND user is in signup flow,
                     // redirect to signup instead of asking for a 2FA code
@@ -415,10 +419,11 @@
                     
                     // Check if user is in signup flow BEFORE updating profile
                     // A user is in signup flow if:
-                    // 1. last_opened starts with '/signup/' (explicit signup path), OR
+                    // 1. last_opened starts with '/signup/' or '#signup/' (explicit signup path), OR
                     // 2. tfa_enabled is false (2FA not set up - signup incomplete)
                     // This handles cases where last_opened was overwritten to demo-welcome in a previous session
-                    const inSignupFlow = (data.user?.last_opened?.startsWith('/signup/')) || 
+                    const { isInSignupProcess, currentSignupStep, getStepFromPath, STEP_ONE_TIME_CODES, isSignupPath } = await import('../stores/signupState');
+                    const inSignupFlow = isSignupPath(data.user?.last_opened) || 
                                         (data.user?.tfa_enabled === false);
                     console.debug('Login success, in signup flow:', inSignupFlow, {
                         last_opened: data.user?.last_opened,
@@ -428,10 +433,9 @@
                     // If in signup flow, set signup state IMMEDIATELY before any other operations
                     // This prevents WebSocket from sending set_active_chat and overwriting last_opened
                     if (inSignupFlow) {
-                        const { isInSignupProcess, currentSignupStep, getStepFromPath, STEP_ONE_TIME_CODES } = await import('../stores/signupState');
                         // Determine step: use last_opened if it's a signup path, otherwise default to one_time_codes
                         // (the actual OTP setup step, not the app reminder step)
-                        const stepName = data.user?.last_opened?.startsWith('/signup/') 
+                        const stepName = isSignupPath(data.user?.last_opened)
                             ? getStepFromPath(data.user.last_opened)
                             : STEP_ONE_TIME_CODES; // Default to one_time_codes (OTP setup) if last_opened doesn't indicate signup
                         currentSignupStep.set(stepName);

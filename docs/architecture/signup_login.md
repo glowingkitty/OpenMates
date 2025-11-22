@@ -124,14 +124,22 @@ Safari on iOS/iPadOS has strict cookie policies that can cause logout on page re
 ### Passkey Login ✅ **IMPLEMENTED**:
 1. User clicks "Login with passkey" (or uses passwordless flow)
 2. User can optionally check "Stay logged in on this device" (cookie TTL: 30 days vs 24 hours)
-3. Browser prompts for passkey authentication (biometric/PIN)
-4. Client receives WebAuthn PRF signature from authenticator
-5. Client derives wrapping key from PRF signature using HKDF
-6. Client unwraps master key from encrypted_master_key
-7. Client decrypts email from encrypted_email_with_master_key using master key
-8. Client derives email_encryption_key and lookup_hash
-9. Client completes authentication with server using lookup_hash
-10. If successful: user is logged in with appropriate cookie TTL
+3. Frontend calls `/auth/passkey/assertion/initiate` to get WebAuthn challenge
+4. Backend generates challenge with PRF extension using global salt: `SHA256(rp_id)[:32]`
+5. Browser prompts for passkey authentication (biometric/PIN)
+6. Client receives WebAuthn PRF signature from authenticator (deterministic for same global salt)
+7. Frontend calls `/auth/passkey/assertion/verify` with credential response
+8. Backend verifies passkey signature using `py_webauthn` library
+9. Backend starts cache warming asynchronously (similar to password login `/lookup` endpoint)
+10. Backend returns `encrypted_email_with_master_key`, `encrypted_master_key`, and `user_email_salt`
+11. Client derives wrapping key from PRF signature using `HKDF(PRF_signature, user_email_salt)`
+12. Client unwraps master key from `encrypted_master_key`
+13. Client decrypts email from `encrypted_email_with_master_key` using master key
+14. Client derives `email_encryption_key = SHA256(email + user_email_salt)` and `lookup_hash = SHA256(PRF_signature + user_email_salt)`
+15. Client completes authentication by calling `/auth/login` with `lookup_hash` and `login_method: 'passkey'`
+16. Backend verifies `lookup_hash` and creates session with appropriate cookie TTL
+17. Frontend waits for cache warming to complete (via WebSocket sync status) before loading main interface
+18. If successful: user is logged in with appropriate cookie TTL and data ready for instant sync
 
 ### Magic Link Login / Login via Phone ⚠️ **PLANNED** (not yet implemented):
 See docs/architecture/security.md for planned magic link and phone login flow details.

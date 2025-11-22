@@ -1,5 +1,5 @@
 from pydantic import BaseModel, EmailStr, Field
-from typing import Optional, Dict, Any, Union
+from typing import Optional, Dict, Any, Union, List
 from backend.core.api.app.schemas.user import UserResponse
 
 class InviteCodeRequest(BaseModel):
@@ -193,6 +193,7 @@ class PasskeyRegistrationInitiateResponse(BaseModel):
     timeout: Optional[int] = Field(60000, description="Timeout in milliseconds")
     attestation: str = Field("direct", description="Attestation conveyance preference")
     authenticatorSelection: Dict[str, Any] = Field(..., description="Authenticator selection criteria")
+    extensions: Optional[Dict[str, Any]] = Field(None, description="WebAuthn extensions (e.g., PRF)")
     message: Optional[str] = Field(None, description="Optional message")
 
 class PasskeyRegistrationCompleteRequest(BaseModel):
@@ -206,6 +207,7 @@ class PasskeyRegistrationCompleteRequest(BaseModel):
     invite_code: str = Field(..., description="Invite code for signup")
     encrypted_email: str = Field(..., description="Client-side encrypted email (encrypted with email_encryption_key)")
     encrypted_email_with_master_key: str = Field(..., description="Email encrypted with master key (for passwordless login)")
+    encrypted_device_name: Optional[str] = Field(None, description="Device name encrypted with master key (client-side encrypted for zero-knowledge)")
     user_email_salt: str = Field(..., description="Salt used for email encryption (base64)")
     encrypted_master_key: str = Field(..., description="Encrypted master key wrapped with PRF-derived key")
     key_iv: str = Field(..., description="IV used for master key encryption (base64)")
@@ -261,3 +263,29 @@ class PasskeyAssertionVerifyResponse(BaseModel):
     user_email_salt: Optional[str] = Field(None, description="User email salt")
     user_email: Optional[str] = Field(None, description="Decrypted email for passwordless login (only returned after passkey authentication)")
     auth_session: Optional[Dict[str, Any]] = Field(None, description="Session data for login finalization")
+
+# Passkey Management Schemas
+class PasskeyListResponse(BaseModel):
+    """Response for listing user's passkeys"""
+    success: bool = Field(..., description="Whether the request was successful")
+    passkeys: List[Dict[str, Any]] = Field(..., description="List of passkey records")
+    message: Optional[str] = Field(None, description="Optional message")
+
+class PasskeyRenameRequest(BaseModel):
+    """Request to rename a passkey"""
+    passkey_id: str = Field(..., description="ID of the passkey to rename")
+    encrypted_device_name: str = Field(..., description="New encrypted device name for the passkey (encrypted client-side with master key)")
+
+class PasskeyRenameResponse(BaseModel):
+    """Response for renaming a passkey"""
+    success: bool = Field(..., description="Whether the rename was successful")
+    message: str = Field(..., description="Response message")
+
+class PasskeyDeleteRequest(BaseModel):
+    """Request to delete a passkey"""
+    passkey_id: str = Field(..., description="ID of the passkey to delete")
+
+class PasskeyDeleteResponse(BaseModel):
+    """Response for deleting a passkey"""
+    success: bool = Field(..., description="Whether the deletion was successful")
+    message: str = Field(..., description="Response message")

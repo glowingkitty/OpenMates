@@ -803,6 +803,167 @@ credits_added:
   cs: Vaše kredity byly přidány do vašeho účtu
   sv: Dina krediter har lagts till på ditt konto
   verified_by_human: []
+gift_card.have_code:
+  context: Button to switch to gift card redemption mode
+  en: I have a gift card
+  de: Ich habe einen Gutschein
+  zh: 我有礼品卡
+  es: Tengo una tarjeta de regalo
+  fr: J'ai une carte cadeau
+  pt: Tenho um cartão presente
+  ru: У меня есть подарочная карта
+  ja: ギフトカードを持っています
+  ko: 기프트 카드가 있습니다
+  it: Ho un buono regalo
+  tr: Hediye kartım var
+  vi: Tôi có thẻ quà tặng
+  id: Saya memiliki kartu hadiah
+  pl: Mam kartę podarunkową
+  nl: Ik heb een cadeaukaart
+  ar: لدي بطاقة هدية
+  hi: मेरे पास एक उपहार कार्ड है
+  th: ฉันมีบัตรของขวัญ
+  cs: Mám dárkovou kartu
+  sv: Jag har ett presentkort
+  verified_by_human: []
+gift_card.enter_code:
+  context: Label for gift card code input field
+  en: Enter gift card code
+  de: Gutscheincode eingeben
+  zh: 输入礼品卡代码
+  es: Ingresa el código de la tarjeta de regalo
+  fr: Entrez le code de la carte cadeau
+  pt: Digite o código do cartão presente
+  ru: Введите код подарочной карты
+  ja: ギフトカードコードを入力
+  ko: 기프트 카드 코드 입력
+  it: Inserisci il codice del buono regalo
+  tr: Hediye kartı kodunu girin
+  vi: Nhập mã thẻ quà tặng
+  id: Masukkan kode kartu hadiah
+  pl: Wprowadź kod karty podarunkowej
+  nl: Voer cadeaukaartcode in
+  ar: أدخل رمز بطاقة الهدية
+  hi: उपहार कार्ड कोड दर्ज करें
+  th: ใส่รหัสบัตรของขวัญ
+  cs: Zadejte kód dárkové karty
+  sv: Ange presentkortskod
+  verified_by_human: []
+gift_card.redeem:
+  context: Button to redeem gift card code
+  en: Redeem code
+  de: Code einlösen
+  zh: 兑换代码
+  es: Canjear código
+  fr: Échanger le code
+  pt: Resgatar código
+  ru: Обменять код
+  ja: コードを引き換える
+  ko: 코드 사용
+  it: Riscatta codice
+  tr: Kodu kullan
+  vi: Đổi mã
+  id: Tukar kode
+  pl: Zrealizuj kod
+  nl: Code inwisselen
+  ar: استبدال الرمز
+  hi: कोड रिडीम करें
+  th: ใช้รหัส
+  cs: Vyměnit kód
+  sv: Lösa in kod
+  verified_by_human: []
+gift_card.cancel:
+  context: Button to cancel gift card redemption and return to credit selection
+  en: Cancel
+  de: Abbrechen
+  zh: 取消
+  es: Cancelar
+  fr: Annuler
+  pt: Cancelar
+  ru: Отмена
+  ja: キャンセル
+  ko: 취소
+  it: Annulla
+  tr: İptal
+  vi: Hủy
+  id: Batal
+  pl: Anuluj
+  nl: Annuleren
+  ar: إلغاء
+  hi: रद्द करें
+  th: ยกเลิก
+  cs: Zrušit
+  sv: Avbryt
+  verified_by_human: []
+gift_card.success:
+  context: Success message after redeeming gift card
+  en: Gift card redeemed successfully
+  de: Gutschein erfolgreich eingelöst
+  zh: 礼品卡兑换成功
+  es: Tarjeta de regalo canjeada exitosamente
+  fr: Carte cadeau échangée avec succès
+  pt: Cartão presente resgatado com sucesso
+  ru: Подарочная карта успешно обменена
+  ja: ギフトカードの引き換えに成功しました
+  ko: 기프트 카드가 성공적으로 사용되었습니다
+  it: Buono regalo riscattato con successo
+  tr: Hediye kartı başarıyla kullanıldı
+  vi: Đổi thẻ quà tặng thành công
+  id: Kartu hadiah berhasil ditukar
+  pl: Karta podarunkowa została zrealizowana pomyślnie
+  nl: Cadeaukaart succesvol ingewisseld
+  ar: تم استبدال بطاقة الهدية بنجاح
+  hi: उपहार कार्ड सफलतापूर्वक रिडीम किया गया
+  th: แลกบัตรของขวัญสำเร็จแล้ว
+  cs: Dárková karta byla úspěšně vyměněna
+  sv: Presentkortet har lösts in framgångsrikt
+  verified_by_human: []
+gift_card.error.invalid:
+  context: Error message for invalid or already redeemed gift card code
+  en: Invalid gift card code or code has already been redeemed
+  de: Ungültiger Gutscheincode oder Code wurde bereits eingelöst
+  zh: 无效的礼品卡代码或代码已被兑换
+  es: Código de tarjeta de regalo inválido o ya ha sido canjeado
+  fr: Code de carte cadeau invalide ou déjà échangé
+  pt: Código de cartão presente inválido ou já foi resgatado
+  ru: Неверный код подарочной карты или код уже был обменен
+  ja: 無効なギフトカードコード、または既に引き換え済みのコードです
+  ko: 유효하지 않은 기프트 카드 코드이거나 이미 사용된 코드입니다
+  it: Codice buono regalo non valido o già riscattato
+  tr: Geçersiz hediye kartı kodu veya kod zaten kullanılmış
+  vi: Mã thẻ quà tặng không hợp lệ hoặc đã được sử dụng
+  id: Kode kartu hadiah tidak valid atau sudah ditukar
+  pl: Nieprawidłowy kod karty podarunkowej lub kod został już zrealizowany
+  nl: Ongeldige cadeaukaartcode of code is al ingewisseld
+  ar: رمز بطاقة الهدية غير صالح أو تم استبداله بالفعل
+  hi: अमान्य उपहार कार्ड कोड या कोड पहले से ही रिडीम किया गया है
+  th: รหัสบัตรของขวัญไม่ถูกต้องหรือถูกใช้ไปแล้ว
+  cs: Neplatný kód dárkové karty nebo kód již byl vyměněn
+  sv: Ogiltig presentkortskod eller koden har redan lösts in
+  verified_by_human: []
+gift_card.placeholder:
+  context: Placeholder text for gift card code input field
+  en: Enter your gift card code
+  de: Geben Sie Ihren Gutscheincode ein
+  zh: 输入您的礼品卡代码
+  es: Ingresa tu código de tarjeta de regalo
+  fr: Entrez votre code de carte cadeau
+  pt: Digite o código do seu cartão presente
+  ru: Введите код вашей подарочной карты
+  ja: ギフトカードコードを入力してください
+  ko: 기프트 카드 코드를 입력하세요
+  it: Inserisci il tuo codice buono regalo
+  tr: Hediye kartı kodunuzu girin
+  vi: Nhập mã thẻ quà tặng của bạn
+  id: Masukkan kode kartu hadiah Anda
+  pl: Wprowadź kod swojej karty podarunkowej
+  nl: Voer uw cadeaukaartcode in
+  ar: أدخل رمز بطاقة الهدية الخاصة بك
+  hi: अपना उपहार कार्ड कोड दर्ज करें
+  th: ใส่รหัสบัตรของขวัญของคุณ
+  cs: Zadejte kód vaší dárkové karty
+  sv: Ange din presentkortskod
+  verified_by_human: []
 done:
   context: Button to close confirmation and return to billing
   en: Done

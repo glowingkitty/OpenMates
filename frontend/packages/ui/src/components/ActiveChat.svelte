@@ -19,8 +19,11 @@
     import KeyboardShortcuts from './KeyboardShortcuts.svelte';
     import WebSearchSkillPreview from './app_skills/WebSearchSkillPreview.svelte';
     import WebSearchSkillFullscreen from './app_skills/WebSearchSkillFullscreen.svelte';
+    import VideoTranscriptSkillPreview from './app_skills/VideoTranscriptSkillPreview.svelte';
+    import VideoTranscriptSkillFullscreen from './app_skills/VideoTranscriptSkillFullscreen.svelte';
+    import WebsiteFullscreen from './embeds/WebsiteFullscreen.svelte';
     import { userProfile, loadUserProfileFromDB } from '../stores/userProfile';
-    import { isInSignupProcess, currentSignupStep, getStepFromPath, isLoggingOut } from '../stores/signupState';
+    import { isInSignupProcess, currentSignupStep, getStepFromPath, isLoggingOut, isSignupPath } from '../stores/signupState';
     import { initializeApp } from '../app';
     import { aiTypingStore, type AITypingStatus } from '../stores/aiTypingStore'; // Import the new store
     import { decryptWithMasterKey } from '../services/cryptoService'; // Import decryption function
@@ -244,6 +247,53 @@
         };
         console.debug('Set fullscreen data:', fullscreenCodeData);
         showCodeFullscreen = true;
+    }
+    
+    // Add state for embed fullscreen
+    let showEmbedFullscreen = $state(false);
+    let embedFullscreenData = $state<any>(null);
+    
+    // Handler for embed fullscreen events (from embed renderers)
+    async function handleEmbedFullscreen(event: CustomEvent) {
+        console.debug('[ActiveChat] Received embedfullscreen event:', event.detail);
+        
+        const { embedId, embedData, decodedContent, embedType, attrs } = event.detail;
+        
+        // If embedData is not provided, load it from EmbedStore
+        let finalEmbedData = embedData;
+        let finalDecodedContent = decodedContent;
+        
+        if (!finalEmbedData && embedId) {
+            try {
+                const { resolveEmbed, decodeToonContent } = await import('../services/embedResolver');
+                finalEmbedData = await resolveEmbed(embedId);
+                
+                if (finalEmbedData && finalEmbedData.content) {
+                    finalDecodedContent = await decodeToonContent(finalEmbedData.content);
+                }
+            } catch (error) {
+                console.error('[ActiveChat] Error loading embed for fullscreen:', error);
+                return;
+            }
+        }
+        
+        // Store fullscreen data
+        embedFullscreenData = {
+            embedId,
+            embedData: finalEmbedData,
+            decodedContent: finalDecodedContent,
+            embedType,
+            attrs
+        };
+        
+        showEmbedFullscreen = true;
+        console.debug('[ActiveChat] Opening embed fullscreen:', embedType, embedId);
+    }
+    
+    // Handler for closing embed fullscreen
+    function handleCloseEmbedFullscreen() {
+        showEmbedFullscreen = false;
+        embedFullscreenData = null;
     }
 
     // Handler for suggestion click - copies suggestion to message input
@@ -1350,7 +1400,7 @@
             // Check if the user is in the middle of a signup process (based on last_opened)
             // Also check if tfa_enabled is false (signup incomplete)
             if ($authStore.isAuthenticated && 
-                ($userProfile.last_opened?.startsWith('/signup/') || $userProfile.tfa_enabled === false)) {
+                (isSignupPath($userProfile.last_opened) || $userProfile.tfa_enabled === false)) {
                 console.debug("User detected in signup process:", {
                     last_opened: $userProfile.last_opened,
                     tfa_enabled: $userProfile.tfa_enabled
@@ -1362,7 +1412,7 @@
                 loginInterfaceOpen.set(true);
                 
                 // Extract step from last_opened to ensure we're on the right step
-                if ($userProfile.last_opened?.startsWith('/signup/')) {
+                if (isSignupPath($userProfile.last_opened)) {
                     const step = getStepFromPath($userProfile.last_opened);
                     console.debug("Setting signup step to:", step);
                     currentSignupStep.set(step);
@@ -1519,8 +1569,24 @@
         };
         
         window.addEventListener('openLoginInterface', handleOpenLoginInterface);
+        
+        // Add event listener for embed fullscreen events
+        const embedFullscreenHandler = (event: CustomEvent) => {
+            handleEmbedFullscreen(event);
+        };
+        document.addEventListener('embedfullscreen', embedFullscreenHandler as EventListener);
+        
+        // Add event listeners for login interface and demo chat
         window.addEventListener('closeLoginInterface', handleCloseLoginInterface);
         window.addEventListener('loadDemoChat', handleLoadDemoChat);
+        
+        // Cleanup on destroy
+        return () => {
+            document.removeEventListener('embedfullscreen', embedFullscreenHandler as EventListener);
+            window.removeEventListener('openLoginInterface', handleOpenLoginInterface as EventListener);
+            window.removeEventListener('closeLoginInterface', handleCloseLoginInterface as EventListener);
+            window.removeEventListener('loadDemoChat', handleLoadDemoChat as EventListener);
+        };
         
         // CRITICAL: Sync liveInputText with editor content after draft saves
         // This ensures the search in new chat suggestions stays in sync even after debounced draft saves
@@ -1803,8 +1869,36 @@
                         onFullscreen: () => {
                             // Open fullscreen view
                             showCodeFullscreen = false; // Close code fullscreen if open
-                            // TODO: Add fullscreen state for skill previews
-                            console.debug('[ActiveChat] Opening fullscreen for skill preview:', task_id);
+                            // Set fullscreen data for web search
+                            embedFullscreenData = {
+                                embedType: 'app-skill-use',
+                                embedData: { status: previewData.status },
+                                decodedContent: previewData
+                            };
+                            showEmbedFullscreen = true;
+                            console.debug('[ActiveChat] Opening fullscreen for web search skill:', task_id);
+                        }
+                    }
+                };
+            } else if (previewData.app_id === 'videos' && previewData.skill_id === 'get_transcript') {
+                // Create VideoTranscriptSkillPreview card
+                appCard = {
+                    component: VideoTranscriptSkillPreview,
+                    props: {
+                        id: task_id,
+                        previewData: previewData,
+                        isMobile: $isMobileView,
+                        onFullscreen: () => {
+                            // Open fullscreen view
+                            showCodeFullscreen = false; // Close code fullscreen if open
+                            // Set fullscreen data for video transcript
+                            embedFullscreenData = {
+                                embedType: 'app-skill-use',
+                                embedData: { status: previewData.status },
+                                decodedContent: previewData
+                            };
+                            showEmbedFullscreen = true;
+                            console.debug('[ActiveChat] Opening fullscreen for video transcript skill:', task_id);
                         }
                     }
                 };
@@ -2058,6 +2152,73 @@
                     lineCount={fullscreenCodeData.lineCount}
                     onClose={handleCloseCodeFullscreen}
                 />
+            {/if}
+            
+            <!-- Embed fullscreen view (app-skill-use, website, etc.) -->
+            {#if showEmbedFullscreen && embedFullscreenData}
+                {#if embedFullscreenData.embedType === 'app-skill-use'}
+                    {@const skillId = embedFullscreenData.decodedContent?.skill_id || ''}
+                    {@const appId = embedFullscreenData.decodedContent?.app_id || ''}
+                    
+                    {#if appId === 'web' && skillId === 'search'}
+                        <!-- Web Search Fullscreen -->
+                        {@const previewData = {
+                            app_id: appId,
+                            skill_id: skillId,
+                            query: embedFullscreenData.decodedContent?.query || '',
+                            provider: embedFullscreenData.decodedContent?.provider || 'Brave',
+                            status: embedFullscreenData.embedData?.status || 'finished',
+                            results: embedFullscreenData.decodedContent?.results || []
+                        }}
+                        <WebSearchSkillFullscreen 
+                            previewData={previewData}
+                            onClose={handleCloseEmbedFullscreen}
+                        />
+                    {:else if appId === 'videos' && skillId === 'get_transcript'}
+                        <!-- Video Transcript Fullscreen -->
+                        {@const previewData = {
+                            app_id: appId,
+                            skill_id: skillId,
+                            status: embedFullscreenData.embedData?.status || 'finished',
+                            results: embedFullscreenData.decodedContent?.results || [],
+                            video_count: embedFullscreenData.decodedContent?.video_count || 0,
+                            success_count: embedFullscreenData.decodedContent?.success_count || 0,
+                            failed_count: embedFullscreenData.decodedContent?.failed_count || 0
+                        }}
+                        <VideoTranscriptSkillFullscreen 
+                            previewData={previewData}
+                            onClose={handleCloseEmbedFullscreen}
+                        />
+                    {:else}
+                        <!-- Generic app skill fullscreen (fallback) -->
+                        <div class="embed-fullscreen-fallback">
+                            <div class="fullscreen-header">
+                                <button onclick={handleCloseEmbedFullscreen}>Close</button>
+                            </div>
+                            <div class="fullscreen-content">
+                                <pre>{JSON.stringify(embedFullscreenData.decodedContent, null, 2)}</pre>
+                            </div>
+                        </div>
+                    {/if}
+                {:else if embedFullscreenData.embedType === 'website'}
+                    <!-- Website Fullscreen -->
+                    {@const websiteData = {
+                        url: embedFullscreenData.decodedContent?.url || embedFullscreenData.attrs?.url || '',
+                        title: embedFullscreenData.decodedContent?.title || embedFullscreenData.attrs?.title,
+                        description: embedFullscreenData.decodedContent?.description || embedFullscreenData.attrs?.description,
+                        favicon: embedFullscreenData.decodedContent?.meta_url_favicon || embedFullscreenData.decodedContent?.favicon || embedFullscreenData.attrs?.favicon,
+                        image: embedFullscreenData.decodedContent?.thumbnail_original || embedFullscreenData.decodedContent?.image || embedFullscreenData.attrs?.image,
+                        snippets: embedFullscreenData.decodedContent?.snippets,
+                        meta_url_favicon: embedFullscreenData.decodedContent?.meta_url_favicon,
+                        thumbnail_original: embedFullscreenData.decodedContent?.thumbnail_original
+                    }}
+                    {#if websiteData.url}
+                        <WebsiteFullscreen 
+                            websiteData={websiteData}
+                            onClose={handleCloseEmbedFullscreen}
+                        />
+                    {/if}
+                {/if}
             {/if}
             <KeyboardShortcuts
                 on:newChat={handleNewChatClick}

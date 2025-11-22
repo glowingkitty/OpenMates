@@ -340,7 +340,17 @@ export const Embed = Node.create<EmbedOptions>({
       if (renderer) {
         // Use the dedicated renderer
         console.log('[Embed] Using renderer for type:', attrs.type);
-        renderer.render({ attrs, container, content });
+        
+        // If renderer.render is async (returns Promise), handle it
+        const renderResult = renderer.render({ attrs, container, content });
+        
+        if (renderResult instanceof Promise) {
+          // Handle async rendering (e.g., loading from EmbedStore)
+          renderResult.catch((error) => {
+            console.error('[Embed] Error during async render:', error);
+            content.innerHTML = `<div class="embed-error">Error loading embed: ${error.message}</div>`;
+          });
+        }
       } else {
         // No renderer found - this should not happen for properly configured embed types
         console.error('[Embed] No renderer found for embed type:', attrs.type);

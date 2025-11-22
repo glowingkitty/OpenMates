@@ -62,6 +62,9 @@ export const apiEndpoints = {
         passkey_registration_complete: '/v1/auth/passkey/registration/complete', // Complete passkey registration
         passkey_assertion_initiate:    '/v1/auth/passkey/assertion/initiate',    // Initiate passkey login
         passkey_assertion_verify:      '/v1/auth/passkey/assertion/verify',      // Verify passkey login
+        passkey_list:                  '/v1/auth/passkeys',                      // List all user passkeys
+        passkey_rename:                 '/v1/auth/passkeys/rename',                // Rename a passkey
+        passkey_delete:                 '/v1/auth/passkeys/delete',                // Delete a passkey
         
         // Legacy signup endpoints
         signup:                     '/v1/auth/signup',                         // Sign up with username, email, password
@@ -111,6 +114,7 @@ export const apiEndpoints = {
         createSubscription:         '/v1/payments/create-subscription',         // Create monthly auto top-up subscription
         getSubscription:            '/v1/payments/subscription',                // Get user's subscription details
         cancelSubscription:         '/v1/payments/cancel-subscription',         // Cancel monthly subscription
+        redeemGiftCard:             '/v1/payments/redeem-gift-card',           // Redeem a gift card code
         // Webhook endpoint is only called by payment providers, not the frontend
     },
     apps: {

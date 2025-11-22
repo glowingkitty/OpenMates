@@ -102,19 +102,26 @@ email_encryption_key = SHA256(email + user_email_salt)
 9. Returns session token to client
 
 **Passkey Login (Passwordless):**
-1. User authenticates with passkey (no email entry required)
-2. Client receives PRF signature from authenticator
-3. Client derives wrapping key from PRF signature: HKDF(PRF_signature, user_email_salt)
-4. Client unwraps master key from encrypted_master_key
-5. Client decrypts email from encrypted_email_with_master_key using master key
-6. Client derives email_encryption_key = SHA256(email + user_email_salt)
-7. Client derives lookup_hash = SHA256(PRF_signature + user_email_salt)
-8. Client sends { lookup_hash, email_encryption_key } to server
-9. Server finds user by lookup_hash
-10. Server temporarily decrypts email: decrypt(encrypted_email, email_encryption_key)
-11. Server sends notification email about new device login (if device is new)
-12. Server immediately discards encryption key
-13. Returns session token to client
+1. User clicks "Login with passkey" (no email entry required)
+2. Frontend calls `/auth/passkey/assertion/initiate` to get WebAuthn challenge with PRF extension
+3. Backend generates challenge with global salt: `prf_eval_first = SHA256(rp_id)[:32]`
+4. User authenticates with passkey (biometric/PIN)
+5. Client receives PRF signature from authenticator (deterministic for same global salt)
+6. Frontend calls `/auth/passkey/assertion/verify` with credential response
+7. Backend verifies passkey signature and starts cache warming asynchronously
+8. Backend returns `encrypted_email_with_master_key`, `encrypted_master_key`, and `user_email_salt`
+9. Client derives wrapping key from PRF signature: `HKDF(PRF_signature, user_email_salt)`
+10. Client unwraps master key from `encrypted_master_key`
+11. Client decrypts email from `encrypted_email_with_master_key` using master key
+12. Client derives `email_encryption_key = SHA256(email + user_email_salt)`
+13. Client derives `lookup_hash = SHA256(PRF_signature + user_email_salt)`
+14. Client calls `/auth/login` with `{ lookup_hash, email_encryption_key, login_method: 'passkey' }`
+15. Server finds user by `lookup_hash` and verifies `login_method`
+16. Server temporarily decrypts email: `decrypt(encrypted_email, email_encryption_key)`
+17. Server sends notification email about new device login (if device is new)
+18. Server immediately discards encryption key
+19. Returns session token and `ws_token` to client
+20. Frontend waits for cache warming to complete (via WebSocket sync status) before loading main interface
 
 ### Security Properties
 
@@ -280,13 +287,16 @@ Valid methods include:
 **Status**: ✅ **IMPLEMENTED** - Passwordless authentication using WebAuthn with PRF extension.
 
 **Implementation**: 
-- **Frontend**: [`frontend/packages/ui/src/components/PasskeyLogin.svelte`](../../frontend/packages/ui/src/components/PasskeyLogin.svelte) and [`frontend/packages/ui/src/components/signup/steps/passkey/PasskeyRegistrationBottomContent.svelte`](../../frontend/packages/ui/src/components/signup/steps/passkey/PasskeyRegistrationBottomContent.svelte)
+- **Frontend**: [`frontend/packages/ui/src/components/Login.svelte`](../../frontend/packages/ui/src/components/Login.svelte) (passkey login flow) and [`frontend/packages/ui/src/components/signup/steps/secureaccount/SecureAccountTopContent.svelte`](../../frontend/packages/ui/src/components/signup/steps/secureaccount/SecureAccountTopContent.svelte) (passkey registration)
 - **Backend**: [`backend/core/api/app/routes/auth_routes/auth_passkey.py`](../../backend/core/api/app/routes/auth_routes/auth_passkey.py)
 
-- Uses WebAuthn PRF extension to derive passkey signature client-side
-- lookup_hash = SHA256(PRF_signature + user_email_salt)
-- Master key wrapped using HKDF(PRF_signature, user_email_salt)
+**Key Features**:
+- Uses WebAuthn PRF extension with global salt: `prf_eval_first = SHA256(rp_id)[:32]` (enables true passwordless login)
+- Uses `py_webauthn` library for robust WebAuthn ceremony verification
+- `lookup_hash = SHA256(PRF_signature + user_email_salt)`
+- Master key wrapped using `HKDF(PRF_signature, user_email_salt)`
 - Email encrypted with master key and stored on server as `encrypted_email_with_master_key` for passwordless login
+- Cache warming starts immediately after passkey verification (similar to password login `/lookup` endpoint)
 - Maintains zero-knowledge encryption: server never sees PRF signature or master key
 
 

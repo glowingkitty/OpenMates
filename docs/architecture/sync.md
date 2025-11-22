@@ -91,7 +91,7 @@ Key Optimization: Cache warming starts BEFORE authentication completes!
 5. **Client**: Store suggestions in IndexedDB
 6. **Client**: Dispatch "newChatSuggestionsReady" event for immediate display
 7. **Client**: If chat data present, decrypt and store in IndexedDB (encrypted)
-8. **Client**: If embeds present, store in ContentStore (IndexedDB, encrypted)
+8. **Client**: If embeds present, store in EmbedStore (IndexedDB, encrypted)
 9. **Client**: If chat data present, open chat in UI immediately after decryption
 10. **Client**: Dispatch "chatOpened" event to update UI state (if chat was opened)
 
@@ -102,7 +102,7 @@ Directus (Encrypted) → WebSocket (Encrypted) → IndexedDB (Encrypted) → Mem
 
 **Data Flow (Embeds)**:
 ```
-Directus (Encrypted) → WebSocket (Encrypted) → ContentStore/IndexedDB (Encrypted) → Memory (Decrypted) → UI
+Directus (Encrypted) → WebSocket (Encrypted) → EmbedStore/IndexedDB (Encrypted) → Memory (Decrypted) → UI
 ```
 
 **Data Flow (Suggestions)**:
@@ -122,15 +122,18 @@ Directus (Unencrypted) → WebSocket (Unencrypted) → IndexedDB → UI
    - For Phase 2: Hash all 20 chat_ids
    - For Phase 3: Hash all 100 chat_ids
 2. **Query Embeds**: Query Directus `embeds` collection using `hashed_chat_id` filter
-   - Use batch query: `filter[hashed_chat_id][_in]=[hash1,hash2,hash3,...]`
+   - Use individual queries per chat: `filter[hashed_chat_id][_eq]=hash1` (one query per chat)
    - Load all embed fields (encrypted_content, encrypted_type, status, embed_id, etc.)
+   - **Implementation**: `_load_and_cache_embeds_for_chats()` helper function in `user_cache_tasks.py`
 3. **Cache Embeds**: Store embeds in Redis cache for client sync:
    - **Sync Cache**: `embed:{embed_id}:sync` (client-encrypted, for Phase 1/2/3 client sync) - global cache, one entry per embed
    - **Chat Index**: `chat:{chat_id}:embed_ids` (Redis Set tracking which embed_ids belong to each chat, used for eviction)
+   - **TTL**: 1 hour for sync cache (embeds sent to client during sync)
    - **Note**: During cache warming, embeds remain client-encrypted (zero-knowledge maintained). They are only vault-encrypted and stored in AI cache (`embed:{embed_id}`) later when client provides them as cleartext during message processing (see [Message Processing Architecture](./message_processing.md#embed-processing-during-inference))
 4. **Composite Embeds**: For `app_skill_use` embeds with `embed_ids` array, also load child embeds
    - Extract child `embed_id` values from parent embed's `embed_ids` field (this is in encrypted_content, but we can parse the JSON structure without decrypting the actual content)
    - Query and cache child embeds by `embed_id` (not by hashed_chat_id, since child embeds may be in different chats)
+   - **Future Enhancement**: Batch query child embeds by `embed_id` array for efficiency
 5. **Completion**: Once all embeds are cached, Phase 1/2/3 cache warming is complete
 
 **Key Points**:
@@ -180,7 +183,7 @@ Key Points:
 2. **Server**: Load embeds referenced in messages for these chats
 3. **Server**: Send encrypted chat metadata and embeds via WebSocket "recentChatsReady" event
 4. **Client**: Store encrypted chat data in IndexedDB
-5. **Client**: Store encrypted embeds in ContentStore (IndexedDB)
+5. **Client**: Store encrypted embeds in EmbedStore (IndexedDB)
 6. **Client**: Decrypt chat metadata for display in chat list
 7. **Client**: Update chat list UI with decrypted titles and metadata
 
@@ -191,7 +194,7 @@ Directus (Encrypted) → WebSocket (Encrypted) → IndexedDB (Encrypted) → Mem
 
 **Embed Data Flow**:
 ```
-Directus (Encrypted) → WebSocket (Encrypted) → ContentStore/IndexedDB (Encrypted) → Memory (Decrypted) → UI (when messages rendered)
+Directus (Encrypted) → WebSocket (Encrypted) → EmbedStore/IndexedDB (Encrypted) → Memory (Decrypted) → UI (when messages rendered)
 ```
 
 ### Phase 3: Last 100 Updated Chats (Full Sync)
@@ -201,9 +204,10 @@ Directus (Encrypted) → WebSocket (Encrypted) → ContentStore/IndexedDB (Encry
 1. **Server**: Load last 100 updated chats, their messages, and all embeds referenced in those messages
 2. **Server**: Send encrypted data in batches via WebSocket "phase_3_last_100_chats_ready" event
 3. **Client**: Store all encrypted chat data in IndexedDB
-4. **Client**: Store all encrypted embeds in ContentStore (IndexedDB)
+4. **Client**: Store all encrypted embeds in EmbedStore (IndexedDB)
 5. **Client**: Decrypt metadata for chat list display
 6. **Client**: Keep messages and embeds encrypted until needed for display
+7. **Server**: After Phase 3 completes, trigger app settings/memories sync (see Post-Phase 3 section below)
 
 **Data Flow**:
 ```
@@ -216,6 +220,44 @@ Directus (Encrypted) → WebSocket (Batched Encrypted) → ContentStore/IndexedD
 ```
 
 **Note**: Phase 3 NEVER sends new chat suggestions - they are ALWAYS sent in Phase 1 to ensure immediate availability.
+
+### Post-Phase 3: App Settings and Memories Sync
+**Goal**: Sync all app settings and memories entries after all chats have been synced
+
+**Timing**: This sync begins automatically after Phase 3 chat sync completes, ensuring chat data takes priority.
+
+**Process**:
+1. **Server**: After Phase 3 chat sync completes, server fetches all app settings and memories for the user from Directus
+2. **Server**: Sends encrypted app settings/memories data via WebSocket "app_settings_memories_sync_ready" event
+3. **Client**: Receives encrypted data and stores in IndexedDB (encrypted with app-specific keys)
+4. **Client**: Decrypts entries on-demand when needed for display in App Store settings or chat context
+5. **Client**: Merges server data with local data, preserving higher version numbers (conflict resolution)
+6. **Client**: Updates App Store settings UI with synced data
+
+**Data Flow**:
+```
+Directus (Encrypted) → WebSocket (Encrypted) → IndexedDB (Encrypted) → Memory (Decrypted as needed) → App Store Settings UI
+```
+
+**Conflict Resolution**:
+- When both server and client have different versions of the same entry:
+  - Compare `item_version` numbers
+  - Preserve the entry with the higher `item_version` (most recent update wins)
+  - If versions are equal, compare `updated_at` timestamps
+  - Client handles conflict resolution automatically during sync
+
+**Multi-Device Consistency**:
+- All devices receive the same encrypted data from the server
+- Each device decrypts independently using the user's master encryption key
+- Version tracking ensures consistency across devices
+- Changes made on one device are synced to all other devices on next sync cycle
+
+**Implementation Notes**:
+- Sync happens automatically after chat sync completes
+- No user action required - sync runs in background
+- Encrypted data remains secure during transmission and storage
+- Zero-knowledge architecture maintained - server never sees decrypted content
+- Sync status can be monitored via sync service events
 
 ## Predictive Cache Warming Optimization
 
@@ -309,7 +351,7 @@ if not cache_primed and not is_warming:
 - Maximum 100 cached chats
 - Configurable storage size limits (default: 50MB)
 - Automatic eviction of oldest chats on overflow
-- Embeds stored separately in ContentStore (IndexedDB) with independent eviction
+- Embeds stored separately in EmbedStore (IndexedDB) with independent eviction
 
 **Key Features:**
 - Storage usage monitoring and statistics
@@ -344,7 +386,7 @@ if not cache_primed and not is_warming:
 
 **Auto-Open Logic**: Automatically open last chat after Phase 1 sync
 **Decryption Handling**: Decrypt chat data for display while keeping IndexedDB encrypted
-**Embed Resolution**: Resolve embed references in messages from ContentStore or fetch from Directus if missing
+**Embed Resolution**: Resolve embed references in messages from EmbedStore or fetch from Directus if missing
 **UI Updates**: Update chat list and active chat based on sync progress
 **Event Dispatching**: Notify other components of sync state changes
 
@@ -355,10 +397,10 @@ if not cache_primed and not is_warming:
 **Memory Management**: Keep decrypted data in memory, encrypted data persisted
 **Key Management**: Handle chat-specific encryption keys securely
 
-#### 4. ContentStore Service
+#### 4. EmbedStore Service
 
-**Embed Storage**: Store embeds encrypted in ContentStore (IndexedDB)
-**Embed Resolution**: Resolve embed references from messages, load from ContentStore or Directus
+**Embed Storage**: Store embeds encrypted in EmbedStore (IndexedDB)
+**Embed Resolution**: Resolve embed references from messages, load from EmbedStore or Directus
 **On-Demand Loading**: Load embed content only when needed for rendering
 **Memory Management**: Keep decrypted embeds in memory, encrypted embeds persisted
 **Cross-Chat References**: Support embeds referenced in multiple chats
@@ -671,8 +713,8 @@ Login Method → Wrapped Master Key → Master Key → Chat Keys → Data Decryp
 ### Chat Opening Process
 - **Decryption**: When chat opened via [`loadChat()`](../../frontend/packages/ui/src/components/ActiveChat.svelte), decrypt chat metadata using [`chatMetadataCache`](../../frontend/packages/ui/src/services/chatMetadataCache.ts:79) and display in web UI
 - **Message Loading**: Messages loaded from IndexedDB via [`getMessagesForChat()`](../../frontend/packages/ui/src/services/db.ts) and decrypted on-demand for display
-- **Embed Resolution**: When messages contain embed references, resolve embeds from ContentStore (IndexedDB) or fetch from Directus if missing
-- **Embed Decryption**: Decrypt embed content on-demand for rendering (embeds stored encrypted in ContentStore)
+- **Embed Resolution**: When messages contain embed references, resolve embeds from EmbedStore (IndexedDB) or fetch from Directus if missing
+- **Embed Decryption**: Decrypt embed content on-demand for rendering (embeds stored encrypted in EmbedStore)
 - **Background Decryption**: Chat metadata cached in memory after first decryption for performance
 - **Page Reload**: Note that decryption needs to be redone on page reload (cache is in-memory only)
 - **Memory Management**: Balance between performance (decrypted metadata in memory) and security (messages and embeds re-decrypt on access)

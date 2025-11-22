@@ -49,6 +49,7 @@ async def get_user_profile(self, user_id: str) -> Tuple[bool, Optional[Dict[str,
         # Create a profile object with both encrypted and decrypted data
         profile = {
             "id": user_id,
+            "account_id": user_data.get("account_id"),  # Include account_id for invoice generation
             "tfa_enabled": tfa_enabled_status, # Add the determined status here
             "is_admin": user_data.get("is_admin", False),
             "last_opened": user_data.get("last_opened"),
@@ -65,6 +66,11 @@ async def get_user_profile(self, user_id: str) -> Tuple[bool, Optional[Dict[str,
             
             # Include lookup_hashes array for authentication methods
             "lookup_hashes": user_data.get("lookup_hashes", []),
+            
+            # Email-related fields for passkey login and authentication
+            "hashed_email": user_data.get("hashed_email"),  # SHA256(email) for user lookup
+            "user_email_salt": user_data.get("user_email_salt"),  # Plaintext salt for email encryption key derivation
+            "encrypted_email_with_master_key": user_data.get("encrypted_email_with_master_key"),  # Email encrypted with master key (for passwordless passkey login)
             
             # Keep sensitive data encrypted (don't decrypt these)
             "encrypted_email_address": user_data.get("encrypted_email_address"),

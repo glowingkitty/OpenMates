@@ -29,7 +29,7 @@ https://zapier.com/blog/best-transcription-apps/
 
 #### Website | Finished | Output
 
-> TODO: Decide if or not the tiptap note should include title, favicon, background image, etc. or how the loading from the ContentStore should be handled. (only fullscreen exclusive details of websites are 'date_updated', and 'snippets'. Other details are rendered in the preview as well.)
+> TODO: Decide if or not the tiptap note should include title, favicon, background image, etc. or how the loading from the EmbedStore should be handled. (only fullscreen exclusive details of websites are 'date_updated', and 'snippets'. Other details are rendered in the preview as well.)
 
 ##### Markdown in message input field
 
@@ -79,7 +79,7 @@ Replaced markdown text (if metadata is not fetched successfully):
     - title (string)
     - favicon_url (string)
     - background_image_url (string)
-    - contentRef (string) pointing to full website metadata (title, description, favicon, snippets, etc.) in client ContentStore (memory + IndexedDB)
+    - contentRef (string) pointing to full website metadata (title, description, favicon, snippets, etc.) in client EmbedStore (memory + IndexedDB)
     - contentHash? (string, sha256 when finished; used for preview caching)
     - preview is derived at render-time from the contentRef
 
@@ -93,7 +93,7 @@ Replaced markdown text (if metadata is not fetched successfully):
 
 ##### Website | Finished | Fullscreen view
 
-Show website in fullscreen mode, with preview element in bottom of the screen (with title and favicon). The open (original website in new tab) and copy to clipboard buttons are also available in the top left corner. Top right corner has the minimize button, which closes the fullscreen view. Full content (snippets, if website data gathered from Brave Search API) is resolved via `contentRef` from the client ContentStore.
+Show website in fullscreen mode, with preview element in bottom of the screen (with title and favicon). The open (original website in new tab) and copy to clipboard buttons are also available in the top left corner. Top right corner has the minimize button, which closes the fullscreen view. Full content (snippets, if website data gathered from Brave Search API) is resolved via `contentRef` from the client EmbedStore.
 
 > TODO: decide if or not we need the contentRef for websites at all and if so, how to handle it.
 

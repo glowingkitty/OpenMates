@@ -489,7 +489,9 @@
             }
             
             // Step 20: Check if user is in signup flow
-            const inSignupFlow = (verifyData.auth_session?.user?.last_opened?.startsWith('/signup/')) || 
+            // Import isSignupPath helper for checking signup paths
+            const { isSignupPath } = await import('../stores/signupState');
+            const inSignupFlow = isSignupPath(verifyData.auth_session?.user?.last_opened) || 
                                 (verifyData.auth_session?.user?.tfa_enabled === false);
             
             // Step 21: Dispatch login success

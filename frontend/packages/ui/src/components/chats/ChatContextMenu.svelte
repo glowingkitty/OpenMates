@@ -24,13 +24,15 @@
     }: Props = $props();
 
     const dispatch: {
-        (e: 'close' | 'delete' | 'download' | 'copy', detail: string): void;
+        (e: 'close' | 'delete' | 'download' | 'copy' | 'select' | 'selectAll', detail: string): void;
     } = createEventDispatcher();
     let menuElement = $state<HTMLDivElement>();
     let adjustedX = $state(x);
     let adjustedY = $state(y);
     let deleteConfirmMode = $state(false);
     let deleteConfirmTimeout: number | undefined;
+    let selectMode = $state(false);
+    let selectedChats = $state<Set<string>>(new Set());
 
     // Adjust positioning to prevent cutoff
     $effect(() => {
@@ -77,12 +79,44 @@
     }
 
 
+    function toggleSelectMode() {
+        selectMode = !selectMode;
+        if (!selectMode) {
+            selectedChats.clear();
+        }
+    }
+
+    function toggleChatSelection(chatId: string) {
+        if (selectedChats.has(chatId)) {
+            selectedChats.delete(chatId);
+        } else {
+            selectedChats.add(chatId);
+        }
+    }
+
+    function selectAllChats() {
+        if (chat?.chat_id) {
+            selectedChats.add(chat.chat_id);
+        }
+    }
+
     // Unified handler for both mouse and touch events
     function handleMenuAction(action: Parameters<typeof dispatch>[0], event: MouseEvent | TouchEvent) {
         event.stopPropagation();
         event.preventDefault();
-        
+
         console.debug('[ChatContextMenu] Menu action triggered:', action, 'Event type:', event.type);
+
+        if (action === 'select') {
+            toggleSelectMode();
+            return;
+        }
+
+        if (action === 'selectAll') {
+            selectAllChats();
+            dispatch('selectAll', Array.from(selectedChats).join(','));
+            return;
+        }
 
         if (action === 'delete') {
             if (!deleteConfirmMode) {
@@ -148,44 +182,102 @@
             if (deleteConfirmTimeout) {
                 clearTimeout(deleteConfirmTimeout);
             }
+            selectMode = false;
+            selectedChats.clear();
         }
     });
 </script>
 
 {#if show}
-    <div 
+    <div
         class="menu-container {show ? 'show' : ''}"
         style="--menu-x: {adjustedX}px; --menu-y: {adjustedY}px;"
         bind:this={menuElement}
     >
-        {#if !hideDownload}
-            <button 
-                class="menu-item download"
-                onclick={(event) => handleButtonClick('download', event)}
-            >
-                <div class="clickable-icon icon_download"></div>
-                {$text('chats.context_menu.download.text')}
-            </button>
-        {/if}
-        
-        {#if !hideCopy}
-            <button 
-                class="menu-item copy"
-                onclick={(event) => handleButtonClick('copy', event)}
-            >
-                <div class="clickable-icon icon_copy"></div>
-                {$text('chats.context_menu.copy.text')}
-            </button>
-        {/if}
-        
-        {#if !hideDelete}
+        {#if selectMode}
             <button
-                class="menu-item delete"
-                onclick={(event) => handleButtonClick('delete', event)}
+                class="menu-item select-all"
+                onclick={(event) => handleButtonClick('selectAll', event)}
             >
-                <div class="clickable-icon icon_delete"></div>
-                {deleteConfirmMode ? $text('chats.context_menu.confirm.text') : $text('chats.context_menu.delete.text')}
+                <div class="clickable-icon icon_select_all"></div>
+                {$text('chats.context_menu.select_all.text')}
             </button>
+            <button
+                class="menu-item select-exit"
+                onclick={(event) => handleButtonClick('select', event)}
+            >
+                <div class="clickable-icon icon_close"></div>
+                Exit Select
+            </button>
+            {#if selectedChats.size > 0}
+                {#if !hideDownload}
+                    <button
+                        class="menu-item download"
+                        onclick={(event) => handleButtonClick('download', event)}
+                    >
+                        <div class="clickable-icon icon_download"></div>
+                        Download ({selectedChats.size})
+                    </button>
+                {/if}
+
+                {#if !hideCopy}
+                    <button
+                        class="menu-item copy"
+                        onclick={(event) => handleButtonClick('copy', event)}
+                    >
+                        <div class="clickable-icon icon_copy"></div>
+                        Copy ({selectedChats.size})
+                    </button>
+                {/if}
+
+                {#if !hideDelete}
+                    <button
+                        class="menu-item delete"
+                        onclick={(event) => handleButtonClick('delete', event)}
+                    >
+                        <div class="clickable-icon icon_delete"></div>
+                        {deleteConfirmMode ? $text('chats.context_menu.confirm.text') : `Delete (${selectedChats.size})`}
+                    </button>
+                {/if}
+            {/if}
+        {:else}
+            <button
+                class="menu-item select"
+                onclick={(event) => handleButtonClick('select', event)}
+            >
+                <div class="clickable-icon icon_select"></div>
+                {$text('chats.context_menu.select.text')}
+            </button>
+
+            {#if !hideDownload}
+                <button
+                    class="menu-item download"
+                    onclick={(event) => handleButtonClick('download', event)}
+                >
+                    <div class="clickable-icon icon_download"></div>
+                    {$text('chats.context_menu.download.text')}
+                </button>
+            {/if}
+
+            {#if !hideCopy}
+                <button
+                    class="menu-item copy"
+                    onclick={(event) => handleButtonClick('copy', event)}
+                >
+                    <div class="clickable-icon icon_copy"></div>
+                    {$text('chats.context_menu.copy.text')}
+                </button>
+            {/if}
+
+            {#if !hideDelete}
+                <button
+                    class="menu-item delete"
+                    onclick={(event) => handleButtonClick('delete', event)}
+                >
+                    <div class="clickable-icon icon_delete"></div>
+                    {deleteConfirmMode ? $text('chats.context_menu.confirm.text') : $text('chats.context_menu.delete.text')}
+                </button>
+            {/if}
         {/if}
     </div>
 {/if}
@@ -261,5 +353,29 @@
 
     .menu-item.delete .clickable-icon {
         background: #E80000;
+    }
+
+    .menu-item.select {
+        color: var(--color-primary);
+    }
+
+    .menu-item.select .clickable-icon {
+        background: var(--color-primary);
+    }
+
+    .menu-item.select-all {
+        color: var(--color-primary);
+    }
+
+    .menu-item.select-all .clickable-icon {
+        background: var(--color-primary);
+    }
+
+    .menu-item.select-exit {
+        color: var(--color-grey-60);
+    }
+
+    .menu-item.select-exit .clickable-icon {
+        background: var(--color-grey-60);
     }
 </style>

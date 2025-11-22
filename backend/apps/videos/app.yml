@@ -53,4 +53,37 @@ skills:
   - id: get_transcript
     name_translation_key: videos.get_transcript.text
     description_translation_key: videos.get_transcript.description.text
-    stage: planning
+    stage: development
+    class_path: |
+      backend.apps.videos.skills.transcript_skill.TranscriptSkill
+    providers:
+      - YouTube
+    # Fields to exclude from LLM inference (but keep in full results for UI rendering)
+    # These fields are removed before adding to message history for LLM processing
+    # but remain in the full response stored in chat history for proper UI rendering
+    exclude_fields_for_llm:
+      - "type"
+      - "hash"
+      - "metadata.thumbnail_url"
+    tool_schema:
+      type: object
+      properties:
+        requests:
+          type: array
+          description: Array of transcript request objects for parallel processing. Each object must contain 'url' and can include optional parameters (languages).
+          items:
+            type: object
+            properties:
+              url:
+                type: string
+                description: YouTube video URL (supports youtube.com/watch?v= and youtu.be/ formats)
+              languages:
+                type: array
+                description: List of language codes to try for transcript (ISO 639-1, e.g., 'en', 'de', 'es', 'fr'). The API will use the first available language.
+                items:
+                  type: string
+                default: ["en", "de", "es", "fr"]
+            required:
+              - url
+      required:
+        - requests

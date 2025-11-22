@@ -32,7 +32,7 @@ Embeds replace the previous "contents" model and represent a first-class entity 
 
 ### Dual Storage
 
-- **Client-side**: ContentStore (IndexedDB) for fast local access and rendering
+- **Client-side**: EmbedStore (IndexedDB) for fast local access and rendering
 - **Server-side**: Directus for permanent storage and cross-device sync
 - **Server Cache**: Redis cache for last 3 chats' embeds (vault-encrypted for AI context)
 
@@ -133,16 +133,18 @@ embeds:
       note: "Unix timestamp (seconds) when the embed was last updated. Used for task completion updates and versioning."
 ```
 
-### Client-Side ContentStore (IndexedDB)
+### Client-Side EmbedStore (IndexedDB)
 
-Embeds are also stored in the client-side ContentStore for fast local access:
+Embeds are also stored in the client-side EmbedStore for fast local access:
 
 ```typescript
 interface EmbedStoreEntry {
   embed_id: string;
   type: EmbedType; // Decrypted type (client-side only, never sent to server)
   status: 'processing' | 'finished' | 'error';
-  content: any; // Decrypted content (TOON/JSON)
+  content: string; // TOON-encoded string (decoded when needed for rendering or inference)
+  // TOON format reduces storage by 30-60% compared to JSON while preserving all data
+  // Content is stored as TOON string, decoded only when needed (rendering, inference)
   text_preview?: string; // Lightweight text preview (always synced, for text-based embeds)
   task_id?: string; // Plaintext task_id (client-side only, hashed before sending to server)
   chat_id?: string; // Plaintext chat_id (client-side only, hashed before sending to server)
@@ -158,32 +160,49 @@ interface EmbedStoreEntry {
 }
 ```
 
+**Content Format (TOON)**:
+- Embed content is stored in **TOON (Token-Oriented Object Notation) format** as a string
+- TOON reduces storage size by 30-60% compared to JSON while preserving all data
+- Content is decoded from TOON only when needed:
+  - **Rendering**: Decode TOON to display embed preview in UI
+  - **Inference**: Decode TOON when building AI context (server-side)
+  - **Storage**: Keep as TOON string (no conversion needed)
+- This approach combines the benefits of:
+  - **Separate embed entities** (independent updates, cross-chat references)
+  - **Space-efficient storage** (TOON format saves 30-60% vs JSON)
+  - **No repeated conversion** (store once as TOON, decode when needed)
+
 ### Server-Side Cache (Redis)
 
 Embeds are cached server-side for fast AI context building:
 
 - **Cache Key**: `embed:{embed_id}` (global cache, one entry per embed regardless of how many chats reference it)
 - **Encryption**: Vault-encrypted with `encryption_key_user_server` (server can decrypt for AI)
+- **Content Format**: TOON-encoded string (same as stored in Directus/IndexedDB)
 - **TTL**: 24 hours (same as message cache)
 - **Purpose**: Fast embed resolution when building AI context from cached chat history
 - **Chat Index**: `chat:{chat_id}:embed_ids` (Redis Set tracking which embed_ids belong to each chat, used for eviction)
 - **Access Control**: When loading from cache, verify `hashed_user_id` matches requesting user (for private embeds) or check `share_mode` and `shared_with_users` (for shared embeds)
+- **Decoding**: TOON content is decoded only when building AI context for inference (not on every cache read)
 
 ## Embed Reference Format in Messages
 
-Embeds are referenced in messages (both user and assistant) via JSON code blocks in markdown:
+Embeds are referenced in messages (both user and assistant) via **JSON code blocks** in markdown. This allows flexible placement anywhere in the response and enables streaming embed references as chunks.
 
 ### Format
 
 **Basic Reference** (all details stored in embed entry):
+```markdown
 ```json
 {
   "type": "app_skill_use",
   "embed_id": "550e8400-e29b-41d4-a716-446655440000"
 }
 ```
+```
 
 **Versioned Reference** (for referencing files at specific points in time):
+```markdown
 ```json
 {
   "type": "code",
@@ -191,10 +210,16 @@ Embeds are referenced in messages (both user and assistant) via JSON code blocks
   "version": 3
 }
 ```
+```
 
 If `version` is omitted, references the latest version.
 
-**Key Principle**: Message references are minimal - only `type` and `embed_id`. All content (title, description, query, results, metadata) is stored in the embed entry itself.
+**Key Principles**:
+- Message references are minimal - only `type` and `embed_id`
+- All content (title, description, query, results, metadata) is stored in the embed entry itself (as TOON string)
+- Embed references can be placed anywhere in the message (not just prepended)
+- Embed references are streamed as chunks during assistant response generation
+- Frontend parses JSON code blocks to detect and resolve embed references
 
 ### Embed Types
 
@@ -272,24 +297,49 @@ Each website embed (referenced in `embed_ids`, type: `website`) contains:
 
 ### 1. Creation
 
-**App Skill Execution**:
-1. Skill executes and returns results
-2. **For composite results** (web search, places, events):
-   - Create child embed entries (one per result): `website`, `place`, or `event` embeds
-   - Create parent embed entry: `app_skill_use` embed
-   - Parent embed contains: query, provider, skill name, metadata, and `embed_ids` array pointing to child embeds
-   - Message references only the parent embed (minimal: `type: "app_skill_use"` + `embed_id`)
-3. **For single results** (code generation, image generation):
-   - Create single `app_skill_use` embed entry
-   - Check for duplicates using `content_hash` (if applicable)
-   - `embed_ids`: null (no child embeds)
-4. **Client-Side Privacy Protection**:
-   - Hash `chat_id`, `message_id`, `task_id` using SHA256 (one-way, protects privacy)
-   - Encrypt `type` with same key as `encrypted_content` (server cannot determine embed type)
-   - TOON-encode and encrypt embed content client-side
-5. Embed is stored in ContentStore (IndexedDB) and sent to server
-6. Server stores embed in Directus (encrypted, with hashed IDs and encrypted type)
-7. Message references embed via minimal JSON block (`type` + `embed_id` only)
+**App Skill Execution** (Server-Side, Immediate):
+1. Skill executes and returns results (JSON format)
+2. **Immediately after skill execution** (before LLM inference continues):
+   - **For composite results** (web search, places, events):
+     - Convert each result to TOON format
+     - Create child embed entries (one per result): `website`, `place`, or `event` embeds
+       - Each child embed: `content` field contains TOON-encoded result data
+     - Create parent embed entry: `app_skill_use` embed
+       - Parent embed `content`: TOON-encoded metadata (query, provider, skill name, etc.)
+       - Parent embed `embed_ids`: Array of child embed IDs
+   - **For single results** (code generation, image generation):
+     - Convert result to TOON format
+     - Create single `app_skill_use` embed entry
+     - Embed `content`: TOON-encoded result data
+     - Check for duplicates using `content_hash` (if applicable)
+     - `embed_ids`: null (no child embeds)
+3. **Server-Side Caching**:
+   - Encrypt embeds with vault key (`encryption_key_user_server`)
+   - Cache at `embed:{embed_id}` (24h TTL, global cache)
+   - Add to `chat:{chat_id}:embed_ids` index for eviction
+   - Content stored as TOON string (no conversion needed)
+4. **Stream Embed Reference Chunk**:
+   - Create embed reference JSON: `{"type": "app_skill_use", "embed_id": "..."}`
+   - Stream as markdown code block chunk to frontend immediately
+   - Frontend receives chunk, parses embed reference, loads embed from cache
+   - Frontend renders embed preview immediately (user sees results!)
+5. **LLM Inference Continues**:
+   - LLM receives filtered skill results (for inference efficiency)
+   - LLM processes results and generates response
+   - LLM can place additional embed references anywhere in response (flexible placement)
+6. **Client-Side Storage** (after response completes):
+   - Client receives embed references in message markdown
+   - Client loads embeds from server cache or Directus
+   - **Client-Side Privacy Protection**:
+     - Hash `chat_id`, `message_id`, `task_id` using SHA256 (one-way, protects privacy)
+     - Encrypt `type` with same key as `encrypted_content` (server cannot determine embed type)
+     - Re-encrypt embed content with client-side key (`encryption_key_embed`) for zero-knowledge storage
+   - Store embeds in EmbedStore (IndexedDB) with TOON content
+   - Send client-encrypted embeds to server for Directus storage (zero-knowledge)
+7. **Server Permanent Storage**:
+   - Server stores client-encrypted embeds in Directus (cannot decrypt)
+   - Embeds stored with hashed IDs and encrypted type
+   - Content remains as TOON string (efficient storage)
 
 **Long-Running Tasks**:
 1. Skill execution starts, returns `task_id` immediately
@@ -304,7 +354,7 @@ Each website embed (referenced in `embed_ids`, type: `website`) contains:
 **Task Completion**:
 - WebSocket event: `embed_update` with `task_id` (hashed) and new content
 - Client hashes `task_id` and queries embed by `hashed_task_id`
-- Client updates embed in ContentStore
+- Client updates embed in EmbedStore
 - Client sends updated embed to server (encrypted, with hashed IDs)
 - Server updates embed in Directus (using hashed_task_id for lookup)
 - Server updates embed in cache: `embed:{embed_id}` (global cache, available to all chats that reference it)
@@ -315,7 +365,7 @@ Each website embed (referenced in `embed_ids`, type: `website`) contains:
 **Client-Side Rendering**:
 1. Parse message markdown
 2. Detect embed reference JSON blocks
-3. Load embed from ContentStore (IndexedDB)
+3. Load embed from EmbedStore (IndexedDB)
 4. If missing, fetch from Directus (decrypt client-side)
    - Decrypt `encrypted_type` to determine embed type
    - Decrypt `encrypted_content` to get embed content
@@ -361,7 +411,7 @@ Each website embed (referenced in `embed_ids`, type: `website`) contains:
    - Parse markdown to detect code blocks and sheets
    - For each code block/sheet:
      - Generate `embed_id` (UUID)
-     - Create embed entry in ContentStore
+     - Create embed entry in EmbedStore
      - Encrypt embed content
      - Send embed to server for Directus storage
      - Replace code block/sheet in markdown with embed reference JSON
@@ -374,7 +424,7 @@ Each website embed (referenced in `embed_ids`, type: `website`) contains:
 3. **Rendering**:
    - Parse message markdown
    - Detect embed references
-   - Load embeds from ContentStore
+   - Load embeds from EmbedStore
    - Render embed previews
 
 ## Embed Resolution for AI Context
@@ -476,7 +526,7 @@ Embeds can be referenced in multiple messages or even different chats:
 
 - Embed `chat_id` points to the chat where it was created (can be null for shared embeds)
 - Embed can be referenced in any message (same or different chat)
-- Frontend resolves embed from ContentStore or Directus
+- Frontend resolves embed from EmbedStore or Directus
 - Server cache includes embeds for all referenced chats (if in last 3)
 - **Same User Cross-Chat**: Uses `encryption_key_embed` (decrypted from master key) - no re-encryption needed
 
@@ -704,7 +754,7 @@ For text-based embeds (code, documents, sheets), a lightweight `text_preview` fi
 When device storage is constrained (IndexedDB quota):
 
 1. **Priority**: Always keep `text_preview` (small, essential for rendering)
-2. **Eviction**: Full content can be evicted from ContentStore
+2. **Eviction**: Full content can be evicted from EmbedStore
 3. **Rehydration**: Load full content on-demand from Directus when needed
 4. **User Experience**: Preview always visible, full content loads when requested
 
@@ -720,7 +770,7 @@ When device storage is constrained (IndexedDB quota):
 ### Current State
 
 - Messages contain TOON code blocks with skill results
-- ContentStore stores embed content client-side only
+- EmbedStore stores embed content client-side only
 - No server-side embed storage
 
 ### Migration Steps
@@ -751,7 +801,7 @@ When device storage is constrained (IndexedDB quota):
 
 ### Frontend
 
-- **ContentStore**: `frontend/packages/ui/src/services/contentStore.ts` (update)
+- **EmbedStore**: `frontend/packages/ui/src/services/embedStore.ts`
 - **Message Parsing**: `frontend/packages/ui/src/message_parsing/parse_message.ts` (update)
 - **Embed Resolution**: `frontend/packages/ui/src/services/embedResolver.ts` (to be created)
 - **Auto-Conversion**: `frontend/packages/ui/src/message_parsing/embedAutoConverter.ts` (to be created)

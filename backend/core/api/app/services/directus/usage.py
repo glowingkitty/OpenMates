@@ -39,11 +39,41 @@ class UsageMethods:
         """
         Creates a new usage entry in Directus.
         Encrypts fields that need to be protected.
+        
+        Args:
+            user_id_hash: Hashed user ID for privacy
+            app_id: ID of the app that was used (required, must not be empty)
+            skill_id: ID of the skill that was executed (required, must not be empty)
+            usage_type: Type of usage (e.g., "skill_execution", "chat_message")
+            timestamp: Unix timestamp in seconds
+            credits_charged: Number of credits charged
+            user_vault_key_id: ID of the user's vault key for encryption
+            model_used: Optional model identifier
+            chat_id: Optional chat ID (should be provided when skill is triggered in a chat)
+            message_id: Optional message ID (should be provided when skill is triggered from a message)
+            cost_system_prompt_credits: Optional system prompt credit cost
+            cost_history_credits: Optional history credit cost
+            cost_response_credits: Optional response credit cost
+            actual_input_tokens: Optional input token count
+            actual_output_tokens: Optional output token count
         """
         log_prefix = f"DirectusService ({self.collection}):"
-        logger.info(f"{log_prefix} Creating new usage entry for user '{user_id_hash}'.")
+        logger.info(f"{log_prefix} Creating new usage entry for user '{user_id_hash}' (app_id='{app_id}', skill_id='{skill_id}').")
 
         try:
+            # Validate required fields - app_id and skill_id must be non-empty
+            if not app_id or not isinstance(app_id, str) or not app_id.strip():
+                logger.error(f"{log_prefix} Invalid app_id provided: '{app_id}'. Cannot create usage entry.")
+                return None
+            
+            if not skill_id or not isinstance(skill_id, str) or not skill_id.strip():
+                logger.error(f"{log_prefix} Invalid skill_id provided: '{skill_id}'. Cannot create usage entry.")
+                return None
+            
+            # Normalize app_id and skill_id by stripping whitespace
+            app_id = app_id.strip()
+            skill_id = skill_id.strip()
+            
             # Encryption key is the user vault key for usage entries
             encryption_key_id = user_vault_key_id
 
@@ -73,8 +103,17 @@ class UsageMethods:
 
             # Hash chat_id and message_id (SHA-256, one-way) for linking without exposing actual IDs
             # This allows users to match their usage entries later while protecting privacy
-            hashed_chat_id = hashlib.sha256(chat_id.encode()).hexdigest() if chat_id else None
-            hashed_message_id = hashlib.sha256(message_id.encode()).hexdigest() if message_id else None
+            # Only hash if chat_id/message_id are provided and non-empty
+            hashed_chat_id = None
+            hashed_message_id = None
+            
+            if chat_id and isinstance(chat_id, str) and chat_id.strip():
+                hashed_chat_id = hashlib.sha256(chat_id.strip().encode()).hexdigest()
+                logger.debug(f"{log_prefix} Hashed chat_id for usage entry (length: {len(hashed_chat_id)})")
+            
+            if message_id and isinstance(message_id, str) and message_id.strip():
+                hashed_message_id = hashlib.sha256(message_id.strip().encode()).hexdigest()
+                logger.debug(f"{log_prefix} Hashed message_id for usage entry (length: {len(hashed_message_id)})")
 
             # Encrypt credit and token fields
             encrypted_credits_costs_total_tuple = await self.encryption_service.encrypt_with_user_key(

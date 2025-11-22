@@ -367,6 +367,60 @@ class ComplianceService:
         api_logger.info(
             f"CHAT DELETION: User {user_id} deleted chat {chat_id} via device {device_fingerprint_hash}."
         )
+
+    @staticmethod
+    def log_financial_transaction(
+        user_id: str,
+        transaction_type: str,  # credit_purchase, gift_card_redemption, subscription_renewal, etc.
+        amount: Optional[Union[int, float]] = None,  # Credits or monetary amount
+        currency: Optional[str] = None,  # Currency code if monetary
+        status: str = "success",
+        details: Optional[Dict[str, Any]] = None
+    ):
+        """
+        Log financial transactions for compliance and audit purposes.
+        This includes credit purchases, gift card redemptions, and subscription renewals.
+        
+        Args:
+            user_id: ID of the user involved in the transaction
+            transaction_type: Type of transaction (credit_purchase, gift_card_redemption, etc.)
+            amount: Amount involved (credits or monetary value)
+            currency: Currency code if this is a monetary transaction
+            status: Outcome of the transaction (success, failed)
+            details: Additional context about the transaction (order_id, gift_card_code, etc.)
+        """
+        # Create log entry
+        log_data = {
+            "timestamp": datetime.utcnow().isoformat(),
+            "event_type": "financial_transaction",
+            "transaction_type": transaction_type,
+            "user_id": user_id,
+            "status": status
+        }
+        
+        # Add optional fields if provided
+        if amount is not None:
+            log_data["amount"] = amount
+            
+        if currency:
+            log_data["currency"] = currency
+        
+        if details:
+            # Sanitize details to remove sensitive information
+            sanitized_details = {k: v for k, v in details.items() 
+                              if k not in ['password', 'token', 'secret', 'payment_method_id', 'card_number']}
+            log_data["details"] = sanitized_details
+            
+        # Log to compliance logger - pass log_data directly to preserve structured data
+        compliance_logger.info(log_data)
+        
+        # Also log to regular API logger for operational visibility
+        amount_str = f" {amount}" if amount is not None else ""
+        currency_str = f" {currency}" if currency else ""
+        api_logger.info(
+            f"FINANCIAL TRANSACTION: User {user_id} - {transaction_type}{amount_str}{currency_str} - {status}"
+        )
+
 # TODO: Implement S3 archive functionality for compliance logs
 # This will:
 # 1. Periodically (daily) collect logs older than 48 hours

@@ -203,13 +203,13 @@ class ChatDatabase {
                     console.debug('[ChatDatabase] Created new_chat_suggestions store');
                 }
 
-                // Contents store for unified message parsing architecture (ensure it exists)
-                const CONTENTS_STORE_NAME = 'contents';
-                if (!db.objectStoreNames.contains(CONTENTS_STORE_NAME)) {
-                    const contentsStore = db.createObjectStore(CONTENTS_STORE_NAME, { keyPath: 'contentRef' });
-                    contentsStore.createIndex('type', 'type', { unique: false });
-                    contentsStore.createIndex('createdAt', 'createdAt', { unique: false });
-                    console.debug('[ChatDatabase] Created contents store for unified parsing');
+                // Embeds store for unified message parsing architecture (ensure it exists)
+                const EMBEDS_STORE_NAME = 'embeds';
+                if (!db.objectStoreNames.contains(EMBEDS_STORE_NAME)) {
+                    const embedsStore = db.createObjectStore(EMBEDS_STORE_NAME, { keyPath: 'contentRef' });
+                    embedsStore.createIndex('type', 'type', { unique: false });
+                    embedsStore.createIndex('createdAt', 'createdAt', { unique: false });
+                    console.debug('[ChatDatabase] Created embeds store for unified parsing');
                 }
             };
         });

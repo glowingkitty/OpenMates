@@ -18,7 +18,11 @@ user_passkeys:
       unique: true
     public_key_jwk:
       type: json
-      note: "Public key in JWK (JSON Web Key) format for signature verification"
+      note: "Public key in JWK (JSON Web Key) format for signature verification (legacy, kept for compatibility)"
+      required: false
+    public_key_cose:
+      type: text
+      note: "Public key in COSE format (base64-encoded CBOR bytes) for py_webauthn signature verification"
       required: true
     aaguid:
       type: uuid

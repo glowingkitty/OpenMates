@@ -12,6 +12,7 @@ USER_DEVICE_KEY_PREFIX = "user_device:"
 USER_DEVICE_LIST_KEY_PREFIX = "user_device_list:"
 ORDER_KEY_PREFIX = "order_status:"
 USER_APP_SETTINGS_AND_MEMORIES_KEY_PREFIX = "user_app_settings_and_memories:"
+GIFT_CARD_KEY_PREFIX = "gift_card:"
 
 # Obsolete/Legacy chat prefixes
 CHAT_LIST_META_KEY_PREFIX = "chat_list_meta:"

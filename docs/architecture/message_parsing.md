@@ -84,14 +84,20 @@ We adopt a minimalist rule for all generated or pasted blocks: either provide a 
 - This format is being migrated to the new embeds architecture
 
 **New Format (Embeds Architecture)**:
-- Skill results are stored as separate embed entities
-- Messages reference embeds via lightweight JSON blocks:
+- Skill results are stored as separate embed entities (content stored as TOON format for space efficiency)
+- Messages reference embeds via **JSON code blocks** in markdown:
+  ```markdown
   ```json
   {
     "type": "app_skill_use",
     "embed_id": "550e8400-e29b-41d4-a716-446655440000"
   }
   ```
+  ```
+- Embed references can be placed anywhere in the message (flexible placement by LLM)
+- Embed references are streamed as chunks during assistant response generation
+- Frontend parses JSON code blocks to detect and resolve embed references
+- Embed content is stored as TOON string (decoded when needed for rendering or inference)
 - See [Embeds Architecture](./embeds.md) for full details
 
 **Long-Running Tasks**:
@@ -256,13 +262,13 @@ Copy (from preview context menu or fullscreen):
 Paste (inside OpenMates MessageInput):
 
 - If application/x-openmates-embed+json is present:
-  - Parse payload and call ContentStore.ensure(contentRef=cid, inlineContent) so content is present locally.
+  - Parse payload and call EmbedStore.ensure(contentRef=cid, inlineContent) so content is present locally.
   - Insert a lightweight embed node pointing to that `contentRef` with `contentHash` and minimal metadata. Do not inject raw markdown into the editor.
 - Otherwise, fall back to regular markdown parsing of text/plain or text/markdown using Path-or-Title rules, which may create a new `contentRef`.
 
 Send-time serialization (TipTap → Markdown):
 
-- On send, walk the TipTap document and serialize embed nodes to canonical markdown by resolving full content from the ContentStore. If content is missing, prompt the user to retry loading or block send.
+- On send, walk the TipTap document and serialize embed nodes to canonical markdown by resolving full content from the EmbedStore. If content is missing, prompt the user to retry loading or block send.
 
 Cross-device rehydration:
 

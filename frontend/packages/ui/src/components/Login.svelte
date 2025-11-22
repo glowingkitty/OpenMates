@@ -4,7 +4,7 @@
     import AppIconGrid from './AppIconGrid.svelte';
     import { createEventDispatcher } from 'svelte';
     import { authStore, isCheckingAuth, needsDeviceVerification, login, checkAuth } from '../stores/authStore'; // Import login and checkAuth functions
-    import { currentSignupStep, isInSignupProcess, STEP_BASICS, getStepFromPath, STEP_ONE_TIME_CODES } from '../stores/signupState';
+    import { currentSignupStep, isInSignupProcess, STEP_BASICS, getStepFromPath, STEP_ONE_TIME_CODES, isSignupPath } from '../stores/signupState';
     import { clearIncompleteSignupData } from '../stores/signupStore';
     import { onMount, onDestroy } from 'svelte';
     import { MOBILE_BREAKPOINT } from '../styles/constants';
@@ -667,8 +667,22 @@
                 return;
             }
             
+            // Debug logging for key derivation
+            console.log('[Login] Key derivation inputs:', {
+                prfSignatureLength: prfSignature.length,
+                prfSignatureFirstBytes: Array.from(prfSignature.slice(0, 4)),
+                emailSaltLength: emailSalt.length,
+                emailSaltFirstBytes: Array.from(emailSalt.slice(0, 4)),
+                user_email_salt_from_backend: verifyData.user_email_salt?.substring(0, 20) + '...'
+            });
+            
             // Step 8: Derive wrapping key from PRF signature using HKDF
             const wrappingKey = await cryptoService.deriveWrappingKeyFromPRF(prfSignature, emailSalt);
+            
+            console.log('[Login] Wrapping key derived:', {
+                wrappingKeyLength: wrappingKey.length,
+                wrappingKeyFirstBytes: Array.from(wrappingKey.slice(0, 4))
+            });
             
             // Step 9: Unwrap master key (needed to decrypt email)
             const encryptedMasterKey = verifyData.encrypted_master_key;
@@ -730,35 +744,99 @@
             // Step 13: Generate lookup hash from PRF signature
             const lookupHash = await cryptoService.hashKeyFromPRF(prfSignature, emailSalt);
             
-            // Step 14: Store email encrypted with master key for client use
+            // Step 14: Authenticate with lookup_hash to get full auth session (including ws_token)
+            // The passkey verify endpoint doesn't return auth_session, so we need to call /auth/login
+            if (!verifyData.auth_session) {
+                console.log('[Login] No auth_session in verify response, authenticating with lookup_hash');
+                
+                // Get hashed_email for authentication
+                const hashedEmail = await cryptoService.hashEmail(userEmail);
+                
+                // Authenticate using the regular login endpoint with lookup_hash
+                const { getApiEndpoint, apiEndpoints } = await import('../config/api');
+                const { getSessionId } = await import('../utils/sessionId');
+                const authResponse = await fetch(getApiEndpoint(apiEndpoints.auth.login), {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        hashed_email: hashedEmail,
+                        lookup_hash: lookupHash,
+                        email_encryption_key: cryptoService.getEmailEncryptionKeyForApi(),
+                        login_method: 'passkey',
+                        stay_logged_in: stayLoggedIn,
+                        session_id: getSessionId()
+                    }),
+                    credentials: 'include'
+                });
+                
+                if (!authResponse.ok) {
+                    const errorData = await authResponse.json();
+                    console.error('Passkey authentication failed:', errorData);
+                    loginFailedWarning = true;
+                    isPasskeyLoading = false;
+                    isLoading = false;
+                    return;
+                }
+                
+                const authData = await authResponse.json();
+                
+                if (!authData.success) {
+                    console.error('Passkey authentication failed:', authData.message);
+                    loginFailedWarning = true;
+                    isPasskeyLoading = false;
+                    isLoading = false;
+                    return;
+                }
+                
+                // The /auth/login endpoint returns user and ws_token at the top level
+                // Store them in verifyData for consistency with the rest of the flow
+                verifyData.auth_session = {
+                    user: authData.user,
+                    ws_token: authData.ws_token
+                };
+                console.log('[Login] Authentication successful via login endpoint');
+            }
+            
+            // Step 15: Store email encrypted with master key for client use
             await cryptoService.saveEmailEncryptedWithMasterKey(userEmail, stayLoggedIn);
             
-            // Step 14: Store WebSocket token if provided
-            if (verifyData.auth_session?.ws_token) {
+            // Step 16: Store WebSocket token if provided (CRITICAL for WebSocket connection)
+            // Check both verifyData.auth_session.ws_token and direct authData.ws_token for compatibility
+            const wsToken = verifyData.auth_session?.ws_token;
+            if (wsToken) {
                 const { setWebSocketToken } = await import('../utils/cookies');
-                setWebSocketToken(verifyData.auth_session.ws_token);
+                setWebSocketToken(wsToken);
+                console.debug('[Login] WebSocket token stored from login response');
+            } else {
+                console.warn('[Login] No ws_token in auth_session - WebSocket connection may fail');
             }
             
-            // Step 15: Update user profile
-            if (verifyData.auth_session?.user) {
+            // Step 17: Update user profile
+            const userData = verifyData.auth_session?.user;
+            if (userData) {
                 const { updateProfile } = await import('../stores/userProfile');
                 const userProfileData = {
-                    username: verifyData.auth_session.user.username || '',
-                    profile_image_url: verifyData.auth_session.user.profile_image_url || null,
-                    credits: verifyData.auth_session.user.credits || 0,
-                    is_admin: verifyData.auth_session.user.is_admin || false,
-                    last_opened: verifyData.auth_session.user.last_opened || '',
-                    tfa_app_name: verifyData.auth_session.user.tfa_app_name || null,
-                    tfa_enabled: verifyData.auth_session.user.tfa_enabled || false,
-                    consent_privacy_and_apps_default_settings: verifyData.auth_session.user.consent_privacy_and_apps_default_settings || false,
-                    consent_mates_default_settings: verifyData.auth_session.user.consent_mates_default_settings || false,
-                    language: verifyData.auth_session.user.language || 'en',
-                    darkmode: verifyData.auth_session.user.darkmode || false
+                    username: userData.username || '',
+                    profile_image_url: userData.profile_image_url || null,
+                    credits: userData.credits || 0,
+                    is_admin: userData.is_admin || false,
+                    last_opened: userData.last_opened || '',
+                    tfa_app_name: userData.tfa_app_name || null,
+                    tfa_enabled: userData.tfa_enabled || false,
+                    consent_privacy_and_apps_default_settings: userData.consent_privacy_and_apps_default_settings || false,
+                    consent_mates_default_settings: userData.consent_mates_default_settings || false,
+                    language: userData.language || 'en',
+                    darkmode: userData.darkmode || false
                 };
                 updateProfile(userProfileData);
+                console.log('[Login] User profile updated:', { username: userProfileData.username, credits: userProfileData.credits });
+            } else {
+                console.warn('[Login] No user data in auth_session - user profile not updated');
             }
             
-            // Step 16: Dispatch login success
+            // Step 18: Dispatch login success
             email = '';
             isPasskeyLoading = false;
             isLoading = false;
@@ -819,7 +897,7 @@
             showLoadingUntil = Date.now() + 500;
             
             // Check if user is in signup process based on last_opened
-            if ($authStore.isAuthenticated && $userProfile.last_opened?.startsWith('/signup/')) {
+            if ($authStore.isAuthenticated && isSignupPath($userProfile.last_opened)) {
                 // Get step name from path using the function from signupState
                 const stepName = getStepFromPath($userProfile.last_opened);
                 currentSignupStep.set(stepName);
@@ -1274,13 +1352,13 @@
                                                     console.log("Login success, in signup flow:", e.detail.inSignupFlow);
                                                     
                                                     // If user is in signup flow, set up the signup state
-                                                    // Note: inSignupFlow can be true even if last_opened doesn't start with '/signup/'
+                                                    // Note: inSignupFlow can be true even if last_opened doesn't indicate signup
                                                     // (e.g., if tfa_enabled is false but last_opened was overwritten to demo-welcome)
                                                     // The signup step should already be set in PasswordAndTfaOtp, but we respect it here
                                                     if (e.detail.inSignupFlow) {
                                                         // If last_opened indicates a signup step, use it; otherwise default to one_time_codes
                                                         // (the actual OTP setup step, not the app reminder step)
-                                                        const stepName = e.detail.user?.last_opened?.startsWith('/signup/')
+                                                        const stepName = isSignupPath(e.detail.user?.last_opened)
                                                             ? getStepFromPath(e.detail.user.last_opened)
                                                             : STEP_ONE_TIME_CODES;
                                                         console.log("Setting signup step:", e.detail.user?.last_opened, "->", stepName);
@@ -1324,13 +1402,13 @@
                                                     console.log("Login success (backup code), in signup flow:", e.detail.inSignupFlow);
                                                     
                                                     // If user is in signup flow, set up the signup state
-                                                    // Note: inSignupFlow can be true even if last_opened doesn't start with '/signup/'
+                                                    // Note: inSignupFlow can be true even if last_opened doesn't indicate signup
                                                     // (e.g., if tfa_enabled is false but last_opened was overwritten to demo-welcome)
                                                     // The signup step should already be set in PasswordAndTfaOtp, but we respect it here
                                                     if (e.detail.inSignupFlow) {
                                                         // If last_opened indicates a signup step, use it; otherwise default to one_time_codes
                                                         // (the actual OTP setup step, not the app reminder step)
-                                                        const stepName = e.detail.user?.last_opened?.startsWith('/signup/')
+                                                        const stepName = isSignupPath(e.detail.user?.last_opened)
                                                             ? getStepFromPath(e.detail.user.last_opened)
                                                             : STEP_ONE_TIME_CODES;
                                                         console.log("Setting signup step:", e.detail.user?.last_opened, "->", stepName);
@@ -1366,13 +1444,13 @@
                                                     console.log("Login success (recovery key), in signup flow:", e.detail.inSignupFlow);
                                                     
                                                     // If user is in signup flow, set up the signup state
-                                                    // Note: inSignupFlow can be true even if last_opened doesn't start with '/signup/'
+                                                    // Note: inSignupFlow can be true even if last_opened doesn't indicate signup
                                                     // (e.g., if tfa_enabled is false but last_opened was overwritten to demo-welcome)
                                                     // The signup step should already be set in PasswordAndTfaOtp, but we respect it here
                                                     if (e.detail.inSignupFlow) {
                                                         // If last_opened indicates a signup step, use it; otherwise default to one_time_codes
                                                         // (the actual OTP setup step, not the app reminder step)
-                                                        const stepName = e.detail.user?.last_opened?.startsWith('/signup/')
+                                                        const stepName = isSignupPath(e.detail.user?.last_opened)
                                                             ? getStepFromPath(e.detail.user.last_opened)
                                                             : STEP_ONE_TIME_CODES;
                                                         console.log("Setting signup step:", e.detail.user?.last_opened, "->", stepName);

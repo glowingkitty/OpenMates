@@ -5,6 +5,26 @@ import { EmbedNodeAttributes } from './types';
 import { EMBED_PATTERNS, generateUUID } from './utils';
 
 /**
+ * Map embed reference type from server to EmbedNodeType
+ * @param embedType - Server embed type (app_skill_use, website, code, etc.)
+ * @returns EmbedNodeType for TipTap
+ */
+function mapEmbedReferenceType(embedType: string): string {
+  const typeMap: Record<string, string> = {
+    'app_skill_use': 'app-skill-use', // New type for app skill results
+    'website': 'web-website',
+    'place': 'maps-place',
+    'event': 'maps-event',
+    'code': 'code-code',
+    'sheet': 'sheets-sheet',
+    'document': 'docs-doc',
+    'file': 'file',
+  };
+  
+  return typeMap[embedType] || embedType;
+}
+
+/**
  * Parse embed nodes from markdown content
  * Handles Path-or-Title fences for different embed types
  */
@@ -16,7 +36,44 @@ export function parseEmbedNodes(markdown: string, mode: 'write' | 'read'): Embed
   while (i < lines.length) {
     const line = lines[i].trim();
     
-    // Parse json_embed blocks for URL embeds
+    // Parse JSON code blocks for embed references (new embeds architecture)
+    // Format: ```json\n{"type": "app_skill_use", "embed_id": "..."}\n```
+    if (line.startsWith('```json')) {
+      let content = '';
+      let j = i + 1;
+      while (j < lines.length && !lines[j].trim().startsWith('```')) {
+        content += lines[j] + '\n';
+        j++;
+      }
+      
+      try {
+        const embedRef = JSON.parse(content.trim());
+        // Check if this is an embed reference (has type and embed_id)
+        if (embedRef.type && embedRef.embed_id) {
+          const id = generateUUID();
+          embedNodes.push({
+            id,
+            type: mapEmbedReferenceType(embedRef.type),
+            status: 'finished', // Will be updated when embed is resolved
+            contentRef: `embed:${embedRef.embed_id}`, // Reference to embed in EmbedStore
+            // Additional metadata will be loaded from embed when resolved
+          });
+          console.debug('[parseEmbedNodes] Created embed node from JSON reference:', {
+            type: embedRef.type,
+            embed_id: embedRef.embed_id,
+            nodeId: id
+          });
+        }
+      } catch (error) {
+        // Not a valid embed reference, continue parsing
+        console.debug('[parseEmbedNodes] JSON block is not an embed reference:', error);
+      }
+      
+      i = j; // Skip to end of fence
+      continue;
+    }
+    
+    // Parse json_embed blocks for URL embeds (legacy format)
     if (line.startsWith('```json_embed')) {
       let content = '';
       let j = i + 1;

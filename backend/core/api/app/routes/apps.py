@@ -6,6 +6,7 @@
 from __future__ import annotations  # Enable postponed evaluation of annotations for forward references
 
 import logging
+import os
 import time
 from typing import Dict, Any, List, Optional
 from fastapi import APIRouter, HTTPException, Request, Depends
@@ -140,11 +141,15 @@ async def get_apps_metadata(request: Request):
     Each app exposes a /metadata endpoint that returns its AppYAML configuration.
     The core API discovers these during startup and stores them in app.state.discovered_apps_metadata.
     
-    This endpoint simply returns what was discovered - no transformation or filtering.
+    This endpoint filters out components with stage='planning' that are not compatible
+    with the server environment (development or production). Only components with
+    stage='development' or 'production' are included based on SERVER_ENVIRONMENT.
+    
     If an app is missing, it means either:
     - The app container is not running
     - The app's /metadata endpoint is not responding
     - The app is not in the enabled_apps list in backend_config.yml
+    - The app has no components with valid stages for the current environment
     
     **Implementation**: 
     - App discovery: `backend/core/api/main.py:discover_apps()` 
@@ -167,6 +172,17 @@ async def get_apps_metadata(request: Request):
     
     logger.info(f"Returning metadata for {len(discovered_apps)} discovered apps: {list(discovered_apps.keys())}")
     
+    # Get server environment for stage-based filtering
+    # This ensures we exclude 'planning' stage components and only include components
+    # compatible with the current server environment (development or production)
+    server_environment = os.getenv("SERVER_ENVIRONMENT", "development").lower()
+    if server_environment == "production":
+        allowed_stages = ["production"]
+    else:  # development (default)
+        allowed_stages = ["development", "production"]
+    
+    logger.debug(f"Filtering app metadata by stage for '{server_environment}' environment. Allowed stages: {allowed_stages}")
+    
     # Get translation service from app state (initialized during startup)
     translation_service = None
     if hasattr(request.app.state, 'translation_service'):
@@ -176,6 +192,7 @@ async def get_apps_metadata(request: Request):
     
     # Convert AppYAML to API response format
     # Transform the discovered AppYAML objects to the API response format with resolved translations
+    # Filter out components with stage='planning' or incompatible stages
     apps_metadata: Dict[str, AppMetadataItem] = {}
     
     for app_id, app_metadata in discovered_apps.items():
@@ -201,9 +218,16 @@ async def get_apps_metadata(request: Request):
             fallback=""
         )
         
-        # Convert skills - resolve all translations
+        # Convert skills - filter by stage and resolve all translations
+        # Skills have stage field in the schema, so we can access it directly
         skills = []
         for skill in app_metadata.skills:
+            # Filter out skills with incompatible stages (exclude 'planning' and stages not in allowed_stages)
+            skill_stage = getattr(skill, 'stage', 'development').lower()
+            if skill_stage not in allowed_stages:
+                logger.debug(f"Skipping skill '{skill.id}' from app '{app_id}' - stage '{skill_stage}' not compatible with '{server_environment}' environment")
+                continue
+            
             skill_name = resolve_translation(
                 translation_service,
                 skill.name_translation_key,
@@ -222,9 +246,17 @@ async def get_apps_metadata(request: Request):
                 description=skill_description
             ))
         
-        # Convert focus modes - resolve all translations
+        # Convert focus modes - filter by stage and resolve all translations
         focus_modes = []
         for focus in app_metadata.focuses:
+            # Filter out focus modes with incompatible stages (exclude 'planning' and stages not in allowed_stages)
+            focus_stage = (focus.stage or '').lower() if hasattr(focus, 'stage') and focus.stage else ''
+            
+            # If stage is not in allowed_stages (including 'planning'), skip this focus mode
+            if focus_stage and focus_stage not in allowed_stages:
+                logger.debug(f"Skipping focus mode '{focus.id}' from app '{app_id}' - stage '{focus_stage}' not compatible with '{server_environment}' environment")
+                continue
+            
             focus_name = resolve_translation(
                 translation_service,
                 focus.name_translation_key,
@@ -243,10 +275,18 @@ async def get_apps_metadata(request: Request):
                 description=focus_description
             ))
         
-        # Convert settings_and_memories - resolve all translations
+        # Convert settings_and_memories - filter by stage and resolve all translations
         settings_and_memories = []
         if app_metadata.memory_fields:
             for field in app_metadata.memory_fields:
+                # Filter out memory fields with incompatible stages (exclude 'planning' and stages not in allowed_stages)
+                field_stage = (field.stage or '').lower() if hasattr(field, 'stage') and field.stage else ''
+                
+                # If stage is not in allowed_stages (including 'planning'), skip this memory field
+                if field_stage and field_stage not in allowed_stages:
+                    logger.debug(f"Skipping memory field '{field.id}' from app '{app_id}' - stage '{field_stage}' not compatible with '{server_environment}' environment")
+                    continue
+                
                 field_name = resolve_translation(
                     translation_service,
                     field.name_translation_key,
@@ -265,16 +305,20 @@ async def get_apps_metadata(request: Request):
                     "description": field_description
                 })
         
-        apps_metadata[app_id] = AppMetadataItem(
-            id=app_id,
-            name=resolved_name,
-            description=resolved_description,
-            skills=skills,
-            focus_modes=focus_modes,
-            settings_and_memories=settings_and_memories
-        )
+        # Only include app if it has at least one valid component (skill, focus mode, or memory field)
+        if skills or focus_modes or settings_and_memories:
+            apps_metadata[app_id] = AppMetadataItem(
+                id=app_id,
+                name=resolved_name,
+                description=resolved_description,
+                skills=skills,
+                focus_modes=focus_modes,
+                settings_and_memories=settings_and_memories
+            )
+        else:
+            logger.debug(f"Skipping app '{app_id}' - no components with compatible stages for '{server_environment}' environment")
     
-    logger.info(f"Returning metadata for {len(apps_metadata)} apps")
+    logger.info(f"Returning metadata for {len(apps_metadata)} apps (filtered by stage compatibility)")
     return AppMetadataResponse(apps=apps_metadata)
 
 
@@ -282,6 +326,9 @@ async def get_apps_metadata(request: Request):
 async def get_app_metadata(app_id: str, request: Request):
     """
     Get metadata for a specific app.
+    
+    Filters out components with stage='planning' that are not compatible
+    with the server environment (development or production).
     
     **Reference**: See `get_apps_metadata()` for implementation details.
     """
@@ -297,6 +344,13 @@ async def get_app_metadata(app_id: str, request: Request):
     # description_translation_key is required (no backwards compatibility)
     if not app_metadata.description_translation_key:
         raise HTTPException(status_code=500, detail=f"App '{app_id}' is missing required description_translation_key")
+    
+    # Get server environment for stage-based filtering
+    server_environment = os.getenv("SERVER_ENVIRONMENT", "development").lower()
+    if server_environment == "production":
+        allowed_stages = ["production"]
+    else:  # development (default)
+        allowed_stages = ["development", "production"]
     
     # Get translation service from app state (initialized during startup)
     translation_service = None
@@ -318,9 +372,15 @@ async def get_app_metadata(app_id: str, request: Request):
         fallback=""
     )
     
-    # Convert skills - resolve all translations
+    # Convert skills - filter by stage and resolve all translations
     skills = []
     for skill in app_metadata.skills:
+        # Filter out skills with incompatible stages (exclude 'planning' and stages not in allowed_stages)
+        skill_stage = getattr(skill, 'stage', 'development').lower()
+        if skill_stage not in allowed_stages:
+            logger.debug(f"Skipping skill '{skill.id}' from app '{app_id}' - stage '{skill_stage}' not compatible with '{server_environment}' environment")
+            continue
+        
         skill_name = resolve_translation(
             translation_service,
             skill.name_translation_key,
@@ -339,9 +399,17 @@ async def get_app_metadata(app_id: str, request: Request):
             description=skill_description
         ))
     
-    # Convert focus modes - resolve all translations
+    # Convert focus modes - filter by stage and resolve all translations
     focus_modes = []
     for focus in app_metadata.focuses:
+        # Filter out focus modes with incompatible stages (exclude 'planning' and stages not in allowed_stages)
+        focus_stage = (focus.stage or '').lower() if hasattr(focus, 'stage') and focus.stage else ''
+        
+        # If stage is not in allowed_stages (including 'planning'), skip this focus mode
+        if focus_stage and focus_stage not in allowed_stages:
+            logger.debug(f"Skipping focus mode '{focus.id}' from app '{app_id}' - stage '{focus_stage}' not compatible with '{server_environment}' environment")
+            continue
+        
         focus_name = resolve_translation(
             translation_service,
             focus.name_translation_key,
@@ -360,10 +428,18 @@ async def get_app_metadata(app_id: str, request: Request):
             description=focus_description
         ))
     
-    # Convert settings_and_memories - resolve all translations
+    # Convert settings_and_memories - filter by stage and resolve all translations
     settings_and_memories = []
     if app_metadata.memory_fields:
         for field in app_metadata.memory_fields:
+            # Filter out memory fields with incompatible stages (exclude 'planning' and stages not in allowed_stages)
+            field_stage = (field.stage or '').lower() if hasattr(field, 'stage') and field.stage else ''
+            
+            # If stage is not in allowed_stages (including 'planning'), skip this memory field
+            if field_stage and field_stage not in allowed_stages:
+                logger.debug(f"Skipping memory field '{field.id}' from app '{app_id}' - stage '{field_stage}' not compatible with '{server_environment}' environment")
+                continue
+            
             field_name = resolve_translation(
                 translation_service,
                 field.name_translation_key,

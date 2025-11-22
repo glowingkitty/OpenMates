@@ -13,7 +13,8 @@
     import { appSkillsStore } from '../../stores/appSkillsStore';
     import { authStore } from '../../stores/authStore';
     import AppStoreCard from './AppStoreCard.svelte';
-    import type { AppMetadata, SkillMetadata } from '../../types/apps';
+    import SettingsItem from '../SettingsItem.svelte';
+    import type { AppMetadata, SkillMetadata, FocusModeMetadata, MemoryFieldMetadata } from '../../types/apps';
     import { createEventDispatcher } from 'svelte';
     import { text } from '@repo/ui';
     
@@ -22,7 +23,6 @@
     
     // Get app ID from the current path
     // The path will be like "app_store/ai" or "app_store/web"
-    // We need to extract the app ID from the activeSettingsView
     // This will be passed as a prop from Settings.svelte
     
     interface Props {
@@ -40,6 +40,8 @@
     // Get app metadata from store
     let app = $derived<AppMetadata | undefined>(storeState.apps[appId]);
     let skills = $derived(app?.skills || []);
+    let focusModes = $derived(app?.focus_modes || []);
+    let memoryFields = $derived(app?.settings_and_memories || []);
     
     /**
      * Get the translated app name.
@@ -78,16 +80,54 @@
             providers: skill.providers || [],
             skills: [],
             focus_modes: [],
-            memory_fields: []
+            settings_and_memories: []
         };
     }
     
     /**
-     * Handle skill card selection (currently no-op, but can be extended).
+     * Get icon name from icon_image filename.
+     * Maps icon_image like "ai.svg" to icon name "ai" for the Icon component.
      */
-    function handleSkillSelect(skillAppId: string) {
-        // Could navigate to skill details in the future
-        // For now, do nothing
+    function getIconName(iconImage: string | undefined): string {
+        if (!iconImage) return appId;
+        // Remove .svg extension and return the name
+        return iconImage.replace(/\.svg$/, '');
+    }
+    
+    /**
+     * Handle skill card selection - navigate to skill details sub-page.
+     */
+    function handleSkillSelect(skillId: string) {
+        dispatch('openSettings', {
+            settingsPath: `app_store/${appId}/skill/${skillId}`,
+            direction: 'forward',
+            icon: getIconName(app?.icon_image),
+            title: $text(skills.find(s => s.id === skillId)?.name_translation_key || skillId)
+        });
+    }
+    
+    /**
+     * Handle focus mode selection - navigate to focus mode details sub-page.
+     */
+    function handleFocusModeSelect(focusModeId: string) {
+        dispatch('openSettings', {
+            settingsPath: `app_store/${appId}/focus/${focusModeId}`,
+            direction: 'forward',
+            icon: getIconName(app?.icon_image),
+            title: $text(focusModes.find(f => f.id === focusModeId)?.name_translation_key || focusModeId)
+        });
+    }
+    
+    /**
+     * Handle settings & memories category selection - navigate to category details page.
+     */
+    function handleSettingsMemoriesCategorySelect(categoryId: string) {
+        dispatch('openSettings', {
+            settingsPath: `app_store/${appId}/settings_memories/${categoryId}`,
+            direction: 'forward',
+            icon: getIconName(app?.icon_image),
+            title: $text(memoryFields.find(c => c.id === categoryId)?.name_translation_key || categoryId)
+        });
     }
     
     /**
@@ -115,37 +155,99 @@
             <p class="app-description">{appDescription}</p>
         </div>
         
-        <!-- Skills section -->
-        <div class="skills-section">
-            <h2>Skills</h2>
-            {#if skills.length === 0}
-                <div class="no-skills">
-                    <p>No skills available for this app.</p>
-                    <p class="hint">Skills are added as they reach production stage.</p>
-                </div>
-            {:else}
-                <div class="skills-scroll-container">
-                    <div class="skills-scroll">
+        <!-- Skills section - only show if skills exist -->
+        {#if skills.length > 0}
+            <div class="section">
+                <SettingsItem 
+                    type="heading"
+                    icon="skill"
+                    title={$text('settings.app_store.skills.title.text')}
+                />
+                <div class="items-scroll-container">
+                    <div class="items-scroll">
                         {#each skills as skill (skill.id)}
                             {@const skillApp = skillToAppMetadata(skill, appId, app)}
-                            <AppStoreCard app={skillApp} onSelect={handleSkillSelect} />
+                            <AppStoreCard 
+                                app={skillApp} 
+                                skillProviders={skill.providers}
+                                onSelect={() => handleSkillSelect(skill.id)} 
+                            />
                         {/each}
                     </div>
                 </div>
-            {/if}
-        </div>
+            </div>
+        {/if}
+        
+        <!-- Focus Modes section - only show if focus modes exist -->
+        {#if focusModes.length > 0}
+            <div class="section">
+                <SettingsItem 
+                    type="heading"
+                    icon="focus"
+                    title={$text('settings.app_store.focus_modes.title.text')}
+                />
+                <div class="items-scroll-container">
+                    <div class="items-scroll">
+                        {#each focusModes as focusMode (focusMode.id)}
+                            {@const focusModeApp: AppMetadata = {
+                                id: appId,
+                                name_translation_key: focusMode.name_translation_key,
+                                description_translation_key: focusMode.description_translation_key,
+                                icon_image: app.icon_image,
+                                icon_colorgradient: app.icon_colorgradient,
+                                providers: [],
+                                skills: [],
+                                focus_modes: [],
+                                settings_and_memories: []
+                            }}
+                            <AppStoreCard app={focusModeApp} onSelect={() => handleFocusModeSelect(focusMode.id)} />
+                        {/each}
+                    </div>
+                </div>
+            </div>
+        {/if}
+        
+        <!-- Settings & Memories section -->
+        {#if memoryFields.length > 0}
+            <div class="section">
+                <SettingsItem 
+                    type="heading"
+                    icon="settings"
+                    title={$text('settings.app_store.settings_memories.title.text')}
+                />
+                <div class="items-scroll-container">
+                    <div class="items-scroll">
+                        {#each memoryFields as category (category.id)}
+                            {@const categoryApp: AppMetadata = {
+                                id: appId,
+                                name_translation_key: category.name_translation_key,
+                                description_translation_key: category.description_translation_key,
+                                icon_image: app.icon_image,
+                                icon_colorgradient: app.icon_colorgradient,
+                                providers: [],
+                                skills: [],
+                                focus_modes: [],
+                                settings_and_memories: []
+                            }}
+                            <AppStoreCard app={categoryApp} onSelect={() => handleSettingsMemoriesCategorySelect(category.id)} />
+                        {/each}
+                    </div>
+                </div>
+            </div>
+        {/if}
     {/if}
 </div>
 
 <style>
     .app-details {
-        padding: 2rem;
+        padding: 14px;
         max-width: 1400px;
         margin: 0 auto;
     }
     
     .app-header {
         margin-bottom: 2rem;
+        padding-left: 0;
     }
     
     .app-description {
@@ -153,74 +255,71 @@
         color: var(--color-grey-100);
         font-size: 1rem;
         line-height: 1.6;
+        text-align: left;
     }
     
-    .skills-section {
+    .section {
         margin-top: 2rem;
+        padding-left: 0;
     }
     
-    .skills-section h2 {
-        margin: 0 0 1.5rem 0;
-        font-size: 1.5rem;
-        font-weight: 600;
-        color: var(--text-primary, #000000);
+    /* Ensure SettingsItem headings align with description text */
+    .section :global(.menu-item.heading) {
+        padding-left: 0;
+        padding-right: 0;
     }
     
-    .no-skills,
+    /* Ensure items scroll container aligns with description */
+    .section :global(.items-scroll-container) {
+        margin-left: 0;
+    }
+    
     .error {
-        padding: 3rem;
+        padding: 2rem;
         text-align: center;
-        color: var(--text-secondary, #666666);
-    }
-    
-    .error {
         color: var(--error-color, #dc3545);
     }
     
-    .hint {
-        margin-top: 0.5rem;
-        font-size: 0.9rem;
-        color: var(--text-secondary, #666666);
-    }
-    
-    .skills-scroll-container {
+    .items-scroll-container {
         overflow-x: auto;
         overflow-y: hidden;
         padding-bottom: 0.5rem;
+        padding-left: 0;
+        margin-top: 0.5rem;
         /* Match settings menu scrollbar style */
         scrollbar-width: thin;
         scrollbar-color: rgba(128, 128, 128, 0.2) transparent;
         transition: scrollbar-color 0.2s ease;
     }
     
-    .skills-scroll-container:hover {
+    .items-scroll-container:hover {
         scrollbar-color: rgba(128, 128, 128, 0.5) transparent;
     }
     
-    .skills-scroll-container::-webkit-scrollbar {
+    .items-scroll-container::-webkit-scrollbar {
         height: 8px;
     }
     
-    .skills-scroll-container::-webkit-scrollbar-track {
+    .items-scroll-container::-webkit-scrollbar-track {
         background: transparent;
     }
     
-    .skills-scroll-container::-webkit-scrollbar-thumb {
+    .items-scroll-container::-webkit-scrollbar-thumb {
         background-color: rgba(128, 128, 128, 0.2);
         border-radius: 4px;
         border: 2px solid var(--color-grey-20);
         transition: background-color 0.2s ease;
     }
     
-    .skills-scroll-container:hover::-webkit-scrollbar-thumb {
+    .items-scroll-container:hover::-webkit-scrollbar-thumb {
         background-color: rgba(128, 128, 128, 0.5);
     }
     
-    .skills-scroll-container::-webkit-scrollbar-thumb:hover {
+    .items-scroll-container::-webkit-scrollbar-thumb:hover {
         background-color: rgba(128, 128, 128, 0.7);
     }
     
-    .skills-scroll {
+    .items-scroll {
         display: flex;
         gap: 1rem;
         padding-right: 1rem;

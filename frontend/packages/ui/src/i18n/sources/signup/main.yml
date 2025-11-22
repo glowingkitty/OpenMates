@@ -4084,26 +4084,26 @@ no_expiration_of_credits:
   verified_by_human: []
 no_subscription:
   context: explainer that there is no subscription
-  en: no subscription
-  de: kein Abonnement
+  en: no subscription required
+  de: kein Abonnement erforderlich
   zh: 无需订阅
-  es: sin suscripción
-  fr: pas d'abonnement
-  pt: sem assinatura
-  ru: без подписки
-  ja: サブスクリプションなし
-  ko: 구독 없음
-  it: nessun abbonamento
-  tr: abonelik yok
-  vi: không có đăng ký
-  id: tidak ada langganan
-  pl: brak subskrypcji
-  nl: geen abonnement
-  ar: لا اشتراك
-  hi: 'कोई सदस्यता नहीं'
-  th: ไม่มีการสมัครสมาชิก
-  cs: žádné předplatné
-  sv: ingen prenumeration
+  es: sin suscripción requerida
+  fr: pas d'abonnement requis
+  pt: sem assinatura necessária
+  ru: подписка не требуется
+  ja: サブスクリプション不要
+  ko: 구독 불필요
+  it: nessun abbonamento richiesto
+  tr: abonelik gerekmez
+  vi: không cần đăng ký
+  id: tidak perlu langganan
+  pl: brak wymaganej subskrypcji
+  nl: geen abonnement vereist
+  ar: لا اشتراك مطلوب
+  hi: 'कोई सदस्यता आवश्यक नहीं'
+  th: ไม่ต้องสมัครสมาชิก
+  cs: není vyžadováno předplatné
+  sv: ingen prenumeration krävs
   verified_by_human: []
 no_ads:
   context: explainer that there are no ads
@@ -4153,106 +4153,26 @@ no_selling_of_user_data:
   verified_by_human: []
 prices_on_app_store_soon:
   context: explainer that prices will be available on the app store soon
-  en: 'We''re adding the App Store soon.
-
-    You''ll find the usage prices there.
-
-    '
-  de: 'Wir fügen den App Store bald hinzu.
-
-    Dort finden Sie die Nutzungspreise.
-
-    '
-  zh: '我们很快将添加应用商店。
-
-    您可以在那里找到使用价格。
-
-    '
-  es: 'Pronto añadiremos la App Store.
-
-    Encontrarás los precios de uso allí.
-
-    '
-  fr: "Nous ajoutons bientôt l'App Store.
-
-    Vous y trouverez les prix d'utilisation.
-
-    "
-  pt: 'Estamos adicionando a App Store em breve.
-
-    Você encontrará os preços de uso lá.
-
-    '
-  ru: 'Мы скоро добавим App Store.
-
-    Там вы найдете цены на использование.
-
-    '
-  ja: 'まもなくApp Storeを追加します。
-
-    使用料金はそちらで確認できます。
-
-    '
-  ko: '곧 App Store를 추가할 예정입니다.
-
-    거기서 사용 가격을 확인할 수 있습니다.
-
-    '
-  it: 'Aggiungeremo presto l''App Store.
-
-    Lì troverai i prezzi di utilizzo.
-
-    '
-  tr: 'Yakında App Store''u ekliyoruz.
-
-    Kullanım fiyatlarını orada bulacaksınız.
-
-    '
-  vi: 'Chúng tôi sẽ sớm thêm App Store.
-
-    Bạn sẽ tìm thấy giá sử dụng ở đó.
-
-    '
-  id: 'Kami akan segera menambahkan App Store.
-
-    Anda akan menemukan harga penggunaan di sana.
-
-    '
-  pl: 'Wkrótce dodamy App Store.
-
-    Tam znajdziesz ceny użytkowania.
-
-    '
-  nl: 'We voegen binnenkort de App Store toe.
-
-    Daar vind je de gebruiks prijzen.
-
-    '
-  ar: 'سنضيف متجر التطبيقات قريبًا.
-
-    ستجد أسعار الاستخدام هناك.
-
-    '
-  hi: 'हम जल्द ही App Store जोड़ रहे हैं।
-
-    आपको वहां उपयोग कीमतें मिलेंगी।
-
-    '
-  th: 'เรากำลังจะเพิ่ม App Store ในเร็วๆ นี้
-
-    คุณจะพบราคาการใช้งานที่นั่น
-
-    '
-  cs: 'Brzy přidáme App Store.
-
-    Tam najdete ceny za použití.
-
-    '
-  sv: 'Vi lägger till App Store snart.
-
-    Där hittar du användningspriserna.
-
-    '
+  en: 'Click here to check the App Store for prices.'
+  de: 'Klicken Sie hier, um die Preise im App Store zu überprüfen.'
+  zh: '点击此处查看应用商店中的价格。'
+  es: 'Haz clic aquí para ver los precios en la App Store.'
+  fr: "Cliquez ici pour consulter les prix dans l'App Store."
+  pt: 'Clique aqui para verificar os preços na App Store.'
+  ru: 'Нажмите здесь, чтобы проверить цены в App Store.'
+  ja: 'ここをクリックしてApp Storeの価格を確認してください。'
+  ko: '여기를 클릭하여 App Store에서 가격을 확인하세요.'
+  it: 'Clicca qui per controllare i prezzi nell''App Store.'
+  tr: 'Fiyatları App Store''da kontrol etmek için buraya tıklayın.'
+  vi: 'Nhấp vào đây để kiểm tra giá trong App Store.'
+  id: 'Klik di sini untuk memeriksa harga di App Store.'
+  pl: 'Kliknij tutaj, aby sprawdzić ceny w App Store.'
+  nl: 'Klik hier om de prijzen in de App Store te bekijken.'
+  ar: 'انقر هنا للتحقق من الأسعار في متجر التطبيقات.'
+  hi: 'App Store में कीमतों की जांच करने के लिए यहां क्लिक करें।'
+  th: 'คลิกที่นี่เพื่อตรวจสอบราคาใน App Store'
+  cs: 'Klikněte zde a zkontrolujte ceny v App Store.'
+  sv: 'Klicka här för att kontrollera priserna i App Store.'
   verified_by_human: []
 usage_prices_on_app_store:
   context: explainer where to find pricing details

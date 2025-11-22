@@ -679,6 +679,17 @@ async def _consume_main_processing_stream(
 
     aggregated_response = "".join(final_response_chunks)
     
+    # NOTE: Embed references are now streamed as chunks during skill execution
+    # They appear in final_response_chunks and are already part of aggregated_response
+    # No need to prepend - they're already in the stream at the correct position
+    # This allows flexible placement by the LLM (though currently they appear after skill execution)
+    if tool_calls_info and len(tool_calls_info) > 0:
+        embed_count = sum(1 for tc in tool_calls_info if tc.get("embed_reference"))
+        if embed_count > 0:
+            logger.info(
+                f"{log_prefix} {embed_count} embed reference(s) were streamed as chunks during skill execution"
+            )
+    
     # Prepend code block with tool calls info if any tool calls were made
     # This allows the frontend to display skill input/output and enables follow-up questions
     if tool_calls_info and len(tool_calls_info) > 0:

@@ -80,6 +80,14 @@ class UserCacheMixin:
                 logger.error("Cannot cache user data: no user_id provided or found in user_data.")
                 return False
 
+            # CRITICAL: Ensure user_id is always present in user_data for WebSocket authentication
+            # WebSocket auth checks for user_id in the cached data, so it must be present
+            if "user_id" not in user_data:
+                user_data["user_id"] = user_id
+            # Also ensure "id" is present for compatibility
+            if "id" not in user_data:
+                user_data["id"] = user_id
+
             logger.debug(f"Attempting cache SET for user ID: {user_id}")
             user_ttl = ttl if ttl is not None else self.USER_TTL
             session_ttl = ttl if ttl is not None else self.SESSION_TTL

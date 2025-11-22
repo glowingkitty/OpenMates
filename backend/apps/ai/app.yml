@@ -3,6 +3,9 @@ description_translation_key: ai.description.text
 icon_image: |
   ai.svg
 last_updated: '2025-11-12'
+providers:
+  - Mistral
+  - Cerebras
 
 settings_and_memories:
   - id: communication_style
@@ -120,6 +123,9 @@ skills:
     stage: production
     class_path: |
       ai.skills.ask_skill.AskSkill
+    providers:
+      - Cerebras
+      - Mistral
     skill_config:
       default_llms:
         preprocessing_model: mistral/mistral-small-latest

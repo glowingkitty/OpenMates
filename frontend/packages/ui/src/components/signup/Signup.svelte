@@ -311,18 +311,33 @@
             const signupPath = getPathFromStep(newStep);
             console.debug(`[Signup] Updating last_opened to ${signupPath} for step ${newStep}`);
             
-            // Update client-side (IndexedDB)
+            // Update client-side (IndexedDB) first - this ensures the step is saved even if server update fails
             updateProfile({ last_opened: signupPath });
             
-            // Update server-side via WebSocket if authenticated and connected
+            // Update server-side via WebSocket if authenticated
             // Use set_active_chat message - backend will update last_opened with the provided value
             if ($authStore.isAuthenticated) {
                 try {
+                    // Ensure WebSocket is connected before sending the update
+                    // This is important after account creation when the WebSocket might not be connected yet
+                    if (!webSocketService.isConnected()) {
+                        console.debug(`[Signup] WebSocket not connected, attempting to connect before updating last_opened...`);
+                        try {
+                            await webSocketService.connect();
+                            console.debug(`[Signup] WebSocket connected successfully`);
+                        } catch (wsError) {
+                            console.warn(`[Signup] Failed to connect WebSocket:`, wsError);
+                            // Continue - client-side update is sufficient, server update will happen when WS connects
+                        }
+                    }
+                    
+                    // Send the update via WebSocket
                     await chatSyncService.sendSetActiveChat(signupPath);
                     console.debug(`[Signup] Sent set_active_chat to server with signup path: ${signupPath}`);
                 } catch (error) {
                     console.warn(`[Signup] Failed to update last_opened on server:`, error);
                     // Continue even if server update fails - client-side update is sufficient for now
+                    // The server update will happen when WebSocket connects or on next sync
                 }
             }
         }
@@ -383,18 +398,33 @@
             const signupPath = getPathFromStep(step);
             console.debug(`[Signup] Updating last_opened to ${signupPath} for step ${step}`);
             
-            // Update client-side (IndexedDB)
+            // Update client-side (IndexedDB) first - this ensures the step is saved even if server update fails
             updateProfile({ last_opened: signupPath });
             
-            // Update server-side via WebSocket if authenticated and connected
+            // Update server-side via WebSocket if authenticated
             // Use set_active_chat message - backend will update last_opened with the provided value
             if ($authStore.isAuthenticated) {
                 try {
+                    // Ensure WebSocket is connected before sending the update
+                    // This is important after account creation when the WebSocket might not be connected yet
+                    if (!webSocketService.isConnected()) {
+                        console.debug(`[Signup] WebSocket not connected, attempting to connect before updating last_opened...`);
+                        try {
+                            await webSocketService.connect();
+                            console.debug(`[Signup] WebSocket connected successfully`);
+                        } catch (wsError) {
+                            console.warn(`[Signup] Failed to connect WebSocket:`, wsError);
+                            // Continue - client-side update is sufficient, server update will happen when WS connects
+                        }
+                    }
+                    
+                    // Send the update via WebSocket
                     await chatSyncService.sendSetActiveChat(signupPath);
                     console.debug(`[Signup] Sent set_active_chat to server with signup path: ${signupPath}`);
                 } catch (error) {
                     console.warn(`[Signup] Failed to update last_opened on server:`, error);
                     // Continue even if server update fails - client-side update is sufficient for now
+                    // The server update will happen when WebSocket connects or on next sync
                 }
             }
         }

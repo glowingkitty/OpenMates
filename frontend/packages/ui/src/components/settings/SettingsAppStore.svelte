@@ -396,11 +396,18 @@
      * This dispatches an event to the parent Settings component to navigate to app_store/{appId}.
      */
     function selectApp(appId: string) {
+        const app = apps[appId];
+        // Extract icon name from icon_image if available
+        let iconName = appId; // fallback to appId
+        if (app?.icon_image) {
+            iconName = getIconName(app.icon_image);
+        }
+        
         dispatch('openSettings', {
             settingsPath: `app_store/${appId}`,
             direction: 'forward',
-            icon: appId,
-            title: apps[appId]?.name || appId
+            icon: iconName,
+            title: app?.name || appId
         });
     }
     

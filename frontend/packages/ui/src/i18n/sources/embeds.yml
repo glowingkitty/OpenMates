@@ -21,6 +21,29 @@ search:
   cs: Hledat
   sv: Sök
   verified_by_human: []
+transcript:
+  context: Transcript skill label
+  en: Transcript
+  de: Transkript
+  zh: 转录
+  es: Transcripción
+  fr: Transcription
+  pt: Transcrição
+  ru: Транскрипт
+  ja: 文字起こし
+  ko: 자막
+  it: Trascrizione
+  tr: Transkript
+  vi: Bản ghi
+  id: Transkrip
+  pl: Transkrypcja
+  nl: Transcript
+  ar: النص
+  hi: प्रतिलिपि
+  th: สำเนา
+  cs: Přepis
+  sv: Transkription
+  verified_by_human: []
 processing:
   context: Status text when skill is processing
   en: Processing...

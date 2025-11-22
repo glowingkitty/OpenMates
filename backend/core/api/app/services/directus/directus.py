@@ -3,6 +3,7 @@ import time
 import logging
 import json
 import httpx # Import httpx
+from datetime import datetime
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.utils.encryption import EncryptionService
 
@@ -13,11 +14,13 @@ from backend.core.api.app.services.directus.auth_methods import (
 )
 from backend.core.api.app.services.directus.api_methods import _make_api_request, create_item # Import create_item
 from backend.core.api.app.services.directus.invite_methods import get_invite_code, get_all_invite_codes, consume_invite_code
+from backend.core.api.app.services.directus.gift_card_methods import get_gift_card_by_code, get_all_gift_cards, redeem_gift_card
 from backend.core.api.app.services.directus.chat_methods import ChatMethods # Import ChatMethods class
 # from backend.core.api.app.services.directus.app_memory_methods import AppMemoryMethods # Old import, replaced
 from backend.core.api.app.services.directus.app_settings_and_memories_methods import AppSettingsAndMemoriesMethods # New import
 from backend.core.api.app.services.directus.usage import UsageMethods # Corrected import
 from backend.core.api.app.services.directus.analytics_methods import AnalyticsMethods
+from backend.core.api.app.services.directus.embed_methods import EmbedMethods # Import EmbedMethods class
 from backend.core.api.app.services.directus.user.user_creation import create_user
 from backend.core.api.app.services.directus.user.user_authentication import login_user, login_user_with_lookup_hash, logout_user, logout_all_sessions, refresh_token
 from backend.core.api.app.services.directus.user.user_lookup import get_user_by_hashed_email, get_total_users_count, get_active_users_since, get_user_fields_direct, authenticate_user_by_lookup_hash, add_user_lookup_hash, get_user_by_subscription_id
@@ -62,6 +65,7 @@ class DirectusService:
         self.usage = UsageMethods(self, self.encryption_service)
         self.analytics = AnalyticsMethods(self) # Anonymous analytics methods
         self.chat = ChatMethods(self) # Initialize ChatMethods
+        self.embed = EmbedMethods(self) # Initialize EmbedMethods
 
     async def close(self):
         """Close the httpx client."""
@@ -78,7 +82,8 @@ class DirectusService:
         url = f"{self.base_url}/items/{collection}"
         
         # For sensitive collections like directus_users, ensure we use admin token
-        sensitive_collections = ['directus_users', 'directus_roles', 'directus_permissions']
+        # user_passkeys contains user_id which requires admin permissions
+        sensitive_collections = ['directus_users', 'directus_roles', 'directus_permissions', 'user_passkeys']
         
         if collection in sensitive_collections:
             # Ensure we have a valid admin token for sensitive collections
@@ -190,8 +195,9 @@ class DirectusService:
         hashed_user_id: str,
         user_id: str,
         credential_id: str,
-        public_key_jwk: Dict[str, Any],
+        public_key_cose_b64: str,
         aaguid: str,
+        public_key_jwk: Optional[Dict[str, Any]] = None,
         encrypted_device_name: Optional[str] = None
     ) -> bool:
         """
@@ -201,21 +207,32 @@ class DirectusService:
             hashed_user_id: SHA256 hash of the user's UUID (for privacy-preserving lookups)
             user_id: Direct reference to user_id for efficient lookups
             credential_id: Base64-encoded credential ID from WebAuthn
-            public_key_jwk: Public key in JWK format
+            public_key_cose_b64: Public key in COSE format (base64-encoded CBOR bytes) - REQUIRED for py_webauthn
             aaguid: Authenticator Attestation Globally Unique Identifier
+            public_key_jwk: Public key in JWK format (optional, for backward compatibility)
             encrypted_device_name: Optional encrypted user-friendly device name
             
         Returns:
             True if passkey was created successfully, False otherwise
         """
+        # Get current Unix timestamp (integer) for all timestamp fields
+        # registered_at, created_at, and updated_at will all be the same value
+        # since the passkey is being registered/created right now
+        current_timestamp = int(time.time())
+        
         payload = {
             "hashed_user_id": hashed_user_id,
             "user_id": user_id,
             "credential_id": credential_id,
-            "public_key_jwk": public_key_jwk,
+            "public_key_cose": public_key_cose_b64,
             "aaguid": aaguid,
             "sign_count": 0,
+            "registered_at": current_timestamp,
+            "created_at": current_timestamp,
+            "updated_at": current_timestamp,
         }
+        if public_key_jwk:
+            payload["public_key_jwk"] = public_key_jwk
         if encrypted_device_name:
             payload["encrypted_device_name"] = encrypted_device_name
         
@@ -243,7 +260,7 @@ class DirectusService:
         """
         params = {
             "filter[credential_id][_eq]": credential_id,
-            "fields": "id,hashed_user_id,user_id,credential_id,public_key_jwk,aaguid,sign_count,encrypted_device_name,registered_at,last_used_at",
+            "fields": "id,hashed_user_id,user_id,credential_id,public_key_cose,public_key_jwk,aaguid,sign_count,encrypted_device_name,registered_at,last_used_at",
             "limit": 1
         }
         try:
@@ -287,6 +304,58 @@ class DirectusService:
             logger.error(f"Exception updating passkey sign_count: {e}", exc_info=True)
             return False
 
+    async def update_passkey_device_name(
+        self,
+        passkey_id: str,
+        encrypted_device_name: str
+    ) -> bool:
+        """
+        Updates the encrypted device name for a passkey.
+        
+        Args:
+            passkey_id: The passkey record ID
+            encrypted_device_name: The new encrypted device name
+            
+        Returns:
+            True if update was successful, False otherwise
+        """
+        update_data = {
+            "encrypted_device_name": encrypted_device_name
+        }
+        try:
+            updated_item = await self.update_item("user_passkeys", passkey_id, update_data)
+            if updated_item:
+                logger.info(f"Successfully updated device name for passkey {passkey_id[:6]}...")
+                return True
+            else:
+                logger.error(f"Failed to update device name for passkey {passkey_id[:6]}...")
+                return False
+        except Exception as e:
+            logger.error(f"Exception updating passkey device name: {e}", exc_info=True)
+            return False
+
+    async def delete_passkey(self, passkey_id: str) -> bool:
+        """
+        Deletes a passkey record.
+        
+        Args:
+            passkey_id: The passkey record ID
+            
+        Returns:
+            True if deletion was successful, False otherwise
+        """
+        try:
+            success = await self.delete_item("user_passkeys", passkey_id)
+            if success:
+                logger.info(f"Successfully deleted passkey {passkey_id[:6]}...")
+                return True
+            else:
+                logger.error(f"Failed to delete passkey {passkey_id[:6]}...")
+                return False
+        except Exception as e:
+            logger.error(f"Exception deleting passkey: {e}", exc_info=True)
+            return False
+
     async def get_user_passkeys(self, hashed_user_id: str) -> List[Dict[str, Any]]:
         """
         Retrieves all passkeys for a user by hashed_user_id.
@@ -307,6 +376,35 @@ class DirectusService:
             return items if items else []
         except Exception as e:
             logger.error(f"Exception getting user passkeys for hashed_user_id {hashed_user_id[:8]}...: {e}", exc_info=True)
+            return []
+
+    async def get_user_passkeys_by_user_id(self, user_id: str) -> List[Dict[str, Any]]:
+        """
+        Retrieves all passkeys for a user by user_id (UUID).
+        Queries directly by user_id field for efficient lookups.
+        Only returns essential fields needed for the settings UI.
+        
+        Args:
+            user_id: The user's UUID
+            
+        Returns:
+            List of passkey records with only essential fields:
+            - id (for rename/delete operations)
+            - encrypted_device_name (for display, client decrypts)
+            - registered_at (registration timestamp)
+            - last_used_at (last usage timestamp)
+            - sign_count (usage counter)
+        """
+        params = {
+            "filter[user_id][_eq]": user_id,
+            "fields": "id,encrypted_device_name,registered_at,last_used_at,sign_count",
+            "sort": "-last_used_at"  # Most recently used first
+        }
+        try:
+            items = await self.get_items("user_passkeys", params)
+            return items if items else []
+        except Exception as e:
+            logger.error(f"Exception getting user passkeys for user_id {user_id[:8]}...: {e}", exc_info=True)
             return []
 
     async def get_user_id_from_hashed_user_id(self, hashed_user_id: str) -> Optional[str]:
@@ -496,6 +594,11 @@ class DirectusService:
     get_invite_code = get_invite_code
     get_all_invite_codes = get_all_invite_codes
     consume_invite_code = consume_invite_code # Assign the imported method
+    
+    # Gift card methods
+    get_gift_card_by_code = get_gift_card_by_code
+    get_all_gift_cards = get_all_gift_cards
+    redeem_gift_card = redeem_gift_card
     
     # User management methods
     create_user = create_user

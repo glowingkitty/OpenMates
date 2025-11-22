@@ -203,7 +203,9 @@
                     }
                     
                     // Check if user is in signup flow based on last_opened path
-                    const inSignupFlow = data.user?.last_opened?.startsWith('/signup/') || false;
+                    // Import isSignupPath helper for checking signup paths
+                    const { isSignupPath } = await import('../stores/signupState');
+                    const inSignupFlow = isSignupPath(data.user?.last_opened) || false;
                     console.debug('Login success (backup code), in signup flow:', inSignupFlow);
                     
                     // Clear sensitive data

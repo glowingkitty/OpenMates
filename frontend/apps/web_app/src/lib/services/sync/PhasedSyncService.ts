@@ -64,6 +64,11 @@ export class PhasedSyncService {
             this.handleCachePrimed(event.payload);
         });
 
+        // App settings and memories sync ready (after Phase 3)
+        websocketService.addEventListener('app_settings_memories_sync_ready', (event: any) => {
+            this.handleAppSettingsMemoriesSyncReady(event.payload);
+        });
+
         // Sync status response
         websocketService.addEventListener('sync_status_response', (event: any) => {
             this.handleSyncStatusResponse(event.payload);
@@ -222,6 +227,35 @@ export class PhasedSyncService {
             cachePrimed: true,
             lastSyncTimestamp: Date.now()
         });
+    }
+
+    /**
+     * Handle app settings and memories sync ready event (after Phase 3)
+     * This sync happens automatically after all chats have been synced.
+     */
+    private async handleAppSettingsMemoriesSyncReady(payload: any): Promise<void> {
+        console.log('App settings and memories sync ready:', payload);
+        
+        try {
+            const { entries } = payload;
+            
+            // Store encrypted app settings/memories entries in IndexedDB
+            // TODO: Implement IndexedDB storage with app-specific encryption keys
+            // 1. Decrypt app-specific keys using master key
+            // 2. Store encrypted entries in IndexedDB (encrypted with app-specific keys)
+            // 3. Handle conflict resolution based on item_version
+            // 4. Update App Store settings UI if open
+            
+            console.log(`Received ${entries?.length || 0} app settings/memories entries for sync`);
+            
+            // Dispatch event to notify App Store components
+            window.dispatchEvent(new CustomEvent('appSettingsMemoriesSyncReady', {
+                detail: { entries: entries || [] }
+            }));
+            
+        } catch (error) {
+            console.error('Error handling app settings/memories sync:', error);
+        }
     }
 
     /**

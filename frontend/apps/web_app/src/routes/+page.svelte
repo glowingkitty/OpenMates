@@ -20,6 +20,10 @@
         websocketStatus, // Import WebSocket status store
         userProfile, // Import user profile to access last_opened
         loadUserProfileFromDB, // Import loadUserProfileFromDB function
+        loginInterfaceOpen, // Import loginInterfaceOpen to control login interface visibility
+        currentSignupStep, // Import currentSignupStep to set signup step from hash
+        getStepFromPath, // Import getStepFromPath to parse step from hash
+        isSignupPath, // Import isSignupPath helper
         // types
         type Chat,
         // services
@@ -294,6 +298,28 @@
 		// Now check auth state after optimistic loading
 		const isAuth = $authStore.isAuthenticated;
 		
+		// CRITICAL: Check for signup hash in URL BEFORE initialize() to ensure hash-based signup state takes precedence
+		// This ensures signup flow opens immediately on page reload if URL has #signup/ hash
+		// The hash takes precedence over last_opened from IndexedDB and checkAuth() logic
+		let hasSignupHash = false;
+		if (window.location.hash.startsWith('#signup/')) {
+			hasSignupHash = true;
+			// Handle signup deep linking - open login interface and set signup step
+			console.debug(`[+page.svelte] Found signup deep link in URL (before initialize): ${window.location.hash}`);
+			
+			// Extract step from hash (e.g., #signup/credits -> credits)
+			const signupHash = window.location.hash.substring(1); // Remove leading #
+			const step = getStepFromPath(signupHash);
+			
+			console.debug(`[+page.svelte] Setting signup step to: ${step} from hash: ${window.location.hash}`);
+			
+			// Set signup step and open login interface BEFORE initialize() runs
+			// This ensures checkAuth() won't override these values
+			currentSignupStep.set(step);
+			isInSignupProcess.set(true);
+			loginInterfaceOpen.set(true);
+		}
+		
 		// CRITICAL FOR NON-AUTH: Mark sync completed IMMEDIATELY to prevent "Loading chats..." flash
 		// Must happen before initialize() because it checks $phasedSyncState.initialSyncCompleted
 		if (!isAuth) {
@@ -370,6 +396,19 @@
 		// Initialize authentication state (panelState will react to this)
 		await initialize(); // Call the imported initialize function
 		console.debug('[+page.svelte] initialize() finished');
+		
+		// CRITICAL: Re-check signup hash AFTER initialize() completes
+		// This ensures hash-based signup state persists even if checkAuth() reset it
+		// The hash takes absolute precedence over last_opened
+		if (hasSignupHash && window.location.hash.startsWith('#signup/')) {
+			console.debug(`[+page.svelte] Re-applying signup hash state after initialize(): ${window.location.hash}`);
+			const signupHash = window.location.hash.substring(1); // Remove leading #
+			const step = getStepFromPath(signupHash);
+			currentSignupStep.set(step);
+			isInSignupProcess.set(true);
+			loginInterfaceOpen.set(true);
+			console.debug(`[+page.svelte] Re-applied signup state: step=${step}, isInSignupProcess=true, loginInterfaceOpen=true`);
+		}
 		
 		// Fetch most used apps on app load (non-blocking, cached for 1 hour)
 		// This ensures data is available when App Store opens
@@ -497,12 +536,24 @@
             }
         }
 
-        // Handle deep links (e.g., #settings, #chat_id=, #chat-id=)
+        // Clear signup hash after processing (if it was present) to keep URL clean
+        // (similar to how chat deep links are cleared after loading)
+        if (hasSignupHash) {
+            window.history.replaceState({}, '', window.location.pathname + window.location.search);
+        }
+        
+        // Handle other deep links (settings, chat, etc.)
         if (window.location.hash.startsWith('#settings')) {
             panelState.openSettings();
             const settingsPath = window.location.hash.substring('#settings'.length);
             if (settingsPath.startsWith('/')) {
-                settingsDeepLink.set(settingsPath.substring(1)); // Remove leading slash
+                // Handle paths like #settings/appstore -> app_store
+                let path = settingsPath.substring(1); // Remove leading slash
+                // Map common aliases to actual settings paths
+                if (path === 'appstore') {
+                    path = 'app_store';
+                }
+                settingsDeepLink.set(path);
             } else if (settingsPath === '') {
                  settingsDeepLink.set('main'); // Default to main settings if just #settings
             } else {
@@ -536,12 +587,29 @@
 
     /**
      * Handle hash changes after page load
-     * Allows navigation by pasting URLs with chat_id hash
+     * Allows navigation by pasting URLs with chat_id or signup hash
      */
     function handleHashChange() {
         console.debug('[+page.svelte] Hash changed:', window.location.hash);
         
-        if (window.location.hash.startsWith('#chat_id=') || window.location.hash.startsWith('#chat-id=')) {
+        if (window.location.hash.startsWith('#signup/')) {
+            // Handle signup deep linking - open login interface and set signup step
+            console.debug(`[+page.svelte] Hash changed to signup deep link: ${window.location.hash}`);
+            
+            // Extract step from hash (e.g., #signup/credits -> credits)
+            const signupHash = window.location.hash.substring(1); // Remove leading #
+            const step = getStepFromPath(signupHash);
+            
+            console.debug(`[+page.svelte] Setting signup step to: ${step} from hash: ${window.location.hash}`);
+            
+            // Set signup step and open login interface
+            currentSignupStep.set(step);
+            isInSignupProcess.set(true);
+            loginInterfaceOpen.set(true);
+            
+            // Clear the hash after processing to keep URL clean
+            window.history.replaceState({}, '', window.location.pathname + window.location.search);
+        } else if (window.location.hash.startsWith('#chat_id=') || window.location.hash.startsWith('#chat-id=')) {
             // Support both #chat_id= and #chat-id= formats
             const chatId = window.location.hash.startsWith('#chat_id=') 
                 ? window.location.hash.substring(9) // Remove '#chat_id=' prefix

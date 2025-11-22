@@ -5,7 +5,7 @@
 
 import { get } from 'svelte/store';
 import { getApiEndpoint, apiEndpoints } from '../config/api';
-import { currentSignupStep, isInSignupProcess, getStepFromPath, STEP_ONE_TIME_CODES } from './signupState';
+import { currentSignupStep, isInSignupProcess, getStepFromPath, STEP_ONE_TIME_CODES, isSignupPath } from './signupState';
 import { requireInviteCode } from './signupRequirements';
 import { userDB } from '../services/userDB';
 import { chatDB } from '../services/db'; // Import chatDB
@@ -17,6 +17,7 @@ import { logout, deleteAllCookies } from './authLoginLogoutActions'; // Import l
 import { setWebSocketToken, clearWebSocketToken } from '../utils/cookies'; // Import WebSocket token utilities
 import { notificationStore } from './notificationStore'; // Import notification store for logout notifications
 import { loadUserProfileFromDB } from './userProfile'; // Import to load user profile from IndexedDB
+import { loginInterfaceOpen } from './uiStateStore'; // Import loginInterfaceOpen to control login interface visibility
 
 // Import core auth state and related flags
 import { authStore, isCheckingAuth, needsDeviceVerification } from './authState';
@@ -162,28 +163,67 @@ export async function checkAuth(deviceSignals?: Record<string, string | null>, f
             }
 
             needsDeviceVerification.set(false);
+            
+            // CRITICAL: Check URL hash directly - hash takes absolute precedence over everything
+            // This ensures hash-based signup state works even if set after checkAuth() starts
+            let hasSignupHash = false;
+            let hashStep: string | null = null;
+            if (typeof window !== 'undefined' && window.location.hash.startsWith('#signup/')) {
+                hasSignupHash = true;
+                const signupHash = window.location.hash.substring(1); // Remove leading #
+                hashStep = getStepFromPath(signupHash);
+                console.debug("checkAuth() found signup hash in URL:", window.location.hash, "-> step:", hashStep);
+            }
+            
+            // Check if signup state was already set from URL hash (hash takes precedence)
+            // If isInSignupProcess is already true, it means the hash was processed before initialize()
+            // and we should NOT override it based on last_opened
+            const signupStateFromHash = hasSignupHash || get(isInSignupProcess);
+            
             // A user is in signup flow if:
-            // 1. last_opened starts with '/signup/' (explicit signup path), OR
-            // 2. tfa_enabled is false (2FA not set up - signup incomplete)
+            // 1. URL hash indicates signup (hash takes absolute precedence), OR
+            // 2. Signup state was already set from URL hash, OR
+            // 3. last_opened starts with '/signup/' or '#signup/' (explicit signup path), OR
+            // 4. tfa_enabled is false (2FA not set up - signup incomplete)
             // This handles cases where last_opened was overwritten to demo-welcome in a previous session
-            const inSignupFlow = (data.user.last_opened?.startsWith('/signup/')) || 
+            const inSignupFlow = hasSignupHash || 
+                                signupStateFromHash || 
+                                isSignupPath(data.user.last_opened) || 
                                 (data.user.tfa_enabled === false);
 
             if (inSignupFlow) {
-                console.debug("User is in signup process:", {
-                    last_opened: data.user.last_opened,
-                    tfa_enabled: data.user.tfa_enabled
-                });
-                // Determine step: use last_opened if it's a signup path, otherwise default to one_time_codes
-                // (the actual OTP setup step, not the app reminder step)
-                const step = data.user.last_opened?.startsWith('/signup/') 
-                    ? getStepFromPath(data.user.last_opened)
-                    : STEP_ONE_TIME_CODES; // Default to one_time_codes (OTP setup) if last_opened doesn't indicate signup
-                currentSignupStep.set(step);
-                isInSignupProcess.set(true);
-                console.debug("Set signup step to:", step);
+                // If hash is present, use hash step (hash takes absolute precedence)
+                if (hasSignupHash && hashStep) {
+                    console.debug("Setting signup state from URL hash:", hashStep);
+                    currentSignupStep.set(hashStep);
+                    isInSignupProcess.set(true);
+                    loginInterfaceOpen.set(true);
+                } else if (!signupStateFromHash) {
+                    // Only update signup state if it wasn't already set from hash
+                    // This ensures hash-based signup state takes precedence
+                    console.debug("User is in signup process:", {
+                        last_opened: data.user.last_opened,
+                        tfa_enabled: data.user.tfa_enabled
+                    });
+                    // Determine step: use last_opened if it's a signup path, otherwise default to one_time_codes
+                    // (the actual OTP setup step, not the app reminder step)
+                    const step = isSignupPath(data.user.last_opened)
+                        ? getStepFromPath(data.user.last_opened)
+                        : STEP_ONE_TIME_CODES; // Default to one_time_codes (OTP setup) if last_opened doesn't indicate signup
+                    currentSignupStep.set(step);
+                    isInSignupProcess.set(true);
+                    // CRITICAL: Open login interface to show signup flow on page reload
+                    // This ensures the signup flow is visible immediately when the page reloads
+                    loginInterfaceOpen.set(true);
+                    console.debug("Set signup step to:", step, "and opened login interface");
+                } else {
+                    console.debug("Signup state already set from URL hash, preserving it");
+                }
             } else {
-                isInSignupProcess.set(false);
+                // Only clear signup state if it wasn't set from hash
+                if (!signupStateFromHash) {
+                    isInSignupProcess.set(false);
+                }
             }
 
             authStore.update(state => ({
@@ -316,6 +356,31 @@ export async function checkAuth(deviceSignals?: Record<string, string | null>, f
                     isAuthenticated: true,
                     isInitialized: true
                 }));
+                
+                // Check if user is in signup flow (offline-first mode)
+                // A user is in signup flow if:
+                // 1. last_opened starts with '/signup/' or '#signup/' (explicit signup path), OR
+                // 2. tfa_enabled is false (2FA not set up - signup incomplete)
+                const inSignupFlow = isSignupPath(localProfile.last_opened) || 
+                                    (localProfile.tfa_enabled === false);
+                
+                if (inSignupFlow) {
+                    console.debug("[AuthSessionActions] User is in signup process (offline-first mode):", {
+                        last_opened: localProfile.last_opened,
+                        tfa_enabled: localProfile.tfa_enabled
+                    });
+                    // Determine step: use last_opened if it's a signup path, otherwise default to one_time_codes
+                    const step = isSignupPath(localProfile.last_opened)
+                        ? getStepFromPath(localProfile.last_opened)
+                        : STEP_ONE_TIME_CODES; // Default to one_time_codes (OTP setup) if last_opened doesn't indicate signup
+                    currentSignupStep.set(step);
+                    isInSignupProcess.set(true);
+                    // CRITICAL: Open login interface to show signup flow on page reload (offline-first mode)
+                    loginInterfaceOpen.set(true);
+                    console.debug("[AuthSessionActions] Set signup step to:", step, "and opened login interface (offline-first mode)");
+                } else {
+                    isInSignupProcess.set(false);
+                }
                 
                 // Apply language from local profile if available
                 if (localProfile.language) {

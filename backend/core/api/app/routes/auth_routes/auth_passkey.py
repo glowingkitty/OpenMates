@@ -19,6 +19,30 @@ import os
 import base64
 import json
 from typing import Optional, Dict, Any
+import cbor2
+from datetime import datetime
+from webauthn import (
+    generate_registration_options,
+    verify_registration_response,
+    generate_authentication_options,
+    verify_authentication_response,
+    base64url_to_bytes,
+)
+from webauthn.helpers.options_to_json_dict import options_to_json_dict
+from webauthn.helpers.cose import COSEAlgorithmIdentifier
+from webauthn.helpers.structs import (
+    AttestationConveyancePreference,
+    AuthenticatorAttachment,
+    AuthenticatorSelectionCriteria,
+    PublicKeyCredentialDescriptor,
+    ResidentKeyRequirement,
+    UserVerificationRequirement,
+)
+from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives.asymmetric import ec, rsa, padding
+from cryptography.hazmat.primitives.asymmetric.utils import encode_dss_signature, decode_dss_signature
+from cryptography.hazmat.backends import default_backend
+from cryptography.exceptions import InvalidSignature
 from backend.core.api.app.schemas.auth import (
     PasskeyRegistrationInitiateRequest,
     PasskeyRegistrationInitiateResponse,
@@ -28,7 +52,12 @@ from backend.core.api.app.schemas.auth import (
     PasskeyAssertionInitiateResponse,
     PasskeyAssertionVerifyRequest,
     PasskeyAssertionVerifyResponse,
-    LoginRequest
+    LoginRequest,
+    PasskeyListResponse,
+    PasskeyRenameRequest,
+    PasskeyRenameResponse,
+    PasskeyDeleteRequest,
+    PasskeyDeleteResponse
 )
 from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.services.cache import CacheService
@@ -47,6 +76,10 @@ from backend.core.api.app.routes.auth_routes.auth_dependencies import (
 )
 from backend.core.api.app.routes.auth_routes.auth_utils import verify_allowed_origin, validate_username
 from backend.core.api.app.routes.auth_routes.auth_login import finalize_login_session
+from backend.core.api.app.routes.auth_routes.auth_dependencies import get_current_user
+from backend.core.api.app.models.user import User
+# Import Celery app instance for cache warming tasks
+from backend.core.api.app.tasks.celery_config import app
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -62,6 +95,10 @@ def get_rp_id_from_request(request: Request) -> str:
     - rpId must be the hostname (domain) without protocol, port, or path
     - rpId must match the origin of the request
     - For localhost, use "localhost" (not "127.0.0.1")
+    
+    IMPORTANT: Each domain has its own rp_id, so passkeys registered on one domain
+    (e.g., localhost) will NOT work on another domain (e.g., openmates.org).
+    This is correct WebAuthn behavior - passkeys are domain-specific for security.
     """
     # First, try to get from Origin header (most reliable)
     origin = request.headers.get("Origin")
@@ -130,6 +167,492 @@ def get_rp_name() -> str:
     """Get the Relying Party name"""
     return os.getenv("WEBAUTHN_RP_NAME", "OpenMates")
 
+def decode_webauthn_attestation(attestation_object_b64: str) -> tuple[Dict[str, Any], str]:
+    """
+    Decodes WebAuthn attestationObject (CBOR-encoded) and extracts public key (JWK) and AAGUID.
+    
+    The attestationObject structure (CBOR):
+    {
+        "fmt": string (attestation format, e.g., "none", "packed", "fido-u2f"),
+        "attStmt": dict (attestation statement, format-specific),
+        "authData": bytes (authenticator data)
+    }
+    
+    The authData structure (binary):
+    - rpIdHash: 32 bytes
+    - flags: 1 byte
+    - signCount: 4 bytes (big-endian)
+    - aaguid: 16 bytes (UUID)
+    - credentialIdLength: 2 bytes (big-endian)
+    - credentialId: variable length
+    - credentialPublicKey: CBOR-encoded COSE key
+    
+    Args:
+        attestation_object_b64: Base64-encoded attestationObject from WebAuthn
+        
+    Returns:
+        Tuple of (public_key_jwk: Dict, aaguid: str)
+        
+    Raises:
+        ValueError: If attestationObject cannot be decoded or parsed
+    """
+    try:
+        # Decode base64 to get CBOR binary data
+        attestation_object_bytes = base64.urlsafe_b64decode(attestation_object_b64 + '==')
+        
+        # Parse CBOR to get attestation structure
+        attestation = cbor2.loads(attestation_object_bytes)
+        
+        if not isinstance(attestation, dict):
+            raise ValueError(f"AttestationObject is not a dict, got {type(attestation)}")
+        
+        # Extract authData (binary)
+        auth_data_bytes = attestation.get("authData")
+        if not auth_data_bytes:
+            raise ValueError("authData not found in attestationObject")
+        
+        if not isinstance(auth_data_bytes, bytes):
+            raise ValueError(f"authData is not bytes, got {type(auth_data_bytes)}")
+        
+        # Parse authData binary structure
+        # rpIdHash (32 bytes) + flags (1 byte) + signCount (4 bytes) = 37 bytes
+        # Then aaguid (16 bytes) starts at offset 37
+        if len(auth_data_bytes) < 53:  # Minimum: 37 + 16 (aaguid)
+            raise ValueError(f"authData too short: {len(auth_data_bytes)} bytes, need at least 53")
+        
+        # Extract AAGUID (16 bytes starting at offset 37)
+        aaguid_bytes = auth_data_bytes[37:53]
+        
+        # Convert AAGUID bytes to UUID string
+        # Format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+        aaguid_hex = aaguid_bytes.hex()
+        aaguid = f"{aaguid_hex[0:8]}-{aaguid_hex[8:12]}-{aaguid_hex[12:16]}-{aaguid_hex[16:20]}-{aaguid_hex[20:32]}"
+        
+        # Extract credentialIdLength (2 bytes, big-endian) at offset 53
+        if len(auth_data_bytes) < 55:
+            raise ValueError(f"authData too short for credentialIdLength: {len(auth_data_bytes)} bytes")
+        
+        credential_id_length = int.from_bytes(auth_data_bytes[53:55], byteorder='big')
+        
+        # Extract credentialId (variable length)
+        credential_id_start = 55
+        credential_id_end = credential_id_start + credential_id_length
+        
+        if len(auth_data_bytes) < credential_id_end:
+            raise ValueError(f"authData too short for credentialId: {len(auth_data_bytes)} bytes, need {credential_id_end}")
+        
+        # Extract credentialPublicKey (CBOR-encoded COSE key, starts after credentialId)
+        credential_public_key_cbor = auth_data_bytes[credential_id_end:]
+        
+        if len(credential_public_key_cbor) == 0:
+            raise ValueError("credentialPublicKey not found in authData")
+        
+        # Parse COSE public key (CBOR)
+        cose_key = cbor2.loads(credential_public_key_cbor)
+        
+        if not isinstance(cose_key, dict):
+            raise ValueError(f"COSE key is not a dict, got {type(cose_key)}")
+        
+        # Convert COSE key to JWK format
+        # COSE key format uses integer keys (RFC 8152):
+        # 1: kty (key type), 3: alg (algorithm), -1: crv (curve), -2: x, -3: y, -4: d
+        # JWK uses string keys: "kty", "alg", "crv", "x", "y", "d"
+        
+        public_key_jwk: Dict[str, Any] = {}
+        
+        # Key type (kty)
+        kty_cose = cose_key.get(1)  # COSE key type
+        if kty_cose == 2:  # EC2 (Elliptic Curve)
+            public_key_jwk["kty"] = "EC"
+        elif kty_cose == 3:  # RSA
+            public_key_jwk["kty"] = "RSA"
+        else:
+            raise ValueError(f"Unsupported COSE key type: {kty_cose}")
+        
+        # Algorithm (alg)
+        alg_cose = cose_key.get(3)
+        if alg_cose == -7:  # ES256
+            public_key_jwk["alg"] = "ES256"
+            public_key_jwk["crv"] = "P-256"
+        elif alg_cose == -257:  # RS256
+            public_key_jwk["alg"] = "RS256"
+        else:
+            # Try to get from COSE or use default
+            if public_key_jwk["kty"] == "EC":
+                public_key_jwk["alg"] = "ES256"
+                public_key_jwk["crv"] = "P-256"
+            else:
+                public_key_jwk["alg"] = "RS256"
+        
+        # Extract key material based on key type
+        if public_key_jwk["kty"] == "EC":
+            # Elliptic curve: x and y coordinates
+            x_bytes = cose_key.get(-2)  # COSE -2 = x coordinate
+            y_bytes = cose_key.get(-3)  # COSE -3 = y coordinate
+            
+            if not x_bytes or not y_bytes:
+                raise ValueError("EC key missing x or y coordinates")
+            
+            # Convert to base64url (JWK format)
+            public_key_jwk["x"] = base64.urlsafe_b64encode(x_bytes).decode('utf-8').rstrip('=')
+            public_key_jwk["y"] = base64.urlsafe_b64encode(y_bytes).decode('utf-8').rstrip('=')
+            
+        elif public_key_jwk["kty"] == "RSA":
+            # RSA: n (modulus) and e (exponent)
+            n_bytes = cose_key.get(-1)  # COSE -1 = RSA modulus (n)
+            e_bytes = cose_key.get(-2)  # COSE -2 = RSA exponent (e)
+            
+            if not n_bytes or not e_bytes:
+                raise ValueError("RSA key missing n or e")
+            
+            # Convert to base64url (JWK format)
+            public_key_jwk["n"] = base64.urlsafe_b64encode(n_bytes).decode('utf-8').rstrip('=')
+            
+            # Exponent might be bytes or int
+            if isinstance(e_bytes, bytes):
+                # Convert bytes to int (big-endian)
+                e_int = int.from_bytes(e_bytes, byteorder='big')
+            else:
+                e_int = e_bytes
+            
+            # Convert int to base64url
+            e_bytes_encoded = e_int.to_bytes((e_int.bit_length() + 7) // 8, byteorder='big')
+            public_key_jwk["e"] = base64.urlsafe_b64encode(e_bytes_encoded).decode('utf-8').rstrip('=')
+        
+        # Set key use and operations
+        public_key_jwk["use"] = "sig"  # Signature
+        public_key_jwk["key_ops"] = ["verify"]
+        
+        logger.debug(f"Successfully decoded attestationObject: aaguid={aaguid}, kty={public_key_jwk.get('kty')}, alg={public_key_jwk.get('alg')}")
+        
+        return public_key_jwk, aaguid
+        
+    except Exception as e:
+        logger.error(f"Failed to decode WebAuthn attestationObject: {e}", exc_info=True)
+        raise ValueError(f"Invalid attestationObject: {str(e)}")
+
+def parse_authenticator_data(authenticator_data_b64: str) -> tuple[int, bool, bool]:
+    """
+    Parses WebAuthn authenticatorData (binary) and extracts sign_count and flags.
+    
+    The authenticatorData structure for assertions (binary):
+    - rpIdHash: 32 bytes
+    - flags: 1 byte (bit 0 = userPresent, bit 2 = userVerified, bit 6 = attestedCredentialData)
+    - signCount: 4 bytes (big-endian, starting at offset 33)
+    
+    Args:
+        authenticator_data_b64: Base64-encoded authenticatorData from WebAuthn
+        
+    Returns:
+        Tuple of (sign_count: int, user_present: bool, user_verified: bool)
+        
+    Raises:
+        ValueError: If authenticatorData cannot be decoded or parsed
+    """
+    try:
+        # Decode base64 to get binary data
+        authenticator_data_bytes = base64.urlsafe_b64decode(authenticator_data_b64 + '==')
+        
+        if len(authenticator_data_bytes) < 37:  # Minimum: 32 (rpIdHash) + 1 (flags) + 4 (signCount)
+            raise ValueError(f"authenticatorData too short: {len(authenticator_data_bytes)} bytes, need at least 37")
+        
+        # Extract flags byte (offset 32)
+        flags_byte = authenticator_data_bytes[32]
+        
+        # Parse flags
+        user_present = bool(flags_byte & 0x01)  # Bit 0
+        user_verified = bool(flags_byte & 0x04)  # Bit 2
+        
+        # Extract sign_count (4 bytes, big-endian, starting at offset 33)
+        sign_count_bytes = authenticator_data_bytes[33:37]
+        sign_count = int.from_bytes(sign_count_bytes, byteorder='big')
+        
+        logger.debug(f"Parsed authenticatorData: sign_count={sign_count}, user_present={user_present}, user_verified={user_verified}")
+        
+        return sign_count, user_present, user_verified
+        
+    except Exception as e:
+        logger.error(f"Failed to parse authenticatorData: {e}", exc_info=True)
+        raise ValueError(f"Invalid authenticatorData: {str(e)}")
+
+def _decode_base64_from_frontend(data: str) -> bytes:
+    """
+    Decode base64 string from frontend, handling missing padding automatically.
+    
+    Frontend uses standard base64 encoding (window.btoa), not base64url.
+    This function handles the conversion correctly.
+    
+    Args:
+        data: Base64-encoded string from frontend
+        
+    Returns:
+        Decoded bytes
+    """
+    # Add padding if needed (base64 strings must be multiple of 4)
+    missing_padding = len(data) % 4
+    if missing_padding:
+        data += '=' * (4 - missing_padding)
+    # Use standard base64 decode (not urlsafe) since frontend uses window.btoa()
+    return base64.b64decode(data)
+
+
+def _decode_base64url(data: str) -> bytes:
+    """
+    Decode base64url string (JWK format), handling missing padding automatically.
+    
+    JWK uses base64url encoding (RFC 4648 Section 5) which uses - and _ instead of + and /.
+    Padding is optional in base64url.
+    
+    Args:
+        data: Base64url-encoded string (from JWK)
+        
+    Returns:
+        Decoded bytes
+    """
+    # Add padding if needed (base64 strings must be multiple of 4)
+    missing_padding = len(data) % 4
+    if missing_padding:
+        data += '=' * (4 - missing_padding)
+    # Use urlsafe base64 decode for JWK format
+    return base64.urlsafe_b64decode(data)
+
+
+def verify_webauthn_signature(
+    public_key_jwk: Dict[str, Any],
+    signature_b64: str,
+    client_data_json_b64: str,
+    authenticator_data_b64: str
+) -> bool:
+    """
+    Verifies a WebAuthn assertion signature using the stored public key.
+    
+    The signature is over: SHA256(clientDataJSON) || authenticatorData
+    (concatenation of the hash of clientDataJSON and the raw authenticatorData bytes)
+    
+    Args:
+        public_key_jwk: Public key in JWK format (from database)
+        signature_b64: Base64-encoded signature from WebAuthn assertion
+        client_data_json_b64: Base64-encoded clientDataJSON from WebAuthn assertion
+        authenticator_data_b64: Base64-encoded authenticatorData from WebAuthn assertion
+        
+    Returns:
+        True if signature is valid, False otherwise
+        
+    Raises:
+        ValueError: If public key format is invalid or unsupported
+    """
+    try:
+        # Decode base64 data using standard base64 (frontend uses window.btoa)
+        signature_bytes = _decode_base64_from_frontend(signature_b64)
+        client_data_json_bytes = _decode_base64_from_frontend(client_data_json_b64)
+        authenticator_data_bytes = _decode_base64_from_frontend(authenticator_data_b64)
+        
+        logger.info(
+            f"Decoded data lengths: signature={len(signature_bytes)} bytes, "
+            f"clientDataJSON={len(client_data_json_bytes)} bytes, "
+            f"authenticatorData={len(authenticator_data_bytes)} bytes"
+        )
+        
+        # Build signed data: SHA256(clientDataJSON) || authenticatorData
+        # This is the exact data that the authenticator signed
+        # According to WebAuthn spec: signature is over SHA256(clientDataJSON) || authenticatorData
+        client_data_hash = hashlib.sha256(client_data_json_bytes).digest()
+        signed_data = client_data_hash + authenticator_data_bytes
+        
+        logger.info(
+            f"Signed data construction: clientDataHash={len(client_data_hash)} bytes, "
+            f"authenticatorData={len(authenticator_data_bytes)} bytes, "
+            f"total={len(signed_data)} bytes"
+        )
+        logger.debug(
+            f"clientDataHash (first 8 bytes): {client_data_hash[:8].hex()}, "
+            f"authenticatorData (first 8 bytes): {authenticator_data_bytes[:8].hex() if len(authenticator_data_bytes) >= 8 else authenticator_data_bytes.hex()}"
+        )
+        
+        # Get key type and algorithm from JWK
+        kty = public_key_jwk.get("kty")
+        alg = public_key_jwk.get("alg", "ES256")  # Default to ES256
+        
+        if kty == "EC":
+            # Elliptic Curve (ES256)
+            if alg != "ES256":
+                raise ValueError(f"Unsupported EC algorithm: {alg}, only ES256 is supported")
+            
+            # Get curve and coordinates
+            crv = public_key_jwk.get("crv", "P-256")
+            if crv != "P-256":
+                raise ValueError(f"Unsupported curve: {crv}, only P-256 is supported")
+            
+            x_b64 = public_key_jwk.get("x")
+            y_b64 = public_key_jwk.get("y")
+            
+            if not x_b64 or not y_b64:
+                raise ValueError("EC key missing x or y coordinates")
+            
+            # Decode base64url coordinates (JWK uses base64url without padding)
+            x_bytes = _decode_base64url(x_b64)
+            y_bytes = _decode_base64url(y_b64)
+            
+            # Validate coordinate lengths (P-256 requires 32 bytes each)
+            if len(x_bytes) != 32 or len(y_bytes) != 32:
+                raise ValueError(
+                    f"Invalid coordinate length: x={len(x_bytes)} bytes, y={len(y_bytes)} bytes. "
+                    f"Expected 32 bytes each for P-256 curve."
+                )
+            
+            # Create EC public key
+            x_int = int.from_bytes(x_bytes, byteorder='big')
+            y_int = int.from_bytes(y_bytes, byteorder='big')
+            
+            logger.info(f"Decoded JWK coordinates: x={x_int.bit_length()} bits, y={y_int.bit_length()} bits")
+            logger.debug(f"JWK x coordinate (first 8 bytes hex): {x_bytes[:8].hex()}, y coordinate (first 8 bytes hex): {y_bytes[:8].hex()}")
+            
+            # Create public key object
+            public_numbers = ec.EllipticCurvePublicNumbers(x_int, y_int, ec.SECP256R1())
+            public_key = public_numbers.public_key(default_backend())
+            
+            # Verify the public key is valid (this will raise if coordinates are invalid)
+            try:
+                # Serialize and deserialize to validate the key
+                serialized = public_key.public_bytes(
+                    encoding=serialization.Encoding.X962,
+                    format=serialization.PublicFormat.UncompressedPoint
+                )
+                logger.debug(f"Public key serialized successfully, length: {len(serialized)} bytes")
+            except Exception as e:
+                logger.error(f"Failed to serialize public key: {e}", exc_info=True)
+                raise ValueError(f"Invalid public key coordinates: {str(e)}")
+            
+            # ES256 signature format handling:
+            # According to WebAuthn spec, signatures SHOULD be DER-encoded (RFC3279 section 2.2.3)
+            # However, some authenticators may return raw r||s format (64 bytes)
+            # We need to handle both formats
+            
+            signature_length = len(signature_bytes)
+            logger.info(f"Signature length: {signature_length} bytes, first 8 bytes: {signature_bytes[:8].hex()}")
+            
+            if signature_length == 64:
+                # Raw format: r||s (32 bytes each) - convert to DER for cryptography library
+                logger.debug("Signature is in raw r||s format (64 bytes), converting to DER...")
+                r_bytes = signature_bytes[:32]
+                s_bytes = signature_bytes[32:]
+                r_int = int.from_bytes(r_bytes, byteorder='big')
+                s_int = int.from_bytes(s_bytes, byteorder='big')
+                logger.debug(f"Extracted r and s from raw format: r={r_int.bit_length()} bits, s={s_int.bit_length()} bits")
+                # Convert to DER format for cryptography library
+                der_signature = encode_dss_signature(r_int, s_int)
+                logger.debug(f"Converted to DER signature: {len(der_signature)} bytes")
+            elif 70 <= signature_length <= 72:
+                # DER-encoded format (WebAuthn spec compliant) - use directly
+                # The cryptography library can verify DER signatures directly
+                logger.info(f"Signature is in DER format ({signature_length} bytes) - WebAuthn spec compliant, using directly")
+                # Validate DER format by attempting to decode it (for error checking)
+                try:
+                    r_int, s_int = decode_dss_signature(signature_bytes)
+                    logger.info(f"Validated DER signature: r={r_int.bit_length()} bits, s={s_int.bit_length()} bits")
+                    # Use the original DER signature directly - don't re-encode as it might change
+                    # The cryptography library accepts DER format directly
+                    der_signature = signature_bytes
+                    logger.info(f"Using original DER signature directly: {len(der_signature)} bytes")
+                except Exception as e:
+                    logger.error(f"Failed to decode/validate DER signature: {e}", exc_info=True)
+                    raise ValueError(f"Invalid DER-encoded signature format: {str(e)}")
+            else:
+                logger.error(f"Unexpected signature length: {signature_length} bytes")
+                raise ValueError(
+                    f"Invalid ES256 signature length: {signature_length} bytes. "
+                    f"Expected 64 bytes (raw r||s) or 70-72 bytes (DER-encoded per WebAuthn spec)"
+                )
+            
+            # Verify signature
+            # According to WebAuthn spec: signature is over SHA256(clientDataJSON) || authenticatorData
+            # ECDSA signs a hash, so the authenticator:
+            #   1. Computes SHA256(clientDataJSON)
+            #   2. Concatenates: SHA256(clientDataJSON) || authenticatorData
+            #   3. Hashes this concatenated data: SHA256(SHA256(clientDataJSON) || authenticatorData)
+            #   4. Signs this hash
+            # 
+            # The cryptography library's verify() with ec.ECDSA(hashes.SHA256()) will hash the data we pass
+            # So we pass the concatenated data: SHA256(clientDataJSON) || authenticatorData
+            # The library will hash it to SHA256(SHA256(clientDataJSON) || authenticatorData) and verify
+            try:
+                # Log the full signed data hash for debugging
+                signed_data_hash = hashlib.sha256(signed_data).digest()
+                logger.info(f"Full signed data hash (SHA256 of concatenated data): {signed_data_hash.hex()}")
+                logger.info(f"Full authenticatorData (hex): {authenticator_data_bytes.hex()}")
+                logger.info(f"Full clientDataJSON (decoded): {client_data_json_bytes.decode('utf-8', errors='ignore')}")
+                
+                # Try verification - the library will hash signed_data before verification
+                # signed_data is: SHA256(clientDataJSON) || authenticatorData
+                # Library will compute: SHA256(SHA256(clientDataJSON) || authenticatorData) and verify
+                public_key.verify(
+                    der_signature,
+                    signed_data,  # This is SHA256(clientDataJSON) || authenticatorData
+                    ec.ECDSA(hashes.SHA256())  # Library will hash signed_data before verification
+                )
+                logger.info("ES256 signature verification successful")
+                return True
+            except InvalidSignature as e:
+                # Log detailed information for debugging
+                logger.warning(
+                    f"Signature verification failed: {e}. "
+                    f"Signature length: {signature_length} bytes, "
+                    f"Signed data length: {len(signed_data)} bytes"
+                )
+                # Log hex dumps for debugging (first 32 bytes of each)
+                logger.info(
+                    f"DER signature (first 32 bytes hex): {der_signature[:32].hex() if len(der_signature) >= 32 else der_signature.hex()}, "
+                    f"Signed data (first 32 bytes hex): {signed_data[:32].hex()}, "
+                    f"clientDataJSON (first 50 chars): {client_data_json_bytes[:50].decode('utf-8', errors='ignore')}"
+                )
+                raise
+            
+        elif kty == "RSA":
+            # RSA (RS256)
+            if alg != "RS256":
+                raise ValueError(f"Unsupported RSA algorithm: {alg}, only RS256 is supported")
+            
+            # Get modulus and exponent
+            n_b64 = public_key_jwk.get("n")
+            e_b64 = public_key_jwk.get("e")
+            
+            if not n_b64 or not e_b64:
+                raise ValueError("RSA key missing n or e")
+            
+            # Decode base64url
+            n_bytes = base64.urlsafe_b64decode(n_b64 + '==')
+            e_bytes = base64.urlsafe_b64decode(e_b64 + '==')
+            
+            # Convert to integers
+            n_int = int.from_bytes(n_bytes, byteorder='big')
+            e_int = int.from_bytes(e_bytes, byteorder='big')
+            
+            # Create RSA public key
+            public_numbers = rsa.RSAPublicNumbers(e_int, n_int)
+            public_key = public_numbers.public_key(default_backend())
+            
+            # RS256 signature is already in PKCS1v15 format
+            # Verify signature
+            public_key.verify(
+                signature_bytes,
+                signed_data,
+                padding.PKCS1v15(),
+                hashes.SHA256()
+            )
+            
+            logger.debug("RS256 signature verification successful")
+            return True
+            
+        else:
+            raise ValueError(f"Unsupported key type: {kty}, only EC and RSA are supported")
+            
+    except InvalidSignature:
+        logger.warning("Signature verification failed: invalid signature")
+        return False
+    except Exception as e:
+        logger.error(f"Error verifying WebAuthn signature: {e}", exc_info=True)
+        raise ValueError(f"Signature verification error: {str(e)}")
+
 @router.post("/passkey/registration/initiate", response_model=PasskeyRegistrationInitiateResponse, dependencies=[Depends(verify_allowed_origin)])
 @limiter.limit("5/minute")
 async def passkey_registration_initiate(
@@ -191,7 +714,6 @@ async def passkey_registration_initiate(
         # Convert hashed_email to bytes for user.id (WebAuthn requires bytes)
         user_id_bytes = base64.urlsafe_b64decode(initiate_request.hashed_email + '==')[:64]  # Limit to 64 bytes
         
-        # Build WebAuthn PublicKeyCredentialCreationOptions
         # CRITICAL: rpId must match the request origin domain for WebAuthn to work
         rp_id = get_rp_id_from_request(request)
         rp_name = get_rp_name()
@@ -200,33 +722,42 @@ async def passkey_registration_initiate(
         origin = request.headers.get("Origin") or request.headers.get("Referer", "").rsplit("/", 1)[0]
         logger.debug(f"Passkey registration - Origin: {origin}, rpId: {rp_id}")
         
-        creation_options = {
-            "challenge": challenge,
-            "rp": {
-                "id": rp_id,
-                "name": rp_name
-            },
-            "user": {
-                "id": base64.urlsafe_b64encode(user_id_bytes).decode('utf-8').rstrip('='),
-                "name": user_name,
-                "displayName": user_display_name or user_name
-            },
-            "pubKeyCredParams": [
-                {"type": "public-key", "alg": -7},  # ES256
-                {"type": "public-key", "alg": -257}  # RS256
+        # Generate registration options using py_webauthn
+        # Note: PRF extension is added manually in the response since py_webauthn doesn't support it yet
+        registration_options = generate_registration_options(
+            rp_id=rp_id,
+            rp_name=rp_name,
+            user_id=user_id_bytes,
+            user_name=user_name,
+            user_display_name=user_display_name or user_name,
+            challenge=challenge_bytes,
+            timeout=60000,
+            attestation=AttestationConveyancePreference.DIRECT,
+            authenticator_selection=AuthenticatorSelectionCriteria(
+                authenticator_attachment=AuthenticatorAttachment.PLATFORM,
+                resident_key=ResidentKeyRequirement.REQUIRED,
+                user_verification=UserVerificationRequirement.PREFERRED,
+            ),
+            supported_pub_key_algs=[
+                COSEAlgorithmIdentifier.ECDSA_SHA_256,  # ES256
+                COSEAlgorithmIdentifier.RSASSA_PKCS1_v1_5_SHA_256,  # RS256
             ],
-            "timeout": 60000,
-            "attestation": "direct",
-            "authenticatorSelection": {
-                "residentKey": "required",  # Required for passwordless login
-                "userVerification": "preferred",
-                "authenticatorAttachment": "platform"  # Prefer platform authenticators (biometrics)
-            },
-            "extensions": {
+        )
+        
+        # Convert to dict using py_webauthn's helper (properly handles base64url encoding)
+        # Then add PRF extension (py_webauthn doesn't support PRF yet)
+        # CRITICAL: prfEvalFirst must be deterministic (same value for signup and login)
+        # to ensure the PRF output is the same, so the wrapping key is the same, so we can decrypt the master key
+        # Use domain-based global salt: SHA256(rp_id) - same for all users on the same domain
+        # Security: Each passkey has a unique credential_secret, so PRF output is still unique per user
+        prf_eval_first_bytes = hashlib.sha256(rp_id.encode()).digest()[:32]
+        prf_eval_first_b64 = base64.urlsafe_b64encode(prf_eval_first_bytes).decode('utf-8').rstrip('=')
+        logger.info(f"Registration prf_eval_first: rp_id={rp_id}, first_bytes={prf_eval_first_bytes[:4].hex()}, b64={prf_eval_first_b64[:30]}...")
+        creation_options_dict = options_to_json_dict(registration_options)
+        creation_options_dict["extensions"] = {
                 "prf": {
                     "eval": {
-                        "first": base64.urlsafe_b64encode(challenge_bytes[:32]).decode('utf-8').rstrip('=')
-                    }
+                    "first": prf_eval_first_b64
                 }
             }
         }
@@ -235,13 +766,14 @@ async def passkey_registration_initiate(
         
         return PasskeyRegistrationInitiateResponse(
             success=True,
-            challenge=creation_options["challenge"],
-            rp=creation_options["rp"],
-            user=creation_options["user"],
-            pubKeyCredParams=creation_options["pubKeyCredParams"],
-            timeout=creation_options["timeout"],
-            attestation=creation_options["attestation"],
-            authenticatorSelection=creation_options["authenticatorSelection"],
+            challenge=creation_options_dict["challenge"],
+            rp=creation_options_dict["rp"],
+            user=creation_options_dict["user"],
+            pubKeyCredParams=creation_options_dict["pubKeyCredParams"],
+            timeout=creation_options_dict["timeout"],
+            attestation=creation_options_dict["attestation"],
+            authenticatorSelection=creation_options_dict["authenticatorSelection"],
+            extensions=creation_options_dict.get("extensions"),  # Include PRF extension
             message="Passkey registration initiated"
         )
         
@@ -287,9 +819,11 @@ async def passkey_registration_complete(
                 user=None
             )
         
-        # TODO: Verify WebAuthn attestation using webauthn library
-        # For now, we'll do basic validation and note where full verification should be added
-        # Full implementation should use: py_webauthn or webauthn library
+        # WebAuthn attestation verification:
+        # - clientDataJSON challenge verification (done above)
+        # - attestationObject CBOR decoding and public key extraction (done via decode_webauthn_attestation)
+        # - Full signature verification would require additional cryptographic verification
+        #   but the extracted public key will be used for future assertion verification
         
         # Extract credential ID from attestation response
         credential_id = complete_request.credential_id
@@ -397,36 +931,123 @@ async def passkey_registration_complete(
         user_id = user_data.get("id")
         vault_key_id = user_data.get("vault_key_id")
         
-        # TODO: Full WebAuthn attestation verification
-        # Should verify:
-        # 1. clientDataJSON matches expected challenge
-        # 2. attestationObject is valid
-        # 3. signature verification using public key
-        # 4. AAGUID validation (optional)
-        # For now, we'll extract basic info and note where verification should happen
-        
-        # Parse attestation response to extract public key and AAGUID
-        # This is a simplified extraction - full implementation should use webauthn library
+        # Verify WebAuthn attestation using py_webauthn
         attestation_obj = complete_request.attestation_response
+        attestation_object_b64 = attestation_obj.get("attestationObject")
+        client_data_json_b64 = complete_request.client_data_json
         
-        # Extract public key from attestation (simplified - should use CBOR decoding)
-        # TODO: Use proper CBOR decoding to extract public_key_jwk from attestationObject
-        public_key_jwk = attestation_obj.get("publicKey", {})  # Placeholder
-        aaguid = attestation_obj.get("aaguid", "00000000-0000-0000-0000-000000000000")  # Placeholder
+        if not attestation_object_b64 or not client_data_json_b64:
+            logger.error("attestationObject or clientDataJSON not found in attestation response")
+            return PasskeyRegistrationCompleteResponse(
+                success=False,
+                message="Invalid passkey registration data. Please try again.",
+                user=None
+            )
         
-        # Encrypt device name if provided (extract from user agent or request)
-        encrypted_device_name = None
-        # TODO: Extract device name from user agent or request from user
-        # For now, device_name is None - can be added later
+        # Get expected challenge from cache
+        try:
+            client_data_json_bytes = _decode_base64_from_frontend(client_data_json_b64)
+            client_data = json.loads(client_data_json_bytes.decode('utf-8'))
+            challenge_from_client = client_data.get('challenge', '')
+            challenge_cache_key = f"passkey_challenge:{challenge_from_client}"
+            cached_challenge = await cache_service.get(challenge_cache_key)
+            
+            if not cached_challenge:
+                logger.warning(f"Challenge not found in cache for user {user_id} - may have expired")
+                return PasskeyRegistrationCompleteResponse(
+                    success=False,
+                    message="Registration challenge expired. Please try again.",
+                    user=None
+                )
+            
+            # Verify type is "webauthn.create"
+            if client_data.get("type") != "webauthn.create":
+                logger.error(f"Invalid clientDataJSON type: {client_data.get('type')}")
+                return PasskeyRegistrationCompleteResponse(
+                    success=False,
+                    message="Invalid passkey registration type.",
+                    user=None
+                )
+            
+            expected_challenge = base64url_to_bytes(challenge_from_client)
+        except Exception as e:
+            logger.error(f"Failed to parse clientDataJSON for user {user_id}: {e}", exc_info=True)
+            return PasskeyRegistrationCompleteResponse(
+                success=False,
+                message="Invalid passkey registration data. Please try again.",
+                user=None
+            )
+        
+        # Get origin and rp_id
+        origin = request.headers.get("Origin") or request.headers.get("Referer", "").rsplit("/", 1)[0]
+        rp_id = get_rp_id_from_request(request)
+        
+        # Verify registration response using py_webauthn
+        try:
+            # Build credential dict for py_webauthn
+            credential_dict = {
+                "id": credential_id,
+                "rawId": credential_id,
+                "response": {
+                    "attestationObject": attestation_object_b64,
+                    "clientDataJSON": client_data_json_b64,
+                    "transports": attestation_obj.get("transports", []),
+                },
+                "type": "public-key",
+                "clientExtensionResults": attestation_obj.get("clientExtensionResults", {}),
+            }
+            
+            # Verify registration response
+            registration_verification = verify_registration_response(
+                credential=credential_dict,
+                expected_challenge=expected_challenge,
+                expected_origin=origin,
+                expected_rp_id=rp_id,
+                require_user_verification=True,
+            )
+            
+            # Extract public key in COSE format (bytes) and AAGUID
+            public_key_cose_bytes = registration_verification.credential_public_key
+            aaguid = registration_verification.aaguid
+            
+            # Convert COSE bytes to base64 for storage
+            public_key_cose_b64 = base64.urlsafe_b64encode(public_key_cose_bytes).decode('utf-8').rstrip('=')
+            
+            # Also extract JWK for backward compatibility (using our existing function)
+            try:
+                public_key_jwk, _ = decode_webauthn_attestation(attestation_object_b64)
+            except Exception as e:
+                logger.warning(f"Failed to extract JWK for backward compatibility: {e}")
+                public_key_jwk = None
+            
+            logger.info(f"Successfully verified registration and extracted public key for user {user_id}")
+            
+        except Exception as e:
+            logger.error(f"Failed to verify registration response for user {user_id}: {e}", exc_info=True)
+            return PasskeyRegistrationCompleteResponse(
+                success=False,
+                message="Invalid passkey registration. Please try again.",
+                user=None
+            )
+        
+        # Device name is already encrypted client-side with master key (zero-knowledge)
+        # Server stores it as-is without decrypting
+        encrypted_device_name = complete_request.encrypted_device_name
         
         # Store passkey credential using hashed_user_id for privacy
         hashed_user_id = hashlib.sha256(user_id.encode()).hexdigest()
+        
+        # Note: prf_eval_first is now computed from rp_id (domain-based global salt)
+        # No need to store it in the database - it's deterministic and computed on-the-fly
+        # Security: Each passkey has a unique credential_secret, so PRF output is still unique per user
+        
         passkey_success = await directus_service.create_passkey(
             hashed_user_id=hashed_user_id,
             user_id=user_id,  # Include user_id for efficient lookups
             credential_id=credential_id,
-            public_key_jwk=public_key_jwk,
-            aaguid=aaguid,
+            public_key_cose_b64=public_key_cose_b64,
+            public_key_jwk=public_key_jwk,  # For backward compatibility
+            aaguid=str(aaguid) if aaguid else None,
             encrypted_device_name=encrypted_device_name
         )
         
@@ -588,10 +1209,19 @@ async def passkey_assertion_initiate(
             "timestamp": int(time.time())
         }, ttl=300)
         
-        # Get allowed credentials if hashed_email is provided
+        # Build WebAuthn PublicKeyCredentialRequestOptions
+        # CRITICAL: rpId must match the request origin domain for WebAuthn to work
+        rp_id = get_rp_id_from_request(request)
+        rp_name = get_rp_name()
+        
+        # Get origin from request headers (for logging/debugging)
+        origin = request.headers.get("Origin") or request.headers.get("Referer", "")
+        logger.debug(f"Passkey assertion - Origin: {origin}, rpId: {rp_id}")
+        
+        # Get allowed credentials if hashed_email is provided (optional optimization for non-discoverable credentials)
         allow_credentials = []
         if initiate_request.hashed_email:
-            # Look up user's passkeys using hashed_user_id
+            # Look up user's passkeys using hashed_user_id (optional optimization)
             exists_result, user_data, _ = await directus_service.get_user_by_hashed_email(initiate_request.hashed_email)
             if exists_result and user_data:
                 user_id = user_data.get("id")
@@ -604,26 +1234,36 @@ async def passkey_assertion_initiate(
                             "id": passkey.get("credential_id")
                         })
         
-        # Build WebAuthn PublicKeyCredentialRequestOptions
-        # CRITICAL: rpId must match the request origin domain for WebAuthn to work
-        rp_id = get_rp_id_from_request(request)
-        rp_name = get_rp_name()
+        # Generate authentication options using py_webauthn
+        # Convert allow_credentials to PublicKeyCredentialDescriptor format
+        allow_credentials_descriptors = [
+            PublicKeyCredentialDescriptor(id=base64url_to_bytes(cred["id"]))
+            for cred in allow_credentials
+        ] if allow_credentials else None
         
-        # Get origin from request headers (for logging/debugging)
-        origin = request.headers.get("Origin") or request.headers.get("Referer", "")
-        logger.debug(f"Passkey assertion - Origin: {origin}, rpId: {rp_id}")
+        authentication_options = generate_authentication_options(
+            rp_id=rp_id,
+            challenge=challenge_bytes,
+            timeout=60000,
+            allow_credentials=allow_credentials_descriptors,
+            user_verification=UserVerificationRequirement.PREFERRED,
+        )
         
-        request_options = {
-            "challenge": challenge,
-            "rpId": rp_id,
-            "timeout": 60000,
-            "userVerification": "preferred",
-            "allowCredentials": allow_credentials,
-            "extensions": {
+        # Convert to dict using py_webauthn's helper (properly handles base64url encoding)
+        # Then add PRF extension (py_webauthn doesn't support PRF yet)
+        # CRITICAL: prfEvalFirst must be deterministic (same value for signup and login)
+        # Use domain-based global salt: SHA256(rp_id) - same for all users on the same domain
+        # Security: Each passkey has a unique credential_secret, so PRF output is still unique per user
+        # This solves the "chicken-and-egg" problem: we can compute it without knowing the user
+        prf_eval_first_bytes = hashlib.sha256(rp_id.encode()).digest()[:32]
+        prf_eval_first_b64 = base64.urlsafe_b64encode(prf_eval_first_bytes).decode('utf-8').rstrip('=')
+        logger.info(f"Authentication prf_eval_first: rp_id={rp_id}, first_bytes={prf_eval_first_bytes[:4].hex()}, b64={prf_eval_first_b64[:30]}...")
+        
+        request_options_dict = options_to_json_dict(authentication_options)
+        request_options_dict["extensions"] = {
                 "prf": {
                     "eval": {
-                        "first": base64.urlsafe_b64encode(challenge_bytes[:32]).decode('utf-8').rstrip('=')
-                    }
+                    "first": prf_eval_first_b64
                 }
             }
         }
@@ -632,12 +1272,12 @@ async def passkey_assertion_initiate(
         
         return PasskeyAssertionInitiateResponse(
             success=True,
-            challenge=request_options["challenge"],
+            challenge=request_options_dict["challenge"],
             rp={"id": rp_id, "name": rp_name},
-            timeout=request_options["timeout"],
-            allowCredentials=request_options["allowCredentials"],
-            userVerification=request_options["userVerification"],
-            extensions=request_options.get("extensions"),
+            timeout=request_options_dict["timeout"],
+            allowCredentials=allow_credentials,  # Keep original format for frontend
+            userVerification=request_options_dict["userVerification"],
+            extensions=request_options_dict["extensions"],
             message="Passkey assertion initiated"
         )
         
@@ -744,14 +1384,89 @@ async def passkey_assertion_verify(
                         auth_session=None
                     )
         
-        stored_sign_count = passkey.get("sign_count", 0)
-        public_key_jwk = passkey.get("public_key_jwk")
-        
-        if not user_id:
-            logger.error("Could not determine user_id from passkey")
+        # Verify clientDataJSON challenge matches expected challenge from cache
+        # This prevents replay attacks and ensures the response is for the current session
+        try:
+            client_data_json_bytes = _decode_base64_from_frontend(verify_request.client_data_json)
+            client_data = json.loads(client_data_json_bytes.decode('utf-8'))
+            
+            # Verify type is "webauthn.get" (for assertions)
+            if client_data.get("type") != "webauthn.get":
+                logger.error(f"Invalid clientDataJSON type for assertion: {client_data.get('type')}")
+                return PasskeyAssertionVerifyResponse(
+                    success=False,
+                    message="Invalid passkey authentication type.",
+                    user_id=None,
+                    hashed_email=None,
+                    encrypted_email=None,
+                    encrypted_master_key=None,
+                    key_iv=None,
+                    salt=None,
+                    user_email_salt=None,
+                    auth_session=None
+                )
+            
+            # Verify challenge matches cached challenge
+            challenge = client_data.get("challenge", "")
+            challenge_cache_key = f"passkey_assertion_challenge:{challenge}"
+            cached_challenge = await cache_service.get(challenge_cache_key)
+            
+            if not cached_challenge:
+                logger.warning(f"Challenge not found in cache for user {user_id} - may have expired or be a replay attack")
+                # Log security event
+                compliance_service.log_auth_event(
+                    event_type="passkey_challenge_mismatch",
+                    user_id=user_id,
+                    ip_address=_extract_client_ip(request.headers, request.client.host if request.client else None),
+                    status="warning",
+                    details={
+                        "credential_id": verify_request.credential_id[:8] + "...",
+                        "reason": "Challenge not found in cache"
+                    }
+                )
+                return PasskeyAssertionVerifyResponse(
+                    success=False,
+                    message="Passkey verification failed. Challenge expired or invalid.",
+                    user_id=None,
+                    hashed_email=None,
+                    encrypted_email=None,
+                    encrypted_master_key=None,
+                    key_iv=None,
+                    salt=None,
+                    user_email_salt=None,
+                    auth_session=None
+                )
+            
+            # Verify origin matches (additional security check)
+            origin = client_data.get("origin")
+            if origin:
+                rp_id = get_rp_id_from_request(request)
+                expected_origin = f"https://{rp_id}" if not rp_id.startswith("localhost") else f"http://{rp_id}"
+                if origin != expected_origin and not origin.startswith(expected_origin):
+                    logger.warning(f"Origin mismatch: {origin} vs expected {expected_origin}")
+                    # Log but don't block (could be legitimate variation)
+            
+            logger.debug(f"Challenge verification successful for user {user_id}")
+            
+        except json.JSONDecodeError as e:
+            logger.error(f"Failed to parse clientDataJSON for user {user_id}: {e}")
             return PasskeyAssertionVerifyResponse(
                 success=False,
-                message="User not found. Please try again.",
+                message="Invalid passkey authentication data. Please try again.",
+                user_id=None,
+                hashed_email=None,
+                encrypted_email=None,
+                encrypted_master_key=None,
+                key_iv=None,
+                salt=None,
+                user_email_salt=None,
+                auth_session=None
+            )
+        except Exception as e:
+            logger.error(f"Error verifying clientDataJSON for user {user_id}: {e}", exc_info=True)
+            return PasskeyAssertionVerifyResponse(
+                success=False,
+                message="Passkey verification failed. Please try again.",
                 user_id=None,
                 hashed_email=None,
                 encrypted_email=None,
@@ -762,21 +1477,150 @@ async def passkey_assertion_verify(
                 auth_session=None
             )
         
-        # TODO: Full WebAuthn assertion verification
-        # Should verify:
-        # 1. clientDataJSON matches expected challenge
-        # 2. authenticatorData is valid
-        # 3. signature verification using stored public_key_jwk
-        # 4. sign_count validation (detect cloned authenticators)
-        # For now, we'll do basic validation
+        # Get public key for signature verification (use COSE format for py_webauthn)
+        stored_sign_count = passkey.get("sign_count", 0)
+        public_key_cose_b64 = passkey.get("public_key_cose")
         
-        # Extract sign_count from authenticator_data
-        # TODO: Parse authenticator_data properly to get sign_count
-        authenticator_data = base64.urlsafe_b64decode(verify_request.authenticator_data + '==')
-        # Sign count is bytes 33-36 in authenticator_data (simplified - should use proper parsing)
-        new_sign_count = stored_sign_count + 1  # Placeholder - should extract from authenticator_data
+        if not public_key_cose_b64:
+            logger.error(f"Public key (COSE) not found for passkey credential_id: {verify_request.credential_id[:8]}...")
+            return PasskeyAssertionVerifyResponse(
+                success=False,
+                message="Invalid passkey configuration. Please contact support.",
+                user_id=None,
+                hashed_email=None,
+                encrypted_email=None,
+                encrypted_master_key=None,
+                key_iv=None,
+                salt=None,
+                user_email_salt=None,
+                auth_session=None
+            )
         
-        # Validate sign_count (detect cloned authenticators)
+        # Extract assertion response data
+        assertion_response = verify_request.assertion_response
+        signature_b64 = assertion_response.get("signature")
+        authenticator_data_b64 = verify_request.authenticator_data
+        client_data_json_b64 = verify_request.client_data_json
+        
+        if not signature_b64 or not authenticator_data_b64 or not client_data_json_b64:
+            logger.error(f"Missing assertion data for user {user_id}")
+            return PasskeyAssertionVerifyResponse(
+                success=False,
+                message="Invalid passkey authentication data. Missing required fields.",
+                user_id=None,
+                hashed_email=None,
+                encrypted_email=None,
+                encrypted_master_key=None,
+                key_iv=None,
+                salt=None,
+                user_email_salt=None,
+                auth_session=None
+            )
+        
+        # Get expected challenge from cache
+        try:
+            client_data_json_bytes = _decode_base64_from_frontend(client_data_json_b64)
+            client_data = json.loads(client_data_json_bytes.decode('utf-8'))
+            challenge_from_client = client_data.get('challenge', '')
+            challenge_cache_key = f"passkey_assertion_challenge:{challenge_from_client}"
+            cached_challenge = await cache_service.get(challenge_cache_key)
+            
+            if not cached_challenge:
+                logger.warning(f"Challenge not found in cache for user {user_id} - may have expired or be a replay attack")
+                return PasskeyAssertionVerifyResponse(
+                    success=False,
+                    message="Authentication challenge expired. Please try again.",
+                    user_id=None,
+                    hashed_email=None,
+                    encrypted_email=None,
+                    encrypted_master_key=None,
+                    key_iv=None,
+                    salt=None,
+                    user_email_salt=None,
+                    auth_session=None
+                )
+            
+            expected_challenge = base64url_to_bytes(challenge_from_client)
+        except Exception as e:
+            logger.error(f"Failed to parse clientDataJSON for user {user_id}: {e}", exc_info=True)
+            return PasskeyAssertionVerifyResponse(
+                success=False,
+                message="Invalid passkey authentication data. Please try again.",
+                user_id=None,
+                hashed_email=None,
+                encrypted_email=None,
+                encrypted_master_key=None,
+                key_iv=None,
+                salt=None,
+                user_email_salt=None,
+                auth_session=None
+            )
+        
+        # Get origin and rp_id
+        origin = request.headers.get("Origin") or request.headers.get("Referer", "").rsplit("/", 1)[0]
+        rp_id = get_rp_id_from_request(request)
+        
+        # Convert COSE key from base64 to bytes
+        public_key_cose_bytes = base64.urlsafe_b64decode(public_key_cose_b64 + '==')
+        
+        # Verify authentication response using py_webauthn
+        try:
+            # Build credential dict for py_webauthn
+            credential_dict = {
+                "id": verify_request.credential_id,
+                "rawId": verify_request.credential_id,
+                "response": {
+                    "authenticatorData": authenticator_data_b64,
+                    "clientDataJSON": client_data_json_b64,
+                    "signature": signature_b64,
+                    "userHandle": assertion_response.get("userHandle"),
+                },
+                "type": "public-key",
+                "clientExtensionResults": assertion_response.get("clientExtensionResults", {}),
+            }
+            
+            # Verify authentication response
+            authentication_verification = verify_authentication_response(
+                credential=credential_dict,
+                expected_challenge=expected_challenge,
+                expected_rp_id=rp_id,
+                expected_origin=origin,
+                credential_public_key=public_key_cose_bytes,
+                credential_current_sign_count=stored_sign_count,
+                require_user_verification=True,
+            )
+            
+            # Update sign_count (py_webauthn validates this automatically)
+            new_sign_count = authentication_verification.new_sign_count
+            logger.info(f"Signature verification successful for user {user_id}, new sign_count: {new_sign_count}")
+            
+        except Exception as e:
+            logger.error(f"Signature verification error for user {user_id}: {e}", exc_info=True)
+            # Log security event
+            compliance_service.log_auth_event(
+                event_type="passkey_signature_verification_failed",
+                user_id=user_id,
+                ip_address=_extract_client_ip(request.headers, request.client.host if request.client else None),
+                status="error",
+                details={
+                    "credential_id": verify_request.credential_id[:8] + "...",
+                    "reason": str(e)
+                }
+            )
+            return PasskeyAssertionVerifyResponse(
+                success=False,
+                message="Passkey verification failed. Invalid signature.",
+                user_id=None,
+                hashed_email=None,
+                encrypted_email=None,
+                encrypted_master_key=None,
+                key_iv=None,
+                salt=None,
+                user_email_salt=None,
+                auth_session=None
+            )
+        
+        # Validate sign_count (py_webauthn already validates this, but we check again for safety)
         if new_sign_count <= stored_sign_count:
             logger.warning(f"Potential cloned authenticator detected for user {user_id[:6]}... (sign_count: {new_sign_count} <= stored: {stored_sign_count})")
             # Log security event but don't block (could be false positive)
@@ -815,6 +1659,58 @@ async def passkey_assertion_verify(
                     user_email_salt=None,
                     auth_session=None
                 )
+            # Cache the fetched profile (ensure user_id is present for WebSocket auth)
+            if "user_id" not in user_profile:
+                user_profile["user_id"] = user_id
+            if "id" not in user_profile:
+                user_profile["id"] = user_id
+            await cache_service.set_user(user_profile, user_id=user_id)
+        else:
+            # Ensure user_id is present in cached data (required for WebSocket auth)
+            # Update cache only if user_id was missing (to avoid unnecessary writes)
+            if "user_id" not in user_profile or "id" not in user_profile:
+                if "user_id" not in user_profile:
+                    user_profile["user_id"] = user_id
+                if "id" not in user_profile:
+                    user_profile["id"] = user_id
+                # Update cache to ensure user_id is persisted
+                await cache_service.set_user(user_profile, user_id=user_id)
+        
+        # Start cache warming for passkey login (similar to /lookup endpoint for password login)
+        # This ensures user data is ready when the frontend loads the main interface
+        cache_primed = await cache_service.is_user_cache_primed(user_id)
+        
+        if not cache_primed:
+            # Check if warming already in progress to avoid duplicate work
+            warming_flag = f"cache_warming_in_progress:{user_id}"
+            is_warming = await cache_service.get(warming_flag)
+            
+            if not is_warming:
+                # Set flag to prevent duplicate warming attempts (5 min TTL)
+                await cache_service.set(warming_flag, "warming", ttl=300)
+                
+                # Get last_opened for cache warming task
+                last_opened_path = user_profile.get("last_opened") if user_profile else None
+                
+                logger.info(f"[PASSKEY] Pre-warming cache for user {user_id[:6]}... from /passkey/assertion/verify endpoint")
+                
+                # Dispatch async - doesn't block passkey verification response
+                # By the time user completes authentication and frontend loads, cache should be ready
+                if app.conf.task_always_eager is False:  # Check if not running eagerly for tests
+                    app.send_task(
+                        name='app.tasks.user_cache_tasks.warm_user_cache',
+                        kwargs={'user_id': user_id, 'last_opened_path_from_user_model': last_opened_path},
+                        queue='user_init'
+                    )
+                    # CRITICAL: Don't set primed flag here - let the cache warming task set it when complete!
+                elif app.conf.task_always_eager:
+                    logger.info(f"Celery is in eager mode. warm_user_cache for user {user_id[:6]}... would run synchronously. Setting primed flag.")
+                    # In eager mode, the task would run here. We can set the flag.
+                    await cache_service.set_user_cache_primed_flag(user_id)
+            else:
+                logger.info(f"Cache warming already in progress for user {user_id[:6]}...")
+        else:
+            logger.info(f"User cache already primed for user {user_id[:6]}... (skipping passkey cache warming)")
         
         # Get encryption key for passkey login method
         hashed_user_id = hashlib.sha256(user_id.encode()).hexdigest()
@@ -867,16 +1763,16 @@ async def passkey_assertion_verify(
         auth_data = None
         auth_message = None
         
-        if lookup_hash and lookup_hash in user_lookup_hashes:
+        if lookup_hash and lookup_hash in user_lookup_hashes and hashed_email:
             # Client provided lookup_hash - authenticate now
             logger.info(f"Authenticating user {user_id} with provided lookup_hash")
             auth_success, auth_data, auth_message = await directus_service.login_user_with_lookup_hash(
-                hashed_email=hashed_email or "",
+                hashed_email=hashed_email,
                 lookup_hash=lookup_hash
             )
             
             if not auth_success or not auth_data:
-                logger.error(f"Failed to authenticate user {user_id} after passkey verification")
+                logger.error(f"Failed to authenticate user {user_id} after passkey verification: {auth_message}")
                 return PasskeyAssertionVerifyResponse(
                     success=False,
                     message="Authentication failed. Please try again.",
@@ -890,12 +1786,22 @@ async def passkey_assertion_verify(
                     auth_session=None
                 )
         else:
-            # No lookup_hash provided - return data without authentication
+            # No lookup_hash provided or hashed_email missing - return data without authentication
             # Client will derive lookup_hash from PRF signature + email salt, then authenticate
-            logger.info(f"Passkey verified for user {user_id}, returning data for client-side lookup_hash derivation")
-            # Return success with encrypted data, but no auth_session
-            # Client will derive lookup_hash and call authentication separately
-            # Include decrypted email if available (for passwordless login)
+            if not hashed_email:
+                logger.warning(f"hashed_email not available for user {user_id}, returning data without authentication")
+            elif not lookup_hash:
+                logger.info(f"No lookup_hash provided for user {user_id}, returning data for client-side lookup_hash derivation")
+            else:
+                logger.warning(f"lookup_hash not found in user's lookup_hashes for user {user_id}")
+            
+            # Get user_email_salt and log for debugging
+            user_email_salt = user_profile.get("user_email_salt")
+            logger.info(f"Returning user_email_salt for user {user_id}: {user_email_salt[:20] + '...' if user_email_salt else 'None'}")
+            logger.debug(f"Full user_email_salt for user {user_id}: {user_email_salt}")
+            logger.debug(f"Encrypted master key length: {len(encryption_key_data.get('encrypted_key', '')) if encryption_key_data.get('encrypted_key') else 0}")
+            logger.debug(f"Key IV length: {len(encryption_key_data.get('key_iv', '')) if encryption_key_data.get('key_iv') else 0}")
+            
             return PasskeyAssertionVerifyResponse(
                 success=True,
                 message="Passkey verified. Please complete authentication.",
@@ -905,7 +1811,7 @@ async def passkey_assertion_verify(
                 encrypted_master_key=encryption_key_data.get("encrypted_key"),
                 key_iv=encryption_key_data.get("key_iv"),
                 salt=encryption_key_data.get("salt"),
-                user_email_salt=user_profile.get("user_email_salt"),
+                user_email_salt=user_email_salt,
                 user_email=None,  # Client will decrypt from encrypted_email_with_master_key
                 auth_session=None  # No session yet - client needs to authenticate with lookup_hash
             )
@@ -975,5 +1881,189 @@ async def passkey_assertion_verify(
             salt=None,
             user_email_salt=None,
             auth_session=None
+        )
+
+# Passkey Management Endpoints
+@router.get("/passkeys", response_model=PasskeyListResponse, dependencies=[Depends(verify_allowed_origin)])
+@limiter.limit("10/minute")
+async def list_passkeys(
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    directus_service: DirectusService = Depends(get_directus_service),
+    encryption_service: EncryptionService = Depends(get_encryption_service),
+):
+    """
+    List all passkeys for the current authenticated user.
+    Returns passkeys with decrypted device names.
+    """
+    logger.info(f"Processing GET /passkeys for user {current_user.id[:8]}...")
+    
+    try:
+        # Get all passkeys for the user
+        passkeys = await directus_service.get_user_passkeys_by_user_id(current_user.id)
+        
+        # Return only essential passkey data for the frontend
+        # Minimize data exposure - only return what's needed for the settings UI
+        passkey_list = []
+        for passkey in passkeys:
+            passkey_data = {
+                "id": passkey.get("id"),  # Required for rename/delete operations
+                "encrypted_device_name": passkey.get("encrypted_device_name"),  # Encrypted device name (client decrypts)
+                "registered_at": passkey.get("registered_at"),  # Registration timestamp for display
+                "last_used_at": passkey.get("last_used_at"),  # Last usage timestamp for display
+                "sign_count": passkey.get("sign_count", 0),  # Usage counter for display
+            }
+            passkey_list.append(passkey_data)
+        
+        return PasskeyListResponse(
+            success=True,
+            passkeys=passkey_list,
+            message=f"Found {len(passkey_list)} passkey(s)"
+        )
+        
+    except Exception as e:
+        logger.error(f"Error listing passkeys for user {current_user.id[:8]}...: {e}", exc_info=True)
+        return PasskeyListResponse(
+            success=False,
+            passkeys=[],
+            message=f"Failed to retrieve passkeys: {str(e)}"
+        )
+
+@router.post("/passkeys/rename", response_model=PasskeyRenameResponse, dependencies=[Depends(verify_allowed_origin)])
+@limiter.limit("10/minute")
+async def rename_passkey(
+    request: Request,
+    rename_request: PasskeyRenameRequest,
+    current_user: User = Depends(get_current_user),
+    directus_service: DirectusService = Depends(get_directus_service),
+    encryption_service: EncryptionService = Depends(get_encryption_service),
+):
+    """
+    Rename a passkey by updating its encrypted device name.
+    """
+    logger.info(f"Processing POST /passkeys/rename for user {current_user.id[:8]}...")
+    
+    try:
+        # Verify the passkey belongs to the current user
+        hashed_user_id = hashlib.sha256(current_user.id.encode()).hexdigest()
+        passkeys = await directus_service.get_user_passkeys(hashed_user_id)
+        
+        passkey_exists = any(p.get("id") == rename_request.passkey_id for p in passkeys)
+        if not passkey_exists:
+            logger.warning(f"Passkey {rename_request.passkey_id[:6]}... not found or doesn't belong to user {current_user.id[:8]}...")
+            return PasskeyRenameResponse(
+                success=False,
+                message="Passkey not found or access denied"
+            )
+        
+        # Device name is already encrypted client-side with master key
+        # Just store it as-is (zero-knowledge: server never sees plaintext)
+        encrypted_device_name = rename_request.encrypted_device_name
+        
+        # Update the passkey
+        success = await directus_service.update_passkey_device_name(
+            rename_request.passkey_id,
+            encrypted_device_name
+        )
+        
+        if success:
+            logger.info(f"Successfully renamed passkey {rename_request.passkey_id[:6]}... for user {current_user.id[:8]}...")
+            return PasskeyRenameResponse(
+                success=True,
+                message="Passkey renamed successfully"
+            )
+        else:
+            return PasskeyRenameResponse(
+                success=False,
+                message="Failed to rename passkey"
+            )
+            
+    except Exception as e:
+        logger.error(f"Error renaming passkey for user {current_user.id[:8]}...: {e}", exc_info=True)
+        return PasskeyRenameResponse(
+            success=False,
+            message=f"Failed to rename passkey: {str(e)}"
+        )
+
+@router.post("/passkeys/delete", response_model=PasskeyDeleteResponse, dependencies=[Depends(verify_allowed_origin)])
+@limiter.limit("10/minute")
+async def delete_passkey(
+    request: Request,
+    delete_request: PasskeyDeleteRequest,
+    current_user: User = Depends(get_current_user),
+    directus_service: DirectusService = Depends(get_directus_service),
+    cache_service: CacheService = Depends(get_cache_service),
+):
+    """
+    Delete a passkey. Ensures user has at least one secure login method remaining.
+    """
+    logger.info(f"Processing POST /passkeys/delete for user {current_user.id[:8]}...")
+    
+    try:
+        # Verify the passkey belongs to the current user
+        hashed_user_id = hashlib.sha256(current_user.id.encode()).hexdigest()
+        passkeys = await directus_service.get_user_passkeys(hashed_user_id)
+        
+        passkey_exists = any(p.get("id") == delete_request.passkey_id for p in passkeys)
+        if not passkey_exists:
+            logger.warning(f"Passkey {delete_request.passkey_id[:6]}... not found or doesn't belong to user {current_user.id[:8]}...")
+            return PasskeyDeleteResponse(
+                success=False,
+                message="Passkey not found or access denied"
+            )
+        
+        # Check if user has other secure login methods before deleting
+        # User must have at least: (1 passkey) OR (password + 2FA)
+        
+        # Count remaining passkeys (excluding the one being deleted)
+        remaining_passkeys = [p for p in passkeys if p.get("id") != delete_request.passkey_id]
+        has_other_passkeys = len(remaining_passkeys) > 0
+        
+        # Check if user has password login method
+        password_encryption_key = await directus_service.get_encryption_key(hashed_user_id, "password")
+        has_password = password_encryption_key is not None
+        
+        # Check if user has 2FA enabled
+        user_profile = await cache_service.get_user_by_id(current_user.id)
+        if not user_profile:
+            profile_success, user_profile, _ = await directus_service.get_user_profile(current_user.id)
+            if not profile_success or not user_profile:
+                logger.error(f"Could not fetch user profile for user {current_user.id[:8]}...")
+                return PasskeyDeleteResponse(
+                    success=False,
+                    message="Failed to verify user security settings"
+                )
+        
+        tfa_enabled = user_profile.get("tfa_enabled", False)
+        has_password_with_2fa = has_password and tfa_enabled
+        
+        # Validate: User must have at least one secure login method remaining
+        if not has_other_passkeys and not has_password_with_2fa:
+            logger.warning(f"User {current_user.id[:8]}... attempted to delete last passkey without password+2FA")
+            return PasskeyDeleteResponse(
+                success=False,
+                message="Cannot delete passkey: You must have at least one passkey or password with 2FA enabled. Please set up password authentication with 2FA first, or add another passkey."
+            )
+        
+        # Delete the passkey
+        success = await directus_service.delete_passkey(delete_request.passkey_id)
+        
+        if success:
+            logger.info(f"Successfully deleted passkey {delete_request.passkey_id[:6]}... for user {current_user.id[:8]}...")
+            return PasskeyDeleteResponse(
+                success=True,
+                message="Passkey deleted successfully"
+            )
+        else:
+            return PasskeyDeleteResponse(
+                success=False,
+                message="Failed to delete passkey"
+            )
+            
+    except Exception as e:
+        logger.error(f"Error deleting passkey for user {current_user.id[:8]}...: {e}", exc_info=True)
+        return PasskeyDeleteResponse(
+            success=False,
+            message=f"Failed to delete passkey: {str(e)}"
         )
 

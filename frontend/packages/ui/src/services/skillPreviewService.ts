@@ -2,13 +2,13 @@
 // Service for managing app skill preview state and WebSocket updates
 
 import { webSocketService } from './websocketService';
-import type { SkillExecutionStatusUpdatePayload, WebSearchSkillPreviewData } from '../types/appSkills';
+import type { SkillExecutionStatusUpdatePayload, WebSearchSkillPreviewData, VideoTranscriptSkillPreviewData } from '../types/appSkills';
 
 /**
  * Map of task IDs to preview data
- * Key: task_id, Value: preview data
+ * Key: task_id, Value: preview data (can be WebSearchSkillPreviewData or VideoTranscriptSkillPreviewData)
  */
-const skillPreviewCache = new Map<string, WebSearchSkillPreviewData>();
+const skillPreviewCache = new Map<string, WebSearchSkillPreviewData | VideoTranscriptSkillPreviewData>();
 
 /**
  * Event target for skill preview updates
@@ -59,7 +59,7 @@ class SkillPreviewService extends EventTarget {
     }
     
     // Update or create preview data
-    let previewData: WebSearchSkillPreviewData;
+    let previewData: WebSearchSkillPreviewData | VideoTranscriptSkillPreviewData;
     
     if (skillPreviewCache.has(task_id)) {
       // Update existing preview data
@@ -71,7 +71,7 @@ class SkillPreviewService extends EventTarget {
         Object.assign(previewData, preview_data);
       }
     } else {
-      // Create new preview data
+      // Create new preview data based on skill type
       if (app_id === 'web' && skill_id === 'search') {
         previewData = {
           app_id: 'web',
@@ -82,6 +82,18 @@ class SkillPreviewService extends EventTarget {
           provider: (preview_data as any)?.provider || 'Brave Search',
           ...(preview_data as any)
         } as WebSearchSkillPreviewData;
+      } else if (app_id === 'videos' && skill_id === 'get_transcript') {
+        previewData = {
+          app_id: 'videos',
+          skill_id: 'get_transcript',
+          status,
+          task_id,
+          video_count: (preview_data as any)?.video_count || 0,
+          success_count: (preview_data as any)?.success_count || 0,
+          failed_count: (preview_data as any)?.failed_count || 0,
+          results: (preview_data as any)?.results || [],
+          ...(preview_data as any)
+        } as VideoTranscriptSkillPreviewData;
       } else {
         // Generic preview data for other skills
         previewData = {
@@ -111,7 +123,7 @@ class SkillPreviewService extends EventTarget {
   /**
    * Get preview data for a task ID
    */
-  getPreviewData(taskId: string): WebSearchSkillPreviewData | undefined {
+  getPreviewData(taskId: string): WebSearchSkillPreviewData | VideoTranscriptSkillPreviewData | undefined {
     return skillPreviewCache.get(taskId);
   }
   

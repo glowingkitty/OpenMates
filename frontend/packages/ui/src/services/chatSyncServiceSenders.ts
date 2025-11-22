@@ -200,13 +200,45 @@ export async function sendNewMessageImpl(
     
     console.debug(`[ChatSyncService:Senders] Chat has existing messages: ${chatHasMessages} (messages_v: ${chat?.messages_v}) - ${chatHasMessages ? 'FOLLOW-UP' : 'NEW CHAT'}`);
     
+    // Extract embed references from message content
+    // Embeds are referenced as JSON code blocks: ```json\n{"type": "app_skill_use", "embed_id": "..."}\n```
+    const { extractEmbedReferences, loadEmbeds } = await import('./embedResolver');
+    const embedRefs = extractEmbedReferences(message.content);
+    
+    // Load embeds from EmbedStore (decrypted, ready to send as cleartext)
+    const embeds: any[] = [];
+    if (embedRefs.length > 0) {
+        const embedIds = embedRefs.map(ref => ref.embed_id);
+        const loadedEmbeds = await loadEmbeds(embedIds);
+        
+        // Convert embeds to format expected by server (cleartext, will be encrypted server-side)
+        for (const embed of loadedEmbeds) {
+            embeds.push({
+                embed_id: embed.embed_id,
+                type: embed.type, // Decrypted type (client-side only)
+                status: embed.status,
+                content: embed.content, // TOON-encoded string (cleartext for server)
+                text_preview: embed.text_preview,
+                embed_ids: embed.embed_ids, // For composite embeds
+                createdAt: embed.createdAt,
+                updatedAt: embed.updatedAt
+            });
+        }
+        
+        console.debug('[ChatSyncService:Senders] Extracted and loaded embeds:', {
+            embedRefCount: embedRefs.length,
+            loadedCount: embeds.length,
+            embedIds: embedIds
+        });
+    }
+    
     // Phase 1 payload: ONLY fields needed for AI processing
     const payload: any = {
         chat_id: message.chat_id,
         message: {
             message_id: message.message_id,
             role: message.role,
-            content: message.content, // ONLY plaintext for AI processing
+            content: message.content, // ONLY plaintext for AI processing (contains embed references as JSON blocks)
             created_at: message.created_at,
             sender_name: message.sender_name, // Include for cache but not critical for AI
             chat_has_title: chatHasMessages // ZERO-KNOWLEDGE: Send true if chat has messages (follow-up), false if new
@@ -214,6 +246,12 @@ export async function sendNewMessageImpl(
             // NO message_history - server will request if cache is stale
         }
     };
+    
+    // Include embeds if any were found in the message
+    if (embeds.length > 0) {
+        payload.embeds = embeds; // Send embeds as cleartext (server will encrypt for cache)
+        console.debug('[ChatSyncService:Senders] Including embeds with message:', embeds.length);
+    }
     
     // Include encrypted suggestion for deletion if user clicked a new chat suggestion
     if (encryptedSuggestionToDelete) {

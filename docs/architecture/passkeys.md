@@ -6,10 +6,12 @@ This document describes the passkey implementation for OpenMates' authentication
 
 **Status**: ✅ **IMPLEMENTED** - Passkey signup and login are fully functional.
 
+**Backend Library**: Uses [`py_webauthn`](https://github.com/duo-labs/py_webauthn) (v2.7.0) for robust WebAuthn ceremony verification, replacing manual signature verification for improved reliability and compatibility.
+
 **Implementation Files**:
 - **Backend**: [`backend/core/api/app/routes/auth_routes/auth_passkey.py`](../../backend/core/api/app/routes/auth_routes/auth_passkey.py)
-- **Frontend Signup**: [`frontend/packages/ui/src/components/signup/steps/passkey/PasskeyRegistrationBottomContent.svelte`](../../frontend/packages/ui/src/components/signup/steps/passkey/PasskeyRegistrationBottomContent.svelte)
-- **Frontend Login**: [`frontend/packages/ui/src/components/PasskeyLogin.svelte`](../../frontend/packages/ui/src/components/PasskeyLogin.svelte)
+- **Frontend Signup**: [`frontend/packages/ui/src/components/signup/steps/secureaccount/SecureAccountTopContent.svelte`](../../frontend/packages/ui/src/components/signup/steps/secureaccount/SecureAccountTopContent.svelte) - Handles passkey registration during signup
+- **Frontend Login**: [`frontend/packages/ui/src/components/Login.svelte`](../../frontend/packages/ui/src/components/Login.svelte) - Main login component with passkey support
 - **Crypto Service**: [`frontend/packages/ui/src/services/cryptoService.ts`](../../frontend/packages/ui/src/services/cryptoService.ts)
 - **Database Schema**: [`backend/core/directus/schemas/user_passkeys.yml`](../../backend/core/directus/schemas/user_passkeys.yml)
 
@@ -30,18 +32,19 @@ This document describes the passkey implementation for OpenMates' authentication
 - Violates zero-knowledge principle
 
 **Passkey model WITH PRF (zero-knowledge)**:
-- passkey.sign(credential_id) → signature (using private key)
-- HKDF(signature, salt) → wrappingKey
+- passkey.sign(prf_eval_first) → PRF signature (using private key, where `prf_eval_first = SHA256(rp_id)[:32]`)
+- HKDF(PRF_signature, user_email_salt) → wrappingKey
 - Server receives: encrypted_master_key + credential_id
-- Attacker can't derive signature without passkey's private key
+- Attacker can't derive PRF signature without passkey's private key
 - True zero-knowledge preserved ✓
 
 ### PRF (Pseudo-Random Function) Support
 
 **What is PRF?**
 - WebAuthn extension that allows the authenticator to sign arbitrary data using its private key
-- Signature is deterministic for the same input (same credential_id always produces same signature)
-- Each user's signature is unique (different private key)
+- Signature is deterministic for the same input (same `prf_eval_first` always produces same signature for same passkey)
+- We use global salt: `prf_eval_first = SHA256(rp_id)[:32]` (same for all users on same domain)
+- Each user's signature is unique (different private key per passkey)
 - Private key never leaves the device
 
 **Device Support**:
@@ -84,35 +87,53 @@ If user's device doesn't support PRF, they can:
 ### Login Flow
 
 **Frontend Components**:
-- [`PasskeyLogin.svelte`](../../frontend/packages/ui/src/components/PasskeyLogin.svelte) - Dedicated passkey login component
-- [`Login.svelte`](../../frontend/packages/ui/src/components/Login.svelte) - Main login component with passkey support
+- [`Login.svelte`](../../frontend/packages/ui/src/components/Login.svelte) - Main login component with passkey support (handles complete passkey login flow)
 
 **Backend Endpoints**:
 - `POST /auth/passkey/assertion/initiate` - Generates assertion challenge
 - `POST /auth/passkey/assertion/verify` - Verifies passkey assertion and returns user data
 
 **Passwordless Login Flow**:
-1. User authenticates with passkey (no email entry required)
-2. Server identifies user by `credential_id` → `hashed_user_id` → `user_id` (via `user_passkeys` table)
-3. Server returns `encrypted_email_with_master_key` and `encrypted_master_key`
-4. Client derives master key from PRF signature
-5. Client decrypts email using master key
-6. Client derives `email_encryption_key` and `lookup_hash`
-7. Client completes authentication with server
+1. User clicks "Login with passkey" (no email entry required)
+2. Frontend calls `POST /auth/passkey/assertion/initiate` to get WebAuthn challenge
+3. Backend generates challenge with PRF extension using global salt: `SHA256(rp_id)[:32]`
+4. User authenticates with passkey (biometric/PIN)
+5. Frontend receives PRF signature from authenticator
+6. Frontend calls `POST /auth/passkey/assertion/verify` with credential response
+7. Backend verifies passkey signature using `py_webauthn` library
+8. Backend identifies user by `credential_id` → `hashed_user_id` → `user_id` (via `user_passkeys` table)
+9. Backend starts cache warming asynchronously (similar to password login `/lookup` endpoint)
+10. Backend returns `encrypted_email_with_master_key`, `encrypted_master_key`, `user_email_salt`, and encryption key data
+11. Client derives wrapping key from PRF signature: `HKDF(PRF_signature, user_email_salt)`
+12. Client unwraps master key from `encrypted_master_key`
+13. Client decrypts email from `encrypted_email_with_master_key` using master key
+14. Client derives `email_encryption_key = SHA256(email + user_email_salt)` and `lookup_hash = SHA256(PRF_signature + user_email_salt)`
+15. Client completes authentication by calling `POST /auth/login` with `lookup_hash` and `login_method: 'passkey'`
+16. Backend verifies `lookup_hash` and creates session
+17. Frontend waits for cache warming to complete (via WebSocket sync status) before loading main interface
 
-**Implementation**: See [`auth_passkey.py`](../../backend/core/api/app/routes/auth_routes/auth_passkey.py#L600-L992) for assertion verification.
+**Implementation**: 
+- Backend: [`auth_passkey.py`](../../backend/core/api/app/routes/auth_routes/auth_passkey.py#L1296-L1800) for assertion verification
+- Frontend: [`Login.svelte`](../../frontend/packages/ui/src/components/Login.svelte#L403-L848) for passkey login flow
 
 ### Master Key Wrapping
 
 **Challenge**: How to maintain zero-knowledge encryption with passkeys?
 
-**Solution: PRF-Based Master Key Wrapping**
+**Solution: PRF-Based Master Key Wrapping with Global Salt**
 
-1. During passkey registration, client wraps the master key using PRF signature
-2. PRF signature is derived from passkey's private key (only client can create this)
-3. Wrapping key derived via HKDF(prfSignature, user_email_salt, "masterkey_wrapping")
+1. During passkey registration, client uses global salt for PRF extension: `prf_eval_first = SHA256(rp_id)[:32]`
+2. PRF signature is derived from passkey's private key signing the global salt (only client can create this)
+3. Wrapping key derived via `HKDF(PRF_signature, user_email_salt, "masterkey_wrapping")`
 4. Master key encrypted with wrapping key and stored on server
-5. On login, same process recovers master key deterministically
+5. On login, same global salt is used, ensuring deterministic PRF signature
+6. Same process recovers master key deterministically
+
+**Why Global Salt?**
+- Enables true passwordless login: no email lookup required before passkey authentication
+- Deterministic: same `rp_id` always produces same `prf_eval_first` for all users on same domain
+- Secure: Each passkey's private key is unique, so PRF signatures remain unique per user
+- Solves "chicken-and-egg" problem: server can send `prf_eval_first` without knowing user identity
 
 **Implementation**: See [`cryptoService.ts`](../../frontend/packages/ui/src/services/cryptoService.ts) for key derivation functions:
 - `deriveWrappingKeyFromPRF()` - Derives wrapping key from PRF signature
@@ -133,7 +154,7 @@ If user's device doesn't support PRF, they can:
 5. Client sends `email_encryption_key` to server for notifications
 6. Server can decrypt `encrypted_email` (encrypted with `email_encryption_key`) for notifications
 
-**Implementation**: See [`PasskeyLogin.svelte`](../../frontend/packages/ui/src/components/PasskeyLogin.svelte#L383-L420) for email decryption logic.
+**Implementation**: See [`Login.svelte`](../../frontend/packages/ui/src/components/Login.svelte#L650-L750) for email decryption and master key unwrapping logic.
 
 ## Database Schema
 
@@ -141,11 +162,14 @@ If user's device doesn't support PRF, they can:
 - `hashed_user_id` - SHA256 hash of user_id (indexed, for privacy-preserving lookups)
 - `user_id` - Direct reference to user_id (for efficient reverse lookups)
 - `credential_id` - Base64-encoded credential ID from WebAuthn (unique)
-- `public_key_jwk` - Public key in JWK format
+- `public_key_jwk` - Public key in JWK format (for backward compatibility)
+- `public_key_cose` - Public key in COSE format (base64-encoded CBOR bytes) - **Primary format for `py_webauthn` verification**
 - `aaguid` - Authenticator Attestation Globally Unique Identifier
 - `sign_count` - Counter for detecting cloned authenticators
 - `encrypted_device_name` - Optional user-friendly device name (encrypted)
 - `registered_at`, `last_used_at` - Timestamps
+
+**Note**: `prf_eval_first` is no longer stored in the database. The global salt approach (`SHA256(rp_id)[:32]`) is used instead, ensuring determinism without per-user storage.
 
 **Schema Definition**: [`user_passkeys.yml`](../../backend/core/directus/schemas/user_passkeys.yml)
 
@@ -157,12 +181,13 @@ If user's device doesn't support PRF, they can:
 ## API Endpoints
 
 ### Registration Flow
-- `POST /auth/passkey/registration/initiate` - See [`auth_passkey.py`](../../backend/core/api/app/routes/auth_routes/auth_passkey.py#L133-L260)
-- `POST /auth/passkey/registration/complete` - See [`auth_passkey.py`](../../backend/core/api/app/routes/auth_routes/auth_passkey.py#L262-L500)
+- `POST /auth/passkey/registration/initiate` - See [`auth_passkey.py`](../../backend/core/api/app/routes/auth_routes/auth_passkey.py#L656-L900) - Generates WebAuthn registration options with PRF extension using global salt
+- `POST /auth/passkey/registration/complete` - See [`auth_passkey.py`](../../backend/core/api/app/routes/auth_routes/auth_passkey.py#L902-L1200) - Verifies attestation using `py_webauthn` library and stores passkey
 
 ### Login Flow
-- `POST /auth/passkey/assertion/initiate` - See [`auth_passkey.py`](../../backend/core/api/app/routes/auth_routes/auth_passkey.py#L502-L600)
-- `POST /auth/passkey/assertion/verify` - See [`auth_passkey.py`](../../backend/core/api/app/routes/auth_routes/auth_passkey.py#L602-L992)
+- `POST /auth/passkey/assertion/initiate` - See [`auth_passkey.py`](../../backend/core/api/app/routes/auth_routes/auth_passkey.py#L1200-L1295) - Generates WebAuthn challenge with PRF extension using global salt
+- `POST /auth/passkey/assertion/verify` - See [`auth_passkey.py`](../../backend/core/api/app/routes/auth_routes/auth_passkey.py#L1296-L1800) - Verifies passkey signature, starts cache warming, returns encrypted user data
+- `POST /auth/login` - See [`auth_login.py`](../../backend/core/api/app/routes/auth_routes/auth_login.py#L50-L360) - Completes authentication with `lookup_hash` and `login_method: 'passkey'`
 
 ## Security Considerations
 
@@ -173,7 +198,7 @@ If user's device doesn't support PRF, they can:
 - **Fallback**: Offer password + 2FA or passkey manager with PRF support
 - **No Degradation**: Never allow non-PRF passkey registration
 
-**Implementation**: See [`PasskeyRegistrationBottomContent.svelte`](../../frontend/packages/ui/src/components/signup/steps/passkey/PasskeyRegistrationBottomContent.svelte#L200-250) for PRF validation.
+**Implementation**: See [`SecureAccountTopContent.svelte`](../../frontend/packages/ui/src/components/signup/steps/secureaccount/SecureAccountTopContent.svelte) for PRF validation during passkey registration.
 
 ### 2. Sign Count Validation
 - Detects cloned authenticators (if sign_count doesn't increase)
@@ -196,6 +221,15 @@ If user's device doesn't support PRF, they can:
 - No batch-querying of users table required
 
 **Implementation**: See [`directus.py`](../../backend/core/api/app/services/directus/directus.py#L312-345) for efficient lookup method.
+
+### 5. Cache Warming for Passkey Login
+- Cache warming starts immediately after passkey verification when `user_id` is known
+- Similar to password login: `/lookup` endpoint starts cache warming, `/passkey/assertion/verify` starts cache warming
+- Asynchronous task dispatch: doesn't block passkey verification response
+- Frontend waits for cache to be primed (via WebSocket sync status) before loading main interface
+- Ensures instant sync experience: chats and data ready when user completes authentication
+
+**Implementation**: See [`auth_passkey.py`](../../backend/core/api/app/routes/auth_routes/auth_passkey.py#L1679-L1713) for cache warming logic.
 
 ## Fallback Scenarios
 

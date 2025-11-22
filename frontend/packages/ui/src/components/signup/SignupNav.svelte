@@ -101,7 +101,8 @@
         // if (step === STEP_PROFILE_PICTURE) return $_('settings.logout.text'); // Removed
         if (step === STEP_SETTINGS) return $_('signup.upload_profile_picture.text');
         if (step === STEP_MATE_SETTINGS) return $_('signup.settings.text');
-        if (step === STEP_CREDITS) return $_('signup.upload_profile_picture.text');
+        // Credits step: show previous step text (recovery_key for both passkey and password flows)
+        if (step === STEP_CREDITS) return $_('signup.recovery_key.text');
         if (step === STEP_PAYMENT) return $_('signup.select_credits.text');
         return $_('signup.sign_up.text');
     }

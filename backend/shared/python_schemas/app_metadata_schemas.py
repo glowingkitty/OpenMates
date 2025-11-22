@@ -40,6 +40,7 @@ class AppFocusDefinition(BaseModel):
     name_translation_key: str  # Required: Translation key for focus mode name (e.g., "app_translations.web.focus_modes.research.name")
     description_translation_key: str  # Required: Translation key for focus mode description (e.g., "app_translations.web.focus_modes.research.description")
     system_prompt: str = Field(alias="systemprompt") # Allow 'systemprompt' in YAML
+    stage: Optional[str] = Field(default=None, description="Stage of the focus mode: 'planning', 'development', or 'production'. Components with stage='planning' are excluded from API responses.")
 
 class AppMemoryFieldDefinition(BaseModel):
     """Defines the structure for a memory field within an app's metadata."""
@@ -48,6 +49,7 @@ class AppMemoryFieldDefinition(BaseModel):
     description_translation_key: str  # Required: Translation key for memory field description (e.g., "app_translations.web.settings_memories.bookmarks.description")
     type: str # e.g., "string", "number", "boolean", "json_object", "list_of_strings"
     schema_definition: Optional[Dict[str, Any]] = Field(default=None, alias="schema") # Optional JSON schema
+    stage: Optional[str] = Field(default=None, description="Stage of the memory field: 'planning', 'development', or 'production'. Components with stage='planning' are excluded from API responses.")
 
 class AppYAML(BaseModel):
     """

@@ -25,7 +25,7 @@ export interface AppMetadata {
     };
     skills: SkillMetadata[];
     focus_modes: FocusModeMetadata[]; // Placeholder for future implementation
-    memory_fields: MemoryFieldMetadata[]; // Placeholder for future implementation
+    settings_and_memories: MemoryFieldMetadata[]; // Maps to 'settings_and_memories' in app.yml
     providers?: string[]; // List of provider names used by this app's skills
     category?: string; // App category: "work" or "personal"
     last_updated?: string; // ISO date string of when the app was last updated (for "New apps" categorization)
@@ -81,10 +81,11 @@ export interface FocusModeMetadata {
 }
 
 /**
- * Memory field metadata structure (placeholder for future implementation).
+ * Settings and memories field metadata structure.
  * 
  * **Backend Implementation**: 
  * - Defined in: `backend/shared/python_schemas/app_metadata_schemas.py:AppMemoryFieldDefinition`
+ * - Source: `settings_and_memories` field in app.yml files
  */
 export interface MemoryFieldMetadata {
     id: string;

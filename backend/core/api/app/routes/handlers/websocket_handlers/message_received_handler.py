@@ -301,6 +301,91 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             return
         
         logger.info(f"Processing cleartext message {message_id} for AI inference. No storage in this handler.")
+        
+        # Process embeds if provided by client
+        # Embeds are sent as cleartext (TOON-encoded) and will be encrypted server-side for cache
+        embeds_from_client = payload.get("embeds", [])
+        if embeds_from_client:
+            logger.info(f"Processing {len(embeds_from_client)} embeds from client for message {message_id}")
+            
+            # Import embed service
+            from backend.core.api.app.services.embed_service import EmbedService
+            embed_service = EmbedService(
+                cache_service=cache_service,
+                directus_service=directus_service,
+                encryption_service=encryption_service
+            )
+            
+            # Hash IDs for privacy (zero-knowledge architecture)
+            hashed_chat_id = hashlib.sha256(chat_id.encode()).hexdigest()
+            hashed_message_id = hashlib.sha256(message_id.encode()).hexdigest()
+            hashed_user_id = hashlib.sha256(user_id.encode()).hexdigest()
+            
+            # Process each embed
+            for embed_data in embeds_from_client:
+                try:
+                    embed_id = embed_data.get("embed_id")
+                    embed_type = embed_data.get("type")  # Decrypted type from client
+                    embed_content = embed_data.get("content")  # TOON-encoded string
+                    embed_status = embed_data.get("status", "finished")
+                    embed_text_preview = embed_data.get("text_preview")
+                    embed_ids = embed_data.get("embed_ids")  # For composite embeds
+                    
+                    if not embed_id or not embed_type or not embed_content:
+                        logger.warning(f"Invalid embed data from client: missing required fields")
+                        continue
+                    
+                    # Encrypt embed content with vault key for server cache
+                    # Server can decrypt for AI context building
+                    encrypted_content = encryption_service.encrypt_with_vault_key(
+                        user_vault_key_id=user_vault_key_id,
+                        plaintext=embed_content
+                    )
+                    
+                    # Encrypt embed type for zero-knowledge storage
+                    encrypted_type = encryption_service.encrypt_with_vault_key(
+                        user_vault_key_id=user_vault_key_id,
+                        plaintext=embed_type
+                    )
+                    
+                    # Encrypt text preview if provided
+                    encrypted_text_preview = None
+                    if embed_text_preview:
+                        encrypted_text_preview = encryption_service.encrypt_with_vault_key(
+                            user_vault_key_id=user_vault_key_id,
+                            plaintext=embed_text_preview
+                        )
+                    
+                    # Cache embed for AI processing
+                    embed_cache_data = {
+                        "embed_id": embed_id,
+                        "encrypted_type": encrypted_type,
+                        "encrypted_content": encrypted_content,
+                        "encrypted_text_preview": encrypted_text_preview,
+                        "status": embed_status,
+                        "embed_ids": embed_ids,  # For composite embeds
+                        "hashed_chat_id": hashed_chat_id,
+                        "hashed_message_id": hashed_message_id,
+                        "hashed_user_id": hashed_user_id,
+                        "created_at": int(datetime.now(timezone.utc).timestamp()),
+                        "updated_at": int(datetime.now(timezone.utc).timestamp())
+                    }
+                    
+                    # Store in cache
+                    await cache_service.set_embed_in_cache(
+                        embed_id=embed_id,
+                        embed_data=embed_cache_data,
+                        user_vault_key_id=user_vault_key_id
+                    )
+                    
+                    # Add to chat embed index
+                    await cache_service.add_embed_id_to_chat_index(chat_id, embed_id)
+                    
+                    logger.debug(f"Cached embed {embed_id} (type: {embed_type}) for message {message_id}")
+                    
+                except Exception as e_embed:
+                    logger.error(f"Error processing embed from client: {e_embed}", exc_info=True)
+                    # Non-critical error - continue processing other embeds
 
         # Send confirmation to the originating client device
         confirmation_payload = {
