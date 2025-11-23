@@ -89,32 +89,26 @@ async def ensure_auth_token(self, admin_required=False, force_refresh=False):
     # Always use admin token regardless of admin_required parameter
     admin_required = True
     
-    # If we have an admin token and not forcing refresh, check if it's still valid
+    # If we have an admin token and not forcing refresh, assume it's valid
+    # The API request method will handle 401s and force a refresh if needed
     if self.admin_token and not force_refresh:
-        is_valid, _ = await self.validate_token(self.admin_token)
-        if is_valid:
-            return self.admin_token
-        logger.debug("Cached admin token is invalid or expired, refreshing...")
+        return self.admin_token
     
     admin_cache_key = "directus_admin_token"
     cached_token = await self.cache.get(admin_cache_key)
     
     if cached_token and not force_refresh:
-        # Validate the cached token before using it
-        is_valid, _ = await self.validate_token(cached_token)
-        if is_valid:
-            self.admin_token = cached_token
-            logger.debug("Using validated cached admin token")
-            return cached_token
+        # Use cached token optimistically
+        self.admin_token = cached_token
+        logger.debug("Using cached admin token")
+        return cached_token
     
     # If we reach here, we need a new token
     auth_lock = await self.get_auth_lock()
     async with auth_lock:
         # Double check if another process got the token while we were waiting
         if self.admin_token and not force_refresh:
-            is_valid, _ = await self.validate_token(self.admin_token)
-            if is_valid:
-                return self.admin_token
+            return self.admin_token
         
         # Login to get a fresh token
         new_token = await self.login_admin()

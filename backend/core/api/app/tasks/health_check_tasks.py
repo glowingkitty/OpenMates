@@ -542,10 +542,12 @@ async def _check_provider_health(provider_id: str, health_endpoint: Optional[str
 
 async def _check_brave_search_health(secrets_manager: SecretsManager) -> Dict[str, Any]:
     """
-    Check health of Brave Search API via test search request.
+    Check health of Brave Search API via connectivity check (no billing).
     
-    Brave Search does not have a dedicated /health endpoint, so we perform
-    a minimal search query to verify the API is operational.
+    Brave Search does not have a dedicated /health endpoint, and performing
+    test search requests would incur billing costs. Instead, we verify:
+    1. API key is configured
+    2. API endpoint is reachable (HEAD request, no billing)
     
     Args:
         secrets_manager: SecretsManager instance

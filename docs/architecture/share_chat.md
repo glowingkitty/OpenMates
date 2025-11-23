@@ -24,7 +24,11 @@ When sharing with a specific user:
    - The recipient's access is tied to their account, so they can continue accessing the chat even if their email address changes
    - Access persists as long as the chat remains shared with them
 
-3. **Security:**
+3. **Sharing Modes:**
+   - **Read-Only Mode:** Recipients can view the chat and its messages but cannot send new messages. This mode is ideal for sharing completed conversations or knowledge base material.
+   - **Collaborative Group Chat Mode:** Recipients can read and contribute to the chat by sending messages. This enables team collaboration on shared conversations. In this mode, users need to explicitly mention **@OpenMates** to trigger OpenMates to respond in the conversation. This design allows groups to discuss and collaborate naturally without OpenMates responding to every message, making it suitable for team discussions and collaborative problem-solving.
+
+4. **Security:**
    - The encryption key is included in the link initially, but is automatically stored securely after first access
    - The key is removed from the URL after being saved to prevent exposure
    - On subsequent visits, the stored key is used automatically

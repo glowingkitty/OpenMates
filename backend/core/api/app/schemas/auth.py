@@ -46,6 +46,7 @@ class LoginRequest(BaseModel):
     code_type: Optional[str] = Field("otp", description="Type of code provided ('otp' or 'backup')")
     email_encryption_key: Optional[str] = Field(None, description="Client-derived key for email decryption (SHA256(email + user_email_salt))")
     login_method: Optional[str] = Field(None, description="Login method used ('password', 'passkey', 'security_key', 'recovery_key')")
+    credential_id: Optional[str] = Field(None, description="Credential ID for passkey login (to look up specific encryption key)")
     stay_logged_in: bool = Field(False, description="Whether to keep user logged in for extended period (30 days vs 24 hours)")
     
     class Config:

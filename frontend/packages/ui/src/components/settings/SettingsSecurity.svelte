@@ -23,22 +23,9 @@ Security Settings - Menu for security-related settings including Passkeys
     }
 </script>
 
-<!-- Main Security Settings Menu -->
-<div class="security-container">
-    <!-- Passkeys Menu Item -->
-    <SettingsItem
-        type="submenu"
-        icon="subsetting_icon subsetting_icon_passkeys"
-        title={$text('settings.account.security.passkeys.text')}
-        onClick={navigateToPasskeys}
-    />
-</div>
-
-<style>
-    /* Main Container */
-    .security-container {
-        width: 100%;
-        padding: 0 10px;
-    }
-</style>
-
+<SettingsItem
+    type="submenu"
+    icon="passkeys"
+    title={$text('settings.account.passkeys.text')}
+    onClick={navigateToPasskeys}
+/>

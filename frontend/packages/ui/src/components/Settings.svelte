@@ -448,9 +448,14 @@ changes to the documentation (to keep the documentation up to date).
             // For other routes, use the provided icon and build translation key from path
             activeSubMenuIcon = icon || '';
             // Store the translation key instead of the translated text
-            // Build the translation key from the path
-            const translationKeyParts = settingsPath.split('/').map(segment => segment.replace(/-/g, '_'));
-            activeSubMenuTitleKey = `settings.${translationKeyParts.join('.')}.text`;
+            // Special handling for passkeys - skip "security" segment in translation key
+            if (settingsPath === 'account/security/passkeys') {
+                activeSubMenuTitleKey = 'settings.account.passkeys.text';
+            } else {
+                // Build the translation key from the path
+                const translationKeyParts = settingsPath.split('/').map(segment => segment.replace(/-/g, '_'));
+                activeSubMenuTitleKey = `settings.${translationKeyParts.join('.')}.text`;
+            }
         }
 
         // Split the view path for breadcrumb navigation
@@ -506,7 +511,11 @@ changes to the documentation (to keep the documentation up to date).
             
             // Build the correct icon and title for the previous view
             const previousPathSegments = navigationPath.slice(0, -1);
-            let icon = previousPathSegments[0]; // Default to first segment
+            // For nested paths, use the last segment as the icon (e.g., "security" for "account/security")
+            // For top-level paths, use the first segment
+            let icon = previousPathSegments.length > 1 
+                ? previousPathSegments[previousPathSegments.length - 1] 
+                : previousPathSegments[0];
             let title = '';
 
             // Handle app_store routes specially
@@ -546,6 +555,7 @@ changes to the documentation (to keep the documentation up to date).
                 } else if (previousPath === 'app_store') {
                     icon = 'app_store';
                 }
+                // For other nested paths (like account/security), icon is already set to last segment above
                 
                 // Build the translation key for the previous view's title
                 const translationKeyParts = previousPathSegments.map(segment => segment.replace(/-/g, '_'));

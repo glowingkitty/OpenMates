@@ -672,19 +672,11 @@ async def passkey_registration_initiate(
         challenge_bytes = os.urandom(32)
         challenge = base64.urlsafe_b64encode(challenge_bytes).decode('utf-8').rstrip('=')
         
-        # Store challenge in cache with 5-minute TTL
-        challenge_cache_key = f"passkey_challenge:{challenge}"
-        await cache_service.set(challenge_cache_key, {
-            "hashed_email": initiate_request.hashed_email,
-            "user_id": actual_user_id if actual_user_id else initiate_request.user_id,
-            "timestamp": int(time.time())
-        }, ttl=300)
-        
-        # Get user information if user_id is provided (for adding passkey to existing account)
+        # Initialize variables for user information
         user_id_bytes = None
         user_name = None
         user_display_name = None
-        actual_user_id = None
+        actual_user_id = initiate_request.user_id  # Initialize with the request value
         
         if initiate_request.user_id:
             # Check if it's 'current' to use authenticated user from session
@@ -716,11 +708,9 @@ async def passkey_registration_initiate(
                         authenticatorSelection={},
                         message="Authentication required to add passkey to existing account"
                     )
-            else:
-                actual_user_id = initiate_request.user_id
             
-            # Existing user - get user info
-            if actual_user_id:
+            # Existing user - get user info (only if we have a valid user_id, not 'current')
+            if actual_user_id and actual_user_id != 'current':
                 user_profile = await cache_service.get_user_by_id(actual_user_id)
                 if user_profile:
                     # Use username as user.name (shown in passkey dialog) - username is unique per user
@@ -744,6 +734,16 @@ async def passkey_registration_initiate(
             # Use username as user.name (shown in passkey dialog) - username is unique per user
             user_name = initiate_request.username
             user_display_name = initiate_request.username
+        
+        # Store challenge in cache with 5-minute TTL (after actual_user_id is determined)
+        # Use actual_user_id if it's been resolved (not 'current'), otherwise use the original request value
+        challenge_cache_key = f"passkey_challenge:{challenge}"
+        cache_user_id = actual_user_id if (actual_user_id and actual_user_id != 'current') else initiate_request.user_id
+        await cache_service.set(challenge_cache_key, {
+            "hashed_email": initiate_request.hashed_email,
+            "user_id": cache_user_id,
+            "timestamp": int(time.time())
+        }, ttl=300)
         
         # Convert hashed_email to bytes for user.id (WebAuthn requires bytes)
         user_id_bytes = base64.urlsafe_b64decode(initiate_request.hashed_email + '==')[:64]  # Limit to 64 bytes
@@ -1125,15 +1125,20 @@ async def passkey_registration_complete(
         # Create encryption key record (same pattern as password)
         try:
             hashed_user_id = hashlib.sha256(user_id.encode()).hexdigest()
+            # Use unique login method for each passkey to support multiple passkeys with different PRF keys
+            # We hash the credential_id to ensure it fits within the login_method field length limit
+            credential_id_hash = hashlib.sha256(credential_id.encode()).hexdigest()
+            login_method = f"passkey_{credential_id_hash}"
+            
             success = await directus_service.create_encryption_key(
                 hashed_user_id=hashed_user_id,
-                login_method='passkey',
+                login_method=login_method,
                 encrypted_key=complete_request.encrypted_master_key,
                 salt=complete_request.salt,
                 key_iv=complete_request.key_iv
             )
             if success:
-                logger.info(f"Successfully created encryption key record for user {user_id}")
+                logger.info(f"Successfully created encryption key record for user {user_id} with method {login_method}")
             else:
                 logger.error(f"Failed to create encryption key for user {user_id}")
                 return PasskeyRegistrationCompleteResponse(
@@ -1148,6 +1153,37 @@ async def passkey_registration_complete(
                 message="Failed to set up account encryption. Please try again.",
                 user=None
             )
+        
+        # For existing users, update encrypted_email_with_master_key to match the master key used for passkey
+        # This ensures that when they login with passkey, they can decrypt the email with the unwrapped master key
+        # CRITICAL: The email must be encrypted with the same master key that's wrapped for the passkey
+        if is_existing_user:
+            if complete_request.encrypted_email_with_master_key:
+                try:
+                    update_success = await directus_service.update_user(
+                        user_id,
+                        {"encrypted_email_with_master_key": complete_request.encrypted_email_with_master_key}
+                    )
+                    if update_success:
+                        logger.info(f"Successfully updated encrypted_email_with_master_key for existing user {user_id}")
+                    else:
+                        logger.warning(f"Failed to update encrypted_email_with_master_key for user {user_id}, but continuing")
+                        # Don't fail the registration if this update fails - the user can still use password login
+                except Exception as e:
+                    logger.error(f"Error updating encrypted_email_with_master_key for user {user_id}: {e}", exc_info=True)
+                    # Don't fail the registration if this update fails - the user can still use password login
+
+            # Also add the new lookup_hash to the user's list of valid lookup hashes
+            # This is required for authentication with the new passkey
+            if complete_request.lookup_hash:
+                try:
+                    lookup_hash_success = await directus_service.add_user_lookup_hash(user_id, complete_request.lookup_hash)
+                    if lookup_hash_success:
+                        logger.info(f"Successfully added new lookup_hash for existing user {user_id}")
+                    else:
+                        logger.warning(f"Failed to add new lookup_hash for user {user_id}, but continuing")
+                except Exception as e:
+                    logger.error(f"Error adding lookup_hash for user {user_id}: {e}", exc_info=True)
         
         # Only process signup-specific logic for new users
         if not is_existing_user:
@@ -1791,7 +1827,12 @@ async def passkey_assertion_verify(
         
         # Get encryption key for passkey login method
         hashed_user_id = hashlib.sha256(user_id.encode()).hexdigest()
-        encryption_key_data = await directus_service.get_encryption_key(hashed_user_id, "passkey")
+        
+        # Get encryption key for passkey login method (new format: passkey_{credential_id_hash})
+        credential_id_hash = hashlib.sha256(verify_request.credential_id.encode()).hexdigest()
+        login_method = f"passkey_{credential_id_hash}"
+        encryption_key_data = await directus_service.get_encryption_key(hashed_user_id, login_method)
+        
         if not encryption_key_data:
             logger.error(f"Encryption key not found for user {user_id} with passkey login method")
             return PasskeyAssertionVerifyResponse(
@@ -1920,6 +1961,7 @@ async def passkey_assertion_verify(
                 hashed_email=hashed_email or "",
                 lookup_hash=lookup_hash or "",
                 login_method="passkey",
+                credential_id=verify_request.credential_id,
                 stay_logged_in=verify_request.stay_logged_in,
                 email_encryption_key=verify_request.email_encryption_key,
                 session_id=session_id
@@ -2081,8 +2123,8 @@ async def delete_passkey(
         hashed_user_id = hashlib.sha256(current_user.id.encode()).hexdigest()
         passkeys = await directus_service.get_user_passkeys(hashed_user_id)
         
-        passkey_exists = any(p.get("id") == delete_request.passkey_id for p in passkeys)
-        if not passkey_exists:
+        passkey_to_delete = next((p for p in passkeys if p.get("id") == delete_request.passkey_id), None)
+        if not passkey_to_delete:
             logger.warning(f"Passkey {delete_request.passkey_id[:6]}... not found or doesn't belong to user {current_user.id[:8]}...")
             return PasskeyDeleteResponse(
                 success=False,
@@ -2127,6 +2169,27 @@ async def delete_passkey(
         
         if success:
             logger.info(f"Successfully deleted passkey {delete_request.passkey_id[:6]}... for user {current_user.id[:8]}...")
+            
+            # Delete associated encryption key
+            credential_id = passkey_to_delete.get("credential_id")
+            if credential_id:
+                credential_id_hash = hashlib.sha256(credential_id.encode()).hexdigest()
+                login_method = f"passkey_{credential_id_hash}"
+                
+                # Delete the specific encryption key for this passkey
+                key_deleted = await directus_service.delete_encryption_key(hashed_user_id, login_method)
+                if key_deleted:
+                    logger.info(f"Successfully deleted encryption key for method {login_method}")
+                else:
+                    logger.warning(f"Encryption key not found for method {login_method} during passkey deletion")
+            
+            # Clear login methods cache to ensure lookup endpoint reflects the deletion
+            # This prevents showing passkey login option when no passkeys exist
+            hashed_user_id = hashlib.sha256(current_user.id.encode()).hexdigest()
+            login_methods_cache_key = f"user:{hashed_user_id}:login_methods" # Fixed cache key format to match auth_login.py
+            await cache_service.delete(login_methods_cache_key)
+            logger.debug(f"Cleared login methods cache for user {current_user.id[:8]}... after passkey deletion")
+            
             return PasskeyDeleteResponse(
                 success=True,
                 message="Passkey deleted successfully"

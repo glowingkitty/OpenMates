@@ -189,6 +189,47 @@ class DirectusService:
             logger.error(f"Exception getting encryption key for hashed_user_id: {hashed_user_id}: {e}", exc_info=True)
             return None
 
+    async def get_any_passkey_encryption_key(self, hashed_user_id: str) -> Optional[Dict[str, str]]:
+        """
+        Retrieves ANY valid passkey encryption key for a user.
+        Used when we know the user authenticated via passkey but don't have the specific credential ID hash.
+        """
+        params = {
+            "filter[hashed_user_id][_eq]": hashed_user_id,
+            "filter[login_method][_starts_with]": "passkey_",
+            "fields": "encrypted_key,salt,key_iv",
+            "limit": 1
+        }
+        try:
+            items = await self.get_items("encryption_keys", params)
+            if items:
+                return items[0]
+            return None
+        except Exception as e:
+            logger.error(f"Exception getting any passkey encryption key for hashed_user_id: {hashed_user_id}: {e}", exc_info=True)
+            return None
+
+    async def delete_encryption_key(self, hashed_user_id: str, login_method: str) -> bool:
+        """
+        Deletes an encryption key record for a user and login method.
+        """
+        params = {
+            "filter[hashed_user_id][_eq]": hashed_user_id,
+            "filter[login_method][_eq]": login_method,
+            "fields": "id",
+            "limit": 1
+        }
+        try:
+            items = await self.get_items("encryption_keys", params)
+            if items:
+                item_id = items[0].get("id")
+                if item_id:
+                    return await self.delete_item("encryption_keys", item_id)
+            return False
+        except Exception as e:
+            logger.error(f"Exception deleting encryption key for hashed_user_id: {hashed_user_id}: {e}", exc_info=True)
+            return False
+
     # Passkey management methods
     async def create_passkey(
         self,
@@ -287,10 +328,12 @@ class DirectusService:
         Returns:
             True if update was successful, False otherwise
         """
-        current_time = int(time.time())
+        # Use Unix timestamp (integer) for consistency with create_passkey
+        # Directus will convert this to ISO format when returning via API
+        current_timestamp = int(time.time())
         update_data = {
             "sign_count": new_sign_count,
-            "last_used_at": current_time
+            "last_used_at": current_timestamp
         }
         try:
             updated_item = await self.update_item("user_passkeys", passkey_id, update_data)

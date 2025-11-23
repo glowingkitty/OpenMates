@@ -137,7 +137,7 @@ class ChatCacheMixin:
             ttl_check = await client.ttl(key)
             logger.debug(f"[REDIS_DEBUG] Verified TTL for key '{key}': {ttl_check}s")
             
-            logger.info(f"[REDIS_DEBUG] Successfully added chat '{chat_id}' to sorted set '{key}' (total: {count})")
+            logger.debug(f"[REDIS_DEBUG] Successfully added chat '{chat_id}' to sorted set '{key}' (total: {count})")
             return True
         except Exception as e:
             logger.error(f"[REDIS_DEBUG] Error adding chat {chat_id} to {key}: {e}", exc_info=True)

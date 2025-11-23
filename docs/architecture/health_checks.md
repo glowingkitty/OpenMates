@@ -52,7 +52,7 @@ Returns the overall health status of all services.
 
 **Monitored Providers:**
 - Server IDs from provider registry: Anthropic, Cerebras, Google, OpenAI, OpenRouter, Groq
-- Brave Search (minimal search query, separate check)
+- Brave Search (connectivity check - verifies API key configuration and endpoint reachability via HEAD request, no billing)
 
 **Retry Logic:**
 - **Single attempt only** (no retry to avoid duplicate API calls)

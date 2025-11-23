@@ -23,22 +23,9 @@ Account Settings - Main menu for account-related settings including Security
     }
 </script>
 
-<!-- Main Account Settings Menu -->
-<div class="account-container">
-    <!-- Security Menu Item -->
-    <SettingsItem
-        type="submenu"
-        icon="subsetting_icon subsetting_icon_security"
-        title={$text('settings.account.security.text')}
-        onClick={navigateToSecurity}
-    />
-</div>
-
-<style>
-    /* Main Container */
-    .account-container {
-        width: 100%;
-        padding: 0 10px;
-    }
-</style>
-
+<SettingsItem
+    type="submenu"
+    icon="security"
+    title={$text('settings.account.security.text')}
+    onClick={navigateToSecurity}
+/>

@@ -17,7 +17,6 @@
     import PasswordAndTfaOtp from './PasswordAndTfaOtp.svelte';
     import EnterBackupCode from './EnterBackupCode.svelte';
     import EnterRecoveryKey from './EnterRecoveryKey.svelte';
-    import PasskeyLogin from './PasskeyLogin.svelte';
     // Import crypto service to clear email encryption data
     import * as cryptoService from '../services/cryptoService';
     // Import sessionStorage draft service to clear drafts when returning to demo
@@ -766,6 +765,7 @@
                         lookup_hash: lookupHash,
                         email_encryption_key: cryptoService.getEmailEncryptionKeyForApi(),
                         login_method: 'passkey',
+                        credential_id: credentialId,
                         stay_logged_in: stayLoggedIn,
                         session_id: getSessionId()
                     }),
@@ -1333,7 +1333,9 @@
                                                     // tfa_app_name is optional metadata and doesn't determine if 2FA is configured
                                                     tfaEnabled = e.detail.tfa_enabled || false;
                                                     // Use the helper function to safely set the login step
-                                                    setLoginStep(preferredLoginMethod);
+                                                    // Always go to password step after email lookup
+                                                    // The user can use the "Login with passkey" button on the main screen if they want to use passkey
+                                                    setLoginStep('password');
                                                 }}
                                                 on:userActivity={resetInactivityTimer}
                                             />
@@ -1475,34 +1477,6 @@
                                                 on:switchToOtp={() => currentLoginStep = 'password'}
                                                 on:userActivity={resetInactivityTimer}
                                             />
-                                        {:else if currentLoginStep === 'passkey'}
-                                            <!-- Passkey Login Component -->
-                                            <PasskeyLogin
-                                                {email}
-                                                {stayLoggedIn}
-                                                on:loginSuccess={async (e) => {
-                                                    console.log("Passkey login success");
-                                                    
-                                                    // Handle login success similar to password login
-                                                    email = '';
-                                                    currentLoginStep = 'email';
-                                                    dispatch('loginSuccess', {
-                                                        user: e.detail.user,
-                                                        isMobile,
-                                                        inSignupFlow: false
-                                                    });
-                                                }}
-                                            />
-                                            <button
-                                                type="button"
-                                                class="back-button"
-                                                onclick={() => {
-                                                    email = '';
-                                                    currentLoginStep = 'email';
-                                                }}
-                                            >
-                                                {$text('login.back_to_email.text')}
-                                            </button>
                                         {:else if currentLoginStep === 'security_key'}
                                             <!-- TODO: Replace with SecurityKey component -->
                                             <div class="placeholder-component">

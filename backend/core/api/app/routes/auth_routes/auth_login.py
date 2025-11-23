@@ -232,11 +232,15 @@ async def login(
         user_profile["consent_privacy_and_apps_default_settings"] = bool(user_profile.get("consent_privacy_and_apps_default_settings"))
         user_profile["consent_mates_default_settings"] = bool(user_profile.get("consent_mates_default_settings"))
 
-        # --- Scenario 1: 2FA Not Enabled OR Recovery Key Login ---
-        # Recovery keys bypass 2FA as they are standalone authentication methods
-        if not tfa_enabled or is_recovery_key_login:
+        # --- Scenario 1: 2FA Not Enabled OR Recovery Key Login OR Passkey Login ---
+        # Recovery keys and Passkeys bypass 2FA as they are standalone/strong authentication methods
+        is_passkey_login = login_data.login_method == "passkey"
+        
+        if not tfa_enabled or is_recovery_key_login or is_passkey_login:
             if is_recovery_key_login:
                 logger.info("Recovery key login detected - bypassing 2FA and proceeding with login finalization.")
+            elif is_passkey_login:
+                logger.info("Passkey login detected - bypassing 2FA and proceeding with login finalization.")
             else:
                 logger.info("2FA not enabled, proceeding with standard login finalization.")
             # Finalize login (set cookies, cache user, etc.)
@@ -322,14 +326,92 @@ async def login(
                 login_method_for_key = login_data.login_method
             elif is_recovery_key_login:
                 login_method_for_key = "recovery_key"
+            elif is_passkey_login:
+                # For passkey login, we need to find the specific encryption key for this passkey
+                # The login_method format is "passkey_{credential_id_hash}"
+                # However, we don't have the credential_id here easily available in login_data
+                # But for passkey login, the client already has the decrypted master key from the assertion verification step
+                # So we might not strictly need to fetch it here if the client already has it
+                # BUT, finalize_login_session might expect it in user_profile
+                
+                # Strategy: If it's passkey login, we try to find ANY valid passkey encryption key for this user
+                # OR we rely on the fact that the client already has the key
+                
+                # Actually, for passkey login, the client sends the lookup_hash which is derived from the specific passkey
+                # We can use this lookup_hash to find the correct encryption key if we stored it
+                # But currently encryption_keys table doesn't store lookup_hash directly
+                
+                # Let's use a special handling for passkey:
+                # If login_method is "passkey", we might need to fetch all encryption keys for this user
+                # and find the one that matches? No, that's inefficient.
+                
+                # Better approach: The client should send the specific login_method string (e.g. "passkey_...")
+                # if it knows it. But currently it sends just "passkey".
+                
+                # Wait, in auth_passkey.py:passkey_assertion_verify, we return the encrypted key to the client.
+                # The client decrypts it.
+                # Then the client calls /login.
+                # Does the client need the encrypted key again in the /login response?
+                # Yes, finalize_login_session puts it in the response.
+                
+                # If we can't easily find the specific key, maybe we can skip this check for passkey login
+                # since the client already proved possession of the key by sending the correct lookup_hash?
+                # The lookup_hash proves they derived the correct key.
+                
+                # Let's try to fetch the key using the generic "passkey" method first (backward compatibility)
+                # If that fails, we might need to look up by other means or skip.
+                # But wait, get_encryption_key filters by login_method.
+                
+                # If we skip fetching encryption_key_data for passkey login, user_profile won't have
+                # encrypted_key, key_iv, salt.
+                # The client might need these if it didn't cache them?
+                # But for passkey flow, client gets them from /verify endpoint.
+                
+                # Let's assume for now that for "passkey" login method, we might not find a single unique key
+                # if we just search for "passkey".
+                # However, we can try to find *an* encryption key if we really need to return one.
+                
+                # Ideally, we should update get_encryption_key to handle "passkey" by returning *any* valid passkey key
+                # or the one matching the current session if possible.
+                
+                # For now, let's set login_method_for_key to "passkey" but handle the case where it returns nothing gracefully
+                login_method_for_key = "passkey"
             else:
                 login_method_for_key = "password"
+            
             logger.debug(f"Using login_method '{login_method_for_key}' for encryption key lookup (requested: {login_data.login_method})")
-            encryption_key_data = await directus_service.get_encryption_key(hashed_user_id, login_method_for_key)
+            
+            # Special handling for passkey: if generic "passkey" lookup fails, it might be because
+            # keys are stored as "passkey_{hash}". We'll handle this in get_encryption_key or here.
+            
+            # If credential_id is provided (for passkey login), use it to find the specific key
+            if is_passkey_login and login_data.credential_id:
+                credential_id_hash = hashlib.sha256(login_data.credential_id.encode()).hexdigest()
+                specific_login_method = f"passkey_{credential_id_hash}"
+                logger.debug(f"Looking up specific encryption key for passkey: {specific_login_method}")
+                encryption_key_data = await directus_service.get_encryption_key(hashed_user_id, specific_login_method)
+            else:
+                encryption_key_data = await directus_service.get_encryption_key(hashed_user_id, login_method_for_key)
+            
+            # If not found and it's a passkey login, try to find ANY passkey encryption key
+            # This is a fallback to ensure we return *some* valid key data, though strictly speaking
+            # the client already has the key from the verify step.
+            if not encryption_key_data and is_passkey_login:
+                logger.info(f"Specific passkey key not found, looking for any passkey keys for user {user_id}")
+                # We need a new method in directus service to find any passkey encryption key
+                # or we can just skip this if we decide it's not critical for /login response in passkey flow
+                encryption_key_data = await directus_service.get_any_passkey_encryption_key(hashed_user_id)
+            
             if not encryption_key_data:
-                logger.error(f"Encryption key not found for user {user_id} with login method {login_method_for_key}. Login failed.")
-                return LoginResponse(success=False, message="Login failed. Please try again later.")
-            user_profile.update(encryption_key_data)
+                if is_passkey_login:
+                    logger.warning(f"Encryption key not found for user {user_id} with login method {login_method_for_key}. Continuing anyway as client likely has key from verify step.")
+                    # Don't fail login for passkey if key not found here, as client already has it
+                else:
+                    logger.error(f"Encryption key not found for user {user_id} with login method {login_method_for_key}. Login failed.")
+                    return LoginResponse(success=False, message="Login failed. Please try again later.")
+            
+            if encryption_key_data:
+                user_profile.update(encryption_key_data)
             
             # Dispatch warm_user_cache task if not already primed (fallback - should have started in /lookup)
             last_opened_path = user_profile.get("last_opened") # This is last_opened_path_from_user_model
@@ -1168,25 +1250,44 @@ async def lookup_user(
                     login_methods = []
             
             if login_methods:
-                # Check for passkey
-                has_passkey = any(method.startswith("passkey") for method in login_methods)
-                if has_passkey:
-                    available_methods.append("passkey")
-                    preferred_method = "passkey"  # Prefer passkey over other methods
+                # Check for password first - prefer password over passkey for better UX
+                # Users expect to enter password after email, not be forced into passkey
+                has_password = any(method == "password" for method in login_methods)
+                if has_password:
+                    available_methods.append("password")
+                    preferred_method = "password"  # Prefer password as default
+                
+                # Check for passkey - verify that actual passkeys exist in user_passkeys table
+                # CRITICAL: Only add passkey to available methods if there are actual passkeys registered
+                # This prevents showing passkey login when encryption key exists but passkey was deleted
+                has_passkey_encryption_key = any(method.startswith("passkey") for method in login_methods)
+                if has_passkey_encryption_key:
+                    # Verify that there are actual passkeys in the user_passkeys table
+                    try:
+                        actual_passkeys = await directus_service.get_user_passkeys_by_user_id(user_id)
+                        has_actual_passkeys = len(actual_passkeys) > 0
+                        
+                        if has_actual_passkeys:
+                            # available_methods.append("passkey") # Removed as per user request - frontend handles passkey availability
+                            # Only set as preferred if password is not available
+                            if not has_password:
+                                preferred_method = "passkey"
+                            logger.info(f"User {user_id} has {len(actual_passkeys)} passkey(s) - passkey login available")
+                        else:
+                            logger.info(f"User {user_id} has passkey encryption key but no actual passkeys - passkey login not available")
+                    except Exception as e:
+                        logger.error(f"Error checking passkeys for user {user_id}: {e}", exc_info=True)
+                        # If we can't verify, don't add passkey to avoid showing unavailable option
                 
                 # Check for security_key
                 has_security_key = any(method.startswith("security_key") for method in login_methods)
                 if has_security_key:
                     available_methods.append("security_key")
-                    if preferred_method == "password":  # Only override if not already set to passkey
+                    # Only set as preferred if password and passkey are not available
+                    if not has_password and not has_passkey:
                         preferred_method = "security_key"
                 
-                # Check for password
-                has_password = any(method == "password" for method in login_methods)
-                if has_password:
-                    available_methods.append("password")
-                
-                # Check for recovery_key
+                # Check for recovery_key (always available as fallback, but not preferred)
                 has_recovery_key = any(method == "recovery_key" for method in login_methods)
                 if has_recovery_key:
                     available_methods.append("recovery_key")

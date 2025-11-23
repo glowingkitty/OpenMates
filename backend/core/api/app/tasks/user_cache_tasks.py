@@ -35,31 +35,56 @@ async def _load_and_cache_embeds_for_chats(
     """
     total_embeds = 0
     
-    for chat_id in chat_ids:
-        try:
-            hashed_chat_id = hashlib.sha256(chat_id.encode()).hexdigest()
-            embeds = await directus_service.embeds.get_embeds_by_hashed_chat_id(hashed_chat_id)
+    if not chat_ids:
+        return 0
+        
+    try:
+        # Create a map of hashed_chat_id -> chat_id for reverse lookup
+        hashed_chat_id_map = {}
+        hashed_chat_ids = []
+        
+        for chat_id in chat_ids:
+            hashed = hashlib.sha256(chat_id.encode()).hexdigest()
+            hashed_chat_id_map[hashed] = chat_id
+            hashed_chat_ids.append(hashed)
             
-            if embeds:
-                # Cache embeds in sync cache (client-encrypted, for Phase 1/2/3 client sync)
-                client = await cache_service.client
-                if client:
-                    import json
-                    for embed in embeds:
-                        embed_id = embed.get("embed_id")
-                        if embed_id:
+        # Batch fetch all embeds for these chats
+        all_embeds = await directus_service.embed.get_embeds_by_hashed_chat_ids(hashed_chat_ids)
+        
+        if all_embeds:
+            client = await cache_service.client
+            if client:
+                import json
+                
+                # Group embeds by chat for logging
+                embeds_by_chat = {}
+                
+                for embed in all_embeds:
+                    embed_id = embed.get("embed_id")
+                    hashed_chat_id = embed.get("hashed_chat_id")
+                    
+                    if embed_id and hashed_chat_id:
+                        # Get original chat_id
+                        chat_id = hashed_chat_id_map.get(hashed_chat_id)
+                        
+                        if chat_id:
                             # Store in sync cache: embed:{embed_id}:sync (client-encrypted)
                             sync_cache_key = f"embed:{embed_id}:sync"
                             embed_json = json.dumps(embed)
                             await client.set(sync_cache_key, embed_json, ex=3600)  # 1 hour TTL for sync cache
+                            
                             # Add to chat embed index
                             await cache_service.add_embed_id_to_chat_index(chat_id, embed_id)
                             total_embeds += 1
+                            
+                            # Count for logging
+                            embeds_by_chat[chat_id] = embeds_by_chat.get(chat_id, 0) + 1
                 
-                logger.debug(f"User {user_id}: Cached {len(embeds)} embeds for chat {chat_id} in {phase_name}")
-        except Exception as e:
-            logger.error(f"Error loading embeds for chat {chat_id} in {phase_name}: {e}", exc_info=True)
-            # Non-critical error - continue with other chats
+                logger.debug(f"User {user_id}: Cached {total_embeds} total embeds for {len(embeds_by_chat)} chats in {phase_name}")
+                
+    except Exception as e:
+        logger.error(f"Error loading embeds for chats in {phase_name}: {e}", exc_info=True)
+        # Non-critical error
     
     return total_embeds
 

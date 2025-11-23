@@ -129,6 +129,37 @@ class EmbedMethods:
         except Exception as e:
             logger.error(f"Error fetching embeds by hashed_chat_id: {e}", exc_info=True)
             return []
+
+    async def get_embeds_by_hashed_chat_ids(self, hashed_chat_ids: List[str]) -> List[Dict[str, Any]]:
+        """
+        Fetch all embeds for multiple chats by hashed_chat_ids.
+        
+        Args:
+            hashed_chat_ids: List of SHA256 hashes of chat_ids
+            
+        Returns:
+            List of embeds for the chats
+        """
+        if not hashed_chat_ids:
+            return []
+            
+        logger.debug(f"Fetching embeds for {len(hashed_chat_ids)} hashed_chat_ids...")
+        params = {
+            'filter[hashed_chat_id][_in]': hashed_chat_ids,
+            'fields': EMBED_ALL_FIELDS,
+            'sort': '-created_at',
+            'limit': -1
+        }
+        try:
+            response = await self.directus_service.get_items('embeds', params=params, no_cache=True)
+            if response and isinstance(response, list):
+                logger.debug(f"Found {len(response)} embed(s) for {len(hashed_chat_ids)} chats")
+                return response
+            else:
+                return []
+        except Exception as e:
+            logger.error(f"Error fetching embeds by hashed_chat_ids: {e}", exc_info=True)
+            return []
     
     async def create_embed(self, embed_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         """

@@ -5,21 +5,21 @@ account:
   zh: 账户
   es: Cuenta
   fr: Compte
-  pt: ''
-  ru: ''
+  pt: Conta
+  ru: Аккаунт
   ja: アカウント
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: 계정
+  it: Account
+  tr: Hesap
+  vi: Tài khoản
+  id: Akun
+  pl: Konto
+  nl: Account
+  ar: حساب
+  hi: खाता
+  th: บัญชี
+  cs: Účet
+  sv: Konto
   verified_by_human: []
 security:
   context: Security submenu under Account settings
@@ -28,21 +28,21 @@ security:
   zh: 安全
   es: Seguridad
   fr: Sécurité
-  pt: ''
-  ru: ''
+  pt: Segurança
+  ru: Безопасность
   ja: セキュリティ
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: 보안
+  it: Sicurezza
+  tr: Güvenlik
+  vi: Bảo mật
+  id: Keamanan
+  pl: Bezpieczeństwo
+  nl: Beveiliging
+  ar: الأمان
+  hi: सुरक्षा
+  th: ความปลอดภัย
+  cs: Zabezpečení
+  sv: Säkerhet
   verified_by_human: []
 passkeys:
   context: Passkeys submenu under Security settings
@@ -51,20 +51,20 @@ passkeys:
   zh: 通行密钥
   es: Claves de acceso
   fr: Clés d'accès
-  pt: ''
-  ru: ''
+  pt: Chaves de acesso
+  ru: Ключи доступа
   ja: パスキー
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: 패스키
+  it: Chiavi di accesso
+  tr: Erişim anahtarları
+  vi: Khóa truy cập
+  id: Kunci akses
+  pl: Klucze dostępu
+  nl: Toegangssleutels
+  ar: مفاتيح الوصول
+  hi: पासकी
+  th: คีย์การเข้าถึง
+  cs: Přístupové klíče
+  sv: Åtkomstnycklar
   verified_by_human: []
 

@@ -7,7 +7,8 @@
 #
 # Health Check:
 # - No dedicated /health endpoint available (verified via API documentation)
-# - Health checks use test search requests (minimal: query "test" with count=1)
+# - Health checks verify API key configuration and endpoint connectivity (HEAD request)
+# - Does NOT perform actual search requests to avoid billing costs
 # - Checked every 5 minutes via Celery Beat task
 
 import logging
@@ -88,41 +89,57 @@ async def _get_brave_api_key(secrets_manager: SecretsManager) -> Optional[str]:
 
 async def check_brave_search_health(secrets_manager: SecretsManager) -> tuple[bool, Optional[str]]:
     """
-    Check Brave Search API health by performing a minimal test search request.
+    Check Brave Search API health by verifying API key configuration and endpoint connectivity.
     
-    Brave Search does not have a dedicated /health endpoint, so we perform
-    a minimal search query to verify the API is operational.
+    This health check does NOT perform actual search requests to avoid billing costs.
+    Instead, it:
+    1. Verifies the API key is configured (in Vault or environment variables)
+    2. Checks if the API base URL is reachable via HEAD request (no billing)
     
-    Uses search_web with sanitize_output=False to avoid triggering LLM sanitization
-    during health checks (which would cause unnecessary Groq API calls).
+    Brave Search does not have a dedicated /health endpoint, and performing test searches
+    would incur billing costs, so we use this lightweight connectivity check instead.
     
     Args:
         secrets_manager: SecretsManager instance for retrieving API key
     
     Returns:
         Tuple of (is_healthy, error_message)
+        - is_healthy: True if API key is configured and endpoint is reachable
+        - error_message: None if healthy, error description if unhealthy
     """
     try:
-        # Use search_web with sanitize_output=False to avoid LLM sanitization during health checks
-        # This prevents unnecessary Groq API calls for test requests
-        search_result = await search_web(
-            query="test",
-            secrets_manager=secrets_manager,
-            count=1,  # Minimal: just 1 result
-            sanitize_output=False  # Disable sanitization for health checks
-        )
+        # Step 1: Verify API key is configured
+        api_key = await _get_brave_api_key(secrets_manager)
+        if not api_key:
+            return False, "API key not configured (not found in Vault or environment variables)"
         
-        # Check if search was successful
-        if search_result.get("error"):
-            return False, search_result["error"]
-        
-        # Verify we got valid results
-        if "web" in search_result and search_result.get("results"):
+        # Step 2: Check if API base URL is reachable via HEAD request (no billing)
+        # HEAD request to base URL to verify connectivity without making a search request
+        # We accept any HTTP response (even 404/405 errors) as proof the service is online
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                # Use HEAD request to check connectivity without triggering billing
+                # Note: This may return 404, 405 (method not allowed), or other errors
+                # Any response means the endpoint is reachable and the service is online
+                response = await client.head(BRAVE_API_BASE_URL)
+                logger.debug(f"Brave Search API connectivity check: {response.status_code} - endpoint is reachable")
+                return True, None
+        except httpx.TimeoutException:
+            return False, "API endpoint timeout (endpoint not reachable)"
+        except httpx.ConnectError as e:
+            return False, f"API endpoint connection error: {str(e)}"
+        except httpx.HTTPStatusError as e:
+            # Even if we get an error status (404, 405, etc.), the endpoint is reachable
+            # This means the service is online - we got a response from their servers
+            # This is much better than nothing and doesn't cost anything
+            logger.debug(f"Brave Search API returned status {e.response.status_code}, but endpoint is reachable (service is online)")
             return True, None
-        else:
-            return False, "Invalid response structure"
+        except httpx.RequestError as e:
+            return False, f"API request error: {str(e)}"
+            
     except Exception as e:
-        return False, str(e)
+        logger.error(f"Unexpected error in Brave Search health check: {str(e)}", exc_info=True)
+        return False, f"Unexpected error: {str(e)}"
 
 
 async def search_web(

@@ -33,12 +33,30 @@ Passkey Management - View, rename, delete, and add passkeys
     let deletingPasskeyId = $state<string | null>(null);
 
     // Format date for display
+    // Handles various date formats from Directus (ISO strings, Unix timestamps, etc.)
     function formatDate(dateString: string | null): string {
         if (!dateString) return 'Never';
         try {
-            const date = new Date(dateString);
+            let date: Date;
+            
+            // Check if it's a Unix timestamp (number as string)
+            if (/^\d+$/.test(dateString)) {
+                // Unix timestamp in seconds - convert to milliseconds
+                date = new Date(parseInt(dateString) * 1000);
+            } else {
+                // Try parsing as ISO string or other date format
+                date = new Date(dateString);
+            }
+            
+            // Check if date is valid
+            if (isNaN(date.getTime())) {
+                console.warn(`[SettingsPasskeys] Invalid date string: ${dateString}`);
+                return 'Invalid date';
+            }
+            
             return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        } catch {
+        } catch (error) {
+            console.error(`[SettingsPasskeys] Error formatting date "${dateString}":`, error);
             return 'Invalid date';
         }
     }
@@ -69,6 +87,15 @@ Passkey Management - View, rename, delete, and add passkeys
                 // Decrypt device names client-side using master key
                 const decryptedPasskeys = [];
                 for (const passkey of data.passkeys || []) {
+                    // Log raw passkey data for debugging
+                    console.log(`[SettingsPasskeys] Raw passkey data:`, {
+                        id: passkey.id,
+                        registered_at: passkey.registered_at,
+                        last_used_at: passkey.last_used_at,
+                        sign_count: passkey.sign_count,
+                        encrypted_device_name: passkey.encrypted_device_name ? 'present' : 'missing'
+                    });
+                    
                     let deviceName = null;
                     if (passkey.encrypted_device_name) {
                         // Decrypt device name using master key (client-side only)
@@ -405,15 +432,24 @@ Passkey Management - View, rename, delete, and add passkeys
             // Step 12: Generate lookup hash from PRF signature (for this passkey)
             const lookupHash = await hashKeyFromPRF(prfSignature, emailSalt);
 
-            // Step 13: Generate and encrypt device name for passkey
-            const deviceName = generateDeviceName();
+            // Step 13: Re-encrypt email with master key for passkey login
+            // This ensures encrypted_email_with_master_key matches the master key that will be unwrapped during passkey login
+            // CRITICAL: The email must be encrypted with the same master key that's being wrapped for the passkey
             const { encryptWithMasterKeyDirect } = await import('../../services/cryptoService');
+            const encryptedEmailWithMasterKey = await encryptWithMasterKeyDirect(email, masterKey);
+            if (!encryptedEmailWithMasterKey) {
+                throw new Error('Failed to encrypt email with master key. Please try again.');
+            }
+            console.log('[SettingsPasskeys] Email re-encrypted with master key for passkey login');
+
+            // Step 14: Generate and encrypt device name for passkey
+            const deviceName = generateDeviceName();
             const encryptedDeviceName = await encryptWithMasterKeyDirect(deviceName, masterKey);
             if (!encryptedDeviceName) {
                 console.warn('[SettingsPasskeys] Failed to encrypt device name, continuing without it');
             }
 
-            // Step 14: Extract credential data for backend
+            // Step 15: Extract credential data for backend
             const credentialId = arrayBufferToBase64Url(credential.rawId);
             const clientDataJSONB64 = uint8ArrayToBase64(new Uint8Array(response.clientDataJSON));
             const attestationObject = new Uint8Array(response.attestationObject);
@@ -441,7 +477,7 @@ Passkey Management - View, rename, delete, and add passkeys
                     username: username,
                     invite_code: "", // Not needed for existing users
                     encrypted_email: "", // Not needed for existing users (already stored)
-                    encrypted_email_with_master_key: "", // Not needed for existing users (already stored)
+                    encrypted_email_with_master_key: encryptedEmailWithMasterKey, // Re-encrypted with current master key for passkey login
                     encrypted_device_name: encryptedDeviceName || null,
                     user_email_salt: uint8ArrayToBase64(emailSalt),
                     encrypted_master_key: encryptedMasterKey,
@@ -610,7 +646,7 @@ Passkey Management - View, rename, delete, and add passkeys
 
         <!-- Add Passkey Button -->
         <div class="add-passkey-section">
-            <button class="btn-add" onclick={addPasskey} disabled={isLoading}>
+            <button onclick={addPasskey} disabled={isLoading}>
                 Add Passkey
             </button>
         </div>
@@ -644,27 +680,27 @@ Passkey Management - View, rename, delete, and add passkeys
     .loading {
         padding: 20px;
         text-align: center;
-        color: #666;
+        color: var(--color-grey-100);
     }
 
     .empty-state {
         padding: 40px 20px;
         text-align: center;
-        color: #666;
+        color: var(--color-grey-100);
     }
 
     .empty-state .hint {
         font-size: 12px;
         margin-top: 10px;
-        color: #999;
+        color: var(--color-grey-100);
     }
 
     .passkey-item {
         margin-bottom: 15px;
         padding: 15px;
-        border: 1px solid #ddd;
+        border: 1px solid var(--color-grey-30);
         border-radius: 8px;
-        background-color: #f9f9f9;
+        background-color: var(--color-grey-10);
     }
 
     .passkey-info {
@@ -686,7 +722,7 @@ Passkey Management - View, rename, delete, and add passkeys
 
     .sign-count {
         font-size: 12px;
-        color: #666;
+        color: var(--color-grey-100);
     }
 
     .passkey-details {
@@ -703,11 +739,11 @@ Passkey Management - View, rename, delete, and add passkeys
 
     .detail-item .label {
         font-weight: 500;
-        color: #666;
+        color: var(--color-grey-100);
     }
 
     .detail-item .value {
-        color: #333;
+        color: var(--color-grey-100);
     }
 
     .passkey-actions {
@@ -747,19 +783,6 @@ Passkey Management - View, rename, delete, and add passkeys
         font-weight: 500;
     }
 
-    button {
-        padding: 8px 16px;
-        border: none;
-        border-radius: 4px;
-        cursor: pointer;
-        font-size: 14px;
-        transition: background-color 0.2s;
-    }
-
-    button:disabled {
-        opacity: 0.5;
-        cursor: not-allowed;
-    }
 
     .btn-rename {
         background-color: #4CAF50;
@@ -795,19 +818,6 @@ Passkey Management - View, rename, delete, and add passkeys
 
     .btn-cancel:hover:not(:disabled) {
         background-color: #555;
-    }
-
-    .btn-add {
-        background-color: #2196F3;
-        color: white;
-        padding: 12px 24px;
-        width: 100%;
-        font-size: 16px;
-        font-weight: 500;
-    }
-
-    .btn-add:hover:not(:disabled) {
-        background-color: #0b7dda;
     }
 
     .add-passkey-section {
