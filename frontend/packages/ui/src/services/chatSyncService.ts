@@ -389,11 +389,11 @@ export class ChatSynchronizationService extends EventTarget {
         console.log("[ChatSyncService] Phase 2 complete - recent chats ready:", payload);
 
         try {
-            const { chats, chat_count } = payload;
+            const { chats, chat_count, embeds } = payload as any; // embeds is flat array from backend
 
             // CRITICAL: Validate that chats array exists before processing
             // The cache warming task sends {chat_count: N} without chats array
-            // The direct sync handler sends {chats: [...], chat_count: N, phase: 'phase2'}
+            // The direct sync handler sends {chats: [...], embeds: [...], chat_count: N, phase: 'phase2'}
             if (!chats || !Array.isArray(chats)) {
                 console.debug("[ChatSyncService] Phase 2 notification received (cache warming), waiting for actual chat data...");
                 return;
@@ -402,11 +402,20 @@ export class ChatSynchronizationService extends EventTarget {
             // Only process when we have actual chat data
             if (chats.length === 0) {
                 console.debug("[ChatSyncService] Phase 2 received empty chats array, nothing to store");
+                // Still store embeds if any (embeds can exist without chats being sent)
+                if (embeds && Array.isArray(embeds) && embeds.length > 0) {
+                    await this.storeEmbedsBatch(embeds, 'Phase 2');
+                }
                 return;
             }
 
             // Store recent chats data
             await this.storeRecentChats(chats);
+            
+            // Store embeds from flat array (new format - deduplicated by backend)
+            if (embeds && Array.isArray(embeds) && embeds.length > 0) {
+                await this.storeEmbedsBatch(embeds, 'Phase 2');
+            }
 
             // Dispatch event for UI components - use the correct event name that Chats.svelte listens for
             this.dispatchEvent(new CustomEvent('phase_2_last_20_chats_ready', {
@@ -431,11 +440,11 @@ export class ChatSynchronizationService extends EventTarget {
         console.log("[ChatSyncService] Phase 3 complete - full sync ready:", payload);
 
         try {
-            const { chats, chat_count, new_chat_suggestions } = payload;
+            const { chats, chat_count, new_chat_suggestions, embeds } = payload as any; // embeds is flat array from backend
 
             // CRITICAL: Validate that chats array exists before processing
             // The cache warming task sends {chat_count: N} without chats array
-            // The direct sync handler sends {chats: [...], chat_count: N, phase: 'phase3'}
+            // The direct sync handler sends {chats: [...], embeds: [...], chat_count: N, phase: 'phase3'}
             if (!chats || !Array.isArray(chats)) {
                 console.debug("[ChatSyncService] Phase 3 notification received (cache warming), waiting for actual chat data...");
                 return;
@@ -444,11 +453,20 @@ export class ChatSynchronizationService extends EventTarget {
             // Only process when we have actual chat data
             if (chats.length === 0) {
                 console.debug("[ChatSyncService] Phase 3 received empty chats array, nothing to store");
+                // Still store embeds if any (embeds can exist without chats being sent)
+                if (embeds && Array.isArray(embeds) && embeds.length > 0) {
+                    await this.storeEmbedsBatch(embeds, 'Phase 3');
+                }
                 return;
             }
 
             // Store all chats data
             await this.storeAllChats(chats);
+            
+            // Store embeds from flat array (new format - deduplicated by backend)
+            if (embeds && Array.isArray(embeds) && embeds.length > 0) {
+                await this.storeEmbedsBatch(embeds, 'Phase 3');
+            }
 
             // Store new chat suggestions if provided
             if (new_chat_suggestions && Array.isArray(new_chat_suggestions) && new_chat_suggestions.length > 0) {
@@ -460,7 +478,12 @@ export class ChatSynchronizationService extends EventTarget {
                 console.debug("[ChatSyncService] No new chat suggestions to store");
             }
 
-            // Dispatch event for UI components
+            // Dispatch event for UI components - use event name that Chats.svelte listens for
+            this.dispatchEvent(new CustomEvent('phase_3_last_100_chats_ready', {
+                detail: { chat_count, suggestions_count: new_chat_suggestions?.length || 0 }
+            }));
+            
+            // Also dispatch fullSyncReady for NewChatSuggestions.svelte
             this.dispatchEvent(new CustomEvent('fullSyncReady', {
                 detail: { chat_count, suggestions_count: new_chat_suggestions?.length || 0 }
             }));
@@ -665,8 +688,8 @@ export class ChatSynchronizationService extends EventTarget {
             
             console.log(`[ChatSyncService] Phase 2 - Stored ${chats.length} recent chats with message sync`);
             
-            // Process and store embeds from all chats
-            await this.storeEmbedsFromChats(chats, 'Phase 2');
+            // Note: Embeds are now stored via storeEmbedsBatch in handlePhase2RecentChats
+            // (backend sends embeds as flat deduplicated array, not per-chat)
         } catch (error) {
             console.error("[ChatSyncService] Phase 2 - Error storing recent chats:", error);
         }
@@ -810,18 +833,66 @@ export class ChatSynchronizationService extends EventTarget {
             
             console.log(`[ChatSyncService] Stored ${chats.length} all chats (Phase 3) with duplicate prevention`);
             
-            // Process and store embeds from all chats
-            await this.storeEmbedsFromChats(chats, 'Phase 3');
+            // Note: Embeds are now stored via storeEmbedsBatch in handlePhase3FullSync
+            // (backend sends embeds as flat deduplicated array, not per-chat)
         } catch (error) {
             console.error("[ChatSyncService] Error storing all chats:", error);
         }
     }
 
     /**
-     * Store embeds from chat payloads to EmbedStore
+     * Store embeds from a flat array (new format from backend with cross-phase deduplication)
+     * Backend ensures no duplicates are sent across phases, so we just store all received embeds
+     * @param embeds - Flat array of embed objects (already deduplicated by backend)
+     * @param phaseName - Phase name for logging (e.g., "Phase 1", "Phase 2", "Phase 3")
+     */
+    private async storeEmbedsBatch(embeds: any[], phaseName: string): Promise<void> {
+        try {
+            const { embedStore } = await import('./embedStore');
+            let storedCount = 0;
+            
+            for (const embed of embeds) {
+                if (!embed.embed_id) {
+                    console.warn(`[ChatSyncService] ${phaseName} - Skipping embed without embed_id`);
+                    continue;
+                }
+                
+                try {
+                    // Create contentRef in the format used by embeds: embed:{embed_id}
+                    const contentRef = `embed:${embed.embed_id}`;
+                    
+                    // Store the embed with its encrypted content
+                    await embedStore.put(contentRef, {
+                        content: embed.encrypted_content,
+                        embed_id: embed.embed_id,
+                        embed_type: embed.encrypted_type || embed.embed_type,
+                        status: embed.status || 'finished',
+                        hashed_chat_id: embed.hashed_chat_id,
+                        hashed_user_id: embed.hashed_user_id
+                    }, embed.encrypted_type || 'app-skill-use');
+                    
+                    storedCount++;
+                } catch (embedError) {
+                    console.warn(`[ChatSyncService] ${phaseName} - Error storing embed ${embed.embed_id}:`, embedError);
+                }
+            }
+            
+            if (storedCount > 0) {
+                console.info(`[ChatSyncService] ${phaseName} - Stored ${storedCount} embeds`);
+            } else {
+                console.debug(`[ChatSyncService] ${phaseName} - No embeds stored`);
+            }
+        } catch (error) {
+            console.error(`[ChatSyncService] ${phaseName} - Error storing embeds batch:`, error);
+        }
+    }
+
+    /**
+     * Store embeds from chat payloads to EmbedStore (legacy format - per-chat embeds)
      * Deduplicates embeds by embed_id to avoid storing the same embed multiple times
      * @param chats - Array of chat wrappers containing optional embeds array
      * @param phaseName - Phase name for logging (e.g., "Phase 2", "Phase 3")
+     * @deprecated Use storeEmbedsBatch with flat embeds array instead
      */
     private async storeEmbedsFromChats(chats: any[], phaseName: string): Promise<void> {
         try {

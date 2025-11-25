@@ -316,17 +316,16 @@
 		* This means the last 100 chats are ready and full sync is complete.
 		*/
 	const handlePhase3Last100ChatsReadyEvent = async (event: CustomEvent<{chat_count: number}>) => {
-		console.debug(`[Chats] Phase 3 complete - Last 100 chats ready: ${event.detail.chat_count} chats.`);
+		console.info(`[Chats] Phase 3 complete - Last 100 chats ready: ${event.detail.chat_count} chats.`);
 		
 		// Update the chat list to show all chats
 		await updateChatListFromDB();
 		
-		// Expand display limit to show all chats
-		if (!allChatsDisplayed) {
-			displayLimit = Infinity;
-			allChatsDisplayed = true;
-			console.debug('[Chats] Full sync complete, expanded display limit to show all chats.');
-		}
+		// CRITICAL: Always expand display limit to show all chats after Phase 3
+		// Don't check allChatsDisplayed - ensure it's always set
+		displayLimit = Infinity;
+		allChatsDisplayed = true;
+		console.info(`[Chats] Phase 3 complete - Set displayLimit to Infinity, allChatsFromDB has ${allChatsFromDB.length} chats`);
 		
 		// Show "Sync complete" message
 		syncing = false;
@@ -343,7 +342,7 @@
 		* This indicates the entire 3-phase sync process is complete.
 		*/
 	const handlePhasedSyncCompleteEvent = async (event: CustomEvent<any>) => {
-		console.debug(`[Chats] Phased sync complete:`, event.detail);
+		console.info(`[Chats] Phased sync complete:`, event.detail);
 		
 		// Mark that initial phased sync has completed
 		// This prevents redundant syncs when Chats component is remounted
@@ -360,11 +359,10 @@
 			syncComplete = false;
 		}, 1000);
 		
-		// Ensure all chats are displayed
-		if (!allChatsDisplayed) {
-			displayLimit = Infinity;
-			allChatsDisplayed = true;
-		}
+		// CRITICAL: Always ensure all chats are displayed after sync complete
+		displayLimit = Infinity;
+		allChatsDisplayed = true;
+		console.info(`[Chats] Phased sync complete - Set displayLimit to Infinity, allChatsFromDB has ${allChatsFromDB.length} chats`);
 	};
 
 	/**

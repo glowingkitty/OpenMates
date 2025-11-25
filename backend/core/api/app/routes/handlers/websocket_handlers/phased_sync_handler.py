@@ -83,22 +83,26 @@ async def handle_phased_sync_request(
         
         logger.info(f"Handling phased sync request for user {user_id}, phase: {sync_phase}, client has {len(client_chat_ids)} chats, {client_suggestions_count} suggestions")
         
+        # Track sent embed IDs across all phases to prevent duplicates
+        # Embeds can be shared across chats in different phases
+        sent_embed_ids: set = set()
+        
         if sync_phase == "phase1" or sync_phase == "all":
             await _handle_phase1_sync(
                 manager, cache_service, directus_service, user_id, device_fingerprint_hash,
-                client_chat_versions, client_chat_ids
+                client_chat_versions, client_chat_ids, sent_embed_ids
             )
         
         if sync_phase == "phase2" or sync_phase == "all":
             await _handle_phase2_sync(
                 manager, cache_service, directus_service, user_id, device_fingerprint_hash,
-                client_chat_versions, client_chat_ids
+                client_chat_versions, client_chat_ids, sent_embed_ids
             )
         
         if sync_phase == "phase3" or sync_phase == "all":
             await _handle_phase3_sync(
                 manager, cache_service, directus_service, user_id, device_fingerprint_hash,
-                client_chat_versions, client_chat_ids
+                client_chat_versions, client_chat_ids, sent_embed_ids
             )
         
         # Send sync completion event
@@ -135,7 +139,8 @@ async def _handle_phase1_sync(
     user_id: str,
     device_fingerprint_hash: str,
     client_chat_versions: Dict[str, Dict[str, int]],
-    client_chat_ids: List[str]
+    client_chat_ids: List[str],
+    sent_embed_ids: set
 ):
     """
     Handle Phase 1: Last opened chat AND new chat suggestions (immediate priority)
@@ -393,16 +398,23 @@ async def _handle_phase1_sync(
                     logger.error(f"[DIRECTUS_VALIDATION] Failed to parse first message from Directus: {parse_err}")
         
         # Get embeds from sync cache for this chat
-        embeds_data = await cache_service.get_sync_embeds_for_chat(chat_id)
-        if embeds_data:
-            logger.info(f"Phase 1: Retrieved {len(embeds_data)} embeds from sync cache for chat {chat_id}")
-        else:
+        # Filter out embeds already sent in previous phases (cross-phase deduplication)
+        raw_embeds_data = await cache_service.get_sync_embeds_for_chat(chat_id)
+        if not raw_embeds_data:
             # Fallback: try to get embeds from Directus if not in sync cache
             import hashlib
             hashed_chat_id = hashlib.sha256(chat_id.encode()).hexdigest()
-            embeds_data = await directus_service.embed.get_embeds_by_hashed_chat_id(hashed_chat_id)
-            if embeds_data:
-                logger.info(f"Phase 1: Retrieved {len(embeds_data)} embeds from Directus for chat {chat_id}")
+            raw_embeds_data = await directus_service.embed.get_embeds_by_hashed_chat_id(hashed_chat_id)
+        
+        # Filter and track sent embeds to prevent duplicates across phases
+        embeds_data = []
+        if raw_embeds_data:
+            for embed in raw_embeds_data:
+                embed_id = embed.get("embed_id")
+                if embed_id and embed_id not in sent_embed_ids:
+                    embeds_data.append(embed)
+                    sent_embed_ids.add(embed_id)
+            logger.info(f"Phase 1: Sending {len(embeds_data)} embeds for chat {chat_id} (filtered from {len(raw_embeds_data)}, {len(sent_embed_ids)} total sent)")
         
         # Send Phase 1 data to client WITH suggestions (always) AND embeds
         await manager.send_personal_message(
@@ -435,7 +447,8 @@ async def _handle_phase2_sync(
     user_id: str,
     device_fingerprint_hash: str,
     client_chat_versions: Dict[str, Dict[str, int]],
-    client_chat_ids: List[str]
+    client_chat_ids: List[str],
+    sent_embed_ids: set
 ):
     """
     Handle Phase 2: Last 20 updated chats (quick access)
@@ -699,9 +712,10 @@ async def _handle_phase2_sync(
         
             logger.info(f"Phase 2: Total chats with messages added: {messages_added_count}/{len(chats_to_send)} (sync cache hits: {messages_added_count - len(chat_ids_to_fetch_from_directus)}, directus fetches: {len(chat_ids_to_fetch_from_directus)})")
         
-        # Add embeds for each chat
+        # Collect all unique embeds across all chats (deduplicated by embed_id)
+        # CROSS-PHASE DEDUPLICATION: Filter out embeds already sent in Phase 1
         import hashlib
-        embeds_total = 0
+        new_embeds = {}  # embed_id -> embed data (phase-level deduplication)
         for chat_wrapper in chats_to_send:
             chat_id = chat_wrapper.get("chat_details", {}).get("id")
             if chat_id:
@@ -714,21 +728,31 @@ async def _handle_phase2_sync(
                         embeds = await directus_service.embed.get_embeds_by_hashed_chat_id(hashed_chat_id)
                     
                     if embeds:
-                        chat_wrapper["embeds"] = embeds
-                        embeds_total += len(embeds)
-                        logger.debug(f"Phase 2: Added {len(embeds)} embeds for chat {chat_id}")
+                        for embed in embeds:
+                            embed_id = embed.get("embed_id")
+                            # Skip if already sent in previous phases OR already added in this phase
+                            if embed_id and embed_id not in sent_embed_ids and embed_id not in new_embeds:
+                                new_embeds[embed_id] = embed
+                        logger.debug(f"Phase 2: Found {len(embeds)} embeds for chat {chat_id}")
                 except Exception as e:
                     logger.warning(f"Phase 2: Error fetching embeds for chat {chat_id}: {e}")
         
-        if embeds_total > 0:
-            logger.info(f"Phase 2: Total embeds added: {embeds_total} across {len(chats_to_send)} chats")
+        embeds_list = list(new_embeds.values())
+        # Track all newly sent embeds for Phase 3
+        for embed_id in new_embeds.keys():
+            sent_embed_ids.add(embed_id)
+        
+        if embeds_list:
+            logger.info(f"Phase 2: Sending {len(embeds_list)} new embeds ({len(sent_embed_ids)} total sent across phases)")
         
         # Send Phase 2 data to client (only chats that need updating)
+        # Embeds are sent as a flat deduplicated array, not per-chat
         await manager.send_personal_message(
             {
                 "type": "phase_2_last_20_chats_ready",
                 "payload": {
                     "chats": chats_to_send,
+                    "embeds": embeds_list,  # Flat deduplicated array
                     "chat_count": len(chats_to_send),
                     "phase": "phase2"
                 }
@@ -737,7 +761,7 @@ async def _handle_phase2_sync(
             device_fingerprint_hash
         )
         
-        logger.info(f"Phase 2 sync complete for user {user_id}, sent: {len(chats_to_send)} chats, {embeds_total} embeds, skipped: {chats_skipped}")
+        logger.info(f"Phase 2 sync complete for user {user_id}, sent: {len(chats_to_send)} chats, {len(embeds_list)} embeds, skipped: {chats_skipped}")
         
     except Exception as e:
         logger.error(f"Error in Phase 2 sync for user {user_id}: {e}", exc_info=True)
@@ -750,7 +774,8 @@ async def _handle_phase3_sync(
     user_id: str,
     device_fingerprint_hash: str,
     client_chat_versions: Dict[str, Dict[str, int]],
-    client_chat_ids: List[str]
+    client_chat_ids: List[str],
+    sent_embed_ids: set
 ):
     """
     Handle Phase 3: Last 100 updated chats (full sync)
@@ -1002,9 +1027,10 @@ async def _handle_phase3_sync(
 
                 logger.info(f"Phase 3: Total chats with messages added: {messages_added_count}/{len(chats_to_send)} (sync cache hits: {messages_added_count - len(chat_ids_to_fetch_from_directus)}, directus fetches: {len(chat_ids_to_fetch_from_directus)})")
 
-        # Add embeds for each chat
+        # Collect all unique embeds across all chats (deduplicated by embed_id)
+        # CROSS-PHASE DEDUPLICATION: Filter out embeds already sent in Phase 1 and Phase 2
         import hashlib
-        embeds_total = 0
+        new_embeds = {}  # embed_id -> embed data (phase-level deduplication)
         for chat_wrapper in chats_to_send:
             chat_id = chat_wrapper.get("chat_details", {}).get("id")
             if chat_id:
@@ -1017,21 +1043,31 @@ async def _handle_phase3_sync(
                         embeds = await directus_service.embed.get_embeds_by_hashed_chat_id(hashed_chat_id)
                     
                     if embeds:
-                        chat_wrapper["embeds"] = embeds
-                        embeds_total += len(embeds)
-                        logger.debug(f"Phase 3: Added {len(embeds)} embeds for chat {chat_id}")
+                        for embed in embeds:
+                            embed_id = embed.get("embed_id")
+                            # Skip if already sent in previous phases OR already added in this phase
+                            if embed_id and embed_id not in sent_embed_ids and embed_id not in new_embeds:
+                                new_embeds[embed_id] = embed
+                        logger.debug(f"Phase 3: Found {len(embeds)} embeds for chat {chat_id}")
                 except Exception as e:
                     logger.warning(f"Phase 3: Error fetching embeds for chat {chat_id}: {e}")
         
-        if embeds_total > 0:
-            logger.info(f"Phase 3: Total embeds added: {embeds_total} across {len(chats_to_send)} chats")
+        embeds_list = list(new_embeds.values())
+        # Track all newly sent embeds (for completeness, though Phase 3 is last)
+        for embed_id in new_embeds.keys():
+            sent_embed_ids.add(embed_id)
+        
+        if embeds_list:
+            logger.info(f"Phase 3: Sending {len(embeds_list)} new embeds ({len(sent_embed_ids)} total sent across all phases)")
 
         # Send Phase 3 data to client (chats only - NO suggestions, always sent in Phase 1)
+        # Embeds are sent as a flat deduplicated array, not per-chat
         await manager.send_personal_message(
             {
                 "type": "phase_3_last_100_chats_ready",
                 "payload": {
                     "chats": chats_to_send,
+                    "embeds": embeds_list,  # Flat deduplicated array
                     "chat_count": len(chats_to_send),
                     "phase": "phase3"
                 }
@@ -1040,7 +1076,7 @@ async def _handle_phase3_sync(
             device_fingerprint_hash
         )
 
-        logger.info(f"Phase 3 sync complete for user {user_id}, sent: {len(chats_to_send)} chats, {embeds_total} embeds (skipped: {chats_skipped})")
+        logger.info(f"Phase 3 sync complete for user {user_id}, sent: {len(chats_to_send)} chats, {len(embeds_list)} embeds (skipped: {chats_skipped})")
         
         # Clear sync cache after successful Phase 3 completion (1h TTL, no longer needed)
         try:
