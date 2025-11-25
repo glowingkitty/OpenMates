@@ -15,6 +15,7 @@ const embedCache = new Map<string, EmbedStoreEntry>();
 export class EmbedStore {
   /**
    * Put embed into the store (encrypted)
+   * Use this for NEW embeds that need encryption (e.g., from send_embed_data with plaintext TOON)
    * @param contentRef - The embed reference key (e.g., embed:{embed_id})
    * @param data - The embed data to store (can be TOON string or object)
    * @param type - The type of embed content
@@ -116,6 +117,47 @@ export class EmbedStore {
   }
   
   /**
+   * Put embed into the store WITHOUT encryption (for synced embeds already client-encrypted)
+   * Use this for embeds from sync that are already encrypted (same pattern as messages)
+   * @param contentRef - The embed reference key (e.g., embed:{embed_id})
+   * @param encryptedData - The already-encrypted embed data object
+   * @param type - The type of embed content
+   */
+  async putEncrypted(contentRef: string, encryptedData: any, type: EmbedType): Promise<void> {
+    // Store the encrypted data directly without re-encrypting
+    // This matches the pattern used for messages during sync
+    const dataString = JSON.stringify(encryptedData);
+    
+    const entry: EmbedStoreEntry = {
+      contentRef,
+      // Store encrypted data as-is (already client-encrypted from Directus)
+      data: dataString,
+      type,
+      createdAt: Date.now(),
+      updatedAt: Date.now()
+    };
+
+    // Store in memory cache
+    embedCache.set(contentRef, entry);
+
+    try {
+      // Store in IndexedDB
+      const transaction = await chatDB.getTransaction([EMBEDS_STORE_NAME], 'readwrite');
+      const store = transaction.objectStore(EMBEDS_STORE_NAME);
+
+      await new Promise<void>((resolve, reject) => {
+        const request = store.put(entry);
+        request.onsuccess = () => resolve();
+        request.onerror = () => reject(request.error);
+      });
+
+      console.debug('[EmbedStore] Put encrypted embed in IndexedDB (no re-encryption):', contentRef, type);
+    } catch (error) {
+      console.warn('[EmbedStore] Failed to store encrypted embed in IndexedDB, using memory cache only:', error);
+    }
+  }
+
+  /**
    * Get embed from the store (decrypted)
    * @param contentRef - The embed reference key to retrieve
    * @returns The stored embed data or undefined if not found
@@ -151,43 +193,73 @@ export class EmbedStore {
       return undefined;
     }
     
-    // Decrypt the data using the master key
-    let encryptedData = entry.data;
+    // Handle two storage formats:
+    // 1. put(): Stores encrypted JSON string (encrypted by embedStore)
+    // 2. putEncrypted(): Stores plain JSON string with encrypted_content field (already encrypted from sync)
+    let storedData = entry.data;
 
-    // CRITICAL: Ensure encryptedData is not a Promise
-    if (encryptedData instanceof Promise) {
+    // CRITICAL: Ensure storedData is not a Promise
+    if (storedData instanceof Promise) {
       console.warn('[EmbedStore] Stored data is a Promise, awaiting resolution');
-      encryptedData = await encryptedData;
+      storedData = await storedData;
     }
 
-    if (typeof encryptedData !== 'string') {
+    if (typeof storedData !== 'string') {
       console.warn('[EmbedStore] Stored embed is not a string; returning as-is');
-      return encryptedData as any;
+      return storedData as any;
     }
 
-    const decryptedData = await decryptWithMasterKey(encryptedData);
-
-    if (!decryptedData) {
-      console.warn('[EmbedStore] Failed to decrypt embed, returning encrypted data');
-      return entry.data;
-    }
-
-    try {
-      const parsed = JSON.parse(decryptedData);
-
-      // If this is embed data with TOON content, return as-is
-      // Content will be decoded when needed (by embedResolver)
-      if (parsed && typeof parsed.content === 'string') {
-        // This is embed data with TOON content - return as-is
-        // The TOON string will be decoded by embedResolver when needed
-        return parsed;
+    // Try to decrypt first (for embeds stored via put())
+    let decryptedData = await decryptWithMasterKey(storedData);
+    let parsed: any;
+    
+    if (decryptedData) {
+      // Successfully decrypted - this was stored via put() (encrypted by embedStore)
+      try {
+        parsed = JSON.parse(decryptedData);
+      } catch (error) {
+        console.error('[EmbedStore] Error parsing decrypted data:', error);
+        return decryptedData;
       }
-
-      return parsed;
-    } catch (error) {
-      console.error('[EmbedStore] Error parsing decrypted data:', error);
-      return decryptedData;
+    } else {
+      // Decryption failed - this might be stored via putEncrypted() (plain JSON with encrypted fields)
+      try {
+        parsed = JSON.parse(storedData);
+      } catch (error) {
+        console.error('[EmbedStore] Error parsing stored data as JSON:', error);
+        return storedData;
+      }
+      
+      // If parsed object has encrypted_content, decrypt it now
+      if (parsed && parsed.encrypted_content && typeof parsed.encrypted_content === 'string') {
+        const decryptedContent = await decryptWithMasterKey(parsed.encrypted_content);
+        if (decryptedContent) {
+          parsed.content = decryptedContent;
+          // Keep encrypted_content for reference but content is now decrypted
+        } else {
+          console.warn('[EmbedStore] Failed to decrypt encrypted_content field');
+        }
+      }
+      
+      // If parsed object has encrypted_type, decrypt it
+      if (parsed && parsed.encrypted_type && typeof parsed.encrypted_type === 'string') {
+        const decryptedType = await decryptWithMasterKey(parsed.encrypted_type);
+        if (decryptedType) {
+          parsed.type = decryptedType;
+          parsed.embed_type = decryptedType;
+        }
+      }
     }
+
+    // If this is embed data with TOON content, return as-is
+    // Content will be decoded when needed (by embedResolver)
+    if (parsed && typeof parsed.content === 'string') {
+      // This is embed data with TOON content - return as-is
+      // The TOON string will be decoded by embedResolver when needed
+      return parsed;
+    }
+
+    return parsed;
   }
   
   /**

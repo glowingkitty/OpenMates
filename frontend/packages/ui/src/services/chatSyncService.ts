@@ -843,6 +843,12 @@ export class ChatSynchronizationService extends EventTarget {
     /**
      * Store embeds from a flat array (new format from backend with cross-phase deduplication)
      * Backend ensures no duplicates are sent across phases, so we just store all received embeds
+     * 
+     * CRITICAL: Embeds from sync arrive with encrypted_content that is ALREADY client-encrypted
+     * (from when the embed was originally stored in Directus). We store them as-is without
+     * re-encryption, matching the pattern used for messages. Decryption happens on-demand
+     * when embeds are retrieved for rendering.
+     * 
      * @param embeds - Flat array of embed objects (already deduplicated by backend)
      * @param phaseName - Phase name for logging (e.g., "Phase 1", "Phase 2", "Phase 3")
      */
@@ -861,15 +867,27 @@ export class ChatSynchronizationService extends EventTarget {
                     // Create contentRef in the format used by embeds: embed:{embed_id}
                     const contentRef = `embed:${embed.embed_id}`;
                     
-                    // Store the embed with its encrypted content
-                    await embedStore.put(contentRef, {
-                        content: embed.encrypted_content,
+                    // Store the embed with its already-encrypted content (no re-encryption)
+                    // This matches the pattern used for messages during sync
+                    // embedStore.putEncrypted() stores without re-encrypting, get() will decrypt on-demand
+                    await embedStore.putEncrypted(contentRef, {
+                        encrypted_content: embed.encrypted_content, // Already client-encrypted from Directus
+                        encrypted_type: embed.encrypted_type, // Already client-encrypted from Directus
                         embed_id: embed.embed_id,
-                        embed_type: embed.encrypted_type || embed.embed_type,
                         status: embed.status || 'finished',
                         hashed_chat_id: embed.hashed_chat_id,
-                        hashed_user_id: embed.hashed_user_id
-                    }, embed.encrypted_type || 'app-skill-use');
+                        hashed_user_id: embed.hashed_user_id,
+                        embed_ids: embed.embed_ids, // For composite embeds
+                        parent_embed_id: embed.parent_embed_id,
+                        version_number: embed.version_number,
+                        encrypted_diff: embed.encrypted_diff,
+                        file_path: embed.file_path,
+                        content_hash: embed.content_hash,
+                        text_length_chars: embed.text_length_chars,
+                        share_mode: embed.share_mode || 'private',
+                        createdAt: embed.createdAt || embed.created_at,
+                        updatedAt: embed.updatedAt || embed.updated_at
+                    }, (embed.encrypted_type ? 'app-skill-use' : embed.embed_type || 'app-skill-use') as any);
                     
                     storedCount++;
                 } catch (embedError) {
@@ -878,7 +896,7 @@ export class ChatSynchronizationService extends EventTarget {
             }
             
             if (storedCount > 0) {
-                console.info(`[ChatSyncService] ${phaseName} - Stored ${storedCount} embeds`);
+                console.info(`[ChatSyncService] ${phaseName} - Stored ${storedCount} embeds (as-is, no re-encryption)`);
             } else {
                 console.debug(`[ChatSyncService] ${phaseName} - No embeds stored`);
             }
@@ -918,15 +936,16 @@ export class ChatSynchronizationService extends EventTarget {
                         // Create contentRef in the format used by embeds: embed:{embed_id}
                         const contentRef = `embed:${embed.embed_id}`;
                         
-                        // Store the embed with its encrypted content
-                        await embedStore.put(contentRef, {
-                            content: embed.encrypted_content,
+                        // Store the embed with its already-encrypted content (no re-encryption)
+                        // This matches the pattern used for messages during sync
+                        await embedStore.putEncrypted(contentRef, {
+                            encrypted_content: embed.encrypted_content, // Already client-encrypted from Directus
+                            encrypted_type: embed.encrypted_type, // Already client-encrypted from Directus
                             embed_id: embed.embed_id,
-                            embed_type: embed.encrypted_type || embed.embed_type,
                             status: embed.status || 'finished',
                             hashed_chat_id: embed.hashed_chat_id,
                             hashed_user_id: embed.hashed_user_id
-                        }, embed.encrypted_type || 'app-skill-use');
+                        }, (embed.encrypted_type ? 'app-skill-use' : embed.embed_type || 'app-skill-use') as any);
                         
                         storedEmbedIds.add(embed.embed_id);
                         totalEmbeds++;
