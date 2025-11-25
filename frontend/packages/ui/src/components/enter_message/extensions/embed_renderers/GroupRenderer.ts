@@ -4,6 +4,11 @@
 import type { EmbedRenderer, EmbedRenderContext } from './types';
 import type { EmbedNodeAttributes } from '../../../../message_parsing/types';
 import { groupHandlerRegistry } from '../../../../message_parsing/groupHandlers';
+import { mount, unmount } from 'svelte';
+import WebsiteEmbedPreview from '../../../embeds/WebsiteEmbedPreview.svelte';
+
+// Track mounted components for cleanup
+const mountedComponents = new WeakMap<HTMLElement, ReturnType<typeof mount>>();
 
 /**
  * Generic renderer for group embeds (website-group, code-group, doc-group, etc.)
@@ -41,8 +46,16 @@ export class GroupRenderer implements EmbedRenderer {
     const isGroup = attrs.groupedItems && attrs.groupedItems.length > 0 || attrs.type.endsWith('-group');
     
     if (!isGroup) {
-      // This is an individual embed, render it directly using renderIndividualItem
+      // This is an individual embed
       const baseType = attrs.type;
+      
+      // For website embeds, use Svelte component instead of HTML
+      if (baseType === 'web-website') {
+        await this.renderWebsiteComponent(attrs, embedData, decodedContent, content);
+        return;
+      }
+      
+      // For other types, use HTML rendering
       const itemHtml = await this.renderIndividualItem(attrs, baseType, embedData, decodedContent);
       content.innerHTML = itemHtml;
       return;
@@ -207,7 +220,76 @@ export class GroupRenderer implements EmbedRenderer {
     `;
   }
   
-  private async renderWebsiteItem(
+  /**
+   * Render website embed using Svelte component
+   */
+  private async renderWebsiteComponent(
+    item: EmbedNodeAttributes,
+    embedData: any = null,
+    decodedContent: any = null,
+    content: HTMLElement
+  ): Promise<void> {
+    // Use decoded content if available, otherwise fall back to item attributes
+    const websiteUrl = decodedContent?.url || item.url;
+    const websiteTitle = decodedContent?.title || item.title;
+    const websiteDescription = decodedContent?.description || item.description;
+    const favicon = decodedContent?.meta_url_favicon || decodedContent?.favicon || item.favicon;
+    const image = decodedContent?.thumbnail_original || decodedContent?.image || item.image;
+    
+    // Determine status
+    const status = item.status || (websiteUrl ? 'finished' : 'processing');
+    
+    // Get embed ID
+    const embedId = item.contentRef?.replace('embed:', '') || '';
+    
+    // Clear the content element
+    content.innerHTML = '';
+    
+    // Mount the Svelte component
+    try {
+      // Create a handler for fullscreen that dispatches the event
+      const handleFullscreen = () => {
+        this.openFullscreen(item, embedData, decodedContent);
+      };
+      
+      const component = mount(WebsiteEmbedPreview, {
+        target: content,
+        props: {
+          id: embedId,
+          url: websiteUrl || '',
+          title: websiteTitle,
+          description: websiteDescription,
+          favicon: favicon,
+          image: image,
+          status: status as 'processing' | 'finished' | 'error',
+          isMobile: false, // Default to desktop in message view
+          onFullscreen: handleFullscreen
+        }
+      });
+      
+      // Store reference for cleanup
+      mountedComponents.set(content, component);
+      
+      console.debug('[GroupRenderer] Mounted WebsiteEmbedPreview component:', {
+        embedId,
+        url: websiteUrl?.substring(0, 50) + '...',
+        status,
+        hasTitle: !!websiteTitle,
+        hasImage: !!image
+      });
+      
+    } catch (error) {
+      console.error('[GroupRenderer] Error mounting WebsiteEmbedPreview component:', error);
+      // Fallback to HTML rendering
+      const fallbackHtml = await this.renderWebsiteItemHTML(item, embedData, decodedContent);
+      content.innerHTML = fallbackHtml;
+    }
+  }
+  
+  /**
+   * Fallback HTML rendering for websites (used when Svelte mount fails)
+   */
+  private async renderWebsiteItemHTML(
     item: EmbedNodeAttributes,
     embedData: any = null,
     decodedContent: any = null
@@ -276,6 +358,17 @@ export class GroupRenderer implements EmbedRenderer {
         </div>
       `;
     }
+  }
+  
+  /**
+   * Legacy method for HTML rendering (kept for grouped items)
+   */
+  private async renderWebsiteItem(
+    item: EmbedNodeAttributes,
+    embedData: any = null,
+    decodedContent: any = null
+  ): Promise<string> {
+    return this.renderWebsiteItemHTML(item, embedData, decodedContent);
   }
   
   private async renderVideoItem(
@@ -431,6 +524,34 @@ export class GroupRenderer implements EmbedRenderer {
     
     const displayName = typeDisplayNames[baseType] || baseType;
     return `${count} ${displayName}${count > 1 ? 's' : ''}`;
+  }
+  
+  /**
+   * Open fullscreen view for an embed
+   */
+  private async openFullscreen(
+    attrs: EmbedNodeAttributes,
+    embedData: any,
+    decodedContent: any
+  ): Promise<void> {
+    // Determine embed type from attrs
+    const embedType = attrs.type === 'web-website' ? 'website' : attrs.type;
+    
+    // Dispatch custom event to open fullscreen view
+    // The fullscreen component will handle loading and displaying embed content
+    const event = new CustomEvent('embedfullscreen', {
+      detail: {
+        embedId: attrs.contentRef?.replace('embed:', ''),
+        embedData,
+        decodedContent,
+        embedType,
+        attrs
+      },
+      bubbles: true
+    });
+    
+    document.dispatchEvent(event);
+    console.debug('[GroupRenderer] Dispatched fullscreen event:', event.detail);
   }
   
   toMarkdown(attrs: EmbedNodeAttributes): string {

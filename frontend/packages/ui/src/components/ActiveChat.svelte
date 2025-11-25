@@ -19,9 +19,11 @@
     import KeyboardShortcuts from './KeyboardShortcuts.svelte';
     import WebSearchSkillPreview from './app_skills/WebSearchSkillPreview.svelte';
     import WebSearchSkillFullscreen from './app_skills/WebSearchSkillFullscreen.svelte';
+    import WebSearchEmbedFullscreen from './embeds/WebSearchEmbedFullscreen.svelte';
     import VideoTranscriptSkillPreview from './app_skills/VideoTranscriptSkillPreview.svelte';
     import VideoTranscriptSkillFullscreen from './app_skills/VideoTranscriptSkillFullscreen.svelte';
     import WebsiteFullscreen from './embeds/WebsiteFullscreen.svelte';
+    import WebsiteEmbedFullscreen from './embeds/WebsiteEmbedFullscreen.svelte';
     import { userProfile, loadUserProfileFromDB } from '../stores/userProfile';
     import { isInSignupProcess, currentSignupStep, getStepFromPath, isLoggingOut, isSignupPath } from '../stores/signupState';
     import { initializeApp } from '../app';
@@ -2265,16 +2267,10 @@
                     
                     {#if appId === 'web' && skillId === 'search'}
                         <!-- Web Search Fullscreen -->
-                        {@const previewData = {
-                            app_id: appId,
-                            skill_id: skillId,
-                            query: embedFullscreenData.decodedContent?.query || '',
-                            provider: embedFullscreenData.decodedContent?.provider || 'Brave',
-                            status: embedFullscreenData.embedData?.status || 'finished',
-                            results: embedFullscreenData.decodedContent?.results || []
-                        }}
-                        <WebSearchSkillFullscreen 
-                            previewData={previewData}
+                        <WebSearchEmbedFullscreen 
+                            query={embedFullscreenData.decodedContent?.query || ''}
+                            provider={embedFullscreenData.decodedContent?.provider || 'Brave'}
+                            results={embedFullscreenData.decodedContent?.results || []}
                             onClose={handleCloseEmbedFullscreen}
                         />
                     {:else if appId === 'videos' && skillId === 'get_transcript'}
@@ -2305,19 +2301,16 @@
                     {/if}
                 {:else if embedFullscreenData.embedType === 'website'}
                     <!-- Website Fullscreen -->
-                    {@const websiteData = {
-                        url: embedFullscreenData.decodedContent?.url || embedFullscreenData.attrs?.url || '',
-                        title: embedFullscreenData.decodedContent?.title || embedFullscreenData.attrs?.title,
-                        description: embedFullscreenData.decodedContent?.description || embedFullscreenData.attrs?.description,
-                        favicon: embedFullscreenData.decodedContent?.meta_url_favicon || embedFullscreenData.decodedContent?.favicon || embedFullscreenData.attrs?.favicon,
-                        image: embedFullscreenData.decodedContent?.thumbnail_original || embedFullscreenData.decodedContent?.image || embedFullscreenData.attrs?.image,
-                        snippets: embedFullscreenData.decodedContent?.snippets,
-                        meta_url_favicon: embedFullscreenData.decodedContent?.meta_url_favicon,
-                        thumbnail_original: embedFullscreenData.decodedContent?.thumbnail_original
-                    }}
-                    {#if websiteData.url}
-                        <WebsiteFullscreen 
-                            websiteData={websiteData}
+                    {#if embedFullscreenData.decodedContent?.url || embedFullscreenData.attrs?.url}
+                        <WebsiteEmbedFullscreen 
+                            url={embedFullscreenData.decodedContent?.url || embedFullscreenData.attrs?.url || ''}
+                            title={embedFullscreenData.decodedContent?.title || embedFullscreenData.attrs?.title}
+                            description={embedFullscreenData.decodedContent?.description || embedFullscreenData.attrs?.description}
+                            favicon={embedFullscreenData.decodedContent?.meta_url_favicon || embedFullscreenData.decodedContent?.favicon || embedFullscreenData.attrs?.favicon}
+                            image={embedFullscreenData.decodedContent?.thumbnail_original || embedFullscreenData.decodedContent?.image || embedFullscreenData.attrs?.image}
+                            snippets={embedFullscreenData.decodedContent?.snippets}
+                            meta_url_favicon={embedFullscreenData.decodedContent?.meta_url_favicon}
+                            thumbnail_original={embedFullscreenData.decodedContent?.thumbnail_original}
                             onClose={handleCloseEmbedFullscreen}
                         />
                     {/if}

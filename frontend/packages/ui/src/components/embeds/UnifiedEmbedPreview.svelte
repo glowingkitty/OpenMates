@@ -19,6 +19,7 @@
 <script lang="ts">
   // @ts-ignore - @repo/ui module exists at runtime
   import { text } from '@repo/ui';
+  import BasicInfosBar from './BasicInfosBar.svelte';
   
   /**
    * Props interface for unified embed preview
@@ -30,6 +31,8 @@
     appId: string;
     /** Skill identifier (e.g., 'search', 'get_transcript') */
     skillId: string;
+    /** Icon name for the skill icon (e.g., 'search', 'videos', 'book') - passed from skill-specific components */
+    skillIconName: string;
     /** Processing status */
     status: 'processing' | 'finished' | 'error';
     /** Skill display name (shown in basic_infos bar) */
@@ -44,35 +47,33 @@
     onStop?: () => void;
     /** Snippet for details content (skill-specific) */
     details: import('svelte').Snippet<[{ isMobile: boolean }]>;
+    /** Whether to show status line in basic infos bar (default: true) */
+    showStatus?: boolean;
+    /** Custom favicon URL for basic infos bar (shows instead of app icon) */
+    faviconUrl?: string;
   }
   
   let {
     id,
     appId,
     skillId,
+    skillIconName,
     status,
     skillName,
     taskId,
     isMobile = false,
     onFullscreen,
     onStop,
-    details
+    details,
+    showStatus = true,
+    faviconUrl
   }: Props = $props();
   
-  // Determine layout based on prop and window width
-  let useMobileLayout = $derived(
-    isMobile || (typeof window !== 'undefined' && window.innerWidth <= 500)
-  );
-  
-  // Status text from translations
-  let statusText = $derived(() => {
-    if (status === 'processing') {
-      return $text('embeds.processing.text') || 'Processing...';
-    } else if (status === 'finished') {
-      return $text('embeds.completed.text') || 'Completed';
-    }
-    return $text('embeds.error.text') || 'Error';
-  });
+  // Determine layout based on isMobile prop only
+  // Mobile layout should only be used inside groups of embedded previews
+  // when the surrounding container width gets too small (set by parent component)
+  // Otherwise, desktop layout is used by default
+  let useMobileLayout = $derived(isMobile);
   
   // Handle click to open fullscreen (only when finished)
   function handleClick() {
@@ -92,6 +93,13 @@
   // Handle stop button click - prevent event propagation
   function handleStopClick(e: MouseEvent) {
     e.stopPropagation();
+    if (onStop) {
+      onStop();
+    }
+  }
+  
+  // Wrapper for BasicInfosBar onStop prop (it expects () => void)
+  function handleStop() {
     if (onStop) {
       onStop();
     }
@@ -122,33 +130,19 @@
         {@render details({ isMobile: true })}
       </div>
       
-      <!-- App icon container (full width, 44px height, gradient background) -->
-      <div class="app-icon-container {appId}">
-        <div class="icon_rounded {appId}"></div>
-      </div>
-      
-      <!-- Skill icon (centered) -->
-      <div class="skill-icon-container">
-        <div class="icon_rounded {skillId}"></div>
-      </div>
-      
-      <!-- Status text lines -->
-      <div class="status-text-container">
-        <span class="status-label">{skillName}</span>
-        <span class="status-value">{statusText()}</span>
-      </div>
-      
-      <!-- Stop button (only when processing) -->
-      {#if status === 'processing'}
-        <button 
-          class="stop-button"
-          onclick={handleStopClick}
-          aria-label={$text('embeds.stop.text') || 'Stop'}
-          title={$text('embeds.stop.text') || 'Stop'}
-        >
-          <span class="clickable-icon icon_stop_processing"></span>
-        </button>
-      {/if}
+      <!-- Basic infos bar (mobile layout) -->
+      <BasicInfosBar
+        {appId}
+        {skillId}
+        {skillIconName}
+        {status}
+        {skillName}
+        {taskId}
+        isMobile={true}
+        onStop={handleStop}
+        {showStatus}
+        {faviconUrl}
+      />
     </div>
   {:else}
     <!-- Desktop Layout: Horizontal card (300x200px) -->
@@ -158,36 +152,19 @@
         {@render details({ isMobile: false })}
       </div>
       
-      <!-- basic_infos bar (61px height, 30px rounded edges, grey-0 background) -->
-      <div class="basic-infos-bar">
-        <!-- App icon in gradient circle (61x61px container, 26x26px icon) -->
-        <div class="app-icon-circle {appId}">
-          <div class="icon_rounded {appId}"></div>
-        </div>
-        
-        <!-- Skill icon (29x29px) -->
-        <div class="skill-icon">
-          <div class="icon_rounded {skillId}"></div>
-        </div>
-        
-        <!-- Status text -->
-        <div class="status-text">
-          <span class="status-label">{skillName}</span>
-          <span class="status-value">{statusText()}</span>
-        </div>
-        
-        <!-- Stop button (only when processing) -->
-        {#if status === 'processing'}
-          <button 
-            class="stop-button"
-            onclick={handleStopClick}
-            aria-label={$text('embeds.stop.text') || 'Stop'}
-            title={$text('embeds.stop.text') || 'Stop'}
-          >
-            <span class="clickable-icon icon_stop_processing"></span>
-          </button>
-        {/if}
-      </div>
+      <!-- Basic infos bar (desktop layout) -->
+      <BasicInfosBar
+        {appId}
+        {skillId}
+        {skillIconName}
+        {status}
+        {skillName}
+        {taskId}
+        isMobile={false}
+        onStop={handleStop}
+        {showStatus}
+        {faviconUrl}
+      />
     </div>
   {/if}
 </div>
@@ -199,7 +176,7 @@
   
   .unified-embed-preview {
     position: relative;
-    background-color: var(--color-grey-20);
+    background-color: var(--color-grey-30);
     border-radius: 30px;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
     transition: background-color 0.2s, transform 0.2s, box-shadow 0.2s;
@@ -233,8 +210,7 @@
   }
   
   .unified-embed-preview.finished:hover {
-    background-color: var(--color-grey-15);
-    transform: translateY(-2px);
+    transform: scale(0.98);
     box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
   }
   
@@ -257,7 +233,6 @@
     display: flex;
     flex-direction: column;
     height: 100%;
-    gap: 12px;
   }
   
   .desktop-layout .details-section {
@@ -265,157 +240,8 @@
     min-height: 0;
     display: flex;
     flex-direction: column;
-  }
-  
-  /* basic_infos bar: 61px height, 30px rounded edges, grey-0 background */
-  .basic-infos-bar {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    height: 61px;
-    min-height: 61px;
-    background-color: var(--color-grey-0);
-    border-radius: 30px;
-    padding: 0 8px 0 0;
-    flex-shrink: 0;
-  }
-  
-  /* App icon circle: 61x61px with gradient background, contains 26x26px icon */
-  .app-icon-circle {
-    width: 61px;
-    height: 61px;
-    min-width: 61px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-  }
-  
-  /* App-specific gradient backgrounds */
-  .app-icon-circle.web {
-    background: linear-gradient(135deg, #FF6B6B 0%, #FF8E53 100%);
-  }
-  
-  .app-icon-circle.videos {
-    background: linear-gradient(135deg, #FF5252 0%, #FF1744 100%);
-  }
-  
-  .app-icon-circle.code {
-    background: linear-gradient(135deg, #7C4DFF 0%, #536DFE 100%);
-  }
-  
-  .app-icon-circle.docs {
-    background: linear-gradient(135deg, #448AFF 0%, #2979FF 100%);
-  }
-  
-  .app-icon-circle.sheets {
-    background: linear-gradient(135deg, #00C853 0%, #69F0AE 100%);
-  }
-  
-  /* Override the default icon_rounded positioning for flex layout */
-  .app-icon-circle .icon_rounded {
-    width: 26px;
-    height: 26px;
-    /* Reset absolute positioning from base icon_rounded */
-    position: relative;
-    bottom: auto;
-    left: auto;
-    z-index: auto;
-  }
-  
-  /* Override ::after pseudo-element positioning for smaller icons */
-  .app-icon-circle .icon_rounded::after {
-    background-size: 16px 16px;
-  }
-  
-  /* Make the icon white on gradient background - override the background from base styles */
-  .app-icon-circle .icon_rounded.web,
-  .app-icon-circle .icon_rounded.videos,
-  .app-icon-circle .icon_rounded.code,
-  .app-icon-circle .icon_rounded.docs,
-  .app-icon-circle .icon_rounded.sheets {
-    background: transparent !important;
-  }
-  
-  /* Override the icon mask/filter for white icons on gradient backgrounds */
-  .app-icon-circle .icon_rounded::after {
-    filter: brightness(0) invert(1);
-  }
-  
-  /* Skill icon: 29x29px */
-  .skill-icon {
-    width: 29px;
-    height: 29px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-  }
-  
-  .skill-icon .icon_rounded {
-    width: 29px;
-    height: 29px;
-    border-radius: 50%;
-    /* Reset absolute positioning from base icon_rounded */
-    position: relative;
-    bottom: auto;
-    left: auto;
-    z-index: auto;
-  }
-  
-  .skill-icon .icon_rounded::after {
-    background-size: 18px 18px;
-  }
-  
-  /* Status text container */
-  .status-text {
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    flex: 1;
-    min-width: 0;
-    gap: 2px;
-  }
-  
-  .status-label {
-    font-size: 14px;
-    font-weight: 600;
-    color: var(--color-grey-100);
-    line-height: 1.2;
-  }
-  
-  .status-value {
-    font-size: 12px;
-    font-weight: 500;
-    color: var(--color-grey-70);
-    line-height: 1.2;
-  }
-  
-  /* Stop button */
-  .stop-button {
-    width: 40px;
-    height: 40px;
-    background: none;
-    border: none;
-    padding: 0;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-    border-radius: 50%;
-    transition: background-color 0.2s;
-  }
-  
-  .stop-button:hover {
-    background-color: rgba(0, 0, 0, 0.05);
-  }
-  
-  .stop-button .clickable-icon.icon_stop_processing {
-    width: 35px;
-    height: 35px;
-    /* Icon styling is handled by global icon styles */
+    padding-right: 20px;
+    padding-left: 20px;
   }
   
   /* ===========================================
@@ -435,117 +261,6 @@
     width: 100%;
     flex: 1;
     min-height: 0;
-  }
-  
-  /* App icon container: full width, 44px height, gradient background */
-  .mobile-layout .app-icon-container {
-    width: 100%;
-    height: 44px;
-    border-radius: 22px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-  }
-  
-  /* App-specific gradient backgrounds for mobile */
-  .mobile-layout .app-icon-container.web {
-    background: linear-gradient(135deg, #FF6B6B 0%, #FF8E53 100%);
-  }
-  
-  .mobile-layout .app-icon-container.videos {
-    background: linear-gradient(135deg, #FF5252 0%, #FF1744 100%);
-  }
-  
-  .mobile-layout .app-icon-container.code {
-    background: linear-gradient(135deg, #7C4DFF 0%, #536DFE 100%);
-  }
-  
-  .mobile-layout .app-icon-container.docs {
-    background: linear-gradient(135deg, #448AFF 0%, #2979FF 100%);
-  }
-  
-  .mobile-layout .app-icon-container.sheets {
-    background: linear-gradient(135deg, #00C853 0%, #69F0AE 100%);
-  }
-  
-  .mobile-layout .app-icon-container .icon_rounded {
-    width: 26px;
-    height: 26px;
-    /* Reset absolute positioning from base icon_rounded */
-    position: relative;
-    bottom: auto;
-    left: auto;
-    z-index: auto;
-  }
-  
-  .mobile-layout .app-icon-container .icon_rounded::after {
-    background-size: 16px 16px;
-    filter: brightness(0) invert(1);
-  }
-  
-  /* Override background for icons inside gradient container */
-  .mobile-layout .app-icon-container .icon_rounded.web,
-  .mobile-layout .app-icon-container .icon_rounded.videos,
-  .mobile-layout .app-icon-container .icon_rounded.code,
-  .mobile-layout .app-icon-container .icon_rounded.docs,
-  .mobile-layout .app-icon-container .icon_rounded.sheets {
-    background: transparent !important;
-  }
-  
-  /* Skill icon container (centered) */
-  .mobile-layout .skill-icon-container {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-  }
-  
-  .mobile-layout .skill-icon-container .icon_rounded {
-    width: 29px;
-    height: 29px;
-    border-radius: 50%;
-    /* Reset absolute positioning from base icon_rounded */
-    position: relative;
-    bottom: auto;
-    left: auto;
-    z-index: auto;
-  }
-  
-  .mobile-layout .skill-icon-container .icon_rounded::after {
-    background-size: 18px 18px;
-  }
-  
-  /* Status text container (centered) */
-  .mobile-layout .status-text-container {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
-    gap: 2px;
-    flex-shrink: 0;
-  }
-  
-  .mobile-layout .status-text-container .status-label {
-    font-size: 14px;
-    font-weight: 600;
-    color: var(--color-grey-100);
-    line-height: 1.2;
-  }
-  
-  .mobile-layout .status-text-container .status-value {
-    font-size: 12px;
-    font-weight: 500;
-    color: var(--color-grey-70);
-    line-height: 1.2;
-  }
-  
-  /* Stop button in mobile (centered) */
-  .mobile-layout .stop-button {
-    width: 40px;
-    height: 40px;
-    margin-top: auto;
   }
 </style>
 

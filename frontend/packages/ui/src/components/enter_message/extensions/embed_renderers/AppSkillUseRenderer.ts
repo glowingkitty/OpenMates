@@ -178,7 +178,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
           
           <!-- Status bar -->
           <div class="skill-status-bar">
-            <div class="icon_rounded search"></div>
+            <div class="skill-icon" data-skill-icon="search"></div>
             <div class="skill-status-content">
               <span class="skill-status-label">Search</span>
               <span class="skill-status-text">${status === 'processing' ? 'Processing...' : 'Completed'}</span>

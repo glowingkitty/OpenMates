@@ -64,6 +64,18 @@
     resultCount > 1 ? resultCount - 1 : 0
   );
   
+  // Map skillId to icon filename dynamically
+  const skillIconMap: Record<string, string> = {
+    'search': 'search',
+    'get_transcript': 'videos',
+    'read': 'book',
+    'view': 'visible'
+  };
+  
+  // Get icon name for the skill, defaulting to the skillId if not in map
+  let skillId = $derived(previewData.skill_id || 'search');
+  let skillIconName = $derived(skillIconMap[skillId] || skillId);
+  
   // Handle stop button click - cancel the skill execution
   async function handleStop() {
     if (previewData.status === 'processing' && previewData.task_id) {
@@ -83,15 +95,9 @@
   }
 </script>
 
-<!-- @ts-ignore - Svelte 5 type inference issue with component props -->
-<AppSkillPreviewBase 
-    id={id}
-    previewData={previewData}
-    isMobile={isMobile}
-    onFullscreen={onFullscreen}
->
-  <svelte:fragment slot="content" let:useMobileLayout>
-    {#if useMobileLayout}
+<!-- Content snippet for AppSkillPreviewBase -->
+{#snippet content({ useMobileLayout })}
+  {#if useMobileLayout}
       <!-- Mobile layout: vertical card matching Figma design -->
       <div class="mobile-content">
         <!-- Title section -->
@@ -126,7 +132,7 @@
         
         <!-- Status bar -->
         <div class="status-bar">
-          <div class="icon_rounded search"></div>
+          <div class="skill-icon" data-skill-icon={skillIconName}></div>
           <div class="status-content">
             <span class="status-label">{statusLabel}</span>
             <span class="status-text">{statusText}</span>
@@ -160,7 +166,7 @@
         
         <!-- Status bar -->
         <div class="status-bar">
-          <div class="icon_rounded search"></div>
+          <div class="skill-icon" data-skill-icon={skillIconName}></div>
           <div class="status-content">
             <span class="status-label">{statusLabel}</span>
             <span class="status-text">{statusText}</span>
@@ -205,7 +211,16 @@
         {/if}
       </div>
     {/if}
-  </svelte:fragment>
+{/snippet}
+
+<!-- @ts-ignore - Svelte 5 type inference issue with component props -->
+<AppSkillPreviewBase 
+    id={id}
+    previewData={previewData}
+    isMobile={isMobile}
+    onFullscreen={onFullscreen}
+    {content}
+>
 </AppSkillPreviewBase>
 
 <style>
@@ -292,6 +307,40 @@
     min-height: 50px;
     margin-top: auto;
     flex-shrink: 0;
+  }
+  
+  .mobile-content .skill-icon {
+    width: 29px;
+    height: 29px;
+    background-color: var(--color-grey-70);
+    -webkit-mask-position: center;
+    mask-position: center;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-size: contain;
+    mask-size: contain;
+    flex-shrink: 0;
+  }
+  
+  /* Dynamic icon based on data-skill-icon attribute */
+  .mobile-content .skill-icon[data-skill-icon="search"] {
+    -webkit-mask-image: url('@openmates/ui/static/icons/search.svg');
+    mask-image: url('@openmates/ui/static/icons/search.svg');
+  }
+  
+  .mobile-content .skill-icon[data-skill-icon="videos"] {
+    -webkit-mask-image: url('@openmates/ui/static/icons/videos.svg');
+    mask-image: url('@openmates/ui/static/icons/videos.svg');
+  }
+  
+  .mobile-content .skill-icon[data-skill-icon="book"] {
+    -webkit-mask-image: url('@openmates/ui/static/icons/book.svg');
+    mask-image: url('@openmates/ui/static/icons/book.svg');
+  }
+  
+  .mobile-content .skill-icon[data-skill-icon="visible"] {
+    -webkit-mask-image: url('@openmates/ui/static/icons/visible.svg');
+    mask-image: url('@openmates/ui/static/icons/visible.svg');
   }
   
   .mobile-content .status-content {
@@ -391,6 +440,40 @@
     height: 55px;
     min-height: 55px;
     flex-shrink: 0;
+  }
+  
+  .desktop-content .skill-icon {
+    width: 29px;
+    height: 29px;
+    background-color: var(--color-grey-70);
+    -webkit-mask-position: center;
+    mask-position: center;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-size: contain;
+    mask-size: contain;
+    flex-shrink: 0;
+  }
+  
+  /* Dynamic icon based on data-skill-icon attribute */
+  .desktop-content .skill-icon[data-skill-icon="search"] {
+    -webkit-mask-image: url('@openmates/ui/static/icons/search.svg');
+    mask-image: url('@openmates/ui/static/icons/search.svg');
+  }
+  
+  .desktop-content .skill-icon[data-skill-icon="videos"] {
+    -webkit-mask-image: url('@openmates/ui/static/icons/videos.svg');
+    mask-image: url('@openmates/ui/static/icons/videos.svg');
+  }
+  
+  .desktop-content .skill-icon[data-skill-icon="book"] {
+    -webkit-mask-image: url('@openmates/ui/static/icons/book.svg');
+    mask-image: url('@openmates/ui/static/icons/book.svg');
+  }
+  
+  .desktop-content .skill-icon[data-skill-icon="visible"] {
+    -webkit-mask-image: url('@openmates/ui/static/icons/visible.svg');
+    mask-image: url('@openmates/ui/static/icons/visible.svg');
   }
   
   .desktop-content .status-content {

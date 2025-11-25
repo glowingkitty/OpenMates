@@ -510,6 +510,41 @@
     flex-shrink: 0;
 }
 
+/* Skill icon: 29x29px with color-grey-70, dynamically set icon via data attribute */
+:global(.ProseMirror .app-skill-preview-container .skill-status-bar .skill-icon) {
+    width: 29px;
+    height: 29px;
+    background-color: var(--color-grey-70);
+    -webkit-mask-position: center;
+    mask-position: center;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-size: contain;
+    mask-size: contain;
+    flex-shrink: 0;
+}
+
+/* Dynamic icon based on data-skill-icon attribute */
+:global(.ProseMirror .app-skill-preview-container .skill-status-bar .skill-icon[data-skill-icon="search"]) {
+    -webkit-mask-image: url('@openmates/ui/static/icons/search.svg');
+    mask-image: url('@openmates/ui/static/icons/search.svg');
+}
+
+:global(.ProseMirror .app-skill-preview-container .skill-status-bar .skill-icon[data-skill-icon="videos"]) {
+    -webkit-mask-image: url('@openmates/ui/static/icons/videos.svg');
+    mask-image: url('@openmates/ui/static/icons/videos.svg');
+}
+
+:global(.ProseMirror .app-skill-preview-container .skill-status-bar .skill-icon[data-skill-icon="book"]) {
+    -webkit-mask-image: url('@openmates/ui/static/icons/book.svg');
+    mask-image: url('@openmates/ui/static/icons/book.svg');
+}
+
+:global(.ProseMirror .app-skill-preview-container .skill-status-bar .skill-icon[data-skill-icon="visible"]) {
+    -webkit-mask-image: url('@openmates/ui/static/icons/visible.svg');
+    mask-image: url('@openmates/ui/static/icons/visible.svg');
+}
+
 :global(.ProseMirror .app-skill-preview-container .skill-status-content) {
     display: flex;
     flex-direction: column;

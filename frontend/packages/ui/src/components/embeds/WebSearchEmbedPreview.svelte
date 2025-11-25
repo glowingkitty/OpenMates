@@ -64,6 +64,9 @@
   // Get skill name from translations
   let skillName = $derived($text('embeds.search.text') || 'Search');
   
+  // Map skillId to icon name - this is skill-specific logic
+  const skillIconName = 'search';
+  
   // Get "via {provider}" text from translations
   let viaProvider = $derived(
     `${$text('embeds.via.text') || 'via'} ${provider}`
@@ -96,6 +99,7 @@
   {id}
   appId="web"
   skillId="search"
+  skillIconName={skillIconName}
   {status}
   {skillName}
   {taskId}
@@ -261,6 +265,21 @@
     gap: 4px;
     overflow: hidden;
     border-radius: 8px;
+  }
+  
+  /* ===========================================
+     Skill Icon Styling (skill-specific)
+     =========================================== */
+  
+  /* Web Search skill icon - this is skill-specific and belongs here, not in UnifiedEmbedPreview */
+  :global(.unified-embed-preview .skill-icon[data-skill-icon="search"]) {
+    -webkit-mask-image: url('@openmates/ui/static/icons/search.svg');
+    mask-image: url('@openmates/ui/static/icons/search.svg');
+  }
+  
+  :global(.unified-embed-preview.mobile .skill-icon[data-skill-icon="search"]) {
+    -webkit-mask-image: url('@openmates/ui/static/icons/search.svg');
+    mask-image: url('@openmates/ui/static/icons/search.svg');
   }
 </style>
 
