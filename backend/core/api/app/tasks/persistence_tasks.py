@@ -535,15 +535,18 @@ async def _async_persist_delete_chat(
     task_id: Optional[str] = "UNKNOWN_TASK_ID"
 ):
     """
-    Asynchronously deletes a chat and ALL its associated drafts and messages from Directus.
+    Asynchronously deletes a chat and ALL its associated drafts, messages, and embeds from Directus.
     Also removes ALL drafts for the chat from the cache.
     The user_id is the initiator of the delete operation.
     
     Deletion order:
     1. Delete all drafts for the chat
     2. Delete all messages for the chat
-    3. Delete the chat itself
+    3. Delete all private embeds for the chat (shared embeds are kept)
+    4. Delete the chat itself
     """
+    import hashlib
+    
     logger.info(
         f"TASK_LOGIC_ENTRY: Starting _async_persist_delete_chat "
         f"for user_id: {user_id} (initiator), chat_id: {chat_id}, task_id: {task_id}"
@@ -584,8 +587,24 @@ async def _async_persist_delete_chat(
                 f"check method's specific return behavior (e.g., if messages existed). Task ID: {task_id}"
             )
 
-        # 3. Delete the chat itself from Directus
-        # This should happen after draft and message deletion to avoid orphaned data if chat deletion fails.
+        # 3. Delete ALL private embeds for this chat from Directus
+        # Shared embeds are preserved since they may be referenced elsewhere
+        hashed_chat_id = hashlib.sha256(chat_id.encode()).hexdigest()
+        all_embeds_deleted_directus = await directus_service.embed.delete_all_embeds_for_chat(
+            hashed_chat_id
+        )
+        if all_embeds_deleted_directus:
+            logger.info(
+                f"Successfully processed deletion of all private embeds for chat {chat_id} from Directus. Task ID: {task_id}"
+            )
+        else:
+            logger.warning(
+                f"Attempt to delete all private embeds for chat {chat_id} from Directus completed; "
+                f"check method's specific return behavior (e.g., if embeds existed). Task ID: {task_id}"
+            )
+
+        # 4. Delete the chat itself from Directus
+        # This should happen after draft, message, and embed deletion to avoid orphaned data if chat deletion fails.
         chat_deleted_directus = await directus_service.chat.persist_delete_chat(
             chat_id # user_id might be needed here if chat deletion is user-scoped initially
         )
@@ -598,10 +617,10 @@ async def _async_persist_delete_chat(
                 f"Could not delete chat {chat_id} from Directus. Task ID: {task_id}"
             )
         
-        # Step 4: Cached drafts are allowed to expire naturally.
+        # Step 5: Cached drafts are allowed to expire naturally.
         # The websocket handler is responsible for clearing the main chat cache entries (tombstoning).
-        # This task's primary responsibility is deleting the chat and all its drafts and messages from Directus.
-        logger.info(f"Directus deletion of chat, drafts, and messages for chat {chat_id} completed. Cached drafts will expire naturally. Task ID: {task_id}")
+        # This task's primary responsibility is deleting the chat and all its drafts, messages, and embeds from Directus.
+        logger.info(f"Directus deletion of chat, drafts, messages, and embeds for chat {chat_id} completed. Cached drafts will expire naturally. Task ID: {task_id}")
 
         logger.info(
             f"TASK_LOGIC_FINISH: _async_persist_delete_chat task finished "

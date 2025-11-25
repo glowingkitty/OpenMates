@@ -69,7 +69,7 @@
   
   const closeButtonProps = {
     onclick: handleClose,
-    'aria-label': $_('enter_message.exit_fullscreen.text', { default: 'Exit fullscreen' })
+    'aria-label': $_('enter_message.fullscreen.exit_fullscreen.text', { default: 'Exit fullscreen' })
   } as any;
 </script>
 

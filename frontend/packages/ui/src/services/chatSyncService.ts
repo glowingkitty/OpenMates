@@ -46,6 +46,8 @@ import type {
     RequestCacheStatusPayload, // Now in types/chat.ts
     // SetActiveChatPayload, // Now in types/chat.ts
     // CancelAITaskPayload // Now in types/chat.ts
+    SendEmbedDataPayload,
+    StoreEmbedPayload
 } from '../types/chat';
 import { aiTypingStore } from '../stores/aiTypingStore';
 import { get } from 'svelte/store';
@@ -157,6 +159,8 @@ export class ChatSynchronizationService extends EventTarget {
         webSocketService.on('ai_typing_started', (payload) => aiHandlers.handleAITypingStartedImpl(this, payload as AITypingStartedPayload));
         webSocketService.on('ai_typing_ended', (payload) => aiHandlers.handleAITypingEndedImpl(this, payload as { chat_id: string, message_id: string }));
         webSocketService.on('request_chat_history', (payload) => aiHandlers.handleRequestChatHistoryImpl(this, payload as { chat_id: string; reason: string; message?: string }));
+        webSocketService.on('embed_update', (payload) => aiHandlers.handleEmbedUpdateImpl(this, payload as import('../types/chat').EmbedUpdatePayload));
+        webSocketService.on('send_embed_data', (payload) => aiHandlers.handleSendEmbedDataImpl(this, payload as SendEmbedDataPayload));
         
         // Import and register app settings/memories handlers
         import('./chatSyncServiceHandlersAppSettings').then(module => {
@@ -284,6 +288,9 @@ export class ChatSynchronizationService extends EventTarget {
     }
     public async sendCancelAiTask(taskId: string): Promise<void> {
         await senders.sendCancelAiTaskImpl(this, taskId);
+    }
+    public async sendStoreEmbed(payload: StoreEmbedPayload): Promise<void> {
+        await senders.sendStoreEmbedImpl(this, payload);
     }
     public async queueOfflineChange(change: Omit<OfflineChange, 'change_id'>): Promise<void> {
         // This one is tricky as it's called by senders. For now, keep it public or make senders pass `this` to it.
@@ -657,6 +664,9 @@ export class ChatSynchronizationService extends EventTarget {
             }
             
             console.log(`[ChatSyncService] Phase 2 - Stored ${chats.length} recent chats with message sync`);
+            
+            // Process and store embeds from all chats
+            await this.storeEmbedsFromChats(chats, 'Phase 2');
         } catch (error) {
             console.error("[ChatSyncService] Phase 2 - Error storing recent chats:", error);
         }
@@ -799,8 +809,69 @@ export class ChatSynchronizationService extends EventTarget {
             }
             
             console.log(`[ChatSyncService] Stored ${chats.length} all chats (Phase 3) with duplicate prevention`);
+            
+            // Process and store embeds from all chats
+            await this.storeEmbedsFromChats(chats, 'Phase 3');
         } catch (error) {
             console.error("[ChatSyncService] Error storing all chats:", error);
+        }
+    }
+
+    /**
+     * Store embeds from chat payloads to EmbedStore
+     * Deduplicates embeds by embed_id to avoid storing the same embed multiple times
+     * @param chats - Array of chat wrappers containing optional embeds array
+     * @param phaseName - Phase name for logging (e.g., "Phase 2", "Phase 3")
+     */
+    private async storeEmbedsFromChats(chats: any[], phaseName: string): Promise<void> {
+        try {
+            const { embedStore } = await import('./embedStore');
+            
+            // Track stored embed IDs to avoid duplicates within this batch
+            const storedEmbedIds = new Set<string>();
+            let totalEmbeds = 0;
+            
+            for (const chatItem of chats) {
+                const embeds = chatItem.embeds;
+                if (!embeds || !Array.isArray(embeds) || embeds.length === 0) {
+                    continue;
+                }
+                
+                for (const embed of embeds) {
+                    // Skip if already stored in this batch
+                    if (!embed.embed_id || storedEmbedIds.has(embed.embed_id)) {
+                        continue;
+                    }
+                    
+                    try {
+                        // Create contentRef in the format used by embeds: embed:{embed_id}
+                        const contentRef = `embed:${embed.embed_id}`;
+                        
+                        // Store the embed with its encrypted content
+                        await embedStore.put(contentRef, {
+                            content: embed.encrypted_content,
+                            embed_id: embed.embed_id,
+                            embed_type: embed.encrypted_type || embed.embed_type,
+                            status: embed.status || 'finished',
+                            hashed_chat_id: embed.hashed_chat_id,
+                            hashed_user_id: embed.hashed_user_id
+                        }, embed.encrypted_type || 'app-skill-use');
+                        
+                        storedEmbedIds.add(embed.embed_id);
+                        totalEmbeds++;
+                    } catch (embedError) {
+                        console.warn(`[ChatSyncService] ${phaseName} - Error storing embed ${embed.embed_id}:`, embedError);
+                    }
+                }
+            }
+            
+            if (totalEmbeds > 0) {
+                console.info(`[ChatSyncService] ${phaseName} - Stored ${totalEmbeds} embeds from ${chats.length} chats`);
+            } else {
+                console.debug(`[ChatSyncService] ${phaseName} - No embeds to store in ${chats.length} chats`);
+            }
+        } catch (error) {
+            console.error(`[ChatSyncService] ${phaseName} - Error storing embeds:`, error);
         }
     }
 

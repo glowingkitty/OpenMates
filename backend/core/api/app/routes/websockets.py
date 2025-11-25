@@ -34,6 +34,7 @@ from .handlers.websocket_handlers.encrypted_chat_metadata_handler import handle_
 from .handlers.websocket_handlers.post_processing_metadata_handler import handle_post_processing_metadata # Handler for post-processing metadata sync
 from .handlers.websocket_handlers.phased_sync_handler import handle_phased_sync_request, handle_sync_status_request # Handlers for phased sync
 from .handlers.websocket_handlers.app_settings_memories_confirmed_handler import handle_app_settings_memories_confirmed # Handler for app settings/memories confirmations
+from .handlers.websocket_handlers.store_embed_handler import handle_store_embed # Handler for storing encrypted embeds
 
 manager = ConnectionManager() # This is the correct manager instance for websockets
 
@@ -318,7 +319,7 @@ async def listen_for_ai_typing_indicator_events(app: FastAPI):
                         logger.warning(f"AI Typing Listener: Malformed post_processing_completed payload on channel '{redis_channel_name}': {redis_payload}")
                         continue
 
-                    logger.debug(f"AI Typing Listener: Received '{internal_event_type}' for user_id_uuid {user_id_uuid} (hash: {user_id_hash_for_logging}) from Redis channel '{redis_channel_name}'. Forwarding as '{client_event_name}'.")
+                    logger.info(f"AI Typing Listener: Received '{internal_event_type}' for user_id_uuid {user_id_uuid} (hash: {user_id_hash_for_logging}) from Redis channel '{redis_channel_name}'. Forwarding as '{client_event_name}'.")
 
                     # Forward entire payload to client (includes suggestions, summary, tags)
                     client_payload = {
@@ -336,7 +337,7 @@ async def listen_for_ai_typing_indicator_events(app: FastAPI):
                         event_name=client_event_name, # "post_processing_completed"
                         payload=client_payload
                     )
-                    logger.debug(f"AI Typing Listener: Broadcasted '{client_event_name}' to user {user_id_uuid} with payload: {client_payload}")
+                    logger.info(f"AI Typing Listener: Broadcasted '{client_event_name}' to user {user_id_uuid} with {len(client_payload.get('follow_up_request_suggestions', []))} suggestions")
 
                 # Handle skill_execution_status event
                 elif internal_event_type == "skill_execution_status":
@@ -355,7 +356,7 @@ async def listen_for_ai_typing_indicator_events(app: FastAPI):
                         logger.warning(f"AI Typing Listener: Malformed skill_execution_status payload on channel '{redis_channel_name}': {redis_payload}")
                         continue
 
-                    logger.debug(
+                    logger.info(
                         f"AI Typing Listener: Received '{internal_event_type}' for user_id_uuid {user_id_uuid} "
                         f"(hash: {user_id_hash_for_logging}) from Redis channel '{redis_channel_name}'. "
                         f"Forwarding as '{client_event_name}'. Skill: {app_id}.{skill_id}, Status: {status}"
@@ -456,6 +457,62 @@ async def listen_for_chat_updates(app: FastAPI):
 
         except Exception as e:
             logger.error(f"Chat Updates Listener: Error processing message: {e}", exc_info=True)
+            await asyncio.sleep(1)
+
+
+async def listen_for_embed_data_events(app: FastAPI):
+    """
+    Listens to Redis Pub/Sub for embed data events (send_embed_data) that must be
+    forwarded to clients so they can encrypt and store embeds, then render previews.
+    """
+    if not hasattr(app.state, 'cache_service'):
+        logger.critical("Cache service not found on app.state. Embed data listener cannot start.")
+        return
+
+    cache_service: CacheService = app.state.cache_service
+    logger.debug("Starting Redis Pub/Sub listener for embed data events (channel: websocket:user:*)...")
+
+    await cache_service.client  # Ensure connection
+
+    async for message in cache_service.subscribe_to_channel("websocket:user:*"):
+        logger.debug(f"Embed Data Listener: Raw message from pubsub channel websocket:user:*: {message}")
+        try:
+            if message and isinstance(message.get("data"), dict):
+                redis_payload = message["data"]
+                redis_channel_name = message.get("channel", "")
+
+                # Channel format: websocket:user:{user_id_hash}
+                channel_parts = redis_channel_name.split(":")
+                user_id_hash_from_channel = channel_parts[2] if len(channel_parts) >= 3 else None
+
+                event_for_client = redis_payload.get("event_for_client") or redis_payload.get("type")
+                # Forward only the inner payload that the client handlers expect
+                payload_for_client = redis_payload.get("payload") or redis_payload
+                user_id_uuid = payload_for_client.get("user_id") or redis_payload.get("user_id_uuid")
+
+                if not event_for_client or not user_id_uuid:
+                    logger.warning(
+                        f"Embed Data Listener: Missing event_for_client or user_id on channel '{redis_channel_name}'. "
+                        f"Payload keys: {list(redis_payload.keys())}"
+                    )
+                    continue
+
+                logger.debug(
+                    f"Embed Data Listener: Forwarding '{event_for_client}' for user_id {user_id_uuid} "
+                    f"(hash from channel: {user_id_hash_from_channel}) with payload keys: {list(payload_for_client.keys())}"
+                )
+
+                await manager.broadcast_to_user_specific_event(
+                    user_id=user_id_uuid,
+                    event_name=event_for_client,
+                    payload=payload_for_client
+                )
+            elif message and message.get("error") == "json_decode_error":
+                logger.error(f"Embed Data Listener: JSON decode error from channel '{message.get('channel')}': {message.get('data')}")
+            elif message:
+                logger.debug(f"Embed Data Listener: Received non-data message or confirmation: {message}")
+        except Exception as e:
+            logger.error(f"Embed Data Listener: Error processing message: {e}", exc_info=True)
             await asyncio.sleep(1)
 
 
@@ -937,6 +994,30 @@ async def websocket_endpoint(
                     logger.info(f"User {user_id}: Updated read status for chat {chat_id}: unread_count = {unread_count}")
                 except Exception as e:
                     logger.error(f"User {user_id}: Failed to update read status: {str(e)}")
+
+            elif message_type == "store_embed":
+                # Handle storing encrypted embed in Directus (zero-knowledge)
+                await handle_store_embed(
+                    websocket=websocket,
+                    manager=manager,
+                    cache_service=cache_service,
+                    directus_service=directus_service,
+                    user_id=user_id,
+                    device_fingerprint_hash=device_fingerprint_hash,
+                    payload=payload
+                )
+            elif message_type == "request_embed":
+                from .handlers.websocket_handlers.request_embed_handler import handle_request_embed
+                await handle_request_embed(
+                    websocket=websocket,
+                    manager=manager,
+                    cache_service=cache_service,
+                    directus_service=directus_service,
+                    encryption_service=encryption_service,
+                    user_id=user_id,
+                    device_fingerprint_hash=device_fingerprint_hash,
+                    payload=payload
+                )
 
             else:
                 logger.warning(f"Received unknown message type from {user_id}/{device_fingerprint_hash}: {message_type}")

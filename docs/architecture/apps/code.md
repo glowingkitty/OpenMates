@@ -226,6 +226,28 @@ Uses e2b (https://github.com/e2b-dev/infra) to start a vm where the user code ca
 Use Sentry or similar providers to get the error logs after an issue occured, for better debugging and fixing of the issue.
 
 
+### Search
+
+**Recommended Approach:** Use `grep` (with `rg` as preferred alternative) for searching code in the codebase. This provides reliable pattern matching for the Search skill.
+
+### Replace
+
+**Status:** Planned feature - to be implemented with careful consideration.
+
+**Recommended Approach:** Consider using `sed` for code replacement operations. However, this requires **follow-up validation and safety checks** to prevent breaking the codebase:
+
+1. **Pattern Validation**: Before executing sed, validate that the pattern matches expected code blocks
+2. **Dry-run Preview**: Show the user a preview of all changes that would be made before applying them
+3. **Post-replacement Checks**: After applying sed replacements:
+   - Run linters and syntax validators to ensure code integrity
+   - Execute unit tests related to modified files
+   - Check for compilation/syntax errors
+   - Validate no critical functionality is broken
+4. **Rollback Capability**: Maintain the ability to revert changes if validation fails
+5. **Scope Limitation**: Require explicit file/directory scope to prevent accidental global changes
+
+This multi-step approach ensures sed can be used safely for large-scale code replacements without introducing bugs or breaking the codebase.
+
 ### Get docs
 
 Use context7.com API to get docs for the code. If no docs found, use web search + web read to get docs.

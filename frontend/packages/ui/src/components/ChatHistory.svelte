@@ -24,6 +24,7 @@
   import type { Message as GlobalMessage, MessageRole } from '../types/chat';
   import { preprocessTiptapJsonForEmbeds } from './enter_message/utils/tiptapContentProcessor';
   import { parseMarkdownToTiptap } from '../components/enter_message/utils/markdownParser';
+  import { parse_message } from '../message_parsing/parse_message';
   import { createTruncatedMessage, truncateTiptapContent } from '../utils/messageTruncation';
 
   interface InternalMessage {
@@ -46,10 +47,10 @@
     let processedContent: any;
     
     if (typeof incomingMessage.content === 'string') {
-      // Content is markdown string - convert to Tiptap JSON for display
-      const tiptapJson = parseMarkdownToTiptap(incomingMessage.content);
+      // Content is markdown string - convert to Tiptap JSON with unified parsing (includes embed parsing)
+      const tiptapJson = parse_message(incomingMessage.content, 'read', { unifiedParsingEnabled: true });
       processedContent = preprocessTiptapJsonForEmbeds(tiptapJson);
-      
+
       // Apply truncation at TipTap level for user messages to avoid breaking node structure
       if (incomingMessage.role === 'user' && incomingMessage.content.length > 1000) {
         processedContent = truncateTiptapContent(processedContent);

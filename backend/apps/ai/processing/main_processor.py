@@ -635,6 +635,29 @@ async def handle_main_processing(
     if assigned_app_ids:
         logger.info(f"{log_prefix} Using assigned apps filter: {assigned_app_ids}")
 
+    # Build a robust tool resolver map to handle LLM hallucinations (e.g., underscores instead of hyphens)
+    # Maps tool_name (and variants) -> (app_id, skill_id)
+    tool_resolver_map: Dict[str, tuple[str, str]] = {}
+    
+    # Iterate through all discovered apps and skills to build the map
+    # We use discovered_apps_metadata instead of available_tools_for_llm to ensure we catch all valid skills
+    # even if they weren't generated as tools for this specific turn (though usually they should match)
+    for app_id, app_metadata in discovered_apps_metadata.items():
+        if not app_metadata or not app_metadata.skills:
+            continue
+            
+        for skill in app_metadata.skills:
+            # Standard hyphenated name: app-skill (e.g., "web-search")
+            hyphen_name = f"{app_id}-{skill.id}"
+            tool_resolver_map[hyphen_name] = (app_id, skill.id)
+            
+            # Underscore variant: app_skill (e.g., "web_search") - common LLM hallucination
+            underscore_name = f"{app_id}_{skill.id}"
+            tool_resolver_map[underscore_name] = (app_id, skill.id)
+            
+            # Also map the skill ID directly if it's unique? No, that might be risky.
+            # But we can map just the skill ID if the app ID is implicit? No, explicit is better.
+
     current_message_history: List[Dict[str, Any]] = [msg.model_dump(exclude_none=True) for msg in request_data.message_history]
     
     # Track all tool calls for code block generation
@@ -674,12 +697,129 @@ async def handle_main_processing(
         tool_calls_for_this_turn: List[Union[ParsedMistralToolCall, ParsedGoogleToolCall, ParsedAnthropicToolCall, ParsedOpenAIToolCall]] = []
         llm_turn_had_content = False
         
+        # Dictionary to store placeholder embeds created for tool calls during stream processing
+        # Key: tool_call_id, Value: placeholder_embed_data dict
+        # This allows us to create placeholders IMMEDIATELY when tool calls are detected,
+        # showing the "processing" state to users before skill execution starts
+        inline_placeholder_embeds: Dict[str, Dict[str, Any]] = {}
+        
         async for chunk in aggregate_paragraphs(llm_stream):
             if isinstance(chunk, (MistralUsage, GoogleUsageMetadata, AnthropicUsageMetadata, OpenAIUsageMetadata)):
                 usage = chunk
                 continue
             if isinstance(chunk, (ParsedMistralToolCall, ParsedGoogleToolCall, ParsedAnthropicToolCall, ParsedOpenAIToolCall)):
                 tool_calls_for_this_turn.append(chunk)
+                
+                # === IMMEDIATE PLACEHOLDER CREATION ===
+                # Create and yield the embed placeholder as soon as a tool call is detected
+                # This shows the "processing" state to users BEFORE skill execution starts
+                try:
+                    tool_name = chunk.function_name
+                    tool_arguments_str = chunk.function_arguments_raw
+                    tool_call_id = chunk.tool_call_id
+                    
+                    # Parse arguments to extract metadata for placeholder
+                    try:
+                        parsed_args = json.loads(tool_arguments_str)
+                    except json.JSONDecodeError:
+                        parsed_args = {}
+                        logger.warning(f"{log_prefix} Failed to parse tool arguments for inline placeholder, using empty dict")
+                    
+                    # Resolve tool name to app_id and skill_id
+                    resolved_tool = tool_resolver_map.get(tool_name)
+                    if resolved_tool:
+                        app_id, skill_id = resolved_tool
+                    else:
+                        # Fallback parsing
+                        if '-' in tool_name:
+                            app_id, skill_id = tool_name.split('-', 1)
+                        elif '_' in tool_name:
+                            app_id, skill_id = tool_name.split('_', 1)
+                        else:
+                            app_id, skill_id = "unknown", "unknown"
+                    
+                    # Create placeholder embed IMMEDIATELY (before skill execution)
+                    if cache_service and user_vault_key_id and directus_service and app_id != "unknown":
+                        from backend.core.api.app.services.embed_service import EmbedService
+                        from backend.core.api.app.utils.encryption import EncryptionService
+                        
+                        encryption_service = EncryptionService()
+                        embed_service = EmbedService(
+                            cache_service=cache_service,
+                            directus_service=directus_service,
+                            encryption_service=encryption_service
+                        )
+                        
+                        # Extract metadata for placeholder display
+                        # Handle both direct args (query) and nested args (requests[0].query)
+                        metadata = {}
+                        
+                        # Direct query (simple skill format)
+                        if "query" in parsed_args:
+                            metadata["query"] = parsed_args["query"]
+                        # Nested query (web search uses requests array)
+                        elif "requests" in parsed_args and isinstance(parsed_args["requests"], list) and len(parsed_args["requests"]) > 0:
+                            first_request = parsed_args["requests"][0]
+                            if isinstance(first_request, dict) and "query" in first_request:
+                                metadata["query"] = first_request["query"]
+                        
+                        # Direct provider
+                        if "provider" in parsed_args:
+                            metadata["provider"] = parsed_args["provider"]
+                        # Nested provider
+                        elif "requests" in parsed_args and isinstance(parsed_args["requests"], list) and len(parsed_args["requests"]) > 0:
+                            first_request = parsed_args["requests"][0]
+                            if isinstance(first_request, dict) and "provider" in first_request:
+                                metadata["provider"] = first_request["provider"]
+                        
+                        # Default provider for web search
+                        if skill_id == "search" and "provider" not in metadata:
+                            metadata["provider"] = "Brave Search"
+                        
+                        # Create the placeholder embed
+                        placeholder_embed_data = await embed_service.create_processing_embed_placeholder(
+                            app_id=app_id,
+                            skill_id=skill_id,
+                            chat_id=request_data.chat_id,
+                            message_id=request_data.message_id,
+                            user_id=request_data.user_id,
+                            user_id_hash=request_data.user_id_hash,
+                            user_vault_key_id=user_vault_key_id,
+                            task_id=task_id,
+                            metadata=metadata,
+                            log_prefix=log_prefix
+                        )
+                        
+                        if placeholder_embed_data:
+                            # Store for later use during skill execution
+                            inline_placeholder_embeds[tool_call_id] = placeholder_embed_data
+                            
+                            # Yield the embed reference IMMEDIATELY so frontend can show "processing" state
+                            embed_reference_json = placeholder_embed_data.get("embed_reference")
+                            embed_code_block = f"```json\n{embed_reference_json}\n```\n\n"
+                            yield embed_code_block
+                            
+                            logger.info(
+                                f"{log_prefix} INLINE: Created and streamed processing placeholder for '{tool_name}': "
+                                f"embed_id={placeholder_embed_data.get('embed_id')}"
+                            )
+                            
+                            # Publish "processing" status immediately
+                            await _publish_skill_status(
+                                cache_service=cache_service,
+                                task_id=task_id,
+                                request_data=request_data,
+                                app_id=app_id,
+                                skill_id=skill_id,
+                                status="processing",
+                                preview_data=metadata  # Include query/provider in preview
+                            )
+                        else:
+                            logger.warning(f"{log_prefix} INLINE: Failed to create placeholder embed for '{tool_name}'")
+                except Exception as e:
+                    # Don't fail the stream processing if inline placeholder creation fails
+                    logger.error(f"{log_prefix} INLINE: Error creating placeholder during stream: {e}", exc_info=True)
+                
             elif isinstance(chunk, str):
                 llm_turn_had_content = True
                 if not tool_calls_for_this_turn:
@@ -712,13 +852,28 @@ async def handle_main_processing(
                 # Parse function arguments
                 parsed_args = json.loads(tool_arguments_str)
                 
-                # Extract app_id and skill_id from tool name (format: "app_id-skill_id")
-                # Use hyphen separator for LLM provider compatibility (Cerebras and others don't allow dots in function names)
-                try:
-                    app_id, skill_id = tool_name.split('-', 1)
-                except ValueError as e:
-                    logger.error(f"{log_prefix} Invalid tool name format '{tool_name}': expected 'app_id-skill_id' format. Error: {e}")
-                    raise ValueError(f"Invalid tool name format '{tool_name}': expected 'app_id-skill_id' format") from e
+                # Extract app_id and skill_id from tool name
+                # Use the robust resolver map to handle name variations (hyphens vs underscores)
+                resolved_tool = tool_resolver_map.get(tool_name)
+                
+                if resolved_tool:
+                    app_id, skill_id = resolved_tool
+                    logger.debug(f"{log_prefix} Resolved tool '{tool_name}' to app_id='{app_id}', skill_id='{skill_id}'")
+                else:
+                    # Fallback to standard splitting if not found in map (e.g. if map building failed or new pattern)
+                    logger.warning(f"{log_prefix} Tool '{tool_name}' not found in resolver map. Attempting fallback split.")
+                    try:
+                        # Try splitting by hyphen first (standard)
+                        if '-' in tool_name:
+                            app_id, skill_id = tool_name.split('-', 1)
+                        # Try splitting by underscore if hyphen fails (common hallucination)
+                        elif '_' in tool_name:
+                            app_id, skill_id = tool_name.split('_', 1)
+                        else:
+                            raise ValueError("No separator found")
+                    except ValueError as e:
+                        logger.error(f"{log_prefix} Invalid tool name format '{tool_name}': expected 'app_id-skill_id' format. Error: {e}")
+                        raise ValueError(f"Invalid tool name format '{tool_name}': expected 'app_id-skill_id' format") from e
                 
                 # Validate that app_id and skill_id are non-empty after split
                 # This ensures we have valid identifiers before proceeding with skill execution and billing
@@ -753,29 +908,130 @@ async def handle_main_processing(
                     # For now, we'll proceed and let the skill handle validation
                 
                 logger.debug(f"{log_prefix} Executing skill '{tool_name}' with app_id='{app_id}', skill_id='{skill_id}'")
+
+                # STEP 1: Get placeholder embed (already created during stream processing)
+                # The placeholder was created and streamed inline when the tool call was detected
+                # This shows the "processing" state to users IMMEDIATELY (not after LLM stream completes)
+                placeholder_embed_data = inline_placeholder_embeds.get(tool_call_id)
                 
-                # Publish "processing" status when skill starts
-                await _publish_skill_status(
-                    cache_service=cache_service,
-                    task_id=task_id,
-                    request_data=request_data,
-                    app_id=app_id,
-                    skill_id=skill_id,
-                    status="processing"
-                )
-                
-                # Execute skill with support for multiple parallel requests
+                if placeholder_embed_data:
+                    logger.debug(
+                        f"{log_prefix} Using inline-created placeholder embed: "
+                        f"embed_id={placeholder_embed_data.get('embed_id')}"
+                    )
+                else:
+                    # Fallback: create placeholder if inline creation failed
+                    # This can happen if stream processing encountered an error
+                    logger.warning(f"{log_prefix} No inline placeholder found for tool_call_id={tool_call_id}, creating now")
+                    if cache_service and user_vault_key_id and directus_service:
+                        try:
+                            from backend.core.api.app.services.embed_service import EmbedService
+                            from backend.core.api.app.utils.encryption import EncryptionService
+
+                            encryption_service = EncryptionService()
+                            embed_service = EmbedService(
+                                cache_service=cache_service,
+                                directus_service=directus_service,
+                                encryption_service=encryption_service
+                            )
+
+                            # Extract metadata from skill arguments for placeholder
+                            # Handle both direct args (query) and nested args (requests[0].query)
+                            metadata = {}
+                            
+                            # Direct query (simple skill format)
+                            if "query" in parsed_args:
+                                metadata["query"] = parsed_args["query"]
+                            # Nested query (web search uses requests array)
+                            elif "requests" in parsed_args and isinstance(parsed_args["requests"], list) and len(parsed_args["requests"]) > 0:
+                                first_request = parsed_args["requests"][0]
+                                if isinstance(first_request, dict) and "query" in first_request:
+                                    metadata["query"] = first_request["query"]
+                            
+                            # Direct provider
+                            if "provider" in parsed_args:
+                                metadata["provider"] = parsed_args["provider"]
+                            # Nested provider
+                            elif "requests" in parsed_args and isinstance(parsed_args["requests"], list) and len(parsed_args["requests"]) > 0:
+                                first_request = parsed_args["requests"][0]
+                                if isinstance(first_request, dict) and "provider" in first_request:
+                                    metadata["provider"] = first_request["provider"]
+                            
+                            # Default provider for web search
+                            if skill_id == "search" and "provider" not in metadata:
+                                metadata["provider"] = "Brave Search"
+
+                            # Create placeholder embed (fallback path)
+                            placeholder_embed_data = await embed_service.create_processing_embed_placeholder(
+                                app_id=app_id,
+                                skill_id=skill_id,
+                                chat_id=request_data.chat_id,
+                                message_id=request_data.message_id,
+                                user_id=request_data.user_id,
+                                user_id_hash=request_data.user_id_hash,
+                                user_vault_key_id=user_vault_key_id,
+                                task_id=task_id,
+                                metadata=metadata,
+                                log_prefix=log_prefix
+                            )
+
+                            if placeholder_embed_data:
+                                # Stream embed reference (fallback path)
+                                embed_reference_json = placeholder_embed_data.get("embed_reference")
+                                embed_code_block = f"```json\n{embed_reference_json}\n```\n\n"
+                                yield embed_code_block
+                                
+                                # Publish "processing" status (fallback path)
+                                await _publish_skill_status(
+                                    cache_service=cache_service,
+                                    task_id=task_id,
+                                    request_data=request_data,
+                                    app_id=app_id,
+                                    skill_id=skill_id,
+                                    status="processing",
+                                    preview_data=metadata
+                                )
+                                logger.info(
+                                    f"{log_prefix} FALLBACK: Created and streamed processing placeholder: "
+                                    f"embed_id={placeholder_embed_data.get('embed_id')}"
+                                )
+                        except Exception as e:
+                            logger.error(f"{log_prefix} FALLBACK: Error creating placeholder embed: {e}", exc_info=True)
+
+                # STEP 2: Execute skill with support for multiple parallel requests
                 results = await execute_skill_with_multiple_requests(
                     app_id=app_id,
                     skill_id=skill_id,
                     arguments=parsed_args,
                     timeout=30.0
                 )
+
+                # Normalize skill responses that wrap actual results in a "results" field (e.g., web search)
+                # execute_skill_with_multiple_requests returns one entry per request, but search skills return
+                # a response object with its own "results" array. Flatten those arrays so downstream logic
+                # (embeds, preview_data, TOON encoding) operates on individual search results.
+                normalized_preview_data: Dict[str, Any] = {}
+                response_ignore_fields: Optional[List[str]] = None
+                if results and all(isinstance(r, dict) and "results" in r for r in results):
+                    first_response = results[0]
+                    normalized_preview_data = (first_response.get("preview_data") or {}).copy()
+                    response_ignore_fields = first_response.get("ignore_fields_for_inference")
+
+                    flattened_results: List[Dict[str, Any]] = []
+                    for response in results:
+                        response_results = response.get("results")
+                        if isinstance(response_results, list):
+                            flattened_results.extend(response_results)
+                    results = flattened_results
                 
                 # Extract ignore_fields_for_inference from skill results (if present)
                 # This is a skill-defined list of fields to exclude from LLM inference
                 # Skills can define this in their response to control what gets sent to LLM
                 ignore_fields_for_inference: Optional[List[str]] = None
+
+                # Prefer ignore_fields_for_inference defined on the skill response wrapper (if provided)
+                if response_ignore_fields:
+                    ignore_fields_for_inference = response_ignore_fields
                 
                 # Check if results contain ignore_fields_for_inference (from skill response)
                 # This takes precedence over exclude_fields_for_llm from app.yml
@@ -806,39 +1062,44 @@ async def handle_main_processing(
                 # Each skill is responsible for populating preview_data with its own metadata
                 # NOTE: Skills should NOT include actual results in preview_data - they will be converted to TOON
                 preview_data: Dict[str, Any] = {}
+
+                # Use preview_data provided by the skill response wrapper when available
+                if normalized_preview_data:
+                    preview_data = normalized_preview_data
                 
-                if results and len(results) > 0:
-                    first_result = results[0]
-                    if isinstance(first_result, dict):
-                        # Check if skill returned preview_data directly in the response
-                        if "preview_data" in first_result:
-                            preview_data = first_result.get("preview_data", {}).copy()
-                            # Remove any JSON results from preview_data - we'll add TOON instead
-                            # Skills should only include metadata (query, provider, counts, etc.)
-                            preview_data.pop("results", None)
-                            preview_data.pop("previews", None)
-                            logger.debug(
-                                f"{log_prefix} Skill '{tool_name}' returned preview_data with keys: {list(preview_data.keys())}"
-                            )
+                if not preview_data:
+                    if results and len(results) > 0:
+                        first_result = results[0]
+                        if isinstance(first_result, dict):
+                            # Check if skill returned preview_data directly in the response
+                            if "preview_data" in first_result:
+                                preview_data = first_result.get("preview_data", {}).copy()
+                                # Remove any JSON results from preview_data - we'll add TOON instead
+                                # Skills should only include metadata (query, provider, counts, etc.)
+                                preview_data.pop("results", None)
+                                preview_data.pop("previews", None)
+                                logger.debug(
+                                    f"{log_prefix} Skill '{tool_name}' returned preview_data with keys: {list(preview_data.keys())}"
+                                )
+                            else:
+                                # Fallback: create minimal preview_data (for backward compatibility)
+                                # This handles skills that haven't been updated to use preview_data yet
+                                preview_data = {
+                                    "result_count": len(results)
+                                }
+                                logger.debug(
+                                    f"{log_prefix} Skill '{tool_name}' did not return preview_data, using minimal fallback"
+                                )
                         else:
-                            # Fallback: create minimal preview_data (for backward compatibility)
-                            # This handles skills that haven't been updated to use preview_data yet
+                            # Non-dict result - create minimal preview_data
                             preview_data = {
                                 "result_count": len(results)
                             }
-                            logger.debug(
-                                f"{log_prefix} Skill '{tool_name}' did not return preview_data, using minimal fallback"
-                            )
                     else:
-                        # Non-dict result - create minimal preview_data
+                        # No results
                         preview_data = {
-                            "result_count": len(results)
+                            "result_count": 0
                         }
-                else:
-                    # No results
-                    preview_data = {
-                        "result_count": 0
-                    }
                 
                 # CRITICAL: Add full results in TOON format ONLY (no JSON)
                 # The frontend can decode this TOON string to get all fields (page_age, profile.name, url, etc.)
@@ -862,58 +1123,18 @@ async def handle_main_processing(
                     # DEBUG: Log original JSON structure (first 15 lines)
                     json_before = json.dumps(results, indent=2) if len(results) == 1 else json.dumps({"results": results, "count": len(results)}, indent=2)
                     json_lines = json_before.split('\n')
-                    logger.info(f"{log_prefix} === TOON CONVERSION DEBUG (preview_data) ===")
-                    logger.info(f"{log_prefix} Original JSON structure (first 15 lines, {len(json_before)} chars total):")
-                    for i, line in enumerate(json_lines[:15], 1):
-                        logger.info(f"{log_prefix}   {i:2d}: {line}")
-                    if len(json_lines) > 15:
-                        logger.info(f"{log_prefix}   ... ({len(json_lines) - 15} more lines)")
-                    
                     if len(results) == 1:
                         # Single result - flatten and encode as TOON
                         # Note: Single result encoded directly (not wrapped in dict) for efficiency
                         flattened_result = _flatten_for_toon_tabular(results[0])
-                        # DEBUG: Log flattened structure
-                        flattened_json = json.dumps(flattened_result, indent=2)
-                        flattened_lines = flattened_json.split('\n')
-                        logger.info(f"{log_prefix} Flattened structure (first 15 lines, {len(flattened_json)} chars):")
-                        for i, line in enumerate(flattened_lines[:15], 1):
-                            logger.info(f"{log_prefix}   {i:2d}: {line}")
-                        if len(flattened_lines) > 15:
-                            logger.info(f"{log_prefix}   ... ({len(flattened_lines) - 15} more lines)")
-                        
                         results_toon = encode(flattened_result)
                     else:
                         # Multiple results - flatten each result, then combine and encode as TOON
                         # Flattening enables TOON to use tabular format for uniform objects
                         # This matches the proven approach from toon_encoding_test.ipynb
                         flattened_results = [_flatten_for_toon_tabular(result) for result in results]
-                        # DEBUG: Log flattened structure
-                        flattened_json = json.dumps({"results": flattened_results, "count": len(results)}, indent=2)
-                        flattened_lines = flattened_json.split('\n')
-                        logger.info(f"{log_prefix} Flattened structure (first 15 lines, {len(flattened_json)} chars):")
-                        for i, line in enumerate(flattened_lines[:15], 1):
-                            logger.info(f"{log_prefix}   {i:2d}: {line}")
-                        if len(flattened_lines) > 15:
-                            logger.info(f"{log_prefix}   ... ({len(flattened_lines) - 15} more lines)")
-                        
                         results_toon = encode({"results": flattened_results, "count": len(results)})
-                    
-                    # DEBUG: Log TOON output (first 15 lines)
-                    toon_lines = results_toon.split('\n')
-                    logger.info(f"{log_prefix} TOON output (first 15 lines, {len(results_toon)} chars total):")
-                    for i, line in enumerate(toon_lines[:15], 1):
-                        logger.info(f"{log_prefix}   {i:2d}: {line}")
-                    if len(toon_lines) > 15:
-                        logger.info(f"{log_prefix}   ... ({len(toon_lines) - 15} more lines)")
-                    
-                    # DEBUG: Calculate and log savings
-                    json_size = len(json_before)
-                    toon_size = len(results_toon)
-                    savings = json_size - toon_size
-                    savings_percent = (savings / json_size * 100) if json_size > 0 else 0
-                    logger.info(f"{log_prefix} Character savings: {json_size} → {toon_size} chars ({savings} saved, {savings_percent:.1f}% reduction)")
-                    logger.info(f"{log_prefix} === END TOON CONVERSION DEBUG ===")
+                    logger.debug(f"{log_prefix} TOON conversion (preview_data) length={len(results_toon)} chars")
                     
                     # Add TOON-encoded full results to preview_data (this is the ONLY place results are stored)
                     preview_data["results_toon"] = results_toon
@@ -947,54 +1168,17 @@ async def handle_main_processing(
                     json_lines = json_before.split('\n')
                     logger.info(f"{log_prefix} === TOON CONVERSION DEBUG (chat history) ===")
                     logger.info(f"{log_prefix} Original JSON structure (first 15 lines, {len(json_before)} chars total):")
-                    for i, line in enumerate(json_lines[:15], 1):
-                        logger.info(f"{log_prefix}   {i:2d}: {line}")
-                    if len(json_lines) > 15:
-                        logger.info(f"{log_prefix}   ... ({len(json_lines) - 15} more lines)")
-                    
                     if len(results) == 1:
                         # Single result - flatten and encode full result as TOON for chat history
                         flattened_result = _flatten_for_toon_tabular(results[0])
-                        # DEBUG: Log flattened structure
-                        flattened_json = json.dumps(flattened_result, indent=2)
-                        flattened_lines = flattened_json.split('\n')
-                        logger.info(f"{log_prefix} Flattened structure (first 15 lines, {len(flattened_json)} chars):")
-                        for i, line in enumerate(flattened_lines[:15], 1):
-                            logger.info(f"{log_prefix}   {i:2d}: {line}")
-                        if len(flattened_lines) > 15:
-                            logger.info(f"{log_prefix}   ... ({len(flattened_lines) - 15} more lines)")
-                        
                         tool_result_content_str = encode(flattened_result)
                     else:
                         # Multiple results - flatten each result, then combine and encode as TOON
                         # Flattening enables TOON to use tabular format for uniform objects
                         flattened_results = [_flatten_for_toon_tabular(result) for result in results]
-                        # DEBUG: Log flattened structure
-                        flattened_json = json.dumps({"results": flattened_results, "count": len(results)}, indent=2)
-                        flattened_lines = flattened_json.split('\n')
-                        logger.info(f"{log_prefix} Flattened structure (first 15 lines, {len(flattened_json)} chars):")
-                        for i, line in enumerate(flattened_lines[:15], 1):
-                            logger.info(f"{log_prefix}   {i:2d}: {line}")
-                        if len(flattened_lines) > 15:
-                            logger.info(f"{log_prefix}   ... ({len(flattened_lines) - 15} more lines)")
-                        
                         tool_result_content_str = encode({"results": flattened_results, "count": len(results)})
                     
-                    # DEBUG: Log TOON output (first 15 lines)
-                    toon_lines = tool_result_content_str.split('\n')
-                    logger.info(f"{log_prefix} TOON output (first 15 lines, {len(tool_result_content_str)} chars total):")
-                    for i, line in enumerate(toon_lines[:15], 1):
-                        logger.info(f"{log_prefix}   {i:2d}: {line}")
-                    if len(toon_lines) > 15:
-                        logger.info(f"{log_prefix}   ... ({len(toon_lines) - 15} more lines)")
-                    
-                    # DEBUG: Calculate and log savings
-                    json_size = len(json_before)
-                    toon_size = len(tool_result_content_str)
-                    savings = json_size - toon_size
-                    savings_percent = (savings / json_size * 100) if json_size > 0 else 0
-                    logger.info(f"{log_prefix} Character savings: {json_size} → {toon_size} chars ({savings} saved, {savings_percent:.1f}% reduction)")
-                    logger.info(f"{log_prefix} === END TOON CONVERSION DEBUG ===")
+                    logger.debug(f"{log_prefix} TOON conversion (chat history) length={len(tool_result_content_str)} chars")
                     
                     logger.debug(
                         f"{log_prefix} Skill '{tool_name}' executed successfully, returned {len(results)} result(s). "
@@ -1021,34 +1205,24 @@ async def handle_main_processing(
                     log_prefix=log_prefix
                 )
                 
-                # Publish "finished" status with preview data
-                await _publish_skill_status(
-                    cache_service=cache_service,
-                    task_id=task_id,
-                    request_data=request_data,
-                    app_id=app_id,
-                    skill_id=skill_id,
-                    status="finished",
-                    preview_data=preview_data if preview_data else None
-                )
-                
-                # Create embeds from skill results (immediately after skill execution)
-                # This enables immediate rendering of results while LLM continues processing
-                embed_reference_data = None
-                if cache_service and user_vault_key_id and directus_service:
+                # STEP 3: Update placeholder embed with actual results
+                # This updates the existing placeholder (created before skill execution) with real data
+                updated_embed_data = None
+                if placeholder_embed_data and cache_service and user_vault_key_id and directus_service:
                     try:
                         from backend.core.api.app.services.embed_service import EmbedService
                         from backend.core.api.app.utils.encryption import EncryptionService
-                        
+
                         encryption_service = EncryptionService()
                         embed_service = EmbedService(
                             cache_service=cache_service,
                             directus_service=directus_service,
                             encryption_service=encryption_service
                         )
-                        
-                        # Create embeds from skill results
-                        embed_reference_data = await embed_service.create_embeds_from_skill_results(
+
+                        # Update the placeholder embed with results
+                        updated_embed_data = await embed_service.update_embed_with_results(
+                            embed_id=placeholder_embed_data.get('embed_id'),
                             app_id=app_id,
                             skill_id=skill_id,
                             results=results,
@@ -1060,30 +1234,58 @@ async def handle_main_processing(
                             task_id=task_id,
                             log_prefix=log_prefix
                         )
-                        
-                        if embed_reference_data:
+
+                        if updated_embed_data:
                             logger.info(
-                                f"{log_prefix} Created embeds for skill '{tool_name}': "
-                                f"parent_embed_id={embed_reference_data.get('parent_embed_id')}, "
-                                f"child_count={len(embed_reference_data.get('child_embed_ids', []))}"
+                                f"{log_prefix} Updated embed {updated_embed_data.get('embed_id')} with results: "
+                                f"child_count={len(updated_embed_data.get('child_embed_ids', []))}, "
+                                f"status={updated_embed_data.get('status')}"
                             )
                         else:
-                            logger.warning(f"{log_prefix} Failed to create embeds for skill '{tool_name}'")
+                            logger.warning(f"{log_prefix} Failed to update embed for '{tool_name}'")
                     except Exception as e:
-                        logger.error(f"{log_prefix} Error creating embeds for skill '{tool_name}': {e}", exc_info=True)
-                        # Continue without embeds - don't fail the entire skill execution
-                
-                # Stream embed reference immediately after skill execution (flexible placement)
-                # This allows the embed to appear early in the response, before LLM interpretation
-                if embed_reference_data and embed_reference_data.get("embed_reference"):
-                    embed_reference_json = embed_reference_data.get("embed_reference")
-                    # Yield embed reference as a JSON code block chunk
-                    embed_code_block = f"```json\n{embed_reference_json}\n```\n\n"
-                    yield embed_code_block
-                    logger.debug(
-                        f"{log_prefix} Streamed embed reference chunk for '{tool_name}': "
-                        f"embed_id={embed_reference_data.get('parent_embed_id')}"
-                    )
+                        logger.error(f"{log_prefix} Error updating embed for '{tool_name}': {e}", exc_info=True)
+                        # Continue without embed update - don't fail the entire skill execution
+
+                # Publish "finished" status with preview data
+                # This triggers WebSocket event to update the frontend embed preview
+                await _publish_skill_status(
+                    cache_service=cache_service,
+                    task_id=task_id,
+                    request_data=request_data,
+                    app_id=app_id,
+                    skill_id=skill_id,
+                    status="finished",
+                    preview_data=preview_data if preview_data else None
+                )
+
+                # Publish embed_update event to notify frontend that embed has been updated
+                if updated_embed_data and placeholder_embed_data and cache_service:
+                    try:
+                        embed_update_payload = {
+                            "type": "embed_update",
+                            "event_for_client": "embed_update",
+                            "embed_id": placeholder_embed_data.get("embed_id"),
+                            "chat_id": request_data.chat_id,
+                            "message_id": request_data.message_id,
+                            "user_id_uuid": request_data.user_id,
+                            "user_id_hash": request_data.user_id_hash,
+                            "status": "finished",
+                            "child_embed_ids": updated_embed_data.get("child_embed_ids", [])
+                        }
+
+                        # Publish to Redis for WebSocket delivery
+                        client = await cache_service.client
+                        if client:
+                            import json as json_lib
+                            channel_key = f"websocket:user:{request_data.user_id_hash}"
+                            await client.publish(channel_key, json_lib.dumps(embed_update_payload))
+                            logger.debug(f"{log_prefix} Published embed_update event for embed {placeholder_embed_data.get('embed_id')}")
+                        else:
+                            logger.warning(f"{log_prefix} Redis client not available, skipping embed_update event")
+                    except Exception as e:
+                        logger.error(f"{log_prefix} Error publishing embed_update event: {e}", exc_info=True)
+                        # Don't fail if event publish fails
                 
                 # Track tool call info for code block generation
                 # NOTE: With new embeds architecture, embed references are streamed as chunks
@@ -1094,12 +1296,14 @@ async def handle_main_processing(
                     "input": parsed_args,  # Tool input arguments
                     "preview_data": preview_data,  # Metadata + results_toon (contains full TOON-encoded results)
                     "ignore_fields_for_inference": ignore_fields_for_inference,  # Fields excluded from LLM inference
-                    "embed_reference": embed_reference_data.get("embed_reference") if embed_reference_data else None  # Embed reference JSON (already streamed)
+                    "embed_reference": placeholder_embed_data.get("embed_reference") if placeholder_embed_data else None,  # Embed reference JSON (already streamed)
+                    "embed_id": placeholder_embed_data.get("embed_id") if placeholder_embed_data else None  # Embed ID for tracking
                 }
                 tool_calls_info.append(tool_call_info)
                 logger.debug(
                     f"{log_prefix} Tracked tool call info for '{tool_name}': "
-                    f"app_id={app_id}, skill_id={skill_id}, results_toon_length={len(preview_data.get('results_toon', ''))}"
+                    f"app_id={app_id}, skill_id={skill_id}, embed_id={placeholder_embed_data.get('embed_id') if placeholder_embed_data else 'none'}, "
+                    f"results_toon_length={len(preview_data.get('results_toon', ''))}"
                 )
                 
             except json.JSONDecodeError as e:

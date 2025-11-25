@@ -157,6 +157,7 @@ export async function handlePhase1LastChatImpl(
         chat_id: payload.chat_id,
         has_chat_details: !!payload.chat_details,
         messages_count: payload.messages?.length || 0,
+        embeds_count: payload.embeds?.length || 0,
         suggestions_count: payload.new_chat_suggestions?.length || 0,
         already_synced: payload.already_synced
     });
@@ -253,6 +254,43 @@ export async function handlePhase1LastChatImpl(
             }
         } else {
             console.warn("[ChatSyncService:CoreSync] ⚠️ No new chat suggestions received in Phase 1 - this is unexpected!");
+        }
+        
+        // CRITICAL: Save embeds to EmbedStore (Phase 1 may include embeds for the chat)
+        // This ensures embeds are available for rendering when messages are displayed
+        if (payload.embeds && payload.embeds.length > 0) {
+            console.info("[ChatSyncService:CoreSync] Saving", payload.embeds.length, "embeds to EmbedStore");
+            try {
+                const { embedStore } = await import('./embedStore');
+                
+                for (const embed of payload.embeds) {
+                    // Each embed should have: embed_id, encrypted_content, encrypted_type, status, etc.
+                    if (!embed.embed_id) {
+                        console.warn('[ChatSyncService:CoreSync] Embed missing embed_id, skipping:', embed);
+                        continue;
+                    }
+                    
+                    // Create contentRef in the format used by embeds: embed:{embed_id}
+                    const contentRef = `embed:${embed.embed_id}`;
+                    
+                    // Store the embed with its encrypted content
+                    // The embed data includes encrypted_content (client-encrypted TOON content)
+                    await embedStore.put(contentRef, {
+                        content: embed.encrypted_content,
+                        embed_id: embed.embed_id,
+                        embed_type: embed.encrypted_type || embed.embed_type,
+                        status: embed.status || 'finished',
+                        hashed_chat_id: embed.hashed_chat_id,
+                        hashed_user_id: embed.hashed_user_id
+                    }, embed.encrypted_type || 'app-skill-use');
+                }
+                
+                console.info("[ChatSyncService:CoreSync] ✅ Successfully saved", payload.embeds.length, "embeds to EmbedStore");
+            } catch (embedError) {
+                console.error("[ChatSyncService:CoreSync] Error saving embeds to EmbedStore:", embedError);
+            }
+        } else {
+            console.debug("[ChatSyncService:CoreSync] No embeds in Phase 1 payload (chat may not have any)");
         }
         
         // CRITICAL FIX: Add delay to ensure ALL IndexedDB operations are queryable

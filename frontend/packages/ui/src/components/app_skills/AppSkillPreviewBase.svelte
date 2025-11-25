@@ -96,27 +96,37 @@
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
     transition: background-color 0.2s, transform 0.2s;
     overflow: hidden;
+    /* Fixed sizing according to Figma design */
+    box-sizing: border-box;
   }
   
-  /* Mobile layout: vertical card */
+  /* Mobile layout: vertical card - 150x290px per Figma */
   .app-skill-preview.mobile {
-    width: 100%;
-    max-width: 100%;
-    padding: 16px;
+    width: 150px;
+    min-width: 150px;
+    max-width: 150px;
+    height: 290px;
+    min-height: 290px;
+    max-height: 290px;
+    padding: 13px;
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 8px;
   }
   
-  /* Desktop layout: horizontal card */
+  /* Desktop layout: horizontal card - 300x200px per Figma */
   .app-skill-preview.desktop {
-    width: 100%;
-    max-width: 100%;
+    width: 300px;
+    min-width: 300px;
+    max-width: 300px;
+    height: 200px;
+    min-height: 200px;
+    max-height: 200px;
     padding: 16px 20px;
     display: flex;
     flex-direction: row;
     align-items: center;
-    gap: 16px;
+    gap: 14px;
   }
   
   /* Interactive state for finished previews */

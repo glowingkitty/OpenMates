@@ -66,7 +66,8 @@ from backend.core.api.app.routes.websockets import (
     listen_for_ai_message_persisted_events,
     listen_for_ai_typing_indicator_events, # Added import
     listen_for_chat_updates, # Added import
-    listen_for_user_updates
+    listen_for_user_updates,
+    listen_for_embed_data_events
 )
 
 # Load environment variables
@@ -588,6 +589,9 @@ async def lifespan(app: FastAPI):
     logger.info("Starting Redis Pub/Sub listener for user update events as a background task...")
     app.state.user_updates_listener_task = asyncio.create_task(listen_for_user_updates(app))
 
+    logger.info("Starting Redis Pub/Sub listener for embed data events as a background task...")
+    app.state.embed_data_listener_task = asyncio.create_task(listen_for_embed_data_events(app))
+
     yield  # This is where FastAPI serves requests
     
     # Shutdown logic
@@ -642,6 +646,13 @@ async def lifespan(app: FastAPI):
             await app.state.user_updates_listener_task
         except asyncio.CancelledError:
             logger.info("Redis Pub/Sub listener task for user updates cancelled")
+
+    if hasattr(app.state, 'embed_data_listener_task'):
+        app.state.embed_data_listener_task.cancel()
+        try:
+            await app.state.embed_data_listener_task
+        except asyncio.CancelledError:
+            logger.info("Redis Pub/Sub listener task for embed data events cancelled")
             
     # Close encryption service client
     if hasattr(app.state, 'encryption_service'):

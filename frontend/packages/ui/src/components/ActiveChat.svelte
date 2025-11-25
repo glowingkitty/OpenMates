@@ -277,6 +277,57 @@
             }
         }
         
+        // For web search embeds, load child website embeds and transform to results array
+        // This is needed because parent embed only contains embed_ids, not the actual website data
+        if (embedType === 'app-skill-use' && finalDecodedContent) {
+            const appId = finalDecodedContent.app_id || '';
+            const skillId = finalDecodedContent.skill_id || '';
+            
+            // embed_ids can be in decoded content OR in the embed data itself
+            // embed_ids may be a pipe-separated string OR an array - normalize to array
+            const rawEmbedIds = finalDecodedContent.embed_ids || finalEmbedData?.embed_ids || [];
+            const childEmbedIds: string[] = typeof rawEmbedIds === 'string' 
+                ? rawEmbedIds.split('|').filter((id: string) => id.length > 0)
+                : Array.isArray(rawEmbedIds) ? rawEmbedIds : [];
+            
+            if (appId === 'web' && skillId === 'search' && childEmbedIds.length > 0) {
+                console.debug('[ActiveChat] Loading child website embeds for web search fullscreen:', childEmbedIds);
+                try {
+                    const { loadEmbeds, decodeToonContent: decodeToon } = await import('../services/embedResolver');
+                    const childEmbeds = await loadEmbeds(childEmbedIds);
+                    
+                    // Transform child embeds to WebSearchResult format
+                    const results = await Promise.all(childEmbeds.map(async (embed) => {
+                        const websiteContent = embed.content ? await decodeToon(embed.content) : null;
+                        if (!websiteContent) return null;
+                        
+                        return {
+                            type: 'search_result' as const,
+                            title: websiteContent.title || '',
+                            url: websiteContent.url || '',
+                            snippet: websiteContent.description || websiteContent.extra_snippets || '',
+                            hash: embed.embed_id || '',
+                            favicon_url: websiteContent.meta_url_favicon || websiteContent.favicon || '',
+                            preview_image_url: websiteContent.thumbnail_original || websiteContent.image || ''
+                        };
+                    }));
+                    
+                    // Filter out nulls and add to decoded content
+                    finalDecodedContent.results = results.filter(r => r !== null);
+                    console.info('[ActiveChat] Loaded', finalDecodedContent.results.length, 'website results for web search fullscreen:', 
+                        finalDecodedContent.results.map(r => ({ title: r?.title?.substring(0, 30), url: r?.url })));
+                } catch (error) {
+                    console.error('[ActiveChat] Error loading child embeds for web search:', error);
+                    // Continue without results - fullscreen will show "No results" message
+                }
+            } else if (appId === 'web' && skillId === 'search') {
+                console.warn('[ActiveChat] Web search fullscreen opened but no embed_ids found:', {
+                    decodedContentEmbedIds: finalDecodedContent.embed_ids,
+                    embedDataEmbedIds: finalEmbedData?.embed_ids
+                });
+            }
+        }
+        
         // Store fullscreen data
         embedFullscreenData = {
             embedId,
@@ -310,13 +361,15 @@
     // Handler for post-processing completed event
     async function handlePostProcessingCompleted(event: CustomEvent) {
         const { chatId, followUpSuggestions: newSuggestions } = event.detail;
-        console.debug('[ActiveChat] Post-processing completed for chat:', chatId);
-        console.debug('[ActiveChat] Received follow-up suggestions:', newSuggestions);
+        console.info('[ActiveChat] Post-processing completed for chat:', chatId, 
+            'Current chat:', currentChat?.chat_id,
+            'Match:', currentChat?.chat_id === chatId,
+            'Suggestions count:', newSuggestions?.length || 0);
 
         // Update follow-up suggestions if this is the active chat
         if (currentChat?.chat_id === chatId && newSuggestions && Array.isArray(newSuggestions)) {
             followUpSuggestions = newSuggestions;
-            console.debug('[ActiveChat] Updated followUpSuggestions:', $state.snapshot(followUpSuggestions));
+            console.info('[ActiveChat] Updated followUpSuggestions:', $state.snapshot(followUpSuggestions));
             
             // Also reload currentChat from database to ensure it has the latest encrypted metadata
             // This prevents a mismatch between the in-memory currentChat and the database state
@@ -759,9 +812,13 @@
         console.debug("[ActiveChat] handleSendMessage: Reset liveInputText after sending message");
 
         console.debug("[ActiveChat] handleSendMessage: Received message payload:", message);
+        
+        // CRITICAL: Handle new chat creation immediately to ensure UI is in sync with backend events
         if (newChat) {
-            console.debug("[ActiveChat] handleSendMessage: New chat detected, setting currentChat and initializing messages.", newChat);
-            currentChat = newChat; // Immediately set currentChat if a new chat was created
+            console.info("[ActiveChat] handleSendMessage: New chat detected, setting currentChat and initializing messages.", newChat);
+            
+            // Force update currentChat immediately
+            currentChat = newChat;
             currentMessages = [message]; // Initialize messages with the first message
             
             // Clear temporary chat ID since we now have a real chat
@@ -787,7 +844,10 @@
             console.debug("[ActiveChat] Dispatched globalChatSelected for new chat");
         } else {
             // This is a message for an existing, already active chat
-            currentMessages = [...currentMessages, message];
+            // Ensure we don't duplicate the message if it's already in currentMessages
+            if (!currentMessages.some(m => m.message_id === message.message_id)) {
+                currentMessages = [...currentMessages, message];
+            }
         }
 
         if (chatHistoryRef) {
@@ -905,6 +965,14 @@
         } catch (err) {
             console.error('[ActiveChat] Failed to clear activeChatStore on new chat:', err);
         }
+    }
+
+    // Expose a helper so parents can reset the UI to the new chat state (e.g., after deletions)
+    export async function resetToNewChat() {
+        if (!currentChat && showWelcome) {
+            return; // Already in a clean state
+        }
+        await handleNewChatClick();
     }
 
     // Add a handler for the share button click.
@@ -1398,9 +1466,8 @@
             }
             
             // Check if the user is in the middle of a signup process (based on last_opened)
-            // Also check if tfa_enabled is false (signup incomplete)
-            if ($authStore.isAuthenticated && 
-                (isSignupPath($userProfile.last_opened) || $userProfile.tfa_enabled === false)) {
+            // Only rely on explicit signup paths to avoid forcing passkey users back into OTP setup
+            if ($authStore.isAuthenticated && isSignupPath($userProfile.last_opened)) {
                 console.debug("User detected in signup process:", {
                     last_opened: $userProfile.last_opened,
                     tfa_enabled: $userProfile.tfa_enabled
@@ -1412,16 +1479,9 @@
                 loginInterfaceOpen.set(true);
                 
                 // Extract step from last_opened to ensure we're on the right step
-                if (isSignupPath($userProfile.last_opened)) {
-                    const step = getStepFromPath($userProfile.last_opened);
-                    console.debug("Setting signup step to:", step);
-                    currentSignupStep.set(step);
-                } else if ($userProfile.tfa_enabled === false) {
-                    // If tfa_enabled is false but last_opened doesn't indicate signup,
-                    // default to one_time_codes step (OTP setup)
-                    console.debug("tfa_enabled is false, defaulting to one_time_codes step");
-                    currentSignupStep.set('one_time_codes');
-                }
+                const step = getStepFromPath($userProfile.last_opened);
+                console.debug("Setting signup step to:", step);
+                currentSignupStep.set(step);
             }
             
             // CRITICAL FALLBACK: Load welcome demo chat for non-authenticated users if no chat is loaded
@@ -1840,7 +1900,7 @@
         chatSyncService.addEventListener('postProcessingCompleted', handlePostProcessingCompleted as EventListener);
         
         // Handle skill preview updates - add app cards to messages
-        const handleSkillPreviewUpdate = (event: CustomEvent) => {
+        const handleSkillPreviewUpdate = async (event: CustomEvent) => {
             const { task_id, previewData, chat_id, message_id } = event.detail;
             
             // Only process if this preview is for the current chat
@@ -1850,9 +1910,52 @@
             }
             
             // Find the message by message_id
-            const messageIndex = currentMessages.findIndex(m => m.message_id === message_id);
+            let messageIndex = currentMessages.findIndex(m => m.message_id === message_id);
+            
+            // If message doesn't exist yet, create a placeholder assistant message
+            // This happens when skill preview arrives BEFORE the first streaming chunk
+            // (new architecture: placeholder embed is yielded immediately when tool call is detected)
             if (messageIndex === -1) {
-                console.debug('[ActiveChat] Message not found for skill preview update:', message_id);
+                console.debug('[ActiveChat] Creating placeholder assistant message for skill preview:', message_id);
+                
+                // Find the user message to get user_message_id (should be the last user message)
+                const lastUserMessage = [...currentMessages].reverse().find(m => m.role === 'user');
+                
+                // Create placeholder assistant message
+                const placeholderMessage: ChatMessageModel = {
+                    message_id: message_id,
+                    chat_id: chat_id,
+                    user_message_id: lastUserMessage?.message_id,
+                    role: 'assistant',
+                    content: '', // Empty content - will be filled by streaming chunks
+                    status: 'streaming',
+                    created_at: Math.floor(Date.now() / 1000),
+                    encrypted_content: '',
+                    encrypted_category: undefined
+                };
+                
+                // Add the placeholder message to currentMessages
+                currentMessages = [...currentMessages, placeholderMessage];
+                
+                // Save to DB
+                try {
+                    await chatDB.saveMessage(placeholderMessage);
+                    console.debug('[ActiveChat] Saved placeholder assistant message to DB');
+                } catch (error) {
+                    console.error('[ActiveChat] Error saving placeholder assistant message to DB:', error);
+                }
+                
+                // Update ChatHistory
+                if (chatHistoryRef) {
+                    chatHistoryRef.updateMessages(currentMessages);
+                }
+                
+                // Now find the newly added message
+                messageIndex = currentMessages.findIndex(m => m.message_id === message_id);
+            }
+            
+            if (messageIndex === -1) {
+                console.warn('[ActiveChat] Failed to find or create message for skill preview:', message_id);
                 return;
             }
             

@@ -217,6 +217,26 @@ export async function clearMasterKeyFromIndexedDB(): Promise<void> {
 }
 
 /**
+ * Checks if the device is "trusted" by verifying if the master key exists in IndexedDB.
+ * A device is trusted (and thus allowed to manage passkeys) only if the user selected
+ * "stay logged in" during the login/signup process, which persists the master key to IndexedDB.
+ *
+ * This is a security feature: devices that don't store the master key persistently
+ * (stayLoggedIn=false) are not trusted for passkey management operations.
+ *
+ * @returns true if master key exists in IndexedDB (device is trusted), false otherwise
+ */
+export async function isDeviceTrusted(): Promise<boolean> {
+  try {
+    const masterKey = await getMasterKeyFromIndexedDB();
+    return masterKey !== null;
+  } catch (error) {
+    console.error('[cryptoKeyStorage] Error checking device trust:', error);
+    return false;
+  }
+}
+
+/**
  * Deletes the entire IndexedDB database
  * Used during logout to completely remove all crypto keys
  */

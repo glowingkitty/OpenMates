@@ -8,6 +8,8 @@ preprocess_request_tool:
   function:
     name: "analyze_request_properties"
     description: |
+      Current date and time: {CURRENT_DATE_TIME}
+
       Analyze the user's request and message history to determine various properties.
       Your goal is to populate all fields of this function call accurately based on the information and lists provided dynamically in the context.
 
@@ -36,7 +38,7 @@ preprocess_request_tool:
           - If no settings or memory loading is needed, or if no relevant keys are present in the provided list, return an empty list: [].
       7.  **relevant_app_skills**: Identify app skills that might be relevant to fulfill the user's request. This helps optimize tool selection for the main LLM processing.
           - Available app skills (format: `app_id-skill_id`) will be dynamically provided in: {AVAILABLE_APP_SKILLS}.
-          - Select skill identifiers that could be useful for fulfilling the user's request (e.g., `web-search` for web searches, `images-generate` for image generation).
+          - Select skill identifiers that could be useful for fulfilling the user's request (e.g., `web-search` for web searches, `images-generate` for image generation, `videos-get_transcript` for YouTube transcripts).
           - If no specific skills are relevant, or if the request can be answered without app skills, return an empty list: [].
           - **Important**: Only select skills that are actually listed in the provided {AVAILABLE_APP_SKILLS} list. Do not invent skill names.
       8.  **relevant_embedded_previews**: Identify types of embedded preview structures that would be useful for rendering rich content in the response.
@@ -153,6 +155,7 @@ base_capabilities_instruction: |
   - **Be transparent about capabilities**: If a user asks for something that cannot be done with available tools, explain what is possible with the current tools
   - **Don't claim limitations that don't exist**: If a skill is available (like web-search), use it rather than saying it's not available
   - **Check available tools**: The tools available to you are provided in the function calling interface - use them when appropriate
+  - **Tool Naming**: Tools are named using hyphens (e.g., 'web-search', 'images-generate'). Do not use underscores in tool names.
   - Do not invent apps, skills, or capabilities that don't exist - only use the tools that are actually provided to you
 
 follow_up_instruction: |

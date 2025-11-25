@@ -432,9 +432,38 @@
     <div class="options-container">
         <p class="instruction-text">{@html $text('signup.click_on_an_option.text')}</p>
         
+        <!-- Passkey Option -->
+        <div class="option-wrapper">
+            <div class="recommended-badge">
+                <div class="thumbs-up-icon"></div>
+                <span>{@html $text('signup.recommended.text')}</span>
+            </div>
+            <button
+                class="option-button"
+                class:selected={selectedOption === 'passkey'}
+                class:loading={isRegisteringPasskey}
+                disabled={isRegisteringPasskey}
+                onclick={() => selectOption('passkey')}
+            >
+                <div class="option-header">
+                    <div class="option-icon">
+                        <div class="clickable-icon icon_passkey" style="width: 30px; height: 30px"></div>
+                    </div>
+                    <div class="option-content">
+                        <h3 class="option-title">{@html $text('signup.passkey.text')}</h3>
+                    </div>
+                </div>
+                <p class="option-description">
+                    {isRegisteringPasskey
+                        ? $text('login.loading.text')
+                        : $text('signup.passkey_descriptor.text')}
+                </p>
+            </button>
+        </div>
+
         <!-- Password Option -->
-        <button 
-            class="option-button" 
+        <button
+            class="option-button"
             class:selected={selectedOption === 'password'}
             onclick={() => selectOption('password')}
         >
@@ -447,29 +476,6 @@
                 </div>
             </div>
             <p class="option-description">{@html $text('signup.password_descriptor.text')}</p>
-        </button>
-
-        <!-- Passkey Option -->
-        <button 
-            class="option-button" 
-            class:selected={selectedOption === 'passkey'}
-            class:loading={isRegisteringPasskey}
-            disabled={isRegisteringPasskey}
-            onclick={() => selectOption('passkey')}
-        >
-            <div class="option-header">
-                <div class="option-icon">
-                    <div class="clickable-icon icon_secret" style="width: 30px; height: 30px"></div>
-                </div>
-                <div class="option-content">
-                    <h3 class="option-title">{@html $text('signup.passkey.text')}</h3>
-                </div>
-            </div>
-            <p class="option-description">
-                {isRegisteringPasskey 
-                    ? $text('login.loading.text') 
-                    : $text('signup.passkey_descriptor.text')}
-            </p>
         </button>
     </div>
 </div>
@@ -508,6 +514,43 @@
         margin-bottom: 8px;
     }
     
+    .option-wrapper {
+        position: relative;
+        width: 100%;
+        margin-top: 10px; /* Space for badge */
+    }
+
+    .recommended-badge {
+        position: absolute;
+        top: 0;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: var(--color-primary);
+        border-radius: 19px;
+        padding: 4px 10px;
+        display: flex;
+        align-items: center;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        z-index: 2;
+        white-space: nowrap;
+    }
+
+    .thumbs-up-icon {
+        width: 12px;
+        height: 12px;
+        background-image: url('@openmates/ui/static/icons/thumbsup.svg');
+        background-size: contain;
+        background-repeat: no-repeat;
+        filter: invert(1);
+        margin-right: 5px;
+    }
+    
+    .recommended-badge span {
+        color: white;
+        font-size: 12px;
+        font-weight: 600;
+    }
+
     .option-button {
         display: flex;
         flex-direction: column;
@@ -520,6 +563,15 @@
         text-align: center;
         width: 100%;
         height: auto;
+        border: none; /* Ensure no border by default */
+        position: relative;
+    }
+
+    /* Add recommended style for passkey option */
+    .option-wrapper:first-child .option-button {
+        border: 3px solid transparent;
+        background: linear-gradient(var(--color-grey-20), var(--color-grey-20)) padding-box,
+                    var(--color-primary) border-box;
     }
     
     .option-button:disabled {

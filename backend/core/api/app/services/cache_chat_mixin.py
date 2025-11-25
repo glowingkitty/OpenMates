@@ -1151,6 +1151,78 @@ class ChatCacheMixin:
             logger.error(f"Error getting embed IDs for chat {chat_id}: {e}", exc_info=True)
             return []
     
+    async def add_embed_id_to_chat_index(self, chat_id: str, embed_id: str, ttl: int = 3600) -> bool:
+        """
+        Add an embed_id to the chat's embed index (for sync cache tracking).
+        
+        Args:
+            chat_id: The chat ID
+            embed_id: The embed ID to add
+            ttl: Time to live for the index key in seconds (default: 1 hour)
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        client = await self.client
+        if not client:
+            return False
+        
+        key = self._get_chat_embed_ids_key(chat_id)
+        try:
+            await client.sadd(key, embed_id)
+            await client.expire(key, ttl)
+            logger.debug(f"Added embed {embed_id} to chat index {chat_id}")
+            return True
+        except Exception as e:
+            logger.error(f"Error adding embed {embed_id} to chat index {chat_id}: {e}", exc_info=True)
+            return False
+    
+    async def get_sync_embeds_for_chat(self, chat_id: str) -> List[Dict[str, Any]]:
+        """
+        Get all embeds from sync cache for a chat.
+        
+        Embeds in sync cache are stored with key pattern: embed:{embed_id}:sync
+        The chat's embed index (chat:{chat_id}:embed_ids) tracks which embeds belong to the chat.
+        
+        Args:
+            chat_id: The chat ID
+            
+        Returns:
+            List of embed data dictionaries (client-encrypted)
+        """
+        client = await self.client
+        if not client:
+            return []
+        
+        try:
+            import json
+            
+            # Get embed IDs from chat index
+            embed_ids = await self.get_chat_embed_ids(chat_id)
+            if not embed_ids:
+                logger.debug(f"No embeds indexed for chat {chat_id}")
+                return []
+            
+            # Fetch each embed from sync cache
+            embeds = []
+            for embed_id in embed_ids:
+                sync_key = f"embed:{embed_id}:sync"
+                embed_json = await client.get(sync_key)
+                if embed_json:
+                    try:
+                        embed_data = json.loads(embed_json.decode('utf-8') if isinstance(embed_json, bytes) else embed_json)
+                        embeds.append(embed_data)
+                    except json.JSONDecodeError as e:
+                        logger.warning(f"Failed to parse embed {embed_id} from sync cache: {e}")
+                else:
+                    logger.debug(f"Embed {embed_id} not found in sync cache (may have expired)")
+            
+            logger.info(f"Retrieved {len(embeds)} embeds from sync cache for chat {chat_id}")
+            return embeds
+        except Exception as e:
+            logger.error(f"Error getting sync embeds for chat {chat_id}: {e}", exc_info=True)
+            return []
+    
     # ========== App Settings and Memories Cache Methods ==========
     
     def _get_app_settings_memories_cache_key(self, user_id: str, chat_id: str, app_id: str, item_key: str) -> str:

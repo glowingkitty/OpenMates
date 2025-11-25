@@ -20,10 +20,34 @@ export class EmbedStore {
    * @param type - The type of embed content
    */
   async put(contentRef: string, data: any, type: EmbedType): Promise<void> {
+    // DEBUG: Check if data itself is a Promise
+    if (data instanceof Promise) {
+      console.error('[EmbedStore] ERROR: data parameter is a Promise!', {
+        contentRef,
+        type,
+        dataType: typeof data
+      });
+      throw new Error('EmbedStore.put() received a Promise as data parameter');
+    }
+
+    // DEBUG: Check if data is an object and inspect its fields for Promises
+    if (typeof data === 'object' && data !== null) {
+      for (const [key, value] of Object.entries(data)) {
+        if (value instanceof Promise) {
+          console.error(`[EmbedStore] ERROR: data.${key} is a Promise!`, {
+            contentRef,
+            key,
+            value
+          });
+          throw new Error(`EmbedStore.put() received data with Promise in field: ${key}`);
+        }
+      }
+    }
+
     // For embeds, data.content might be a TOON string (store as-is for efficiency)
     // If data is an object with a 'content' field that's a string, preserve it as TOON
     let dataToStore = data;
-    
+
     // If data has a 'content' field that's a string (TOON), keep it as string
     // Otherwise, stringify the entire object
     if (typeof data === 'object' && data !== null && typeof data.content === 'string') {
@@ -33,37 +57,58 @@ export class EmbedStore {
       // Already a string (TOON content) - wrap it for storage
       dataToStore = { content: data };
     }
-    
+
     // Encrypt the data using the master key
     const dataString = JSON.stringify(dataToStore);
-    const encryptedData = encryptWithMasterKey(dataString);
-    
+
+    // CRITICAL: Verify dataString is actually a string before encrypting
+    if (typeof dataString !== 'string') {
+      console.error('[EmbedStore] JSON.stringify did not return a string!', {
+        type: typeof dataString,
+        value: dataString
+      });
+      throw new Error(`JSON.stringify returned ${typeof dataString} instead of string`);
+    }
+
+    const encryptedData = await encryptWithMasterKey(dataString);
+
+    // CRITICAL: Verify encryptedData is either a string or null (not a Promise or other type)
+    if (encryptedData !== null && typeof encryptedData !== 'string') {
+      console.error('[EmbedStore] encryptWithMasterKey returned unexpected type!', {
+        type: typeof encryptedData,
+        isPromise: (encryptedData as any) instanceof Promise,
+        value: encryptedData
+      });
+      throw new Error(`encryptWithMasterKey returned ${typeof encryptedData} instead of string or null`);
+    }
+
     if (!encryptedData) {
       console.warn('[EmbedStore] Master key not available, storing unencrypted data');
     }
-    
+
     const entry: EmbedStoreEntry = {
       contentRef,
-      data: encryptedData || dataString, // Fallback to unencrypted if master key not available
+      // Always store a plain string (either encrypted or plaintext) to avoid IndexedDB cloning errors
+      data: encryptedData || dataString,
       type,
       createdAt: Date.now(),
       updatedAt: Date.now()
     };
-    
+
     // Store in memory cache
     embedCache.set(contentRef, entry);
-    
+
     try {
       // Store in IndexedDB
       const transaction = await chatDB.getTransaction([EMBEDS_STORE_NAME], 'readwrite');
       const store = transaction.objectStore(EMBEDS_STORE_NAME);
-      
+
       await new Promise<void>((resolve, reject) => {
         const request = store.put(entry);
         request.onsuccess = () => resolve();
         request.onerror = () => reject(request.error);
       });
-      
+
       console.debug('[EmbedStore] Put embed in IndexedDB:', contentRef, type);
     } catch (error) {
       console.warn('[EmbedStore] Failed to store in IndexedDB, using memory cache only:', error);
@@ -107,17 +152,29 @@ export class EmbedStore {
     }
     
     // Decrypt the data using the master key
-    const encryptedData = entry.data as string;
-    const decryptedData = decryptWithMasterKey(encryptedData);
-    
+    let encryptedData = entry.data;
+
+    // CRITICAL: Ensure encryptedData is not a Promise
+    if (encryptedData instanceof Promise) {
+      console.warn('[EmbedStore] Stored data is a Promise, awaiting resolution');
+      encryptedData = await encryptedData;
+    }
+
+    if (typeof encryptedData !== 'string') {
+      console.warn('[EmbedStore] Stored embed is not a string; returning as-is');
+      return encryptedData as any;
+    }
+
+    const decryptedData = await decryptWithMasterKey(encryptedData);
+
     if (!decryptedData) {
       console.warn('[EmbedStore] Failed to decrypt embed, returning encrypted data');
       return entry.data;
     }
-    
+
     try {
       const parsed = JSON.parse(decryptedData);
-      
+
       // If this is embed data with TOON content, return as-is
       // Content will be decoded when needed (by embedResolver)
       if (parsed && typeof parsed.content === 'string') {
@@ -125,7 +182,7 @@ export class EmbedStore {
         // The TOON string will be decoded by embedResolver when needed
         return parsed;
       }
-      
+
       return parsed;
     } catch (error) {
       console.error('[EmbedStore] Error parsing decrypted data:', error);
@@ -208,4 +265,3 @@ export class EmbedStore {
 
 // Export singleton instance
 export const embedStore = new EmbedStore();
-

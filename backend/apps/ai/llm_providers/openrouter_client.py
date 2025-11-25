@@ -435,7 +435,13 @@ async def _stream_openrouter_response(
                 logger.info(f"{log_prefix} Stream completed")
                 
     except httpx.HTTPStatusError as e:
-        error_msg = f"HTTP error {e.response.status_code}: {e.response.text}"
+        # For streaming responses, we need to read the content first before accessing .text
+        try:
+            error_body = await e.response.aread()
+            error_text = error_body.decode('utf-8')
+        except Exception:
+            error_text = "Unable to read error response"
+        error_msg = f"HTTP error {e.response.status_code}: {error_text}"
         logger.error(f"{log_prefix} {error_msg}")
         yield f"[ERROR: {error_msg}]"
     except httpx.RequestError as e:

@@ -90,3 +90,195 @@ context_menu.confirm:
   cs: Potvrdit
   sv: Bekräfta
   verified_by_human: []
+
+context_menu.select:
+  context: Menu option to select a chat
+  en: Select
+  de: Auswählen
+  zh: 选择
+  es: Seleccionar
+  fr: Sélectionner
+  pt: Selecionar
+  ru: Выбрать
+  ja: 選択
+  ko: 선택
+  it: Seleziona
+  tr: Seç
+  vi: Chọn
+  id: Pilih
+  pl: Wybierz
+  nl: Selecteren
+  ar: اختيار
+  hi: चुनें
+  th: เลือก
+  cs: Vybrat
+  sv: Välj
+  verified_by_human: []
+
+context_menu.download_selected:
+  context: Menu option to download selected chats
+  en: Download selected
+  de: Ausgewählte herunterladen
+  zh: 下载所选
+  es: Descargar seleccionados
+  fr: Télécharger la sélection
+  pt: Baixar selecionados
+  ru: Загрузить выбранные
+  ja: 選択をダウンロード
+  ko: 선택 항목 다운로드
+  it: Scarica selezionati
+  tr: Seçilenleri indir
+  vi: Tải xuống đã chọn
+  id: Unduh yang dipilih
+  pl: Pobierz zaznaczone
+  nl: Geselecteerde downloaden
+  ar: تحميل المحدد
+  hi: चयनित डाउनलोड करें
+  th: ดาวน์โหลดที่เลือก
+  cs: Stáhnout vybrané
+  sv: Ladda ned markerade
+  verified_by_human: []
+
+context_menu.copy_selected:
+  context: Menu option to copy selected chats
+  en: Copy selected
+  de: Ausgewählte kopieren
+  zh: 复制所选
+  es: Copiar seleccionados
+  fr: Copier la sélection
+  pt: Copiar selecionados
+  ru: Копировать выбранные
+  ja: 選択をコピー
+  ko: 선택 항목 복사
+  it: Copia selezionati
+  tr: Seçilenleri kopyala
+  vi: Sao chép đã chọn
+  id: Salin yang dipilih
+  pl: Kopiuj zaznaczone
+  nl: Geselecteerde kopiëren
+  ar: نسخ المحدد
+  hi: चयनित कॉपी करें
+  th: คัดลอกที่เลือก
+  cs: Kopírovat vybrané
+  sv: Kopiera markerade
+  verified_by_human: []
+
+context_menu.delete_selected:
+  context: Menu option to delete selected chats
+  en: Delete selected
+  de: Ausgewählte löschen
+  zh: 删除所选
+  es: Eliminar seleccionados
+  fr: Supprimer la sélection
+  pt: Excluir selecionados
+  ru: Удалить выбранные
+  ja: 選択を削除
+  ko: 선택 항목 삭제
+  it: Elimina selezionati
+  tr: Seçilenleri sil
+  vi: Xóa đã chọn
+  id: Hapus yang dipilih
+  pl: Usuń zaznaczone
+  nl: Geselecteerde verwijderen
+  ar: حذف المحدد
+  hi: चयनित हटाएं
+  th: ลบที่เลือก
+  cs: Smazat vybrané
+  sv: Ta bort markerade
+  verified_by_human: []
+
+context_menu.unselect:
+  context: Menu option to unselect a chat
+  en: Unselect
+  de: Abwählen
+  zh: 取消选择
+  es: Deseleccionar
+  fr: Désélectionner
+  pt: Desmarcar
+  ru: Снять выбор
+  ja: 選択解除
+  ko: 선택 취소
+  it: Deseleziona
+  tr: Seçimi kaldır
+  vi: Bỏ chọn
+  id: Batalkan pilihan
+  pl: Odznacz
+  nl: Deselecteren
+  ar: إلغاء التحديد
+  hi: चयन रद्द करें
+  th: ยกเลิกการเลือก
+  cs: Zrušit výběr
+  sv: Avmarkera
+  verified_by_human: []
+
+select_all:
+  context: Button to select all chats
+  en: Select all
+  de: Alle auswählen
+  zh: 全选
+  es: Seleccionar todo
+  fr: Tout sélectionner
+  pt: Selecionar tudo
+  ru: Выбрать все
+  ja: すべて選択
+  ko: 모두 선택
+  it: Seleziona tutto
+  tr: Tümünü seç
+  vi: Chọn tất cả
+  id: Pilih semua
+  pl: Zaznacz wszystko
+  nl: Alles selecteren
+  ar: تحديد الكل
+  hi: सभी चुनें
+  th: เลือกทั้งหมด
+  cs: Vybrat vše
+  sv: Välj alla
+  verified_by_human: []
+
+unselect_all:
+  context: Button to unselect all chats
+  en: Unselect all
+  de: Alle abwählen
+  zh: 取消全选
+  es: Deseleccionar todo
+  fr: Tout désélectionner
+  pt: Desmarcar tudo
+  ru: Снять все выборы
+  ja: すべて選択解除
+  ko: 모두 선택 취소
+  it: Deseleziona tutto
+  tr: Tümünün seçimini kaldır
+  vi: Bỏ chọn tất cả
+  id: Batalkan pilihan semua
+  pl: Odznacz wszystko
+  nl: Alles deselecteren
+  ar: إلغاء تحديد الكل
+  hi: सभी का चयन रद्द करें
+  th: ยกเลิกการเลือกทั้งหมด
+  cs: Zrušit výběr všech
+  sv: Avmarkera alla
+  verified_by_human: []
+
+cancel:
+  context: Button to cancel selection mode
+  en: Cancel
+  de: Abbrechen
+  zh: 取消
+  es: Cancelar
+  fr: Annuler
+  pt: Cancelar
+  ru: Отмена
+  ja: キャンセル
+  ko: 취소
+  it: Annulla
+  tr: İptal
+  vi: Hủy
+  id: Batal
+  pl: Anuluj
+  nl: Annuleren
+  ar: إلغاء
+  hi: रद्द करें
+  th: ยกเลิก
+  cs: Zrušit
+  sv: Avbryt
+  verified_by_human: []

@@ -43,6 +43,10 @@
     let isPasskeyLoading = $state(false); // Track if passkey login is in progress
     let passkeyLoginAbortController: AbortController | null = null; // For cancelling passkey login
     
+    // Conditional UI (passkey autofill) state
+    let conditionalUIAbortController: AbortController | null = null; // For cancelling conditional UI passkey request
+    let isConditionalUISupported = $state(false); // Track if browser supports conditional UI
+    
     // Helper function to safely cast string to LoginStep
     function setLoginStep(step: string): void {
         // This ensures the step is a valid LoginStep value
@@ -241,6 +245,9 @@
     
     // Improve switchToSignup function to reset the signup step and ensure state changes are coordinated
     async function switchToSignup() {
+        // Cancel any pending conditional UI passkey request
+        cancelConditionalUIPasskey();
+        
         // Clear login and 2FA state before switching view
         email = '';
         password = '';
@@ -370,6 +377,9 @@
      */
     async function startPasskeyLogin() {
         if (isPasskeyLoading || isLoading) return;
+        
+        // Cancel any pending conditional UI passkey request to avoid WebAuthn conflicts
+        cancelConditionalUIPasskey();
         
         // Show loading screen
         isPasskeyLoading = true;
@@ -860,19 +870,449 @@
     }
     
     /**
-     * Auto-trigger passkey login when browser suggests it
-     * This effect watches for browser auto-suggestion and shows loading screen
+     * Start Conditional UI (passkey autofill) flow
+     * This allows the browser to show passkey suggestions in the username/email autofill dropdown
+     * The user can select a passkey without clicking a separate button
+     * 
+     * Reference: https://web.dev/articles/passkey-form-autofill
      */
-    $effect(() => {
-        // Try to detect browser passkey auto-suggestion
-        // Note: This is a best-effort approach as browsers don't expose this directly
-        // We can't reliably detect when user clicks browser's passkey suggestion,
-        // but we can prepare the UI to handle it gracefully
-        if (currentLoginStep === 'email' && !isPasskeyLoading && !isLoading) {
-            // Browser may auto-suggest passkey - if user accepts, the WebAuthn API will be called
-            // We'll handle it in the performPasskeyLogin function
+    async function startConditionalUIPasskey() {
+        // Check if WebAuthn and Conditional UI are supported
+        if (!window.PublicKeyCredential) {
+            console.log('[Login] WebAuthn not supported');
+            return;
         }
-    });
+        
+        // Check if conditional mediation is available (required for autofill passkeys)
+        try {
+            const conditionalMediationAvailable = await PublicKeyCredential.isConditionalMediationAvailable?.();
+            if (!conditionalMediationAvailable) {
+                console.log('[Login] Conditional UI (passkey autofill) not supported by browser');
+                return;
+            }
+            isConditionalUISupported = true;
+            console.log('[Login] Conditional UI (passkey autofill) is supported');
+        } catch (error) {
+            console.log('[Login] Error checking conditional UI support:', error);
+            return;
+        }
+        
+        // Create abort controller for cancelling the request
+        conditionalUIAbortController = new AbortController();
+        
+        try {
+            const { getApiEndpoint, apiEndpoints } = await import('../config/api');
+            const cryptoService = await import('../services/cryptoService');
+            
+            // Step 1: Initiate passkey assertion with backend (no email required for discoverable credentials)
+            const initiateResponse = await fetch(getApiEndpoint(apiEndpoints.auth.passkey_assertion_initiate), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({}),
+                credentials: 'include',
+                signal: conditionalUIAbortController?.signal
+            });
+            
+            if (!initiateResponse.ok) {
+                const errorData = await initiateResponse.json();
+                console.log('[Login] Conditional UI passkey initiation failed (expected if no passkeys registered):', errorData);
+                return;
+            }
+            
+            const initiateData = await initiateResponse.json();
+            
+            if (!initiateData.success) {
+                console.log('[Login] Conditional UI passkey initiation failed:', initiateData.message);
+                return;
+            }
+            
+            // Step 2: Prepare WebAuthn request options for conditional UI
+            const challenge = base64UrlToArrayBuffer(initiateData.challenge);
+            
+            // Prepare PRF extension input
+            const prfEvalFirst = initiateData.extensions?.prf?.eval?.first || initiateData.challenge;
+            const prfEvalFirstBuffer = base64UrlToArrayBuffer(prfEvalFirst);
+            
+            console.log('[Login] Conditional UI: preparing WebAuthn options');
+            
+            const publicKeyCredentialRequestOptions: PublicKeyCredentialRequestOptions = {
+                challenge: challenge,
+                rpId: initiateData.rp.id,
+                timeout: initiateData.timeout,
+                userVerification: initiateData.userVerification as UserVerificationRequirement,
+                // Empty allowCredentials enables discoverable credential discovery
+                allowCredentials: [],
+                extensions: {
+                    prf: {
+                        eval: {
+                            first: prfEvalFirstBuffer
+                        }
+                    }
+                } as AuthenticationExtensionsClientInputs
+            };
+            
+            // Step 3: Start conditional UI WebAuthn request
+            // This will show passkey options in the autofill dropdown when user focuses the email field
+            // The request waits silently until user selects a passkey from autofill
+            console.log('[Login] Starting conditional UI passkey request (autofill mode)');
+            
+            let assertion: PublicKeyCredential;
+            try {
+                assertion = await navigator.credentials.get({
+                    publicKey: publicKeyCredentialRequestOptions,
+                    // CRITICAL: mediation: 'conditional' enables autofill mode
+                    // This makes passkeys appear in the username/email field autofill dropdown
+                    mediation: 'conditional',
+                    signal: conditionalUIAbortController?.signal
+                }) as PublicKeyCredential;
+            } catch (error: any) {
+                if (error.name === 'AbortError') {
+                    console.log('[Login] Conditional UI passkey request was cancelled');
+                    return;
+                }
+                // NotAllowedError can happen if user focuses input but doesn't select a passkey
+                if (error.name === 'NotAllowedError') {
+                    console.log('[Login] User did not select a passkey from autofill');
+                    return;
+                }
+                console.log('[Login] Conditional UI WebAuthn error:', error);
+                return;
+            }
+            
+            if (!assertion || !(assertion instanceof PublicKeyCredential)) {
+                console.log('[Login] No assertion from conditional UI');
+                return;
+            }
+            
+            console.log('[Login] User selected passkey from autofill, processing login...');
+            
+            // Show loading state when user selects a passkey from autofill
+            isPasskeyLoading = true;
+            isLoading = true;
+            
+            // Process the passkey assertion (same flow as manual passkey login)
+            await processPasskeyAssertion(assertion, initiateData, cryptoService);
+            
+        } catch (error: any) {
+            if (error.name === 'AbortError') {
+                console.log('[Login] Conditional UI request aborted');
+                return;
+            }
+            console.error('[Login] Error in conditional UI passkey flow:', error);
+        }
+    }
+    
+    /**
+     * Process passkey assertion - shared logic for both manual and conditional UI passkey flows
+     * Handles PRF extraction, key derivation, master key unwrapping, and login completion
+     */
+    async function processPasskeyAssertion(
+        assertion: PublicKeyCredential, 
+        initiateData: any,
+        cryptoService: typeof import('../services/cryptoService')
+    ) {
+        try {
+            const { getApiEndpoint, apiEndpoints } = await import('../config/api');
+            
+            const response = assertion.response as AuthenticatorAssertionResponse;
+            
+            // Check PRF extension support
+            const clientExtensionResults = assertion.getClientExtensionResults();
+            console.log('[Login] Client extension results:', clientExtensionResults);
+            const prfResults = clientExtensionResults?.prf as any;
+            console.log('[Login] PRF results:', prfResults);
+            
+            // Validate PRF extension results
+            if (!prfResults) {
+                console.error('[Login] PRF extension not found in client extension results');
+                loginFailedWarning = true;
+                isPasskeyLoading = false;
+                isLoading = false;
+                return;
+            }
+            
+            if (prfResults.enabled === false) {
+                console.error('[Login] PRF extension explicitly disabled');
+                loginFailedWarning = true;
+                isPasskeyLoading = false;
+                isLoading = false;
+                return;
+            }
+            
+            // Extract PRF signature
+            const prfSignatureBuffer = prfResults.results?.first;
+            if (!prfSignatureBuffer) {
+                console.error('[Login] PRF signature not found in results');
+                loginFailedWarning = true;
+                isPasskeyLoading = false;
+                isLoading = false;
+                return;
+            }
+            
+            // Convert PRF signature to Uint8Array (handle multiple formats)
+            let prfSignature: Uint8Array;
+            if (typeof prfSignatureBuffer === 'string') {
+                const hexString = prfSignatureBuffer;
+                prfSignature = new Uint8Array(hexString.match(/.{1,2}/g)!.map(byte => parseInt(byte, 16)));
+            } else if (prfSignatureBuffer instanceof ArrayBuffer) {
+                prfSignature = new Uint8Array(prfSignatureBuffer);
+            } else if (ArrayBuffer.isView(prfSignatureBuffer)) {
+                prfSignature = new Uint8Array(prfSignatureBuffer.buffer, prfSignatureBuffer.byteOffset, prfSignatureBuffer.byteLength);
+            } else {
+                console.error('[Login] PRF signature is in unknown format');
+                loginFailedWarning = true;
+                isPasskeyLoading = false;
+                isLoading = false;
+                return;
+            }
+            
+            // Validate PRF signature length
+            if (prfSignature.length < 16 || prfSignature.length > 64) {
+                console.error('[Login] PRF signature has invalid length:', prfSignature.length);
+                loginFailedWarning = true;
+                isPasskeyLoading = false;
+                isLoading = false;
+                return;
+            }
+            
+            console.log('[Login] PRF signature extracted successfully');
+            
+            // Extract credential data for backend
+            const credentialId = arrayBufferToBase64Url(assertion.rawId);
+            const clientDataJSONB64 = cryptoService.uint8ArrayToBase64(new Uint8Array(response.clientDataJSON));
+            const authenticatorDataB64 = cryptoService.uint8ArrayToBase64(new Uint8Array(response.authenticatorData));
+            
+            // Verify passkey assertion with backend
+            const verifyResponse = await fetch(getApiEndpoint(apiEndpoints.auth.passkey_assertion_verify), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    credential_id: credentialId,
+                    assertion_response: {
+                        authenticatorData: authenticatorDataB64,
+                        clientDataJSON: clientDataJSONB64,
+                        signature: cryptoService.uint8ArrayToBase64(new Uint8Array(response.signature)),
+                        userHandle: response.userHandle ? cryptoService.uint8ArrayToBase64(new Uint8Array(response.userHandle)) : null
+                    },
+                    client_data_json: clientDataJSONB64,
+                    authenticator_data: authenticatorDataB64,
+                    stay_logged_in: stayLoggedIn,
+                    session_id: getSessionId()
+                }),
+                credentials: 'include'
+            });
+            
+            if (!verifyResponse.ok) {
+                const errorData = await verifyResponse.json();
+                console.error('[Login] Passkey assertion verification failed:', errorData);
+                loginFailedWarning = true;
+                isPasskeyLoading = false;
+                isLoading = false;
+                return;
+            }
+            
+            const verifyData = await verifyResponse.json();
+            
+            if (!verifyData.success) {
+                console.error('[Login] Passkey verification failed:', verifyData.message);
+                loginFailedWarning = true;
+                isPasskeyLoading = false;
+                isLoading = false;
+                return;
+            }
+            
+            // Get email salt from backend response
+            let emailSalt = cryptoService.getEmailSalt();
+            if (!emailSalt && verifyData.user_email_salt) {
+                const { base64ToUint8Array } = await import('../services/cryptoService');
+                emailSalt = base64ToUint8Array(verifyData.user_email_salt);
+                cryptoService.saveEmailSalt(emailSalt, stayLoggedIn);
+            }
+            
+            if (!emailSalt) {
+                console.error('[Login] Email salt not found');
+                loginFailedWarning = true;
+                isPasskeyLoading = false;
+                isLoading = false;
+                return;
+            }
+            
+            // Derive wrapping key from PRF signature using HKDF
+            const wrappingKey = await cryptoService.deriveWrappingKeyFromPRF(prfSignature, emailSalt);
+            
+            // Unwrap master key
+            const encryptedMasterKey = verifyData.encrypted_master_key;
+            const keyIv = verifyData.key_iv;
+            
+            if (!encryptedMasterKey || !keyIv) {
+                console.error('[Login] Missing encrypted master key or IV');
+                loginFailedWarning = true;
+                isPasskeyLoading = false;
+                isLoading = false;
+                return;
+            }
+            
+            const masterKey = await cryptoService.decryptKey(encryptedMasterKey, keyIv, wrappingKey);
+            
+            if (!masterKey) {
+                console.error('[Login] Failed to unwrap master key');
+                loginFailedWarning = true;
+                isPasskeyLoading = false;
+                isLoading = false;
+                return;
+            }
+            
+            // Save master key to storage
+            await cryptoService.saveKeyToSession(masterKey, stayLoggedIn);
+            
+            // Decrypt email using master key
+            let userEmail = verifyData.user_email;
+            if (!userEmail && verifyData.encrypted_email) {
+                const { decryptWithMasterKey } = await import('../services/cryptoService');
+                const decryptedEmail = await decryptWithMasterKey(verifyData.encrypted_email);
+                if (decryptedEmail) {
+                    userEmail = decryptedEmail;
+                    console.log('[Login] Email decrypted from encrypted_email using master key');
+                } else {
+                    console.error('[Login] Failed to decrypt email with master key');
+                    loginFailedWarning = true;
+                    isPasskeyLoading = false;
+                    isLoading = false;
+                    return;
+                }
+            }
+            
+            if (!userEmail) {
+                console.error('[Login] Email not available for key derivation');
+                loginFailedWarning = true;
+                isPasskeyLoading = false;
+                isLoading = false;
+                return;
+            }
+            
+            // Derive email encryption key
+            const emailEncryptionKey = await cryptoService.deriveEmailEncryptionKey(userEmail, emailSalt);
+            cryptoService.saveEmailEncryptionKey(emailEncryptionKey, stayLoggedIn);
+            cryptoService.saveEmailSalt(emailSalt, stayLoggedIn);
+            
+            // Generate lookup hash from PRF signature
+            const lookupHash = await cryptoService.hashKeyFromPRF(prfSignature, emailSalt);
+            
+            // Authenticate with lookup_hash to get full auth session
+            if (!verifyData.auth_session) {
+                console.log('[Login] No auth_session in verify response, authenticating with lookup_hash');
+                
+                const hashedEmail = await cryptoService.hashEmail(userEmail);
+                const { getSessionId: getSessionIdUtil } = await import('../utils/sessionId');
+                
+                const authResponse = await fetch(getApiEndpoint(apiEndpoints.auth.login), {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        hashed_email: hashedEmail,
+                        lookup_hash: lookupHash,
+                        email_encryption_key: cryptoService.getEmailEncryptionKeyForApi(),
+                        login_method: 'passkey',
+                        credential_id: credentialId,
+                        stay_logged_in: stayLoggedIn,
+                        session_id: getSessionIdUtil()
+                    }),
+                    credentials: 'include'
+                });
+                
+                if (!authResponse.ok) {
+                    const errorData = await authResponse.json();
+                    console.error('[Login] Passkey authentication failed:', errorData);
+                    loginFailedWarning = true;
+                    isPasskeyLoading = false;
+                    isLoading = false;
+                    return;
+                }
+                
+                const authData = await authResponse.json();
+                
+                if (!authData.success) {
+                    console.error('[Login] Passkey authentication failed:', authData.message);
+                    loginFailedWarning = true;
+                    isPasskeyLoading = false;
+                    isLoading = false;
+                    return;
+                }
+                
+                verifyData.auth_session = {
+                    user: authData.user,
+                    ws_token: authData.ws_token
+                };
+                console.log('[Login] Authentication successful via login endpoint');
+            }
+            
+            // Store email encrypted with master key
+            await cryptoService.saveEmailEncryptedWithMasterKey(userEmail, stayLoggedIn);
+            
+            // Store WebSocket token
+            const wsToken = verifyData.auth_session?.ws_token;
+            if (wsToken) {
+                const { setWebSocketToken } = await import('../utils/cookies');
+                setWebSocketToken(wsToken);
+                console.debug('[Login] WebSocket token stored from login response');
+            }
+            
+            // Update user profile
+            const userData = verifyData.auth_session?.user;
+            if (userData) {
+                const { updateProfile } = await import('../stores/userProfile');
+                const userProfileData = {
+                    username: userData.username || '',
+                    profile_image_url: userData.profile_image_url || null,
+                    credits: userData.credits || 0,
+                    is_admin: userData.is_admin || false,
+                    last_opened: userData.last_opened || '',
+                    tfa_app_name: userData.tfa_app_name || null,
+                    tfa_enabled: userData.tfa_enabled || false,
+                    consent_privacy_and_apps_default_settings: userData.consent_privacy_and_apps_default_settings || false,
+                    consent_mates_default_settings: userData.consent_mates_default_settings || false,
+                    language: userData.language || 'en',
+                    darkmode: userData.darkmode || false
+                };
+                updateProfile(userProfileData);
+                console.log('[Login] User profile updated');
+            }
+            
+            // Dispatch login success
+            email = '';
+            isPasskeyLoading = false;
+            isLoading = false;
+            dispatch('loginSuccess', {
+                user: verifyData.auth_session?.user,
+                isMobile,
+                inSignupFlow: false
+            });
+            
+        } catch (error: any) {
+            console.error('[Login] Error processing passkey assertion:', error);
+            loginFailedWarning = true;
+            isPasskeyLoading = false;
+            isLoading = false;
+        }
+    }
+    
+    /**
+     * Cancel the conditional UI passkey request
+     * Should be called when switching to a different login flow or unmounting
+     */
+    function cancelConditionalUIPasskey() {
+        if (conditionalUIAbortController) {
+            conditionalUIAbortController.abort();
+            conditionalUIAbortController = null;
+            console.log('[Login] Conditional UI passkey request cancelled');
+        }
+    }
 
     // Add debug subscription to track isInSignupProcess changes
     onMount(() => {
@@ -924,6 +1364,12 @@
             // Only focus if not touch device and not authenticated
             if (!$authStore.isAuthenticated && emailInput && !isTouchDevice) {
                 emailInput.focus();
+            }
+            
+            // Start conditional UI passkey flow (autofill passkeys)
+            // This enables the OS/browser to show passkey suggestions in the email input autofill
+            if (!$authStore.isAuthenticated && !$isInSignupProcess) {
+                startConditionalUIPasskey();
             }
 
             // Check if we're still rate limited
@@ -1002,6 +1448,15 @@
         if (connectionTimeoutId) {
             clearTimeout(connectionTimeoutId);
             connectionTimeoutId = null;
+        }
+        
+        // Cancel any pending conditional UI passkey request
+        cancelConditionalUIPasskey();
+        
+        // Cancel any pending manual passkey login request
+        if (passkeyLoginAbortController) {
+            passkeyLoginAbortController.abort();
+            passkeyLoginAbortController = null;
         }
         
         // PRIVACY: Clear pending draft when component is destroyed

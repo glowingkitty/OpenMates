@@ -2,15 +2,22 @@
  * Renderer for app_skill_use embeds (app skill execution results).
  * Handles preview rendering and fullscreen view integration.
  * 
+ * Uses Svelte 5's mount() to render components into DOM elements.
+ * 
  * Supports:
  * - Web search results (parent app_skill_use with child website embeds)
- * - Single result skills (code generation, image generation, etc.)
- * - Loading embed content from EmbedStore via contentRef
+ * - Video transcript skills
+ * - Other app skills (generic fallback)
  */
 
 import type { EmbedRenderer, EmbedRenderContext } from './types';
 import type { EmbedNodeAttributes } from '../../../../message_parsing/types';
 import { resolveEmbed, decodeToonContent } from '../../../../services/embedResolver';
+import { mount, unmount } from 'svelte';
+import WebSearchEmbedPreview from '../../../embeds/WebSearchEmbedPreview.svelte';
+
+// Track mounted components for cleanup
+const mountedComponents = new WeakMap<HTMLElement, ReturnType<typeof mount>>();
 
 export class AppSkillUseRenderer implements EmbedRenderer {
   type = 'app-skill-use';
@@ -34,9 +41,9 @@ export class AppSkillUseRenderer implements EmbedRenderer {
           const skillId = decodedContent.skill_id || '';
           const appId = decodedContent.app_id || '';
           
-          // For web search, render parent embed with child website embeds
+          // For web search, render using Svelte component
           if (skillId === 'search' || appId === 'web') {
-            return this.renderWebSearch(attrs, embedData, decodedContent, content);
+            return this.renderWebSearchComponent(attrs, embedData, decodedContent, content);
           }
           
           // For video transcript, render video transcript preview
@@ -54,29 +61,143 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     content.innerHTML = this.renderProcessingState(attrs);
   }
   
-  private renderWebSearch(
+  /**
+   * Render web search embed using Svelte component
+   * Uses Svelte 5's mount() API to mount the component into the DOM
+   */
+  private renderWebSearchComponent(
     attrs: EmbedNodeAttributes,
     embedData: any,
     decodedContent: any,
     content: HTMLElement
   ): void {
     const query = decodedContent.query || '';
-    const provider = decodedContent.provider || 'Brave';
-    const childEmbedIds = embedData.embed_ids || [];
+    const provider = decodedContent.provider || 'Brave Search';
+    const status = decodedContent.status || attrs.status || 'finished';
+    const taskId = decodedContent.task_id || '';
     
-    // Render web search preview
+    // Parse embed_ids to get results count (for display)
+    // embed_ids may be a pipe-separated string OR an array
+    const rawEmbedIds = decodedContent.embed_ids || embedData.embed_ids || [];
+    const childEmbedIds: string[] = typeof rawEmbedIds === 'string' 
+      ? rawEmbedIds.split('|').filter((id: string) => id.length > 0)
+      : Array.isArray(rawEmbedIds) ? rawEmbedIds : [];
+    
+    // Create placeholder results with favicon URLs from the results data
+    // These will be populated from the decoded content if available
+    const results = decodedContent.results || [];
+    
+    // Cleanup any existing mounted component
+    const existingComponent = mountedComponents.get(content);
+    if (existingComponent) {
+      try {
+        unmount(existingComponent);
+      } catch (e) {
+        console.warn('[AppSkillUseRenderer] Error unmounting existing component:', e);
+      }
+    }
+    
+    // Clear the content element
+    content.innerHTML = '';
+    
+    // Mount the Svelte component
+    try {
+      const embedId = attrs.contentRef?.replace('embed:', '') || '';
+      
+      // Create a handler for fullscreen that dispatches the event
+      const handleFullscreen = () => {
+        this.openFullscreen(attrs, embedData, decodedContent);
+      };
+      
+      const component = mount(WebSearchEmbedPreview, {
+        target: content,
+        props: {
+          id: embedId,
+          query,
+          provider,
+          status: status as 'processing' | 'finished' | 'error',
+          results,
+          taskId,
+          isMobile: false, // Default to desktop in message view
+          onFullscreen: handleFullscreen
+        }
+      });
+      
+      // Store reference for cleanup
+      mountedComponents.set(content, component);
+      
+      console.debug('[AppSkillUseRenderer] Mounted WebSearchEmbedPreview component:', {
+        embedId,
+        query: query.substring(0, 30) + '...',
+        status,
+        resultsCount: results.length,
+        childEmbedIdsCount: childEmbedIds.length
+      });
+      
+    } catch (error) {
+      console.error('[AppSkillUseRenderer] Error mounting Svelte component:', error);
+      // Fallback to HTML rendering
+      this.renderWebSearchHTML(attrs, embedData, decodedContent, content);
+    }
+  }
+  
+  /**
+   * Fallback HTML rendering for web search (used when Svelte mount fails)
+   */
+  private renderWebSearchHTML(
+    attrs: EmbedNodeAttributes,
+    embedData: any,
+    decodedContent: any,
+    content: HTMLElement
+  ): void {
+    const query = decodedContent.query || '';
+    const provider = decodedContent.provider || 'Brave Search';
+    
+    // embed_ids may be a pipe-separated string OR an array - normalize and count
+    const rawEmbedIds = decodedContent.embed_ids || embedData.embed_ids || [];
+    const childEmbedIds: string[] = typeof rawEmbedIds === 'string' 
+      ? rawEmbedIds.split('|').filter((id: string) => id.length > 0)
+      : Array.isArray(rawEmbedIds) ? rawEmbedIds : [];
+    
+    const status = decodedContent.status || attrs.status || 'finished';
+    const resultCount = childEmbedIds.length;
+    
+    // Render web search preview matching Figma design (300x200px desktop, 150x290px mobile)
+    // Use desktop layout by default in message view
     const html = `
-      <div class="embed-app-icon web">
-        <span class="icon icon_web"></span>
-      </div>
-      <div class="embed-text-content">
-        <div class="embed-text-line">Web Search: ${query}</div>
-        <div class="embed-text-line">${provider}</div>
-      </div>
-      <div class="embed-extended-preview">
-        <div class="web-search-preview">
-          <div class="search-query">${query}</div>
-          <div class="search-results-count">${childEmbedIds.length} result${childEmbedIds.length !== 1 ? 's' : ''}</div>
+      <div class="app-skill-preview-container web-search desktop">
+        <div class="app-skill-preview-inner">
+          <!-- Web icon -->
+          <div class="icon_rounded web"></div>
+          
+          <!-- Title section -->
+          <div class="skill-title-section">
+            <div class="skill-title">${this.escapeHtml(query)}</div>
+            <div class="skill-subtitle">via ${this.escapeHtml(provider)}</div>
+          </div>
+          
+          <!-- Status bar -->
+          <div class="skill-status-bar">
+            <div class="icon_rounded search"></div>
+            <div class="skill-status-content">
+              <span class="skill-status-label">Search</span>
+              <span class="skill-status-text">${status === 'processing' ? 'Processing...' : 'Completed'}</span>
+            </div>
+          </div>
+          
+          <!-- Results count (only when finished) -->
+          ${status === 'finished' && resultCount > 0 ? `
+            <div class="skill-results-indicator">
+              ${resultCount} result${resultCount !== 1 ? 's' : ''}
+            </div>
+          ` : ''}
+          
+          <!-- Processing indicator -->
+          ${status === 'processing' ? `
+            <div class="skill-processing-indicator">
+              <div class="processing-dot"></div>
+            </div>
+          ` : ''}
         </div>
       </div>
     `;
@@ -84,12 +205,21 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     content.innerHTML = html;
     
     // Add click handler for fullscreen
-    if (attrs.status === 'finished') {
+    if (status === 'finished') {
       content.addEventListener('click', () => {
         this.openFullscreen(attrs, embedData, decodedContent);
       });
       content.style.cursor = 'pointer';
     }
+  }
+  
+  /**
+   * Escape HTML special characters to prevent XSS
+   */
+  private escapeHtml(text: string): string {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
   }
   
   private renderVideoTranscript(
@@ -110,12 +240,12 @@ export class AppSkillUseRenderer implements EmbedRenderer {
         <span class="icon icon_videos"></span>
       </div>
       <div class="embed-text-content">
-        <div class="embed-text-line">Video Transcript: ${videoTitle}</div>
+        <div class="embed-text-line">Video Transcript: ${this.escapeHtml(videoTitle)}</div>
         <div class="embed-text-line">YouTube Transcript API</div>
       </div>
       <div class="embed-extended-preview">
         <div class="video-transcript-preview">
-          <div class="transcript-title">${videoTitle}</div>
+          <div class="transcript-title">${this.escapeHtml(videoTitle)}</div>
           ${wordCount > 0 ? `<div class="transcript-word-count">${wordCount.toLocaleString()} words</div>` : ''}
           ${videoCount > 1 ? `<div class="transcript-video-count">${videoCount} videos</div>` : ''}
         </div>
@@ -148,7 +278,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
         <span class="icon icon_${appId}"></span>
       </div>
       <div class="embed-text-content">
-        <div class="embed-text-line">${title}</div>
+        <div class="embed-text-line">${this.escapeHtml(title)}</div>
         <div class="embed-text-line">${appId} | ${skillId}</div>
       </div>
       <div class="embed-extended-preview">
@@ -219,4 +349,3 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     return `[App Skill: ${attrs.type}]`;
   }
 }
-

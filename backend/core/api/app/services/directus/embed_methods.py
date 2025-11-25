@@ -214,15 +214,19 @@ class EmbedMethods:
                 logger.error(f"No Directus ID found for embed: {embed_id}")
                 return None
             
-            # Update the embed
+            # Update the embed - ensure fresh auth token
             url = f"{self.directus_service.base_url}/items/embeds/{directus_id}"
-            headers = {"Authorization": f"Bearer {self.directus_service.token}"}
+            token = await self.directus_service.ensure_auth_token()
+            if not token:
+                logger.error(f"Failed to get auth token for embed update: {embed_id}")
+                return None
+            headers = {"Authorization": f"Bearer {token}"}
             
-            async with self.directus_service._client.patch(url, json=update_data, headers=headers) as response:
-                response.raise_for_status()
-                updated_embed = response.json().get('data')
-                logger.info(f"Successfully updated embed {embed_id}")
-                return updated_embed
+            response = await self.directus_service._client.patch(url, json=update_data, headers=headers)
+            response.raise_for_status()
+            updated_embed = response.json().get('data')
+            logger.info(f"Successfully updated embed {embed_id}")
+            return updated_embed
         except Exception as e:
             logger.error(f"Error updating embed {embed_id}: {e}", exc_info=True)
             return None
@@ -256,4 +260,58 @@ class EmbedMethods:
         except Exception as e:
             logger.error(f"Error checking for duplicate embed: {e}", exc_info=True)
             return None
+    
+    async def delete_all_embeds_for_chat(self, hashed_chat_id: str) -> bool:
+        """
+        Deletes ALL embeds for a specific chat from Directus.
+        
+        This is called when a chat is deleted to clean up orphaned embeds.
+        Only deletes embeds that:
+        1. Are not shared (share_mode != 'shared' or share_mode is null)
+        2. Belong exclusively to this chat
+        
+        Args:
+            hashed_chat_id: SHA256 hash of the chat_id to delete embeds for
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        logger.info(f"Attempting to delete all embeds for hashed_chat_id: {hashed_chat_id[:16]}... from Directus.")
+        try:
+            # Query for all embeds belonging to this chat that are not shared
+            params = {
+                'filter[hashed_chat_id][_eq]': hashed_chat_id,
+                'filter[_or][0][share_mode][_null]': 'true',  # share_mode is null
+                'filter[_or][1][share_mode][_eq]': 'private',  # share_mode is 'private'
+                'fields': 'id,embed_id',
+                'limit': -1  # Get all
+            }
+            
+            response = await self.directus_service.get_items('embeds', params=params, no_cache=True)
+            
+            if not response or not isinstance(response, list) or len(response) == 0:
+                logger.info(f"No private embeds found for hashed_chat_id: {hashed_chat_id[:16]}... (nothing to delete)")
+                return True
+            
+            embed_ids = [embed.get('id') for embed in response if embed.get('id')]
+            embed_uuid_ids = [embed.get('embed_id') for embed in response if embed.get('embed_id')]
+            
+            logger.info(f"Found {len(embed_ids)} private embed(s) to delete for hashed_chat_id: {hashed_chat_id[:16]}...")
+            
+            if not embed_ids:
+                logger.info("No embed IDs found to delete.")
+                return True
+            
+            # Use bulk delete
+            success = await self.directus_service.delete_items('embeds', embed_ids)
+            
+            if success:
+                logger.info(f"Successfully deleted {len(embed_ids)} embeds for hashed_chat_id: {hashed_chat_id[:16]}... (embed_ids: {embed_uuid_ids[:5]}...)")
+            else:
+                logger.warning(f"Bulk delete failed for embeds of hashed_chat_id: {hashed_chat_id[:16]}...")
+            
+            return success
+        except Exception as e:
+            logger.error(f"Error deleting all embeds for hashed_chat_id: {hashed_chat_id[:16]}...: {e}", exc_info=True)
+            return False
 

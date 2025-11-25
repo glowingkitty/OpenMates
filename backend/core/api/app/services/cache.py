@@ -43,13 +43,16 @@ class CacheService(
         super().__init__()
         logger.info("CacheService fully initialized with all mixins.")
 
-    async def set_discovered_apps_metadata(self, metadata: Dict[str, AppYAML], ttl: int = 3600):
+    async def set_discovered_apps_metadata(self, metadata: Dict[str, AppYAML]):
         """
-        Serializes and stores the discovered applications metadata in the cache.
+        Serializes and stores the discovered applications metadata in the cache WITHOUT expiration.
+
+        This data is static during server runtime - it only changes when the server restarts.
+        No TTL is used because this data should persist indefinitely until the next server restart.
+        CRITICAL: If this cache entry is missing, the LLM will have NO tools available for web search, etc.
 
         Args:
             metadata (Dict[str, AppYAML]): A dictionary of app IDs to their AppYAML metadata.
-            ttl (int): Time-to-live for the cached data in seconds. Defaults to 1 hour.
         """
         try:
             # Convert Pydantic models to dictionaries for JSON serialization
@@ -59,8 +62,16 @@ class CacheService(
                 app_id: data.model_dump(mode='json', by_alias=True) for app_id, data in metadata.items()
             }
             metadata_json = json.dumps(serializable_metadata)
-            await self.set(DISCOVERED_APPS_METADATA_CACHE_KEY, metadata_json, ttl=ttl)
-            logger.info(f"Successfully cached discovered_apps_metadata to Redis with key '{DISCOVERED_APPS_METADATA_CACHE_KEY}'.")
+            
+            # Use Redis SET directly without TTL (no expiration)
+            # The base self.set() method always uses SETEX which requires a TTL
+            # For static data like discovered_apps_metadata, we want no expiration
+            client = await self.client
+            if client:
+                await client.set(DISCOVERED_APPS_METADATA_CACHE_KEY, metadata_json)
+                logger.info(f"Successfully cached discovered_apps_metadata to Redis with key '{DISCOVERED_APPS_METADATA_CACHE_KEY}' (no expiration).")
+            else:
+                logger.error(f"Failed to cache discovered_apps_metadata: Redis client not available.")
         except Exception as e:
             logger.error(f"Failed to set discovered_apps_metadata in cache: {e}", exc_info=True)
             # Optionally re-raise or handle as per application's error strategy

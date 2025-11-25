@@ -655,6 +655,14 @@
         //    panelState.toggleActivityHistory(); // Or a specific close action
         // }
     }
+
+    // Reset the active chat UI when the sidebar reports that a chat was deselected (e.g., after deletion)
+    async function handleChatDeselected() {
+        if (activeChat?.resetToNewChat) {
+            console.debug("[+page.svelte] chatDeselected event received - resetting ActiveChat to new chat state");
+            await activeChat.resetToNewChat();
+        }
+    }
 </script>
 
 <!-- SEO meta tags - client-side with translations -->
@@ -684,7 +692,10 @@
     {#if $panelState.isActivityHistoryOpen}
         <!-- Sidebar content - transition handled by parent sidebar transform -->
         <div class="sidebar-content">
-            <Chats on:chatSelected={handleChatSelected} />
+            <Chats 
+                on:chatSelected={handleChatSelected} 
+                on:chatDeselected={handleChatDeselected}
+            />
         </div>
     {/if}
 </div>

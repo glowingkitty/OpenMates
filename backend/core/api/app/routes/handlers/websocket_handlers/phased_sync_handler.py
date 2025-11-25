@@ -392,7 +392,19 @@ async def _handle_phase1_sync(
                 except Exception as parse_err:
                     logger.error(f"[DIRECTUS_VALIDATION] Failed to parse first message from Directus: {parse_err}")
         
-        # Send Phase 1 data to client WITH suggestions (always)
+        # Get embeds from sync cache for this chat
+        embeds_data = await cache_service.get_sync_embeds_for_chat(chat_id)
+        if embeds_data:
+            logger.info(f"Phase 1: Retrieved {len(embeds_data)} embeds from sync cache for chat {chat_id}")
+        else:
+            # Fallback: try to get embeds from Directus if not in sync cache
+            import hashlib
+            hashed_chat_id = hashlib.sha256(chat_id.encode()).hexdigest()
+            embeds_data = await directus_service.embed.get_embeds_by_hashed_chat_id(hashed_chat_id)
+            if embeds_data:
+                logger.info(f"Phase 1: Retrieved {len(embeds_data)} embeds from Directus for chat {chat_id}")
+        
+        # Send Phase 1 data to client WITH suggestions (always) AND embeds
         await manager.send_personal_message(
             {
                 "type": "phase_1_last_chat_ready",
@@ -400,6 +412,7 @@ async def _handle_phase1_sync(
                     "chat_id": chat_id,
                     "chat_details": chat_details,
                     "messages": messages_data or [],
+                    "embeds": embeds_data or [],  # Include embeds for client-side storage
                     "new_chat_suggestions": new_chat_suggestions,  # Always include suggestions
                     "phase": "phase1",
                     "already_synced": False
@@ -409,7 +422,7 @@ async def _handle_phase1_sync(
             device_fingerprint_hash
         )
         
-        logger.info(f"Phase 1 sync complete for user {user_id}, chat: {chat_id}, sent: {len(messages_data or [])} messages and {len(new_chat_suggestions)} suggestions")
+        logger.info(f"Phase 1 sync complete for user {user_id}, chat: {chat_id}, sent: {len(messages_data or [])} messages, {len(embeds_data or [])} embeds, and {len(new_chat_suggestions)} suggestions")
         
     except Exception as e:
         logger.error(f"Error in Phase 1 sync for user {user_id}: {e}", exc_info=True)
@@ -686,6 +699,30 @@ async def _handle_phase2_sync(
         
             logger.info(f"Phase 2: Total chats with messages added: {messages_added_count}/{len(chats_to_send)} (sync cache hits: {messages_added_count - len(chat_ids_to_fetch_from_directus)}, directus fetches: {len(chat_ids_to_fetch_from_directus)})")
         
+        # Add embeds for each chat
+        import hashlib
+        embeds_total = 0
+        for chat_wrapper in chats_to_send:
+            chat_id = chat_wrapper.get("chat_details", {}).get("id")
+            if chat_id:
+                try:
+                    # Try sync cache first, then Directus fallback
+                    embeds = await cache_service.get_sync_embeds_for_chat(chat_id)
+                    if not embeds:
+                        # Fallback to Directus
+                        hashed_chat_id = hashlib.sha256(chat_id.encode()).hexdigest()
+                        embeds = await directus_service.embed.get_embeds_by_hashed_chat_id(hashed_chat_id)
+                    
+                    if embeds:
+                        chat_wrapper["embeds"] = embeds
+                        embeds_total += len(embeds)
+                        logger.debug(f"Phase 2: Added {len(embeds)} embeds for chat {chat_id}")
+                except Exception as e:
+                    logger.warning(f"Phase 2: Error fetching embeds for chat {chat_id}: {e}")
+        
+        if embeds_total > 0:
+            logger.info(f"Phase 2: Total embeds added: {embeds_total} across {len(chats_to_send)} chats")
+        
         # Send Phase 2 data to client (only chats that need updating)
         await manager.send_personal_message(
             {
@@ -700,7 +737,7 @@ async def _handle_phase2_sync(
             device_fingerprint_hash
         )
         
-        logger.info(f"Phase 2 sync complete for user {user_id}, sent: {len(chats_to_send)} chats, skipped: {chats_skipped}")
+        logger.info(f"Phase 2 sync complete for user {user_id}, sent: {len(chats_to_send)} chats, {embeds_total} embeds, skipped: {chats_skipped}")
         
     except Exception as e:
         logger.error(f"Error in Phase 2 sync for user {user_id}: {e}", exc_info=True)
@@ -965,6 +1002,30 @@ async def _handle_phase3_sync(
 
                 logger.info(f"Phase 3: Total chats with messages added: {messages_added_count}/{len(chats_to_send)} (sync cache hits: {messages_added_count - len(chat_ids_to_fetch_from_directus)}, directus fetches: {len(chat_ids_to_fetch_from_directus)})")
 
+        # Add embeds for each chat
+        import hashlib
+        embeds_total = 0
+        for chat_wrapper in chats_to_send:
+            chat_id = chat_wrapper.get("chat_details", {}).get("id")
+            if chat_id:
+                try:
+                    # Try sync cache first, then Directus fallback
+                    embeds = await cache_service.get_sync_embeds_for_chat(chat_id)
+                    if not embeds:
+                        # Fallback to Directus
+                        hashed_chat_id = hashlib.sha256(chat_id.encode()).hexdigest()
+                        embeds = await directus_service.embed.get_embeds_by_hashed_chat_id(hashed_chat_id)
+                    
+                    if embeds:
+                        chat_wrapper["embeds"] = embeds
+                        embeds_total += len(embeds)
+                        logger.debug(f"Phase 3: Added {len(embeds)} embeds for chat {chat_id}")
+                except Exception as e:
+                    logger.warning(f"Phase 3: Error fetching embeds for chat {chat_id}: {e}")
+        
+        if embeds_total > 0:
+            logger.info(f"Phase 3: Total embeds added: {embeds_total} across {len(chats_to_send)} chats")
+
         # Send Phase 3 data to client (chats only - NO suggestions, always sent in Phase 1)
         await manager.send_personal_message(
             {
@@ -979,7 +1040,7 @@ async def _handle_phase3_sync(
             device_fingerprint_hash
         )
 
-        logger.info(f"Phase 3 sync complete for user {user_id}, sent: {len(chats_to_send)} chats (skipped: {chats_skipped})")
+        logger.info(f"Phase 3 sync complete for user {user_id}, sent: {len(chats_to_send)} chats, {embeds_total} embeds (skipped: {chats_skipped})")
         
         # Clear sync cache after successful Phase 3 completion (1h TTL, no longer needed)
         try:

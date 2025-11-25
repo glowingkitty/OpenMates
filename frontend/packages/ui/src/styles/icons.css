@@ -303,6 +303,11 @@ div.clickable-icon {
   mask-image: url('@openmates/ui/static/icons/create.svg');
 }
 
+.clickable-icon.icon_select {
+  -webkit-mask-image: url('@openmates/ui/static/icons/select.svg');
+  mask-image: url('@openmates/ui/static/icons/select.svg');
+}
+
 .clickable-icon.icon_filter {
   -webkit-mask-image: url('@openmates/ui/static/icons/filter.svg');
   mask-image: url('@openmates/ui/static/icons/filter.svg');
@@ -606,6 +611,39 @@ div.clickable-icon {
   background: var(--color-app-books);
   &::after {
     background-image: url('@openmates/ui/static/icons/book.svg');
+  }
+}
+
+/* Skill icons - used in app skill previews for specific skill types */
+.icon_rounded.search {
+  /* Search skill icon - grey background, search icon */
+  background: var(--color-grey-50, #8E8E93);
+  &::after {
+    background-image: url('@openmates/ui/static/icons/search.svg');
+  }
+}
+
+.icon_rounded.get_transcript {
+  /* Video transcript skill icon */
+  background: var(--color-grey-50, #8E8E93);
+  &::after {
+    background-image: url('@openmates/ui/static/icons/videos.svg');
+  }
+}
+
+.icon_rounded.read {
+  /* Web read skill icon */
+  background: var(--color-grey-50, #8E8E93);
+  &::after {
+    background-image: url('@openmates/ui/static/icons/book.svg');
+  }
+}
+
+.icon_rounded.view {
+  /* Web view skill icon - use visible icon instead of eye */
+  background: var(--color-grey-50, #8E8E93);
+  &::after {
+    background-image: url('@openmates/ui/static/icons/visible.svg');
   }
 }
 

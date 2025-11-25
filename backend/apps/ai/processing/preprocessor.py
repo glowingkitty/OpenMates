@@ -5,7 +5,8 @@ import logging
 from typing import Dict, Any, List, Optional
 import unicodedata # For Unicode normalization
 import re # For removing non-printable characters
- 
+import datetime # For current date/time in system prompt
+
 from backend.core.api.app.services.cache import CacheService # Corrected import path
  
 # Import the new LLM utility
@@ -239,6 +240,7 @@ async def handle_preprocessing(
     # Note: No stage filtering needed here - discovered_apps_metadata already contains only apps
     # with valid stages (filtered during server startup). All skills in these apps are valid.
     available_skills_list: List[str] = []
+
     if discovered_apps_metadata:
         for app_id, app_metadata in discovered_apps_metadata.items():
             if app_metadata and app_metadata.skills:
@@ -247,7 +249,7 @@ async def handle_preprocessing(
                     if app_id == "ai" and skill.id == "ask":
                         logger.debug(f"{log_prefix} Skipping skill '{skill.id}' from app '{app_id}' - this is the main processing entry point, not a tool")
                         continue
-                    
+
                     # No stage filtering needed - discovered_apps_metadata already contains only apps
                     # with valid stages (filtered during server startup via should_include_app_by_stage)
                     # Use hyphen format for skill identifiers (consistent with tool names)
@@ -274,10 +276,15 @@ async def handle_preprocessing(
     if preprocessing_fallbacks:
         logger.info(f"{log_prefix} Resolved {len(preprocessing_fallbacks)} fallback server(s) for preprocessing: {preprocessing_fallbacks}")
 
-    # Build dynamic context with categories and available app skills
+    # Build dynamic context with categories and available app skills (with descriptions)
+    # Include current date/time so preprocessing LLM knows temporal context
+    now = datetime.datetime.now(datetime.timezone.utc)
+    date_time_str = now.strftime("%Y-%m-%d %H:%M:%S %Z")
+
     dynamic_context = {
         "CATEGORIES_LIST": available_categories_list,
-        "AVAILABLE_APP_SKILLS": available_skills_list if available_skills_list else []
+        "AVAILABLE_APP_SKILLS": available_skills_list if available_skills_list else [],
+        "CURRENT_DATE_TIME": date_time_str
     }
 
     llm_call_result: LLMPreprocessingCallResult = await call_preprocessing_llm(

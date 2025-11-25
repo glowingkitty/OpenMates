@@ -458,6 +458,29 @@ buy_credits_description:
   cs: Kupte si kredity pro použití se službami OpenMates AI
   sv: Köp krediter för att använda med OpenMates AI-tjänster
   verified_by_human: []
+buy_credits.confirmation:
+  context: Payment confirmation page title
+  en: Purchase Successful
+  de: Kauf erfolgreich
+  zh: 购买成功
+  es: Compra exitosa
+  fr: Achat réussi
+  pt: Compra bem-sucedida
+  ru: Покупка успешна
+  ja: 購買成功
+  ko: 구매 성공
+  it: Acquisto riuscito
+  tr: Satın alma başarılı
+  vi: Mua thành công
+  id: Pembelian Berhasil
+  pl: Zakup zakończony pomyślnie
+  nl: Aankoop succesvol
+  ar: الشراء ناجح
+  hi: खरीद सफल
+  th: ซื้อสำเร็จ
+  cs: Nákup úspěšný
+  sv: Köp lyckat
+  verified_by_human: []
 auto_topup:
   context: Auto top-up menu item
   en: Auto Top-Up

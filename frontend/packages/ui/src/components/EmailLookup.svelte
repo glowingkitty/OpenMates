@@ -319,7 +319,7 @@
                         bind:this={emailInput}
                         placeholder={$text('login.email_placeholder.text')}
                         required
-                        autocomplete="username"
+                        autocomplete="username webauthn"
                         class:error={!!emailError || loginFailedWarning || $sessionExpiredWarning}
                     />
                     {#if showEmailWarning && emailError}

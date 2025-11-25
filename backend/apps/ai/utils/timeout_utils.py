@@ -7,14 +7,14 @@ from typing import AsyncIterator, TypeVar, Optional
 
 logger = logging.getLogger(__name__)
 
-# Hardcoded timeout for first chunk (5000ms = 5 seconds)
+# Hardcoded timeout for first chunk (10000ms = 10 seconds)
 # This is used for streaming requests to detect if the stream is alive
-FIRST_CHUNK_TIMEOUT_MS = 5000
+FIRST_CHUNK_TIMEOUT_MS = 10000
 FIRST_CHUNK_TIMEOUT_SECONDS = FIRST_CHUNK_TIMEOUT_MS / 1000.0
 
-# Timeout for non-streaming preprocessing requests (5 seconds)
+# Timeout for non-streaming preprocessing requests (10 seconds)
 # Preprocessing requests should complete quickly; if they take longer, the provider is likely having issues
-PREPROCESSING_TIMEOUT_SECONDS = 5.0
+PREPROCESSING_TIMEOUT_SECONDS = 10.0
 
 T = TypeVar('T')
 

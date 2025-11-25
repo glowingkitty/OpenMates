@@ -20,7 +20,8 @@ import type {
     SendChatMessagePayload,
     SetActiveChatPayload,
     CancelAITaskPayload,
-    SyncOfflineChangesPayload // Assuming this is used by a sender method if sendOfflineChanges is moved
+    SyncOfflineChangesPayload, // Assuming this is used by a sender method if sendOfflineChanges is moved
+    StoreEmbedPayload
 } from '../types/chat'; // Adjust path as necessary
 
 // Note: The actual payload interface definitions for client-to-server messages
@@ -39,7 +40,7 @@ export async function sendUpdateTitleImpl(
     const { encryptWithChatKey } = await import('./cryptoService');
     
     // Encrypt title with chat-specific key for server storage/syncing
-    const encryptedTitle = encryptWithChatKey(new_title, chatKey);
+    const encryptedTitle = await encryptWithChatKey(new_title, chatKey);
     if (!encryptedTitle) {
         notificationStore.error('Failed to encrypt title - chat key not available');
         return;
@@ -539,7 +540,7 @@ export async function sendEncryptedStoragePackage(
         if (!encryptedChatKey) {
             console.warn(`[ChatSyncService:Senders] ⚠️ encrypted_chat_key missing for ${chat_id}, generating and saving now (defensive fix)`);
             const { encryptChatKeyWithMasterKey } = await import('./cryptoService');
-            encryptedChatKey = encryptChatKeyWithMasterKey(chatKey);
+            encryptedChatKey = await encryptChatKeyWithMasterKey(chatKey);
 
             if (encryptedChatKey) {
                 // Update chat in DB with the encrypted key
@@ -768,5 +769,27 @@ export async function sendPostProcessingMetadataImpl(
     } catch (error) {
         console.error('[ChatSyncService:Senders] Error sending post-processing metadata:', error);
         throw error; // Don't swallow errors
+    }
+}
+
+/**
+ * Send encrypted embed to server for Directus storage
+ */
+export async function sendStoreEmbedImpl(
+    serviceInstance: ChatSynchronizationService,
+    payload: StoreEmbedPayload
+): Promise<void> {
+    if (!serviceInstance.webSocketConnected_FOR_SENDERS_ONLY) {
+        console.warn('[ChatSyncService:Senders] Cannot send store_embed - WebSocket not connected');
+        // TODO: Queue for offline sync?
+        return;
+    }
+
+    try {
+        console.debug(`[ChatSyncService:Senders] Sending encrypted embed ${payload.embed_id} to server`);
+        await webSocketService.sendMessage('store_embed', payload);
+    } catch (error) {
+        console.error('[ChatSyncService:Senders] Error sending store_embed:', error);
+        throw error;
     }
 }

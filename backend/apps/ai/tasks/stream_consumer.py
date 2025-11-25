@@ -230,7 +230,7 @@ async def _save_to_cache_and_publish(
             sender_name=None,  # Assistant doesn't have a sender_name
             encrypted_content=encrypted_content_for_cache,  # Server-side encrypted content
             created_at=timestamp,
-            status="delivered"
+            status="synced"
         )
         
         await cache_service.save_chat_message_and_update_versions(
@@ -262,6 +262,7 @@ async def _save_to_cache_and_publish(
         }
         
         persisted_channel = f"ai_message_persisted::{request_data.user_id_hash}"
+        logger.info(f"{log_prefix} Publishing 'ai_message_persisted' event with status: {persisted_event_payload['message']['status']}")
         await _publish_to_redis(
             cache_service, persisted_channel, persisted_event_payload,
             log_prefix, f"Published 'ai_message_persisted' event to channel '{persisted_channel}'"
@@ -692,39 +693,16 @@ async def _consume_main_processing_stream(
     
     # Prepend code block with tool calls info if any tool calls were made
     # This allows the frontend to display skill input/output and enables follow-up questions
+    # NOTE: With the new Embeds Architecture, we NO LONGER prepend the TOON code block.
+    # Tool results are displayed via Embeds (streamed as chunks during execution).
+    # Prepending raw TOON data would cause it to be rendered as text/code block at the start of the message,
+    # which is redundant and confusing for the user.
+    # We still track tool_calls_info for logging and potential future use, but we don't inject it into the message content.
     if tool_calls_info and len(tool_calls_info) > 0:
-        try:
-            from toon_format import encode
-            
-            # Format tool calls info as TOON
-            # Structure: { "skill_calls": [ { "app_id", "skill_id", "input", "preview_data" (contains results_toon), "ignore_fields_for_inference" }, ... ] }
-            # NOTE: We don't include output_toon separately - it's already in preview_data.results_toon to avoid duplication
-            skill_calls_data = {
-                "skill_calls": tool_calls_info
-            }
-            
-            # Encode as TOON
-            # This creates pure TOON format (not YAML) - TOON uses tabular arrays and compact syntax
-            tool_calls_toon = encode(skill_calls_data)
-            
-            # Create markdown code block with TOON content
-            # The frontend can decode this TOON string to get all skill call details
-            code_block = f"```toon\n{tool_calls_toon}\n```\n\n"
-            
-            # Prepend code block to aggregated response
-            aggregated_response = code_block + aggregated_response
-            
-            logger.info(
-                f"{log_prefix} Prepended TOON code block with {len(tool_calls_info)} tool call(s) to assistant response. "
-                f"Code block length: {len(tool_calls_toon)} chars"
-            )
-        except Exception as e:
-            logger.error(
-                f"{log_prefix} Failed to format tool calls as TOON code block: {e}. "
-                f"Response saved without code block.",
-                exc_info=True
-            )
-            # Continue without code block - don't fail the entire response
+        logger.info(
+            f"{log_prefix} Skipped prepending TOON code block (Embeds Architecture active). "
+            f"Tool results are handled via Embeds."
+        )
     
     log_msg_suffix = f"Total chunks: {stream_chunk_count}. Aggregated response length: {len(aggregated_response)}."
     stream_error_message_for_log: Optional[str] = None

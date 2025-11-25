@@ -123,11 +123,15 @@ embeds:
     content_hash:
       type: string
       note: "[Indexed] SHA256 hash of embed content. Used for duplicate detection (file, code, sheet, document) and change detection (versioning). Not used for website, place, event, or app_skill_use embeds."
-    
+
+    text_length_chars:
+      type: integer
+      note: "Character count of text-based embed content (code, table, document, app_skill_use TOON output). For app_skill_use, counts cleartext TOON characters. Used by LLM to decide when to reload full embed after chat compression. Null for non-text embeds (website, place, event without substantial text)."
+
     created_at:
       type: integer
       note: "Unix timestamp (seconds) when the embed was created. Provided by the application."
-    
+
     updated_at:
       type: integer
       note: "Unix timestamp (seconds) when the embed was last updated. Used for task completion updates and versioning."
@@ -135,25 +139,28 @@ embeds:
 
 ### Client-Side EmbedStore (IndexedDB)
 
-Embeds are also stored in the client-side EmbedStore for fast local access:
+Embeds are also stored in the client-side EmbedStore for fast local access. **IMPORTANT**: All content in IndexedDB is stored **encrypted** - plaintext is never stored client-side.
 
 ```typescript
 interface EmbedStoreEntry {
   embed_id: string;
-  type: EmbedType; // Decrypted type (client-side only, never sent to server)
+  type: EmbedType; // Decrypted type (client-side only, never sent to server in plaintext)
   status: 'processing' | 'finished' | 'error';
-  content: string; // TOON-encoded string (decoded when needed for rendering or inference)
+  encrypted_content: string; // CLIENT-ENCRYPTED TOON-encoded string (encrypted with master key)
+  // CRITICAL: Content is ALWAYS stored encrypted in IndexedDB
+  // Server sends plaintext TOON → Client encrypts immediately → Stores encrypted
+  // Decrypted on-demand when needed for rendering or inference
   // TOON format reduces storage by 30-60% compared to JSON while preserving all data
-  // Content is stored as TOON string, decoded only when needed (rendering, inference)
-  text_preview?: string; // Lightweight text preview (always synced, for text-based embeds)
+  encrypted_text_preview?: string; // CLIENT-ENCRYPTED lightweight text preview (for text-based embeds)
   task_id?: string; // Plaintext task_id (client-side only, hashed before sending to server)
   chat_id?: string; // Plaintext chat_id (client-side only, hashed before sending to server)
   message_id?: string; // Plaintext message_id (client-side only, hashed before sending to server)
   parent_embed_id?: string; // For versioned embeds
   version_number?: number;
-  diff?: string; // Unified diff for file updates
+  encrypted_diff?: string; // CLIENT-ENCRYPTED unified diff for file updates
   file_path?: string; // For detecting file updates
   content_hash?: string; // SHA256 hash for deduplication
+  text_length_chars?: number; // Character count for text-based embeds (LLM compression decision)
   share_mode: 'private' | 'shared_with_user' | 'public';
   createdAt: number;
   updatedAt: number;
@@ -301,45 +308,53 @@ Each website embed (referenced in `embed_ids`, type: `website`) contains:
 1. Skill executes and returns results (JSON format)
 2. **Immediately after skill execution** (before LLM inference continues):
    - **For composite results** (web search, places, events):
-     - Convert each result to TOON format
+     - Convert each result to TOON format (plaintext)
      - Create child embed entries (one per result): `website`, `place`, or `event` embeds
-       - Each child embed: `content` field contains TOON-encoded result data
+       - Each child embed: `content` field contains TOON-encoded result data (plaintext)
      - Create parent embed entry: `app_skill_use` embed
-       - Parent embed `content`: TOON-encoded metadata (query, provider, skill name, etc.)
+       - Parent embed `content`: TOON-encoded metadata (query, provider, skill name, etc.) (plaintext)
        - Parent embed `embed_ids`: Array of child embed IDs
    - **For single results** (code generation, image generation):
-     - Convert result to TOON format
+     - Convert result to TOON format (plaintext)
      - Create single `app_skill_use` embed entry
-     - Embed `content`: TOON-encoded result data
+     - Embed `content`: TOON-encoded result data (plaintext)
      - Check for duplicates using `content_hash` (if applicable)
      - `embed_ids`: null (no child embeds)
-3. **Server-Side Caching**:
-   - Encrypt embeds with vault key (`encryption_key_user_server`)
+3. **Dual Encryption - Server-Side Caching**:
+   - Encrypt embeds with vault key (`encryption_key_user_server`) for AI inference cache
    - Cache at `embed:{embed_id}` (24h TTL, global cache)
    - Add to `chat:{chat_id}:embed_ids` index for eviction
-   - Content stored as TOON string (no conversion needed)
-4. **Stream Embed Reference Chunk**:
+   - Content stored as vault-encrypted TOON string (server can decrypt for AI context)
+4. **Send Plaintext TOON to Client via WebSocket**:
+   - Send `send_embed_data` WebSocket event with PLAINTEXT TOON content
+   - Payload: `embed_id`, `type` (plaintext), `content` (plaintext TOON), `text_preview`, `status`, metadata
+   - Client receives plaintext TOON (server vault encryption is separate, client cannot decrypt vault-encrypted data)
+   - **CRITICAL**: Client receives plaintext, NEVER stores plaintext - encrypts immediately before storage
+5. **Stream Embed Reference Chunk**:
    - Create embed reference JSON: `{"type": "app_skill_use", "embed_id": "..."}`
    - Stream as markdown code block chunk to frontend immediately
-   - Frontend receives chunk, parses embed reference, loads embed from cache
-   - Frontend renders embed preview immediately (user sees results!)
-5. **LLM Inference Continues**:
+   - Frontend receives chunk, parses embed reference, waits for `send_embed_data` event
+   - Frontend renders embed preview immediately when data arrives (user sees results!)
+6. **LLM Inference Continues**:
    - LLM receives filtered skill results (for inference efficiency)
    - LLM processes results and generates response
    - LLM can place additional embed references anywhere in response (flexible placement)
-6. **Client-Side Storage** (after response completes):
-   - Client receives embed references in message markdown
-   - Client loads embeds from server cache or Directus
+7. **Client-Side Encryption and Storage**:
+   - Client receives plaintext TOON via `send_embed_data` WebSocket event
+   - **NEVER stores plaintext** - encrypts immediately before any storage
    - **Client-Side Privacy Protection**:
      - Hash `chat_id`, `message_id`, `task_id` using SHA256 (one-way, protects privacy)
-     - Encrypt `type` with same key as `encrypted_content` (server cannot determine embed type)
-     - Re-encrypt embed content with client-side key (`encryption_key_embed`) for zero-knowledge storage
-   - Store embeds in EmbedStore (IndexedDB) with TOON content
-   - Send client-encrypted embeds to server for Directus storage (zero-knowledge)
-7. **Server Permanent Storage**:
-   - Server stores client-encrypted embeds in Directus (cannot decrypt)
+     - Encrypt `type` with master key (server cannot determine embed type)
+     - Encrypt `content` (TOON string) with master key (`encryption_key_embed` derived from master)
+     - Encrypt `text_preview` with same key
+     - Encrypt `diff` with same key (for versioned embeds)
+   - Store encrypted embeds in EmbedStore (IndexedDB) - **all content encrypted**
+   - Send client-encrypted embeds to server via `store_embed` WebSocket event for Directus storage
+8. **Server Permanent Storage (Zero-Knowledge)**:
+   - Server receives client-encrypted embeds via `store_embed` WebSocket event
+   - Server stores client-encrypted embeds in Directus (cannot decrypt - zero-knowledge)
    - Embeds stored with hashed IDs and encrypted type
-   - Content remains as TOON string (efficient storage)
+   - Content remains as client-encrypted TOON string (efficient storage)
 
 **Long-Running Tasks**:
 1. Skill execution starts, returns `task_id` immediately
@@ -511,6 +526,178 @@ Some app skills take seconds or minutes to complete (e.g., image generation, vid
   }
 }
 ```
+
+## WebSocket Events for Embed Transfer
+
+All embed data transfer happens via WebSocket (not HTTP) to maintain real-time synchronization and zero-knowledge architecture.
+
+### `send_embed_data` (Server → Client)
+
+**Purpose**: Send plaintext TOON embed content to client for encryption and storage.
+
+**When**: Immediately after embed creation (skill execution) or when client requests embed data.
+
+**Direction**: Server → Client
+
+**Payload**:
+```json
+{
+  "event": "send_embed_data",
+  "payload": {
+    "embed_id": "550e8400-e29b-41d4-a716-446655440000",
+    "type": "app_skill_use", // Plaintext type (client will encrypt before storage)
+    "content": "...", // Plaintext TOON-encoded string (client will encrypt before storage)
+    "text_preview": "...", // Plaintext text preview (client will encrypt before storage)
+    "status": "finished",
+    "chat_id": "abc123...", // Plaintext chat_id (client will hash before sending to server)
+    "message_id": "def456...", // Plaintext message_id (client will hash before sending to server)
+    "task_id": "ghi789...", // Optional, for long-running tasks (client will hash)
+    "embed_ids": ["child1", "child2"], // For composite embeds (app_skill_use)
+    "parent_embed_id": null, // For versioned embeds
+    "version_number": 1,
+    "file_path": null, // For code/file embeds
+    "content_hash": "sha256...", // For deduplication
+    "text_length_chars": 1234, // Character count for text-based embeds (LLM compression decision)
+    "share_mode": "private",
+    "createdAt": 1234567890,
+    "updatedAt": 1234567890
+  }
+}
+```
+
+**Client Behavior**:
+1. Receive plaintext TOON content
+2. **IMMEDIATELY encrypt** before any storage (NEVER store plaintext)
+3. Encrypt `type`, `content`, `text_preview` with master key
+4. Hash `chat_id`, `message_id`, `task_id` with SHA256
+5. Store encrypted embed in IndexedDB
+6. Send encrypted embed to server via `store_embed` event
+
+### `store_embed` (Client → Server)
+
+**Purpose**: Client sends encrypted embed to server for permanent Directus storage (zero-knowledge).
+
+**When**: After client receives plaintext TOON, encrypts it, and stores in IndexedDB.
+
+**Direction**: Client → Server
+
+**Payload**:
+```json
+{
+  "event": "store_embed",
+  "payload": {
+    "embed_id": "550e8400-e29b-41d4-a716-446655440000",
+    "encrypted_type": "...", // CLIENT-ENCRYPTED type (server cannot decrypt)
+    "encrypted_content": "...", // CLIENT-ENCRYPTED TOON string (server cannot decrypt)
+    "encrypted_text_preview": "...", // CLIENT-ENCRYPTED text preview (server cannot decrypt)
+    "status": "finished",
+    "hashed_chat_id": "sha256...", // SHA256 hash of chat_id (privacy protection)
+    "hashed_message_id": "sha256...", // SHA256 hash of message_id (privacy protection)
+    "hashed_task_id": "sha256...", // Optional, SHA256 hash of task_id
+    "hashed_user_id": "sha256...", // SHA256 hash of user_id
+    "encryption_key_embed": "...", // Embed-specific key, encrypted with master key
+    "embed_ids": ["child1", "child2"], // For composite embeds
+    "parent_embed_id": null,
+    "version_number": 1,
+    "encrypted_diff": "...", // CLIENT-ENCRYPTED diff for versioned embeds
+    "file_path": null,
+    "content_hash": "sha256...",
+    "text_length_chars": 1234, // Character count for text-based embeds (LLM compression decision)
+    "share_mode": "private",
+    "shared_with_users": [],
+    "createdAt": 1234567890,
+    "updatedAt": 1234567890
+  }
+}
+```
+
+**Server Behavior**:
+1. Receive client-encrypted embed
+2. Store in Directus as-is (cannot decrypt - zero-knowledge)
+3. Server can only see: `embed_id`, `status`, hashed IDs, `share_mode`, timestamps
+4. Server CANNOT see: actual type, content, preview (all encrypted)
+
+### `request_embed` (Client → Server)
+
+**Purpose**: Client requests embed data when embed reference is detected but data not in IndexedDB.
+
+**When**: Message parsing detects embed reference, but embed not found in IndexedDB.
+
+**Direction**: Client → Server
+
+**Payload**:
+```json
+{
+  "event": "request_embed",
+  "payload": {
+    "embed_id": "550e8400-e29b-41d4-a716-446655440000"
+  }
+}
+```
+
+**Server Behavior**:
+1. Check embed in cache (`embed:{embed_id}`)
+2. If found: Decrypt with vault key, send via `send_embed_data` (plaintext TOON)
+3. If not in cache: Load from Directus (client-encrypted), cannot decrypt
+   - Return error: "Embed not in cache, client must decrypt from Directus"
+4. Client falls back to loading from Directus directly
+
+### `embed_update` (Server → Client)
+
+**Purpose**: Notify client when embed status changes (task completion, error).
+
+**When**: Long-running task completes or embed is updated.
+
+**Direction**: Server → Client
+
+**Payload**:
+```json
+{
+  "event": "embed_update",
+  "payload": {
+    "embed_id": "550e8400-e29b-41d4-a716-446655440000",
+    "chat_id": "abc123...", // Plaintext chat_id
+    "message_id": "def456...", // Plaintext message_id
+    "status": "finished" | "error",
+    "task_id": "ghi789...", // Optional, for long-running tasks
+    "child_embed_ids": ["child1", "child2"] // For composite embeds
+  }
+}
+```
+
+**Client Behavior**:
+1. Receive status update
+2. Request full embed data via `request_embed` if not in cache
+3. Update embed in IndexedDB
+4. Re-render embed preview in UI
+
+### Dual Encryption Flow Summary
+
+**Server Side (after skill execution)**:
+```
+Plaintext TOON → Vault-encrypt → Cache (AI can use)
+              ↓
+              Send plaintext TOON to client via send_embed_data
+```
+
+**Client Side**:
+```
+Receive plaintext TOON → Encrypt with master key → IndexedDB (encrypted!)
+                       ↓
+                       Send encrypted to server via store_embed
+```
+
+**Server Side (receives encrypted from client)**:
+```
+Receive client-encrypted → Store in Directus (cannot decrypt, zero-knowledge)
+```
+
+**Key Principles**:
+- **Vault Encryption**: Server-only, for AI inference cache (server can decrypt)
+- **Client Encryption**: Client-only, for zero-knowledge storage (server cannot decrypt)
+- **Plaintext Transfer**: Server → Client via WebSocket (encrypted in transit via TLS)
+- **Never Store Plaintext**: Client encrypts immediately before IndexedDB storage
+- **Two Separate Keys**: Vault key (server) vs Master key (client) - completely independent
 
 ## Cross-Chat References
 

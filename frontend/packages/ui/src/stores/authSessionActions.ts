@@ -183,13 +183,11 @@ export async function checkAuth(deviceSignals?: Record<string, string | null>, f
             // A user is in signup flow if:
             // 1. URL hash indicates signup (hash takes absolute precedence), OR
             // 2. Signup state was already set from URL hash, OR
-            // 3. last_opened starts with '/signup/' or '#signup/' (explicit signup path), OR
-            // 4. tfa_enabled is false (2FA not set up - signup incomplete)
-            // This handles cases where last_opened was overwritten to demo-welcome in a previous session
+            // 3. last_opened starts with '/signup/' or '#signup/' (explicit signup path)
+            // NOTE: Do NOT infer signup from tfa_enabled=false to avoid forcing passkey users into OTP setup
             const inSignupFlow = hasSignupHash || 
                                 signupStateFromHash || 
-                                isSignupPath(data.user.last_opened) || 
-                                (data.user.tfa_enabled === false);
+                                isSignupPath(data.user.last_opened);
 
             if (inSignupFlow) {
                 // If hash is present, use hash step (hash takes absolute precedence)
@@ -205,11 +203,8 @@ export async function checkAuth(deviceSignals?: Record<string, string | null>, f
                         last_opened: data.user.last_opened,
                         tfa_enabled: data.user.tfa_enabled
                     });
-                    // Determine step: use last_opened if it's a signup path, otherwise default to one_time_codes
-                    // (the actual OTP setup step, not the app reminder step)
-                    const step = isSignupPath(data.user.last_opened)
-                        ? getStepFromPath(data.user.last_opened)
-                        : STEP_ONE_TIME_CODES; // Default to one_time_codes (OTP setup) if last_opened doesn't indicate signup
+                    // Determine step from last_opened (hash-based paths) to resume precisely
+                    const step = getStepFromPath(data.user.last_opened);
                     currentSignupStep.set(step);
                     isInSignupProcess.set(true);
                     // CRITICAL: Open login interface to show signup flow on page reload
@@ -358,21 +353,17 @@ export async function checkAuth(deviceSignals?: Record<string, string | null>, f
                 }));
                 
                 // Check if user is in signup flow (offline-first mode)
-                // A user is in signup flow if:
-                // 1. last_opened starts with '/signup/' or '#signup/' (explicit signup path), OR
-                // 2. tfa_enabled is false (2FA not set up - signup incomplete)
-                const inSignupFlow = isSignupPath(localProfile.last_opened) || 
-                                    (localProfile.tfa_enabled === false);
+                // A user is in signup flow only if last_opened explicitly indicates signup
+                // Avoid using tfa_enabled=false to keep passkey-only users out of OTP setup
+                const inSignupFlow = isSignupPath(localProfile.last_opened);
                 
                 if (inSignupFlow) {
                     console.debug("[AuthSessionActions] User is in signup process (offline-first mode):", {
                         last_opened: localProfile.last_opened,
                         tfa_enabled: localProfile.tfa_enabled
                     });
-                    // Determine step: use last_opened if it's a signup path, otherwise default to one_time_codes
-                    const step = isSignupPath(localProfile.last_opened)
-                        ? getStepFromPath(localProfile.last_opened)
-                        : STEP_ONE_TIME_CODES; // Default to one_time_codes (OTP setup) if last_opened doesn't indicate signup
+                    // Determine step directly from last_opened (hash-based paths)
+                    const step = getStepFromPath(localProfile.last_opened);
                     currentSignupStep.set(step);
                     isInSignupProcess.set(true);
                     // CRITICAL: Open login interface to show signup flow on page reload (offline-first mode)

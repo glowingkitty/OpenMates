@@ -209,39 +209,49 @@
 </AppSkillPreviewBase>
 
 <style>
-  /* Mobile layout styles matching Figma design */
+  /* Mobile layout styles matching Figma design (150x290px container) */
   .mobile-content {
     display: flex;
     flex-direction: column;
     width: 100%;
+    height: 100%;
     position: relative;
   }
   
   .mobile-content .title-section {
     display: flex;
     flex-direction: column;
-    gap: 0;
-    margin-bottom: 8px;
+    gap: 2px;
+    margin-bottom: 6px;
+    flex-shrink: 0;
   }
   
   .mobile-content .title {
-    font-size: 16px;
+    font-size: 14px;
     font-weight: bold;
     color: var(--color-font-primary);
-    line-height: normal;
+    line-height: 1.2;
     word-break: break-word;
+    /* Limit to 4 lines to prevent overflow in 150x290 container */
+    display: -webkit-box;
+    -webkit-line-clamp: 4;
+    line-clamp: 4;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
   
   .mobile-content .subtitle {
-    font-size: 14px;
+    font-size: 12px;
     color: #858585;
-    line-height: normal;
+    line-height: 1.2;
   }
   
   .mobile-content .preview-images {
     position: relative;
     height: 19px;
-    margin: 8px 0;
+    margin: 6px 0;
+    flex-shrink: 0;
   }
   
   .mobile-content .preview-image-circle {
@@ -262,23 +272,26 @@
   }
   
   .mobile-content .results-indicator {
-    font-size: 14px;
+    font-size: 12px;
     font-weight: bold;
     color: #898989;
-    margin: 8px 0;
+    margin: 6px 0;
     text-align: center;
+    flex-shrink: 0;
   }
   
   .mobile-content .status-bar {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
     background-color: #f8f8f8;
     border: 1px solid #e2e2e2;
-    border-radius: 30px;
-    padding: 0 16px;
-    height: 61px;
+    border-radius: 20px;
+    padding: 0 12px;
+    height: 50px;
+    min-height: 50px;
     margin-top: auto;
+    flex-shrink: 0;
   }
   
   .mobile-content .status-content {
@@ -289,24 +302,24 @@
   }
   
   .mobile-content .status-label {
-    font-size: 16px;
+    font-size: 14px;
     font-weight: bold;
     color: var(--color-font-primary);
   }
   
   .mobile-content .status-text {
-    font-size: 16px;
+    font-size: 12px;
     font-weight: bold;
     color: #868686;
   }
   
   .mobile-content .stop-button {
     position: absolute;
-    bottom: 0;
+    bottom: 8px;
     left: 50%;
     transform: translateX(-50%);
-    width: 35px;
-    height: 35px;
+    width: 30px;
+    height: 30px;
     background: none;
     border: none;
     padding: 0;
@@ -322,12 +335,13 @@
     background-color: red;
   }
   
-  /* Desktop layout styles matching Figma design */
+  /* Desktop layout styles matching Figma design (300x200px container) */
   .desktop-content {
     display: flex;
-    align-items: center;
-    gap: 14px;
+    flex-direction: column;
+    gap: 10px;
     width: 100%;
+    height: 100%;
     position: relative;
   }
   
@@ -338,25 +352,32 @@
   }
   
   .desktop-content .title-section {
-    flex: 1;
-    min-width: 0;
     display: flex;
     flex-direction: column;
-    gap: 0;
+    gap: 2px;
+    flex: 1;
+    min-height: 0;
   }
   
   .desktop-content .title {
     font-size: 16px;
     font-weight: bold;
     color: var(--color-font-primary);
-    line-height: normal;
+    line-height: 1.2;
     word-break: break-word;
+    /* Limit to 3 lines to prevent overflow in 300x200 container */
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
   
   .desktop-content .subtitle {
     font-size: 14px;
     color: #858585;
-    line-height: normal;
+    line-height: 1.2;
   }
   
   .desktop-content .status-bar {
@@ -365,10 +386,11 @@
     gap: 8px;
     background-color: #f8f8f8;
     border: 1px solid #e2e2e2;
-    border-radius: 30px;
-    padding: 0 16px;
-    height: 61px;
-    white-space: nowrap;
+    border-radius: 25px;
+    padding: 0 14px;
+    height: 55px;
+    min-height: 55px;
+    flex-shrink: 0;
   }
   
   .desktop-content .status-content {
@@ -376,23 +398,25 @@
     flex-direction: column;
     justify-content: center;
     line-height: normal;
+    flex: 1;
+    min-width: 0;
   }
   
   .desktop-content .status-label {
-    font-size: 16px;
+    font-size: 14px;
     font-weight: bold;
     color: var(--color-font-primary);
   }
   
   .desktop-content .status-text {
-    font-size: 16px;
+    font-size: 12px;
     font-weight: bold;
     color: #868686;
   }
   
   .desktop-content .stop-button {
-    width: 35px;
-    height: 35px;
+    width: 30px;
+    height: 30px;
     background: none;
     border: none;
     padding: 0;
@@ -404,8 +428,8 @@
   }
   
   .desktop-content .stop-button .clickable-icon.icon_stop_processing {
-    width: 35px;
-    height: 35px;
+    width: 30px;
+    height: 30px;
     background-color: red;
   }
   

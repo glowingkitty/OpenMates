@@ -25,11 +25,32 @@ export function enhanceDocumentWithEmbeds(doc: any, embedNodes: EmbedNodeAttribu
   
   console.debug('[enhanceDocumentWithEmbeds] Processing document with', embedNodes.length, 'individual embed nodes');
   
-  // Find and replace json_embed blocks with embed nodes
+  // Find and replace embed blocks with embed nodes
   modifiedContent = modifiedContent.map(node => {
+    // Handle code blocks that should be replaced with embed nodes
+    if (node.type === 'codeBlock') {
+      // Try to match this code block with an embed node
+      const matchingEmbed = findMatchingEmbedForCodeBlock(node, embedNodes);
+      if (matchingEmbed) {
+        console.debug('[enhanceDocumentWithEmbeds] Replacing codeBlock with embed node:', matchingEmbed);
+        // Wrap embed in a paragraph since embed is an inline node and codeBlock is block-level
+        // This prevents ProseMirror schema validation errors (contentMatchAt on a node with invalid content)
+        return {
+          type: 'paragraph',
+          content: [
+            {
+              type: 'embed',
+              attrs: matchingEmbed
+            }
+          ]
+        };
+      }
+    }
+
+    // Handle paragraphs containing json_embed blocks in text
     if (node.type === 'paragraph' && node.content) {
       const newParagraphContent = [];
-      
+
       for (const contentNode of node.content) {
         if (contentNode.type === 'text' && contentNode.text) {
           // Split text by json_embed blocks and create appropriate nodes
@@ -39,7 +60,7 @@ export function enhanceDocumentWithEmbeds(doc: any, embedNodes: EmbedNodeAttribu
           newParagraphContent.push(contentNode);
         }
       }
-      
+
       return {
         ...node,
         content: newParagraphContent
@@ -52,6 +73,92 @@ export function enhanceDocumentWithEmbeds(doc: any, embedNodes: EmbedNodeAttribu
     ...doc,
     content: modifiedContent
   };
+}
+
+/**
+ * Find a matching embed node for a code block
+ * @param codeBlockNode - The TipTap codeBlock node
+ * @param embedNodes - Array of embed nodes to search
+ * @returns The matching embed node or null
+ */
+function findMatchingEmbedForCodeBlock(codeBlockNode: any, embedNodes: EmbedNodeAttributes[]): EmbedNodeAttributes | null {
+  // Extract text content from the code block
+  const codeText = codeBlockNode.content?.[0]?.text || '';
+
+  console.debug('[findMatchingEmbedForCodeBlock] Checking code block:', {
+    codeText: codeText.substring(0, 100),
+    hasContent: !!codeText,
+    embedNodesCount: embedNodes.length
+  });
+
+  if (!codeText.trim()) {
+    return null;
+  }
+
+  // Try to parse as JSON to check if it's an embed reference
+  try {
+    const parsed = JSON.parse(codeText.trim());
+
+    console.debug('[findMatchingEmbedForCodeBlock] Parsed JSON:', parsed);
+
+    // Check if this is an embed reference with type and embed_id
+    if (parsed.type && parsed.embed_id) {
+      // Find matching embed node by checking contentRef
+      const matchingEmbed = embedNodes.find(node => {
+        const expectedContentRef = `embed:${parsed.embed_id}`;
+        console.debug('[findMatchingEmbedForCodeBlock] Comparing:', {
+          expectedContentRef,
+          nodeContentRef: node.contentRef,
+          matches: node.contentRef === expectedContentRef
+        });
+        return node.contentRef === expectedContentRef;
+      });
+
+      if (matchingEmbed) {
+        console.debug('[findMatchingEmbedForCodeBlock] Found matching embed for JSON block:', {
+          type: parsed.type,
+          embed_id: parsed.embed_id,
+          embedNodeId: matchingEmbed.id,
+          embedNodeType: matchingEmbed.type
+        });
+        return matchingEmbed;
+      } else {
+        console.warn('[findMatchingEmbedForCodeBlock] No matching embed found for:', {
+          type: parsed.type,
+          embed_id: parsed.embed_id,
+          availableEmbeds: embedNodes.map(n => ({ id: n.id, type: n.type, contentRef: n.contentRef }))
+        });
+      }
+    }
+  } catch (error) {
+    // Not JSON, might be a regular code block
+    console.debug('[findMatchingEmbedForCodeBlock] Not JSON, treating as code block');
+  }
+
+  // Check if this is a code-code embed (code snippet with language)
+  // Match by checking if there's a code-code embed with similar content
+  const codeEmbeds = embedNodes.filter(node => node.type === 'code-code');
+  if (codeEmbeds.length > 0 && codeBlockNode.attrs?.language) {
+    // Try to find a match by language and approximate content
+    const matchingCodeEmbed = codeEmbeds.find(embed =>
+      embed.language === codeBlockNode.attrs.language
+    );
+
+    if (matchingCodeEmbed) {
+      console.debug('[findMatchingEmbedForCodeBlock] Found matching code embed:', {
+        language: matchingCodeEmbed.language,
+        embedNodeId: matchingCodeEmbed.id
+      });
+      // Remove from array to prevent reuse
+      const index = embedNodes.indexOf(matchingCodeEmbed);
+      if (index > -1) {
+        embedNodes.splice(index, 1);
+      }
+      return matchingCodeEmbed;
+    }
+  }
+
+  return null;
 }
 
 /**

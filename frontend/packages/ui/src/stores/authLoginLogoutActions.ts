@@ -86,23 +86,17 @@ export async function login(
                 // Full success
                 console.debug("Login fully successful.");
                 // Check if user exists before accessing last_opened
-                // A user is in signup flow if:
-                // 1. last_opened starts with '/signup/' or '#signup/' (explicit signup path), OR
-                // 2. tfa_enabled is false (2FA not set up - signup incomplete)
-                // This handles cases where last_opened was overwritten to demo-welcome in a previous session
-                const inSignupFlow = isSignupPath(data.user?.last_opened) || 
-                                    (data.user?.tfa_enabled === false);
+                // A user is in signup flow only if last_opened explicitly indicates signup
+                // Do not infer signup from tfa_enabled=false (passkey users may not use OTP)
+                const inSignupFlow = isSignupPath(data.user?.last_opened);
 
                 if (inSignupFlow) {
                     console.debug("User is in signup process:", {
                         last_opened: data.user?.last_opened,
                         tfa_enabled: data.user?.tfa_enabled
                     });
-                    // Determine step: use last_opened if it's a signup path, otherwise default to one_time_codes
-                    // (the actual OTP setup step, not the app reminder step)
-                    const step = isSignupPath(data.user?.last_opened)
-                        ? getStepFromPath(data.user.last_opened)
-                        : STEP_ONE_TIME_CODES; // Default to one_time_codes (OTP setup) if last_opened doesn't indicate signup
+                    // Determine step from last_opened to resume where the user left off
+                    const step = getStepFromPath(data.user.last_opened);
                     currentSignupStep.set(step);
                     isInSignupProcess.set(true);
                     console.debug("Set signup step to:", step);

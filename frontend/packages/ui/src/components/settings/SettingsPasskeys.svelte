@@ -9,7 +9,7 @@ Passkey Management - View, rename, delete, and add passkeys
     import SettingsItem from '../SettingsItem.svelte';
     import { createEventDispatcher } from 'svelte';
     import { encryptWithMasterKey, decryptWithMasterKey, getEmailDecryptedWithMasterKey, hashEmail, getEmailSalt, deriveWrappingKeyFromPRF, encryptKey, hashKeyFromPRF, uint8ArrayToBase64, base64ToUint8Array } from '../../services/cryptoService';
-    import { getMasterKeyFromIndexedDB } from '../../services/cryptoKeyStorage';
+    import { getMasterKeyFromIndexedDB, isDeviceTrusted } from '../../services/cryptoKeyStorage';
     import { userProfile } from '../../stores/userProfile';
     import { generateDeviceName } from '../../utils/deviceName';
     import * as cryptoService from '../../services/cryptoService';
@@ -31,6 +31,7 @@ Passkey Management - View, rename, delete, and add passkeys
     let editingPasskeyId = $state<string | null>(null);
     let editingDeviceName = $state('');
     let deletingPasskeyId = $state<string | null>(null);
+    let isDeviceTrustedState = $state<boolean | null>(null);
 
     // Format date for display
     // Handles various date formats from Directus (ISO strings, Unix timestamps, etc.)
@@ -538,8 +539,19 @@ Passkey Management - View, rename, delete, and add passkeys
         return $userProfile.tfa_enabled;
     }
 
+    async function checkDeviceTrust() {
+        try {
+            isDeviceTrustedState = await isDeviceTrusted();
+            console.log('[SettingsPasskeys] Device trust check:', isDeviceTrustedState);
+        } catch (error) {
+            console.error('[SettingsPasskeys] Error checking device trust:', error);
+            isDeviceTrustedState = false;
+        }
+    }
+
     // Load passkeys on mount
     onMount(() => {
+        checkDeviceTrust();
         loadPasskeys();
     });
 </script>
@@ -557,11 +569,26 @@ Passkey Management - View, rename, delete, and add passkeys
         </div>
     {/if}
 
+    <!-- Untrusted Device Message -->
+    {#if isDeviceTrustedState === false}
+        <div class="untrusted-device-message">
+            <p class="title">Device Not Trusted</p>
+            <p class="description">
+                To manage passkeys on this device, you need to select "Stay logged in" during login. This ensures your device is trusted for managing your security credentials.
+            </p>
+            <p class="instruction">
+                Please log out and log back in, then select "Stay logged in" to enable passkey management.
+            </p>
+        </div>
+    {/if}
+
     <!-- Loading State -->
     {#if isLoading && passkeys.length === 0}
         <div class="loading">
             Loading passkeys...
         </div>
+    {:else if isDeviceTrustedState === false}
+        <!-- Passkey management is disabled for untrusted devices -->
     {:else}
         <!-- Passkey List -->
         {#if passkeys.length === 0}
@@ -675,6 +702,36 @@ Passkey Management - View, rename, delete, and add passkeys
         background-color: rgba(0, 255, 0, 0.1);
         color: #00aa00;
         border: 1px solid #00aa00;
+    }
+
+    .untrusted-device-message {
+        padding: 20px;
+        margin-bottom: 20px;
+        border-radius: 8px;
+        background-color: rgba(255, 165, 0, 0.1);
+        border: 2px solid #ffa500;
+    }
+
+    .untrusted-device-message .title {
+        font-size: 16px;
+        font-weight: 600;
+        color: #ff8c00;
+        margin: 0 0 12px 0;
+    }
+
+    .untrusted-device-message .description {
+        font-size: 14px;
+        color: var(--color-grey-100);
+        margin: 0 0 12px 0;
+        line-height: 1.5;
+    }
+
+    .untrusted-device-message .instruction {
+        font-size: 14px;
+        color: #ff8c00;
+        font-weight: 500;
+        margin: 0;
+        line-height: 1.5;
     }
 
     .loading {

@@ -18,6 +18,7 @@ import hashlib
 import uuid
 from typing import Dict, Any, List, Optional
 import json
+import httpx
 from pydantic import ValidationError
 from celery.exceptions import Ignore, SoftTimeLimitExceeded
 from celery.states import REVOKED as TASK_STATE_REVOKED # Module-level import
@@ -46,6 +47,86 @@ logger = logging.getLogger(__name__)
 
 # Note: Avoid internal API lookups per task to keep latency low. We rely on
 # the worker-local ConfigManager (see celery_config) and fail fast if configs are missing.
+
+# Internal API configuration for fallback cache refresh
+# This is used when discovered_apps_metadata is missing from cache (e.g., cache expired or flushed)
+INTERNAL_API_BASE_URL = os.getenv("INTERNAL_API_BASE_URL", "http://api:8000")
+INTERNAL_API_SHARED_TOKEN = os.getenv("INTERNAL_API_SHARED_TOKEN")
+INTERNAL_API_TIMEOUT = 10.0  # Timeout for internal API requests in seconds
+
+
+async def _fetch_and_cache_apps_metadata(
+    cache_service_instance: CacheService,
+    task_id: str
+) -> Dict[str, AppYAML]:
+    """
+    Fallback mechanism to fetch discovered apps metadata from the API when cache is empty.
+    
+    This handles cases where the cache has expired or been flushed while the API is still running.
+    The API's /apps/metadata endpoint returns all discovered apps, and we re-cache them here.
+    
+    CRITICAL: Without this fallback, the LLM has NO tools available (no web search, etc.)
+    when the cache expires. This resulted in the LLM hallucinating search results instead
+    of actually executing tool calls.
+    
+    Args:
+        cache_service_instance: CacheService instance for caching
+        task_id: Task ID for logging
+        
+    Returns:
+        Dict of app_id -> AppYAML, or empty dict if fetch fails
+    """
+    log_prefix = f"[Task ID: {task_id}]"
+    
+    try:
+        # Prepare request headers
+        headers = {"Content-Type": "application/json"}
+        if INTERNAL_API_SHARED_TOKEN:
+            headers["X-Internal-Service-Token"] = INTERNAL_API_SHARED_TOKEN
+        
+        url = f"{INTERNAL_API_BASE_URL}/apps/metadata"
+        logger.info(f"{log_prefix} Attempting to fetch discovered_apps_metadata from API: {url}")
+        
+        async with httpx.AsyncClient(timeout=INTERNAL_API_TIMEOUT) as client:
+            response = await client.get(url, headers=headers)
+            response.raise_for_status()
+            
+            data = response.json()
+            apps_data = data.get("apps", {})
+            
+            if not apps_data:
+                logger.warning(f"{log_prefix} API returned empty apps metadata")
+                return {}
+            
+            # Parse the raw dict into AppYAML models
+            discovered_apps_metadata: Dict[str, AppYAML] = {}
+            for app_id, app_dict in apps_data.items():
+                try:
+                    discovered_apps_metadata[app_id] = AppYAML(**app_dict)
+                except Exception as e:
+                    logger.warning(f"{log_prefix} Failed to parse app '{app_id}' metadata: {e}")
+                    continue
+            
+            # Re-cache the metadata for future tasks
+            if discovered_apps_metadata and cache_service_instance:
+                try:
+                    await cache_service_instance.set_discovered_apps_metadata(discovered_apps_metadata)
+                    logger.info(f"{log_prefix} Successfully re-cached discovered_apps_metadata ({len(discovered_apps_metadata)} apps)")
+                except Exception as e_cache:
+                    logger.error(f"{log_prefix} Failed to re-cache discovered_apps_metadata: {e_cache}")
+            
+            return discovered_apps_metadata
+            
+    except httpx.HTTPStatusError as e:
+        logger.error(f"{log_prefix} HTTP error fetching apps metadata: {e.response.status_code} - {e.response.text}")
+        return {}
+    except httpx.RequestError as e:
+        logger.error(f"{log_prefix} Request error fetching apps metadata: {e}")
+        return {}
+    except Exception as e:
+        logger.error(f"{log_prefix} Unexpected error fetching apps metadata: {e}", exc_info=True)
+        return {}
+
 
 # Custom exception for retry logic
 class ChatNotFoundError(Exception):
@@ -115,7 +196,9 @@ async def _async_process_ai_skill_ask_task(
         # Sync wrapper handles Celery state update
         raise RuntimeError("mates.yml not found, empty, or invalid.")
 
-    # --- Load discovered_apps_metadata from cache ---
+    # --- Load discovered_apps_metadata from cache (with fallback to API) ---
+    # CRITICAL: Without discovered_apps_metadata, the LLM has NO tools available (no web search, etc.)
+    # This can result in the LLM hallucinating tool results instead of actually calling them.
     discovered_apps_metadata: Dict[str, AppYAML] = {}
     try:
         if cache_service_instance:
@@ -131,7 +214,21 @@ async def _async_process_ai_skill_ask_task(
                     skill_identifiers = [f"{app_id}.{skill_id}" for skill_id in skill_ids]
                     logger.info(f"[Task ID: {task_id}]   App '{app_id}': Skills: {', '.join(skill_identifiers) if skill_identifiers else 'None'}")
             else:
-                logger.warning(f"[Task ID: {task_id}] discovered_apps_metadata not found in cache or failed to load. Proceeding with empty metadata.")
+                # FALLBACK: Cache is empty (expired or flushed) - fetch from API and re-cache
+                # This prevents the LLM from having no tools available due to cache expiration
+                logger.warning(f"[Task ID: {task_id}] discovered_apps_metadata not found in cache. Attempting fallback to API...")
+                discovered_apps_metadata = await _fetch_and_cache_apps_metadata(cache_service_instance, task_id)
+                
+                if discovered_apps_metadata:
+                    app_names = list(discovered_apps_metadata.keys())
+                    logger.info(f"[Task ID: {task_id}] Successfully fetched discovered_apps_metadata from API fallback.")
+                    logger.info(f"[Task ID: {task_id}] Discovered apps ({len(app_names)} total): {', '.join(app_names) if app_names else 'None'}")
+                    for app_id, metadata in discovered_apps_metadata.items():
+                        skill_ids = [skill.id for skill in metadata.skills] if metadata.skills else []
+                        skill_identifiers = [f"{app_id}.{skill_id}" for skill_id in skill_ids]
+                        logger.info(f"[Task ID: {task_id}]   App '{app_id}': Skills: {', '.join(skill_identifiers) if skill_identifiers else 'None'}")
+                else:
+                    logger.error(f"[Task ID: {task_id}] CRITICAL: Failed to load discovered_apps_metadata from both cache and API. LLM will have NO tools available!")
         else:
             logger.error(f"[Task ID: {task_id}] CacheService instance not available for loading discovered_apps_metadata.")
     except Exception as e_cache_get:

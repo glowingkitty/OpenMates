@@ -16,6 +16,8 @@ export const embedRenderers: EmbedRendererRegistry = {
   'web-website': new GroupRenderer(),
   'web-website-group': new GroupRenderer(),
   'videos-video-group': new GroupRenderer(),
+  // Use GroupRenderer for code embeds (individual and grouped)
+  'code-code': new GroupRenderer(),
   'code-code-group': new GroupRenderer(),
   'docs-doc-group': new GroupRenderer(),
   'sheets-sheet-group': new GroupRenderer(),

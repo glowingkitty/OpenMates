@@ -4,6 +4,7 @@
 import logging
 from typing import Dict, Any, List, Optional
 from pydantic import BaseModel, Field
+import datetime
 
 from backend.apps.ai.utils.llm_utils import call_preprocessing_llm, LLMPreprocessingCallResult
 from backend.core.api.app.utils.secrets_manager import SecretsManager
@@ -63,8 +64,13 @@ async def handle_postprocessing(
     # Include: system context + chat summary (from preprocessing) + last user message + assistant response
     messages = []
 
+    # Add current date/time context (critical for temporal awareness in suggestions)
+    now = datetime.datetime.now(datetime.timezone.utc)
+    date_time_str = now.strftime("%Y-%m-%d %H:%M:%S %Z")
+
     # Add system context about the task
     system_message = (
+        f"Current date and time: {date_time_str}\n\n"
         "You are analyzing a conversation to generate helpful suggestions. "
         "Generate contextual follow-up suggestions that encourage deeper engagement and exploration. "
         "Generate new chat suggestions that are related but explore new angles."

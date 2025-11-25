@@ -124,12 +124,14 @@ export class GroupRenderer implements EmbedRenderer {
   }
   
   private async renderItemContent(
-    item: EmbedNodeAttributes, 
+    item: EmbedNodeAttributes,
     baseType: string,
     embedData: any = null,
     decodedContent: any = null
   ): Promise<string> {
     switch (baseType) {
+      case 'app-skill-use':
+        return this.renderAppSkillUseItem(item, embedData, decodedContent);
       case 'web-website':
         return this.renderWebsiteItem(item, embedData, decodedContent);
       case 'videos-video':
@@ -151,6 +153,58 @@ export class GroupRenderer implements EmbedRenderer {
           </div>
         `;
     }
+  }
+
+  private async renderAppSkillUseItem(
+    item: EmbedNodeAttributes,
+    embedData: any = null,
+    decodedContent: any = null
+  ): Promise<string> {
+    const skillId = decodedContent?.skill_id || '';
+    const appId = decodedContent?.app_id || 'web';
+    const query = decodedContent?.query || '';
+    const provider = decodedContent?.provider || 'Brave';
+
+    // For web search skills
+    if (skillId === 'search' || appId === 'web') {
+      const childEmbedIds = embedData?.embed_ids || [];
+      const embedId = item.contentRef?.replace('embed:', '') || '';
+
+      return `
+        <div class="embed-unified-container"
+             data-embed-type="app-skill-use"
+             data-embed-id="${embedId}"
+             style="${embedId ? 'cursor: pointer;' : ''}">
+          <div class="embed-app-icon web">
+            <span class="icon icon_web"></span>
+          </div>
+          <div class="embed-text-content">
+            <div class="embed-text-line">Web Search: ${query}</div>
+            <div class="embed-text-line">via ${provider}</div>
+          </div>
+          <div class="embed-extended-preview">
+            <div class="web-search-preview">
+              <div class="search-query">${query}</div>
+              <div class="search-results-count">${childEmbedIds.length} result${childEmbedIds.length !== 1 ? 's' : ''}</div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    // For other skill types
+    return `
+      <div class="embed-unified-container"
+           data-embed-type="app-skill-use">
+        <div class="embed-app-icon ${appId}">
+          <span class="icon icon_${appId}"></span>
+        </div>
+        <div class="embed-text-content">
+          <div class="embed-text-line">Skill: ${appId} | ${skillId}</div>
+          <div class="embed-text-line">${item.status}</div>
+        </div>
+      </div>
+    `;
   }
   
   private async renderWebsiteItem(
