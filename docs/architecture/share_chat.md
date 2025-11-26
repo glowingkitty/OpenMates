@@ -32,6 +32,7 @@ When sharing with a specific user:
    - The encryption key is included in the link initially, but is automatically stored securely after first access
    - The key is removed from the URL after being saved to prevent exposure
    - On subsequent visits, the stored key is used automatically
+   - **Password Protection (Optional):** Users can optionally set a password when sharing a chat. The password is used to derive an additional encryption key that is combined with the shared encryption key, providing an extra layer of security. The server has no knowledge of whether a chat is password-protected (true zero-knowledge).
 
 ### Share with Public
 
@@ -47,6 +48,47 @@ When sharing publicly:
 - **Server Privacy:** The URL fragment is never sent to the server - it remains entirely on the client side. This means the server never receives or sees the chat ID or encryption key, ensuring maximum privacy
 - **Search Engine Protection:** Shared chats are designed to prevent search engine indexing since the fragment portion of URLs is not accessible to search engines
 - **Zero-Knowledge Encryption:** All messages remain encrypted, even when shared
+
+## Password Protection
+
+Users can optionally set a password when sharing a chat or embed to add an additional layer of security. The password protection works as follows:
+
+### Password-Based Encryption
+
+1. **Password Derivation:**
+   - When a user sets a password for sharing, a random salt is generated client-side
+   - The password is combined with the salt and processed through PBKDF2 (100,000 iterations, SHA-256) to derive a 256-bit encryption key
+   - The password-derived key is combined with the shared encryption key using a key derivation function (KDF)
+   - The combined key is used to encrypt the shared content
+   - **No server storage:** The server never stores any password-related information (no hash, no salt, no indication of password protection)
+
+2. **Encryption Process:**
+   - If password is set: Content is encrypted with `shared_encryption_key + password-derived key`
+   - If no password: Content is encrypted with `shared_encryption_key` only
+   - This ensures that even if someone obtains the shared encryption key from the URL, they cannot decrypt password-protected content without the password
+
+3. **Access Flow (Zero-Knowledge):**
+   - When someone accesses a shared chat:
+     1. Client extracts `chat_id` and `key` from URL fragment
+     2. Client sends request to server with `chat_id` (key stays in fragment)
+     3. Server checks if chat exists and is shared, then returns encrypted content
+     4. Client attempts to decrypt content using `shared_encryption_key` from URL fragment
+     5. **If decryption succeeds:** Content is displayed ✅
+     6. **If decryption fails:**
+        - Client prompts user: "Enter the password:"
+        - User enters password (if applicable)
+        - Client derives key from password using the same salt generation method (salt must be deterministically derived or stored client-side)
+        - Client combines password-derived key with `shared_encryption_key`
+        - Client attempts decryption again with combined key
+        - If decryption succeeds: Content is displayed ✅
+        - If decryption still fails: Show error: "Unable to decrypt. Please verify the link and password (if required)."
+
+4. **Security Properties:**
+   - **True Zero-Knowledge:** Server has no knowledge of password protection - it cannot distinguish between password-protected and non-password-protected shares
+   - **No Server Storage:** No password hash, salt, or any password-related data is stored on the server
+   - **Brute Force Protection:** Failed decryption attempts provide no feedback, making brute force attacks impractical
+   - **Key Combination:** Password-derived key is combined with shared key, so both are required for decryption
+   - **Salt Management:** Salt must be deterministically derived (e.g., from chat_id/embed_id) or stored client-side (e.g., in URL fragment or local storage) to allow password derivation on access
 
 ## Message Visibility Control
 
@@ -110,9 +152,18 @@ When someone opens a shared embed link:
      - If yes: Return encrypted content
      - If no: Return error
    - If `share_mode === 'private'`: Return error
-4. If access granted: Server returns encrypted content
-5. Client decrypts content using `shared_encryption_key` from URL fragment
-6. If access denied or embed doesn't exist: Show unified error message: "Embed can't be found. Either it doesn't exist or you don't have access to it."
+4. If access granted: Server returns encrypted content (server has no knowledge of password protection)
+5. Client attempts to decrypt content using `shared_encryption_key` from URL fragment
+6. **If decryption succeeds:** Content is displayed ✅
+7. **If decryption fails:**
+   - Client prompts user: "Unable to decrypt. If this share is password-protected, enter the password:"
+   - User enters password (if applicable)
+   - Client derives key from password (using deterministic salt or client-stored salt)
+   - Client combines password-derived key with `shared_encryption_key` from URL fragment
+   - Client attempts decryption again with combined key
+   - If decryption succeeds: Content is displayed ✅
+   - If decryption still fails: Show error: "Unable to decrypt. Please verify the link and password (if required)."
+8. If access denied or embed doesn't exist: Show unified error message: "Embed can't be found. Either it doesn't exist or you don't have access to it."
 
 ### Differences from Chat Sharing
 

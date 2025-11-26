@@ -737,6 +737,7 @@ Embeds can be shared independently of chats, following the same zero-knowledge a
 - Re-encrypted with `shared_encryption_key` (generated client-side)
 - Anyone with link can access (no user verification)
 - Key stored in URL fragment (never sent to server)
+- **Password Protection (Optional):** Users can optionally set a password when sharing an embed. The password is used to derive an additional encryption key that is combined with the shared encryption key, providing an extra layer of security. The server has no knowledge of whether an embed is password-protected (true zero-knowledge).
 
 ### Sharing Flow
 
@@ -750,24 +751,48 @@ Embeds can be shared independently of chats, following the same zero-knowledge a
      - If yes: Return encrypted content
      - If no: Return error
    - If `share_mode === 'private'`: Return error
-4. If access granted: Server returns encrypted content
-5. Client decrypts content using `shared_encryption_key` from URL fragment
-6. If access denied or embed doesn't exist: Show unified error message: "Embed can't be found. Either it doesn't exist or you don't have access to it."
+4. If access granted: Server returns encrypted content (server has no knowledge of password protection)
+5. Client attempts to decrypt content using `shared_encryption_key` from URL fragment
+6. **If decryption succeeds:** Content is displayed ✅
+7. **If decryption fails:**
+   - Client prompts user: "Unable to decrypt. If this share is password-protected, enter the password:"
+   - User enters password (if applicable)
+   - Client derives key from password (using deterministic salt or client-stored salt)
+   - Client combines password-derived key with `shared_encryption_key` from URL fragment
+   - Client attempts decryption again with combined key
+   - If decryption succeeds: Content is displayed ✅
+   - If decryption still fails: Show error: "Unable to decrypt. Please verify the link and password (if required)."
+8. If access denied or embed doesn't exist: Show unified error message: "Embed can't be found. Either it doesn't exist or you don't have access to it."
 
 **Share with User**:
 1. User clicks "Share embed" on embed preview
 2. Client generates `shared_encryption_key` (random, client-side)
-3. Client re-encrypts embed content with shared key
-4. Client sends encrypted embed + recipient's `hashed_user_id` to server
-5. Server stores encrypted embed with `share_mode: 'shared_with_user'` and adds recipient to `shared_with_users` array
-6. Server sends notification to recipient with link: `/#embed-id={embed_id}&key={shared_encryption_key}`
-7. Recipient's client decrypts using key from URL fragment
+3. **Password Protection (Optional):** If password is set:
+   - User enters password when sharing
+   - Client generates salt (deterministically from embed_id or stores in URL fragment/local storage)
+   - Client derives key from password using PBKDF2 with the salt
+   - Client combines password-derived key with `shared_encryption_key`
+   - Client encrypts embed content with combined key
+   - Salt is stored client-side (e.g., in URL fragment as `salt={salt}` or in local storage keyed by embed_id)
+4. If no password: Client re-encrypts embed content with shared key only
+5. Client sends encrypted embed + recipient's `hashed_user_id` to server (no password-related data)
+6. Server stores encrypted embed with `share_mode: 'shared_with_user'` and adds recipient to `shared_with_users` array
+7. Server sends notification to recipient with link: `/#embed-id={embed_id}&key={shared_encryption_key}` (and `salt={salt}` if password-protected)
+8. Recipient's client attempts decryption with key from URL fragment, prompts for password if decryption fails
 
 **Share Publicly**:
 1. Similar flow, but `share_mode: 'public'`
-2. Link format: `/#embed-id={embed_id}&key={shared_encryption_key}`
+2. Link format: `/#embed-id={embed_id}&key={shared_encryption_key}` (and `salt={salt}` if password-protected)
 3. Anyone with link can access (no user verification needed)
-4. Key stored in URL fragment (never sent to server)
+4. Key and salt stored in URL fragment (never sent to server)
+5. **Password Protection (Optional):** If password is set:
+   - User enters password when sharing
+   - Client generates salt (deterministically from embed_id or random, stored in URL fragment)
+   - Client derives key from password using PBKDF2 with the salt
+   - Client combines password-derived key with `shared_encryption_key`
+   - Client encrypts embed content with combined key
+   - Salt is included in URL fragment: `/#embed-id={embed_id}&key={shared_encryption_key}&salt={salt}`
+   - Server stores only encrypted content (no password-related data)
 
 **Cross-Chat Reference (Same User)**:
 1. User references embed in different chat
@@ -790,15 +815,28 @@ Embeds can be shared independently of chats, following the same zero-knowledge a
 **Key Management**:
 - `encryption_key_embed`: Encrypted with user's master key, stored in Directus
 - `shared_encryption_key`: Generated client-side, stored in URL fragment only
-- Server never has decryption capability
+- **Password-derived key (if password-protected):** Derived from password using PBKDF2, combined with `shared_encryption_key` for final encryption
+- **Salt:** Stored client-side (in URL fragment or local storage), never on server
+- Server never has decryption capability and has no knowledge of password protection
+
+**Password Protection**:
+- **Optional Feature:** Users can optionally set a password when sharing embeds
+- **True Zero-Knowledge:** Server has no knowledge of whether an embed is password-protected
+- **Password Derivation:** Password is combined with a salt and processed through PBKDF2 (100,000 iterations, SHA-256) to derive a 256-bit key
+- **Salt Management:** Salt is generated client-side and stored in URL fragment (e.g., `salt={salt}`) or deterministically derived from embed_id. Never stored on server.
+- **Key Combination:** Password-derived key is combined with `shared_encryption_key` using a key derivation function
+- **Storage:** No password-related data is stored on the server (no hash, no salt, no indication of password protection)
+- **Access Flow:** Client attempts decryption with `shared_encryption_key` first. If decryption fails, client prompts for password and tries again with combined key.
+- **Security:** Even if someone obtains the `shared_encryption_key` from the URL, they cannot decrypt password-protected content without the password
 
 ### URL Fragment Pattern
 
-Follows chat sharing pattern: `/#embed-id={embed_id}&key={shared_encryption_key}`
-- Key never sent to server (fragment only)
+Follows chat sharing pattern: `/#embed-id={embed_id}&key={shared_encryption_key}` (optionally `&salt={salt}` if password-protected)
+- Key and salt never sent to server (fragment only)
 - Client stores key after first access (removes from URL)
 - Server checks `share_mode` and `shared_with_users` for access control
 - No key verification needed - wrong key simply can't decrypt content
+- Server has no knowledge of password protection (true zero-knowledge)
 
 ## File Versioning and Diff Storage
 
