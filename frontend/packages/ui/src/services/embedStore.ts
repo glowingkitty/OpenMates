@@ -209,9 +209,43 @@ export class EmbedStore {
       return storedData as any;
     }
 
+    // Helper function to check if a string is valid base64
+    const isValidBase64 = (str: string): boolean => {
+      try {
+        // Base64 strings should only contain A-Z, a-z, 0-9, +, /, and = for padding
+        // They should also have a length that's a multiple of 4 (after padding)
+        const base64Regex = /^[A-Za-z0-9+/]*={0,2}$/;
+        if (!base64Regex.test(str)) {
+          return false;
+        }
+        // Try to decode it - if it fails, it's not valid base64
+        window.atob(str);
+        return true;
+      } catch {
+        return false;
+      }
+    };
+
     // Try to decrypt first (for embeds stored via put())
-    let decryptedData = await decryptWithMasterKey(storedData);
+    // But only if the stored data looks like base64 (encrypted data)
+    // If it's plain JSON (from putEncrypted), skip decryption attempt
+    let decryptedData: string | null = null;
     let parsed: any;
+    
+    // Check if storedData looks like encrypted base64 or plain JSON
+    const looksLikeBase64 = isValidBase64(storedData);
+    const looksLikeJSON = storedData.trim().startsWith('{') || storedData.trim().startsWith('[');
+    
+    if (looksLikeBase64 && !looksLikeJSON) {
+      // Looks like encrypted data - try to decrypt
+      try {
+        decryptedData = await decryptWithMasterKey(storedData);
+      } catch (error) {
+        // Decryption failed - might be invalid base64 or wrong key
+        console.debug('[EmbedStore] Decryption attempt failed (might be plain JSON):', error);
+        decryptedData = null;
+      }
+    }
     
     if (decryptedData) {
       // Successfully decrypted - this was stored via put() (encrypted by embedStore)
@@ -222,7 +256,7 @@ export class EmbedStore {
         return decryptedData;
       }
     } else {
-      // Decryption failed - this might be stored via putEncrypted() (plain JSON with encrypted fields)
+      // Decryption failed or skipped - this might be stored via putEncrypted() (plain JSON with encrypted fields)
       try {
         parsed = JSON.parse(storedData);
       } catch (error) {
@@ -232,12 +266,16 @@ export class EmbedStore {
       
       // If parsed object has encrypted_content, decrypt it now
       if (parsed && parsed.encrypted_content && typeof parsed.encrypted_content === 'string') {
-        const decryptedContent = await decryptWithMasterKey(parsed.encrypted_content);
-        if (decryptedContent) {
-          parsed.content = decryptedContent;
-          // Keep encrypted_content for reference but content is now decrypted
-        } else {
-          console.warn('[EmbedStore] Failed to decrypt encrypted_content field');
+        try {
+          const decryptedContent = await decryptWithMasterKey(parsed.encrypted_content);
+          if (decryptedContent) {
+            parsed.content = decryptedContent;
+            // Keep encrypted_content for reference but content is now decrypted
+          } else {
+            console.warn('[EmbedStore] Failed to decrypt encrypted_content field');
+          }
+        } catch (error) {
+          console.warn('[EmbedStore] Error decrypting encrypted_content field:', error);
         }
       }
       

@@ -170,7 +170,7 @@
     min-height: 61px;
     background-color: var(--color-grey-20);
     border-radius: 30px;
-    padding: 0 8px 0 0;
+    padding: 0 0 0 0;
     flex-shrink: 0;
   }
   
@@ -279,13 +279,19 @@
     line-height: 1.4;
   }
   
-  /* Stop button */
+  /* Stop button - aligned to the right with no extra spacing */
+  /* Override global button styles from buttons.css */
   .basic-infos-bar.desktop .stop-button {
     width: 40px;
     height: 40px;
-    background: none;
-    border: none;
-    padding: 0;
+    background: none !important;
+    background-color: transparent !important;
+    border: none !important;
+    padding: 0 !important;
+    margin-left: auto !important;
+    margin-right: 10px !important;
+    min-width: auto !important;
+    filter: none !important;
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -296,12 +302,33 @@
   }
   
   .basic-infos-bar.desktop .stop-button:hover {
-    background-color: rgba(0, 0, 0, 0.05);
+    background-color: rgba(0, 0, 0, 0.05) !important;
+    scale: 1 !important; /* Override scale: 1.02 from buttons.css */
   }
   
+  .basic-infos-bar.desktop .stop-button:active {
+    background-color: rgba(0, 0, 0, 0.05) !important;
+    scale: 1 !important; /* Override scale: 0.98 from buttons.css */
+    filter: none !important;
+  }
+  
+  /* Stop button icon - red color matching MessageInput stop button */
   .basic-infos-bar.desktop .stop-button .clickable-icon.icon_stop_processing {
     width: 35px;
     height: 35px;
+    background: red !important;
+    transition: background 0.2s ease;
+    /* Ensure mask-image is properly applied */
+    -webkit-mask-size: contain;
+    mask-size: contain;
+    -webkit-mask-position: center;
+    mask-position: center;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+  }
+  
+  .basic-infos-bar.desktop .stop-button:hover .clickable-icon.icon_stop_processing {
+    background: darkred !important;
   }
   
   /* ===========================================
@@ -409,13 +436,18 @@
   }
   
   /* Stop button in mobile (centered) */
+  /* Override global button styles from buttons.css */
   .basic-infos-bar.mobile .stop-button {
     width: 40px;
     height: 40px;
     margin-top: auto;
-    background: none;
-    border: none;
-    padding: 0;
+    margin-right: 0 !important; /* Override margin-right: 10px from buttons.css */
+    background: none !important;
+    background-color: transparent !important;
+    border: none !important;
+    padding: 0 !important;
+    min-width: auto !important;
+    filter: none !important;
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -425,12 +457,33 @@
   }
   
   .basic-infos-bar.mobile .stop-button:hover {
-    background-color: rgba(0, 0, 0, 0.05);
+    background-color: rgba(0, 0, 0, 0.05) !important;
+    scale: 1 !important; /* Override scale: 1.02 from buttons.css */
   }
   
+  .basic-infos-bar.mobile .stop-button:active {
+    background-color: rgba(0, 0, 0, 0.05) !important;
+    scale: 1 !important; /* Override scale: 0.98 from buttons.css */
+    filter: none !important;
+  }
+  
+  /* Stop button icon - red color matching MessageInput stop button */
   .basic-infos-bar.mobile .stop-button .clickable-icon.icon_stop_processing {
     width: 35px;
     height: 35px;
+    background: red !important;
+    transition: background 0.2s ease;
+    /* Ensure mask-image is properly applied */
+    -webkit-mask-size: contain;
+    mask-size: contain;
+    -webkit-mask-position: center;
+    mask-position: center;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+  }
+  
+  .basic-infos-bar.mobile .stop-button:hover .clickable-icon.icon_stop_processing {
+    background: darkred !important;
   }
 </style>
 

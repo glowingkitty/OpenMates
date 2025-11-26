@@ -1,7 +1,4 @@
 <script lang="ts">
-    // Import the font CSS - now properly configured for SSR
-    import '@fontsource-variable/lexend-deca';
-    
     // Import UI styles
     import '@repo/ui/src/styles/buttons.css';
     import '@repo/ui/src/styles/fields.css';
@@ -32,6 +29,13 @@
     let { children } = $props();
 
     onMount(async () => {
+        // Import font CSS only in the browser to avoid SSR issues
+        // Node.js cannot process CSS files directly during SSR
+        // This dynamic import only runs in the browser, not during SSR
+        if (browser) {
+            await import('@fontsource-variable/lexend-deca');
+        }
+
         await waitLocale();
         loaded = true;
 

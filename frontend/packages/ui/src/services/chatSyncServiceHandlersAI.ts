@@ -74,7 +74,26 @@ export function handleAIMessageUpdateImpl(
     serviceInstance: ChatSynchronizationService,
     payload: AIMessageUpdatePayload
 ): void {
-    console.debug("[ChatSyncService:AI] Received 'ai_message_update':", payload);
+    // 🔍 STREAMING DEBUG: Log chunk reception with detailed info
+    const contentLength = payload.full_content_so_far?.length || 0;
+    const contentPreview = payload.full_content_so_far?.substring(0, 100).replace(/\n/g, '\\n') || '(empty)';
+    const timestamp = new Date().toISOString();
+    
+    console.log(
+        `[ChatSyncService:AI] 🔵 CHUNK RECEIVED | ` +
+        `seq: ${payload.sequence} | ` +
+        `chat_id: ${payload.chat_id} | ` +
+        `message_id: ${payload.message_id} | ` +
+        `content_length: ${contentLength} chars | ` +
+        `is_final: ${payload.is_final_chunk} | ` +
+        `timestamp: ${timestamp} | ` +
+        `preview: "${contentPreview}${contentLength > 100 ? '...' : ''}"`
+    );
+    
+    console.debug("[ChatSyncService:AI] Full payload:", payload);
+    
+    // Dispatch event for ActiveChat component
+    console.log(`[ChatSyncService:AI] 🟢 Dispatching 'aiMessageChunk' event (seq: ${payload.sequence})`);
     serviceInstance.dispatchEvent(new CustomEvent('aiMessageChunk', { detail: payload }));
     
     // Process embeds from content if present (streaming or final)
@@ -85,6 +104,7 @@ export function handleAIMessageUpdateImpl(
     }
 
     if (payload.is_final_chunk) {
+        console.log(`[ChatSyncService:AI] 🏁 FINAL CHUNK received (seq: ${payload.sequence}, total_length: ${contentLength} chars)`);
         const taskInfo = (serviceInstance as any).activeAITasks.get(payload.chat_id);
         if (taskInfo && taskInfo.taskId === payload.task_id) {
             (serviceInstance as any).activeAITasks.delete(payload.chat_id);

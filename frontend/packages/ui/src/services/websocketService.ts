@@ -280,6 +280,21 @@ class WebSocketService extends EventTarget {
                         if (messageType !== 'ping' && messageType !== 'pong') {
                             console.debug(`[WebSocketService] Determined messageType: "${messageType}"`);
                         }
+                        
+                        // 🔍 STREAMING DEBUG: Log WebSocket message reception for ai_message_update
+                        if (messageType === 'ai_message_update') {
+                            const seq = messagePayload?.sequence || 'unknown';
+                            const contentLength = messagePayload?.full_content_so_far?.length || 0;
+                            const timestamp = new Date().toISOString();
+                            console.log(
+                                `[WebSocketService] 🔴 RAW MESSAGE RECEIVED | ` +
+                                `type: ${messageType} | ` +
+                                `seq: ${seq} | ` +
+                                `content_length: ${contentLength} chars | ` +
+                                `timestamp: ${timestamp}`
+                            );
+                        }
+                        
                         this.dispatchEvent(new CustomEvent('message', { detail: dispatchEventDetail }));
 
                         // Call specific handlers
@@ -289,11 +304,35 @@ class WebSocketService extends EventTarget {
                                 if (messageType !== 'ping' && messageType !== 'pong') {
                                     console.debug(`[WebSocketService] Found ${handlers.length} handler(s) for type "${messageType}". Executing...`);
                                 }
+                                
+                                // 🔍 STREAMING DEBUG: Log handler execution for ai_message_update
+                                if (messageType === 'ai_message_update') {
+                                    const seq = messagePayload?.sequence || 'unknown';
+                                    console.log(
+                                        `[WebSocketService] 🟣 HANDLER EXECUTION | ` +
+                                        `type: ${messageType} | ` +
+                                        `seq: ${seq} | ` +
+                                        `handlers_count: ${handlers.length}`
+                                    );
+                                }
+                                
                                 handlers.forEach((handler, index) => {
                                     try {
                                         if (messageType !== 'ping' && messageType !== 'pong') {
                                             console.debug(`[WebSocketService] Executing handler #${index + 1} for type "${messageType}"`);
                                         }
+                                        
+                                        // 🔍 STREAMING DEBUG: Log individual handler call for ai_message_update
+                                        if (messageType === 'ai_message_update') {
+                                            const seq = messagePayload?.sequence || 'unknown';
+                                            console.log(
+                                                `[WebSocketService] 🟠 CALLING HANDLER | ` +
+                                                `handler_index: ${index + 1} | ` +
+                                                `type: ${messageType} | ` +
+                                                `seq: ${seq}`
+                                            );
+                                        }
+                                        
                                         handler(messagePayload); // Pass the correctly determined payload
                                     } catch (handlerError) {
                                         console.error(`[WebSocketService] Error in message handler #${index + 1} for type "${messageType}":`, handlerError);

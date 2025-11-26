@@ -7,6 +7,7 @@ import { chatDB } from './db';
 import { chatMetadataCache } from './chatMetadataCache';
 import { tipTapToCanonicalMarkdown } from '../message_parsing/serializers';
 import type { Chat, Message } from '../types/chat';
+import { extractEmbedReferences, loadEmbeds, decodeToonContent } from './embedResolver';
 
 /**
  * Downloads a chat as a YAML file
@@ -64,6 +65,175 @@ export async function generateChatFilename(chat: Chat, extension: string = 'yaml
 }
 
 /**
+ * Converts a timestamp to ISO string, handling both seconds and milliseconds
+ * @param timestamp - Unix timestamp (in seconds or milliseconds)
+ * @returns ISO string or null if invalid
+ */
+function formatTimestamp(timestamp: number | undefined | null): string | null {
+    if (!timestamp) {
+        return null;
+    }
+    
+    // Determine if timestamp is in seconds or milliseconds
+    // Timestamps in seconds are typically < 1e12 (year 2001)
+    // Timestamps in milliseconds are typically > 1e12
+    const timestampMs = timestamp < 1e12 ? timestamp * 1000 : timestamp;
+    
+    try {
+        return new Date(timestampMs).toISOString();
+    } catch (error) {
+        console.warn('[ChatExportService] Error formatting timestamp:', timestamp, error);
+        return null;
+    }
+}
+
+/**
+ * Recursively loads embeds including nested child embeds
+ * @param embedIds - Array of embed IDs to load
+ * @param loadedEmbedIds - Set of already loaded embed IDs to avoid duplicates
+ * @returns Array of embed data with decoded content
+ */
+async function loadEmbedsRecursively(embedIds: string[], loadedEmbedIds: Set<string> = new Set()): Promise<any[]> {
+    const embedsForExport: any[] = [];
+    
+    // Filter out already loaded embeds
+    const newEmbedIds = embedIds.filter(id => !loadedEmbedIds.has(id));
+    if (newEmbedIds.length === 0) {
+        return embedsForExport;
+    }
+    
+    // Mark these as being loaded
+    newEmbedIds.forEach(id => loadedEmbedIds.add(id));
+    
+    // Load embeds from EmbedStore
+    const loadedEmbeds = await loadEmbeds(newEmbedIds);
+    
+    // Process each embed
+    for (const embed of loadedEmbeds) {
+        try {
+            // Decode TOON content to get actual embed values
+            const decodedContent = await decodeToonContent(embed.content);
+            
+            // Create export object with embed metadata and decoded content
+            const embedExport: any = {
+                embed_id: embed.embed_id,
+                type: embed.type,
+                status: embed.status,
+                content: decodedContent, // Decoded content (actual values, not TOON)
+                createdAt: formatTimestamp(embed.createdAt),
+                updatedAt: formatTimestamp(embed.updatedAt)
+            };
+            
+            // Add optional fields if present
+            if (embed.text_preview) {
+                embedExport.text_preview = embed.text_preview;
+            }
+            
+            // Handle nested embeds (composite embeds like app_skill_use)
+            const childEmbedIds: string[] = [];
+            
+            // Check for embed_ids in the decoded content (for composite embeds)
+            if (decodedContent && typeof decodedContent === 'object') {
+                // Check if decoded content has embed_ids (could be array or pipe-separated string)
+                if (Array.isArray(decodedContent.embed_ids)) {
+                    childEmbedIds.push(...decodedContent.embed_ids);
+                } else if (typeof decodedContent.embed_ids === 'string') {
+                    // Handle pipe-separated string format
+                    childEmbedIds.push(...decodedContent.embed_ids.split('|').filter(id => id.trim()));
+                }
+            }
+            
+            // Also check embed.embed_ids directly (from the embed metadata)
+            if (embed.embed_ids && Array.isArray(embed.embed_ids)) {
+                childEmbedIds.push(...embed.embed_ids);
+            }
+            
+            // Remove duplicates
+            const uniqueChildEmbedIds = Array.from(new Set(childEmbedIds));
+            
+            // Recursively load child embeds
+            if (uniqueChildEmbedIds.length > 0) {
+                console.debug('[ChatExportService] Loading nested embeds for composite embed:', {
+                    parentEmbedId: embed.embed_id,
+                    childCount: uniqueChildEmbedIds.length,
+                    childIds: uniqueChildEmbedIds
+                });
+                
+                const childEmbeds = await loadEmbedsRecursively(uniqueChildEmbedIds, loadedEmbedIds);
+                embedsForExport.push(...childEmbeds);
+                
+                // Note: embed_ids are already included in the decoded content, so we don't duplicate them here
+            }
+            
+            embedsForExport.push(embedExport);
+        } catch (error) {
+            console.warn('[ChatExportService] Error decoding embed content:', embed.embed_id, error);
+            // Include embed with error indicator
+            embedsForExport.push({
+                embed_id: embed.embed_id,
+                type: embed.type,
+                status: 'error',
+                content: null,
+                error: 'Failed to decode embed content'
+            });
+        }
+    }
+    
+    return embedsForExport;
+}
+
+/**
+ * Gets all embeds for a chat by extracting embed references from messages and loading their content
+ * Includes nested embeds (child embeds from composite embeds like app_skill_use)
+ * @param messages - Array of messages in the chat
+ * @returns Array of embed data with decoded content
+ */
+async function getAllEmbedsForChat(messages: Message[]): Promise<any[]> {
+    try {
+        console.debug('[ChatExportService] Collecting embeds for chat export');
+        
+        // Extract all embed references from all messages
+        const embedRefs = new Map<string, {type: string; embed_id: string; version?: number}>();
+        
+        for (const message of messages) {
+            // Get message content as markdown string
+            let markdownContent = '';
+            if (typeof message.content === 'string') {
+                markdownContent = message.content;
+            } else if (message.content && typeof message.content === 'object') {
+                // Convert TipTap JSON to markdown to extract embed references
+                markdownContent = tipTapToCanonicalMarkdown(message.content);
+            }
+            
+            // Extract embed references from markdown content
+            const refs = extractEmbedReferences(markdownContent);
+            for (const ref of refs) {
+                // Use embed_id as key to avoid duplicates
+                embedRefs.set(ref.embed_id, ref);
+            }
+        }
+        
+        if (embedRefs.size === 0) {
+            console.debug('[ChatExportService] No embeds found in chat messages');
+            return [];
+        }
+        
+        // Load all embeds recursively (including nested child embeds)
+        const embedIds = Array.from(embedRefs.keys());
+        console.debug('[ChatExportService] Loading embeds recursively:', { embedCount: embedIds.length, embedIds });
+        
+        const embedsForExport = await loadEmbedsRecursively(embedIds);
+        
+        console.debug('[ChatExportService] Successfully prepared embeds for export:', { count: embedsForExport.length });
+        return embedsForExport;
+    } catch (error) {
+        console.error('[ChatExportService] Error getting embeds for chat:', error);
+        // Return empty array on error to not block export
+        return [];
+    }
+}
+
+/**
  * Converts a chat and its messages to YAML format
  * @param chat - The chat to convert
  * @param messages - Array of messages
@@ -77,7 +247,8 @@ export async function convertChatToYaml(chat: Chat, messages: Message[], include
             message_count: messages.length,
             draft: null
         },
-        messages: []
+        messages: [],
+        embeds: [] // Separate field for embeds with decoded content
     };
     
     // Add chat link at the top if requested (for clipboard copy)
@@ -126,11 +297,18 @@ export async function convertChatToYaml(chat: Chat, messages: Message[], include
         }
     }
     
-    // Add messages
+    // Get all embeds for the chat (with decoded content)
+    // This runs in parallel with message processing for better performance
+    const embedsPromise = getAllEmbedsForChat(messages);
+    
+    // Add messages (embed placeholders remain unchanged in message content)
     for (const message of messages) {
         const messageData = await convertMessageToYaml(message);
         yamlData.messages.push(messageData);
     }
+    
+    // Add embeds with decoded content (separate field)
+    yamlData.embeds = await embedsPromise;
     
     return convertToYamlString(yamlData);
 }
@@ -193,6 +371,87 @@ async function convertTiptapToMarkdown(content: any): Promise<string> {
 }
 
 /**
+ * Escapes a string for YAML double-quoted strings, handling special characters
+ * @param str - String to escape
+ * @returns Escaped string safe for YAML double quotes
+ */
+function escapeYamlString(str: string): string {
+    // Escape backslashes first (must be first)
+    str = str.replace(/\\/g, '\\\\');
+    // Escape double quotes
+    str = str.replace(/"/g, '\\"');
+    // Escape newlines
+    str = str.replace(/\n/g, '\\n');
+    // Escape carriage returns
+    str = str.replace(/\r/g, '\\r');
+    // Escape tabs
+    str = str.replace(/\t/g, '\\t');
+    return str;
+}
+
+/**
+ * Checks if a string needs to be quoted in YAML
+ * For safety, we quote strings that contain any potentially problematic characters
+ * @param str - String to check
+ * @returns true if string needs quoting
+ */
+function needsQuoting(str: string): boolean {
+    // Always quote empty strings
+    if (str === '') {
+        return true;
+    }
+    
+    // Quote YAML keywords that could be confused with boolean/null
+    if (str === 'null' || str === 'true' || str === 'false' || str === 'yes' || str === 'no' || str === 'on' || str === 'off') {
+        return true;
+    }
+    
+    // Quote if contains special YAML characters that could cause parsing issues
+    // This includes: : # @ ` | > & * ! ? % { [ ] } , ' " \
+    const specialChars = /[:#@`|>&*!?%{}\[\]\\,"']/;
+    if (specialChars.test(str)) {
+        return true;
+    }
+    
+    // Quote if starts with special characters that could be confused with YAML syntax
+    if (/^[:\-+.#@`|>&*!?%{}\[\]\\]/.test(str)) {
+        return true;
+    }
+    
+    // Quote if looks like a number but might need to be a string (starts with digit or sign)
+    // But only if it's actually a valid number representation
+    if (/^[\d\-+.]/.test(str)) {
+        // Check if it's a valid number
+        const num = Number(str);
+        if (!isNaN(num) && isFinite(num) && str.trim() === String(num)) {
+            // It's a valid number, but we'll quote it anyway if it starts with + or has leading zeros
+            if (str.startsWith('+') || /^0\d/.test(str)) {
+                return true;
+            }
+            // For other numbers, don't quote (let YAML handle it)
+            return false;
+        }
+    }
+    
+    // Quote if contains control characters (except newline which we handle separately)
+    if (/[\x00-\x08\x0B-\x0C\x0E-\x1F\x7F]/.test(str)) {
+        return true;
+    }
+    
+    // Quote if contains HTML entities (like &#x27; or &amp;)
+    if (/&#?\w+;/.test(str)) {
+        return true;
+    }
+    
+    // Quote if contains URLs (http:// or https://)
+    if (/https?:\/\//.test(str)) {
+        return true;
+    }
+    
+    return false;
+}
+
+/**
  * Converts JavaScript object to YAML string
  */
 function convertToYamlString(data: any): string {
@@ -205,25 +464,42 @@ function convertToYamlString(data: any): string {
         if (value === null || value === undefined) {
             yamlLines.push(`${spaces}${key}: null`);
         } else if (typeof value === 'string') {
-            // Handle multiline strings
+            // Handle multiline strings - use block scalar
             if (value.includes('\n')) {
                 yamlLines.push(`${spaces}${key}: |`);
                 const lines = value.split('\n');
                 for (const line of lines) {
-                    yamlLines.push(`${spaces}  ${line}`);
+                    // Escape special characters in each line for block scalars
+                    const escapedLine = line.replace(/\\/g, '\\\\').replace(/\$/g, '\\$');
+                    yamlLines.push(`${spaces}  ${escapedLine}`);
                 }
             } else {
-                yamlLines.push(`${spaces}${key}: "${value}"`);
+                // Single-line string - check if it needs quoting
+                if (needsQuoting(value)) {
+                    const escaped = escapeYamlString(value);
+                    yamlLines.push(`${spaces}${key}: "${escaped}"`);
+                } else {
+                    // Safe to use unquoted
+                    yamlLines.push(`${spaces}${key}: ${value}`);
+                }
             }
         } else if (typeof value === 'number' || typeof value === 'boolean') {
             yamlLines.push(`${spaces}${key}: ${value}`);
         } else if (Array.isArray(value)) {
             yamlLines.push(`${spaces}${key}:`);
             for (const item of value) {
-                if (typeof item === 'object') {
+                if (typeof item === 'object' && item !== null) {
                     yamlLines.push(`${spaces}  -`);
                     for (const [itemKey, itemValue] of Object.entries(item)) {
                         convertValue(itemKey, itemValue, indent + 2);
+                    }
+                } else if (typeof item === 'string') {
+                    // Handle string items in arrays
+                    if (needsQuoting(item)) {
+                        const escaped = escapeYamlString(item);
+                        yamlLines.push(`${spaces}  - "${escaped}"`);
+                    } else {
+                        yamlLines.push(`${spaces}  - ${item}`);
                     }
                 } else {
                     yamlLines.push(`${spaces}  - ${item}`);

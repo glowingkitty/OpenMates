@@ -873,10 +873,17 @@
      * Start Conditional UI (passkey autofill) flow
      * This allows the browser to show passkey suggestions in the username/email autofill dropdown
      * The user can select a passkey without clicking a separate button
+     * Passkeys will appear automatically when the page loads, not just when clicking the field
      * 
      * Reference: https://web.dev/articles/passkey-form-autofill
      */
     async function startConditionalUIPasskey() {
+        // Don't start if already active
+        if (conditionalUIAbortController) {
+            console.log('[Login] Conditional UI passkey request already active');
+            return;
+        }
+        
         // Check if WebAuthn and Conditional UI are supported
         if (!window.PublicKeyCredential) {
             console.log('[Login] WebAuthn not supported');
@@ -888,12 +895,14 @@
             const conditionalMediationAvailable = await PublicKeyCredential.isConditionalMediationAvailable?.();
             if (!conditionalMediationAvailable) {
                 console.log('[Login] Conditional UI (passkey autofill) not supported by browser');
+                isConditionalUISupported = false;
                 return;
             }
             isConditionalUISupported = true;
-            console.log('[Login] Conditional UI (passkey autofill) is supported');
+            console.log('[Login] Conditional UI (passkey autofill) is supported - starting automatic passkey suggestions');
         } catch (error) {
             console.log('[Login] Error checking conditional UI support:', error);
+            isConditionalUISupported = false;
             return;
         }
         
@@ -973,11 +982,16 @@
                     return;
                 }
                 // NotAllowedError can happen if user focuses input but doesn't select a passkey
+                // or if the request times out - we should restart it in this case
                 if (error.name === 'NotAllowedError') {
-                    console.log('[Login] User did not select a passkey from autofill');
+                    console.log('[Login] Conditional UI request completed without selection - will restart automatically if needed');
+                    // Reset abort controller so it can be restarted
+                    conditionalUIAbortController = null;
                     return;
                 }
                 console.log('[Login] Conditional UI WebAuthn error:', error);
+                // Reset abort controller on error so it can be retried
+                conditionalUIAbortController = null;
                 return;
             }
             
@@ -995,12 +1009,17 @@
             // Process the passkey assertion (same flow as manual passkey login)
             await processPasskeyAssertion(assertion, initiateData, cryptoService);
             
+            // Reset abort controller after successful processing so it can be restarted if needed
+            conditionalUIAbortController = null;
+            
         } catch (error: any) {
             if (error.name === 'AbortError') {
                 console.log('[Login] Conditional UI request aborted');
                 return;
             }
             console.error('[Login] Error in conditional UI passkey flow:', error);
+            // Reset abort controller on error so it can be retried
+            conditionalUIAbortController = null;
         }
     }
     
@@ -1299,6 +1318,10 @@
             loginFailedWarning = true;
             isPasskeyLoading = false;
             isLoading = false;
+            // Restart conditional UI if we're still on the email step after error
+            if (currentLoginStep === 'email' && currentView === 'login') {
+                restartConditionalUIPasskeyIfNeeded();
+            }
         }
     }
     
@@ -1311,6 +1334,25 @@
             conditionalUIAbortController.abort();
             conditionalUIAbortController = null;
             console.log('[Login] Conditional UI passkey request cancelled');
+        }
+    }
+    
+    /**
+     * Restart conditional UI passkey flow if conditions are met
+     * Called when the login view becomes visible again or after a passkey selection
+     */
+    function restartConditionalUIPasskeyIfNeeded() {
+        if (
+            currentView === 'login' && 
+            !$authStore.isAuthenticated && 
+            !$isCheckingAuth && 
+            showForm && 
+            currentLoginStep === 'email' &&
+            !$isInSignupProcess &&
+            !conditionalUIAbortController
+        ) {
+            console.log('[Login] Restarting conditional UI passkey flow');
+            startConditionalUIPasskey();
         }
     }
 
@@ -1330,6 +1372,23 @@
         const unsubscribe = isInSignupProcess.subscribe(value => {
             console.debug(`[Login.svelte] isInSignupProcess changed to: ${value}`);
         });
+        
+        // Start conditional UI passkey flow immediately when component mounts
+        // This enables automatic passkey suggestions as soon as the page loads
+        // Don't wait for other async operations - start it right away
+        if (!$authStore.isAuthenticated && !$isInSignupProcess) {
+            // Check support and start asynchronously without blocking
+            if (window.PublicKeyCredential) {
+                PublicKeyCredential.isConditionalMediationAvailable?.().then((available) => {
+                    if (available) {
+                        isConditionalUISupported = true;
+                        // The reactive effect will start it when conditions are met
+                    }
+                }).catch(() => {
+                    // Browser doesn't support conditional UI, that's okay
+                });
+            }
+        }
         
         (async () => {
             // Check if device is touch-enabled
@@ -1364,12 +1423,6 @@
             // Only focus if not touch device and not authenticated
             if (!$authStore.isAuthenticated && emailInput && !isTouchDevice) {
                 emailInput.focus();
-            }
-            
-            // Start conditional UI passkey flow (autofill passkeys)
-            // This enables the OS/browser to show passkey suggestions in the email input autofill
-            if (!$authStore.isAuthenticated && !$isInSignupProcess) {
-                startConditionalUIPasskey();
             }
 
             // Check if we're still rate limited
@@ -1609,6 +1662,54 @@
             return () => {
                 clearTimeout(timeoutId);
             };
+        }
+    });
+
+    // Start conditional UI passkey flow automatically when login view is visible
+    // This enables passkeys to appear in the browser's autofill dropdown automatically
+    // without requiring the user to click on the email field first
+    $effect(() => {
+        // Start conditional UI when:
+        // 1. We're in login view (not signup)
+        // 2. User is not authenticated
+        // 3. Auth check is complete (not checking)
+        // 4. Form is visible
+        // 5. We're on the email step
+        // 6. Conditional UI is supported
+        if (
+            currentView === 'login' && 
+            !$authStore.isAuthenticated && 
+            !$isCheckingAuth && 
+            showForm && 
+            currentLoginStep === 'email' &&
+            !$isInSignupProcess
+        ) {
+            // Start conditional UI passkey flow (autofill passkeys)
+            // This enables the OS/browser to show passkey suggestions automatically
+            // The request will wait silently until user interacts with the email field
+            if (isConditionalUISupported || window.PublicKeyCredential) {
+                // Only start if not already active (avoid duplicate requests)
+                if (!conditionalUIAbortController) {
+                    console.log('[Login] Starting conditional UI passkey flow for automatic passkey suggestions');
+                    startConditionalUIPasskey();
+                }
+            } else {
+                // Check support asynchronously and start if available
+                PublicKeyCredential.isConditionalMediationAvailable?.().then((available) => {
+                    if (available && !conditionalUIAbortController) {
+                        isConditionalUISupported = true;
+                        console.log('[Login] Conditional UI support confirmed, starting passkey flow');
+                        startConditionalUIPasskey();
+                    }
+                }).catch(() => {
+                    // Browser doesn't support conditional UI, that's okay
+                });
+            }
+        } else {
+            // Cancel conditional UI if we're not in the right state
+            if (conditionalUIAbortController && (currentView !== 'login' || $isInSignupProcess || currentLoginStep !== 'email')) {
+                cancelConditionalUIPasskey();
+            }
         }
     });
 

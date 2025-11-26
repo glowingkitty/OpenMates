@@ -606,15 +606,43 @@
 
     // Handler for AI message chunks (streaming)
     async function handleAiMessageChunk(event: CustomEvent) {
+        // 🔍 STREAMING DEBUG: Log handler invocation immediately
+        console.log(`[ActiveChat] 🎯 HANDLER INVOKED | event received at ${new Date().toISOString()}`);
+        
         const chunk = event.detail as any; // AIMessageUpdatePayload
+        const timestamp = new Date().toISOString();
+        const contentLength = chunk.full_content_so_far?.length || 0;
+        
+        // 🔍 STREAMING DEBUG: Log chunk processing start
+        console.log(
+            `[ActiveChat] 🟡 CHUNK PROCESSING START | ` +
+            `seq: ${chunk.sequence} | ` +
+            `chat_id: ${chunk.chat_id} | ` +
+            `message_id: ${chunk.message_id} | ` +
+            `content_length: ${contentLength} chars | ` +
+            `is_final: ${chunk.is_final_chunk} | ` +
+            `timestamp: ${timestamp}`
+        );
+        
         console.debug(`[ActiveChat] handleAiMessageChunk: Event for chat_id: ${chunk.chat_id}. Current active chat_id: ${currentChat?.chat_id}`);
+        console.log(
+            `[ActiveChat] 🔍 CHAT STATE CHECK | ` +
+            `currentChat exists: ${!!currentChat} | ` +
+            `currentChat.chat_id: ${currentChat?.chat_id || 'null'} | ` +
+            `chunk.chat_id: ${chunk.chat_id} | ` +
+            `match: ${currentChat?.chat_id === chunk.chat_id}`
+        );
 
         if (!currentChat || currentChat.chat_id !== chunk.chat_id) {
-            console.warn('[ActiveChat] handleAiMessageChunk: Received AI chunk for non-active chat or no current chat. Current:', currentChat?.chat_id, 'Chunk:', chunk.chat_id, 'Ignoring.');
+            console.warn(
+                `[ActiveChat] ⚠️ CHUNK IGNORED (wrong chat) | ` +
+                `seq: ${chunk.sequence} | ` +
+                `current_chat: ${currentChat?.chat_id || 'null'} | ` +
+                `chunk_chat: ${chunk.chat_id} | ` +
+                `currentChat exists: ${!!currentChat}`
+            );
             return;
         }
-
-        // console.debug('[ActiveChat] handleAiMessageChunk: Processing AI message chunk for active chat:', chunk);
 
         // Operate on currentMessages state
         let targetMessageIndex = currentMessages.findIndex(m => m.message_id === chunk.message_id);
@@ -645,13 +673,29 @@
                 currentMessages = [...currentMessages, newAiMessage];
                 messageToSave = newAiMessage;
                 isNewMessageInStream = true;
+                console.log(
+                    `[ActiveChat] 🆕 NEW MESSAGE CREATED | ` +
+                    `seq: ${chunk.sequence} | ` +
+                    `message_id: ${chunk.message_id} | ` +
+                    `content_length: ${newAiMessage.content.length} chars`
+                );
                 console.debug('[ActiveChat] Created new AI message for streaming:', newAiMessage);
             } else {
-                console.warn('[ActiveChat] AI chunk received for unknown message_id, but not first chunk and last message not user. Ignoring.', chunk);
+                console.warn(
+                    `[ActiveChat] ⚠️ CHUNK IGNORED (invalid state) | ` +
+                    `seq: ${chunk.sequence} | ` +
+                    `message_id: ${chunk.message_id} | ` +
+                    `current_messages_count: ${currentMessages.length} | ` +
+                    `last_message_role: ${currentMessages[currentMessages.length - 1]?.role}`
+                );
                 return;
             }
         } else {
             // Update existing message
+            const previousLength = targetMessage.content?.length || 0;
+            const newLength = chunk.full_content_so_far?.length || 0;
+            const lengthDiff = newLength - previousLength;
+            
             // Only update content if full_content_so_far is not empty,
             // or if it's the first chunk (sequence 1) where it might legitimately start empty.
             if (chunk.full_content_so_far || chunk.sequence === 1) {
@@ -664,30 +708,77 @@
             currentMessages[targetMessageIndex] = targetMessage;
             currentMessages = [...currentMessages]; // New array reference for Svelte reactivity
             messageToSave = targetMessage;
+            
+            // 🔍 STREAMING DEBUG: Log content update
+            console.log(
+                `[ActiveChat] 📝 MESSAGE UPDATED | ` +
+                `seq: ${chunk.sequence} | ` +
+                `message_id: ${chunk.message_id} | ` +
+                `previous_length: ${previousLength} chars | ` +
+                `new_length: ${newLength} chars | ` +
+                `diff: ${lengthDiff > 0 ? '+' : ''}${lengthDiff} chars`
+            );
         }
         
         // Update UI
         if (chatHistoryRef) {
+            console.log(
+                `[ActiveChat] 🎨 UI UPDATE | ` +
+                `seq: ${chunk.sequence} | ` +
+                `message_id: ${chunk.message_id} | ` +
+                `calling chatHistoryRef.updateMessages() with ${currentMessages.length} messages`
+            );
             chatHistoryRef.updateMessages(currentMessages);
+        } else {
+            console.warn(`[ActiveChat] ⚠️ chatHistoryRef is null, cannot update UI (seq: ${chunk.sequence})`);
         }
 
         // Save to IndexedDB
         if (messageToSave) {
             try {
+                const saveStartTime = performance.now();
                 // Check if this message already exists to prevent duplicates
                 const existingMessage = await chatDB.getMessage(messageToSave.message_id);
                 if (existingMessage && !isNewMessageInStream) {
-                    console.debug(`[ActiveChat] Message ${messageToSave.message_id} already exists in DB, skipping duplicate save`);
+                    console.log(
+                        `[ActiveChat] 💾 DB SAVE SKIPPED (duplicate) | ` +
+                        `seq: ${chunk.sequence} | ` +
+                        `message_id: ${messageToSave.message_id}`
+                    );
                 } else {
-                    console.debug(`[ActiveChat] Saving/Updating AI message to DB (isNew: ${isNewMessageInStream}):`, messageToSave);
+                    console.log(
+                        `[ActiveChat] 💾 DB SAVE START | ` +
+                        `seq: ${chunk.sequence} | ` +
+                        `message_id: ${messageToSave.message_id} | ` +
+                        `isNew: ${isNewMessageInStream} | ` +
+                        `content_length: ${messageToSave.content.length} chars`
+                    );
                     await chatDB.saveMessage(messageToSave); // saveMessage handles both add and update
+                    const saveDuration = performance.now() - saveStartTime;
+                    console.log(
+                        `[ActiveChat] ✅ DB SAVE COMPLETE | ` +
+                        `seq: ${chunk.sequence} | ` +
+                        `message_id: ${messageToSave.message_id} | ` +
+                        `duration: ${saveDuration.toFixed(2)}ms`
+                    );
                 }
             } catch (error) {
-                console.error('[ActiveChat] Error saving/updating AI message to DB:', error);
+                console.error(
+                    `[ActiveChat] ❌ DB SAVE ERROR | ` +
+                    `seq: ${chunk.sequence} | ` +
+                    `message_id: ${messageToSave.message_id} | ` +
+                    `error:`, error
+                );
             }
         }
 
         if (chunk.is_final_chunk) {
+            console.log(
+                `[ActiveChat] 🏁 FINAL CHUNK PROCESSED | ` +
+                `seq: ${chunk.sequence} | ` +
+                `message_id: ${chunk.message_id} | ` +
+                `total_content_length: ${chunk.full_content_so_far?.length || 0} chars`
+            );
             console.debug('[ActiveChat] Final AI chunk marker received for message_id:', chunk.message_id);
             const finalMessageInArray = currentMessages.find(m => m.message_id === chunk.message_id);
             if (finalMessageInArray) {
@@ -1828,7 +1919,9 @@
         chatSyncService.addEventListener('messageStatusChanged', messageStatusHandler);
         
         // Add listener for AI message chunks
+        console.log('[ActiveChat] 📌 Registering aiMessageChunk event listener');
         chatSyncService.addEventListener('aiMessageChunk', handleAiMessageChunk as EventListener);
+        console.log('[ActiveChat] ✅ aiMessageChunk event listener registered');
 
         // Add listeners for AI task state changes
         const aiTaskInitiatedHandler = (async (event: CustomEvent<AITaskInitiatedPayload>) => {
