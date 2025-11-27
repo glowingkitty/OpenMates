@@ -19,6 +19,27 @@ async def get_current_user_ws(
     Returns dict with user_id, device_fingerprint_hash, and user_data on success.
     """
     logger.debug("Attempting WebSocket authentication") # Log entry point and headers
+    
+    # Log request details for Safari/iPad OS debugging
+    # Check User-Agent header if available (may not be accessible directly from WebSocket in FastAPI)
+    try:
+        # Try to get headers if available
+        headers = dict(websocket.headers) if hasattr(websocket, 'headers') else {}
+        user_agent = headers.get('user-agent', 'unknown')
+        if 'safari' in user_agent.lower() and ('ipad' in user_agent.lower() or 'iphone' in user_agent.lower()):
+            logger.debug(f"WebSocket auth: Safari iOS/iPad OS detected. User-Agent: {user_agent}")
+        
+        # Log query parameters for debugging (sanitized)
+        query_params = dict(websocket.query_params) if hasattr(websocket, 'query_params') else {}
+        if 'token' in query_params:
+            token_preview = query_params['token'][:8] + '...' if len(query_params['token']) > 8 else query_params['token']
+            logger.debug(f"WebSocket auth: Token in query params (length: {len(query_params['token'])} chars, preview: {token_preview})")
+        if 'sessionId' in query_params:
+            session_preview = query_params['sessionId'][:8] + '...' if len(query_params['sessionId']) > 8 else query_params['sessionId']
+            logger.debug(f"WebSocket auth: SessionId in query params (length: {len(query_params['sessionId'])} chars, preview: {session_preview})")
+    except Exception as e:
+        logger.debug(f"WebSocket auth: Could not extract headers/query params for logging: {e}")
+    
     # Access services directly from websocket state
     cache_service: CacheService = websocket.app.state.cache_service
     directus_service: DirectusService = websocket.app.state.directus_service
@@ -33,6 +54,9 @@ async def get_current_user_ws(
         auth_refresh_token = websocket.query_params.get("token")
         if auth_refresh_token:
             logger.debug("WebSocket auth: Using token from query parameter (likely Safari iOS or similar browser)")
+            # Check token length - very long tokens in query params can cause issues on Safari
+            if len(auth_refresh_token) > 500:
+                logger.warning(f"WebSocket auth: Token in query param is very long ({len(auth_refresh_token)} chars). This may cause issues on Safari iPad OS due to URL length limits.")
 
     if not auth_refresh_token:
         logger.warning("WebSocket connection denied: Missing 'auth_refresh_token' in both cookie and query parameters.")

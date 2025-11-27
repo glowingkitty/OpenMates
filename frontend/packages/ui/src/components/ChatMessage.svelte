@@ -204,11 +204,11 @@
       // Load full content from IndexedDB
       const fullMessage = await chatDB.getMessage(original_message.message_id);
       if (fullMessage) {
-        // Convert the full markdown content to TipTap JSON for display
-        const { parseMarkdownToTiptap } = await import('./enter_message/utils/markdownParser');
+        // Convert the full markdown content to TipTap JSON with unified parsing (includes embed parsing)
+        const { parse_message } = await import('../message_parsing/parse_message');
         const { preprocessTiptapJsonForEmbeds } = await import('./enter_message/utils/tiptapContentProcessor');
-        
-        const tiptapJson = parseMarkdownToTiptap(fullMessage.content);
+
+        const tiptapJson = parse_message(fullMessage.content, 'read', { unifiedParsingEnabled: true });
         fullContent = preprocessTiptapJsonForEmbeds(tiptapJson);
         showFullMessage = true;
       }

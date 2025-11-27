@@ -65,25 +65,29 @@ class AskSkill(BaseSkill):
     # The skill-specific 'default_config' from backend.core.api.app.yml will be passed to the constructor.
     
     def __init__(self,
+                 app,  # BaseApp instance - required by BaseSkill
                  app_id: str,
                  skill_id: str,
-                 name: str,
-                 description: str,
-                 stage: str,
-                 # Parameters for BaseSkill constructor, passed by BaseApp from backend.core.api.app.yml
+                 skill_name: str,  # Changed from 'name' to match BaseSkill
+                 skill_description: str,  # Changed from 'description' to match BaseSkill
+                 stage: str = "development",
                  full_model_reference: Optional[str] = None, # From skill's app.yml definition
                  pricing_config: Optional[Dict[str, Any]] = None,    # From skill's app.yml definition
+                 celery_producer: Optional[Celery] = None,  # Added to match BaseSkill
                  # This is for AskSkill's specific operational defaults from its 'default_config' block in app.yml
                  skill_operational_defaults: Optional[Dict[str, Any]] = None
                  ):
+        # Call BaseSkill constructor with all required parameters
         super().__init__(
+            app=app,
             app_id=app_id,
             skill_id=skill_id,
-            skill_name=name,
-            skill_description=description,
+            skill_name=skill_name,
+            skill_description=skill_description,
             stage=stage,
-            full_model_reference=full_model_reference, # Passed to BaseSkill
-            pricing_config=pricing_config             # Passed to BaseSkill
+            full_model_reference=full_model_reference,
+            pricing_config=pricing_config,
+            celery_producer=celery_producer
         )
         
         self.parsed_default_config: Optional[AskSkillDefaultConfig] = None
@@ -107,25 +111,34 @@ class AskSkill(BaseSkill):
         """
         logger.info(f"AskSkill executed for chat_id: {request.chat_id}, message_id: {request.message_id}")
 
-        task_kwargs = request.model_dump(exclude_none=True)
-        # Pass the skill's app_id and skill_id to the Celery task for context
-        task_kwargs['app_id_for_skill'] = self.app_id
-        task_kwargs['skill_id_for_skill'] = self.skill_id
-        # The skill's own pricing and fixed model ref are already part of self (BaseSkill instance)
-        # The Celery task will need to fetch the AppSkillDefinition if it needs the skill's own pricing.
-        # For now, we pass skill_operational_defaults (parsed_default_config) to the task.
-        task_kwargs['skill_operational_defaults'] = self.parsed_default_config.model_dump() if self.parsed_default_config else {}
-
+        # Prepare task arguments matching the expected signature:
+        # process_ai_skill_ask_task(self, request_data_dict: dict, skill_config_dict: dict)
+        request_data_dict = request.model_dump(exclude_none=True)
+        skill_config_dict = self.parsed_default_config.model_dump() if self.parsed_default_config else {}
 
         if not self.celery_producer:
             logger.error(f"Celery producer not available in AskSkill '{self.skill_name}'. Cannot dispatch task.")
             raise HTTPException(status_code=500, detail="AI processing service (Celery producer) is not configured correctly.")
 
         try:
-            task_signature = self.celery_producer.send_task(
-                name="apps.ai.tasks.skill_ask",  # Registered name of the task in ai.tasks
-                kwargs=task_kwargs,
-                queue="app_ai"  # Route to the 'app_ai' queue, as configured in celery_config.py
+            # Use the shared Celery app from celery_config and import the task directly
+            # This ensures we use the registered task object, which is more reliable than send_task
+            from backend.core.api.app.tasks.celery_config import app as celery_app
+            from backend.apps.ai.tasks.ask_skill_task import process_ai_skill_ask_task
+            
+            # Use apply_async on the registered task object instead of send_task
+            # This is the recommended approach per Celery docs when you have access to the task object
+            # It ensures proper routing and task registration
+            # Explicitly set exchange and routing_key to match the queue declaration in celery_config.py
+            # This ensures the task is routed to the correct queue and consumed by app-ai-worker, not app-web-worker
+            task_signature = process_ai_skill_ask_task.apply_async(
+                kwargs={
+                    "request_data_dict": request_data_dict,
+                    "skill_config_dict": skill_config_dict
+                },
+                queue="app_ai",  # Route to the 'app_ai' queue, as configured in celery_config.py
+                exchange="app_ai",  # Match the exchange declared in celery_config.py task_queues
+                routing_key="app_ai"  # Match the routing_key declared in celery_config.py task_queues
             )
             task_id = task_signature.id
             logger.info(f"Celery task 'apps.ai.tasks.skill_ask' dispatched by AskSkill with ID: {task_id} for message_id: {request.message_id} to queue 'app_ai'.")

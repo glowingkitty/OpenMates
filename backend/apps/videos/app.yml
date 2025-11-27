@@ -1,26 +1,145 @@
-name: |
-  Videos
-description: |
-  Create & search videos, get transcripts & more.
+name_translation_key: videos.text
+description_translation_key: videos.description.text
 icon_image: |
   videos.svg
-icon_colorgradient:
-  start: |
-    #A70B09
-  end: |
-    #FF1512
-
+category: personal
+last_updated: '2025-11-12'
 settings_and_memories:
-  - id: interests # Unique key for this memory field
-    name: "Interests" # User-friendly name for UI
-    description: "Your interests related to videos. For example, favorite genres, directors, or actors."
+  - id: to_watch_list
+    name_translation_key: videos.to_watch_list.text
+    description_translation_key: videos.to_watch_list.description.text
     type: list
-
+    stage: planning
+    schema:
+      type: object
+      properties:
+        title:
+          type: string
+          description: Video title
+        channel:
+          type: string
+          description: Channel name
+        url:
+          type: string
+          description: Video URL
+        added_date:
+          type: integer
+          description: Unix timestamp when added
+      required:
+        - url
+  - id: subscribed_channels
+    name_translation_key: videos.subscribed_channels.text
+    description_translation_key: videos.subscribed_channels.description.text
+    type: list
+    stage: planning
+    schema:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Channel name
+        url:
+          type: string
+          description: YouTube Channel URL
+        subscribed_date:
+          type: integer
+          description: Unix timestamp when subscribed
+        category:
+          type: string
+          description: Content category (e.g., tech, music, education)
+      required:
+        - url
 skills:
-
-  - id: |
-      get_transcript
-    name: |
-      Get Transcript
-    description: |
-      Get the full transcript of a YouTube video.
+  - id: get_transcript
+    name_translation_key: videos.get_transcript.text
+    description_translation_key: videos.get_transcript.description.text
+    stage: development
+    class_path: |
+      backend.apps.videos.skills.transcript_skill.TranscriptSkill
+    providers:
+      - YouTube
+    # Fields to exclude from LLM inference (but keep in full results for UI rendering)
+    # These fields are removed before adding to message history for LLM processing
+    # but remain in the full response stored in chat history for proper UI rendering
+    exclude_fields_for_llm:
+      - "type"
+      - "hash"
+    tool_schema:
+      type: object
+      properties:
+        requests:
+          type: array
+          description: Array of transcript request objects for parallel processing. Each object must contain 'url' and can include optional parameters (languages).
+          items:
+            type: object
+            properties:
+              url:
+                type: string
+                description: YouTube video URL (supports youtube.com/watch?v= and youtu.be/ formats)
+              languages:
+                type: array
+                description: List of language codes to try for transcript (ISO 639-1, e.g., 'en', 'de', 'es', 'fr'). The API will use the first available language.
+                items:
+                  type: string
+                default: ["en", "de", "es", "fr"]
+            required:
+              - url
+      required:
+        - requests
+  - id: search
+    name_translation_key: videos.search.text
+    description_translation_key: videos.search.description.text
+    stage: development
+    class_path: |
+      backend.apps.videos.skills.search_skill.SearchSkill
+    providers:
+      - Brave
+    # Follow-up suggestions shown to users after search results
+    suggestions_follow_up_requests:
+      - "Get transcript for this video"
+      - "Search more videos"
+      - "Watch related videos"
+    # Fields to exclude from LLM inference (but keep in full results for UI rendering)
+    # These fields are removed before adding to message history for LLM processing
+    # but remain in the full response stored in chat history for proper UI rendering
+    exclude_fields_for_llm:
+      - "type"
+      - "hash"
+      - "meta_url.favicon"
+      - "thumbnail.original"
+    tool_schema:
+      type: object
+      properties:
+        requests:
+          type: array
+          description: Array of search request objects for parallel processing (up to 9 requests). Each object must contain 'query' and can include optional parameters (count, country, search_lang, safesearch).
+          items:
+            type: object
+            properties:
+              query:
+                type: string
+                description: Search query string
+              count:
+                type: integer
+                description: Number of results for this request (max 20)
+                minimum: 1
+                maximum: 20
+                default: 10
+              country:
+                type: string
+                description: "Country code for localized results. Must be one of: AR, AU, AT, BE, BR, CA, CL, DK, FI, FR, DE, GR, HK, IN, ID, IT, JP, KR, MY, MX, NL, NZ, NO, CN, PL, PT, PH, RU, SA, ZA, ES, SE, CH, TW, TR, GB, US, or ALL (case-insensitive). Defaults to 'us' if invalid."
+                enum: ["AR", "AU", "AT", "BE", "BR", "CA", "CL", "DK", "FI", "FR", "DE", "GR", "HK", "IN", "ID", "IT", "JP", "KR", "MY", "MX", "NL", "NZ", "NO", "CN", "PL", "PT", "PH", "RU", "SA", "ZA", "ES", "SE", "CH", "TW", "TR", "GB", "US", "ALL", "ar", "au", "at", "be", "br", "ca", "cl", "dk", "fi", "fr", "de", "gr", "hk", "in", "id", "it", "jp", "kr", "my", "mx", "nl", "nz", "no", "cn", "pl", "pt", "ph", "ru", "sa", "za", "es", "se", "ch", "tw", "tr", "gb", "us", "all"]
+                default: "us"
+              search_lang:
+                type: string
+                description: Language code for search (ISO 639-1, e.g., 'en', 'es', 'fr')
+                default: "en"
+              safesearch:
+                type: string
+                description: Safe search level
+                enum: ["off", "moderate", "strict"]
+                default: "moderate"
+            required:
+              - query
+      required:
+        - requests

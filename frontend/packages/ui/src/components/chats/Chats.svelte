@@ -21,9 +21,11 @@
 	import { phasedSyncState } from '../../stores/phasedSyncStateStore'; // For tracking sync state across component lifecycle
 	import { activeChatStore } from '../../stores/activeChatStore'; // For persisting active chat across component lifecycle
 	import { userProfile } from '../../stores/userProfile'; // For hidden_demo_chats
-	import { DEMO_CHATS, LEGAL_CHATS, type DemoChat, isDemoChat, translateDemoChat, isLegalChat } from '../../demo_chats'; // For demo chats
+	import { DEMO_CHATS, LEGAL_CHATS, type DemoChat, isDemoChat, translateDemoChat, isLegalChat, getDemoMessages, isPublicChat } from '../../demo_chats'; // For demo chats
 	import { convertDemoChatToChat } from '../../demo_chats/convertToChat'; // For converting demo chats to Chat type
 	import { getAllDraftChatIdsWithDrafts } from '../../services/drafts/sessionStorageDraftService'; // Import sessionStorage draft service
+	import { notificationStore } from '../../stores/notificationStore'; // For notifications
+	import JSZip from 'jszip'; // For creating zip files
 
 	const dispatch = createEventDispatcher();
 
@@ -39,6 +41,11 @@
 	// Phased Loading State
 	let displayLimit = $state(20); // Initially display up to 20 chats
 	let allChatsDisplayed = $state(false); // True if all chats are being displayed (limit is Infinity)
+
+	// Select Mode State
+	let selectMode = $state(false); // Whether we're in multi-select mode
+	let selectedChatIds = $state<Set<string>>(new Set()); // Set of selected chat IDs
+	let lastSelectedChatId: string | null = $state(null); // Track last selected chat for range selection
 
 	// --- Reactive Computations for Display ---
 
@@ -194,6 +201,10 @@
 	let handleGlobalChatSelectedEvent: (event: Event) => void; // Handler for global chat selection
 	let handleGlobalChatDeselectedEvent: (event: Event) => void; // Handler for global chat deselection
 	let handleLogoutEvent: () => void; // Handler for logout event to clear user chats
+	let handleContextMenuEnterSelectMode: (event: Event) => void; // Handler for entering select mode from context menu
+	let handleContextMenuUnselect: (event: Event) => void; // Handler for unselecting chat from context menu
+	let handleContextMenuSelect: (event: Event) => void; // Handler for selecting chat from context menu
+	let handleContextMenuBulkAction: (event: Event) => void; // Handler for bulk actions from context menu
 
 	// --- chatSyncService Event Handlers ---
 
@@ -305,17 +316,16 @@
 		* This means the last 100 chats are ready and full sync is complete.
 		*/
 	const handlePhase3Last100ChatsReadyEvent = async (event: CustomEvent<{chat_count: number}>) => {
-		console.debug(`[Chats] Phase 3 complete - Last 100 chats ready: ${event.detail.chat_count} chats.`);
+		console.info(`[Chats] Phase 3 complete - Last 100 chats ready: ${event.detail.chat_count} chats.`);
 		
 		// Update the chat list to show all chats
 		await updateChatListFromDB();
 		
-		// Expand display limit to show all chats
-		if (!allChatsDisplayed) {
-			displayLimit = Infinity;
-			allChatsDisplayed = true;
-			console.debug('[Chats] Full sync complete, expanded display limit to show all chats.');
-		}
+		// CRITICAL: Always expand display limit to show all chats after Phase 3
+		// Don't check allChatsDisplayed - ensure it's always set
+		displayLimit = Infinity;
+		allChatsDisplayed = true;
+		console.info(`[Chats] Phase 3 complete - Set displayLimit to Infinity, allChatsFromDB has ${allChatsFromDB.length} chats`);
 		
 		// Show "Sync complete" message
 		syncing = false;
@@ -332,7 +342,7 @@
 		* This indicates the entire 3-phase sync process is complete.
 		*/
 	const handlePhasedSyncCompleteEvent = async (event: CustomEvent<any>) => {
-		console.debug(`[Chats] Phased sync complete:`, event.detail);
+		console.info(`[Chats] Phased sync complete:`, event.detail);
 		
 		// Mark that initial phased sync has completed
 		// This prevents redundant syncs when Chats component is remounted
@@ -349,11 +359,10 @@
 			syncComplete = false;
 		}, 1000);
 		
-		// Ensure all chats are displayed
-		if (!allChatsDisplayed) {
-			displayLimit = Infinity;
-			allChatsDisplayed = true;
-		}
+		// CRITICAL: Always ensure all chats are displayed after sync complete
+		displayLimit = Infinity;
+		allChatsDisplayed = true;
+		console.info(`[Chats] Phased sync complete - Set displayLimit to Infinity, allChatsFromDB has ${allChatsFromDB.length} chats`);
 	};
 
 	/**
@@ -616,6 +625,49 @@
 		};
 		window.addEventListener('globalChatDeselected', handleGlobalChatDeselectedEvent);
 
+		// Listen to context menu events from Chat components
+		handleContextMenuEnterSelectMode = () => {
+			selectMode = true;
+			selectedChatIds = new Set(); // Create new Set to trigger reactivity and clear selection
+			console.debug('[Chats] Entered select mode from context menu');
+		};
+		window.addEventListener('chatContextMenuEnterSelectMode', handleContextMenuEnterSelectMode);
+
+		handleContextMenuUnselect = (event: Event) => {
+			const customEvent = event as CustomEvent<string>;
+			if (customEvent.detail && selectedChatIds.has(customEvent.detail)) {
+				selectedChatIds.delete(customEvent.detail);
+				selectedChatIds = new Set(selectedChatIds); // Trigger reactivity
+			}
+		};
+		window.addEventListener('chatContextMenuUnselect', handleContextMenuUnselect);
+
+		handleContextMenuSelect = (event: Event) => {
+			const customEvent = event as CustomEvent<string>;
+			if (customEvent.detail) {
+				selectedChatIds.add(customEvent.detail);
+				selectedChatIds = new Set(selectedChatIds); // Trigger reactivity
+			}
+		};
+		window.addEventListener('chatContextMenuSelect', handleContextMenuSelect);
+
+		// Listen to bulk actions from Chat components (when in select mode)
+		handleContextMenuBulkAction = (event: Event) => {
+			const customEvent = event as CustomEvent<string>;
+			const action = customEvent.detail;
+			console.debug('[Chats] Bulk action received from context menu:', action);
+			
+			// Call the appropriate bulk handler
+			if (action === 'download') {
+				handleBulkDownload();
+			} else if (action === 'copy') {
+				handleBulkCopy();
+			} else if (action === 'delete') {
+				handleBulkDelete();
+			}
+		};
+		window.addEventListener('chatContextMenuBulkAction', handleContextMenuBulkAction);
+
 		// Perform initial database load - loads and displays chats from IndexedDB immediately
 		await initializeAndLoadDataFromDB();
 		
@@ -704,6 +756,18 @@
 		if (handleGlobalChatDeselectedEvent) {
 			window.removeEventListener('globalChatDeselected', handleGlobalChatDeselectedEvent);
 		}
+
+		// Remove context menu event listeners
+		if (handleContextMenuEnterSelectMode) {
+			window.removeEventListener('chatContextMenuEnterSelectMode', handleContextMenuEnterSelectMode);
+		}
+		if (handleContextMenuUnselect) {
+			window.removeEventListener('chatContextMenuUnselect', handleContextMenuUnselect);
+		}
+		if (handleContextMenuSelect) {
+			window.removeEventListener('chatContextMenuSelect', handleContextMenuSelect);
+		}
+		window.removeEventListener('chatContextMenuBulkAction', handleContextMenuBulkAction);
 	});
 
 	// --- User Interaction Handlers ---
@@ -761,6 +825,9 @@
 	async function handleChatClick(chat: ChatType, userInitiated: boolean = true) {
 		console.debug('[Chats] Chat clicked:', chat.chat_id, 'userInitiated:', userInitiated);
 		selectedChatId = chat.chat_id;
+		
+		// Update last selected for potential range selection (even when not in select mode)
+		lastSelectedChatId = chat.chat_id;
 		
 		// Update the persistent store so the selection survives component unmount/remount
 		activeChatStore.setActiveChat(chat.chat_id);
@@ -905,6 +972,505 @@
         }
     }
 
+    /**
+     * Handle chat item click with keyboard modifier support
+     * Supports:
+     * - Shift+Click: Select range from last selected (or active chat) to clicked chat
+     * - Cmd/Ctrl+Click: Toggle individual selection, enter select mode if needed
+     * - Normal click: In select mode, toggle selection; otherwise open chat
+     * 
+     * Compatible with OS multi-select patterns:
+     * - Windows/Linux: Ctrl+Click (toggle), Shift+Click (range)
+     * - macOS: Cmd+Click (toggle), Shift+Click (range)
+     * These are mouse events and don't interfere with keyboard shortcuts
+     */
+    function handleChatItemClick(chat: ChatType, event: MouseEvent) {
+        const isShift = event.shiftKey;
+        const isCmdOrCtrl = event.metaKey || event.ctrlKey; // metaKey for Mac, ctrlKey for Windows/Linux
+
+        // Shift+Click: Select range from last selected (or active chat) to clicked chat
+        if (isShift) {
+            // Use lastSelectedChatId if available, otherwise fall back to currently active chat
+            const rangeStartChatId = lastSelectedChatId || selectedChatId;
+            
+            if (rangeStartChatId) {
+                const allChatsList = flattenedNavigableChats;
+                const startIndex = allChatsList.findIndex(c => c.chat_id === rangeStartChatId);
+                const currentIndex = allChatsList.findIndex(c => c.chat_id === chat.chat_id);
+
+                if (startIndex !== -1 && currentIndex !== -1) {
+                    // Enter select mode if not already in it
+                    if (!selectMode) {
+                        selectMode = true;
+                        selectedChatIds.clear();
+                    }
+
+                    // Select all chats in the range
+                    const rangeStart = Math.min(startIndex, currentIndex);
+                    const rangeEnd = Math.max(startIndex, currentIndex);
+                    
+                    // Clear existing selection and select only the range
+                    selectedChatIds.clear();
+                    for (let i = rangeStart; i <= rangeEnd; i++) {
+                        selectedChatIds.add(allChatsList[i].chat_id);
+                    }
+                    selectedChatIds = new Set(selectedChatIds); // Trigger reactivity
+                    
+                    // Update last selected to the clicked chat
+                    lastSelectedChatId = chat.chat_id;
+                    
+                    console.debug('[Chats] Shift+Click: Selected range from', startIndex, 'to', currentIndex, '(', rangeEnd - rangeStart + 1, 'chats)');
+                    return;
+                }
+            }
+        }
+
+        // Cmd/Ctrl+Click: Toggle individual selection, enter select mode if needed
+        if (isCmdOrCtrl) {
+            // Enter select mode if not already in it
+            if (!selectMode) {
+                selectMode = true;
+                // If we're starting with Cmd+Click, also select the currently active chat if any
+                if (selectedChatId) {
+                    selectedChatIds.add(selectedChatId);
+                    lastSelectedChatId = selectedChatId;
+                }
+            }
+
+            // Toggle the clicked chat
+            if (selectedChatIds.has(chat.chat_id)) {
+                selectedChatIds.delete(chat.chat_id);
+                // Update lastSelectedChatId to another selected chat if available
+                if (lastSelectedChatId === chat.chat_id) {
+                    const remaining = Array.from(selectedChatIds);
+                    lastSelectedChatId = remaining.length > 0 ? remaining[remaining.length - 1] : null;
+                }
+            } else {
+                selectedChatIds.add(chat.chat_id);
+                lastSelectedChatId = chat.chat_id;
+            }
+            selectedChatIds = new Set(selectedChatIds); // Trigger reactivity
+            
+            console.debug('[Chats] Cmd/Ctrl+Click: Toggled selection for', chat.chat_id);
+            return;
+        }
+
+        // Normal click behavior
+        if (selectMode) {
+            // In select mode: toggle selection
+            if (selectedChatIds.has(chat.chat_id)) {
+                selectedChatIds.delete(chat.chat_id);
+                if (lastSelectedChatId === chat.chat_id) {
+                    const remaining = Array.from(selectedChatIds);
+                    lastSelectedChatId = remaining.length > 0 ? remaining[remaining.length - 1] : null;
+                }
+            } else {
+                selectedChatIds.add(chat.chat_id);
+                lastSelectedChatId = chat.chat_id;
+            }
+            selectedChatIds = new Set(selectedChatIds); // Trigger reactivity
+        } else {
+            // Not in select mode: open chat
+            handleChatClick(chat);
+            // Update lastSelectedChatId for potential future range selection
+            lastSelectedChatId = chat.chat_id;
+        }
+    }
+
+    /**
+     * Handle context menu actions from ChatContextMenu
+     * Handles entering select mode and individual chat selection/unselection
+     * Bulk actions (download/copy/delete) are handled via the 'chatContextMenuBulkAction' event
+     */
+    function handleContextMenuAction(event: CustomEvent<string>) {
+        const action = event.detail;
+        console.debug('[Chats] Context menu action received:', action);
+
+        if (action === 'enterSelectMode') {
+            selectMode = true;
+            selectedChatIds = new Set(); // Create new Set to trigger reactivity and clear selection
+            lastSelectedChatId = null; // Clear last selected
+            console.debug('[Chats] Entered select mode');
+        } else if (action === 'unselect') {
+            const chatId = (event as any).detail;
+            if (chatId && selectedChatIds.has(chatId)) {
+                selectedChatIds.delete(chatId);
+                selectedChatIds = new Set(selectedChatIds); // Trigger reactivity
+                // Update lastSelectedChatId if needed
+                if (lastSelectedChatId === chatId) {
+                    const remaining = Array.from(selectedChatIds);
+                    lastSelectedChatId = remaining.length > 0 ? remaining[remaining.length - 1] : null;
+                }
+            }
+        } else if (action === 'selectChat') {
+            const chatId = (event as any).detail;
+            if (chatId) {
+                selectedChatIds.add(chatId);
+                selectedChatIds = new Set(selectedChatIds); // Trigger reactivity
+                lastSelectedChatId = chatId; // Update last selected
+            }
+        }
+    }
+
+    /**
+     * Get chat data and messages for a chat ID
+     * Handles both public chats (demo/legal) and regular chats
+     */
+    async function getChatDataAndMessages(chatId: string): Promise<{ chat: ChatType | null; messages: Message[] }> {
+        // Check if this is a public chat
+        if (isPublicChat(chatId)) {
+            // Find the chat in visiblePublicChats
+            const chat = visiblePublicChats.find(c => c.chat_id === chatId);
+            if (chat) {
+                const messages = getDemoMessages(chatId, DEMO_CHATS, LEGAL_CHATS);
+                return { chat, messages };
+            }
+            return { chat: null, messages: [] };
+        }
+
+        // For regular chats, get from database
+        try {
+            const chat = await chatDB.getChat(chatId);
+            if (!chat) {
+                return { chat: null, messages: [] };
+            }
+            
+            const messages = await chatDB.getMessagesForChat(chatId);
+            return { chat, messages };
+        } catch (error: any) {
+            // If database is being deleted, return empty
+            if (error?.message?.includes('being deleted') || error?.message?.includes('cannot be initialized')) {
+                console.debug(`[Chats] Database unavailable for chat ${chatId}`);
+                return { chat: null, messages: [] };
+            }
+            console.error(`[Chats] Error getting chat data for ${chatId}:`, error);
+            return { chat: null, messages: [] };
+        }
+    }
+
+    /**
+     * Handle bulk copy - combine all selected chats into one code block
+     * Creates a valid YAML structure with a 'chats' key containing a list of chat objects
+     */
+    async function handleBulkCopy() {
+        if (selectedChatIds.size === 0) return;
+
+        try {
+            console.debug('[Chats] Starting bulk copy for', selectedChatIds.size, 'chats');
+            const { convertChatToYaml } = await import('../../services/chatExportService');
+            
+            const chatObjects: any[] = [];
+            
+            // Process each selected chat
+            for (const chatId of selectedChatIds) {
+                const { chat, messages } = await getChatDataAndMessages(chatId);
+                if (!chat) {
+                    console.warn(`[Chats] Chat ${chatId} not found for bulk copy`);
+                    continue;
+                }
+
+                // Convert to YAML with link (for clipboard) - this returns a string
+                // We need to parse it back to an object to combine into a proper structure
+                const yamlContent = await convertChatToYaml(chat, messages, true);
+                
+                // Create chat object structure for the combined YAML
+                const { generateChatLink } = await import('../../services/chatExportService');
+                const chatData: any = {
+                    chat: {
+                        title: null,
+                        exported_at: new Date().toISOString(),
+                        message_count: messages.length,
+                        draft: null,
+                        link: generateChatLink(chat.chat_id)
+                    },
+                    messages: []
+                };
+                
+                // Get decrypted title
+                const metadata = await chatMetadataCache.getDecryptedMetadata(chat);
+                if (metadata?.title) {
+                    chatData.chat.title = metadata.title;
+                }
+                
+                // Add draft if present
+                if (chat.encrypted_draft_md) {
+                    try {
+                        const isCleartextDraft = !chat.encrypted_draft_md.includes('encrypted:') && 
+                                                 !chat.encrypted_draft_md.startsWith('v1:') &&
+                                                 chat.encrypted_draft_md.length < 1000;
+                        if (isCleartextDraft) {
+                            chatData.chat.draft = chat.encrypted_draft_md;
+                        } else {
+                            const { decryptWithMasterKey } = await import('../../services/cryptoService');
+                            const decryptedDraft = decryptWithMasterKey(chat.encrypted_draft_md);
+                            if (decryptedDraft) {
+                                chatData.chat.draft = decryptedDraft;
+                            }
+                        }
+                    } catch (error) {
+                        console.error('[Chats] Error processing draft:', error);
+                    }
+                }
+                
+                // Add messages
+                for (const message of messages) {
+                    const messageData: any = {
+                        role: message.role,
+                        completed_at: new Date(message.created_at * 1000).toISOString()
+                    };
+                    
+                    if (message.role === 'assistant' && message.category) {
+                        messageData.assistant_category = message.category;
+                    }
+                    
+                    if (typeof message.content === 'string') {
+                        messageData.content = message.content;
+                    } else if (message.content && typeof message.content === 'object') {
+                        const { tipTapToCanonicalMarkdown } = await import('../../message_parsing/serializers');
+                        const markdown = tipTapToCanonicalMarkdown(message.content);
+                        messageData.content = markdown;
+                    } else {
+                        messageData.content = '';
+                    }
+                    
+                    chatData.messages.push(messageData);
+                }
+                
+                chatObjects.push(chatData);
+            }
+
+            if (chatObjects.length === 0) {
+                notificationStore.error('No chats could be copied');
+                return;
+            }
+
+            // Create proper YAML structure with chats list
+            const yamlData = {
+                chats: chatObjects
+            };
+            
+            // Convert to YAML string using local converter
+            const yamlString = convertObjectToYamlString(yamlData);
+            const codeBlock = `\`\`\`yaml\n${yamlString}\n\`\`\``;
+
+            // Copy to clipboard
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                await navigator.clipboard.writeText(codeBlock);
+            } else {
+                // Fallback for older browsers
+                const textArea = document.createElement('textarea');
+                textArea.value = codeBlock;
+                textArea.style.position = 'fixed';
+                textArea.style.opacity = '0';
+                document.body.appendChild(textArea);
+                textArea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textArea);
+            }
+
+            console.debug('[Chats] Bulk copy completed:', chatObjects.length, 'chats');
+            notificationStore.success(`Copied ${chatObjects.length} chat${chatObjects.length > 1 ? 's' : ''} to clipboard`);
+        } catch (error) {
+            console.error('[Chats] Error in bulk copy:', error);
+            notificationStore.error('Failed to copy chats. Please try again.');
+        }
+    }
+
+    /**
+     * Convert JavaScript object to YAML string
+     * Simple YAML conversion for chat export
+     */
+    function convertObjectToYamlString(data: any): string {
+        const yamlLines: string[] = [];
+        
+        function convertValue(key: string, value: any, indent: number = 0): void {
+            const spaces = '  '.repeat(indent);
+            
+            if (value === null || value === undefined) {
+                yamlLines.push(`${spaces}${key}: null`);
+            } else if (typeof value === 'string') {
+                // Handle multiline strings
+                if (value.includes('\n')) {
+                    yamlLines.push(`${spaces}${key}: |`);
+                    const lines = value.split('\n');
+                    for (const line of lines) {
+                        yamlLines.push(`${spaces}  ${line}`);
+                    }
+                } else {
+                    // Escape quotes in strings
+                    const escaped = value.replace(/"/g, '\\"');
+                    yamlLines.push(`${spaces}${key}: "${escaped}"`);
+                }
+            } else if (typeof value === 'number' || typeof value === 'boolean') {
+                yamlLines.push(`${spaces}${key}: ${value}`);
+            } else if (Array.isArray(value)) {
+                yamlLines.push(`${spaces}${key}:`);
+                for (const item of value) {
+                    if (typeof item === 'object') {
+                        yamlLines.push(`${spaces}  -`);
+                        for (const [itemKey, itemValue] of Object.entries(item)) {
+                            convertValue(itemKey, itemValue, indent + 2);
+                        }
+                    } else {
+                        yamlLines.push(`${spaces}  - ${item}`);
+                    }
+                }
+            } else if (typeof value === 'object') {
+                yamlLines.push(`${spaces}${key}:`);
+                for (const [objKey, objValue] of Object.entries(value)) {
+                    convertValue(objKey, objValue, indent + 1);
+                }
+            }
+        }
+        
+        for (const [key, value] of Object.entries(data)) {
+            convertValue(key, value);
+        }
+        
+        return yamlLines.join('\n');
+    }
+
+    /**
+     * Handle bulk download - create zip file with all YAML files
+     */
+    async function handleBulkDownload() {
+        if (selectedChatIds.size === 0) return;
+
+        try {
+            console.debug('[Chats] Starting bulk download for', selectedChatIds.size, 'chats');
+            const { convertChatToYaml, generateChatFilename } = await import('../../services/chatExportService');
+            
+            const zip = new JSZip();
+            let fileCount = 0;
+
+            // Process each selected chat
+            for (const chatId of selectedChatIds) {
+                const { chat, messages } = await getChatDataAndMessages(chatId);
+                if (!chat) {
+                    console.warn(`[Chats] Chat ${chatId} not found for bulk download`);
+                    continue;
+                }
+
+                // Convert to YAML (without link for downloads)
+                const yamlContent = await convertChatToYaml(chat, messages, false);
+                
+                // Generate filename
+                const filename = await generateChatFilename(chat, 'yaml');
+                
+                // Add to zip
+                zip.file(filename, yamlContent);
+                fileCount++;
+            }
+
+            if (fileCount === 0) {
+                notificationStore.error('No chats could be downloaded');
+                return;
+            }
+
+            // Generate zip file
+            const zipBlob = await zip.generateAsync({ type: 'blob' });
+            
+            // Create download link
+            const url = URL.createObjectURL(zipBlob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `chats_${new Date().toISOString().slice(0, 10)}.zip`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+
+            console.debug('[Chats] Bulk download completed:', fileCount, 'chats');
+            notificationStore.success(`Downloaded ${fileCount} chat${fileCount > 1 ? 's' : ''} as ZIP`);
+        } catch (error) {
+            console.error('[Chats] Error in bulk download:', error);
+            notificationStore.error('Failed to download chats. Please try again.');
+        }
+    }
+
+    /**
+     * Handle bulk delete - delete all selected chats
+     */
+    async function handleBulkDelete() {
+        if (selectedChatIds.size === 0) return;
+
+        // Confirm deletion
+        const chatCount = selectedChatIds.size;
+        const confirmed = confirm(`Are you sure you want to delete ${chatCount} chat${chatCount > 1 ? 's' : ''}? This action cannot be undone.`);
+        if (!confirmed) {
+            return;
+        }
+
+        try {
+            console.debug('[Chats] Starting bulk delete for', selectedChatIds.size, 'chats');
+            
+            const chatIdsToDelete = Array.from(selectedChatIds);
+            let deletedCount = 0;
+            const errors: string[] = [];
+
+            // Delete each chat
+            for (const chatId of chatIdsToDelete) {
+                try {
+                    // Check if this is a public chat (demo/legal)
+                    if (isDemoChat(chatId) || isLegalChat(chatId)) {
+                        if (!$authStore.isAuthenticated) {
+                            errors.push(`${chatId}: Please sign up to customize your experience`);
+                            continue;
+                        }
+                        
+                        // Hide public chat instead of deleting
+                        const currentHidden = $userProfile.hidden_demo_chats || [];
+                        if (!currentHidden.includes(chatId)) {
+                            const updatedHidden = [...currentHidden, chatId];
+                            userProfile.update(profile => ({
+                                ...profile,
+                                hidden_demo_chats: updatedHidden
+                            }));
+                            
+                            const { userDB } = await import('../../services/userDB');
+                            await userDB.updateUserData({ hidden_demo_chats: updatedHidden });
+                        }
+                        deletedCount++;
+                    } else if (!$authStore.isAuthenticated) {
+                        // SessionStorage-only chat - delete draft
+                        const { deleteSessionStorageDraft } = await import('../../services/drafts/sessionStorageDraftService');
+                        deleteSessionStorageDraft(chatId);
+                        
+                        window.dispatchEvent(new CustomEvent(LOCAL_CHAT_LIST_CHANGED_EVENT, { 
+                            detail: { chat_id: chatId, draftDeleted: true } 
+                        }));
+                        
+                        chatSyncService.dispatchEvent(new CustomEvent('chatDeleted', { detail: { chat_id: chatId } }));
+                        deletedCount++;
+                    } else {
+                        // Real chat - delete from IndexedDB and server
+                        await chatDB.deleteChat(chatId);
+                        chatSyncService.dispatchEvent(new CustomEvent('chatDeleted', { detail: { chat_id: chatId } }));
+                        await chatSyncService.sendDeleteChat(chatId);
+                        deletedCount++;
+                    }
+                } catch (error) {
+                    console.error(`[Chats] Error deleting chat ${chatId}:`, error);
+                    errors.push(`${chatId}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+                }
+            }
+
+            // Clear selection after deletion
+            selectedChatIds = new Set();
+            
+            if (errors.length > 0) {
+                notificationStore.error(`Deleted ${deletedCount} chat${deletedCount > 1 ? 's' : ''}, but ${errors.length} failed`);
+            } else {
+                notificationStore.success(`Deleted ${deletedCount} chat${deletedCount > 1 ? 's' : ''} successfully`);
+            }
+
+            console.debug('[Chats] Bulk delete completed:', deletedCount, 'chats deleted');
+        } catch (error) {
+            console.error('[Chats] Error in bulk delete:', error);
+            notificationStore.error('Failed to delete chats. Please try again.');
+        }
+    }
+
 </script>
 
 <!--
@@ -919,12 +1485,48 @@
 		<!-- Fixed top buttons container -->
 		<div class="top-buttons-container">
 			<div class="top-buttons">
-				<button
-					class="clickable-icon icon_close top-button right"
-					aria-label={$_('activity.close.text')}
-					onclick={handleClose}
-					use:tooltip
-				></button>
+				{#if selectMode}
+					<!-- Select mode controls -->
+					<button
+						class="select-mode-button"
+						onclick={() => {
+							// Select all visible chats
+							const allVisibleChatIds = new Set(chatsForDisplay.map(c => c.chat_id));
+							selectedChatIds = new Set(allVisibleChatIds);
+							console.debug('[Chats] Selected all chats:', selectedChatIds.size);
+						}}
+					>
+						{$_('chats.select_all.text', { default: 'Select all' })}
+					</button>
+					<button
+						class="select-mode-button"
+						onclick={() => {
+							selectedChatIds = new Set(); // Create new Set to trigger reactivity
+							lastSelectedChatId = null; // Clear last selected to reset range selection
+							console.debug('[Chats] Unselected all chats');
+						}}
+					>
+						{$_('chats.unselect_all.text', { default: 'Unselect all' })}
+					</button>
+					<button
+						class="select-mode-button cancel"
+						onclick={() => {
+							selectMode = false;
+							selectedChatIds = new Set(); // Create new Set to trigger reactivity and clear selection
+							lastSelectedChatId = null; // Clear last selected to reset range selection
+							console.debug('[Chats] Exited select mode and cleared selection');
+						}}
+					>
+						{$_('chats.cancel.text', { default: 'Cancel' })}
+					</button>
+				{:else}
+					<button
+						class="clickable-icon icon_close top-button right"
+						aria-label={$_('activity.close.text')}
+						onclick={handleClose}
+						use:tooltip
+					></button>
+				{/if}
 			</div>
 		</div>
 		
@@ -952,12 +1554,103 @@
 									tabindex="0"
 									class="chat-item"
 									class:active={selectedChatId === chat.chat_id}
-									onclick={() => handleChatClick(chat)}
-									onkeydown={(e) => handleKeyDown(e, chat)}
+									onclick={(event) => {
+										handleChatItemClick(chat, event);
+									}}
+									onkeydown={(e) => {
+										// Handle keyboard selection with modifiers
+										const isShift = e.shiftKey;
+										const isCmdOrCtrl = e.metaKey || e.ctrlKey;
+										
+										if ((selectMode || isShift || isCmdOrCtrl) && (e.key === 'Enter' || e.key === ' ')) {
+											e.preventDefault();
+											
+											// Shift+Space/Enter: Select range
+											if (isShift && lastSelectedChatId) {
+												const allChatsList = flattenedNavigableChats;
+												const lastIndex = allChatsList.findIndex(c => c.chat_id === lastSelectedChatId);
+												const currentIndex = allChatsList.findIndex(c => c.chat_id === chat.chat_id);
+
+												if (lastIndex !== -1 && currentIndex !== -1) {
+													if (!selectMode) {
+														selectMode = true;
+														selectedChatIds.clear();
+													}
+
+													const startIndex = Math.min(lastIndex, currentIndex);
+													const endIndex = Math.max(lastIndex, currentIndex);
+													
+													for (let i = startIndex; i <= endIndex; i++) {
+														selectedChatIds.add(allChatsList[i].chat_id);
+													}
+													selectedChatIds = new Set(selectedChatIds);
+													lastSelectedChatId = chat.chat_id;
+													return;
+												}
+											}
+											
+											// Cmd/Ctrl+Space/Enter: Toggle selection
+											if (isCmdOrCtrl) {
+												if (!selectMode) {
+													selectMode = true;
+													if (selectedChatId) {
+														selectedChatIds.add(selectedChatId);
+														lastSelectedChatId = selectedChatId;
+													}
+												}
+
+												if (selectedChatIds.has(chat.chat_id)) {
+													selectedChatIds.delete(chat.chat_id);
+													if (lastSelectedChatId === chat.chat_id) {
+														const remaining = Array.from(selectedChatIds);
+														lastSelectedChatId = remaining.length > 0 ? remaining[remaining.length - 1] : null;
+													}
+												} else {
+													selectedChatIds.add(chat.chat_id);
+													lastSelectedChatId = chat.chat_id;
+												}
+												selectedChatIds = new Set(selectedChatIds);
+												return;
+											}
+											
+											// Normal Space/Enter in select mode: toggle selection
+											if (selectMode) {
+												if (selectedChatIds.has(chat.chat_id)) {
+													selectedChatIds.delete(chat.chat_id);
+													if (lastSelectedChatId === chat.chat_id) {
+														const remaining = Array.from(selectedChatIds);
+														lastSelectedChatId = remaining.length > 0 ? remaining[remaining.length - 1] : null;
+													}
+												} else {
+													selectedChatIds.add(chat.chat_id);
+													lastSelectedChatId = chat.chat_id;
+												}
+												selectedChatIds = new Set(selectedChatIds);
+												return;
+											}
+										}
+										
+										// Fallback to normal keyboard navigation
+										handleKeyDown(e, chat);
+									}}
 									aria-current={selectedChatId === chat.chat_id ? 'page' : undefined}
 									aria-label={chat.encrypted_title || 'Unnamed chat'}
 								>
-									<ChatComponent chat={chat} activeChatId={selectedChatId} />
+									<ChatComponent 
+										chat={chat} 
+										activeChatId={selectedChatId}
+										selectMode={selectMode}
+										selectedChatIds={selectedChatIds}
+										onToggleSelection={(chatId: string) => {
+											if (selectedChatIds.has(chatId)) {
+												selectedChatIds.delete(chatId);
+												selectedChatIds = new Set(selectedChatIds); // Trigger reactivity
+											} else {
+												selectedChatIds.add(chatId);
+												selectedChatIds = new Set(selectedChatIds); // Trigger reactivity
+											}
+										}}
+									/>
 								</div>
 							{/each}
 						</div>
@@ -1064,6 +1757,32 @@
        margin-left: auto;
     }
 
+    .select-mode-button {
+        padding: 8px 16px;
+        border: 1px solid var(--color-grey-40);
+        background-color: var(--color-grey-20);
+        color: var(--color-text);
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 0.9em;
+        transition: background-color 0.2s ease;
+        margin-right: 8px;
+    }
+
+    .select-mode-button:hover {
+        background-color: var(--color-grey-25);
+    }
+
+    .select-mode-button.cancel {
+        margin-left: auto;
+        color: var(--color-grey-60);
+    }
+
+    .select-mode-button:focus-visible {
+        outline: 2px solid var(--color-primary-focus);
+        outline-offset: 1px;
+    }
+
     .chat-groups {
         display: flex;
         flex-direction: column;
@@ -1125,8 +1844,18 @@
         cursor: pointer;
     }
 
-    .chat-item:hover {
-        background-color: var(--color-grey-25); /* Slightly different hover */
+    /*
+    Only apply hover styles on devices that support true hover (not touch devices).
+    On touch devices, the :hover pseudo-class can be falsely triggered during scrolling,
+    causing unwanted visual feedback. The (hover: hover) media query only matches devices
+    that support true hover interactions (e.g., desktop with mouse), not touch devices.
+    This prevents false highlights when scrolling on phones/tablets while preserving
+    the hover effect on desktop where it's intentional user feedback.
+    */
+    @media (hover: hover) {
+        .chat-item:hover {
+            background-color: var(--color-grey-25); /* Slightly different hover */
+        }
     }
 
     .chat-item.active {

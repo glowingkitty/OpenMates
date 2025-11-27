@@ -93,6 +93,10 @@
   --icon-mask-image: url('@openmates/ui/static/icons/language.svg');
 }
 
+.subsetting_icon.security {
+  --icon-mask-image: url('@openmates/ui/static/icons/lock.svg');
+}
+
 /* Add new modify icon for the subsubmenu items */
 .clickable-icon.icon_modify {
   -webkit-mask-image: url('@openmates/ui/static/icons/create.svg');
@@ -139,6 +143,13 @@
   &::after {
     -webkit-mask-image: url('@openmates/ui/static/icons/language.svg');
     mask-image: url('@openmates/ui/static/icons/language.svg');
+  }
+}
+
+.subsetting_icon_security {
+  &::after {
+    -webkit-mask-image: url('@openmates/ui/static/icons/lock.svg');
+    mask-image: url('@openmates/ui/static/icons/lock.svg');
   }
 }
 
@@ -242,6 +253,11 @@ div.clickable-icon {
   mask-image: url('@openmates/ui/static/icons/fullscreen.svg');
 }
 
+.clickable-icon.icon_minimize {
+  -webkit-mask-image: url('@openmates/ui/static/icons/minimize.svg');
+  mask-image: url('@openmates/ui/static/icons/minimize.svg');
+}
+
 .clickable-icon.icon_delete {
   -webkit-mask-image: url('@openmates/ui/static/icons/delete.svg');
   mask-image: url('@openmates/ui/static/icons/delete.svg');
@@ -290,6 +306,11 @@ div.clickable-icon {
 .clickable-icon.icon_create {
   -webkit-mask-image: url('@openmates/ui/static/icons/create.svg');
   mask-image: url('@openmates/ui/static/icons/create.svg');
+}
+
+.clickable-icon.icon_select {
+  -webkit-mask-image: url('@openmates/ui/static/icons/select.svg');
+  mask-image: url('@openmates/ui/static/icons/select.svg');
 }
 
 .clickable-icon.icon_filter {
@@ -345,6 +366,11 @@ div.clickable-icon {
 .clickable-icon.icon_secret {
   -webkit-mask-image: url('@openmates/ui/static/icons/secret.svg');
   mask-image: url('@openmates/ui/static/icons/secret.svg');
+}
+
+.clickable-icon.icon_passkey {
+  -webkit-mask-image: url('@openmates/ui/static/icons/passkey.svg');
+  mask-image: url('@openmates/ui/static/icons/passkey.svg');
 }
 
 .clickable-icon.icon_password {
@@ -593,6 +619,39 @@ div.clickable-icon {
   }
 }
 
+/* Skill icons - used in app skill previews for specific skill types */
+.icon_rounded.search {
+  /* Search skill icon - grey background, search icon */
+  background: var(--color-grey-50, #8E8E93);
+  &::after {
+    background-image: url('@openmates/ui/static/icons/search.svg');
+  }
+}
+
+.icon_rounded.get_transcript {
+  /* Video transcript skill icon */
+  background: var(--color-grey-50, #8E8E93);
+  &::after {
+    background-image: url('@openmates/ui/static/icons/videos.svg');
+  }
+}
+
+.icon_rounded.read {
+  /* Web read skill icon */
+  background: var(--color-grey-50, #8E8E93);
+  &::after {
+    background-image: url('@openmates/ui/static/icons/book.svg');
+  }
+}
+
+.icon_rounded.view {
+  /* Web view skill icon - use visible icon instead of eye */
+  background: var(--color-grey-50, #8E8E93);
+  &::after {
+    background-image: url('@openmates/ui/static/icons/visible.svg');
+  }
+}
+
 @media (max-width: 600px) {
   .icon {
     width: 77.69px;
@@ -786,6 +845,41 @@ div.clickable-icon {
   }
 }
 
+.icon.heart {
+  background: var(--color-primary);
+  &::before {
+      background-image: url('@openmates/ui/static/icons/heart.svg');
+  }
+}
+
+.icon.create {
+  background: var(--color-primary);
+  &::before {
+      background-image: url('@openmates/ui/static/icons/create.svg');
+  }
+}
+
+.icon.business {
+  background: var(--color-primary);
+  &::before {
+      background-image: url('@openmates/ui/static/icons/business.svg');
+  }
+}
+
+.icon.home {
+  background: var(--color-primary);
+  &::before {
+      background-image: url('@openmates/ui/static/icons/home.svg');
+  }
+}
+
+.icon.app {
+  background: var(--color-primary);
+  &::before {
+      background-image: url('@openmates/ui/static/icons/app.svg');
+  }
+}
+
 .icon.mates {
   background: var(--color-primary);
 
@@ -909,6 +1003,30 @@ div.clickable-icon {
   }
 }
 
+.icon.account {
+  background: var(--color-primary);
+
+  &::before {
+      background-image: url('@openmates/ui/static/icons/user.svg');
+  }
+}
+
+.icon.security {
+  background: var(--color-primary);
+
+  &::before {
+      background-image: url('@openmates/ui/static/icons/lock.svg');
+  }
+}
+
+.icon.passkeys {
+  background: var(--color-primary);
+
+  &::before {
+      background-image: url('@openmates/ui/static/icons/passkey.svg');
+  }
+}
+
 .icon.workflow {
   background: var(--color-primary);
 
@@ -938,6 +1056,14 @@ div.clickable-icon {
 
   &::before {
       background-image: url('@openmates/ui/static/icons/language.svg');
+  }
+}
+
+.icon.app_store {
+  background: var(--color-primary);
+
+  &::before {
+      background-image: url('@openmates/ui/static/icons/app.svg');
   }
 }
 
@@ -1153,7 +1279,7 @@ div.clickable-icon {
 }
 
 .icon.app-lifecoaching {
-  background: var(--color-app-lifecoaching);
+  background: var(--color-app-life_coaching);
   &::before { background-image: url('@openmates/ui/static/icons/lifecoaching.svg'); }
 }
 

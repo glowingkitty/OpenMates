@@ -1,0 +1,115 @@
+via:
+  context: Used in 'via Web, Mattermost, Discord & more'
+  en: via
+  de: via
+  zh: 通过
+  es: vía
+  fr: via
+  pt: ''
+  ru: ''
+  ja: 経由
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+web:
+  context: Used in '(Software is accessible) via Web, Mattermost, Discord & more'
+  en: Web
+  de: Web
+  zh: 网页
+  es: Web
+  fr: Web
+  pt: ''
+  ru: ''
+  ja: ウェブ
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+mattermost:
+  context: Used in '(Software is accessible) via Web, Mattermost, Discord & more'
+  en: Mattermost
+  de: Mattermost
+  zh: Mattermost
+  es: Mattermost
+  fr: Mattermost
+  pt: ''
+  ru: ''
+  ja: Mattermost
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+discord:
+  context: Used in '(Software is accessible) via Web, Mattermost, Discord & more'
+  en: Discord
+  de: Discord
+  zh: Discord
+  es: Discord
+  fr: Discord
+  pt: ''
+  ru: ''
+  ja: Discord
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+and_more:
+  context: Used in '(Software is accessible) via Web, Mattermost, Discord & more'
+  en: '& more'
+  de: '& mehr'
+  zh: 及更多
+  es: y más
+  fr: et plus
+  pt: ''
+  ru: ''
+  ja: など
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []

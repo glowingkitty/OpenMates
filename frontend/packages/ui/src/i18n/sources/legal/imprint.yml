@@ -1,0 +1,207 @@
+title:
+  context: Title of the legal imprint page
+  en: Legal Notice (Imprint)
+  de: Impressum
+  zh: 版本说明
+  es: Aviso legal
+  fr: Mentions légales
+  pt: ''
+  ru: ''
+  ja: インプリント
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+information_tmg:
+  context: Legal information section header
+  en: Information according to § 5 TMG
+  de: Angaben gemäß § 5 TMG
+  zh: 根据 § 5 TMG 的信息
+  es: Información según § 5 TMG
+  fr: Informations selon § 5 TMG
+  pt: ''
+  ru: ''
+  ja: TMG第5条に基づく情報
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+contact:
+  context: Contact section header in imprint
+  en: Contact
+  de: Kontakt
+  zh: 联系方式
+  es: Contacto
+  fr: Contact
+  pt: ''
+  ru: ''
+  ja: お問い合わせ
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+email:
+  context: Email label in contact section
+  en: Email
+  de: E-Mail
+  zh: 电子邮件
+  es: Correo electrónico
+  fr: E-mail
+  pt: ''
+  ru: ''
+  ja: メール
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+follow_up_1:
+  context: Follow-up suggestion for imprint
+  en: Why does German law require an Imprint?
+  de: Warum erfordert das deutsche Recht ein Impressum?
+  zh: 为什么德国法律要求提供版本说明？
+  es: ¿Por qué la ley alemana requiere un aviso legal?
+  fr: Pourquoi la loi allemande exige-t-elle un avis légal ?
+  pt: ''
+  ru: ''
+  ja: なぜドイツの法律でインプリントが必要なのですか？
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+follow_up_2:
+  context: Follow-up suggestion for imprint
+  en: How can I contact your legal team?
+  de: Wie kann ich Ihr Rechtsteam kontaktieren?
+  zh: 如何联系您的法律团队？
+  es: ¿Cómo puedo contactar a su equipo legal?
+  fr: Comment puis-je contacter votre équipe juridique ?
+  pt: ''
+  ru: ''
+  ja: 法務チームにはどのように連絡できますか？
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+follow_up_3:
+  context: Follow-up suggestion for imprint
+  en: What open source licenses do you use?
+  de: Welche Open-Source-Lizenzen verwenden Sie?
+  zh: 您使用哪些开源许可证？
+  es: ¿Qué licencias de código abierto utilizan?
+  fr: Quelles licences open source utilisez-vous ?
+  pt: ''
+  ru: ''
+  ja: どのオープンソースライセンスを使用していますか？
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+follow_up_4:
+  context: Follow-up suggestion for imprint
+  en: Where is your company registered?
+  de: Wo ist Ihr Unternehmen registriert?
+  zh: 您的公司在哪里注册？
+  es: ¿Dónde está registrada su empresa?
+  fr: Où votre entreprise est-elle enregistrée ?
+  pt: ''
+  ru: ''
+  ja: 会社はどこに登録されていますか？
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+follow_up_5:
+  context: Follow-up suggestion for imprint
+  en: Who is the legal representative?
+  de: Wer ist der gesetzliche Vertreter?
+  zh: 法定代表人是谁？
+  es: ¿Quién es el representante legal?
+  fr: Qui est le représentant légal ?
+  pt: ''
+  ru: ''
+  ja: 法定代理人は誰ですか？
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []

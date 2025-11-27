@@ -1,32 +1,20 @@
-name: |
-  Images
-description: |
-  Generate images, modify and resize them and more.
+name_translation_key: images.text
+description_translation_key: images.description.text
 icon_image: |
   image.svg
-icon_colorgradient:
-  start: |
-    #001E36
-  end: |
-    #073A62
-
+category: work
+last_updated: '2025-11-12'
 settings_and_memories:
   - id: |
       preffered_styles
-
-# pricing structure for skills?
+    stage: planning
 skills:
-
-  - id: |
-      generate
-    name: |
-      Generate
-    description: |
-      Generate an image based on a prompt and/or images.
-    stage: |
-      planning
+  - id: generate
+    name_translation_key: images.generate.text
+    description_translation_key: images.generate.description.text
+    stage: planning
     class_path: |
       skills.image.GenerateSkill
     models:
-      - "google/imagen-4"
-      - "openai/gpt-image-1"
+      - google/imagen-4
+      - openai/gpt-image-1

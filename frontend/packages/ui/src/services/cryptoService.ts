@@ -24,6 +24,9 @@
  */
 
 import {
+  saveMasterKey,
+  getMasterKey,
+  clearMasterKey,
   saveMasterKeyToIndexedDB,
   getMasterKeyFromIndexedDB,
   clearMasterKeyFromIndexedDB,
@@ -111,27 +114,165 @@ export async function generateExtractableMasterKey(): Promise<CryptoKey> {
 }
 
 /**
- * Saves a CryptoKey to IndexedDB (for extractable session keys)
- * Extractable keys allow wrapping for recovery keys while still using Web Crypto API
+ * Saves a CryptoKey with stayLoggedIn preference
+ * 
+ * Hybrid Storage Strategy:
+ * - stayLoggedIn=false: Key stored in memory only (automatically cleared on page close)
+ * - stayLoggedIn=true: Key stored in IndexedDB (persists across sessions)
+ * 
+ * This approach ensures keys don't persist when user doesn't want to stay logged in,
+ * without relying on unreliable unload handlers. Memory keys are automatically cleared
+ * when the page closes, providing reliable cleanup.
+ * 
  * @param key - The CryptoKey to store
+ * @param stayLoggedIn - If false, key stored in memory only; if true, persisted to IndexedDB (default: true for backward compatibility)
  */
-export async function saveKeyToSession(key: CryptoKey): Promise<void> {
-  await saveMasterKeyToIndexedDB(key);
+export async function saveKeyToSession(key: CryptoKey, stayLoggedIn: boolean = true): Promise<void> {
+  await saveMasterKey(key, stayLoggedIn);
+  
+  // Set up unload handler for defense in depth (only needed for IndexedDB case)
+  // Memory keys auto-clear, but we still validate IndexedDB on unload
+  if (typeof window !== 'undefined') {
+    setupMasterKeyUnloadHandler();
+    // Start periodic validation for extra safety
+    startMasterKeyValidation();
+  }
 }
 
 /**
- * Gets the master CryptoKey from IndexedDB
+ * Sets up a page unload handler to validate IndexedDB storage
+ * This is defense in depth - memory keys auto-clear, but we validate IndexedDB on unload
+ * 
+ * This function is idempotent - it can be called multiple times safely.
+ */
+let unloadHandlerSetup = false;
+export function setupMasterKeyUnloadHandler(): void {
+  if (typeof window === 'undefined' || unloadHandlerSetup) {
+    return;
+  }
+  
+  unloadHandlerSetup = true;
+  
+  /**
+   * Validate IndexedDB on page unload if stayLoggedIn was false
+   * Uses visibilitychange and pagehide events for better reliability
+   * Note: This is defense in depth - memory keys auto-clear, but we validate IndexedDB
+   */
+  const handlePageUnload = () => {
+    const shouldClear = sessionStorage.getItem('clear_master_key_on_unload') === 'true';
+    if (shouldClear) {
+      console.debug('[cryptoService] Validating IndexedDB on page unload (stayLoggedIn was false)');
+      // Use non-blocking approach - initiate deletion (may not complete if page closes immediately)
+      // This is OK because memory keys already auto-cleared, and page load check will handle it
+      clearMasterKeyFromIndexedDB().then(() => {
+        sessionStorage.removeItem('clear_master_key_on_unload');
+        console.debug('[cryptoService] IndexedDB validated and cleared on page unload');
+      }).catch((error) => {
+        // Ignore errors - page load check will handle cleanup
+        console.debug('[cryptoService] IndexedDB validation on unload incomplete (will be handled on next page load)');
+      });
+    }
+  };
+  
+  // Use visibilitychange to detect when page becomes hidden (more reliable than beforeunload)
+  // This fires when tab is switched, minimized, or closed
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') {
+      handlePageUnload();
+    }
+  });
+  
+  // Use pagehide for better mobile browser support (fires on tab close, browser close, navigation)
+  window.addEventListener('pagehide', handlePageUnload);
+  
+  // Also use beforeunload as fallback for desktop browsers
+  window.addEventListener('beforeunload', handlePageUnload);
+  
+  console.debug('[cryptoService] Master key unload handler set up (defense in depth)');
+}
+
+/**
+ * Periodic validation to ensure IndexedDB is cleared if stayLoggedIn was false
+ * This provides extra safety in case unload handlers don't complete
+ * 
+ * Checks every 5 minutes if IndexedDB key should be cleared based on the flag
+ */
+let validationInterval: ReturnType<typeof setInterval> | null = null;
+
+export function startMasterKeyValidation(): void {
+  if (validationInterval || typeof window === 'undefined') {
+    return;
+  }
+  
+  // Check every 5 minutes if IndexedDB key should be cleared
+  validationInterval = setInterval(async () => {
+    const shouldClear = sessionStorage.getItem('clear_master_key_on_unload') === 'true';
+    if (shouldClear) {
+      try {
+        await clearMasterKeyFromIndexedDB();
+        console.debug('[cryptoService] Periodic validation: Cleared IndexedDB key (stayLoggedIn was false)');
+      } catch (error) {
+        // Ignore errors - might already be cleared
+        console.debug('[cryptoService] Periodic validation: IndexedDB already cleared or error (ignored)');
+      }
+    }
+  }, 5 * 60 * 1000); // 5 minutes
+  
+  console.debug('[cryptoService] Master key periodic validation started (every 5 minutes)');
+}
+
+export function stopMasterKeyValidation(): void {
+  if (validationInterval) {
+    clearInterval(validationInterval);
+    validationInterval = null;
+    console.debug('[cryptoService] Master key periodic validation stopped');
+  }
+}
+
+/**
+ * Checks on page load if the master key should be cleared (if stayLoggedIn was false)
+ * This handles cases where the page was reloaded or navigated away while stayLoggedIn was false
+ * 
+ * Note: This is defense in depth - getMasterKey() also validates on every access,
+ * but this explicit check on page load ensures cleanup happens early.
+ * 
+ * This should be called early in the app initialization (e.g., in +page.svelte onMount)
+ */
+export async function checkAndClearMasterKeyOnLoad(): Promise<void> {
+  if (typeof window === 'undefined') {
+    return;
+  }
+  
+  const shouldClear = sessionStorage.getItem('clear_master_key_on_unload') === 'true';
+  if (shouldClear) {
+    console.debug('[cryptoService] stayLoggedIn was false - clearing master key on page load');
+    try {
+      // Clear from both memory and IndexedDB (comprehensive cleanup)
+      await clearMasterKey();
+      console.debug('[cryptoService] Master key cleared successfully on page load');
+    } catch (error) {
+      console.error('[cryptoService] Error clearing master key on page load:', error);
+    }
+  }
+}
+
+/**
+ * Gets the master CryptoKey from memory (if stayLoggedIn=false) or IndexedDB (if stayLoggedIn=true)
+ * Also validates that IndexedDB key should exist based on stayLoggedIn flag
+ * 
  * @returns Promise<CryptoKey | null> - The master key or null if not found
  */
 export async function getKeyFromStorage(): Promise<CryptoKey | null> {
-  return await getMasterKeyFromIndexedDB();
+  return await getMasterKey();
 }
 
 /**
- * Clears the master key from IndexedDB
+ * Clears the master key from both memory and IndexedDB
+ * Also stops periodic validation since key is being cleared
  */
 export async function clearKeyFromStorage(): Promise<void> {
-  await clearMasterKeyFromIndexedDB();
+  stopMasterKeyValidation();
+  await clearMasterKey();
 }
 
 /**
@@ -173,10 +314,12 @@ export async function deriveKeyFromPassword(password: string, salt: Uint8Array):
       ['deriveKey', 'deriveBits']
     );
 
+    // Ensure salt is a proper BufferSource
+    const saltBuffer = new Uint8Array(salt);
     const derivedBits = await crypto.subtle.deriveBits(
       {
         name: 'PBKDF2',
-        salt: salt,
+        salt: saltBuffer,
         iterations: PBKDF2_ITERATIONS,
         hash: 'SHA-256'
       },
@@ -198,9 +341,11 @@ export async function deriveKeyFromPassword(password: string, salt: Uint8Array):
  */
 export async function encryptKey(masterKey: CryptoKey, wrappingKeyBytes: Uint8Array): Promise<{ wrapped: string; iv: string }> {
   // Import the wrapping key bytes as a CryptoKey
+  // Ensure wrappingKeyBytes is a proper BufferSource
+  const wrappingKeyBuffer = new Uint8Array(wrappingKeyBytes);
   const wrappingKey = await crypto.subtle.importKey(
     'raw',
-    wrappingKeyBytes,
+    wrappingKeyBuffer,
     { name: 'AES-GCM' },
     false,
     ['wrapKey']
@@ -238,9 +383,11 @@ export async function decryptKey(
 ): Promise<CryptoKey | null> {
   try {
     // Import the unwrapping key bytes as a CryptoKey
+    // Ensure wrappingKeyBytes is a proper BufferSource
+    const unwrappingKeyBuffer = new Uint8Array(wrappingKeyBytes);
     const unwrappingKey = await crypto.subtle.importKey(
       'raw',
-      wrappingKeyBytes,
+      unwrappingKeyBuffer,
       { name: 'AES-GCM' },
       false,
       ['unwrapKey']
@@ -249,11 +396,14 @@ export async function decryptKey(
     // Unwrap the master key as extractable
     // Extractable keys allow wrapping for recovery keys while still using Web Crypto API
     // XSS can use keys anyway if they have access, so extractability is a marginal security trade-off
+    // Ensure wrapped key and IV are proper BufferSource
+    const wrappedKeyBuffer = new Uint8Array(base64ToUint8Array(wrappedKeyBase64));
+    const ivBuffer = new Uint8Array(base64ToUint8Array(iv));
     const masterKey = await crypto.subtle.unwrapKey(
       'raw',
-      base64ToUint8Array(wrappedKeyBase64),
+      wrappedKeyBuffer,
       unwrappingKey,
-      { name: 'AES-GCM', iv: base64ToUint8Array(iv) },
+      { name: 'AES-GCM', iv: ivBuffer },
       { name: 'AES-GCM' },
       true, // extractable - needed for recovery key wrapping
       ['encrypt', 'decrypt']
@@ -282,6 +432,16 @@ export async function encryptWithMasterKey(data: string): Promise<string | null>
     return null;
   }
 
+  return await encryptWithMasterKeyDirect(data, masterKey);
+}
+
+/**
+ * Encrypts data using a provided master key (for use during signup/login before key is stored)
+ * @param data - The data string to encrypt
+ * @param masterKey - The master key CryptoKey to use for encryption
+ * @returns Promise<string | null> - Base64 encoded encrypted data with IV, or null if encryption fails
+ */
+export async function encryptWithMasterKeyDirect(data: string, masterKey: CryptoKey): Promise<string | null> {
   try {
     const encoder = new TextEncoder();
     const dataBytes = encoder.encode(data);
@@ -656,9 +816,11 @@ export async function encryptWithChatKey(data: string, chatKey: Uint8Array): Pro
   const dataBytes = encoder.encode(data);
 
   // Import chat key for AES-GCM
+  // Ensure chatKey is a proper BufferSource
+  const chatKeyBuffer = new Uint8Array(chatKey);
   const cryptoKey = await crypto.subtle.importKey(
     'raw',
-    chatKey,
+    chatKeyBuffer,
     { name: 'AES-GCM' },
     false,
     ['encrypt']
@@ -692,9 +854,11 @@ export async function decryptWithChatKey(encryptedDataWithIV: string, chatKey: U
     const ciphertext = combined.slice(AES_IV_LENGTH);
 
     // Import chat key for AES-GCM
+    // Ensure chatKey is a proper BufferSource
+    const chatKeyBuffer = new Uint8Array(chatKey);
     const cryptoKey = await crypto.subtle.importKey(
       'raw',
-      chatKey,
+      chatKeyBuffer,
       { name: 'AES-GCM' },
       false,
       ['decrypt']
@@ -727,10 +891,12 @@ export async function encryptChatKeyWithMasterKey(chatKey: Uint8Array): Promise<
 
   try {
     const iv = crypto.getRandomValues(new Uint8Array(AES_IV_LENGTH));
+    // Ensure chatKey is a proper BufferSource
+    const chatKeyBuffer = new Uint8Array(chatKey);
     const encrypted = await crypto.subtle.encrypt(
       { name: 'AES-GCM', iv },
       masterKey,
-      chatKey
+      chatKeyBuffer
     );
 
     // Combine IV + ciphertext
@@ -880,7 +1046,9 @@ export async function hashKey(key: string, salt: Uint8Array | null = null): Prom
   }
 
   // Hash the data
-  const hashBuffer = await crypto.subtle.digest('SHA-256', dataToHash);
+  // Ensure dataToHash is a proper BufferSource
+  const dataToHashBuffer = new Uint8Array(dataToHash);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', dataToHashBuffer);
   const hashArray = new Uint8Array(hashBuffer);
 
   // Convert to base64 string
@@ -889,4 +1057,166 @@ export async function hashKey(key: string, salt: Uint8Array | null = null): Prom
     hashBinary += String.fromCharCode(hashArray[i]);
   }
   return window.btoa(hashBinary);
+}
+
+// ============================================================================
+// PASSKEY PRF AND HKDF FUNCTIONS
+// ============================================================================
+
+/**
+ * HMAC-based Key Derivation Function (HKDF) as specified in RFC 5869
+ * Used to derive wrapping keys from PRF signatures for passkey authentication
+ * 
+ * @param salt - Salt value (user_email_salt for passkeys)
+ * @param ikm - Input key material (PRF signature bytes)
+ * @param info - Application-specific information ("masterkey_wrapping")
+ * @param length - Desired output length in bytes (32 for AES-256)
+ * @returns Promise<Uint8Array> - Derived key bytes
+ */
+export async function hkdf(
+  salt: Uint8Array,
+  ikm: Uint8Array,
+  info: string,
+  length: number = 32
+): Promise<Uint8Array> {
+  if (typeof window === 'undefined') {
+    return new Uint8Array(length);
+  }
+
+  const encoder = new TextEncoder();
+  const infoBytes = encoder.encode(info);
+
+  // Step 1: Extract (HKDF-Extract)
+  // PRK = HMAC-Hash(salt, IKM)
+  // Ensure salt is a proper BufferSource by creating a new Uint8Array
+  const saltBuffer = new Uint8Array(salt);
+  const extractKey = await crypto.subtle.importKey(
+    'raw',
+    saltBuffer,
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign']
+  );
+
+  // Ensure ikm is a proper BufferSource
+  const ikmBuffer = new Uint8Array(ikm);
+  const prk = await crypto.subtle.sign('HMAC', extractKey, ikmBuffer);
+  const prkArray = new Uint8Array(prk);
+
+  // Step 2: Expand (HKDF-Expand)
+  // OKM = HKDF-Expand(PRK, info, L)
+  const expandKey = await crypto.subtle.importKey(
+    'raw',
+    prkArray,
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign']
+  );
+
+  const okm: Uint8Array[] = [];
+  let counter = 1;
+  let remaining = length;
+
+  while (remaining > 0) {
+    // T(i) = HMAC-Hash(PRK, T(i-1) | info | i)
+    const tInput = new Uint8Array(
+      (okm.length > 0 ? okm[okm.length - 1].length : 0) + infoBytes.length + 1
+    );
+    let offset = 0;
+    
+    if (okm.length > 0) {
+      tInput.set(okm[okm.length - 1], offset);
+      offset += okm[okm.length - 1].length;
+    }
+    
+    tInput.set(infoBytes, offset);
+    offset += infoBytes.length;
+    tInput[offset] = counter;
+
+    const t = await crypto.subtle.sign('HMAC', expandKey, tInput);
+    const tArray = new Uint8Array(t);
+    
+    const toTake = Math.min(remaining, tArray.length);
+    okm.push(tArray.slice(0, toTake));
+    remaining -= toTake;
+    counter++;
+  }
+
+  // Concatenate all T(i) values
+  const result = new Uint8Array(length);
+  let resultOffset = 0;
+  for (const chunk of okm) {
+    result.set(chunk, resultOffset);
+    resultOffset += chunk.length;
+  }
+
+  return result;
+}
+
+/**
+ * Derives a wrapping key from a PRF signature using HKDF
+ * This is used for passkey-based master key wrapping (zero-knowledge encryption)
+ * 
+ * @param prfSignature - PRF signature bytes from WebAuthn extension
+ * @param emailSalt - User's email salt (user_email_salt)
+ * @returns Promise<Uint8Array> - Derived wrapping key (32 bytes for AES-256)
+ */
+export async function deriveWrappingKeyFromPRF(
+  prfSignature: Uint8Array,
+  emailSalt: Uint8Array
+): Promise<Uint8Array> {
+  const info = 'masterkey_wrapping';
+  return await hkdf(emailSalt, prfSignature, info, 32);
+}
+
+/**
+ * Creates a lookup hash from PRF signature for authentication
+ * Same pattern as password: SHA256(PRF_signature + user_email_salt)
+ * 
+ * @param prfSignature - PRF signature bytes from WebAuthn extension
+ * @param emailSalt - User's email salt (user_email_salt)
+ * @returns Promise<string> - Base64-encoded lookup hash
+ */
+export async function hashKeyFromPRF(
+  prfSignature: Uint8Array,
+  emailSalt: Uint8Array
+): Promise<string> {
+  // Combine PRF signature and salt
+  const combined = new Uint8Array(prfSignature.length + emailSalt.length);
+  combined.set(prfSignature);
+  combined.set(emailSalt, prfSignature.length);
+
+  // Hash with SHA-256
+  const hashBuffer = await crypto.subtle.digest('SHA-256', combined);
+  const hashArray = new Uint8Array(hashBuffer);
+
+  // Convert to base64
+  let hashBinary = '';
+  for (let i = 0; i < hashArray.length; i++) {
+    hashBinary += String.fromCharCode(hashArray[i]);
+  }
+  return window.btoa(hashBinary);
+}
+
+/**
+ * Checks if PRF extension is supported by the browser/device
+ * This is a helper function for error messages - actual PRF support
+ * can only be verified after attempting to create a passkey
+ * 
+ * @returns boolean - True if WebAuthn and PRF extension might be supported
+ */
+export function checkPRFSupport(): boolean {
+  if (typeof window === 'undefined' || !navigator.credentials) {
+    return false;
+  }
+  
+  // Check if WebAuthn is available
+  if (!navigator.credentials.create || !navigator.credentials.get) {
+    return false;
+  }
+  
+  // PRF extension support can only be verified by attempting creation
+  // This function just checks if WebAuthn API is available
+  // Actual PRF support is checked via getClientExtensionResults() after creation
+  return true;
 }

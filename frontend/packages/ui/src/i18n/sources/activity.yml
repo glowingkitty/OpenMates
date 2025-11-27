@@ -1,0 +1,322 @@
+search:
+  context: Used in search input placeholder
+  en: Search
+  de: Suchen
+  zh: 搜索
+  es: Buscar
+  fr: Rechercher
+  pt: Pesquisar
+  ru: Поиск
+  ja: 検索
+  ko: 검색
+  it: Cerca
+  tr: Ara
+  vi: Tìm kiếm
+  id: Cari
+  pl: Szukaj
+  nl: Zoeken
+  ar: ابحث
+  hi: खोज
+  th: ค้นหา
+  cs: Hledat
+  sv: Sök
+  verified_by_human: []
+filter:
+  context: Button text for filtering options
+  en: Filter
+  de: Filter
+  zh: 筛选
+  es: Filtrar
+  fr: Filtrer
+  pt: Filtro
+  ru: Фильтр
+  ja: フィルター
+  ko: 필터
+  it: Filtra
+  tr: Filtre
+  vi: Bộ lọc
+  id: Filter
+  pl: Filtr
+  nl: Filter
+  ar: تصفية
+  hi: फ़िल्टर
+  th: ตัวกรอง
+  cs: Filtr
+  sv: Filtrera
+  verified_by_human: []
+close:
+  context: Modal close button
+  en: Close
+  de: Schließen
+  zh: 关闭
+  es: Cerrar
+  fr: Fermer
+  pt: Fechar
+  ru: Закрыть
+  ja: 閉じる
+  ko: 닫기
+  it: Chiudi
+  tr: Kapat
+  vi: Đóng
+  id: Tutup
+  pl: Zamknij
+  nl: Sluiten
+  ar: إغلاق
+  hi: बंद करें
+  th: ปิด
+  cs: Zavřít
+  sv: Stäng
+  verified_by_human: []
+today:
+  context: Chats from today
+  en: Today
+  de: Heute
+  zh: 今天
+  es: Hoy
+  fr: Aujourd'hui
+  pt: Hoje
+  ru: Сегодня
+  ja: 今日
+  ko: 오늘
+  it: Oggi
+  tr: Bugün
+  vi: Hôm nay
+  id: Hari ini
+  pl: Dzisiaj
+  nl: Vandaag
+  ar: اليوم
+  hi: आज
+  th: วันนี้
+  cs: Dnes
+  sv: Idag
+  verified_by_human: []
+yesterday:
+  context: Chats from yesterday
+  en: Yesterday
+  de: Gestern
+  zh: 昨天
+  es: Ayer
+  fr: Hier
+  pt: Ontem
+  ru: Вчера
+  ja: 昨日
+  ko: 어제
+  it: Ieri
+  tr: Dün
+  vi: Hôm qua
+  id: Kemarin
+  pl: Wczoraj
+  nl: Gisteren
+  ar: أمس
+  hi: कल
+  th: เมื่อวาน
+  cs: Včera
+  sv: Igår
+  verified_by_human: []
+previous_7_days:
+  context: Chats from the last 7 days
+  en: Last 7 days
+  de: Letzte 7 Tage
+  zh: 最近 7 天
+  es: Últimos 7 días
+  fr: Derniers 7 jours
+  pt: Últimos 7 dias
+  ru: Последние 7 дней
+  ja: 最後の7日間
+  ko: 지난 7일
+  it: Ultimi 7 giorni
+  tr: Son 7 gün
+  vi: 7 ngày qua
+  id: 7 hari terakhir
+  pl: Ostatnie 7 dni
+  nl: Laatste 7 dagen
+  ar: آخر 7 أيام
+  hi: पिछले 7 दिन
+  th: 7 วันที่ผ่านมา
+  cs: Posledních 7 dní
+  sv: Senaste 7 dagarna
+  verified_by_human: []
+previous_30_days:
+  context: Chats from the last 30 days
+  en: Last 30 days
+  de: Letzte 30 Tage
+  zh: 最近 30 天
+  es: Últimos 30 días
+  fr: Derniers 30 jours
+  pt: Últimos 30 dias
+  ru: Последние 30 дней
+  ja: 最後の30日間
+  ko: 지난 30일
+  it: Ultimi 30 giorni
+  tr: Son 30 gün
+  vi: 30 ngày qua
+  id: 30 hari terakhir
+  pl: Ostatnie 30 dni
+  nl: Laatste 30 dagen
+  ar: آخر 30 يوماً
+  hi: पिछले 30 दिन
+  th: 30 วันที่ผ่านมา
+  cs: Posledních 30 dní
+  sv: Senaste 30 dagarna
+  verified_by_human: []
+days_ago:
+  context: Chats from {days} days ago
+  en: '{days} days ago'
+  de: '{days} Tage her'
+  zh: '{days} 天前'
+  es: '{days} días atrás'
+  fr: il y a {days} jours
+  pt: '{days} dias atrás'
+  ru: '{days} дней назад'
+  ja: '{days}日前'
+  ko: '{days}일 전'
+  it: '{days} giorni fa'
+  tr: '{days} gün önce'
+  vi: '{days} ngày trước'
+  id: '{days} hari yang lalu'
+  pl: '{days} dni temu'
+  nl: '{days} dagen geleden'
+  ar: 'قبل {days} أيام'
+  hi: '{days} दिन पहले'
+  th: '{days} วันที่แล้ว'
+  cs: 'Před {days} dny'
+  sv: 'För {days} dagar sedan'
+  verified_by_human: []
+loading_chats:
+  context: Loading message for chat list
+  en: Loading chats...
+  de: Lade Chats...
+  zh: 正在加载聊天...
+  es: Cargando chats...
+  fr: Cargando chats...
+  pt: Carregando chats...
+  ru: Загрузка чатов...
+  ja: チャットを読み込んでいます...
+  ko: 채팅 로드 중...
+  it: Caricamento chat...
+  tr: Sohbetler yükleniyor...
+  vi: Đang tải cuộc trò chuyện...
+  id: Memuat chat...
+  pl: Wczytywanie czatów...
+  nl: Chats laden...
+  ar: جاري تحميل الدردشات...
+  hi: चैट लोड हो रहे हैं...
+  th: กำลังโหลดแชท...
+  cs: Načítání chatů...
+  sv: Laddar chattar...
+  verified_by_human: []
+no_chats:
+  context: Message shown when there are no chats
+  en: No chats
+  de: Keine Chats
+  zh: 没有聊天
+  es: No hay chats
+  fr: Aucun chat
+  pt: Nenhum chat
+  ru: Нет чатов
+  ja: チャットはありません
+  ko: 채팅 없음
+  it: Nessuna chat
+  tr: Sohbet yok
+  vi: Không có cuộc trò chuyện
+  id: Tidak ada chat
+  pl: Brak czatów
+  nl: Geen chats
+  ar: لا توجد دردشات
+  hi: कोई चैट नहीं
+  th: ไม่มีแชท
+  cs: Žádné chaty
+  sv: Inga chattar
+  verified_by_human: []
+syncing:
+  context: Message shown when syncing data
+  en: Syncing...
+  de: Synchronisiere...
+  zh: 同步中...
+  es: Sincronizando...
+  fr: Synchronisation...
+  pt: Sincronizando...
+  ru: Синхронизация...
+  ja: 同期中...
+  ko: 동기화 중...
+  it: Sincronizzazione...
+  tr: Senkronize ediliyor...
+  vi: Đang đồng bộ...
+  id: Menyinkronkan...
+  pl: Synchronizowanie...
+  nl: Synchroniseren...
+  ar: جاري المزامنة...
+  hi: सिंक हो रहा है...
+  th: กำลังซิงค์...
+  cs: Synchronizace...
+  sv: Synkroniserar...
+  verified_by_human: []
+sync_complete:
+  context: Message shown when sync is complete
+  en: Sync complete
+  de: Synchronisation abgeschlossen
+  zh: 同步完成
+  es: Sincronización completa
+  fr: Synchronisation terminée
+  pt: Sincronização completa
+  ru: Синхронизация завершена
+  ja: 同期完了
+  ko: 동기화 완료
+  it: Sincronizzazione completa
+  tr: Senkronizasyon tamamlandı
+  vi: Đồng bộ hoàn thành
+  id: Sinkronisasi selesai
+  pl: Synchronizacja zakończona
+  nl: Synchronisatie voltooid
+  ar: اكتملت المزامنة
+  hi: सिंक पूर्ण
+  th: ซิงค์เสร็จสิ้น
+  cs: Synchronizace dokončena
+  sv: Synkronisering slutförd
+  verified_by_human: []
+loadMore.button:
+  context: Button text for loading all chats in the activity sidebar
+  en: Load all chats
+  de: Alle Chats laden
+  zh: 加载所有聊天
+  es: Cargar todos los chats
+  fr: Charger tous les chats
+  pt: Carregar todos os chats
+  ru: Загрузить все чаты
+  ja: すべてのチャットを読み込む
+  ko: 모든 채팅 로드
+  it: Carica tutti i chat
+  tr: Tüm sohbetleri yükle
+  vi: Tải tất cả các cuộc trò chuyện
+  id: Muat semua chat
+  pl: Załaduj wszystkie czaty
+  nl: Alle chats laden
+  ar: تحميل جميع الدردشات
+  hi: सभी चैट लोड करें
+  th: โหลดแชททั้งหมด
+  cs: Načíst všechny chaty
+  sv: Ladda alla chattar
+  verified_by_human: []
+loadMore.more:
+  context: Text shown next to chat count when loading more chats
+  en: more
+  de: mehr
+  zh: 更多
+  es: más
+  fr: plus
+  pt: mais
+  ru: ещё
+  ja: もっと
+  ko: 더
+  it: di più
+  tr: daha
+  vi: thêm
+  id: lagi
+  pl: więcej
+  nl: meer
+  ar: أكثر
+  hi: अधिक
+  th: เพิ่มเติม
+  cs: více
+  sv: mer
+  verified_by_human: []

@@ -204,3 +204,10 @@ _backup
 
 .cursor
 .svelte-kit
+
+# Generated translation JSON files (built from YAML sources)
+frontend/packages/ui/src/i18n/locales/*.json
+
+# Generated app metadata (built from backend app.yml files)
+frontend/packages/ui/src/data/appsMetadata.ts
+backend/core/api/logs/*.log.*

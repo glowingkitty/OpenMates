@@ -20,38 +20,95 @@ class SecretsManager:
     
     This class provides methods to access secrets that were previously stored
     in environment variables but now are securely stored in Vault.
+    
+    Uses singleton pattern per process to avoid redundant initialization
+    and reduce memory usage across multiple tasks in the same worker process.
     """
+    _instance = None
+    _initialized = False
+    
+    def __new__(cls, cache_service=None):
+        """Singleton pattern: return the same instance for all calls within a process."""
+        if cls._instance is None:
+            cls._instance = super(SecretsManager, cls).__new__(cls)
+            cls._instance._initialized = False
+        return cls._instance
     
     def __init__(self, cache_service=None):
         """Initialize the SecretsManager with Vault connection details."""
+        # Only initialize once per process (singleton pattern)
+        if self._initialized:
+            # Update cache_service if provided and different
+            if cache_service is not None and self.cache != cache_service:
+                self.cache = cache_service
+            return
+            
         self.vault_url = os.environ.get("VAULT_URL")
         self.cache = cache_service
         self.token_path = "/vault-data/api.token"
+        
+        # Initialize vault_token to None - will be set during initialize()
+        # This prevents AttributeError if methods are called before initialize()
+        self.vault_token = None
 
         # Cache settings
         self._cache_ttl = 300  # 5 minutes
         # Cache structure: { "vault_path/secret_key": {"value": "...", "expires": ...} }
         self._secrets_cache = {}
+        self._initialized = True
             
-    def _get_token_from_file(self):
-        """Try to read the token from the file created by vault-setup."""
+    def _get_token_from_file(self) -> Optional[str]:
+        """
+        Try to read the token from the file created by vault-setup.
+        
+        Returns:
+            The token string if found, None otherwise
+        """
         try:
             if os.path.exists(self.token_path):
                 with open(self.token_path, 'r') as f:
                     token = f.read().strip()
-                    logger.debug(f"Token loaded from file: {self.token_path}")
-                    return token
+                    if token:
+                        logger.debug(f"Token loaded from file: {self.token_path}")
+                        return token
         except Exception as e:
             logger.error(f"Error reading token from {self.token_path}: {str(e)}")
+        
+        return None
     
     async def initialize(self):
-        """Initialize the secrets manager and validate Vault connection."""
-        # Try to get token from file if not provided in env
-        file_token = self._get_token_from_file()
-        if file_token:
-            self.vault_token = file_token
+        """
+        Initialize the secrets manager and validate Vault connection.
+        
+        Attempts to get the Vault token from:
+        1. Environment variable VAULT_TOKEN
+        2. Token file at /vault-data/api.token
+        
+        If no token is found, Vault operations will fail gracefully.
+        """
+        # Try to get token from environment variable first
+        env_token = os.environ.get("VAULT_TOKEN")
+        if env_token:
+            self.vault_token = env_token.strip()
             masked_token = f"{self.vault_token[:4]}...{self.vault_token[-4:]}" if len(self.vault_token) >= 8 else "****"
-            logger.info(f"Using token from file for Vault authentication: {masked_token}")
+            logger.info(f"Using Vault token from environment variable: {masked_token}")
+        else:
+            # Try to get token from file if not provided in env
+            file_token = self._get_token_from_file()
+            if file_token:
+                self.vault_token = file_token
+                masked_token = f"{self.vault_token[:4]}...{self.vault_token[-4:]}" if len(self.vault_token) >= 8 else "****"
+                logger.info(f"Using token from file for Vault authentication: {masked_token}")
+        
+        # If no token was found, log warning and skip validation
+        if not self.vault_token:
+            logger.warning("No Vault token found in environment variable VAULT_TOKEN or token file. Vault operations will fail. This is expected if Vault is not configured.")
+            return False
+        
+        # If vault_url is not set, skip validation
+        if not self.vault_url:
+            logger.warning("VAULT_URL environment variable not set. Vault operations will fail. This is expected if Vault is not configured.")
+            return False
         
         # Try to validate connection to Vault
         try:
@@ -74,7 +131,27 @@ class SecretsManager:
             return False
     
     async def _vault_request(self, method: str, path: str, data: Dict[str, Any] = None) -> Dict[str, Any]:
-        """Make a request to the Vault API."""
+        """
+        Make a request to the Vault API.
+        
+        Args:
+            method: HTTP method (get, post, etc.)
+            path: Vault API path (e.g., "kv/data/providers/brave")
+            data: Optional data for POST requests
+            
+        Returns:
+            Response JSON data
+            
+        Raises:
+            ValueError: If vault_token or vault_url is not set
+            httpx.HTTPStatusError: If the HTTP request fails
+        """
+        # Validate that vault_token and vault_url are set
+        if not self.vault_token:
+            raise ValueError("Vault token not set. Call initialize() first or set VAULT_TOKEN environment variable.")
+        if not self.vault_url:
+            raise ValueError("VAULT_URL environment variable not set. Cannot make Vault requests.")
+        
         url = f"{self.vault_url}/v1/{path}"
         headers = {"X-Vault-Token": self.vault_token}
         

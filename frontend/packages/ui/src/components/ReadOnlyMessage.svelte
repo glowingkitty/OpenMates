@@ -7,6 +7,7 @@
     import { MateNode } from '../components/enter_message/extensions/MateNode';
     import { MarkdownExtensions } from '../components/enter_message/extensions/MarkdownExtensions';
     import { parseMarkdownToTiptap, isMarkdownContent } from '../components/enter_message/utils/markdownParser';
+    import { parse_message } from '../message_parsing/parse_message';
     import { createEventDispatcher } from 'svelte';
     import { contentCache } from '../utils/contentCache';
     import { locale } from 'svelte-i18n';
@@ -73,9 +74,9 @@
                 // Handle special translation keys
                 if (inputContent === 'chat.an_error_occured.text') {
                     const translatedText = $text('chat.an_error_occured.text');
-                    return parseMarkdownToTiptap(translatedText);
+                    return parse_message(translatedText, 'read', { unifiedParsingEnabled: true });
                 }
-                
+
                 // Performance optimization: Check cache before parsing
                 // Include locale in cache key to invalidate cache on language change
                 const currentLocale = $locale || 'en';
@@ -85,9 +86,9 @@
                     logger.debug('Using cached content for markdown parsing');
                     return cached;
                 }
-                
-                // Parse markdown text to TipTap JSON and cache result
-                const parsed = parseMarkdownToTiptap(inputContent);
+
+                // Parse markdown text to TipTap JSON with unified parsing (includes embed parsing)
+                const parsed = parse_message(inputContent, 'read', { unifiedParsingEnabled: true });
                 contentCache.set(cacheKey, parsed);
                 return parsed;
             }
@@ -106,9 +107,9 @@
                         // Replace the key with the translated text
                         firstParagraph.content[0].text = $text('chat.an_error_occured.text');
                     } else if (isMarkdownContent(textContent)) {
-                        // If the text content looks like markdown, parse it
+                        // If the text content looks like markdown, parse it with unified parsing
                         logger.debug('Converting TipTap JSON with markdown text to proper markdown structure');
-                        return parseMarkdownToTiptap(textContent);
+                        return parse_message(textContent, 'read', { unifiedParsingEnabled: true });
                     }
                 }
                 
@@ -120,7 +121,7 @@
             const stringContent = String(inputContent);
             if (isMarkdownContent(stringContent)) {
                 logger.debug('Converting unknown content type to markdown');
-                return parseMarkdownToTiptap(stringContent);
+                return parse_message(stringContent, 'read', { unifiedParsingEnabled: true });
             }
             
             // Fallback: return content as-is (should already be processed)
@@ -132,7 +133,7 @@
             // Final fallback: try to parse as markdown text
             try {
                 const stringContent = typeof inputContent === 'string' ? inputContent : String(inputContent);
-                return parseMarkdownToTiptap(stringContent);
+                return parse_message(stringContent, 'read', { unifiedParsingEnabled: true });
             } catch (markdownError) {
                 logger.debug("Markdown parsing also failed, returning simple paragraph", markdownError);
                 
@@ -289,6 +290,11 @@
 <style>
     .read-only-message {
         width: 100%;
+        /* Enable text selection on touch devices - override parent user-select: none */
+        user-select: text !important;
+        -webkit-user-select: text !important; /* Required for iOS Safari */
+        -moz-user-select: text !important;
+        -ms-user-select: text !important;
     }
 
     /* Style overrides for read-only mode */
@@ -296,7 +302,11 @@
         outline: none;
         cursor: default;
         padding: 0;
-        user-select: text; /* Allow text selection */
+        /* Enable text selection on touch devices - override parent user-select: none */
+        user-select: text !important;
+        -webkit-user-select: text !important; /* Required for iOS Safari */
+        -moz-user-select: text !important;
+        -ms-user-select: text !important;
     }
 
     :global(.read-only-message .ProseMirror p) {

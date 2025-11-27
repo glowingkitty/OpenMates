@@ -1,25 +1,14 @@
-name: |
-  Fitness
-description: |
-  Stay fit, keep moving, stay healthy.
+name_translation_key: fitness.text
+description_translation_key: fitness.description.text
 icon_image: |
   fitness.svg
-icon_colorgradient:
-  start: |
-    #B80065
-  end: |
-    #88004B
-
+category: personal
+last_updated: '2025-11-12'
 skills:
-
-  - id: |
-      search_locations_and_courses
-    name: |
-      Search locations and courses
-    description: |
-      Searches for fitness locations and courses based on your requirements.
-    stage: |
-      planning
+  - id: search_locations_and_courses
+    name_translation_key: fitness.search_locations_and_courses.text
+    description_translation_key: fitness.search_locations_and_courses.description.text
+    stage: planning
     class_path: |
       skills.search_locations_and_courses.SearchLocationsAndCoursesSkill
     providers:

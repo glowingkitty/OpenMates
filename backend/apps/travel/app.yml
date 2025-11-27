@@ -1,52 +1,79 @@
-name: |
-  Travel
-description: |
-  Plan, book and manage your trips.
+name_translation_key: travel.text
+description_translation_key: travel.description.text
 icon_image: |
   travel.svg
-icon_colorgradient:
-  start: |
-    #059DB3
-  end: |
-    #13DAF5
-
+category: personal
+last_updated: '2025-11-12'
 settings_and_memories:
-  - id: upcoming_trips # Unique key for this memory field
-    name: "Upcoming Trips" # User-friendly name for UI
-    description: "Details about your planned future trips."
-    type: list # Data type: string, number, boolean, list, dict
-    schema: # Optional: More detailed schema for complex types (e.g., list of objects, specific dict keys)
-      type: object # For a list of trip objects
-      properties:
-        destination: { type: string, description: "City or country" }
-        start_date: { type: string, format: date, description: "YYYY-MM-DD" }
-        end_date: { type: string, format: date, description: "YYYY-MM-DD" }
-        notes: { type: string, description: "Additional notes" }
-      required: [destination, start_date]
-
-  - id: preferred_airline
-    name: "Preferred Airline"
-    description: "Your favorite airline for booking flights."
-    type: string
-
-  - id: interests
-    name: "Interests"
-    description: "Your interests related to travel. For example, hiking, museums, good city planning examples, etc."
+  - id: trips
+    name_translation_key: travel.trips.text
+    description_translation_key: travel.trips.description.text
     type: list
-
-
+    stage: planning
+    schema:
+      type: object
+      properties:
+        destination:
+          type: string
+          description: City or country
+        start_date:
+          type: string
+          format: date
+          description: YYYY-MM-DD
+        end_date:
+          type: string
+          format: date
+          description: YYYY-MM-DD
+        notes:
+          type: string
+          description: Additional notes
+      required:
+      - destination
+      - start_date
+  - id: preferred_airlines
+    name_translation_key: travel.preferred_airlines.text
+    description_translation_key: travel.preferred_airlines.description.text
+    type: list
+    stage: planning
+    schema:
+      type: array
+      items:
+        type: string
+      description: List of preferred airlines
+  - id: preferred_transport_methods
+    name_translation_key: travel.preferred_transport_methods.text
+    description_translation_key: travel.preferred_transport_methods.description.text
+    type: list
+    stage: planning
+    schema:
+      type: array
+      items:
+        type: string
+        enum:
+        - bike
+        - public_transport
+        - train
+        - plane
+        - car
+        - walking
+      description: List of preferred transport methods, ordered by preference
+  - id: interests
+    name_translation_key: travel.interests.text
+    description_translation_key: travel.interests.description.text
+    type: list
+    stage: planning
+    schema:
+      type: array
+      items:
+        type: string
+      description: List of travel-related interests
 skills:
-
-  - id: |
-      search_connections
-    name: |
-      Search connections
-    description: |
-      Searches for connections between two locations, via trains, planes, public transport, biking, by car or walking.
-    stage: |
-      planning
+  - id: search_connections
+    name_translation_key: travel.search_connections.text
+    description_translation_key: travel.search_connections.description.text
+    stage: planning
     class_path: |
       skills.search_connections.SearchConnectionsSkill
     providers:
-      - "Citymapper" #public transport
-      - "Lyko.tech" #? or directly separate apis from train / mobility providers?
+      - Citymapper
+      - Lyko.tech

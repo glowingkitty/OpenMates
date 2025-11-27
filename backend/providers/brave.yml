@@ -1,0 +1,63 @@
+# backend/providers/brave.yml
+#
+# Configuration for Brave Search API provider.
+# Used by the web app for web search functionality.
+
+provider_id: "brave"
+name: "Brave Search"
+description: "Privacy-preserving web search API with independent index."
+logo_svg: "logos/brave.svg" # Path for UI, relative to a common logos directory
+
+# API endpoint configuration
+api_base_url: "https://api.search.brave.com/res/v1"
+
+# Brave Search API Plans
+# 
+# **Free Plan:**
+# - Price: $0.00 (credit card required via Stripe)
+# - Rate Limits: 1 request per second, 2,000 requests per month
+# - Features: Web search, Goggles, News cluster, Videos cluster, Videos, News, Images
+#
+# **Base Plan:**
+# - Price: $3.00 per 1,000 requests (Brave's cost to us)
+# - Rate Limits: 20 requests per second, 20,000,000 requests per month
+# - Features: Web search, Goggles, News cluster, Videos cluster, Videos, News, Images
+#
+# **Pro Plan:**
+# - Price: $5.00 per 1,000 requests (Brave's cost to us)
+# - Rate Limits: 50 requests per second, Unlimited requests per month
+# - Features: Web search, Goggles, News cluster, Videos cluster, Videos, News, Images,
+#             Schema-enriched Web results, Infobox, FAQ, Discussions, Locations
+
+# Default plan is "pro" (set via BRAVE_SEARCH_PLAN environment variable)
+#
+# Environment Variables Required:
+# - SECRET__BRAVE_SEARCH__API_KEY: Your Brave Search API key (stored in Vault)
+#   Get your API key from: https://api-dashboard.search.brave.com/app/keys
+# - BRAVE_SEARCH_PLAN: Plan selection - "free", "base", or "pro" (default: "pro")
+#   Add to your .env file: BRAVE_SEARCH_PLAN=pro
+
+# Rate limiting configuration
+# These limits are loaded based on the selected plan (BRAVE_SEARCH_PLAN env var)
+# The Python code will select the appropriate plan's rate limits based on the environment variable
+# Default plan is "pro" if BRAVE_SEARCH_PLAN is not set
+rate_limits:
+  free:
+    requests_per_second: 1
+    requests_per_month: 2000
+  base:
+    requests_per_second: 20
+    requests_per_month: 20000000
+  pro:
+    requests_per_second: 50
+    requests_per_month: null  # Unlimited
+
+# Pricing information
+# Cost per request in credits (user-facing pricing, independent of Brave plan)
+# Users are always charged 5 credits per search request
+# If a user makes 5 parallel search requests, they are charged 25 credits total (5 * 5)
+# Note: The Brave plan (free/base/pro) only affects rate limits and available features,
+#       not the user-facing pricing
+pricing:
+  per_request_credits: 5  # Always 5 credits per search request for users
+

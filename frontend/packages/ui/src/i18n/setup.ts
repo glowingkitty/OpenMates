@@ -1,15 +1,66 @@
 import { register, init, getLocaleFromNavigator } from 'svelte-i18n';
 import { browser } from '$app/environment';
-import { SUPPORTED_LOCALES, isValidLocale } from './types';
+import { isValidLocale } from './types';
+import { LANGUAGE_CODES } from './languages';
 import { waitForTranslations } from '../stores/i18n';
 
+/**
+ * Dynamic locale import map using Vite's import.meta.glob
+ * This automatically discovers all available locale files and only loads languages
+ * that are defined in languages.json AND have corresponding JSON files
+ */
+const allLocaleFiles = import.meta.glob('./locales/*.json');
+
+function buildLocaleImportMap(): Record<string, () => Promise<any>> {
+    const map: Record<string, () => Promise<any>> = {};
+
+    // Build import map only for languages defined in languages.json
+    for (const langCode of LANGUAGE_CODES) {
+        const localePath = `./locales/${langCode}.json`;
+        if (allLocaleFiles[localePath]) {
+            map[langCode] = allLocaleFiles[localePath] as () => Promise<any>;
+        } else {
+            console.warn(`Language ${langCode} is in languages.json but locale file ${localePath} does not exist`);
+        }
+    }
+
+    return map;
+}
+
+const localeImportMap = buildLocaleImportMap();
+
+/**
+ * Load locale data using static import map
+ * This ensures Vite can statically analyze all imports at build time
+ */
 const loadLocaleData = async (locale: string) => {
-    let module;
     try {
-        module = await import(`./locales/${locale}.json`);
-        return module.default;
+        // Use static import map instead of template literal to ensure Vite can bundle it
+        const importFn = localeImportMap[locale];
+        if (!importFn) {
+            console.warn(`Locale import not found for ${locale}, falling back to English`);
+            const enImport = localeImportMap['en'];
+            if (!enImport) {
+                throw new Error('English locale import not found in import map');
+            }
+            const module = await enImport();
+            return module.default || module;
+        }
+        
+        const module = await importFn();
+        return module.default || module;
     } catch (e) {
         console.error(`Could not load locale data for ${locale}`, e);
+        // Try English as fallback
+        try {
+            const enImport = localeImportMap['en'];
+            if (enImport) {
+                const module = await enImport();
+                return module.default || module;
+            }
+        } catch (fallbackError) {
+            console.error('Failed to load English locale as fallback', fallbackError);
+        }
         return null;
     }
 };
@@ -44,9 +95,10 @@ export function getCurrentLanguage(): string {
     return 'en'; // Fallback for server-side rendering
 }
 
-// Register all supported locales immediately when module loads
+// Register all supported locales from languages.json immediately when module loads
 // This ensures the i18n system is set up before any components try to use it
-SUPPORTED_LOCALES.forEach(locale => {
+// We use LANGUAGE_CODES from languages.json as the single source of truth
+LANGUAGE_CODES.forEach(locale => {
     register(locale, () => loadLocaleData(locale));
 });
 

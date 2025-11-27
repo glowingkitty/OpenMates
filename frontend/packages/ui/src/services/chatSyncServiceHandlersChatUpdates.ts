@@ -251,7 +251,7 @@ export async function handleNewChatMessageImpl(
             if (payload.encrypted_chat_key) {
                 try {
                     const { decryptChatKeyWithMasterKey } = await import('./cryptoService');
-                    const chatKey = decryptChatKeyWithMasterKey(payload.encrypted_chat_key);
+                    const chatKey = await decryptChatKeyWithMasterKey(payload.encrypted_chat_key);
                     if (chatKey) {
                         chatDB.setChatKey(payload.chat_id, chatKey);
                         console.info(`[ChatSyncService:ChatUpdates] Decrypted and cached chat key for new chat ${payload.chat_id}`);
@@ -340,6 +340,23 @@ export async function handleChatMessageReceivedImpl(
         serviceInstance.activeAITasks.delete(payload.chat_id);
         serviceInstance.dispatchEvent(new CustomEvent('aiTaskEnded', { detail: { chatId: payload.chat_id, taskId: taskInfo.taskId, status: 'completed_message_received' } }));
         console.info(`[ChatSyncService:ChatUpdates] AI Task ${taskInfo.taskId} for chat ${payload.chat_id} considered ended as full AI message was received.`);
+    }
+    
+    // CRITICAL: For AI messages, send encrypted content back to server for Directus storage
+    // This is part of the zero-knowledge architecture where the client encrypts and sends back
+    // This handles the case where streaming events weren't processed (e.g., timing issues, component not ready)
+    if (incomingMessage.role === 'assistant') {
+        try {
+            console.debug('[ChatSyncService:ChatUpdates] Sending AI response to server for Directus storage:', {
+                messageId: incomingMessage.message_id,
+                chatId: incomingMessage.chat_id,
+                contentLength: incomingMessage.content?.length || 0
+            });
+            // Use type assertion to access the method
+            await (serviceInstance as any).sendCompletedAIResponse(incomingMessage);
+        } catch (error) {
+            console.error('[ChatSyncService:ChatUpdates] Error sending AI response to server:', error);
+        }
     }
 
     // CRITICAL FIX: Don't reuse a single transaction across multiple async operations
@@ -565,7 +582,7 @@ export async function handleChatMetadataForEncryptionImpl(
         // Encrypt title with chat-specific key for local storage
         let encryptedTitle: string | null = null;
         if (plaintext_title) {
-            encryptedTitle = encryptWithChatKey(plaintext_title, chatKey);
+            encryptedTitle = await encryptWithChatKey(plaintext_title, chatKey);
             if (!encryptedTitle) {
                 console.error(`[ChatSyncService:ChatUpdates] Failed to encrypt title for chat ${chat_id}`);
                 return;

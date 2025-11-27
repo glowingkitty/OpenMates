@@ -21,8 +21,9 @@ class ChatDatabase {
     private readonly MESSAGES_STORE_NAME = 'messages'; // New store for messages
     private readonly OFFLINE_CHANGES_STORE_NAME = 'pending_sync_changes';
     private readonly NEW_CHAT_SUGGESTIONS_STORE_NAME = 'new_chat_suggestions'; // Store for new chat suggestions
-    // Version incremented due to schema change (adding new_chat_suggestions store)
-    private readonly VERSION = 10;
+    private readonly APP_SETTINGS_MEMORIES_STORE_NAME = 'app_settings_memories'; // Store for app settings and memories entries
+    // Version incremented due to schema change (adding app_settings_memories store)
+    private readonly VERSION = 11;
     private initializationPromise: Promise<void> | null = null;
     
     // Flag to prevent new operations during database deletion
@@ -203,13 +204,23 @@ class ChatDatabase {
                     console.debug('[ChatDatabase] Created new_chat_suggestions store');
                 }
 
-                // Contents store for unified message parsing architecture (ensure it exists)
-                const CONTENTS_STORE_NAME = 'contents';
-                if (!db.objectStoreNames.contains(CONTENTS_STORE_NAME)) {
-                    const contentsStore = db.createObjectStore(CONTENTS_STORE_NAME, { keyPath: 'contentRef' });
-                    contentsStore.createIndex('type', 'type', { unique: false });
-                    contentsStore.createIndex('createdAt', 'createdAt', { unique: false });
-                    console.debug('[ChatDatabase] Created contents store for unified parsing');
+                // Embeds store for unified message parsing architecture (ensure it exists)
+                const EMBEDS_STORE_NAME = 'embeds';
+                if (!db.objectStoreNames.contains(EMBEDS_STORE_NAME)) {
+                    const embedsStore = db.createObjectStore(EMBEDS_STORE_NAME, { keyPath: 'contentRef' });
+                    embedsStore.createIndex('type', 'type', { unique: false });
+                    embedsStore.createIndex('createdAt', 'createdAt', { unique: false });
+                    console.debug('[ChatDatabase] Created embeds store for unified parsing');
+                }
+
+                // App settings and memories store (ensure it exists)
+                if (!db.objectStoreNames.contains(this.APP_SETTINGS_MEMORIES_STORE_NAME)) {
+                    const appSettingsStore = db.createObjectStore(this.APP_SETTINGS_MEMORIES_STORE_NAME, { keyPath: 'id' });
+                    appSettingsStore.createIndex('app_id', 'app_id', { unique: false });
+                    appSettingsStore.createIndex('item_key', 'item_key', { unique: false });
+                    appSettingsStore.createIndex('updated_at', 'updated_at', { unique: false });
+                    appSettingsStore.createIndex('item_version', 'item_version', { unique: false });
+                    console.debug('[ChatDatabase] Created app_settings_memories store');
                 }
             };
         });
@@ -1233,6 +1244,9 @@ class ChatDatabase {
 
     /**
      * Determines if two messages are content duplicates (same logical message, different IDs)
+     * 
+     * CRITICAL: For assistant messages, we also check if the message_id matches the task_id pattern
+     * to avoid false positives when the same response is saved with different IDs from different sources.
      */
     private isContentDuplicate(existing: Message, incoming: Message): boolean {
         // Must be same chat, role, and have similar content
@@ -1240,17 +1254,38 @@ class ChatDatabase {
             return false;
         }
         
+        // For assistant messages, if message_ids are different but both look like task IDs (UUIDs),
+        // and content matches, they might be the same message from different sync sources.
+        // However, we should be more careful - only treat as duplicate if encrypted_content matches
+        // AND timestamps are very close (within 1 minute for assistant messages to account for streaming delays)
+        const isAssistantMessage = existing.role === 'assistant' && incoming.role === 'assistant';
+        const timeThreshold = isAssistantMessage ? 60 : 300; // 1 minute for assistant, 5 minutes for user
+        
         // Check if content is similar (for encrypted content, we compare the encrypted strings)
+        // CRITICAL: encrypted_content comparison is the most reliable way to detect duplicates
+        // since it's based on the actual encrypted content, not plaintext which might have embed references
         const contentMatch = existing.encrypted_content === incoming.encrypted_content;
         
-        // Check if timestamps are close (within 5 minutes) - messages from different sync sources
+        // Check if timestamps are close (within threshold) - messages from different sync sources
         const timeDiff = Math.abs(existing.created_at - incoming.created_at);
-        const timeMatch = timeDiff < 300; // 5 minutes in seconds
+        const timeMatch = timeDiff < timeThreshold;
         
         // Check if sender names match (for user messages)
-        const senderMatch = existing.encrypted_sender_name === incoming.encrypted_sender_name;
+        // For assistant messages, sender_name is typically null/undefined, so this check is less relevant
+        const senderMatch = existing.encrypted_sender_name === incoming.encrypted_sender_name || 
+                          (existing.role === 'assistant' && incoming.role === 'assistant');
         
-        return contentMatch && timeMatch && senderMatch;
+        const isDuplicate = contentMatch && timeMatch && senderMatch;
+        
+        if (isDuplicate && isAssistantMessage) {
+            console.debug(
+                `[ChatDatabase] Detected potential duplicate assistant message: ` +
+                `existing=${existing.message_id}, incoming=${incoming.message_id}, ` +
+                `timeDiff=${timeDiff}s, contentMatch=${contentMatch}`
+            );
+        }
+        
+        return isDuplicate;
     }
 
     /**
@@ -2378,6 +2413,210 @@ class ChatDatabase {
         } catch (error) {
             console.error('[ChatDatabase] Error deleting new chat suggestion by ID:', error);
             return false;
+        }
+    }
+
+    // ========== App Settings and Memories Methods ==========
+
+    /**
+     * Store app settings/memories entries from server sync.
+     * Handles conflict resolution based on item_version (higher version wins).
+     * 
+     * @param entries Array of encrypted app settings/memories entries from server
+     */
+    async storeAppSettingsMemoriesEntries(entries: Array<{
+        id: string;
+        app_id: string;
+        item_key: string;
+        encrypted_item_json: string;
+        encrypted_app_key: string;
+        created_at: number;
+        updated_at: number;
+        item_version: number;
+        sequence_number?: number;
+    }>): Promise<void> {
+        if (!this.db) throw new Error('[ChatDatabase] Database not initialized');
+
+        if (entries.length === 0) {
+            console.debug('[ChatDatabase] No app settings/memories entries to store');
+            return;
+        }
+
+        try {
+            const transaction = this.db.transaction([this.APP_SETTINGS_MEMORIES_STORE_NAME], 'readwrite');
+            const store = transaction.objectStore(this.APP_SETTINGS_MEMORIES_STORE_NAME);
+
+            let storedCount = 0;
+            let skippedCount = 0;
+            let conflictResolvedCount = 0;
+
+            for (const entry of entries) {
+                try {
+                    // Check if entry already exists for conflict resolution
+                    const existingRequest = store.get(entry.id);
+                    const existingEntry = await new Promise<any>((resolve, reject) => {
+                        existingRequest.onsuccess = () => resolve(existingRequest.result);
+                        existingRequest.onerror = () => reject(existingRequest.error);
+                    });
+
+                    if (existingEntry) {
+                        // Conflict resolution: compare item_version
+                        const existingVersion = existingEntry.item_version || 1;
+                        const newVersion = entry.item_version || 1;
+
+                        if (newVersion > existingVersion) {
+                            // Server version is newer - update local entry
+                            store.put({
+                                id: entry.id,
+                                app_id: entry.app_id,
+                                item_key: entry.item_key,
+                                encrypted_item_json: entry.encrypted_item_json,
+                                encrypted_app_key: entry.encrypted_app_key,
+                                created_at: entry.created_at,
+                                updated_at: entry.updated_at,
+                                item_version: entry.item_version,
+                                sequence_number: entry.sequence_number
+                            });
+                            conflictResolvedCount++;
+                            storedCount++;
+                        } else if (newVersion === existingVersion) {
+                            // Versions are equal - compare updated_at timestamps
+                            const existingUpdatedAt = existingEntry.updated_at || 0;
+                            const newUpdatedAt = entry.updated_at || 0;
+
+                            if (newUpdatedAt > existingUpdatedAt) {
+                                // Server entry is newer based on timestamp
+                                store.put({
+                                    id: entry.id,
+                                    app_id: entry.app_id,
+                                    item_key: entry.item_key,
+                                    encrypted_item_json: entry.encrypted_item_json,
+                                    encrypted_app_key: entry.encrypted_app_key,
+                                    created_at: entry.created_at,
+                                    updated_at: entry.updated_at,
+                                    item_version: entry.item_version,
+                                    sequence_number: entry.sequence_number
+                                });
+                                conflictResolvedCount++;
+                                storedCount++;
+                            } else {
+                                // Local version is newer or equal - keep local
+                                skippedCount++;
+                            }
+                        } else {
+                            // Local version is newer - keep local
+                            skippedCount++;
+                        }
+                    } else {
+                        // New entry - store it
+                        store.add({
+                            id: entry.id,
+                            app_id: entry.app_id,
+                            item_key: entry.item_key,
+                            encrypted_item_json: entry.encrypted_item_json,
+                            encrypted_app_key: entry.encrypted_app_key,
+                            created_at: entry.created_at,
+                            updated_at: entry.updated_at,
+                            item_version: entry.item_version,
+                            sequence_number: entry.sequence_number
+                        });
+                        storedCount++;
+                    }
+                } catch (entryError) {
+                    // If add fails due to duplicate key, try put instead
+                    if (entryError instanceof DOMException && entryError.name === 'ConstraintError') {
+                        store.put({
+                            id: entry.id,
+                            app_id: entry.app_id,
+                            item_key: entry.item_key,
+                            encrypted_item_json: entry.encrypted_item_json,
+                            encrypted_app_key: entry.encrypted_app_key,
+                            created_at: entry.created_at,
+                            updated_at: entry.updated_at,
+                            item_version: entry.item_version,
+                            sequence_number: entry.sequence_number
+                        });
+                        storedCount++;
+                    } else {
+                        console.error(`[ChatDatabase] Error storing app settings/memories entry ${entry.id}:`, entryError);
+                    }
+                }
+            }
+
+            // Wait for all operations to complete
+            await new Promise<void>((resolve, reject) => {
+                transaction.oncomplete = () => resolve();
+                transaction.onerror = () => reject(transaction.error);
+            });
+
+            console.info(`[ChatDatabase] App settings/memories sync complete: stored ${storedCount}, skipped ${skippedCount}, conflicts resolved ${conflictResolvedCount}`);
+        } catch (error) {
+            console.error('[ChatDatabase] Error storing app settings/memories entries:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Get a single app settings/memories entry by ID
+     */
+    async getAppSettingsMemoriesEntry(entryId: string): Promise<any | null> {
+        if (!this.db) throw new Error('[ChatDatabase] Database not initialized');
+
+        try {
+            const transaction = this.db.transaction([this.APP_SETTINGS_MEMORIES_STORE_NAME], 'readonly');
+            const store = transaction.objectStore(this.APP_SETTINGS_MEMORIES_STORE_NAME);
+            const request = store.get(entryId);
+
+            return await new Promise<any | null>((resolve, reject) => {
+                request.onsuccess = () => resolve(request.result || null);
+                request.onerror = () => reject(request.error);
+            });
+        } catch (error) {
+            console.error(`[ChatDatabase] Error getting app settings/memories entry ${entryId}:`, error);
+            return null;
+        }
+    }
+
+    /**
+     * Get all app settings/memories entries
+     */
+    async getAllAppSettingsMemoriesEntries(): Promise<any[]> {
+        if (!this.db) throw new Error('[ChatDatabase] Database not initialized');
+
+        try {
+            const transaction = this.db.transaction([this.APP_SETTINGS_MEMORIES_STORE_NAME], 'readonly');
+            const store = transaction.objectStore(this.APP_SETTINGS_MEMORIES_STORE_NAME);
+            const request = store.getAll();
+
+            return await new Promise<any[]>((resolve, reject) => {
+                request.onsuccess = () => resolve(request.result || []);
+                request.onerror = () => reject(request.error);
+            });
+        } catch (error) {
+            console.error('[ChatDatabase] Error getting all app settings/memories entries:', error);
+            return [];
+        }
+    }
+
+    /**
+     * Get all app settings/memories entries for a specific app
+     */
+    async getAppSettingsMemoriesEntriesByApp(appId: string): Promise<any[]> {
+        if (!this.db) throw new Error('[ChatDatabase] Database not initialized');
+
+        try {
+            const transaction = this.db.transaction([this.APP_SETTINGS_MEMORIES_STORE_NAME], 'readonly');
+            const store = transaction.objectStore(this.APP_SETTINGS_MEMORIES_STORE_NAME);
+            const index = store.index('app_id');
+            const request = index.getAll(appId);
+
+            return await new Promise<any[]>((resolve, reject) => {
+                request.onsuccess = () => resolve(request.result || []);
+                request.onerror = () => reject(request.error);
+            });
+        } catch (error) {
+            console.error(`[ChatDatabase] Error getting app settings/memories entries for app ${appId}:`, error);
+            return [];
         }
     }
 

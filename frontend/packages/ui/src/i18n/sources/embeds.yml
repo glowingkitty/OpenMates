@@ -1,0 +1,253 @@
+search:
+  context: Search skill label
+  en: Search
+  de: Suchen
+  zh: 搜索
+  es: Buscar
+  fr: Rechercher
+  pt: Pesquisar
+  ru: Поиск
+  ja: 検索
+  ko: 검색
+  it: Cerca
+  tr: Ara
+  vi: Tìm kiếm
+  id: Cari
+  pl: Szukaj
+  nl: Zoeken
+  ar: ابحث
+  hi: खोज
+  th: ค้นหา
+  cs: Hledat
+  sv: Sök
+  verified_by_human: []
+transcript:
+  context: Transcript skill label
+  en: Transcript
+  de: Transkript
+  zh: 转录
+  es: Transcripción
+  fr: Transcription
+  pt: Transcrição
+  ru: Транскрипт
+  ja: 文字起こし
+  ko: 자막
+  it: Trascrizione
+  tr: Transkript
+  vi: Bản ghi
+  id: Transkrip
+  pl: Transkrypcja
+  nl: Transcript
+  ar: النص
+  hi: प्रतिलिपि
+  th: สำเนา
+  cs: Přepis
+  sv: Transkription
+  verified_by_human: []
+processing:
+  context: Status text when skill is processing
+  en: Processing...
+  de: Wird verarbeitet...
+  zh: 处理中...
+  es: Procesando...
+  fr: Traitement en cours...
+  pt: Processando...
+  ru: Обработка...
+  ja: 処理中...
+  ko: 처리 중...
+  it: Elaborazione in corso...
+  tr: İşleniyor...
+  vi: Đang xử lý...
+  id: Memproses...
+  pl: Przetwarzanie...
+  nl: Verwerking...
+  ar: جاري المعالجة...
+  hi: प्रक्रिया जारी है...
+  th: กำลังประมวลผล...
+  cs: Zpracování...
+  sv: Bearbetar...
+  verified_by_human: []
+completed:
+  context: Status text when skill execution is completed
+  en: Completed
+  de: Abgeschlossen
+  zh: 已完成
+  es: Completado
+  fr: Complété
+  pt: Concluído
+  ru: Завершено
+  ja: 完了
+  ko: 완료됨
+  it: Completato
+  tr: Tamamlandı
+  vi: Hoàn thành
+  id: Selesai
+  pl: Zakończone
+  nl: Voltooid
+  ar: مكتمل
+  hi: पूर्ण
+  th: เสร็จสิ้น
+  cs: Dokončeno
+  sv: Slutförd
+  verified_by_human: []
+via:
+  context: Used in 'query via Brave Search'
+  en: via
+  de: über
+  zh: 通过
+  es: mediante
+  fr: via
+  pt: via
+  ru: через
+  ja: 経由
+  ko: 통해
+  it: tramite
+  tr: aracılığıyla
+  vi: qua
+  id: melalui
+  pl: poprzez
+  nl: via
+  ar: عبر
+  hi: के माध्यम से
+  th: ผ่าน
+  cs: přes
+  sv: via
+  verified_by_human: []
+more_results:
+  context: Text showing additional results count, e.g. '+ 9 more'
+  en: + {count} more
+  de: '+ {count} weitere'
+  zh: '+ {count} 更多'
+  es: '+ {count} más'
+  fr: '+ {count} autres'
+  pt: '+ {count} mais'
+  ru: '+ {count} ещё'
+  ja: '+ {count} その他'
+  ko: '+ {count} 더'
+  it: '+ {count} altri'
+  tr: '+ {count} daha'
+  vi: '+ {count} thêm'
+  id: '+ {count} lagi'
+  pl: '+ {count} więcej'
+  nl: '+ {count} meer'
+  ar: '+ {count} أكثر'
+  hi: '+ {count} अधिक'
+  th: '+ {count} เพิ่มเติม'
+  cs: '+ {count} dalších'
+  sv: '+ {count} fler'
+  verified_by_human: []
+open_search_results:
+  context: Button label to open search results in fullscreen
+  en: Open search results
+  de: Suchergebnisse öffnen
+  zh: 打开搜索结果
+  es: Abrir resultados de búsqueda
+  fr: Ouvrir les résultats de recherche
+  pt: Abrir resultados de busca
+  ru: Открыть результаты поиска
+  ja: 検索結果を開く
+  ko: 검색 결과 열기
+  it: Apri risultati ricerca
+  tr: Arama sonuçlarını aç
+  vi: Mở kết quả tìm kiếm
+  id: Buka hasil pencarian
+  pl: Otwórz wyniki wyszukiwania
+  nl: Zoekresultaten openen
+  ar: فتح نتائج البحث
+  hi: खोज परिणाम खोलें
+  th: เปิดผลการค้นหา
+  cs: Otevřít výsledky hledání
+  sv: Öppna sökresultat
+  verified_by_human: []
+stop:
+  context: Button label to stop skill execution
+  en: Stop
+  de: Stopp
+  zh: 停止
+  es: Detener
+  fr: Arrêter
+  pt: Parar
+  ru: Остановить
+  ja: 停止
+  ko: 중지
+  it: Ferma
+  tr: Durdur
+  vi: Dừng
+  id: Berhenti
+  pl: Zatrzymaj
+  nl: Stoppen
+  ar: إيقاف
+  hi: रोकें
+  th: หยุด
+  cs: Zastavit
+  sv: Stoppa
+  verified_by_human: []
+share:
+  context: Button label to share skill results
+  en: Share
+  de: Teilen
+  zh: 分享
+  es: Compartir
+  fr: Partager
+  pt: Compartilhar
+  ru: Поделиться
+  ja: 共有
+  ko: 공유
+  it: Condividi
+  tr: Paylaş
+  vi: Chia sẻ
+  id: Bagikan
+  pl: Udostępnij
+  nl: Delen
+  ar: مشاركة
+  hi: साझा करें
+  th: แชร์
+  cs: Sdílet
+  sv: Dela
+  verified_by_human: []
+exit_fullscreen:
+  context: Button label to exit fullscreen view
+  en: Exit fullscreen
+  de: Vollbildmodus beenden
+  zh: 退出全屏
+  es: Salir del modo pantalla completa
+  fr: Quitter le mode plein écran
+  pt: Sair do modo tela cheia
+  ru: Выйти из полноэкранного режима
+  ja: 全画面終了
+  ko: 전체 화면 종료
+  it: Esci dalla modalità a schermo intero
+  tr: Tam ekrandan çık
+  vi: Thoát chế độ toàn màn hình
+  id: Keluar dari layar penuh
+  pl: Wyjdź z trybu pełnoekranowego
+  nl: Vollscherm afsluiten
+  ar: خروج من وضع الملء
+  hi: पूर्णस्क्रीन से बाहर निकलें
+  th: ออกจากโหมดเต็มจอ
+  cs: Ukončit režim celé obrazovky
+  sv: Avsluta helskärmsläge
+  verified_by_human: []
+open_on_provider:
+  context: Button label to open results on provider website, e.g. 'Open on Brave Search'
+  en: Open on {provider}
+  de: Auf {provider} öffnen
+  zh: 在 {provider} 上打开
+  es: Abrir en {provider}
+  fr: Ouvrir sur {provider}
+  pt: Abrir em {provider}
+  ru: Открыть на {provider}
+  ja: '{provider}で開く'
+  ko: '{provider}에서 열기'
+  it: Apri su {provider}
+  tr: '{provider} üzerinde aç'
+  vi: Mở trên {provider}
+  id: Buka di {provider}
+  pl: Otwórz na {provider}
+  nl: Openen op {provider}
+  ar: 'فتح على {provider}'
+  hi: '{provider} पर खोलें'
+  th: 'เปิดบน {provider}'
+  cs: 'Otevřít na {provider}'
+  sv: 'Öppna på {provider}'
+  verified_by_human: []

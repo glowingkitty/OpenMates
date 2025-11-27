@@ -4,7 +4,7 @@
     import AppIconGrid from './AppIconGrid.svelte';
     import { createEventDispatcher } from 'svelte';
     import { authStore, isCheckingAuth, needsDeviceVerification, login, checkAuth } from '../stores/authStore'; // Import login and checkAuth functions
-    import { currentSignupStep, isInSignupProcess, STEP_BASICS, getStepFromPath, STEP_ONE_TIME_CODES } from '../stores/signupState';
+    import { currentSignupStep, isInSignupProcess, STEP_BASICS, getStepFromPath, STEP_ONE_TIME_CODES, isSignupPath } from '../stores/signupState';
     import { clearIncompleteSignupData } from '../stores/signupStore';
     import { onMount, onDestroy } from 'svelte';
     import { MOBILE_BREAKPOINT } from '../styles/constants';
@@ -40,6 +40,12 @@
     let preferredLoginMethod = $state('password'); // Default to password
     let tfaAppName = $state<string | null>(null); // Will be populated from lookup response
     let tfaEnabled = $state(true); // Default to true for security (prevents user enumeration)
+    let isPasskeyLoading = $state(false); // Track if passkey login is in progress
+    let passkeyLoginAbortController: AbortController | null = null; // For cancelling passkey login
+    
+    // Conditional UI (passkey autofill) state
+    let conditionalUIAbortController: AbortController | null = null; // For cancelling conditional UI passkey request
+    let isConditionalUISupported = $state(false); // Track if browser supports conditional UI
     
     // Helper function to safely cast string to LoginStep
     function setLoginStep(step: string): void {
@@ -57,8 +63,8 @@
     // Add state for mobile view using $state (Svelte 5 runes mode)
     let isMobile = $state(false);
     let screenWidth = $state(0);
-    let emailInput: HTMLInputElement; // Reference to the email input element
-    let loginContainer: HTMLDivElement; // Reference to the login-container element
+    let emailInput: HTMLInputElement | undefined; // Reference to the email input element
+    let loginContainer = $state<HTMLDivElement | undefined>(undefined); // Reference to the login-container element (using $state for Svelte 5 bind:this)
 
     // Add state for minimum loading time control using $state (Svelte 5 runes mode)
     let showLoadingUntil = $state(0);
@@ -239,6 +245,9 @@
     
     // Improve switchToSignup function to reset the signup step and ensure state changes are coordinated
     async function switchToSignup() {
+        // Cancel any pending conditional UI passkey request
+        cancelConditionalUIPasskey();
+        
         // Clear login and 2FA state before switching view
         email = '';
         password = '';
@@ -325,12 +334,1061 @@
             emailInput.focus();
         }
     }
+    
+    /**
+     * Helper functions for passkey login
+     */
+    function arrayBufferToBase64Url(buffer: ArrayBuffer): string {
+        const bytes = new Uint8Array(buffer);
+        let binary = '';
+        for (let i = 0; i < bytes.byteLength; i++) {
+            binary += String.fromCharCode(bytes[i]);
+        }
+        return window.btoa(binary)
+            .replace(/\+/g, '-')
+            .replace(/\//g, '_')
+            .replace(/=/g, '');
+    }
+    
+    function base64UrlToArrayBuffer(base64url: string): ArrayBuffer {
+        let base64 = base64url.replace(/-/g, '+').replace(/_/g, '/');
+        while (base64.length % 4) {
+            base64 += '=';
+        }
+        const binary = window.atob(base64);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) {
+            bytes[i] = binary.charCodeAt(i);
+        }
+        return bytes.buffer;
+    }
+    
+    function getSessionId(): string {
+        let sessionId = sessionStorage.getItem('openmates_session_id');
+        if (!sessionId) {
+            sessionId = crypto.randomUUID();
+            sessionStorage.setItem('openmates_session_id', sessionId);
+        }
+        return sessionId;
+    }
+    
+    /**
+     * Start passkey login - shows loading screen and initiates WebAuthn
+     */
+    async function startPasskeyLogin() {
+        if (isPasskeyLoading || isLoading) return;
+        
+        // Cancel any pending conditional UI passkey request to avoid WebAuthn conflicts
+        cancelConditionalUIPasskey();
+        
+        // Show loading screen
+        isPasskeyLoading = true;
+        passkeyLoginAbortController = new AbortController();
+        
+        // Wait a tick for the UI to update, then start passkey login flow
+        await tick();
+        await performPasskeyLogin();
+    }
+    
+    /**
+     * Cancel passkey login and return to email login
+     */
+    function cancelPasskeyLogin() {
+        // Abort any ongoing passkey operations
+        if (passkeyLoginAbortController) {
+            passkeyLoginAbortController.abort();
+            passkeyLoginAbortController = null;
+        }
+        
+        // Reset state
+        isPasskeyLoading = false;
+        isLoading = false;
+        loginFailedWarning = false;
+    }
+    
+    /**
+     * Perform passkey login flow
+     */
+    async function performPasskeyLogin() {
+        if (!isPasskeyLoading) return; // Check if still in passkey mode
+        
+        try {
+            isLoading = true;
+            loginFailedWarning = false;
+            
+            const { getApiEndpoint, apiEndpoints } = await import('../config/api');
+            const cryptoService = await import('../services/cryptoService');
+            
+            // Step 1: Initiate passkey assertion with backend (no email required for resident credentials)
+            const initiateResponse = await fetch(getApiEndpoint(apiEndpoints.auth.passkey_assertion_initiate), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({}),
+                credentials: 'include',
+                signal: passkeyLoginAbortController?.signal
+            });
+            
+            if (!initiateResponse.ok) {
+                const errorData = await initiateResponse.json();
+                console.error('Passkey assertion initiation failed:', errorData);
+                loginFailedWarning = true;
+                isPasskeyLoading = false;
+                isLoading = false;
+                return;
+            }
+            
+            const initiateData = await initiateResponse.json();
+            
+            if (!initiateData.success) {
+                console.error('Passkey assertion initiation failed:', initiateData.message);
+                loginFailedWarning = true;
+                isPasskeyLoading = false;
+                isLoading = false;
+                return;
+            }
+            
+            // Step 2: Prepare WebAuthn request options
+            const challenge = base64UrlToArrayBuffer(initiateData.challenge);
+            
+            // Prepare PRF extension input
+            // Use the PRF eval.first from backend if provided, otherwise use challenge as fallback
+            const prfEvalFirst = initiateData.extensions?.prf?.eval?.first || initiateData.challenge;
+            const prfEvalFirstBuffer = base64UrlToArrayBuffer(prfEvalFirst);
+            console.log('[Login] PRF extension request:', {
+                hasPrfExtension: !!initiateData.extensions?.prf,
+                prfEvalFirst: prfEvalFirst.substring(0, 20) + '...',
+                usingFallback: !initiateData.extensions?.prf?.eval?.first,
+                challenge: initiateData.challenge.substring(0, 20) + '...'
+            });
+            
+            const publicKeyCredentialRequestOptions: PublicKeyCredentialRequestOptions = {
+                challenge: challenge,
+                rpId: initiateData.rp.id,
+                timeout: initiateData.timeout,
+                userVerification: initiateData.userVerification as UserVerificationRequirement,
+                allowCredentials: initiateData.allowCredentials?.length > 0 
+                    ? initiateData.allowCredentials.map((cred: any) => ({
+                        type: cred.type,
+                        id: base64UrlToArrayBuffer(cred.id),
+                        transports: cred.transports
+                    }))
+                    : [],
+                extensions: {
+                    prf: {
+                        eval: {
+                            first: prfEvalFirstBuffer
+                        }
+                    }
+                } as AuthenticationExtensionsClientInputs
+            };
+            
+            console.log('[Login] WebAuthn request options prepared:', {
+                rpId: publicKeyCredentialRequestOptions.rpId,
+                hasExtensions: !!publicKeyCredentialRequestOptions.extensions,
+                hasPrfExtension: !!(publicKeyCredentialRequestOptions.extensions as any)?.prf,
+                allowCredentialsCount: publicKeyCredentialRequestOptions.allowCredentials?.length || 0
+            });
+            
+            // Step 3: Get passkey assertion using WebAuthn API
+            let assertion: PublicKeyCredential;
+            try {
+                assertion = await navigator.credentials.get({
+                    publicKey: publicKeyCredentialRequestOptions
+                }) as PublicKeyCredential;
+            } catch (error: any) {
+                console.error('WebAuthn assertion failed:', error);
+                // User cancellation or other errors
+                if (error.name === 'NotAllowedError') {
+                    // User cancelled - just reset, don't show error
+                    isPasskeyLoading = false;
+                    isLoading = false;
+                    return;
+                }
+                loginFailedWarning = true;
+                isPasskeyLoading = false;
+                isLoading = false;
+                return;
+            }
+            
+            if (!assertion || !(assertion instanceof PublicKeyCredential)) {
+                console.error('Invalid assertion received');
+                loginFailedWarning = true;
+                isPasskeyLoading = false;
+                isLoading = false;
+                return;
+            }
+            
+            const response = assertion.response as AuthenticatorAssertionResponse;
+            
+            // Step 4: Check PRF extension support
+            const clientExtensionResults = assertion.getClientExtensionResults();
+            console.log('[Login] Client extension results:', clientExtensionResults);
+            const prfResults = clientExtensionResults?.prf as any;
+            console.log('[Login] PRF results:', prfResults);
+            
+            // Check if PRF is enabled and has results
+            // Note: Some authenticators may return PRF results even if enabled is false/undefined
+            // We need to check both enabled flag and presence of results
+            if (!prfResults) {
+                console.error('[Login] PRF extension not found in client extension results', {
+                    clientExtensionResults,
+                    hasPrf: !!clientExtensionResults?.prf
+                });
+                loginFailedWarning = true;
+                isPasskeyLoading = false;
+                isLoading = false;
+                return;
+            }
+            
+            // Check if PRF is enabled (some browsers may not set this flag correctly)
+            if (prfResults.enabled === false) {
+                console.error('[Login] PRF extension explicitly disabled', {
+                    prfResults,
+                    enabled: prfResults.enabled
+                });
+                loginFailedWarning = true;
+                isPasskeyLoading = false;
+                isLoading = false;
+                return;
+            }
+            
+            // Extract PRF signature - handle both ArrayBuffer and hex string formats
+            const prfSignatureBuffer = prfResults.results?.first;
+            if (!prfSignatureBuffer) {
+                console.error('[Login] PRF signature not found in results', {
+                    prfResults,
+                    hasResults: !!prfResults.results,
+                    resultsKeys: prfResults.results ? Object.keys(prfResults.results) : []
+                });
+                loginFailedWarning = true;
+                isPasskeyLoading = false;
+                isLoading = false;
+                return;
+            }
+            
+            // Convert PRF signature to Uint8Array
+            // Handle both ArrayBuffer and hex string formats
+            let prfSignature: Uint8Array;
+            if (typeof prfSignatureBuffer === 'string') {
+                // Hex string format (e.g., "65caf64f0349e41168307bc91df7157fb8e22c8b59f96d445c716731fa6445bb")
+                console.log('[Login] PRF signature is hex string, converting to Uint8Array');
+                const hexString = prfSignatureBuffer;
+                prfSignature = new Uint8Array(hexString.match(/.{1,2}/g)!.map(byte => parseInt(byte, 16)));
+            } else if (prfSignatureBuffer instanceof ArrayBuffer) {
+                // ArrayBuffer format
+                console.log('[Login] PRF signature is ArrayBuffer, converting to Uint8Array');
+                prfSignature = new Uint8Array(prfSignatureBuffer);
+            } else if (ArrayBuffer.isView(prfSignatureBuffer)) {
+                // TypedArray format (Uint8Array, etc.)
+                console.log('[Login] PRF signature is TypedArray, converting to Uint8Array');
+                prfSignature = new Uint8Array(prfSignatureBuffer.buffer, prfSignatureBuffer.byteOffset, prfSignatureBuffer.byteLength);
+            } else {
+                console.error('[Login] PRF signature is in unknown format', {
+                    type: typeof prfSignatureBuffer,
+                    constructor: prfSignatureBuffer?.constructor?.name,
+                    value: prfSignatureBuffer
+                });
+                loginFailedWarning = true;
+                isPasskeyLoading = false;
+                isLoading = false;
+                return;
+            }
+            
+            // Validate PRF signature length (should be 32 bytes for SHA-256)
+            if (prfSignature.length < 16 || prfSignature.length > 64) {
+                console.error('[Login] PRF signature has invalid length', {
+                    length: prfSignature.length,
+                    expected: '16-64 bytes'
+                });
+                loginFailedWarning = true;
+                isPasskeyLoading = false;
+                isLoading = false;
+                return;
+            }
+            
+            console.log('[Login] PRF signature extracted successfully', {
+                length: prfSignature.length,
+                firstBytes: Array.from(prfSignature.slice(0, 4))
+            });
+            
+            // Step 5: Extract credential data for backend
+            const credentialId = arrayBufferToBase64Url(assertion.rawId);
+            const clientDataJSONB64 = cryptoService.uint8ArrayToBase64(new Uint8Array(response.clientDataJSON));
+            const authenticatorDataB64 = cryptoService.uint8ArrayToBase64(new Uint8Array(response.authenticatorData));
+            
+            // Step 6: Verify passkey assertion with backend
+            const verifyResponse = await fetch(getApiEndpoint(apiEndpoints.auth.passkey_assertion_verify), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    credential_id: credentialId,
+                    assertion_response: {
+                        authenticatorData: authenticatorDataB64,
+                        clientDataJSON: clientDataJSONB64,
+                        signature: cryptoService.uint8ArrayToBase64(new Uint8Array(response.signature)),
+                        userHandle: response.userHandle ? cryptoService.uint8ArrayToBase64(new Uint8Array(response.userHandle)) : null
+                    },
+                    client_data_json: clientDataJSONB64,
+                    authenticator_data: authenticatorDataB64,
+                    stay_logged_in: stayLoggedIn,
+                    session_id: getSessionId()
+                }),
+                credentials: 'include',
+                signal: passkeyLoginAbortController?.signal
+            });
+            
+            if (!verifyResponse.ok) {
+                const errorData = await verifyResponse.json();
+                console.error('Passkey assertion verification failed:', errorData);
+                loginFailedWarning = true;
+                isPasskeyLoading = false;
+                isLoading = false;
+                return;
+            }
+            
+            const verifyData = await verifyResponse.json();
+            
+            if (!verifyData.success) {
+                console.error('Passkey verification failed:', verifyData.message);
+                loginFailedWarning = true;
+                isPasskeyLoading = false;
+                isLoading = false;
+                return;
+            }
+            
+            // Step 7: Get email salt from backend response
+            let emailSalt = cryptoService.getEmailSalt();
+            if (!emailSalt && verifyData.user_email_salt) {
+                const { base64ToUint8Array } = await import('../services/cryptoService');
+                emailSalt = base64ToUint8Array(verifyData.user_email_salt);
+                cryptoService.saveEmailSalt(emailSalt, stayLoggedIn);
+            }
+            
+            if (!emailSalt) {
+                console.error('Email salt not found');
+                loginFailedWarning = true;
+                isPasskeyLoading = false;
+                isLoading = false;
+                return;
+            }
+            
+            // Debug logging for key derivation
+            console.log('[Login] Key derivation inputs:', {
+                prfSignatureLength: prfSignature.length,
+                prfSignatureFirstBytes: Array.from(prfSignature.slice(0, 4)),
+                emailSaltLength: emailSalt.length,
+                emailSaltFirstBytes: Array.from(emailSalt.slice(0, 4)),
+                user_email_salt_from_backend: verifyData.user_email_salt?.substring(0, 20) + '...'
+            });
+            
+            // Step 8: Derive wrapping key from PRF signature using HKDF
+            const wrappingKey = await cryptoService.deriveWrappingKeyFromPRF(prfSignature, emailSalt);
+            
+            console.log('[Login] Wrapping key derived:', {
+                wrappingKeyLength: wrappingKey.length,
+                wrappingKeyFirstBytes: Array.from(wrappingKey.slice(0, 4))
+            });
+            
+            // Step 9: Unwrap master key (needed to decrypt email)
+            const encryptedMasterKey = verifyData.encrypted_master_key;
+            const keyIv = verifyData.key_iv;
+            
+            if (!encryptedMasterKey || !keyIv) {
+                console.error('Missing encrypted master key or IV');
+                loginFailedWarning = true;
+                isPasskeyLoading = false;
+                isLoading = false;
+                return;
+            }
+            
+            const masterKey = await cryptoService.decryptKey(encryptedMasterKey, keyIv, wrappingKey);
+            
+            if (!masterKey) {
+                console.error('Failed to unwrap master key');
+                loginFailedWarning = true;
+                isPasskeyLoading = false;
+                isLoading = false;
+                return;
+            }
+            
+            // Step 10: Save master key to storage (needed for decrypting email)
+            // Pass stayLoggedIn to ensure key is cleared on tab/browser close if user didn't check "Stay logged in"
+            await cryptoService.saveKeyToSession(masterKey, stayLoggedIn);
+            
+            // Step 11: Decrypt email using master key (for passwordless login)
+            // The server returns encrypted_email encrypted with master key (encrypted_email_with_master_key)
+            let userEmail = verifyData.user_email;
+            if (!userEmail && verifyData.encrypted_email) {
+                // Decrypt email using master key (master key is already saved to storage at step 10)
+                const { decryptWithMasterKey } = await import('../services/cryptoService');
+                const decryptedEmail = await decryptWithMasterKey(verifyData.encrypted_email);
+                if (decryptedEmail) {
+                    userEmail = decryptedEmail;
+                    console.log('[Login] Email decrypted from encrypted_email using master key');
+                } else {
+                    console.error('[Login] Failed to decrypt email with master key');
+                    loginFailedWarning = true;
+                    isPasskeyLoading = false;
+                    isLoading = false;
+                    return;
+                }
+            }
+            
+            if (!userEmail) {
+                console.error('Email not available for key derivation');
+                loginFailedWarning = true;
+                isPasskeyLoading = false;
+                isLoading = false;
+                return;
+            }
+            
+            // Step 12: Derive email encryption key from decrypted email
+            const emailEncryptionKey = await cryptoService.deriveEmailEncryptionKey(userEmail, emailSalt);
+            cryptoService.saveEmailEncryptionKey(emailEncryptionKey, stayLoggedIn);
+            cryptoService.saveEmailSalt(emailSalt, stayLoggedIn);
+            
+            // Step 13: Generate lookup hash from PRF signature
+            const lookupHash = await cryptoService.hashKeyFromPRF(prfSignature, emailSalt);
+            
+            // Step 14: Authenticate with lookup_hash to get full auth session (including ws_token)
+            // The passkey verify endpoint doesn't return auth_session, so we need to call /auth/login
+            if (!verifyData.auth_session) {
+                console.log('[Login] No auth_session in verify response, authenticating with lookup_hash');
+                
+                // Get hashed_email for authentication
+                const hashedEmail = await cryptoService.hashEmail(userEmail);
+                
+                // Authenticate using the regular login endpoint with lookup_hash
+                const { getApiEndpoint, apiEndpoints } = await import('../config/api');
+                const { getSessionId } = await import('../utils/sessionId');
+                const authResponse = await fetch(getApiEndpoint(apiEndpoints.auth.login), {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        hashed_email: hashedEmail,
+                        lookup_hash: lookupHash,
+                        email_encryption_key: cryptoService.getEmailEncryptionKeyForApi(),
+                        login_method: 'passkey',
+                        credential_id: credentialId,
+                        stay_logged_in: stayLoggedIn,
+                        session_id: getSessionId()
+                    }),
+                    credentials: 'include'
+                });
+                
+                if (!authResponse.ok) {
+                    const errorData = await authResponse.json();
+                    console.error('Passkey authentication failed:', errorData);
+                    loginFailedWarning = true;
+                    isPasskeyLoading = false;
+                    isLoading = false;
+                    return;
+                }
+                
+                const authData = await authResponse.json();
+                
+                if (!authData.success) {
+                    console.error('Passkey authentication failed:', authData.message);
+                    loginFailedWarning = true;
+                    isPasskeyLoading = false;
+                    isLoading = false;
+                    return;
+                }
+                
+                // The /auth/login endpoint returns user and ws_token at the top level
+                // Store them in verifyData for consistency with the rest of the flow
+                verifyData.auth_session = {
+                    user: authData.user,
+                    ws_token: authData.ws_token
+                };
+                console.log('[Login] Authentication successful via login endpoint');
+            }
+            
+            // Step 15: Store email encrypted with master key for client use
+            await cryptoService.saveEmailEncryptedWithMasterKey(userEmail, stayLoggedIn);
+            
+            // Step 16: Store WebSocket token if provided (CRITICAL for WebSocket connection)
+            // Check both verifyData.auth_session.ws_token and direct authData.ws_token for compatibility
+            const wsToken = verifyData.auth_session?.ws_token;
+            if (wsToken) {
+                const { setWebSocketToken } = await import('../utils/cookies');
+                setWebSocketToken(wsToken);
+                console.debug('[Login] WebSocket token stored from login response');
+            } else {
+                console.warn('[Login] No ws_token in auth_session - WebSocket connection may fail');
+            }
+            
+            // Step 17: Update user profile
+            const userData = verifyData.auth_session?.user;
+            if (userData) {
+                const { updateProfile } = await import('../stores/userProfile');
+                const userProfileData = {
+                    username: userData.username || '',
+                    profile_image_url: userData.profile_image_url || null,
+                    credits: userData.credits || 0,
+                    is_admin: userData.is_admin || false,
+                    last_opened: userData.last_opened || '',
+                    tfa_app_name: userData.tfa_app_name || null,
+                    tfa_enabled: userData.tfa_enabled || false,
+                    consent_privacy_and_apps_default_settings: userData.consent_privacy_and_apps_default_settings || false,
+                    consent_mates_default_settings: userData.consent_mates_default_settings || false,
+                    language: userData.language || 'en',
+                    darkmode: userData.darkmode || false
+                };
+                updateProfile(userProfileData);
+                console.log('[Login] User profile updated:', { username: userProfileData.username, credits: userProfileData.credits });
+            } else {
+                console.warn('[Login] No user data in auth_session - user profile not updated');
+            }
+            
+            // Step 18: Dispatch login success
+            email = '';
+            isPasskeyLoading = false;
+            isLoading = false;
+            dispatch('loginSuccess', {
+                user: verifyData.auth_session?.user,
+                isMobile,
+                inSignupFlow: false
+            });
+            
+        } catch (error: any) {
+            console.error('Error during passkey login:', error);
+            if (error.name === 'AbortError') {
+                // User cancelled - already handled
+                return;
+            }
+            loginFailedWarning = true;
+            isPasskeyLoading = false;
+            isLoading = false;
+        }
+    }
+    
+    /**
+     * Start Conditional UI (passkey autofill) flow
+     * This allows the browser to show passkey suggestions in the username/email autofill dropdown
+     * The user can select a passkey without clicking a separate button
+     * Passkeys will appear automatically when the page loads, not just when clicking the field
+     * 
+     * Reference: https://web.dev/articles/passkey-form-autofill
+     */
+    async function startConditionalUIPasskey() {
+        // Don't start if already active
+        if (conditionalUIAbortController) {
+            console.log('[Login] Conditional UI passkey request already active');
+            return;
+        }
+        
+        // Check if WebAuthn and Conditional UI are supported
+        if (!window.PublicKeyCredential) {
+            console.log('[Login] WebAuthn not supported');
+            return;
+        }
+        
+        // Check if conditional mediation is available (required for autofill passkeys)
+        try {
+            const conditionalMediationAvailable = await PublicKeyCredential.isConditionalMediationAvailable?.();
+            if (!conditionalMediationAvailable) {
+                console.log('[Login] Conditional UI (passkey autofill) not supported by browser');
+                isConditionalUISupported = false;
+                return;
+            }
+            isConditionalUISupported = true;
+            console.log('[Login] Conditional UI (passkey autofill) is supported - starting automatic passkey suggestions');
+        } catch (error) {
+            console.log('[Login] Error checking conditional UI support:', error);
+            isConditionalUISupported = false;
+            return;
+        }
+        
+        // Create abort controller for cancelling the request
+        conditionalUIAbortController = new AbortController();
+        
+        try {
+            const { getApiEndpoint, apiEndpoints } = await import('../config/api');
+            const cryptoService = await import('../services/cryptoService');
+            
+            // Step 1: Initiate passkey assertion with backend (no email required for discoverable credentials)
+            const initiateResponse = await fetch(getApiEndpoint(apiEndpoints.auth.passkey_assertion_initiate), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({}),
+                credentials: 'include',
+                signal: conditionalUIAbortController?.signal
+            });
+            
+            if (!initiateResponse.ok) {
+                const errorData = await initiateResponse.json();
+                console.log('[Login] Conditional UI passkey initiation failed (expected if no passkeys registered):', errorData);
+                return;
+            }
+            
+            const initiateData = await initiateResponse.json();
+            
+            if (!initiateData.success) {
+                console.log('[Login] Conditional UI passkey initiation failed:', initiateData.message);
+                return;
+            }
+            
+            // Step 2: Prepare WebAuthn request options for conditional UI
+            const challenge = base64UrlToArrayBuffer(initiateData.challenge);
+            
+            // Prepare PRF extension input
+            const prfEvalFirst = initiateData.extensions?.prf?.eval?.first || initiateData.challenge;
+            const prfEvalFirstBuffer = base64UrlToArrayBuffer(prfEvalFirst);
+            
+            console.log('[Login] Conditional UI: preparing WebAuthn options');
+            
+            const publicKeyCredentialRequestOptions: PublicKeyCredentialRequestOptions = {
+                challenge: challenge,
+                rpId: initiateData.rp.id,
+                timeout: initiateData.timeout,
+                userVerification: initiateData.userVerification as UserVerificationRequirement,
+                // Empty allowCredentials enables discoverable credential discovery
+                allowCredentials: [],
+                extensions: {
+                    prf: {
+                        eval: {
+                            first: prfEvalFirstBuffer
+                        }
+                    }
+                } as AuthenticationExtensionsClientInputs
+            };
+            
+            // Step 3: Start conditional UI WebAuthn request
+            // This will show passkey options in the autofill dropdown when user focuses the email field
+            // The request waits silently until user selects a passkey from autofill
+            console.log('[Login] Starting conditional UI passkey request (autofill mode)');
+            
+            let assertion: PublicKeyCredential;
+            try {
+                assertion = await navigator.credentials.get({
+                    publicKey: publicKeyCredentialRequestOptions,
+                    // CRITICAL: mediation: 'conditional' enables autofill mode
+                    // This makes passkeys appear in the username/email field autofill dropdown
+                    mediation: 'conditional',
+                    signal: conditionalUIAbortController?.signal
+                }) as PublicKeyCredential;
+            } catch (error: any) {
+                if (error.name === 'AbortError') {
+                    console.log('[Login] Conditional UI passkey request was cancelled');
+                    return;
+                }
+                // NotAllowedError can happen if user focuses input but doesn't select a passkey
+                // or if the request times out - we should restart it in this case
+                if (error.name === 'NotAllowedError') {
+                    console.log('[Login] Conditional UI request completed without selection - will restart automatically if needed');
+                    // Reset abort controller so it can be restarted
+                    conditionalUIAbortController = null;
+                    return;
+                }
+                console.log('[Login] Conditional UI WebAuthn error:', error);
+                // Reset abort controller on error so it can be retried
+                conditionalUIAbortController = null;
+                return;
+            }
+            
+            if (!assertion || !(assertion instanceof PublicKeyCredential)) {
+                console.log('[Login] No assertion from conditional UI');
+                return;
+            }
+            
+            console.log('[Login] User selected passkey from autofill, processing login...');
+            
+            // Show loading state when user selects a passkey from autofill
+            isPasskeyLoading = true;
+            isLoading = true;
+            
+            // Process the passkey assertion (same flow as manual passkey login)
+            await processPasskeyAssertion(assertion, initiateData, cryptoService);
+            
+            // Reset abort controller after successful processing so it can be restarted if needed
+            conditionalUIAbortController = null;
+            
+        } catch (error: any) {
+            if (error.name === 'AbortError') {
+                console.log('[Login] Conditional UI request aborted');
+                return;
+            }
+            console.error('[Login] Error in conditional UI passkey flow:', error);
+            // Reset abort controller on error so it can be retried
+            conditionalUIAbortController = null;
+        }
+    }
+    
+    /**
+     * Process passkey assertion - shared logic for both manual and conditional UI passkey flows
+     * Handles PRF extraction, key derivation, master key unwrapping, and login completion
+     */
+    async function processPasskeyAssertion(
+        assertion: PublicKeyCredential, 
+        initiateData: any,
+        cryptoService: typeof import('../services/cryptoService')
+    ) {
+        try {
+            const { getApiEndpoint, apiEndpoints } = await import('../config/api');
+            
+            const response = assertion.response as AuthenticatorAssertionResponse;
+            
+            // Check PRF extension support
+            const clientExtensionResults = assertion.getClientExtensionResults();
+            console.log('[Login] Client extension results:', clientExtensionResults);
+            const prfResults = clientExtensionResults?.prf as any;
+            console.log('[Login] PRF results:', prfResults);
+            
+            // Validate PRF extension results
+            if (!prfResults) {
+                console.error('[Login] PRF extension not found in client extension results');
+                loginFailedWarning = true;
+                isPasskeyLoading = false;
+                isLoading = false;
+                return;
+            }
+            
+            if (prfResults.enabled === false) {
+                console.error('[Login] PRF extension explicitly disabled');
+                loginFailedWarning = true;
+                isPasskeyLoading = false;
+                isLoading = false;
+                return;
+            }
+            
+            // Extract PRF signature
+            const prfSignatureBuffer = prfResults.results?.first;
+            if (!prfSignatureBuffer) {
+                console.error('[Login] PRF signature not found in results');
+                loginFailedWarning = true;
+                isPasskeyLoading = false;
+                isLoading = false;
+                return;
+            }
+            
+            // Convert PRF signature to Uint8Array (handle multiple formats)
+            let prfSignature: Uint8Array;
+            if (typeof prfSignatureBuffer === 'string') {
+                const hexString = prfSignatureBuffer;
+                prfSignature = new Uint8Array(hexString.match(/.{1,2}/g)!.map(byte => parseInt(byte, 16)));
+            } else if (prfSignatureBuffer instanceof ArrayBuffer) {
+                prfSignature = new Uint8Array(prfSignatureBuffer);
+            } else if (ArrayBuffer.isView(prfSignatureBuffer)) {
+                prfSignature = new Uint8Array(prfSignatureBuffer.buffer, prfSignatureBuffer.byteOffset, prfSignatureBuffer.byteLength);
+            } else {
+                console.error('[Login] PRF signature is in unknown format');
+                loginFailedWarning = true;
+                isPasskeyLoading = false;
+                isLoading = false;
+                return;
+            }
+            
+            // Validate PRF signature length
+            if (prfSignature.length < 16 || prfSignature.length > 64) {
+                console.error('[Login] PRF signature has invalid length:', prfSignature.length);
+                loginFailedWarning = true;
+                isPasskeyLoading = false;
+                isLoading = false;
+                return;
+            }
+            
+            console.log('[Login] PRF signature extracted successfully');
+            
+            // Extract credential data for backend
+            const credentialId = arrayBufferToBase64Url(assertion.rawId);
+            const clientDataJSONB64 = cryptoService.uint8ArrayToBase64(new Uint8Array(response.clientDataJSON));
+            const authenticatorDataB64 = cryptoService.uint8ArrayToBase64(new Uint8Array(response.authenticatorData));
+            
+            // Verify passkey assertion with backend
+            const verifyResponse = await fetch(getApiEndpoint(apiEndpoints.auth.passkey_assertion_verify), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    credential_id: credentialId,
+                    assertion_response: {
+                        authenticatorData: authenticatorDataB64,
+                        clientDataJSON: clientDataJSONB64,
+                        signature: cryptoService.uint8ArrayToBase64(new Uint8Array(response.signature)),
+                        userHandle: response.userHandle ? cryptoService.uint8ArrayToBase64(new Uint8Array(response.userHandle)) : null
+                    },
+                    client_data_json: clientDataJSONB64,
+                    authenticator_data: authenticatorDataB64,
+                    stay_logged_in: stayLoggedIn,
+                    session_id: getSessionId()
+                }),
+                credentials: 'include'
+            });
+            
+            if (!verifyResponse.ok) {
+                const errorData = await verifyResponse.json();
+                console.error('[Login] Passkey assertion verification failed:', errorData);
+                loginFailedWarning = true;
+                isPasskeyLoading = false;
+                isLoading = false;
+                return;
+            }
+            
+            const verifyData = await verifyResponse.json();
+            
+            if (!verifyData.success) {
+                console.error('[Login] Passkey verification failed:', verifyData.message);
+                loginFailedWarning = true;
+                isPasskeyLoading = false;
+                isLoading = false;
+                return;
+            }
+            
+            // Get email salt from backend response
+            let emailSalt = cryptoService.getEmailSalt();
+            if (!emailSalt && verifyData.user_email_salt) {
+                const { base64ToUint8Array } = await import('../services/cryptoService');
+                emailSalt = base64ToUint8Array(verifyData.user_email_salt);
+                cryptoService.saveEmailSalt(emailSalt, stayLoggedIn);
+            }
+            
+            if (!emailSalt) {
+                console.error('[Login] Email salt not found');
+                loginFailedWarning = true;
+                isPasskeyLoading = false;
+                isLoading = false;
+                return;
+            }
+            
+            // Derive wrapping key from PRF signature using HKDF
+            const wrappingKey = await cryptoService.deriveWrappingKeyFromPRF(prfSignature, emailSalt);
+            
+            // Unwrap master key
+            const encryptedMasterKey = verifyData.encrypted_master_key;
+            const keyIv = verifyData.key_iv;
+            
+            if (!encryptedMasterKey || !keyIv) {
+                console.error('[Login] Missing encrypted master key or IV');
+                loginFailedWarning = true;
+                isPasskeyLoading = false;
+                isLoading = false;
+                return;
+            }
+            
+            const masterKey = await cryptoService.decryptKey(encryptedMasterKey, keyIv, wrappingKey);
+            
+            if (!masterKey) {
+                console.error('[Login] Failed to unwrap master key');
+                loginFailedWarning = true;
+                isPasskeyLoading = false;
+                isLoading = false;
+                return;
+            }
+            
+            // Save master key to storage
+            await cryptoService.saveKeyToSession(masterKey, stayLoggedIn);
+            
+            // Decrypt email using master key
+            let userEmail = verifyData.user_email;
+            if (!userEmail && verifyData.encrypted_email) {
+                const { decryptWithMasterKey } = await import('../services/cryptoService');
+                const decryptedEmail = await decryptWithMasterKey(verifyData.encrypted_email);
+                if (decryptedEmail) {
+                    userEmail = decryptedEmail;
+                    console.log('[Login] Email decrypted from encrypted_email using master key');
+                } else {
+                    console.error('[Login] Failed to decrypt email with master key');
+                    loginFailedWarning = true;
+                    isPasskeyLoading = false;
+                    isLoading = false;
+                    return;
+                }
+            }
+            
+            if (!userEmail) {
+                console.error('[Login] Email not available for key derivation');
+                loginFailedWarning = true;
+                isPasskeyLoading = false;
+                isLoading = false;
+                return;
+            }
+            
+            // Derive email encryption key
+            const emailEncryptionKey = await cryptoService.deriveEmailEncryptionKey(userEmail, emailSalt);
+            cryptoService.saveEmailEncryptionKey(emailEncryptionKey, stayLoggedIn);
+            cryptoService.saveEmailSalt(emailSalt, stayLoggedIn);
+            
+            // Generate lookup hash from PRF signature
+            const lookupHash = await cryptoService.hashKeyFromPRF(prfSignature, emailSalt);
+            
+            // Authenticate with lookup_hash to get full auth session
+            if (!verifyData.auth_session) {
+                console.log('[Login] No auth_session in verify response, authenticating with lookup_hash');
+                
+                const hashedEmail = await cryptoService.hashEmail(userEmail);
+                const { getSessionId: getSessionIdUtil } = await import('../utils/sessionId');
+                
+                const authResponse = await fetch(getApiEndpoint(apiEndpoints.auth.login), {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        hashed_email: hashedEmail,
+                        lookup_hash: lookupHash,
+                        email_encryption_key: cryptoService.getEmailEncryptionKeyForApi(),
+                        login_method: 'passkey',
+                        credential_id: credentialId,
+                        stay_logged_in: stayLoggedIn,
+                        session_id: getSessionIdUtil()
+                    }),
+                    credentials: 'include'
+                });
+                
+                if (!authResponse.ok) {
+                    const errorData = await authResponse.json();
+                    console.error('[Login] Passkey authentication failed:', errorData);
+                    loginFailedWarning = true;
+                    isPasskeyLoading = false;
+                    isLoading = false;
+                    return;
+                }
+                
+                const authData = await authResponse.json();
+                
+                if (!authData.success) {
+                    console.error('[Login] Passkey authentication failed:', authData.message);
+                    loginFailedWarning = true;
+                    isPasskeyLoading = false;
+                    isLoading = false;
+                    return;
+                }
+                
+                verifyData.auth_session = {
+                    user: authData.user,
+                    ws_token: authData.ws_token
+                };
+                console.log('[Login] Authentication successful via login endpoint');
+            }
+            
+            // Store email encrypted with master key
+            await cryptoService.saveEmailEncryptedWithMasterKey(userEmail, stayLoggedIn);
+            
+            // Store WebSocket token
+            const wsToken = verifyData.auth_session?.ws_token;
+            if (wsToken) {
+                const { setWebSocketToken } = await import('../utils/cookies');
+                setWebSocketToken(wsToken);
+                console.debug('[Login] WebSocket token stored from login response');
+            }
+            
+            // Update user profile
+            const userData = verifyData.auth_session?.user;
+            if (userData) {
+                const { updateProfile } = await import('../stores/userProfile');
+                const userProfileData = {
+                    username: userData.username || '',
+                    profile_image_url: userData.profile_image_url || null,
+                    credits: userData.credits || 0,
+                    is_admin: userData.is_admin || false,
+                    last_opened: userData.last_opened || '',
+                    tfa_app_name: userData.tfa_app_name || null,
+                    tfa_enabled: userData.tfa_enabled || false,
+                    consent_privacy_and_apps_default_settings: userData.consent_privacy_and_apps_default_settings || false,
+                    consent_mates_default_settings: userData.consent_mates_default_settings || false,
+                    language: userData.language || 'en',
+                    darkmode: userData.darkmode || false
+                };
+                updateProfile(userProfileData);
+                console.log('[Login] User profile updated');
+            }
+            
+            // Dispatch login success
+            email = '';
+            isPasskeyLoading = false;
+            isLoading = false;
+            dispatch('loginSuccess', {
+                user: verifyData.auth_session?.user,
+                isMobile,
+                inSignupFlow: false
+            });
+            
+        } catch (error: any) {
+            console.error('[Login] Error processing passkey assertion:', error);
+            loginFailedWarning = true;
+            isPasskeyLoading = false;
+            isLoading = false;
+            // Restart conditional UI if we're still on the email step after error
+            if (currentLoginStep === 'email' && currentView === 'login') {
+                restartConditionalUIPasskeyIfNeeded();
+            }
+        }
+    }
+    
+    /**
+     * Cancel the conditional UI passkey request
+     * Should be called when switching to a different login flow or unmounting
+     */
+    function cancelConditionalUIPasskey() {
+        if (conditionalUIAbortController) {
+            conditionalUIAbortController.abort();
+            conditionalUIAbortController = null;
+            console.log('[Login] Conditional UI passkey request cancelled');
+        }
+    }
+    
+    /**
+     * Restart conditional UI passkey flow if conditions are met
+     * Called when the login view becomes visible again or after a passkey selection
+     */
+    function restartConditionalUIPasskeyIfNeeded() {
+        if (
+            currentView === 'login' && 
+            !$authStore.isAuthenticated && 
+            !$isCheckingAuth && 
+            showForm && 
+            currentLoginStep === 'email' &&
+            !$isInSignupProcess &&
+            !conditionalUIAbortController
+        ) {
+            console.log('[Login] Restarting conditional UI passkey flow');
+            startConditionalUIPasskey();
+        }
+    }
 
     // Add debug subscription to track isInSignupProcess changes
     onMount(() => {
+        // CRITICAL: Set screenWidth synchronously at the start of onMount
+        // This ensures JavaScript state matches CSS media queries from the first render
+        // Without this, screenWidth starts at 0, causing layout mismatch:
+        // - CSS sees 780px and applies desktop layout (expects grids)
+        // - JavaScript sees 0px and doesn't show grids
+        // - Result: desktop layout without grids = content shifted left
+        if (typeof window !== 'undefined') {
+            screenWidth = window.innerWidth;
+            isMobile = screenWidth < MOBILE_BREAKPOINT;
+        }
+        
         const unsubscribe = isInSignupProcess.subscribe(value => {
             console.debug(`[Login.svelte] isInSignupProcess changed to: ${value}`);
         });
+        
+        // Start conditional UI passkey flow immediately when component mounts
+        // This enables automatic passkey suggestions as soon as the page loads
+        // Don't wait for other async operations - start it right away
+        if (!$authStore.isAuthenticated && !$isInSignupProcess) {
+            // Check support and start asynchronously without blocking
+            if (window.PublicKeyCredential) {
+                PublicKeyCredential.isConditionalMediationAvailable?.().then((available) => {
+                    if (available) {
+                        isConditionalUISupported = true;
+                        // The reactive effect will start it when conditions are met
+                    }
+                }).catch(() => {
+                    // Browser doesn't support conditional UI, that's okay
+                });
+            }
+        }
         
         (async () => {
             // Check if device is touch-enabled
@@ -339,17 +1397,19 @@
             showLoadingUntil = Date.now() + 500;
             
             // Check if user is in signup process based on last_opened
-            if ($authStore.isAuthenticated && $userProfile.last_opened?.startsWith('/signup/')) {
+            if ($authStore.isAuthenticated && isSignupPath($userProfile.last_opened)) {
                 // Get step name from path using the function from signupState
                 const stepName = getStepFromPath($userProfile.last_opened);
                 currentSignupStep.set(stepName);
                 isInSignupProcess.set(true); // This will set currentView reactively
             }
             
-            // Set initial screen width
-            screenWidth = window.innerWidth;
-            // Set initial mobile state
-            isMobile = screenWidth < MOBILE_BREAKPOINT;
+            // Update screen width (already set above, but ensure it's current after any delays)
+            // This handles edge cases where viewport might have changed
+            if (typeof window !== 'undefined') {
+                screenWidth = window.innerWidth;
+                isMobile = screenWidth < MOBILE_BREAKPOINT;
+            }
             
             const remainingTime = showLoadingUntil - Date.now();
             if (remainingTime > 0) {
@@ -441,6 +1501,15 @@
         if (connectionTimeoutId) {
             clearTimeout(connectionTimeoutId);
             connectionTimeoutId = null;
+        }
+        
+        // Cancel any pending conditional UI passkey request
+        cancelConditionalUIPasskey();
+        
+        // Cancel any pending manual passkey login request
+        if (passkeyLoginAbortController) {
+            passkeyLoginAbortController.abort();
+            passkeyLoginAbortController = null;
         }
         
         // PRIVACY: Clear pending draft when component is destroyed
@@ -596,6 +1665,54 @@
         }
     });
 
+    // Start conditional UI passkey flow automatically when login view is visible
+    // This enables passkeys to appear in the browser's autofill dropdown automatically
+    // without requiring the user to click on the email field first
+    $effect(() => {
+        // Start conditional UI when:
+        // 1. We're in login view (not signup)
+        // 2. User is not authenticated
+        // 3. Auth check is complete (not checking)
+        // 4. Form is visible
+        // 5. We're on the email step
+        // 6. Conditional UI is supported
+        if (
+            currentView === 'login' && 
+            !$authStore.isAuthenticated && 
+            !$isCheckingAuth && 
+            showForm && 
+            currentLoginStep === 'email' &&
+            !$isInSignupProcess
+        ) {
+            // Start conditional UI passkey flow (autofill passkeys)
+            // This enables the OS/browser to show passkey suggestions automatically
+            // The request will wait silently until user interacts with the email field
+            if (isConditionalUISupported || window.PublicKeyCredential) {
+                // Only start if not already active (avoid duplicate requests)
+                if (!conditionalUIAbortController) {
+                    console.log('[Login] Starting conditional UI passkey flow for automatic passkey suggestions');
+                    startConditionalUIPasskey();
+                }
+            } else {
+                // Check support asynchronously and start if available
+                PublicKeyCredential.isConditionalMediationAvailable?.().then((available) => {
+                    if (available && !conditionalUIAbortController) {
+                        isConditionalUISupported = true;
+                        console.log('[Login] Conditional UI support confirmed, starting passkey flow');
+                        startConditionalUIPasskey();
+                    }
+                }).catch(() => {
+                    // Browser doesn't support conditional UI, that's okay
+                });
+            }
+        } else {
+            // Cancel conditional UI if we're not in the right state
+            if (conditionalUIAbortController && (currentView !== 'login' || $isInSignupProcess || currentLoginStep !== 'email')) {
+                cancelConditionalUIPasskey();
+            }
+        }
+    });
+
     // Monitor isCheckingAuth state and set timeout for server connection
     $effect(() => {
         // Clear any existing timeout when checking state changes
@@ -748,25 +1865,37 @@
                                     class:hidden={!showForm}
                                 >
                                     {#if currentLoginStep === 'email'}
-                                        <!-- Use EmailLookup component for email input -->
-                                        <EmailLookup
-                                            bind:email
-                                            bind:isLoading
-                                            bind:loginFailedWarning
-                                            bind:stayLoggedIn
-                                            on:lookupSuccess={(e) => {
-                                                availableLoginMethods = e.detail.availableLoginMethods;
-                                                preferredLoginMethod = e.detail.preferredLoginMethod;
-                                                stayLoggedIn = e.detail.stayLoggedIn;
-                                                tfaAppName = e.detail.tfa_app_name;
-                                                // tfa_enabled indicates if 2FA is actually configured (encrypted_tfa_secret exists)
-                                                // tfa_app_name is optional metadata and doesn't determine if 2FA is configured
-                                                tfaEnabled = e.detail.tfa_enabled || false;
-                                                // Use the helper function to safely set the login step
-                                                setLoginStep(preferredLoginMethod);
-                                            }}
-                                            on:userActivity={resetInactivityTimer}
-                                        />
+                                        {#if isPasskeyLoading}
+                                            <!-- Passkey loading screen - replaces form elements -->
+                                            <div class="passkey-loading-screen">
+                                                <div class="passkey-loading-icon">
+                                                    <span class="clickable-icon icon_passkey" style="width: 64px; height: 64px;"></span>
+                                                </div>
+                                                <p class="passkey-loading-text">{$text('login.logging_in_with_passkey.text')}</p>
+                                            </div>
+                                        {:else}
+                                            <!-- Use EmailLookup component for email input -->
+                                            <EmailLookup
+                                                bind:email
+                                                bind:isLoading
+                                                bind:loginFailedWarning
+                                                bind:stayLoggedIn
+                                                on:lookupSuccess={(e) => {
+                                                    availableLoginMethods = e.detail.availableLoginMethods;
+                                                    preferredLoginMethod = e.detail.preferredLoginMethod;
+                                                    stayLoggedIn = e.detail.stayLoggedIn;
+                                                    tfaAppName = e.detail.tfa_app_name;
+                                                    // tfa_enabled indicates if 2FA is actually configured (encrypted_tfa_secret exists)
+                                                    // tfa_app_name is optional metadata and doesn't determine if 2FA is configured
+                                                    tfaEnabled = e.detail.tfa_enabled || false;
+                                                    // Use the helper function to safely set the login step
+                                                    // Always go to password step after email lookup
+                                                    // The user can use the "Login with passkey" button on the main screen if they want to use passkey
+                                                    setLoginStep('password');
+                                                }}
+                                                on:userActivity={resetInactivityTimer}
+                                            />
+                                        {/if}
                                     {:else}
                                         <!-- Show appropriate login method component based on currentLoginStep -->
                                         {#if currentLoginStep === 'password'}
@@ -782,13 +1911,13 @@
                                                     console.log("Login success, in signup flow:", e.detail.inSignupFlow);
                                                     
                                                     // If user is in signup flow, set up the signup state
-                                                    // Note: inSignupFlow can be true even if last_opened doesn't start with '/signup/'
+                                                    // Note: inSignupFlow can be true even if last_opened doesn't indicate signup
                                                     // (e.g., if tfa_enabled is false but last_opened was overwritten to demo-welcome)
                                                     // The signup step should already be set in PasswordAndTfaOtp, but we respect it here
                                                     if (e.detail.inSignupFlow) {
                                                         // If last_opened indicates a signup step, use it; otherwise default to one_time_codes
                                                         // (the actual OTP setup step, not the app reminder step)
-                                                        const stepName = e.detail.user?.last_opened?.startsWith('/signup/')
+                                                        const stepName = isSignupPath(e.detail.user?.last_opened)
                                                             ? getStepFromPath(e.detail.user.last_opened)
                                                             : STEP_ONE_TIME_CODES;
                                                         console.log("Setting signup step:", e.detail.user?.last_opened, "->", stepName);
@@ -832,13 +1961,13 @@
                                                     console.log("Login success (backup code), in signup flow:", e.detail.inSignupFlow);
                                                     
                                                     // If user is in signup flow, set up the signup state
-                                                    // Note: inSignupFlow can be true even if last_opened doesn't start with '/signup/'
+                                                    // Note: inSignupFlow can be true even if last_opened doesn't indicate signup
                                                     // (e.g., if tfa_enabled is false but last_opened was overwritten to demo-welcome)
                                                     // The signup step should already be set in PasswordAndTfaOtp, but we respect it here
                                                     if (e.detail.inSignupFlow) {
                                                         // If last_opened indicates a signup step, use it; otherwise default to one_time_codes
                                                         // (the actual OTP setup step, not the app reminder step)
-                                                        const stepName = e.detail.user?.last_opened?.startsWith('/signup/')
+                                                        const stepName = isSignupPath(e.detail.user?.last_opened)
                                                             ? getStepFromPath(e.detail.user.last_opened)
                                                             : STEP_ONE_TIME_CODES;
                                                         console.log("Setting signup step:", e.detail.user?.last_opened, "->", stepName);
@@ -874,13 +2003,13 @@
                                                     console.log("Login success (recovery key), in signup flow:", e.detail.inSignupFlow);
                                                     
                                                     // If user is in signup flow, set up the signup state
-                                                    // Note: inSignupFlow can be true even if last_opened doesn't start with '/signup/'
+                                                    // Note: inSignupFlow can be true even if last_opened doesn't indicate signup
                                                     // (e.g., if tfa_enabled is false but last_opened was overwritten to demo-welcome)
                                                     // The signup step should already be set in PasswordAndTfaOtp, but we respect it here
                                                     if (e.detail.inSignupFlow) {
                                                         // If last_opened indicates a signup step, use it; otherwise default to one_time_codes
                                                         // (the actual OTP setup step, not the app reminder step)
-                                                        const stepName = e.detail.user?.last_opened?.startsWith('/signup/')
+                                                        const stepName = isSignupPath(e.detail.user?.last_opened)
                                                             ? getStepFromPath(e.detail.user.last_opened)
                                                             : STEP_ONE_TIME_CODES;
                                                         console.log("Setting signup step:", e.detail.user?.last_opened, "->", stepName);
@@ -904,12 +2033,6 @@
                                                 on:switchToOtp={() => currentLoginStep = 'password'}
                                                 on:userActivity={resetInactivityTimer}
                                             />
-                                        {:else if currentLoginStep === 'passkey'}
-                                            <!-- TODO: Replace with Passkey component -->
-                                            <div class="placeholder-component">
-                                                <p>Passkey Component (to be implemented later)</p>
-                                                <button type="button" onclick={() => currentLoginStep = 'email'}>Back to Email</button>
-                                            </div>
                                         {:else if currentLoginStep === 'security_key'}
                                             <!-- TODO: Replace with SecurityKey component -->
                                             <div class="placeholder-component">
@@ -922,9 +2045,36 @@
                             {/if} <!-- End standard login form / rate limit / loading block -->
                         </div> <!-- End form-container -->
 
-                        <!-- Show signup link only when EmailLookup is visible -->
+                        <!-- Show login options only when EmailLookup is visible -->
                         {#if showForm && !$isCheckingAuth && !showVerifyDeviceView && currentLoginStep === 'email'}
                             <div class="bottom-positioned">
+                                {#if isPasskeyLoading}
+                                    <!-- Show email login option when passkey is loading -->
+                                    <button 
+                                        class="text-button" 
+                                        onclick={cancelPasskeyLogin}
+                                    >
+                                        <span class="clickable-icon icon_mail"></span>
+                                        {$text('login.login_with_email.text')}
+                                    </button>
+                                {:else}
+                                    <!-- Passkey login option - triggers loading screen -->
+                                    <button 
+                                        class="text-button" 
+                                        onclick={startPasskeyLogin}
+                                    >
+                                        <span class="clickable-icon icon_passkey"></span>
+                                        {$text('login.login_with_passkey.text')}
+                                    </button>
+                                {/if}
+                                
+                                <!-- Phone login option (commented out - not yet implemented) -->
+                                <!-- <button class="text-button" onclick={() => {}}>
+                                    <span class="clickable-icon icon_phone"></span>
+                                    {$text('login.login_with_phone.text')}
+                                </button> -->
+                                
+                                <!-- Create account option -->
                                 <button class="text-button" onclick={switchToSignup}>
                                     <span class="clickable-icon icon_user"></span>
                                     {$text('login.create_account.text')}
@@ -963,18 +2113,60 @@
     .bottom-positioned {
         margin-top: 40px;
         display: flex;
+        flex-direction: column;
+        align-items: center;
         justify-content: center;
         width: 100%;
+        gap: 8px;
     }
     
     .text-button {
+        all: unset;
+        font-size: 16px;
+        font-weight: 500;
+        cursor: pointer;
+        padding: 8px 16px;
         display: flex;
         align-items: center;
         justify-content: center;
+        gap: 8px;
+        background: var(--color-primary);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
     }
     
-    .text-button .clickable-icon.icon_user {
-        margin-right: 8px;
+    .text-button .clickable-icon {
+        margin-right: 0;
+    }
+    
+    /* Passkey loading screen */
+    .passkey-loading-screen {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 40px 20px;
+        min-height: 200px;
+    }
+    
+    .passkey-loading-icon {
+        margin-bottom: 24px;
+    }
+    
+    .passkey-loading-icon .clickable-icon {
+        width: 64px;
+        height: 64px;
+        background-color: var(--color-primary-start);
+        border-radius: 16px;
+    }
+    
+    .passkey-loading-text {
+        color: var(--color-grey-80);
+        font-size: 16px;
+        font-weight: 500;
+        margin: 0;
+        text-align: center;
     }
 
     /* Navigation area for demo button - matches SignupNav.svelte styling */

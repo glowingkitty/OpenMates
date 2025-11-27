@@ -67,6 +67,7 @@ export interface Chat {
   encrypted_chat_summary?: string | null; // Encrypted chat summary (2-3 sentences) generated during post-processing
   encrypted_chat_tags?: string | null; // Encrypted array of max 10 tags for categorizing the chat
   encrypted_follow_up_request_suggestions?: string | null; // Encrypted array of 6 follow-up request suggestions
+  encrypted_top_recommended_apps_for_chat?: string | null; // Encrypted array of up to 5 recommended app IDs for this chat, generated during post-processing
   encrypted_chat_key?: string | null; // Chat-specific encryption key, encrypted with user's master key for device sync
   encrypted_icon?: string | null; // Encrypted icon name from Lucide library, generated during pre-processing
   encrypted_category?: string | null; // Encrypted category name, generated during pre-processing
@@ -166,8 +167,32 @@ export interface SetActiveChatPayload {
     chat_id: string | null;
 }
 
-export interface CancelAITaskPayload { 
+export interface CancelAITaskPayload {
     task_id: string;
+}
+
+export interface StoreEmbedPayload {
+    embed_id: string;
+    encrypted_type: string; // CLIENT-ENCRYPTED type (server cannot decrypt)
+    encrypted_content: string; // CLIENT-ENCRYPTED TOON string (server cannot decrypt)
+    encrypted_text_preview?: string; // CLIENT-ENCRYPTED text preview (server cannot decrypt)
+    status: string; // "finished" | "error"
+    hashed_chat_id: string; // SHA256 hash of chat_id (privacy protection)
+    hashed_message_id: string; // SHA256 hash of message_id (privacy protection)
+    hashed_task_id?: string; // Optional, SHA256 hash of task_id
+    hashed_user_id: string; // SHA256 hash of user_id
+    encryption_key_embed: string; // Embed-specific key, encrypted with master key
+    embed_ids?: string[]; // For composite embeds
+    parent_embed_id?: string;
+    version_number?: number;
+    encrypted_diff?: string; // CLIENT-ENCRYPTED diff for versioned embeds
+    file_path?: string;
+    content_hash?: string;
+    text_length_chars?: number; // Character count for text-based embeds (LLM compression decision)
+    share_mode: string;
+    shared_with_users?: string[];
+    createdAt: number;
+    updatedAt: number;
 }
 // --- End Client to Server Payloads ---
 
@@ -226,6 +251,43 @@ export interface AIBackgroundResponseCompletedPayload {
     full_content: string;
     interrupted_by_soft_limit?: boolean;
     interrupted_by_revocation?: boolean;
+}
+
+export interface EmbedUpdatePayload {
+    type: string; // "embed_update"
+    event_for_client: string; // "embed_update"
+    embed_id: string; // Embed ID that was updated
+    chat_id: string; // Chat ID where embed belongs
+    message_id: string; // Message ID that references the embed
+    user_id_uuid: string;
+    user_id_hash: string;
+    status: string; // "finished" or "error"
+    child_embed_ids?: string[]; // Child embed IDs (for composite embeds)
+}
+
+export interface SendEmbedDataPayload {
+    type: string; // "send_embed_data"
+    event_for_client: string; // "send_embed_data"
+    payload: {
+        embed_id: string;
+        type: string; // PLAINTEXT embed type (client will encrypt before storage)
+        content: string; // PLAINTEXT TOON-encoded string (client will encrypt before storage)
+        status: string; // "processing" | "finished" | "error"
+        chat_id: string; // PLAINTEXT chat_id (client will hash before sending to server)
+        message_id: string; // PLAINTEXT message_id (client will hash before sending to server)
+        user_id: string;
+        share_mode: string; // "private" | "shared_with_user" | "public"
+        createdAt: number; // Unix timestamp
+        updatedAt: number; // Unix timestamp
+        text_preview?: string; // PLAINTEXT text preview (client will encrypt)
+        task_id?: string; // PLAINTEXT task ID (client will hash)
+        embed_ids?: string[]; // For composite embeds (app_skill_use)
+        parent_embed_id?: string; // For versioned embeds
+        version_number?: number; // For versioned embeds
+        file_path?: string; // For code/file embeds
+        content_hash?: string; // SHA256 hash for deduplication
+        text_length_chars?: number; // Character count for text-based embeds (LLM compression decision)
+    };
 }
 // --- End AI Task and Stream related event payloads ---
 
@@ -293,10 +355,24 @@ export interface InitialSyncResponsePayload {
     server_timestamp: number;
 }
 
+/**
+ * Embed data received from sync (client-encrypted format from Directus)
+ */
+export interface SyncEmbed {
+    embed_id: string;
+    encrypted_content: string;  // Client-encrypted TOON content
+    encrypted_type?: string;    // Client-encrypted embed type
+    embed_type?: string;        // Alternative field name for type
+    status?: string;
+    hashed_chat_id?: string;
+    hashed_user_id?: string;
+}
+
 export interface Phase1LastChatPayload {
     chat_id: string;
     chat_details: any;
     messages: Message[];
+    embeds?: SyncEmbed[];  // Embeds for the chat (client-encrypted)
     new_chat_suggestions?: NewChatSuggestion[];  // New chat suggestions for Phase 1
     phase: 'phase1';
     already_synced?: boolean;  // Version-aware: true if client already has up-to-date version

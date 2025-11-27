@@ -1,0 +1,201 @@
+trips:
+  context: Settings/memory name for trips
+  en: Trips
+  de: Reisen
+  zh: 旅行
+  es: Viajes
+  fr: Voyages
+  pt: Viagens
+  ru: Поездки
+  ja: 旅行
+  ko: 여행
+  it: Viaggi
+  tr: Seyahatler
+  vi: Chuyến đi
+  id: Perjalanan
+  pl: Podróże
+  nl: Reizen
+  ar: الرحلات
+  hi: यात्राएं
+  th: การเดินทาง
+  cs: Cesty
+  sv: Resor
+  verified_by_human:
+    - en
+    - de
+trips.description:
+  context: Description for trips settings/memory
+  en: Details about your trips with dates. System automatically filters for upcoming trips based on start_date.
+  de: Details zu deinen Reisen mit Daten. Das System filtert automatisch nach bevorstehenden Reisen basierend auf start_date.
+  zh: 有关你旅行的详细信息（含日期）。系统会根据开始日期自动筛选即将到来的旅行。
+  es: Detalles sobre tus viajes con fechas. El sistema filtra automáticamente los viajes próximos según start_date.
+  fr: Détails sur vos voyages avec dates. Le système filtre automatiquement les voyages à venir en fonction de start_date.
+  pt: Detalhes sobre suas viagens com datas. O sistema filtra automaticamente as viagens futuras com base em start_date.
+  ru: Подробности о ваших поездках с датами. Система автоматически фильтрует предстоящие поездки на основе start_date.
+  ja: 日付付きの旅行の詳細。システムはstart_dateに基づいて今後の旅行を自動的にフィルタリングします。
+  ko: 날짜가 포함된 여행 세부 정보. 시스템은 start_date를 기반으로 예정된 여행을 자동으로 필터링합니다.
+  it: Dettagli sui tuoi viaggi con date. Il sistema filtra automaticamente i viaggi futuri in base a start_date.
+  tr: Tarihlerle birlikte seyahatlerinizin detayları. Sistem, start_date'e göre yaklaşan seyahatleri otomatik olarak filtreler.
+  vi: Chi tiết về các chuyến đi của bạn kèm theo ngày tháng. Hệ thống tự động lọc các chuyến đi sắp tới dựa trên start_date.
+  id: Detail tentang perjalanan Anda dengan tanggal. Sistem secara otomatis memfilter perjalanan mendatang berdasarkan start_date.
+  pl: Szczegóły dotyczące twoich podróży z datami. System automatycznie filtruje nadchodzące podróże na podstawie start_date.
+  nl: Details over je reizen met datums. Het systeem filtert automatisch opkomende reizen op basis van start_date.
+  ar: تفاصيل حول رحلاتك مع التواريخ. يقوم النظام تلقائيًا بتصفية الرحلات القادمة بناءً على start_date.
+  hi: तारीखों के साथ आपकी यात्राओं के बारे में विवरण। सिस्टम start_date के आधार पर आगामी यात्राओं को स्वचालित रूप से फ़िल्टर करता है।
+  th: รายละเอียดเกี่ยวกับการเดินทางของคุณพร้อมวันที่ ระบบจะกรองการเดินทางที่กำลังจะมาถึงโดยอัตโนมัติตาม start_date
+  cs: Podrobnosti o vašich cestách s daty. Systém automaticky filtruje nadcházející cesty na základě start_date.
+  sv: Detaljer om dina resor med datum. Systemet filtrerar automatiskt kommande resor baserat på start_date.
+  verified_by_human:
+    - en
+    - de
+preferred_airlines:
+  context: Settings/memory name for preferred airlines
+  en: Preferred Airlines
+  de: Bevorzugte Fluggesellschaften
+  zh: 首选航空公司
+  es: Aerolíneas preferidas
+  fr: Compagnies aériennes préférées
+  pt: Companhias aéreas preferidas
+  ru: Предпочтительные авиакомпании
+  ja: 優先航空会社
+  ko: 선호 항공사
+  it: Compagnie aeree preferite
+  tr: Tercih edilen havayolları
+  vi: Hãng hàng không ưa thích
+  id: Maskapai penerbangan pilihan
+  pl: Preferowane linie lotnicze
+  nl: Voorkeursluchtvaartmaatschappijen
+  ar: شركات الطيران المفضلة
+  hi: पसंदीदा एयरलाइनें
+  th: สายการบินที่ต้องการ
+  cs: Preferované letecké společnosti
+  sv: Föredragna flygbolag
+  verified_by_human:
+    - en
+    - de
+preferred_airlines.description:
+  context: Description for preferred airlines settings/memory
+  en: Your favorite airlines for booking flights.
+  de: Deine bevorzugten Fluggesellschaften für die Flugbuchung.
+  zh: 你预订航班时最喜欢的航空公司。
+  es: Tus aerolíneas favoritas para reservar vuelos.
+  fr: Vos compagnies aériennes préférées pour réserver des vols.
+  pt: Suas companhias aéreas favoritas para reservar voos.
+  ru: Ваши любимые авиакомпании для бронирования рейсов.
+  ja: フライト予約に使用するお気に入りの航空会社。
+  ko: 항공편 예약을 위한 선호 항공사.
+  it: Le tue compagnie aeree preferite per prenotare voli.
+  tr: Uçuş rezervasyonu için tercih ettiğiniz havayolları.
+  vi: Các hãng hàng không yêu thích của bạn để đặt chuyến bay.
+  id: Maskapai penerbangan favorit Anda untuk memesan penerbangan.
+  pl: Twoje ulubione linie lotnicze do rezerwacji lotów.
+  nl: Je favoriete luchtvaartmaatschappijen voor het boeken van vluchten.
+  ar: شركات الطيران المفضلة لديك لحجز الرحلات الجوية.
+  hi: उड़ान बुक करने के लिए आपकी पसंदीदा एयरलाइनें।
+  th: สายการบินโปรดของคุณสำหรับการจองเที่ยวบิน
+  cs: Vaše oblíbené letecké společnosti pro rezervaci letů.
+  sv: Dina favoritflygbolag för att boka flyg.
+  verified_by_human:
+    - en
+    - de
+preferred_transport_methods:
+  context: Settings/memory name for preferred transport methods
+  en: Preferred Transport Methods
+  de: Bevorzugte Transportmittel
+  zh: 首选交通方式
+  es: Métodos de transporte preferidos
+  fr: Moyens de transport préférés
+  pt: Métodos de transporte preferidos
+  ru: Предпочтительные способы транспорта
+  ja: 優先交通手段
+  ko: 선호 교통 수단
+  it: Metodi di trasporto preferiti
+  tr: Tercih edilen ulaşım yöntemleri
+  vi: Phương tiện giao thông ưa thích
+  id: Metode transportasi pilihan
+  pl: Preferowane środki transportu
+  nl: Voorkeursvervoermethoden
+  ar: طرق النقل المفضلة
+  hi: पसंदीदा परिवहन विधियां
+  th: วิธีการขนส่งที่ต้องการ
+  cs: Preferované způsoby dopravy
+  sv: Föredragna transportmetoder
+  verified_by_human:
+    - en
+    - de
+preferred_transport_methods.description:
+  context: Description for preferred transport methods settings/memory
+  en: Your preferred transportation methods, ordered by preference. For example, you might prefer bike and public transport over car, and train over plane.
+  de: Deine bevorzugten Transportmittel, geordnet nach Präferenz. Du könntest zum Beispiel Fahrrad und öffentliche Verkehrsmittel dem Auto vorziehen und Zug dem Flugzeug.
+  zh: 你首选的交通方式，按偏好排序。例如，你可能更喜欢自行车和公共交通而不是汽车，更喜欢火车而不是飞机。
+  es: Tus métodos de transporte preferidos, ordenados por preferencia. Por ejemplo, podrías preferir bicicleta y transporte público sobre el coche, y tren sobre avión.
+  fr: Vos moyens de transport préférés, classés par préférence. Par exemple, vous pourriez préférer le vélo et les transports en commun à la voiture, et le train à l'avion.
+  pt: Seus métodos de transporte preferidos, ordenados por preferência. Por exemplo, você pode preferir bicicleta e transporte público ao carro, e trem ao avião.
+  ru: Ваши предпочтительные способы транспорта, упорядоченные по предпочтениям. Например, вы можете предпочитать велосипед и общественный транспорт автомобилю, а поезд самолету.
+  ja: 好み順に並べた優先交通手段。例えば、車よりも自転車や公共交通機関を、飛行機よりも電車を好むかもしれません。
+  ko: 선호도 순으로 정렬된 선호 교통 수단. 예를 들어, 자동차보다 자전거와 대중교통을, 비행기보다 기차를 선호할 수 있습니다.
+  it: I tuoi metodi di trasporto preferiti, ordinati per preferenza. Ad esempio, potresti preferire la bicicletta e i trasporti pubblici all'auto, e il treno all'aereo.
+  tr: Tercih sırasına göre sıralanmış tercih ettiğiniz ulaşım yöntemleri. Örneğin, araba yerine bisiklet ve toplu taşımayı, uçak yerine treni tercih edebilirsiniz.
+  vi: Các phương tiện giao thông ưa thích của bạn, được sắp xếp theo sở thích. Ví dụ, bạn có thể thích xe đạp và phương tiện công cộng hơn ô tô, và tàu hỏa hơn máy bay.
+  id: Metode transportasi pilihan Anda, diurutkan berdasarkan preferensi. Misalnya, Anda mungkin lebih suka sepeda dan transportasi umum daripada mobil, dan kereta daripada pesawat.
+  pl: Twoje preferowane środki transportu, uporządkowane według preferencji. Na przykład możesz preferować rower i transport publiczny nad samochodem, a pociąg nad samolotem.
+  nl: Je voorkeursvervoermethoden, geordend op voorkeur. Je kunt bijvoorbeeld fiets en openbaar vervoer verkiezen boven auto, en trein boven vliegtuig.
+  ar: طرق النقل المفضلة لديك، مرتبة حسب التفضيل. على سبيل المثال، قد تفضل الدراجة والنقل العام على السيارة، والقطار على الطائرة.
+  hi: आपकी पसंदीदा परिवहन विधियां, वरीयता के क्रम में। उदाहरण के लिए, आप कार से बाइक और सार्वजनिक परिवहन, और हवाई जहाज से ट्रेन को प्राथमिकता दे सकते हैं।
+  th: วิธีการขนส่งที่คุณต้องการ เรียงตามลำดับความชอบ ตัวอย่างเช่น คุณอาจชอบจักรยานและการขนส่งสาธารณะมากกว่ารถยนต์ และรถไฟมากกว่าเครื่องบิน
+  cs: Vaše preferované způsoby dopravy, seřazené podle preference. Například můžete preferovat kolo a veřejnou dopravu před autem a vlak před letadlem.
+  sv: Dina föredragna transportmetoder, ordnade efter preferens. Till exempel kan du föredra cykel och kollektivtrafik framför bil, och tåg framför flyg.
+  verified_by_human:
+    - en
+    - de
+interests:
+  context: Settings/memory name for interests
+  en: Interests
+  de: Interessen
+  zh: 兴趣
+  es: Intereses
+  fr: Intérêts
+  pt: Interesses
+  ru: Интересы
+  ja: 興味
+  ko: 관심사
+  it: Interessi
+  tr: İlgi alanları
+  vi: Sở thích
+  id: Minat
+  pl: Zainteresowania
+  nl: Belangen
+  ar: الاهتمامات
+  hi: रुचियां
+  th: ความสนใจ
+  cs: Zájmy
+  sv: Intressen
+  verified_by_human:
+    - en
+    - de
+interests.description:
+  context: Description for interests settings/memory
+  en: Your interests related to travel. For example, hiking, museums, good city planning examples, etc.
+  de: Deine reisebezogenen Interessen. Zum Beispiel Wandern, Museen, gute Stadtplanungsbeispiele usw.
+  zh: 你与旅行相关的兴趣。例如，徒步旅行、博物馆、良好的城市规划示例等。
+  es: Tus intereses relacionados con los viajes. Por ejemplo, senderismo, museos, buenos ejemplos de planificación urbana, etc.
+  fr: Vos intérêts liés aux voyages. Par exemple, randonnée, musées, bons exemples d'urbanisme, etc.
+  pt: Seus interesses relacionados a viagens. Por exemplo, caminhadas, museus, bons exemplos de planejamento urbano, etc.
+  ru: Ваши интересы, связанные с путешествиями. Например, пешие походы, музеи, хорошие примеры городского планирования и т.д.
+  ja: 旅行に関連する興味。例えば、ハイキング、博物館、優れた都市計画の例など。
+  ko: 여행과 관련된 관심사. 예를 들어, 하이킹, 박물관, 좋은 도시 계획 사례 등.
+  it: I tuoi interessi legati ai viaggi. Ad esempio, escursionismo, musei, buoni esempi di pianificazione urbana, ecc.
+  tr: Seyahatle ilgili ilgi alanlarınız. Örneğin, yürüyüş, müzeler, iyi şehir planlama örnekleri vb.
+  vi: Sở thích của bạn liên quan đến du lịch. Ví dụ, đi bộ đường dài, bảo tàng, ví dụ về quy hoạch đô thị tốt, v.v.
+  id: Minat Anda yang terkait dengan perjalanan. Misalnya, hiking, museum, contoh perencanaan kota yang baik, dll.
+  pl: Twoje zainteresowania związane z podróżowaniem. Na przykład, wędrówki, muzea, dobre przykłady planowania miejskiego itp.
+  nl: Je belangen met betrekking tot reizen. Bijvoorbeeld wandelen, musea, goede voorbeelden van stadsplanning, enz.
+  ar: اهتماماتك المتعلقة بالسفر. على سبيل المثال، المشي لمسافات طويلة، المتاحف، أمثلة جيدة على تخطيط المدن، إلخ.
+  hi: यात्रा से संबंधित आपकी रुचियां। उदाहरण के लिए, लंबी पैदल यात्रा, संग्रहालय, अच्छे शहरी नियोजन उदाहरण, आदि।
+  th: ความสนใจของคุณที่เกี่ยวข้องกับการเดินทาง ตัวอย่างเช่น การเดินป่า พิพิธภัณฑ์ ตัวอย่างการวางแผนเมืองที่ดี ฯลฯ
+  cs: Vaše zájmy související s cestováním. Například turistika, muzea, dobré příklady městského plánování atd.
+  sv: Dina intressen relaterade till resor. Till exempel vandring, museer, bra exempel på stadsplanering, etc.
+  verified_by_human:
+    - en
+    - de
+

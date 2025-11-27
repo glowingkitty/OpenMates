@@ -137,7 +137,7 @@ class ChatCacheMixin:
             ttl_check = await client.ttl(key)
             logger.debug(f"[REDIS_DEBUG] Verified TTL for key '{key}': {ttl_check}s")
             
-            logger.info(f"[REDIS_DEBUG] Successfully added chat '{chat_id}' to sorted set '{key}' (total: {count})")
+            logger.debug(f"[REDIS_DEBUG] Successfully added chat '{chat_id}' to sorted set '{key}' (total: {count})")
             return True
         except Exception as e:
             logger.error(f"[REDIS_DEBUG] Error adding chat {chat_id} to {key}: {e}", exc_info=True)
@@ -1047,3 +1047,417 @@ class ChatCacheMixin:
         except Exception as e:
             logger.error(f"Error getting queued messages for chat {chat_id}: {e}", exc_info=True)
             return []
+    
+    # Embed caching methods
+    def _get_embed_cache_key(self, embed_id: str) -> str:
+        """Returns the cache key for an embed (global cache, one entry per embed)."""
+        return f"embed:{embed_id}"
+    
+    def _get_chat_embed_ids_key(self, chat_id: str) -> str:
+        """Returns the cache key for tracking embed IDs in a chat (for eviction)."""
+        return f"chat:{chat_id}:embed_ids"
+    
+    async def get_embed_from_cache(self, embed_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Get an embed from cache by embed_id.
+        
+        Args:
+            embed_id: The embed identifier
+            
+        Returns:
+            Embed dictionary if found, None otherwise
+        """
+        client = await self.client
+        if not client:
+            return None
+        
+        key = self._get_embed_cache_key(embed_id)
+        try:
+            import json
+            embed_json = await client.get(key)
+            if embed_json:
+                embed_data = json.loads(embed_json.decode('utf-8'))
+                logger.debug(f"Cache HIT: Retrieved embed {embed_id} from cache")
+                return embed_data
+            else:
+                logger.debug(f"Cache MISS: Embed {embed_id} not in cache")
+                return None
+        except Exception as e:
+            logger.error(f"Error getting embed {embed_id} from cache: {e}", exc_info=True)
+            return None
+    
+    async def set_embed_in_cache(
+        self,
+        embed_id: str,
+        embed_data: Dict[str, Any],
+        chat_id: str,
+        ttl: int = 86400  # 24 hours, same as message cache
+    ) -> bool:
+        """
+        Cache an embed with vault encryption.
+        
+        Args:
+            embed_id: The embed identifier
+            embed_data: Embed data dictionary (should already be vault-encrypted)
+            chat_id: Chat ID for indexing (for eviction tracking)
+            ttl: Time to live in seconds (default: 24 hours)
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        client = await self.client
+        if not client:
+            logger.warning(f"Redis client not available, skipping embed cache for {embed_id}")
+            return False
+        
+        key = self._get_embed_cache_key(embed_id)
+        try:
+            import json
+            embed_json = json.dumps(embed_data)
+            await client.set(key, embed_json, ex=ttl)
+            
+            # Add to chat index for eviction tracking
+            chat_embed_index_key = self._get_chat_embed_ids_key(chat_id)
+            await client.sadd(chat_embed_index_key, embed_id)
+            await client.expire(chat_embed_index_key, ttl)
+            
+            logger.debug(f"Cached embed {embed_id} at {key} with TTL {ttl}s")
+            return True
+        except Exception as e:
+            logger.error(f"Error caching embed {embed_id}: {e}", exc_info=True)
+            return False
+    
+    async def get_chat_embed_ids(self, chat_id: str) -> List[str]:
+        """
+        Get all embed IDs for a chat (for eviction tracking).
+        
+        Args:
+            chat_id: The chat ID
+            
+        Returns:
+            List of embed IDs
+        """
+        client = await self.client
+        if not client:
+            return []
+        
+        key = self._get_chat_embed_ids_key(chat_id)
+        try:
+            embed_ids_bytes = await client.smembers(key)
+            embed_ids = [embed_id.decode('utf-8') for embed_id in embed_ids_bytes]
+            logger.debug(f"Retrieved {len(embed_ids)} embed IDs for chat {chat_id}")
+            return embed_ids
+        except Exception as e:
+            logger.error(f"Error getting embed IDs for chat {chat_id}: {e}", exc_info=True)
+            return []
+    
+    async def add_embed_id_to_chat_index(self, chat_id: str, embed_id: str, ttl: int = 3600) -> bool:
+        """
+        Add an embed_id to the chat's embed index (for sync cache tracking).
+        
+        Args:
+            chat_id: The chat ID
+            embed_id: The embed ID to add
+            ttl: Time to live for the index key in seconds (default: 1 hour)
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        client = await self.client
+        if not client:
+            return False
+        
+        key = self._get_chat_embed_ids_key(chat_id)
+        try:
+            await client.sadd(key, embed_id)
+            await client.expire(key, ttl)
+            logger.debug(f"Added embed {embed_id} to chat index {chat_id}")
+            return True
+        except Exception as e:
+            logger.error(f"Error adding embed {embed_id} to chat index {chat_id}: {e}", exc_info=True)
+            return False
+    
+    async def get_sync_embeds_for_chat(self, chat_id: str) -> List[Dict[str, Any]]:
+        """
+        Get all embeds from sync cache for a chat.
+        
+        Embeds in sync cache are stored with key pattern: embed:{embed_id}:sync
+        The chat's embed index (chat:{chat_id}:embed_ids) tracks which embeds belong to the chat.
+        
+        Args:
+            chat_id: The chat ID
+            
+        Returns:
+            List of embed data dictionaries (client-encrypted)
+        """
+        client = await self.client
+        if not client:
+            return []
+        
+        try:
+            import json
+            
+            # Get embed IDs from chat index
+            embed_ids = await self.get_chat_embed_ids(chat_id)
+            if not embed_ids:
+                logger.debug(f"No embeds indexed for chat {chat_id}")
+                return []
+            
+            # Fetch each embed from sync cache
+            embeds = []
+            for embed_id in embed_ids:
+                sync_key = f"embed:{embed_id}:sync"
+                embed_json = await client.get(sync_key)
+                if embed_json:
+                    try:
+                        embed_data = json.loads(embed_json.decode('utf-8') if isinstance(embed_json, bytes) else embed_json)
+                        embeds.append(embed_data)
+                    except json.JSONDecodeError as e:
+                        logger.warning(f"Failed to parse embed {embed_id} from sync cache: {e}")
+                else:
+                    logger.debug(f"Embed {embed_id} not found in sync cache (may have expired)")
+            
+            logger.info(f"Retrieved {len(embeds)} embeds from sync cache for chat {chat_id}")
+            return embeds
+        except Exception as e:
+            logger.error(f"Error getting sync embeds for chat {chat_id}: {e}", exc_info=True)
+            return []
+    
+    # ========== App Settings and Memories Cache Methods ==========
+    
+    def _get_app_settings_memories_cache_key(self, user_id: str, chat_id: str, app_id: str, item_key: str) -> str:
+        """
+        Returns the cache key for an app settings/memories entry.
+        
+        Format: chat:{chat_id}:app_settings_memories:{app_id}:{item_key}
+        
+        Note: Chat-specific so that app settings/memories are automatically evicted
+        when the chat is evicted from cache.
+        
+        Args:
+            user_id: User ID (for logging/debugging, not used in key)
+            chat_id: Chat ID (required for chat-specific caching)
+            app_id: App ID
+            item_key: Settings/memories item key (category name)
+            
+        Returns:
+            Cache key string
+        """
+        return f"chat:{chat_id}:app_settings_memories:{app_id}:{item_key}"
+    
+    def _get_chat_app_settings_memories_index_key(self, chat_id: str) -> str:
+        """
+        Returns the cache key for tracking all app settings/memories keys for a chat.
+        
+        Format: chat:{chat_id}:app_settings_memories_keys
+        
+        Args:
+            chat_id: Chat ID
+            
+        Returns:
+            Cache key string
+        """
+        return f"chat:{chat_id}:app_settings_memories_keys"
+    
+    async def get_app_settings_memories_from_cache(
+        self,
+        user_id: str,
+        chat_id: str,
+        app_id: str,
+        item_key: str
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Get app settings/memories entry from cache.
+        
+        Args:
+            user_id: User ID (for logging)
+            chat_id: Chat ID (required for chat-specific caching)
+            app_id: App ID
+            item_key: Settings/memories item key (category name)
+            
+        Returns:
+            App settings/memories data dictionary if found, None otherwise
+        """
+        client = await self.client
+        if not client:
+            return None
+        
+        key = self._get_app_settings_memories_cache_key(user_id, chat_id, app_id, item_key)
+        try:
+            import json
+            cached_data = await client.get(key)
+            if cached_data:
+                data = json.loads(cached_data.decode('utf-8'))
+                logger.debug(f"Cache HIT: Retrieved app settings/memories {app_id}:{item_key} for chat {chat_id}")
+                return data
+            else:
+                logger.debug(f"Cache MISS: App settings/memories {app_id}:{item_key} not in cache for chat {chat_id}")
+                return None
+        except Exception as e:
+            logger.error(f"Error getting app settings/memories {app_id}:{item_key} from cache: {e}", exc_info=True)
+            return None
+    
+    async def set_app_settings_memories_in_cache(
+        self,
+        user_id: str,
+        chat_id: str,
+        app_id: str,
+        item_key: str,
+        data: Dict[str, Any],
+        ttl: int = 86400  # 24 hours, same as message cache
+    ) -> bool:
+        """
+        Cache app settings/memories entry with vault encryption.
+        
+        Chat-specific caching ensures app settings/memories are automatically evicted
+        when the chat is evicted from cache.
+        
+        Args:
+            user_id: User ID (for logging)
+            chat_id: Chat ID (required for chat-specific caching)
+            app_id: App ID
+            item_key: Settings/memories item key (category name)
+            data: App settings/memories data dictionary (should already be vault-encrypted)
+            ttl: Time to live in seconds (default: 24 hours)
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        client = await self.client
+        if not client:
+            logger.warning(f"Redis client not available, skipping app settings/memories cache for {app_id}:{item_key}")
+            return False
+        
+        key = self._get_app_settings_memories_cache_key(user_id, chat_id, app_id, item_key)
+        try:
+            import json
+            data_json = json.dumps(data)
+            await client.set(key, data_json, ex=ttl)
+            
+            # Add to chat index for tracking (enables batch deletion when chat is evicted)
+            index_key = self._get_chat_app_settings_memories_index_key(chat_id)
+            entry_key = f"{app_id}:{item_key}"
+            await client.sadd(index_key, entry_key)
+            await client.expire(index_key, ttl)
+            
+            logger.debug(f"Cached app settings/memories {app_id}:{item_key} for chat {chat_id} at {key} with TTL {ttl}s")
+            return True
+        except Exception as e:
+            logger.error(f"Error caching app settings/memories {app_id}:{item_key}: {e}", exc_info=True)
+            return False
+    
+    async def get_chat_app_settings_memories_keys(self, chat_id: str) -> List[str]:
+        """
+        Get all app settings/memories keys for a chat (format: "app_id:item_key").
+        
+        Args:
+            chat_id: Chat ID
+            
+        Returns:
+            List of keys in "app_id:item_key" format
+        """
+        client = await self.client
+        if not client:
+            return []
+        
+        index_key = self._get_chat_app_settings_memories_index_key(chat_id)
+        try:
+            keys_bytes = await client.smembers(index_key)
+            keys = [key.decode('utf-8') for key in keys_bytes]
+            logger.debug(f"Retrieved {len(keys)} app settings/memories keys for chat {chat_id}")
+            return keys
+        except Exception as e:
+            logger.error(f"Error getting app settings/memories keys for chat {chat_id}: {e}", exc_info=True)
+            return []
+    
+    async def delete_chat_app_settings_memories(self, user_id: str, chat_id: str) -> int:
+        """
+        Delete all app settings/memories entries for a chat.
+        
+        This is called when a chat is evicted from cache to ensure
+        sensitive app settings/memories are also removed.
+        
+        Args:
+            user_id: User ID (for logging)
+            chat_id: Chat ID
+            
+        Returns:
+            Number of entries deleted
+        """
+        client = await self.client
+        if not client:
+            return 0
+        
+        try:
+            # Get all keys for this chat
+            keys = await self.get_chat_app_settings_memories_keys(chat_id)
+            
+            if not keys:
+                logger.debug(f"No app settings/memories to delete for chat {chat_id}")
+                return 0
+            
+            # Delete all entries
+            deleted_count = 0
+            for key_str in keys:
+                try:
+                    # Parse "app_id:item_key" format
+                    parts = key_str.split(":", 1)
+                    if len(parts) != 2:
+                        continue
+                    
+                    app_id, item_key = parts
+                    cache_key = self._get_app_settings_memories_cache_key(user_id, chat_id, app_id, item_key)
+                    result = await client.delete(cache_key)
+                    if result:
+                        deleted_count += 1
+                except Exception as e:
+                    logger.error(f"Error deleting app settings/memories {key_str} for chat {chat_id}: {e}", exc_info=True)
+                    continue
+            
+            # Delete the index
+            index_key = self._get_chat_app_settings_memories_index_key(chat_id)
+            await client.delete(index_key)
+            
+            logger.info(f"Deleted {deleted_count} app settings/memories entries for chat {chat_id}")
+            return deleted_count
+        except Exception as e:
+            logger.error(f"Error deleting app settings/memories for chat {chat_id}: {e}", exc_info=True)
+            return 0
+    
+    async def get_app_settings_memories_batch_from_cache(
+        self,
+        user_id: str,
+        chat_id: str,
+        requested_keys: List[str]
+    ) -> Dict[str, Dict[str, Any]]:
+        """
+        Get multiple app settings/memories entries from cache in batch.
+        
+        Args:
+            user_id: User ID (for logging)
+            chat_id: Chat ID (required for chat-specific caching)
+            requested_keys: List of keys in "app_id:item_key" format
+            
+        Returns:
+            Dictionary mapping "app_id:item_key" to data (only includes found entries)
+        """
+        result = {}
+        
+        for key_str in requested_keys:
+            try:
+                # Parse "app_id:item_key" format
+                parts = key_str.split(":", 1)
+                if len(parts) != 2:
+                    logger.warning(f"Invalid app settings/memories key format: {key_str}")
+                    continue
+                
+                app_id, item_key = parts
+                data = await self.get_app_settings_memories_from_cache(user_id, chat_id, app_id, item_key)
+                if data:
+                    result[key_str] = data
+            except Exception as e:
+                logger.error(f"Error getting app settings/memories {key_str} from cache: {e}", exc_info=True)
+                continue
+        
+        logger.debug(f"Retrieved {len(result)}/{len(requested_keys)} app settings/memories entries from cache for chat {chat_id}")
+        return result

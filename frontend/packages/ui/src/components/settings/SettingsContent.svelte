@@ -43,7 +43,7 @@
     import SettingsUser from './SettingsUser.svelte';
     import SettingsUsage from './SettingsUsage.svelte';
     import SettingsBilling from './SettingsBilling.svelte';
-    import SettingsApps from './SettingsApps.svelte';
+    import SettingsAppStore from './SettingsAppStore.svelte';
     import SettingsMates from './SettingsMates.svelte';
     import SettingsShared from './SettingsShared.svelte';
     import SettingsMessengers from './SettingsMessengers.svelte';
@@ -52,6 +52,7 @@
     import SettingsItem from '../SettingsItem.svelte';
     import SettingsLanguage from './interface/SettingsLanguage.svelte';
     import SettingsSoftwareUpdate from './server/SettingsSoftwareUpdate.svelte';
+    import SettingsAllApps from './SettingsAllApps.svelte';
 
     // Removed local toggle state, using props now
 
@@ -64,7 +65,8 @@
         'user': SettingsUser,
         'usage': SettingsUsage,
         'billing': SettingsBilling,
-        'apps': SettingsApps,
+        'app_store': SettingsAppStore,
+        'app_store/all': SettingsAllApps,
         'mates': SettingsMates,
         'shared': SettingsShared,
         'messengers': SettingsMessengers,

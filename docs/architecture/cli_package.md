@@ -34,6 +34,26 @@ openmates apps ai ask "What is Docker?"
 ### What It Does NOT Include
 The CLI is **not designed for full chat management** — a terminal is not ideal for browsing and managing conversation history. For that, use the web app and connect it to your machine using the `openmates remote-access` command. The CLI provides basic chat interaction but is optimized for quick queries and server management.
 
+### CLI vs REST API vs pip/npm Package
+
+**CLI Package (pip/npm):**
+- Full-featured SDK with chat encryption/decryption capabilities
+- Can manage chats, continue conversations, and access full chat history
+- Includes CLI commands for server management and chat interaction
+- Required for any operations involving encrypted chat data
+
+**REST API:**
+- Limited scope: Cannot decrypt/encrypt chats (privacy-focused design)
+- Direct access to app skills and focus modes via HTTP endpoints
+- Suitable for programmatic skill execution without chat context
+- See [REST API Architecture](./rest_api.md) for details
+
+**When to Use What:**
+- **CLI/pip/npm package**: Use for chat management, encrypted data access, and full SDK features
+- **REST API**: Use for direct skill execution, focus mode activation, and integrations that don't require chat encryption
+
+For REST API endpoints for app skills and focus modes, see [REST API Architecture](./rest_api.md).
+
 ---
 
 ## 📦 Folder Structure
@@ -119,6 +139,49 @@ openmates chat "What is docker?" --model claude-4.5-sonnet
 - **Login via magic URL / QR code** from other devices for easy setup
 - **Consider using Textual** (Python-based TUI) instead of Ink (JS-based) for better security and consistency
 - **Use Catimg** for displaying QR codes or graphics in terminal
+
+### Git Commit Message Standards (Conventional Commits)
+The project follows [Conventional Commits](https://www.conventionalcommits.org/) for git commit messages to maintain a consistent commit history and enable automated changelog generation.
+
+**Commit Message Format:**
+```
+<type>[optional scope]: <description>
+
+[optional body]
+
+[optional footer(s)]
+```
+
+**Types:**
+- `feat`: A new feature
+- `fix`: A bug fix
+- `docs`: Documentation only changes
+- `style`: Changes that don't affect code meaning (formatting, semicolons, etc.)
+- `refactor`: Code change that neither fixes a bug nor adds a feature
+- `perf`: Code change that improves performance
+- `test`: Adding or updating tests
+- `chore`: Changes to build process, dependencies, tooling, etc.
+- `ci`: Changes to CI/CD configuration
+
+**Examples:**
+```
+feat(cli): add support for custom commit templates
+fix: prevent crash when server logs are empty
+docs: update CLI commands reference
+feat(remote-access): implement zero-knowledge environment file processing
+refactor: simplify chat encryption logic
+```
+
+**Scope (Optional):** A scope provides additional context (e.g., `cli`, `server`, `remote-access`, `chat`)
+
+**Body (Optional):** Provide additional context about what changed and why. Use imperative mood.
+
+**Footer (Optional):** Reference issues (e.g., `Closes #123`) or document breaking changes (e.g., `BREAKING CHANGE: description`)
+
+**Implementation Tools:**
+- **Commitizen** (Python/JS): Interactive CLI for writing conformant commit messages
+- **Husky + commitlint**: Pre-commit hooks to enforce conventional commit format
+- **Automatic changelog generation**: Tools like `semantic-release` can automatically generate changelogs and manage versioning based on commit types
 
 ### System Monitoring (Optional Feature)
 Include in every request when connected to a server:

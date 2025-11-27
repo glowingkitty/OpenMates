@@ -1,0 +1,896 @@
+app_store:
+  context: App Store settings menu item
+  en: App Store
+  de: App Store
+  zh: App Store
+  es: App Store
+  fr: App Store
+  pt: App Store
+  ru: App Store
+  ja: App Store
+  ko: App Store
+  it: App Store
+  tr: App Store
+  vi: App Store
+  id: App Store
+  pl: App Store
+  nl: App Store
+  ar: App Store
+  hi: App Store
+  th: App Store
+  cs: App Store
+  sv: App Store
+  verified_by_human: []
+  no_apps_available:
+    context: Message shown when no apps are available in the App Store
+    en: No apps available.
+    de: Keine Apps verfügbar.
+    zh: 没有可用的应用。
+    es: No hay aplicaciones disponibles.
+    fr: Aucune application disponible.
+    pt: Nenhum aplicativo disponível.
+    ru: Нет доступных приложений.
+    ja: 利用可能なアプリはありません。
+    ko: 사용 가능한 앱이 없습니다.
+    it: Nessuna app disponibile.
+    tr: Kullanılabilir uygulama yok.
+    vi: Không có ứng dụng nào có sẵn.
+    id: Tidak ada aplikasi yang tersedia.
+    pl: Brak dostępnych aplikacji.
+    nl: Geen apps beschikbaar.
+    ar: لا توجد تطبيقات متاحة.
+    hi: कोई ऐप उपलब्ध नहीं है।
+    th: ไม่มีแอปพลิเคชันที่พร้อมใช้งาน
+    cs: Nejsou k dispozici žádné aplikace.
+    sv: Inga appar tillgängliga.
+    verified_by_human: []
+show_all_apps:
+  context: Button to show all apps in a list view
+  en: Show all apps
+  de: Alle Apps anzeigen
+  zh: 显示所有应用
+  es: Mostrar todas las aplicaciones
+  fr: Afficher toutes les applications
+  pt: Mostrar todos os aplicativos
+  ru: Показать все приложения
+  ja: すべてのアプリを表示
+  ko: 모든 앱 표시
+  it: Mostra tutte le app
+  tr: Tüm uygulamaları göster
+  vi: Hiển thị tất cả ứng dụng
+  id: Tampilkan semua aplikasi
+  pl: Pokaż wszystkie aplikacje
+  nl: Alle apps weergeven
+  ar: عرض جميع التطبيقات
+  hi: सभी ऐप्स दिखाएं
+  th: แสดงแอปพลิเคชันทั้งหมด
+  cs: Zobrazit všechny aplikace
+  sv: Visa alla appar
+  verified_by_human: []
+all:
+  context: Title for the "All Apps" page showing all available apps
+  en: All Apps
+  de: Alle Apps
+  zh: 所有应用
+  es: Todas las aplicaciones
+  fr: Toutes les applications
+  pt: Todos os aplicativos
+  ru: Все приложения
+  ja: すべてのアプリ
+  ko: 모든 앱
+  it: Tutte le app
+  tr: Tüm uygulamalar
+  vi: Tất cả ứng dụng
+  id: Semua aplikasi
+  pl: Wszystkie aplikacje
+  nl: Alle apps
+  ar: جميع التطبيقات
+  hi: सभी ऐप्स
+  th: แอปพลิเคชันทั้งหมด
+  cs: Všechny aplikace
+  sv: Alla appar
+  verified_by_human: []
+categories.top_picks:
+  en: Top picks for you
+  de: Top Empfehlungen für dich
+  zh: 为你精选
+  es: Nuestras recomendaciones para ti
+  fr: Nos recommandations pour vous
+  pt: Nossas recomendações para você
+  ru: Рекомендации для вас
+  ja: あなた向けのおすすめ
+  ko: 당신을 위한 추천
+  it: Consigliati per te
+  tr: Sizin için önerilen
+  vi: Khuyến nghị cho bạn
+  id: Rekomendasi untuk Anda
+  pl: Rekomendacje dla Ciebie
+  nl: Aanbevelingen voor jou
+  ar: التوصيات لك
+  hi: आपके लिए अनुशंसित
+  th: คำแนะนำสำหรับคุณ
+  cs: Doporučeno pro vás
+  sv: Rekommenderat för dig
+  verified_by_human: []
+categories.explore_discover:
+  context: Category name for personalized app recommendations
+  en: Explore & discover
+  de: Entdecken & Erkunden
+  zh: 浏览和发现
+  es: Explorar y descubrir
+  fr: Explorer et découvrir
+  pt: Explorar e descobrir
+  ru: Изучать и открывать
+  ja: 探索して発見
+  ko: 탐색하고 발견
+  it: Esplora e scopri
+  tr: Keşfet ve bulun
+  vi: Khám phá và tìm hiểu
+  id: Jelajahi dan temukan
+  pl: Przeglądaj i odkrywaj
+  nl: Verkennen en ontdekken
+  ar: استكشف واكتشف
+  hi: अन्वेषण करें और खोजें
+  th: สำรวจและค้นพบ
+  cs: Prozkoumejte a objevujte
+  sv: Utforska och upptäck
+  verified_by_human: []
+categories.new_apps:
+  context: Category name for recently updated apps
+  en: New apps
+  de: Neue Apps
+  zh: 新应用
+  es: Nuevas aplicaciones
+  fr: Nouvelles applications
+  pt: Novos aplicativos
+  ru: Новые приложения
+  ja: 新しいアプリ
+  ko: 새로운 앱
+  it: Nuove app
+  tr: Yeni uygulamalar
+  vi: Ứng dụng mới
+  id: Aplikasi baru
+  pl: Nowe aplikacje
+  nl: Nieuwe apps
+  ar: تطبيقات جديدة
+  hi: नए ऐप्स
+  th: แอปพลิเคชันใหม่
+  cs: Nové aplikace
+  sv: Nya appar
+  verified_by_human: []
+categories.for_work:
+  context: Category name for work-related apps
+  en: For work
+  de: Für die Arbeit
+  zh: 工作用
+  es: Para el trabajo
+  fr: Pour le travail
+  pt: Para o trabalho
+  ru: Для работы
+  ja: 仕事用
+  ko: 업무용
+  it: Per il lavoro
+  tr: İşe yaramak
+  vi: Cho công việc
+  id: Untuk pekerjaan
+  pl: Do pracy
+  nl: Voor werk
+  ar: للعمل
+  hi: काम के लिए
+  th: สำหรับงาน
+  cs: Pro práci
+  sv: För arbete
+  verified_by_human: []
+categories.for_everyday_life:
+  context: Category name for everyday life apps
+  en: For everyday life
+  de: Für den Alltag
+  zh: 日常生活
+  es: Para la vida cotidiana
+  fr: Pour la vie quotidienne
+  pt: Para a vida cotidiana
+  ru: Для повседневной жизни
+  ja: 日常生活用
+  ko: 일상 생활용
+  it: Per la vita di tutti i giorni
+  tr: Günlük yaşam için
+  vi: Cho cuộc sống hàng ngày
+  id: Untuk kehidupan sehari-hari
+  pl: Do codziennego życia
+  nl: Voor het dagelijks leven
+  ar: للحياة اليومية
+  hi: रोजमर्रा की जिंदगी के लिए
+  th: สำหรับชีวิตประจำวัน
+  cs: Pro každodenní život
+  sv: För vardagen
+  verified_by_human: []
+categories.most_used:
+  context: Category name for most used apps
+  en: Most used
+  de: Meist genutzt
+  zh: 最常用
+  es: Más utilizado
+  fr: Plus utilisé
+  pt: Mais usado
+  ru: Наиболее используемый
+  ja: 最も使用されている
+  ko: 가장 많이 사용됨
+  it: Più utilizzato
+  tr: En çok kullanılan
+  vi: Được sử dụng nhiều nhất
+  id: Paling banyak digunakan
+  pl: Najczęściej używany
+  nl: Meest gebruikt
+  ar: الأكثر استخداماً
+  hi: सबसे अधिक उपयोग किया गया
+  th: ใช้งานบ่อยที่สุด
+  cs: Nejpoužívanější
+  sv: Mest använd
+  verified_by_human: []
+categories.other:
+  context: Category name for other apps
+  en: Other
+  de: Sonstiges
+  zh: 其他
+  es: Otros
+  fr: Autres
+  pt: Outros
+  ru: Другое
+  ja: その他
+  ko: 기타
+  it: Altro
+  tr: Diğer
+  vi: Khác
+  id: Lainnya
+  pl: Inne
+  nl: Overige
+  ar: أخرى
+  hi: अन्य
+  th: อื่น ๆ
+  cs: Ostatní
+  sv: Övrigt
+  verified_by_human: []
+skills.title:
+  context: Section title for skills in app details
+  en: Skills
+  de: Fähigkeiten
+  zh: 技能
+  es: Habilidades
+  fr: Compétences
+  pt: Habilidades
+  ru: Навыки
+  ja: スキル
+  ko: 스킬
+  it: Abilità
+  tr: Beceriler
+  vi: Kỹ năng
+  id: Keterampilan
+  pl: Umiejętności
+  nl: Vaardigheden
+  ar: المهارات
+  hi: कौशल
+  th: ทักษะ
+  cs: Dovednosti
+  sv: Färdigheter
+  verified_by_human: []
+skills.description:
+  context: Label for skill description
+  en: Description
+  de: Beschreibung
+  zh: 描述
+  es: Descripción
+  fr: Description
+  pt: Descrição
+  ru: Описание
+  ja: 説明
+  ko: 설명
+  it: Descrizione
+  tr: Açıklama
+  vi: Mô tả
+  id: Deskripsi
+  pl: Opis
+  nl: Beschrijving
+  ar: الوصف
+  hi: विवरण
+  th: คำอธิบาย
+  cs: Popis
+  sv: Beskrivning
+  verified_by_human: []
+skills.providers:
+  context: Label for skill providers
+  en: Providers
+  de: Anbieter
+  zh: 提供商
+  es: Proveedores
+  fr: Fournisseurs
+  pt: Provedores
+  ru: Провайдеры
+  ja: プロバイダー
+  ko: 제공업체
+  it: Fornitori
+  tr: Sağlayıcılar
+  vi: Nhà cung cấp
+  id: Penyedia
+  pl: Dostawcy
+  nl: Providers
+  ar: المزودون
+  hi: प्रदाता
+  th: ผู้ให้บริการ
+  cs: Poskytovatelé
+  sv: Leverantörer
+  verified_by_human: []
+skills.pricing:
+  context: Label for skill pricing
+  en: Pricing
+  de: Preisgestaltung
+  zh: 定价
+  es: Precios
+  fr: Tarification
+  pt: Preços
+  ru: Ценообразование
+  ja: 価格設定
+  ko: 가격 책정
+  it: Prezzi
+  tr: Fiyatlandırma
+  vi: Định giá
+  id: Harga
+  pl: Cennik
+  nl: Prijzen
+  ar: التسعير
+  hi: मूल्य निर्धारण
+  th: การกำหนดราคา
+  cs: Ceny
+  sv: Prissättning
+  verified_by_human: []
+skills.pricing.free:
+  context: Free pricing label
+  en: Free
+  de: Kostenlos
+  zh: 免费
+  es: Gratis
+  fr: Gratuit
+  pt: Grátis
+  ru: Бесплатно
+  ja: 無料
+  ko: 무료
+  it: Gratuito
+  tr: Ücretsiz
+  vi: Miễn phí
+  id: Gratis
+  pl: Darmowe
+  nl: Gratis
+  ar: مجاني
+  hi: मुफ्त
+  th: ฟรี
+  cs: Zdarma
+  sv: Gratis
+  verified_by_human: []
+skills.pricing.credits:
+  context: Credits currency label
+  en: credits
+  de: Credits
+  zh: 积分
+  es: créditos
+  fr: crédits
+  pt: créditos
+  ru: кредиты
+  ja: クレジット
+  ko: 크레딧
+  it: crediti
+  tr: kredi
+  vi: tín dụng
+  id: kredit
+  pl: kredyty
+  nl: credits
+  ar: رصيد
+  hi: क्रेडिट
+  th: หน่วยเครดิต
+  cs: kredity
+  sv: krediter
+  verified_by_human: []
+skills.pricing.unit:
+  context: Generic unit label
+  en: unit
+  de: Einheit
+  zh: 单位
+  es: unidad
+  fr: unité
+  pt: unidade
+  ru: единица
+  ja: 単位
+  ko: 단위
+  it: unità
+  tr: birim
+  vi: đơn vị
+  id: unit
+  pl: jednostka
+  nl: eenheid
+  ar: وحدة
+  hi: इकाई
+  th: หน่วย
+  cs: jednotka
+  sv: enhet
+  verified_by_human: []
+skills.pricing.minute:
+  context: Minute time unit
+  en: minute
+  de: Minute
+  zh: 分钟
+  es: minuto
+  fr: minute
+  pt: minuto
+  ru: минута
+  ja: 分
+  ko: 분
+  it: minuto
+  tr: dakika
+  vi: phút
+  id: menit
+  pl: minuta
+  nl: minuut
+  ar: دقيقة
+  hi: मिनट
+  th: นาที
+  cs: minuta
+  sv: minut
+  verified_by_human: []
+skills.pricing.token:
+  context: Token unit for AI pricing
+  en: token
+  de: Token
+  zh: 令牌
+  es: token
+  fr: jeton
+  pt: token
+  ru: токен
+  ja: トークン
+  ko: 토큰
+  it: token
+  tr: token
+  vi: token
+  id: token
+  pl: token
+  nl: token
+  ar: رمز
+  hi: टोकन
+  th: โทเค็น
+  cs: token
+  sv: token
+  verified_by_human: []
+skills.pricing.input:
+  context: Input label for token pricing
+  en: input
+  de: Eingabe
+  zh: 输入
+  es: entrada
+  fr: entrée
+  pt: entrada
+  ru: вход
+  ja: 入力
+  ko: 입력
+  it: ingresso
+  tr: giriş
+  vi: đầu vào
+  id: masukan
+  pl: wejście
+  nl: invoer
+  ar: إدخال
+  hi: इनपुट
+  th: อินพุต
+  cs: vstup
+  sv: inmatning
+  verified_by_human: []
+skills.pricing.output:
+  context: Output label for token pricing
+  en: output
+  de: Ausgabe
+  zh: 输出
+  es: salida
+  fr: sortie
+  pt: saída
+  ru: выход
+  ja: 出力
+  ko: 출력
+  it: uscita
+  tr: çıkış
+  vi: đầu ra
+  id: keluaran
+  pl: wyjście
+  nl: uitvoer
+  ar: إخراج
+  hi: आउटपुट
+  th: เอาต์พุต
+  cs: výstup
+  sv: utdata
+  verified_by_human: []
+focus_modes.title:
+  context: Section title for focus modes in app details
+  en: Focus Modes
+  de: Fokusmodi
+  zh: 专注模式
+  es: Modos de enfoque
+  fr: Modes de concentration
+  pt: Modos de foco
+  ru: Режимы фокуса
+  ja: フォーカスモード
+  ko: 포커스 모드
+  it: Modalità di focus
+  tr: Odak modları
+  vi: Chế độ tập trung
+  id: Mode Fokus
+  pl: Tryby skupienia
+  nl: Focusmodi
+  ar: أوضاع التركيز
+  hi: फोकस मोड
+  th: โหมดโฟกัส
+  cs: Režimy zaměření
+  sv: Fok lägen
+  verified_by_human: []
+focus_modes.description:
+  context: Label for focus mode description
+  en: Description
+  de: Beschreibung
+  zh: 描述
+  es: Descripción
+  fr: Description
+  pt: Descrição
+  ru: Описание
+  ja: 説明
+  ko: 설명
+  it: Descrizione
+  tr: Açıklama
+  vi: Mô tả
+  id: Deskripsi
+  pl: Opis
+  nl: Beschrijving
+  ar: الوصف
+  hi: विवरण
+  th: คำอธิบาย
+  cs: Popis
+  sv: Beskrivning
+  verified_by_human: []
+focus_modes.no_description:
+  context: Message when focus mode has no description
+  en: No description available for this focus mode.
+  de: Keine Beschreibung für diesen Fokusmodus verfügbar.
+  zh: 此专注模式没有可用的描述。
+  es: No hay descripción disponible para este modo de enfoque.
+  fr: Aucune description disponible pour ce mode de concentration.
+  pt: Nenhuma descrição disponível para este modo de foco.
+  ru: Нет описания для этого режима фокуса.
+  ja: このフォーカスモードには説明がありません。
+  ko: 이 포커스 모드에 대한 설명이 없습니다.
+  it: Nessuna descrizione disponibile per questa modalità di focus.
+  tr: Bu odak modu için açıklama yok.
+  vi: Không có mô tả cho chế độ tập trung này.
+  id: Tidak ada deskripsi untuk mode fokus ini.
+  pl: Brak opisu dla tego trybu skupienia.
+  nl: Geen beschrijving beschikbaar voor deze focusmodus.
+  ar: لا يوجد وصف لهذا الوضع التركيز.
+  hi: इस फोकस मोड के लिए कोई विवरण उपलब्ध नहीं है।
+  th: ไม่มีคำอธิบายสำหรับโหมดโฟกัสนี้
+  cs: Pro tento režim zaměření není k dispozici žádný popis.
+  sv: Ingen beskrivning tillgänglig för detta fok läge.
+  verified_by_human: []
+focus_mode_not_found:
+  context: Error message when focus mode is not found
+  en: Focus mode not found.
+  de: Fokusmodus nicht gefunden.
+  zh: 未找到专注模式。
+  es: Modo de enfoque no encontrado.
+  fr: Mode de concentration introuvable.
+  pt: Modo de foco não encontrado.
+  ru: Режим фокуса не найден.
+  ja: フォーカスモードが見つかりません。
+  ko: 포커스 모드를 찾을 수 없습니다.
+  it: Modalità di focus non trovata.
+  tr: Odak modu bulunamadı.
+  vi: Không tìm thấy chế độ tập trung.
+  id: Mode fokus tidak ditemukan.
+  pl: Nie znaleziono trybu skupienia.
+  nl: Focusmodus niet gevonden.
+  ar: لم يتم العثور على وضع التركيز.
+  hi: फोकस मोड नहीं मिला।
+  th: ไม่พบโหมดโฟกัส
+  cs: Režim zaměření nenalezen.
+  sv: Fok läge hittades inte.
+  verified_by_human: []
+settings_memories.title:
+  context: Section title for settings and memories in app details
+  en: Settings & Memories
+  de: Einstellungen & Erinnerungen
+  zh: 设置和记忆
+  es: Configuración y recuerdos
+  fr: Paramètres et souvenirs
+  pt: Configurações e memórias
+  ru: Настройки и воспоминания
+  ja: 設定と記憶
+  ko: 설정 및 메모리
+  it: Impostazioni e ricordi
+  tr: Ayarlar ve anılar
+  vi: Cài đặt và ký ức
+  id: Pengaturan dan memori
+  pl: Ustawienia i wspomnienia
+  nl: Instellingen en herinneringen
+  ar: الإعدادات والذكريات
+  hi: सेटिंग्स और यादें
+  th: การตั้งค่าและความทรงจำ
+  cs: Nastavení a vzpomínky
+  sv: Inställningar och minnen
+  verified_by_human: []
+settings_memories.subtitle:
+  context: Subtitle showing number of settings/memories categories
+  en: "{count} categories available"
+  de: "{count} Kategorien verfügbar"
+  zh: "{count} 个类别可用"
+  es: "{count} categorías disponibles"
+  fr: "{count} catégories disponibles"
+  pt: "{count} categorias disponíveis"
+  ru: "{count} категорий доступно"
+  ja: "{count} のカテゴリが利用可能"
+  ko: "{count}개의 카테고리 사용 가능"
+  it: "{count} categorie disponibili"
+  tr: "{count} kategori mevcut"
+  vi: "{count} danh mục có sẵn"
+  id: "{count} kategori tersedia"
+  pl: "{count} kategorie dostępne"
+  nl: "{count} categorieën beschikbaar"
+  ar: "{count} فئات متاحة"
+  hi: "{count} श्रेणियां उपलब्ध"
+  th: "{count} หมวดหมู่พร้อมใช้งาน"
+  cs: "{count} kategorií k dispozici"
+  sv: "{count} kategorier tillgängliga"
+  verified_by_human: []
+skill_not_found:
+  context: Error message when skill is not found
+  en: Skill not found.
+  de: Fähigkeit nicht gefunden.
+  zh: 未找到技能。
+  es: Habilidad no encontrada.
+  fr: Compétence introuvable.
+  pt: Habilidade não encontrada.
+  ru: Навык не найден.
+  ja: スキルが見つかりません。
+  ko: 스킬을 찾을 수 없습니다.
+  it: Abilità non trovata.
+  tr: Beceri bulunamadı.
+  vi: Không tìm thấy kỹ năng.
+  id: Keterampilan tidak ditemukan.
+  pl: Nie znaleziono umiejętności.
+  nl: Vaardigheid niet gevonden.
+  ar: لم يتم العثور على المهارة.
+  hi: कौशल नहीं मिला।
+  th: ไม่พบทักษะ
+  cs: Dovednost nenalezena.
+  sv: Färdighet hittades inte.
+  verified_by_human: []
+back_to_app:
+  context: Button text to go back to app details
+  en: Back to App
+  de: Zurück zur App
+  zh: 返回应用
+  es: Volver a la aplicación
+  fr: Retour à l'application
+  pt: Voltar ao aplicativo
+  ru: Назад к приложению
+  ja: アプリに戻る
+  ko: 앱으로 돌아가기
+  it: Torna all'app
+  tr: Uygulamaya dön
+  vi: Quay lại ứng dụng
+  id: Kembali ke aplikasi
+  pl: Powrót do aplikacji
+  nl: Terug naar app
+  ar: العودة إلى التطبيق
+  hi: ऐप पर वापस जाएं
+  th: กลับไปที่แอป
+  cs: Zpět k aplikaci
+  sv: Tillbaka till appen
+  verified_by_human: []
+settings_memories.manage_subtitle:
+  context: Subtitle for settings and memories management page
+  en: Manage your app settings and memories entries
+  de: Verwalten Sie Ihre App-Einstellungen und Erinnerungseinträge
+  zh: 管理您的应用设置和记忆条目
+  es: Administre sus configuraciones y entradas de recuerdos de la aplicación
+  fr: Gérez vos paramètres d'application et vos entrées de souvenirs
+  pt: Gerencie suas configurações de aplicativo e entradas de memórias
+  ru: Управляйте настройками приложения и записями воспоминаний
+  ja: アプリの設定とメモリエントリを管理
+  ko: 앱 설정 및 메모리 항목 관리
+  it: Gestisci le impostazioni dell'app e le voci dei ricordi
+  tr: Uygulama ayarlarınızı ve anı girişlerinizi yönetin
+  vi: Quản lý cài đặt ứng dụng và mục ký ức của bạn
+  id: Kelola pengaturan aplikasi dan entri memori Anda
+  pl: Zarządzaj ustawieniami aplikacji i wpisami wspomnień
+  nl: Beheer uw app-instellingen en geheugenitems
+  ar: إدارة إعدادات التطبيق وإدخالات الذكريات
+  hi: अपनी ऐप सेटिंग्स और मेमोरी प्रविष्टियों को प्रबंधित करें
+  th: จัดการการตั้งค่าแอปและรายการความทรงจำของคุณ
+  cs: Spravujte nastavení aplikace a položky paměti
+  sv: Hantera dina appinställningar och minnesposter
+  verified_by_human: []
+settings_memories.no_categories:
+  context: Message when app has no settings/memories categories
+  en: This app has no settings or memories categories defined.
+  de: Diese App hat keine Einstellungs- oder Erinnerungskategorien definiert.
+  zh: 此应用没有定义设置或记忆类别。
+  es: Esta aplicación no tiene categorías de configuración o recuerdos definidas.
+  fr: Cette application n'a pas de catégories de paramètres ou de souvenirs définies.
+  pt: Este aplicativo não tem categorias de configurações ou memórias definidas.
+  ru: У этого приложения нет определенных категорий настроек или воспоминаний.
+  ja: このアプリには設定やメモリカテゴリが定義されていません。
+  ko: 이 앱에는 설정 또는 메모리 카테고리가 정의되어 있지 않습니다.
+  it: Questa app non ha categorie di impostazioni o ricordi definite.
+  tr: Bu uygulamanın tanımlı ayar veya anı kategorisi yok.
+  vi: Ứng dụng này không có danh mục cài đặt hoặc ký ức được xác định.
+  id: Aplikasi ini tidak memiliki kategori pengaturan atau memori yang ditentukan.
+  pl: Ta aplikacja nie ma zdefiniowanych kategorii ustawień ani wspomnień.
+  nl: Deze app heeft geen instellingen- of geheugencategorieën gedefinieerd.
+  ar: لا يحتوي هذا التطبيق على فئات إعدادات أو ذكريات محددة.
+  hi: इस ऐप में कोई सेटिंग्स या मेमोरी श्रेणियां परिभाषित नहीं हैं।
+  th: แอปนี้ไม่มีหมวดหมู่การตั้งค่าหรือความทรงจำที่กำหนดไว้
+  cs: Tato aplikace nemá definované kategorie nastavení nebo paměti.
+  sv: Denna app har inga inställnings- eller minneskategorier definierade.
+  verified_by_human: []
+settings_memories.no_entries:
+  context: Message when a category has no entries
+  en: "No entries in {category} yet."
+  de: "Noch keine Einträge in {category}."
+  zh: "{category} 中还没有条目。"
+  es: "Aún no hay entradas en {category}."
+  fr: "Aucune entrée dans {category} pour le moment."
+  pt: "Ainda não há entradas em {category}."
+  ru: "Пока нет записей в {category}."
+  ja: "{category}にはまだエントリがありません。"
+  ko: "{category}에 아직 항목이 없습니다."
+  it: "Nessuna voce in {category} ancora."
+  tr: "{category} içinde henüz giriş yok."
+  vi: "Chưa có mục nào trong {category}."
+  id: "Belum ada entri di {category}."
+  pl: "Brak wpisów w {category} jeszcze."
+  nl: "Nog geen items in {category}."
+  ar: "لا توجد إدخالات في {category} بعد."
+  hi: "{category} में अभी तक कोई प्रविष्टि नहीं है।"
+  th: "ยังไม่มีรายการใน {category}"
+  cs: "V {category} zatím nejsou žádné položky."
+  sv: "Inga poster i {category} ännu."
+  verified_by_human: []
+settings_memories.add_entry:
+  context: Button text to add a new entry
+  en: Add Entry
+  de: Eintrag hinzufügen
+  zh: 添加条目
+  es: Agregar entrada
+  fr: Ajouter une entrée
+  pt: Adicionar entrada
+  ru: Добавить запись
+  ja: エントリを追加
+  ko: 항목 추가
+  it: Aggiungi voce
+  tr: Giriş ekle
+  vi: Thêm mục
+  id: Tambah entri
+  pl: Dodaj wpis
+  nl: Item toevoegen
+  ar: إضافة إدخال
+  hi: प्रविष्टि जोड़ें
+  th: เพิ่มรายการ
+  cs: Přidat položku
+  sv: Lägg till post
+  verified_by_human: []
+settings_memories.delete:
+  context: Button text to delete an entry
+  en: Delete
+  de: Löschen
+  zh: 删除
+  es: Eliminar
+  fr: Supprimer
+  pt: Excluir
+  ru: Удалить
+  ja: 削除
+  ko: 삭제
+  it: Elimina
+  tr: Sil
+  vi: Xóa
+  id: Hapus
+  pl: Usuń
+  nl: Verwijderen
+  ar: حذف
+  hi: हटाएं
+  th: ลบ
+  cs: Smazat
+  sv: Ta bort
+  verified_by_human: []
+settings_memories.pending:
+  context: Badge text for pending entries
+  en: Pending
+  de: Ausstehend
+  zh: 待处理
+  es: Pendiente
+  fr: En attente
+  pt: Pendente
+  ru: В ожидании
+  ja: 保留中
+  ko: 대기 중
+  it: In attesa
+  tr: Beklemede
+  vi: Đang chờ
+  id: Tertunda
+  pl: Oczekujące
+  nl: In afwachting
+  ar: قيد الانتظار
+  hi: लंबित
+  th: รอดำเนินการ
+  cs: Čekající
+  sv: Väntande
+  verified_by_human: []
+app_not_found:
+  context: Error message when app is not found
+  en: App not found.
+  de: App nicht gefunden.
+  zh: 未找到应用。
+  es: Aplicación no encontrada.
+  fr: Application introuvable.
+  pt: Aplicativo não encontrado.
+  ru: Приложение не найдено.
+  ja: アプリが見つかりません。
+  ko: 앱을 찾을 수 없습니다.
+  it: App non trovata.
+  tr: Uygulama bulunamadı.
+  vi: Không tìm thấy ứng dụng.
+  id: Aplikasi tidak ditemukan.
+  pl: Nie znaleziono aplikacji.
+  nl: App niet gevonden.
+  ar: لم يتم العثور على التطبيق.
+  hi: ऐप नहीं मिला।
+  th: ไม่พบแอป
+  cs: Aplikace nenalezena.
+  sv: Appen hittades inte.
+  verified_by_human: []
+back_to_app_store:
+  context: Button text to go back to app store
+  en: Back to App Store
+  de: Zurück zum App Store
+  zh: 返回应用商店
+  es: Volver a la tienda de aplicaciones
+  fr: Retour à la boutique d'applications
+  pt: Voltar à loja de aplicativos
+  ru: Назад в магазин приложений
+  ja: アプリストアに戻る
+  ko: 앱 스토어로 돌아가기
+  it: Torna al negozio di app
+  tr: Uygulama mağazasına dön
+  vi: Quay lại cửa hàng ứng dụng
+  id: Kembali ke toko aplikasi
+  pl: Powrót do sklepu aplikacji
+  nl: Terug naar app store
+  ar: العودة إلى متجر التطبيقات
+  hi: ऐप स्टोर पर वापस जाएं
+  th: กลับไปที่ร้านค้าแอป
+  cs: Zpět do obchodu s aplikacemi
+  sv: Tillbaka till appbutiken
+  verified_by_human: []
+category_not_found:
+  context: Error message when category is not found
+  en: Category not found.
+  de: Kategorie nicht gefunden.
+  zh: 未找到类别。
+  es: Categoría no encontrada.
+  fr: Catégorie introuvable.
+  pt: Categoria não encontrada.
+  ru: Категория не найдена.
+  ja: カテゴリが見つかりません。
+  ko: 카테고리를 찾을 수 없습니다.
+  it: Categoria non trovata.
+  tr: Kategori bulunamadı.
+  vi: Không tìm thấy danh mục.
+  id: Kategori tidak ditemukan.
+  pl: Nie znaleziono kategorii.
+  nl: Categorie niet gevonden.
+  ar: لم يتم العثور على الفئة.
+  hi: श्रेणी नहीं मिली।
+  th: ไม่พบหมวดหมู่
+  cs: Kategorie nenalezena.
+  sv: Kategori hittades inte.
+  verified_by_human: []

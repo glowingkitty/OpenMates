@@ -1,47 +1,31 @@
-name: |
-  PCB design
-description: |
-  Plan, create & debug your PCB designs.
+name_translation_key: pcb_design.text
+description_translation_key: pcb_design.description.text
 icon_image: |
   pcbdesign.svg
-icon_colorgradient:
-  start: |
-    #233888
-  end: |
-    #2E4EC8
+# Icon colors are defined in theme.css instead of here
+category: work
+last_updated: "2025-11-12"
 
 focuses:
-
-  - id: |
-      create_schematic
-    name: |
-      Create schematic
-    description: |
-      Plan & create a PCB schematic.
-    stage: |
-      planning
+  - id: create_schematic
+    name_translation_key: pcb_design.create_schematic.text
+    description_translation_key: pcb_design.create_schematic.description.text
+    stage: planning
     process:
-      - "ask users clearifying question to make the requirements clear and create requirements.md file"
-      - "for more complex tasks: create todo.md file and keep it updated with progress. Include filepaths or function names / variable names relevant."
-      - "if problem can't be solved within a few steps, ask if new approach should be tried or if requirements should be redefined"
-      - "guide user throw the process of creating the atopile code for a pcb schematic, or alternatively guide throw how to create a schematic in KiCad"
-    # systemprompt just an early placeholder. Nowhere near complete.
+      - ask users clearifying question to make the requirements clear and create requirements.md file
+      - for more complex tasks: create todo.md file and keep it updated with progress. Include filepaths or function names / variable names relevant.
+      - if problem can't be solved within a few steps, ask if new approach should be tried or if requirements should be redefined
+      - guide user throw the process of creating the atopile code for a pcb schematic, or alternatively guide throw how to create a schematic in KiCad
     systemprompt: |
       You are a PCB design expert.
-
-  - id: |
-      create_layout
-    name: |
-      Create layout
-    description: |
-      Plan & create a PCB layout.
-    stage: |
-      planning
+  - id: create_layout
+    name_translation_key: pcb_design.create_layout.text
+    description_translation_key: pcb_design.create_layout.description.text
+    stage: planning
     process:
-      - "ask users clearifying question to make the requirements clear and create requirements.md file"
-      - "for more complex tasks: create todo.md file and keep it updated with progress. Include filepaths or function names / variable names relevant."
-      - "if problem can't be solved within a few steps, ask if new approach should be tried or if requirements should be redefined"
-      - "guide user throw the process of creating the PCB layout using Python scripts for KiCad or manually via the KiCad UI"
-    # systemprompt just an early placeholder. Nowhere near complete.
+      - ask users clearifying question to make the requirements clear and create requirements.md file
+      - for more complex tasks: create todo.md file and keep it updated with progress. Include filepaths or function names / variable names relevant.
+      - if problem can't be solved within a few steps, ask if new approach should be tried or if requirements should be redefined
+      - guide user throw the process of creating the PCB layout using Python scripts for KiCad or manually via the KiCad UI
     systemprompt: |
       You are a PCB design expert.

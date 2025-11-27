@@ -189,12 +189,15 @@ async def invoke_openrouter_chat_completions(
             error_message=error_msg
         )
     
-    # Map to OpenRouter's expected model id when needed (e.g., alibaba → qwen/...)
-    resolved_model_id = _resolve_openrouter_model_id(model_id)
-
-    # Get provider overrides for the model (based on original upstream config)
-    provider_overrides = _get_provider_overrides_for_model(model_id)
-    logger.debug(f"{log_prefix} Using provider overrides: {provider_overrides}")
+    # When using OpenRouter, always use 'auto' provider selection to let OpenRouter
+    # choose the best available provider automatically. This prevents failures when
+    # a specific provider (like Mistral) is having issues.
+    # OpenRouter's 'auto' will select the best provider based on availability and performance.
+    resolved_model_id = "auto"
+    logger.info(f"{log_prefix} Using OpenRouter 'auto' provider selection (original model_id: '{model_id}')")
+    
+    # Don't use provider overrides when using 'auto' - let OpenRouter choose
+    provider_overrides = None
     
     # Invoke the OpenRouter API
     return await invoke_openrouter_api(

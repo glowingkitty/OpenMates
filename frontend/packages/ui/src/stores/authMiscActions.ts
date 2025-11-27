@@ -7,7 +7,7 @@
 
 import { get } from 'svelte/store';
 import { getApiEndpoint, apiEndpoints } from '../config/api';
-import { currentSignupStep, isInSignupProcess, getStepFromPath, isResettingTFA } from './signupState';
+import { currentSignupStep, isInSignupProcess, getStepFromPath, isResettingTFA, isSignupPath } from './signupState';
 import { userDB } from '../services/userDB';
 import { userProfile, defaultProfile, updateProfile, type UserProfile } from './userProfile';
 import { resetTwoFAData } from './twoFAState';
@@ -76,7 +76,7 @@ export async function setup2FAProvider(appName: string): Promise<{ success: bool
 export function completeSignup(userData: UserProfile): boolean {
      // Use UserProfile type for better checking
     if (userData && userData.username) { // Check for a key field like username
-        const inSignupFlow = userData.last_opened?.startsWith('/signup/');
+        const inSignupFlow = isSignupPath(userData.last_opened);
         if (inSignupFlow && userData.last_opened) {
             const step = getStepFromPath(userData.last_opened);
             console.debug("Setting signup state from completeSignup:", step);

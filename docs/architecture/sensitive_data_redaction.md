@@ -695,11 +695,351 @@ After:   "My email is michael.johnson@example.org and call 202-456-1111"
 
 ---
 
+## Presidio-Based Pseudonymization (Alternative Approach)
+
+**Status**: ⚠️ **EXPERIMENTAL** - Tested and working, but requires more experimentation to determine reliability boundaries.
+
+**Overview**: Microsoft Presidio provides a comprehensive PII detection and anonymization framework that can be used for pseudonymization (replacing PII with placeholders that can be reversed). This approach uses Presidio's `AnalyzerEngine` to detect PII and custom operators to replace detected entities with unique identifiers (e.g., `<PERSON_0>`, `<EMAIL_1>`, `<LOCATION_2>`).
+
+**Test Results**: Initial testing shows processing times of ~150ms for longer texts (~1,200 characters) with multiple PII entities. See [`presidio_pseudonymization.ipynb`](./presidio_pseudonymization.ipynb) for implementation examples and performance benchmarks.
+
+### Architecture
+
+#### Detection & Pseudonymization Flow
+
+1. **Detection Phase**: Use Presidio's `AnalyzerEngine` to identify PII entities in user messages
+   - Detects: PERSON, EMAIL, PHONE_NUMBER, LOCATION, ORGANIZATION, CREDIT_CARD, SSN, etc.
+   - Uses spaCy models (e.g., `en_core_web_lg`) for entity recognition
+   - Returns entity types, positions, and confidence scores
+
+2. **Pseudonymization Phase**: Use custom `AnonymizerEngine` operator to replace PII with placeholders
+   - Creates unique identifiers per entity type: `<PERSON_0>`, `<EMAIL_1>`, `<LOCATION_2>`, etc.
+   - Maintains entity mapping dictionary: `{entity_type: {original_value: placeholder}}`
+   - Stores mapping in-memory during request processing
+
+3. **LLM Processing**: Send pseudonymized text to LLM (no real PII exposed)
+
+4. **De-pseudonymization Phase**: Use `DeanonymizeEngine` to restore original values in LLM response
+   - Replaces placeholders back with original PII values
+   - Uses same entity mapping from pseudonymization phase
+   - Returns text with original PII restored
+
+#### Implementation Example
+
+```python
+from presidio_analyzer import AnalyzerEngine
+from presidio_anonymizer import AnonymizerEngine, DeanonymizeEngine, OperatorConfig
+from presidio_anonymizer.operators import Operator, OperatorType
+
+# Custom operator for pseudonymization
+class InstanceCounterAnonymizer(Operator):
+    """Replaces PII with unique identifiers like <PERSON_0>, <EMAIL_1>"""
+    REPLACING_FORMAT = "<{entity_type}_{index}>"
+    
+    def operate(self, text: str, params: Dict = None) -> str:
+        entity_type = params["entity_type"]
+        entity_mapping = params["entity_mapping"]
+        
+        # Get or create mapping for this entity type
+        entity_mapping_for_type = entity_mapping.get(entity_type, {})
+        
+        # If already mapped, return existing placeholder
+        if text in entity_mapping_for_type:
+            return entity_mapping_for_type[text]
+        
+        # Create new placeholder
+        index = len(entity_mapping_for_type)
+        placeholder = self.REPLACING_FORMAT.format(
+            entity_type=entity_type, index=index
+        )
+        
+        # Store mapping
+        entity_mapping[entity_type][text] = placeholder
+        return placeholder
+
+# Usage
+analyzer = AnalyzerEngine()
+anonymizer = AnonymizerEngine()
+anonymizer.add_anonymizer(InstanceCounterAnonymizer)
+
+# Detect PII
+analyzer_results = analyzer.analyze(text=user_message, language="en")
+
+# Pseudonymize
+entity_mapping = {}
+anonymized_result = anonymizer.anonymize(
+    user_message,
+    analyzer_results,
+    {
+        "DEFAULT": OperatorConfig(
+            "entity_counter", {"entity_mapping": entity_mapping}
+        )
+    },
+)
+
+# Send pseudonymized text to LLM
+llm_response = call_llm(anonymized_result.text)
+
+# De-pseudonymize LLM response
+deanonymizer = DeanonymizeEngine()
+deanonymizer.add_deanonymizer(InstanceCounterDeanonymizer)
+
+deanonymized_response = deanonymizer.deanonymize(
+    llm_response,
+    anonymized_result.items,
+    {"DEFAULT": OperatorConfig("entity_counter_deanonymizer",
+                               params={"entity_mapping": entity_mapping})}
+)
+```
+
+### When Presidio Works Reliably
+
+✅ **Reliable Use Cases**:
+- **Structured PII**: Email addresses, phone numbers, credit cards, SSNs (high accuracy)
+- **Clear context**: Names in formal documents, letters, emails
+- **Well-formed text**: Proper capitalization, punctuation, sentence structure
+- **English language**: Best support for English (other languages may require additional models)
+- **Single entity mentions**: Each PII entity appears once or in consistent contexts
+- **Standard formats**: Phone numbers, addresses, dates in common formats
+
+✅ **Performance Characteristics**:
+- **Fast processing**: ~50-150ms for typical messages (1,000-2,000 characters)
+- **Memory efficient**: ~200-300MB with spaCy `en_core_web_lg` model
+- **Scalable**: Can process multiple messages in sequence
+- **Reversible**: Full de-pseudonymization support via entity mapping
+
+### When Presidio May Not Work Reliably
+
+⚠️ **Challenging Scenarios** (Requires More Experimentation):
+
+1. **False Positives**:
+   - Technical terms mistaken for names: "Python", "Docker", "JavaScript"
+   - Common words: "Monday", "January", "Apple" (company vs. fruit)
+   - **Mitigation**: Implement whitelist of known false positives, context-aware filtering
+
+2. **False Negatives**:
+   - Uncommon name formats or misspellings
+   - Non-standard phone/email formats
+   - PII in code blocks or special formatting
+   - **Mitigation**: Combine with pattern-based detection, lower confidence thresholds
+
+3. **Context-Dependent Detection**:
+   - Names in code comments or technical documentation
+   - PII in URLs or file paths
+   - Abbreviations or nicknames
+   - **Mitigation**: Skip detection in code blocks, implement context filters
+
+4. **Multi-Language Support**:
+   - Non-English names and locations
+   - Different date/phone formats
+   - **Mitigation**: Load appropriate spaCy models per language, configure language-specific patterns
+
+5. **Ambiguous Entities**:
+   - "Paris" (city vs. person name)
+   - "Jordan" (country vs. person name)
+   - **Mitigation**: Use confidence thresholds, context analysis, entity disambiguation
+
+6. **Complex Text Structures**:
+   - Nested quotes, code blocks, markdown
+   - Tables, lists with PII
+   - **Mitigation**: Pre-process text to extract and handle structured content separately
+
+7. **Thread Safety**:
+   - Entity mapping must be isolated per request/context
+   - Concurrent processing requires careful mapping management
+   - **Mitigation**: Use request-scoped mappings, avoid shared state
+
+### Reliability Considerations & Best Practices
+
+#### 1. **Confidence Thresholding**
+```python
+# Only accept high-confidence detections
+analyzer_results = analyzer.analyze(text=text, language="en")
+filtered_results = [
+    r for r in analyzer_results 
+    if r.score >= 0.85  # Adjust threshold based on testing
+]
+```
+
+#### 2. **Context-Aware Filtering**
+```python
+# Skip detection in code blocks, URLs, file paths
+def should_detect_pii(text: str) -> bool:
+    if '```' in text or 'http://' in text or 'https://' in text:
+        return False  # Skip technical content
+    return True
+```
+
+#### 3. **Whitelist Management**
+```python
+# Known false positives to exclude
+FALSE_POSITIVE_WHITELIST = {
+    'PERSON': ['Python', 'JavaScript', 'Docker', 'Kubernetes'],
+    'LOCATION': ['Monday', 'Tuesday', 'January', 'February'],
+    'ORGANIZATION': ['Apple', 'Microsoft', 'Google']  # Context-dependent
+}
+```
+
+#### 4. **Hybrid Approach**
+Combine Presidio with pattern-based detection for better coverage:
+- Use Presidio for names, organizations, locations (ML-based)
+- Use regex patterns for emails, phones, credit cards (faster, more reliable)
+- Merge results and deduplicate
+
+#### 5. **Testing & Validation**
+- Test with diverse text samples (emails, letters, technical docs, code)
+- Measure false positive/negative rates
+- Validate de-pseudonymization accuracy
+- Performance benchmarking under load
+- Edge case testing (special characters, unicode, formatting)
+
+### Integration Points
+
+**Pre-Processing Stage** (`preprocessor.py`):
+```python
+# Pseudonymize user messages before sending to LLM
+pseudonymized_history, entity_mapping = pseudonymize_message_history(
+    message_history=request_data.message_history,
+    context_id=request_data.chat_id
+)
+
+# Store mapping for later de-pseudonymization
+request_data._pii_mapping = entity_mapping
+
+# Use pseudonymized history for LLM calls
+llm_result = await call_preprocessing_llm(
+    message_history=pseudonymized_history,
+    # ... other params
+)
+```
+
+**Post-Processing Stage** (`postprocessor.py` or response handler):
+```python
+# De-pseudonymize LLM response before sending to client
+depseudonymized_response = depseudonymize_text(
+    llm_response,
+    entity_mapping=request_data._pii_mapping
+)
+
+# Clear mapping after use
+del request_data._pii_mapping
+```
+
+### Configuration
+
+```yaml
+# backend/apps/ai/config/presidio_config.yml
+presidio:
+  enabled: true
+  model: "en_core_web_lg"  # or "en_core_web_sm" for faster processing
+  confidence_threshold: 0.85
+  
+  # Entity types to detect
+  entities:
+    - PERSON
+    - EMAIL_ADDRESS
+    - PHONE_NUMBER
+    - LOCATION
+    - ORGANIZATION
+    - CREDIT_CARD
+    - SSN
+  
+  # Context filters
+  context_filters:
+    skip_code_blocks: true
+    skip_urls: true
+    skip_file_paths: true
+  
+  # False positive whitelist
+  whitelist:
+    PERSON: ["Python", "JavaScript", "Docker"]
+    LOCATION: ["Monday", "January"]
+  
+  # Performance
+  cache_model: true  # Keep model in memory
+  max_text_length: 10000  # Skip processing for very long texts
+```
+
+### Performance Benchmarks
+
+Based on testing with [`presidio_pseudonymization.ipynb`](./presidio_pseudonymization.ipynb):
+
+| Text Length | Entities Found | Analysis Time | Anonymization Time | Total Time |
+|-------------|----------------|---------------|-------------------|------------|
+| ~100 chars  | 7 entities     | ~50ms         | ~5ms              | ~55ms      |
+| ~1,200 chars| 20+ entities   | ~100ms        | ~30ms             | ~150ms     |
+
+**Performance Notes**:
+- Analysis phase is typically the bottleneck (spaCy model inference)
+- Anonymization/de-anonymization are very fast (simple string replacement)
+- Model loading is one-time cost (can be cached)
+- Memory usage: ~400MB with `en_core_web_lg` model
+
+### Comparison: Presidio vs. data-anonymizer
+
+| Aspect | Presidio | data-anonymizer |
+|--------|----------|-----------------|
+| **Detection Method** | ML-based (spaCy) + patterns | Pattern-based only |
+| **Name Detection** | ✅ Excellent (ML) | ❌ Pattern-only |
+| **Email/Phone** | ✅ Excellent | ✅ Excellent |
+| **Speed** | 50-150ms | 5-10ms |
+| **Memory** | ~400MB (with model) | <50MB |
+| **Accuracy** | Higher (context-aware) | Good (pattern-based) |
+| **False Positives** | More (ML can over-detect) | Fewer (strict patterns) |
+| **Reversibility** | ✅ Yes (pseudonymization) | ✅ Yes (mapping) |
+| **Best For** | Complex text, names, context | Simple patterns, speed |
+
+### Recommendations
+
+**Use Presidio when**:
+- You need to detect person names reliably
+- Text contains complex, context-dependent PII
+- Accuracy is more important than speed
+- You have sufficient memory resources (~400MB+)
+
+**Use data-anonymizer when**:
+- Speed is critical (<10ms requirement)
+- Memory is constrained (<100MB)
+- PII is mostly structured (emails, phones, cards)
+- Pattern-based detection is sufficient
+
+**Hybrid Approach** (Recommended):
+- Use data-anonymizer for structured PII (emails, phones, cards) - fast and reliable
+- Use Presidio conditionally for names in specific contexts (letters, emails) - higher accuracy
+- Combine results and deduplicate
+
+### Next Steps for Implementation
+
+1. **More Experimentation Needed**:
+   - Test with diverse real-world message samples
+   - Measure false positive/negative rates
+   - Validate edge cases (code blocks, special characters, unicode)
+   - Performance testing under production load
+
+2. **Reliability Improvements**:
+   - Implement context-aware filtering
+   - Build comprehensive whitelist of false positives
+   - Add confidence threshold tuning
+   - Implement hybrid detection (Presidio + patterns)
+
+3. **Integration Planning**:
+   - Determine integration point (pre-processing vs. main processing)
+   - Design entity mapping storage (in-memory vs. encrypted cache)
+   - Plan for thread-safety in concurrent requests
+   - Error handling and fallback strategies
+
+4. **User Experience**:
+   - Decide whether to show pseudonymized text to users (transparency)
+   - Handle cases where de-pseudonymization fails
+   - Provide user controls (opt-in/opt-out)
+
 ## References
 - OWASP: Sensitive Data Exposure
 - data-anonymizer: https://pypi.org/project/data-anonymizer/
 - Faker: https://github.com/joke2k/faker
 - spaCy NER: https://spacy.io/usage/linguistic-features#named-entities
 - Microsoft Presidio: https://github.com/microsoft/presidio
+- Presidio Documentation: https://microsoft.github.io/presidio/
+- Presidio Pseudonymization Example: [`presidio_pseudonymization.ipynb`](./presidio_pseudonymization.ipynb)
 - GDPR Data Protection Best Practices
 - ISO 27001: Information Security Management

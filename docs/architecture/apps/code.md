@@ -52,7 +52,7 @@ def process_payment(amount, currency, payment_method, customer_email):
 - tiptap node (lightweight) with:
   - language (string)
   - line count (number)
-  - contentRef (string) pointing to full source in client ContentStore (memory + IndexedDB)
+  - contentRef (string) pointing to full source in client EmbedStore (memory + IndexedDB)
   - contentHash? (string, sha256 when finished; used for preview caching)
   - preview is derived at render-time (first 12 lines only)
   - "Write" text and 'modify' icon, indicating that the code is still being written
@@ -122,7 +122,7 @@ def process_payment(amount, currency, payment_method, customer_email):
 
 ##### Code | Finished | Fullscreen view
 
-Show code in fullscreen mode, with preview element in bottom of the screen (with filename, line count and language of the code). The download, copy to clipboard and modify buttons are also available in the top left corner. Top right corner has the fullscreen button, which closes the fullscreen view. Full source is resolved via `contentRef` from the client ContentStore and can stream/live-update independently of the preview node.
+Show code in fullscreen mode, with preview element in bottom of the screen (with filename, line count and language of the code). The download, copy to clipboard and modify buttons are also available in the top left corner. Top right corner has the fullscreen button, which closes the fullscreen view. Full source is resolved via `contentRef` from the client EmbedStore and can stream/live-update independently of the preview node.
 
 > Note: Modify functionality is not yet planned out and should be added in the future.
 
@@ -226,9 +226,114 @@ Uses e2b (https://github.com/e2b-dev/infra) to start a vm where the user code ca
 Use Sentry or similar providers to get the error logs after an issue occured, for better debugging and fixing of the issue.
 
 
+### Search
+
+**Recommended Approach:** Use `grep` (with `rg` as preferred alternative) for searching code in the codebase. This provides reliable pattern matching for the Search skill.
+
+### Replace
+
+**Status:** Planned feature - to be implemented with careful consideration.
+
+**Recommended Approach:** Consider using `sed` for code replacement operations. However, this requires **follow-up validation and safety checks** to prevent breaking the codebase:
+
+1. **Pattern Validation**: Before executing sed, validate that the pattern matches expected code blocks
+2. **Dry-run Preview**: Show the user a preview of all changes that would be made before applying them
+3. **Post-replacement Checks**: After applying sed replacements:
+   - Run linters and syntax validators to ensure code integrity
+   - Execute unit tests related to modified files
+   - Check for compilation/syntax errors
+   - Validate no critical functionality is broken
+4. **Rollback Capability**: Maintain the ability to revert changes if validation fails
+5. **Scope Limitation**: Require explicit file/directory scope to prevent accidental global changes
+
+This multi-step approach ensures sed can be used safely for large-scale code replacements without introducing bugs or breaking the codebase.
+
 ### Get docs
 
 Use context7.com API to get docs for the code. If no docs found, use web search + web read to get docs.
+
+## Automated Code Quality Checks
+
+> **Status:** Planned feature - to be implemented
+
+**Functionality:** Every time the chatbot generates code, an automated check runs to ensure no critical issues exist in the generated code. If issues are detected, the LLM is automatically requested to fix the code until it passes validation.
+
+**Description:**
+To prevent broken code from being generated and to maintain code quality, the Code app performs automated validation checks on all generated code before it's considered complete. This ensures that generated code is syntactically correct and free from critical issues.
+
+**Validation Process:**
+1. **Automatic Check**: After code generation completes, the system automatically runs validation checks specific to the programming language
+2. **Issue Detection**: If critical issues are found (e.g., syntax errors, indentation problems, compilation errors), the validation fails
+3. **Automatic Fix Request**: The LLM is automatically prompted to fix the detected issues
+4. **Iterative Fixing**: This process repeats until the code passes all validation checks or a maximum retry limit is reached
+
+**Language-Specific Validators:**
+
+| Language | Validator | Checks |
+|----------|-----------|--------|
+| **Python** | `py_compile` | Syntax errors, indentation issues, import errors |
+| **JavaScript/TypeScript** | ESLint / TypeScript compiler | Syntax errors, type errors, linting issues |
+| **Java** | `javac` | Compilation errors, syntax issues |
+| **C/C++** | `gcc` / `clang` | Compilation errors, syntax issues |
+| **Go** | `go build` | Compilation errors, syntax issues |
+| **Rust** | `rustc` | Compilation errors, syntax issues |
+| **Other languages** | Language-specific compilers/linters | Syntax and critical errors |
+
+**Implementation Strategy:**
+1. Create a validation service that detects the programming language from the code block
+2. Run appropriate validator for the detected language (e.g., `py_compile.compile()` for Python)
+3. Capture validation errors and format them for the LLM
+4. Automatically generate a fix request prompt with the error details
+5. Re-run validation after each fix attempt
+6. Set a maximum retry limit (e.g., 3-5 attempts) to prevent infinite loops
+
+**Benefits:**
+- Prevents broken code from being delivered to users
+- Catches syntax errors and indentation issues automatically
+- Reduces manual debugging time
+- Ensures code quality standards are maintained
+- Provides immediate feedback to improve code generation
+
+**Example Python Validation:**
+```python
+import py_compile
+import tempfile
+import os
+
+def validate_python_code(code: str) -> tuple[bool, str]:
+    """
+    Validates Python code using py_compile.
+    Returns (is_valid, error_message).
+    """
+    try:
+        # Create temporary file with the code
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
+            f.write(code)
+            temp_path = f.name
+        
+        # Compile the code to check for syntax errors
+        py_compile.compile(temp_path, doraise=True)
+        
+        # Clean up
+        os.unlink(temp_path)
+        
+        return True, ""
+    except py_compile.PyCompileError as e:
+        # Clean up on error
+        if os.path.exists(temp_path):
+            os.unlink(temp_path)
+        return False, str(e)
+    except Exception as e:
+        if os.path.exists(temp_path):
+            os.unlink(temp_path)
+        return False, f"Validation error: {str(e)}"
+```
+
+**Integration Points:**
+- Runs automatically after code generation in the message processing pipeline
+- Can be triggered manually for code blocks in chat history
+- Works with both streaming and non-streaming code generation
+- Integrates with the code preview system to show validation status
 
 ## Focuses
 

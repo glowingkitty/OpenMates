@@ -41,7 +41,7 @@
   };
 
   let touchDevice = $state(isTouchDevice());
-  
+
   // Force reactivity to language changes
   let currentLocale = $state($locale);
 
@@ -49,21 +49,14 @@
   let fullSuggestionsWithEncrypted = $state<Array<{ text: string; encrypted: string }>>([]);
   // Full suggestions pool (decrypted only), used for filtering
   let fullSuggestions = $state<string[]>([]);
-  // Currently shown suggestions (random 3 when input empty)
-  let suggestions = $state<Array<{text: string}>>([]);
   let loading = $state(true);
+  // Carousel state - tracks current page (0-indexed)
+  let currentSlide = $state(0);
+  let suggestionsPerSlide = 3;
+  // Track previous search term to reset pagination when search changes
+  let previousSearchTerm = $state<string>('');
 
   onMount(() => {
-    const pickRandomThree = (pool: string[]): Array<{text: string}> => {
-      // Ensure we only work with unique suggestions (remove duplicates)
-      const unique = Array.from(new Set(pool));
-      // Shuffle copy for randomization
-      const shuffled = unique.slice().sort(() => Math.random() - 0.5);
-      // Pick top 3 unique suggestions
-      const top3 = shuffled.slice(0, Math.min(3, shuffled.length));
-      return top3.map(text => ({ text }));
-    };
-
     const loadSuggestions = async () => {
         loading = true;
         
@@ -83,8 +76,8 @@
                 encrypted: '' // No encrypted version for default suggestions
             }));
             fullSuggestions = plainTextSuggestions;
-            suggestions = pickRandomThree(fullSuggestions);
-            console.debug('[NewChatSuggestions] Loaded default pool:', fullSuggestions.length, 'random shown:', suggestions.length);
+            console.debug('[NewChatSuggestions] Loaded default pool:', fullSuggestions.length);
+            currentSlide = 0; // Reset to first page when suggestions are reloaded
             loading = false;
             return;
         }
@@ -134,9 +127,8 @@
                 fullSuggestions = plainTextSuggestions;
             }
 
-            // Pick 3 random suggestions for empty-input state (fresh each mount)
-            suggestions = pickRandomThree(fullSuggestions);
-            console.debug('[NewChatSuggestions] Loaded full pool:', fullSuggestions.length, 'random shown:', suggestions.length);
+            console.debug('[NewChatSuggestions] Loaded full pool:', fullSuggestions.length);
+            currentSlide = 0; // Reset to first page when suggestions are reloaded
         } catch (error) {
             // Handle database errors gracefully (e.g., database being deleted during logout)
             // For non-authenticated users, this is expected - they don't need suggestions from DB
@@ -151,7 +143,7 @@
                     encrypted: ''
                 }));
                 fullSuggestions = plainTextSuggestions;
-                suggestions = pickRandomThree(fullSuggestions);
+                currentSlide = 0; // Reset to first page when suggestions are reloaded
             } else {
                 console.error('[NewChatSuggestions] Error loading suggestions:', error);
                 // For authenticated users with errors, also fall back to defaults
@@ -163,7 +155,7 @@
                     encrypted: ''
                 }));
                 fullSuggestions = plainTextSuggestions;
-                suggestions = pickRandomThree(fullSuggestions);
+                currentSlide = 0; // Reset to first page when suggestions are reloaded
             }
         } finally {
             loading = false;
@@ -217,12 +209,40 @@
     };
   });
 
+  // Reset pagination when search term changes
+  $effect(() => {
+    const searchTerm = (messageInputContent || '').trim();
+    if (searchTerm !== previousSearchTerm) {
+      previousSearchTerm = searchTerm;
+      currentSlide = 0; // Reset to first page when search changes
+      console.debug('[NewChatSuggestions] Search term changed, resetting to first page');
+    }
+  });
+
+  // CRITICAL: Reset currentSlide if it's beyond available complete pages
+  // This can happen when filtering reduces the number of complete pages
+  $effect(() => {
+    if (currentSlide >= totalCompletePages && totalCompletePages > 0) {
+      console.debug('[NewChatSuggestions] Current slide beyond complete pages, resetting to 0:', {
+        currentSlide,
+        totalCompletePages
+      });
+      currentSlide = 0;
+    }
+  });
+
+  // Get all available suggestions (either all when empty, or filtered when searching)
   let filteredSuggestions = $derived.by(() => {
     if (loading) return [];
 
     if (!messageInputContent || messageInputContent.trim() === '') {
-      // Show the pre-picked random 3 when input is empty
-      return suggestions.map(s => ({ text: s.text, matchIndex: -1, matchLength: 0 }));
+      // When input is empty, return all suggestions (will be paginated)
+      const uniqueSuggestions = Array.from(new Set(fullSuggestions));
+      return uniqueSuggestions.map(text => ({ 
+        text, 
+        matchIndex: -1, 
+        matchLength: 0 
+      }));
     }
 
     const searchTerm = messageInputContent.trim();
@@ -235,7 +255,7 @@
     });
 
     // Exact substring match (case-insensitive) across FULL pool
-    // Remove duplicates first, then filter and limit to top 3 unique results
+    // Remove duplicates first, then filter (return ALL matches, not limited to 3)
     const uniqueSuggestions = Array.from(new Set(fullSuggestions));
     
     const filtered = uniqueSuggestions
@@ -250,9 +270,7 @@
       })
       .filter(item => item.matchIndex !== -1)
       // Exclude exact matches (100% match) - no point showing what user already typed
-      .filter(item => item.text.toLowerCase() !== searchTermLower)
-      // Limit to top 3 unique matches
-      .slice(0, 3);
+      .filter(item => item.text.toLowerCase() !== searchTermLower);
 
     console.debug('[NewChatSuggestions] Filtered results:', filtered.length, 'unique matches');
 
@@ -276,12 +294,12 @@
    */
   function handleSuggestionClickWithTracking(suggestionText: string) {
     console.debug('[NewChatSuggestions] Suggestion clicked:', suggestionText);
-    
+
     // For authenticated users, track the suggestion for deletion after sending
     if ($authStore.isAuthenticated) {
       // Find the encrypted version of this suggestion
       const suggestionData = fullSuggestionsWithEncrypted.find(s => s.text === suggestionText);
-      
+
       if (suggestionData && suggestionData.encrypted) {
         // Track this suggestion (with encrypted text) so it can be deleted after the message is sent
         setClickedSuggestion(suggestionData.text, suggestionData.encrypted);
@@ -292,33 +310,140 @@
     } else {
       console.debug('[NewChatSuggestions] Non-authenticated user - not tracking suggestion for deletion');
     }
-    
+
     // Pass to parent handler (which will set it in the message input)
     onSuggestionClick(suggestionText);
   }
+
+  /**
+   * Calculate the number of complete pages (pages with exactly 3 suggestions)
+   * First page is excluded from this count as it can have 1-3 results
+   * Only subsequent pages (page 1+) need exactly 3 suggestions
+   */
+  let totalCompletePages = $derived(Math.floor(filteredSuggestions.length / suggestionsPerSlide));
+
+  /**
+   * Calculate if there are any complete pages after the first page
+   * Used to determine if the next button should be shown
+   */
+  let hasCompletePagesAfterFirst = $derived(filteredSuggestions.length > suggestionsPerSlide && totalCompletePages > 1);
+
+  /**
+   * Move to next page of suggestions
+   * First page can have 1-3 results, subsequent pages must have exactly 3
+   * Loops back to first page when reaching the end
+   */
+  function nextSlide() {
+    // Check if there are complete pages after the first page
+    if (!hasCompletePagesAfterFirst) return; // No complete pages after first page
+    
+    // Calculate the maximum slide we can navigate to
+    // First page (0) + complete pages after first (totalCompletePages - 1)
+    const maxSlide = totalCompletePages - 1;
+    
+    if (currentSlide < maxSlide) {
+      // Move to next complete page
+      currentSlide++;
+    } else {
+      // Loop back to first page when reaching the end
+      currentSlide = 0;
+      console.debug('[NewChatSuggestions] Reached last complete page, looping back to first page');
+    }
+  }
+
+  /**
+   * Get the currently visible suggestions for the current page
+   * First page (page 0): Shows suggestions even if there are fewer than 3 (1 or 2 results)
+   * Subsequent pages: Only shows if there are exactly 3 suggestions (complete page)
+   */
+  let visibleSuggestions = $derived.by(() => {
+    if (filteredSuggestions.length === 0) return [];
+    
+    // Calculate pagination for current page
+    const startIdx = currentSlide * suggestionsPerSlide;
+    const endIdx = startIdx + suggestionsPerSlide;
+    const paginated = filteredSuggestions.slice(startIdx, endIdx);
+    
+    // EXCEPTION: First page (page 0) can show 1 or 2 results when searching
+    // This ensures users see search results even if there are only 1-2 matches
+    if (currentSlide === 0) {
+      // First page: Show if we have at least 1 suggestion
+      if (paginated.length > 0) {
+        console.debug('[NewChatSuggestions] Visible suggestions (first page, may be incomplete):', {
+          currentSlide,
+          startIdx,
+          endIdx,
+          totalSuggestions: filteredSuggestions.length,
+          visibleCount: paginated.length
+        });
+        return paginated;
+      }
+    } else {
+      // Subsequent pages: Only show if we have exactly 3 (complete page)
+      if (paginated.length !== suggestionsPerSlide) {
+        console.debug('[NewChatSuggestions] Incomplete page detected (not first page), returning empty array:', {
+          currentSlide,
+          startIdx,
+          endIdx,
+          totalSuggestions: filteredSuggestions.length,
+          visibleCount: paginated.length,
+          expectedCount: suggestionsPerSlide
+        });
+        return [];
+      }
+    }
+    
+    console.debug('[NewChatSuggestions] Visible suggestions (complete page):', {
+      currentSlide,
+      startIdx,
+      endIdx,
+      totalSuggestions: filteredSuggestions.length,
+      visibleCount: paginated.length
+    });
+    
+    return paginated;
+  });
+  
+  /**
+   * Determine if next button should be enabled
+   * Only enabled when there are complete pages after the first page
+   * (First page can have 1-3 results, but subsequent pages must have exactly 3)
+   */
+  let canNextSlide = $derived(hasCompletePagesAfterFirst);
 </script>
 
-{#if !loading && filteredSuggestions.length > 0}
+{#if !loading && visibleSuggestions.length > 0}
   <div class="suggestions-wrapper">
     <div class="suggestions-header">
       {#key currentLocale}
         {touchDevice ? $text('chat.suggestions.header_tap.text') : $text('chat.suggestions.header_click.text')}
       {/key}
     </div>
-    <div class="suggestions-container">
-      {#each filteredSuggestions as suggestion (suggestion.text)}
-      {@const highlighted = renderHighlightedText(suggestion)}
-      <button
-        class="suggestion-item"
-        onclick={() => handleSuggestionClickWithTracking(suggestion.text)}
-      >
-        {#if typeof highlighted === 'string'}
-          {highlighted}
-        {:else}
-          <span class="text-part">{highlighted.before}</span><span class="text-match">{highlighted.match}</span><span class="text-part">{highlighted.after}</span>
-        {/if}
-      </button>
-    {/each}
+    <div class="carousel-container">
+      <div class="suggestions-container">
+        {#each visibleSuggestions as suggestion (suggestion.text)}
+        {@const highlighted = renderHighlightedText(suggestion)}
+        <button
+          class="suggestion-item"
+          onclick={() => handleSuggestionClickWithTracking(suggestion.text)}
+        >
+          {#if typeof highlighted === 'string'}
+            {highlighted}
+          {:else}
+            <span class="text-part">{highlighted.before}</span><span class="text-match">{highlighted.match}</span><span class="text-part">{highlighted.after}</span>
+          {/if}
+        </button>
+      {/each}
+      </div>
+      {#if canNextSlide}
+        <button
+          class="carousel-nav next-nav"
+          onclick={nextSlide}
+          aria-label="Next suggestions"
+        >
+          →
+        </button>
+      {/if}
     </div>
   </div>
 {/if}
@@ -347,15 +472,55 @@
     }
   }
 
+  .carousel-container {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+
   .suggestions-container {
     display: flex;
     flex-direction: column;
     gap: 5px;
-    margin-bottom: 8px;
+    flex: 1;
     padding: 6px 10px;
     background-color: var(--color-grey-15);
     border: 1px solid var(--color-grey-25);
     border-radius: 10px;
+    min-height: 60px;
+  }
+
+  .carousel-nav {
+    background-color: var(--color-grey-15);
+    border: 1px solid var(--color-grey-25);
+    border-radius: 10px;
+    color: var(--color-grey-60);
+    cursor: pointer;
+    padding: 8px 12px;
+    font-size: 18px;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s ease;
+    min-width: 40px;
+    height: auto;
+  }
+
+  .carousel-nav:hover:not(:disabled) {
+    background-color: var(--color-grey-20);
+    color: var(--color-grey-70);
+    border-color: var(--color-grey-35);
+  }
+
+  .carousel-nav:active:not(:disabled) {
+    transform: scale(0.95);
+  }
+
+  .carousel-nav:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
   }
 
   .suggestion-item {
@@ -406,14 +571,25 @@
   }
 
   @media (max-width: 730px) {
+    .carousel-container {
+      gap: 6px;
+      margin-bottom: 6px;
+    }
+
     .suggestions-container {
       gap: 5px;
-      margin-bottom: 6px;
       padding: 5px 8px;
+      min-height: 55px;
     }
 
     .suggestions-header {
       padding: 0 15px;
+    }
+
+    .carousel-nav {
+      padding: 6px 10px;
+      font-size: 16px;
+      min-width: 36px;
     }
 
     .suggestion-item {

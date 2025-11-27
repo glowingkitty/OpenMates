@@ -1,0 +1,438 @@
+section_title:
+  context: Title of the design guidelines section
+  en: Design Guidelines
+  de: Design-Richtlinien
+  zh: 设计准则
+  es: Directrices de diseño
+  fr: Principes de conception
+  pt: Diretrizes de design
+  ru: Руководство по дизайну
+  ja: デザインガイドライン
+  ko: 디자인 가이드라인
+  it: Linee guida di progettazione
+  tr: Tasarım Kılavuzları
+  vi: Hướng dẫn thiết kế
+  id: Pedoman desain
+  pl: Wytyczne projektowe
+  nl: Ontwerprichtlijnen
+  ar: إرشادات التصميم
+  hi: डिज़ाइन दिशानिर्देश
+  th: แนวทางการออกแบบ
+  cs: Pokyny pro design
+  sv: Designriktlinjer
+  verified_by_human: []
+privacy:
+  en: ''
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+privacy.headline:
+  context: Main headline for privacy section
+  en: Your privacy matters
+  de: Deine Privatsphäre ist wichtig
+  zh: 您的隐私至关重要
+  es: Tu privacidad importa
+  fr: Votre vie privée est importante
+  pt: Sua privacidade importa
+  ru: Ваша конфиденциальность важна
+  ja: あなたのプライバシーは重要です
+  ko: 귀하의 개인정보가 중요합니다
+  it: La tua privacy è importante
+  tr: Gizliliğiniz önemlidir
+  vi: Quyền riêng tư của bạn rất quan trọng
+  id: Privasi Anda penting
+  pl: Twoja prywatność jest ważna
+  nl: Jouw privacy is belangrijk
+  ar: خصوصيتك مهمة
+  hi: आपकी गोपनीयता मायने रखती है
+  th: ความเป็นส่วนตัวของคุณมีความสำคัญ
+  cs: Vaše soukromí je důležité
+  sv: Din integritet är viktig
+  verified_by_human: []
+privacy.text:
+  context: Main text explaining privacy importance
+  en: In today's turbulent world, where profit-at-all-costs companies frequently misuse user data, where companies with inadequate security measures are regularly hacked and their users' data falls into the hands of bad actors, and where we cannot always rely on governments to protect the rights and well-being of their citizens, making decisions to safeguard your privacy has become increasingly essential.
+  de: In der heutigen turbulenten Welt, in der Profit-um-jeden-Preis Unternehmen häufig Nutzerdaten missbrauchen, in der Unternehmen mit unzureichenden Sicherheitsmaßnahmen regelmäßig gehackt werden und die Nutzerdaten in die Hände von böswilligen Akteuren fallen, und in der wir uns nicht immer darauf verlassen können, dass Regierungen die Rechte und das Wohlergehen ihrer Bürger schützen, wird es zunehmend wichtiger, Entscheidungen zum Schutz deiner Privatsphäre zu treffen.
+  zh: 在当今动荡的世界中，不惜一切代价追求利润的公司经常滥用用户数据，安全措施不足的公司经常遭到黑客攻击，其用户的数据落入不良行为者手中，我们不能总是依靠政府来保护其公民的权利和福祉，因此，做出保护您隐私的决定变得越来越重要。
+  es: En el turbulento mundo actual, donde las empresas que buscan beneficios a toda costa frecuentemente hacen mal uso de los datos de los usuarios, donde las empresas con medidas de seguridad inadecuadas son regularmente hackeadas y los datos de sus usuarios caen en manos de actores malintencionados, y donde no siempre podemos confiar en que los gobiernos protejan los derechos y el bienestar de sus ciudadanos, tomar decisiones para salvaguardar tu privacidad se ha vuelto cada vez más esencial.
+  fr: Dans le monde turbulent d'aujourd'hui, où les entreprises privilégiant le profit à tout prix abusent fréquemment des données des utilisateurs, où les entreprises avec des mesures de sécurité inadéquates sont régulièrement piratées et les données de leurs utilisateurs tombent entre les mains d'acteurs malveillants, et où nous ne pouvons pas toujours compter sur les gouvernements pour protéger les droits et le bien-être de leurs citoyens, prendre des décisions pour protéger votre vie privée est devenu de plus en plus essentiel.
+  pt: No mundo turbulento de hoje, onde empresas que buscam lucro a qualquer custo frequentemente fazem mau uso dos dados do usuário, onde empresas com medidas de segurança inadequadas são regularmente hackeadas e os dados de seus usuários caem nas mãos de atores mal-intencionados, e onde nem sempre podemos confiar nos governos para proteger os direitos e o bem-estar de seus cidadãos, tomar decisões para proteger sua privacidade tornou-se cada vez mais essencial.
+  ru: В сегодняшнем турбулентном мире, где компании, стремящиеся к прибыли любой ценой, часто злоупотребляют данными пользователей, где компании с недостаточными мерами безопасности регулярно взламываются, и данные их пользователей попадают в руки злоумышленников, и где мы не всегда можем полагаться на правительства для защиты прав и благополучия своих граждан, принятие решений по защите вашей конфиденциальности стало все более важным.
+  ja: 今日の混乱した世界では、利益優先の企業がユーザーデータを頻繁に悪用し、不十分なセキュリティ対策の企業が定期的にハッキングされてユーザーデータが悪意のある者の手に渡り、政府が市民の権利と福祉を守ってくれるとは限らない状況で、プライバシーを守る決断を下すことがますます重要になってきています。
+  ko: 오늘날의 혼란한 세계에서 이익을 최우선으로 하는 기업들이 사용자 데이터를 자주 남용하고, 부적절한 보안 조치를 취한 기업들이 정기적으로 해킹당하여 사용자 데이터가 악의적인 행위자의 손에 들어가며, 정부가 시민의 권리와 복지를 보호하는 것을 항상 믿을 수 없는 상황에서, 개인정보를 보호하기 위한 결정을 내리는 것이 점점 더 중요해지고 있습니다.
+  it: Nel mondo turbolento di oggi, dove le aziende orientate al profitto a tutti i costi abusano frequentemente dei dati degli utenti, dove le aziende con misure di sicurezza inadeguate vengono regolarmente hackerate e i dati dei loro utenti finiscono nelle mani di attori malintenzionati, e dove non possiamo sempre fare affidamento sui governi per proteggere i diritti e il benessere dei loro cittadini, prendere decisioni per proteggere la tua privacy è diventato sempre più essenziale.
+  tr: Günümüzün çalkantılı dünyasında, her ne pahasına olursa olsun kâr peşinde koşan şirketler sıkça kullanıcı verilerini kötüye kullanmakta, yetersiz güvenlik önlemlerine sahip şirketler düzenli olarak hacklenmekte ve kullanıcı verileri kötü niyetli aktörlerin eline geçmekte ve hükümetlerin vatandaşlarının haklarını ve refahını koruyacağına her zaman güvenemediğimiz bir ortamda, gizliliğinizi korumak için kararlar almak giderek daha önemli hale gelmiştir.
+  vi: Trong thế giới hỗn loạn ngày nay, nơi các công ty theo đuổi lợi nhuận bằng mọi giá thường xuyên lạm dụng dữ liệu người dùng, nơi các công ty có biện pháp bảo mật không đầy đủ thường xuyên bị tấn công và dữ liệu người dùng của họ rơi vào tay những kẻ xấu, và nơi chúng ta không phải lúc nào cũng có thể tin tưởng vào chính phủ để bảo vệ quyền lợi và phúc lợi của công dân, việc đưa ra quyết định bảo vệ quyền riêng tư của bạn ngày càng trở nên cần thiết.
+  id: Di dunia yang bergejolak saat ini, di mana perusahaan yang mengutamakan keuntungan dengan segala cara sering menyalahgunakan data pengguna, di mana perusahaan dengan langkah keamanan yang tidak memadai secara teratur diretas dan data pengguna mereka jatuh ke tangan pelaku jahat, dan di mana kita tidak selalu dapat mengandalkan pemerintah untuk melindungi hak dan kesejahteraan warganya, membuat keputusan untuk melindungi privasi Anda menjadi semakin penting.
+  pl: W dzisiejszym burzliwym świecie, gdzie firmy nastawione na zysk za wszelką cenę często nadużywają danych użytkowników, gdzie firmy z nieodpowiednimi środkami bezpieczeństwa są regularnie hakowane, a dane ich użytkowników trafiają w ręce złych aktorów, i gdzie nie zawsze możemy polegać na rządach w ochronie praw i dobra swoich obywateli, podejmowanie decyzji w celu ochrony Twojej prywatności stało się coraz bardziej istotne.
+  nl: In de turbulente wereld van vandaag, waar bedrijven die winst boven alles stellen regelmatig misbruik maken van gebruikersgegevens, waar bedrijven met ontoereikende beveiligingsmaatregelen regelmatig worden gehackt en de gegevens van hun gebruikers in handen van kwaadwillenden vallen, en waar we niet altijd kunnen vertrouwen op regeringen om de rechten en het welzijn van hun burgers te beschermen, is het nemen van beslissingen om je privacy te beschermen steeds essentiëler geworden.
+  ar: في عالم اليوم المضطرب، حيث تسيء الشركات التي تسعى للربح بأي ثمن استخدام بيانات المستخدمين بشكل متكرر، حيث يتم اختراق الشركات ذات إجراءات الأمان غير الكافية بانتظام وتقع بيانات مستخدميها في أيدي الجهات الفاعلة السيئة، وحيث لا يمكننا دائمًا الاعتماد على الحكومات لحماية حقوق ورفاهية مواطنيها، أصبح اتخاذ قرارات لحماية خصوصيتك أمرًا ضروريًا بشكل متزايد.
+  hi: आज की अशांत दुनिया में, जहां सभी लागतों पर लाभ कमाने वाली कंपनियां अक्सर उपयोगकर्ता डेटा का दुरुपयोग करती हैं, जहां अपर्याप्त सुरक्षा उपायों वाली कंपनियां नियमित रूप से हैक की जाती हैं और उनके उपयोगकर्ताओं का डेटा बुरे अभिनेताओं के हाथों में आ जाता है, और जहां हम हमेशा सरकारों पर भरोसा नहीं कर सकते कि वे अपने नागरिकों के अधिकारों और कल्याण की रक्षा करें, आपकी गोपनीयता की सुरक्षा के लिए निर्णय लेना तेजी से आवश्यक हो गया है।
+  th: ในโลกที่ปั่นป่วนในปัจจุบัน ที่บริษัทที่แสวงหากำไรอย่างไม่มีข้อจำกัดมักจะใช้ข้อมูลผู้ใช้ในทางที่ผิด ที่บริษัทที่มีมาตรการความปลอดภัยไม่เพียงพอถูกแฮ็กเป็นประจำและข้อมูลผู้ใช้ของพวกเขาตกไปอยู่ในมือของผู้ทำร้าย และที่เราไม่สามารถพึ่งพารัฐบาลเสมอไปในการปกป้องสิทธิและความเป็นอยู่ที่ดีของพลเมือง การตัดสินใจเพื่อปกป้องความเป็นส่วนตัวของคุณได้กลายเป็นสิ่งสำคัญมากขึ้น
+  cs: V dnešním bouřlivém světě, kde společnosti zaměřené na zisk za každou cenu často zneužívají uživatelská data, kde společnosti s nedostatečnými bezpečnostními opatřeními jsou pravidelně hacknuty a data jejich uživatelů se dostanou do rukou zlých aktérů, a kde nemůžeme vždy spoléhat na vlády, že budou chránit práva a blahobyt svých občanů, se rozhodnutí o ochraně vašeho soukromí stala stále důležitější.
+  sv: I dagens turbulenta värld, där företag som strävar efter vinst till varje pris ofta missbrukar användardata, där företag med otillräckliga säkerhetsåtgärder regelbundet hackas och deras användares data hamnar i händerna på dåliga aktörer, och där vi inte alltid kan lita på att regeringar skyddar sina medborgares rättigheter och välbefinnande, har beslut för att skydda din integritet blivit alltmer väsentliga.
+  verified_by_human: []
+privacy.subtext:
+  context: Conclusion for privacy section
+  en: 'Therefore,
+
+    OpenMates is designed
+
+    with a focus on privacy.
+
+    '
+  de: 'Deshalb wurde
+
+    OpenMates mit Fokus
+
+    auf Privatsphäre entwickelt.
+
+    '
+  zh: '因此，
+
+    OpenMates 的设计
+
+    注重隐私。
+
+    '
+  es: 'Por lo tanto,
+
+    OpenMates está diseñado
+
+    con un enfoque en la privacidad.
+
+    '
+  fr: 'Par conséquent,
+
+    OpenMates est conçu
+
+    en mettant l''accent sur la confidentialité.
+
+    '
+  pt: ''
+  ru: ''
+  ja: 'そのため、
+
+    OpenMatesは
+
+    プライバシーを重視して設計されています。
+
+    '
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+privacy.anonymization:
+  context: Privacy feature - anonymization
+  en: Anonymization
+  de: Anonymisierung
+  zh: 匿名化
+  es: Anonimización
+  fr: Anonymisation
+  pt: ''
+  ru: ''
+  ja: 匿名化
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+privacy.local_processing:
+  context: Privacy feature - local processing
+  en: Local processing first
+  de: Lokale Verarbeitung zuerst
+  zh: 优先本地处理
+  es: Procesamiento local primero
+  fr: Traitement local en premier
+  pt: ''
+  ru: ''
+  ja: ローカル処理優先
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+privacy.self_hosting:
+  context: Privacy feature - self hosting
+  en: Self hosting option
+  de: Self-Hosting Option
+  zh: 自托管选项
+  es: Opción de autoalojamiento
+  fr: Option d'auto-hébergement
+  pt: ''
+  ru: ''
+  ja: セルフホスティングオプション
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+maximum_good:
+  en: ''
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+maximum_good.headline_1:
+  context: Used in 'Maximum good, not maximum greed.'
+  en: Maximum good
+  de: Maximaler Nutzen
+  zh: 最大化善意
+  es: Máximo beneficio
+  fr: Bien maximum,
+  pt: ''
+  ru: ''
+  ja: 最大限の善
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+maximum_good.headline_2:
+  context: Used in 'Maximum good, not maximum greed.'
+  en: not maximum greed.
+  de: statt maximale Gier.
+  zh: 而非最大化贪婪。
+  es: no máxima codicia.
+  fr: pas cupidité maximale.
+  pt: ''
+  ru: ''
+  ja: 最大限の貪欲ではなく。
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+maximum_good.text:
+  context: Main text explaining maximum good philosophy
+  en: Over recent years, profit-at-all-cost tech monopolies have over and over again prioritized their greed instead of the interests of their users and our planet, ignoring the negative consequences and destruction caused by those decisions. We can't just continue like that.
+  de: In den letzten Jahren haben Profit-um-jeden-Preis Tech-Monopole immer wieder ihre Gier über die Interessen ihrer Nutzer und unseres Planeten gestellt und dabei die negativen Folgen und Zerstörung ignoriert, die diese Entscheidungen verursachen. So können wir nicht weitermachen.
+  zh: 近年来，不惜一切代价追求利润的科技垄断企业一再将贪婪置于用户和地球的利益之上，忽视了这些决定造成的负面后果和破坏。 我们不能再这样继续下去了。
+  es: Durante los últimos años, los monopolios tecnológicos que buscan beneficios a toda costa han priorizado repetidamente su codicia por encima de los intereses de sus usuarios y nuestro planeta, ignorando las consecuencias negativas y la destrucción causada por esas decisiones. No podemos continuar así.
+  fr: Au cours des dernières années, les monopoles technologiques privilégiant le profit à tout prix ont maintes et maintes fois privilégié leur cupidité au détriment des intérêts de leurs utilisateurs et de notre planète, ignorant les conséquences négatives et la destruction causées par ces décisions.  Nous ne pouvons pas continuer ainsi.
+  pt: ''
+  ru: ''
+  ja: 近年、利益優先のテクノロジー独占企業は、ユーザーや地球の利益よりも自らの貪欲さを優先し、その決定がもたらす悪影響や破壊を無視し続けてきました。このままでは続けられません。
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+maximum_good.subtext:
+  context: Conclusion for maximum good section
+  en: 'Therefore,
+
+    OpenMates is designed
+
+    with a focus on maximizing the positive impact of AI.
+
+    '
+  de: 'Deshalb wurde
+
+    OpenMates mit Fokus auf die
+
+    Maximierung des positiven Auswirkungen von KI entwickelt.
+
+    '
+  zh: '因此，
+
+    OpenMates 的设计
+
+    着重于最大化人工智能的积极影响。
+
+    '
+  es: 'Por lo tanto,
+
+    OpenMates está diseñado
+
+    con un enfoque en maximizar el impacto positivo de la IA.
+
+    '
+  fr: 'Par conséquent,
+
+    OpenMates est conçu
+
+    en mettant l''accent sur la maximisation de l''impact positif de l''IA.
+
+    '
+  pt: ''
+  ru: ''
+  ja: 'そのため、
+
+    OpenMatesはAIの
+
+    ポジティブな影響を最大化することに焦点を当てて設計されています。
+
+    '
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+maximum_good.open_source:
+  context: Maximum good feature - open source
+  en: Open Source
+  de: Open Source
+  zh: 开源
+  es: Código abierto
+  fr: Open Source
+  pt: ''
+  ru: ''
+  ja: オープンソース
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+maximum_good.provider_independent:
+  context: Maximum good feature - provider independence
+  en: Provider independent
+  de: Anbieter-unabhängig
+  zh: 独立于供应商
+  es: Independiente del proveedor
+  fr: Indépendant du fournisseur
+  pt: ''
+  ru: ''
+  ja: プロバイダー独立
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+maximum_good.chat_anywhere:
+  context: Maximum good feature - universal chat
+  en: Chat anywhere
+  de: Überall chatten
+  zh: 随时随地聊天
+  es: Chatea en cualquier lugar
+  fr: Chattez n'importe où
+  pt: ''
+  ru: ''
+  ja: どこでもチャット
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []

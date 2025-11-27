@@ -157,6 +157,7 @@ export async function handlePhase1LastChatImpl(
         chat_id: payload.chat_id,
         has_chat_details: !!payload.chat_details,
         messages_count: payload.messages?.length || 0,
+        embeds_count: payload.embeds?.length || 0,
         suggestions_count: payload.new_chat_suggestions?.length || 0,
         already_synced: payload.already_synced
     });
@@ -253,6 +254,54 @@ export async function handlePhase1LastChatImpl(
             }
         } else {
             console.warn("[ChatSyncService:CoreSync] ⚠️ No new chat suggestions received in Phase 1 - this is unexpected!");
+        }
+        
+        // CRITICAL: Save embeds to EmbedStore (Phase 1 may include embeds for the chat)
+        // This ensures embeds are available for rendering when messages are displayed
+        // Embeds from sync are already client-encrypted, so we store them as-is (no re-encryption)
+        if (payload.embeds && payload.embeds.length > 0) {
+            console.info("[ChatSyncService:CoreSync] Saving", payload.embeds.length, "embeds to EmbedStore");
+            try {
+                const { embedStore } = await import('./embedStore');
+                
+                for (const embed of payload.embeds) {
+                    // Each embed should have: embed_id, encrypted_content, encrypted_type, status, etc.
+                    if (!embed.embed_id) {
+                        console.warn('[ChatSyncService:CoreSync] Embed missing embed_id, skipping:', embed);
+                        continue;
+                    }
+                    
+                    // Create contentRef in the format used by embeds: embed:{embed_id}
+                    const contentRef = `embed:${embed.embed_id}`;
+                    
+                    // Store the embed with its already-encrypted content (no re-encryption)
+                    // This matches the pattern used for messages during sync
+                    await embedStore.putEncrypted(contentRef, {
+                        encrypted_content: embed.encrypted_content, // Already client-encrypted from Directus
+                        encrypted_type: embed.encrypted_type, // Already client-encrypted from Directus
+                        embed_id: embed.embed_id,
+                        status: embed.status || 'finished',
+                        hashed_chat_id: embed.hashed_chat_id,
+                        hashed_user_id: embed.hashed_user_id,
+                        embed_ids: embed.embed_ids,
+                        parent_embed_id: embed.parent_embed_id,
+                        version_number: embed.version_number,
+                        encrypted_diff: embed.encrypted_diff,
+                        file_path: embed.file_path,
+                        content_hash: embed.content_hash,
+                        text_length_chars: embed.text_length_chars,
+                        share_mode: embed.share_mode || 'private',
+                        createdAt: embed.createdAt || embed.created_at,
+                        updatedAt: embed.updatedAt || embed.updated_at
+                    }, (embed.encrypted_type ? 'app-skill-use' : embed.embed_type || 'app-skill-use') as any);
+                }
+                
+                console.info("[ChatSyncService:CoreSync] ✅ Successfully saved", payload.embeds.length, "embeds to EmbedStore (as-is, no re-encryption)");
+            } catch (embedError) {
+                console.error("[ChatSyncService:CoreSync] Error saving embeds to EmbedStore:", embedError);
+            }
+        } else {
+            console.debug("[ChatSyncService:CoreSync] No embeds in Phase 1 payload (chat may not have any)");
         }
         
         // CRITICAL FIX: Add delay to ensure ALL IndexedDB operations are queryable

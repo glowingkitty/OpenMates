@@ -392,6 +392,13 @@ export async function handleSend(
         }
 
 
+        // CRITICAL: Notify backend about the active chat BEFORE sending the message
+        // This prevents race conditions where the backend starts processing the message
+        // and tries to stream chunks before knowing which chat is active, causing chunks to be dropped
+        // This is especially important for new chats where the active_chat might be null or the old chat ID
+        await chatSyncService.sendSetActiveChat(chatIdToUse);
+        console.debug('[handleSend] Notified backend about active chat before sending message:', chatIdToUse);
+
         // Send message to backend via chatSyncService
         // Include encrypted suggestion for deletion if one was clicked
         await chatSyncService.sendNewMessage(messagePayload, encryptedSuggestionToDelete);

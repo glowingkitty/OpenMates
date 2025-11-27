@@ -1,0 +1,46 @@
+interface:
+  context: Interface settings menu item
+  en: Interface
+  de: Oberfläche
+  zh: 界面
+  es: Interfaz
+  fr: Interface
+  pt: ''
+  ru: ''
+  ja: インターフェース
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+language:
+  context: Language settings menu item in interface section
+  en: Language
+  de: Sprache
+  zh: 语言
+  es: Idioma
+  fr: Langue
+  pt: ''
+  ru: ''
+  ja: 言語
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []

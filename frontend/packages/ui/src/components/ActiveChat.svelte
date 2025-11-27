@@ -15,9 +15,20 @@
     import { tooltip } from '../actions/tooltip';
     import { chatDB } from '../services/db';
     import { chatSyncService } from '../services/chatSyncService'; // Import chatSyncService
+    import { skillPreviewService } from '../services/skillPreviewService'; // Import skillPreviewService
     import KeyboardShortcuts from './KeyboardShortcuts.svelte';
+    import WebSearchSkillPreview from './app_skills/WebSearchSkillPreview.svelte';
+    import WebSearchSkillFullscreen from './app_skills/WebSearchSkillFullscreen.svelte';
+    import WebSearchEmbedFullscreen from './embeds/WebSearchEmbedFullscreen.svelte';
+    import NewsSearchEmbedFullscreen from './embeds/NewsSearchEmbedFullscreen.svelte';
+    import VideosSearchEmbedFullscreen from './embeds/VideosSearchEmbedFullscreen.svelte';
+    import MapsSearchEmbedFullscreen from './embeds/MapsSearchEmbedFullscreen.svelte';
+    import VideoTranscriptSkillPreview from './app_skills/VideoTranscriptSkillPreview.svelte';
+    import VideoTranscriptSkillFullscreen from './app_skills/VideoTranscriptSkillFullscreen.svelte';
+    import WebsiteFullscreen from './embeds/WebsiteFullscreen.svelte';
+    import WebsiteEmbedFullscreen from './embeds/WebsiteEmbedFullscreen.svelte';
     import { userProfile, loadUserProfileFromDB } from '../stores/userProfile';
-    import { isInSignupProcess, currentSignupStep, getStepFromPath, isLoggingOut } from '../stores/signupState';
+    import { isInSignupProcess, currentSignupStep, getStepFromPath, isLoggingOut, isSignupPath } from '../stores/signupState';
     import { initializeApp } from '../app';
     import { aiTypingStore, type AITypingStatus } from '../stores/aiTypingStore'; // Import the new store
     import { decryptWithMasterKey } from '../services/cryptoService'; // Import decryption function
@@ -242,6 +253,152 @@
         console.debug('Set fullscreen data:', fullscreenCodeData);
         showCodeFullscreen = true;
     }
+    
+    // Add state for embed fullscreen
+    let showEmbedFullscreen = $state(false);
+    let embedFullscreenData = $state<any>(null);
+    
+    // Handler for embed fullscreen events (from embed renderers)
+    async function handleEmbedFullscreen(event: CustomEvent) {
+        console.debug('[ActiveChat] Received embedfullscreen event:', event.detail);
+        
+        const { embedId, embedData, decodedContent, embedType, attrs } = event.detail;
+        
+        // If embedData is not provided, load it from EmbedStore
+        let finalEmbedData = embedData;
+        let finalDecodedContent = decodedContent;
+        
+        if (!finalEmbedData && embedId) {
+            try {
+                const { resolveEmbed, decodeToonContent } = await import('../services/embedResolver');
+                finalEmbedData = await resolveEmbed(embedId);
+                
+                if (finalEmbedData && finalEmbedData.content) {
+                    finalDecodedContent = await decodeToonContent(finalEmbedData.content);
+                }
+            } catch (error) {
+                console.error('[ActiveChat] Error loading embed for fullscreen:', error);
+                return;
+            }
+        }
+        
+        // For web search embeds, load child website embeds and transform to results array
+        // This is needed because parent embed only contains embed_ids, not the actual website data
+        if (embedType === 'app-skill-use' && finalDecodedContent) {
+            const appId = finalDecodedContent.app_id || '';
+            const skillId = finalDecodedContent.skill_id || '';
+            
+            // embed_ids can be in decoded content OR in the embed data itself
+            // embed_ids may be a pipe-separated string OR an array - normalize to array
+            const rawEmbedIds = finalDecodedContent.embed_ids || finalEmbedData?.embed_ids || [];
+            const childEmbedIds: string[] = typeof rawEmbedIds === 'string' 
+                ? rawEmbedIds.split('|').filter((id: string) => id.length > 0)
+                : Array.isArray(rawEmbedIds) ? rawEmbedIds : [];
+            
+            if (appId === 'web' && skillId === 'search' && childEmbedIds.length > 0) {
+console.debug('[ActiveChat] Loading child website embeds for web search fullscreen:', childEmbedIds);
+                try {
+                    const { loadEmbeds, decodeToonContent: decodeToon } = await import('../services/embedResolver');
+                    const childEmbeds = await loadEmbeds(childEmbedIds);
+                    
+                    // Transform child embeds to WebSearchResult format
+                    const results = await Promise.all(childEmbeds.map(async (embed) => {
+                        const websiteContent = embed.content ? await decodeToon(embed.content) : null;
+                        if (!websiteContent) return null;
+                        
+                        return {
+                            type: 'search_result' as const,
+                            title: websiteContent.title || '',
+                            url: websiteContent.url || '',
+                            snippet: websiteContent.description || websiteContent.extra_snippets || '',
+                            hash: embed.embed_id || '',
+                            favicon_url: websiteContent.meta_url_favicon || websiteContent.favicon || '',
+                            preview_image_url: websiteContent.thumbnail_original || websiteContent.image || ''
+                        };
+                    }));
+                    
+                    // Filter out nulls and add to decoded content
+                    finalDecodedContent.results = results.filter(r => r !== null);
+                    console.info('[ActiveChat] Loaded', finalDecodedContent.results.length, 'website results for web search fullscreen:', 
+                        finalDecodedContent.results.map(r => ({ title: r?.title?.substring(0, 30), url: r?.url })));
+                } catch (error) {
+                    console.error('[ActiveChat] Error loading child embeds for web search:', error);
+                    // Continue without results - fullscreen will show "No results" message
+                }
+            } else if (appId === 'maps' && skillId === 'search' && childEmbedIds.length > 0) {
+                console.debug('[ActiveChat] Loading child place embeds for maps search fullscreen:', childEmbedIds);
+                try {
+                    const { loadEmbeds, decodeToonContent: decodeToon } = await import('../services/embedResolver');
+                    const childEmbeds = await loadEmbeds(childEmbedIds);
+                    
+                    // Transform child embeds to PlaceSearchResult format
+                    const results = await Promise.all(childEmbeds.map(async (embed) => {
+                        const placeContent = embed.content ? await decodeToon(embed.content) : null;
+                        if (!placeContent) return null;
+                        
+                        // Handle location - can be nested object or flattened fields
+                        let location = undefined;
+                        if (placeContent.location) {
+                            // Nested location object
+                            if (typeof placeContent.location === 'object' && 'latitude' in placeContent.location) {
+                                location = {
+                                    latitude: placeContent.location.latitude,
+                                    longitude: placeContent.location.longitude
+                                };
+                            }
+                        } else if (placeContent.location_latitude !== undefined || placeContent.location_longitude !== undefined) {
+                            // Flattened location fields (from TOON encoding)
+                            location = {
+                                latitude: placeContent.location_latitude,
+                                longitude: placeContent.location_longitude
+                            };
+                        }
+                        
+                        return {
+                            displayName: placeContent.name || placeContent.displayName || '',
+                            formattedAddress: placeContent.formatted_address || placeContent.formattedAddress || '',
+                            location: location,
+                            rating: placeContent.rating,
+                            userRatingCount: placeContent.user_rating_count || placeContent.userRatingCount,
+                            websiteUri: placeContent.website_uri || placeContent.websiteUri,
+                            placeId: placeContent.place_id || placeContent.placeId
+                        };
+                    }));
+                    
+                    // Filter out nulls and add to decoded content
+                    finalDecodedContent.results = results.filter(r => r !== null);
+                    console.info('[ActiveChat] Loaded', finalDecodedContent.results.length, 'place results for maps search fullscreen:', 
+                        finalDecodedContent.results.map(r => ({ name: r?.displayName?.substring(0, 30), address: r?.formattedAddress })));
+                } catch (error) {
+                    console.error('[ActiveChat] Error loading child embeds for maps search:', error);
+                    // Continue without results - fullscreen will show "No results" message
+                }
+            } else if (appId === 'web' && skillId === 'search') {
+                console.warn('[ActiveChat] Web search fullscreen opened but no embed_ids found:', {
+                    decodedContentEmbedIds: finalDecodedContent.embed_ids,
+                    embedDataEmbedIds: finalEmbedData?.embed_ids
+                });
+            }
+        }
+        
+        // Store fullscreen data
+        embedFullscreenData = {
+            embedId,
+            embedData: finalEmbedData,
+            decodedContent: finalDecodedContent,
+            embedType,
+            attrs
+        };
+        
+        showEmbedFullscreen = true;
+        console.debug('[ActiveChat] Opening embed fullscreen:', embedType, embedId);
+    }
+    
+    // Handler for closing embed fullscreen
+    function handleCloseEmbedFullscreen() {
+        showEmbedFullscreen = false;
+        embedFullscreenData = null;
+    }
 
     // Handler for suggestion click - copies suggestion to message input
     function handleSuggestionClick(suggestion: string) {
@@ -257,13 +414,20 @@
     // Handler for post-processing completed event
     async function handlePostProcessingCompleted(event: CustomEvent) {
         const { chatId, followUpSuggestions: newSuggestions } = event.detail;
-        console.debug('[ActiveChat] Post-processing completed for chat:', chatId);
-        console.debug('[ActiveChat] Received follow-up suggestions:', newSuggestions);
+        console.info('[ActiveChat] 📬 Post-processing completed event received:', {
+            chatId,
+            currentChatId: currentChat?.chat_id,
+            match: currentChat?.chat_id === chatId,
+            newSuggestionsCount: newSuggestions?.length || 0,
+            newSuggestionsType: typeof newSuggestions,
+            isArray: Array.isArray(newSuggestions),
+            currentFollowUpCount: followUpSuggestions.length
+        });
 
         // Update follow-up suggestions if this is the active chat
         if (currentChat?.chat_id === chatId && newSuggestions && Array.isArray(newSuggestions)) {
             followUpSuggestions = newSuggestions;
-            console.debug('[ActiveChat] Updated followUpSuggestions:', $state.snapshot(followUpSuggestions));
+            console.info('[ActiveChat] ✅ Updated followUpSuggestions:', $state.snapshot(followUpSuggestions));
             
             // Also reload currentChat from database to ensure it has the latest encrypted metadata
             // This prevents a mismatch between the in-memory currentChat and the database state
@@ -377,6 +541,59 @@
     // Only show when user has explicitly focused the message input (clicked to type)
     let showFollowUpSuggestions = $derived(!showWelcome && messageInputFocused && followUpSuggestions.length > 0);
     
+    // Effect to reload follow-up suggestions when MessageInput is focused but suggestions are empty
+    // This handles the case where suggestions were stored in the database but weren't loaded
+    // in-memory (e.g., after post-processing completes but the event handler didn't fire)
+    $effect(() => {
+        if (messageInputFocused && !showWelcome && currentChat?.chat_id && followUpSuggestions.length === 0) {
+            // Only try to reload if we have encrypted suggestions in the chat
+            if (currentChat.encrypted_follow_up_request_suggestions) {
+                console.debug('[ActiveChat] MessageInput focused but no suggestions - attempting to reload from database');
+                // Use an IIFE to handle async operations
+                (async () => {
+                    try {
+                        const chatKey = chatDB.getOrGenerateChatKey(currentChat.chat_id);
+                        const { decryptArrayWithChatKey } = await import('../services/cryptoService');
+                        const decryptedSuggestions = await decryptArrayWithChatKey(
+                            currentChat.encrypted_follow_up_request_suggestions, 
+                            chatKey
+                        );
+                        if (decryptedSuggestions && decryptedSuggestions.length > 0) {
+                            followUpSuggestions = decryptedSuggestions;
+                            console.info('[ActiveChat] Reloaded follow-up suggestions on focus:', decryptedSuggestions.length);
+                        }
+                    } catch (error) {
+                        console.error('[ActiveChat] Failed to reload follow-up suggestions on focus:', error);
+                    }
+                })();
+            } else {
+                // Try to refresh chat from database in case it was updated
+                console.debug('[ActiveChat] No encrypted suggestions in currentChat - checking database');
+                (async () => {
+                    try {
+                        const freshChat = await chatDB.getChat(currentChat.chat_id);
+                        if (freshChat?.encrypted_follow_up_request_suggestions) {
+                            const chatKey = chatDB.getOrGenerateChatKey(currentChat.chat_id);
+                            const { decryptArrayWithChatKey } = await import('../services/cryptoService');
+                            const decryptedSuggestions = await decryptArrayWithChatKey(
+                                freshChat.encrypted_follow_up_request_suggestions, 
+                                chatKey
+                            );
+                            if (decryptedSuggestions && decryptedSuggestions.length > 0) {
+                                followUpSuggestions = decryptedSuggestions;
+                                // Also update currentChat to have the latest data
+                                currentChat = { ...currentChat, ...freshChat };
+                                console.info('[ActiveChat] Loaded follow-up suggestions from fresh database read:', decryptedSuggestions.length);
+                            }
+                        }
+                    } catch (error) {
+                        console.error('[ActiveChat] Failed to load suggestions from database on focus:', error);
+                    }
+                })();
+            }
+        }
+    });
+    
     // Removed loading state - no more loading screen
     
     // Generate a temporary chat ID for draft saving when no chat is loaded
@@ -399,6 +616,25 @@
                 // Clear temporary chat ID since we now have a real chat
                 temporaryChatId = null;
                 console.debug("[ActiveChat] Loaded newly created chat, cleared temporary chat ID");
+                
+                // CRITICAL: Sync liveInputText after new chat is created and loaded
+                // This ensures the search term is preserved when a new chat is created from a draft
+                setTimeout(() => {
+                    if (messageInputFieldRef) {
+                        try {
+                            const currentText = messageInputFieldRef.getTextContent();
+                            if (currentText.trim().length > 0 && currentText !== liveInputText) {
+                                liveInputText = currentText;
+                                console.debug('[ActiveChat] Synced liveInputText after new chat creation:', { 
+                                    text: currentText, 
+                                    length: currentText.length 
+                                });
+                            }
+                        } catch (error) {
+                            console.warn('[ActiveChat] Failed to sync liveInputText after new chat creation:', error);
+                        }
+                    }
+                }, 150); // Delay to ensure editor content is stable after chat creation
                 
                 // Notify backend about the active chat
                 chatSyncService.sendSetActiveChat(currentChat.chat_id);
@@ -479,15 +715,43 @@
 
     // Handler for AI message chunks (streaming)
     async function handleAiMessageChunk(event: CustomEvent) {
+        // 🔍 STREAMING DEBUG: Log handler invocation immediately
+        console.log(`[ActiveChat] 🎯 HANDLER INVOKED | event received at ${new Date().toISOString()}`);
+        
         const chunk = event.detail as any; // AIMessageUpdatePayload
+        const timestamp = new Date().toISOString();
+        const contentLength = chunk.full_content_so_far?.length || 0;
+        
+        // 🔍 STREAMING DEBUG: Log chunk processing start
+        console.log(
+            `[ActiveChat] 🟡 CHUNK PROCESSING START | ` +
+            `seq: ${chunk.sequence} | ` +
+            `chat_id: ${chunk.chat_id} | ` +
+            `message_id: ${chunk.message_id} | ` +
+            `content_length: ${contentLength} chars | ` +
+            `is_final: ${chunk.is_final_chunk} | ` +
+            `timestamp: ${timestamp}`
+        );
+        
         console.debug(`[ActiveChat] handleAiMessageChunk: Event for chat_id: ${chunk.chat_id}. Current active chat_id: ${currentChat?.chat_id}`);
+        console.log(
+            `[ActiveChat] 🔍 CHAT STATE CHECK | ` +
+            `currentChat exists: ${!!currentChat} | ` +
+            `currentChat.chat_id: ${currentChat?.chat_id || 'null'} | ` +
+            `chunk.chat_id: ${chunk.chat_id} | ` +
+            `match: ${currentChat?.chat_id === chunk.chat_id}`
+        );
 
         if (!currentChat || currentChat.chat_id !== chunk.chat_id) {
-            console.warn('[ActiveChat] handleAiMessageChunk: Received AI chunk for non-active chat or no current chat. Current:', currentChat?.chat_id, 'Chunk:', chunk.chat_id, 'Ignoring.');
+            console.warn(
+                `[ActiveChat] ⚠️ CHUNK IGNORED (wrong chat) | ` +
+                `seq: ${chunk.sequence} | ` +
+                `current_chat: ${currentChat?.chat_id || 'null'} | ` +
+                `chunk_chat: ${chunk.chat_id} | ` +
+                `currentChat exists: ${!!currentChat}`
+            );
             return;
         }
-
-        // console.debug('[ActiveChat] handleAiMessageChunk: Processing AI message chunk for active chat:', chunk);
 
         // Operate on currentMessages state
         let targetMessageIndex = currentMessages.findIndex(m => m.message_id === chunk.message_id);
@@ -518,13 +782,29 @@
                 currentMessages = [...currentMessages, newAiMessage];
                 messageToSave = newAiMessage;
                 isNewMessageInStream = true;
+                console.log(
+                    `[ActiveChat] 🆕 NEW MESSAGE CREATED | ` +
+                    `seq: ${chunk.sequence} | ` +
+                    `message_id: ${chunk.message_id} | ` +
+                    `content_length: ${newAiMessage.content.length} chars`
+                );
                 console.debug('[ActiveChat] Created new AI message for streaming:', newAiMessage);
             } else {
-                console.warn('[ActiveChat] AI chunk received for unknown message_id, but not first chunk and last message not user. Ignoring.', chunk);
+                console.warn(
+                    `[ActiveChat] ⚠️ CHUNK IGNORED (invalid state) | ` +
+                    `seq: ${chunk.sequence} | ` +
+                    `message_id: ${chunk.message_id} | ` +
+                    `current_messages_count: ${currentMessages.length} | ` +
+                    `last_message_role: ${currentMessages[currentMessages.length - 1]?.role}`
+                );
                 return;
             }
         } else {
             // Update existing message
+            const previousLength = targetMessage.content?.length || 0;
+            const newLength = chunk.full_content_so_far?.length || 0;
+            const lengthDiff = newLength - previousLength;
+            
             // Only update content if full_content_so_far is not empty,
             // or if it's the first chunk (sequence 1) where it might legitimately start empty.
             if (chunk.full_content_so_far || chunk.sequence === 1) {
@@ -537,30 +817,77 @@
             currentMessages[targetMessageIndex] = targetMessage;
             currentMessages = [...currentMessages]; // New array reference for Svelte reactivity
             messageToSave = targetMessage;
+            
+            // 🔍 STREAMING DEBUG: Log content update
+            console.log(
+                `[ActiveChat] 📝 MESSAGE UPDATED | ` +
+                `seq: ${chunk.sequence} | ` +
+                `message_id: ${chunk.message_id} | ` +
+                `previous_length: ${previousLength} chars | ` +
+                `new_length: ${newLength} chars | ` +
+                `diff: ${lengthDiff > 0 ? '+' : ''}${lengthDiff} chars`
+            );
         }
         
         // Update UI
         if (chatHistoryRef) {
+            console.log(
+                `[ActiveChat] 🎨 UI UPDATE | ` +
+                `seq: ${chunk.sequence} | ` +
+                `message_id: ${chunk.message_id} | ` +
+                `calling chatHistoryRef.updateMessages() with ${currentMessages.length} messages`
+            );
             chatHistoryRef.updateMessages(currentMessages);
+        } else {
+            console.warn(`[ActiveChat] ⚠️ chatHistoryRef is null, cannot update UI (seq: ${chunk.sequence})`);
         }
 
         // Save to IndexedDB
         if (messageToSave) {
             try {
+                const saveStartTime = performance.now();
                 // Check if this message already exists to prevent duplicates
                 const existingMessage = await chatDB.getMessage(messageToSave.message_id);
                 if (existingMessage && !isNewMessageInStream) {
-                    console.debug(`[ActiveChat] Message ${messageToSave.message_id} already exists in DB, skipping duplicate save`);
+                    console.log(
+                        `[ActiveChat] 💾 DB SAVE SKIPPED (duplicate) | ` +
+                        `seq: ${chunk.sequence} | ` +
+                        `message_id: ${messageToSave.message_id}`
+                    );
                 } else {
-                    console.debug(`[ActiveChat] Saving/Updating AI message to DB (isNew: ${isNewMessageInStream}):`, messageToSave);
+                    console.log(
+                        `[ActiveChat] 💾 DB SAVE START | ` +
+                        `seq: ${chunk.sequence} | ` +
+                        `message_id: ${messageToSave.message_id} | ` +
+                        `isNew: ${isNewMessageInStream} | ` +
+                        `content_length: ${messageToSave.content.length} chars`
+                    );
                     await chatDB.saveMessage(messageToSave); // saveMessage handles both add and update
+                    const saveDuration = performance.now() - saveStartTime;
+                    console.log(
+                        `[ActiveChat] ✅ DB SAVE COMPLETE | ` +
+                        `seq: ${chunk.sequence} | ` +
+                        `message_id: ${messageToSave.message_id} | ` +
+                        `duration: ${saveDuration.toFixed(2)}ms`
+                    );
                 }
             } catch (error) {
-                console.error('[ActiveChat] Error saving/updating AI message to DB:', error);
+                console.error(
+                    `[ActiveChat] ❌ DB SAVE ERROR | ` +
+                    `seq: ${chunk.sequence} | ` +
+                    `message_id: ${messageToSave.message_id} | ` +
+                    `error:`, error
+                );
             }
         }
 
         if (chunk.is_final_chunk) {
+            console.log(
+                `[ActiveChat] 🏁 FINAL CHUNK PROCESSED | ` +
+                `seq: ${chunk.sequence} | ` +
+                `message_id: ${chunk.message_id} | ` +
+                `total_content_length: ${chunk.full_content_so_far?.length || 0} chars`
+            );
             console.debug('[ActiveChat] Final AI chunk marker received for message_id:', chunk.message_id);
             const finalMessageInArray = currentMessages.find(m => m.message_id === chunk.message_id);
             if (finalMessageInArray) {
@@ -623,6 +950,24 @@
         currentChat = chat;
         console.debug("[ActiveChat] Draft saved, updating currentChat:", currentChat);
 
+        // CRITICAL: Sync liveInputText with current editor content after draft save
+        // This ensures the search in new chat suggestions stays in sync even after debounced draft saves
+        // The textchange event might not fire after draft saves, so we manually sync here
+        if (messageInputFieldRef) {
+            try {
+                const currentText = messageInputFieldRef.getTextContent();
+                if (currentText !== liveInputText) {
+                    liveInputText = currentText;
+                    console.debug('[ActiveChat] Synced liveInputText after draft save:', { 
+                        text: currentText, 
+                        length: currentText.length 
+                    });
+                }
+            } catch (error) {
+                console.warn('[ActiveChat] Failed to sync liveInputText after draft save:', error);
+            }
+        }
+
         if (isNewChat) {
             console.debug("[ActiveChat] New chat created from draft, dispatching chatSelected:", chat);
             dispatch('chatSelected', { chat }); // Dispatch to parent (e.g. a component that embeds ActiveChat and Chats)
@@ -669,9 +1014,13 @@
         console.debug("[ActiveChat] handleSendMessage: Reset liveInputText after sending message");
 
         console.debug("[ActiveChat] handleSendMessage: Received message payload:", message);
+        
+        // CRITICAL: Handle new chat creation immediately to ensure UI is in sync with backend events
         if (newChat) {
-            console.debug("[ActiveChat] handleSendMessage: New chat detected, setting currentChat and initializing messages.", newChat);
-            currentChat = newChat; // Immediately set currentChat if a new chat was created
+            console.info("[ActiveChat] handleSendMessage: New chat detected, setting currentChat and initializing messages.", newChat);
+            
+            // Force update currentChat immediately
+            currentChat = newChat;
             currentMessages = [message]; // Initialize messages with the first message
             
             // Clear temporary chat ID since we now have a real chat
@@ -697,7 +1046,10 @@
             console.debug("[ActiveChat] Dispatched globalChatSelected for new chat");
         } else {
             // This is a message for an existing, already active chat
-            currentMessages = [...currentMessages, message];
+            // Ensure we don't duplicate the message if it's already in currentMessages
+            if (!currentMessages.some(m => m.message_id === message.message_id)) {
+                currentMessages = [...currentMessages, message];
+            }
         }
 
         if (chatHistoryRef) {
@@ -815,6 +1167,14 @@
         } catch (err) {
             console.error('[ActiveChat] Failed to clear activeChatStore on new chat:', err);
         }
+    }
+
+    // Expose a helper so parents can reset the UI to the new chat state (e.g., after deletions)
+    export async function resetToNewChat() {
+        if (!currentChat && showWelcome) {
+            return; // Already in a clean state
+        }
+        await handleNewChatClick();
     }
 
     // Add a handler for the share button click.
@@ -1308,17 +1668,22 @@
             }
             
             // Check if the user is in the middle of a signup process (based on last_opened)
-            if ($authStore.isAuthenticated && $userProfile.last_opened?.startsWith('/signup/')) {
-                console.debug("User detected in signup process:", $userProfile.last_opened);
+            // Only rely on explicit signup paths to avoid forcing passkey users back into OTP setup
+            if ($authStore.isAuthenticated && isSignupPath($userProfile.last_opened)) {
+                console.debug("User detected in signup process:", {
+                    last_opened: $userProfile.last_opened,
+                    tfa_enabled: $userProfile.tfa_enabled
+                });
                 // Set the signup process state to true so the signup component shows in Login
                 isInSignupProcess.set(true);
                 
+                // Open login interface to show signup flow
+                loginInterfaceOpen.set(true);
+                
                 // Extract step from last_opened to ensure we're on the right step
-                if ($userProfile.last_opened) {
-                    const step = getStepFromPath($userProfile.last_opened);
-                    console.debug("Setting signup step to:", step);
-                    currentSignupStep.set(step);
-                }
+                const step = getStepFromPath($userProfile.last_opened);
+                console.debug("Setting signup step to:", step);
+                currentSignupStep.set(step);
             }
             
             // CRITICAL FALLBACK: Load welcome demo chat for non-authenticated users if no chat is loaded
@@ -1466,8 +1831,80 @@
         };
         
         window.addEventListener('openLoginInterface', handleOpenLoginInterface);
+        
+        // Add event listener for embed fullscreen events
+        const embedFullscreenHandler = (event: CustomEvent) => {
+            handleEmbedFullscreen(event);
+        };
+        document.addEventListener('embedfullscreen', embedFullscreenHandler as EventListener);
+        
+        // Add event listeners for login interface and demo chat
         window.addEventListener('closeLoginInterface', handleCloseLoginInterface);
         window.addEventListener('loadDemoChat', handleLoadDemoChat);
+        
+        // Cleanup on destroy
+        return () => {
+            document.removeEventListener('embedfullscreen', embedFullscreenHandler as EventListener);
+            window.removeEventListener('openLoginInterface', handleOpenLoginInterface as EventListener);
+            window.removeEventListener('closeLoginInterface', handleCloseLoginInterface as EventListener);
+            window.removeEventListener('loadDemoChat', handleLoadDemoChat as EventListener);
+        };
+        
+        // CRITICAL: Sync liveInputText with editor content after draft saves
+        // This ensures the search in new chat suggestions stays in sync even after debounced draft saves
+        // The textchange event might not fire after draft saves, so we listen for draft save events
+        const handleDraftSaveSync = () => {
+            // Use a delay to ensure the editor content is stable after the save
+            // Longer delay for first saves (new chat creation) to ensure editor is fully initialized
+            const delay = 200; // Increased delay to handle new chat creation
+            setTimeout(() => {
+                if (messageInputFieldRef) {
+                    try {
+                        const currentText = messageInputFieldRef.getTextContent();
+                        // CRITICAL: Only sync if editor has content OR if we're clearing (editor empty and liveInputText was set)
+                        // This prevents clearing liveInputText when editor content is temporarily unavailable during chat creation
+                        if (currentText !== liveInputText) {
+                            // If editor has content, always sync to it
+                            if (currentText.trim().length > 0) {
+                                liveInputText = currentText;
+                                console.debug('[ActiveChat] Synced liveInputText after draft save event (editor has content):', { 
+                                    text: currentText, 
+                                    length: currentText.length 
+                                });
+                            } else if (liveInputText.trim().length === 0) {
+                                // Both are empty, no need to sync
+                                console.debug('[ActiveChat] Both editor and liveInputText are empty, skipping sync');
+                            } else {
+                                // Editor is empty but liveInputText has content - this might be during chat creation
+                                // Don't clear liveInputText immediately, wait a bit more and check again
+                                setTimeout(() => {
+                                    if (messageInputFieldRef) {
+                                        const retryText = messageInputFieldRef.getTextContent();
+                                        if (retryText.trim().length > 0) {
+                                            // Editor now has content, sync to it
+                                            liveInputText = retryText;
+                                            console.debug('[ActiveChat] Synced liveInputText after retry (editor now has content):', { 
+                                                text: retryText, 
+                                                length: retryText.length 
+                                            });
+                                        } else {
+                                            // Editor is still empty, but only clear if user actually cleared it
+                                            // (This prevents clearing during chat creation)
+                                            console.debug('[ActiveChat] Editor still empty after retry, preserving liveInputText to prevent clearing during chat creation');
+                                        }
+                                    }
+                                }, 100); // Additional retry delay
+                            }
+                        }
+                    } catch (error) {
+                        console.warn('[ActiveChat] Failed to sync liveInputText after draft save event:', error);
+                    }
+                }
+            }, delay);
+        };
+        
+        // Listen for local chat list changes (dispatched when drafts are saved)
+        window.addEventListener('localChatListChanged', handleDraftSaveSync);
         
         // Listen for logout event to clear user chat and load demo chat
         // CRITICAL: This handler must work reliably on mobile, even if component isn't fully initialized
@@ -1591,7 +2028,9 @@
         chatSyncService.addEventListener('messageStatusChanged', messageStatusHandler);
         
         // Add listener for AI message chunks
+        console.log('[ActiveChat] 📌 Registering aiMessageChunk event listener');
         chatSyncService.addEventListener('aiMessageChunk', handleAiMessageChunk as EventListener);
+        console.log('[ActiveChat] ✅ aiMessageChunk event listener registered');
 
         // Add listeners for AI task state changes
         const aiTaskInitiatedHandler = (async (event: CustomEvent<AITaskInitiatedPayload>) => {
@@ -1663,6 +2102,151 @@
         chatSyncService.addEventListener('aiTaskEnded', aiTaskEndedHandler);
         chatSyncService.addEventListener('chatDeleted', chatDeletedHandler);
         chatSyncService.addEventListener('postProcessingCompleted', handlePostProcessingCompleted as EventListener);
+        
+        // Handle skill preview updates - add app cards to messages
+        const handleSkillPreviewUpdate = async (event: CustomEvent) => {
+            const { task_id, previewData, chat_id, message_id } = event.detail;
+            
+            // Only process if this preview is for the current chat
+            if (!currentChat || currentChat.chat_id !== chat_id) {
+                console.debug('[ActiveChat] Skill preview update for different chat, ignoring');
+                return;
+            }
+            
+            // Find the message by message_id
+            let messageIndex = currentMessages.findIndex(m => m.message_id === message_id);
+            
+            // If message doesn't exist yet, create a placeholder assistant message
+            // This happens when skill preview arrives BEFORE the first streaming chunk
+            // (new architecture: placeholder embed is yielded immediately when tool call is detected)
+            if (messageIndex === -1) {
+                console.debug('[ActiveChat] Creating placeholder assistant message for skill preview:', message_id);
+                
+                // Find the user message to get user_message_id (should be the last user message)
+                const lastUserMessage = [...currentMessages].reverse().find(m => m.role === 'user');
+                
+                // Create placeholder assistant message
+                const placeholderMessage: ChatMessageModel = {
+                    message_id: message_id,
+                    chat_id: chat_id,
+                    user_message_id: lastUserMessage?.message_id,
+                    role: 'assistant',
+                    content: '', // Empty content - will be filled by streaming chunks
+                    status: 'streaming',
+                    created_at: Math.floor(Date.now() / 1000),
+                    encrypted_content: '',
+                    encrypted_category: undefined
+                };
+                
+                // Add the placeholder message to currentMessages
+                currentMessages = [...currentMessages, placeholderMessage];
+                
+                // Save to DB
+                try {
+                    await chatDB.saveMessage(placeholderMessage);
+                    console.debug('[ActiveChat] Saved placeholder assistant message to DB');
+                } catch (error) {
+                    console.error('[ActiveChat] Error saving placeholder assistant message to DB:', error);
+                }
+                
+                // Update ChatHistory
+                if (chatHistoryRef) {
+                    chatHistoryRef.updateMessages(currentMessages);
+                }
+                
+                // Now find the newly added message
+                messageIndex = currentMessages.findIndex(m => m.message_id === message_id);
+            }
+            
+            if (messageIndex === -1) {
+                console.warn('[ActiveChat] Failed to find or create message for skill preview:', message_id);
+                return;
+            }
+            
+            // Create app card from skill preview data
+            let appCard: any = null;
+            if (previewData.app_id === 'web' && previewData.skill_id === 'search') {
+                // Create WebSearchSkillPreview card
+                appCard = {
+                    component: WebSearchSkillPreview,
+                    props: {
+                        id: task_id,
+                        previewData: previewData,
+                        isMobile: $isMobileView,
+                        onFullscreen: () => {
+                            // Open fullscreen view
+                            showCodeFullscreen = false; // Close code fullscreen if open
+                            // Set fullscreen data for web search
+                            embedFullscreenData = {
+                                embedType: 'app-skill-use',
+                                embedData: { status: previewData.status },
+                                decodedContent: previewData
+                            };
+                            showEmbedFullscreen = true;
+                            console.debug('[ActiveChat] Opening fullscreen for web search skill:', task_id);
+                        }
+                    }
+                };
+            } else if (previewData.app_id === 'videos' && previewData.skill_id === 'get_transcript') {
+                // Create VideoTranscriptSkillPreview card
+                appCard = {
+                    component: VideoTranscriptSkillPreview,
+                    props: {
+                        id: task_id,
+                        previewData: previewData,
+                        isMobile: $isMobileView,
+                        onFullscreen: () => {
+                            // Open fullscreen view
+                            showCodeFullscreen = false; // Close code fullscreen if open
+                            // Set fullscreen data for video transcript
+                            embedFullscreenData = {
+                                embedType: 'app-skill-use',
+                                embedData: { status: previewData.status },
+                                decodedContent: previewData
+                            };
+                            showEmbedFullscreen = true;
+                            console.debug('[ActiveChat] Opening fullscreen for video transcript skill:', task_id);
+                        }
+                    }
+                };
+            }
+            
+            if (appCard) {
+                // Update the message with the app card
+                const updatedMessages = [...currentMessages];
+                const message = updatedMessages[messageIndex];
+                
+                // Initialize appCards array if it doesn't exist
+                if (!(message as any).appCards) {
+                    (message as any).appCards = [];
+                }
+                
+                // Check if this task_id already has a card (update existing)
+                const existingCardIndex = (message as any).appCards.findIndex(
+                    (card: any) => card.props?.id === task_id
+                );
+                
+                if (existingCardIndex !== -1) {
+                    // Update existing card
+                    (message as any).appCards[existingCardIndex] = appCard;
+                } else {
+                    // Add new card
+                    (message as any).appCards.push(appCard);
+                }
+                
+                // Update messages
+                currentMessages = updatedMessages;
+                
+                // Update ChatHistory
+                if (chatHistoryRef) {
+                    chatHistoryRef.updateMessages(currentMessages);
+                }
+                
+                console.debug('[ActiveChat] Added/updated skill preview card for message:', message_id);
+            }
+        };
+        
+        skillPreviewService.addEventListener('skillPreviewUpdate', handleSkillPreviewUpdate as EventListener);
 
         return () => {
             // Remove listeners from chatSyncService
@@ -1676,12 +2260,15 @@
             chatSyncService.removeEventListener('aiTaskEnded', aiTaskEndedHandler);
             chatSyncService.removeEventListener('chatDeleted', chatDeletedHandler);
             chatSyncService.removeEventListener('postProcessingCompleted', handlePostProcessingCompleted as EventListener);
+            skillPreviewService.removeEventListener('skillPreviewUpdate', handleSkillPreviewUpdate as EventListener);
             // Remove language change listener
             window.removeEventListener('language-changed', handleLanguageChange);
             // Remove login interface event listeners
             window.removeEventListener('openLoginInterface', handleOpenLoginInterface as EventListener);
             window.removeEventListener('closeLoginInterface', handleCloseLoginInterface as EventListener);
             window.removeEventListener('loadDemoChat', handleLoadDemoChat as EventListener);
+            // Remove draft save sync listener
+            window.removeEventListener('localChatListChanged', handleDraftSaveSync as EventListener);
             if (handleLogoutEvent) {
                 window.removeEventListener('userLoggingOut', handleLogoutEvent as EventListener);
             }
@@ -1872,6 +2459,88 @@
                     lineCount={fullscreenCodeData.lineCount}
                     onClose={handleCloseCodeFullscreen}
                 />
+            {/if}
+            
+            <!-- Embed fullscreen view (app-skill-use, website, etc.) -->
+            {#if showEmbedFullscreen && embedFullscreenData}
+                {#if embedFullscreenData.embedType === 'app-skill-use'}
+                    {@const skillId = embedFullscreenData.decodedContent?.skill_id || ''}
+                    {@const appId = embedFullscreenData.decodedContent?.app_id || ''}
+                    
+                    {#if appId === 'web' && skillId === 'search'}
+                        <!-- Web Search Fullscreen -->
+                        <WebSearchEmbedFullscreen 
+                            query={embedFullscreenData.decodedContent?.query || ''}
+                            provider={embedFullscreenData.decodedContent?.provider || 'Brave'}
+                            results={embedFullscreenData.decodedContent?.results || []}
+                            onClose={handleCloseEmbedFullscreen}
+                        />
+                    {:else if appId === 'news' && skillId === 'search'}
+                        <!-- News Search Fullscreen -->
+                        <NewsSearchEmbedFullscreen 
+                            query={embedFullscreenData.decodedContent?.query || ''}
+                            provider={embedFullscreenData.decodedContent?.provider || 'Brave'}
+                            results={embedFullscreenData.decodedContent?.results || []}
+                            onClose={handleCloseEmbedFullscreen}
+                        />
+                    {:else if appId === 'videos' && skillId === 'search'}
+                        <!-- Videos Search Fullscreen -->
+                        <VideosSearchEmbedFullscreen 
+                            query={embedFullscreenData.decodedContent?.query || ''}
+                            provider={embedFullscreenData.decodedContent?.provider || 'Brave'}
+                            results={embedFullscreenData.decodedContent?.results || []}
+                            onClose={handleCloseEmbedFullscreen}
+                        />
+                    {:else if appId === 'maps' && skillId === 'search'}
+                        <!-- Maps Search Fullscreen -->
+                        <MapsSearchEmbedFullscreen 
+                            query={embedFullscreenData.decodedContent?.query || ''}
+                            provider={embedFullscreenData.decodedContent?.provider || 'Google'}
+                            results={embedFullscreenData.decodedContent?.results || []}
+                            onClose={handleCloseEmbedFullscreen}
+                        />
+                    {:else if appId === 'videos' && skillId === 'get_transcript'}
+                        <!-- Video Transcript Fullscreen -->
+                        {@const previewData = {
+                            app_id: appId,
+                            skill_id: skillId,
+                            status: embedFullscreenData.embedData?.status || 'finished',
+                            results: embedFullscreenData.decodedContent?.results || [],
+                            video_count: embedFullscreenData.decodedContent?.video_count || 0,
+                            success_count: embedFullscreenData.decodedContent?.success_count || 0,
+                            failed_count: embedFullscreenData.decodedContent?.failed_count || 0
+                        }}
+                        <VideoTranscriptSkillFullscreen 
+                            previewData={previewData}
+                            onClose={handleCloseEmbedFullscreen}
+                        />
+                    {:else}
+                        <!-- Generic app skill fullscreen (fallback) -->
+                        <div class="embed-fullscreen-fallback">
+                            <div class="fullscreen-header">
+                                <button onclick={handleCloseEmbedFullscreen}>Close</button>
+                            </div>
+                            <div class="fullscreen-content">
+                                <pre>{JSON.stringify(embedFullscreenData.decodedContent, null, 2)}</pre>
+                            </div>
+                        </div>
+                    {/if}
+                {:else if embedFullscreenData.embedType === 'website'}
+                    <!-- Website Fullscreen -->
+                    {#if embedFullscreenData.decodedContent?.url || embedFullscreenData.attrs?.url}
+                        <WebsiteEmbedFullscreen 
+                            url={embedFullscreenData.decodedContent?.url || embedFullscreenData.attrs?.url || ''}
+                            title={embedFullscreenData.decodedContent?.title || embedFullscreenData.attrs?.title}
+                            description={embedFullscreenData.decodedContent?.description || embedFullscreenData.attrs?.description}
+                            favicon={embedFullscreenData.decodedContent?.meta_url_favicon || embedFullscreenData.decodedContent?.favicon || embedFullscreenData.attrs?.favicon}
+                            image={embedFullscreenData.decodedContent?.thumbnail_original || embedFullscreenData.decodedContent?.image || embedFullscreenData.attrs?.image}
+                            snippets={embedFullscreenData.decodedContent?.snippets}
+                            meta_url_favicon={embedFullscreenData.decodedContent?.meta_url_favicon}
+                            thumbnail_original={embedFullscreenData.decodedContent?.thumbnail_original}
+                            onClose={handleCloseEmbedFullscreen}
+                        />
+                    {/if}
+                {/if}
             {/if}
             <KeyboardShortcuts
                 on:newChat={handleNewChatClick}

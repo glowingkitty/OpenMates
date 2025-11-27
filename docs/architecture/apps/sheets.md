@@ -38,7 +38,7 @@ When the sheet is still being processed, those layouts are used.
 
 - tiptap node (lightweight) with:
 	- cell count (number)
-    - contentRef (string) pointing to full sheet content in client ContentStore (memory + IndexedDB)
+    - contentRef (string) pointing to full sheet content in client EmbedStore (memory + IndexedDB)
     - contentHash? (string, sha256 when finished; used for preview caching)
     - preview is derived at render-time and limited to cells A1:D6 only
     - "Write" text and 'modify' icon, indicating that the sheet is still being processed
@@ -96,7 +96,7 @@ When the sheet is finished being processed, those layouts are used.
 
 ##### Sheet | Finished | Fullscreen view
 
-Show sheet in fullscreen mode, with preview element in bottom of the screen (with filename, cell count and filetype). The download, copy to clipboard and modify buttons are also available in the top left corner. Top right corner has the minimize button, which closes the fullscreen view. Full content is resolved via `contentRef` from the client ContentStore and instantiated with Handsontable + HyperFormula in fullscreen.
+Show sheet in fullscreen mode, with preview element in bottom of the screen (with filename, cell count and filetype). The download, copy to clipboard and modify buttons are also available in the top left corner. Top right corner has the minimize button, which closes the fullscreen view. Full content is resolved via `contentRef` from the client EmbedStore and instantiated with Handsontable + HyperFormula in fullscreen.
 
 > Note: Modify functionality is not yet planned out and should be added in the future.
 

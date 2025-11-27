@@ -1,0 +1,51 @@
+search:
+  context: Skill name for search in News app
+  en: Search
+  de: Suche
+  zh: 搜索
+  es: Buscar
+  fr: Rechercher
+  pt: Pesquisar
+  ru: Поиск
+  ja: 検索
+  ko: 검색
+  it: Cerca
+  tr: Ara
+  vi: Tìm kiếm
+  id: Cari
+  pl: Szukaj
+  nl: Zoeken
+  ar: بحث
+  hi: खोजें
+  th: ค้นหา
+  cs: Hledat
+  sv: Sök
+  verified_by_human:
+    - en
+    - de
+search.description:
+  context: Description for search skill in News app
+  en: Search for news articles and stories.
+  de: Suche nach Nachrichtenartikeln und Geschichten.
+  zh: 搜索新闻文章和报道。
+  es: Busca artículos de noticias e historias.
+  fr: Recherchez des articles et des actualités.
+  pt: Pesquise artigos de notícias e histórias.
+  ru: Ищите новостные статьи и истории.
+  ja: ニュース記事やストーリーを検索する。
+  ko: 뉴스 기사와 스토리를 검색하세요.
+  it: Cerca articoli di notizie e storie.
+  tr: Haber makaleleri ve hikayeleri arayın.
+  vi: Tìm kiếm bài viết và tin tức.
+  id: Cari artikel berita dan cerita.
+  pl: Szukaj artykułów i wiadomości.
+  nl: Zoek naar nieuwsartikelen en verhalen.
+  ar: ابحث عن مقالات الأخبار والقصص.
+  hi: समाचार लेख और कहानियां खोजें।
+  th: ค้นหาบทความข่าวและเรื่องราว
+  cs: Hledejte novinové články a příběhy.
+  sv: Sök efter nyhetsartiklar och berättelser.
+  verified_by_human:
+    - en
+    - de
+

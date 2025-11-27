@@ -123,16 +123,37 @@ Prepare for your next appointment by discussing symptoms, necessary tests, and r
 4. Suggests questions to ask the doctor
 5. Reviews current medications and potential interactions
 
+## Settings and Memories
+
+The Health app stores encrypted user data for better health management and doctor appointment preparation.
+
+### Appointments
+Store health-related appointments including doctor visits, operations, specialist consultations, dental visits, eye care, therapy sessions, and vaccinations. The system automatically identifies upcoming appointments based on the appointment date.
+
+**Data stored**: appointment type, doctor/specialist name, clinic name, date, time, reason, location, contact phone, and notes.
+
+### Medical History
+Maintain a personal medical history including past surgeries, chronic conditions, allergies, medications, vaccinations, and injuries. This helps healthcare providers understand your health background.
+
+**Data stored**: condition type, condition name, date, status, details, and attending doctor name.
+
+### Symptoms Log
+Log symptoms you experience to help prepare for doctor appointments and identify patterns over time.
+
+**Data stored**: symptom description, onset date, severity level, frequency, and additional notes.
+
+For detailed information, see [Health App Architecture](../../architecture/apps/health.md).
+
 ## Data Privacy & Security
 
-**IMPORTANT**: User settings and health memories will only be implemented after end-to-end encryption is in place for storing sensitive health data.
+All user settings and health memories are encrypted end-to-end using the same security model as financial and authentication data. This ensures sensitive health information remains private and secure.
 
-Planned encrypted data storage:
-- Recent doctor visits
-- Upcoming appointments
-- Symptoms history
-- Medication lists
-- Test results
+Encrypted data storage includes:
+- Appointments (doctor visits, operations, specialist consultations, etc.)
+- Medical History (conditions, allergies, vaccinations, past treatments)
+- Symptoms Log (for appointment preparation and pattern analysis)
+- Medication information
+- Test results and medical documents
 
 ## Future Enhancements
 

@@ -20,14 +20,20 @@
         websocketStatus, // Import WebSocket status store
         userProfile, // Import user profile to access last_opened
         loadUserProfileFromDB, // Import loadUserProfileFromDB function
+        loginInterfaceOpen, // Import loginInterfaceOpen to control login interface visibility
+        currentSignupStep, // Import currentSignupStep to set signup step from hash
+        getStepFromPath, // Import getStepFromPath to parse step from hash
+        isSignupPath, // Import isSignupPath helper
         // types
         type Chat,
         // services
         chatDB,
         chatSyncService,
         webSocketService, // Import WebSocket service to listen for auth errors
+        mostUsedAppsStore, // Import most used apps store to fetch on app load
     } from '@repo/ui';
-    import { notificationStore, getKeyFromStorage, text } from '@repo/ui';
+    import { notificationStore, getKeyFromStorage, text, LANGUAGE_CODES } from '@repo/ui';
+    import { checkAndClearMasterKeyOnLoad } from '@repo/ui';
     import { onMount } from 'svelte';
     import { locale, waitLocale, _, isLoading } from 'svelte-i18n';
     import { browser } from '$app/environment';
@@ -244,7 +250,8 @@
 		if (browser) {
 			const urlParams = new URLSearchParams(window.location.search);
 			const langParam = urlParams.get('lang');
-			const supportedLocales = ['en', 'de', 'es', 'fr', 'zh', 'ja'];
+			// Use supported locales from single source of truth
+			const supportedLocales = LANGUAGE_CODES;
 			
 			if (langParam && supportedLocales.includes(langParam)) {
 				console.debug(`[+page.svelte] Setting locale from URL parameter: ${langParam}`);
@@ -266,6 +273,11 @@
 				window.history.replaceState({}, '', newUrl.toString());
 			}
 		}
+		
+		// SECURITY: Check if master key should be cleared (if stayLoggedIn was false)
+		// This must happen BEFORE loading user data to ensure key is cleared if needed
+		// This handles cases where user closed tab/browser with stayLoggedIn=false
+		await checkAndClearMasterKeyOnLoad();
 		
 		// CRITICAL OFFLINE-FIRST: Load local user data FIRST to set optimistic auth state
 		// This ensures user appears logged in immediately if they have local data, even if server is unreachable
@@ -291,6 +303,28 @@
 		
 		// Now check auth state after optimistic loading
 		const isAuth = $authStore.isAuthenticated;
+		
+		// CRITICAL: Check for signup hash in URL BEFORE initialize() to ensure hash-based signup state takes precedence
+		// This ensures signup flow opens immediately on page reload if URL has #signup/ hash
+		// The hash takes precedence over last_opened from IndexedDB and checkAuth() logic
+		let hasSignupHash = false;
+		if (window.location.hash.startsWith('#signup/')) {
+			hasSignupHash = true;
+			// Handle signup deep linking - open login interface and set signup step
+			console.debug(`[+page.svelte] Found signup deep link in URL (before initialize): ${window.location.hash}`);
+			
+			// Extract step from hash (e.g., #signup/credits -> credits)
+			const signupHash = window.location.hash.substring(1); // Remove leading #
+			const step = getStepFromPath(signupHash);
+			
+			console.debug(`[+page.svelte] Setting signup step to: ${step} from hash: ${window.location.hash}`);
+			
+			// Set signup step and open login interface BEFORE initialize() runs
+			// This ensures checkAuth() won't override these values
+			currentSignupStep.set(step);
+			isInSignupProcess.set(true);
+			loginInterfaceOpen.set(true);
+		}
 		
 		// CRITICAL FOR NON-AUTH: Mark sync completed IMMEDIATELY to prevent "Loading chats..." flash
 		// Must happen before initialize() because it checks $phasedSyncState.initialSyncCompleted
@@ -368,6 +402,25 @@
 		// Initialize authentication state (panelState will react to this)
 		await initialize(); // Call the imported initialize function
 		console.debug('[+page.svelte] initialize() finished');
+		
+		// CRITICAL: Re-check signup hash AFTER initialize() completes
+		// This ensures hash-based signup state persists even if checkAuth() reset it
+		// The hash takes absolute precedence over last_opened
+		if (hasSignupHash && window.location.hash.startsWith('#signup/')) {
+			console.debug(`[+page.svelte] Re-applying signup hash state after initialize(): ${window.location.hash}`);
+			const signupHash = window.location.hash.substring(1); // Remove leading #
+			const step = getStepFromPath(signupHash);
+			currentSignupStep.set(step);
+			isInSignupProcess.set(true);
+			loginInterfaceOpen.set(true);
+			console.debug(`[+page.svelte] Re-applied signup state: step=${step}, isInSignupProcess=true, loginInterfaceOpen=true`);
+		}
+		
+		// Fetch most used apps on app load (non-blocking, cached for 1 hour)
+		// This ensures data is available when App Store opens
+		mostUsedAppsStore.fetchMostUsedApps(0).catch(error => {
+			console.error('[+page.svelte] Error fetching most used apps:', error);
+		});
 		
 		// Load welcome chat for non-authenticated users (instant load)
 		// Use the actual DEMO_CHATS data to ensure all fields (including follow_up_suggestions) are present
@@ -489,12 +542,24 @@
             }
         }
 
-        // Handle deep links (e.g., #settings, #chat_id=, #chat-id=)
+        // Clear signup hash after processing (if it was present) to keep URL clean
+        // (similar to how chat deep links are cleared after loading)
+        if (hasSignupHash) {
+            window.history.replaceState({}, '', window.location.pathname + window.location.search);
+        }
+        
+        // Handle other deep links (settings, chat, etc.)
         if (window.location.hash.startsWith('#settings')) {
             panelState.openSettings();
             const settingsPath = window.location.hash.substring('#settings'.length);
             if (settingsPath.startsWith('/')) {
-                settingsDeepLink.set(settingsPath.substring(1)); // Remove leading slash
+                // Handle paths like #settings/appstore -> app_store
+                let path = settingsPath.substring(1); // Remove leading slash
+                // Map common aliases to actual settings paths
+                if (path === 'appstore') {
+                    path = 'app_store';
+                }
+                settingsDeepLink.set(path);
             } else if (settingsPath === '') {
                  settingsDeepLink.set('main'); // Default to main settings if just #settings
             } else {
@@ -528,12 +593,29 @@
 
     /**
      * Handle hash changes after page load
-     * Allows navigation by pasting URLs with chat_id hash
+     * Allows navigation by pasting URLs with chat_id or signup hash
      */
     function handleHashChange() {
         console.debug('[+page.svelte] Hash changed:', window.location.hash);
         
-        if (window.location.hash.startsWith('#chat_id=') || window.location.hash.startsWith('#chat-id=')) {
+        if (window.location.hash.startsWith('#signup/')) {
+            // Handle signup deep linking - open login interface and set signup step
+            console.debug(`[+page.svelte] Hash changed to signup deep link: ${window.location.hash}`);
+            
+            // Extract step from hash (e.g., #signup/credits -> credits)
+            const signupHash = window.location.hash.substring(1); // Remove leading #
+            const step = getStepFromPath(signupHash);
+            
+            console.debug(`[+page.svelte] Setting signup step to: ${step} from hash: ${window.location.hash}`);
+            
+            // Set signup step and open login interface
+            currentSignupStep.set(step);
+            isInSignupProcess.set(true);
+            loginInterfaceOpen.set(true);
+            
+            // Clear the hash after processing to keep URL clean
+            window.history.replaceState({}, '', window.location.pathname + window.location.search);
+        } else if (window.location.hash.startsWith('#chat_id=') || window.location.hash.startsWith('#chat-id=')) {
             // Support both #chat_id= and #chat-id= formats
             const chatId = window.location.hash.startsWith('#chat_id=') 
                 ? window.location.hash.substring(9) // Remove '#chat_id=' prefix
@@ -573,6 +655,14 @@
         //    panelState.toggleActivityHistory(); // Or a specific close action
         // }
     }
+
+    // Reset the active chat UI when the sidebar reports that a chat was deselected (e.g., after deletion)
+    async function handleChatDeselected() {
+        if (activeChat?.resetToNewChat) {
+            console.debug("[+page.svelte] chatDeselected event received - resetting ActiveChat to new chat state");
+            await activeChat.resetToNewChat();
+        }
+    }
 </script>
 
 <!-- SEO meta tags - client-side with translations -->
@@ -581,13 +671,10 @@
     <meta name="description" content={seoDescription} />
     <meta name="keywords" content={seoKeywords} />
     
-    <!-- hreflang tags for multi-language SEO -->
-    <link rel="alternate" hreflang="en" href="https://openmates.org/?lang=en" />
-    <link rel="alternate" hreflang="de" href="https://openmates.org/?lang=de" />
-    <link rel="alternate" hreflang="es" href="https://openmates.org/?lang=es" />
-    <link rel="alternate" hreflang="fr" href="https://openmates.org/?lang=fr" />
-    <link rel="alternate" hreflang="zh" href="https://openmates.org/?lang=zh" />
-    <link rel="alternate" hreflang="ja" href="https://openmates.org/?lang=ja" />
+    <!-- hreflang tags for multi-language SEO - generated from single source of truth -->
+    {#each LANGUAGE_CODES as lang}
+        <link rel="alternate" hreflang={lang} href="https://openmates.org/?lang={lang}" />
+    {/each}
     <link rel="alternate" hreflang="x-default" href="https://openmates.org/" />
     
     <meta property="og:title" content={seoTitle} />
@@ -605,7 +692,10 @@
     {#if $panelState.isActivityHistoryOpen}
         <!-- Sidebar content - transition handled by parent sidebar transform -->
         <div class="sidebar-content">
-            <Chats on:chatSelected={handleChatSelected} />
+            <Chats 
+                on:chatSelected={handleChatSelected} 
+                on:chatDeselected={handleChatDeselected}
+            />
         </div>
     {/if}
 </div>
@@ -655,51 +745,6 @@
     :root {
         --sidebar-width: 325px;
         --sidebar-margin: 10px;
-    }
-    
-    /* SEO-only content (inside noscript tag, visible only to crawlers and no-JS users) */
-    .seo-chat-content {
-        max-width: 800px;
-        margin: 2rem auto;
-        padding: 2rem;
-        line-height: 1.6;
-        font-family: system-ui, -apple-system, sans-serif;
-    }
-    
-    .seo-chat-content h1 {
-        font-size: 2rem;
-        margin-bottom: 0.5rem;
-        color: #000;
-    }
-    
-    .seo-chat-content .description {
-        font-size: 1.1rem;
-        color: #666;
-        margin-bottom: 2rem;
-    }
-    
-    .seo-chat-content .messages {
-        display: flex;
-        flex-direction: column;
-        gap: 1rem;
-    }
-    
-    .seo-chat-content .message {
-        padding: 1rem;
-        border-radius: 8px;
-        background: #f5f5f5;
-    }
-    
-    .seo-chat-content .message.assistant {
-        background: #e3f2fd;
-        align-self: flex-start;
-        max-width: 80%;
-    }
-    
-    .seo-chat-content .message.user {
-        background: #d1f4d1;
-        align-self: flex-end;
-        max-width: 80%;
     }
     .sidebar {
         /* Fixed positioning relative to viewport */
@@ -898,18 +943,6 @@
         margin-top: -90px; /* Adjust based on your footer height */
         padding-top: calc(100vh + 90px);
         padding-top: calc(100dvh + 90px);
-    }
-
-    /* Login overlay styles */
-    .login-overlay {
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background-color: var(--color-grey-0);
-        z-index: 1000;
-        overflow-y: auto;
     }
     
     /* Notification container - positioned at top of main-content */

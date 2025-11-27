@@ -973,20 +973,54 @@
         document.addEventListener('visibilitychange', handleVisibilityChange);
         document.addEventListener('embed-group-backspace', handleEmbedGroupBackspace as EventListener);
         messageInputWrapper?.addEventListener('mousedown', handleMessageWrapperMouseDown);
+        // Handler for language change - updates placeholder text when language switches
         languageChangeHandler = () => {
             if (editor && !editor.isDestroyed) {
-                // Force update the editor view to refresh placeholder text
-                editor.view.dispatch(editor.view.state.tr);
-                
-                // If editor is empty, reset content to force placeholder re-evaluation
-                if (isContentEmptyExceptMention(editor)) {
-                    const currentContent = editor.getJSON();
-                    editor.commands.setContent(currentContent, { emitUpdate: false });
-                    console.debug('[MessageInput] Updated placeholder text after language change');
-                }
+                // Use a small delay to ensure translations are fully loaded
+                // The language-changed event is dispatched after waitLocale() completes,
+                // but we add a small delay to ensure the text store has the new translations
+                setTimeout(() => {
+                    if (editor && !editor.isDestroyed) {
+                        // Force the placeholder to update by triggering a view update
+                        // The placeholder extension uses the reactive text store which will have the new language
+                        const { state, view } = editor;
+                        
+                        // Create a transaction that doesn't change content but forces a view update
+                        // This will cause the placeholder extension to re-evaluate its placeholder function
+                        const tr = state.tr;
+                        view.dispatch(tr);
+                        
+                        // Also update the placeholder attribute directly if the editor is empty
+                        // This ensures the placeholder text is immediately visible in the new language
+                        if (isContentEmptyExceptMention(editor)) {
+                            // Get the current placeholder text using the text store
+                            const key = (typeof window !== 'undefined' && 
+                                        (('ontouchstart' in window) || navigator.maxTouchPoints > 0)) ?
+                                'enter_message.placeholder.touch.text' :
+                                'enter_message.placeholder.desktop.text';
+                            const newPlaceholderText = $text(key);
+                            
+                            // Update the placeholder data attribute on the editor element
+                            // TipTap's placeholder extension uses this attribute for display
+                            const editorDom = editor.view.dom;
+                            if (editorDom) {
+                                const placeholderElement = editorDom.querySelector('p.is-editor-empty');
+                                if (placeholderElement) {
+                                    placeholderElement.setAttribute('data-placeholder', newPlaceholderText);
+                                }
+                            }
+                            
+                            console.debug('[MessageInput] Updated placeholder text after language change:', newPlaceholderText);
+                        }
+                    }
+                }, 50); // Small delay to ensure translations are loaded
             }
         };
+        
+        // Listen to both language-changed and language-changed-complete events
+        // language-changed-complete is dispatched after a short delay to ensure all components have updated
         window.addEventListener('language-changed', languageChangeHandler);
+        window.addEventListener('language-changed-complete', languageChangeHandler);
     }
 
     function cleanup() {
@@ -1011,6 +1045,7 @@
         document.removeEventListener('embed-group-backspace', handleEmbedGroupBackspace as EventListener);
         messageInputWrapper?.removeEventListener('mousedown', handleMessageWrapperMouseDown);
         window.removeEventListener('language-changed', languageChangeHandler);
+        window.removeEventListener('language-changed-complete', languageChangeHandler);
         chatSyncService.removeEventListener('aiTaskInitiated', handleAiTaskOrChatChange);
         chatSyncService.removeEventListener('aiTaskEnded', handleAiTaskEnded as EventListener);
         chatSyncService.removeEventListener('messageQueued', handleMessageQueued as EventListener);

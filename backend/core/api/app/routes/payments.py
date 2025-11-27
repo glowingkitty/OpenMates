@@ -15,6 +15,7 @@ from backend.core.api.app.models.user import User
 from backend.core.api.app.routes.auth_routes.auth_dependencies import get_current_user
 from backend.core.api.app.tasks.celery_config import app # Import the Celery app
 from backend.core.api.app.routes.websockets import manager
+from backend.core.api.app.services.compliance import ComplianceService
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/v1/payments", tags=["Payments"])
@@ -75,6 +76,15 @@ class CreateSubscriptionResponse(BaseModel):
     subscription_id: str
     status: str
     next_billing_date: str
+
+class RedeemGiftCardRequest(BaseModel):
+    code: str
+
+class RedeemGiftCardResponse(BaseModel):
+    success: bool
+    credits_added: int
+    current_credits: int
+    message: str
 
 class GetSubscriptionResponse(BaseModel):
     subscription_id: str
@@ -1045,3 +1055,158 @@ async def cancel_subscription(
     except Exception as e:
         logger.error(f"Error canceling subscription for user {current_user.id}: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error")
+
+@router.post("/redeem-gift-card", response_model=RedeemGiftCardResponse)
+async def redeem_gift_card(
+    request: RedeemGiftCardRequest,
+    current_user: User = Depends(get_current_user),
+    directus_service: DirectusService = Depends(get_directus_service),
+    cache_service: CacheService = Depends(get_cache_service),
+    encryption_service: EncryptionService = Depends(get_encryption_service)
+):
+    """
+    Redeem a gift card code and add credits to the user's account.
+    Checks cache first, then Directus if not found in cache.
+    Gift cards are single-use and are deleted after redemption.
+    """
+    user_id = current_user.id
+    code = request.code.strip().upper()  # Normalize the code (uppercase, trimmed)
+    
+    if not code:
+        logger.warning(f"User {user_id} attempted to redeem empty gift card code")
+        return RedeemGiftCardResponse(
+            success=False,
+            credits_added=0,
+            current_credits=0,
+            message="Gift card code cannot be empty"
+        )
+    
+    logger.info(f"User {user_id} attempting to redeem gift card code: {code}")
+    
+    try:
+        # 1. Check cache first for gift card
+        gift_card = await directus_service.get_gift_card_by_code(code)
+        
+        if not gift_card:
+            logger.warning(f"Gift card code {code} not found or already redeemed")
+            # Get current credits for response
+            user_cache_data = await cache_service.get_user_by_id(user_id)
+            current_credits = user_cache_data.get('credits', 0) if user_cache_data else 0
+            
+            # Log failed redemption attempt for compliance
+            ComplianceService.log_financial_transaction(
+                user_id=user_id,
+                transaction_type="gift_card_redemption",
+                status="failed",
+                details={"gift_card_code": code, "reason": "gift_card_not_found"}
+            )
+            
+            return RedeemGiftCardResponse(
+                success=False,
+                credits_added=0,
+                current_credits=current_credits,
+                message="Invalid gift card code or code has already been redeemed"
+            )
+        
+        # 2. Get credits value
+        credits_value = gift_card.get("credits_value")
+        if not credits_value or credits_value <= 0:
+            logger.error(f"Invalid credits value {credits_value} for gift card {code}")
+            user_cache_data = await cache_service.get_user_by_id(user_id)
+            current_credits = user_cache_data.get('credits', 0) if user_cache_data else 0
+            
+            return RedeemGiftCardResponse(
+                success=False,
+                credits_added=0,
+                current_credits=current_credits,
+                message="Invalid gift card: credits value is invalid"
+            )
+        
+        # 4. Get current user credits
+        user_cache_data = await cache_service.get_user_by_id(user_id)
+        if not user_cache_data:
+            logger.error(f"User {user_id} not found in cache")
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        current_credits = user_cache_data.get('credits', 0)
+        if not isinstance(current_credits, int):
+            logger.warning(f"User credits for {user_id} were not an integer: {current_credits}. Converting to 0.")
+            current_credits = 0
+        
+        # 5. Calculate new credit balance
+        new_total_credits = current_credits + credits_value
+        
+        # 6. Encrypt new credit balance for Directus
+        vault_key_id = user_cache_data.get("vault_key_id")
+        if not vault_key_id:
+            logger.error(f"Vault key ID missing for user {user_id}")
+            raise HTTPException(status_code=500, detail="User encryption key not found")
+        
+        encrypted_new_credits_tuple = await encryption_service.encrypt_with_user_key(
+            plaintext=str(new_total_credits),
+            key_id=vault_key_id
+        )
+        encrypted_new_credits = encrypted_new_credits_tuple[0]
+        
+        # 7. Update Directus with new credit balance
+        update_success = await directus_service.update_user(
+            user_id,
+            {"encrypted_credit_balance": encrypted_new_credits}
+        )
+        
+        if not update_success:
+            logger.error(f"Failed to update user {user_id} credits in Directus after gift card redemption")
+            raise HTTPException(status_code=500, detail="Failed to update credits in database")
+        
+        # 8. Update cache with new credit balance
+        user_cache_data["credits"] = new_total_credits
+        await cache_service.set_user(user_cache_data, user_id=user_id)
+        
+        # 9. Redeem (delete) the gift card from Directus and cache
+        redeem_success = await directus_service.redeem_gift_card(code, user_id)
+        if not redeem_success:
+            logger.error(f"Failed to delete gift card {code} after redemption. Credits were added but gift card may still exist.")
+            # Don't fail the request - credits were already added
+        
+        # 10. Log gift card redemption for compliance
+        ComplianceService.log_financial_transaction(
+            user_id=user_id,
+            transaction_type="gift_card_redemption",
+            amount=credits_value,
+            status="success",
+            details={
+                "gift_card_code": code,
+                "credits_added": credits_value,
+                "previous_credits": current_credits,
+                "new_credits": new_total_credits
+            }
+        )
+        
+        # 11. Broadcast credit update via WebSocket
+        try:
+            await manager.broadcast_to_user(
+                user_id=user_id,
+                message={
+                    "type": "user_credits_updated",
+                    "payload": {"credits": new_total_credits}
+                }
+            )
+            logger.info(f"Broadcasted credit update for gift card redemption to user {user_id}")
+        except Exception as pub_exc:
+            logger.error(f"Failed to broadcast gift card redemption credits for user {user_id}: {pub_exc}", exc_info=True)
+            # Don't fail the request - credits were already added
+        
+        logger.info(f"Successfully redeemed gift card {code} for user {user_id}: added {credits_value} credits (new balance: {new_total_credits})")
+        
+        return RedeemGiftCardResponse(
+            success=True,
+            credits_added=credits_value,
+            current_credits=new_total_credits,
+            message=f"Gift card redeemed successfully! {credits_value:,} credits added to your account."
+        )
+        
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        logger.error(f"Error redeeming gift card {code} for user {user_id}: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail="An error occurred while redeeming the gift card")

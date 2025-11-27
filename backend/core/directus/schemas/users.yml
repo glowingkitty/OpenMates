@@ -22,7 +22,12 @@ directus_users:
     encrypted_email_address:
       type: string
       length: 512
-      note: "Encrypted email address"
+      note: "Encrypted email address (encrypted with email_encryption_key for server use)"
+    
+    encrypted_email_with_master_key:
+      type: string
+      length: 512
+      note: "Email encrypted with master key (for passwordless passkey login - allows client to decrypt without email_encryption_key)"
 
     encrypted_username:
       type: string
@@ -191,3 +196,7 @@ directus_users:
     encrypted_hidden_demo_chats:
       type: textfield
       note: "Encrypted JSON array of demo chat IDs that user has dismissed/deleted (e.g., ['demo-welcome', 'demo-power-of-apps']). Syncs across devices."
+
+    encrypted_top_recommended_apps:
+      type: text
+      note: "[Encrypted] Array of top 5 recommended app IDs for this user, encrypted using user's master key. Aggregated client-side from recent chat recommendations. Format: ['app1', 'app2', ...]. Must be TEXT not JSON since it's encrypted."

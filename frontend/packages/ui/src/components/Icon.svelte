@@ -268,10 +268,12 @@
     --icon-url-bias: url('@openmates/ui/static/icons/bias.svg');
     --icon-url-billing: url('@openmates/ui/static/icons/billing.svg');
     --icon-url-book: url('@openmates/ui/static/icons/book.svg');
+    --icon-url-brave: url('@openmates/ui/static/icons/brave.svg');
     --icon-url-business: url('@openmates/ui/static/icons/business.svg');
     --icon-url-calculator: url('@openmates/ui/static/icons/calculator.svg');
     --icon-url-calendar: url('@openmates/ui/static/icons/calendar.svg');
     --icon-url-camera: url('@openmates/ui/static/icons/camera.svg');
+    --icon-url-cerebras: url('@openmates/ui/static/icons/cerebras.svg');
     --icon-url-chat: url('@openmates/ui/static/icons/chat.svg');
     --icon-url-check: url('@openmates/ui/static/icons/check.svg');
     --icon-url-claude: url('@openmates/ui/static/icons/claude.svg');
@@ -300,11 +302,13 @@
     --icon-url-fashion: url('@openmates/ui/static/icons/fashion.svg');
     --icon-url-files: url('@openmates/ui/static/icons/files.svg');
     --icon-url-filter: url('@openmates/ui/static/icons/filter.svg');
+    --icon-url-firecrawl: url('@openmates/ui/static/icons/firecrawl.svg');
     --icon-url-fitness: url('@openmates/ui/static/icons/fitness.svg');
     --icon-url-fullscreen: url('@openmates/ui/static/icons/fullscreen.svg');
     --icon-url-games: url('@openmates/ui/static/icons/games.svg');
     --icon-url-github: url('@openmates/ui/static/icons/github.svg');
     --icon-url-good: url('@openmates/ui/static/icons/good.svg');
+    --icon-url-google: url('@openmates/ui/static/icons/google.svg');
     --icon-url-google-authenticator: url('@openmates/ui/static/icons/google-authenticator.svg');
     --icon-url-guest: url('@openmates/ui/static/icons/guest.svg');
     --icon-url-heart: url('@openmates/ui/static/icons/heart.svg');
@@ -397,6 +401,7 @@
     --icon-url-web: url('@openmates/ui/static/icons/web.svg');
     --icon-url-whiteboard: url('@openmates/ui/static/icons/whiteboard.svg');
     --icon-url-workflow: url('@openmates/ui/static/icons/workflow.svg');
+    --icon-url-youtube: url('@openmates/ui/static/icons/youtube.svg');
   }
 
   /* Base icon container with common styles */

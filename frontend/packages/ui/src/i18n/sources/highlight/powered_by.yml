@@ -1,0 +1,46 @@
+powered_by_leading:
+  context: Used in 'powered by the leading cloud & on-device AI models'
+  en: powered by the leading
+  de: verwendet führende
+  zh: 采用领先的
+  es: impulsado por los líderes en
+  fr: propulsé par les meilleurs
+  pt: ''
+  ru: ''
+  ja: 主要な
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+cloud_and_on_device_ai_models:
+  context: Used in 'powered by the leading cloud & on-device AI models'
+  en: cloud & on-device AI models
+  de: online & lokale KI Modelle
+  zh: 云端和本地设备人工智能模型
+  es: modelos de IA en la nube y en el dispositivo
+  fr: modèles d'IA en ligne et locaux
+  pt: ''
+  ru: ''
+  ja: クラウドとオンデバイスAIモデルを搭載
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []

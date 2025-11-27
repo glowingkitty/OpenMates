@@ -28,6 +28,7 @@
     import * as cryptoService from '../../../../services/cryptoService';
     import { get } from 'svelte/store';
     import { replace } from 'lodash-es';
+    import { checkAuth } from '../../../../stores/authStore';
     
     const dispatch = createEventDispatcher();
     
@@ -180,7 +181,20 @@
                     email: '' // Remove plaintext email from store since it's now encrypted
                 }));
                 
+                // CRITICAL: Update authentication state after account creation
+                // This ensures that when we move to the next step, last_opened will be updated
+                // both client-side and server-side (via WebSocket)
+                console.debug('[PasswordBottomContent] Updating auth state after account creation...');
+                try {
+                    await checkAuth();
+                    console.debug('[PasswordBottomContent] Auth state updated successfully');
+                } catch (error) {
+                    console.warn('[PasswordBottomContent] Failed to update auth state:', error);
+                    // Continue even if checkAuth fails - the step change will still work
+                }
+                
                 // Continue to next step (OTP setup)
+                // The Signup component will update last_opened when this step change is processed
                 dispatch('step', { step: 'one_time_codes' });
             } else {
                 console.error('Password setup failed:', data.message);

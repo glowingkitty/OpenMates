@@ -1,0 +1,92 @@
+calendar:
+  context: Calendar app name in the UI
+  en: Calendar
+  de: Kalender
+  zh: 日历
+  es: Calendario
+  fr: Calendrier
+  pt: ''
+  ru: ''
+  ja: カレンダー
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+health:
+  context: Health app name in the UI
+  en: Health
+  de: Gesundheit
+  zh: 健康
+  es: Salud
+  fr: Santé
+  pt: ''
+  ru: ''
+  ja: 健康
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+events:
+  context: Used in 'Events | Search'
+  en: Events
+  de: Events
+  zh: 活动
+  es: Eventos
+  fr: Événements
+  pt: ''
+  ru: ''
+  ja: イベント
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+search:
+  context: Used in 'Events | Search'
+  en: Search
+  de: Suche
+  zh: 搜索
+  es: Buscar
+  fr: Recherche
+  pt: ''
+  ru: ''
+  ja: 検索
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []

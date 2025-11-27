@@ -91,25 +91,25 @@ class ConfigManager:
         """Returns the entire backend configuration."""
         return self._backend_config if self._backend_config is not None else {}
 
-    def get_enabled_apps(self) -> List[str]:
+    def get_disabled_apps(self) -> List[str]:
         """
-        Returns the list of enabled app IDs (service names).
-        Assumes 'enabled_apps' in backend_config.yml is a simple list of strings.
+        Returns the list of disabled app IDs (service names).
+        Apps are enabled by default - this is an opt-out list for temporarily disabling problematic apps.
+        Assumes 'disabled_apps' in backend_config.yml is a simple list of strings.
         """
-        if self._backend_config and "enabled_apps" in self._backend_config:
-            apps = self._backend_config["enabled_apps"]
+        if self._backend_config and "disabled_apps" in self._backend_config:
+            apps = self._backend_config["disabled_apps"]
             if isinstance(apps, list):
                 # Ensure all items are strings
                 valid_apps = [str(app_id) for app_id in apps if isinstance(app_id, (str, int))] # Allow int for convenience, convert to str
                 if len(valid_apps) != len(apps):
-                    logger.warning("Some items in 'enabled_apps' were not strings and have been filtered or converted.")
-                if not valid_apps:
-                    logger.info("'enabled_apps' list is empty after validation.")
+                    logger.warning("Some items in 'disabled_apps' were not strings and have been filtered or converted.")
+                if valid_apps:
+                    logger.info(f"Found {len(valid_apps)} disabled app(s): {valid_apps}")
                 return valid_apps
             else:
-                logger.warning(f"'enabled_apps' in backend_config.yml is not a list. Found: {type(apps)}. Returning empty list.")
-        else:
-            logger.info("'enabled_apps' key not found in backend_config.yml or backend_config not loaded. Returning empty list.")
+                logger.warning(f"'disabled_apps' in backend_config.yml is not a list. Found: {type(apps)}. Returning empty list.")
+        # If disabled_apps is not found, return empty list (all apps enabled by default)
         return []
 
     def get_provider_configs(self) -> Dict[str, Dict[str, Any]]:

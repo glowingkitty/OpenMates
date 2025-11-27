@@ -1,0 +1,69 @@
+toggle_menu:
+  context: Button text for toggling the main menu
+  en: Toggle menu
+  de: Menü umschalten
+  zh: 切换菜单
+  es: Alternar menú
+  fr: Basculer le menu
+  pt: Alternar menu
+  ru: Переключить меню
+  ja: メニュー切り替え
+  ko: 메뉴 전환
+  it: Attiva/disattiva menu
+  tr: Menüyü değiştir
+  vi: Chuyển đổi menu
+  id: Toggle menu
+  pl: Przełącz menu
+  nl: Menu wisselen
+  ar: تبديل القائمة
+  hi: मेनू टॉगल करें
+  th: สลับเมนู
+  cs: Přepnout menu
+  sv: ''
+  verified_by_human: []
+login_signup:
+  context: Button text for login/signup button in header (kept for backwards compatibility)
+  en: Login / Signup
+  de: Anmelden / Registrieren
+  zh: 登录 / 注册
+  es: Iniciar sesión / Registrarse
+  fr: Connexion / Inscription
+  pt: Entrar / Cadastrar
+  ru: Вход / Регистрация
+  ja: ログイン / 登録
+  ko: 로그인 / 가입
+  it: Accedi / Registrati
+  tr: Giriş / Kayıt
+  vi: Đăng nhập / Đăng ký
+  id: Masuk / Daftar
+  pl: Zaloguj / Zarejestruj
+  nl: Inloggen / Registreren
+  ar: تسجيل الدخول / التسجيل
+  hi: लॉगिन / साइनअप
+  th: เข้าสู่ระบบ / สมัครสมาชิก
+  cs: Přihlásit / Registrovat
+  sv: ''
+  verified_by_human: []
+login:
+  context: Button text for sign in button in header (opens interface with both login and signup options)
+  en: Sign In
+  de: Anmelden
+  zh: 登录
+  es: Iniciar sesión
+  fr: Se connecter
+  pt: Entrar
+  ru: Войти
+  ja: サインイン
+  ko: 로그인
+  it: Accedi
+  tr: Giriş yap
+  vi: Đăng nhập
+  id: Masuk
+  pl: Zaloguj się
+  nl: Inloggen
+  ar: تسجيل الدخول
+  hi: साइन इन करें
+  th: เข้าสู่ระบบ
+  cs: Přihlásit se
+  sv: ''
+  verified_by_human: []

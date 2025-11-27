@@ -1,0 +1,46 @@
+title:
+  context: Title for the design system page
+  en: Design system | OpenMates
+  de: Design-System | OpenMates
+  zh: 设计系统 | OpenMates
+  es: Sistema de diseño | OpenMates
+  fr: Système de conception | OpenMates
+  pt: Sistema de design | OpenMates
+  ru: Система дизайна | OpenMates
+  ja: デザインシステム | OpenMates
+  ko: 디자인 시스템 | OpenMates
+  it: Sistema di progettazione | OpenMates
+  tr: Tasarım sistemi | OpenMates
+  vi: Hệ thống thiết kế | OpenMates
+  id: Sistem desain | OpenMates
+  pl: System projektowy | OpenMates
+  nl: Ontwerpsysteem | OpenMates
+  ar: نظام التصميم | OpenMates
+  hi: डिज़ाइन सिस्टम | OpenMates
+  th: ระบบการออกแบบ | OpenMates
+  cs: Návrhový systém | OpenMates
+  sv: Designsystem | OpenMates
+  verified_by_human: []
+description:
+  context: Description for the design system page
+  en: The Design System that shows all the components that are used in OpenMates.
+  de: Das Design-System, das alle in OpenMates verwendeten Komponenten zeigt.
+  zh: 显示 OpenMates 中使用的所有组件的设计系统。
+  es: El Sistema de Diseño que muestra todos los componentes utilizados en OpenMates.
+  fr: Le système de conception qui montre tous les composants utilisés dans OpenMates.
+  pt: O Sistema de Design que mostra todos os componentes usados no OpenMates.
+  ru: Система дизайна, которая показывает все компоненты, используемые в OpenMates.
+  ja: OpenMatesで使用されているすべてのコンポーネントを示すデザインシステム。
+  ko: OpenMates에서 사용되는 모든 구성 요소를 보여주는 디자인 시스템.
+  it: Il sistema di progettazione che mostra tutti i componenti utilizzati in OpenMates.
+  tr: OpenMates'te kullanılan tüm bileşenleri gösteren tasarım sistemi.
+  vi: Hệ thống thiết kế hiển thị tất cả các thành phần được sử dụng trong OpenMates.
+  id: Sistem desain yang menampilkan semua komponen yang digunakan di OpenMates.
+  pl: System projektowy pokazujący wszystkie komponenty używane w OpenMates.
+  nl: Het ontwerpsysteem dat alle componenten toont die in OpenMates worden gebruikt.
+  ar: نظام التصميم الذي يعرض جميع المكونات المستخدمة في OpenMates.
+  hi: डिज़ाइन सिस्टम जो OpenMates में उपयोग किए जाने वाले सभी घटकों को दिखाता है।
+  th: ระบบการออกแบบที่แสดงส่วนประกอบทั้งหมดที่ใช้ใน OpenMates
+  cs: Návrhový systém, který zobrazuje všechny komponenty používané v OpenMates.
+  sv: Designsystemet som visar alla komponenter som används i OpenMates.
+  verified_by_human: []

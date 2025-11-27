@@ -86,6 +86,8 @@ async def _process_direct_api_response(
 ) -> UnifiedAnthropicResponse:
     """Process non-streaming response from Anthropic direct API"""
     try:
+        # Log the actual request details for debugging
+        logger.info(f"{log_prefix} Making request to Anthropic API with model '{model_id}'")
         response = anthropic_client.messages.create(**request_kwargs)
         logger.info(f"{log_prefix} Received non-streamed response from Anthropic direct API.")
         

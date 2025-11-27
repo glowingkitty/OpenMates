@@ -3,6 +3,7 @@
 
 import { EmbedNodeAttributes, EmbedType, EmbedClipboardData } from './types';
 import { groupHandlerRegistry } from './groupHandlers';
+import { parseMarkdownToTiptap } from '../components/enter_message/utils/markdownParser';
 
 /**
  * Convert TipTap document JSON to canonical markdown format for sending
@@ -69,32 +70,18 @@ export function tipTapToCanonicalMarkdown(doc: any): string {
  * This parses markdown and creates appropriate TipTap nodes including embeds
  */
 export function markdownToTipTap(markdown: string): any {
-  // Simple fallback implementation for testing
-  // In later phases, this will be enhanced with unified embed handling
+  // Use the full markdown parser that handles headings, bold, code blocks, etc.
   // console.debug('[markdownToTipTap] Parsing markdown:', markdown.substring(0, 100));
-  
+
   if (!markdown.trim()) {
     return {
       type: 'doc',
       content: []
     };
   }
-  
-  // Create a simple paragraph with the markdown text
-  return {
-    type: 'doc',
-    content: [
-      {
-        type: 'paragraph',
-        content: [
-          {
-            type: 'text',
-            text: markdown
-          }
-        ]
-      }
-    ]
-  };
+
+  // Use the full-featured markdown parser from markdownParser.ts
+  return parseMarkdownToTiptap(markdown);
 }
 
 /**

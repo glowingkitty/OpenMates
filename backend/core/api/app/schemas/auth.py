@@ -1,5 +1,5 @@
 from pydantic import BaseModel, EmailStr, Field
-from typing import Optional, Dict, Any, Union
+from typing import Optional, Dict, Any, Union, List
 from backend.core.api.app.schemas.user import UserResponse
 
 class InviteCodeRequest(BaseModel):
@@ -46,6 +46,7 @@ class LoginRequest(BaseModel):
     code_type: Optional[str] = Field("otp", description="Type of code provided ('otp' or 'backup')")
     email_encryption_key: Optional[str] = Field(None, description="Client-derived key for email decryption (SHA256(email + user_email_salt))")
     login_method: Optional[str] = Field(None, description="Login method used ('password', 'passkey', 'security_key', 'recovery_key')")
+    credential_id: Optional[str] = Field(None, description="Credential ID for passkey login (to look up specific encryption key)")
     stay_logged_in: bool = Field(False, description="Whether to keep user logged in for extended period (30 days vs 24 hours)")
     
     class Config:
@@ -175,3 +176,118 @@ class UserLookupResponse(BaseModel):
                 "tfa_enabled": True
             }
         }
+
+# Passkey Registration Schemas
+class PasskeyRegistrationInitiateRequest(BaseModel):
+    """Request to initiate passkey registration"""
+    hashed_email: str = Field(..., description="Hashed email for user lookup")
+    user_id: Optional[str] = Field(None, description="User ID if user already exists (for adding passkey to existing account)")
+    username: Optional[str] = Field(None, description="Username for new user signup (used as displayName in passkey)")
+
+class PasskeyRegistrationInitiateResponse(BaseModel):
+    """Response with WebAuthn challenge and options for passkey registration"""
+    success: bool = Field(..., description="Whether the initiation was successful")
+    challenge: str = Field(..., description="Base64-encoded challenge for WebAuthn")
+    rp: Dict[str, str] = Field(..., description="Relying Party information (id, name)")
+    user: Dict[str, Any] = Field(..., description="User information for WebAuthn (id, name, displayName)")
+    pubKeyCredParams: list[Dict[str, Any]] = Field(..., description="Public key credential parameters")
+    timeout: Optional[int] = Field(60000, description="Timeout in milliseconds")
+    attestation: str = Field("direct", description="Attestation conveyance preference")
+    authenticatorSelection: Dict[str, Any] = Field(..., description="Authenticator selection criteria")
+    extensions: Optional[Dict[str, Any]] = Field(None, description="WebAuthn extensions (e.g., PRF)")
+    message: Optional[str] = Field(None, description="Optional message")
+
+class PasskeyRegistrationCompleteRequest(BaseModel):
+    """Request to complete passkey registration"""
+    credential_id: str = Field(..., description="Base64-encoded credential ID")
+    attestation_response: Dict[str, Any] = Field(..., description="WebAuthn attestation response")
+    client_data_json: str = Field(..., description="Base64-encoded client data JSON")
+    authenticator_data: str = Field(..., description="Base64-encoded authenticator data")
+    hashed_email: str = Field(..., description="Hashed email for user lookup")
+    username: str = Field(..., description="User's username")
+    invite_code: str = Field(..., description="Invite code for signup")
+    encrypted_email: str = Field(..., description="Client-side encrypted email (encrypted with email_encryption_key)")
+    encrypted_email_with_master_key: str = Field(..., description="Email encrypted with master key (for passwordless login)")
+    encrypted_device_name: Optional[str] = Field(None, description="Device name encrypted with master key (client-side encrypted for zero-knowledge)")
+    user_email_salt: str = Field(..., description="Salt used for email encryption (base64)")
+    encrypted_master_key: str = Field(..., description="Encrypted master key wrapped with PRF-derived key")
+    key_iv: str = Field(..., description="IV used for master key encryption (base64)")
+    salt: str = Field(..., description="Salt used for key derivation (user_email_salt)")
+    lookup_hash: str = Field(..., description="Hash of PRF signature + salt for authentication")
+    language: str = Field("en", description="User's preferred language")
+    darkmode: bool = Field(False, description="User's dark mode preference")
+    prf_enabled: bool = Field(..., description="Whether PRF extension was enabled in the credential")
+    user_id: Optional[str] = Field(None, description="User ID if adding passkey to existing account (use 'current' to use authenticated user from session)")
+
+class PasskeyRegistrationCompleteResponse(BaseModel):
+    """Response for passkey registration completion"""
+    success: bool = Field(..., description="Whether the registration was successful")
+    message: str = Field(..., description="Response message")
+    user: Optional[Dict[str, Any]] = Field(None, description="User data if account was created")
+
+# Passkey Assertion (Login) Schemas
+class PasskeyAssertionInitiateRequest(BaseModel):
+    """Request to initiate passkey assertion (login)"""
+    hashed_email: Optional[str] = Field(None, description="Hashed email for user lookup (optional for resident credentials)")
+
+class PasskeyAssertionInitiateResponse(BaseModel):
+    """Response with WebAuthn challenge and options for passkey assertion"""
+    success: bool = Field(..., description="Whether the initiation was successful")
+    challenge: str = Field(..., description="Base64-encoded challenge for WebAuthn")
+    rp: Dict[str, str] = Field(..., description="Relying Party information (id, name)")
+    timeout: Optional[int] = Field(60000, description="Timeout in milliseconds")
+    allowCredentials: list[Dict[str, Any]] = Field(..., description="List of allowed credentials (empty for resident credentials)")
+    userVerification: str = Field("preferred", description="User verification requirement")
+    extensions: Optional[Dict[str, Any]] = Field(None, description="WebAuthn extensions (e.g., PRF)")
+    message: Optional[str] = Field(None, description="Optional message")
+
+class PasskeyAssertionVerifyRequest(BaseModel):
+    """Request to verify passkey assertion (login)"""
+    credential_id: str = Field(..., description="Base64-encoded credential ID")
+    assertion_response: Dict[str, Any] = Field(..., description="WebAuthn assertion response")
+    client_data_json: str = Field(..., description="Base64-encoded client data JSON")
+    authenticator_data: str = Field(..., description="Base64-encoded authenticator data")
+    hashed_email: Optional[str] = Field(None, description="Hashed email (optional if using resident credential)")
+    email_encryption_key: Optional[str] = Field(None, description="Client-derived key for email decryption (SHA256(email + user_email_salt))")
+    stay_logged_in: bool = Field(False, description="Whether to keep user logged in for extended period")
+    session_id: Optional[str] = Field(None, description="Browser session ID for device fingerprint")
+
+class PasskeyAssertionVerifyResponse(BaseModel):
+    """Response for passkey assertion verification"""
+    success: bool = Field(..., description="Whether the assertion was successful")
+    message: str = Field(..., description="Response message")
+    user_id: Optional[str] = Field(None, description="User ID if authentication succeeded")
+    hashed_email: Optional[str] = Field(None, description="Hashed email if authentication succeeded")
+    encrypted_email: Optional[str] = Field(None, description="Encrypted email for client decryption")
+    encrypted_master_key: Optional[str] = Field(None, description="Encrypted master key")
+    key_iv: Optional[str] = Field(None, description="IV for master key decryption")
+    salt: Optional[str] = Field(None, description="Salt for key derivation")
+    user_email_salt: Optional[str] = Field(None, description="User email salt")
+    user_email: Optional[str] = Field(None, description="Decrypted email for passwordless login (only returned after passkey authentication)")
+    auth_session: Optional[Dict[str, Any]] = Field(None, description="Session data for login finalization")
+
+# Passkey Management Schemas
+class PasskeyListResponse(BaseModel):
+    """Response for listing user's passkeys"""
+    success: bool = Field(..., description="Whether the request was successful")
+    passkeys: List[Dict[str, Any]] = Field(..., description="List of passkey records")
+    message: Optional[str] = Field(None, description="Optional message")
+
+class PasskeyRenameRequest(BaseModel):
+    """Request to rename a passkey"""
+    passkey_id: str = Field(..., description="ID of the passkey to rename")
+    encrypted_device_name: str = Field(..., description="New encrypted device name for the passkey (encrypted client-side with master key)")
+
+class PasskeyRenameResponse(BaseModel):
+    """Response for renaming a passkey"""
+    success: bool = Field(..., description="Whether the rename was successful")
+    message: str = Field(..., description="Response message")
+
+class PasskeyDeleteRequest(BaseModel):
+    """Request to delete a passkey"""
+    passkey_id: str = Field(..., description="ID of the passkey to delete")
+
+class PasskeyDeleteResponse(BaseModel):
+    """Response for deleting a passkey"""
+    success: bool = Field(..., description="Whether the deletion was successful")
+    message: str = Field(..., description="Response message")

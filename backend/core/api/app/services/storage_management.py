@@ -185,7 +185,7 @@ class StorageManagementService:
         Args:
             user_id: User ID
             chat_id: Chat ID to evict
-            
+        
         Returns:
             True if eviction was successful, False otherwise
         """
@@ -198,6 +198,12 @@ class StorageManagementService:
             await self.cache_service.delete_chat_list_item_data(user_id, chat_id)
             await self.cache_service.delete_chat_messages_history(user_id, chat_id)
             await self.cache_service.delete_user_draft_from_cache(user_id, chat_id)
+            
+            # Delete app settings/memories for this chat (chat-specific caching)
+            # This ensures sensitive app settings/memories are removed when chat is evicted
+            deleted_count = await self.cache_service.delete_chat_app_settings_memories(user_id, chat_id)
+            if deleted_count > 0:
+                logger.info(f"Deleted {deleted_count} app settings/memories entries for evicted chat {chat_id}")
             
             logger.info(f"Successfully evicted chat {chat_id} for user {user_id}")
             return True

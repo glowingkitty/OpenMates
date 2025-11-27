@@ -27,7 +27,7 @@ step_7_top_content_svelte:
         text:
             - $text('signup.default_settings.text')
             - $text('settings.privacy.text')
-            - $text('settings.apps.text')
+            - $text('settings.app_store.text')
             - $text('settings.interface.text')
         purpose:
             - 'Quick access to Privacy, Apps and Interface settings.'
@@ -68,7 +68,7 @@ step_7_top_content_svelte:
             activeSettingsPath = null;
             // Reset the toggle to true when closing
             if (settingsPath === 'privacy') privacyToggleOn = true;
-            if (settingsPath === 'apps') appsToggleOn = true;
+            if (settingsPath === 'app_store') appsToggleOn = true;
             if (settingsPath === 'interface') interfaceToggleOn = true;
             return;
         }
@@ -79,7 +79,7 @@ step_7_top_content_svelte:
         // Update toggle state based on which item was clicked
         // Toggle OFF when opening the settings
         if (settingsPath === 'privacy') privacyToggleOn = false;
-        else if (settingsPath === 'apps') appsToggleOn = false;
+        else if (settingsPath === 'app_store') appsToggleOn = false;
         else if (settingsPath === 'interface') interfaceToggleOn = false;
         
         // First set the deep link path to navigate to specific settings
@@ -142,12 +142,12 @@ step_7_top_content_svelte:
         />
         <SettingsItem 
             type="submenu" 
-            icon="apps" 
-            title={$text('settings.apps.text')}
-            onClick={() => handleSettingsClick('apps')}
+            icon="app_store" 
+            title={$text('settings.app_store.text')}
+            onClick={() => handleSettingsClick('app_store')}
             hasToggle={true}
             checked={appsToggleOn}
-            on:toggleClick={(e) => handleToggleClick('apps', e.detail)}
+            on:toggleClick={(e) => handleToggleClick('app_store', e.detail)}
         />
         <SettingsItem 
             type="submenu" 

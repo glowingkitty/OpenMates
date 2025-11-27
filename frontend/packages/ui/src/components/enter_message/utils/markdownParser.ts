@@ -217,22 +217,31 @@ function convertNodeToTiptap(node: Node): any {
     case 'a':
       const href = element.getAttribute('href');
       const target = element.getAttribute('target');
-      
+
       if (href) {
         // Check if this is an internal hash-based link
         const normalizedHref = href.startsWith('/#') ? href.substring(1) : href;
         const isInternal = normalizedHref.startsWith('#chat-id=') || normalizedHref.includes('#chat-id=');
-        
-        // Build link attributes - exclude target for internal links
-        const linkAttrs: Record<string, string> = { href: normalizedHref.startsWith('#') ? normalizedHref : '#' + normalizedHref.replace(/^\/+/, '') };
-        
+
+        // Build link attributes
+        let finalHref: string;
+        if (isInternal) {
+          // For internal links, ensure they start with #
+          finalHref = normalizedHref.startsWith('#') ? normalizedHref : '#' + normalizedHref.replace(/^\/+/, '');
+        } else {
+          // For external links, use the href as-is
+          finalHref = href;
+        }
+
+        const linkAttrs: Record<string, string> = { href: finalHref };
+
         // Only include target if it's an external link and target is set
         // For internal links, explicitly do NOT include target
         if (!isInternal && target) {
           linkAttrs.target = target;
         }
         // Internal links should not have target attribute
-        
+
         return content.map(item => ({
           ...item,
           marks: [...(item.marks || []), { type: 'link', attrs: linkAttrs }]

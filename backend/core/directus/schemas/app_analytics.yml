@@ -1,0 +1,42 @@
+# backend/core/directus/schemas/app_analytics.yml
+# Defines the schema for the 'app_analytics' collection in Directus.
+# This collection stores anonymous usage statistics for public analytics.
+# No user data, no encryption needed - purely for aggregate statistics.
+
+app_analytics:
+  type: collection
+  fields:
+    id:
+      type: uuid
+      primary: true
+      
+    app_id:
+      type: string
+      length: 100
+      note: "[Indexed] App identifier (cleartext for fast analytics queries)"
+      
+    skill_id:
+      type: string
+      length: 128
+      note: "[Indexed] Skill identifier (cleartext for fast analytics queries)"
+      
+    model_used:
+      type: string
+      length: 255
+      note: "Model identifier (cleartext for analytics, optional)"
+      
+    focus_mode_id:
+      type: string
+      length: 100
+      note: "[Indexed] Focus mode ID if applicable (optional, for future focus mode analytics)"
+      
+    settings_memory_type:
+      type: string
+      length: 50
+      note: "Type of settings/memories used (e.g., 'app_settings', 'memory_field') - optional, for future analytics"
+      
+    timestamp:
+      type: integer
+      note: "[Indexed] Unix timestamp (seconds) - used for 30-day filtering and time-based analytics"
+
+

@@ -174,3 +174,64 @@
 - **MLH Season Pages:** MLH organizes hackathons by season with structured event listings
 
 **Documentation:** [MLH Events](https://mlh.io/seasons/2025/events)
+
+### FOSS.events
+
+**Official API:** Yes
+
+**API Capabilities:**
+- **Event Discovery:** Search for free and open-source software (FOSS) related events
+- **Event Details:** Access event information including dates, times, locations, descriptions
+- **Event Categories:** Filter by event type, geography, and FOSS topics
+- **Calendar Integration:** Export event data in standard formats
+
+**Requirements:**
+- **API Access:** Available for public use (check documentation for authentication requirements)
+- **Rate Limits:** Respect rate limiting policies for API requests
+
+**Limitations:**
+- **Geographic Focus:** Primarily focused on FOSS community events globally
+- **Event Categories:** Limited to FOSS-related events and conferences
+
+**Technical Considerations:**
+- Integrate with other event providers for comprehensive event coverage
+- Consider geo-filtering for location-based event discovery
+- May need to handle specialized event tags related to FOSS topics
+
+**Documentation:** [FOSS.events](https://foss.events/)
+
+### Berliner Philharmoniker
+
+**Official API:** No
+
+**Integration Method:** API reverse engineering required
+
+**Capabilities:**
+- **Concert Discovery:** Access to Berliner Philharmoniker concert calendar
+- **Event Details:** Extract concert information including dates, times, conductors, soloists, program details
+- **Ticket Information:** Links to ticketing system for event registration
+- **Concert Archive:** Historical concert data available
+
+**Technical Details:**
+- **Website:** https://www.berliner-philharmoniker.de/konzerte/kalender/
+- **Technology Stack:** TYPO3 CMS-based website with dynamic content loading
+- **Data Format:** JSON API endpoints likely available (requires reverse engineering via network inspection)
+- **Example Event URLs:** `/konzerte/kalender/{event_id}/` structure used for individual concerts
+
+**Limitations:**
+- **No Public API:** Requires reverse engineering network requests to identify API endpoints
+- **Rate Limiting:** Must implement respectful rate limiting practices
+- **Language:** Content primarily in German
+- **Dynamic Content:** Calendar uses JavaScript-based filtering and pagination
+
+**Technical Considerations:**
+- Inspect network requests in browser DevTools to identify API endpoints
+- Likely uses AJAX/Fetch calls for calendar data pagination
+- May require analyzing search/filter functionality to understand query parameters
+- Concert data includes: date, time, location (Philharmonie Berlin), conductor, soloists, program, ticket availability
+- Consider implementing caching due to event schedule stability
+
+**Alternative Approaches:**
+- Monitor HTML structure for calendar changes
+- Implement web scraping as fallback if API approach becomes difficult
+- Contact Berliner Philharmoniker for official API access or partnership

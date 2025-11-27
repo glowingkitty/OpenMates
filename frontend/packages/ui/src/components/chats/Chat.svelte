@@ -29,11 +29,20 @@
   // Props using Svelte 5 runes
   let { 
     chat,
-    activeChatId = undefined
+    activeChatId = undefined,
+    selectMode = false,
+    selectedChatIds = new Set<string>(),
+    onToggleSelection
   }: {
     chat: Chat;
     activeChatId?: string | undefined;
+    selectMode?: boolean;
+    selectedChatIds?: Set<string>;
+    onToggleSelection?: (chatId: string) => void;
   } = $props();
+  
+  // Check if this chat is selected
+  let isSelected = $derived(chat ? selectedChatIds.has(chat.chat_id) : false);
  
   let draftTextContent = $state(''); 
   let displayLabel = $state('');     
@@ -788,7 +797,16 @@
 
   function handleContextMenuAction(event: CustomEvent<string>) {
     const action = event.detail;
-    console.debug('[Chat] Context menu action:', action, 'for chat:', chat?.chat_id);
+    console.debug('[Chat] Context menu action:', action, 'for chat:', chat?.chat_id, 'selectMode:', selectMode, 'selectedCount:', selectedChatIds.size);
+    
+    // CRITICAL: If we're in select mode and there are selected chats, dispatch bulk actions to parent
+    // Otherwise, handle single-chat actions locally
+    if (selectMode && selectedChatIds.size > 0 && (action === 'download' || action === 'copy' || action === 'delete')) {
+      // Dispatch bulk action to parent (Chats.svelte)
+      window.dispatchEvent(new CustomEvent('chatContextMenuBulkAction', { detail: action }));
+      showContextMenu = false;
+      return;
+    }
     
     switch (action) {
       case 'download':
@@ -801,6 +819,25 @@
         handleDeleteChat();
         break;
       case 'close':
+        showContextMenu = false;
+        break;
+      case 'enterSelectMode':
+        // Dispatch to parent to enter select mode
+        window.dispatchEvent(new CustomEvent('chatContextMenuEnterSelectMode'));
+        showContextMenu = false;
+        break;
+      case 'unselect':
+        // Dispatch to parent with chat ID
+        if (chat?.chat_id) {
+          window.dispatchEvent(new CustomEvent('chatContextMenuUnselect', { detail: chat.chat_id }));
+        }
+        showContextMenu = false;
+        break;
+      case 'selectChat':
+        // Dispatch to parent with chat ID
+        if (chat?.chat_id) {
+          window.dispatchEvent(new CustomEvent('chatContextMenuSelect', { detail: chat.chat_id }));
+        }
         showContextMenu = false;
         break;
       default:
@@ -1077,7 +1114,26 @@
       {:else}
         <div class="chat-with-profile">
           <div class="mate-profiles-container">
-            {#if currentTypingMateInfo?.isTyping && categoryGradientColors}
+            {#if selectMode}
+              <!-- In select mode: show checkbox instead of category circle -->
+              <div class="checkbox-wrapper">
+                <input
+                  type="checkbox"
+                  class="chat-checkbox"
+                  checked={isSelected}
+                  onchange={(e) => {
+                    if (onToggleSelection && chat) {
+                      onToggleSelection(chat.chat_id);
+                    }
+                  }}
+                  onclick={(e) => {
+                    // Prevent the click from bubbling to the parent chat item
+                    e.stopPropagation();
+                  }}
+                  aria-label={isSelected ? 'Unselect chat' : 'Select chat'}
+                />
+              </div>
+            {:else if currentTypingMateInfo?.isTyping && categoryGradientColors}
               <!-- New category circle with gradient and icon -->
               <div class="category-circle-wrapper">
                 <div 
@@ -1180,10 +1236,15 @@
     show={showContextMenu}
     chat={chat}
     hideDelete={isDemoChat(chat.chat_id) && (!$authStore.isAuthenticated || $websocketStatus.status !== 'connected')}
+    selectMode={selectMode}
+    selectedChatIds={selectedChatIds}
     on:close={handleContextMenuAction}
     on:download={handleContextMenuAction}
     on:copy={handleContextMenuAction}
     on:delete={handleContextMenuAction}
+    on:enterSelectMode={handleContextMenuAction}
+    on:unselect={handleContextMenuAction}
+    on:selectChat={handleContextMenuAction}
   />
 {/if}
 
@@ -1333,5 +1394,28 @@
     display: flex;
     align-items: center;
     justify-content: center;
+  }
+
+  /* Checkbox styles for select mode */
+  .checkbox-wrapper {
+    flex: 0 0 28px;
+    position: relative;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .chat-checkbox {
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+    accent-color: var(--color-primary);
+  }
+
+  .chat-checkbox:focus-visible {
+    outline: 2px solid var(--color-primary-focus);
+    outline-offset: 2px;
+    border-radius: 2px;
   }
 </style>

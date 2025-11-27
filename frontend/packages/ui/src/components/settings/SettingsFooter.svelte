@@ -163,6 +163,8 @@
 <style>
     .submenu-section {
         padding: 0 16px 16px;
+        margin-top: 100px; /* Consistent 100px spacing from content above */
+        position: relative; /* Ensure proper positioning in flex layout */
     }
 
     .submenu-group {

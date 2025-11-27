@@ -1,0 +1,299 @@
+precise:
+  context: Precise location option
+  en: Precise
+  de: Präzise
+  zh: 精确
+  es: Preciso
+  fr: Précise
+  pt: Preciso
+  ru: Точный
+  ja: 正確
+  ko: 정확한
+  it: Preciso
+  tr: Kesin
+  vi: Chính xác
+  id: Presisi
+  pl: Dokładne
+  nl: Precies
+  ar: دقيق
+  hi: सटीक
+  th: แม่นยำ
+  cs: Přesné
+  sv: 'Exakt'
+  verified_by_human: []
+toggle_precise:
+  context: Button text for toggling precise location
+  en: Toggle precise
+  de: Präzise umschalten
+  zh: 切换精确度
+  es: Alternar preciso
+  fr: Activer/Désactiver la précision
+  pt: Alternar preciso
+  ru: Переключить точность
+  ja: 正確を切り替える
+  ko: 정확도 전환
+  it: Attiva/disattiva precisione
+  tr: Kesinliği değiştir
+  vi: Chuyển đổi độ chính xác
+  id: Alihkan presisi
+  pl: Przełącz dokładność
+  nl: Precisie wisselen
+  ar: تبديل الدقة
+  hi: सटीकता टॉगल करें
+  th: สลับความแม่นยำ
+  cs: Přepnout přesnost
+  sv: 'Växla exakt'
+  verified_by_human: []
+close:
+  context: Button text for closing location selection
+  en: Close
+  de: Schließen
+  zh: 关闭
+  es: Cerrar
+  fr: Fermer
+  pt: Fechar
+  ru: Закрыть
+  ja: 閉じる
+  ko: 닫기
+  it: Chiudi
+  tr: Kapat
+  vi: Đóng
+  id: Tutup
+  pl: Zamknij
+  nl: Sluiten
+  ar: إغلاق
+  hi: बंद करें
+  th: ปิด
+  cs: Zavřít
+  sv: 'Stäng'
+  verified_by_human: []
+select:
+  context: Button text for selecting location
+  en: Select
+  de: Auswählen
+  zh: 选择
+  es: Seleccionar
+  fr: Sélectionner
+  pt: Selecionar
+  ru: Выбрать
+  ja: 選択
+  ko: 선택
+  it: Seleziona
+  tr: Seç
+  vi: Chọn
+  id: Pilih
+  pl: Wybierz
+  nl: Selecteren
+  ar: تحديد
+  hi: चुनें
+  th: เลือก
+  cs: Vybrat
+  sv: 'Välj'
+  verified_by_human: []
+get_location:
+  context: Button text for getting current location
+  en: Get location
+  de: Standort ermitteln
+  zh: 获取位置
+  es: Obtener ubicación
+  fr: Obtenir la localisation
+  pt: Obter localização
+  ru: Получить местоположение
+  ja: 位置を取得
+  ko: 위치 가져오기
+  it: Ottieni posizione
+  tr: Konum al
+  vi: Lấy vị trí
+  id: Dapatkan lokasi
+  pl: Pobierz lokalizację
+  nl: Locatie ophalen
+  ar: الحصول على الموقع
+  hi: स्थान प्राप्त करें
+  th: รับตำแหน่ง
+  cs: Získat polohu
+  sv: 'Hämta plats'
+  verified_by_human: []
+current_location:
+  context: Text for current location
+  en: Current location
+  de: Aktueller Standort
+  zh: 当前位置
+  es: Ubicación actual
+  fr: Localisation actuelle
+  pt: Localização atual
+  ru: Текущее местоположение
+  ja: 現在の位置
+  ko: 현재 위치
+  it: Posizione attuale
+  tr: Mevcut konum
+  vi: Vị trí hiện tại
+  id: Lokasi saat ini
+  pl: Bieżąca lokalizacja
+  nl: Huidige locatie
+  ar: الموقع الحالي
+  hi: वर्तमान स्थान
+  th: ตำแหน่งปัจจุบัน
+  cs: Aktuální poloha
+  sv: 'Nuvarande plats'
+  verified_by_human: []
+selected_location:
+  context: Text for selected location
+  en: Selected location
+  de: Ausgewählter Standort
+  zh: 已选位置
+  es: Ubicación seleccionada
+  fr: Localisation sélectionnée
+  pt: Localização selecionada
+  ru: Выбранное местоположение
+  ja: 選択された位置
+  ko: 선택된 위치
+  it: Posizione selezionata
+  tr: Seçilen konum
+  vi: Vị trí đã chọn
+  id: Lokasi yang dipilih
+  pl: Wybrana lokalizacja
+  nl: Geselecteerde locatie
+  ar: الموقع المحدد
+  hi: चयनित स्थान
+  th: ตำแหน่งที่เลือก
+  cs: Vybraná poloha
+  sv: 'Vald plats'
+  verified_by_human: []
+current_area:
+  context: Text for current area
+  en: Current area
+  de: Aktueller Umkreis
+  zh: 当前区域
+  es: Área actual
+  fr: Zone actuelle
+  pt: Área atual
+  ru: Текущая область
+  ja: 現在のエリア
+  ko: 현재 영역
+  it: Area attuale
+  tr: Mevcut alan
+  vi: Khu vực hiện tại
+  id: Area saat ini
+  pl: Bieżący obszar
+  nl: Huidig gebied
+  ar: المنطقة الحالية
+  hi: वर्तमान क्षेत्र
+  th: พื้นที่ปัจจุบัน
+  cs: Aktuální oblast
+  sv: 'Nuvarande område'
+  verified_by_human: []
+selected_area:
+  context: Text for selected area
+  en: Selected area
+  de: Ausgewählter Umkreis
+  zh: 已选区域
+  es: Área seleccionada
+  fr: Zone sélectionnée
+  pt: Área selecionada
+  ru: Выбранная область
+  ja: 選択されたエリア
+  ko: 선택된 영역
+  it: Area selezionata
+  tr: Seçilen alan
+  vi: Khu vực đã chọn
+  id: Area yang dipilih
+  pl: Wybrany obszar
+  nl: Geselecteerd gebied
+  ar: المنطقة المحددة
+  hi: चयनित क्षेत्र
+  th: พื้นที่ที่เลือก
+  cs: Vybraná oblast
+  sv: 'Valt område'
+  verified_by_human: []
+search_results:
+  context: Text for search results
+  en: Search results
+  de: Suchergebnisse
+  zh: 搜索结果
+  es: Resultados de búsqueda
+  fr: Résultats de recherche
+  pt: Resultados da pesquisa
+  ru: Результаты поиска
+  ja: 検索結果
+  ko: 검색 결과
+  it: Risultati di ricerca
+  tr: Arama sonuçları
+  vi: Kết quả tìm kiếm
+  id: Hasil pencarian
+  pl: Wyniki wyszukiwania
+  nl: Zoekresultaten
+  ar: نتائج البحث
+  hi: खोज परिणाम
+  th: ผลการค้นหา
+  cs: Výsledky vyhledávání
+  sv: 'Sökresultat'
+  verified_by_human: []
+close_search:
+  context: Text for closing search
+  en: Close search
+  de: Suche schließen
+  zh: 关闭搜索
+  es: Cerrar búsqueda
+  fr: Fermer la recherche
+  pt: Fechar pesquisa
+  ru: Закрыть поиск
+  ja: 検索を閉じる
+  ko: 검색 닫기
+  it: Chiudi ricerca
+  tr: Aramayı kapat
+  vi: Đóng tìm kiếm
+  id: Tutup pencarian
+  pl: Zamknij wyszukiwanie
+  nl: Zoeken sluiten
+  ar: إغلاق البحث
+  hi: खोज बंद करें
+  th: ปิดการค้นหา
+  cs: Zavřít vyhledávání
+  sv: 'Stäng sökning'
+  verified_by_human: []
+search_placeholder:
+  context: Placeholder text for search input
+  en: Search location...
+  de: Suche Standort...
+  zh: 搜索位置...
+  es: Buscar ubicación...
+  fr: Rechercher un lieu...
+  pt: Pesquisar localização...
+  ru: Поиск местоположения...
+  ja: 場所を検索...
+  ko: 위치 검색...
+  it: Cerca posizione...
+  tr: Konum ara...
+  vi: Tìm kiếm vị trí...
+  id: Cari lokasi...
+  pl: Szukaj lokalizacji...
+  nl: Zoek locatie...
+  ar: البحث عن الموقع...
+  hi: स्थान खोजें...
+  th: ค้นหาตำแหน่ง...
+  cs: Hledat polohu...
+  sv: 'Sök plats...'
+  verified_by_human: []
+search_button:
+  context: Text for search button
+  en: Search
+  de: Suche
+  zh: 搜索
+  es: Buscar
+  fr: Rechercher
+  pt: Pesquisar
+  ru: Поиск
+  ja: 検索
+  ko: 검색
+  it: Cerca
+  tr: Ara
+  vi: Tìm kiếm
+  id: Cari
+  pl: Szukaj
+  nl: Zoeken
+  ar: بحث
+  hi: खोजें
+  th: ค้นหา
+  cs: Hledat
+  sv: 'Sök'
+  verified_by_human: []

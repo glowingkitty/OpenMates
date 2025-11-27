@@ -2,6 +2,7 @@
 
 import { GroupRenderer } from './GroupRenderer';
 import { ImageRenderer } from './ImageRenderer';
+import { AppSkillUseRenderer } from './AppSkillUseRenderer';
 import type { EmbedRendererRegistry } from './types';
 
 /**
@@ -9,10 +10,16 @@ import type { EmbedRendererRegistry } from './types';
  * Includes individual renderers and generic group renderer
  */
 export const embedRenderers: EmbedRendererRegistry = {
+  // App skill use renderer (web search, code generation, etc.)
+  'app-skill-use': new AppSkillUseRenderer(),
   // Use GroupRenderer for all website embeds (individual and grouped)
   'web-website': new GroupRenderer(),
   'web-website-group': new GroupRenderer(),
+  // Use GroupRenderer for video embeds (individual and grouped)
+  'videos-video': new GroupRenderer(),
   'videos-video-group': new GroupRenderer(),
+  // Use GroupRenderer for code embeds (individual and grouped)
+  'code-code': new GroupRenderer(),
   'code-code-group': new GroupRenderer(),
   'docs-doc-group': new GroupRenderer(),
   'sheets-sheet-group': new GroupRenderer(),

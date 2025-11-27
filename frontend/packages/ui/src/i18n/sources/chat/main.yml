@@ -1,0 +1,207 @@
+new_chat:
+  context: Button label for creating a new chat
+  en: New chat
+  de: Neuer Chat
+  zh: 新聊天
+  es: Nuevo chat
+  fr: Nouveau chat
+  pt: Novo chat
+  ru: Новый чат
+  ja: 新しいチャット
+  ko: 새 채팅
+  it: Nuova chat
+  tr: Yeni sohbet
+  vi: Trò chuyện mới
+  id: Obrolan baru
+  pl: Nowy czat
+  nl: Nieuwe chat
+  ar: محادثة جديدة
+  hi: नई चैट
+  th: แชทใหม่
+  cs: Nový chat
+  sv: Ny chatt
+  verified_by_human: []
+share:
+  context: Button label for sharing a chat
+  en: Share chat
+  de: Chat teilen
+  zh: 分享聊天
+  es: Compartir chat
+  fr: Partager le chat
+  pt: Compartilhar chat
+  ru: Поделиться чатом
+  ja: チャットを共有
+  ko: 채팅 공유
+  it: Condividi chat
+  tr: Sohbeti paylaş
+  vi: Chia sẻ trò chuyện
+  id: Bagikan obrolan
+  pl: Udostępnij czat
+  nl: Chat delen
+  ar: مشاركة المحادثة
+  hi: चैट साझा करें
+  th: แชร์แชท
+  cs: Sdílet chat
+  sv: Dela chatt
+  verified_by_human: []
+start_audio_call:
+  context: Button label for starting an audio call
+  en: Start audio call
+  de: Audioanruf starten
+  zh: 开始语音通话
+  es: Iniciar llamada de audio
+  fr: Démarrer un appel audio
+  pt: Iniciar chamada de áudio
+  ru: Начать аудиозвонок
+  ja: 音声通話を開始
+  ko: 오디오 통화 시작
+  it: Avvia chiamata audio
+  tr: Sesli arama başlat
+  vi: Bắt đầu cuộc gọi thoại
+  id: Mulai panggilan audio
+  pl: Rozpocznij rozmowę głosową
+  nl: Start audiogesprek
+  ar: بدء مكالمة صوتية
+  hi: ऑडियो कॉल शुरू करें
+  th: เริ่มการโทรเสียง
+  cs: Zahájit hlasový hovor
+  sv: Starta röstsamtal
+  verified_by_human: []
+start_video_call:
+  context: Button label for starting a video call
+  en: Start video call
+  de: Videoanruf starten
+  zh: 开始视频通话
+  es: Iniciar videollamada
+  fr: Démarrer un appel vidéo
+  pt: Iniciar chamada de vídeo
+  ru: Начать видеозвонок
+  ja: ビデオ通話を開始
+  ko: 비디오 통화 시작
+  it: Avvia videochiamata
+  tr: Görüntülü arama başlat
+  vi: Bắt đầu cuộc gọi video
+  id: Mulai panggilan video
+  pl: Rozpocznij rozmowę wideo
+  nl: Start videogesprek
+  ar: بدء مكالمة فيديو
+  hi: वीडियो कॉल शुरू करें
+  th: เริ่มการโทรวิดีโอ
+  cs: Zahájit videohovor
+  sv: Starta videosamtal
+  verified_by_human: []
+an_error_occured:
+  context: Generic error message shown in chat
+  en: Sorry, something went wrong while I was trying to process your message. This can happen for many reasons. But be assured, the OpenMates team will be informed and will fix it as soon as possible. But if you want to help, let us know on Discord what you were doing when this error happened (but keep in mind that you should not include personal/sensitive details).
+  de: Entschuldigung, etwas ist schiefgelaufen, während ich versucht habe, deine Nachricht zu verarbeiten. Dies kann aus vielen Gründen geschehen. Aber sei versichert, dass das OpenMates-Team benachrichtigt wird und das Problem so bald wie möglich behebt. Aber wenn du helfen möchtest, lass uns auf Discord wissen, was du getan hast, als dieser Fehler auftrat (beachte aber, dass du keine persönlichen/sensiblen Details einbeziehen solltest).
+  zh: 抱歉，处理您的消息时出错。这可能出于多种原因。但请放心，OpenMates 团队将收到通知并尽快修复。但如果你想帮助，请在 Discord 上告诉我们发生此错误时你在做什么（但请记住，您不应该包含个人/敏感信息）。
+  es: Lo siento, algo salió mal mientras intentaba procesar tu mensaje. Esto puede suceder por muchas razones. Pero ten la seguridad de que el equipo de OpenMates será informado y lo arreglará lo antes posible. Pero si quieres ayudar, háznoslo saber en Discord qué estabas haciendo cuando ocurrió este error (pero ten en cuenta que no debes incluir detalles personales/sensibles).
+  fr: Je suis désolé, quelque chose s'est mal passé lors du traitement de votre message. Cela peut se produire pour de nombreuses raisons. Mais soyez assuré que l'équipe OpenMates en sera informée et le corrigera dès que possible. Mais si vous voulez aider, faites-le nous savoir sur Discord ce que vous faisiez quand cette erreur s'est produite (mais gardez à l'esprit que vous ne devez pas inclure de détails personnels/sensibles).
+  pt: Desculpe, algo deu errado ao tentar processar sua mensagem. Isso pode acontecer por muitos motivos. Mas fique assegurado de que a equipe OpenMates será informada e corrigirá o erro assim que possível. Mas se quiser ajudar, nos avise no Discord o que você estava fazendo quando esse erro ocorreu (mas lembre-se de que você não deve incluir detalhes pessoais/sensíveis).
+  ru: Извините, при обработке вашего сообщения что-то пошло не так. Это может произойти по многим причинам. Но будьте уверены, что команда OpenMates будет уведомлена и исправит это как можно скорее. Но если вы хотите помочь, дайте нам знать в Discord, что вы делали, когда произошла эта ошибка (но помните, что вы не должны включать личные/конфиденциальные данные).
+  ja: 申し訳ございません。メッセージの処理中に問題が発生しました。これはいろいろな理由で起こる可能性があります。ただし、OpenMates チームに通知され、できるだけ早く修正されることをご安心ください。ですが、お力になりたい場合は、このエラーが発生したときに何をしていたかを Discord でお知らせください（ただし、個人情報や機密情報は含めないようにしてください）。
+  ko: 죄송합니다. 메시지를 처리하는 중에 문제가 발생했습니다. 이는 여러 가지 이유로 발생할 수 있습니다. 그러나 OpenMates 팀이 알게 될 것이며 가능한 한 빨리 수정할 것입니다. 하지만 도움을 드리고 싶으시다면 Discord에서 이 오류가 발생했을 때 무엇을 하고 있었는지 알려주세요 (개인/민감한 정보는 포함하지 마시기 바랍니다).
+  it: Scusa, qualcosa è andato storto mentre cercavo di elaborare il tuo messaggio. Questo può accadere per molti motivi. Ma sii sicuro che il team OpenMates sarà informato e lo risolverà il prima possibile. Ma se vuoi aiutare, facci sapere su Discord cosa stavi facendo quando si è verificato questo errore (ma ricorda che non devi includere dettagli personali/sensibili).
+  tr: Üzgünüm, mesajınızı işlemeye çalışırken bir sorun oluştu. Bu birçok nedenden dolayı olabilir. Ancak OpenMates ekibinin bilgilendirilecek ve sorunu en kısa sürede düzelteceklerinden emin olun. Ancak yardımcı olmak istiyorsanız, bu hata oluştuğunda ne yaptığınızı Discord üzerinden bize bildirin (ancak kişisel/hassas ayrıntılar eklememek gerektiğini unutmayın).
+  vi: Xin lỗi, có lỗi xảy ra khi tôi đang cố xử lý tin nhắn của bạn. Điều này có thể xảy ra vì nhiều lý do. Nhưng hãy yên tâm rằng nhóm OpenMates sẽ được thông báo và sẽ khắc phục nó càng sớm càng tốt. Nhưng nếu bạn muốn giúp đỡ, hãy cho chúng tôi biết trên Discord bạn đang làm gì khi lỗi này xảy ra (nhưng hãy lưu ý rằng bạn không nên bao gồm chi tiết cá nhân/nhạy cảm).
+  id: Maaf, ada yang salah saat saya mencoba memproses pesan Anda. Ini dapat terjadi karena banyak alasan. Tetapi percayalah bahwa tim OpenMates akan diberitahu dan akan memperbaikinya sesegera mungkin. Namun jika Anda ingin membantu, beri tahu kami di Discord apa yang Anda lakukan saat kesalahan ini terjadi (tetapi ingat bahwa Anda tidak boleh menyertakan detail pribadi/sensitif).
+  pl: Przepraszam, coś poszło nie tak przy próbie przetworzenia Twojej wiadomości. Może się to zdarzyć z wielu powodów. Ale bądź pewny, że zespół OpenMates zostanie powiadomiony i naprawią to jak najszybciej. Ale jeśli chcesz pomóc, daj nam znać na Discord co robiłeś, gdy ten błąd się pojawił (ale pamiętaj, że nie powinieneś uwzględniać danych osobowych/poufnych).
+  nl: Sorry, er is iets fout gegaan bij het verwerken van je bericht. Dit kan om veel redenen gebeuren. Maar wees verzekerd dat het OpenMates-team op de hoogte zal worden gebracht en het zo snel mogelijk zal repareren. Maar als je wilt helpen, laat ons op Discord weten wat je aan het doen was toen deze fout plaatsvond (maar houd er rekening mee dat je geen persoonlijke/gevoelige gegevens moet opnemen).
+  ar: أعتذر، حدث خطأ أثناء محاولة معالجة رسالتك. يمكن أن يحدث هذا لعدة أسباب. لكن تأكد من أن فريق OpenMates سيتم إخطاره وسيصلح المشكلة في أقرب وقت ممكن. لكن إذا كنت تريد المساعدة، أخبرنا على Discord ما كنت تفعل عندما حدث هذا الخطأ (لكن تذكر أنه لا يجب عليك تضمين تفاصيل شخصية/حساسة).
+  hi: क्षमा करें, आपके संदेश को संसाधित करने का प्रयास करते समय कुछ गलत हुआ। यह कई कारणों से हो सकता है। लेकिन आश्वस्त रहें कि OpenMates टीम को सूचित किया जाएगा और इसे जल्दी से ठीक किया जाएगा। लेकिन यदि आप मदद करना चाहते हैं, तो हमें Discord पर बताएं कि यह त्रुटि होने पर आप क्या कर रहे थे (लेकिन याद रखें कि आपको व्यक्तिगत/संवेदनशील विवरण शामिल नहीं करने चाहिए)।
+  th: ขออภัยค่ะ มีบางอย่างผิดพลาดขณะที่ฉันพยายามประมวลผลข้อความของคุณ สิ่งนี้อาจเกิดขึ้นได้ด้วยเหตุผลมากมาย แต่ให้มั่นใจว่าทีม OpenMates จะได้รับข้อมูลและจะแก้ไขได้เร็วที่สุด แต่หากคุณต้องการช่วยเหลือ โปรดบอกเราบน Discord ว่าคุณกำลังทำอะไรอยู่เมื่อเกิดข้อผิดพลาดนี้ (แต่โปรดจำไว้ว่าคุณไม่ควรใส่รายละเอียดส่วนตัว/ที่ละเอียดอ่อน)
+  cs: Je nám líto, něco se pokazilo při pokusu o zpracování vaší zprávy. To se může stát z mnoha důvodů. Ale buďte si jisti, že tým OpenMates bude informován a opraví to co nejdříve. Ale pokud chcete pomoci, dejte nám prosím vědět na Discord, co jste dělali, když došlo k této chybě (ale pamatujte, že byste neměli zahrnovat osobní/citlivé údaje).
+  sv: Jag beklagar, något gick fel när jag försökte bearbeta ditt meddelande. Detta kan hända av många anledningar. Men var säker på att OpenMates-teamet kommer att informeras och åtgärdar det så snart som möjligt. Men om du vill hjälpa, låt oss veta på Discord vad du höll på med när det här felet inträffade (men kom ihåg att du inte bör inkludera personlig/känslig information).
+  verified_by_human: []
+untitled_chat:
+  context: Default title for a new chat
+  en: Untitled chat
+  de: Unbenannter Chat
+  zh: 未标题的聊天
+  es: Chat sin título
+  fr: Chat sans titre
+  pt: Bate-papo sem título
+  ru: Чат без названия
+  ja: タイトルなしのチャット
+  ko: 제목 없는 채팅
+  it: Chat senza titolo
+  tr: Başlıksız sohbet
+  vi: Trò chuyện chưa đặt tên
+  id: Obrolan tanpa judul
+  pl: Czat bez tytułu
+  nl: Naamloze chat
+  ar: محادثة بدون عنوان
+  hi: बिना शीर्षक की चैट
+  th: แชทที่ไม่มีชื่อ
+  cs: Chat bez názvu
+  sv: Namnlös chatt
+  verified_by_human: []
+show_full_message:
+  context: Button text for showing the full content of a truncated message
+  en: Show full message
+  de: Komplett anzeigen
+  zh: 显示完整消息
+  es: Mostrar mensaje completo
+  fr: Afficher le message complet
+  pt: Mostrar mensagem completa
+  ru: Показать полное сообщение
+  ja: 完全なメッセージを表示
+  ko: 전체 메시지 보기
+  it: Mostra messaggio completo
+  tr: Tam mesajı göster
+  vi: Hiển thị tin nhắn đầy đủ
+  id: Tampilkan pesan lengkap
+  pl: Pokaż pełną wiadomość
+  nl: Volledig bericht weergeven
+  ar: عرض الرسالة الكاملة
+  hi: पूरा संदेश दिखाएं
+  th: แสดงข้อความเต็ม
+  cs: Zobrazit úplnou zprávu
+  sv: Visa fullständigt meddelande
+  verified_by_human: []
+hide_full_message:
+  context: Button text for hiding the full content and showing truncated version
+  en: Show less
+  de: Weniger anzeigen
+  zh: 显示较少
+  es: Mostrar menos
+  fr: Afficher moins
+  pt: Mostrar menos
+  ru: Показать меньше
+  ja: 少なく表示
+  ko: 더 적게 보기
+  it: Mostra meno
+  tr: Daha az göster
+  vi: Hiển thị ít hơn
+  id: Tampilkan lebih sedikit
+  pl: Pokaż mniej
+  nl: Minder weergeven
+  ar: عرض أقل
+  hi: कम दिखाएं
+  th: แสดงน้อยลง
+  cs: Zobrazit méně
+  sv: Visa mindre
+  verified_by_human: []
+loading:
+  context: Text shown while loading full message content
+  en: Loading...
+  de: Lade...
+  zh: 加载中...
+  es: Cargando...
+  fr: Chargement...
+  pt: Carregando...
+  ru: Загрузка...
+  ja: 読み込み中...
+  ko: 로드 중...
+  it: Caricamento...
+  tr: Yükleniyor...
+  vi: Đang tải...
+  id: Memuat...
+  pl: Ładowanie...
+  nl: Laden...
+  ar: جاري التحميل...
+  hi: लोड हो रहा है...
+  th: กำลังโหลด...
+  cs: Načítání...
+  sv: Laddar...
+  verified_by_human: []

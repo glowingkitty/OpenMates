@@ -512,27 +512,60 @@ form.hidden {
 
 /* Fix height and scrolling on mobile when content exceeds container height */
 @media (max-width: 599px) {
-    /* On mobile, let content determine its own height to prevent extra space */
+    /* On mobile, use fixed heights for steps with bottom content (like confirm-email) */
+    /* Steps without bottom content (like secure-account) use expanded class with more height */
     .top-content-wrapper {
-        height: auto;
-        min-height: auto;
-        max-height: none;
+        height: 300px;
+        min-height: 300px;
     }
     
-    /* Top content should fit content, not force scrolling */
+    /* Expanded wrapper needs more height for steps without bottom content */
+    .top-content-wrapper.expanded {
+        height: auto;
+        min-height: 400px;
+    }
+    
+    /* Top content must fill the wrapper */
     .top-content {
+        height: 100%;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    
+    /* Content slider must fill top-content */
+    .top-content .content-slider {
+        height: 100%;
+    }
+    
+    /* Slide must fill content-slider and allow scrolling */
+    .top-content .content-slider .slide {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        height: 100%;
+        -webkit-overflow-scrolling: touch;
+    }
+    
+    /* Content should fill slide */
+    .top-content .content {
+        height: 100%;
+        min-height: 100%;
+    }
+    
+    /* For expanded wrapper (steps without bottom content), let content determine height */
+    .top-content-wrapper.expanded .top-content {
         height: auto;
         overflow: visible;
         min-height: auto;
     }
     
-    /* Content slider should also be auto height */
-    .top-content .content-slider {
+    .top-content-wrapper.expanded .top-content .content-slider {
         height: auto;
     }
     
-    /* Slide should be relative on mobile to prevent extra space */
-    .top-content .content-slider .slide {
+    .top-content-wrapper.expanded .top-content .content-slider .slide {
         position: relative;
         height: auto;
         top: auto;
@@ -541,8 +574,7 @@ form.hidden {
         right: auto;
     }
     
-    /* Remove fixed heights from content elements */
-    .top-content .content {
+    .top-content-wrapper.expanded .top-content .content {
         height: auto;
         min-height: auto;
     }

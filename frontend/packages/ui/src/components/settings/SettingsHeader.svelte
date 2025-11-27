@@ -142,8 +142,14 @@
         if (navigationPath.length > 1) {
             // Go back one level
             const previousPath = navigationPath.slice(0, -1).join('/');
-            const parentIcon = navigationPath[0]; // Icon of the parent section
-            const parentTitle = $text(`settings.${parentIcon}.text`);
+            // Use the last segment of the previous path as the icon (e.g., "security" for "account/security")
+            // This ensures the correct icon is shown when navigating back
+            const previousPathSegments = previousPath.split('/');
+            const parentIcon = previousPathSegments[previousPathSegments.length - 1];
+            // Build translation key for the previous path to get the correct title
+            const translationKeyParts = previousPathSegments.map(segment => segment.replace(/-/g, '_'));
+            const parentTitleKey = `settings.${translationKeyParts.join('.')}.text`;
+            const parentTitle = $text(parentTitleKey);
             dispatchNavigate(previousPath, 'backward', parentIcon, parentTitle);
         } else {
             // Go back to main view

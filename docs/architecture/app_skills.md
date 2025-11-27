@@ -1,7 +1,10 @@
-# App skills architecture 
+# App skills architecture
 
-A skill outputs a json dict.
+A skill outputs a json dict for REST API responses (for frontend/API consumers).
 
+**Internal Format for LLM Function Calling**: When skill results are passed to the LLM via function calling (for inference and chat history storage), they are automatically converted to **TOON (Token-Oriented Object Notation) format** instead of JSON. This reduces token usage by 30-60% compared to JSON, making it more efficient for LLM processing. The conversion happens automatically in [`main_processor.py`](../../backend/apps/ai/processing/main_processor.py) - skills only need to return JSON format, and the system handles TOON encoding internally.
+
+**Embeds Architecture**: Skill results are stored as separate embed entities and referenced in messages. See [Embeds Architecture](../embeds.md) for details on how skill results are stored, updated, and referenced.
 
 ## Input fields
 

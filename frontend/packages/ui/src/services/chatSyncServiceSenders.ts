@@ -20,7 +20,8 @@ import type {
     SendChatMessagePayload,
     SetActiveChatPayload,
     CancelAITaskPayload,
-    SyncOfflineChangesPayload // Assuming this is used by a sender method if sendOfflineChanges is moved
+    SyncOfflineChangesPayload, // Assuming this is used by a sender method if sendOfflineChanges is moved
+    StoreEmbedPayload
 } from '../types/chat'; // Adjust path as necessary
 
 // Note: The actual payload interface definitions for client-to-server messages
@@ -39,7 +40,7 @@ export async function sendUpdateTitleImpl(
     const { encryptWithChatKey } = await import('./cryptoService');
     
     // Encrypt title with chat-specific key for server storage/syncing
-    const encryptedTitle = encryptWithChatKey(new_title, chatKey);
+    const encryptedTitle = await encryptWithChatKey(new_title, chatKey);
     if (!encryptedTitle) {
         notificationStore.error('Failed to encrypt title - chat key not available');
         return;
@@ -200,13 +201,45 @@ export async function sendNewMessageImpl(
     
     console.debug(`[ChatSyncService:Senders] Chat has existing messages: ${chatHasMessages} (messages_v: ${chat?.messages_v}) - ${chatHasMessages ? 'FOLLOW-UP' : 'NEW CHAT'}`);
     
+    // Extract embed references from message content
+    // Embeds are referenced as JSON code blocks: ```json\n{"type": "app_skill_use", "embed_id": "..."}\n```
+    const { extractEmbedReferences, loadEmbeds } = await import('./embedResolver');
+    const embedRefs = extractEmbedReferences(message.content);
+    
+    // Load embeds from EmbedStore (decrypted, ready to send as cleartext)
+    const embeds: any[] = [];
+    if (embedRefs.length > 0) {
+        const embedIds = embedRefs.map(ref => ref.embed_id);
+        const loadedEmbeds = await loadEmbeds(embedIds);
+        
+        // Convert embeds to format expected by server (cleartext, will be encrypted server-side)
+        for (const embed of loadedEmbeds) {
+            embeds.push({
+                embed_id: embed.embed_id,
+                type: embed.type, // Decrypted type (client-side only)
+                status: embed.status,
+                content: embed.content, // TOON-encoded string (cleartext for server)
+                text_preview: embed.text_preview,
+                embed_ids: embed.embed_ids, // For composite embeds
+                createdAt: embed.createdAt,
+                updatedAt: embed.updatedAt
+            });
+        }
+        
+        console.debug('[ChatSyncService:Senders] Extracted and loaded embeds:', {
+            embedRefCount: embedRefs.length,
+            loadedCount: embeds.length,
+            embedIds: embedIds
+        });
+    }
+    
     // Phase 1 payload: ONLY fields needed for AI processing
     const payload: any = {
         chat_id: message.chat_id,
         message: {
             message_id: message.message_id,
             role: message.role,
-            content: message.content, // ONLY plaintext for AI processing
+            content: message.content, // ONLY plaintext for AI processing (contains embed references as JSON blocks)
             created_at: message.created_at,
             sender_name: message.sender_name, // Include for cache but not critical for AI
             chat_has_title: chatHasMessages // ZERO-KNOWLEDGE: Send true if chat has messages (follow-up), false if new
@@ -214,6 +247,12 @@ export async function sendNewMessageImpl(
             // NO message_history - server will request if cache is stale
         }
     };
+    
+    // Include embeds if any were found in the message
+    if (embeds.length > 0) {
+        payload.embeds = embeds; // Send embeds as cleartext (server will encrypt for cache)
+        console.debug('[ChatSyncService:Senders] Including embeds with message:', embeds.length);
+    }
     
     // Include encrypted suggestion for deletion if user clicked a new chat suggestion
     if (encryptedSuggestionToDelete) {
@@ -362,6 +401,58 @@ export async function sendSetActiveChatImpl(
     }
 }
 
+/**
+ * Sends app settings/memories confirmation to server.
+ * 
+ * When user confirms app settings/memories request, client:
+ * 1. Loads app settings/memories from IndexedDB (encrypted)
+ * 2. Decrypts using app-specific keys
+ * 3. Sends decrypted data to server (server encrypts with vault key and caches)
+ * 
+ * Cache is chat-specific, so app settings/memories are automatically evicted
+ * when the chat is evicted from cache.
+ * 
+ * @param serviceInstance ChatSynchronizationService instance
+ * @param chatId Chat ID where the request was made
+ * @param appSettingsMemories Array of decrypted app settings/memories entries
+ *                            Format: [{ app_id: string, item_key: string, content: any }, ...]
+ */
+export async function sendAppSettingsMemoriesConfirmedImpl(
+    serviceInstance: ChatSynchronizationService,
+    chatId: string,
+    appSettingsMemories: Array<{
+        app_id: string;
+        item_key: string;
+        content: any; // Decrypted content (will be JSON stringified by server)
+    }>
+): Promise<void> {
+    if (!(serviceInstance as any).webSocketConnected) {
+        console.warn("[ChatSyncService:Senders] WebSocket not connected. Cannot send 'app_settings_memories_confirmed'.");
+        return;
+    }
+    
+    if (!appSettingsMemories || !Array.isArray(appSettingsMemories) || appSettingsMemories.length === 0) {
+        console.warn("[ChatSyncService:Senders] No app settings/memories to send");
+        return;
+    }
+    
+    const payload = {
+        chat_id: chatId,
+        app_settings_memories: appSettingsMemories.map(item => ({
+            app_id: item.app_id,
+            item_key: item.item_key,
+            content: item.content // Decrypted content - server will encrypt with vault key
+        }))
+    };
+    
+    try {
+        await webSocketService.sendMessage('app_settings_memories_confirmed', payload);
+        console.info(`[ChatSyncService:Senders] Sent ${appSettingsMemories.length} app settings/memories confirmations for chat ${chatId}`);
+    } catch (error) {
+        console.error(`[ChatSyncService:Senders] Error sending 'app_settings_memories_confirmed' for chat_id: ${chatId}:`, error);
+    }
+}
+
 export async function sendCancelAiTaskImpl(
     serviceInstance: ChatSynchronizationService,
     taskId: string
@@ -449,7 +540,7 @@ export async function sendEncryptedStoragePackage(
         if (!encryptedChatKey) {
             console.warn(`[ChatSyncService:Senders] ⚠️ encrypted_chat_key missing for ${chat_id}, generating and saving now (defensive fix)`);
             const { encryptChatKeyWithMasterKey } = await import('./cryptoService');
-            encryptedChatKey = encryptChatKeyWithMasterKey(chatKey);
+            encryptedChatKey = await encryptChatKeyWithMasterKey(chatKey);
 
             if (encryptedChatKey) {
                 // Update chat in DB with the encrypted key
@@ -651,7 +742,8 @@ export async function sendPostProcessingMetadataImpl(
     encrypted_follow_up_suggestions: string,
     encrypted_new_chat_suggestions: string[],
     encrypted_chat_summary: string,
-    encrypted_chat_tags: string
+    encrypted_chat_tags: string,
+    encrypted_top_recommended_apps: string = ''
 ): Promise<void> {
     if (!serviceInstance.webSocketConnected_FOR_SENDERS_ONLY) {
         console.warn('[ChatSyncService:Senders] Cannot send post-processing metadata - WebSocket not connected');
@@ -659,7 +751,7 @@ export async function sendPostProcessingMetadataImpl(
     }
 
     try {
-        const payload = {
+        const payload: any = {
             chat_id,
             encrypted_follow_up_suggestions,
             encrypted_new_chat_suggestions,
@@ -667,10 +759,37 @@ export async function sendPostProcessingMetadataImpl(
             encrypted_chat_tags
         };
 
+        // Only include top recommended apps if provided
+        if (encrypted_top_recommended_apps) {
+            payload.encrypted_top_recommended_apps_for_chat = encrypted_top_recommended_apps;
+        }
+
         console.debug('[ChatSyncService:Senders] Sending encrypted post-processing metadata for sync to Directus');
         await webSocketService.sendMessage('update_post_processing_metadata', payload);
     } catch (error) {
         console.error('[ChatSyncService:Senders] Error sending post-processing metadata:', error);
         throw error; // Don't swallow errors
+    }
+}
+
+/**
+ * Send encrypted embed to server for Directus storage
+ */
+export async function sendStoreEmbedImpl(
+    serviceInstance: ChatSynchronizationService,
+    payload: StoreEmbedPayload
+): Promise<void> {
+    if (!serviceInstance.webSocketConnected_FOR_SENDERS_ONLY) {
+        console.warn('[ChatSyncService:Senders] Cannot send store_embed - WebSocket not connected');
+        // TODO: Queue for offline sync?
+        return;
+    }
+
+    try {
+        console.debug(`[ChatSyncService:Senders] Sending encrypted embed ${payload.embed_id} to server`);
+        await webSocketService.sendMessage('store_embed', payload);
+    } catch (error) {
+        console.error('[ChatSyncService:Senders] Error sending store_embed:', error);
+        throw error;
     }
 }

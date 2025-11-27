@@ -1,24 +1,23 @@
-name: |
-  Code
-description: |
-  Write, test, improve and execute code.
+name_translation_key: code.text
+description_translation_key: code.description.text
 icon_image: |
   coding.svg
-icon_colorgradient:
-  start: |
-    #155D91
-  end: |
-    #42ABF4
-
+category: work
+last_updated: '2025-11-12'
 settings_and_memories:
   - id: |
       preferred_languages_frameworks_tech
+    stage: planning
   - id: |
       current_projects
+    stage: planning
   - id: |
       past_projects
+    stage: planning
   - id: |
       want_to_learn
+    stage: planning
+
 # IMPORTANT lerning:
 # if we let ai code for too long extensive code changes and then start to test it, it becomes a huge broken mess. instead we need to find other ways. Maybe by reminding llm to break tasks down into smaller steps (that also allows for placebolder code), and build it up so that we can test individual steps better if they work and if so we continue to the next step.
 
@@ -81,7 +80,6 @@ settings_and_memories:
 
 # ## Additional Context
 # Screenshots, logs, or other relevant information
-
 embeds:
   - id: |
       code_embed
@@ -93,192 +91,107 @@ embeds:
       Embedded rendered preview of hydra live visuals, but not playing by default.
     description_fullscreen: |
       Code on the left, rendered preview (auto playing) on the right.
-  # separate embeds for hydra with live view and play button like in videos, and rendered html 
-
 skills:
-  - id: |
-      clean_repo
-    name: |
-      Clean repo
-    description: |
-      Check the local repo and its code for unused imports, functions, variables - and auto remove them.
-
-  - id: |
-      get_issues
-    name: |
-      Get issues
-    description: |
-      Get issues from GitHub or GitLab for a project. Either all or with specific tags.
-
-  - id: |
-      add_issue
-    name: |
-      Add issue
-    description: |
-      Add an issue to your GitHub or GitLab project.
-
-  - id: |
-      remove_secrets
-    name: |
-      Remove secrets
-    description: | # use gitleaks, git log -p --all -S "max mustermann" -i, git filter (to remove)
-      Check the repo and its code for api keys, passwords, tokens, name, addresses, phone numbers, emails and other sensitive information - and auto remove them.
-
-  - id: |
-      get_project_overview
-    name: |
-      Get project overview
-    description: |
-      Create an AST overview of all folders, files and functions inside the files, to get a good understanding of the local project architecture.
-
+  - id: clean_repo
+    name_translation_key: code.clean_repo.text
+    description_translation_key: code.clean_repo.description.text
+    stage: planning
+  - id: get_issues
+    name_translation_key: code.get_issues.text
+    description_translation_key: code.get_issues.description.text
+    stage: planning
+  - id: add_issue
+    name_translation_key: code.add_issue.text
+    description_translation_key: code.add_issue.description.text
+    stage: planning
+  - id: remove_secrets
+    name_translation_key: code.remove_secrets.text
+    description_translation_key: code.remove_secrets.description.text
+    stage: planning
+  - id: get_project_overview
+    name_translation_key: code.get_project_overview.text
+    description_translation_key: code.get_project_overview.description.text
+    stage: planning
 focuses:
-  - id: |
-      test_git_repo
-    name: |
-      Test git repo
-    description: |
-      Clone a git repo and test if it works.
-    stage: |
-      planning
+  - id: test_git_repo
+    name_translation_key: code.test_git_repo.text
+    description_translation_key: code.test_git_repo.description.text
+    stage: planning
     process:
-      - "if not provided already, ask user for the github/gitlab repo url"
-      - "if not provided already, ask user what they want to test / what their usecase is"
-      - "use skill to check in issues if there are any critital issues recently with using the repo reported"
-      - "if project is reported to be broken, ask user if they want to continue with testing it"
-      - "ask user where to clone and test the repo? setting up new machine? using github codespaces? local machine? etc."
-      - "clone the repo to the specified location"
-      - "read project folder & file structure and readme.md to get an overview of the project"
-      - "figure out how to test the project and start testing it"
-
-# During development, use the following focuses:
-# TODO: implement in Sophia system prompt instruction to use these focuses
-# Step 1: Plan changes (load project overview (if project exists), ask questions and create files:
-# - `.context/{subject}_todo.md` (include unit tests of sub task changes/ instructions what to test manually)
-# - `.context/{subject}_requirements.md`
-# - `.context/{subject}_architecture.md`
-  - id: |
-      plan_project
-    name: |
-      Plan project
-    description: |
-      Plan a project or changes to a project. Create collaboratively the requirements.md, architecture.md and todo.md files for the changes or project.
-    stage: |
-      planning
+      - if not provided already, ask user for the github/gitlab repo url
+      - if not provided already, ask user what they want to test / what their usecase is
+      - use skill to check in issues if there are any critital issues recently with using the repo reported
+      - if project is reported to be broken, ask user if they want to continue with testing it
+      - ask user where to clone and test the repo? setting up new machine? using github codespaces? local machine? etc.
+      - clone the repo to the specified location
+      - read project folder & file structure and readme.md to get an overview of the project
+      - figure out how to test the project and start testing it
+  - id: plan_project
+    name_translation_key: code.plan_project.text
+    description_translation_key: code.plan_project.description.text
+    stage: planning
     process:
       - ""
-
-# Step 2: Write & test & debug code (get content of these files and then start or continue implementing them, step by step with placeholde architecture for complex changes. Auto write & run unit tests and for tests that user needs to executed, ask user / give test instructions. If an error occurs: ask for what is going wrong, ask for logs, then fix it. If major architectural decisions have to be made which aren't defined in /docs/architecture/README.md, then ask user instead of implementing changes with huge consequences for the project & update plan files. When changes have been applied, add to`.tempcontext/{subject}_changelog.md`. Instruct the LLM also to create unittest and run them or when that isn't practical (for web apps for sample) output test instructions to `.tempcontext/{subject}_testing.md`. Once new solution is implemented, also create or update documentation in README files of folders where files have been updated / added.
-# Important:
-# - keep /docs folder updated with .md files for humans and LLMs about general processing
-# - keep folder specific readme files updated with overview of folders / files and their purpose / basic functionamity (include automated generated folder overview structure with functions / classes & another file with "issues.md" with linter errors which eventually should be handled in GitHub issues.)
-# /.tempcontext (on gitignore) for file for temporary context only
-
-# include license / SPFX for REUSE project automatically for each file?
-
-  - id: |
-      write_test_debug_document
-    name: |
-      Write, test, debug & document
-    description: |
-      Write, test and debug code changes. When task is complete, update documentation. For more complex changes: after previous planning phase.
-    stage: |
-      planning
+  - id: write_test_debug_document
+    name_translation_key: code.write_test_debug_document.text
+    description_translation_key: code.write_test_debug_document.description.text
+    stage: planning
     process:
-      - "ask users clearifying question to make the requirements clear and create requirements.md file"
-      - "for more complex tasks: create todo.md file and keep it updated with progress. Include filepaths or function names / variable names relevant."
-      - "if problem can't be solved within a few steps, ask if new approach should be tried or if requirements should be redefined"
-    # systemprompt just an early placeholder. Nowhere near complete.
+      - ask users clearifying question to make the requirements clear and create requirements.md file
+      - for more complex tasks: create todo.md file and keep it updated with progress. Include filepaths or function names / variable names relevant.
+      - if problem can't be solved within a few steps, ask if new approach should be tried or if requirements should be redefined
     systemprompt: |
       You are a programming expert.
-
-  - id: |
-      analyze_logs
-    name: |
-      Analyze logs
-    description: |
-      Helps you to understand and analyze logs to see what is going on, what is broken, what should be improved, etc
-    stage: |
-      planning
+  - id: analyze_logs
+    name_translation_key: code.analyze_logs.text
+    description_translation_key: code.analyze_logs.description.text
+    stage: planning
     process:
       - ""
-
-  - id: |
-      improve_issue
-    name: |
-      Improve issue
-    description: |
-      Helps you to improve an issue, bug or feature request, by adding clearifing details, remove unnecessary details and logs and more.
-    stage: |
-      planning
+  - id: improve_issue
+    name_translation_key: code.improve_issue.text
+    description_translation_key: code.improve_issue.description.text
+    stage: planning
     process:
       - ""
-
-  - id: |
-      learn_new_tech
-    name: |
-      Learn new tech
-    description: |
-      Start learning a new programming language, framework or other new technology.
+  - id: learn_new_tech
+    name_translation_key: code.learn_new_tech.text
+    description_translation_key: code.learn_new_tech.description.text
+    stage: planning
     process:
-      - "asks user what their learning goal is (understanding a specific part of a new technology, extending knowledge, etc.)
-      - "show examples, suggest a sample project, consider Q&As or other learning methods for understanding a tech"
-      - "goal is to assist software developers who don't want to use AI assisted coding but still profit from the use of AI (and ease the developers into accepting AI support more)."
-
-  - id: |
-      explain_project
-    name: |
-      Explain project
-    description: |
-      Clones a git repo, analyzes it and explains its architecture, issues and more.
-    stage: |
-      planning
-
-  - id: |
-      research_solutions
-    name: |
-      Research solitions
-    description: |
-      Brainstorm & research what tech would work well for the requirements of the user.
-    stage: |
-      planning
-
-  - id: |
-      code_walkthrough
-    name: |
-      Code walkthrough
-    description: |
-      Talk through code problems step-by-step. Think through issues without jumping straight to solutions."
-    stage: |
-      planning
-
-  - id: |
-      setup_infrastructure
-    name: |
-      Setup infrastructure
-    description: |
-      Get assistance for setting up a software or infrastructure.
-    stage: |
-      planning
+      - asks user what their learning goal is (understanding a specific part of a new technology, extending knowledge, etc.)
+      - show examples, suggest a sample project, consider Q&As or other learning methods for understanding a tech
+      - goal is to assist software developers who don't want to use AI assisted coding but still profit from the use of AI (and ease the developers into accepting AI support more).
+  - id: explain_project
+    name_translation_key: code.explain_project.text
+    description_translation_key: code.explain_project.description.text
+    stage: planning
+  - id: research_solutions
+    name_translation_key: code.research_solutions.text
+    description_translation_key: code.research_solutions.description.text
+    stage: planning
+  - id: code_walkthrough
+    name_translation_key: code.code_walkthrough.text
+    description_translation_key: code.code_walkthrough.description.text
+    stage: planning
+  - id: setup_infrastructure
+    name_translation_key: code.setup_infrastructure.text
+    description_translation_key: code.setup_infrastructure.description.text
+    stage: planning
     process:
-      - "mate asks multiple questions to understand what user wants to setup and in what context"
-      - "mate asks clearification questions if first response is not clear"
-      - "mate provides step-by-step instructions for setting up the software or infrastructure the user asked for"
-      - "mate explains the first step, then waits for user feedback, then continues with the next step if step is successful, etc."
-      - "at the end of the successful setup process, mate suggests saving the setup instructions as markdown (for humans), terraform, ansible playbook or cloud-init script (depending on the context)"
-    # systemprompt just an early placeholder. Nowhere near complete.
+      - mate asks multiple questions to understand what user wants to setup and in what context
+      - mate asks clearification questions if first response is not clear
+      - mate provides step-by-step instructions for setting up the software or infrastructure the user asked for
+      - mate explains the first step, then waits for user feedback, then continues with the next step if step is successful, etc.
+      - at the end of the successful setup process, mate suggests saving the setup instructions as markdown (for humans), terraform, ansible playbook or cloud-init script (depending on the context)
     systemprompt: |
       You are an expert in setting up infrastructure and software via terminal.
-
-  - id: |
-      refactor_code
-    name: |
-      Refactor code
-    description: |
-      Refactor code to improve its structure, readability and maintainability.
-    stage: |
-      planning
+  - id: refactor_code
+    name_translation_key: code.refactor_code.text
+    description_translation_key: code.refactor_code.description.text
+    stage: planning
     process:
-      - "mate asks multiple questions to better understand requirements and what isn't working well in the current code"
-      - "mate checks code structure overview and asks further clearifying questions if needed"
-      - "mate tries to find redundant code, unnecessary complexity, etc. and suggests improvements before implementing them"
-      - "mate implements the changes step-by-step, asks for feedback and then continues with the next step"
+      - mate asks multiple questions to better understand requirements and what isn't working well in the current code
+      - mate checks code structure overview and asks further clearifying questions if needed
+      - mate tries to find redundant code, unnecessary complexity, etc. and suggests improvements before implementing them
+      - mate implements the changes step-by-step, asks for feedback and then continues with the next step

@@ -3,8 +3,10 @@ import logging
 import json
 import hashlib # Import hashlib for hashing user_id
 import uuid
+import time # Import time for performance timing
 from typing import Dict, Any, Optional, Tuple, List
 from datetime import datetime, timezone
+import httpx
 
 from fastapi import WebSocket
 
@@ -14,7 +16,6 @@ from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.routes.connection_manager import ConnectionManager
 from backend.core.api.app.schemas.chat import MessageInCache, AIHistoryMessage
 from backend.core.api.app.schemas.ai_skill_schemas import AskSkillRequest as AskSkillRequestSchema
-from backend.core.api.app.tasks.celery_config import app as celery_app # Renamed for clarity
 
 logger = logging.getLogger(__name__)
 
@@ -38,6 +39,13 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
     5. Sends confirmation to the originating client device.
     6. Broadcasts the new message to other connected devices of the same user.
     """
+    # Performance timing: Track total processing time
+    handler_start_time = time.time()
+    # Extract message_id safely for logging (before message_payload_from_client is assigned)
+    message_payload_temp = payload.get("message")
+    message_id_for_log = message_payload_temp.get("message_id") if isinstance(message_payload_temp, dict) else "unknown"
+    logger.info(f"[PERF] Message handler started for chat_id={payload.get('chat_id')}, message_id={message_id_for_log}")
+    
     try:
         chat_id = payload.get("chat_id")
         # The client sends the message details within a "message" sub-dictionary in the payload
@@ -58,6 +66,9 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
         role = message_payload_from_client.get("role") 
         content_plain = message_payload_from_client.get("content") # Markdown content for AI processing
         created_at = message_payload_from_client.get("created_at") # Unix timestamp (int/float)
+        # Get chat_has_title flag early (indicates if this is first message or follow-up)
+        # This is used to determine if we should request history (only for existing chats, not new ones)
+        chat_has_title_from_client = message_payload_from_client.get("chat_has_title", False)
 
         # Validate required fields
         if not message_id or not role or content_plain is None or not created_at:
@@ -127,6 +138,7 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
         # SERVER-SIDE ENCRYPTION: Encrypt content with encryption_key_user_server (Vault)
         # This allows server to cache and access for AI while maintaining security
         # Get user's vault_key_id (try cache first, fallback to Directus)
+        vault_key_start = time.time()
         user_vault_key_id = await cache_service.get_user_vault_key_id(user_id)
         
         if not user_vault_key_id:
@@ -161,7 +173,11 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                     user_id, device_fingerprint_hash
                 )
                 return
-        else:
+        
+        vault_key_time = time.time() - vault_key_start
+        logger.info(f"[PERF] Vault key retrieval took {vault_key_time:.3f}s for user {user_id}")
+        
+        if user_vault_key_id:
             logger.debug(f"Using cached vault_key_id for user {user_id}")
         
         content_to_encrypt_str: str
@@ -173,12 +189,15 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             logger.warning(f"Message content for chat {chat_id}, msg {message_id} is unexpected type {type(content_plain)}. Converting to string.")
             content_to_encrypt_str = str(content_plain)
         
+        encrypt_start = time.time()
         try:
             # Encrypt with user-specific server key (encryption_key_user_server from Vault)
             encrypted_content_for_cache, _ = await encryption_service.encrypt_with_user_key(
                 content_to_encrypt_str, 
                 user_vault_key_id
             )
+            encrypt_time = time.time() - encrypt_start
+            logger.info(f"[PERF] Message encryption took {encrypt_time:.3f}s for message {message_id}")
             logger.debug(f"Encrypted message content for cache using user vault key: {user_vault_key_id}")
         except Exception as e_encrypt:
             logger.error(f"Failed to encrypt message content for cache: {e_encrypt}", exc_info=True)
@@ -201,11 +220,14 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
         # Save to cache first
         # This also updates chat versions (messages_v, last_edited_overall_timestamp)
         # and returns the new versions.
+        cache_save_start = time.time()
         version_update_result = await cache_service.save_chat_message_and_update_versions(
             user_id=user_id,
             chat_id=chat_id,
             message_data=message_for_cache
         )
+        cache_save_time = time.time() - cache_save_start
+        logger.info(f"[PERF] Cache save took {cache_save_time:.3f}s for message {message_id}")
 
         if not version_update_result:
             logger.error(f"Failed to save message {message_id} to cache or update versions for chat {chat_id}. User: {user_id}")
@@ -279,6 +301,91 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             return
         
         logger.info(f"Processing cleartext message {message_id} for AI inference. No storage in this handler.")
+        
+        # Process embeds if provided by client
+        # Embeds are sent as cleartext (TOON-encoded) and will be encrypted server-side for cache
+        embeds_from_client = payload.get("embeds", [])
+        if embeds_from_client:
+            logger.info(f"Processing {len(embeds_from_client)} embeds from client for message {message_id}")
+            
+            # Import embed service
+            from backend.core.api.app.services.embed_service import EmbedService
+            embed_service = EmbedService(
+                cache_service=cache_service,
+                directus_service=directus_service,
+                encryption_service=encryption_service
+            )
+            
+            # Hash IDs for privacy (zero-knowledge architecture)
+            hashed_chat_id = hashlib.sha256(chat_id.encode()).hexdigest()
+            hashed_message_id = hashlib.sha256(message_id.encode()).hexdigest()
+            hashed_user_id = hashlib.sha256(user_id.encode()).hexdigest()
+            
+            # Process each embed
+            for embed_data in embeds_from_client:
+                try:
+                    embed_id = embed_data.get("embed_id")
+                    embed_type = embed_data.get("type")  # Decrypted type from client
+                    embed_content = embed_data.get("content")  # TOON-encoded string
+                    embed_status = embed_data.get("status", "finished")
+                    embed_text_preview = embed_data.get("text_preview")
+                    embed_ids = embed_data.get("embed_ids")  # For composite embeds
+                    
+                    if not embed_id or not embed_type or not embed_content:
+                        logger.warning(f"Invalid embed data from client: missing required fields")
+                        continue
+                    
+                    # Encrypt embed content with vault key for server cache
+                    # Server can decrypt for AI context building
+                    encrypted_content = encryption_service.encrypt_with_vault_key(
+                        user_vault_key_id=user_vault_key_id,
+                        plaintext=embed_content
+                    )
+                    
+                    # Encrypt embed type for zero-knowledge storage
+                    encrypted_type = encryption_service.encrypt_with_vault_key(
+                        user_vault_key_id=user_vault_key_id,
+                        plaintext=embed_type
+                    )
+                    
+                    # Encrypt text preview if provided
+                    encrypted_text_preview = None
+                    if embed_text_preview:
+                        encrypted_text_preview = encryption_service.encrypt_with_vault_key(
+                            user_vault_key_id=user_vault_key_id,
+                            plaintext=embed_text_preview
+                        )
+                    
+                    # Cache embed for AI processing
+                    embed_cache_data = {
+                        "embed_id": embed_id,
+                        "encrypted_type": encrypted_type,
+                        "encrypted_content": encrypted_content,
+                        "encrypted_text_preview": encrypted_text_preview,
+                        "status": embed_status,
+                        "embed_ids": embed_ids,  # For composite embeds
+                        "hashed_chat_id": hashed_chat_id,
+                        "hashed_message_id": hashed_message_id,
+                        "hashed_user_id": hashed_user_id,
+                        "created_at": int(datetime.now(timezone.utc).timestamp()),
+                        "updated_at": int(datetime.now(timezone.utc).timestamp())
+                    }
+                    
+                    # Store in cache
+                    await cache_service.set_embed_in_cache(
+                        embed_id=embed_id,
+                        embed_data=embed_cache_data,
+                        user_vault_key_id=user_vault_key_id
+                    )
+                    
+                    # Add to chat embed index
+                    await cache_service.add_embed_id_to_chat_index(chat_id, embed_id)
+                    
+                    logger.debug(f"Cached embed {embed_id} (type: {embed_type}) for message {message_id}")
+                    
+                except Exception as e_embed:
+                    logger.error(f"Error processing embed from client: {e_embed}", exc_info=True)
+                    # Non-critical error - continue processing other embeds
 
         # Send confirmation to the originating client device
         confirmation_payload = {
@@ -349,6 +456,7 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
         # Check if client provided chat history (for cache miss or stale cache scenarios)
         client_provided_history = message_payload_from_client.get("message_history")
         
+        history_start = time.time()
         try:
             if client_provided_history and isinstance(client_provided_history, list):
                 # Client provided full history - use it directly and re-cache
@@ -358,13 +466,34 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                 await cache_service.delete_chat_messages_history(user_id, chat_id)
                 
                 for hist_msg in client_provided_history:
+                    # CRITICAL: Resolve embed references in message content before adding to AI history
+                    # According to embeds architecture, messages contain embed references (JSON blocks)
+                    # that need to be replaced with actual embed content for LLM context
+                    hist_content = hist_msg.get("content", "")
+                    resolved_hist_content = hist_content
+                    try:
+                        from backend.core.api.app.services.embed_service import EmbedService
+                        embed_service = EmbedService(
+                            cache_service=cache_service,
+                            directus_service=directus_service,
+                            encryption_service=encryption_service
+                        )
+                        resolved_hist_content = await embed_service.resolve_embed_references_in_content(
+                            content=hist_content,
+                            user_vault_key_id=user_vault_key_id,
+                            log_prefix=f"[Chat {chat_id}]"
+                        )
+                    except Exception as e_resolve:
+                        logger.warning(f"Failed to resolve embed references in client-provided message for chat {chat_id}: {e_resolve}. Using original content.")
+                        # Continue with original content if resolution fails
+                    
                     # Add to AI history
                     message_history_for_ai.append(
                         AIHistoryMessage(
                             role=hist_msg.get("role", "user"),
                             category=hist_msg.get("category"),
                             sender_name=hist_msg.get("sender_name", "user"),
-                            content=hist_msg.get("content", ""),
+                            content=resolved_hist_content, # Resolved content with embeds replaced
                             created_at=int(hist_msg.get("created_at", datetime.now(timezone.utc).timestamp()))
                         )
                     )
@@ -406,12 +535,17 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                 # 1. Fetch message history for the chat FROM AI CACHE ONLY (vault-encrypted)
                 # AI cache contains encrypted_content (encrypted with encryption_key_user_server from Vault)
                 # Server decrypts for AI processing, maintaining security
+                cache_fetch_start = time.time()
                 cached_messages_str_list = await cache_service.get_ai_messages_history(user_id, chat_id) # Fetches all vault-encrypted messages
+                cache_fetch_time = time.time() - cache_fetch_start
+                logger.info(f"[PERF] Cache fetch for AI history took {cache_fetch_time:.3f}s, found {len(cached_messages_str_list) if cached_messages_str_list else 0} messages")
                 
                 if cached_messages_str_list:
-                    logger.debug(f"Found {len(cached_messages_str_list)} encrypted messages in cache for chat {chat_id} for AI history.")
+                    logger.info(f"Found {len(cached_messages_str_list)} encrypted messages in AI cache for chat {chat_id}. Loading in chronological order (oldest first).")
                     decryption_failures = 0
-                    for msg_str in reversed(cached_messages_str_list): # Cache stores newest first (LPUSH), reverse for chronological
+                    # CRITICAL: Cache stores newest first (LPUSH), so we reverse to get chronological order (oldest first)
+                    # This ensures message history is in the correct order for AI processing
+                    for msg_str in reversed(cached_messages_str_list):
                         try:
                             msg_cache_data = json.loads(msg_str)
                             
@@ -451,12 +585,43 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                                 logger.warning(f"Cached message for chat {chat_id} has non-integer or missing timestamp '{msg_cache_data.get('created_at')}'. Defaulting to current time.")
                                 history_timestamp_val = int(datetime.now(timezone.utc).timestamp())
 
+                            # CRITICAL: Resolve embed references in message content before adding to AI history
+                            # According to embeds architecture, messages contain embed references (JSON blocks)
+                            # that need to be replaced with actual embed content for LLM context
+                            resolved_content = decrypted_content
+                            try:
+                                from backend.core.api.app.services.embed_service import EmbedService
+                                embed_service = EmbedService(
+                                    cache_service=cache_service,
+                                    directus_service=directus_service,
+                                    encryption_service=encryption_service
+                                )
+                                resolved_content = await embed_service.resolve_embed_references_in_content(
+                                    content=decrypted_content,
+                                    user_vault_key_id=user_vault_key_id,
+                                    log_prefix=f"[Chat {chat_id}]"
+                                )
+                                # Log if any embed references were found but not resolved
+                                if "```json" in decrypted_content and "```json" in resolved_content:
+                                    logger.debug(
+                                        f"[Chat {chat_id}] Some embed references may not have been resolved "
+                                        f"(embeds may be missing from cache). Original content length: {len(decrypted_content)}, "
+                                        f"resolved length: {len(resolved_content)}"
+                                    )
+                            except Exception as e_resolve:
+                                logger.error(
+                                    f"Failed to resolve embed references in message for chat {chat_id}: {e_resolve}. "
+                                    f"Using original content. This may cause LLM context issues.",
+                                    exc_info=True
+                                )
+                                # Continue with original content if resolution fails
+
                             message_history_for_ai.append(
                                 AIHistoryMessage(
                                     role=history_role,
                                     category=history_category,
                                     sender_name=history_sender_name,
-                                    content=decrypted_content, # Decrypted content for AI
+                                    content=resolved_content, # Resolved content with embeds replaced
                                     created_at=history_timestamp_val
                                 )
                             )
@@ -465,18 +630,70 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                         except Exception as e_hist_parse:
                             logger.warning(f"Error processing cached message for AI history: {e_hist_parse}")
                     
-                    logger.info(f"Successfully decrypted {len(message_history_for_ai)} messages from cache for AI history in chat {chat_id} (failures: {decryption_failures}/{len(cached_messages_str_list)})")
+                    logger.info(
+                        f"Successfully decrypted {len(message_history_for_ai)} messages from AI cache for chat {chat_id} "
+                        f"(failures: {decryption_failures}/{len(cached_messages_str_list)}). "
+                        f"Message roles: {[msg.role for msg in message_history_for_ai]}"
+                    )
                     
-                    # If too many decryption failures, cache is likely stale - request history from client
-                    if decryption_failures > 0 and len(message_history_for_ai) < 2:
-                        logger.warning(f"Cache appears stale for chat {chat_id} ({decryption_failures} decryption failures). Client should provide message_history in next request.")
-                        # Send a message to client requesting full history
+                    # If we have no successfully decrypted messages, or too many decryption failures, request history from client
+                    # For follow-up messages (chat_has_title=True), we need at least some context from previous messages
+                    # If cache is completely empty or all decryptions failed, we must request history
+                    # BUT: Only request history for existing chats (chat_has_title=True), not new chats
+                    if len(message_history_for_ai) < 1:
+                        if chat_has_title_from_client:
+                            # Existing chat with no history - request it
+                            logger.warning(f"No messages successfully decrypted from cache for chat {chat_id} ({decryption_failures} decryption failures out of {len(cached_messages_str_list)} cached). Requesting full history from client.")
+                            await manager.send_personal_message(
+                                {
+                                    "type": "request_chat_history",
+                                    "payload": {
+                                        "chat_id": chat_id,
+                                        "reason": "cache_miss" if len(cached_messages_str_list) == 0 else "decryption_failed",
+                                        "message": "Please resend your message with full chat history included"
+                                    }
+                                },
+                                user_id,
+                                device_fingerprint_hash
+                            )
+                            return  # Stop processing until client provides history
+                        else:
+                            # New chat - no history exists, proceed with empty history
+                            logger.info(f"New chat {chat_id} has no cached history (expected). Proceeding with empty history.")
+                    elif decryption_failures > 0 and len(message_history_for_ai) < 2:
+                        # Some decryptions failed and we have less than 2 messages - cache might be partially stale
+                        # For follow-up messages, we should have at least 2 messages (previous user + assistant)
+                        if chat_has_title_from_client:
+                            # Existing chat with stale cache - request history
+                            logger.warning(f"Cache appears partially stale for chat {chat_id} ({decryption_failures} decryption failures, only {len(message_history_for_ai)} messages decrypted). Requesting full history from client.")
+                            await manager.send_personal_message(
+                                {
+                                    "type": "request_chat_history",
+                                    "payload": {
+                                        "chat_id": chat_id,
+                                        "reason": "cache_stale",
+                                        "message": "Please resend your message with full chat history included"
+                                    }
+                                },
+                                user_id,
+                                device_fingerprint_hash
+                            )
+                            return  # Stop processing until client provides history
+                        else:
+                            # New chat - proceed with available history (even if partial)
+                            logger.info(f"New chat {chat_id} has partial cache (expected). Proceeding with available history.")
+                else:
+                    # Cache is completely empty - request full history from client
+                    # BUT: Only request history for existing chats (chat_has_title=True), not new chats
+                    if chat_has_title_from_client:
+                        # Existing chat with empty cache - request history
+                        logger.info(f"AI cache is empty for existing chat {chat_id}. Requesting full chat history from client.")
                         await manager.send_personal_message(
                             {
                                 "type": "request_chat_history",
                                 "payload": {
                                     "chat_id": chat_id,
-                                    "reason": "cache_stale",
+                                    "reason": "cache_miss",
                                     "message": "Please resend your message with full chat history included"
                                 }
                             },
@@ -484,6 +701,9 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                             device_fingerprint_hash
                         )
                         return  # Stop processing until client provides history
+                    else:
+                        # New chat - no history exists, proceed with empty history
+                        logger.info(f"New chat {chat_id} has no cached history (expected). Proceeding with empty history.")
             
             # Ensure the current message (which triggered the AI) is the last one in the history.
             current_message_in_history = any(
@@ -508,6 +728,9 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
 
 
             logger.debug(f"Final AI message history for chat {chat_id} has {len(message_history_for_ai)} messages.")
+            
+            history_time = time.time() - history_start
+            logger.info(f"[PERF] Message history construction took {history_time:.3f}s, final history has {len(message_history_for_ai)} messages")
 
         except Exception as e_hist:
             logger.error(f"Failed to construct message history for AI for chat {chat_id}: {e_hist}", exc_info=True)
@@ -529,9 +752,8 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
         if not active_focus_id_for_ai:
             logger.debug(f"No active_focus_id provided by client for chat {chat_id}. AI will use default focus.")
         
-        # Get chat_has_title flag from client (indicates if this is first message or follow-up)
-        # This is critical for determining if metadata (title, category, icon) should be generated
-        chat_has_title_from_client = message_payload_from_client.get("chat_has_title", False)
+        # chat_has_title_from_client was already extracted earlier (line 71)
+        # This flag is critical for determining if metadata (title, category, icon) should be generated
         logger.debug(f"Chat {chat_id} has_title flag from client: {chat_has_title_from_client}")
         
         # 3. Construct AskSkillRequest payload
@@ -590,65 +812,80 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             return  # Exit early - message is queued, don't start new task
         
         # No active task - proceed with normal processing
-        # 5. Dispatch Celery task to AI app
-        skill_config_for_ask = {}  # Default to empty dict
-        ai_celery_task_id = None   # Initialize to None
+        # 5. Call AI app's FastAPI endpoint to execute the ask skill
+        # The AI app will handle the request and dispatch to its own Celery worker
+        ai_task_id = None   # Initialize to None
 
+        ai_call_start = time.time()
         try:
-            # Attempt to fetch skill_config for 'ask' skill
-            if hasattr(websocket.app.state, 'discovered_apps_metadata') and websocket.app.state.discovered_apps_metadata:
-                ai_app_metadata = websocket.app.state.discovered_apps_metadata.get("ai")
-                if ai_app_metadata and hasattr(ai_app_metadata, 'skills') and ai_app_metadata.skills:
-                    ask_skill_def = next((s for s in ai_app_metadata.skills if s.id == "ask"), None)
-                    # Corrected to look for 'skill_config' which is present in app.yml
-                    if ask_skill_def and hasattr(ask_skill_def, 'skill_config') and ask_skill_def.skill_config is not None:
-                        skill_config_for_ask = ask_skill_def.skill_config
-                        logger.debug("Successfully loaded 'skill_config' for 'ask' skill.")
-                    # Check for 'default_config' as a fallback or if the attribute name is different in the Pydantic model
-                    elif ask_skill_def and hasattr(ask_skill_def, 'default_config') and ask_skill_def.default_config is not None:
-                        skill_config_for_ask = ask_skill_def.default_config
-                        logger.debug("Successfully loaded 'default_config' (as fallback) for 'ask' skill.")
-                    else:
-                        logger.warning("Could not find 'skill_config' or 'default_config' for 'ask' skill in 'ai' app metadata. Using Pydantic defaults.")
-                else:
-                    logger.warning("Could not find 'skills' or 'ai' app metadata. Using Pydantic defaults for skill_config.")
-            else:
-                logger.warning("discovered_apps_metadata not found in app.state. Using Pydantic defaults for skill_config.")
-
-            kwargs_for_celery = {
-                "request_data_dict": ai_request_payload.model_dump(),
-                "skill_config_dict": skill_config_for_ask  # Pass the retrieved or default {}
-            }
-
-            task_result = celery_app.send_task(
-                name='apps.ai.tasks.skill_ask',
-                kwargs=kwargs_for_celery,
-                queue='app_ai' # Corrected queue name to match celery_config.py
-            )
-            ai_celery_task_id = task_result.id
-            logger.debug(f"Dispatched Celery task 'apps.ai.tasks.skill_ask' with ID {ai_celery_task_id} for chat {chat_id}, user message {message_id}")
+            # Call the AI app's FastAPI endpoint for the ask skill
+            # BaseApp registers routes as /skills/{skill_id}, so for ask skill it's /skills/ask
+            ai_app_url = "http://app-ai:8000/skills/ask"
+            
+            # Prepare the request payload - AskSkill expects AskSkillRequest
+            request_payload = ai_request_payload.model_dump()
+            
+            logger.debug(f"Calling AI app ask skill endpoint: {ai_app_url} for chat {chat_id}, message {message_id}")
+            
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.post(
+                    ai_app_url,
+                    json=request_payload,
+                    headers={"Content-Type": "application/json"}
+                )
+                response.raise_for_status()
+                response_data = response.json()
+                
+                # AskSkillResponse contains task_id
+                ai_task_id = response_data.get("task_id")
+                ai_call_time = time.time() - ai_call_start
+                logger.info(f"[PERF] AI app call took {ai_call_time:.3f}s, Task ID: {ai_task_id} for chat {chat_id}, message {message_id}")
+                logger.info(f"AI app ask skill executed successfully. Task ID: {ai_task_id} for chat {chat_id}, message {message_id}")
 
             # Mark this chat as having an active AI task
-            await cache_service.set_active_ai_task(chat_id, ai_celery_task_id)
+            if ai_task_id:
+                await cache_service.set_active_ai_task(chat_id, ai_task_id)
 
-            # Send acknowledgement with task_id to the originating client
-            await manager.send_personal_message(
-                message={
-                    "type": "ai_task_initiated",
-                    "payload": {
-                        "chat_id": chat_id,
-                        "user_message_id": message_id,
-                        "ai_task_id": ai_celery_task_id,
-                        "status": "processing_started"
-                    }
-                },
-                user_id=user_id,
-                device_fingerprint_hash=device_fingerprint_hash
-            )
-            logger.debug(f"Sent 'ai_task_initiated' ack to client for task {ai_celery_task_id}")
+                # Send acknowledgement with task_id to the originating client
+                await manager.send_personal_message(
+                    message={
+                        "type": "ai_task_initiated",
+                        "payload": {
+                            "chat_id": chat_id,
+                            "user_message_id": message_id,
+                            "ai_task_id": ai_task_id,
+                            "status": "processing_started"
+                        }
+                    },
+                    user_id=user_id,
+                    device_fingerprint_hash=device_fingerprint_hash
+                )
+                logger.debug(f"Sent 'ai_task_initiated' ack to client for task {ai_task_id}")
+            else:
+                logger.warning(f"AI app returned response but no task_id found. Response: {response_data}")
 
+        except httpx.HTTPStatusError as e_ai_task:
+            logger.error(f"HTTP error calling AI app ask skill endpoint for chat {chat_id}: {e_ai_task.response.status_code} - {e_ai_task.response.text}", exc_info=True)
+            # Attempt to send an error message to the client
+            try:
+                await manager.send_personal_message(
+                    {"type": "error", "payload": {"message": "Could not initiate AI response. Please try again."}},
+                    user_id, device_fingerprint_hash
+                )
+            except Exception as e_send_err:
+                logger.error(f"Failed to send error to client after AI task dispatch failure: {e_send_err}")
+        except httpx.RequestError as e_ai_task:
+            logger.error(f"Request error calling AI app ask skill endpoint for chat {chat_id}: {e_ai_task}", exc_info=True)
+            # Attempt to send an error message to the client
+            try:
+                await manager.send_personal_message(
+                    {"type": "error", "payload": {"message": "Could not connect to AI service. Please try again."}},
+                    user_id, device_fingerprint_hash
+                )
+            except Exception as e_send_err:
+                logger.error(f"Failed to send error to client after AI task dispatch failure: {e_send_err}")
         except Exception as e_ai_task:
-            logger.error(f"Failed to dispatch 'apps.ai.tasks.skill_ask' Celery task for chat {chat_id}: {e_ai_task}", exc_info=True)
+            logger.error(f"Failed to call AI app ask skill endpoint for chat {chat_id}: {e_ai_task}", exc_info=True)
             # Attempt to send an error message to the client
             try:
                 await manager.send_personal_message(
@@ -658,8 +895,13 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             except Exception as e_send_err:
                 logger.error(f"Failed to send error to client after AI task dispatch failure: {e_send_err}")
         # --- END AI SKILL INVOCATION ---
+        
+        handler_total_time = time.time() - handler_start_time
+        logger.info(f"[PERF] Message handler completed in {handler_total_time:.3f}s for chat_id={chat_id}, message_id={message_id}")
 
     except Exception as e: # This is the outer try-except for the whole handler
+        handler_total_time = time.time() - handler_start_time
+        logger.error(f"[PERF] Message handler failed after {handler_total_time:.3f}s for chat_id={payload.get('chat_id') if payload else 'unknown'}: {e}", exc_info=True)
         logger.error(f"Error in handle_message_received (new message) from {user_id}/{device_fingerprint_hash}: {e}", exc_info=True)
         try:
             await manager.send_personal_message(

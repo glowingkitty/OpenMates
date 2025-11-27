@@ -2,7 +2,7 @@
 
 > **Implementation Status:**
 > - ✅ **IMPLEMENTED**: Email + Password + OTP 2FA signup and login
-> - ⚠️ **PLANNED**: Passkey authentication (not yet implemented)
+> - ✅ **IMPLEMENTED**: Passkey authentication (passwordless login with PRF extension)
 > - ⚠️ **PLANNED**: Magic link login (not yet implemented)
 >
 > Keep in mind there can still be differences between this planned architecture and the current code implementation.
@@ -25,15 +25,15 @@ Our system uses zero-knowledge authentication where the server never sees plaint
 - User enters one time code from email and it's validated once entered. If code is valid, signup continues with step 3 (secure account)
 - User can also choose to click "Send again"
 
-## Step 3 – Secure Account ✅ **IMPLEMENTED** (Password only)
+## Step 3 – Secure Account ✅ **IMPLEMENTED** (Password & Passkey)
 
-- **Currently implemented:** User sets up password-based authentication
-- **Planned (not yet implemented):** User will be able to choose between passkey or password authentication
+- **Currently implemented:** User can choose between password-based or passkey-based authentication
+- Both methods maintain zero-knowledge encryption principles
 
-### Password Setup (Current Implementation)
+### Password Setup ✅ **IMPLEMENTED**
 - Continue to step 3.1 (setup password)
 
-### Passkey Setup ⚠️ **PLANNED** (not yet implemented)
+### Passkey Setup ✅ **IMPLEMENTED**
 - If passkey is selected:
 	- A request is sent to the server to initiate passkey registration.
 	- The server responds with a WebAuthn PublicKeyCredentialCreationOptions object.
@@ -87,7 +87,12 @@ The application implements a "Stay logged in on this device" option to address S
   - Optimized for Safari iOS/iPadOS compatibility
   - Prevents automatic logout on page reload
   - Suitable for personal trusted devices
-  - Master encryption key stored in localStorage (vs sessionStorage)
+  - Master encryption key stored in IndexedDB (persists across sessions)
+  
+- **Default (unchecked)**: Cookies expire after **24 hours**
+  - Master encryption key stored in memory only (module-level variable)
+  - Automatically cleared when page/tab closes (no persistence)
+  - Suitable for shared or less trusted devices
 
 ### Implementation Details
 - User preference captured during email lookup (first login step)
@@ -95,6 +100,25 @@ The application implements a "Stay logged in on this device" option to address S
 - Cookie `max_age` adjusted based on preference: 2,592,000s (30 days) vs 86,400s (24 hours)
 - Cache TTL matches cookie expiration for consistency
 - Session refresh endpoint respects stored preference
+
+### Master Key Storage Strategy ✅ **IMPLEMENTED**
+The application uses a hybrid storage approach for master encryption keys:
+
+- **stayLoggedIn=false**: Master key stored in memory only (module-level variable)
+  - Automatically cleared when page/tab closes (no async cleanup needed)
+  - No persistence across browser sessions
+  - Provides reliable cleanup without relying on unload handlers
+  
+- **stayLoggedIn=true**: Master key stored in IndexedDB as CryptoKey object
+  - Persists across browser sessions
+  - Uses Web Crypto API CryptoKey objects (not Base64 strings)
+  - Better isolation than localStorage/sessionStorage
+  - Keys require Web Crypto API to use (not plain strings in storage)
+
+**Security Features**:
+- Multiple validation layers ensure cleanup (page load check, access-time validation, periodic validation)
+- Memory keys provide automatic cleanup (no dependency on unreliable unload handlers)
+- Defense in depth: Even if one validation layer fails, others ensure proper cleanup
 
 ### Safari iOS Compatibility
 Safari on iOS/iPadOS has strict cookie policies that can cause logout on page reload. The 30-day cookie TTL specifically addresses this issue by providing a longer cookie lifetime that survives browser restarts and page reloads.
@@ -121,16 +145,28 @@ Safari on iOS/iPadOS has strict cookie policies that can cause logout on page re
 5. Server verifies backup code and marks it as used
 6. Success = authentication, user is logged in with appropriate cookie TTL
 
-### Passkey Login ⚠️ **PLANNED** (not yet implemented):
-1. User clicks "Login with passkey"
+### Passkey Login ✅ **IMPLEMENTED**:
+1. User clicks "Login with passkey" (or uses passwordless flow)
 2. User can optionally check "Stay logged in on this device" (cookie TTL: 30 days vs 24 hours)
-3. Browser prompts for passkey authentication
-4. Client receives WebAuthn PRF value
-5. Client derives lookup_hash and decrypts wrapped master key
-6. If successful: user is logged in with appropriate cookie TTL
+3. Frontend calls `/auth/passkey/assertion/initiate` to get WebAuthn challenge
+4. Backend generates challenge with PRF extension using global salt: `SHA256(rp_id)[:32]`
+5. Browser prompts for passkey authentication (biometric/PIN)
+6. Client receives WebAuthn PRF signature from authenticator (deterministic for same global salt)
+7. Frontend calls `/auth/passkey/assertion/verify` with credential response
+8. Backend verifies passkey signature using `py_webauthn` library
+9. Backend starts cache warming asynchronously (similar to password login `/lookup` endpoint)
+10. Backend returns `encrypted_email_with_master_key`, `encrypted_master_key`, and `user_email_salt`
+11. Client derives wrapping key from PRF signature using `HKDF(PRF_signature, user_email_salt)`
+12. Client unwraps master key from `encrypted_master_key`
+13. Client decrypts email from `encrypted_email_with_master_key` using master key
+14. Client derives `email_encryption_key = SHA256(email + user_email_salt)` and `lookup_hash = SHA256(PRF_signature + user_email_salt)`
+15. Client completes authentication by calling `/auth/login` with `lookup_hash` and `login_method: 'passkey'`
+16. Backend verifies `lookup_hash` and creates session with appropriate cookie TTL
+17. Frontend waits for cache warming to complete (via WebSocket sync status) before loading main interface
+18. If successful: user is logged in with appropriate cookie TTL and data ready for instant sync
 
-### Magic Link Login ⚠️ **PLANNED** (not yet implemented):
-See docs/architecture/security.md for planned magic link flow details.
+### Magic Link Login / Login via Phone ⚠️ **PLANNED** (not yet implemented):
+See docs/architecture/security.md for planned magic link and phone login flow details.
 
 ### API Key Access ⚠️ **PLANNED** (not yet implemented):
 1. Client sends API key in request header

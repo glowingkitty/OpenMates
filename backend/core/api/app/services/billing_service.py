@@ -35,9 +35,31 @@ class BillingService:
     ) -> None:
         """
         Deducts credits and records the usage entry.
+        
+        Args:
+            user_id: Actual user ID for cache lookup
+            credits_to_deduct: Number of credits to charge
+            user_id_hash: Hashed user ID for privacy
+            app_id: ID of the app that executed the skill (required, must not be empty)
+            skill_id: ID of the skill that was executed (required, must not be empty)
+            usage_details: Optional dict containing additional usage metadata:
+                - chat_id: Chat ID if skill was triggered in a chat context
+                - message_id: Message ID if skill was triggered from a message
+                - model_used: Model identifier if applicable
+                - input_tokens: Input token count if applicable
+                - output_tokens: Output token count if applicable
         """
         if not isinstance(credits_to_deduct, int) or credits_to_deduct < 0:
             raise HTTPException(status_code=400, detail="Credits to deduct must be a non-negative integer.")
+        
+        # Validate required fields - app_id and skill_id must be provided and non-empty
+        if not app_id or not isinstance(app_id, str) or not app_id.strip():
+            logger.error(f"Invalid app_id provided for credit charge: {app_id}. Cannot create usage entry.")
+            raise HTTPException(status_code=400, detail="app_id is required and must not be empty.")
+        
+        if not skill_id or not isinstance(skill_id, str) or not skill_id.strip():
+            logger.error(f"Invalid skill_id provided for credit charge: {skill_id}. Cannot create usage entry.")
+            raise HTTPException(status_code=400, detail="skill_id is required and must not be empty.")
 
         try:
             # 1. Get user profile using the cache service
@@ -116,18 +138,35 @@ class BillingService:
             )
 
             # 6. Create usage entry
+            # Extract optional fields from usage_details, ensuring we only pass non-empty values
+            # chat_id and message_id should be included when skill is triggered in a chat context
             timestamp = int(time.time())
+            
+            # Extract chat_id and message_id from usage_details if available
+            # These are important for linking usage entries to chat sessions
+            chat_id = None
+            message_id = None
+            if usage_details:
+                # Only use chat_id and message_id if they are non-empty strings
+                chat_id_val = usage_details.get("chat_id")
+                if chat_id_val and isinstance(chat_id_val, str) and chat_id_val.strip():
+                    chat_id = chat_id_val.strip()
+                
+                message_id_val = usage_details.get("message_id")
+                if message_id_val and isinstance(message_id_val, str) and message_id_val.strip():
+                    message_id = message_id_val.strip()
+            
             await self.directus_service.usage.create_usage_entry(
                 user_id_hash=user_id_hash,
-                app_id=app_id,
-                skill_id=skill_id,
+                app_id=app_id.strip(),  # Ensure no leading/trailing whitespace
+                skill_id=skill_id.strip(),  # Ensure no leading/trailing whitespace
                 usage_type="skill_execution",
                 timestamp=timestamp,
                 credits_charged=credits_to_deduct,
                 user_vault_key_id=user['vault_key_id'],
                 model_used=usage_details.get("model_used") if usage_details else None,
-                chat_id=usage_details.get("chat_id") if usage_details else None,
-                message_id=usage_details.get("message_id") if usage_details else None,
+                chat_id=chat_id,  # Only set if provided and non-empty
+                message_id=message_id,  # Only set if provided and non-empty
                 actual_input_tokens=usage_details.get("input_tokens") if usage_details else None,
                 actual_output_tokens=usage_details.get("output_tokens") if usage_details else None,
             )

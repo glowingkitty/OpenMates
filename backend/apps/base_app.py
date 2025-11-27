@@ -9,10 +9,14 @@ import os
 import logging
 from typing import Dict, Any, List, Optional, Union
 from pydantic import Field, BaseModel
-from fastapi import FastAPI, HTTPException, Depends, Request
+from fastapi import FastAPI, HTTPException, Depends, Request, Body
+from fastapi.requests import Request
 import httpx
 import importlib
+import json
 from celery import Celery
+from kombu import Queue
+from urllib.parse import quote
 
 from backend.shared.python_schemas.app_metadata_schemas import (
     AppYAML,
@@ -23,6 +27,7 @@ from backend.shared.python_schemas.app_metadata_schemas import (
     AppMemoryFieldDefinition
 )
 from backend.core.api.app.utils.internal_auth import verify_internal_token
+from backend.core.api.app.services.translations import TranslationService
 
 logger = logging.getLogger(__name__)
 
@@ -48,6 +53,15 @@ class BaseApp:
         self.is_valid = False
         self.port = app_port
         self.celery_producer = self._initialize_celery_producer()
+        
+        # Initialize translation service to load translations from YAML files
+        # This ensures translations are ready for skill initialization and metadata endpoint
+        try:
+            self.translation_service = TranslationService()
+            logger.info(f"Translation service initialized for app '{self.app_id}'")
+        except Exception as e:
+            logger.warning(f"Failed to initialize translation service for app '{self.app_id}': {e}. Translations may not be available.")
+            self.translation_service = None
 
         self._load_and_validate_app_yml()
 
@@ -60,7 +74,7 @@ class BaseApp:
         logger.info(f"BaseApp initialized. Effective App ID: {self.app_id}")
 
         self.fastapi_app = FastAPI(
-            title=self.name or self.app_id or "BaseApp",
+            title=self.name_translation_key or self.app_id or "BaseApp",
             description=self.description or "A base application.",
             version="0.1.0"
         )
@@ -78,43 +92,170 @@ class BaseApp:
                 skill_class_attr = getattr(module, class_name)
 
                 if not isinstance(skill_class_attr, type):
-                    logger.error(f"Skill '{skill_def.name}' class_path '{skill_def.class_path}' does not point to a class. Skipping.")
+                    logger.error(f"Skill '{skill_def.id}' class_path '{skill_def.class_path}' does not point to a class. Skipping.")
                     continue
 
-                @self.fastapi_app.post(f"/skills/{skill_def.id}", tags=["Skills"], name=f"execute_skill_{skill_def.id}")
-                async def _dynamic_skill_executor(skill_definition: AppSkillDefinition = skill_def, request_body: Dict[str, Any] = Depends(lambda: {})):
+                # CRITICAL: Capture all values as default parameters to avoid Python closure late-binding issues
+                # Python closures capture variables by reference, not by value. Using default parameters
+                # forces evaluation at function definition time, ensuring each route uses the correct skill.
+                skill_id_for_route = skill_def.id
+                captured_skill_def = skill_def
+                captured_skill_class = skill_class_attr
+                
+                @self.fastapi_app.post(f"/skills/{skill_id_for_route}", tags=["Skills"], name=f"execute_skill_{skill_id_for_route}")
+                async def _dynamic_skill_executor(
+                    request: Request,
+                    skill_definition=captured_skill_def,
+                    captured_class=captured_skill_class
+                ):
+                    """
+                    Dynamic skill executor endpoint.
+                    Manually parses request body as JSON to bypass FastAPI validation.
+                    This allows us to dynamically validate against the skill's request model.
+                    """
+                    # Use the captured values from default parameters (evaluated at function definition time)
+                    
+                    logger.info(f"[SKILL_ROUTE] Received request for skill '{skill_definition.id}' at /skills/{skill_definition.id}")
+                    
                     try:
-                        skill_instance = skill_class_attr(
+                        # Manually read and parse the request body to bypass FastAPI validation
+                        try:
+                            body_bytes = await request.body()
+                            if not body_bytes:
+                                raise HTTPException(status_code=400, detail="Request body is required")
+                            
+                            request_body = json.loads(body_bytes.decode('utf-8'))
+                            if not isinstance(request_body, dict):
+                                raise HTTPException(status_code=400, detail="Request body must be a JSON object")
+                            
+                            logger.debug(f"[SKILL_ROUTE] Parsed request body with keys: {list(request_body.keys())}")
+                        except json.JSONDecodeError as e:
+                            logger.error(f"[SKILL_ROUTE] Invalid JSON in request body: {e}")
+                            raise HTTPException(status_code=400, detail=f"Invalid JSON in request body: {str(e)}")
+                        except UnicodeDecodeError as e:
+                            logger.error(f"[SKILL_ROUTE] Invalid encoding in request body: {e}")
+                            raise HTTPException(status_code=400, detail="Invalid encoding in request body")
+                        
+                        logger.debug(f"Executing skill '{skill_definition.id}' with request body: {list(request_body.keys())}")
+                        
+                        # Extract metadata fields (_chat_id, _message_id) from request body if present
+                        # These are used for linking usage entries to chat sessions
+                        # We'll remove them from request_body before passing to skill to avoid validation errors
+                        chat_id = request_body.get("_chat_id")
+                        message_id = request_body.get("_message_id")
+                        
+                        # Initialize skill instance
+                        # Extract full_model_reference from default_config if present, otherwise use None
+                        # Note: AppSkillDefinition doesn't have full_model_reference field,
+                        # but BaseSkill.__init__ accepts it as an optional parameter
+                        full_model_ref = None
+                        if skill_definition.default_config and isinstance(skill_definition.default_config, dict):
+                            full_model_ref = skill_definition.default_config.get('full_model_reference')
+                        
+                        # Resolve translation keys to actual translated strings for BaseSkill initialization
+                        # BaseSkill expects skill_name and skill_description as strings, not translation keys
+                        skill_name = self._resolve_translation_key(skill_definition.name_translation_key)
+                        skill_description = self._resolve_translation_key(skill_definition.description_translation_key)
+                        
+                        skill_instance = captured_class(
                             app=self,
                             app_id=self.id,
                             skill_id=skill_definition.id,
-                            skill_name=skill_definition.name,
-                            skill_description=skill_definition.description,
+                            skill_name=skill_name,
+                            skill_description=skill_description,
                             stage=skill_definition.stage,
-                            full_model_reference=skill_definition.full_model_reference,
+                            full_model_reference=full_model_ref,
                             pricing_config=skill_definition.pricing.model_dump(exclude_none=True) if skill_definition.pricing else None,
                             celery_producer=self.celery_producer,
                             skill_operational_defaults=skill_definition.default_config
                         )
+                        
+                        # Set execution context (chat_id, message_id) on skill instance
+                        # This allows skills to use these values when recording usage via record_skill_usage
+                        if chat_id:
+                            skill_instance._current_chat_id = chat_id
+                        if message_id:
+                            skill_instance._current_message_id = message_id
+                    except HTTPException:
+                        raise
                     except Exception as init_e:
-                        raise HTTPException(status_code=500, detail=f"Error initializing skill '{skill_definition.name}'.")
+                        logger.error(f"Error initializing skill '{skill_definition.id}': {init_e}", exc_info=True)
+                        raise HTTPException(status_code=500, detail=f"Error initializing skill '{skill_definition.id}': {str(init_e)}")
 
                     try:
+                        # Execute the skill - check if execute method expects a Pydantic model or keyword arguments
                         if hasattr(skill_instance, 'execute') and callable(skill_instance.execute):
-                            if isinstance(request_body, dict):
-                                response = await skill_instance.execute(**request_body)
+                            import inspect
+                            from pydantic import BaseModel as PydanticBaseModel
+                            
+                            sig = inspect.signature(skill_instance.execute)
+                            params = sig.parameters
+                            
+                            # Look for a Pydantic BaseModel parameter (excluding self)
+                            request_model = None
+                            for param_name, param in params.items():
+                                if param_name == 'self':
+                                    continue
+                                
+                                param_type = param.annotation
+                                
+                                # Handle string annotations (forward references) by resolving them
+                                if isinstance(param_type, str):
+                                    # Try to resolve the annotation from the module
+                                    try:
+                                        module = inspect.getmodule(skill_instance)
+                                        if module:
+                                            param_type = getattr(module, param_type, None)
+                                    except Exception:
+                                        pass
+                                
+                                # Check if it's a Pydantic BaseModel
+                                if (inspect.isclass(param_type) and 
+                                    issubclass(param_type, PydanticBaseModel)):
+                                    request_model = param_type
+                                    logger.debug(f"Found Pydantic request model '{param_type.__name__}' for skill '{skill_definition.id}'")
+                                    break
+                            
+                            if request_model:
+                                # Remove metadata fields before instantiating Pydantic model
+                                # These fields are not part of the skill's schema
+                                clean_request_body = {k: v for k, v in request_body.items() if not k.startswith("_")}
+                                
+                                # Instantiate the Pydantic model from request body
+                                try:
+                                    logger.debug(f"Instantiating {request_model.__name__} from request body for skill '{skill_definition.id}'")
+                                    request_obj = request_model(**clean_request_body)
+                                    response = await skill_instance.execute(request_obj)
+                                except Exception as validation_error:
+                                    logger.error(f"Validation error for skill '{skill_definition.id}': {validation_error}", exc_info=True)
+                                    # Format Pydantic validation errors properly
+                                    if hasattr(validation_error, 'errors'):
+                                        # Pydantic ValidationError
+                                        error_details = validation_error.errors()
+                                    else:
+                                        error_details = [{"msg": str(validation_error)}]
+                                    raise HTTPException(
+                                        status_code=422, 
+                                        detail=error_details
+                                    )
                             else:
-                                response = await skill_instance.execute(request_body)
+                                # No Pydantic model found - try unpacking as keyword arguments
+                                # Remove metadata fields before passing to skill
+                                clean_request_body = {k: v for k, v in request_body.items() if not k.startswith("_")}
+                                logger.debug(f"No Pydantic model found for skill '{skill_definition.id}', using kwargs")
+                                response = await skill_instance.execute(**clean_request_body)
+                            
                             return response
                         else:
-                            raise HTTPException(status_code=500, detail=f"Skill '{skill_definition.name}' is not executable.")
+                            raise HTTPException(status_code=500, detail=f"Skill '{skill_definition.id}' is not executable.")
                     except HTTPException:
                         raise
                     except Exception as exec_e:
-                        raise HTTPException(status_code=500, detail=f"Error executing skill '{skill_definition.name}'.")
+                        logger.error(f"Error executing skill '{skill_definition.id}': {exec_e}", exc_info=True)
+                        raise HTTPException(status_code=500, detail=f"Error executing skill '{skill_definition.id}': {str(exec_e)}")
 
             except Exception as e:
-                logger.error(f"Unexpected error registering skill route for '{skill_def.name}': {e}", exc_info=True)
+                logger.error(f"Unexpected error registering skill route for '{skill_def.id}': {e}", exc_info=True)
 
     async def _make_internal_api_request(
         self,
@@ -144,9 +285,38 @@ class BaseApp:
                 raise HTTPException(status_code=500, detail=f"Unexpected internal error: {str(e)}")
 
     def _initialize_celery_producer(self) -> Celery:
-        broker_url = os.getenv('CELERY_BROKER_URL', 'redis://default:password@cache:6379/0')
+        """
+        Initialize Celery producer for dispatching tasks.
+        Uses DRAGONFLY_PASSWORD from environment, matching celery_config.py pattern.
+        Declares queues to match worker configuration so tasks can be routed correctly.
+        """
+        # Get Redis password from environment variable and ensure it's URL-encoded
+        raw_password = os.getenv('DRAGONFLY_PASSWORD')
+        encoded_password = quote(raw_password) if raw_password else ''
+        
+        # Build broker URL with proper authentication, matching celery_config.py
+        broker_url = os.getenv('CELERY_BROKER_URL', f'redis://default:{encoded_password}@cache:6379/0')
+        
+        logger.debug(f"Initializing Celery producer for app '{self.app_id}' with broker URL: redis://default:***@cache:6379/0")
+        
         producer = Celery(f'{self.app_id}_producer', broker=broker_url)
-        producer.conf.update(task_serializer='json', accept_content=['json'], timezone='UTC', enable_utc=True)
+        
+        # Declare queues that match the worker configuration
+        # This ensures tasks sent with explicit queue names can be routed correctly
+        # Queues must match those declared in celery_config.py
+        app_queues = (
+            Queue('app_ai', exchange='app_ai', routing_key='app_ai'),
+            Queue('app_web', exchange='app_web', routing_key='app_web'),
+        )
+        
+        producer.conf.update(
+            task_serializer='json',
+            accept_content=['json'],
+            timezone='UTC',
+            enable_utc=True,
+            task_queues=app_queues,  # Declare queues so send_task with queue parameter works
+        )
+        
         return producer
 
     def _register_default_routes(self):
@@ -158,7 +328,7 @@ class BaseApp:
 
         @self.fastapi_app.get("/health", tags=["App Info"])
         async def health_check():
-            return {"status": "ok", "app_id": self.id, "app_name": self.name}
+            return {"status": "ok", "app_id": self.id, "name_translation_key": self.name_translation_key}
 
     async def charge_user_credits(
         self,
@@ -257,12 +427,26 @@ class BaseApp:
         return self.app_id
 
     @property
-    def name(self) -> Optional[str]:
-        return self.app_config.name if self.app_config else None
+    def name_translation_key(self) -> Optional[str]:
+        return self.app_config.name_translation_key if self.app_config else None
 
     @property
     def description(self) -> Optional[str]:
-        return self.app_config.description if self.app_config else None
+        """Resolve description from description_translation_key.
+        
+        Since we removed backwards compatibility, description_translation_key is required.
+        This property resolves the translation key to the actual translated string.
+        """
+        if not self.app_config or not self.app_config.description_translation_key:
+            return None
+        
+        # Resolve the translation key to get the actual description string
+        translation_key = self.app_config.description_translation_key
+        # Normalize translation key: ensure it has "apps." prefix if needed
+        if not translation_key.startswith("apps."):
+            translation_key = f"apps.{translation_key}"
+        
+        return self._resolve_translation_key(translation_key)
 
     @property
     def skills(self) -> List[AppSkillDefinition]:
@@ -301,6 +485,28 @@ class BaseApp:
             if mem_field.id == memory_field_id:
                 return mem_field
         return None
+    
+    def _resolve_translation_key(self, translation_key: str, lang: str = "en") -> str:
+        """
+        Resolve a translation key to its translated string value.
+        
+        Args:
+            translation_key: The translation key (e.g., "app_translations.web.skills.search.name")
+            lang: Language code (default: "en")
+            
+        Returns:
+            Translated string, or the translation key itself if translation service is unavailable or key not found
+        """
+        if not self.translation_service:
+            logger.warning(f"Translation service not available, returning key as-is: {translation_key}")
+            return translation_key
+        
+        try:
+            translated = self.translation_service.get_nested_translation(translation_key, lang=lang)
+            return translated
+        except Exception as e:
+            logger.warning(f"Failed to resolve translation key '{translation_key}': {e}. Returning key as-is.")
+            return translation_key
 
 if __name__ == '__main__':
     import uvicorn

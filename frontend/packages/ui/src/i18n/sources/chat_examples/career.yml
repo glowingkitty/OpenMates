@@ -1,0 +1,186 @@
+user_question:
+  context: Example question about career change
+  en: I am unhappy in my current job. Any ideas in what direction I could go instead?
+  de: Ich bin unzufrieden in meinem aktuellen Job. Hast du Ideen, in welche Richtung ich mich stattdessen orientieren könnte?
+  zh: 我对目前的工作不满意。 你有什么建议我可以朝哪个方向发展吗？
+  es: No estoy satisfecho con mi trabajo actual. ¿Tienes ideas sobre qué dirección podría orientarme?
+  fr: Je suis malheureux dans mon travail actuel. As-tu des idées sur la direction que je pourrais prendre à la place ?
+  pt: Estou insatisfeito com meu trabalho atual. Você tem alguma ideia sobre que direção eu poderia seguir?
+  ru: Я недоволен своей текущей работой. Есть идеи, в каком направлении мне двигаться?
+  ja: 現在の仕事に満足していません。代わりにどのような方向に進めばよいか、アイデアはありますか？
+  ko: 현재 직장에 불만족스럽습니다. 대신 어떤 방향으로 갈 수 있을지 아이디어가 있나요?
+  it: Non sono soddisfatto del mio lavoro attuale. Hai idee su quale direzione potrei prendere invece?
+  tr: Mevcut işimde mutsuzum. Bunun yerine hangi yönde gidebileceğim konusunda fikirlerin var mı?
+  vi: Tôi không hài lòng với công việc hiện tại. Bạn có ý tưởng nào về hướng đi mà tôi có thể theo thay thế không?
+  id: Saya tidak puas dengan pekerjaan saya saat ini. Ada ide ke arah mana saya bisa pergi?
+  pl: Jestem niezadowolony z mojej obecnej pracy. Masz pomysły w jakim kierunku mógłbym się udać zamiast tego?
+  nl: Ik ben ongelukkig in mijn huidige baan. Heb je ideeën in welke richting ik in plaats daarvan zou kunnen gaan?
+  ar: أنا غير راضٍ عن وظيفتي الحالية. هل لديك أفكار حول الاتجاه الذي يمكنني أن أسلكه بدلاً من ذلك؟
+  hi: मैं अपनी वर्तमान नौकरी से खुश नहीं हूं। क्या आपके पास कोई विचार है कि मैं इसके बजाय किस दिशा में जा सकता हूं?
+  th: ฉันไม่มีความสุขในงานปัจจุบันของฉัน คุณมีความคิดว่าฉันควรไปในทิศทางใดแทน?
+  cs: Jsem nešťastný ve své současné práci. Máš nějaké nápady, jakým směrem bych se místo toho mohl vydat?
+  sv: Jag är olycklig i mitt nuvarande jobb. Har du några idéer om vilken riktning jag skulle kunna gå istället?
+  verified_by_human: []
+mate_response:
+  context: AI response to career change question
+  en: 'Of course! Since you mentioned that you have a background in marketing and enjoy storytelling, we could look for roles that leverage those skills.
+
+
+    To get a better sense of direction, could you tell me:
+
+    1. What aspects of your previous jobs did you find most fulfilling?
+
+    '
+  de: 'Natürlich! Da du erwähnt hast, dass du Erfahrung im Marketing hast und gerne Geschichten erzählst, könnten wir nach Rollen suchen, die diese Fähigkeiten nutzen.
+
+
+    Um eine bessere Richtung zu finden, kannst du mir sagen:
+
+    1. Welche Aspekte deiner bisherigen Jobs haben dir am meisten Erfüllung gebracht?
+
+    '
+  zh: '当然！鉴于你提到你具有市场营销背景并喜欢讲故事，我们可以寻找能发挥这些技能的职位。
+
+
+    为了更好地确定方向，你能告诉我：
+
+    1. 你之前的工作中哪些方面让你最有成就感？
+
+    '
+  es: '¡Claro! Como mencionaste que tienes experiencia en marketing y disfrutas contar historias, podríamos buscar roles que aprovechen esas habilidades.
+
+
+    Para tener una mejor idea, ¿puedes decirme:
+
+    1. ¿Qué aspectos de tus trabajos anteriores encontraste más satisfactorios?
+
+    '
+  fr: 'Bien sûr ! Puisque vous avez mentionné que vous avez de l''expérience en marketing et que vous aimez raconter des histoires, nous pourrions rechercher des rôles qui tirent parti de ces compétences.
+
+
+    Pour avoir une meilleure idée de la direction à prendre, pourriez-vous me dire :
+
+    1. Quels aspects de vos emplois précédents avez-vous trouvés les plus enrichissants ?
+
+    '
+  pt: 'Claro! Já que você mencionou que tem experiência em marketing e gosta de contar histórias, podemos procurar funções que aproveitem essas habilidades.
+
+
+    Para ter uma melhor ideia da direção, você poderia me dizer:
+
+    1. Quais aspectos dos seus trabalhos anteriores você achou mais gratificantes?
+
+    '
+  ru: 'Конечно! Поскольку вы упомянули, что у вас есть опыт в маркетинге и вам нравится рассказывать истории, мы могли бы искать роли, которые используют эти навыки.
+
+
+    Чтобы лучше понять направление, не могли бы вы сказать мне:
+
+    1. Какие аспекты ваших предыдущих работ приносили вам наибольшее удовлетворение?
+
+    '
+  ja: 'もちろんです！マーケティングの経験があり、ストーリーテリングが好きだとおっしゃっていたので、そのようなスキルを活かせる役割を探してみましょう。
+
+
+    より良い方向性を見つけるために、教えていただけますか：
+
+    1. これまでの仕事の中で、どのような側面にやりがいを感じましたか？
+
+    '
+  ko: '물론이죠! 마케팅 배경이 있고 스토리텔링을 좋아한다고 말씀하셨으니, 그러한 기술을 활용하는 역할을 찾아볼 수 있습니다.
+
+
+    더 나은 방향을 파악하기 위해 알려주시겠어요:
+
+    1. 이전 직업에서 가장 보람을 느낀 측면은 무엇이었나요?
+
+    '
+  it: 'Certo! Dal momento che hai menzionato di avere un background in marketing e di amare raccontare storie, potremmo cercare ruoli che sfruttino queste competenze.
+
+
+    Per avere un''idea migliore della direzione, potresti dirmi:
+
+    1. Quali aspetti dei tuoi lavori precedenti hai trovato più appaganti?
+
+    '
+  tr: 'Tabii ki! Pazarlama geçmişiniz olduğunu ve hikaye anlatmayı sevdiğinizi belirttiğinize göre, bu becerileri kullanan roller arayabiliriz.
+
+
+    Daha iyi bir yön belirlemek için bana söyleyebilir misiniz:
+
+    1. Önceki işlerinizin hangi yönlerini en tatmin edici buldunuz?
+
+    '
+  vi: 'Tất nhiên! Vì bạn đã đề cập rằng bạn có nền tảng về marketing và thích kể chuyện, chúng ta có thể tìm kiếm các vai trò tận dụng những kỹ năng đó.
+
+
+    Để có ý tưởng rõ ràng hơn về hướng đi, bạn có thể cho tôi biết:
+
+    1. Những khía cạnh nào trong công việc trước đây của bạn khiến bạn cảm thấy thỏa mãn nhất?
+
+    '
+  id: 'Tentu saja! Karena Anda menyebutkan bahwa Anda memiliki latar belakang di bidang pemasaran dan menikmati bercerita, kami dapat mencari peran yang memanfaatkan keterampilan tersebut.
+
+
+    Untuk mendapatkan arah yang lebih baik, bisakah Anda memberi tahu saya:
+
+    1. Aspek apa dari pekerjaan Anda sebelumnya yang paling memuaskan?
+
+    '
+  pl: 'Oczywiście! Ponieważ wspomniałeś, że masz doświadczenie w marketingu i lubisz opowiadać historie, moglibyśmy poszukać ról, które wykorzystują te umiejętności.
+
+
+    Aby lepiej określić kierunek, czy mógłbyś mi powiedzieć:
+
+    1. Które aspekty Twoich poprzednich prac uznałeś za najbardziej satysfakcjonujące?
+
+    '
+  nl: 'Natuurlijk! Aangezien je vermeldde dat je een achtergrond hebt in marketing en geniet van verhalen vertellen, zouden we kunnen zoeken naar rollen die die vaardigheden benutten.
+
+
+    Om een beter gevoel van richting te krijgen, kun je me vertellen:
+
+    1. Welke aspecten van je vorige banen vond je het meest vervullend?
+
+    '
+  ar: 'بالطبع! بما أنك ذكرت أن لديك خلفية في التسويق وتستمتع بسرد القصص، يمكننا البحث عن أدوار تستفيد من تلك المهارات.
+
+
+    للحصول على فكرة أفضل عن الاتجاه، هل يمكنك إخباري:
+
+    1. ما هي الجوانب التي وجدتها الأكثر إرضاءً في وظائفك السابقة؟
+
+    '
+  hi: 'बिल्कुल! चूंकि आपने उल्लेख किया है कि आपके पास मार्केटिंग में पृष्ठभूमि है और आप कहानी सुनाना पसंद करते हैं, हम उन भूमिकाओं की तलाश कर सकते हैं जो उन कौशलों का लाभ उठाती हैं।
+
+
+    बेहतर दिशा के लिए, क्या आप मुझे बता सकते हैं:
+
+    1. आपकी पिछली नौकरियों के कौन से पहलू आपको सबसे अधिक संतुष्टिदायक लगे?
+
+    '
+  th: 'แน่นอน! เนื่องจากคุณกล่าวว่าคุณมีพื้นฐานในการตลาดและชอบการเล่าเรื่อง เราสามารถมองหาบทบาทที่ใช้ประโยชน์จากทักษะเหล่านั้น
+
+
+    เพื่อให้มีความเข้าใจทิศทางที่ดีขึ้น คุณสามารถบอกฉันได้ไหม:
+
+    1. แง่มุมใดของงานก่อนหน้านี้ของคุณที่คุณพบว่าเติมเต็มมากที่สุด?
+
+    '
+  cs: 'Samozřejmě! Protože jste zmínil, že máte zkušenosti v marketingu a baví vás vyprávění příběhů, mohli bychom hledat role, které tyto dovednosti využívají.
+
+
+    Abych měl lepší představu o směru, mohl byste mi říct:
+
+    1. Které aspekty vašich předchozích prací vás naplňovaly nejvíce?
+
+    '
+  sv: 'Självklart! Eftersom du nämnde att du har en bakgrund inom marknadsföring och gillar att berätta historier, skulle vi kunna leta efter roller som utnyttjar dessa färdigheter.
+
+
+    För att få en bättre känsla av riktning, kan du berätta för mig:
+
+    1. Vilka aspekter av dina tidigare jobb fann du mest givande?
+
+    '
+  verified_by_human: []

@@ -1,0 +1,101 @@
+to_watch_list:
+  context: Settings/memory name for video to watch list
+  en: To Watch List
+  de: Zu schauen Liste
+  zh: 待看清单
+  es: Lista para ver
+  fr: Liste à regarder
+  pt: Lista para assistir
+  ru: Список к просмотру
+  ja: 視聴リスト
+  ko: 시청 목록
+  it: Lista da guardare
+  tr: İzlenecekler listesi
+  vi: Danh sách xem
+  id: Daftar tontonan
+  pl: Lista do obejrzenia
+  nl: Te bekijken lijst
+  ar: قائمة المشاهدة
+  hi: देखने की सूची
+  th: รายการที่ต้องดู
+  cs: Seznam k sledování
+  sv: Att-se-lista
+  verified_by_human:
+    - en
+    - de
+to_watch_list.description:
+  context: Description for video to watch list settings/memory
+  en: Videos you want to watch
+  de: Videos, die du sehen möchtest
+  zh: 你想看的视频
+  es: Videos que quieres ver
+  fr: Vidéos que vous souhaitez regarder
+  pt: Vídeos que você quer assistir
+  ru: Видео, которые вы хотите посмотреть
+  ja: 見たい動画
+  ko: 보고 싶은 비디오
+  it: Video che vuoi guardare
+  tr: İzlemek istediğiniz videolar
+  vi: Video bạn muốn xem
+  id: Video yang ingin Anda tonton
+  pl: Filmy, które chcesz obejrzeć
+  nl: Video's die je wilt bekijken
+  ar: مقاطع الفيديو التي تريد مشاهدتها
+  hi: आप जिन वीडियो को देखना चाहते हैं
+  th: วิดีโอที่คุณต้องการดู
+  cs: Videa, která chcete sledovat
+  sv: Videor du vill titta på
+  verified_by_human:
+    - en
+    - de
+subscribed_channels:
+  context: Settings/memory name for subscribed channels
+  en: Subscribed Channels
+  de: Abonnierte Kanäle
+  zh: 订阅频道
+  es: Canales suscritos
+  fr: Chaînes abonnées
+  pt: Canais inscritos
+  ru: Подписанные каналы
+  ja: 登録済みチャンネル
+  ko: 구독한 채널
+  it: Canali iscritti
+  tr: Abone olunan kanallar
+  vi: Kênh đã đăng ký
+  id: Saluran yang berlangganan
+  pl: Subskrybowane kanały
+  nl: Geabonneerde kanalen
+  ar: القنوات المشتركة
+  hi: सदस्यता प्राप्त चैनल
+  th: ช่องที่สมัครสมาชิก
+  cs: Odebírané kanály
+  sv: Prenumererade kanaler
+  verified_by_human:
+    - en
+    - de
+subscribed_channels.description:
+  context: Description for subscribed channels settings/memory
+  en: YouTube channels you are subscribed to
+  de: YouTube-Kanäle, denen du folgst
+  zh: 你订阅的YouTube频道
+  es: Canales de YouTube a los que estás suscrito
+  fr: Chaînes YouTube auxquelles vous êtes abonné
+  pt: Canais do YouTube aos quais você está inscrito
+  ru: YouTube-каналы, на которые вы подписаны
+  ja: 登録しているYouTubeチャンネル
+  ko: 구독 중인 YouTube 채널
+  it: Canali YouTube a cui sei iscritto
+  tr: Abone olduğunuz YouTube kanalları
+  vi: Các kênh YouTube bạn đã đăng ký
+  id: Saluran YouTube yang Anda berlangganan
+  pl: Kanały YouTube, na które jesteś subskrybowany
+  nl: YouTube-kanalen waarop je bent geabonneerd
+  ar: قنوات YouTube التي تشترك فيها
+  hi: YouTube चैनल जिनकी आपने सदस्यता ली है
+  th: ช่อง YouTube ที่คุณสมัครสมาชิก
+  cs: YouTube kanály, na které jste přihlášeni
+  sv: YouTube-kanaler du prenumererar på
+  verified_by_human:
+    - en
+    - de
+

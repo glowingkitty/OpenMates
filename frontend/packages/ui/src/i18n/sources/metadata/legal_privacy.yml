@@ -1,0 +1,46 @@
+title:
+  context: Title for the privacy policy page
+  en: Privacy | OpenMates
+  de: Datenschutz | OpenMates
+  zh: 隐私政策 | OpenMates
+  es: Privacidad | OpenMates
+  fr: Confidentialité | OpenMates
+  pt: Privacidade | OpenMates
+  ru: Конфиденциальность | OpenMates
+  ja: プライバシー | OpenMates
+  ko: 개인정보 보호 | OpenMates
+  it: Privacy | OpenMates
+  tr: Gizlilik | OpenMates
+  vi: Quyền riêng tư | OpenMates
+  id: Privasi | OpenMates
+  pl: Prywatność | OpenMates
+  nl: Privacy | OpenMates
+  ar: الخصوصية | OpenMates
+  hi: गोपनीयता | OpenMates
+  th: ความเป็นส่วนตัว | OpenMates
+  cs: Soukromí | OpenMates
+  sv: Integritet | OpenMates
+  verified_by_human: []
+description:
+  context: Description for the privacy policy page
+  en: Learn how OpenMates handles your personal data.
+  de: Erfahren Sie, wie OpenMates mit Ihren persönlichen Daten umgeht.
+  zh: 了解 OpenMates 如何处理您的个人数据。
+  es: Conoce cómo OpenMates maneja tus datos personales.
+  fr: Découvrez comment OpenMates gère vos données personnelles.
+  pt: Saiba como o OpenMates lida com seus dados pessoais.
+  ru: Узнайте, как OpenMates обрабатывает ваши личные данные.
+  ja: OpenMatesがあなたの個人データをどのように扱うかを知る。
+  ko: OpenMates가 귀하의 개인 데이터를 어떻게 처리하는지 알아보세요.
+  it: Scopri come OpenMates gestisce i tuoi dati personali.
+  tr: OpenMates'in kişisel verilerinizi nasıl işlediğini öğrenin.
+  vi: Tìm hiểu cách OpenMates xử lý dữ liệu cá nhân của bạn.
+  id: Pelajari bagaimana OpenMates menangani data pribadi Anda.
+  pl: Dowiedz się, jak OpenMates przetwarza Twoje dane osobowe.
+  nl: Ontdek hoe OpenMates omgaat met je persoonlijke gegevens.
+  ar: تعرف على كيفية تعامل OpenMates مع بياناتك الشخصية.
+  hi: जानें कि OpenMates आपके व्यक्तिगत डेटा को कैसे संभालता है।
+  th: เรียนรู้ว่า OpenMates จัดการข้อมูลส่วนบุคคลของคุณอย่างไร
+  cs: Zjistěte, jak OpenMates zachází s vašimi osobními údaji.
+  sv: Lär dig hur OpenMates hanterar dina personuppgifter.
+  verified_by_human: []

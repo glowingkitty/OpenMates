@@ -77,14 +77,38 @@ We adopt a minimalist rule for all generated or pasted blocks: either provide a 
 
 #### Tool calls (Skills used, Focus modes activated / deactivated, app settings & memories requested)
 
-- always a json code block with details
-- skill use (request_id, app name, skill name, input, output) is added as yml code block in assistant response
-- how to handle processing times from ms to seconds or even minutes:
-   - once function call is generated, we add json code block to assistant response inline and render it accordingly (with "Processing..." status)
-	- we wait for app skill celery tasks to finish and then return output back to LLM for interpreting. If processing not finished after 5 seconds, we return “The processing takes a bit longer. I let you know once it’s finished.
-	- for app skills that are known to take longer (generate images or videos, search for doctor appointments, etc.) we directly return “I let you know once I finished.” And send follow up message with results as json code block once results are finished.
+**Note**: See [Embeds Architecture](./embeds.md) for the new architecture where skill results are stored as separate embed entities and referenced in messages.
 
-##### Skill example
+**Current Format (Legacy)**:
+- Skill results are embedded as JSON/YAML code blocks in assistant responses
+- This format is being migrated to the new embeds architecture
+
+**New Format (Embeds Architecture)**:
+- Skill results are stored as separate embed entities (content stored as TOON format for space efficiency)
+- Messages reference embeds via **JSON code blocks** in markdown:
+  ```markdown
+  ```json
+  {
+    "type": "app_skill_use",
+    "embed_id": "550e8400-e29b-41d4-a716-446655440000"
+  }
+  ```
+  ```
+- Embed references can be placed anywhere in the message (flexible placement by LLM)
+- Embed references are streamed as chunks during assistant response generation
+- Frontend parses JSON code blocks to detect and resolve embed references
+- Embed content is stored as TOON string (decoded when needed for rendering or inference)
+- See [Embeds Architecture](./embeds.md) for full details
+
+**Long-Running Tasks**:
+- For tasks taking seconds or minutes:
+  - Embed is created immediately with `status: "processing"` and `task_id`
+  - LLM responds: "I started the task, I'll let you know when it's ready"
+  - When task completes, embed is updated via WebSocket event
+  - Frontend automatically updates embed preview
+- See [Embeds Architecture - Long-Running Tasks](./embeds.md#long-running-tasks) for details
+
+##### Legacy Skill Example (Being Migrated)
 
 ```json
 {
@@ -115,7 +139,11 @@ We adopt a minimalist rule for all generated or pasted blocks: either provide a 
 
 #### Lightweight embeds with contentRef and on-demand content loading
 
+**Note**: This section describes the client-side ContentStore architecture. For the full embeds architecture including server-side storage, see [Embeds Architecture](./embeds.md).
+
 To keep TipTap documents small and rendering fast, embeds store only lightweight metadata plus a stable pointer to the heavy content. Full content is stored client-side (memory + encrypted using master encryption key in IndexedDB (see [security.md](security.md))) and loaded & decrypted on demand for fullscreen views.
+
+**Embeds Architecture**: The new architecture extends this with server-side storage in Directus and embed references in messages. See [Embeds Architecture](./embeds.md) for details.
 
 - TipTap node attributes (lightweight, no persisted preview text):
     - `id` (stable identity like `messageId:embedIndex`)
@@ -234,13 +262,13 @@ Copy (from preview context menu or fullscreen):
 Paste (inside OpenMates MessageInput):
 
 - If application/x-openmates-embed+json is present:
-  - Parse payload and call ContentStore.ensure(contentRef=cid, inlineContent) so content is present locally.
+  - Parse payload and call EmbedStore.ensure(contentRef=cid, inlineContent) so content is present locally.
   - Insert a lightweight embed node pointing to that `contentRef` with `contentHash` and minimal metadata. Do not inject raw markdown into the editor.
 - Otherwise, fall back to regular markdown parsing of text/plain or text/markdown using Path-or-Title rules, which may create a new `contentRef`.
 
 Send-time serialization (TipTap → Markdown):
 
-- On send, walk the TipTap document and serialize embed nodes to canonical markdown by resolving full content from the ContentStore. If content is missing, prompt the user to retry loading or block send.
+- On send, walk the TipTap document and serialize embed nodes to canonical markdown by resolving full content from the EmbedStore. If content is missing, prompt the user to retry loading or block send.
 
 Cross-device rehydration:
 
@@ -254,7 +282,7 @@ In the future architecture, we plan to transition from storing TipTap JSON to st
 1. **Simplified storage format** - Messages stored as plain markdown text rather than complex JSON structures
 2. **Local encryption/decryption** - Markdown text encrypted/decrypted locally for each message
 3. **Client-side parsing** - All parsing and rendering of markdown elements (code blocks, URLs, etc.) performed locally
-4. **Improved privacy** - End-to-end encryption of message content with no server-side processing of unencrypted content
+4. **Improved privacy** - Zero-knowledge encryption of message content with no server-side processing of unencrypted content
 5. **Reduced backend complexity** - Backend only handles encrypted markdown without needing to understand message structure
 
 #### Implementation details

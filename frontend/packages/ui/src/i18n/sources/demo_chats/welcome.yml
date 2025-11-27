@@ -1,0 +1,912 @@
+title:
+  context: Title of welcome demo chat
+  en: Welcome to OpenMates!
+  de: Willkommen bei OpenMates!
+  zh: 欢迎来到OpenMates！
+  es: ¡Bienvenido a OpenMates!
+  fr: Bienvenue sur OpenMates !
+  pt: Bem-vindo ao OpenMates!
+  ru: Добро пожаловать в OpenMates!
+  ja: OpenMatesへようこそ！
+  ko: OpenMates에 오신 것을 환영합니다!
+  it: Benvenuto su OpenMates!
+  tr: OpenMates'e Hoş Geldiniz!
+  vi: Chào mừng đến với OpenMates!
+  id: Selamat datang di OpenMates!
+  pl: Witamy w OpenMates!
+  nl: Welkom bij OpenMates!
+  ar: مرحباً بك في OpenMates!
+  hi: OpenMates में आपका स्वागत है!
+  th: ยินดีต้อนรับสู่ OpenMates!
+  cs: Vítejte v OpenMates!
+  sv: Välkommen till OpenMates!
+description:
+  context: Description of welcome demo chat for SEO
+  en: Your AI teammates for learning, thinking, and growing together
+  de: Deine KI-Teamkollegen zum Lernen, Denken und gemeinsam Wachsen
+  zh: 您学习、思考和共同成长的AI团队成员
+  es: Tus compañeros de equipo de IA para aprender, pensar y crecer juntos
+  fr: Vos coéquipiers IA pour apprendre, réfléchir et grandir ensemble
+  pt: Seus colegas de equipe de IA para aprender, pensar e crescer juntos
+  ru: Ваши ИИ-коллеги для обучения, размышлений и совместного роста
+  ja: 学習、思考、共に成長するためのAIチームメイト
+  ko: 학습, 사고, 함께 성장하기 위한 AI 팀원들
+  it: I tuoi compagni di squadra AI per imparare, pensare e crescere insieme
+  tr: Öğrenmek, düşünmek ve birlikte büyümek için AI takım arkadaşlarınız
+  vi: Đồng đội AI của bạn để học hỏi, suy nghĩ và phát triển cùng nhau
+  id: Rekan tim AI Anda untuk belajar, berpikir, dan tumbuh bersama
+  pl: Twoi koledzy z zespołu AI do nauki, myślenia i wspólnego rozwoju
+  nl: Je AI-teamgenoten om te leren, denken en samen te groeien
+  ar: زملاؤك في فريق الذكاء الاصطناعي للتعلم والتفكير والنمو معاً
+  hi: सीखने, सोचने और एक साथ बढ़ने के लिए आपके AI टीम साथी
+  th: เพื่อนร่วมทีม AI ของคุณสำหรับการเรียนรู้ การคิด และเติบโตไปด้วยกัน
+  cs: Vaši kolegové AI týmu pro učení, myšlení a společný růst
+  sv: Dina AI-lagkamrater för att lära, tänka och växa tillsammans
+message:
+  context: Main welcome message content
+  en: '# Welcome to OpenMates! 👋
+
+
+    I''m your AI teammate - here to help you learn, solve problems, and think through challenges. I''m designed to guide you with questions rather than just give answers, helping you build real understanding. Like all AI, I can make mistakes, but I''m specifically designed to minimize errors, admit uncertainty, and encourage you to verify important information from multiple sources.
+
+
+    ## What you can do:
+
+
+    - **Learn topics deeply** - "Teach me about quantum computing" or "Explain neural networks"
+
+    - **Get coding help** - "Debug this code" or "Explain how async/await works"
+
+    - **Think through decisions** - "Help me evaluate career options" or "What am I missing?"
+
+    - **Explore ideas** - "Brainstorm startup ideas in healthcare" or "Design a user survey"
+
+    - **Understand complex topics** - "Explain the 2008 financial crisis" or "How does CRISPR work?"
+
+    - **Plan and organize** - "Help me structure my research paper" or "Create a learning roadmap"
+
+
+    ## Getting Started
+
+
+    **Start a new chat** - Click the "New Chat" button in the top left of this chat
+
+
+    **Sign up for full access** - Open the settings menu (button in the top right) to create an account
+
+
+    **Learn more** - Explore [What makes OpenMates different?](/#chat-id=demo-different)
+
+
+    ---
+
+
+    *Different specialized AI "Mates" will automatically help based on your topic - from Sophia (software development) to Lisa (life coaching) to Scarlett (science) and more!*
+
+    '
+  de: '# Willkommen bei OpenMates! 👋
+
+
+    Ich bin dein KI-Teamkollege - hier, um dir beim Lernen, Problemlösen und Durchdenken von Herausforderungen zu helfen. Ich bin darauf ausgelegt, dich mit Fragen zu leiten, anstatt nur Antworten zu geben, und dir zu helfen, echtes Verständnis aufzubauen. Wie alle KI kann ich Fehler machen, aber ich bin speziell darauf ausgelegt, Fehler zu minimieren, Unsicherheit zuzugeben und dich zu ermutigen, wichtige Informationen aus mehreren Quellen zu überprüfen.
+
+
+    ## Was du tun kannst:
+
+
+    - **Themen tiefgreifend lernen** - "Erkläre mir Quantencomputing" oder "Erkläre neuronale Netze"
+
+    - **Coding-Hilfe bekommen** - "Debugge diesen Code" oder "Erkläre wie async/await funktioniert"
+
+    - **Entscheidungen durchdenken** - "Hilf mir Karriereoptionen zu bewerten" oder "Was übersehe ich?"
+
+    - **Ideen erkunden** - "Brainstorme Startup-Ideen im Gesundheitswesen" oder "Entwirf eine Nutzerumfrage"
+
+    - **Komplexe Themen verstehen** - "Erkläre die Finanzkrise 2008" oder "Wie funktioniert CRISPR?"
+
+    - **Planen und organisieren** - "Hilf mir meine Forschungsarbeit zu strukturieren" oder "Erstelle einen Lernplan"
+
+
+    ## Erste Schritte
+
+
+    **Neuen Chat starten** - Klicke auf den "Neuer Chat" Button oben links
+
+
+    **Für vollen Zugriff registrieren** - Öffne das Einstellungsmenü (Button oben rechts), um ein Konto zu erstellen
+
+
+    **Mehr erfahren** - Entdecke [Was macht OpenMates anders?](/#chat-id=demo-different)
+
+
+    ---
+
+
+    *Verschiedene spezialisierte KI-"Mates" helfen automatisch basierend auf deinem Thema - von Sophia (Softwareentwicklung) über Lisa (Life Coaching) bis Scarlett (Wissenschaft) und mehr!*
+
+    '
+  zh: '# 欢迎来到OpenMates！👋
+
+
+    我是你的AI队友 - 在这里帮助你学习、解决问题和思考挑战。我的设计目的是用问题来指导你，而不是仅仅给出答案，帮助你建立真正的理解。就像所有AI一样，我可能会犯错，但我特别被设计来最小化错误、承认不确定性，并鼓励你从多个来源验证重要信息。
+
+
+    ## 你可以做什么：
+
+
+    - **深入学习主题** - "教我关于量子计算" 或 "解释神经网络"
+
+    - **获得编码帮助** - "调试这个代码" 或 "解释async/await如何工作"
+
+    - **思考决策** - "帮我评估职业选择" 或 "我遗漏了什么？"
+
+    - **探索想法** - "医疗保健领域的创业想法头脑风暴" 或 "设计用户问卷"
+
+    - **理解复杂主题** - "解释2008年金融危机" 或 "CRISPR如何工作？"
+
+    - **计划和组织** - "帮我组织我的研究论文" 或 "创建学习路线图"
+
+
+    ## 开始使用
+
+
+    **启动新聊天** - 点击这个聊天左上角的"新聊天"按钮
+
+
+    **注册获得完整访问** - 打开设置菜单（右上角的按钮）来创建账户
+
+
+    **了解更多** - 探索 [OpenMates有什么不同？](/#chat-id=demo-different)
+
+
+    ---
+
+
+    *不同的专业AI"Mates"将根据你的主题自动帮助 - 从Sophia（软件开发）到Lisa（生活教练）到Scarlett（科学）等等！*
+
+    '
+  es: '# ¡Bienvenido a OpenMates! 👋
+
+
+    Soy tu compañero de equipo de IA - aquí para ayudarte a aprender, resolver problemas y pensar en desafíos. Estoy diseñado para guiarte con preguntas en lugar de solo dar respuestas, ayudándote a construir una comprensión real. Como toda IA, puedo cometer errores, pero estoy específicamente diseñado para minimizar errores, admitir incertidumbre y animarte a verificar información importante de múltiples fuentes.
+
+
+    ## Lo que puedes hacer:
+
+
+    - **Aprender temas en profundidad** - "Enséñame sobre computación cuántica" o "Explica las redes neuronales"
+
+    - **Obtener ayuda con código** - "Depura este código" o "Explica cómo funciona async/await"
+
+    - **Pensar en decisiones** - "Ayúdame a evaluar opciones de carrera" o "¿Qué me estoy perdiendo?"
+
+    - **Explorar ideas** - "Lluvia de ideas para startups en salud" o "Diseña una encuesta de usuarios"
+
+    - **Entender temas complejos** - "Explica la crisis financiera de 2008" o "¿Cómo funciona CRISPR?"
+
+    - **Planificar y organizar** - "Ayúdame a estructurar mi trabajo de investigación" o "Crea una hoja de ruta de aprendizaje"
+
+
+    ## Primeros pasos
+
+
+    **Iniciar un nuevo chat** - Haz clic en el botón "Nuevo Chat" en la parte superior izquierda de este chat
+
+
+    **Regístrate para acceso completo** - Abre el menú de configuración (botón en la parte superior derecha) para crear una cuenta
+
+
+    **Aprende más** - Explora [¿Qué hace diferente a OpenMates?](/#chat-id=demo-different)
+
+
+    ---
+
+
+    *Diferentes "Mates" de IA especializados te ayudarán automáticamente según tu tema - desde Sophia (desarrollo de software) hasta Lisa (coaching de vida) y Scarlett (ciencia) y más!*
+
+    '
+  fr: '# Bienvenue sur OpenMates ! 👋
+
+
+    Je suis votre coéquipier IA - ici pour vous aider à apprendre, résoudre des problèmes et réfléchir aux défis. Je suis conçu pour vous guider avec des questions plutôt que de simplement donner des réponses, vous aidant à construire une vraie compréhension. Comme toute IA, je peux faire des erreurs, mais je suis spécifiquement conçu pour minimiser les erreurs, admettre l''incertitude et vous encourager à vérifier les informations importantes auprès de plusieurs sources.
+
+
+    ## Ce que vous pouvez faire :
+
+
+    - **Apprendre des sujets en profondeur** - "Apprenez-moi l''informatique quantique" ou "Expliquez les réseaux neuronaux"
+
+    - **Obtenir de l''aide en programmation** - "Déboguez ce code" ou "Expliquez comment fonctionne async/await"
+
+    - **Réfléchir aux décisions** - "Aidez-moi à évaluer les options de carrière" ou "Qu''est-ce que je rate ?"
+
+    - **Explorer des idées** - "Brainstormez des idées de startups dans la santé" ou "Concevez une enquête utilisateur"
+
+    - **Comprendre des sujets complexes** - "Expliquez la crise financière de 2008" ou "Comment fonctionne CRISPR ?"
+
+    - **Planifier et organiser** - "Aidez-moi à structurer mon document de recherche" ou "Créez une feuille de route d''apprentissage"
+
+
+    ## Pour commencer
+
+
+    **Démarrer un nouveau chat** - Cliquez sur le bouton "Nouveau Chat" en haut à gauche de ce chat
+
+
+    **S''inscrire pour un accès complet** - Ouvrez le menu des paramètres (bouton en haut à droite) pour créer un compte
+
+
+    **En savoir plus** - Explorez [Qu''est-ce qui rend OpenMates différent ?](/#chat-id=demo-different)
+
+
+    ---
+
+
+    *Différents "Mates" IA spécialisés vous aideront automatiquement selon votre sujet - de Sophia (développement logiciel) à Lisa (coaching de vie) en passant par Scarlett (sciences) et plus encore !*
+
+    '
+  pt: '# Bem-vindo ao OpenMates! 👋
+
+
+    Sou seu colega de equipe de IA - aqui para ajudá-lo a aprender, resolver problemas e pensar em desafios. Sou projetado para guiá-lo com perguntas em vez de apenas dar respostas, ajudando você a construir uma compreensão real. Como toda IA, posso cometer erros, mas sou especificamente projetado para minimizar erros, admitir incerteza e incentivá-lo a verificar informações importantes de múltiplas fontes.
+
+
+    ## O que você pode fazer:
+
+
+    - **Aprender tópicos profundamente** - "Me ensine sobre computação quântica" ou "Explique redes neurais"
+
+    - **Obter ajuda com código** - "Depure este código" ou "Explique como async/await funciona"
+
+    - **Pensar em decisões** - "Me ajude a avaliar opções de carreira" ou "O que estou perdendo?"
+
+    - **Explorar ideias** - "Faça um brainstorm de ideias de startups em saúde" ou "Projete uma pesquisa de usuários"
+
+    - **Entender tópicos complexos** - "Explique a crise financeira de 2008" ou "Como funciona o CRISPR?"
+
+    - **Planejar e organizar** - "Me ajude a estruturar meu trabalho de pesquisa" ou "Crie um roteiro de aprendizado"
+
+
+    ## Começando
+
+
+    **Iniciar um novo chat** - Clique no botão "Novo Chat" no canto superior esquerdo deste chat
+
+
+    **Inscreva-se para acesso completo** - Abra o menu de configurações (botão no canto superior direito) para criar uma conta
+
+
+    **Saiba mais** - Explore [O que torna o OpenMates diferente?](/#chat-id=demo-different)
+
+
+    ---
+
+
+    *Diferentes "Mates" de IA especializados ajudarão automaticamente com base no seu tópico - de Sophia (desenvolvimento de software) a Lisa (coaching de vida) a Scarlett (ciência) e mais!*
+
+    '
+  ru: '# Добро пожаловать в OpenMates! 👋
+
+
+    Я ваш ИИ-коллега - здесь, чтобы помочь вам учиться, решать проблемы и размышлять над вызовами. Я создан, чтобы направлять вас вопросами, а не просто давать ответы, помогая вам строить настоящее понимание. Как и все ИИ, я могу ошибаться, но я специально разработан, чтобы минимизировать ошибки, признавать неопределенность и поощрять вас проверять важную информацию из нескольких источников.
+
+
+    ## Что вы можете делать:
+
+
+    - **Изучать темы глубоко** - "Научите меня квантовым вычислениям" или "Объясните нейронные сети"
+
+    - **Получать помощь с кодом** - "Отладить этот код" или "Объясните, как работает async/await"
+
+    - **Размышлять над решениями** - "Помогите мне оценить варианты карьеры" или "Что я упускаю?"
+
+    - **Исследовать идеи** - "Мозговой штурм идей стартапов в здравоохранении" или "Разработайте опрос пользователей"
+
+    - **Понимать сложные темы** - "Объясните финансовый кризис 2008 года" или "Как работает CRISPR?"
+
+    - **Планировать и организовывать** - "Помогите мне структурировать мою исследовательскую работу" или "Создайте дорожную карту обучения"
+
+
+    ## Начало работы
+
+
+    **Начать новый чат** - Нажмите кнопку "Новый чат" в верхнем левом углу этого чата
+
+
+    **Зарегистрироваться для полного доступа** - Откройте меню настроек (кнопка в верхнем правом углу), чтобы создать учетную запись
+
+
+    **Узнать больше** - Изучите [Что делает OpenMates особенным?](/#chat-id=demo-different)
+
+
+    ---
+
+
+    *Различные специализированные ИИ-"Мейты" будут автоматически помогать в зависимости от вашей темы - от Софии (разработка программного обеспечения) до Лизы (коучинг жизни) и Скарлетт (наука) и многих других!*
+
+    '
+  ja: '# OpenMatesへようこそ！ 👋
+
+
+    私はあなたのAIチームメイトです。学習、問題解決、課題への対処をサポートします。答えを提供するだけでなく、質問を通じてあなたを導き、真の理解を構築するよう設計されています。すべてのAIと同様に、私は間違いを犯す可能性がありますが、エラーを最小限に抑え、不確実性を認め、重要な情報を複数のソースから確認するよう促すよう特別に設計されています。
+
+
+    ## できること：
+
+
+    - **トピックを深く学ぶ** - 「量子コンピューティングについて教えて」または「ニューラルネットワークを説明して」
+
+    - **コーディングのヘルプを得る** - 「このコードをデバッグして」または「async/awaitの仕組みを説明して」
+
+    - **意思決定を考える** - 「キャリアの選択肢を評価するのを手伝って」または「何を見落としていますか？」
+
+    - **アイデアを探る** - 「ヘルスケア分野のスタートアップアイデアをブレインストーミング」または「ユーザー調査を設計して」
+
+    - **複雑なトピックを理解する** - 「2008年の金融危機を説明して」または「CRISPRはどのように機能しますか？」
+
+    - **計画と整理** - 「研究論文の構造化を手伝って」または「学習ロードマップを作成して」
+
+
+    ## はじめに
+
+
+    **新しいチャットを開始** - このチャットの左上の「新しいチャット」ボタンをクリック
+
+
+    **フルアクセスに登録** - 設定メニュー（右上のボタン）を開いてアカウントを作成
+
+
+    **詳細を確認** - [OpenMatesの特徴は？](/#chat-id=demo-different)を探索
+
+
+    ---
+
+
+    *トピックに応じて、さまざまな専門AI「メイト」が自動的にサポートします - ソフィア（ソフトウェア開発）からリサ（ライフコーチング）、スカーレット（科学）まで、さらに多くのメイトがいます！*
+
+    '
+  ko: '# OpenMates에 오신 것을 환영합니다! 👋
+
+
+    저는 여러분의 AI 팀원입니다. 학습, 문제 해결, 도전 과제에 대해 생각하는 것을 도와드리기 위해 여기 있습니다. 저는 단순히 답을 주는 것이 아니라 질문을 통해 여러분을 안내하고, 진정한 이해를 구축하도록 설계되었습니다. 모든 AI와 마찬가지로 저도 실수를 할 수 있지만, 오류를 최소화하고 불확실성을 인정하며, 여러 소스에서 중요한 정보를 확인하도록 권장하도록 특별히 설계되었습니다.
+
+
+    ## 할 수 있는 것:
+
+
+    - **주제를 깊이 학습** - "양자 컴퓨팅에 대해 가르쳐주세요" 또는 "신경망을 설명해주세요"
+
+    - **코딩 도움 받기** - "이 코드를 디버깅해주세요" 또는 "async/await가 어떻게 작동하는지 설명해주세요"
+
+    - **결정에 대해 생각하기** - "직업 옵션을 평가하는 것을 도와주세요" 또는 "제가 놓치고 있는 것은 무엇인가요?"
+
+    - **아이디어 탐색** - "헬스케어 분야의 스타트업 아이디어를 브레인스토밍해주세요" 또는 "사용자 설문조사를 설계해주세요"
+
+    - **복잡한 주제 이해** - "2008년 금융 위기를 설명해주세요" 또는 "CRISPR는 어떻게 작동하나요?"
+
+    - **계획 및 정리** - "연구 논문을 구조화하는 것을 도와주세요" 또는 "학습 로드맵을 만들어주세요"
+
+
+    ## 시작하기
+
+
+    **새 채팅 시작** - 이 채팅의 왼쪽 상단에 있는 "새 채팅" 버튼을 클릭하세요
+
+
+    **전체 액세스 가입** - 설정 메뉴(오른쪽 상단의 버튼)를 열어 계정을 만드세요
+
+
+    **더 알아보기** - [OpenMates의 차별점은 무엇인가요?](/#chat-id=demo-different)를 탐색하세요
+
+
+    ---
+
+
+    *다양한 전문 AI "메이트"가 주제에 따라 자동으로 도와드립니다 - 소피아(소프트웨어 개발)부터 리사(라이프 코칭), 스칼렛(과학)까지 더 많은 메이트가 있습니다!*
+
+    '
+  it: '# Benvenuto su OpenMates! 👋
+
+
+    Sono il tuo compagno di squadra AI - qui per aiutarti a imparare, risolvere problemi e riflettere sulle sfide. Sono progettato per guidarti con domande piuttosto che solo dare risposte, aiutandoti a costruire una vera comprensione. Come tutta l''AI, posso commettere errori, ma sono specificamente progettato per minimizzare gli errori, ammettere l''incertezza e incoraggiarti a verificare informazioni importanti da più fonti.
+
+
+    ## Cosa puoi fare:
+
+
+    - **Imparare argomenti in profondità** - "Insegnami l''informatica quantistica" o "Spiega le reti neurali"
+
+    - **Ottenere aiuto con il codice** - "Debugga questo codice" o "Spiega come funziona async/await"
+
+    - **Riflettere sulle decisioni** - "Aiutami a valutare le opzioni di carriera" o "Cosa sto perdendo?"
+
+    - **Esplorare idee** - "Fai un brainstorming di idee per startup nel settore sanitario" o "Progetta un sondaggio utenti"
+
+    - **Comprendere argomenti complessi** - "Spiega la crisi finanziaria del 2008" o "Come funziona CRISPR?"
+
+    - **Pianificare e organizzare** - "Aiutami a strutturare il mio documento di ricerca" o "Crea una roadmap di apprendimento"
+
+
+    ## Iniziare
+
+
+    **Avvia una nuova chat** - Clicca sul pulsante "Nuova Chat" in alto a sinistra di questa chat
+
+
+    **Registrati per l''accesso completo** - Apri il menu delle impostazioni (pulsante in alto a destra) per creare un account
+
+
+    **Scopri di più** - Esplora [Cosa rende OpenMates diverso?](/#chat-id=demo-different)
+
+
+    ---
+
+
+    *Diversi "Mates" AI specializzati ti aiuteranno automaticamente in base al tuo argomento - da Sophia (sviluppo software) a Lisa (life coaching) a Scarlett (scienza) e altro ancora!*
+
+    '
+  tr: '# OpenMates''e Hoş Geldiniz! 👋
+
+
+    Ben sizin AI takım arkadaşınızım - öğrenmenize, problem çözmenize ve zorlukları düşünmenize yardımcı olmak için buradayım. Sadece cevap vermek yerine sorularla sizi yönlendirmek için tasarlandım, gerçek bir anlayış oluşturmanıza yardımcı oluyorum. Tüm AI''lar gibi hata yapabilirim, ancak özellikle hataları minimize etmek, belirsizliği kabul etmek ve önemli bilgileri birden fazla kaynaktan doğrulamanızı teşvik etmek için tasarlandım.
+
+
+    ## Yapabilecekleriniz:
+
+
+    - **Konuları derinlemesine öğrenin** - "Bana kuantum hesaplama hakkında öğret" veya "Sinir ağlarını açıkla"
+
+    - **Kod yardımı alın** - "Bu kodu hata ayıkla" veya "async/await nasıl çalışır açıkla"
+
+    - **Kararlar hakkında düşünün** - "Kariyer seçeneklerini değerlendirmeme yardım et" veya "Ne kaçırıyorum?"
+
+    - **Fikirleri keşfedin** - "Sağlık alanında startup fikirleri için beyin fırtınası yap" veya "Bir kullanıcı anketi tasarla"
+
+    - **Karmaşık konuları anlayın** - "2008 finansal krizini açıkla" veya "CRISPR nasıl çalışır?"
+
+    - **Planlayın ve organize edin** - "Araştırma makalemi yapılandırmama yardım et" veya "Bir öğrenme yol haritası oluştur"
+
+
+    ## Başlangıç
+
+
+    **Yeni bir sohbet başlat** - Bu sohbetin sol üst köşesindeki "Yeni Sohbet" düğmesine tıklayın
+
+
+    **Tam erişim için kaydolun** - Hesap oluşturmak için ayarlar menüsünü (sağ üst köşedeki düğme) açın
+
+
+    **Daha fazla bilgi edinin** - [OpenMates''i farklı kılan nedir?](/#chat-id=demo-different) keşfedin
+
+
+    ---
+
+
+    *Farklı uzmanlaşmış AI "Mates" konunuza göre otomatik olarak yardımcı olacak - Sophia (yazılım geliştirme)''dan Lisa (yaşam koçluğu)''ya Scarlett (bilim)''e ve daha fazlasına!*
+
+    '
+  vi: '# Chào mừng đến với OpenMates! 👋
+
+
+    Tôi là đồng đội AI của bạn - ở đây để giúp bạn học hỏi, giải quyết vấn đề và suy nghĩ về các thách thức. Tôi được thiết kế để hướng dẫn bạn bằng câu hỏi thay vì chỉ đưa ra câu trả lời, giúp bạn xây dựng sự hiểu biết thực sự. Giống như tất cả AI, tôi có thể mắc lỗi, nhưng tôi được thiết kế đặc biệt để giảm thiểu lỗi, thừa nhận sự không chắc chắn và khuyến khích bạn xác minh thông tin quan trọng từ nhiều nguồn.
+
+
+    ## Những gì bạn có thể làm:
+
+
+    - **Học sâu các chủ đề** - "Dạy tôi về tính toán lượng tử" hoặc "Giải thích mạng thần kinh"
+
+    - **Nhận trợ giúp về mã** - "Gỡ lỗi mã này" hoặc "Giải thích cách async/await hoạt động"
+
+    - **Suy nghĩ về quyết định** - "Giúp tôi đánh giá các lựa chọn nghề nghiệp" hoặc "Tôi đang bỏ lỡ điều gì?"
+
+    - **Khám phá ý tưởng** - "Động não ý tưởng khởi nghiệp trong chăm sóc sức khỏe" hoặc "Thiết kế một cuộc khảo sát người dùng"
+
+    - **Hiểu các chủ đề phức tạp** - "Giải thích cuộc khủng hoảng tài chính 2008" hoặc "CRISPR hoạt động như thế nào?"
+
+    - **Lập kế hoạch và tổ chức** - "Giúp tôi cấu trúc bài nghiên cứu của tôi" hoặc "Tạo một lộ trình học tập"
+
+
+    ## Bắt đầu
+
+
+    **Bắt đầu cuộc trò chuyện mới** - Nhấp vào nút "Cuộc trò chuyện mới" ở góc trên bên trái của cuộc trò chuyện này
+
+
+    **Đăng ký để có quyền truy cập đầy đủ** - Mở menu cài đặt (nút ở góc trên bên phải) để tạo tài khoản
+
+
+    **Tìm hiểu thêm** - Khám phá [Điều gì làm cho OpenMates khác biệt?](/#chat-id=demo-different)
+
+
+    ---
+
+
+    *Các "Mates" AI chuyên biệt khác nhau sẽ tự động giúp đỡ dựa trên chủ đề của bạn - từ Sophia (phát triển phần mềm) đến Lisa (huấn luyện cuộc sống) đến Scarlett (khoa học) và nhiều hơn nữa!*
+
+    '
+  id: '# Selamat datang di OpenMates! 👋
+
+
+    Saya adalah rekan tim AI Anda - di sini untuk membantu Anda belajar, memecahkan masalah, dan memikirkan tantangan. Saya dirancang untuk membimbing Anda dengan pertanyaan daripada hanya memberikan jawaban, membantu Anda membangun pemahaman yang nyata. Seperti semua AI, saya bisa membuat kesalahan, tetapi saya dirancang khusus untuk meminimalkan kesalahan, mengakui ketidakpastian, dan mendorong Anda untuk memverifikasi informasi penting dari berbagai sumber.
+
+
+    ## Yang dapat Anda lakukan:
+
+
+    - **Belajar topik secara mendalam** - "Ajari saya tentang komputasi kuantum" atau "Jelaskan jaringan saraf"
+
+    - **Mendapatkan bantuan coding** - "Debug kode ini" atau "Jelaskan cara kerja async/await"
+
+    - **Memikirkan keputusan** - "Bantu saya mengevaluasi pilihan karier" atau "Apa yang saya lewatkan?"
+
+    - **Menjelajahi ide** - "Brainstorm ide startup di bidang kesehatan" atau "Desain survei pengguna"
+
+    - **Memahami topik kompleks** - "Jelaskan krisis keuangan 2008" atau "Bagaimana cara kerja CRISPR?"
+
+    - **Merencanakan dan mengorganisir** - "Bantu saya menyusun makalah penelitian saya" atau "Buat peta jalan pembelajaran"
+
+
+    ## Memulai
+
+
+    **Mulai obrolan baru** - Klik tombol "Obrolan Baru" di pojok kiri atas obrolan ini
+
+
+    **Daftar untuk akses penuh** - Buka menu pengaturan (tombol di pojok kanan atas) untuk membuat akun
+
+
+    **Pelajari lebih lanjut** - Jelajahi [Apa yang membuat OpenMates berbeda?](/#chat-id=demo-different)
+
+
+    ---
+
+
+    *Berbagai "Mates" AI khusus akan secara otomatis membantu berdasarkan topik Anda - dari Sophia (pengembangan perangkat lunak) hingga Lisa (life coaching) hingga Scarlett (sains) dan banyak lagi!*
+
+    '
+  pl: '# Witamy w OpenMates! 👋
+
+
+    Jestem Twoim kolegą z zespołu AI - tutaj, aby pomóc Ci się uczyć, rozwiązywać problemy i myśleć o wyzwaniach. Zostałem zaprojektowany, aby prowadzić Cię pytaniami, a nie tylko dawać odpowiedzi, pomagając budować prawdziwe zrozumienie. Jak wszystkie AI, mogę popełniać błędy, ale zostałem specjalnie zaprojektowany, aby minimalizować błędy, przyznawać się do niepewności i zachęcać Cię do weryfikacji ważnych informacji z wielu źródeł.
+
+
+    ## Co możesz robić:
+
+
+    - **Uczyć się tematów dogłębnie** - "Naucz mnie o obliczeniach kwantowych" lub "Wyjaśnij sieci neuronowe"
+
+    - **Otrzymywać pomoc w kodowaniu** - "Debuguj ten kod" lub "Wyjaśnij, jak działa async/await"
+
+    - **Myśleć o decyzjach** - "Pomóż mi ocenić opcje kariery" lub "Czego mi brakuje?"
+
+    - **Eksplorować pomysły** - "Burza mózgów pomysłów na startupy w opiece zdrowotnej" lub "Zaprojektuj ankietę użytkowników"
+
+    - **Rozumieć złożone tematy** - "Wyjaśnij kryzys finansowy z 2008 roku" lub "Jak działa CRISPR?"
+
+    - **Planować i organizować** - "Pomóż mi ustrukturyzować mój artykuł badawczy" lub "Utwórz mapę drogową uczenia się"
+
+
+    ## Rozpoczęcie
+
+
+    **Rozpocznij nową rozmowę** - Kliknij przycisk "Nowa rozmowa" w lewym górnym rogu tej rozmowy
+
+
+    **Zarejestruj się, aby uzyskać pełny dostęp** - Otwórz menu ustawień (przycisk w prawym górnym rogu), aby utworzyć konto
+
+
+    **Dowiedz się więcej** - Poznaj [Co wyróżnia OpenMates?](/#chat-id=demo-different)
+
+
+    ---
+
+
+    *Różne wyspecjalizowane AI "Mates" będą automatycznie pomagać w zależności od Twojego tematu - od Sophii (rozwój oprogramowania) przez Lisę (coaching życiowy) po Scarlett (nauka) i wiele więcej!*
+
+    '
+  nl: '# Welkom bij OpenMates! 👋
+
+
+    Ik ben je AI-teamgenoot - hier om je te helpen leren, problemen op te lossen en na te denken over uitdagingen. Ik ben ontworpen om je te begeleiden met vragen in plaats van alleen antwoorden te geven, zodat je echt begrip opbouwt. Zoals alle AI kan ik fouten maken, maar ik ben specifiek ontworpen om fouten te minimaliseren, onzekerheid toe te geven en je aan te moedigen belangrijke informatie uit meerdere bronnen te verifiëren.
+
+
+    ## Wat je kunt doen:
+
+
+    - **Onderwerpen diepgaand leren** - "Leer me over kwantumcomputing" of "Leg neurale netwerken uit"
+
+    - **Hulp bij coderen krijgen** - "Debug deze code" of "Leg uit hoe async/await werkt"
+
+    - **Nadenken over beslissingen** - "Help me carrièremogelijkheden te evalueren" of "Wat mis ik?"
+
+    - **Ideeën verkennen** - "Brainstorm startup-ideeën in de gezondheidszorg" of "Ontwerp een gebruikersenquête"
+
+    - **Complexe onderwerpen begrijpen** - "Leg de financiële crisis van 2008 uit" of "Hoe werkt CRISPR?"
+
+    - **Plannen en organiseren** - "Help me mijn onderzoekspaper te structureren" of "Maak een leerroute"
+
+
+    ## Aan de slag
+
+
+    **Start een nieuwe chat** - Klik op de knop "Nieuwe Chat" linksboven in deze chat
+
+
+    **Registreer voor volledige toegang** - Open het instellingenmenu (knop rechtsboven) om een account aan te maken
+
+
+    **Meer informatie** - Verken [Wat maakt OpenMates anders?](/#chat-id=demo-different)
+
+
+    ---
+
+
+    *Verschillende gespecialiseerde AI "Mates" helpen automatisch op basis van je onderwerp - van Sophia (softwareontwikkeling) tot Lisa (levenscoaching) tot Scarlett (wetenschap) en meer!*
+
+    '
+  ar: '# مرحباً بك في OpenMates! 👋
+
+
+    أنا زميلك في فريق الذكاء الاصطناعي - هنا لمساعدتك على التعلم وحل المشكلات والتفكير في التحديات. تم تصميمي لإرشادك بأسئلة بدلاً من مجرد إعطاء إجابات، مما يساعدك على بناء فهم حقيقي. مثل جميع أنظمة الذكاء الاصطناعي، يمكنني ارتكاب أخطاء، لكنني مصمم خصيصاً لتقليل الأخطاء والاعتراف بعدم اليقين وتشجيعك على التحقق من المعلومات المهمة من مصادر متعددة.
+
+
+    ## ما يمكنك فعله:
+
+
+    - **تعلم المواضيع بعمق** - "علمني عن الحوسبة الكمية" أو "اشرح الشبكات العصبية"
+
+    - **الحصول على مساعدة في البرمجة** - "أصلح هذا الكود" أو "اشرح كيف يعمل async/await"
+
+    - **التفكير في القرارات** - "ساعدني في تقييم خيارات المسيرة المهنية" أو "ما الذي أفتقده؟"
+
+    - **استكشاف الأفكار** - "العصف الذهني لأفكار الشركات الناشئة في الرعاية الصحية" أو "صمم استطلاعاً للمستخدمين"
+
+    - **فهم المواضيع المعقدة** - "اشرح الأزمة المالية لعام 2008" أو "كيف يعمل CRISPR؟"
+
+    - **التخطيط والتنظيم** - "ساعدني في هيكلة ورقة البحث الخاصة بي" أو "أنشئ خارطة طريق للتعلم"
+
+
+    ## البدء
+
+
+    **بدء محادثة جديدة** - انقر على زر "محادثة جديدة" في الزاوية اليسرى العلوية من هذه المحادثة
+
+
+    **سجل للحصول على وصول كامل** - افتح قائمة الإعدادات (الزر في الزاوية اليمنى العلوية) لإنشاء حساب
+
+
+    **تعرف على المزيد** - استكشف [ما الذي يجعل OpenMates مختلفاً؟](/#chat-id=demo-different)
+
+
+    ---
+
+
+    *سيساعدك "رفاق" الذكاء الاصطناعي المتخصصون المختلفون تلقائياً بناءً على موضوعك - من صوفيا (تطوير البرمجيات) إلى ليزا (التدريب على الحياة) إلى سكارليت (العلوم) والمزيد!*
+
+    '
+  hi: '# OpenMates में आपका स्वागत है! 👋
+
+
+    मैं आपका AI टीम साथी हूं - यहां आपको सीखने, समस्याओं को हल करने और चुनौतियों के बारे में सोचने में मदद करने के लिए। मैं केवल उत्तर देने के बजाय प्रश्नों के साथ आपका मार्गदर्शन करने के लिए डिज़ाइन किया गया हूं, जिससे आप वास्तविक समझ बना सकें। सभी AI की तरह, मैं गलतियां कर सकता हूं, लेकिन मैं विशेष रूप से त्रुटियों को कम करने, अनिश्चितता को स्वीकार करने और आपको कई स्रोतों से महत्वपूर्ण जानकारी सत्यापित करने के लिए प्रोत्साहित करने के लिए डिज़ाइन किया गया हूं।
+
+
+    ## आप क्या कर सकते हैं:
+
+
+    - **विषयों को गहराई से सीखें** - "मुझे क्वांटम कंप्यूटिंग के बारे में सिखाएं" या "न्यूरल नेटवर्क समझाएं"
+
+    - **कोडिंग सहायता प्राप्त करें** - "इस कोड को डीबग करें" या "async/await कैसे काम करता है समझाएं"
+
+    - **निर्णयों के बारे में सोचें** - "मुझे करियर विकल्पों का मूल्यांकन करने में मदद करें" या "मैं क्या छोड़ रहा हूं?"
+
+    - **विचारों का अन्वेषण करें** - "स्वास्थ्य सेवा में स्टार्टअप विचारों के लिए ब्रेनस्टॉर्म करें" या "एक उपयोगकर्ता सर्वेक्षण डिज़ाइन करें"
+
+    - **जटिल विषयों को समझें** - "2008 के वित्तीय संकट को समझाएं" या "CRISPR कैसे काम करता है?"
+
+    - **योजना बनाएं और व्यवस्थित करें** - "मुझे अपने शोध पत्र को संरचित करने में मदद करें" या "एक सीखने का रोडमैप बनाएं"
+
+
+    ## शुरुआत करना
+
+
+    **एक नई चैट शुरू करें** - इस चैट के बाएं शीर्ष कोने में "नई चैट" बटन पर क्लिक करें
+
+
+    **पूर्ण पहुंच के लिए साइन अप करें** - खाता बनाने के लिए सेटिंग्स मेनू (दाएं शीर्ष कोने में बटन) खोलें
+
+
+    **और जानें** - [OpenMates को क्या अलग बनाता है?](/#chat-id=demo-different) का अन्वेषण करें
+
+
+    ---
+
+
+    *विभिन्न विशेषज्ञ AI "Mates" आपके विषय के आधार पर स्वचालित रूप से मदद करेंगे - सोफिया (सॉफ्टवेयर विकास) से लिसा (जीवन कोचिंग) से स्कारलेट (विज्ञान) तक और अधिक!*
+
+    '
+  th: '# ยินดีต้อนรับสู่ OpenMates! 👋
+
+
+    ฉันคือเพื่อนร่วมทีม AI ของคุณ - อยู่ที่นี่เพื่อช่วยคุณเรียนรู้ แก้ปัญหา และคิดเกี่ยวกับความท้าทาย ฉันถูกออกแบบมาเพื่อแนะนำคุณด้วยคำถามมากกว่าแค่ให้คำตอบ ช่วยให้คุณสร้างความเข้าใจที่แท้จริง เช่นเดียวกับ AI ทั้งหมด ฉันสามารถทำผิดพลาดได้ แต่ฉันถูกออกแบบมาเป็นพิเศษเพื่อลดข้อผิดพลาด ยอมรับความไม่แน่นอน และสนับสนุนให้คุณตรวจสอบข้อมูลสำคัญจากหลายแหล่ง
+
+
+    ## สิ่งที่คุณสามารถทำได้:
+
+
+    - **เรียนรู้หัวข้ออย่างลึกซึ้ง** - "สอนฉันเกี่ยวกับการคำนวณควอนตัม" หรือ "อธิบายโครงข่ายประสาท"
+
+    - **รับความช่วยเหลือในการเขียนโค้ด** - "ดีบักโค้ดนี้" หรือ "อธิบายว่า async/await ทำงานอย่างไร"
+
+    - **คิดเกี่ยวกับการตัดสินใจ** - "ช่วยฉันประเมินตัวเลือกอาชีพ" หรือ "ฉันพลาดอะไรไป?"
+
+    - **สำรวจความคิด** - "ระดมความคิดสำหรับสตาร์ทอัพในด้านการดูแลสุขภาพ" หรือ "ออกแบบแบบสำรวจผู้ใช้"
+
+    - **เข้าใจหัวข้อที่ซับซ้อน** - "อธิบายวิกฤตการเงินปี 2008" หรือ "CRISPR ทำงานอย่างไร?"
+
+    - **วางแผนและจัดระเบียบ** - "ช่วยฉันจัดโครงสร้างเอกสารวิจัยของฉัน" หรือ "สร้างแผนที่การเรียนรู้"
+
+
+    ## เริ่มต้น
+
+
+    **เริ่มการสนทนาใหม่** - คลิกปุ่ม "การสนทนาใหม่" ที่มุมซ้ายบนของการสนทนานี้
+
+
+    **ลงทะเบียนเพื่อเข้าถึงแบบเต็ม** - เปิดเมนูการตั้งค่า (ปุ่มที่มุมขวาบน) เพื่อสร้างบัญชี
+
+
+    **เรียนรู้เพิ่มเติม** - สำรวจ [อะไรที่ทำให้ OpenMates แตกต่าง?](/#chat-id=demo-different)
+
+
+    ---
+
+
+    *"Mates" AI ที่เชี่ยวชาญต่างๆ จะช่วยคุณโดยอัตโนมัติตามหัวข้อของคุณ - จากโซเฟีย (การพัฒนาซอฟต์แวร์) ถึงลิซ่า (การโค้ชชีวิต) ถึงสการ์เล็ต (วิทยาศาสตร์) และอีกมากมาย!*
+
+    '
+  cs: '# Vítejte v OpenMates! 👋
+
+
+    Jsem váš AI kolegou - jsem tady, abych vám pomohl učit se, řešit problémy a uvažovat o výzvách. Jsem navržen tak, aby vás vede otázkami místo toho, aby vám jen dal odpovědi, a pomohl vám vytvořit skutečné porozumění. Stejně jako všechny AI se mohu mýlit, ale jsem speciálně navržen tak, abych minimalizoval chyby, přiznal nejistotu a povzbudil vás k ověření důležitých informací z více zdrojů.
+
+
+    ## Co můžete dělat:
+
+
+    - **Hluboko se učit témata** - "Nauč mě o kvantovém počítání" nebo "Vysvětli neuronové sítě"
+
+    - **Získej pomoc s kódem** - "Laduj tento kód" nebo "Vysvětli, jak funguje async/await"
+
+    - **Přemýšlej o rozhodnutích** - "Pomoz mi vyhodnotit možnosti kariéry" nebo "Co mi chybí?"
+
+    - **Prozkoumej myšlenky** - "Brainstorming nápadů na startupy v péči o zdraví" nebo "Navrhni průzkum uživatelů"
+
+    - **Rozumět složitým tématům** - "Vysvětli finanční krizi 2008" nebo "Jak funguje CRISPR?"
+
+    - **Plánovat a organizovat** - "Pomoz mi strukturovat můj výzkumný článek" nebo "Vytvořte mapu učení"
+
+
+    ## Začínáme
+
+
+    **Spusť nový chat** - Klikni na tlačítko "Nový chat" v levém horním rohu tohoto chatu
+
+
+    **Zaregistruj se pro plný přístup** - Otevři nabídku nastavení (tlačítko v pravém horním rohu) a vytvořte účet
+
+
+    **Dozvědět se více** - Prozkoumej [Co dělá OpenMates odlišný?](/#chat-id=demo-different)
+
+
+    ---
+
+
+    *Různí specializovaní AI "Mates" ti budou automaticky pomáhat na základě vašeho tématu - od Sophii (vývoj software) přes Lisu (life coaching) po Scarlett (věda) a více!*
+
+    '
+  sv: '# Välkommen till OpenMates! 👋
+
+
+    Jag är din AI-lagkamrat - här för att hjälpa dig att lära, lösa problem och tänka igenom utmaningar. Jag är utformad för att vägleda dig med frågor snarare än bara ge svar, och hjälper dig att bygga verklig förståelse. Liksom all AI kan jag göra misstag, men jag är specifikt utformad för att minimera fel, erkänna osäkerhet och uppmuntra dig att verifiera viktig information från flera källor.
+
+
+    ## Vad du kan göra:
+
+
+    - **Lär dig ämnen djupt** - "Lär mig om kvantberäkning" eller "Förklara neurala nätverk"
+
+    - **Få kodhjälp** - "Debugga denna kod" eller "Förklara hur async/await fungerar"
+
+    - **Tänka genom beslut** - "Hjälp mig att utvärdera karriäralternativ" eller "Vad missar jag?"
+
+    - **Utforska idéer** - "Brainstorm startup-idéer inom hälsovård" eller "Designa en användarundersökning"
+
+    - **Förstå komplexa ämnen** - "Förklara finanskrisen 2008" eller "Hur fungerar CRISPR?"
+
+    - **Planera och organisera** - "Hjälp mig att strukturera min forskningsartikel" eller "Skapa en inlärningsöversikt"
+
+
+    ## Komma igång
+
+
+    **Starta en ny chatt** - Klicka på knappen "Ny chatt" i det övre vänstra hörnet av denna chatt
+
+
+    **Registrera dig för full åtkomst** - Öppna inställningsmenyn (knapp i det övre högra hörnet) för att skapa ett konto
+
+
+    **Läs mer** - Utforska [Vad gör OpenMates annorlunda?](/#chat-id=demo-different)
+
+
+    ---
+
+
+    *Olika specialiserade AI "Mates" kommer automatiskt att hjälpa baserat på ditt ämne - från Sophia (mjukvaruutveckling) till Lisa (livscoaching) till Scarlett (vetenskap) och mycket mer!*
+
+    '
+follow_up_1:
+  context: Follow-up suggestion 1
+  en: What makes OpenMates different?
+  de: Was macht OpenMates anders?
+  zh: 是什么让OpenMates与众不同？
+  es: ¿Qué hace diferente a OpenMates?
+  fr: Qu''est-ce qui rend OpenMates différent ?
+  pt: O que torna o OpenMates diferente?
+  ru: Что делает OpenMates особенным?
+  ja: OpenMatesの特徴は何ですか？
+  ko: OpenMates의 차별점은 무엇인가요?
+  it: Cosa rende OpenMates diverso?
+  tr: OpenMates''i farklı kılan nedir?
+  vi: Điều gì làm cho OpenMates khác biệt?
+  id: Apa yang membuat OpenMates berbeda?
+  pl: Co wyróżnia OpenMates?
+  nl: Wat maakt OpenMates anders?
+  ar: ما الذي يجعل OpenMates مختلفاً؟
+  hi: OpenMates को क्या अलग बनाता है?
+  th: อะไรที่ทำให้ OpenMates แตกต่าง?
+  cs: Co dělá OpenMates odlišný?
+  sv: Vad gör OpenMates annorlunda?
+follow_up_2:
+  context: Follow-up suggestion 2
+  en: How do the different Mates work?
+  de: Wie funktionieren die verschiedenen Mates?
+  zh: 不同的Mates是如何工作的？
+  es: ¿Cómo funcionan los diferentes Mates?
+  fr: Comment fonctionnent les différents Mates ?
+  pt: Como funcionam os diferentes Mates?
+  ru: Как работают разные Мейты?
+  ja: さまざまなメイトはどのように機能しますか？
+  ko: 다양한 메이트는 어떻게 작동하나요?
+  it: Come funzionano i diversi Mates?
+  tr: Farklı Mates nasıl çalışır?
+  vi: Các Mates khác nhau hoạt động như thế nào?
+  id: Bagaimana cara kerja berbagai Mates?
+  pl: Jak działają różne Mates?
+  nl: Hoe werken de verschillende Mates?
+  ar: كيف تعمل الرفاق المختلفة؟
+  hi: विभिन्न Mates कैसे काम करते हैं?
+  th: Mates ที่แตกต่างกันทำงานอย่างไร?
+  cs: Jak fungují různí Mates?
+  sv: Hur fungerar de olika Mates?
+follow_up_3:
+  context: Follow-up suggestion 3
+  en: Tell me about privacy features
+  de: Erzähl mir über die Privatsphäre-Funktionen
+  zh: 告诉我隐私功能
+  es: Cuéntame sobre las funciones de privacidad
+  fr: Parlez-moi des fonctionnalités de confidentialité
+  pt: Conte-me sobre os recursos de privacidade
+  ru: Расскажите мне о функциях конфиденциальности
+  ja: プライバシー機能について教えてください
+  ko: 개인정보 보호 기능에 대해 알려주세요
+  it: Parlami delle funzionalità di privacy
+  tr: Gizlilik özellikleri hakkında bana bilgi ver
+  vi: Cho tôi biết về các tính năng quyền riêng tư
+  id: Ceritakan tentang fitur privasi
+  pl: Opowiedz mi o funkcjach prywatności
+  nl: Vertel me over de privacyfuncties
+  ar: أخبرني عن ميزات الخصوصية
+  hi: मुझे गोपनीयता सुविधाओं के बारे में बताएं
+  th: บอกฉันเกี่ยวกับคุณสมบัติความเป็นส่วนตัว
+  cs: Řekni mi o funkcích soukromí
+  sv: Berätta för mig om sekretessfunktioner

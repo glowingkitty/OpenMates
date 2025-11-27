@@ -1,15 +1,18 @@
 # backend/config/backend_config.yml
 # Main configuration for the OpenMates backend API.
 
-# List of enabled application IDs (service names) that the main API should discover and integrate with.
-# Each app runs as a separate service (typically a Docker container) and exposes an internal API.
-# It's assumed that each enabled app runs its internal FastAPI server on a default port (e.g., 8000),
-# reachable via its service name (e.g., http://ai:8000).
-enabled_apps:
-  - "ai"
-  # - "health"
-  # - "travel"
-  # - "another_app"
+# Apps are automatically discovered by scanning the backend/apps directory.
+# No manual configuration needed - new apps are available by default with server updates.
+# 
+# Apps are filtered by component stages based on SERVER_ENVIRONMENT:
+# - Development server: Apps with 'development' or 'production' stage components are included
+# - Production server: Apps with 'production' stage components only are included
+# - Apps with no valid components are treated as 'planning' and excluded
+
+# Optional: Explicitly disable apps (opt-out list)
+# Only use this if you need to temporarily disable a problematic app.
+# disabled_apps:
+#   - "problematic_app"
 
 # Other backend-wide configurations can be added below.
 # For example:

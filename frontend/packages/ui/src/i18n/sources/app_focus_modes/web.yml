@@ -1,0 +1,200 @@
+check_reputation:
+  context: Focus mode name for checking business reputation
+  en: Check reputation
+  de: Reputation prüfen
+  zh: 检查声誉
+  es: Verificar reputación
+  fr: Vérifier la réputation
+  pt: Verificar reputação
+  ru: Проверить репутацию
+  ja: 評判を確認
+  ko: 평판 확인
+  it: Verifica reputazione
+  tr: İtibar kontrolü
+  vi: Kiểm tra danh tiếng
+  id: Periksa reputasi
+  pl: Sprawdź reputację
+  nl: Controleer reputatie
+  ar: تحقق من السمعة
+  hi: प्रतिष्ठा जांचें
+  th: ตรวจสอบชื่อเสียง
+  cs: Zkontrolovat pověst
+  sv: Kontrollera rykte
+  verified_by_human:
+  - en
+  - de
+check_reputation.description:
+  context: Description for check reputation focus mode
+  en: Check if a business is legit and reliable.
+  de: Prüfe, ob ein Unternehmen seriös und zuverlässig ist.
+  zh: 检查企业是否合法可靠。
+  es: Verifica si un negocio es legítimo y confiable.
+  fr: Vérifiez si une entreprise est légitime et fiable.
+  pt: Verifique se uma empresa é legítima e confiável.
+  ru: Проверьте, является ли бизнес законным и надежным.
+  ja: ビジネスが正当で信頼できるかどうかを確認する。
+  ko: 비즈니스가 합법적이고 신뢰할 수 있는지 확인하세요.
+  it: Verifica se un'azienda è legittima e affidabile.
+  tr: Bir işletmenin meşru ve güvenilir olup olmadığını kontrol edin.
+  vi: Kiểm tra xem một doanh nghiệp có hợp pháp và đáng tin cậy không.
+  id: Periksa apakah bisnis sah dan dapat diandalkan.
+  pl: Sprawdź, czy firma jest legalna i niezawodna.
+  nl: Controleer of een bedrijf legitiem en betrouwbaar is.
+  ar: تحقق مما إذا كان العمل شرعيًا وموثوقًا.
+  hi: जांचें कि क्या कोई व्यवसाय वैध और विश्वसनीय है।
+  th: ตรวจสอบว่าธุรกิจถูกต้องตามกฎหมายและน่าเชื่อถือหรือไม่
+  cs: Zkontrolujte, zda je podnik legitimní a spolehlivý.
+  sv: Kontrollera om ett företag är legitimt och pålitligt.
+  verified_by_human:
+  - en
+  - de
+analyze_privacy:
+  context: Focus mode name for analyzing privacy
+  en: Analyze privacy
+  de: Datenschutz analysieren
+  zh: 分析隐私
+  es: Analizar privacidad
+  fr: Analyser la confidentialité
+  pt: Analisar privacidade
+  ru: Анализировать конфиденциальность
+  ja: プライバシーを分析
+  ko: 개인정보 보호 분석
+  it: Analizza privacy
+  tr: Gizlilik analizi
+  vi: Phân tích quyền riêng tư
+  id: Analisis privasi
+  pl: Analizuj prywatność
+  nl: Privacy analyseren
+  ar: تحليل الخصوصية
+  hi: गोपनीयता का विश्लेषण करें
+  th: วิเคราะห์ความเป็นส่วนตัว
+  cs: Analyzovat soukromí
+  sv: Analysera integritet
+  verified_by_human:
+  - en
+  - de
+analyze_privacy.description:
+  context: Description for analyze privacy focus mode
+  en: Analyze the privacy implications of a website or service based on its legal pages.
+  de: Analysiere die Datenschutzauswirkungen einer Website oder eines Dienstes anhand seiner rechtlichen Seiten.
+  zh: 根据法律页面分析网站或服务的隐私影响。
+  es: Analiza las implicaciones de privacidad de un sitio web o servicio basándose en sus páginas legales.
+  fr: Analysez les implications de confidentialité d'un site web ou d'un service en fonction de ses pages légales.
+  pt: Analise as implicações de privacidade de um site ou serviço com base em suas páginas legais.
+  ru: Проанализируйте последствия для конфиденциальности веб-сайта или сервиса на основе его юридических страниц.
+  ja: 法的ページに基づいて、ウェブサイトまたはサービスのプライバシーへの影響を分析する。
+  ko: 법적 페이지를 기반으로 웹사이트 또는 서비스의 개인정보 보호 영향을 분석하세요.
+  it: Analizza le implicazioni sulla privacy di un sito web o servizio in base alle sue pagine legali.
+  tr: Bir web sitesinin veya hizmetin yasal sayfalarına dayanarak gizlilik etkilerini analiz edin.
+  vi: Phân tích các tác động về quyền riêng tư của một trang web hoặc dịch vụ dựa trên các trang pháp lý của nó.
+  id: Analisis implikasi privasi situs web atau layanan berdasarkan halaman hukumnya.
+  pl: Przeanalizuj implikacje prywatności strony internetowej lub usługi na podstawie jej stron prawnych.
+  nl: Analyseer de privacy-implicaties van een website of service op basis van de juridische pagina's.
+  ar: حلل الآثار المترتبة على الخصوصية لموقع ويب أو خدمة بناءً على صفحاته القانونية.
+  hi: किसी वेबसाइट या सेवा की कानूनी पृष्ठों के आधार पर गोपनीयता के निहितार्थों का विश्लेषण करें।
+  th: วิเคราะห์ผลกระทบด้านความเป็นส่วนตัวของเว็บไซต์หรือบริการตามหน้าทางกฎหมาย
+  cs: Analyzujte důsledky pro soukromí webové stránky nebo služby na základě jejích právních stránek.
+  sv: Analysera integritetskonsekvenserna för en webbplats eller tjänst baserat på dess juridiska sidor.
+  verified_by_human:
+  - en
+  - de
+research:
+  context: Focus mode name for research
+  en: Research
+  de: Recherche
+  zh: 研究
+  es: Investigación
+  fr: Recherche
+  pt: Pesquisa
+  ru: Исследование
+  ja: 研究
+  ko: 연구
+  it: Ricerca
+  tr: Araştırma
+  vi: Nghiên cứu
+  id: Penelitian
+  pl: Badania
+  nl: Onderzoek
+  ar: بحث
+  hi: अनुसंधान
+  th: การวิจัย
+  cs: Výzkum
+  sv: Forskning
+  verified_by_human:
+  - en
+  - de
+research.description:
+  context: Description for research focus mode
+  en: Make multiple web searches to get a bigger picture of a topic and its causes and effects.
+  de: Führe mehrere Websuchen durch, um ein umfassenderes Bild eines Themas und seiner Ursachen und Auswirkungen zu erhalten.
+  zh: 进行多次网络搜索，以更全面地了解主题及其原因和影响。
+  es: Realiza múltiples búsquedas web para obtener una visión más amplia de un tema y sus causas y efectos.
+  fr: Effectuez plusieurs recherches web pour obtenir une vue d'ensemble d'un sujet et de ses causes et effets.
+  pt: Faça várias pesquisas na web para obter uma visão mais ampla de um tópico e suas causas e efeitos.
+  ru: Выполните несколько веб-поисков, чтобы получить более полную картину темы и её причин и следствий.
+  ja: 複数のウェブ検索を行い、トピックとその原因と影響の全体像を把握する。
+  ko: 여러 웹 검색을 수행하여 주제와 그 원인 및 효과에 대한 더 큰 그림을 얻으세요.
+  it: Esegui più ricerche web per ottenere un quadro più ampio di un argomento e delle sue cause ed effetti.
+  tr: Bir konunun ve nedenlerinin ve etkilerinin daha geniş bir resmini elde etmek için birden fazla web araması yapın.
+  vi: Thực hiện nhiều tìm kiếm web để có cái nhìn tổng quan hơn về một chủ đề và nguyên nhân cũng như tác động của nó.
+  id: Lakukan beberapa pencarian web untuk mendapatkan gambaran yang lebih besar tentang suatu topik dan penyebab serta efeknya.
+  pl: Wykonaj wiele wyszukiwań internetowych, aby uzyskać szerszy obraz tematu oraz jego przyczyn i skutków.
+  nl: Voer meerdere webzoekopdrachten uit om een groter beeld te krijgen van een onderwerp en de oorzaken en gevolgen ervan.
+  ar: قم بإجراء عمليات بحث متعددة على الويب للحصول على صورة أكبر لموضوع وأسبابه وآثاره.
+  hi: किसी विषय और उसके कारणों और प्रभावों की बड़ी तस्वीर प्राप्त करने के लिए कई वेब खोज करें।
+  th: ทำการค้นหาเว็บหลายครั้งเพื่อให้เห็นภาพรวมของหัวข้อและสาเหตุและผลกระทบ
+  cs: Proveďte více webových vyhledávání, abyste získali širší obraz tématu a jeho příčin a účinků.
+  sv: Gör flera webbsökningar för att få en större bild av ett ämne och dess orsaker och effekter.
+  verified_by_human:
+  - en
+  - de
+deep_web_research:
+  context: Focus mode name for deep web research
+  en: Deep web research
+  de: Tiefe Web-Recherche
+  zh: 深度网络研究
+  es: Investigación web profunda
+  fr: Recherche web approfondie
+  pt: Pesquisa web profunda
+  ru: Глубокое веб-исследование
+  ja: 深いウェブリサーチ
+  ko: 심층 웹 연구
+  it: Ricerca web approfondita
+  tr: Derin web araştırması
+  vi: Nghiên cứu web sâu
+  id: Penelitian web mendalam
+  pl: Głębokie badania internetowe
+  nl: Diepgaand webonderzoek
+  ar: بحث ويب عميق
+  hi: गहरी वेब अनुसंधान
+  th: การวิจัยเว็บเชิงลึก
+  cs: Hluboký webový výzkum
+  sv: Djup webbforskning
+  verified_by_human:
+  - en
+  - de
+deep_web_research.description:
+  context: Description for deep web research focus mode
+  en: Create a plan what to research and then start in depth web research to gather a report based on the findings.
+  de: Erstelle einen Plan, was zu recherchieren ist, und starte dann eine gründliche Web-Recherche, um einen Bericht basierend auf den Erkenntnissen zu erstellen.
+  zh: 制定研究计划，然后开始深入的网络研究，根据发现收集报告。
+  es: Crea un plan de qué investigar y luego comienza una investigación web en profundidad para recopilar un informe basado en los hallazgos.
+  fr: Créez un plan de ce qu'il faut rechercher, puis commencez une recherche web approfondie pour rassembler un rapport basé sur les résultats.
+  pt: Crie um plano do que pesquisar e depois inicie uma pesquisa web aprofundada para reunir um relatório com base nos resultados.
+  ru: Создайте план того, что нужно исследовать, а затем начните углубленное веб-исследование для сбора отчета на основе результатов.
+  ja: 何を調査するかの計画を作成し、その後、調査結果に基づいてレポートを収集するための詳細なウェブ調査を開始する。
+  ko: 조사할 내용에 대한 계획을 수립한 다음 결과를 기반으로 보고서를 수집하기 위한 심층 웹 조사를 시작하세요.
+  it: Crea un piano su cosa ricercare e poi avvia una ricerca web approfondita per raccogliere un rapporto basato sui risultati.
+  tr: Ne araştırılacağına dair bir plan oluşturun ve ardından bulgulara dayalı bir rapor toplamak için derinlemesine web araştırmasına başlayın.
+  vi: Tạo kế hoạch nghiên cứu gì và sau đó bắt đầu nghiên cứu web chuyên sâu để thu thập báo cáo dựa trên các phát hiện.
+  id: Buat rencana apa yang akan diteliti dan kemudian mulai penelitian web mendalam untuk mengumpulkan laporan berdasarkan temuan.
+  pl: Utwórz plan, co zbadać, a następnie rozpocznij dogłębne badania internetowe, aby zebrać raport na podstawie ustaleń.
+  nl: Maak een plan van wat te onderzoeken en begin dan met diepgaand webonderzoek om een rapport te verzamelen op basis van de bevindingen.
+  ar: أنشئ خطة لما يجب البحث عنه ثم ابدأ في البحث العميق على الويب لجمع تقرير بناءً على النتائج.
+  hi: यह निर्धारित करने के लिए एक योजना बनाएं कि क्या शोध करना है और फिर निष्कर्षों के आधार पर एक रिपोर्ट एकत्र करने के लिए गहन वेब शोध शुरू करें।
+  th: สร้างแผนว่าควรวิจัยอะไร แล้วเริ่มการวิจัยเว็บเชิงลึกเพื่อรวบรวมรายงานตามผลการค้นหา
+  cs: Vytvořte plán, co zkoumat, a poté zahajte hloubkový webový výzkum, abyste shromáždili zprávu na základě zjištění.
+  sv: Skapa en plan för vad som ska undersökas och börja sedan djup webbforskning för att samla en rapport baserad på resultaten.
+  verified_by_human:
+  - en
+  - de

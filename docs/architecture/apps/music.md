@@ -109,3 +109,38 @@ Genius documentation recommends:
 - **Python**: rauth, sanction
 - **JavaScript**: simple-oauth2, Passport
 - **Ruby**: OmniAuth, intridea/oauth2
+
+## Music Notes Rendering with VexFlow
+
+### Overview
+Consider integrating [VexFlow](https://www.vexflow.com/) to parse and render music notation in the web app. This would enable displaying music notes as embedded previews in chat and other UI components, providing users with visual representation of sheet music.
+
+### Use Cases
+- Display music notation from the "Convert to sheet" skill output
+- Show musical examples in chat responses
+- Preview sheet music before exporting or sharing
+- Visualize chord progressions and music theory concepts
+
+### Implementation Considerations
+
+#### VexFlow Capabilities
+- Parse and render standard musical notation (notes, rests, accidentals, time signatures, key signatures)
+- Support for multiple voices and staves
+- Customizable rendering with various fonts and styles
+- Canvas and SVG rendering backends
+- Lightweight and performant for web applications
+
+#### Integration Points
+1. **Backend Processing**: Convert audio/MIDI files to VexFlow notation format in the "Convert to sheet" skill
+2. **Web App Display**: Render VexFlow notation in dedicated UI components
+3. **Music Data Format**: Establish a standard format for storing/passing notation data (e.g., MusicXML, ABC notation, or VexFlow JSON)
+
+#### Libraries and Dependencies
+- **VexFlow**: Main library for rendering music notation
+- **Music21** (Python): Parse MusicXML and other formats, convert to VexFlow-compatible data
+- **Tone.js** (optional): If audio playback alongside notation is desired
+
+#### Performance & Storage
+- Cache rendered notation to minimize recomputation
+- Consider lazy-loading notation components for better performance
+- Store notation data efficiently (prefer compact formats like ABC notation when possible)

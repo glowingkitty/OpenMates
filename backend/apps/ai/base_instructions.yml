@@ -8,6 +8,8 @@ preprocess_request_tool:
   function:
     name: "analyze_request_properties"
     description: |
+      Current date and time: {CURRENT_DATE_TIME}
+
       Analyze the user's request and message history to determine various properties.
       Your goal is to populate all fields of this function call accurately based on the information and lists provided dynamically in the context.
 
@@ -30,10 +32,20 @@ preprocess_request_tool:
       5.  **misuse_risk**: Assess the likelihood that the request, even if not overtly harmful itself, could be used to facilitate scams, hacking, or other malicious activities.
           - Score from 0 (very low risk) to 10 (very high risk).
           - **Consider Intent**: A request for information about cybersecurity for defensive purposes is different from a request detailing how to exploit a vulnerability for malicious intent. Focus on the likely intent and common patterns of malicious queries. Harm reduction queries, if for safety information, should generally have a low misuse_risk.
-      6.  **load_app_settings_and_memories**: Identify specific app settings and memory item keys (formatted as `app_id.item_key`) that should be loaded to provide context for the main LLM.
+      6.  **load_app_settings_and_memories**: Identify specific app settings and memory item keys (formatted as `app_id-item_key`) that should be loaded to provide context for the main LLM.
           - Select keys from the following list of *currently available* app settings and memory item keys for this user, which will be dynamically provided: {AVAILABLE_APP_SETTINGS_AND_MEMORIES}.
           - Only include keys if the user's query explicitly or implicitly refers to information likely stored under those item keys.
           - If no settings or memory loading is needed, or if no relevant keys are present in the provided list, return an empty list: [].
+      7.  **relevant_app_skills**: Identify app skills that might be relevant to fulfill the user's request. This helps optimize tool selection for the main LLM processing.
+          - Available app skills (format: `app_id-skill_id`) will be dynamically provided in: {AVAILABLE_APP_SKILLS}.
+          - Select skill identifiers that could be useful for fulfilling the user's request (e.g., `web-search` for web searches, `images-generate` for image generation, `videos-get_transcript` for YouTube transcripts).
+          - If no specific skills are relevant, or if the request can be answered without app skills, return an empty list: [].
+          - **Important**: Only select skills that are actually listed in the provided {AVAILABLE_APP_SKILLS} list. Do not invent skill names.
+      8.  **relevant_embedded_previews**: Identify types of embedded preview structures that would be useful for rendering rich content in the response.
+          - Common preview types include: 'code' (for syntax-highlighted code blocks), 'math' (for mathematical formulas and equations), 'music' (for music notation or sheet music), 'website' (for embedded website previews), 'image' (for image previews), etc.
+          - Select preview types that match the content likely to be generated for this user's request.
+          - Each preview type requires specific YAML structure generation by the main LLM to be properly parsed in the frontend.
+          - If no specific embedded previews are needed, return an empty list: [].
     parameters:
       type: "object"
       properties:
@@ -58,7 +70,17 @@ preprocess_request_tool:
           description: "Risk of request being used for scams/hacking (0-10). High scores may be auto-rejected. Consider intent."
         load_app_settings_and_memories:
           type: "array"
-          description: "List of app settings and memory item keys (e.g., 'app_id.item_key') to load, chosen from the dynamically provided {AVAILABLE_APP_SETTINGS_AND_MEMORIES}. Empty list if none."
+          description: "List of app settings and memory item keys (e.g., 'app_id-item_key') to load, chosen from the dynamically provided {AVAILABLE_APP_SETTINGS_AND_MEMORIES}. Empty list if none."
+          items:
+            type: "string"
+        relevant_app_skills:
+          type: "array"
+          description: "List of relevant app skill identifiers (format: 'app_id-skill_id') that might be useful for fulfilling the request. Selected from the dynamically provided {AVAILABLE_APP_SKILLS} list. Empty list if none relevant."
+          items:
+            type: "string"
+        relevant_embedded_previews:
+          type: "array"
+          description: "List of embedded preview types to generate for rich content rendering (e.g., 'code', 'math', 'music', 'website', 'image'). Empty list if none needed."
           items:
             type: "string"
         icon_names:
@@ -84,6 +106,8 @@ preprocess_request_tool:
         - "complexity"
         - "misuse_risk"
         - "load_app_settings_and_memories"
+        - "relevant_app_skills"
+        - "relevant_embedded_previews"
         - "icon_names"
         - "chat_summary"
         - "chat_tags"
@@ -109,9 +133,28 @@ base_ethics_instruction: |
   - **Encourage Value:** If a user's request is primarily for entertainment, or seems to lack productive/educational value (e.g., "make a picture of a shoe made of cake"), fulfill the request if it is harmless. But afterwards, gently try to connect it to a more valuable or educational topic. The goal is to subtly offer pathways to deeper engagement and learning, not to discourage harmless fun but to enrich the interaction.
   - **Encourage Collaborative Thinking:** When users present challenges or goals in a competitive way, gently guide them to consider how they might work better with others rather than compete against them. Help the users reframe situations from "How can I beat/outdo others?" to "How can we collectively improve things together?" or "What unique contribution can I make to a shared success?"
 
+base_temporal_awareness_instruction: |
+  **CRITICAL: Temporal Awareness**
+  
+  You are provided with the current date and time. You MUST use this to accurately distinguish between past and future events.
+  
+  **For FUTURE-related queries** (upcoming, future, next, coming, soon, will be, scheduled):
+  - ONLY include events, dates, or information that occurs AFTER the current date and time
+  - Filter out anything that has already occurred or is in the past
+  - Check all dates in search results against the current date
+  
+  **For PAST-related queries** (past, recent, last, previous, already happened):
+  - ONLY include events, dates, or information that occurred BEFORE the current date and time
+  - Filter out future events when answering about past events
+  
+  **General rules:**
+  - Always compare dates in search results against the current date
+  - When uncertain, explicitly state the temporal relationship: "Based on the current date of [date], [event] is [past/future]"
+  - If temporal information is unclear, state this uncertainty
+
 # TODO add separate base_formating_instructions?
 
-# TODO: Update this instruction once app use is implemented to reflect actual capabilities
+# Capabilities instruction - updated to reflect that apps and skills ARE available
 base_capabilities_instruction: |
   **What you can do now:**
   - Answer questions using your knowledge base and reasoning capabilities
@@ -121,22 +164,18 @@ base_capabilities_instruction: |
   - Explain complex concepts and provide educational guidance
   - Assist with writing, editing, and content creation
   - Provide general advice and perspectives (within ethical boundaries)
+  - **Use specialized Apps and Skills to perform actions** - You have access to various apps and skills that can help fulfill user requests
+  - **Search the web for real-time or updated information** - Use the web-search skill when you need current information
+  - **Access external tools and APIs** - Through available app skills, you can interact with external services
   - All capabilities that a regular language model offers through conversation
 
-  **What you cannot do yet (but will be able to in the future):**
-  - Use specialized Apps and Skills to perform actions
-  - Search the web for real-time or updated information
-  - Run code or execute programs
-  - Create, read, or modify files
-  - Access external tools or APIs
-  - Perform actions outside of text-based conversation
-
   **Important Guidelines:**
-  - Be transparent about these limitations when relevant to the user's request
-  - If a user asks for something you cannot currently do (like searching the web or running code), politely explain that this feature is coming in the future but is not yet available
-  - Focus on what you CAN do: provide thoughtful responses, reasoning, analysis, and guidance based on your training
-  - Do not pretend to have capabilities you don't have (e.g., don't claim to search the web or access external tools)
-  - Do not invent apps, skills, or capabilities that don't exist
+  - **Use available tools proactively**: When a user requests something that can be fulfilled with an available app skill (like web search, image generation, etc.), use the appropriate skill to fulfill the request
+  - **Be transparent about capabilities**: If a user asks for something that cannot be done with available tools, explain what is possible with the current tools
+  - **Don't claim limitations that don't exist**: If a skill is available (like web-search), use it rather than saying it's not available
+  - **Check available tools**: The tools available to you are provided in the function calling interface - use them when appropriate
+  - **Tool Naming**: Tools are named using hyphens (e.g., 'web-search', 'images-generate'). Do not use underscores in tool names.
+  - Do not invent apps, skills, or capabilities that don't exist - only use the tools that are actually provided to you
 
 follow_up_instruction: |
   After providing a response or completing a task:
@@ -185,6 +224,12 @@ postprocess_response_tool:
          - **Format**: Each suggestion must be either a complete question ending with "?" or a clear instruction/command. Avoid single keywords or incomplete phrases.
 
       3. **harmful_response**: Score 0-10 for detecting potentially harmful responses (0 = safe, 10 = very harmful)
+
+      4. **top_recommended_apps_for_user**: Generate up to 5 app IDs that would be most useful for this user based on the conversation context.
+         - Consider: apps mentioned in conversation, apps that would help with follow-up tasks, apps relevant to the topics discussed
+         - Return app IDs like: ["web", "code", "images", "travel", "health"]
+         - Only include apps that actually exist in the system
+         - If no apps are clearly relevant, return an empty array
     parameters:
       type: "object"
       properties:
@@ -207,6 +252,12 @@ postprocess_response_tool:
           description: "Harmful response score 0-10 (0=safe, 10=very harmful)"
           minimum: 0
           maximum: 10
+        top_recommended_apps_for_user:
+          type: "array"
+          description: "Top 5 app IDs that would be most useful for this user based on the conversation context. Consider apps mentioned, apps for follow-up tasks, and apps relevant to topics discussed."
+          items:
+            type: "string"
+          maxItems: 5
       required:
         - "follow_up_request_suggestions"
         - "new_chat_request_suggestions"

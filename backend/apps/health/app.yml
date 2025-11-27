@@ -1,103 +1,208 @@
-name: |
-  Health
-description: |
-  Everything to improve your health and well being.
+name_translation_key: health.text
+description_translation_key: health.description.text
 icon_image: |
   heart.svg
-icon_colorgradient:
-  start: |
-    #FD50A0
-  end: |
-    #F42C2D
-
-# IMPORTANT NOTE: only start implementing app user settings & memories for health app once end to end encryption is implemented for storing
-# settings_and_memories:
-#   - id: |
-#       recent_doctor_visits
-#     name: |
-#       Recent doctor visits
-#     description: |
-#       Details about your recent doctor visits.
-#     type: list
-#     schema:
-#       type: object
-#       properties:
-#         doctor_name: { type: string, description: "Name of the doctor" }
-#         visit_date: { type: string, format: date, description: "YYYY-MM-DD" }
-#         notes: { type: string, description: "Additional notes from the visit" }
-#       required: [doctor_name, visit_date]
-#   - id: |
-#      upcoming_appointments
-#   - id: |
-#      syptoms_history
-
+category: personal
+last_updated: '2025-11-12'
+settings_and_memories:
+  - id: appointments
+    name_translation_key: health.appointments.text
+    description_translation_key: health.appointments.description.text
+    type: list
+    stage: planning
+    schema:
+      type: object
+      properties:
+        appointment_type:
+          type: string
+          enum:
+          - doctor_visit
+          - operation
+          - specialist
+          - dental
+          - eye_care
+          - therapy
+          - vaccination
+          - other
+          description: Type of appointment
+        doctor_name:
+          type: string
+          description: Name of the doctor or specialist
+        clinic_name:
+          type: string
+          description: Name of the clinic or hospital
+        date:
+          type: string
+          format: date
+          description: YYYY-MM-DD
+        time:
+          type: string
+          format: time
+          description: HH:MM in 24-hour format
+        reason:
+          type: string
+          description: Reason for the appointment or procedure
+        location:
+          type: string
+          description: Address or location of the appointment
+        contact_phone:
+          type: string
+          description: Phone number of clinic/doctor
+        notes:
+          type: string
+          description: Additional notes, preparation instructions, or follow-up details
+      required:
+      - appointment_type
+      - date
+  - id: medical_history
+    name_translation_key: health.medical_history.text
+    description_translation_key: health.medical_history.description.text
+    type: list
+    stage: planning
+    schema:
+      type: object
+      properties:
+        condition_type:
+          type: string
+          enum:
+          - surgery
+          - chronic_condition
+          - allergy
+          - medication
+          - vaccination
+          - injury
+          - other
+          description: Type of medical event
+        name:
+          type: string
+          description: Name of condition, medication, or surgery
+        date:
+          type: string
+          format: date
+          description: YYYY-MM-DD when it occurred or started
+        status:
+          type: string
+          enum:
+          - active
+          - resolved
+          - ongoing
+          description: Current status
+        details:
+          type: string
+          description: Details about the condition or treatment
+        doctor_name:
+          type: string
+          description: Name of attending doctor or specialist
+      required:
+      - condition_type
+      - name
+      - date
+  - id: symptoms_log
+    name_translation_key: health.symptoms_log.text
+    description_translation_key: health.symptoms_log.description.text
+    type: list
+    stage: planning
+    schema:
+      type: object
+      properties:
+        symptom:
+          type: string
+          description: Name of the symptom
+        date_onset:
+          type: string
+          format: date
+          description: YYYY-MM-DD when symptom started
+        severity:
+          type: string
+          enum:
+          - mild
+          - moderate
+          - severe
+          description: Severity level
+        frequency:
+          type: string
+          enum:
+          - occasional
+          - intermittent
+          - constant
+          description: How often it occurs
+        notes:
+          type: string
+          description: Additional details about the symptom
+      required:
+      - symptom
+      - date_onset
+  - id: sleep_diary
+    name_translation_key: health.sleep_diary.text
+    description_translation_key: health.sleep_diary.description.text
+    type: list
+    stage: planning
+    schema:
+      type: object
+      properties:
+        date:
+          type: string
+          format: date
+          description: YYYY-MM-DD date of the sleep period (typically when sleep started)
+        bedtime:
+          type: string
+          format: time
+          description: HH:MM time when user went to bed in 24-hour format
+        wake_time:
+          type: string
+          format: time
+          description: HH:MM time when user woke up in 24-hour format
+        sleep_duration_hours:
+          type: number
+          description: Total hours of sleep (can be calculated from bedtime/wake_time
+            or manually entered)
+        sleep_quality:
+          type: string
+          enum:
+          - poor
+          - fair
+          - good
+          - excellent
+          description: Overall sleep quality rating
+        notes:
+          type: string
+          description: Additional notes about the sleep period (dreams, restlessness,
+            specific disturbances, etc.)
+      required:
+      - date
 skills:
-
-  # NOTE: Tested getting appointments with Doctolib, but reverse engineering the API is not easy.
-  # Website returns complex html document, no simple fetch requests.
-  # Also tested using director.ai (and of course since Doctolib's UI is so terrible, the AI takes ages to figure our how to search and also then doesn't )
-  # Idea: combine firecrawl, their API and director.ai / stagehand to get next available appointments and return those to user.
-
-  # Jameda: also not perfect, but at least with workaround should be possible to combine firecrawl + their API endpoints for finding available appointments.
-  - id: |
-      search_appointments
-    name: |
-      Search appointments
-    description: |
-      Searches for available doctor appointments based on your requirements.
-    stage: |
-      planning
+  - id: search_appointments
+    name_translation_key: health.search_appointments.text
+    description_translation_key: health.search_appointments.description.text
+    stage: planning
     class_path: |
       skills.search_appointments.SearchAppointmentsSkill
     providers:
       - Jameda
       - Doctolib
-
-  - id: |
-      create_report
-    name: |
-      Create report
-    description: |
-      Create a report for the next doctor visit.
-
+  - id: create_report
+    name_translation_key: health.create_report.text
+    description_translation_key: health.create_report.description.text
+    stage: planning
 focuses:
-
-  - id: |
-      prepare_doctor_report
-    name: |
-      Prepare doctor report
-    description: |
-      Asks clearifying questions to then create a report for the next doctor appointment.
-      Including symptoms overview, previous doctor visits, previous tests and results 
-      (including links or QR codes and access instructions to access them) and data 
-      from health tracking / fitness tracking devices (Apple Watch for example).
-
-  - id: |
-      health_insights
-    name: |
-      Health insights
-    description: |
-      Get general health insights tailored to your questions, using multiple rounds
-      of questions. Will also help you to find out which doctor to consult for advice
-    stage: |
-      planning
+  - id: prepare_doctor_report
+    name_translation_key: health.prepare_doctor_report.text
+    description_translation_key: health.prepare_doctor_report.description.text
+    stage: planning
+  - id: health_insights
+    name_translation_key: health.health_insights.text
+    description_translation_key: health.health_insights.description.text
+    stage: planning
     process:
       - ""
-    # systemprompt just an early placeholder. Nowhere near complete.
     systemprompt: |
       You are a health expert.
-
-  - id: |
-      prepare_doctor_appointment
-    name: |
-      Prepare doctor appointment
-    description: |
-      Prepare your next appointment, by discussing what symptoms & tests you should ask your doctor about and what previous test results to bring.
-    stage: |
-      planning
+  - id: prepare_doctor_appointment
+    name_translation_key: health.prepare_doctor_appointment.text
+    description_translation_key: health.prepare_doctor_appointment.description.text
+    stage: planning
     process:
-      - "discusses what symptoms one had in recent weeks and months, even if one doesn’t see connections between them"
-      - "discusses what test results / documents one should collect before the next appointment"
-    # systemprompt just an early placeholder. Nowhere near complete.
+      - discusses what symptoms one had in recent weeks and months, even if one doesn't see connections between them
+      - discusses what test results / documents one should collect before the next appointment
     systemprompt: |
       You are a health expert.

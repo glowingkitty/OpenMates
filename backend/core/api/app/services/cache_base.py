@@ -233,8 +233,10 @@ class CacheServiceBase:
         
         try:
             while True:
-                # Listen for messages with a timeout to allow periodic checks or graceful shutdown
-                message = await pubsub.get_message(ignore_subscribe_messages=True, timeout=1.0)
+                # CRITICAL: Use shorter timeout (0.1s) for faster message processing
+                # This ensures chunks are forwarded immediately without delay
+                # The timeout is only for periodic checks, messages return immediately when available
+                message = await pubsub.get_message(ignore_subscribe_messages=True, timeout=0.1)
                 if message and message.get("type") == "pmessage": # pmessage for psubscribe
                     channel = message.get("channel")
                     if isinstance(channel, bytes):

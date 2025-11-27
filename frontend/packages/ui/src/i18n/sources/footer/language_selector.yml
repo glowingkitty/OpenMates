@@ -1,0 +1,23 @@
+label:
+  context: Label for language selector
+  en: Select language
+  de: Sprache auswählen
+  zh: 选择语言
+  es: Seleccionar idioma
+  fr: Choisir la langue
+  pt: Selecionar idioma
+  ru: Выбрать язык
+  ja: 言語を選択
+  ko: 언어 선택
+  it: Seleziona lingua
+  tr: Dil seç
+  vi: Chọn ngôn ngữ
+  id: Pilih bahasa
+  pl: Wybierz język
+  nl: Selecteer taal
+  ar: اختر اللغة
+  hi: भाषा चुनें
+  th: เลือกภาษา
+  cs: Vybrat jazyk
+  sv: 'Välj språk'
+  verified_by_human: []

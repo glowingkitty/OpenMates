@@ -80,6 +80,14 @@ class UserCacheMixin:
                 logger.error("Cannot cache user data: no user_id provided or found in user_data.")
                 return False
 
+            # CRITICAL: Ensure user_id is always present in user_data for WebSocket authentication
+            # WebSocket auth checks for user_id in the cached data, so it must be present
+            if "user_id" not in user_data:
+                user_data["user_id"] = user_id
+            # Also ensure "id" is present for compatibility
+            if "id" not in user_data:
+                user_data["id"] = user_id
+
             logger.debug(f"Attempting cache SET for user ID: {user_id}")
             user_ttl = ttl if ttl is not None else self.USER_TTL
             session_ttl = ttl if ttl is not None else self.SESSION_TTL
@@ -172,6 +180,48 @@ class UserCacheMixin:
                         sessions_deleted_count += 1
                     logger.debug(f"Cache DELETE result for session link key '{key}': {delete_session_success}")
             logger.debug(f"Finished deleting session link caches for user {user_id}. Deleted {sessions_deleted_count} keys.")
+
+            # --- Chat & embed cache cleanup for this user ---
+            # Gather chat_ids from the user's sorted set (if cache was primed)
+            chat_ids = await self.get_chat_ids_versions(user_id, with_scores=False)
+            logger.debug(f"Chat cleanup for user {user_id}: found {len(chat_ids)} chat_ids in cache.")
+
+            for chat_id in chat_ids:
+                try:
+                    # Delete chat versions hash
+                    await self.delete_chat_versions(user_id, chat_id)
+                    # Delete list item data (title/icon/category/draft metadata)
+                    await self.delete_chat_list_item_data(user_id, chat_id)
+                    # Delete message history caches (ai + sync)
+                    await self.delete_chat_messages_history(user_id, chat_id)
+                    await self.delete_sync_messages_history(user_id, chat_id)
+                    # Delete app settings/memories cache for the chat (per-chat)
+                    await self.delete_chat_app_settings_memories(user_id, chat_id)
+
+                    # Remove embed caches linked to this chat
+                    chat_embed_index_key = f"chat:{chat_id}:embed_ids"
+                    embed_ids = await self.get_keys_by_pattern(chat_embed_index_key)
+                    # get_keys_by_pattern returns list of keys; if present, fetch members
+                    if embed_ids:
+                        # embed_ids here are actually keys; fetch members from the set
+                        client = await self.client
+                        if client:
+                            members = await client.smembers(chat_embed_index_key)
+                            if members:
+                                for embed_id in members:
+                                    embed_key = f"embed:{embed_id.decode('utf-8') if isinstance(embed_id, bytes) else embed_id}"
+                                    await self.delete(embed_key)
+                            await client.delete(chat_embed_index_key)
+                    else:
+                        # If no key, continue silently
+                        pass
+
+                except Exception as chat_cleanup_error:
+                    logger.error(f"Error cleaning chat cache for user {user_id}, chat {chat_id}: {chat_cleanup_error}", exc_info=True)
+
+            # Remove top-level chat ids set last
+            user_chat_ids_key = self._get_user_chat_ids_versions_key(user_id)
+            await self.delete(user_chat_ids_key)
 
             return delete_user_success
         except Exception as e:

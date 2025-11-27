@@ -57,6 +57,10 @@ chats:
       type: text
       note: "[Encrypted] Array of 6 follow-up request suggestions for the current chat, encrypted as base64 string using chat-specific key. Must be TEXT not JSON since it's encrypted."
 
+    encrypted_top_recommended_apps_for_chat:
+      type: text
+      note: "[Encrypted] Array of up to 5 recommended app IDs for this specific chat, encrypted using chat-specific key. Generated during post-processing. Format: ['app1', 'app2', ...]. Must be TEXT not JSON since it's encrypted."
+
     encrypted_chat_key:
       type: string
       length: 512
@@ -77,6 +81,10 @@ chats:
     shared_public:
       type: boolean
       note: "Whether this chat is publicly shared. If true, anyone with the link can access it (subject to encryption key in URL fragment)."
+
+    shared_timestamp:
+      type: integer
+      note: "Unix timestamp (seconds) marking the point up to which shared messages can be read by others. Messages with timestamps <= this value are visible to users with access. Null if chat is not shared. Updated when sharing is enabled or when the owner wants to limit message visibility to shared users."
 
 # TODO: Create separate model for new_chat_request_suggestions
 # According to message_processing.md, new_chat_request_suggestions should be stored separately

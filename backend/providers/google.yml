@@ -8,9 +8,9 @@ description: "AI models and services from Google."
 logo_svg: "logos/google.svg" # Path for UI, relative to a common logos directory
 
 models:
-  - id: "gemini-2.5-pro-preview-06-05" # Official model ID
-    name: "Gemini 2.5 Pro"
-    description: "Enhanced thinking and reasoning, multimodal understanding, advanced coding, and more"
+  - id: "gemini-3-pro-preview" # Official model ID
+    name: "Gemini 3 Pro Preview"
+    description: "Our most intelligent model with SOTA reasoning and multimodal understanding, and powerful agentic and vibe coding capabilities"
     input_types:
       - text
       - image
@@ -18,25 +18,33 @@ models:
       - audio
     output_types:
       - text
+    default_server: "google" # Default server for this model
+    servers:
+      - id: "google"
+        name: "Google Vertex AI"
+        model_id: "gemini-3-pro-preview" # Google Vertex AI uses the model ID as-is
     pricing:
       tokens: 
         input:
-          per_credit_unit: 300 # 1 credit per 300 input tokens
+          per_credit_unit: 150 # 1 credit per 150 input tokens (for <=200K tokens: $2.00/M)
         output:
-          per_credit_unit: 30 # 1 credit per 30 output tokens
+          per_credit_unit: 25 # 1 credit per 25 output tokens (for <=200K tokens: $12.00/M)
     costs:
       input_per_million_token:
-        price: 1.25
+        price: 2.00
         currency: USD
-        max_context: 200000
+        max_context: 200000 # Standard tier pricing (<=200K tokens)
       output_per_million_token:
-        price: 10.00
+        price: 12.00
         currency: USD
         max_context: 200000
+    features:
+      knowledge_cutoff: "2025-01"
+      # Note: For >200K tokens, pricing is $4.00/M input and $18.00/M output
 
-  - id: "gemini-2.5-flash-preview-05-20"
-    name: "Gemini 2.5 Flash"
-    description: "Adaptive thinking, cost efficiency"
+  - id: "gemini-flash-latest"
+    name: "Gemini Flash Latest"
+    description: "Our hybrid reasoning model, with a 1M token context window and thinking budgets."
     input_types:
       - text
       - image
@@ -44,21 +52,28 @@ models:
       - audio
     output_types:
       - text
+    default_server: "google" # Default server for this model
+    servers:
+      - id: "google"
+        name: "Google Vertex AI"
+        model_id: "gemini-flash-latest" # Google Vertex AI uses the model ID as-is (points to gemini-2.5-flash-preview-09-2025)
     pricing:
       tokens:
         input: 
-          per_credit_unit: 2000
+          per_credit_unit: 1000 # 1 credit per 1000 input tokens ($0.30/M)
         output:
-          per_credit_unit: 500
+          per_credit_unit: 130 # 1 credit per 130 output tokens ($2.50/M)
     costs:
       input_per_million_token:
-        price: 0.15
+        price: 0.30
         currency: USD
-        max_context: 1000000
+        max_context: 1000000 # 1M token context window
       output_per_million_token:
-        price: 0.60
+        price: 2.50
         currency: USD
         max_context: 1000000
+    features:
+      knowledge_cutoff: "2025-01"
 
   - id: "imagen-4.0-generate-preview-06-06"
     name: "Imagen 4.0"

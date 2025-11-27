@@ -1,0 +1,69 @@
+slide_left_to_cancel:
+  context: Text shown when recording is in progress
+  en: Slide left to cancel
+  de: Nach links ziehen um abzubrechen
+  zh: 向左滑动取消
+  es: Desliza hacia la izquierda para cancelar
+  fr: Faites glisser vers la gauche pour annuler
+  pt: Deslize para a esquerda para cancelar
+  ru: Смахните влево для отмены
+  ja: 左にスライドしてキャンセル
+  ko: 왼쪽으로 밀어 취소
+  it: Scorri a sinistra per annullare
+  tr: İptal etmek için sola kaydır
+  vi: Vuốt sang trái để hủy
+  id: Geser ke kiri untuk membatalkan
+  pl: Przesuń w lewo, aby anulować
+  nl: Veeg naar links om te annuleren
+  ar: اسحب لليسار للإلغاء
+  hi: रद्द करने के लिए बाईं ओर स्लाइड करें
+  th: เลื่อนไปทางซ้ายเพื่อยกเลิก
+  cs: Přejeďte doleva pro zrušení
+  sv: 'Dra åt vänster för att avbryta'
+  verified_by_human: []
+release_to_finish:
+  context: Text shown when recording is in progress
+  en: Release to finish
+  de: Loslassen um fertig zu stellen
+  zh: 松开完成
+  es: Suelta para finalizar
+  fr: Relâchez pour terminer
+  pt: Solte para finalizar
+  ru: Отпустите для завершения
+  ja: 離して終了
+  ko: 놓아서 완료
+  it: Rilascia per finire
+  tr: Bitirmek için bırak
+  vi: Thả ra để hoàn thành
+  id: Lepas untuk menyelesaikan
+  pl: Zwolnij, aby zakończyć
+  nl: Laat los om te voltooien
+  ar: اتركه للإنهاء
+  hi: समाप्त करने के लिए छोड़ें
+  th: ปล่อยเพื่อเสร็จสิ้น
+  cs: Uvolněte pro dokončení
+  sv: 'Släpp för att slutföra'
+  verified_by_human: []
+press_and_hold_reminder:
+  context: Text shown when the user has only pressed the record button for less than 500ms
+  en: Press and hold to record
+  de: Halte gedrückt um aufzunehmen
+  zh: 按住录音
+  es: Mantén presionado para grabar
+  fr: Appuyez et maintenez pour enregistrer
+  pt: Pressione e segure para gravar
+  ru: Нажмите и удерживайте для записи
+  ja: 長押しして録音
+  ko: 길게 눌러서 녹음
+  it: Premi e tieni premuto per registrare
+  tr: Kaydetmek için basılı tutun
+  vi: Nhấn và giữ để ghi âm
+  id: Tekan dan tahan untuk merekam
+  pl: Naciśnij i przytrzymaj, aby nagrać
+  nl: Druk in en houd vast om op te nemen
+  ar: اضغط مع الاستمرار للتسجيل
+  hi: रिकॉर्ड करने के लिए दबाएं और होल्ड करें
+  th: กดค้างเพื่อบันทึก
+  cs: Stiskněte a podržte pro nahrávání
+  sv: 'Tryck och håll kvar för att spela in'
+  verified_by_human: []

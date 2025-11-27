@@ -1,0 +1,1012 @@
+billing:
+  context: Billing settings menu item
+  en: Billing
+  de: Abrechnung
+  zh: 账单
+  es: Facturación
+  fr: Facturation
+  pt: Cobrança
+  ru: Выставление счетов
+  ja: 請求
+  ko: 청구
+  it: Fatturazione
+  tr: Faturalama
+  vi: Thanh toán
+  id: Penagihan
+  pl: Rozliczenia
+  nl: Facturering
+  ar: الفوترة
+  hi: बिलिंग
+  th: การเรียกเก็บเงิน
+  cs: Fakturace
+  sv: Fakturering
+  verified_by_human: []
+title:
+  context: Billing settings page title
+  en: Billing & Credits
+  de: Abrechnung & Guthaben
+  zh: 账单和积分
+  es: Facturación y Créditos
+  fr: Facturation et Crédits
+  pt: Cobrança e Créditos
+  ru: Счета и Кредиты
+  ja: 請求とクレジット
+  ko: 청구 및 크레딧
+  it: Fatturazione e Crediti
+  tr: Faturalama ve Krediler
+  vi: Thanh toán & Tín dụng
+  id: Penagihan & Kredit
+  pl: Rozliczenia i Kredyty
+  nl: Facturering en Credits
+  ar: الفوترة والاعتمادات
+  hi: बिलिंग और क्रेडिट
+  th: การเรียกเก็บเงินและเครดิต
+  cs: Fakturace a Kredity
+  sv: Fakturering och Krediter
+  verified_by_human: []
+current_balance:
+  context: Current credit balance heading
+  en: Current Balance
+  de: Aktuelles Guthaben
+  zh: 当前余额
+  es: Saldo Actual
+  fr: Solde Actuel
+  pt: Saldo Atual
+  ru: Текущий Баланс
+  ja: 現在の残高
+  ko: 현재 잔액
+  it: Saldo Attuale
+  tr: Mevcut Bakiye
+  vi: Số dư hiện tại
+  id: Saldo Saat Ini
+  pl: Aktualne Saldo
+  nl: Huidig Saldo
+  ar: الرصيد الحالي
+  hi: वर्तमान शेष
+  th: ยอดคงเหลือปัจจุบัน
+  cs: Aktuální Zůstatek
+  sv: Nuvarande Saldo
+  verified_by_human: []
+credits:
+  context: Credits label
+  en: credits
+  de: Credits
+  zh: 积分
+  es: créditos
+  fr: crédits
+  pt: créditos
+  ru: кредиты
+  ja: クレジット
+  ko: 크레딧
+  it: crediti
+  tr: krediler
+  vi: tín dụng
+  id: kredit
+  pl: kredyty
+  nl: credits
+  ar: اعتمادات
+  hi: क्रेडिट
+  th: เครดิต
+  cs: kredity
+  sv: krediter
+  verified_by_human: []
+buy_more_credits:
+  context: Button to purchase additional credits
+  en: Buy More Credits
+  de: Mehr Credits kaufen
+  zh: 购买更多积分
+  es: Comprar Más Créditos
+  fr: Acheter Plus de Crédits
+  pt: Comprar Mais Créditos
+  ru: Купить Больше Кредитов
+  ja: さらにクレジットを購入
+  ko: 더 많은 크레딧 구매
+  it: Acquista Più Crediti
+  tr: Daha Fazla Kredi Satın Al
+  vi: Mua thêm tín dụng
+  id: Beli Lebih Banyak Kredit
+  pl: Kup Więcej Kredytów
+  nl: Meer Credits Kopen
+  ar: شراء المزيد من الاعتمادات
+  hi: अधिक क्रेडिट खरीदें
+  th: ซื้อเครดิตเพิ่มเติม
+  cs: Koupit Více Kreditů
+  sv: Köp Fler Krediter
+  verified_by_human: []
+monthly_subscription:
+  context: Monthly subscription heading
+  en: Monthly Auto Top-Up Subscription
+  de: Monatliches Auto-Aufladen-Abonnement
+  zh: 月度自动充值订阅
+  es: Suscripción de Recarga Automática Mensual
+  fr: Abonnement de Rechargement Automatique Mensuel
+  pt: Assinatura de Recarga Automática Mensal
+  ru: Ежемесячная Подписка на Автопополнение
+  ja: 月次自動チャージ購読
+  ko: 월간 자동 충전 구독
+  it: Abbonamento Ricarica Automatica Mensile
+  tr: Aylık Otomatik Yükleme Aboneliği
+  vi: Đăng ký tự động nạp tiền hàng tháng
+  id: Langganan Isi Ulang Otomatis Bulanan
+  pl: Miesięczna Subskrypcja Auto-Doładowania
+  nl: Maandelijks Automatisch Opwaarderen Abonnement
+  ar: اشتراك إعادة الشحن التلقائي الشهري
+  hi: मासिक स्वचालित टॉप-अप सदस्यता
+  th: สมาชิกเติมเงินอัตโนมัติรายเดือน
+  cs: Měsíční Předplatné Automatického Dobití
+  sv: Månadsvis Automatisk Påfyllningsprenumeration
+  verified_by_human: []
+status:
+  context: Subscription status label
+  en: Status
+  de: Status
+  zh: 状态
+  es: Estado
+  fr: Statut
+  pt: Status
+  ru: Статус
+  ja: ステータス
+  ko: 상태
+  it: Stato
+  tr: Durum
+  vi: Trạng thái
+  id: Status
+  pl: Status
+  nl: Status
+  ar: الحالة
+  hi: स्थिति
+  th: สถานะ
+  cs: Stav
+  sv: Status
+  verified_by_human: []
+amount:
+  context: Credits amount label
+  en: Amount
+  de: Betrag
+  zh: 金额
+  es: Cantidad
+  fr: Montant
+  pt: Quantidade
+  ru: Сумма
+  ja: 金額
+  ko: 금액
+  it: Importo
+  tr: Tutar
+  vi: Số tiền
+  id: Jumlah
+  pl: Kwota
+  nl: Bedrag
+  ar: المبلغ
+  hi: राशि
+  th: จำนวน
+  cs: Částka
+  sv: Belopp
+  verified_by_human: []
+price:
+  context: Subscription price label
+  en: Price
+  de: Preis
+  zh: 价格
+  es: Precio
+  fr: Prix
+  pt: Preço
+  ru: Цена
+  ja: 価格
+  ko: 가격
+  it: Prezzo
+  tr: Fiyat
+  vi: Giá
+  id: Harga
+  pl: Cena
+  nl: Prijs
+  ar: السعر
+  hi: मूल्य
+  th: ราคา
+  cs: Cena
+  sv: Pris
+  verified_by_human: []
+next_charge:
+  context: Next billing date label
+  en: Next Charge
+  de: Nächste Abbuchung
+  zh: 下次扣费
+  es: Próximo Cargo
+  fr: Prochain Débit
+  pt: Próxima Cobrança
+  ru: Следующее Списание
+  ja: 次回請求
+  ko: 다음 청구
+  it: Prossimo Addebito
+  tr: Sonraki Ücret
+  vi: Lần thanh toán tiếp theo
+  id: Tagihan Berikutnya
+  pl: Następna Opłata
+  nl: Volgende Betaling
+  ar: الرسوم التالية
+  hi: अगला शुल्क
+  th: การเรียกเก็บเงินครั้งถัดไป
+  cs: Další Poplatek
+  sv: Nästa Avgift
+  verified_by_human: []
+manage:
+  context: Button to manage subscription
+  en: Manage Subscription
+  de: Abonnement verwalten
+  zh: 管理订阅
+  es: Gestionar Suscripción
+  fr: Gérer l'Abonnement
+  pt: Gerenciar Assinatura
+  ru: Управлять Подпиской
+  ja: 購読を管理
+  ko: 구독 관리
+  it: Gestisci Abbonamento
+  tr: Aboneliği Yönet
+  vi: Quản lý đăng ký
+  id: Kelola Langganan
+  pl: Zarządzaj Subskrypcją
+  nl: Abonnement Beheren
+  ar: إدارة الاشتراك
+  hi: सदस्यता प्रबंधित करें
+  th: จัดการการสมัครสมาชิก
+  cs: Spravovat Předplatné
+  sv: Hantera Prenumeration
+  verified_by_human: []
+cancel:
+  context: Button to cancel subscription
+  en: Cancel Subscription
+  de: Abonnement kündigen
+  zh: 取消订阅
+  es: Cancelar Suscripción
+  fr: Annuler l'Abonnement
+  pt: Cancelar Assinatura
+  ru: Отменить Подписку
+  ja: 購読をキャンセル
+  ko: 구독 취소
+  it: Annulla Abbonamento
+  tr: Aboneliği İptal Et
+  vi: Hủy đăng ký
+  id: Batalkan Langganan
+  pl: Anuluj Subskrypcję
+  nl: Abonnement Opzeggen
+  ar: إلغاء الاشتراك
+  hi: सदस्यता रद्द करें
+  th: ยกเลิกการสมัครสมาชิก
+  cs: Zrušit Předplatné
+  sv: Avbryt Prenumeration
+  verified_by_human: []
+no_subscription:
+  context: Message when no subscription exists
+  en: No active subscription. Set up monthly auto top-up to never run out of credits.
+  de: Kein aktives Abonnement. Richten Sie monatliches Auto-Aufladen ein, um nie ohne Credits dazustehen.
+  zh: 没有活跃订阅。设置月度自动充值，永不断积分。
+  es: No hay suscripción activa. Configure la recarga automática mensual para nunca quedarse sin créditos.
+  fr: Aucun abonnement actif. Configurez le rechargement automatique mensuel pour ne jamais manquer de crédits.
+  pt: Nenhuma assinatura ativa. Configure o recarregamento automático mensal para nunca ficar sem créditos.
+  ru: Нет активной подписки. Настройте ежемесячное автопополнение, чтобы никогда не остаться без кредитов.
+  ja: アクティブな購読がありません。クレジットがなくならないように、月次自動チャージを設定してください。
+  ko: 활성 구독이 없습니다. 크레딧이 부족하지 않도록 월간 자동 충전을 설정하세요.
+  it: Nessun abbonamento attivo. Configura la ricarica automatica mensile per non rimanere mai senza crediti.
+  tr: Aktif abonelik yok. Kredileriniz tükenmemesi için aylık otomatik yükleme ayarlayın.
+  vi: Không có đăng ký hoạt động. Thiết lập tự động nạp tiền hàng tháng để không bao giờ hết tín dụng.
+  id: Tidak ada langganan aktif. Atur isi ulang otomatis bulanan agar tidak pernah kehabisan kredit.
+  pl: Brak aktywnej subskrypcji. Skonfiguruj miesięczne auto-doładowanie, aby nigdy nie zabrakło kredytów.
+  nl: Geen actief abonnement. Stel maandelijks automatisch opwaarderen in om nooit zonder credits te zitten.
+  ar: لا يوجد اشتراك نشط. قم بإعداد إعادة الشحن التلقائي الشهرية لتجنب نفاد الاعتمادات.
+  hi: कोई सक्रिय सदस्यता नहीं है। क्रेडिट कभी खत्म न होने के लिए मासिक स्वचालित टॉप-अप सेट करें।
+  th: ไม่มีการสมัครสมาชิกที่ใช้งานอยู่ ตั้งค่าการเติมเงินอัตโนมัติรายเดือนเพื่อไม่ให้เครดิตหมด
+  cs: Žádné aktivní předplatné. Nastavte měsíční automatické dobíjení, abyste nikdy nedošli kredity.
+  sv: Ingen aktiv prenumeration. Konfigurera månadsvis automatisk påfyllning för att aldrig få slut på krediter.
+  verified_by_human: []
+setup_subscription:
+  context: Button to create new subscription
+  en: Set Up Subscription
+  de: Abonnement einrichten
+  zh: 设置订阅
+  es: Configurar Suscripción
+  fr: Configurer l'Abonnement
+  pt: Configurar Assinatura
+  ru: Настроить Подписку
+  ja: 購読を設定
+  ko: 구독 설정
+  it: Configura Abbonamento
+  tr: Abonelik Kur
+  vi: Thiết lập đăng ký
+  id: Atur Langganan
+  pl: Skonfiguruj Subskrypcję
+  nl: Abonnement Instellen
+  ar: إعداد الاشتراك
+  hi: सदस्यता सेट करें
+  th: ตั้งค่าการสมัครสมาชิก
+  cs: Nastavit Předplatné
+  sv: Konfigurera Prenumeration
+  verified_by_human: []
+low_balance_topup:
+  context: Low balance auto top-up heading
+  en: Low Balance Auto Top-Up
+  de: Auto-Aufladen bei niedrigem Guthaben
+  zh: 低余额自动充值
+  es: Recarga Automática de Saldo Bajo
+  fr: Rechargement Automatique de Solde Faible
+  pt: Recarga Automática de Saldo Baixo
+  ru: Автопополнение при Низком Балансе
+  ja: 残高不足時の自動チャージ
+  ko: 낮은 잔액 자동 충전
+  it: Ricarica Automatica Saldo Basso
+  tr: Düşük Bakiye Otomatik Yükleme
+  vi: Tự động nạp tiền khi số dư thấp
+  id: Isi Ulang Otomatis Saldo Rendah
+  pl: Auto-Doładowanie przy Niskim Saldzie
+  nl: Automatisch Opwaarderen bij Laag Saldo
+  ar: إعادة الشحن التلقائي للرصيد المنخفض
+  hi: कम शेष राशि स्वचालित टॉप-अप
+  th: เติมเงินอัตโนมัติเมื่อยอดคงเหลือต่ำ
+  cs: Automatické Dobití při Nízkém Zůstatku
+  sv: Automatisk Påfyllning vid Lågt Saldo
+  verified_by_human: []
+low_balance_description:
+  context: Low balance auto top-up description
+  en: Automatically purchase credits when your balance falls below a threshold.
+  de: Kauft automatisch Credits, wenn Ihr Guthaben unter einen Schwellenwert fällt.
+  zh: 当余额低于阈值时自动购买积分。
+  es: Compra créditos automáticamente cuando tu saldo cae por debajo de un umbral.
+  fr: Achetez automatiquement des crédits lorsque votre solde tombe en dessous d'un seuil.
+  pt: Compra créditos automaticamente quando seu saldo cai abaixo de um limite.
+  ru: Автоматически покупает кредиты, когда ваш баланс падает ниже порога.
+  ja: 残高がしきい値を下回ったときに自動的にクレジットを購入します。
+  ko: 잔액이 임계값 이하로 떨어지면 자동으로 크레딧을 구매합니다.
+  it: Acquista automaticamente crediti quando il saldo scende sotto una soglia.
+  tr: Bakiyeniz bir eşiğin altına düştüğünde otomatik olarak kredi satın alır.
+  vi: Tự động mua tín dụng khi số dư của bạn giảm xuống dưới ngưỡng.
+  id: Secara otomatis membeli kredit ketika saldo Anda turun di bawah ambang batas.
+  pl: Automatycznie kupuje kredyty, gdy saldo spada poniżej progu.
+  nl: Koopt automatisch credits wanneer uw saldo onder een drempelwaarde daalt.
+  ar: يشتري الاعتمادات تلقائياً عندما ينخفض رصيدك دون عتبة معينة.
+  hi: जब आपका शेष एक सीमा से नीचे गिरता है तो स्वचालित रूप से क्रेडिट खरीदता है।
+  th: ซื้อเครดิตโดยอัตโนมัติเมื่อยอดคงเหลือของคุณต่ำกว่าเกณฑ์
+  cs: Automaticky nakupuje kredity, když váš zůstatek klesne pod prahovou hodnotu.
+  sv: Köper automatiskt krediter när ditt saldo faller under en tröskel.
+  verified_by_human: []
+configure:
+  context: Button to configure settings
+  en: Configure
+  de: Konfigurieren
+  zh: 配置
+  es: Configurar
+  fr: Configurer
+  pt: Configurar
+  ru: Настроить
+  ja: 設定
+  ko: 구성
+  it: Configura
+  tr: Yapılandır
+  vi: Cấu hình
+  id: Konfigurasi
+  pl: Konfiguruj
+  nl: Configureren
+  ar: تكوين
+  hi: कॉन्फ़िगर करें
+  th: กำหนดค่า
+  cs: Konfigurovat
+  sv: Konfigurera
+  verified_by_human: []
+buy_credits:
+  context: Buy credits page title
+  en: Buy Credits
+  de: Credits kaufen
+  zh: 购买积分
+  es: Comprar Créditos
+  fr: Acheter des Crédits
+  pt: Comprar Créditos
+  ru: Купить Кредиты
+  ja: クレジットを購入
+  ko: 크레딧 구매
+  it: Acquista Crediti
+  tr: Kredi Satın Al
+  vi: Mua tín dụng
+  id: Beli Kredit
+  pl: Kup Kredyty
+  nl: Credits Kopen
+  ar: شراء الاعتمادات
+  hi: क्रेडिट खरीदें
+  th: ซื้อเครดิต
+  cs: Koupit Kredity
+  sv: Köp Krediter
+  verified_by_human: []
+buy_credits.payment:
+  context: Payment page title for buying credits
+  en: Payment
+  de: Zahlung
+  zh: 支付
+  es: Pago
+  fr: Paiement
+  pt: Pagamento
+  ru: Платеж
+  ja: 支払い
+  ko: 결제
+  it: Pagamento
+  tr: Ödeme
+  vi: Thanh toán
+  id: Pembayaran
+  pl: Płatność
+  nl: Betaling
+  ar: الدفع
+  hi: भुगतान
+  th: การชำระเงิน
+  cs: Platba
+  sv: Betalning
+  verified_by_human: []
+buy_credits_description:
+  context: Buy credits menu item description
+  en: Purchase credits to use with OpenMates AI services
+  de: Credits kaufen, um sie mit OpenMates KI-Diensten zu verwenden
+  zh: 购买积分以使用 OpenMates AI 服务
+  es: Compra créditos para usar con los servicios de IA de OpenMates
+  fr: Achetez des crédits pour utiliser les services IA d'OpenMates
+  pt: Compre créditos para usar com os serviços de IA do OpenMates
+  ru: Купите кредиты для использования с сервисами ИИ OpenMates
+  ja: OpenMates AI サービスで使用するクレジットを購入
+  ko: OpenMates AI 서비스에서 사용할 크레딧 구매
+  it: Acquista crediti da utilizzare con i servizi AI di OpenMates
+  tr: OpenMates AI hizmetleriyle kullanmak için kredi satın alın
+  vi: Mua tín dụng để sử dụng với các dịch vụ AI của OpenMates
+  id: Beli kredit untuk digunakan dengan layanan AI OpenMates
+  pl: Kup kredyty do użycia z usługami AI OpenMates
+  nl: Koop credits om te gebruiken met OpenMates AI-services
+  ar: شراء الاعتمادات للاستخدام مع خدمات OpenMates AI
+  hi: OpenMates AI सेवाओं के साथ उपयोग करने के लिए क्रेडिट खरीदें
+  th: ซื้อเครดิตเพื่อใช้กับบริการ AI ของ OpenMates
+  cs: Kupte si kredity pro použití se službami OpenMates AI
+  sv: Köp krediter för att använda med OpenMates AI-tjänster
+  verified_by_human: []
+buy_credits.confirmation:
+  context: Payment confirmation page title
+  en: Purchase Successful
+  de: Kauf erfolgreich
+  zh: 购买成功
+  es: Compra exitosa
+  fr: Achat réussi
+  pt: Compra bem-sucedida
+  ru: Покупка успешна
+  ja: 購買成功
+  ko: 구매 성공
+  it: Acquisto riuscito
+  tr: Satın alma başarılı
+  vi: Mua thành công
+  id: Pembelian Berhasil
+  pl: Zakup zakończony pomyślnie
+  nl: Aankoop succesvol
+  ar: الشراء ناجح
+  hi: खरीद सफल
+  th: ซื้อสำเร็จ
+  cs: Nákup úspěšný
+  sv: Köp lyckat
+  verified_by_human: []
+auto_topup:
+  context: Auto top-up menu item
+  en: Auto Top-Up
+  de: Auto-Aufladen
+  zh: 自动充值
+  es: Recarga Automática
+  fr: Rechargement Automatique
+  pt: Recarga Automática
+  ru: Автопополнение
+  ja: 自動チャージ
+  ko: 자동 충전
+  it: Ricarica Automatica
+  tr: Otomatik Yükleme
+  vi: Tự động nạp tiền
+  id: Isi Ulang Otomatis
+  pl: Auto-Doładowanie
+  nl: Automatisch Opwaarderen
+  ar: إعادة الشحن التلقائي
+  hi: स्वचालित टॉप-अप
+  th: เติมเงินอัตโนมัติ
+  cs: Automatické Dobití
+  sv: Automatisk Påfyllning
+  verified_by_human: []
+auto_topup_description:
+  context: Auto top-up menu item description
+  en: Automatically maintain your credit balance
+  de: Halten Sie Ihr Guthaben automatisch aufrecht
+  zh: 自动维持您的积分余额
+  es: Mantén automáticamente tu saldo de créditos
+  fr: Maintenez automatiquement votre solde de crédits
+  pt: Mantenha automaticamente seu saldo de créditos
+  ru: Автоматически поддерживайте баланс кредитов
+  ja: クレジット残高を自動的に維持
+  ko: 크레딧 잔액을 자동으로 유지
+  it: Mantieni automaticamente il saldo dei crediti
+  tr: Kredi bakiyenizi otomatik olarak koruyun
+  vi: Tự động duy trì số dư tín dụng của bạn
+  id: Otomatis pertahankan saldo kredit Anda
+  pl: Automatycznie utrzymuj saldo kredytów
+  nl: Houd uw creditsaldo automatisch op peil
+  ar: حافظ تلقائياً على رصيد اعتماداتك
+  hi: अपने क्रेडिट शेष को स्वचालित रूप से बनाए रखें
+  th: รักษายอดคงเหลือเครดิตของคุณโดยอัตโนมัติ
+  cs: Automaticky udržujte svůj kreditní zůstatek
+  sv: Behåll automatiskt ditt kreditsaldo
+  verified_by_human: []
+on_low_balance:
+  context: Low balance auto top-up menu item
+  en: On Low Balance
+  de: Bei niedrigem Guthaben
+  zh: 低余额时
+  es: En Saldo Bajo
+  fr: En cas de solde faible
+  pt: Em Saldo Baixo
+  ru: При низком балансе
+  ja: 残高不足時
+  ko: 낮은 잔액 시
+  it: Con Saldo Basso
+  tr: Düşük Bakiyede
+  vi: Khi số dư thấp
+  id: Saat Saldo Rendah
+  pl: Przy Niskim Saldzie
+  nl: Bij Laag Saldo
+  ar: عند انخفاض الرصيد
+  hi: कम शेष राशि पर
+  th: เมื่อยอดคงเหลือต่ำ
+  cs: Při Nízkém Zůstatku
+  sv: Vid Lågt Saldo
+  verified_by_human: []
+monthly:
+  context: Monthly subscription menu item
+  en: Monthly
+  de: Monatlich
+  zh: 月度
+  es: Mensual
+  fr: Mensuel
+  pt: Mensal
+  ru: Ежемесячно
+  ja: 月次
+  ko: 월간
+  it: Mensile
+  tr: Aylık
+  vi: Hàng tháng
+  id: Bulanan
+  pl: Miesięcznie
+  nl: Maandelijks
+  ar: شهرياً
+  hi: मासिक
+  th: รายเดือน
+  cs: Měsíčně
+  sv: Månadsvis
+  verified_by_human: []
+manage_subscription:
+  context: Manage subscription page title
+  en: Manage Subscription
+  de: Abonnement verwalten
+  zh: 管理订阅
+  es: Gestionar Suscripción
+  fr: Gérer l'Abonnement
+  pt: Gerenciar Assinatura
+  ru: Управлять Подпиской
+  ja: 購読を管理
+  ko: 구독 관리
+  it: Gestisci Abbonamento
+  tr: Aboneliği Yönet
+  vi: Quản lý đăng ký
+  id: Kelola Langganan
+  pl: Zarządzaj Subskrypcją
+  nl: Abonnement Beheren
+  ar: إدارة الاشتراك
+  hi: सदस्यता प्रबंधित करें
+  th: จัดการการสมัครสมาชิก
+  cs: Spravovat Předplatné
+  sv: Hantera Prenumeration
+  verified_by_human: []
+subscription_coming_soon:
+  context: Temporary subscription management message
+  en: Subscription management features coming soon. For now, you can cancel your subscription from the main billing page.
+  de: Funktionen zur Abonnementverwaltung kommen bald. Vorerst können Sie Ihr Abonnement von der Hauptabrechnungsseite kündigen.
+  zh: 订阅管理功能即将推出。目前，您可以从主账单页面取消订阅。
+  es: Las funciones de gestión de suscripciones llegarán pronto. Por ahora, puedes cancelar tu suscripción desde la página principal de facturación.
+  fr: Les fonctionnalités de gestion d'abonnement arrivent bientôt. Pour l'instant, vous pouvez annuler votre abonnement depuis la page de facturation principale.
+  pt: Recursos de gerenciamento de assinatura em breve. Por enquanto, você pode cancelar sua assinatura na página principal de cobrança.
+  ru: Функции управления подпиской скоро появятся. Пока что вы можете отменить подписку на главной странице биллинга.
+  ja: 購読管理機能は近日公開予定です。現在は、メインの請求ページから購読をキャンセルできます。
+  ko: 구독 관리 기능이 곧 제공됩니다. 지금은 메인 청구 페이지에서 구독을 취소할 수 있습니다.
+  it: Le funzionalità di gestione degli abbonamenti arriveranno presto. Per ora, puoi cancellare il tuo abbonamento dalla pagina di fatturazione principale.
+  tr: Abonelik yönetim özellikleri yakında gelecek. Şimdilik, aboneliğinizi ana faturalama sayfasından iptal edebilirsiniz.
+  vi: Các tính năng quản lý đăng ký sẽ sớm ra mắt. Hiện tại, bạn có thể hủy đăng ký từ trang thanh toán chính.
+  id: Fitur manajemen langganan akan segera hadir. Untuk saat ini, Anda dapat membatalkan langganan dari halaman penagihan utama.
+  pl: Funkcje zarządzania subskrypcją wkrótce. Na razie możesz anulować subskrypcję ze strony głównej rozliczeń.
+  nl: Abonnementsbeheerfuncties komen binnenkort. Voorlopig kunt u uw abonnement opzeggen vanaf de hoofdfactureringspagina.
+  ar: ميزات إدارة الاشتراك قادمة قريباً. في الوقت الحالي، يمكنك إلغاء اشتراكك من صفحة الفوترة الرئيسية.
+  hi: सदस्यता प्रबंधन सुविधाएं जल्द ही आ रही हैं। अभी के लिए, आप मुख्य बिलिंग पृष्ठ से अपनी सदस्यता रद्द कर सकते हैं।
+  th: ฟีเจอร์การจัดการการสมัครสมาชิกจะเปิดให้ใช้งานเร็วๆ นี้ ตอนนี้คุณสามารถยกเลิกการสมัครสมาชิกได้จากหน้าบิลหลัก
+  cs: Funkce správy předplatného brzy přijdou. Prozatím můžete zrušit předplatné z hlavní stránky fakturace.
+  sv: Funktioner för prenumerationshantering kommer snart. För tillfället kan du avbryta din prenumeration från huvudsidan för fakturering.
+  verified_by_human: []
+low_balance_settings:
+  context: Low balance settings page title
+  en: Low Balance Auto Top-Up Settings
+  de: Einstellungen für Auto-Aufladen bei niedrigem Guthaben
+  zh: 低余额自动充值设置
+  es: Configuración de Recarga Automática de Saldo Bajo
+  fr: Paramètres de Rechargement Automatique de Solde Faible
+  pt: Configurações de Recarga Automática de Saldo Baixo
+  ru: Настройки Автопополнения при Низком Балансе
+  ja: 残高不足時の自動チャージ設定
+  ko: 낮은 잔액 자동 충전 설정
+  it: Impostazioni Ricarica Automatica Saldo Basso
+  tr: Düşük Bakiye Otomatik Yükleme Ayarları
+  vi: Cài đặt tự động nạp tiền khi số dư thấp
+  id: Pengaturan Isi Ulang Otomatis Saldo Rendah
+  pl: Ustawienia Auto-Doładowania przy Niskim Saldzie
+  nl: Instellingen Automatisch Opwaarderen bij Laag Saldo
+  ar: إعدادات إعادة الشحن التلقائي للرصيد المنخفض
+  hi: कम शेष राशि स्वचालित टॉप-अप सेटिंग्स
+  th: การตั้งค่าการเติมเงินอัตโนมัติเมื่อยอดคงเหลือต่ำ
+  cs: Nastavení Automatického Dobití při Nízkém Zůstatku
+  sv: Inställningar för Automatisk Påfyllning vid Lågt Saldo
+  verified_by_human: []
+enable_low_balance:
+  context: Toggle label for enabling low balance auto top-up
+  en: Enable Low Balance Auto Top-Up
+  de: Auto-Aufladen bei niedrigem Guthaben aktivieren
+  zh: 启用低余额自动充值
+  es: Habilitar Recarga Automática de Saldo Bajo
+  fr: Activer le Rechargement Automatique de Solde Faible
+  pt: Ativar Recarga Automática de Saldo Baixo
+  ru: Включить Автопополнение при Низком Балансе
+  ja: 残高不足時の自動チャージを有効化
+  ko: 낮은 잔액 자동 충전 활성화
+  it: Abilita Ricarica Automatica Saldo Basso
+  tr: Düşük Bakiye Otomatik Yükleme'yi Etkinleştir
+  vi: Bật tự động nạp tiền khi số dư thấp
+  id: Aktifkan Isi Ulang Otomatis Saldo Rendah
+  pl: Włącz Auto-Doładowanie przy Niskim Saldzie
+  nl: Automatisch Opwaarderen bij Laag Saldo Inschakelen
+  ar: تفعيل إعادة الشحن التلقائي للرصيد المنخفض
+  hi: कम शेष राशि स्वचालित टॉप-अप सक्षम करें
+  th: เปิดใช้งานการเติมเงินอัตโนมัติเมื่อยอดคงเหลือต่ำ
+  cs: Povolit Automatické Dobití při Nízkém Zůstatku
+  sv: Aktivera Automatisk Påfyllning vid Lågt Saldo
+  verified_by_human: []
+low_balance_help:
+  context: Help text for low balance auto top-up
+  en: Automatically purchase credits when your balance falls below the threshold. Requires a saved payment method.
+  de: Kauft automatisch Credits, wenn Ihr Guthaben unter den Schwellenwert fällt. Erfordert eine gespeicherte Zahlungsmethode.
+  zh: 当余额低于阈值时自动购买积分。需要保存的付款方式。
+  es: Compra créditos automáticamente cuando tu saldo cae por debajo del umbral. Requiere un método de pago guardado.
+  fr: Achetez automatiquement des crédits lorsque votre solde tombe en dessous du seuil. Nécessite une méthode de paiement enregistrée.
+  pt: Compra créditos automaticamente quando seu saldo cai abaixo do limite. Requer um método de pagamento salvo.
+  ru: Автоматически покупает кредиты, когда ваш баланс падает ниже порога. Требуется сохраненный способ оплаты.
+  ja: 残高がしきい値を下回ったときに自動的にクレジットを購入します。保存された支払い方法が必要です。
+  ko: 잔액이 임계값 이하로 떨어지면 자동으로 크레딧을 구매합니다. 저장된 결제 수단이 필요합니다.
+  it: Acquista automaticamente crediti quando il saldo scende sotto la soglia. Richiede un metodo di pagamento salvato.
+  tr: Bakiyeniz eşiğin altına düştüğünde otomatik olarak kredi satın alır. Kaydedilmiş bir ödeme yöntemi gerektirir.
+  vi: Tự động mua tín dụng khi số dư của bạn giảm xuống dưới ngưỡng. Yêu cầu phương thức thanh toán đã lưu.
+  id: Secara otomatis membeli kredit ketika saldo Anda turun di bawah ambang batas. Memerlukan metode pembayaran yang disimpan.
+  pl: Automatycznie kupuje kredyty, gdy saldo spada poniżej progu. Wymaga zapisanej metody płatności.
+  nl: Koopt automatisch credits wanneer uw saldo onder de drempelwaarde daalt. Vereist een opgeslagen betaalmethode.
+  ar: يشتري الاعتمادات تلقائياً عندما ينخفض رصيدك دون العتبة. يتطلب طريقة دفع محفوظة.
+  hi: जब आपका शेष सीमा से नीचे गिरता है तो स्वचालित रूप से क्रेडिट खरीदता है। एक सहेजी गई भुगतान विधि की आवश्यकता है।
+  th: ซื้อเครดิตโดยอัตโนมัติเมื่อยอดคงเหลือของคุณต่ำกว่าเกณฑ์ ต้องมีวิธีการชำระเงินที่บันทึกไว้
+  cs: Automaticky nakupuje kredity, když váš zůstatek klesne pod prahovou hodnotu. Vyžaduje uloženou platební metodu.
+  sv: Köper automatiskt krediter när ditt saldo faller under tröskeln. Kräver en sparad betalningsmetod.
+  verified_by_human: []
+threshold:
+  context: Threshold setting label
+  en: Balance Threshold
+  de: Guthabensschwelle
+  zh: 余额阈值
+  es: Umbral de Saldo
+  fr: Seuil de Solde
+  pt: Limite de Saldo
+  ru: Порог Баланса
+  ja: 残高しきい値
+  ko: 잔액 임계값
+  it: Soglia di Saldo
+  tr: Bakiye Eşiği
+  vi: Ngưỡng số dư
+  id: Ambang Batas Saldo
+  pl: Próg Salda
+  nl: Saldodrempel
+  ar: عتبة الرصيد
+  hi: शेष सीमा
+  th: เกณฑ์ยอดคงเหลือ
+  cs: Prahová Hodnota Zůstatku
+  sv: Saldotröskel
+  verified_by_human: []
+topup_amount:
+  context: Top-up amount setting label
+  en: Top-Up Amount
+  de: Aufladebetrag
+  zh: 充值金额
+  es: Cantidad de Recarga
+  fr: Montant de Rechargement
+  pt: Valor da Recarga
+  ru: Сумма Пополнения
+  ja: チャージ金額
+  ko: 충전 금액
+  it: Importo di Ricarica
+  tr: Yükleme Tutarı
+  vi: Số tiền nạp
+  id: Jumlah Isi Ulang
+  pl: Kwota Doładowania
+  nl: Opwaardeerbedrag
+  ar: مبلغ إعادة الشحن
+  hi: टॉप-अप राशि
+  th: จำนวนเงินเติม
+  cs: Částka Dobití
+  sv: Påfyllningsbelopp
+  verified_by_human: []
+currency:
+  context: Currency selection label
+  en: Currency
+  de: Währung
+  zh: 货币
+  es: Moneda
+  fr: Devise
+  pt: Moeda
+  ru: Валюта
+  ja: 通貨
+  ko: 통화
+  it: Valuta
+  tr: Para Birimi
+  vi: Tiền tệ
+  id: Mata Uang
+  pl: Waluta
+  nl: Valuta
+  ar: العملة
+  hi: मुद्रा
+  th: สกุลเงิน
+  cs: Měna
+  sv: Valuta
+  verified_by_human: []
+2fa_code:
+  context: 2FA code input label
+  en: 2FA Authentication Code
+  de: 2FA-Authentifizierungscode
+  zh: 双因素认证代码
+  es: Código de Autenticación 2FA
+  fr: Code d'Authentification 2FA
+  pt: Código de Autenticação 2FA
+  ru: Код Аутентификации 2FA
+  ja: 2FA認証コード
+  ko: 2FA 인증 코드
+  it: Codice di Autenticazione 2FA
+  tr: 2FA Kimlik Doğrulama Kodu
+  vi: Mã xác thực 2FA
+  id: Kode Autentikasi 2FA
+  pl: Kod Uwierzytelniania 2FA
+  nl: 2FA Authenticatiecode
+  ar: رمز المصادقة ثنائية العامل
+  hi: 2FA प्रमाणीकरण कोड
+  th: รหัสยืนยันตัวตน 2FA
+  cs: Ověřovací Kód 2FA
+  sv: 2FA Autentiseringskod
+  verified_by_human: []
+purchase_successful:
+  context: Purchase confirmation page title
+  en: Purchase Successful
+  de: Kauf erfolgreich
+  zh: 购买成功
+  es: Compra Exitosa
+  fr: Achat Réussi
+  pt: Compra Bem-Sucedida
+  ru: Покупка Успешна
+  ja: 購入成功
+  ko: 구매 성공
+  it: Acquisto Riuscito
+  tr: Satın Alma Başarılı
+  vi: Mua hàng thành công
+  id: Pembelian Berhasil
+  pl: Zakup Udany
+  nl: Aankoop Succesvol
+  ar: الشراء ناجح
+  hi: खरीद सफल
+  th: ซื้อสำเร็จ
+  cs: Nákup Úspěšný
+  sv: Köp Lyckades
+  verified_by_human: []
+credits_added:
+  context: Credits added confirmation message
+  en: Your credits have been added to your account
+  de: Ihre Credits wurden Ihrem Konto hinzugefügt
+  zh: 您的积分已添加到账户
+  es: Tus créditos han sido añadidos a tu cuenta
+  fr: Vos crédits ont été ajoutés à votre compte
+  pt: Seus créditos foram adicionados à sua conta
+  ru: Ваши кредиты были добавлены на ваш аккаунт
+  ja: クレジットがアカウントに追加されました
+  ko: 크레딧이 계정에 추가되었습니다
+  it: I tuoi crediti sono stati aggiunti al tuo account
+  tr: Kredileriniz hesabınıza eklendi
+  vi: Tín dụng của bạn đã được thêm vào tài khoản
+  id: Kredit Anda telah ditambahkan ke akun Anda
+  pl: Twoje kredyty zostały dodane do Twojego konta
+  nl: Uw credits zijn toegevoegd aan uw account
+  ar: تمت إضافة اعتماداتك إلى حسابك
+  hi: आपके क्रेडिट आपके खाते में जोड़े गए हैं
+  th: เครดิตของคุณถูกเพิ่มเข้าบัญชีแล้ว
+  cs: Vaše kredity byly přidány do vašeho účtu
+  sv: Dina krediter har lagts till på ditt konto
+  verified_by_human: []
+gift_card.have_code:
+  context: Button to switch to gift card redemption mode
+  en: I have a gift card
+  de: Ich habe einen Gutschein
+  zh: 我有礼品卡
+  es: Tengo una tarjeta de regalo
+  fr: J'ai une carte cadeau
+  pt: Tenho um cartão presente
+  ru: У меня есть подарочная карта
+  ja: ギフトカードを持っています
+  ko: 기프트 카드가 있습니다
+  it: Ho un buono regalo
+  tr: Hediye kartım var
+  vi: Tôi có thẻ quà tặng
+  id: Saya memiliki kartu hadiah
+  pl: Mam kartę podarunkową
+  nl: Ik heb een cadeaukaart
+  ar: لدي بطاقة هدية
+  hi: मेरे पास एक उपहार कार्ड है
+  th: ฉันมีบัตรของขวัญ
+  cs: Mám dárkovou kartu
+  sv: Jag har ett presentkort
+  verified_by_human: []
+gift_card.enter_code:
+  context: Label for gift card code input field
+  en: Enter gift card code
+  de: Gutscheincode eingeben
+  zh: 输入礼品卡代码
+  es: Ingresa el código de la tarjeta de regalo
+  fr: Entrez le code de la carte cadeau
+  pt: Digite o código do cartão presente
+  ru: Введите код подарочной карты
+  ja: ギフトカードコードを入力
+  ko: 기프트 카드 코드 입력
+  it: Inserisci il codice del buono regalo
+  tr: Hediye kartı kodunu girin
+  vi: Nhập mã thẻ quà tặng
+  id: Masukkan kode kartu hadiah
+  pl: Wprowadź kod karty podarunkowej
+  nl: Voer cadeaukaartcode in
+  ar: أدخل رمز بطاقة الهدية
+  hi: उपहार कार्ड कोड दर्ज करें
+  th: ใส่รหัสบัตรของขวัญ
+  cs: Zadejte kód dárkové karty
+  sv: Ange presentkortskod
+  verified_by_human: []
+gift_card.redeem:
+  context: Button to redeem gift card code
+  en: Redeem code
+  de: Code einlösen
+  zh: 兑换代码
+  es: Canjear código
+  fr: Échanger le code
+  pt: Resgatar código
+  ru: Обменять код
+  ja: コードを引き換える
+  ko: 코드 사용
+  it: Riscatta codice
+  tr: Kodu kullan
+  vi: Đổi mã
+  id: Tukar kode
+  pl: Zrealizuj kod
+  nl: Code inwisselen
+  ar: استبدال الرمز
+  hi: कोड रिडीम करें
+  th: ใช้รหัส
+  cs: Vyměnit kód
+  sv: Lösa in kod
+  verified_by_human: []
+gift_card.cancel:
+  context: Button to cancel gift card redemption and return to credit selection
+  en: Cancel
+  de: Abbrechen
+  zh: 取消
+  es: Cancelar
+  fr: Annuler
+  pt: Cancelar
+  ru: Отмена
+  ja: キャンセル
+  ko: 취소
+  it: Annulla
+  tr: İptal
+  vi: Hủy
+  id: Batal
+  pl: Anuluj
+  nl: Annuleren
+  ar: إلغاء
+  hi: रद्द करें
+  th: ยกเลิก
+  cs: Zrušit
+  sv: Avbryt
+  verified_by_human: []
+gift_card.success:
+  context: Success message after redeeming gift card
+  en: Gift card redeemed successfully
+  de: Gutschein erfolgreich eingelöst
+  zh: 礼品卡兑换成功
+  es: Tarjeta de regalo canjeada exitosamente
+  fr: Carte cadeau échangée avec succès
+  pt: Cartão presente resgatado com sucesso
+  ru: Подарочная карта успешно обменена
+  ja: ギフトカードの引き換えに成功しました
+  ko: 기프트 카드가 성공적으로 사용되었습니다
+  it: Buono regalo riscattato con successo
+  tr: Hediye kartı başarıyla kullanıldı
+  vi: Đổi thẻ quà tặng thành công
+  id: Kartu hadiah berhasil ditukar
+  pl: Karta podarunkowa została zrealizowana pomyślnie
+  nl: Cadeaukaart succesvol ingewisseld
+  ar: تم استبدال بطاقة الهدية بنجاح
+  hi: उपहार कार्ड सफलतापूर्वक रिडीम किया गया
+  th: แลกบัตรของขวัญสำเร็จแล้ว
+  cs: Dárková karta byla úspěšně vyměněna
+  sv: Presentkortet har lösts in framgångsrikt
+  verified_by_human: []
+gift_card.error.invalid:
+  context: Error message for invalid or already redeemed gift card code
+  en: Invalid gift card code or code has already been redeemed
+  de: Ungültiger Gutscheincode oder Code wurde bereits eingelöst
+  zh: 无效的礼品卡代码或代码已被兑换
+  es: Código de tarjeta de regalo inválido o ya ha sido canjeado
+  fr: Code de carte cadeau invalide ou déjà échangé
+  pt: Código de cartão presente inválido ou já foi resgatado
+  ru: Неверный код подарочной карты или код уже был обменен
+  ja: 無効なギフトカードコード、または既に引き換え済みのコードです
+  ko: 유효하지 않은 기프트 카드 코드이거나 이미 사용된 코드입니다
+  it: Codice buono regalo non valido o già riscattato
+  tr: Geçersiz hediye kartı kodu veya kod zaten kullanılmış
+  vi: Mã thẻ quà tặng không hợp lệ hoặc đã được sử dụng
+  id: Kode kartu hadiah tidak valid atau sudah ditukar
+  pl: Nieprawidłowy kod karty podarunkowej lub kod został już zrealizowany
+  nl: Ongeldige cadeaukaartcode of code is al ingewisseld
+  ar: رمز بطاقة الهدية غير صالح أو تم استبداله بالفعل
+  hi: अमान्य उपहार कार्ड कोड या कोड पहले से ही रिडीम किया गया है
+  th: รหัสบัตรของขวัญไม่ถูกต้องหรือถูกใช้ไปแล้ว
+  cs: Neplatný kód dárkové karty nebo kód již byl vyměněn
+  sv: Ogiltig presentkortskod eller koden har redan lösts in
+  verified_by_human: []
+gift_card.placeholder:
+  context: Placeholder text for gift card code input field
+  en: Enter your gift card code
+  de: Geben Sie Ihren Gutscheincode ein
+  zh: 输入您的礼品卡代码
+  es: Ingresa tu código de tarjeta de regalo
+  fr: Entrez votre code de carte cadeau
+  pt: Digite o código do seu cartão presente
+  ru: Введите код вашей подарочной карты
+  ja: ギフトカードコードを入力してください
+  ko: 기프트 카드 코드를 입력하세요
+  it: Inserisci il tuo codice buono regalo
+  tr: Hediye kartı kodunuzu girin
+  vi: Nhập mã thẻ quà tặng của bạn
+  id: Masukkan kode kartu hadiah Anda
+  pl: Wprowadź kod swojej karty podarunkowej
+  nl: Voer uw cadeaukaartcode in
+  ar: أدخل رمز بطاقة الهدية الخاصة بك
+  hi: अपना उपहार कार्ड कोड दर्ज करें
+  th: ใส่รหัสบัตรของขวัญของคุณ
+  cs: Zadejte kód vaší dárkové karty
+  sv: Ange din presentkortskod
+  verified_by_human: []
+done:
+  context: Button to close confirmation and return to billing
+  en: Done
+  de: Fertig
+  zh: 完成
+  es: Hecho
+  fr: Terminé
+  pt: Concluído
+  ru: Готово
+  ja: 完了
+  ko: 완료
+  it: Fatto
+  tr: Tamamlandı
+  vi: Hoàn tất
+  id: Selesai
+  pl: Gotowe
+  nl: Klaar
+  ar: تم
+  hi: पूर्ण
+  th: เสร็จสิ้น
+  cs: Hotovo
+  sv: Klar
+  verified_by_human: []

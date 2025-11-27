@@ -1,0 +1,1149 @@
+title:
+  context: Title of terms and conditions page
+  en: Terms and Conditions
+  de: Allgemeine Geschäftsbedingungen
+  zh: 条款和条件
+  es: Términos y condiciones
+  fr: Conditions générales d'utilisation
+  pt: ''
+  ru: ''
+  ja: 利用規約
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+last_updated:
+  context: Last update date label
+  en: Last Updated
+  de: Zuletzt aktualisiert
+  zh: 最后更新
+  es: Última actualización
+  fr: Dernière mise à jour
+  pt: ''
+  ru: ''
+  ja: 最終更新日
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+last_updated_date:
+  context: Actual last update date of terms - update this when the terms change
+  en: January 1, 2025
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+agreement.heading:
+  context: Section heading for agreement
+  en: Agreement to Terms
+  de: Zustimmung zu den Bedingungen
+  zh: 同意条款
+  es: Acuerdo con los términos
+  fr: Acceptation des conditions
+  pt: ''
+  ru: ''
+  ja: 規約への同意
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+agreement.description:
+  context: Agreement explanation
+  en: By accessing and using the OpenMates website ("Website"), you accept and agree to be bound by these Terms and Conditions. If you disagree with any part of these terms, you may not access the Website.
+  de: Durch den Zugriff auf und die Nutzung der OpenMates-Website ("Website") akzeptieren Sie diese Allgemeinen Geschäftsbedingungen und erklären sich damit einverstanden, an diese gebunden zu sein. Wenn Sie mit einem Teil dieser Bedingungen nicht einverstanden sind, dürfen Sie nicht auf die Website zugreifen.
+  zh: 访问和使用 OpenMates 网站（“网站”），即表示您接受并同意受这些条款和条件的约束。 如果您不同意这些条款的任何部分，则不得访问本网站。
+  es: Al acceder y utilizar el sitio web de OpenMates ("Sitio web"), acepta y se compromete a cumplir estos Términos y condiciones. Si no está de acuerdo con alguna parte de estos términos, no puede acceder al Sitio web.
+  fr: En accédant et en utilisant le site web OpenMates ("Site web"), vous acceptez et consentez à être lié par ces Conditions générales d'utilisation. Si vous n'êtes pas d'accord avec une partie de ces conditions, vous ne pouvez pas accéder au Site web.
+  pt: ''
+  ru: ''
+  ja: OpenMatesウェブサイト（以下「ウェブサイト」）にアクセスし利用することで、あなたはこれらの利用規約に同意し、拘束されることを承諾するものとします。これらの規約の一部に同意できない場合は、ウェブサイトにアクセスすることはできません。
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+about.heading:
+  context: Section heading about OpenMates
+  en: About OpenMates
+  de: Über OpenMates
+  zh: 关于 OpenMates
+  es: Sobre OpenMates
+  fr: À propos d'OpenMates
+  pt: ''
+  ru: ''
+  ja: OpenMatesについて
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+about.description:
+  context: About section text
+  en: OpenMates is an open-source AI agents platform available under AGPL-3.0 license. We provide a cloud-hosted service at openmates.org, a developer API for integration, and a CLI tool. The software can also be self-hosted - see our [GitHub repository](https://github.com/glowingkitty/OpenMates) and [documentation](https://docs.openmates.org) for details.
+  de: OpenMates ist derzeit ein Closed-Source-Softwareprojekt in der ersten Entwicklungsphase. Dieser temporäre Closed-Source-Status wird beibehalten, um Sicherheit und Stabilität während der frühen Entwicklungs- und Beta-Testphasen zu gewährleisten. Das Projekt wird nach Abschluss der ersten Beta-Tests und Sicherheitsüberprüfungen zu Open-Source übergehen. Diese Website dient als Informationsplattform über das OpenMates-Projekt und seinen Entwicklungsfortschritt.
+  zh: OpenMates 目前是一个处于初始开发阶段的闭源软件项目。 这种临时的闭源状态旨在确保早期开发和 beta 测试阶段的安全性和稳定性。 该项目将在完成初始 beta 测试和安全审查后过渡到开源。 本网站作为有关 OpenMates 项目及其开发进度的信息平台。
+  es: OpenMates es actualmente un proyecto de software de código cerrado en su fase inicial de desarrollo. Este estado temporal de código cerrado se mantiene para garantizar la seguridad y estabilidad durante las primeras fases de desarrollo y pruebas beta. El proyecto pasará a ser de código abierto después de completar las pruebas beta iniciales y las revisiones de seguridad. Este sitio web sirve como plataforma informativa sobre el proyecto OpenMates y su progreso de desarrollo.
+  fr: OpenMates est actuellement un projet de logiciel à code source fermé pendant sa phase de développement initiale. Ce statut temporaire de code source fermé est maintenu pour assurer la sécurité et la stabilité pendant les premières phases de développement et de test bêta. Le projet passera en open-source après la fin des premiers tests bêta et des examens de sécurité. Ce site web sert de plateforme d'information sur le projet OpenMates et sa progression de développement.
+  pt: ''
+  ru: ''
+  ja: OpenMatesは現在、初期開発段階にあるクローズドソースのソフトウェアプロジェクトです。この一時的なクローズドソースの状態は、初期開発とベータテスト段階におけるセキュリティと安定性を確保するために維持されています。プロジェクトは、初期ベータテストとセキュリティレビューの完了後、オープンソースに移行する予定です。このウェブサイトは、OpenMatesプロジェクトとその開発進捗に関する情報プラットフォームとして機能します。
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+intellectual_property.heading:
+  context: Section heading for IP rights
+  en: Intellectual Property Rights
+  de: Geistiges Eigentum
+  zh: 知识产权
+  es: Derechos de propiedad intelectual
+  fr: Droits de propriété intellectuelle
+  pt: ''
+  ru: ''
+  ja: 知的財産権
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+intellectual_property.description:
+  context: Intellectual property rights explanation
+  en: The OpenMates name and logo are trademarks of the service operator (see Imprint). The OpenMates software is available under AGPL-3.0 license - see our [GitHub repository](https://github.com/glowingkitty/OpenMates) for full license terms. We do not claim copyright on any AI-generated responses. You retain ownership of your prompts and data. We never train AI models on user data.
+  de: Der OpenMates-Name, das Logo und alle zugehörigen Inhalte auf dieser Website sind geistiges Eigentum des Website-Betreibers (siehe Impressum) und durch geltende Urheber- und Markenrechte geschützt. Sobald das Projekt zu Open-Source übergeht, werden spezifische Lizenzbedingungen separat durch entsprechende Open-Source-Dokumentation bereitgestellt.
+  zh: OpenMates 名称、徽标和本网站上的所有相关内容均为网站所有者（参见版本说明）的知识产权，并受适用的版权和商标法保护。 一旦项目过渡到开源，将通过适当的开源文档单独提供具体的许可条款。
+  es: El nombre OpenMates, el logotipo y todo el contenido relacionado en este sitio web son propiedad intelectual del propietario del sitio web (ver Aviso legal) y están protegidos por las leyes de derechos de autor y marcas registradas aplicables. Una vez que el proyecto pase a ser de código abierto, se proporcionarán términos de licencia específicos por separado a través de la documentación de código abierto apropiada.
+  fr: Le nom OpenMates, le logo et tout le contenu associé sur ce site web sont la propriété intellectuelle du propriétaire du site web (voir Mentions légales) et sont protégés par les lois applicables sur le droit d'auteur et les marques. Une fois que le projet sera passé en open-source, des conditions de licence spécifiques seront fournies séparément par le biais d'une documentation open-source appropriée.
+  pt: ''
+  ru: ''
+  ja: OpenMatesの名称、ロゴ、およびこのウェブサイト上のすべての関連コンテンツは、ウェブサイト運営者（インプリントを参照）の知的財産であり、適用される著作権法および商標法によって保護されています。プロジェクトがオープンソースに移行した際には、具体的なライセンス条件が適切なオープンソースドキュメントを通じて別途提供されます。
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+use_license.heading:
+  context: Section heading for use license
+  en: Use License
+  de: Nutzungslizenz
+  zh: 使用许可
+  es: Licencia de uso
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: 使用ライセンス
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+use_license.description:
+  context: License terms explanation
+  en: You are granted permission to use OpenMates' cloud-hosted web application, developer API and CLI tool for any lawful purpose, including commercial purposes. This applies to the use of our service, not to the website content itself. The OpenMates software is available under AGPL-3.0 license - you may use, modify, and distribute it according to the license terms. See our [GitHub repository](https://github.com/glowingkitty/OpenMates) for the full license.
+  de: 'Die Erlaubnis wird erteilt, vorübergehend auf die Materialien auf unserer Website ausschließlich für persönliche, nicht-kommerzielle Informationszwecke zuzugreifen. Dies ist die Gewährung einer Lizenz, nicht die Übertragung eines Titels, und unter dieser Lizenz dürfen Sie nicht:'
+  zh: 仅允许出于个人、非商业信息目的临时访问我们网站上的材料。 这是许可的授予，而不是所有权的转让，根据此许可，您不得：
+  es: 'Se otorga permiso para acceder temporalmente a los materiales en nuestro sitio web únicamente con fines informativos personales y no comerciales. Esto es la concesión de una licencia, no la transferencia de un título, y bajo esta licencia no puede:'
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: 個人的、非商業的な情報目的に限り、当ウェブサイト上の資料に一時的にアクセスすることを許可します。これはライセンスの付与であり、権原の譲渡ではありません。このライセンスの下では、以下の行為は禁止されています：
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+use_license.restrictions.service_use.heading:
+  context: Heading for prohibited service uses
+  en: Prohibited Uses of OpenMates Service
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+use_license.restrictions.service_use.description:
+  context: Introduction to prohibited uses
+  en: 'You may not use OpenMates for:'
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+use_license.restrictions.service_use.military:
+  context: Restriction on military use
+  en: Military applications or weapons development
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+use_license.restrictions.service_use.gambling:
+  context: Restriction on gambling use
+  en: Gambling, betting, or casino operations
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+use_license.restrictions.service_use.misinformation:
+  context: Restriction on misinformation
+  en: Generating or distributing misinformation, disinformation, or false content intended to deceive
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+use_license.restrictions.service_use.scams:
+  context: Restriction on scams and fraud
+  en: Fraud, scams, phishing, or any illegal or deceptive practices
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+use_license.restrictions.service_use.illegal:
+  context: Restriction on illegal activities
+  en: Any illegal activities or purposes prohibited by applicable law
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+ai_accuracy.heading:
+  context: Section heading for AI accuracy disclaimer
+  en: AI Response Accuracy and Limitations
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+ai_accuracy.description:
+  context: AI accuracy disclaimer
+  en: OpenMates uses AI models that may generate inaccurate, incomplete, or misleading information. While we strive to minimize errors, AI responses can contain factual inaccuracies, outdated information, or hallucinations. You are responsible for verifying any critical information, especially for high-stakes situations such as medical, legal, financial, or safety-critical decisions. AI-generated responses do not replace professional advice from qualified experts such as lawyers, doctors, or financial advisors.
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+ai_accuracy.data_sharing:
+  en: ''
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+ai_accuracy.data_sharing.heading:
+  context: Subsection heading for data sharing warning
+  en: Data Sharing with AI Partners
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+ai_accuracy.data_sharing.text:
+  context: Data sharing warning with AI partners
+  en: To process your requests, OpenMates sends your prompts and data to third-party AI service providers (as detailed in our Privacy Policy). While these providers claim they do not train models on user data, we cannot independently verify these claims. Therefore, we strongly advise against submitting highly sensitive personal, financial, medical, or confidential information to OpenMates. Please consider potential consequences before sharing sensitive data. We are committed to privacy and have designed OpenMates with privacy in mind, but we cannot guarantee how external partners process your data.
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+credits.heading:
+  context: Section heading for credits
+  en: Credits and Payments
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+credits.description:
+  context: Credits system explanation
+  en: OpenMates uses a credit-based payment system. You purchase credit packs which are consumed when using AI services. Credits do not expire and remain in your account until used. Payment processing is handled by Stripe - see our Privacy Policy for details about payment data handling.
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+credits.refund:
+  context: Refund policy explanation
+  en: 'Refund Policy: You may request a refund for unused credits within 14 days after purchase. Your right of withdrawal expires once credits are used. See our signup process for the full refund consent details.'
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+disclaimer.heading:
+  context: Section heading for disclaimer
+  en: Disclaimer
+  de: Haftungsausschluss
+  zh: 免责声明
+  es: Descargo de responsabilidad
+  fr: Clause de non-responsabilité
+  pt: ''
+  ru: ''
+  ja: 免責事項
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+disclaimer.description:
+  context: Disclaimer explanation
+  en: The materials and information on this Website and the OpenMates service are provided 'as is' and without warranties of any kind. We do not guarantee the accuracy, completeness, or usefulness of any information provided by OpenMates. AI-generated responses may contain errors, inaccuracies, or outdated information. Any reliance you place on such information is strictly at your own risk.
+  de: Die Materialien und Informationen auf dieser Website werden 'wie besehen' und ohne jegliche Garantien zur Verfügung gestellt. Wir garantieren nicht die Richtigkeit, Vollständigkeit oder Nützlichkeit der Informationen auf dieser Website. Jegliches Vertrauen, das Sie in solche Informationen setzen, erfolgt ausschließlich auf Ihr eigenes Risiko.
+  zh: 本网站上的材料和信息“按原样”提供，不提供任何形式的保证。 我们不保证本网站上任何信息的准确性、完整性或有用性。 您对此类信息的任何依赖均由您自行承担风险。
+  es: Los materiales e información en este sitio web se proporcionan 'tal cual' y sin garantías de ningún tipo. No garantizamos la precisión, integridad o utilidad de cualquier información en este sitio web. Cualquier confianza que deposite en dicha información es estrictamente bajo su propio riesgo.
+  fr: Les documents et informations sur ce site web sont fournis "tels quels" et sans garantie d'aucune sorte. Nous ne garantissons pas l'exactitude, l'exhaustivité ou l'utilité des informations présentes sur ce site web. Toute confiance que vous accordez à ces informations est strictement à vos propres risques.
+  pt: ''
+  ru: ''
+  ja: このウェブサイト上の資料および情報は「現状のまま」提供され、いかなる種類の保証もありません。当ウェブサイト上の情報の正確性、完全性、有用性について保証するものではありません。そのような情報に依拠することは、完全にご自身の責任において行ってください。
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+limitations.heading:
+  context: Section heading for limitations
+  en: Limitations
+  de: Haftungsbeschränkungen
+  zh: 责任限制
+  es: Limitaciones
+  fr: Limitations
+  pt: ''
+  ru: ''
+  ja: 責任の制限
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+limitations.description:
+  context: Limitations introduction
+  en: 'To the fullest extent permitted by law, the website owner shall not be liable for any direct, indirect, incidental, consequential, or special damages arising out of or in any way connected with:'
+  de: 'Im größtmöglichen gesetzlich zulässigen Umfang haftet der Website-Betreiber nicht für direkte, indirekte, zufällige, Folge- oder besondere Schäden, die sich ergeben aus oder in irgendeiner Weise verbunden sind mit:'
+  zh: 在法律允许的最大范围内，网站所有者不对因以下原因引起或以任何方式与之相关的任何直接、间接、偶然、后果性或特殊损害承担责任：
+  es: 'En la máxima medida permitida por la ley, el propietario del sitio web no será responsable de ningún daño directo, indirecto, incidental, consecuente o especial que surja de o esté relacionado de alguna manera con:'
+  fr: 'Dans toute la mesure permise par la loi, le propriétaire du site web ne sera pas responsable des dommages directs, indirects, accessoires, consécutifs ou spéciaux découlant de ou liés de quelque manière que ce soit à :'
+  pt: ''
+  ru: ''
+  ja: 法律で認められる最大限の範囲において、ウェブサイト運営者は以下に起因または関連するいかなる直接的、間接的、偶発的、結果的、または特別な損害についても責任を負いません：
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+limitations.list.website_use:
+  context: Limitation regarding service use
+  en: The use or inability to use the OpenMates service
+  de: Der Nutzung oder Unmöglichkeit der Nutzung dieser Website
+  zh: 使用或无法使用本网站
+  es: El uso o la imposibilidad de usar este sitio web
+  fr: L'utilisation ou l'impossibilité d'utiliser ce site web
+  pt: ''
+  ru: ''
+  ja: このウェブサイトの使用または使用不能
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+limitations.list.ai_responses:
+  context: Limitation regarding AI response liability
+  en: Incorrect, inaccurate, or harmful AI-generated responses or content
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+limitations.list.information:
+  context: Limitation regarding information
+  en: The information provided by OpenMates, including AI-generated content
+  de: Den auf dieser Website bereitgestellten Informationen
+  zh: 本网站上提供的信息
+  es: La información proporcionada en este sitio web
+  fr: Les informations fournies sur ce site web
+  pt: ''
+  ru: ''
+  ja: このウェブサイトで提供される情報
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+limitations.list.technical:
+  context: Limitation regarding technical issues
+  en: Any technical issues, interruptions, or service unavailability
+  de: Technischen Problemen oder Unterbrechungen
+  zh: 任何技术问题或中断
+  es: Cualquier problema técnico o interrupciones
+  fr: Tout problème technique ou interruption
+  pt: ''
+  ru: ''
+  ja: 技術的な問題または中断
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+limitations.list.data_loss:
+  context: Limitation regarding data loss
+  en: Loss of data due to system failures, despite our backup measures
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+governing_law.heading:
+  context: Section heading for governing law
+  en: Governing Law
+  de: Geltendes Recht
+  zh: 适用法律
+  es: Ley aplicable
+  fr: Droit applicable
+  pt: ''
+  ru: ''
+  ja: 準拠法
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+governing_law.explanation:
+  context: Governing law explanation
+  en: These terms and conditions are governed by and construed in accordance with the laws of the Federal Republic of Germany. For details about the responsible jurisdiction and contact information, please refer to our Imprint.
+  de: Diese Allgemeinen Geschäftsbedingungen unterliegen dem Recht der Bundesrepublik Deutschland und werden nach diesem ausgelegt. Details zum zuständigen Gerichtsstand und Kontaktinformationen finden Sie in unserem Impressum.
+  zh: 这些条款和条件受德意志联邦共和国法律管辖并据其解释。 有关负责管辖权和联系信息的详细信息，请参阅我们的版本说明。
+  es: Estos términos y condiciones se rigen e interpretan de acuerdo con las leyes de la República Federal de Alemania. Para obtener detalles sobre la jurisdicción responsable e información de contacto, consulte nuestro Aviso legal.
+  fr: Ces conditions générales sont régies et interprétées conformément aux lois de la République fédérale d'Allemagne. Pour plus de détails sur la juridiction responsable et les informations de contact, veuillez vous référer à nos Mentions légales.
+  pt: ''
+  ru: ''
+  ja: これらの利用規約はドイツ連邦共和国の法律に準拠し、同法に従って解釈されます。管轄裁判所および連絡先情報については、インプリントをご参照ください。
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+encryption_keys.heading:
+  context: Section heading for encryption key warnings
+  en: Encryption Keys and Account Recovery
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+encryption_keys.description:
+  context: Encryption key and recovery warning
+  en: OpenMates uses client-side encryption to protect your long-term stored chats. Chats are encrypted with keys generated on your device that only your devices can decrypt - our servers cannot decrypt your stored chats. However, when you send messages for AI processing, decrypted content is temporarily sent to our servers for inference. Only chats saved for long-term storage are encrypted. If you lose access to all your login methods (password, passkey, recovery key, security key), we cannot restore access to your encrypted data. This is a security feature - we cannot decrypt your stored chats without your encryption keys. Please keep your login credentials and recovery keys secure and backed up.
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+service_availability.heading:
+  context: Section heading for service availability
+  en: Service Availability
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+service_availability.description:
+  context: Service availability explanation
+  en: We aim to provide reliable and fast access to OpenMates. However, we do not guarantee specific uptime percentages. Our focus is on scaling sustainably to serve all users effectively. The service may experience interruptions for maintenance, updates, or due to technical issues beyond our control.
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+contact.heading:
+  context: Section heading for contact information
+  en: Contact Information
+  de: Kontaktinformationen
+  zh: 联系信息
+  es: Información de contacto
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: お問い合わせ情報
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+contact.intro:
+  context: Contact section introduction
+  en: 'For questions about these Terms:'
+  de: 'Bei Fragen zu diesen AGB:'
+  zh: 有关这些条款的问题：
+  es: 'Para preguntas sobre estos Términos:'
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: 利用規約に関するお問い合わせ：
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+contact.email_label:
+  context: Email label
+  en: Email
+  de: E-Mail
+  zh: 电子邮件
+  es: Correo electrónico
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: メール
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+follow_up_1:
+  context: Follow-up suggestion for terms of use
+  en: What happens if I lose my encryption keys?
+  de: Was passiert, wenn ich meine Verschlüsselungsschlüssel verliere?
+  zh: 如果我丢失了加密密钥会怎样？
+  es: ¿Qué pasa si pierdo mis claves de cifrado?
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: 暗号化キーを失くした場合はどうなりますか？
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+follow_up_2:
+  context: Follow-up suggestion for terms of use
+  en: How do credits work?
+  de: Wie funktionieren Credits?
+  zh: 积分是如何工作的？
+  es: ¿Cómo funcionan los créditos?
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: クレジットはどのように機能しますか？
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+follow_up_3:
+  context: Follow-up suggestion for terms of use
+  en: Can I get a refund on unused credits?
+  de: Kann ich ungenutzte Credits zurückerstatten lassen?
+  zh: 我可以退还未使用的积分吗？
+  es: ¿Puedo obtener un reembolso de créditos no utilizados?
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: 未使用のクレジットの返金は可能ですか？
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+follow_up_4:
+  context: Follow-up suggestion for terms of use
+  en: What are the restrictions on using the service?
+  de: Welche Einschränkungen gibt es bei der Nutzung?
+  zh: 使用服务有哪些限制？
+  es: ¿Cuáles son las restricciones al usar el servicio?
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: サービスの使用にどのような制限がありますか？
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+follow_up_5:
+  context: Follow-up suggestion for terms of use
+  en: How can I close my account?
+  de: Wie kann ich mein Konto schließen?
+  zh: 如何关闭我的账户？
+  es: ¿Cómo puedo cerrar mi cuenta?
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: アカウントを閉鎖する方法は？
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+follow_up_6:
+  context: Follow-up suggestion for terms of use
+  en: What data is shared with AI providers?
+  de: Welche Daten werden mit KI-Anbietern geteilt?
+  zh: 与AI提供商共享哪些数据？
+  es: ¿Qué datos se comparten con proveedores de IA?
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: AIプロバイダーとどのようなデータを共有しますか？
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []

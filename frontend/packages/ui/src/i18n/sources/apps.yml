@@ -1,0 +1,1012 @@
+ai:
+  context: App name for the AI app
+  en: AI
+  de: KI
+  zh: 人工智能
+  es: IA
+  fr: IA
+  pt: IA
+  ru: ИИ
+  ja: AI
+  ko: AI
+  it: IA
+  tr: AI
+  vi: AI
+  id: AI
+  pl: AI
+  nl: AI
+  ar: الذكاء الاصطناعي
+  hi: AI
+  th: AI
+  cs: AI
+  sv: AI
+  verified_by_human: [en,de]
+ai.description:
+  context: Description for the AI app
+  en: Ask questions, brainstorm ideas & more.
+  de: Fragen stellen, Ideen entwickeln und mehr.
+  zh: 提问、集思广益等。
+  es: Haz preguntas, genera ideas y más.
+  fr: Posez des questions, élaborez des idées et plus encore.
+  pt: Faça perguntas, gere ideias e muito mais.
+  ru: Задавайте вопросы, генерируйте идеи и многое другое.
+  ja: 質問をしたり、アイデアを出し合ったりなど。
+  ko: 질문하고 아이디어를 구상하는 등.
+  it: Fai domande, sviluppa idee e altro ancora.
+  tr: Sorular sorun, fikirler üretin ve daha fazlası.
+  vi: Đặt câu hỏi, động não ý tưởng và hơn thế nữa.
+  id: Ajukan pertanyaan, kembangkan ide, dan lainnya.
+  pl: Zadawaj pytania, generuj pomysły i nie tylko.
+  nl: Stel vragen, bedenk ideeën en meer.
+  ar: اطرح الأسئلة وطور الأفكار والمزيد.
+  hi: प्रश्न पूछें, विचारों पर विचार करें और बहुत कुछ।
+  th: ถามคำถาม สร้างไอเดีย และอื่นๆ
+  cs: Pokládejte otázky, generujte nápady a další.
+  sv: Ställ frågor, brainstorma idéer och mer.
+  verified_by_human: [en,de]
+web:
+  context: App name for the Web app
+  en: Web
+  de: Internet
+  zh: 网页
+  es: Internet
+  fr: Internet
+  pt: Internet
+  ru: Интернет
+  ja: ウェブ
+  ko: 웹
+  it: Internet
+  tr: İnternet
+  vi: Web
+  id: Web
+  pl: Internet
+  nl: Internet
+  ar: الإنترنت
+  hi: वेब
+  th: เว็บ
+  cs: Internet
+  sv: Internet
+  verified_by_human: [en,de]
+web.description:
+  context: Description for the Web app
+  en: Browse websites, research topics & more.
+  de: Websites durchsuchen, Themen recherchieren und mehr.
+  zh: 浏览网站、研究主题等。
+  es: Navega por sitios web, investiga temas y más.
+  fr: Naviguez sur des sites web, recherchez des sujets et plus encore.
+  pt: Navegue em sites, pesquise tópicos e muito mais.
+  ru: Просматривайте веб-сайты, исследуйте темы и многое другое.
+  ja: ウェブサイトを閲覧し、トピックを調査するなど。
+  ko: 웹사이트를 탐색하고 주제를 조사하는 등.
+  it: Naviga sui siti web, ricerca argomenti e altro ancora.
+  tr: Web sitelerini tarayın, konuları araştırın ve daha fazlası.
+  vi: Duyệt các trang web, nghiên cứu chủ đề và hơn thế nữa.
+  id: Jelajahi situs web, teliti topik, dan lainnya.
+  pl: Przeglądaj strony internetowe, badaj tematy i nie tylko.
+  nl: Blader door websites, onderzoek onderwerpen en meer.
+  ar: تصفح المواقع الإلكترونية وابحث عن المواضيع والمزيد.
+  hi: वेबसाइट ब्राउज़ करें, विषयों पर शोध करें और बहुत कुछ।
+  th: เรียกดูเว็บไซต์ วิจัยหัวข้อ และอื่นๆ
+  cs: Procházejte webové stránky, zkoumejte témata a další.
+  sv: Bläddra på webbplatser, forskning om ämnen och mer.
+  verified_by_human: [en,de]
+mail:
+  context: App name for the Mail app (handles both email and physical mail)
+  en: Mail
+  de: Post
+  zh: 邮政
+  es: Correos
+  fr: Poste
+  pt: Correio
+  ru: Почта
+  ja: 郵便
+  ko: 우편
+  it: Posta
+  tr: Posta
+  vi: Bưu điện
+  id: Pos
+  pl: Poczta
+  nl: Post
+  ar: البريد
+  hi: डाक
+  th: ไปรษณีย์
+  cs: Pošta
+  sv: Post
+  verified_by_human: [en,de]
+mail.description:
+  context: Description for the Mail app
+  en: Send, manage, and compose emails.
+  de: E-Mails senden, verwalten und verfassen.
+  zh: 发送、管理和撰写电子邮件。
+  es: Envía, gestiona y redacta correos electrónicos.
+  fr: Envoyez, gérez et rédigez des e-mails.
+  pt: Envie, gerencie e redija e-mails.
+  ru: Отправляйте, управляйте и создавайте электронные письма.
+  ja: メールの送信、管理、作成。
+  ko: 이메일 보내기, 관리 및 작성.
+  it: Invia, gestisci e componi e-mail.
+  tr: E-posta gönderin, yönetin ve yazın.
+  vi: Gửi, quản lý và soạn email.
+  id: Kirim, kelola, dan tulis email.
+  pl: Wysyłaj, zarządzaj i pisz e-maile.
+  nl: Verstuur, beheer en schrijf e-mails.
+  ar: أرسل وأدر واكتب رسائل البريد الإلكتروني.
+  hi: ईमेल भेजें, प्रबंधित करें और लिखें।
+  th: ส่ง จัดการ และเขียนอีเมล
+  cs: Posílejte, spravujte a vytvářejte e-maily.
+  sv: Skicka, hantera och skriv e-post.
+  verified_by_human: [en,de]
+life_coaching:
+  context: App name for the Life coaching app
+  en: Life coaching
+  de: Lebensberatung
+  zh: 人生指导
+  es: Coaching de vida
+  fr: Coaching de vie
+  pt: Coaching de vida
+  ru: Коучинг жизни
+  ja: ライフコーチング
+  ko: 라이프 코칭
+  it: Life coaching
+  tr: Yaşam koçluğu
+  vi: Huấn luyện cuộc sống
+  id: Bimbingan hidup
+  pl: Coaching życiowy
+  nl: Levenscoaching
+  ar: التدريب على الحياة
+  hi: जीवन कोचिंग
+  th: การโค้ชชีวิต
+  cs: Life coaching
+  sv: Livscoaching
+  verified_by_human: [en,de]
+life_coaching.description:
+  context: Description for the Life coaching app
+  en: Plan your next steps in life.
+  de: Plane deine nächsten Schritte im Leben.
+  zh: 规划你人生的下一步。
+  es: Planifica tus próximos pasos en la vida.
+  fr: Planifiez vos prochaines étapes dans la vie.
+  pt: Planeje seus próximos passos na vida.
+  ru: Планируйте свои следующие шаги в жизни.
+  ja: 人生の次のステップを計画する。
+  ko: 인생의 다음 단계를 계획하세요.
+  it: Pianifica i tuoi prossimi passi nella vita.
+  tr: Hayatınızdaki sonraki adımları planlayın.
+  vi: Lập kế hoạch cho các bước tiếp theo trong cuộc sống.
+  id: Rencanakan langkah selanjutnya dalam hidup.
+  pl: Zaplanuj swoje kolejne kroki w życiu.
+  nl: Plan je volgende stappen in het leven.
+  ar: خطط لخطواتك القادمة في الحياة.
+  hi: जीवन में अपने अगले कदमों की योजना बनाएं।
+  th: วางแผนขั้นตอนต่อไปในชีวิตของคุณ
+  cs: Naplánujte si další kroky v životě.
+  sv: Planera dina nästa steg i livet.
+  verified_by_human: [en,de]
+videos:
+  context: App name for the Videos app
+  en: Videos
+  de: Videos
+  zh: 视频
+  es: Videos
+  fr: Vidéos
+  pt: Vídeos
+  ru: Видео
+  ja: 動画
+  ko: 비디오
+  it: Video
+  tr: Videolar
+  vi: Video
+  id: Video
+  pl: Filmy
+  nl: Video's
+  ar: مقاطع فيديو
+  hi: वीडियो
+  th: วิดีโอ
+  cs: Videa
+  sv: Videor
+  verified_by_human: [en,de]
+videos.description:
+  context: Description for the Videos app
+  en: Create & search videos, get transcripts & more.
+  de: Erstelle und suche Videos, erhalte Transkripte und mehr.
+  zh: 创建和搜索视频、获取转录等。
+  es: Crea y busca videos, obtén transcripciones y más.
+  fr: Créez et recherchez des vidéos, obtenez des transcriptions et plus encore.
+  pt: Crie e pesquise vídeos, obtenha transcrições e muito mais.
+  ru: Создавайте и ищите видео, получайте транскрипты и многое другое.
+  ja: 動画を作成・検索し、文字起こしを取得するなど。
+  ko: 비디오 생성 및 검색, 자막 가져오기 등.
+  it: Crea e cerca video, ottieni trascrizioni e altro ancora.
+  tr: Video oluşturun ve arayın, transkriptler alın ve daha fazlası.
+  vi: Tạo và tìm kiếm video, lấy bản ghi và hơn thế nữa.
+  id: Buat dan cari video, dapatkan transkrip, dan lainnya.
+  pl: Twórz i wyszukuj filmy, uzyskuj transkrypcje i nie tylko.
+  nl: Maak en zoek video's, krijg transcripties en meer.
+  ar: أنشئ وابحث عن مقاطع الفيديو واحصل على النصوص والمزيد.
+  hi: वीडियो बनाएं और खोजें, ट्रांसक्रिप्ट प्राप्त करें और बहुत कुछ।
+  th: สร้างและค้นหาวิดีโอ รับสำเนา และอื่นๆ
+  cs: Vytvářejte a vyhledávejte videa, získejte přepisy a další.
+  sv: Skapa och sök videor, få transkriptioner och mer.
+  verified_by_human: [en,de]
+tv:
+  context: App name for the TV app
+  en: TV
+  de: TV
+  zh: 电视
+  es: TV
+  fr: TV
+  pt: TV
+  ru: ТВ
+  ja: TV
+  ko: TV
+  it: TV
+  tr: TV
+  vi: TV
+  id: TV
+  pl: TV
+  nl: TV
+  ar: تلفزيون
+  hi: TV
+  th: ทีวี
+  cs: TV
+  sv: TV
+  verified_by_human: [en,de]
+tv.description:
+  context: Description for the TV app
+  en: Track movies you've watched, TV shows you're watching, and build your to-watch list.
+  de: Verfolge Filme, die du gesehen hast, TV-Serien, die du schaust, und erstelle deine Watchlist.
+  zh: 追踪你看过的电影、正在看的电视节目，并建立你的待看清单。
+  es: Rastrea las películas que has visto, las series de TV que estás viendo y crea tu lista de pendientes.
+  fr: Suivez les films que vous avez regardés, les séries TV que vous regardez et créez votre liste à regarder.
+  pt: Acompanhe filmes que você assistiu, séries de TV que está assistindo e crie sua lista de desejos.
+  ru: Отслеживайте просмотренные фильмы, смотрите сериалы и создавайте список к просмотру.
+  ja: 見た映画、見ているテレビ番組を追跡し、視聴リストを作成する。
+  ko: 본 영화, 시청 중인 TV 프로그램을 추적하고 시청 목록을 만드세요.
+  it: Traccia i film che hai visto, le serie TV che stai guardando e crea la tua lista da guardare.
+  tr: İzlediğiniz filmleri, izlediğiniz TV dizilerini takip edin ve izleme listenizi oluşturun.
+  vi: Theo dõi phim bạn đã xem, chương trình TV bạn đang xem và tạo danh sách xem của bạn.
+  id: Lacak film yang telah ditonton, acara TV yang sedang ditonton, dan buat daftar tontonan.
+  pl: Śledź obejrzane filmy, oglądane seriale i twórz swoją listę do obejrzenia.
+  nl: Volg films die je hebt bekeken, TV-series die je bekijkt en maak je kijklijst.
+  ar: تتبع الأفلام التي شاهدتها والبرامج التلفزيونية التي تشاهدها وأنشئ قائمة المشاهدة.
+  hi: आपके द्वारा देखे गए फिल्मों, आपके द्वारा देखे जा रहे टीवी शो को ट्रैक करें और अपनी देखने की सूची बनाएं।
+  th: ติดตามภาพยนตร์ที่คุณดู รายการทีวีที่คุณกำลังดู และสร้างรายการที่ต้องดู
+  cs: Sledujte filmy, které jste viděli, seriály, které sledujete, a vytvořte si seznam k sledování.
+  sv: Spåra filmer du har sett, TV-program du tittar på och bygg din att-se-lista.
+  verified_by_human: [en,de]
+travel:
+  context: App name for the Travel app
+  en: Travel
+  de: Reisen
+  zh: 旅行
+  es: Viajes
+  fr: Voyage
+  pt: Viagem
+  ru: Путешествия
+  ja: 旅行
+  ko: 여행
+  it: Viaggi
+  tr: Seyahat
+  vi: Du lịch
+  id: Perjalanan
+  pl: Podróże
+  nl: Reizen
+  ar: السفر
+  hi: यात्रा
+  th: การเดินทาง
+  cs: Cestování
+  sv: Resor
+  verified_by_human: [en,de]
+travel.description:
+  context: Description for the Travel app
+  en: Plan, book and manage your trips.
+  de: Plane, buche und verwalte deine Reisen.
+  zh: 计划、预订和管理您的旅行。
+  es: Planifica, reserva y gestiona tus viajes.
+  fr: Planifiez, réservez et gérez vos voyages.
+  pt: Planeje, reserve e gerencie suas viagens.
+  ru: Планируйте, бронируйте и управляйте своими поездками.
+  ja: 旅行を計画、予約、管理する。
+  ko: 여행을 계획하고 예약하며 관리하세요.
+  it: Pianifica, prenota e gestisci i tuoi viaggi.
+  tr: Seyahatlerinizi planlayın, rezerve edin ve yönetin.
+  vi: Lập kế hoạch, đặt chỗ và quản lý chuyến đi của bạn.
+  id: Rencanakan, pesan, dan kelola perjalanan Anda.
+  pl: Planuj, rezerwuj i zarządzaj swoimi podróżami.
+  nl: Plan, boek en beheer je reizen.
+  ar: خطط واحجز وأدر رحلاتك.
+  hi: अपनी यात्राओं की योजना बनाएं, बुक करें और प्रबंधित करें।
+  th: วางแผน จอง และจัดการการเดินทางของคุณ
+  cs: Plánujte, rezervujte a spravujte své cesty.
+  sv: Planera, boka och hantera dina resor.
+  verified_by_human: [en,de]
+study:
+  context: App name for the Study app
+  en: Study
+  de: Lernen
+  zh: 学习
+  es: Estudio
+  fr: Étude
+  pt: Estudo
+  ru: Учеба
+  ja: 学習
+  ko: 공부
+  it: Studio
+  tr: Çalışma
+  vi: Học tập
+  id: Belajar
+  pl: Nauka
+  nl: Studie
+  ar: الدراسة
+  hi: अध्ययन
+  th: การศึกษา
+  cs: Studium
+  sv: Studier
+  verified_by_human: [en,de]
+study.description:
+  context: Description for the Study app
+  en: Learn topics, prepare for exams, and discover your perfect degree path.
+  de: Lerne Themen, bereite dich auf Prüfungen vor und entdecke deinen perfekten Studienweg.
+  zh: 学习主题、准备考试并发现你的完美学位路径。
+  es: Aprende temas, prepárate para exámenes y descubre tu camino de grado perfecto.
+  fr: Apprenez des sujets, préparez-vous aux examens et découvrez votre parcours de diplôme parfait.
+  pt: Aprenda tópicos, prepare-se para exames e descubra seu caminho de graduação perfeito.
+  ru: Изучайте темы, готовьтесь к экзаменам и найдите свой идеальный путь к степени.
+  ja: トピックを学び、試験に備え、完璧な学位の道を見つける。
+  ko: 주제를 배우고, 시험을 준비하고, 완벽한 학위 경로를 발견하세요.
+  it: Impara argomenti, preparati per gli esami e scopri il tuo percorso di laurea perfetto.
+  tr: Konuları öğrenin, sınavlara hazırlanın ve mükemmel derece yolunuzu keşfedin.
+  vi: Học các chủ đề, chuẩn bị cho kỳ thi và khám phá con đường bằng cấp hoàn hảo của bạn.
+  id: Pelajari topik, persiapkan ujian, dan temukan jalur gelar yang sempurna.
+  pl: Ucz się tematów, przygotowuj się do egzaminów i odkryj swoją idealną ścieżkę studiów.
+  nl: Leer onderwerpen, bereid je voor op examens en ontdek je perfecte graadpad.
+  ar: تعلم المواضيع واستعد للامتحانات واكتشف مسار شهادتك المثالي.
+  hi: विषय सीखें, परीक्षाओं की तैयारी करें और अपना सही डिग्री पथ खोजें।
+  th: เรียนรู้หัวข้อ เตรียมสอบ และค้นหาเส้นทางปริญญาที่สมบูรณ์แบบของคุณ
+  cs: Učte se témata, připravte se na zkoušky a objevte svou dokonalou cestu k titulu.
+  sv: Lär dig ämnen, förbered dig för tentor och upptäck din perfekta examen.
+  verified_by_human: [en,de]
+plants:
+  context: App name for the Plants app
+  en: Plants
+  de: Pflanzen
+  zh: 植物
+  es: Plantas
+  fr: Plantes
+  pt: Plantas
+  ru: Растения
+  ja: 植物
+  ko: 식물
+  it: Piante
+  tr: Bitkiler
+  vi: Cây trồng
+  id: Tanaman
+  pl: Rośliny
+  nl: Planten
+  ar: النباتات
+  hi: पौधे
+  th: พืช
+  cs: Rostliny
+  sv: Växter
+  verified_by_human: [en,de]
+plants.description:
+  context: Description for the Plants app
+  en: Keep track of your plants, watering schedules, and fertilizing needs. Get reminders and care tips for your plant collection.
+  de: Behalte deine Pflanzen, Bewässerungspläne und Düngebedarf im Auge. Erhalte Erinnerungen und Pflegetipps für deine Pflanzensammlung.
+  zh: 跟踪你的植物、浇水时间表和施肥需求。获取植物收藏的提醒和护理技巧。
+  es: Realiza un seguimiento de tus plantas, horarios de riego y necesidades de fertilización. Obtén recordatorios y consejos de cuidado para tu colección de plantas.
+  fr: Suivez vos plantes, les horaires d'arrosage et les besoins en fertilisation. Recevez des rappels et des conseils d'entretien pour votre collection de plantes.
+  pt: Acompanhe suas plantas, horários de rega e necessidades de fertilização. Receba lembretes e dicas de cuidados para sua coleção de plantas.
+  ru: Отслеживайте свои растения, графики полива и потребности в удобрении. Получайте напоминания и советы по уходу за вашей коллекцией растений.
+  ja: 植物、水やりスケジュール、施肥の必要性を追跡する。植物コレクションのリマインダーとケアのヒントを取得する。
+  ko: 식물, 물주기 일정 및 비료 필요성을 추적하세요. 식물 컬렉션에 대한 알림 및 관리 팁을 받으세요.
+  it: Tieni traccia delle tue piante, degli orari di irrigazione e delle esigenze di fertilizzazione. Ricevi promemoria e consigli per la cura della tua collezione di piante.
+  tr: Bitkilerinizi, sulama programlarınızı ve gübreleme ihtiyaçlarınızı takip edin. Bitki koleksiyonunuz için hatırlatıcılar ve bakım ipuçları alın.
+  vi: Theo dõi cây trồng, lịch tưới nước và nhu cầu bón phân của bạn. Nhận lời nhắc và mẹo chăm sóc cho bộ sưu tập cây trồng của bạn.
+  id: Lacak tanaman Anda, jadwal penyiraman, dan kebutuhan pemupukan. Dapatkan pengingat dan tips perawatan untuk koleksi tanaman Anda.
+  pl: Śledź swoje rośliny, harmonogramy podlewania i potrzeby nawożenia. Otrzymuj przypomnienia i porady dotyczące pielęgnacji swojej kolekcji roślin.
+  nl: Houd je planten, bewateringsschema's en bemestingsbehoeften bij. Ontvang herinneringen en verzorgingstips voor je plantencollectie.
+  ar: تتبع نباتاتك وجداول الري واحتياجات التسميد. احصل على تذكيرات ونصائح العناية لمجموعة نباتاتك.
+  hi: अपने पौधों, पानी देने के कार्यक्रम और उर्वरक की जरूरतों पर नज़र रखें। अपने पौधों के संग्रह के लिए अनुस्मारक और देखभाल युक्तियां प्राप्त करें।
+  th: ติดตามพืชของคุณ ตารางการรดน้ำ และความต้องการปุ๋ย รับการแจ้งเตือนและเคล็ดลับการดูแลสำหรับคอลเลกชันพืชของคุณ
+  cs: Sledujte své rostliny, zavlažovací plány a potřeby hnojení. Získejte připomínky a tipy na péči o vaši sbírku rostlin.
+  sv: Håll koll på dina växter, vattningsscheman och gödningsbehov. Få påminnelser och vårdtips för din växtsamling.
+  verified_by_human: [en,de]
+pcb_design:
+  context: App name for the PCB design app
+  en: PCB design
+  de: Leiterplatten-Design
+  zh: PCB设计
+  es: Diseño de PCB
+  fr: Conception de PCB
+  pt: Design de PCB
+  ru: Проектирование ПП
+  ja: PCB設計
+  ko: PCB 설계
+  it: Progettazione PCB
+  tr: PCB tasarımı
+  vi: Thiết kế PCB
+  id: Desain PCB
+  pl: Projektowanie PCB
+  nl: PCB-ontwerp
+  ar: تصميم PCB
+  hi: PCB डिज़ाइन
+  th: การออกแบบ PCB
+  cs: Návrh desek plošných spojů
+  sv: PCB-design
+  verified_by_human: [en,de]
+pcb_design.description:
+  context: Description for the PCB design app
+  en: Plan, create & debug your PCB designs.
+  de: Plane, erstelle und debugge deine Leiterplatten-Designs.
+  zh: 规划、创建和调试你的PCB设计。
+  es: Planifica, crea y depura tus diseños de PCB.
+  fr: Planifiez, créez et déboguez vos conceptions de PCB.
+  pt: Planeje, crie e depure seus designs de PCB.
+  ru: Планируйте, создавайте и отлаживайте свои проекты печатных плат.
+  ja: PCB設計を計画、作成、デバッグする。
+  ko: PCB 설계를 계획, 생성 및 디버깅하세요.
+  it: Pianifica, crea e debugga i tuoi progetti PCB.
+  tr: PCB tasarımlarınızı planlayın, oluşturun ve hatalarını ayıklayın.
+  vi: Lập kế hoạch, tạo và gỡ lỗi thiết kế PCB của bạn.
+  id: Rencanakan, buat, dan debug desain PCB Anda.
+  pl: Planuj, twórz i debuguj swoje projekty PCB.
+  nl: Plan, maak en debug je PCB-ontwerpen.
+  ar: خطط وأنشئ وصحح أخطاء تصميمات PCB الخاصة بك.
+  hi: अपने PCB डिज़ाइन की योजना बनाएं, बनाएं और डीबग करें।
+  th: วางแผน สร้าง และดีบักการออกแบบ PCB ของคุณ
+  cs: Plánujte, vytvářejte a laděte své návrhy desek plošných spojů.
+  sv: Planera, skapa och felsök dina PCB-design.
+  verified_by_human: [en,de]
+nutrition:
+  context: App name for the Nutrition app
+  en: Nutrition
+  de: Ernährung
+  zh: 营养
+  es: Nutrición
+  fr: Nutrition
+  pt: Nutrição
+  ru: Питание
+  ja: 栄養
+  ko: 영양
+  it: Nutrizione
+  tr: Beslenme
+  vi: Dinh dưỡng
+  id: Nutrisi
+  pl: Odżywianie
+  nl: Voeding
+  ar: التغذية
+  hi: पोषण
+  th: โภชนาการ
+  cs: Výživa
+  sv: Nutrition
+  verified_by_human: [en,de]
+nutrition.description:
+  context: Description for the Nutrition app
+  en: Keep track of what you eat and drink, find tasty recipes and more.
+  de: Behalte im Auge, was du isst und trinkst, finde leckere Rezepte und mehr.
+  zh: 跟踪你的饮食，找到美味的食谱等。
+  es: Realiza un seguimiento de lo que comes y bebes, encuentra recetas deliciosas y más.
+  fr: Suivez ce que vous mangez et buvez, trouvez de délicieuses recettes et plus encore.
+  pt: Acompanhe o que você come e bebe, encontre receitas saborosas e muito mais.
+  ru: Отслеживайте, что вы едите и пьете, находите вкусные рецепты и многое другое.
+  ja: 食べ物や飲み物を追跡し、おいしいレシピを見つけるなど。
+  ko: 먹고 마시는 것을 추적하고 맛있는 레시피를 찾으세요.
+  it: Tieni traccia di ciò che mangi e bevi, trova ricette gustose e altro ancora.
+  tr: Yediğiniz ve içtiğiniz şeyleri takip edin, lezzetli tarifler bulun ve daha fazlası.
+  vi: Theo dõi những gì bạn ăn và uống, tìm công thức nấu ăn ngon và hơn thế nữa.
+  id: Lacak apa yang Anda makan dan minum, temukan resep lezat, dan lainnya.
+  pl: Śledź to, co jesz i pijesz, znajdź smaczne przepisy i nie tylko.
+  nl: Houd bij wat je eet en drinkt, vind lekkere recepten en meer.
+  ar: تتبع ما تأكله وتشربه وابحث عن وصفات لذيذة والمزيد.
+  hi: आप जो खाते-पीते हैं उस पर नज़र रखें, स्वादिष्ट व्यंजन खोजें और बहुत कुछ।
+  th: ติดตามสิ่งที่คุณกินและดื่ม ค้นหาสูตรอาหารแสนอร่อย และอื่นๆ
+  cs: Sledujte, co jíte a pijete, najděte chutné recepty a další.
+  sv: Håll koll på vad du äter och dricker, hitta goda recept och mer.
+  verified_by_human: [en,de]
+images:
+  context: App name for the Images app
+  en: Images
+  de: Bilder
+  zh: 图片
+  es: Imágenes
+  fr: Images
+  pt: Imagens
+  ru: Изображения
+  ja: 画像
+  ko: 이미지
+  it: Immagini
+  tr: Görüntüler
+  vi: Hình ảnh
+  id: Gambar
+  pl: Obrazy
+  nl: Afbeeldingen
+  ar: الصور
+  hi: छवियां
+  th: รูปภาพ
+  cs: Obrázky
+  sv: Bilder
+  verified_by_human: [en,de]
+images.description:
+  context: Description for the Images app
+  en: Generate images, modify and resize them and more.
+  de: Erstelle Bilder, bearbeite und ändere ihre Größe und mehr.
+  zh: 生成图像、修改和调整大小等。
+  es: Genera imágenes, modifícalas y redimensiona y más.
+  fr: Générez des images, modifiez-les et redimensionnez-les et plus encore.
+  pt: Gere imagens, modifique e redimensione e muito mais.
+  ru: Генерируйте изображения, изменяйте и изменяйте их размер и многое другое.
+  ja: 画像を生成、変更、リサイズするなど。
+  ko: 이미지를 생성, 수정 및 크기 조정하는 등.
+  it: Genera immagini, modificale e ridimensionale e altro ancora.
+  tr: Görüntü oluşturun, değiştirin ve yeniden boyutlandırın ve daha fazlası.
+  vi: Tạo hình ảnh, chỉnh sửa và thay đổi kích thước và hơn thế nữa.
+  id: Hasilkan gambar, modifikasi dan ubah ukurannya, dan lainnya.
+  pl: Generuj obrazy, modyfikuj i zmieniaj ich rozmiar i nie tylko.
+  nl: Genereer afbeeldingen, wijzig en verander hun grootte en meer.
+  ar: أنشئ الصور وعدلها وغير حجمها والمزيد.
+  hi: छवियां उत्पन्न करें, संशोधित करें और आकार बदलें और बहुत कुछ।
+  th: สร้างภาพ แก้ไขและปรับขนาด และอื่นๆ
+  cs: Generujte obrázky, upravujte a měňte jejich velikost a další.
+  sv: Generera bilder, modifiera och ändra storlek på dem och mer.
+  verified_by_human: [en,de]
+health:
+  context: App name for the Health app
+  en: Health
+  de: Gesundheit
+  zh: 健康
+  es: Salud
+  fr: Santé
+  pt: Saúde
+  ru: Здоровье
+  ja: 健康
+  ko: 건강
+  it: Salute
+  tr: Sağlık
+  vi: Sức khỏe
+  id: Kesehatan
+  pl: Zdrowie
+  nl: Gezondheid
+  ar: الصحة
+  hi: स्वास्थ्य
+  th: สุขภาพ
+  cs: Zdraví
+  sv: Hälsa
+  verified_by_human: [en,de]
+health.description:
+  context: Description for the Health app
+  en: Everything to improve your health and well being.
+  de: Alles, um deine Gesundheit und dein Wohlbefinden zu verbessern.
+  zh: 改善健康和福祉的一切。
+  es: Todo para mejorar tu salud y bienestar.
+  fr: Tout pour améliorer votre santé et votre bien-être.
+  pt: Tudo para melhorar sua saúde e bem-estar.
+  ru: Всё для улучшения вашего здоровья и благополучия.
+  ja: 健康と幸福を向上させるためのすべて。
+  ko: 건강과 웰빙을 개선하기 위한 모든 것.
+  it: Tutto per migliorare la tua salute e il tuo benessere.
+  tr: Sağlığınızı ve refahınızı iyileştirmek için her şey.
+  vi: Mọi thứ để cải thiện sức khỏe và hạnh phúc của bạn.
+  id: Semua untuk meningkatkan kesehatan dan kesejahteraan Anda.
+  pl: Wszystko, aby poprawić swoje zdrowie i samopoczucie.
+  nl: Alles om je gezondheid en welzijn te verbeteren.
+  ar: كل شيء لتحسين صحتك ورفاهيتك.
+  hi: आपके स्वास्थ्य और कल्याण में सुधार के लिए सब कुछ।
+  th: ทุกอย่างเพื่อปรับปรุงสุขภาพและความเป็นอยู่ที่ดีของคุณ
+  cs: Vše pro zlepšení vašeho zdraví a pohody.
+  sv: Allt för att förbättra din hälsa och välbefinnande.
+  verified_by_human: [en,de]
+fitness:
+  context: App name for the Fitness app
+  en: Fitness
+  de: Fitness
+  zh: 健身
+  es: Fitness
+  fr: Fitness
+  pt: Fitness
+  ru: Фитнес
+  ja: フィットネス
+  ko: 피트니스
+  it: Fitness
+  tr: Fitness
+  vi: Thể dục
+  id: Kebugaran
+  pl: Fitness
+  nl: Fitness
+  ar: اللياقة البدنية
+  hi: फिटनेस
+  th: ฟิตเนส
+  cs: Fitness
+  sv: Fitness
+  verified_by_human: [en,de]
+fitness.description:
+  context: Description for the Fitness app
+  en: Stay fit, keep moving, stay healthy.
+  de: Bleib fit, bleib in Bewegung, bleib gesund.
+  zh: 保持健康，保持运动，保持健康。
+  es: Mantente en forma, mantente en movimiento, mantente saludable.
+  fr: Restez en forme, continuez à bouger, restez en bonne santé.
+  pt: Mantenha-se em forma, continue se movendo, mantenha-se saudável.
+  ru: Оставайтесь в форме, продолжайте двигаться, оставайтесь здоровыми.
+  ja: フィットネスを維持し、動き続け、健康を保つ。
+  ko: 건강을 유지하고, 계속 움직이고, 건강하게 지내세요.
+  it: Resta in forma, continua a muoverti, resta in salute.
+  tr: Formda kalın, hareket etmeye devam edin, sağlıklı kalın.
+  vi: Giữ dáng, tiếp tục vận động, giữ sức khỏe.
+  id: Tetap bugar, terus bergerak, tetap sehat.
+  pl: Pozostań w formie, ruszaj się, bądź zdrowy.
+  nl: Blijf fit, blijf bewegen, blijf gezond.
+  ar: ابق بصحة جيدة واستمر في الحركة وابق بصحة جيدة.
+  hi: फिट रहें, चलते रहें, स्वस्थ रहें।
+  th: รักษาความฟิต เคลื่อนไหวอยู่เสมอ รักษาสุขภาพ
+  cs: Zůstaňte fit, pokračujte v pohybu, zůstaňte zdraví.
+  sv: Håll dig i form, fortsätt röra dig, håll dig frisk.
+  verified_by_human: [en,de]
+code:
+  context: App name for the Code app
+  en: Code
+  de: Code
+  zh: 代码
+  es: Código
+  fr: Code
+  pt: Código
+  ru: Код
+  ja: コード
+  ko: 코드
+  it: Codice
+  tr: Kod
+  vi: Mã
+  id: Kode
+  pl: Kod
+  nl: Code
+  ar: الكود
+  hi: कोड
+  th: โค้ด
+  cs: Kód
+  sv: Kod
+  verified_by_human: [en,de]
+code.description:
+  context: Description for the Code app
+  en: Write, test, improve and execute code.
+  de: Schreibe, teste, verbessere und führe Code aus.
+  zh: 编写、测试、改进和执行代码。
+  es: Escribe, prueba, mejora y ejecuta código.
+  fr: Écrivez, testez, améliorez et exécutez du code.
+  pt: Escreva, teste, melhore e execute código.
+  ru: Пишите, тестируйте, улучшайте и выполняйте код.
+  ja: コードを書く、テストする、改善する、実行する。
+  ko: 코드를 작성, 테스트, 개선 및 실행하세요.
+  it: Scrivi, testa, migliora ed esegui codice.
+  tr: Kod yazın, test edin, iyileştirin ve çalıştırın.
+  vi: Viết, kiểm tra, cải thiện và thực thi mã.
+  id: Tulis, uji, tingkatkan, dan jalankan kode.
+  pl: Pisz, testuj, ulepszaj i wykonuj kod.
+  nl: Schrijf, test, verbeter en voer code uit.
+  ar: اكتب واختبر وحسّن ونفّذ الكود.
+  hi: कोड लिखें, परीक्षण करें, सुधार करें और निष्पादित करें।
+  th: เขียน ทดสอบ ปรับปรุง และรันโค้ด
+  cs: Pište, testujte, vylepšujte a spouštějte kód.
+  sv: Skriv, testa, förbättra och kör kod.
+  verified_by_human: [en,de]
+books:
+  context: App name for the Books app
+  en: Books
+  de: Bücher
+  zh: 图书
+  es: Libros
+  fr: Livres
+  pt: Livros
+  ru: Книги
+  ja: 本
+  ko: 책
+  it: Libri
+  tr: Kitaplar
+  vi: Sách
+  id: Buku
+  pl: Książki
+  nl: Boeken
+  ar: الكتب
+  hi: किताबें
+  th: หนังสือ
+  cs: Knihy
+  sv: Böcker
+  verified_by_human: [en,de]
+books.description:
+  context: Description for the Books app
+  en: Manage your ebooks, translate them and more.
+  de: Verwalte deine E-Books, übersetze sie und mehr.
+  zh: 管理你的电子书、翻译它们等。
+  es: Gestiona tus libros electrónicos, tradúcelos y más.
+  fr: Gérez vos livres électroniques, traduisez-les et plus encore.
+  pt: Gerencie seus e-books, traduza-os e muito mais.
+  ru: Управляйте своими электронными книгами, переводите их и многое другое.
+  ja: 電子書籍を管理し、翻訳するなど。
+  ko: 전자책을 관리하고 번역하는 등.
+  it: Gestisci i tuoi ebook, traducili e altro ancora.
+  tr: E-kitaplarınızı yönetin, çevirin ve daha fazlası.
+  vi: Quản lý sách điện tử của bạn, dịch chúng và hơn thế nữa.
+  id: Kelola ebook Anda, terjemahkan, dan lainnya.
+  pl: Zarządzaj swoimi e-bookami, tłumacz je i nie tylko.
+  nl: Beheer je e-books, vertaal ze en meer.
+  ar: أدر كتبك الإلكترونية وترجمها والمزيد.
+  hi: अपने ई-बुक्स को प्रबंधित करें, उनका अनुवाद करें और बहुत कुछ।
+  th: จัดการอีบุ๊กของคุณ แปล และอื่นๆ
+  cs: Spravujte své e-knihy, překládejte je a další.
+  sv: Hantera dina e-böcker, översätt dem och mer.
+  verified_by_human: [en,de]
+maps:
+  context: App name for the Maps app
+  en: Maps
+  de: Karten
+  zh: 地图
+  es: Mapas
+  fr: Cartes
+  pt: Mapas
+  ru: Карты
+  ja: 地図
+  ko: 지도
+  it: Mappe
+  tr: Haritalar
+  vi: Bản đồ
+  id: Peta
+  pl: Mapy
+  nl: Kaarten
+  ar: الخرائط
+  hi: नक्शे
+  th: แผนที่
+  cs: Mapy
+  sv: Kartor
+  verified_by_human: [en,de]
+maps.description:
+  context: Description for the Maps app
+  en: Search for places, get directions & more.
+  de: Suche nach Orten, erhalte Wegbeschreibungen und mehr.
+  zh: 搜索地点、获取路线等。
+  es: Busca lugares, obtén direcciones y más.
+  fr: Recherchez des lieux, obtenez des itinéraires et plus encore.
+  pt: Pesquise lugares, obtenha direções e muito mais.
+  ru: Ищите места, получайте маршруты и многое другое.
+  ja: 場所を検索し、ルートを取得するなど。
+  ko: 장소를 검색하고 경로를 얻는 등.
+  it: Cerca luoghi, ottieni indicazioni stradali e altro ancora.
+  tr: Yerler arayın, yol tarifi alın ve daha fazlası.
+  vi: Tìm kiếm địa điểm, nhận chỉ đường và hơn thế nữa.
+  id: Cari tempat, dapatkan arah, dan lainnya.
+  pl: Szukaj miejsc, uzyskaj wskazówki i nie tylko.
+  nl: Zoek naar plaatsen, krijg routebeschrijvingen en meer.
+  ar: ابحث عن الأماكن واحصل على الاتجاهات والمزيد.
+  hi: स्थान खोजें, दिशा-निर्देश प्राप्त करें और बहुत कुछ।
+  th: ค้นหาสถานที่ รับเส้นทาง และอื่นๆ
+  cs: Hledejte místa, získejte směry a další.
+  sv: Sök efter platser, få vägbeskrivningar och mer.
+  verified_by_human: [en,de]
+maps.favorite_places:
+  context: Setting name for favorite places in Maps app
+  en: Favorite places
+  de: Lieblingsorte
+  zh: 收藏地点
+  es: Lugares favoritos
+  fr: Lieux favoris
+  pt: Lugares favoritos
+  ru: Избранные места
+  ja: お気に入りの場所
+  ko: 즐겨찾는 장소
+  it: Luoghi preferiti
+  tr: Favori yerler
+  vi: Địa điểm yêu thích
+  id: Tempat favorit
+  pl: Ulubione miejsca
+  nl: Favoriete plaatsen
+  ar: الأماكن المفضلة
+  hi: पसंदीदा स्थान
+  th: สถานที่โปรด
+  cs: Oblíbená místa
+  sv: Favoritplatser
+  verified_by_human: [en,de]
+maps.favorite_places.description:
+  context: Description for favorite places setting in Maps app
+  en: Your saved favorite places for quick access.
+  de: Deine gespeicherten Lieblingsorte für schnellen Zugriff.
+  zh: 您保存的收藏地点，方便快速访问。
+  es: Tus lugares favoritos guardados para acceso rápido.
+  fr: Vos lieux favoris enregistrés pour un accès rapide.
+  pt: Seus lugares favoritos salvos para acesso rápido.
+  ru: Ваши сохраненные избранные места для быстрого доступа.
+  ja: クイックアクセスのための保存されたお気に入りの場所。
+  ko: 빠른 액세스를 위한 저장된 즐겨찾는 장소.
+  it: I tuoi luoghi preferiti salvati per un accesso rapido.
+  tr: Hızlı erişim için kaydedilmiş favori yerleriniz.
+  vi: Các địa điểm yêu thích đã lưu của bạn để truy cập nhanh.
+  id: Tempat favorit yang disimpan untuk akses cepat.
+  pl: Twoje zapisane ulubione miejsca do szybkiego dostępu.
+  nl: Je opgeslagen favoriete plaatsen voor snelle toegang.
+  ar: الأماكن المفضلة المحفوظة للوصول السريع.
+  hi: त्वरित पहुंच के लिए आपके सहेजे गए पसंदीदा स्थान।
+  th: สถานที่โปรดที่บันทึกไว้สำหรับการเข้าถึงอย่างรวดเร็ว
+  cs: Vaše uložená oblíbená místa pro rychlý přístup.
+  sv: Dina sparade favoritplatser för snabb åtkomst.
+  verified_by_human: [en,de]
+maps.search:
+  context: Skill name for search in Maps app
+  en: Search
+  de: Suche
+  zh: 搜索
+  es: Buscar
+  fr: Rechercher
+  pt: Pesquisar
+  ru: Поиск
+  ja: 検索
+  ko: 검색
+  it: Cerca
+  tr: Ara
+  vi: Tìm kiếm
+  id: Cari
+  pl: Szukaj
+  nl: Zoeken
+  ar: بحث
+  hi: खोजें
+  th: ค้นหา
+  cs: Hledat
+  sv: Sök
+  verified_by_human: [en,de]
+maps.search.description:
+  context: Description for search skill in Maps app
+  en: Search for places, businesses, and locations.
+  de: Suche nach Orten, Geschäften und Standorten.
+  zh: 搜索地点、商家和位置。
+  es: Busca lugares, negocios y ubicaciones.
+  fr: Recherchez des lieux, des entreprises et des emplacements.
+  pt: Pesquise lugares, empresas e localizações.
+  ru: Ищите места, предприятия и местоположения.
+  ja: 場所、ビジネス、位置を検索する。
+  ko: 장소, 비즈니스 및 위치를 검색하세요.
+  it: Cerca luoghi, attività commerciali e località.
+  tr: Yerler, işletmeler ve konumlar arayın.
+  vi: Tìm kiếm địa điểm, doanh nghiệp và vị trí.
+  id: Cari tempat, bisnis, dan lokasi.
+  pl: Szukaj miejsc, firm i lokalizacji.
+  nl: Zoek naar plaatsen, bedrijven en locaties.
+  ar: ابحث عن الأماكن والشركات والمواقع.
+  hi: स्थान, व्यवसाय और स्थान खोजें।
+  th: ค้นหาสถานที่ ธุรกิจ และตำแหน่ง
+  cs: Hledejte místa, podniky a lokace.
+  sv: Sök efter platser, företag och platser.
+  verified_by_human: [en,de]
+news:
+  context: App name for the News app
+  en: News
+  de: Nachrichten
+  zh: 新闻
+  es: Noticias
+  fr: Actualités
+  pt: Notícias
+  ru: Новости
+  ja: ニュース
+  ko: 뉴스
+  it: Notizie
+  tr: Haberler
+  vi: Tin tức
+  id: Berita
+  pl: Wiadomości
+  nl: Nieuws
+  ar: الأخبار
+  hi: समाचार
+  th: ข่าว
+  cs: Zprávy
+  sv: Nyheter
+  verified_by_human: [en,de]
+news.description:
+  context: Description for the News app
+  en: Stay informed with the latest news and articles.
+  de: Bleib informiert mit den neuesten Nachrichten und Artikeln.
+  zh: 通过最新新闻和文章保持了解。
+  es: Mantente informado con las últimas noticias y artículos.
+  fr: Restez informé avec les dernières actualités et articles.
+  pt: Mantenha-se informado com as últimas notícias e artigos.
+  ru: Будьте в курсе последних новостей и статей.
+  ja: 最新のニュースと記事で情報を得る。
+  ko: 최신 뉴스와 기사로 정보를 얻으세요.
+  it: Resta informato con le ultime notizie e articoli.
+  tr: En son haberler ve makalelerle bilgili kalın.
+  vi: Cập nhật thông tin với tin tức và bài viết mới nhất.
+  id: Tetap terinformasi dengan berita dan artikel terbaru.
+  pl: Bądź na bieżąco z najnowszymi wiadomościami i artykułami.
+  nl: Blijf op de hoogte met het laatste nieuws en artikelen.
+  ar: ابق على اطلاع بآخر الأخبار والمقالات.
+  hi: नवीनतम समाचार और लेखों के साथ सूचित रहें।
+  th: ติดตามข่าวสารด้วยข่าวและบทความล่าสุด
+  cs: Zůstaňte informováni s nejnovějšími zprávami a články.
+  sv: Håll dig informerad med de senaste nyheterna och artiklarna.
+  verified_by_human: [en,de]
+news.search:
+  context: Skill name for search in News app
+  en: Search
+  de: Suche
+  zh: 搜索
+  es: Buscar
+  fr: Rechercher
+  pt: Pesquisar
+  ru: Поиск
+  ja: 検索
+  ko: 검색
+  it: Cerca
+  tr: Ara
+  vi: Tìm kiếm
+  id: Cari
+  pl: Szukaj
+  nl: Zoeken
+  ar: بحث
+  hi: खोजें
+  th: ค้นหา
+  cs: Hledat
+  sv: Sök
+  verified_by_human: [en,de]
+news.search.description:
+  context: Description for search skill in News app
+  en: Search for news articles and stories.
+  de: Suche nach Nachrichtenartikeln und Geschichten.
+  zh: 搜索新闻文章和报道。
+  es: Busca artículos de noticias e historias.
+  fr: Recherchez des articles et des actualités.
+  pt: Pesquise artigos de notícias e histórias.
+  ru: Ищите новостные статьи и истории.
+  ja: ニュース記事やストーリーを検索する。
+  ko: 뉴스 기사와 스토리를 검색하세요.
+  it: Cerca articoli di notizie e storie.
+  tr: Haber makaleleri ve hikayeleri arayın.
+  vi: Tìm kiếm bài viết và tin tức.
+  id: Cari artikel berita dan cerita.
+  pl: Szukaj artykułów i wiadomości.
+  nl: Zoek naar nieuwsartikelen en verhalen.
+  ar: ابحث عن مقالات الأخبار والقصص.
+  hi: समाचार लेख और कहानियां खोजें।
+  th: ค้นหาบทความข่าวและเรื่องราว
+  cs: Hledejte novinové články a příběhy.
+  sv: Sök efter nyhetsartiklar och berättelser.
+  verified_by_human: [en,de]
+news.understand_the_news:
+  context: Focus name for understanding the news in News app
+  en: Understand the news
+  de: Nachrichten verstehen
+  zh: 理解新闻
+  es: Entender las noticias
+  fr: Comprendre l'actualité
+  pt: Entender as notícias
+  ru: Понимать новости
+  ja: ニュースを理解する
+  ko: 뉴스 이해하기
+  it: Capire le notizie
+  tr: Haberleri anlamak
+  vi: Hiểu tin tức
+  id: Memahami berita
+  pl: Zrozumieć wiadomości
+  nl: Het nieuws begrijpen
+  ar: فهم الأخبار
+  hi: समाचार समझें
+  th: เข้าใจข่าว
+  cs: Porozumět zprávám
+  sv: Förstå nyheterna
+  verified_by_human: [en,de]
+news.understand_the_news.description:
+  context: Description for understand the news focus in News app
+  en: Get help understanding current events and news articles.
+  de: Erhalte Hilfe beim Verstehen aktueller Ereignisse und Nachrichtenartikel.
+  zh: 获得帮助理解时事和新闻文章。
+  es: Obtén ayuda para entender eventos actuales y artículos de noticias.
+  fr: Obtenez de l'aide pour comprendre l'actualité et les articles de presse.
+  pt: Obtenha ajuda para entender eventos atuais e artigos de notícias.
+  ru: Получите помощь в понимании текущих событий и новостных статей.
+  ja: 時事問題やニュース記事を理解するためのヘルプを得る。
+  ko: 현재 사건과 뉴스 기사를 이해하는 데 도움을 받으세요.
+  it: Ottieni aiuto per comprendere eventi attuali e articoli di notizie.
+  tr: Güncel olayları ve haber makalelerini anlamak için yardım alın.
+  vi: Nhận trợ giúp hiểu các sự kiện hiện tại và bài viết tin tức.
+  id: Dapatkan bantuan memahami peristiwa terkini dan artikel berita.
+  pl: Uzyskaj pomoc w zrozumieniu aktualnych wydarzeń i artykułów prasowych.
+  nl: Krijg hulp bij het begrijpen van actuele gebeurtenissen en nieuwsartikelen.
+  ar: احصل على مساعدة في فهم الأحداث الحالية ومقالات الأخبار.
+  hi: वर्तमान घटनाओं और समाचार लेखों को समझने में मदद प्राप्त करें।
+  th: รับความช่วยเหลือในการทำความเข้าใจเหตุการณ์ปัจจุบันและบทความข่าว
+  cs: Získejte pomoc s porozuměním aktuálním událostem a novinovým článkům.
+  sv: Få hjälp med att förstå aktuella händelser och nyhetsartiklar.
+  verified_by_human: [en,de]

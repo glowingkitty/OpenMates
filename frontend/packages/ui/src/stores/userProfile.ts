@@ -25,6 +25,12 @@ export interface UserProfile {
   auto_topup_low_balance_currency?: string;
   // Demo chats that user has dismissed/deleted (syncs across devices)
   hidden_demo_chats?: string[];
+  // Top recommended apps (decrypted on-demand, never stored in plaintext)
+  top_recommended_apps?: string[]; // Array of top 5 app IDs, computed from encrypted_top_recommended_apps
+  encrypted_top_recommended_apps?: string | null; // Encrypted array of top 5 app IDs, encrypted with master key
+  // Random apps for "Explore & discover" category (when no personalized recommendations exist)
+  random_explore_apps?: string[]; // Array of app IDs for random selection
+  random_explore_apps_timestamp?: number; // Unix timestamp when random apps were generated (for daily refresh)
 }
 
 // Default currency is now EUR

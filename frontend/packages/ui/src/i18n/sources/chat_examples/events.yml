@@ -1,0 +1,184 @@
+user_question:
+  context: Example question about upcoming events
+  en: What events are happening the coming days?
+  de: Welche Veranstaltungen finden in den nächsten Tagen statt?
+  zh: 未来几天有什么活动？
+  es: ¿Qué eventos ocurrirán en los próximos días?
+  fr: Quels événements se déroulent dans les prochains jours ?
+  pt: Que eventos acontecerão nos próximos dias?
+  ru: Какие события произойдут в ближайшие дни?
+  ja: 今後数日間にどのようなイベントがありますか？
+  ko: 앞으로 며칠 동안 어떤 이벤트가 있나요?
+  it: Quali eventi si terranno nei prossimi giorni?
+  tr: Önümüzdeki günlerde hangi etkinlikler oluyor?
+  vi: Những sự kiện nào sẽ diễn ra trong những ngày tới?
+  id: Acara apa yang akan terjadi dalam beberapa hari mendatang?
+  pl: Jakie wydarzenia odbędą się w najbliższych dniach?
+  nl: Welke evenementen vinden plaats in de komende dagen?
+  ar: ما الأحداث التي ستحدث في الأيام القادمة؟
+  hi: आने वाले दिनों में कौन सी घटनाएं होने वाली हैं?
+  th: มีกิจกรรมอะไรเกิดขึ้นในอีกไม่กี่วันข้างหน้า?
+  cs: Jaké akce se konají v nadcházejících dnech?
+  sv: Vilka evenemang händer de kommande dagarna?
+  verified_by_human: []
+mate_response:
+  context: AI response about upcoming events
+  en: There are some exciting events going on the coming days! Both to help you learn for a better career and to socialize more.
+  de: Es finden einige spannende Veranstaltungen in den nächsten Tagen statt! Sowohl zur Karriereentwicklung als auch um neue Leute kennen zu lernen.
+  zh: 未来几天有一些激动人心的活动！既有助您学习以获得更好职业发展的活动，也有更多社交活动。
+  es: ¡Hay algunos eventos emocionantes en los próximos días! Algunos para avanzar en tu carrera y otros para socializar.
+  fr: Il y a des événements passionnants qui se déroulent dans les prochains jours !  Pour vous aider à apprendre pour une meilleure carrière et pour socialiser davantage.
+  pt: Há alguns eventos interessantes acontecendo nos próximos dias! Tanto para ajudá-lo a aprender para uma carreira melhor quanto para socializar mais.
+  ru: В ближайшие дни происходят интересные события! Как для улучшения карьеры, так и для общения.
+  ja: 今後数日間には面白いイベントがいくつかあります！キャリアアップのためのものと、社交的なものの両方があります。
+  ko: 앞으로 며칠 동안 흥미로운 이벤트가 있습니다! 더 나은 경력을 위해 배우고 더 많이 사교할 수 있는 기회입니다.
+  it: Ci sono alcuni eventi entusiasmanti nei prossimi giorni! Sia per aiutarti ad apprendere per una carriera migliore che per socializzare di più.
+  tr: Önümüzdeki günlerde heyecan verici etkinlikler var! Hem daha iyi bir kariyer için öğrenmenize yardımcı olmak hem de daha fazla sosyalleşmek için.
+  vi: Có một số sự kiện thú vị diễn ra trong những ngày tới! Cả để giúp bạn học hỏi cho sự nghiệp tốt hơn và để giao lưu nhiều hơn.
+  id: Ada beberapa acara menarik yang terjadi dalam beberapa hari mendatang! Baik untuk membantu Anda belajar untuk karier yang lebih baik dan untuk bersosialisasi lebih banyak.
+  pl: W najbliższych dniach odbywają się ekscytujące wydarzenia! Zarówno aby pomóc Ci nauczyć się dla lepszej kariery, jak i bardziej się integrować.
+  nl: Er zijn een paar spannende evenementen in de komende dagen! Zowel om je te helpen leren voor een betere carrière als om meer te socializen.
+  ar: هناك بعض الأحداث المثيرة في الأيام القادمة! لمساعدتك على التعلم من أجل مهنة أفضل وللتواصل الاجتماعي أكثر.
+  hi: आने वाले दिनों में कुछ रोमांचक घटनाएं हो रही हैं! बेहतर करियर के लिए सीखने और अधिक सामाजिककरण में मदद करने के लिए दोनों।
+  th: มีกิจกรรมที่น่าตื่นเต้นในอีกไม่กี่วันข้างหน้า! ทั้งเพื่อช่วยให้คุณเรียนรู้เพื่ออาชีพที่ดีขึ้นและเพื่อเข้าสังคมมากขึ้น
+  cs: V nadcházejících dnech se konají zajímavé akce! Jak pro lepší kariéru, tak pro více socializace.
+  sv: Det händer några spännande evenemang de kommande dagarna! Både för att hjälpa dig lära för en bättre karriär och för att umgås mer.
+  verified_by_human: []
+events.book_club:
+  context: Event title for book club
+  en: 'Book Lovers'' Social: An Evening of Reading and Discussion'
+  de: 'Bücherliebhaber-Treffen: Ein Abend zum Lesen und Diskutieren'
+  zh: 书友会：阅读与讨论之夜
+  es: 'Reunión de amantes de los libros: Una noche de lectura y discusión'
+  fr: 'Rencontre des amoureux des livres : Une soirée de lecture et de discussion'
+  pt: 'Encontro de Amantes de Livros: Uma Noite de Leitura e Discussão'
+  ru: 'Встреча любителей книг: Вечер чтения и обсуждения'
+  ja: 読書愛好家の集い：読書と討論の夕べ
+  ko: '독서 애호가 모임: 독서와 토론의 저녁'
+  it: 'Incontro degli Amanti dei Libri: Una Serata di Lettura e Discussione'
+  tr: 'Kitap Severler Buluşması: Okuma ve Tartışma Akşamı'
+  vi: 'Gặp Gỡ Người Yêu Sách: Một Buổi Tối Đọc Sách và Thảo Luận'
+  id: 'Pertemuan Pecinta Buku: Malam Membaca dan Diskusi'
+  pl: 'Spotkanie Miłośników Książek: Wieczór Czytania i Dyskusji'
+  nl: 'Boekenliefhebbers Sociale: Een Avond van Lezen en Discussie'
+  ar: 'لقاء عشاق الكتب: أمسية قراءة ونقاش'
+  hi: 'पुस्तक प्रेमी मिलन: पढ़ने और चर्चा की एक शाम'
+  th: 'การพบปะผู้รักหนังสือ: ค่ำคืนแห่งการอ่านและการอภิปราย'
+  cs: 'Setkání milovníků knih: Večer čtení a diskuse'
+  sv: 'Bokälskares Träff: En Kväll av Läsning och Diskussion'
+  verified_by_human: []
+events.tech_talk:
+  context: Event title for tech talk
+  en: 'TechTalk: AI in Everyday Business'
+  de: 'TechTalk: KI im Geschäftsalltag'
+  zh: 技术讲座：人工智能在日常业务中的应用
+  es: 'TechTalk: IA en la vida diaria empresarial'
+  fr: 'TechTalk : L''IA dans le business quotidien'
+  pt: 'TechTalk: IA nos Negócios Cotidianos'
+  ru: 'TechTalk: ИИ в повседневном бизнесе'
+  ja: テックトーク：ビジネスにおけるAI
+  ko: 'TechTalk: 일상 비즈니스의 AI'
+  it: 'TechTalk: IA nel Business Quotidiano'
+  tr: 'TechTalk: Günlük İş Hayatında Yapay Zeka'
+  vi: 'TechTalk: AI trong Kinh Doanh Hàng Ngày'
+  id: 'TechTalk: AI dalam Bisnis Sehari-hari'
+  pl: 'TechTalk: AI w Codziennym Biznesie'
+  nl: 'TechTalk: AI in Dagelijkse Zaken'
+  ar: 'TechTalk: الذكاء الاصطناعي في الأعمال اليومية'
+  hi: 'TechTalk: रोजमर्रा के व्यवसाय में AI'
+  th: 'TechTalk: AI ในธุรกิจประจำวัน'
+  cs: 'TechTalk: AI v každodenním podnikání'
+  sv: 'TechTalk: AI i Vardaglig Affärsverksamhet'
+  verified_by_human: []
+events.workshop:
+  context: Event title for workshop
+  en: 'Workshop: Building AI-Powered Applications'
+  de: 'Workshop: Entwicklung KI-gestützter Anwendungen'
+  zh: 研讨会：构建人工智能驱动的应用程序
+  es: 'Taller: Creación de aplicaciones impulsadas por IA'
+  fr: 'Atelier : Création d''applications basées sur l''IA'
+  pt: 'Workshop: Construindo Aplicações Baseadas em IA'
+  ru: 'Воркшоп: Создание приложений на основе ИИ'
+  ja: ワークショップ：AIを活用したアプリケーションの開発
+  ko: '워크숍: AI 기반 애플리케이션 구축'
+  it: 'Workshop: Creazione di Applicazioni Alimentate da IA'
+  tr: 'Çalıştay: Yapay Zeka Destekli Uygulamalar Geliştirme'
+  vi: 'Workshop: Xây Dựng Ứng Dụng Được Hỗ Trợ Bởi AI'
+  id: 'Workshop: Membangun Aplikasi Berbasis AI'
+  pl: 'Warsztat: Tworzenie Aplikacji Opartych na AI'
+  nl: 'Workshop: AI-Aangedreven Applicaties Bouwen'
+  ar: 'ورشة عمل: بناء تطبيقات مدعومة بالذكاء الاصطناعي'
+  hi: 'कार्यशाला: AI-संचालित एप्लिकेशन बनाना'
+  th: 'เวิร์กชอป: การสร้างแอปพลิเคชันที่ขับเคลื่อนด้วย AI'
+  cs: 'Workshop: Vytváření aplikací poháněných AI'
+  sv: 'Workshop: Att Bygga AI-Drivna Applikationer'
+  verified_by_human: []
+calendar.today:
+  context: Calendar reference to current day
+  en: Today
+  de: Heute
+  zh: 今天
+  es: Hoy
+  fr: Aujourd'hui
+  pt: Hoje
+  ru: Сегодня
+  ja: 今日
+  ko: 오늘
+  it: Oggi
+  tr: Bugün
+  vi: Hôm nay
+  id: Hari ini
+  pl: Dzisiaj
+  nl: Vandaag
+  ar: اليوم
+  hi: आज
+  th: วันนี้
+  cs: Dnes
+  sv: Idag
+  verified_by_human: []
+calendar.dec_15:
+  context: Calendar date
+  en: Dec 15
+  de: 15. Dez
+  zh: 12月15日
+  es: 15 dic
+  fr: 15 déc.
+  pt: 15 dez
+  ru: 15 дек
+  ja: 12月15日
+  ko: 12월 15일
+  it: 15 dic
+  tr: 15 Ara
+  vi: 15 thg 12
+  id: 15 Des
+  pl: 15 gru
+  nl: 15 dec
+  ar: 15 ديسمبر
+  hi: 15 दिसंबर
+  th: 15 ธ.ค.
+  cs: 15. pro
+  sv: 15 dec
+  verified_by_human: []
+calendar.dec_16:
+  context: Calendar date
+  en: Dec 16
+  de: 16. Dez
+  zh: 12月16日
+  es: 16 dic
+  fr: 16 déc.
+  pt: 16 dez
+  ru: 16 дек
+  ja: 12月16日
+  ko: 12월 16일
+  it: 16 dic
+  tr: 16 Ara
+  vi: 16 thg 12
+  id: 16 Des
+  pl: 16 gru
+  nl: 16 dec
+  ar: 16 ديسمبر
+  hi: 16 दिसंबर
+  th: 16 ธ.ค.
+  cs: 16. pro
+  sv: 16 dec
+  verified_by_human: []

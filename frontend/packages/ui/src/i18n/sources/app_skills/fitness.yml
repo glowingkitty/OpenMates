@@ -1,0 +1,51 @@
+search_locations_and_courses:
+  context: Skill name for search locations and courses
+  en: Search locations and courses
+  de: Standorte und Kurse suchen
+  zh: 搜索地点和课程
+  es: Buscar ubicaciones y cursos
+  fr: Rechercher des emplacements et des cours
+  pt: Pesquisar locais e cursos
+  ru: Поиск мест и курсов
+  ja: 場所とコースを検索
+  ko: 위치 및 코스 검색
+  it: Cerca posizioni e corsi
+  tr: Konum ve kurs ara
+  vi: Tìm kiếm địa điểm và khóa học
+  id: Cari lokasi dan kursus
+  pl: Szukaj lokalizacji i kursów
+  nl: Zoek locaties en cursussen
+  ar: البحث عن المواقع والدورات
+  hi: स्थान और पाठ्यक्रम खोजें
+  th: ค้นหาสถานที่และหลักสูตร
+  cs: Hledat místa a kurzy
+  sv: Sök platser och kurser
+  verified_by_human:
+    - en
+    - de
+search_locations_and_courses.description:
+  context: Description for search locations and courses skill
+  en: Searches for fitness locations and courses based on your requirements.
+  de: Sucht nach Fitness-Standorten und -Kursen basierend auf deinen Anforderungen.
+  zh: 根据你的要求搜索健身地点和课程。
+  es: Busca ubicaciones y cursos de fitness según tus requisitos.
+  fr: Recherche des emplacements et des cours de fitness en fonction de vos besoins.
+  pt: Pesquisa locais e cursos de fitness com base em seus requisitos.
+  ru: Ищет фитнес-залы и курсы на основе ваших требований.
+  ja: あなたの要件に基づいてフィットネス場所とコースを検索します。
+  ko: 요구 사항에 따라 피트니스 위치 및 코스를 검색합니다.
+  it: Cerca posizioni e corsi di fitness in base alle tue esigenze.
+  tr: Gereksinimlerinize göre fitness lokasyonları ve kursları arar.
+  vi: Tìm kiếm địa điểm và khóa học thể dục dựa trên yêu cầu của bạn.
+  id: Mencari lokasi dan kursus kebugaran berdasarkan persyaratan Anda.
+  pl: Wyszukuje lokalizacje i kursy fitness na podstawie Twoich wymagań.
+  nl: Zoekt naar fitnesslocaties en -cursussen op basis van uw vereisten.
+  ar: يبحث عن مواقع ودورات اللياقة البدنية بناءً على متطلباتك.
+  hi: आपकी आवश्यकताओं के आधार पर फिटनेस स्थान और पाठ्यक्रम खोजता है।
+  th: ค้นหาสถานที่และหลักสูตรฟิตเนสตามความต้องการของคุณ
+  cs: Hledá fitness lokace a kurzy na základě vašich požadavků.
+  sv: Söker efter fitnessplatser och kurser baserat på dina krav.
+  verified_by_human:
+    - en
+    - de
+

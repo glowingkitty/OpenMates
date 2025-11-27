@@ -6,7 +6,7 @@
 # of metadata provided by individual app services.
 
 from typing import Dict, Any, List, Optional
-from pydantic import BaseModel, validator, Field
+from pydantic import BaseModel, validator, root_validator, Field
 
 class IconColorGradient(BaseModel):
     """Defines the start and end colors for an icon gradient."""
@@ -51,7 +51,7 @@ class AppYAML(BaseModel):
     This is used for validating app configurations and for service discovery.
     """
     id: Optional[str] = None # Made id optional, will be derived if not present
-    name: str
+    name_translation_key: str # Translation key for app name (e.g., "app_translations.web.text") - required
     description: str
     icon_image: Optional[str] = Field(default=None, pattern=r'.+\.svg$') # Filename ending with .svg
     icon_colorgradient: Optional[IconColorGradient] = None
@@ -63,6 +63,19 @@ class AppYAML(BaseModel):
     def set_focuses_default(cls, v, values):
         """Ensures focuses list is initialized even if 'focus_modes' is missing or None."""
         return v if v is not None else values.get('focus_modes', [])
+
+    @root_validator(pre=True)
+    def map_settings_and_memories(cls, values):
+        """
+        Maps 'settings_and_memories' from app.yml to 'memory_fields' for compatibility.
+        Supports multiple field names: 'memory', 'memory_fields', and 'settings_and_memories'.
+        """
+        if isinstance(values, dict):
+            # If 'settings_and_memories' exists and 'memory_fields'/'memory' don't, map it
+            if 'settings_and_memories' in values and 'memory_fields' not in values and 'memory' not in values:
+                values['memory'] = values['settings_and_memories']
+        return values
+
 
     @validator('memory_fields', pre=True, always=True)
     def set_memory_fields_default(cls, v, values):

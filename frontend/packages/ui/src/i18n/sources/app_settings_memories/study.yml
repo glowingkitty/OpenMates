@@ -1,0 +1,151 @@
+learning_goals:
+  context: Settings/memory name for learning goals
+  en: Learning Goals
+  de: Lernziele
+  zh: 学习目标
+  es: Objetivos de aprendizaje
+  fr: Objectifs d'apprentissage
+  pt: Objetivos de aprendizado
+  ru: Цели обучения
+  ja: 学習目標
+  ko: 학습 목표
+  it: Obiettivi di apprendimento
+  tr: Öğrenme hedefleri
+  vi: Mục tiêu học tập
+  id: Tujuan pembelajaran
+  pl: Cele uczenia się
+  nl: Leerdoelen
+  ar: أهداف التعلم
+  hi: सीखने के लक्ष्य
+  th: เป้าหมายการเรียนรู้
+  cs: Učební cíle
+  sv: Lärandemål
+  verified_by_human:
+    - en
+    - de
+learning_goals.description:
+  context: Description for learning goals settings/memory
+  en: Your learning objectives and topics you want to master.
+  de: Deine Lernziele und Themen, die du beherrschen möchtest.
+  zh: 你的学习目标和想要掌握的主题。
+  es: Tus objetivos de aprendizaje y temas que quieres dominar.
+  fr: Vos objectifs d'apprentissage et les sujets que vous souhaitez maîtriser.
+  pt: Seus objetivos de aprendizado e tópicos que você deseja dominar.
+  ru: Ваши цели обучения и темы, которые вы хотите освоить.
+  ja: 学習目標と習得したいトピック。
+  ko: 학습 목표와 숙달하고 싶은 주제.
+  it: I tuoi obiettivi di apprendimento e gli argomenti che vuoi padroneggiare.
+  tr: Öğrenme hedefleriniz ve ustalaşmak istediğiniz konular.
+  vi: Mục tiêu học tập và các chủ đề bạn muốn thành thạo.
+  id: Tujuan pembelajaran Anda dan topik yang ingin Anda kuasai.
+  pl: Twoje cele uczenia się i tematy, które chcesz opanować.
+  nl: Je leerdoelen en onderwerpen die je onder de knie wilt krijgen.
+  ar: أهداف التعلم الخاصة بك والمواضيع التي تريد إتقانها.
+  hi: आपके सीखने के उद्देश्य और विषय जिन्हें आप महारत हासिल करना चाहते हैं।
+  th: วัตถุประสงค์การเรียนรู้และหัวข้อที่คุณต้องการเชี่ยวชาญ
+  cs: Vaše učební cíle a témata, která chcete zvládnout.
+  sv: Dina lärandemål och ämnen du vill bemästra.
+  verified_by_human:
+    - en
+    - de
+education_history:
+  context: Settings/memory name for education history
+  en: Education History
+  de: Bildungsgeschichte
+  zh: 教育历史
+  es: Historial educativo
+  fr: Historique de l'éducation
+  pt: Histórico educacional
+  ru: История образования
+  ja: 教育履歴
+  ko: 교육 이력
+  it: Storia dell'istruzione
+  tr: Eğitim geçmişi
+  vi: Lịch sử giáo dục
+  id: Riwayat pendidikan
+  pl: Historia edukacji
+  nl: Onderwijsgeschiedenis
+  ar: تاريخ التعليم
+  hi: शिक्षा इतिहास
+  th: ประวัติการศึกษา
+  cs: Vzdělávací historie
+  sv: Utbildningshistorik
+  verified_by_human:
+    - en
+    - de
+education_history.description:
+  context: Description for education history settings/memory
+  en: Your academic background, degrees, and certifications.
+  de: Dein akademischer Hintergrund, Abschlüsse und Zertifikate.
+  zh: 你的学术背景、学位和证书。
+  es: Tu formación académica, títulos y certificaciones.
+  fr: Votre parcours académique, diplômes et certifications.
+  pt: Seu histórico acadêmico, diplomas e certificações.
+  ru: Ваше академическое образование, степени и сертификаты.
+  ja: 学歴、学位、資格。
+  ko: 학력, 학위 및 자격증.
+  it: Il tuo background accademico, lauree e certificazioni.
+  tr: Akademik geçmişiniz, dereceleriniz ve sertifikalarınız.
+  vi: Nền tảng học vấn, bằng cấp và chứng chỉ của bạn.
+  id: Latar belakang akademik, gelar, dan sertifikasi Anda.
+  pl: Twoje wykształcenie, stopnie i certyfikaty.
+  nl: Je academische achtergrond, diploma's en certificeringen.
+  ar: خلفيتك الأكاديمية والدرجات والشهادات.
+  hi: आपकी शैक्षणिक पृष्ठभूमि, डिग्री और प्रमाणपत्र।
+  th: ประวัติการศึกษา ระดับปริญญา และใบรับรองของคุณ
+  cs: Vaše akademické zázemí, tituly a certifikace.
+  sv: Din akademiska bakgrund, examina och certifieringar.
+  verified_by_human:
+    - en
+    - de
+career_interests:
+  context: Settings/memory name for career interests
+  en: Career Interests
+  de: Karriereinteressen
+  zh: 职业兴趣
+  es: Intereses profesionales
+  fr: Intérêts professionnels
+  pt: Interesses profissionais
+  ru: Карьерные интересы
+  ja: キャリアの興味
+  ko: 직업 관심사
+  it: Interessi di carriera
+  tr: Kariyer ilgileri
+  vi: Sở thích nghề nghiệp
+  id: Minat karier
+  pl: Zainteresowania zawodowe
+  nl: Carrièrebelangen
+  ar: الاهتمامات المهنية
+  hi: करियर रुचियां
+  th: ความสนใจในอาชีพ
+  cs: Kariérní zájmy
+  sv: Karriärintressen
+  verified_by_human:
+    - en
+    - de
+career_interests.description:
+  context: Description for career interests settings/memory
+  en: Your career goals, interests, and professional aspirations.
+  de: Deine Karriereziele, Interessen und beruflichen Bestrebungen.
+  zh: 你的职业目标、兴趣和专业抱负。
+  es: Tus objetivos profesionales, intereses y aspiraciones profesionales.
+  fr: Vos objectifs de carrière, intérêts et aspirations professionnelles.
+  pt: Seus objetivos de carreira, interesses e aspirações profissionais.
+  ru: Ваши карьерные цели, интересы и профессиональные устремления.
+  ja: キャリア目標、興味、職業的願望。
+  ko: 직업 목표, 관심사 및 전문적 포부.
+  it: I tuoi obiettivi di carriera, interessi e aspirazioni professionali.
+  tr: Kariyer hedefleriniz, ilgileriniz ve profesyonel istekleriniz.
+  vi: Mục tiêu nghề nghiệp, sở thích và nguyện vọng chuyên nghiệp của bạn.
+  id: Tujuan karier, minat, dan aspirasi profesional Anda.
+  pl: Twoje cele zawodowe, zainteresowania i aspiracje zawodowe.
+  nl: Je carrièredoelen, interesses en professionele aspiraties.
+  ar: أهدافك المهنية واهتماماتك وتطلعاتك المهنية.
+  hi: आपके करियर लक्ष्य, रुचियां और पेशेवर आकांक्षाएं।
+  th: เป้าหมายอาชีพ ความสนใจ และความปรารถนาในอาชีพของคุณ
+  cs: Vaše kariérní cíle, zájmy a profesní aspirace.
+  sv: Dina karriärmål, intressen och professionella ambitioner.
+  verified_by_human:
+    - en
+    - de
+

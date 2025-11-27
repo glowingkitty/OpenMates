@@ -1,0 +1,46 @@
+title:
+  context: Title for the design guidelines page
+  en: Design guidelines | OpenMates
+  de: Design-Richtlinien | OpenMates
+  zh: 设计准则 | OpenMates
+  es: Pautas de diseño | OpenMates
+  fr: Lignes directrices de conception | OpenMates
+  pt: Diretrizes de design | OpenMates
+  ru: Руководящие принципы дизайна | OpenMates
+  ja: デザインガイドライン | OpenMates
+  ko: 디자인 가이드라인 | OpenMates
+  it: Linee guida di progettazione | OpenMates
+  tr: Tasarım yönergeleri | OpenMates
+  vi: Hướng dẫn thiết kế | OpenMates
+  id: Pedoman desain | OpenMates
+  pl: Wytyczne projektowe | OpenMates
+  nl: Ontwerprichtlijnen | OpenMates
+  ar: إرشادات التصميم | OpenMates
+  hi: डिज़ाइन दिशानिर्देश | OpenMates
+  th: แนวทางการออกแบบ | OpenMates
+  cs: Návrhové směrnice | OpenMates
+  sv: Designriktlinjer | OpenMates
+  verified_by_human: []
+description:
+  context: Description for the design guidelines page
+  en: The Design Guidelines that define how OpenMates is designed and built.
+  de: Die Design-Richtlinien, die definieren, wie OpenMates gestaltet und entwickelt wird.
+  zh: 定义 OpenMates 如何设计和构建的设计准则。
+  es: Las Pautas de Diseño que definen cómo se diseña y construye OpenMates.
+  fr: Les lignes directrices de conception qui définissent comment OpenMates est conçu et construit.
+  pt: As Diretrizes de Design que definem como o OpenMates é projetado e construído.
+  ru: Руководящие принципы дизайна, определяющие, как разрабатывается и создается OpenMates.
+  ja: OpenMatesがどのように設計され、構築されているかを定義するデザインガイドライン。
+  ko: OpenMates가 어떻게 설계되고 구축되는지 정의하는 디자인 가이드라인.
+  it: Le linee guida di progettazione che definiscono come OpenMates è progettato e costruito.
+  tr: OpenMates'in nasıl tasarlandığını ve inşa edildiğini tanımlayan tasarım yönergeleri.
+  vi: Hướng dẫn thiết kế xác định cách OpenMates được thiết kế và xây dựng.
+  id: Pedoman desain yang mendefinisikan bagaimana OpenMates dirancang dan dibangun.
+  pl: Wytyczne projektowe definiujące sposób projektowania i budowania OpenMates.
+  nl: De ontwerprichtlijnen die definiëren hoe OpenMates wordt ontworpen en gebouwd.
+  ar: إرشادات التصميم التي تحدد كيفية تصميم وبناء OpenMates.
+  hi: डिज़ाइन दिशानिर्देश जो परिभाषित करते हैं कि OpenMates कैसे डिज़ाइन और निर्मित किया गया है।
+  th: แนวทางการออกแบบที่กำหนดว่า OpenMates ถูกออกแบบและสร้างอย่างไร
+  cs: Návrhové směrnice, které definují, jak je OpenMates navržen a postaven.
+  sv: Designriktlinjerna som definierar hur OpenMates är designad och byggd.
+  verified_by_human: []

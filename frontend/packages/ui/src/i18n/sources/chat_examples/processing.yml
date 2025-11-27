@@ -1,0 +1,184 @@
+career_insights:
+  context: Title for career insights section
+  en: Career insights
+  de: Karriere-Einblicke
+  zh: 职业见解
+  es: Perspectivas de carrera
+  fr: Perspectives de carrière
+  pt: Insights de carreira
+  ru: Рекомендации по карьере
+  ja: キャリアインサイト
+  ko: 경력 인사이트
+  it: Approfondimenti professionali
+  tr: Kariyer İçgörüleri
+  vi: Thông tin chi tiết về sự nghiệp
+  id: Wawasan Karir
+  pl: Wgląd w karierę
+  nl: Carière-inzichten
+  ar: رؤى المسار الوظيفي
+  hi: करियर अंतर्दृष्टि
+  th: ความเข้าใจเกี่ยวกับอาชีพ
+  cs: Kariérní poznatky
+  sv: Karriärinsikter
+  verified_by_human: []
+status.loaded:
+  context: Status indicator for loading state
+  en: Loaded
+  de: Geladen
+  zh: 加载
+  es: Cargado
+  fr: Chargé
+  pt: Carregado
+  ru: Загружено
+  ja: 読み込み完了
+  ko: 로드됨
+  it: Caricato
+  tr: Yüklendi
+  vi: Đã tải
+  id: Dimuat
+  pl: Załadowano
+  nl: Geladen
+  ar: تم التحميل
+  hi: लोड किया गया
+  th: โหลดแล้ว
+  cs: Načteno
+  sv: Inläst
+  verified_by_human: []
+status.started:
+  context: Status indicator for started state
+  en: Started
+  de: Gestartet
+  zh: 开始
+  es: Iniciado
+  fr: Démarré
+  pt: Iniciado
+  ru: Запущено
+  ja: 開始
+  ko: 시작됨
+  it: Iniziato
+  tr: Başlatıldı
+  vi: Đã bắt đầu
+  id: Dimulai
+  pl: Uruchomione
+  nl: Gestart
+  ar: تم البدء
+  hi: शुरू किया गया
+  th: เริ่มแล้ว
+  cs: Zahájeno
+  sv: Startad
+  verified_by_human: []
+status.using:
+  context: Status indicator for in-use state
+  en: Using
+  de: Wird benutzt
+  zh: 使用
+  es: Usando
+  fr: Utilise
+  pt: Usando
+  ru: Используется
+  ja: 使用中
+  ko: 사용 중
+  it: In uso
+  tr: Kullanılıyor
+  vi: Đang sử dụng
+  id: Menggunakan
+  pl: W użyciu
+  nl: In gebruik
+  ar: جاري الاستخدام
+  hi: उपयोग कर रहा है
+  th: ใช้งานอยู่
+  cs: Používá se
+  sv: Använder
+  verified_by_human: []
+status.used:
+  context: Status indicator for used state
+  en: Used
+  de: Benutzt
+  zh: 已使用
+  es: Usado
+  fr: Utilisé
+  pt: Usado
+  ru: Использовано
+  ja: 使用済み
+  ko: 사용됨
+  it: Usato
+  tr: Kullanıldı
+  vi: Đã sử dụng
+  id: Digunakan
+  pl: Używane
+  nl: Gebruikt
+  ar: مستخدم
+  hi: प्रयोग किया जाता है
+  th: ใช้แล้ว
+  cs: Použito
+  sv: Använd
+  verified_by_human: []
+details.preferences:
+  context: Settings or preferences section
+  en: preferences
+  de: Einstellungen
+  zh: 偏好设置
+  es: preferencias
+  fr: Préférences
+  pt: preferências
+  ru: Параметры
+  ja: 設定
+  ko: 선호도
+  it: Preferenze
+  tr: Tercihler
+  vi: Tùy chọn
+  id: Preferensi
+  pl: Preferencje
+  nl: Voorkeursinstellingen
+  ar: التفضيلات
+  hi: प्राथमिकताएं
+  th: ตัวเลือก
+  cs: Předvolby
+  sv: Inställningar
+  verified_by_human: []
+details.apps:
+  context: Plural form of application
+  en: apps
+  de: Apps
+  zh: 应用
+  es: aplicaciones
+  fr: applis
+  pt: apps
+  ru: Приложения
+  ja: アプリ
+  ko: 앱
+  it: app
+  tr: uygulamalar
+  vi: ứng dụng
+  id: aplikasi
+  pl: aplikacje
+  nl: apps
+  ar: التطبيقات
+  hi: ऐप्स
+  th: แอป
+  cs: aplikace
+  sv: appar
+  verified_by_human: []
+details.app:
+  context: Single application
+  en: app
+  de: App
+  zh: 应用
+  es: aplicación
+  fr: appli
+  pt: app
+  ru: Приложение
+  ja: アプリ
+  ko: 앱
+  it: app
+  tr: uygulama
+  vi: ứng dụng
+  id: aplikasi
+  pl: aplikacja
+  nl: app
+  ar: التطبيق
+  hi: ऐप
+  th: แอป
+  cs: aplikace
+  sv: app
+  verified_by_human: []

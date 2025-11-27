@@ -13,6 +13,81 @@ from backend.core.api.app.schemas.chat import CachedChatVersions, CachedChatList
 
 logger = logging.getLogger(__name__)
 
+async def _load_and_cache_embeds_for_chats(
+    chat_ids: List[str],
+    directus_service: DirectusService,
+    cache_service: CacheService,
+    user_id: str,
+    phase_name: str
+) -> int:
+    """
+    Load and cache embeds for multiple chats by hashed_chat_id.
+    
+    Args:
+        chat_ids: List of chat IDs to load embeds for
+        directus_service: Directus service instance
+        cache_service: Cache service instance
+        user_id: User ID for logging
+        phase_name: Phase name for logging (e.g., "Phase 1", "Phase 2")
+        
+    Returns:
+        Total number of embeds cached
+    """
+    total_embeds = 0
+    
+    if not chat_ids:
+        return 0
+        
+    try:
+        # Create a map of hashed_chat_id -> chat_id for reverse lookup
+        hashed_chat_id_map = {}
+        hashed_chat_ids = []
+        
+        for chat_id in chat_ids:
+            hashed = hashlib.sha256(chat_id.encode()).hexdigest()
+            hashed_chat_id_map[hashed] = chat_id
+            hashed_chat_ids.append(hashed)
+            
+        # Batch fetch all embeds for these chats
+        all_embeds = await directus_service.embed.get_embeds_by_hashed_chat_ids(hashed_chat_ids)
+        
+        if all_embeds:
+            client = await cache_service.client
+            if client:
+                import json
+                
+                # Group embeds by chat for logging
+                embeds_by_chat = {}
+                
+                for embed in all_embeds:
+                    embed_id = embed.get("embed_id")
+                    hashed_chat_id = embed.get("hashed_chat_id")
+                    
+                    if embed_id and hashed_chat_id:
+                        # Get original chat_id
+                        chat_id = hashed_chat_id_map.get(hashed_chat_id)
+                        
+                        if chat_id:
+                            # Store in sync cache: embed:{embed_id}:sync (client-encrypted)
+                            sync_cache_key = f"embed:{embed_id}:sync"
+                            embed_json = json.dumps(embed)
+                            await client.set(sync_cache_key, embed_json, ex=3600)  # 1 hour TTL for sync cache
+                            
+                            # Add to chat embed index
+                            await cache_service.add_embed_id_to_chat_index(chat_id, embed_id)
+                            total_embeds += 1
+                            
+                            # Count for logging
+                            embeds_by_chat[chat_id] = embeds_by_chat.get(chat_id, 0) + 1
+                
+                logger.debug(f"User {user_id}: Cached {total_embeds} total embeds for {len(embeds_by_chat)} chats in {phase_name}")
+                
+    except Exception as e:
+        logger.error(f"Error loading embeds for chats in {phase_name}: {e}", exc_info=True)
+        # Non-critical error
+    
+    return total_embeds
+
 def _parse_chat_id_from_path(path: Optional[str]) -> Optional[str]:
     """
     Parse chat ID from last_opened field.
@@ -116,6 +191,17 @@ async def _warm_cache_phase_one(
             await cache_service.set_sync_messages_history(user_id, target_immediate_chat_id, chat_details["messages"], ttl=3600)
             logger.debug(f"Stored {len(chat_details['messages'])} client-encrypted messages to sync cache for chat {target_immediate_chat_id}")
         
+        # Load and cache embeds for this chat (by hashed_chat_id)
+        embed_count = await _load_and_cache_embeds_for_chats(
+            [target_immediate_chat_id],
+            directus_service,
+            cache_service,
+            user_id,
+            "Phase 1"
+        )
+        if embed_count > 0:
+            logger.info(f"User {user_id}: Cached {embed_count} embed(s) for chat {target_immediate_chat_id} in Phase 1")
+        
         chat_own_update_ts = chat_details.get("updated_at", 0)
         hashed_user_id_for_draft_ph1 = hashlib.sha256(user_id.encode()).hexdigest()
         user_draft = await directus_service.chat.get_user_draft_from_directus(
@@ -187,6 +273,18 @@ async def _warm_cache_phase_two(
 
             await cache_service.update_user_draft_in_cache(user_id, chat_id, item.get("user_encrypted_draft_content"), item.get("user_draft_version_db", 0))
         
+        # Load and cache embeds for all Phase 2 chats
+        phase2_chat_ids = [item["chat_details"]["id"] for item in core_chats_with_user_drafts]
+        embed_count = await _load_and_cache_embeds_for_chats(
+            phase2_chat_ids,
+            directus_service,
+            cache_service,
+            user_id,
+            "Phase 2"
+        )
+        if embed_count > 0:
+            logger.info(f"User {user_id}: Cached {embed_count} embed(s) for {len(phase2_chat_ids)} chats in Phase 2")
+        
         logger.info(f"User {user_id}: Phase 2 cache populated with metadata for {len(core_chats_with_user_drafts)} chats.")
         
         # Send Phase 2 completion event
@@ -246,6 +344,18 @@ async def _warm_cache_phase_three(
             await cache_service.set_chat_list_item_data(user_id, chat_id, list_item)
 
             await cache_service.update_user_draft_in_cache(user_id, chat_id, item.get("user_encrypted_draft_content"), item.get("user_draft_version_db", 0))
+        
+        # Load and cache embeds for all Phase 3 chats
+        phase3_chat_ids = [item["chat_details"]["id"] for item in core_chats_with_user_drafts]
+        embed_count = await _load_and_cache_embeds_for_chats(
+            phase3_chat_ids,
+            directus_service,
+            cache_service,
+            user_id,
+            "Phase 3"
+        )
+        if embed_count > 0:
+            logger.info(f"User {user_id}: Cached {embed_count} embed(s) for {len(phase3_chat_ids)} chats in Phase 3")
         
         logger.info(f"User {user_id}: Phase 3 cache populated with metadata for {len(core_chats_with_user_drafts)} chats.")
 

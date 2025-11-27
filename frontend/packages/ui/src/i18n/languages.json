@@ -1,0 +1,124 @@
+{
+  "languages": [
+    {
+      "code": "en",
+      "name": "English",
+      "shortCode": "EN",
+      "nativeName": "English"
+    },
+    {
+      "code": "de",
+      "name": "Deutsch",
+      "shortCode": "DE",
+      "nativeName": "Deutsch"
+    },
+    {
+      "code": "zh",
+      "name": "中文",
+      "shortCode": "ZH",
+      "nativeName": "中文"
+    },
+    {
+      "code": "es",
+      "name": "Español",
+      "shortCode": "ES",
+      "nativeName": "Español"
+    },
+    {
+      "code": "fr",
+      "name": "Français",
+      "shortCode": "FR",
+      "nativeName": "Français"
+    },
+    {
+      "code": "pt",
+      "name": "Português",
+      "shortCode": "PT",
+      "nativeName": "Português"
+    },
+    {
+      "code": "ru",
+      "name": "Русский",
+      "shortCode": "RU",
+      "nativeName": "Русский"
+    },
+    {
+      "code": "ja",
+      "name": "日本語",
+      "shortCode": "JA",
+      "nativeName": "日本語"
+    },
+    {
+      "code": "ko",
+      "name": "한국어",
+      "shortCode": "KO",
+      "nativeName": "한국어"
+    },
+    {
+      "code": "it",
+      "name": "Italiano",
+      "shortCode": "IT",
+      "nativeName": "Italiano"
+    },
+    {
+      "code": "tr",
+      "name": "Türkçe",
+      "shortCode": "TR",
+      "nativeName": "Türkçe"
+    },
+    {
+      "code": "vi",
+      "name": "Tiếng Việt",
+      "shortCode": "VI",
+      "nativeName": "Tiếng Việt"
+    },
+    {
+      "code": "id",
+      "name": "Bahasa Indonesia",
+      "shortCode": "ID",
+      "nativeName": "Bahasa Indonesia"
+    },
+    {
+      "code": "pl",
+      "name": "Polski",
+      "shortCode": "PL",
+      "nativeName": "Polski"
+    },
+    {
+      "code": "nl",
+      "name": "Nederlands",
+      "shortCode": "NL",
+      "nativeName": "Nederlands"
+    },
+    {
+      "code": "ar",
+      "name": "العربية",
+      "shortCode": "AR",
+      "nativeName": "العربية"
+    },
+    {
+      "code": "hi",
+      "name": "हिन्दी",
+      "shortCode": "HI",
+      "nativeName": "हिन्दी"
+    },
+    {
+      "code": "th",
+      "name": "ไทย",
+      "shortCode": "TH",
+      "nativeName": "ไทย"
+    },
+    {
+      "code": "cs",
+      "name": "Čeština",
+      "shortCode": "CS",
+      "nativeName": "Čeština"
+    },
+    {
+      "code": "sv",
+      "name": "Svenska",
+      "shortCode": "SV",
+      "nativeName": "Svenska"
+    }
+  ]
+}

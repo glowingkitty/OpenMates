@@ -22,9 +22,27 @@
 	- for each additional app, we add two dockers:
 		- app-{appname} docker
 			- with docker network internal fast api endpoints for each skill and each focus mode
+			- serves as the API container for the app
+			- handles incoming skill execution requests
+			- routes requests to appropriate skill handlers
 		- app-{appname}-task-worker docker
-			celery task worker for processing longer running tasks
+			- celery task worker for processing longer running tasks
+			- processes skill executions asynchronously
+			- handles external API calls and long-running operations
 		- for the apps web, videos, sheets, docs, etc.
+
+**Two-Container Pattern:**
+Each app follows a consistent two-container architecture:
+- **API Container**: FastAPI server that receives and routes skill execution requests
+- **Celery Worker Container**: Background task processor for asynchronous skill execution
+
+This separation allows:
+- **Scalability**: Scale API and workers independently based on load
+- **Reliability**: Worker failures don't affect API availability
+- **Resource Management**: Different resource limits for API vs. workers
+- **Service Discovery**: Apps are automatically discovered via Docker network
+
+For more details on app architecture, see [Apps Architecture](./apps/README.md).
 
 
 ## uploads server

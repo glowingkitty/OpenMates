@@ -46,10 +46,10 @@
     --color-app-health-end: #F42C2D;
     --color-app-health: linear-gradient(135deg, var(--color-app-health-start) 9.04%, var(--color-app-health-end) 90.06%);
 
-    /* App/Lifecoaching */
-    --color-app-lifecoaching-start: #FDB250;
-    --color-app-lifecoaching-end: #F42C2D;
-    --color-app-lifecoaching: linear-gradient(135deg, var(--color-app-lifecoaching-start) 9.04%, var(--color-app-lifecoaching-end) 90.06%);
+    /* App/Life Coaching */
+    --color-app-life_coaching-start: #FDB250;
+    --color-app-life_coaching-end: #F42C2D;
+    --color-app-life_coaching: linear-gradient(135deg, var(--color-app-life_coaching-start) 9.04%, var(--color-app-life_coaching-end) 90.06%);
 
     /* App/Nutrition */
     --color-app-nutrition-start: #FD8450;
@@ -206,10 +206,15 @@
     --color-app-shopping-end: #AE6301;
     --color-app-shopping: linear-gradient(135deg, var(--color-app-shopping-start) 9.04%, var(--color-app-shopping-end) 90.06%);
 
-    /* App/Photos */
+    /* App/Photos (Images) */
     --color-app-photos-start: #001E36;
     --color-app-photos-end: #073A62;
     --color-app-photos: linear-gradient(135deg, var(--color-app-photos-start) 9.04%, var(--color-app-photos-end) 90.06%);
+    
+    /* Legacy: Keep --color-app-images for backwards compatibility */
+    --color-app-images-start: #001E36;
+    --color-app-images-end: #073A62;
+    --color-app-images: linear-gradient(135deg, var(--color-app-images-start) 9.04%, var(--color-app-images-end) 90.06%);
 
     /* App/Publishing */
     --color-app-publishing-start: #49021F;

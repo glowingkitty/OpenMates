@@ -15,7 +15,7 @@
     import { clearKeyFromStorage, clearAllEmailData } from '../../services/cryptoService';
     
     // Import signup state stores
-    import { isSignupSettingsStep, isInSignupProcess, isSettingsStep, currentSignupStep, showSignupFooter } from '../../stores/signupState';
+    import { isSignupSettingsStep, isInSignupProcess, isSettingsStep, currentSignupStep, showSignupFooter, getPathFromStep } from '../../stores/signupState';
     import { isRecoveryKeyCreationActive } from '../../stores/recoveryKeyUIState';
     
     // Step name constants
@@ -24,6 +24,7 @@
     const STEP_CONFIRM_EMAIL = 'confirm_email';
     const STEP_SECURE_ACCOUNT = 'secure_account';
     const STEP_PASSWORD = 'password';
+    const STEP_PASSKEY_PRF_ERROR = 'passkey_prf_error';
     // const STEP_PROFILE_PICTURE = 'profile_picture'; // Moved to settings menu
     const STEP_ONE_TIME_CODES = 'one_time_codes';
     const STEP_BACKUP_CODES = 'backup_codes';
@@ -40,11 +41,14 @@
     import { updateProfile } from '../../stores/userProfile';
     import { panelState } from '../../stores/panelStateStore'; // Added panelState import
     import { webSocketService } from '../../services/websocketService'; // Import WebSocket service
+    import { chatSyncService } from '../../services/chatSyncService'; // Import chat sync service for updating last_opened
 
     // Dynamic imports for step contents
     import ConfirmEmailTopContent from './steps/confirmemail/ConfirmEmailTopContent.svelte';
     import SecureAccountTopContent from './steps/secureaccount/SecureAccountTopContent.svelte';
     import PasswordTopContent from './steps/password/PasswordTopContent.svelte';
+    import PasskeyRegistrationTopContent from './steps/passkey/PasskeyRegistrationTopContent.svelte';
+    import PasskeyPRFError from './steps/passkey/PasskeyPRFError.svelte';
     // import ProfilePictureTopContent from './steps/profilepicture/ProfilePictureTopContent.svelte'; // Moved to settings
     import OneTimeCodesTopContent from './steps/onetimecodes/OneTimeCodesTopContent.svelte';
     import BackupCodesTopContent from './steps/backupcodes/BackupCodesTopContent.svelte';
@@ -56,6 +60,7 @@
     import AlphaDisclaimerContent from './steps/alpha_disclaimer/AlphaDisclaimerContent.svelte';
     import ConfirmEmailBottomContent from './steps/confirmemail/ConfirmEmailBottomContent.svelte';
     import PasswordBottomContent from './steps/password/PasswordBottomContent.svelte';
+    import PasskeyRegistrationBottomContent from './steps/passkey/PasskeyRegistrationBottomContent.svelte';
     // import ProfilePictureBottomContent from './steps/profilepicture/ProfilePictureBottomContent.svelte'; // Moved to settings
     import OneTimeCodesBottomContent from './steps/onetimecodes/OneTimeCodesBottomContent.svelte';
     import BackupCodesBottomContent from './steps/backupcodes/BackupCodesBottomContent.svelte';
@@ -101,11 +106,20 @@
         easing: cubicInOut
     };
 
-    const stepSequence = [
+    const fullStepSequence = [
         STEP_ALPHA_DISCLAIMER, STEP_BASICS, STEP_CONFIRM_EMAIL, STEP_SECURE_ACCOUNT, STEP_PASSWORD,
         STEP_ONE_TIME_CODES, STEP_TFA_APP_REMINDER, STEP_BACKUP_CODES, STEP_RECOVERY_KEY, // STEP_PROFILE_PICTURE,
         STEP_CREDITS, STEP_PAYMENT, STEP_AUTO_TOP_UP, STEP_COMPLETION
     ];
+
+    const passkeyStepSequence = [
+        STEP_ALPHA_DISCLAIMER, STEP_BASICS, STEP_CONFIRM_EMAIL, STEP_SECURE_ACCOUNT, STEP_RECOVERY_KEY,
+        STEP_CREDITS, STEP_PAYMENT, STEP_AUTO_TOP_UP, STEP_COMPLETION
+    ];
+
+    let stepSequence = $derived(
+        $signupStore.loginMethod === 'passkey' ? passkeyStepSequence : fullStepSequence
+    );
 
     let isImageProcessing = $state(false);
     let isImageUploading = $state(false);
@@ -149,11 +163,21 @@
     onMount(() => {
         isInSignupProcess.set(true);
         
-        // Always start with alpha disclaimer as the first step before entering email/signup data
-        // This ensures users see the disclaimer before proceeding with signup
-        currentSignupStep.set(STEP_ALPHA_DISCLAIMER);
-        currentStep = STEP_ALPHA_DISCLAIMER;
-        console.log(`[Signup.svelte] Starting signup flow, showing alpha disclaimer first`);
+        // Check if signup step is already set (e.g., from page reload or auth check)
+        // If not set, start with alpha disclaimer as the first step
+        // This ensures users see the disclaimer before proceeding with signup on new signups,
+        // but preserves the step on page reload
+        const existingStep = $currentSignupStep;
+        if (!existingStep || existingStep === STEP_ALPHA_DISCLAIMER) {
+            // Only set to alpha disclaimer if no step is set or it's already at alpha disclaimer
+            currentSignupStep.set(STEP_ALPHA_DISCLAIMER);
+            currentStep = STEP_ALPHA_DISCLAIMER;
+            console.log(`[Signup.svelte] Starting signup flow, showing alpha disclaimer first`);
+        } else {
+            // Use the existing step (e.g., restored from last_opened on page reload)
+            currentStep = existingStep;
+            console.log(`[Signup.svelte] Resuming signup flow at step: ${existingStep}`);
+        }
         
         updateSettingsStep(''); // Provide empty string as initial prevStepValue
         
@@ -281,6 +305,43 @@
         currentStep = newStep; // Update local step
         currentSignupStep.set(newStep); // Update the global store
         
+        // Update last_opened to reflect current signup step (skip alpha_disclaimer as it's not a real step)
+        // This ensures the signup flow can be restored on page reload
+        if (newStep !== STEP_ALPHA_DISCLAIMER) {
+            const signupPath = getPathFromStep(newStep);
+            console.debug(`[Signup] Updating last_opened to ${signupPath} for step ${newStep}`);
+            
+            // Update client-side (IndexedDB) first - this ensures the step is saved even if server update fails
+            updateProfile({ last_opened: signupPath });
+            
+            // Update server-side via WebSocket if authenticated
+            // Use set_active_chat message - backend will update last_opened with the provided value
+            if ($authStore.isAuthenticated) {
+                try {
+                    // Ensure WebSocket is connected before sending the update
+                    // This is important after account creation when the WebSocket might not be connected yet
+                    if (!webSocketService.isConnected()) {
+                        console.debug(`[Signup] WebSocket not connected, attempting to connect before updating last_opened...`);
+                        try {
+                            await webSocketService.connect();
+                            console.debug(`[Signup] WebSocket connected successfully`);
+                        } catch (wsError) {
+                            console.warn(`[Signup] Failed to connect WebSocket:`, wsError);
+                            // Continue - client-side update is sufficient, server update will happen when WS connects
+                        }
+                    }
+                    
+                    // Send the update via WebSocket
+                    await chatSyncService.sendSetActiveChat(signupPath);
+                    console.debug(`[Signup] Sent set_active_chat to server with signup path: ${signupPath}`);
+                } catch (error) {
+                    console.warn(`[Signup] Failed to update last_opened on server:`, error);
+                    // Continue even if server update fails - client-side update is sufficient for now
+                    // The server update will happen when WebSocket connects or on next sync
+                }
+            }
+        }
+        
         await tick(); // Wait for Svelte to process state changes before proceeding
         updateSettingsStep(oldStep); // Call update function with old step value
         
@@ -330,6 +391,44 @@
 
         currentStep = step;
         currentSignupStep.set(step); // Also update the store here
+        
+        // Update last_opened to reflect current signup step (skip alpha_disclaimer as it's not a real step)
+        // This ensures the signup flow can be restored on page reload
+        if (step !== STEP_ALPHA_DISCLAIMER) {
+            const signupPath = getPathFromStep(step);
+            console.debug(`[Signup] Updating last_opened to ${signupPath} for step ${step}`);
+            
+            // Update client-side (IndexedDB) first - this ensures the step is saved even if server update fails
+            updateProfile({ last_opened: signupPath });
+            
+            // Update server-side via WebSocket if authenticated
+            // Use set_active_chat message - backend will update last_opened with the provided value
+            if ($authStore.isAuthenticated) {
+                try {
+                    // Ensure WebSocket is connected before sending the update
+                    // This is important after account creation when the WebSocket might not be connected yet
+                    if (!webSocketService.isConnected()) {
+                        console.debug(`[Signup] WebSocket not connected, attempting to connect before updating last_opened...`);
+                        try {
+                            await webSocketService.connect();
+                            console.debug(`[Signup] WebSocket connected successfully`);
+                        } catch (wsError) {
+                            console.warn(`[Signup] Failed to connect WebSocket:`, wsError);
+                            // Continue - client-side update is sufficient, server update will happen when WS connects
+                        }
+                    }
+                    
+                    // Send the update via WebSocket
+                    await chatSyncService.sendSetActiveChat(signupPath);
+                    console.debug(`[Signup] Sent set_active_chat to server with signup path: ${signupPath}`);
+                } catch (error) {
+                    console.warn(`[Signup] Failed to update last_opened on server:`, error);
+                    // Continue even if server update fails - client-side update is sufficient for now
+                    // The server update will happen when WebSocket connects or on next sync
+                }
+            }
+        }
+        
         await tick(); // Add tick here too for consistency
         updateSettingsStep(oldStep); // Call update function with old step value
         
@@ -586,22 +685,25 @@
     
     // Helper function to get step number for documentation links (temporary)
     function getStepNumber(stepName) {
-        const stepMap = {
+        const fullStepMap = {
             [STEP_ALPHA_DISCLAIMER]: 0,
             [STEP_BASICS]: 1,
             [STEP_CONFIRM_EMAIL]: 2,
-            // STEP_PROFILE_PICTURE: 3, // Removed - moved to settings
-            [STEP_ONE_TIME_CODES]: 4,
-            [STEP_BACKUP_CODES]: 5,
-            [STEP_TFA_APP_REMINDER]: 6,
-            [STEP_SETTINGS]: 7,
-            [STEP_MATE_SETTINGS]: 8,
-            [STEP_CREDITS]: 9,
-            [STEP_PAYMENT]: 10,
-            [STEP_AUTO_TOP_UP]: 11,
-            [STEP_COMPLETION]: 12
+            [STEP_SECURE_ACCOUNT]: 3,
+            [STEP_PASSWORD]: 4,
+            // STEP_PROFILE_PICTURE: 5, // Removed - moved to settings
+            [STEP_ONE_TIME_CODES]: 6,
+            [STEP_BACKUP_CODES]: 7,
+            [STEP_TFA_APP_REMINDER]: 8,
+            [STEP_RECOVERY_KEY]: 9,
+            [STEP_SETTINGS]: 10,
+            [STEP_MATE_SETTINGS]: 11,
+            [STEP_CREDITS]: 12,
+            [STEP_PAYMENT]: 13,
+            [STEP_AUTO_TOP_UP]: 14,
+            [STEP_COMPLETION]: 15
         };
-        return stepMap[stepName] || 0;
+        return fullStepMap[stepName] || 0;
     }
 
     // Update showSkip logic to show for specific steps using Svelte 5 runes
@@ -667,6 +769,8 @@
                                         <SecureAccountTopContent on:step={handleStep} />
                                     {:else if currentStep === STEP_PASSWORD}
                                         <PasswordTopContent on:passwordChange={handlePasswordChange} />
+                                    {:else if currentStep === STEP_PASSKEY_PRF_ERROR}
+                                        <PasskeyPRFError on:step={handleStep} />
                                     <!-- {:else if currentStep === STEP_PROFILE_PICTURE}
                                         <ProfilePictureTopContent
                                             isProcessing={isImageProcessing}
@@ -809,7 +913,7 @@
 
     {#if showUIControls}
         <div class="status-wrapper" class:hidden={currentStep === STEP_BASICS || currentStep === STEP_ALPHA_DISCLAIMER} transition:fade={fadeParams}>
-            <SignupStatusbar currentStepName={currentStep} />
+            <SignupStatusbar currentStepName={currentStep} stepSequenceOverride={stepSequence} />
         </div>
     {/if}
 

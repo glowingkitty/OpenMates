@@ -20,11 +20,12 @@ from prometheus_client import make_asgi_app
 from pythonjsonlogger import jsonlogger # json is imported by CacheService now for this specific metadata
 from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 import httpx # For service discovery
-from typing import Dict, List # For type hinting
+from typing import Dict, List, Any, Optional # For type hinting
 
 # Make sure the path is correct based on your project structure
 from backend.core.api.app.routes import auth, email, invoice, credit_note, settings, payments, websockets
 from backend.core.api.app.routes import internal_api # Import the new internal API router
+from backend.core.api.app.routes import apps # Import apps router
 from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.metrics import MetricsService
@@ -35,6 +36,7 @@ from backend.core.api.app.services.s3.service import S3UploadService # Import S3
 from backend.core.api.app.services.payment.payment_service import PaymentService # Import PaymentService
 from backend.core.api.app.services.invoiceninja.invoiceninja import InvoiceNinjaService # Import InvoiceNinjaService
 from backend.core.api.app.services.stripe_product_sync import StripeProductSync # Import StripeProductSync
+from backend.core.api.app.services.translations import TranslationService # Import TranslationService for resolving app metadata translations
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.utils.secrets_manager import SecretsManager  # Add import for SecretManager
 from backend.core.api.app.services.limiter import limiter
@@ -64,7 +66,8 @@ from backend.core.api.app.routes.websockets import (
     listen_for_ai_message_persisted_events,
     listen_for_ai_typing_indicator_events, # Added import
     listen_for_chat_updates, # Added import
-    listen_for_user_updates
+    listen_for_user_updates,
+    listen_for_embed_data_events
 )
 
 # Load environment variables
@@ -83,56 +86,219 @@ app = None
 
 # Define lifespan context manager for startup/shutdown events
 
+def scan_filesystem_for_apps() -> List[str]:
+    """
+    Scans the backend/apps directory for all subdirectories containing app.yml files.
+    Returns a list of app IDs (directory names).
+    
+    This enables auto-discovery of all apps without manual configuration.
+    """
+    APPS_DIR = "/app/backend/apps"  # Path inside Docker container
+    app_ids = []
+    
+    if not os.path.isdir(APPS_DIR):
+        logger.warning(f"Apps directory not found: {APPS_DIR}. Cannot auto-discover apps.")
+        return app_ids
+    
+    try:
+        for item in os.listdir(APPS_DIR):
+            item_path = os.path.join(APPS_DIR, item)
+            # Check if it's a directory and contains app.yml
+            if os.path.isdir(item_path):
+                app_yml_path = os.path.join(item_path, "app.yml")
+                if os.path.isfile(app_yml_path):
+                    app_ids.append(item)
+                    logger.debug(f"Found app directory with app.yml: {item}")
+    except OSError as e:
+        logger.error(f"Error scanning apps directory {APPS_DIR}: {e}")
+    
+    logger.info(f"Filesystem scan found {len(app_ids)} app(s): {app_ids}")
+    return app_ids
+
+
+def filter_app_components_by_stage(app_metadata_json: Dict[str, Any], server_environment: str) -> Dict[str, Any]:
+    """
+    Filters app components (skills, focuses, memory_fields) by stage and returns
+    a filtered copy of the metadata.
+    
+    Rules:
+    - Development server: Include components with stage='development' OR stage='production'
+    - Production server: Include components with stage='production' only
+    - Components without stage or with invalid stage are excluded
+    
+    Args:
+        app_metadata_json: The raw JSON metadata from the app service
+        server_environment: 'development' or 'production'
+    
+    Returns:
+        Filtered metadata dictionary with only valid components, or None if no valid components
+    """
+    # Determine required stages based on server environment
+    if server_environment.lower() == "production":
+        required_stages = ["production"]
+    else:  # development (default)
+        required_stages = ["development", "production"]
+    
+    # Create a copy of the metadata to filter
+    filtered_metadata = app_metadata_json.copy()
+    
+    # Filter skills by stage (stage field is in schema)
+    skills_data = filtered_metadata.get("skills", [])
+    if isinstance(skills_data, list):
+        filtered_skills = [
+            skill for skill in skills_data
+            if isinstance(skill, dict) and skill.get("stage", "").lower() in required_stages
+        ]
+        filtered_metadata["skills"] = filtered_skills
+    else:
+        filtered_metadata["skills"] = []
+    
+    # Filter focuses by stage - access raw JSON to check stage field
+    # Focuses may have stage in YAML but not in schema
+    # The actual JSON uses "focuses" (not "focus_modes")
+    focuses_data = []
+    if "focuses" in filtered_metadata and isinstance(filtered_metadata["focuses"], list):
+        focuses_data = filtered_metadata["focuses"]
+    elif "focus_modes" in filtered_metadata and isinstance(filtered_metadata["focus_modes"], list):
+        # Fallback to alias if "focuses" doesn't exist
+        focuses_data = filtered_metadata["focus_modes"]
+    
+    # Filter by stage
+    filtered_focuses = [
+        focus for focus in focuses_data
+        if isinstance(focus, dict) and focus.get("stage", "").lower() in required_stages
+    ]
+    
+    # Set the field name (use "focuses" as that's what the JSON uses)
+    filtered_metadata["focuses"] = filtered_focuses
+    
+    # Filter memory fields by stage - access raw JSON to check stage field
+    # Memory fields may have stage in YAML but not in schema
+    # The actual JSON uses "settings_and_memories" (not "memory_fields" or "memory")
+    memory_data = []
+    if "settings_and_memories" in filtered_metadata and isinstance(filtered_metadata["settings_and_memories"], list):
+        memory_data = filtered_metadata["settings_and_memories"]
+    elif "memory_fields" in filtered_metadata and isinstance(filtered_metadata["memory_fields"], list):
+        # Fallback to other field names if "settings_and_memories" doesn't exist
+        memory_data = filtered_metadata["memory_fields"]
+    elif "memory" in filtered_metadata and isinstance(filtered_metadata["memory"], list):
+        memory_data = filtered_metadata["memory"]
+    
+    # Filter by stage
+    filtered_memory = [
+        memory for memory in memory_data
+        if isinstance(memory, dict) and memory.get("stage", "").lower() in required_stages
+    ]
+    
+    # Set the field name (use "settings_and_memories" as that's what the JSON uses)
+    filtered_metadata["settings_and_memories"] = filtered_memory
+    
+    # Check if app has at least one valid component
+    has_valid_skill = len(filtered_metadata.get("skills", [])) > 0
+    has_valid_focus = len(filtered_metadata.get("focuses", [])) > 0
+    has_valid_memory = len(filtered_metadata.get("settings_and_memories", [])) > 0
+    
+    # Return filtered metadata if app has at least one valid component, otherwise None
+    if has_valid_skill or has_valid_focus or has_valid_memory:
+        return filtered_metadata
+    else:
+        return None
+
+
 async def discover_apps(app_state: any) -> Dict[str, AppYAML]: # Use 'any' for app_state for now if Request.state causes issues
     """
-    Discovers enabled apps by fetching their metadata.
+    Auto-discovers all apps by scanning the filesystem and fetching their metadata.
+    Apps are filtered by component stages based on SERVER_ENVIRONMENT:
+    - Development: Apps with 'development' or 'production' stage components
+    - Production: Apps with 'production' stage components only
+    - Apps in disabled_apps list are excluded
+    
+    No manual configuration needed - new apps are automatically available by default.
     """
     DEFAULT_APP_INTERNAL_PORT = 8000 # Standard internal port for our apps
     discovered_metadata: Dict[str, AppYAML] = {}
+    
     # Ensure config_manager is accessed correctly from app_state
     if not hasattr(app_state, 'config_manager'):
         logger.error("Service Discovery: config_manager not found in app.state.")
         return discovered_metadata
-        
-    enabled_app_ids: List[str] = app_state.config_manager.get_enabled_apps()
-
-    if not enabled_app_ids:
-        logger.info("Service Discovery: No enabled apps configured to discover.")
+    
+    # Get server environment for stage-based filtering
+    server_environment = os.getenv("SERVER_ENVIRONMENT", "development").lower()
+    logger.info(f"Service Discovery: Server environment is '{server_environment}'")
+    
+    # Get disabled apps list (opt-out)
+    disabled_app_ids: List[str] = app_state.config_manager.get_disabled_apps()
+    if disabled_app_ids:
+        logger.info(f"Service Discovery: {len(disabled_app_ids)} app(s) explicitly disabled: {disabled_app_ids}")
+    
+    # Auto-discover all apps by scanning filesystem
+    all_app_ids = scan_filesystem_for_apps()
+    
+    if not all_app_ids:
+        logger.warning("Service Discovery: No apps found in filesystem scan. Check that backend/apps directory exists and contains app subdirectories.")
         return discovered_metadata
-
-    logger.info(f"Service Discovery: Starting discovery for {len(enabled_app_ids)} enabled app(s): {enabled_app_ids}")
+    
+    logger.info(f"Service Discovery: Starting discovery for {len(all_app_ids)} app(s) found in filesystem: {all_app_ids}")
+    
+    # Check all apps (except disabled ones) - filtering happens at component level
+    apps_to_check = []
+    for app_id in all_app_ids:
+        # Skip disabled apps
+        if app_id in disabled_app_ids:
+            logger.info(f"Service Discovery: Skipping app '{app_id}' (explicitly disabled in config)")
+            continue
+        
+        # Check all apps - component-level filtering happens later
+        apps_to_check.append(app_id)
+    
+    logger.info(f"Service Discovery: Will check {len(apps_to_check)} app(s): {apps_to_check}")
+    
     async with httpx.AsyncClient(timeout=5.0) as client: # 5 second timeout for metadata calls
-        for app_id in enabled_app_ids:
-            # Construct hostname by prepending "app-" to the app_id from config
+        for app_id in apps_to_check:
+            # Construct hostname by prepending "app-" to the app_id
             hostname = f"app-{app_id}"
             metadata_url = f"http://{hostname}:{DEFAULT_APP_INTERNAL_PORT}/metadata"
-            logger.info(f"Service Discovery: Attempting to fetch metadata from {metadata_url} for app '{app_id}' (using service name '{hostname}')")
+            logger.debug(f"Service Discovery: Attempting to fetch metadata from {metadata_url} for app '{app_id}' (using service name '{hostname}')")
+            
             try:
                 response = await client.get(metadata_url)
                 response.raise_for_status() # Raise an exception for HTTP 4xx/5xx errors
                 app_metadata_json = response.json()
                 try:
-                    app_yaml_data = AppYAML(**app_metadata_json)
-                    # Ensure the app_id from backend.core.api.app.yml (if present) matches the service name, or set it.
-                    # The app_id from enabled_apps (service name) is the key.
+                    # Filter components by stage before parsing
+                    filtered_metadata_json = filter_app_components_by_stage(app_metadata_json, server_environment)
+                    
+                    # If no valid components after filtering, skip this app
+                    if filtered_metadata_json is None:
+                        logger.info(f"Service Discovery: App '{app_id}' excluded (no components with required stage for '{server_environment}' environment)")
+                        continue
+                    
+                    # Parse the filtered metadata
+                    app_yaml_data = AppYAML(**filtered_metadata_json)
+                    # Ensure the app_id matches the service name
                     if app_yaml_data.id and app_yaml_data.id != app_id:
                         logger.warning(f"Service Discovery: App ID mismatch for service '{app_id}'. "
                                        f"Configured ID in app.yml is '{app_yaml_data.id}'. Using service name '{app_id}' as the key.")
-                    app_yaml_data.id = app_id # Standardize the ID to the service name from backend_config
-
+                    app_yaml_data.id = app_id # Standardize the ID to the service name
+                    
+                    # Include the app with filtered components
                     discovered_metadata[app_id] = app_yaml_data
-                    logger.info(f"Service Discovery: Successfully discovered and validated metadata for app '{app_id}'. Skills: {len(app_yaml_data.skills)}, Focuses: {len(app_yaml_data.focuses)}")
+                    logger.info(f"Service Discovery: Successfully discovered and included app '{app_id}'. Skills: {len(app_yaml_data.skills)}, Focuses: {len(app_yaml_data.focuses)}, Memory fields: {len(app_yaml_data.memory_fields) if app_yaml_data.memory_fields else 0}")
+                        
                 except Exception as pydantic_error:
                     logger.error(f"Service Discovery: Metadata for app '{app_id}' from {metadata_url} is invalid or does not match AppYAML schema. Error: {pydantic_error}. Data: {app_metadata_json}")
 
             except httpx.HTTPStatusError as e:
-                logger.error(f"Service Discovery: HTTP error while fetching metadata for app '{app_id}' from {metadata_url}. Status: {e.response.status_code}. Response: {e.response.text}")
+                # Log as warning, not error - app might not be running yet
+                logger.warning(f"Service Discovery: HTTP error while fetching metadata for app '{app_id}' from {metadata_url}. Status: {e.response.status_code}. App service may not be running.")
             except httpx.RequestError as e:
-                logger.error(f"Service Discovery: Request error while fetching metadata for app '{app_id}' from {metadata_url}. Error: {e}")
+                # Log as warning - app service might not be available
+                logger.warning(f"Service Discovery: Request error while fetching metadata for app '{app_id}' from {metadata_url}. Error: {e}. App service may not be running.")
             except Exception as e:
                 logger.error(f"Service Discovery: Unexpected error while fetching metadata for app '{app_id}' from {metadata_url}. Error: {e}", exc_info=True)
     
-    logger.info(f"Service Discovery: Completed. Discovered {len(discovered_metadata)} app(s) successfully.")
+    logger.info(f"Service Discovery: Completed. Discovered and included {len(discovered_metadata)} app(s) successfully.")
     return discovered_metadata
 
 
@@ -184,9 +350,27 @@ async def lifespan(app: FastAPI):
 
     # Store ConfigManager in app.state
     app.state.config_manager = config_manager
-    # Log raw enabled_apps config for now, actual discovery happens later
-    raw_enabled_apps = app.state.config_manager.get_backend_config().get('enabled_apps', [])
-    logger.info(f"ConfigManager initialized. Configured enabled_apps (raw): {raw_enabled_apps}")
+    # Log disabled_apps config for reference
+    disabled_apps = app.state.config_manager.get_disabled_apps()
+    logger.info(f"ConfigManager initialized. Disabled apps: {disabled_apps if disabled_apps else 'none (all apps enabled by default)'}")
+
+    # Initialize TranslationService for resolving app metadata translations
+    logger.info("Initializing TranslationService...")
+    app.state.translation_service = TranslationService()
+    
+    # Pre-load translations during server startup to populate the shared cache
+    # This ensures translations are ready before any requests come in
+    logger.info("Pre-loading translations into cache...")
+    try:
+        # Pre-load English translations (default language)
+        # This will load all YAML files and convert them to JSON structure, storing in class-level cache
+        app.state.translation_service.get_translations(lang="en")
+        logger.info("Translations pre-loaded successfully into shared cache.")
+    except Exception as e:
+        logger.error(f"Failed to pre-load translations during startup: {e}", exc_info=True)
+        # Don't fail startup if translations fail to load - they'll be loaded on first request
+    
+    logger.info("TranslationService initialized successfully.")
 
     logger.info("All core service instances created.")
 
@@ -194,6 +378,9 @@ async def lifespan(app: FastAPI):
     # This should happen after core services like config_manager are ready.
     logger.info("Starting App Service Discovery...")
     app.state.discovered_apps_metadata = await discover_apps(app.state)
+    
+    # Translation resolution happens in the metadata endpoint when requested
+    # This ensures translations are always up-to-date and allows for language selection in the future
     if app.state.discovered_apps_metadata:
         discovered_app_names = list(app.state.discovered_apps_metadata.keys())
         logger.info(f"Successfully discovered apps and loaded metadata for: {discovered_app_names}")
@@ -213,6 +400,47 @@ async def lifespan(app: FastAPI):
             logger.error(f"Error explicitly calling set_discovered_apps_metadata from main.py: {e_cache}", exc_info=True)
     elif not hasattr(app.state, 'cache_service'):
         logger.error("CacheService not available in app.state. Cannot cache discovered_apps_metadata.")
+    
+    # --- Preload and cache AI processing configuration files ---
+    # This ensures base_instructions and mates_configs are ready in cache before first message arrives
+    # This optimization prevents disk I/O on every message processing request
+    logger.info("Preloading AI processing configuration files into cache...")
+    if hasattr(app.state, 'cache_service'):
+        try:
+            # Import loaders for base_instructions and mates_configs
+            from backend.apps.ai.utils.instruction_loader import load_base_instructions
+            from backend.apps.ai.utils.mate_utils import load_mates_config
+            
+            # Load base_instructions from disk and cache it
+            logger.info("Loading base_instructions.yml from disk...")
+            base_instructions = load_base_instructions()
+            if base_instructions:
+                try:
+                    await app.state.cache_service.set_base_instructions(base_instructions)
+                    logger.info("Successfully preloaded and cached base_instructions.")
+                except Exception as e_base:
+                    logger.error(f"Failed to cache base_instructions during startup: {e_base}", exc_info=True)
+                    # Don't fail startup - will fallback to disk loading on first request
+            else:
+                logger.warning("Failed to load base_instructions.yml during startup. Will fallback to disk loading on first request.")
+            
+            # Load mates_configs from disk and cache it
+            logger.info("Loading mates.yml from disk...")
+            mates_configs = load_mates_config()
+            if mates_configs:
+                try:
+                    await app.state.cache_service.set_mates_configs(mates_configs)
+                    logger.info(f"Successfully preloaded and cached {len(mates_configs)} mates_configs.")
+                except Exception as e_mates:
+                    logger.error(f"Failed to cache mates_configs during startup: {e_mates}", exc_info=True)
+                    # Don't fail startup - will fallback to disk loading on first request
+            else:
+                logger.warning("Failed to load mates.yml during startup. Will fallback to disk loading on first request.")
+        except Exception as e_preload:
+            logger.error(f"Error during AI configuration preloading: {e_preload}", exc_info=True)
+            # Don't fail startup - will fallback to disk loading on first request
+    else:
+        logger.warning("CacheService not available in app.state. Cannot preload AI configuration files.")
     
     # --- Perform other async initializations ---
     # Initialize S3 service (fetches secrets, creates clients, buckets, etc.)
@@ -272,7 +500,10 @@ async def lifespan(app: FastAPI):
     logger.info("Preloading invite codes into cache...")
     try:
         # Pass app.state to preload_invite_codes
-        await preload_invite_codes(app.state) 
+        await preload_invite_codes(app.state)
+        
+        # Preload gift cards into cache
+        await preload_gift_cards(app.state) 
         logger.info("Successfully preloaded invite codes into cache")
         
         # Run initial metrics update, passing services from backend.core.api.app.state
@@ -288,6 +519,54 @@ async def lifespan(app: FastAPI):
             metrics_service=app.state.metrics_service
         ))
         logger.info("Started periodic metrics update task")
+        
+        # Trigger initial health check for all providers on startup
+        # This ensures /health endpoint has data immediately instead of waiting up to 5 minutes
+        logger.info("Triggering initial health check for all providers...")
+        try:
+            from backend.core.api.app.tasks.health_check_tasks import check_all_providers_health
+            # Trigger the health check task asynchronously (non-blocking)
+            # Use apply_async for better error handling and to get task result
+            task_result = celery_app.send_task(
+                "health_check.check_all_providers",
+                queue="health_check"
+            )
+            logger.info(f"Initial health check task queued successfully. Task ID: {task_result.id}")
+            
+            # Log task status after a short delay to verify it was accepted
+            async def check_task_status():
+                await asyncio.sleep(2)  # Wait 2 seconds for task to be picked up
+                try:
+                    # Check if task is in queue or being processed
+                    inspect = celery_app.control.inspect()
+                    active_tasks = inspect.active()
+                    scheduled_tasks = inspect.scheduled()
+                    reserved_tasks = inspect.reserved()
+                    
+                    if active_tasks or scheduled_tasks or reserved_tasks:
+                        logger.debug(f"Celery workers status - Active: {active_tasks}, Scheduled: {scheduled_tasks}, Reserved: {reserved_tasks}")
+                    else:
+                        logger.warning("No active Celery workers detected. Health check task may not execute until workers are available.")
+                except Exception as inspect_error:
+                    logger.warning(f"Could not inspect Celery worker status: {inspect_error}")
+            
+            # Check task status in background (non-blocking)
+            asyncio.create_task(check_task_status())
+        except Exception as e:
+            logger.error(f"Failed to trigger initial health check: {e}. Health checks will run on schedule.", exc_info=True)
+        
+        # Trigger initial app health check on startup
+        logger.info("Triggering initial app health check for all apps...")
+        try:
+            from backend.core.api.app.tasks.health_check_tasks import check_all_apps_health
+            # Trigger the app health check task asynchronously (non-blocking)
+            app_task_result = celery_app.send_task(
+                "health_check.check_all_apps",
+                queue="health_check"
+            )
+            logger.info(f"Initial app health check task queued successfully. Task ID: {app_task_result.id}")
+        except Exception as e:
+            logger.error(f"Failed to trigger initial app health check: {e}. App health checks will run on schedule.", exc_info=True)
     except Exception as e:
         logger.error(f"Failed to initialize: {str(e)}", exc_info=True)
 
@@ -309,6 +588,9 @@ async def lifespan(app: FastAPI):
 
     logger.info("Starting Redis Pub/Sub listener for user update events as a background task...")
     app.state.user_updates_listener_task = asyncio.create_task(listen_for_user_updates(app))
+
+    logger.info("Starting Redis Pub/Sub listener for embed data events as a background task...")
+    app.state.embed_data_listener_task = asyncio.create_task(listen_for_embed_data_events(app))
 
     yield  # This is where FastAPI serves requests
     
@@ -364,6 +646,13 @@ async def lifespan(app: FastAPI):
             await app.state.user_updates_listener_task
         except asyncio.CancelledError:
             logger.info("Redis Pub/Sub listener task for user updates cancelled")
+
+    if hasattr(app.state, 'embed_data_listener_task'):
+        app.state.embed_data_listener_task.cancel()
+        try:
+            await app.state.embed_data_listener_task
+        except asyncio.CancelledError:
+            logger.info("Redis Pub/Sub listener task for embed data events cancelled")
             
     # Close encryption service client
     if hasattr(app.state, 'encryption_service'):
@@ -465,12 +754,142 @@ def create_app() -> FastAPI:
     app.include_router(payments.router) # Include payments router
     app.include_router(websockets.router) # Include websockets router
     app.include_router(internal_api.router) # Include the internal API router
+    app.include_router(apps.router) # Include apps router for app metadata endpoints
 
     # Health check endpoint with rate limiting
     @app.get("/health")
     @limiter.limit("60/minute")
     async def health_check(request: Request):
-        return {"status": "healthy"}
+        """
+        Health check endpoint that includes provider health status.
+        
+        Only includes apps that are in discovered_apps_metadata (already filtered by stage during server startup).
+        This ensures consistency with /v1/apps/metadata endpoint behavior.
+        
+        Stage filtering rules:
+        - Production server: Only apps with stage 'production' components
+        - Development server: Apps with stage 'development' or 'production' components
+        - Other stages are always ignored
+        """
+        from backend.core.api.app.services.cache import CacheService
+        import json
+        
+        # Get discovered apps from app state (already filtered by stage during startup)
+        # This ensures we only return health status for apps that should be included
+        discovered_app_ids = set()
+        if hasattr(request.app.state, 'discovered_apps_metadata'):
+            discovered_app_ids = set(request.app.state.discovered_apps_metadata.keys())
+            logger.debug(f"Health check: Filtering apps by discovered_apps_metadata. Found {len(discovered_app_ids)} app(s): {sorted(discovered_app_ids)}")
+        else:
+            logger.warning("Health check: discovered_apps_metadata not found in app.state. All apps from cache will be included.")
+        
+        # Get provider, app, and external service health status from cache
+        providers_health = {}
+        apps_health = {}
+        external_services_health = {}
+        try:
+            cache_service = CacheService()
+            client = await cache_service.client
+            if client:
+                # Get all provider health check keys
+                # Pattern: health_check:provider:{provider_id}
+                provider_health_keys = await client.keys("health_check:provider:*")
+                for key in provider_health_keys:
+                    if isinstance(key, bytes):
+                        key = key.decode('utf-8')
+                    # Extract provider_id from key
+                    provider_id = key.replace("health_check:provider:", "")
+                    health_data_json = await client.get(key)
+                    if health_data_json:
+                        if isinstance(health_data_json, bytes):
+                            health_data_json = health_data_json.decode('utf-8')
+                        health_data = json.loads(health_data_json)
+                        providers_health[provider_id] = {
+                            "status": health_data.get("status", "unknown"),
+                            "last_check": health_data.get("last_check"),
+                            "last_error": health_data.get("last_error"),
+                            "response_times_ms": health_data.get("response_times_ms", {})
+                        }
+
+                # Get all app health check keys, but only include apps from discovered_apps_metadata
+                # Pattern: health_check:app:{app_id}
+                app_health_keys = await client.keys("health_check:app:*")
+                for key in app_health_keys:
+                    if isinstance(key, bytes):
+                        key = key.decode('utf-8')
+                    # Extract app_id from key
+                    app_id = key.replace("health_check:app:", "")
+
+                    # Only include apps that are in discovered_apps_metadata (already stage-filtered)
+                    # If discovered_apps_metadata is empty/not available, include all apps (fallback behavior)
+                    if discovered_app_ids and app_id not in discovered_app_ids:
+                        logger.debug(f"Health check: Excluding app '{app_id}' from health status (not in discovered_apps_metadata - likely filtered by stage)")
+                        continue
+
+                    health_data_json = await client.get(key)
+                    if health_data_json:
+                        if isinstance(health_data_json, bytes):
+                            health_data_json = health_data_json.decode('utf-8')
+                        health_data = json.loads(health_data_json)
+                        apps_health[app_id] = {
+                            "status": health_data.get("status", "unknown"),
+                            "api": health_data.get("api", {}),
+                            "worker": health_data.get("worker", {}),
+                            "last_check": health_data.get("last_check")
+                        }
+
+                # Get all external service health check keys
+                # Pattern: health_check:external:{service_id}
+                external_health_keys = await client.keys("health_check:external:*")
+                for key in external_health_keys:
+                    if isinstance(key, bytes):
+                        key = key.decode('utf-8')
+                    # Extract service_id from key
+                    service_id = key.replace("health_check:external:", "")
+                    health_data_json = await client.get(key)
+                    if health_data_json:
+                        if isinstance(health_data_json, bytes):
+                            health_data_json = health_data_json.decode('utf-8')
+                        health_data = json.loads(health_data_json)
+                        external_services_health[service_id] = {
+                            "status": health_data.get("status", "unknown"),
+                            "last_check": health_data.get("last_check"),
+                            "last_error": health_data.get("last_error"),
+                            "response_times_ms": health_data.get("response_times_ms", {})
+                        }
+        except Exception as e:
+            logger.error(f"Error fetching health status: {e}", exc_info=True)
+
+        # Determine overall status
+        overall_status = "healthy"
+        unhealthy_providers = sum(1 for p in providers_health.values() if p.get("status") == "unhealthy")
+        unhealthy_apps = sum(1 for a in apps_health.values() if a.get("status") == "unhealthy")
+        unhealthy_external = sum(1 for e in external_services_health.values() if e.get("status") == "unhealthy")
+        degraded_apps = sum(1 for a in apps_health.values() if a.get("status") == "degraded")
+
+        if unhealthy_providers > 0 or unhealthy_apps > 0 or unhealthy_external > 0:
+            total_services = len(providers_health) + len(apps_health) + len(external_services_health)
+            unhealthy_total = unhealthy_providers + unhealthy_apps + unhealthy_external
+            if unhealthy_total < total_services:
+                overall_status = "degraded"
+            else:
+                overall_status = "unhealthy"
+        elif degraded_apps > 0:
+            overall_status = "degraded"
+
+        return {
+            "status": overall_status,
+            "providers": providers_health,
+            "apps": apps_health,
+            "external_services": external_services_health
+        }
+    
+    # Also add /v1/health as an alias for consistency with API versioning
+    @app.get("/v1/health")
+    @limiter.limit("60/minute")
+    async def health_check_v1(request: Request):
+        """Health check endpoint (v1) - alias for /health."""
+        return await health_check(request)
 
     return app
 
@@ -504,6 +923,37 @@ async def preload_invite_codes(app_state): # Accepts app_state now
                 skipped_count += 1
     
     logger.info(f"Preloaded {imported_count} new invite codes into cache (skipped {skipped_count} existing codes)")
+
+async def preload_gift_cards(app_state):
+    """Load all unredeemed gift cards into cache for faster lookup"""
+    directus_service = app_state.directus_service 
+    cache_service = app_state.cache_service
+    
+    all_gift_cards = await directus_service.get_all_gift_cards()
+    if not all_gift_cards:
+        logger.warning("No gift cards found to preload")
+        return
+    
+    imported_count = 0
+    skipped_count = 0
+    
+    # Cache each gift card with its data
+    for gift_card_data in all_gift_cards:
+        code = gift_card_data.get("code")
+        if code:
+            # Use the gift card code as the key
+            cache_key = f"gift_card:{code}"
+            
+            # Check if gift card already exists in cache
+            existing_data = await cache_service.get(cache_key)
+            if existing_data is None:
+                # Only add to cache if it doesn't already exist
+                await cache_service.set(cache_key, gift_card_data)
+                imported_count += 1
+            else:
+                skipped_count += 1
+    
+    logger.info(f"Preloaded {imported_count} new gift cards into cache (skipped {skipped_count} existing cards)")
 
 # Create the application at module level to make it available for import
 app = create_app()

@@ -1,36 +1,23 @@
-name: |
-  Life coaching
-description: |
-  Plan your next steps in life.
+name_translation_key: life_coaching.text
+description_translation_key: life_coaching.description.text
 icon_image: |
   lifecoaching.svg
-icon_colorgradient:
-  start: |
-    #FDB250
-  end: |
-    #F42C2D
+# Icon colors are defined in theme.css instead of here
+category: personal
+last_updated: "2025-11-12"
 
 focuses:
-
-  - id: |
-      crisis_support
-    name: |
-      Crisis support
-    description: |
-      Get support during a crisis or difficult time in your life and plan your next steps.
-    stage: |
-      planning
+  - id: crisis_support
+    name_translation_key: life_coaching.crisis_support.text
+    description_translation_key: life_coaching.crisis_support.description.text
+    stage: planning
     discount: 0.5 # Reduce the price for this focus by 50% to make it more accessible.
+
     process:
       - ""
-
-  - id: |
-      future_speaking
-    name: |
-      Future speaking
-    description: |
-      Start a future speaking session, a powerful life coaching technique.
-    stage: |
-      planning
+  - id: future_speaking
+    name_translation_key: life_coaching.future_speaking.text
+    description_translation_key: life_coaching.future_speaking.description.text
+    stage: planning
     process:
       - ""

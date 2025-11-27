@@ -3,6 +3,7 @@ from kombu import Queue
 import os
 import logging
 import sys
+import importlib
 from typing import Optional
 from urllib.parse import quote
 import asyncio
@@ -18,7 +19,29 @@ from backend.core.api.app.utils.secrets_manager import SecretsManager
 logger = logging.getLogger(__name__)
 
 # Global variable to hold the ConfigManager instance for the worker process
-config_manager: Optional[ConfigManager] = None
+# Will be initialized lazily on first access via ConfigManager singleton pattern
+# Use a class to make it a lazy property that initializes on first access
+class _LazyConfigManager:
+    """Lazy wrapper for ConfigManager that initializes on first access."""
+    _instance: Optional[ConfigManager] = None
+    
+    def __getattr__(self, name):
+        """Lazy initialization - create ConfigManager on first access."""
+        if self._instance is None:
+            self._instance = ConfigManager()  # Singleton pattern - only creates one instance per process
+            logger.info(f"ConfigManager initialized on first access. Found {len(self._instance.get_provider_configs())} provider configurations.")
+        return getattr(self._instance, name)
+    
+    def __bool__(self):
+        """Support 'if config_manager:' checks."""
+        if self._instance is None:
+            self._instance = ConfigManager()
+            logger.info(f"ConfigManager initialized on first access. Found {len(self._instance.get_provider_configs())} provider configurations.")
+        return bool(self._instance)
+
+# Create lazy config_manager that initializes on first access
+config_manager = _LazyConfigManager()
+
 invoice_ninja_service: Optional[InvoiceNinjaService] = None
 invoice_template_service: Optional[InvoiceTemplateService] = None
 
@@ -31,6 +54,8 @@ TASK_CONFIG = [
     {'name': 'user_init',   'module': 'backend.core.api.app.tasks.user_cache_tasks'},
     {'name': 'persistence', 'module': 'backend.core.api.app.tasks.persistence_tasks'},
     {'name': 'app_ai',      'module': 'backend.apps.ai.tasks'},
+    {'name': 'app_web',     'module': 'backend.apps.web.tasks'},  # Web app tasks (to be implemented)
+    {'name': 'health_check', 'module': 'backend.core.api.app.tasks.health_check_tasks'},  # Health check tasks
     # Add new task configurations here, e.g.:
     # {'name': 'new_queue', 'module': 'backend.core.api.app.tasks.new_tasks'}, # Example updated
 ]
@@ -52,7 +77,9 @@ def setup_celery_logging():
     handler.setFormatter(formatter)
     
     # Set log level from environment or default to INFO
-    log_level = os.getenv('LOG_LEVEL', 'INFO')
+    # Convert string log level to logging constant (e.g., 'info' -> logging.INFO)
+    log_level_str = os.getenv('LOG_LEVEL', 'INFO').upper()
+    log_level = getattr(logging, log_level_str, logging.INFO)
     
     # Configure root logger with our handler
     root_logger = logging.getLogger()
@@ -80,6 +107,8 @@ def setup_celery_logging():
         'app.tasks', # General core app tasks
         'backend.core', # Cover all core logs, including ConfigManager
         'backend.apps', # Catch-all for logs from any module under backend.apps.*
+        'httpx', # HTTP client library
+        'httpcore', # HTTP core library (used by httpx)
     ]
     # Add loggers for specific task modules defined in TASK_CONFIG
     # These will get specific handling; other backend.apps.* logs will be caught by 'backend.apps'
@@ -94,6 +123,7 @@ def setup_celery_logging():
         if sensitive_filter not in module_logger.filters:
             module_logger.addFilter(sensitive_filter)
         # Set level (inherit from root or set explicitly)
+        # Use the same log_level constant that was set for root logger
         module_logger.setLevel(log_level) # Match root logger level
         # Prevent duplicate logs by stopping propagation to root
         module_logger.propagate = False
@@ -129,7 +159,6 @@ redis_retry_on_timeout = True
 include_modules = [config['module'] for config in TASK_CONFIG]
 task_queues = tuple(Queue(config['name'], exchange=config['name'], routing_key=config['name']) for config in TASK_CONFIG)
 
-
 # Create Celery app
 app = Celery(
     'openmates',
@@ -138,9 +167,23 @@ app = Celery(
     include=include_modules # Dynamically include task modules
 )
 
+# Explicitly import task modules to ensure tasks are registered
+# This is important for tasks with custom names that might not be auto-discovered
+for module_name in include_modules:
+    try:
+        importlib.import_module(module_name)
+        logger.debug(f"Successfully imported task module: {module_name}")
+    except Exception as e:
+        logger.warning(f"Failed to import task module {module_name}: {e}")
+
 # Configure Celery
 app.conf.update(
     task_queues=task_queues, # Dynamically set queues
+    # CRITICAL: Set task_default_queue to None to prevent fallback to default queue
+    # This ensures tasks only go to explicitly routed queues
+    task_default_queue=None,
+    task_default_exchange=None,
+    task_default_routing_key=None,
     result_expires=3600,  # Results expire after 1 hour
     task_serializer='json',
     accept_content=['json'],
@@ -159,15 +202,59 @@ app.conf.update(
     redis_retry_on_timeout=redis_retry_on_timeout,
 )
 
+def _worker_needs_invoice_services():
+    """
+    Check if this worker needs InvoiceNinjaService and InvoiceTemplateService.
+    These services are only needed for workers that handle email, user_init, or persistence queues.
+    They are NOT needed for app-specific workers (app_ai, app_web, etc.).
+    """
+    # Get the queues this worker is consuming from environment or command line
+    # Workers are started with --queues argument in docker-compose
+    worker_queues_str = os.getenv('CELERY_QUEUES', '')
+    if not worker_queues_str:
+        # Try to get from command line arguments if available
+        import sys
+        for i, arg in enumerate(sys.argv):
+            if arg == '--queues' and i + 1 < len(sys.argv):
+                worker_queues_str = sys.argv[i + 1]
+                break
+    
+    if worker_queues_str:
+        worker_queues = [q.strip() for q in worker_queues_str.split(',')]
+        # Invoice services are only needed for these queues
+        queues_needing_invoice_services = {'email', 'user_init', 'persistence'}
+        return bool(set(worker_queues) & queues_needing_invoice_services)
+    
+    # Default: assume invoice services are needed if we can't determine queues
+    # This is safer than skipping initialization
+    logger.warning("Could not determine worker queues, initializing invoice services by default")
+    return True
+
 async def initialize_services():
-    """Asynchronously initialize all required services for a worker."""
+    """
+    Asynchronously initialize all required services for a worker.
+    
+    Only initializes services that are needed at worker startup.
+    For app workers (app_ai, app_web), services are initialized per-task as needed,
+    which is more memory efficient since SecretsManager is now a singleton per process.
+    """
     global invoice_ninja_service, invoice_template_service
 
-    # Create and initialize a single SecretsManager for this worker
+    # Only initialize services for task-worker that handles email/persistence tasks
+    # App workers (app_ai, app_web) don't need pre-initialization - tasks create their own
+    # SecretsManager instances, which now share the same singleton per process
+    if not _worker_needs_invoice_services():
+        logger.info("Skipping service initialization - app workers initialize services per-task as needed")
+        return
+
+    # Only task-worker needs SecretsManager pre-initialized for invoice services
+    # Since SecretsManager is now a singleton, this will be reused by all tasks
+    logger.info("Initializing SecretsManager for invoice services...")
     secrets_manager = SecretsManager()
     await secrets_manager.initialize()
+    logger.info("SecretsManager initialized successfully.")
 
-    # Now initialize services that depend on it
+    # Now initialize services that depend on SecretsManager
     if invoice_ninja_service is None:
         logger.info("Initializing InvoiceNinjaService for worker process...")
         try:
@@ -194,26 +281,63 @@ async def initialize_services():
 def init_worker_process(*args, **kwargs):
     """
     Set up consistent logging and pre-load configurations for Celery worker processes.
+    
+    Uses lazy initialization for ConfigManager - it will be initialized on first access
+    via the singleton pattern. This saves memory if the worker never needs it.
     """
-    global config_manager
     setup_celery_logging()
     logger.info("Worker process initializing...")
 
-    # Initialize ConfigManager once per worker process to cache all provider configs.
-    if config_manager is None:
-        logger.info("Initializing ConfigManager for worker process...")
-        config_manager = ConfigManager()
-        # You can add a check here to confirm configs are loaded, e.g., by logging the number of providers.
-        logger.info(f"ConfigManager initialized successfully. Found {len(config_manager.get_provider_configs())} provider configurations.")
-    else:
-        logger.info("ConfigManager already initialized for this worker process.")
+    # Don't initialize ConfigManager here - use lazy initialization
+    # ConfigManager uses singleton pattern, so first access will initialize it
+    # This saves memory if the worker never needs it (though most workers do)
+    # The lazy wrapper will initialize it on first access
+    logger.info("ConfigManager will be initialized lazily on first access (singleton pattern)")
 
-    # Run all async initializations in a single event loop
+    # Only initialize services that are needed at worker startup
+    # For app workers, services are initialized per-task as needed
     asyncio.run(initialize_services())
 
     logger.info("Worker process initialized with JSON logging and sensitive data filtering")
 
 # Dynamically generate task routes from TASK_CONFIG
-app.conf.task_routes = {
-    f"{config['module']}.*": {'queue': config['name']} for config in TASK_CONFIG
+# Note: Task names can be explicitly set (e.g., "apps.ai.tasks.skill_ask") which may not match module path patterns
+# So we need both pattern-based routing and explicit task name routing
+# IMPORTANT: Explicit routing must come FIRST to take precedence over pattern-based routing
+task_routes = {
+    # Explicit routing for tasks with custom names that don't match module patterns
+    # These must come first to ensure they take precedence over pattern-based routing
+    "apps.ai.tasks.skill_ask": {'queue': 'app_ai'},
+    "health_check.check_all_providers": {'queue': 'health_check'},  # Explicit routing for health check task
+    "health_check.check_all_apps": {'queue': 'health_check'},  # Explicit routing for app health check task
+    # Add other explicitly named tasks here as needed
 }
+
+# Add pattern-based routing AFTER explicit routing
+# Pattern-based routing will only apply to tasks that don't have explicit routing
+task_routes.update({
+    f"{config['module']}.*": {'queue': config['name']} for config in TASK_CONFIG
+})
+
+app.conf.task_routes = task_routes
+
+# Configure Celery Beat schedule for periodic tasks
+from celery.schedules import crontab
+from datetime import timedelta
+
+# Health check runs every 5 minutes (for providers without health endpoints)
+# Providers with health endpoints can be checked more frequently (1 minute) in the future
+# IMPORTANT: Explicitly specify queue in Beat schedule to ensure tasks go to task-worker
+app.conf.beat_schedule = {
+    'health-check-all-providers': {
+        'task': 'health_check.check_all_providers',
+        'schedule': timedelta(seconds=300),  # 5 minutes (300 seconds)
+        'options': {'queue': 'health_check'},  # Explicitly route to health_check queue
+    },
+    'health-check-all-apps': {
+        'task': 'health_check.check_all_apps',
+        'schedule': timedelta(seconds=300),  # 5 minutes (300 seconds)
+        'options': {'queue': 'health_check'},  # Explicitly route to health_check queue
+    },
+}
+app.conf.timezone = 'UTC'

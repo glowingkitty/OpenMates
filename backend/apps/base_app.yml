@@ -5,11 +5,7 @@ description: |
   string
 icon_image: |
   string (filename)
-icon_colorgradient:
-  start: |
-    string (hex color)
-  end: |
-    string (hex color)
+# Icon colors are defined in theme.css instead of here
 
 settings_and_memories:
   - memory_type_1_name: dict (example: recent_visits)

@@ -66,7 +66,8 @@ async def get_current_user(
         return User(
             id=cached_data.get("user_id"),
             username=cached_data.get("username"),
-            is_admin=cached_data.get("is_admin", False),
+            # Handle None values for boolean fields - default to False if None
+            is_admin=cached_data.get("is_admin") or False,
             credits=cached_data.get("credits", 0),
             profile_image_url=cached_data.get("profile_image_url"),
             tfa_app_name=cached_data.get("tfa_app_name"),
@@ -75,7 +76,7 @@ async def get_current_user(
             consent_privacy_and_apps_default_settings=cached_data.get("consent_privacy_and_apps_default_settings"),
             consent_mates_default_settings=cached_data.get("consent_mates_default_settings"),
             language=cached_data.get("language", 'en'),
-            darkmode=cached_data.get("darkmode", False),
+            darkmode=cached_data.get("darkmode") or False,
             gifted_credits_for_signup=cached_data.get("gifted_credits_for_signup"),
             encrypted_email_address=cached_data.get("encrypted_email_address"),
             encrypted_key=cached_data.get("encrypted_key"),
@@ -92,7 +93,8 @@ async def get_current_user(
             subscription_currency=cached_data.get("subscription_currency"),
             next_billing_date=cached_data.get("next_billing_date"),
             # Low balance auto top-up fields
-            auto_topup_low_balance_enabled=cached_data.get("auto_topup_low_balance_enabled", False),
+            # Handle None values explicitly - if field is None in DB, default to False
+            auto_topup_low_balance_enabled=cached_data.get("auto_topup_low_balance_enabled") or False,
             auto_topup_low_balance_threshold=cached_data.get("auto_topup_low_balance_threshold"),
             auto_topup_low_balance_amount=cached_data.get("auto_topup_low_balance_amount"),
             auto_topup_low_balance_currency=cached_data.get("auto_topup_low_balance_currency"),
@@ -120,7 +122,8 @@ async def get_current_user(
     user = User(
         id=user_id,
         username=user_data.get("username"),
-        is_admin=user_data.get("is_admin", False),
+        # Handle None values for boolean fields - default to False if None
+        is_admin=user_data.get("is_admin") or False,
         credits=user_data.get("credits", 0),
         profile_image_url=user_data.get("profile_image_url"),
         last_opened=user_data.get("last_opened"),
@@ -129,7 +132,7 @@ async def get_current_user(
         consent_privacy_and_apps_default_settings=user_data.get("consent_privacy_and_apps_default_settings"),
         consent_mates_default_settings=user_data.get("consent_mates_default_settings"),
         language=user_data.get("language", 'en'),
-        darkmode=user_data.get("darkmode", False),
+        darkmode=user_data.get("darkmode") or False,
         gifted_credits_for_signup=user_data.get("gifted_credits_for_signup"), # Include new field
         encrypted_email_address=user_data.get("encrypted_email_address"),
         invoice_counter=user_data.get("invoice_counter", 0),
@@ -147,7 +150,8 @@ async def get_current_user(
         subscription_currency=user_data.get("subscription_currency"),
         next_billing_date=user_data.get("next_billing_date"),
         # Low balance auto top-up fields
-        auto_topup_low_balance_enabled=user_data.get("auto_topup_low_balance_enabled", False),
+        # Handle None values explicitly - if field is None in DB, default to False
+        auto_topup_low_balance_enabled=user_data.get("auto_topup_low_balance_enabled") or False,
         auto_topup_low_balance_threshold=user_data.get("auto_topup_low_balance_threshold"),
         auto_topup_low_balance_amount=user_data.get("auto_topup_low_balance_amount"),
         auto_topup_low_balance_currency=user_data.get("auto_topup_low_balance_currency"),

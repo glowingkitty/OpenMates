@@ -1,0 +1,46 @@
+title:
+  context: Title for the web app page
+  en: OpenMates
+  de: OpenMates
+  zh: Web 应用 | OpenMates
+  es: OpenMates
+  fr: OpenMates
+  pt: OpenMates
+  ru: OpenMates
+  ja: ウェブアプリ | OpenMates
+  ko: OpenMates
+  it: OpenMates
+  tr: OpenMates
+  vi: OpenMates
+  id: OpenMates
+  pl: OpenMates
+  nl: OpenMates
+  ar: OpenMates
+  hi: OpenMates
+  th: OpenMates
+  cs: OpenMates
+  sv: OpenMates
+  verified_by_human: []
+description:
+  context: Description for the web app page
+  en: The OpenMates Web App allows you to interact with OpenMates via your browser.
+  de: Mit der OpenMates Web App kannst du auf OpenMates mit deinem Browser zugreifen.
+  zh: OpenMates Web 应用程序允许您通过浏览器与 OpenMates 交互。
+  es: La Web App de OpenMates te permite interactuar con OpenMates a través de tu navegador.
+  fr: L'application Web OpenMates vous permet d'interagir avec OpenMates via votre navigateur.
+  pt: O aplicativo Web OpenMates permite que você interaja com OpenMates através do seu navegador.
+  ru: Веб-приложение OpenMates позволяет взаимодействовать с OpenMates через ваш браузер.
+  ja: OpenMatesウェブアプリを使用すると、ブラウザからOpenMatesにアクセスできます。
+  ko: OpenMates 웹 앱을 통해 브라우저에서 OpenMates와 상호 작용할 수 있습니다.
+  it: L'app Web OpenMates ti consente di interagire con OpenMates tramite il tuo browser.
+  tr: OpenMates Web Uygulaması, tarayıcınız aracılığıyla OpenMates ile etkileşim kurmanıza olanak tanır.
+  vi: Ứng dụng Web OpenMates cho phép bạn tương tác với OpenMates qua trình duyệt của bạn.
+  id: Aplikasi Web OpenMates memungkinkan Anda berinteraksi dengan OpenMates melalui browser Anda.
+  pl: Aplikacja internetowa OpenMates pozwala na interakcję z OpenMates za pomocą przeglądarki.
+  nl: De OpenMates Web App stelt je in staat om via je browser met OpenMates te interacteren.
+  ar: يتيح لك تطبيق OpenMates على الويب التفاعل مع OpenMates عبر متصفحك.
+  hi: OpenMates वेब ऐप आपको अपने ब्राउज़र के माध्यम से OpenMates के साथ बातचीत करने की अनुमति देता है।
+  th: แอป OpenMates เว็บช่วยให้คุณโต้ตอบกับ OpenMates ผ่านเบราว์เซอร์ของคุณ
+  cs: Webová aplikace OpenMates vám umožňuje komunikovat s OpenMates prostřednictvím vašeho prohlížeče.
+  sv: OpenMates webbapplikationen låter dig interagera med OpenMates via din webbläsare.
+  verified_by_human: []

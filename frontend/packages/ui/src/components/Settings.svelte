@@ -56,7 +56,9 @@ changes to the documentation (to keep the documentation up to date).
     import SettingsUser from './settings/SettingsUser.svelte';
     import SettingsUsage from './settings/SettingsUsage.svelte';
     import SettingsBilling from './settings/SettingsBilling.svelte';
-    import SettingsApps from './settings/SettingsApps.svelte';
+    import SettingsAppStore from './settings/SettingsAppStore.svelte';
+    import SettingsAllApps from './settings/SettingsAllApps.svelte';
+    import AppDetailsWrapper from './settings/AppDetailsWrapper.svelte';
     import SettingsMates from './settings/SettingsMates.svelte';
     import SettingsShared from './settings/SettingsShared.svelte';
     import SettingsMessengers from './settings/SettingsMessengers.svelte';
@@ -65,6 +67,7 @@ changes to the documentation (to keep the documentation up to date).
     import SettingsItem from './SettingsItem.svelte';
     import SettingsLanguage from './settings/interface/SettingsLanguage.svelte';
     import SettingsSoftwareUpdate from './settings/server/SettingsSoftwareUpdate.svelte';
+    import { appSkillsStore } from '../stores/appSkillsStore';
     
     // Import billing sub-components
     import SettingsBuyCredits from './settings/billing/SettingsBuyCredits.svelte';
@@ -107,8 +110,13 @@ changes to the documentation (to keep the documentation up to date).
     // Create a reactive help link that updates based on the active view
     let currentHelpLink = baseHelpLink;
 
+    // Import account and security settings components
+    import SettingsAccount from './settings/SettingsAccount.svelte';
+    import SettingsSecurity from './settings/SettingsSecurity.svelte';
+    import SettingsPasskeys from './settings/SettingsPasskeys.svelte';
+    
     // Define base settingsViews map for component mapping
-    const allSettingsViews: Record<string, any> = {
+    const baseSettingsViews: Record<string, any> = {
         // TODO: Uncomment and implement these components when available
         // 'privacy': SettingsPrivacy,
         // 'user': SettingsUser,
@@ -120,7 +128,8 @@ changes to the documentation (to keep the documentation up to date).
         'billing/auto-topup': SettingsAutoTopUp,
         'billing/auto-topup/low-balance': SettingsLowBalanceAutotopup,
         'billing/auto-topup/monthly': SettingsMonthlyAutotopup,
-        // 'apps': SettingsApps,
+        'app_store': SettingsAppStore,
+        'app_store/all': SettingsAllApps,
         // 'mates': SettingsMates,
         // 'shared': SettingsShared,
         // 'messengers': SettingsMessengers,
@@ -128,18 +137,73 @@ changes to the documentation (to keep the documentation up to date).
         'interface': SettingsInterface,
         // 'server': SettingsServer,
         'interface/language': SettingsLanguage,
+        'account': SettingsAccount,
+        'account/security': SettingsSecurity,
+        'account/security/passkeys': SettingsPasskeys,
         // 'server/software-update': SettingsSoftwareUpdate
     };
+    
+    /**
+     * Dynamically build settingsViews including app detail routes and nested sub-routes.
+     * This creates:
+     * - app_store/{app_id} routes for each available app
+     * - app_store/{app_id}/skill/{skill_id} routes for each skill
+     * - app_store/{app_id}/focus/{focus_mode_id} routes for each focus mode
+     * - app_store/{app_id}/settings_memories routes for apps with settings/memories
+     */
+    function buildSettingsViews(): Record<string, any> {
+        const views = { ...baseSettingsViews };
+        
+        // Add app detail routes dynamically
+        const apps = appSkillsStore.getState().apps;
+        for (const appId of Object.keys(apps)) {
+            const app = apps[appId];
+            
+            // Main app details route
+            const appRoute = `app_store/${appId}`;
+            views[appRoute] = AppDetailsWrapper;
+            
+            // Add skill detail routes
+            if (app.skills && app.skills.length > 0) {
+                for (const skill of app.skills) {
+                    const skillRoute = `app_store/${appId}/skill/${skill.id}`;
+                    views[skillRoute] = AppDetailsWrapper;
+                }
+            }
+            
+            // Add focus mode detail routes
+            if (app.focus_modes && app.focus_modes.length > 0) {
+                for (const focusMode of app.focus_modes) {
+                    const focusRoute = `app_store/${appId}/focus/${focusMode.id}`;
+                    views[focusRoute] = AppDetailsWrapper;
+                }
+            }
+            
+            // Add settings/memories category routes if app has settings_and_memories
+            if (app.settings_and_memories && app.settings_and_memories.length > 0) {
+                for (const category of app.settings_and_memories) {
+                    const categoryRoute = `app_store/${appId}/settings_memories/${category.id}`;
+                    views[categoryRoute] = AppDetailsWrapper;
+                }
+            }
+        }
+        
+        return views;
+    }
+    
+    // Reactive settingsViews that includes dynamic app routes
+    let allSettingsViews = $derived(buildSettingsViews());
 
     // Reactive settingsViews that filters out server options for non-admins
-    // For non-authenticated users, show interface settings (and nested language settings)
-    // This allows them to explore available features like mates and apps later
+    // For non-authenticated users, show interface settings (and nested language settings) and app store
+    // This allows them to explore available features like mates and apps
     let settingsViews = $derived.by(() => {
         const isAuthenticated = $authStore.isAuthenticated;
         return Object.entries(allSettingsViews).reduce((filtered, [key, component]) => {
-            // For non-authenticated users, only include interface settings (top-level and nested)
+            // For non-authenticated users, include interface settings (top-level and nested) and app store (including app details)
+            // App store is read-only for non-authenticated users (browse only, no modifications)
             if (!isAuthenticated) {
-                if (key === 'interface' || key === 'interface/language') {
+                if (key === 'interface' || key === 'interface/language' || key === 'app_store' || key.startsWith('app_store/')) {
                     filtered[key] = component;
                 }
             } else {
@@ -242,14 +306,32 @@ changes to the documentation (to keep the documentation up to date).
         
         // Add each path segment's translated name (except the last one which is current view)
         for (let i = 0; i < navigationPath.length - 1; i++) {
-            // Build the full path up to this segment (for nested translations)
+            // Build the full path up to this segment
             const pathUpToSegment = navigationPath.slice(0, i + 1);
+            const pathString = pathUpToSegment.join('/');
             
-            // Convert path segments to translation key format (replace hyphens with underscores)
-            const translationKeyParts = pathUpToSegment.map(segment => segment.replace(/-/g, '_'));
-            const translationKey = `settings.${translationKeyParts.join('.')}.text`;
-            
-            pathLabels.push($text(translationKey));
+            // Handle app_store routes specially - use actual app/skill names from metadata
+            if (pathString.startsWith('app_store/') && pathString !== 'app_store' && pathString !== 'app_store/all') {
+                const pathParts = pathString.replace('app_store/', '').split('/');
+                const appId = pathParts[0];
+                const app = appSkillsStore.getState().apps[appId];
+                
+                if (app) {
+                    // Use translated app name
+                    const appName = app.name_translation_key ? $text(app.name_translation_key) : appId;
+                    pathLabels.push(appName);
+                } else {
+                    // Fallback to translation key
+                    const translationKeyParts = pathUpToSegment.map(segment => segment.replace(/-/g, '_'));
+                    const translationKey = `settings.${translationKeyParts.join('.')}.text`;
+                    pathLabels.push($text(translationKey));
+                }
+            } else {
+                // For other routes, use translation keys
+                const translationKeyParts = pathUpToSegment.map(segment => segment.replace(/-/g, '_'));
+                const translationKey = `settings.${translationKeyParts.join('.')}.text`;
+                pathLabels.push($text(translationKey));
+            }
         }
         
         // Create optimal breadcrumb display that fits
@@ -301,11 +383,80 @@ changes to the documentation (to keep the documentation up to date).
 
         // Set active view for both authenticated and non-authenticated users
         activeSettingsView = settingsPath;
-        activeSubMenuIcon = icon || '';
-        // Store the translation key instead of the translated text
-        // Build the translation key from the path
-        const translationKeyParts = settingsPath.split('/').map(segment => segment.replace(/-/g, '_'));
-        activeSubMenuTitleKey = `settings.${translationKeyParts.join('.')}.text`;
+        
+        // Handle app detail pages (app_store/{appId}) specially
+        // Use the app icon and translated app name from apps.yml
+        if (settingsPath.startsWith('app_store/') && settingsPath !== 'app_store' && settingsPath !== 'app_store/all') {
+            // Extract appId from path (e.g., "app_store/ai/skill/search" -> "ai")
+            const pathParts = settingsPath.replace('app_store/', '').split('/');
+            const appId = pathParts[0];
+            const app = appSkillsStore.getState().apps[appId];
+            
+            if (app) {
+                // Use app icon from icon_image or appId as fallback
+                if (app.icon_image) {
+                    // Convert icon_image like "web.svg" to icon name "web"
+                    let iconName = app.icon_image.replace(/\.svg$/, '');
+                    // Handle special case: email.svg -> mail
+                    if (iconName === 'email') {
+                        iconName = 'mail';
+                    }
+                    activeSubMenuIcon = iconName;
+                } else {
+                    activeSubMenuIcon = appId;
+                }
+                
+                // Check if this is a skill route (app_store/{appId}/skill/{skillId})
+                if (pathParts.length === 3 && pathParts[1] === 'skill') {
+                    const skillId = pathParts[2];
+                    const skill = app.skills?.find(s => s.id === skillId);
+                    if (skill && skill.name_translation_key) {
+                        // Use skill name translation key directly (not a placeholder)
+                        activeSubMenuTitleKey = skill.name_translation_key;
+                    } else {
+                        // Fallback to app name if skill not found
+                        activeSubMenuTitleKey = `apps.${appId}.text`;
+                    }
+                } else if (pathParts.length === 3 && pathParts[1] === 'focus') {
+                    // Focus mode route
+                    const focusModeId = pathParts[2];
+                    const focusMode = app.focus_modes?.find(f => f.id === focusModeId);
+                    if (focusMode && focusMode.name_translation_key) {
+                        activeSubMenuTitleKey = focusMode.name_translation_key;
+                    } else {
+                        activeSubMenuTitleKey = `apps.${appId}.text`;
+                    }
+                } else if (pathParts.length === 3 && pathParts[1] === 'settings_memories') {
+                    // Settings/memories category route
+                    const categoryId = pathParts[2];
+                    const category = app.settings_and_memories?.find(c => c.id === categoryId);
+                    if (category && category.name_translation_key) {
+                        activeSubMenuTitleKey = category.name_translation_key;
+                    } else {
+                        activeSubMenuTitleKey = `apps.${appId}.text`;
+                    }
+                } else {
+                    // Regular app details route
+                    activeSubMenuTitleKey = `apps.${appId}.text`;
+                }
+            } else {
+                // Fallback if app not found
+                activeSubMenuIcon = icon || appId;
+                activeSubMenuTitleKey = `apps.${appId}.text`;
+            }
+        } else {
+            // For other routes, use the provided icon and build translation key from path
+            activeSubMenuIcon = icon || '';
+            // Store the translation key instead of the translated text
+            // Special handling for passkeys - skip "security" segment in translation key
+            if (settingsPath === 'account/security/passkeys') {
+                activeSubMenuTitleKey = 'settings.account.passkeys.text';
+            } else {
+                // Build the translation key from the path
+                const translationKeyParts = settingsPath.split('/').map(segment => segment.replace(/-/g, '_'));
+                activeSubMenuTitleKey = `settings.${translationKeyParts.join('.')}.text`;
+            }
+        }
 
         // Split the view path for breadcrumb navigation
         if (settingsPath !== 'main') {
@@ -360,22 +511,57 @@ changes to the documentation (to keep the documentation up to date).
             
             // Build the correct icon and title for the previous view
             const previousPathSegments = navigationPath.slice(0, -1);
-            let icon = previousPathSegments[0]; // Default to first segment
+            // For nested paths, use the last segment as the icon (e.g., "security" for "account/security")
+            // For top-level paths, use the first segment
+            let icon = previousPathSegments.length > 1 
+                ? previousPathSegments[previousPathSegments.length - 1] 
+                : previousPathSegments[0];
+            let title = '';
 
-            // For nested billing paths, determine the correct icon
-            if (previousPath === 'billing/buy-credits') {
-                icon = 'coins';
-            } else if (previousPath === 'billing/auto-topup') {
-                icon = 'reload';
-            } else if (previousPath === 'billing/auto-topup/low-balance') {
-                icon = 'reload';
-            } else if (previousPath === 'billing/auto-topup/monthly') {
-                icon = 'calendar';
+            // Handle app_store routes specially
+            if (previousPath.startsWith('app_store/') && previousPath !== 'app_store' && previousPath !== 'app_store/all') {
+                const pathParts = previousPath.replace('app_store/', '').split('/');
+                const appId = pathParts[0];
+                const app = appSkillsStore.getState().apps[appId];
+                
+                if (app) {
+                    // Use app icon from icon_image or appId as fallback
+                    if (app.icon_image) {
+                        let iconName = app.icon_image.replace(/\.svg$/, '');
+                        if (iconName === 'email') {
+                            iconName = 'mail';
+                        }
+                        icon = iconName;
+                    } else {
+                        icon = appId;
+                    }
+                    
+                    // Use translated app name
+                    title = app.name_translation_key ? $text(app.name_translation_key) : appId;
+                } else {
+                    icon = appId;
+                    title = $text(`apps.${appId}.text`);
+                }
+            } else {
+                // For nested billing paths, determine the correct icon
+                if (previousPath === 'billing/buy-credits') {
+                    icon = 'coins';
+                } else if (previousPath === 'billing/auto-topup') {
+                    icon = 'reload';
+                } else if (previousPath === 'billing/auto-topup/low-balance') {
+                    icon = 'reload';
+                } else if (previousPath === 'billing/auto-topup/monthly') {
+                    icon = 'calendar';
+                } else if (previousPath === 'app_store') {
+                    icon = 'app_store';
+                }
+                // For other nested paths (like account/security), icon is already set to last segment above
+                
+                // Build the translation key for the previous view's title
+                const translationKeyParts = previousPathSegments.map(segment => segment.replace(/-/g, '_'));
+                const titleKey = `settings.${translationKeyParts.join('.')}.text`;
+                title = $text(titleKey);
             }
-            
-            // Build the translation key for the previous view's title
-            const translationKeyParts = previousPathSegments.map(segment => segment.replace(/-/g, '_'));
-            const titleKey = `settings.${translationKeyParts.join('.')}.text`;
             
             direction = 'backward';
             handleOpenSettings({
@@ -383,7 +569,7 @@ changes to the documentation (to keep the documentation up to date).
                     settingsPath: previousPath,
                     direction: 'backward',
                     icon: icon,
-                    title: $text(titleKey)
+                    title: title
                 }
             });
         } else {

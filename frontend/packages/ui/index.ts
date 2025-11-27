@@ -34,6 +34,7 @@ export * from "./src/types/chat";
 export * from "./src/i18n/setup";
 export * from "./src/i18n/types";
 export * from "./src/i18n/translations";
+export { SUPPORTED_LANGUAGES, LANGUAGE_CODES, SUPPORTED_LOCALES, getLanguageByCode, isLanguageSupported } from "./src/i18n/languages";
 
 // Stores
 export * from "./src/stores/theme";
@@ -49,6 +50,7 @@ export * from "./src/stores/websocketStatusStore"; // Export the WebSocket statu
 export * from "./src/stores/userProfile"; // Export the user profile store for accessing last_opened chat
 export * from "./src/stores/i18n"; // Export i18n stores (i18nLoaded, waitForTranslations)
 export * from "./src/stores/notificationStore"; // Export notification store for displaying notifications
+export * from "./src/stores/mostUsedAppsStore"; // Export most used apps store for App Store
 // loginOverlayStore removed - not needed
 
 // Demo Chats
@@ -60,7 +62,7 @@ export { chatDB } from "./src/services/db"; // Export chat database
 export { chatSyncService } from "./src/services/chatSyncService"; // Export chat sync service
 export { webSocketService } from "./src/services/websocketService"; // Export WebSocket service for auth error handling
 export * from "./src/services/chatUrlService"; // Export chat URL service for deep linking
-export { getKeyFromStorage } from "./src/services/cryptoService"; // Export getKeyFromStorage for offline-first auth
+export { getKeyFromStorage, checkAndClearMasterKeyOnLoad } from "./src/services/cryptoService"; // Export getKeyFromStorage and checkAndClearMasterKeyOnLoad for offline-first auth
 
 // Styles
 export * from "./src/styles/constants";

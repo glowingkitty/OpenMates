@@ -1,115 +1,235 @@
-name: |
-  Web
-description: |
-  Browse websites, research topics & more.
+name_translation_key: web.text
+description_translation_key: web.description.text
 icon_image: |
   web.svg
-icon_colorgradient:
-  start: |
-    #DE1E66
-  end: |
-    #FF763B
-		
-		
-# settings_and_memories:
-# - Favorite websites
-# - bookmarks
-# - watch later(?)
-
-# instructions are loaded into the systemprompt, when the app is available for the mate to select skills from.
-# Purpose: help mate to identify when to use specific app skills.
-# fields:
-# - instruction: the instruction text
-# - categories: based on mates.yml, list of the categories of the instruction ("all", "software_development", "business_development", "medical_health", "legal_law", "maker_prototyping", "marketing_sales", "finance", "design", "electrical_engineering", "movies_tv", "science", "life_coach_psychology", "cooking_food", "activism", "general_knowledge")
+category: work
+last_updated: '2025-11-12'
+settings_and_memories:
+  - id: bookmarks
+    name_translation_key: web.bookmarks.text
+    description_translation_key: web.bookmarks.description.text
+    type: list
+    stage: planning
+    schema:
+      type: object
+      properties:
+        title:
+          type: string
+          description: Page title
+        url:
+          type: string
+          description: Website URL
+        category:
+          type: string
+          description: Bookmark category (e.g., reference, news, tools)
+        added_date:
+          type: integer
+          description: Unix timestamp when bookmarked
+      required:
+      - url
+  - id: favorite_websites
+    name_translation_key: web.favorite_websites.text
+    description_translation_key: web.favorite_websites.description.text
+    type: list
+    stage: planning
+    schema:
+      type: object
+      properties:
+        title:
+          type: string
+          description: Page title
+        url:
+          type: string
+          description: Website URL
+        category:
+          type: string
+          description: Favorite category (e.g., reference, news, tools)
+        added_date:
+          type: integer
+          description: Unix timestamp when added to favorites
+      required:
+      - url
+  - id: read_later
+    name_translation_key: web.read_later.text
+    description_translation_key: web.read_later.description.text
+    type: list
+    stage: planning
+    schema:
+      type: object
+      properties:
+        title:
+          type: string
+          description: Page title
+        url:
+          type: string
+          description: Website URL
+        category:
+          type: string
+          description: Read later category (e.g., article, tutorial, documentation)
+        added_date:
+          type: integer
+          description: Unix timestamp when saved for later
+        notes:
+          type: string
+          description: Optional notes about why this was saved
+      required:
+      - url
 instructions:
   - instruction: |
-      For questions which can likely be answered better with up to date documentation (about APIs for example), always first do web search before answering the question.
+      For questions which can likely be answered better with up to date
+      documentation (about APIs for example), always first do web search before answering
+      the question.
     categories:
-      - software_development
-	
-
+    - software_development
 skills:
-
-  - id: |
-      search
-    name: |
-      Search
-    description: |
-      Search the web.
-# uses APIs for getting web search results - like DuckDuckGo api, Brave or others. does not get the full page content. Can accept text and image as input. Therefore also searches on reverse image search engines like TinEye.
-    stage: |
-      planning
+  - id: search
+    name_translation_key: web.search.text
+    description_translation_key: web.search.description.text
+    stage: development
     class_path: |
-      skills.search.SearchSkill
+      backend.apps.web.skills.search_skill.SearchSkill
     providers:
       - Brave
-
-  - id: |
-      get_legal_pages
-    name: |
-      Get legal pages
-    description: |
-      Get the legal pages of a website: terms of service, privacy policy, cookie policy, etc.
-    stage: |
-      planning
-
-# additional skills: 
-# use firecrawl self hosted or via their api
-# - read_website (checks first if website content via reader view or print view is over 20.000 tokens long, if so, ask first if the user wants to read the full page or instead search in content and interpret search results paragraphs.)
-# - view_website (makes one or multiple screenshots of the rendered page and returns them)
-# - search_in_website (searches in text content of website for results - useful for example for long api documentation)
-
+    # Follow-up suggestions shown to users after search results
+    suggestions_follow_up_requests:
+      - "Search more in depth"
+      - "Create a PDF report"
+      - "Get more recent results"
+    # Fields to exclude from LLM inference (but keep in full results for UI rendering)
+    # These fields are removed before adding to message history for LLM processing
+    # but remain in the full response stored in chat history for proper UI rendering
+    exclude_fields_for_llm:
+      - "type"
+      - "hash"
+      - "meta_url.favicon"
+      - "thumbnail.original"
+    tool_schema:
+      type: object
+      properties:
+        requests:
+          type: array
+          description: Array of search request objects for parallel processing (up to 9 requests). Each object must contain 'query' and can include optional parameters (count, country, search_lang, safesearch).
+          items:
+            type: object
+            properties:
+              query:
+                type: string
+                description: Search query string
+              count:
+                type: integer
+                description: Number of results for this request (max 20)
+                minimum: 1
+                maximum: 20
+                default: 10
+              country:
+                type: string
+                description: "Country code for localized results. Must be one of: AR, AU, AT, BE, BR, CA, CL, DK, FI, FR, DE, GR, HK, IN, ID, IT, JP, KR, MY, MX, NL, NZ, NO, CN, PL, PT, PH, RU, SA, ZA, ES, SE, CH, TW, TR, GB, US, or ALL (case-insensitive). Defaults to 'us' if invalid."
+                enum: ["AR", "AU", "AT", "BE", "BR", "CA", "CL", "DK", "FI", "FR", "DE", "GR", "HK", "IN", "ID", "IT", "JP", "KR", "MY", "MX", "NL", "NZ", "NO", "CN", "PL", "PT", "PH", "RU", "SA", "ZA", "ES", "SE", "CH", "TW", "TR", "GB", "US", "ALL", "ar", "au", "at", "be", "br", "ca", "cl", "dk", "fi", "fr", "de", "gr", "hk", "in", "id", "it", "jp", "kr", "my", "mx", "nl", "nz", "no", "cn", "pl", "pt", "ph", "ru", "sa", "za", "es", "se", "ch", "tw", "tr", "gb", "us", "all"]
+                default: "us"
+              search_lang:
+                type: string
+                description: Language code for search (ISO 639-1, e.g., 'en', 'es', 'fr')
+                default: "en"
+              safesearch:
+                type: string
+                description: Safe search level
+                enum: ["off", "moderate", "strict"]
+                default: "moderate"
+            required:
+              - query
+      required:
+        - requests
+  - id: read
+    name_translation_key: web.read.text
+    description_translation_key: web.read.description.text
+    stage: development
+    class_path: |
+      backend.apps.web.skills.read_skill.ReadSkill
+    providers:
+      - Firecrawl
+    # Follow-up suggestions shown to users after read results
+    suggestions_follow_up_requests:
+      - "Summarize this page"
+      - "Extract key points"
+      - "Read related pages"
+    # Fields to exclude from LLM inference (but keep in full results for UI rendering)
+    # These fields are removed before adding to message history for LLM processing
+    # but remain in the full response stored in chat history for proper UI rendering
+    # Note: HTML and summary are completely removed from output.
+    # Metadata object is removed - specific fields (language, favicon, og_image, og_sitename) 
+    # are moved to root level of each result for easier access.
+    exclude_fields_for_llm:
+      - "type"
+      - "hash"
+      - "favicon"  # Favicon URL not needed for LLM inference
+      - "og_image"  # OG image URL not needed for LLM inference
+      - "og_sitename"  # OG site name not needed for LLM inference
+    tool_schema:
+      type: object
+      properties:
+        requests:
+          type: array
+          description: Array of read request objects for parallel processing (up to 9 requests). Each object must contain 'url' and can include optional parameters (formats, only_main_content, max_age, timeout).
+          items:
+            type: object
+            properties:
+              url:
+                type: string
+                description: URL of the webpage to read/scrape
+              formats:
+                type: array
+                description: List of output formats to include (e.g., 'markdown', 'html', 'summary')
+                items:
+                  type: string
+                default: ["markdown"]
+              only_main_content:
+                type: boolean
+                description: Whether to return only main content (excluding headers, navs, footers, etc.)
+                default: true
+              max_age:
+                type: integer
+                description: "Cache age in milliseconds (default: 172800000 = 2 days). Returns cached version if available."
+              timeout:
+                type: integer
+                description: Timeout in milliseconds for the request
+            required:
+              - url
+      required:
+        - requests
 focuses:
-
-  - id: |
-      check_reputation
-    name: |
-      Check reputation
-    description: |
-      Check if a business is legit and reliable.
-    stage: |
-      planning
+  - id: check_reputation
+    name_translation_key: web.check_reputation.text
+    description_translation_key: web.check_reputation.description.text
+    stage: planning
     process:
-      - "check if a business exist on trustpilot and what its rating is"
-      - "check on whois.com if the website is nearky registered"
-      - "use trustpilot, whois.com and othet sites ro identify scams and business with bad customer ratings"
-    # systemprompt just an early placeholder. Nowhere near complete.
+      - check if a business exist on trustpilot and what its rating is
+      - check on whois.com if the website is nearky registered
+      - use trustpilot, whois.com and othet sites ro identify scams and business with bad customer ratings
     systemprompt: |
       You are an expert on identifying scams vs legit businesses.
-
-  - id: |
-      analyze_privacy
-    name: |
-      Analyze privacy
-    description: |
-      Analyze the privacy implications of a website or service based on its legal pages.
-    stage: |
-      planning
+  - id: analyze_privacy
+    name_translation_key: web.analyze_privacy.text
+    description_translation_key: web.analyze_privacy.description.text
+    stage: planning
     process:
-      - "gets the legal pages of a website"
-      - "analyzes the legal pages for privacy implications"
-      - "creates a report based on the findings"
-      - "asks the user if they want to proceed with the service based on the privacy implications or if they have additional questions"
-
-  - id:
-      research
-    name: |
-      Research
-    description: |
-      Make multiple web searches to get a bigger picture of a topic and its causes and effects.
-
-
-  - id: |
-      deep_web_research
-    name: |
-      Deep web research
-    description: |
-      Create a plan what to research and then start in in depth web research to gather a report based on the findings.
-    stage: |
-      planning
+      - gets the legal pages of a website
+      - analyzes the legal pages for privacy implications
+      - creates a report based on the findings
+      - asks the user if they want to proceed with the service based on the privacy implications or if they have additional questions
+    systemprompt: |
+      You are an expert on privacy analysis and data protection. Your role is to analyze legal pages (terms of service, privacy policy, cookie policy) and identify privacy implications, data collection practices, and potential risks for users.
+  - id: research
+    name_translation_key: web.research.text
+    description_translation_key: web.research.description.text
+    stage: planning
+    systemprompt: |
+      You are an expert researcher. Your role is to conduct thorough web research by making multiple searches to understand a topic comprehensively, including its causes, effects, and broader context.
+  - id: deep_web_research
+    name_translation_key: web.deep_web_research.text
+    description_translation_key: web.deep_web_research.description.text
+    stage: planning
     process:
-      - "asks user multiple clearifying questions, then creates a list of requirements / priorities / search terms"
-      - "then starts in depth web searches for the search terms and creates a report based on the findings"
-    # systemprompt just an early placeholder. Nowhere near complete.
+      - asks user multiple clearifying questions, then creates a list of requirements / priorities / search terms
+      - then starts in depth web searches for the search terms and creates a report based on the findings
     systemprompt: |
       You are an expert for deep web research.

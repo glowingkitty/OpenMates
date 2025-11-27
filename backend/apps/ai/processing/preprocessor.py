@@ -5,7 +5,8 @@ import logging
 from typing import Dict, Any, List, Optional
 import unicodedata # For Unicode normalization
 import re # For removing non-printable characters
- 
+import datetime # For current date/time in system prompt
+
 from backend.core.api.app.services.cache import CacheService # Corrected import path
  
 # Import the new LLM utility
@@ -16,6 +17,7 @@ from backend.apps.ai.utils.mate_utils import load_mates_config, MateConfig
 # Import AskSkillDefaultConfig and AskSkillRequest
 from backend.apps.ai.skills.ask_skill import AskSkillRequest, AskSkillDefaultConfig
 from pydantic import BaseModel, Field # For PreprocessingResult model
+from backend.shared.python_schemas.app_metadata_schemas import AppYAML  # For type hinting
 
 logger = logging.getLogger(__name__)
 
@@ -31,11 +33,13 @@ class PreprocessingResult(BaseModel):
     llm_response_temp: Optional[float] = Field(None, description="Suggested temperature for the main LLM response.")
     complexity: Optional[str] = Field(None, description="Assessed complexity of the request (e.g., simple, complex).")
     misuse_risk_score: Optional[float] = Field(None, description="Risk score for misuse/scam (1-10).")
-    load_app_settings_and_memories: Optional[List[str]] = Field(None, description="List of app settings and memories keys to load (e.g., ['app_id.item_key']).")
+    load_app_settings_and_memories: Optional[List[str]] = Field(None, description="List of app settings and memories keys to load (e.g., ['app_id-item_key']).")
+    relevant_embedded_previews: Optional[List[str]] = Field(None, description="List of embedded preview types to generate (e.g., ['code', 'math', 'music']).")
     title: Optional[str] = Field(None, description="Generated title for the chat, if applicable.")
     icon_names: Optional[List[str]] = Field(None, description="List of 1-3 relevant Lucide icon names for the request topic.")
     chat_summary: Optional[str] = Field(None, description="2-3 sentence summary of the full conversation so far.")
     chat_tags: Optional[List[str]] = Field(None, description="Up to 10 tags for categorization and search.")
+    relevant_app_skills: Optional[List[str]] = Field(None, description="List of relevant app skill identifiers (format: 'app_id-skill_id') for tool preselection.")
 
     selected_mate_id: Optional[str] = None
     selected_main_llm_model_id: Optional[str] = None
@@ -74,7 +78,8 @@ async def handle_preprocessing(
     skill_config: AskSkillDefaultConfig,
     cache_service: CacheService,
     secrets_manager: SecretsManager, # Added SecretsManager
-    user_app_settings_and_memories_metadata: Optional[Dict[str, List[str]]] = None
+    user_app_settings_and_memories_metadata: Optional[Dict[str, List[str]]] = None,
+    discovered_apps_metadata: Optional[Dict[str, AppYAML]] = None  # AppYAML metadata for tool preselection
 ) -> PreprocessingResult:
     """
     Handles the preprocessing of an AI skill request.
@@ -230,11 +235,34 @@ async def handle_preprocessing(
         available_categories_list.append("general_knowledge")
         available_categories_list = sorted(available_categories_list)  # Re-sort after adding
  
+    # Extract and log available app skills for tool preselection
+    # Note: Exclude ai.ask from available skills - it's the main processing entry point, not a tool
+    # Note: No stage filtering needed here - discovered_apps_metadata already contains only apps
+    # with valid stages (filtered during server startup). All skills in these apps are valid.
+    available_skills_list: List[str] = []
+
+    if discovered_apps_metadata:
+        for app_id, app_metadata in discovered_apps_metadata.items():
+            if app_metadata and app_metadata.skills:
+                for skill in app_metadata.skills:
+                    # Exclude ai.ask - it's the main processing entry point, not a tool
+                    if app_id == "ai" and skill.id == "ask":
+                        logger.debug(f"{log_prefix} Skipping skill '{skill.id}' from app '{app_id}' - this is the main processing entry point, not a tool")
+                        continue
+
+                    # No stage filtering needed - discovered_apps_metadata already contains only apps
+                    # with valid stages (filtered during server startup via should_include_app_by_stage)
+                    # Use hyphen format for skill identifiers (consistent with tool names)
+                    skill_identifier = f"{app_id}-{skill.id}"
+                    available_skills_list.append(skill_identifier)
+    
     logger.info(f"{log_prefix} Preparing for LLM call. Using {len(available_categories_list)} categories from mates.yml: {available_categories_list}")
     logger.info(f"  - User Message History Length: {len(request_data.message_history)}")
     logger.info(f"  - Tool to call by LLM: {tool_definition_for_llm.get('function', {}).get('name')}")
+    logger.info(f"  - Available app skills for tool preselection ({len(available_skills_list)} total): {', '.join(available_skills_list) if available_skills_list else 'None'}")
     logger.info(f"  - Dynamic context for LLM prompt:")
     logger.info(f"    - CATEGORIES_LIST: {available_categories_list}")
+    logger.info(f"    - AVAILABLE_APP_SKILLS: {available_skills_list if available_skills_list else 'None'}")
     logger.info(f"    - AVAILABLE_APP_SETTINGS_AND_MEMORIES (from direct param): {user_app_settings_and_memories_metadata}")
 
     preprocessing_model = skill_config.default_llms.preprocessing_model # Changed variable name and attribute accessed
@@ -248,6 +276,17 @@ async def handle_preprocessing(
     if preprocessing_fallbacks:
         logger.info(f"{log_prefix} Resolved {len(preprocessing_fallbacks)} fallback server(s) for preprocessing: {preprocessing_fallbacks}")
 
+    # Build dynamic context with categories and available app skills (with descriptions)
+    # Include current date/time so preprocessing LLM knows temporal context
+    now = datetime.datetime.now(datetime.timezone.utc)
+    date_time_str = now.strftime("%Y-%m-%d %H:%M:%S %Z")
+
+    dynamic_context = {
+        "CATEGORIES_LIST": available_categories_list,
+        "AVAILABLE_APP_SKILLS": available_skills_list if available_skills_list else [],
+        "CURRENT_DATE_TIME": date_time_str
+    }
+
     llm_call_result: LLMPreprocessingCallResult = await call_preprocessing_llm(
         task_id=f"{request_data.chat_id}_{request_data.message_id}",
         model_id=preprocessing_model,
@@ -256,7 +295,7 @@ async def handle_preprocessing(
         tool_definition=tool_definition_for_llm, # Use the (potentially modified) tool definition
         secrets_manager=secrets_manager, # Pass SecretsManager
         user_app_settings_and_memories_metadata=user_app_settings_and_memories_metadata,
-        dynamic_context={"CATEGORIES_LIST": available_categories_list}
+        dynamic_context=dynamic_context
     )
 
     if llm_call_result.error_message or not llm_call_result.arguments:
@@ -338,10 +377,11 @@ async def handle_preprocessing(
             complexity=llm_analysis_args.get("complexity"),
             misuse_risk_score=misuse_risk_val,
             load_app_settings_and_memories=llm_analysis_args.get("load_app_settings_and_memories"),
+            relevant_embedded_previews=llm_analysis_args.get("relevant_embedded_previews"),
             title=llm_analysis_args.get("title"), # Also pass title here for consistency in rejection cases
             icon_names=llm_analysis_args.get("icon_names", []) # Also pass icon names for consistency
         )
-    
+
     elif misuse_risk_val >= float(MISUSE_THRESHOLD):
         logger.warning(f"{log_prefix} Request flagged for high misuse risk. Score: {misuse_risk_val}, Threshold: {MISUSE_THRESHOLD}")
         return PreprocessingResult(
@@ -355,6 +395,7 @@ async def handle_preprocessing(
             complexity=llm_analysis_args.get("complexity"),
             misuse_risk_score=misuse_risk_val,
             load_app_settings_and_memories=llm_analysis_args.get("load_app_settings_and_memories"),
+            relevant_embedded_previews=llm_analysis_args.get("relevant_embedded_previews"),
             title=llm_analysis_args.get("title"), # Also pass title here for consistency in rejection cases
             icon_names=llm_analysis_args.get("icon_names", []) # Also pass icon names for consistency
         )
@@ -513,16 +554,16 @@ async def handle_preprocessing(
     else:
         # Validate each key against available metadata
         if user_app_settings_and_memories_metadata:
-            # Build a set of all available keys (format: "app_id.item_key")
+            # Build a set of all available keys (format: "app_id-item_key" using hyphen for consistency)
             available_keys = set()
             for app_id, item_keys in user_app_settings_and_memories_metadata.items():
                 for item_key in item_keys:
-                    available_keys.add(f"{app_id}.{item_key}")
-            
+                    available_keys.add(f"{app_id}-{item_key}")
+
             # Filter out invalid keys
             validated_keys = [key for key in load_app_settings_and_memories_val if key in available_keys]
             invalid_keys = [key for key in load_app_settings_and_memories_val if key not in available_keys]
-            
+
             if invalid_keys:
                 logger.warning(
                     f"{log_prefix} LLM requested {len(invalid_keys)} invalid app_settings_and_memories key(s) that don't exist: {invalid_keys}. "
@@ -532,8 +573,59 @@ async def handle_preprocessing(
                 llm_analysis_args["load_app_settings_and_memories"] = load_app_settings_and_memories_val
         # If user_app_settings_and_memories_metadata is None/empty, we can't validate, so keep as-is
         # (The system will handle missing keys gracefully)
-    
+
+    # --- Validate relevant_embedded_previews field ---
+    # This list specifies which types of embedded previews to prepare for in the main LLM response
+    relevant_embedded_previews_val = llm_analysis_args.get("relevant_embedded_previews", [])
+    if not isinstance(relevant_embedded_previews_val, list):
+        logger.warning(f"{log_prefix} 'relevant_embedded_previews' is not a list: {relevant_embedded_previews_val}. Defaulting to empty list.")
+        relevant_embedded_previews_val = []
+        llm_analysis_args["relevant_embedded_previews"] = relevant_embedded_previews_val
+    else:
+        # Validate preview types are strings and log them
+        if relevant_embedded_previews_val:
+            logger.info(f"{log_prefix} LLM identified relevant embedded preview types for this request: {relevant_embedded_previews_val}. "
+                       f"The main LLM will be instructed to generate appropriate YAML structures for: {', '.join(relevant_embedded_previews_val)}.")
+
     # Note: icon_names validation is handled client-side, so we pass through the LLM value as-is
+    
+    # --- Validate chat_summary field (required field) ---
+    # CRITICAL: chat_summary is required for post-processing suggestions generation
+    # If missing, we need to understand why and log detailed information for debugging
+    chat_summary_val = llm_analysis_args.get("chat_summary")
+    if not chat_summary_val:
+        # chat_summary is missing or empty - this is a critical issue that needs investigation
+        logger.error(
+            f"{log_prefix} CRITICAL: 'chat_summary' is missing or empty from LLM response! "
+            f"This field is REQUIRED in the tool definition. "
+            f"LLM response keys: {list(llm_analysis_args.keys())}. "
+            f"Raw LLM response summary: {llm_call_result.raw_provider_response_summary}. "
+            f"This will cause post-processing to fail. "
+            f"Message history length: {len(sanitized_message_history)}. "
+            f"Preprocessing model: {preprocessing_model}."
+        )
+        # Log the full sanitized args to see what the LLM actually returned
+        logger.error(
+            f"{log_prefix} Full LLM analysis args (sanitized): {sanitized_args}. "
+            f"This will help identify if the LLM is not following the tool definition correctly."
+        )
+        # Set to None explicitly so we can track this issue
+        chat_summary_val = None
+    elif not isinstance(chat_summary_val, str):
+        logger.error(
+            f"{log_prefix} CRITICAL: 'chat_summary' is not a string: {type(chat_summary_val)} = {chat_summary_val}. "
+            f"Expected a string. This will cause post-processing to fail."
+        )
+        chat_summary_val = None
+    elif not chat_summary_val.strip():
+        logger.error(
+            f"{log_prefix} CRITICAL: 'chat_summary' is an empty or whitespace-only string. "
+            f"This will cause post-processing to fail."
+        )
+        chat_summary_val = None
+    else:
+        # chat_summary is valid - log its length for debugging
+        logger.debug(f"{log_prefix} 'chat_summary' is valid (length: {len(chat_summary_val)} characters)")
     
     # --- Validate chat_tags field (maxItems: 10) ---
     chat_tags_val = llm_analysis_args.get("chat_tags", [])
@@ -549,6 +641,29 @@ async def handle_preprocessing(
         chat_tags_val = chat_tags_val[:10]
         llm_analysis_args["chat_tags"] = chat_tags_val
     
+    # Extract relevant_app_skills from LLM response if present (for tool preselection)
+    # For now, if not provided by LLM, we'll set to None (meaning all skills available)
+    relevant_app_skills_val = llm_analysis_args.get("relevant_app_skills")
+    if relevant_app_skills_val and isinstance(relevant_app_skills_val, list):
+        # Validate that all skill identifiers exist in available_skills_list
+        validated_relevant_skills = [skill for skill in relevant_app_skills_val if skill in available_skills_list]
+        invalid_skills = [skill for skill in relevant_app_skills_val if skill not in available_skills_list]
+        if invalid_skills:
+            logger.warning(
+                f"{log_prefix} LLM returned {len(invalid_skills)} invalid skill identifier(s) that don't exist: {invalid_skills}. "
+                f"Filtered out. Available skills: {available_skills_list if available_skills_list else 'None'}. "
+                f"This may indicate that the app for these skills is not discovered or the skill identifier format is incorrect."
+            )
+        if validated_relevant_skills:
+            logger.info(f"{log_prefix} Preprocessing selected {len(validated_relevant_skills)} relevant skill(s) for main processing: {', '.join(validated_relevant_skills)}")
+        else:
+            logger.info(f"{log_prefix} Preprocessing selected no relevant skills (or all were invalid). All available skills will be provided to main processing.")
+            validated_relevant_skills = None
+    else:
+        # No preselection - all skills will be available
+        validated_relevant_skills = None
+        logger.info(f"{log_prefix} No skill preselection from preprocessing. All {len(available_skills_list)} available skills will be provided to main processing.")
+    
     # Use validated values instead of raw llm_analysis_args values
     # This ensures all fields meet their constraints and prevents downstream errors
     final_result = PreprocessingResult(
@@ -560,10 +675,12 @@ async def handle_preprocessing(
         complexity=complexity_val,  # Use validated complexity (enum: ["simple", "complex"])
         misuse_risk_score=misuse_risk_val,
         load_app_settings_and_memories=load_app_settings_and_memories_val,  # Use validated keys (filtered against available metadata)
+        relevant_embedded_previews=relevant_embedded_previews_val,  # Use relevant embedded preview types for main LLM instruction
         title=llm_analysis_args.get("title"), # Get the title from LLM args (no strict validation needed, just length check in schema)
         icon_names=llm_analysis_args.get("icon_names", []), # Get icon names from LLM args (validation handled client-side)
-        chat_summary=llm_analysis_args.get("chat_summary"), # Get chat summary from LLM (based on full history)
+        chat_summary=chat_summary_val,  # Use validated chat_summary (validated above - may be None if LLM didn't provide it)
         chat_tags=chat_tags_val,  # Use validated chat tags (maxItems: 10)
+        relevant_app_skills=validated_relevant_skills,  # Use validated relevant skills (filtered against available skills)
         selected_main_llm_model_id=selected_llm_for_main_id,
         selected_main_llm_model_name=selected_llm_for_main_name,
         selected_mate_id=selected_mate_id,

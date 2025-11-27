@@ -1,0 +1,99 @@
+# backend/providers/firecrawl.yml
+#
+# Configuration for Firecrawl API provider.
+# Used by the web app for web page reading/scraping functionality.
+
+provider_id: "firecrawl"
+name: "Firecrawl"
+description: "Web scraping and crawling API for extracting content from websites."
+logo_svg: "logos/firecrawl.svg" # Path for UI, relative to a common logos directory
+
+# API endpoint configuration
+api_base_url: "https://api.firecrawl.dev/v2"
+
+# Firecrawl API Plans
+# 
+# **Free Plan:**
+# - Price: €0 (one-time)
+# - Included Credits: 500 Firecrawl credits (pages)
+# - Rate Limits: 2 concurrent requests
+# - Features: Scrape pages, extract content, markdown conversion
+# - Low rate limits
+#
+# **Hobby Plan:**
+# - Price: €16/month
+# - Included Credits: 3,000 Firecrawl credits (pages)
+# - Rate Limits: 5 concurrent requests
+# - Features: Scrape pages, extract content, markdown conversion, basic support
+# - Overage: €8 per extra 1,000 credits
+#
+# **Standard Plan (Most Popular):**
+# - Price: €85/month
+# - Included Credits: 100,000 Firecrawl credits (pages)
+# - Rate Limits: 50 concurrent requests
+# - Features: All Hobby features + Crawl API, Map API, standard support
+# - Overage: €49 per extra 30,000 credits
+#
+# **Growth Plan:**
+# - Price: €344/month
+# - Included Credits: 500,000 Firecrawl credits (pages)
+# - Rate Limits: 100 concurrent requests
+# - Features: All Standard features + Search API, Extract API, priority support, higher limits
+# - Overage: €187 per extra 150,000 credits
+#
+# Default plan is "hobby" (set via FIRECRAWL_PLAN environment variable)
+#
+# Environment Variables Required:
+# - SECRET__FIRECRAWL__API_KEY: Your Firecrawl API key (stored in Vault)
+#   Get your API key from: https://firecrawl.dev/app
+# - FIRECRAWL_PLAN: Plan selection - "free", "hobby", "standard", or "growth" (default: "hobby")
+#   Add to your .env file: FIRECRAWL_PLAN=hobby
+
+# Rate limiting configuration
+# These limits are loaded based on the selected plan (FIRECRAWL_PLAN env var)
+# The Python code will select the appropriate plan's rate limits based on the environment variable
+# Default plan is "hobby" if FIRECRAWL_PLAN is not set
+rate_limits:
+  free:
+    requests_per_second: 2  # 2 concurrent requests
+    requests_per_month: null  # Limited by included credits (500)
+  hobby:
+    requests_per_second: 5  # 5 concurrent requests
+    requests_per_month: null  # Limited by included credits (3,000)
+  standard:
+    requests_per_second: 50  # 50 concurrent requests
+    requests_per_month: null  # Limited by included credits (100,000)
+  growth:
+    requests_per_second: 100  # 100 concurrent requests
+    requests_per_month: null  # Limited by included credits (500,000)
+
+# Pricing information
+# Cost per request in credits (user-facing pricing, independent of Firecrawl plan)
+# 
+# Pricing calculation based on Hobby plan (€16/month for 3,000 pages):
+# - Base cost: €16 / 3,000 = €0.0053 per page scrape
+# - Overage cost: €8 / 1,000 = €0.008 per page scrape
+# - Average cost: ~€0.006 per page scrape
+# 
+# Converting to OpenMates credits (using pricing.yml: 10,000 credits = €10, so 1 credit ≈ €0.001):
+# - €0.006 / €0.001 = 6 credits (base cost)
+# - €0.008 / €0.001 = 8 credits (overage cost)
+# 
+# Revenue Share Model (see docs/architecture/revenue_share_model.md):
+# - User pays: 20 credits per scrape request
+# - Creator (website owner) gets: 10 credits (50% of user payment)
+# - OpenMates gets: 10 credits (covers Firecrawl API cost + operations margin)
+#
+# This 50/50 split:
+# 1. Provides meaningful compensation to website owners (€0.01 per page read)
+# 2. Covers our costs (including overage scenarios) with sustainable margin
+# 3. Aligns with revenue share model principles
+# 4. Keeps pricing competitive and fair for users (€0.02 per page read)
+#
+# Users are always charged 20 credits per scrape request
+# If a user makes 5 parallel scrape requests, they are charged 100 credits total (5 * 20)
+# Note: The Firecrawl plan (free/hobby/standard/growth) only affects rate limits and available features,
+#       not the user-facing pricing
+pricing:
+  per_request_credits: 20  # Always 20 credits per scrape request for users (10 to creator, 10 to OpenMates)
+

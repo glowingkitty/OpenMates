@@ -476,19 +476,19 @@ function detectInlineUnclosedFences(
 /**
  * Finalize streaming content by rekeying content references and updating status
  * @param embedNodes - Array of embed nodes to finalize
- * @param contentStore - ContentStore instance for rekeying operations
+ * @param embedStore - EmbedStore instance for rekeying operations
  */
 export async function finalizeStreamingContent(
   embedNodes: EmbedNodeAttributes[],
-  contentStore: any
+  embedStore: any
 ): Promise<EmbedNodeAttributes[]> {
   const finalizedNodes: EmbedNodeAttributes[] = [];
   
   for (const node of embedNodes) {
     if (node.status === 'processing' && node.contentRef.startsWith('stream:')) {
       try {
-        // Rekey the content from stream to CID
-        const newContentRef = await contentStore.rekeyStreamToCid(node.contentRef);
+        // Rekey the embed from stream to CID
+        const newContentRef = await embedStore.rekeyStreamToCid(node.contentRef);
         
         // Update the node with final status and CID
         const finalizedNode: EmbedNodeAttributes = {

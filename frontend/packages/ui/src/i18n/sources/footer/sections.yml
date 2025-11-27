@@ -1,0 +1,414 @@
+website:
+  context: Footer section title for website links
+  en: Website
+  de: Website
+  zh: 网站
+  es: Sitio web
+  fr: Site web
+  pt: ''
+  ru: ''
+  ja: ウェブサイト
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+for_everyone:
+  context: Footer link text for general audience section
+  en: For all of us
+  de: Für uns alle
+  zh: 面向所有人
+  es: Para todos nosotros
+  fr: Pour nous tous
+  pt: ''
+  ru: ''
+  ja: 私たち全員のために
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+for_developers:
+  context: Footer link text for developer section
+  en: For developers
+  de: Für Entwickler
+  zh: 面向开发者
+  es: Para desarrolladores
+  fr: Pour les développeurs
+  pt: ''
+  ru: ''
+  ja: 開発者向け
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+webapp:
+  context: Footer link text for web app section
+  en: Web App
+  de: Web App
+  zh: Web 应用
+  es: Web App
+  fr: App Web
+  pt: ''
+  ru: ''
+  ja: ウェブアプリ
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+docs:
+  context: Footer section title for documentation
+  en: Docs
+  de: Docs
+  zh: 文档
+  es: Documentación
+  fr: Docs
+  pt: ''
+  ru: ''
+  ja: ドキュメント
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+user_guide:
+  context: Footer link text for user guide
+  en: User guide
+  de: Benutzerhandbuch
+  zh: 用户指南
+  es: Guía del usuario
+  fr: Guide de l'utilisateur
+  pt: ''
+  ru: ''
+  ja: ユーザーガイド
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+api_docs:
+  context: Footer link text for API documentation
+  en: API docs
+  de: API Dokumentation
+  zh: API 文档
+  es: Documentación de la API
+  fr: Documentation de l'API
+  pt: ''
+  ru: ''
+  ja: APIドキュメント
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+roadmap:
+  context: Footer link text for roadmap
+  en: Roadmap
+  de: Roadmap
+  zh: 路线图
+  es: Plan de desarrollo
+  fr: Feuille de route
+  pt: ''
+  ru: ''
+  ja: ロードマップ
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+design_guidelines:
+  context: Footer link text for design guidelines
+  en: Design guidelines
+  de: Design-Richtlinien
+  zh: 设计准则
+  es: Guías de diseño
+  fr: Principes de conception
+  pt: ''
+  ru: ''
+  ja: デザインガイドライン
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+legal:
+  context: Legal section header
+  en: Legal
+  de: Rechtliches
+  zh: 法律声明
+  es: Legal
+  fr: Juridique
+  pt: ''
+  ru: ''
+  ja: 法的情報
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+contact:
+  context: Contact section header
+  en: Contact
+  de: Kontakt
+  zh: 联系方式
+  es: Contacto
+  fr: Contact
+  pt: ''
+  ru: ''
+  ja: お問い合わせ
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+imprint:
+  context: Legal imprint link
+  en: Imprint
+  de: Impressum
+  zh: 版本说明
+  es: Aviso legal
+  fr: Mentions légales
+  pt: ''
+  ru: ''
+  ja: インプリント
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+privacy:
+  context: Privacy policy link
+  en: Privacy
+  de: Datenschutz
+  zh: 隐私政策
+  es: Privacidad
+  fr: Confidentialité
+  pt: ''
+  ru: ''
+  ja: プライバシー
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+terms_and_conditions:
+  context: Terms and conditions link
+  en: Terms and conditions
+  de: AGB
+  zh: 条款和条件
+  es: Términos y condiciones
+  fr: Conditions générales d'utilisation
+  pt: ''
+  ru: ''
+  ja: 利用規約
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+discord:
+  context: Discord contact link
+  en: Discord
+  de: Discord
+  zh: Discord
+  es: Discord
+  fr: Discord
+  pt: ''
+  ru: ''
+  ja: Discord
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+email:
+  context: Email contact link
+  en: Email
+  de: E-Mail
+  zh: 电子邮件
+  es: Correo electrónico
+  fr: E-mail
+  pt: ''
+  ru: ''
+  ja: メール
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+instagram:
+  context: Instagram link in footer
+  en: Instagram
+  de: ''
+  zh: ''
+  es: Instagram
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+github:
+  context: GitHub link in footer
+  en: GitHub
+  de: ''
+  zh: ''
+  es: GitHub
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []

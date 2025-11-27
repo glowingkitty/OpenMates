@@ -1,0 +1,46 @@
+header_click:
+  context: Header text for suggestions on non-touch devices
+  en: 'Click to copy to message input:'
+  de: 'Klicken, um in Nachrichteneingabe zu kopieren:'
+  zh: 单击以复制到消息输入：
+  es: 'Haz clic para copiar a la entrada de mensajes:'
+  fr: 'Cliquez pour copier dans la saisie de message :'
+  pt: 'Clique para copiar para a entrada de mensagem:'
+  ru: 'Нажмите, чтобы скопировать в ввод сообщения:'
+  ja: 'メッセージ入力にコピーするにはクリックしてください：'
+  ko: '메시지 입력으로 복사하려면 클릭:'
+  it: 'Fai clic per copiare nell''input del messaggio:'
+  tr: 'İleti girişine kopyalamak için tıkla:'
+  vi: 'Nhấp để sao chép vào nhập tin nhắn:'
+  id: 'Klik untuk menyalin ke input pesan:'
+  pl: 'Kliknij, aby skopiować do wpisania wiadomości:'
+  nl: 'Klik om naar berichtinvoer te kopiëren:'
+  ar: 'انقر لنسخ إلى إدخال الرسالة:'
+  hi: 'संदेश इनपुट में कॉपी करने के लिए क्लिक करें:'
+  th: 'คลิกเพื่อคัดลอกไปยังการป้อนข้อความ:'
+  cs: 'Klikněte pro kopírování do vstupu zprávy:'
+  sv: 'Klicka för att kopiera till meddelandeinmatning:'
+  verified_by_human: []
+header_tap:
+  context: Header text for suggestions on touch devices
+  en: 'Tap to copy to message input:'
+  de: 'Tippen, um in Nachrichteneingabe zu kopieren:'
+  zh: 点击以复制到消息输入：
+  es: 'Toca para copiar a la entrada de mensajes:'
+  fr: 'Appuyez pour copier dans la saisie de message :'
+  pt: 'Toque para copiar para a entrada de mensagem:'
+  ru: 'Коснитесь, чтобы скопировать в ввод сообщения:'
+  ja: 'メッセージ入力にコピーするにはタップしてください：'
+  ko: '메시지 입력으로 복사하려면 탭:'
+  it: 'Tocca per copiare nell''input del messaggio:'
+  tr: 'İleti girişine kopyalamak için dokun:'
+  vi: 'Chạm để sao chép vào nhập tin nhắn:'
+  id: 'Ketuk untuk menyalin ke input pesan:'
+  pl: 'Dotknij, aby skopiować do wpisania wiadomości:'
+  nl: 'Tik om naar berichtinvoer te kopiëren:'
+  ar: 'اضغط لنسخ إلى إدخال الرسالة:'
+  hi: 'संदेश इनपुट में कॉपी करने के लिए टैप करें:'
+  th: 'แตะเพื่อคัดลอกไปยังการป้อนข้อความ:'
+  cs: 'Klepněte pro kopírování do vstupu zprávy:'
+  sv: 'Tryck för att kopiera till meddelandeinmatning:'
+  verified_by_human: []

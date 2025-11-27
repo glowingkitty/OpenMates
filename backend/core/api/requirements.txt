@@ -32,3 +32,10 @@ timezonefinder==6.5.9
 pytz==2025.2
 pynacl==1.5.0
 openai==1.99.3
+toon-format @ git+https://github.com/toon-format/toon-python.git
+groq==0.34.1
+youtube-transcript-api==1.2.3
+webauthn==2.7.0
+# Note: cbor2 is included as a dependency of webauthn, so we don't need to list it explicitly
+
+# TODO separate requirements file for each app and for core services, to only include what is needed

@@ -1,0 +1,92 @@
+close:
+  context: Button text for closing camera view
+  en: Close camera
+  de: Kamera schließen
+  zh: 关闭相机
+  es: Cerrar cámara
+  fr: Fermer la caméra
+  pt: Fechar câmera
+  ru: Закрыть камеру
+  ja: カメラを閉じる
+  ko: 카메라 닫기
+  it: Chiudi fotocamera
+  tr: Kamerayı kapat
+  vi: Đóng camera
+  id: Tutup kamera
+  pl: Zamknij kamerę
+  nl: Camera sluiten
+  ar: إغلاق الكاميرا
+  hi: कैमरा बंद करें
+  th: ปิดกล้อง
+  cs: Zavřít kameru
+  sv: Stäng kamera
+  verified_by_human: []
+stoprecording:
+  context: Button text for finishing video recording
+  en: Finish recording
+  de: Aufnahme beenden
+  zh: 停止录制
+  es: Finalizar grabación
+  fr: Terminer l'enregistrement
+  pt: Terminar gravação
+  ru: Завершить запись
+  ja: 録画を終了
+  ko: 녹화 종료
+  it: Termina registrazione
+  tr: Kaydı bitir
+  vi: Kết thúc ghi
+  id: Selesai merekam
+  pl: Zakończ nagrywanie
+  nl: Opnamen stoppen
+  ar: إنهاء التسجيل
+  hi: रिकॉर्डिंग समाप्त करें
+  th: สิ้นสุดการบันทึก
+  cs: Dokončit nahrávání
+  sv: Avsluta inspelning
+  verified_by_human: []
+startrecording:
+  context: Button text for starting video recording
+  en: Record video
+  de: Video aufnehmen
+  zh: 开始录制视频
+  es: Grabar video
+  fr: Enregistrer une vidéo
+  pt: Gravar vídeo
+  ru: Записать видео
+  ja: ビデオを録画
+  ko: 비디오 녹화
+  it: Registra video
+  tr: Video kaydet
+  vi: Ghi video
+  id: Rekam video
+  pl: Nagraj wideo
+  nl: Video opnemen
+  ar: تسجيل فيديو
+  hi: वीडियो रिकॉर्ड करें
+  th: บันทึกวิดีโอ
+  cs: Zaznamenat video
+  sv: Spela in video
+  verified_by_human: []
+takephoto:
+  context: Button text for taking a photo
+  en: Take photo
+  de: Foto aufnehmen
+  zh: 拍照
+  es: Tomar foto
+  fr: Prendre une photo
+  pt: Tirar foto
+  ru: Сделать фото
+  ja: 写真を撮る
+  ko: 사진 촬영
+  it: Scatta foto
+  tr: Fotoğraf çek
+  vi: Chụp ảnh
+  id: Ambil foto
+  pl: Zrób zdjęcie
+  nl: Foto maken
+  ar: التقط صورة
+  hi: फोटो लें
+  th: ถ่ายรูป
+  cs: Pořiďte fotografii
+  sv: Ta foto
+  verified_by_human: []

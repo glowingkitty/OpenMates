@@ -24,6 +24,7 @@
   import type { Message as GlobalMessage, MessageRole } from '../types/chat';
   import { preprocessTiptapJsonForEmbeds } from './enter_message/utils/tiptapContentProcessor';
   import { parseMarkdownToTiptap } from '../components/enter_message/utils/markdownParser';
+  import { parse_message } from '../message_parsing/parse_message';
   import { createTruncatedMessage, truncateTiptapContent } from '../utils/messageTruncation';
 
   interface InternalMessage {
@@ -36,6 +37,7 @@
     is_truncated?: boolean; // Flag indicating if content is truncated
     full_content_length?: number; // Length of full content for reference
     original_message?: GlobalMessage; // Store original message for full content loading
+    appCards?: any[]; // App skill preview cards
   }
 
   // Helper function to map incoming message structure to InternalMessage
@@ -45,10 +47,13 @@
     let processedContent: any;
     
     if (typeof incomingMessage.content === 'string') {
-      // Content is markdown string - convert to Tiptap JSON for display
-      const tiptapJson = parseMarkdownToTiptap(incomingMessage.content);
+      // Content is markdown string - convert to Tiptap JSON with unified parsing (includes embed parsing)
+      // CRITICAL FIX: Use 'write' mode for streaming messages to show 'processing' status on embeds
+      // This ensures users see "processing" state during streaming instead of waiting for embed data
+      const parseMode = incomingMessage.status === 'streaming' ? 'write' : 'read';
+      const tiptapJson = parse_message(incomingMessage.content, parseMode, { unifiedParsingEnabled: true });
       processedContent = preprocessTiptapJsonForEmbeds(tiptapJson);
-      
+
       // Apply truncation at TipTap level for user messages to avoid breaking node structure
       if (incomingMessage.role === 'user' && incomingMessage.content.length > 1000) {
         processedContent = truncateTiptapContent(processedContent);
@@ -73,7 +78,8 @@
       status: incomingMessage.status,
       is_truncated: shouldTruncate,
       full_content_length: shouldTruncate ? incomingMessage.content.length : 0,
-      original_message: incomingMessage // Store original for full content loading
+      original_message: incomingMessage, // Store original for full content loading
+      appCards: (incomingMessage as any).appCards // Preserve appCards if present
     };
   }
  
@@ -100,9 +106,9 @@
 
   const dispatch = createEventDispatcher();
 
-  // Track the last user message to implement ChatGPT-style scrolling
   let lastUserMessageId: string | null = null;
   let shouldScrollToNewUserMessage = false;
+  let isScrolling = false;
 
   /**
    * Exposed function to add a new message to the chat.
@@ -209,24 +215,34 @@
     dispatch('messagesStatusChanged', { messages });
   }
 
-  // Implement ChatGPT-style scrolling behavior using $effect (Svelte 5 runes mode)
   $effect(() => {
-    if (container && shouldScrollToNewUserMessage && lastUserMessageId) {
-      // Find the user message element
-      const userMessageElement = container.querySelector(`[data-message-id="${lastUserMessageId}"]`);
-      if (userMessageElement) {
-        // Scroll so the user message appears at the top of the visible area
-        const containerRect = container.getBoundingClientRect();
-        const messageRect = userMessageElement.getBoundingClientRect();
-        const scrollOffset = messageRect.top - containerRect.top + container.scrollTop - 20; // 20px padding from top
-        
-        container.scrollTo({
-          top: scrollOffset,
-          behavior: 'smooth'
-        });
-        
-        shouldScrollToNewUserMessage = false;
-      }
+    if (container && shouldScrollToNewUserMessage && lastUserMessageId && !isScrolling) {
+      isScrolling = true;
+
+      tick().then(() => {
+        setTimeout(() => {
+          const userMessageElement = container.querySelector(`[data-message-id="${lastUserMessageId}"]`);
+          if (userMessageElement) {
+            const containerRect = container.getBoundingClientRect();
+            const messageRect = userMessageElement.getBoundingClientRect();
+            const scrollOffset = messageRect.top - containerRect.top + container.scrollTop - 20;
+
+            container.scrollTo({
+              top: scrollOffset,
+              behavior: 'smooth'
+            });
+
+            shouldScrollToNewUserMessage = false;
+
+            setTimeout(() => {
+              isScrolling = false;
+            }, 800);
+          } else {
+            shouldScrollToNewUserMessage = false;
+            isScrolling = false;
+          }
+        }, 350);
+      });
     }
   });
 
@@ -441,6 +457,7 @@
                         full_content_length={msg.full_content_length}
                         original_message={msg.original_message}
                         containerWidth={containerWidth}
+                        appCards={msg.appCards}
                     />
                 </div>
             {/each}
