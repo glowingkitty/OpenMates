@@ -277,6 +277,7 @@ async def invoke_google_chat_completions(
         stream_iterator = None
         output_buffer = ""
         usage = None
+        stream_succeeded = False  # Track if stream completed successfully (no exception)
         try:
             stream_iterator = await google_genai_client.aio.models.generate_content_stream(
                 model=model_id,
@@ -324,19 +325,26 @@ async def invoke_google_chat_completions(
             except Exception as e:
                 logger.warning(f"{log_prefix} Could not extract usage metadata after stream: {e}")
 
+            # Mark stream as succeeded if we got here without exceptions
+            stream_succeeded = True
             logger.info(f"{log_prefix} Stream finished.")
 
         except google_errors.APIError as e_api:
             err_msg = f"Google API error during streaming: {e_api}"
             logger.error(f"{log_prefix} {err_msg}", exc_info=True)
+            # Don't estimate usage for API errors - stream failed
             raise IOError(f"Google API Error: {e_api}") from e_api
         except Exception as e_stream:
             err_msg = f"Unexpected error during streaming: {e_stream}"
             logger.error(f"{log_prefix} {err_msg}", exc_info=True)
+            # Don't estimate usage for unexpected errors - stream failed
             raise IOError(f"Google API Unexpected Streaming Error: {e_stream}") from e_stream
         finally:
-            if not usage:
-                logger.warning(f"{log_prefix} Stream interrupted or finished without usage data. Estimating tokens with tiktoken.")
+            # Only estimate usage if stream completed successfully but didn't provide usage metadata
+            # This handles cases where the stream finished but usage metadata wasn't available
+            # We should NOT estimate usage when the stream failed due to errors
+            if not usage and stream_succeeded:
+                logger.warning(f"{log_prefix} Stream finished successfully but without usage data. Estimating tokens with tiktoken.")
                 try:
                     encoding = tiktoken.get_encoding("cl100k_base")
                     system_prompt_tokens = len(encoding.encode(system_prompt)) if system_prompt else 0
@@ -350,6 +358,8 @@ async def invoke_google_chat_completions(
                     yield usage
                 except Exception as e:
                     logger.error(f"{log_prefix} Failed to estimate tokens with tiktoken: {e}", exc_info=True)
+            elif not usage and not stream_succeeded:
+                logger.info(f"{log_prefix} Stream failed with error. Not estimating usage - billing will be skipped.")
 
 
     if stream:

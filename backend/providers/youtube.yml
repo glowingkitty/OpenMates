@@ -1,0 +1,49 @@
+# backend/providers/youtube.yml
+#
+# Configuration for YouTube provider.
+# Used by the videos app for transcript functionality.
+
+provider_id: "youtube"
+name: "YouTube"
+description: "YouTube video transcript extraction via proxy service."
+logo_svg: "logos/youtube.svg" # Path for UI, relative to a common logos directory
+
+# API endpoint configuration
+# Note: YouTube transcript extraction uses a proxy service
+# The actual API endpoint is handled by the backend service
+
+# Rate limiting configuration
+# Based on Oxylabs Residential Proxies (used for YouTube transcript extraction)
+# 
+# Oxylabs Residential Proxies:
+# - No specific rate limits on request submissions
+# - Usage is governed by data allowance (GB per month)
+# - Unlimited concurrent sessions allowed
+# - Plans range from Pay-as-you-go (50GB/month) to higher tiers with more data
+#
+# Since there are no hard rate limits on Residential Proxies, we set a reasonable
+# default that allows for good throughput while being mindful of data usage
+rate_limits:
+  default:
+    requests_per_second: 50  # Reasonable default for Residential Proxies (no hard limit, but good practice)
+    requests_per_day: null  # No daily limit (governed by monthly data allowance)
+
+# Pricing information
+# Cost per request in credits (user-facing pricing)
+# 
+# Revenue Share Model (see docs/architecture/revenue_share_model.md):
+# - User pays: 20 credits per transcript request
+# - Creator (video owner) gets: 10 credits (50% of user payment)
+# - OpenMates gets: 10 credits (covers proxy service costs + operations margin)
+#
+# This 50/50 split:
+# 1. Provides meaningful compensation to video creators (€0.01 per transcript)
+# 2. Covers our proxy service costs with sustainable margin
+# 3. Aligns with revenue share model principles
+# 4. Keeps pricing competitive and fair for users (€0.02 per transcript)
+#
+# Users are always charged 20 credits per transcript request
+# If a user makes 5 parallel transcript requests, they are charged 100 credits total (5 * 20)
+pricing:
+  per_request_credits: 20  # Always 20 credits per transcript request for users (10 to creator, 10 to OpenMates)
+

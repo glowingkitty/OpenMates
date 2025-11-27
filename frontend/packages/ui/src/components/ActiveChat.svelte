@@ -20,6 +20,9 @@
     import WebSearchSkillPreview from './app_skills/WebSearchSkillPreview.svelte';
     import WebSearchSkillFullscreen from './app_skills/WebSearchSkillFullscreen.svelte';
     import WebSearchEmbedFullscreen from './embeds/WebSearchEmbedFullscreen.svelte';
+    import NewsSearchEmbedFullscreen from './embeds/NewsSearchEmbedFullscreen.svelte';
+    import VideosSearchEmbedFullscreen from './embeds/VideosSearchEmbedFullscreen.svelte';
+    import MapsSearchEmbedFullscreen from './embeds/MapsSearchEmbedFullscreen.svelte';
     import VideoTranscriptSkillPreview from './app_skills/VideoTranscriptSkillPreview.svelte';
     import VideoTranscriptSkillFullscreen from './app_skills/VideoTranscriptSkillFullscreen.svelte';
     import WebsiteFullscreen from './embeds/WebsiteFullscreen.svelte';
@@ -293,7 +296,7 @@
                 : Array.isArray(rawEmbedIds) ? rawEmbedIds : [];
             
             if (appId === 'web' && skillId === 'search' && childEmbedIds.length > 0) {
-                console.debug('[ActiveChat] Loading child website embeds for web search fullscreen:', childEmbedIds);
+console.debug('[ActiveChat] Loading child website embeds for web search fullscreen:', childEmbedIds);
                 try {
                     const { loadEmbeds, decodeToonContent: decodeToon } = await import('../services/embedResolver');
                     const childEmbeds = await loadEmbeds(childEmbedIds);
@@ -320,6 +323,54 @@
                         finalDecodedContent.results.map(r => ({ title: r?.title?.substring(0, 30), url: r?.url })));
                 } catch (error) {
                     console.error('[ActiveChat] Error loading child embeds for web search:', error);
+                    // Continue without results - fullscreen will show "No results" message
+                }
+            } else if (appId === 'maps' && skillId === 'search' && childEmbedIds.length > 0) {
+                console.debug('[ActiveChat] Loading child place embeds for maps search fullscreen:', childEmbedIds);
+                try {
+                    const { loadEmbeds, decodeToonContent: decodeToon } = await import('../services/embedResolver');
+                    const childEmbeds = await loadEmbeds(childEmbedIds);
+                    
+                    // Transform child embeds to PlaceSearchResult format
+                    const results = await Promise.all(childEmbeds.map(async (embed) => {
+                        const placeContent = embed.content ? await decodeToon(embed.content) : null;
+                        if (!placeContent) return null;
+                        
+                        // Handle location - can be nested object or flattened fields
+                        let location = undefined;
+                        if (placeContent.location) {
+                            // Nested location object
+                            if (typeof placeContent.location === 'object' && 'latitude' in placeContent.location) {
+                                location = {
+                                    latitude: placeContent.location.latitude,
+                                    longitude: placeContent.location.longitude
+                                };
+                            }
+                        } else if (placeContent.location_latitude !== undefined || placeContent.location_longitude !== undefined) {
+                            // Flattened location fields (from TOON encoding)
+                            location = {
+                                latitude: placeContent.location_latitude,
+                                longitude: placeContent.location_longitude
+                            };
+                        }
+                        
+                        return {
+                            displayName: placeContent.name || placeContent.displayName || '',
+                            formattedAddress: placeContent.formatted_address || placeContent.formattedAddress || '',
+                            location: location,
+                            rating: placeContent.rating,
+                            userRatingCount: placeContent.user_rating_count || placeContent.userRatingCount,
+                            websiteUri: placeContent.website_uri || placeContent.websiteUri,
+                            placeId: placeContent.place_id || placeContent.placeId
+                        };
+                    }));
+                    
+                    // Filter out nulls and add to decoded content
+                    finalDecodedContent.results = results.filter(r => r !== null);
+                    console.info('[ActiveChat] Loaded', finalDecodedContent.results.length, 'place results for maps search fullscreen:', 
+                        finalDecodedContent.results.map(r => ({ name: r?.displayName?.substring(0, 30), address: r?.formattedAddress })));
+                } catch (error) {
+                    console.error('[ActiveChat] Error loading child embeds for maps search:', error);
                     // Continue without results - fullscreen will show "No results" message
                 }
             } else if (appId === 'web' && skillId === 'search') {
@@ -363,15 +414,20 @@
     // Handler for post-processing completed event
     async function handlePostProcessingCompleted(event: CustomEvent) {
         const { chatId, followUpSuggestions: newSuggestions } = event.detail;
-        console.info('[ActiveChat] Post-processing completed for chat:', chatId, 
-            'Current chat:', currentChat?.chat_id,
-            'Match:', currentChat?.chat_id === chatId,
-            'Suggestions count:', newSuggestions?.length || 0);
+        console.info('[ActiveChat] 📬 Post-processing completed event received:', {
+            chatId,
+            currentChatId: currentChat?.chat_id,
+            match: currentChat?.chat_id === chatId,
+            newSuggestionsCount: newSuggestions?.length || 0,
+            newSuggestionsType: typeof newSuggestions,
+            isArray: Array.isArray(newSuggestions),
+            currentFollowUpCount: followUpSuggestions.length
+        });
 
         // Update follow-up suggestions if this is the active chat
         if (currentChat?.chat_id === chatId && newSuggestions && Array.isArray(newSuggestions)) {
             followUpSuggestions = newSuggestions;
-            console.info('[ActiveChat] Updated followUpSuggestions:', $state.snapshot(followUpSuggestions));
+            console.info('[ActiveChat] ✅ Updated followUpSuggestions:', $state.snapshot(followUpSuggestions));
             
             // Also reload currentChat from database to ensure it has the latest encrypted metadata
             // This prevents a mismatch between the in-memory currentChat and the database state
@@ -484,6 +540,59 @@
     // Reactive variable to determine when to show follow-up suggestions
     // Only show when user has explicitly focused the message input (clicked to type)
     let showFollowUpSuggestions = $derived(!showWelcome && messageInputFocused && followUpSuggestions.length > 0);
+    
+    // Effect to reload follow-up suggestions when MessageInput is focused but suggestions are empty
+    // This handles the case where suggestions were stored in the database but weren't loaded
+    // in-memory (e.g., after post-processing completes but the event handler didn't fire)
+    $effect(() => {
+        if (messageInputFocused && !showWelcome && currentChat?.chat_id && followUpSuggestions.length === 0) {
+            // Only try to reload if we have encrypted suggestions in the chat
+            if (currentChat.encrypted_follow_up_request_suggestions) {
+                console.debug('[ActiveChat] MessageInput focused but no suggestions - attempting to reload from database');
+                // Use an IIFE to handle async operations
+                (async () => {
+                    try {
+                        const chatKey = chatDB.getOrGenerateChatKey(currentChat.chat_id);
+                        const { decryptArrayWithChatKey } = await import('../services/cryptoService');
+                        const decryptedSuggestions = await decryptArrayWithChatKey(
+                            currentChat.encrypted_follow_up_request_suggestions, 
+                            chatKey
+                        );
+                        if (decryptedSuggestions && decryptedSuggestions.length > 0) {
+                            followUpSuggestions = decryptedSuggestions;
+                            console.info('[ActiveChat] Reloaded follow-up suggestions on focus:', decryptedSuggestions.length);
+                        }
+                    } catch (error) {
+                        console.error('[ActiveChat] Failed to reload follow-up suggestions on focus:', error);
+                    }
+                })();
+            } else {
+                // Try to refresh chat from database in case it was updated
+                console.debug('[ActiveChat] No encrypted suggestions in currentChat - checking database');
+                (async () => {
+                    try {
+                        const freshChat = await chatDB.getChat(currentChat.chat_id);
+                        if (freshChat?.encrypted_follow_up_request_suggestions) {
+                            const chatKey = chatDB.getOrGenerateChatKey(currentChat.chat_id);
+                            const { decryptArrayWithChatKey } = await import('../services/cryptoService');
+                            const decryptedSuggestions = await decryptArrayWithChatKey(
+                                freshChat.encrypted_follow_up_request_suggestions, 
+                                chatKey
+                            );
+                            if (decryptedSuggestions && decryptedSuggestions.length > 0) {
+                                followUpSuggestions = decryptedSuggestions;
+                                // Also update currentChat to have the latest data
+                                currentChat = { ...currentChat, ...freshChat };
+                                console.info('[ActiveChat] Loaded follow-up suggestions from fresh database read:', decryptedSuggestions.length);
+                            }
+                        }
+                    } catch (error) {
+                        console.error('[ActiveChat] Failed to load suggestions from database on focus:', error);
+                    }
+                })();
+            }
+        }
+    });
     
     // Removed loading state - no more loading screen
     
@@ -2363,6 +2472,30 @@
                         <WebSearchEmbedFullscreen 
                             query={embedFullscreenData.decodedContent?.query || ''}
                             provider={embedFullscreenData.decodedContent?.provider || 'Brave'}
+                            results={embedFullscreenData.decodedContent?.results || []}
+                            onClose={handleCloseEmbedFullscreen}
+                        />
+                    {:else if appId === 'news' && skillId === 'search'}
+                        <!-- News Search Fullscreen -->
+                        <NewsSearchEmbedFullscreen 
+                            query={embedFullscreenData.decodedContent?.query || ''}
+                            provider={embedFullscreenData.decodedContent?.provider || 'Brave'}
+                            results={embedFullscreenData.decodedContent?.results || []}
+                            onClose={handleCloseEmbedFullscreen}
+                        />
+                    {:else if appId === 'videos' && skillId === 'search'}
+                        <!-- Videos Search Fullscreen -->
+                        <VideosSearchEmbedFullscreen 
+                            query={embedFullscreenData.decodedContent?.query || ''}
+                            provider={embedFullscreenData.decodedContent?.provider || 'Brave'}
+                            results={embedFullscreenData.decodedContent?.results || []}
+                            onClose={handleCloseEmbedFullscreen}
+                        />
+                    {:else if appId === 'maps' && skillId === 'search'}
+                        <!-- Maps Search Fullscreen -->
+                        <MapsSearchEmbedFullscreen 
+                            query={embedFullscreenData.decodedContent?.query || ''}
+                            provider={embedFullscreenData.decodedContent?.provider || 'Google'}
                             results={embedFullscreenData.decodedContent?.results || []}
                             onClose={handleCloseEmbedFullscreen}
                         />

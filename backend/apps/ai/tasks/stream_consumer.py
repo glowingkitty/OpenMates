@@ -635,40 +635,60 @@ async def _consume_main_processing_stream(
             if isinstance(chunk, (MistralUsage, GoogleUsageMetadata, AnthropicUsageMetadata, OpenAIUsageMetadata)):
                 usage = chunk
                 continue
+            
+            # Check for revocation BEFORE processing the chunk
             if celery_config.app.AsyncResult(task_id).state == TASK_STATE_REVOKED:
                 logger.warning(f"{log_prefix} Task revoked during main processing stream. Including current chunk and finalizing partial response.")
                 was_revoked_during_stream = True
                 # Include the current chunk before breaking - don't discard it
                 # This ensures we return the partial response and bill for all generated tokens
+                if isinstance(chunk, str):
+                    final_response_chunks.append(chunk)
+                    stream_chunk_count += 1
+                    
+                    # Publish the final chunk with revocation marker IMMEDIATELY
+                    if cache_service:
+                        current_full_content = "".join(final_response_chunks)
+                        payload = _create_redis_payload(
+                            task_id, request_data, current_full_content, stream_chunk_count,
+                            is_final=True, interrupted_revoke=True
+                        )
+                        await _publish_to_redis(
+                            cache_service, redis_channel_name, payload, log_prefix,
+                            f"Published final chunk (seq: {stream_chunk_count}) with revocation marker to '{redis_channel_name}'. Length: {len(current_full_content)}"
+                        )
+                break
+
+            # Process string chunks (text or code blocks) - publish IMMEDIATELY
+            if isinstance(chunk, str):
                 final_response_chunks.append(chunk)
                 stream_chunk_count += 1
-                
-                # Publish the final chunk with revocation marker
+
+                # CRITICAL: Publish chunk IMMEDIATELY without buffering
+                # This ensures paragraph-by-paragraph streaming and embed placeholders show up right away
                 if cache_service:
                     current_full_content = "".join(final_response_chunks)
                     payload = _create_redis_payload(task_id, request_data, current_full_content, stream_chunk_count)
-                    await _publish_to_redis(
-                        cache_service, redis_channel_name, payload, log_prefix,
-                        f"Published final chunk (seq: {stream_chunk_count}) with revocation marker to '{redis_channel_name}'. Length: {len(current_full_content)}"
+                    
+                    # CRITICAL: Always log chunk publishing for debugging (but less verbose)
+                    # This helps diagnose if chunks are being published correctly
+                    is_code_block = chunk.strip().startswith("```")
+                    chunk_preview = chunk[:50].replace("\n", "\\n") if len(chunk) > 50 else chunk.replace("\n", "\\n")
+                    log_message = (
+                        f"Published chunk (seq: {stream_chunk_count}, type={'code_block' if is_code_block else 'text'}, "
+                        f"preview='{chunk_preview}...', total_length={len(current_full_content)}) to '{redis_channel_name}'"
                     )
-                break
-
-            final_response_chunks.append(chunk)
-            stream_chunk_count += 1
-
-            if cache_service:
-                current_full_content = "".join(final_response_chunks)
-                payload = _create_redis_payload(task_id, request_data, current_full_content, stream_chunk_count)
-                
-                # Log less frequently to reduce noise
-                should_log = stream_chunk_count % 5 == 0 or len(current_full_content) % 1000 < len(chunk)
-                log_message = f"Published chunk (seq: {stream_chunk_count}) to '{redis_channel_name}'. Length: {len(current_full_content)}" if should_log else ""
-                
-                await _publish_to_redis(
-                    cache_service, redis_channel_name, payload, log_prefix, log_message
-                )
-            elif stream_chunk_count == 1:
-                logger.warning(f"{log_prefix} Cache service not available. Skipping Redis publish for chunks.")
+                    
+                    # CRITICAL: Use await to ensure publish completes before continuing
+                    # This ensures chunks are sent in order and immediately
+                    await _publish_to_redis(
+                        cache_service, redis_channel_name, payload, log_prefix, log_message
+                    )
+                elif stream_chunk_count == 1:
+                    logger.warning(f"{log_prefix} Cache service not available. Skipping Redis publish for chunks.")
+            else:
+                # Non-string chunk (shouldn't happen, but handle gracefully)
+                logger.warning(f"{log_prefix} Received unexpected non-string chunk type: {type(chunk)}")
     except SoftTimeLimitExceeded:
         logger.warning(f"{log_prefix} Soft time limit exceeded during main processing stream. Processing partial response.")
         was_soft_limited_during_stream = True
@@ -734,16 +754,44 @@ async def _consume_main_processing_stream(
     )
 
     # Handle billing for normal processing
-    # When revoked, we still bill for all tokens generated (usage metadata contains all generated tokens)
-    # This ensures we charge for the compute that was performed, even if the response was cut short
-    if usage:
+    # When revoked or soft-limited, we still bill for all tokens generated (usage metadata contains all generated tokens)
+    # This ensures we charge for the compute that was performed, even if the response was cut short by the user
+    # However, we should NOT bill if the response contains server error messages (all providers failed)
+    # User interruptions (revoked/soft limit) should still be billed as they consumed resources
+    
+    # Determine if this is a server error (all providers failed) vs user interruption
+    is_server_error = (
+        aggregated_response.strip().startswith("[ERROR:") and 
+        ("All servers failed" in aggregated_response or "All provider" in aggregated_response or "HTTP error" in aggregated_response)
+    )
+    
+    # Bill if:
+    # 1. We have usage metadata AND
+    # 2. Either the response is successful OR it was interrupted by user (revoked/soft limit) AND
+    # 3. It's NOT a server error (all providers failed)
+    should_bill = (
+        usage is not None and 
+        (not aggregated_response.strip().startswith("[ERROR:") or was_revoked_during_stream or was_soft_limited_during_stream) and
+        not is_server_error
+    )
+    
+    if should_bill:
         await _handle_normal_billing(
             usage, preprocessing_result, request_data, task_id, log_prefix
         )
+    elif usage and is_server_error:
+        logger.warning(f"{log_prefix} Skipping billing because all providers failed (server error). Usage metadata was present but will not be billed.")
+    elif usage and aggregated_response.strip().startswith("[ERROR:") and not (was_revoked_during_stream or was_soft_limited_during_stream):
+        logger.warning(f"{log_prefix} Skipping billing because response contains error messages and was not user-interrupted.")
+    elif not usage:
+        logger.info(f"{log_prefix} No usage metadata available. Skipping billing.")
 
     # Save assistant response to cache for follow-up message context
-    # This is critical for the architecture where last 3 chats are cached in memory
-    if directus_service and cache_service and aggregated_response:
+    # This is CRITICAL for the architecture where last 3 chats are cached in memory
+    # Even partial responses (due to revocation/soft limit) should be saved for context
+    # CRITICAL: Always save to AI cache, even if response is empty or interrupted
+    # This ensures message history is complete for follow-up requests
+    if directus_service and cache_service and encryption_service and user_vault_key_id:
         # Use actual category from preprocessing, fallback to general_knowledge
         category = preprocessing_result.category or "general_knowledge"
         if not preprocessing_result.category:
@@ -756,25 +804,62 @@ async def _consume_main_processing_stream(
         # In future, we could convert to TipTap JSON here if needed
         content_tiptap = aggregated_response  # Send as markdown for now
         
-        # Save to cache and update metadata
-        # This ensures follow-up messages include this assistant response in the history
-        await _update_chat_metadata(
-            request_data=request_data,
-            category=category,
-            timestamp=timestamp,
-            content_markdown=aggregated_response,  # Store markdown in cache
-            content_tiptap=content_tiptap,  # Send to client (markdown for now)
-            directus_service=directus_service,
-            cache_service=cache_service,
-            encryption_service=encryption_service,
-            user_vault_key_id=user_vault_key_id,
-            task_id=task_id,
-            log_prefix=log_prefix
-        )
-        logger.info(f"{log_prefix} Assistant response saved to cache for future follow-up context.")
+        # CRITICAL: Save to cache even if response is empty or partial
+        # This ensures the message exists in history (even if empty) for proper context
+        # Empty responses can occur due to errors, interruptions, or harmful content filtering
+        try:
+            await _update_chat_metadata(
+                request_data=request_data,
+                category=category,
+                timestamp=timestamp,
+                content_markdown=aggregated_response,  # Store markdown in cache (may be empty)
+                content_tiptap=content_tiptap,  # Send to client (markdown for now)
+                directus_service=directus_service,
+                cache_service=cache_service,
+                encryption_service=encryption_service,
+                user_vault_key_id=user_vault_key_id,
+                task_id=task_id,
+                log_prefix=log_prefix
+            )
+            logger.info(
+                f"{log_prefix} Assistant response saved to AI cache for future follow-up context. "
+                f"Response length: {len(aggregated_response)}, "
+                f"Interrupted: revoked={was_revoked_during_stream}, soft_limit={was_soft_limited_during_stream}"
+            )
+        except Exception as e_save:
+            logger.error(
+                f"{log_prefix} CRITICAL: Failed to save assistant response to AI cache: {e_save}. "
+                f"Follow-up requests will NOT have this message in context!",
+                exc_info=True
+            )
     elif not aggregated_response and not was_revoked_during_stream and not was_soft_limited_during_stream:
-        logger.warning(f"{log_prefix} Aggregated AI response is empty (and not due to interruption). Skipping cache save.")
+        logger.warning(f"{log_prefix} Aggregated AI response is empty (and not due to interruption). Attempting to save anyway for context.")
+        # Try to save even empty response if services are available
+        if directus_service and cache_service and encryption_service and user_vault_key_id:
+            try:
+                category = preprocessing_result.category or "general_knowledge"
+                timestamp = int(time.time())
+                await _update_chat_metadata(
+                    request_data=request_data,
+                    category=category,
+                    timestamp=timestamp,
+                    content_markdown="",  # Empty response
+                    content_tiptap="",
+                    directus_service=directus_service,
+                    cache_service=cache_service,
+                    encryption_service=encryption_service,
+                    user_vault_key_id=user_vault_key_id,
+                    task_id=task_id,
+                    log_prefix=log_prefix
+                )
+                logger.info(f"{log_prefix} Saved empty assistant response to AI cache for context.")
+            except Exception as e_empty_save:
+                logger.error(f"{log_prefix} Failed to save empty assistant response: {e_empty_save}", exc_info=True)
     elif not cache_service:
-        logger.warning(f"{log_prefix} Cache service not available. Assistant response NOT saved to cache - follow-ups won't have context!")
+        logger.error(f"{log_prefix} CRITICAL: Cache service not available. Assistant response NOT saved to AI cache - follow-ups won't have context!")
+    elif not encryption_service:
+        logger.error(f"{log_prefix} CRITICAL: Encryption service not available. Assistant response NOT saved to AI cache - follow-ups won't have context!")
+    elif not user_vault_key_id:
+        logger.error(f"{log_prefix} CRITICAL: User vault key ID not available. Assistant response NOT saved to AI cache - follow-ups won't have context!")
             
     return aggregated_response, was_revoked_during_stream, was_soft_limited_during_stream

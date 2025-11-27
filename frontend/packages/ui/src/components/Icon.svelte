@@ -302,11 +302,13 @@
     --icon-url-fashion: url('@openmates/ui/static/icons/fashion.svg');
     --icon-url-files: url('@openmates/ui/static/icons/files.svg');
     --icon-url-filter: url('@openmates/ui/static/icons/filter.svg');
+    --icon-url-firecrawl: url('@openmates/ui/static/icons/firecrawl.svg');
     --icon-url-fitness: url('@openmates/ui/static/icons/fitness.svg');
     --icon-url-fullscreen: url('@openmates/ui/static/icons/fullscreen.svg');
     --icon-url-games: url('@openmates/ui/static/icons/games.svg');
     --icon-url-github: url('@openmates/ui/static/icons/github.svg');
     --icon-url-good: url('@openmates/ui/static/icons/good.svg');
+    --icon-url-google: url('@openmates/ui/static/icons/google.svg');
     --icon-url-google-authenticator: url('@openmates/ui/static/icons/google-authenticator.svg');
     --icon-url-guest: url('@openmates/ui/static/icons/guest.svg');
     --icon-url-heart: url('@openmates/ui/static/icons/heart.svg');

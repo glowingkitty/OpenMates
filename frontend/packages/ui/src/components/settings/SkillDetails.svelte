@@ -55,17 +55,37 @@
     
     /**
      * Format pricing information for display.
+     * Returns an array of strings for token pricing (to display on separate lines),
+     * or a single string for other pricing types.
      */
-    function formatPricing(pricing: SkillPricing | undefined): string {
+    function formatPricing(pricing: SkillPricing | undefined): string | string[] {
+        // Never show "Free" - if no pricing provided, default to 1 credit minimum
+        // This should not happen in practice since metadata generation always sets pricing
         if (!pricing) {
-            return $text('settings.app_store.skills.pricing.free.text');
+            return `1 ${$text('settings.app_store.skills.pricing.credits.text')} per request`;
         }
         
+        // Token-based pricing - return array for separate lines
+        // per_credit_unit means "tokens per credit" (e.g., 700 means 700 tokens per 1 credit)
+        if (pricing.tokens) {
+            const tokenParts: string[] = [];
+            if (pricing.tokens.input) {
+                tokenParts.push(`${pricing.tokens.input.per_credit_unit} ${$text('settings.app_store.skills.pricing.token.text')} per ${$text('settings.app_store.skills.pricing.credits.text')} (${$text('settings.app_store.skills.pricing.input.text')})`);
+            }
+            if (pricing.tokens.output) {
+                tokenParts.push(`${pricing.tokens.output.per_credit_unit} ${$text('settings.app_store.skills.pricing.token.text')} per ${$text('settings.app_store.skills.pricing.credits.text')} (${$text('settings.app_store.skills.pricing.output.text')})`);
+            }
+            if (tokenParts.length > 0) {
+                return tokenParts;
+            }
+        }
+        
+        // Other pricing types - return single string
         const parts: string[] = [];
         
-        // Fixed pricing
+        // Fixed pricing - default to "per request" if no unit specified
         if (pricing.fixed !== undefined) {
-            parts.push(`${pricing.fixed} ${$text('settings.app_store.skills.pricing.credits.text')}`);
+            parts.push(`${pricing.fixed} ${$text('settings.app_store.skills.pricing.credits.text')} per request`);
         }
         
         // Per unit pricing
@@ -79,18 +99,14 @@
             parts.push(`${pricing.per_minute} ${$text('settings.app_store.skills.pricing.credits.text')} / ${$text('settings.app_store.skills.pricing.minute.text')}`);
         }
         
-        // Token-based pricing
-        if (pricing.tokens) {
-            if (pricing.tokens.input) {
-                parts.push(`${pricing.tokens.input.per_credit_unit} ${$text('settings.app_store.skills.pricing.credits.text')} / ${$text('settings.app_store.skills.pricing.token.text')} (${$text('settings.app_store.skills.pricing.input.text')})`);
-            }
-            if (pricing.tokens.output) {
-                parts.push(`${pricing.tokens.output.per_credit_unit} ${$text('settings.app_store.skills.pricing.credits.text')} / ${$text('settings.app_store.skills.pricing.token.text')} (${$text('settings.app_store.skills.pricing.output.text')})`);
-            }
-        }
-        
         return parts.length > 0 ? parts.join(', ') : $text('settings.app_store.skills.pricing.free.text');
     }
+    
+    /**
+     * Get formatted pricing for display.
+     * Returns either a string or array of strings (for token pricing).
+     */
+    let formattedPricing = $derived(formatPricing(skill?.pricing));
     
     /**
      * Get icon name from icon_image filename.
@@ -145,19 +161,25 @@
             </div>
         {/if}
         
-        <!-- Pricing section -->
-        {#if skill.pricing}
-            <div class="section">
-                <SettingsItem 
-                    type="heading"
-                    icon="credits"
-                    title={$text('settings.app_store.skills.pricing.text')}
-                />
-                <div class="content">
-                    <p class="pricing">{formatPricing(skill.pricing)}</p>
-                </div>
+        <!-- Pricing section - always show, even if free -->
+        <div class="section">
+            <SettingsItem 
+                type="heading"
+                icon="credits"
+                title={$text('settings.app_store.skills.pricing.text')}
+            />
+            <div class="content">
+                {#if Array.isArray(formattedPricing)}
+                    <!-- Token pricing: display each line separately -->
+                    {#each formattedPricing as pricingLine}
+                        <p class="pricing">{pricingLine}</p>
+                    {/each}
+                {:else}
+                    <!-- Other pricing types: single line -->
+                    <p class="pricing">{formattedPricing}</p>
+                {/if}
             </div>
-        {/if}
+        </div>
     {/if}
 </div>
 
@@ -210,7 +232,7 @@
     
     .pricing {
         font-weight: 500;
-        color: var(--text-primary, #000000);
+        color: var(--color-grey-100);
     }
     
     .error {

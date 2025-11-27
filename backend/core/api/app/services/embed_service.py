@@ -9,7 +9,7 @@ import uuid
 from typing import Dict, Any, Optional, List, Tuple
 from datetime import datetime
 
-from toon_format import encode
+from toon_format import encode, decode
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.utils.encryption import EncryptionService
@@ -125,12 +125,23 @@ class EmbedService:
             embed_id = str(uuid.uuid4())
 
             # Create minimal placeholder content with metadata
+            # CRITICAL: Include all metadata (query, provider, etc.) in placeholder
+            # This ensures the frontend can display the query immediately while skill executes
             placeholder_content = {
                 "app_id": app_id,
                 "skill_id": skill_id,
                 "status": "processing",
                 **(metadata or {})
             }
+            
+            # Log metadata for debugging (especially query for web search)
+            if metadata:
+                logger.debug(
+                    f"{log_prefix} Creating placeholder with metadata: "
+                    f"query={metadata.get('query', 'NOT FOUND')}, "
+                    f"provider={metadata.get('provider', 'NOT FOUND')}, "
+                    f"keys={list(metadata.keys())}"
+                )
 
             # Convert to TOON format
             placeholder_toon = encode(placeholder_content)
@@ -197,14 +208,17 @@ class EmbedService:
             logger.error(f"{log_prefix} Error creating processing embed placeholder: {e}", exc_info=True)
             return None
 
-    async def _get_cached_embed(
+    async def _get_cached_embed_toon(
         self,
         embed_id: str,
         user_vault_key_id: str,
         log_prefix: str = ""
-    ) -> Optional[Dict[str, Any]]:
+    ) -> Optional[str]:
         """
-        Retrieve an embed from cache and decrypt its content.
+        Retrieve an embed from cache and decrypt its content, returning as TOON string.
+        
+        This preserves the space savings of TOON format (30-60% vs JSON) while providing
+        decrypted content for LLM processing.
         
         Args:
             embed_id: The embed identifier
@@ -212,11 +226,9 @@ class EmbedService:
             log_prefix: Logging prefix for this operation
             
         Returns:
-            Decrypted embed content or None if not found
+            Decrypted TOON string or None if not found
         """
         try:
-            from toon_format import decode
-            
             cache_key = f"embed:{embed_id}"
             client = await self.cache_service.client
             if not client:
@@ -247,14 +259,204 @@ class EmbedService:
                 logger.warning(f"{log_prefix} Failed to decrypt embed {embed_id} content")
                 return None
                 
-            # Decode TOON content
-            decoded_content = decode(plaintext_toon)
-            logger.debug(f"{log_prefix} Retrieved and decoded embed {embed_id} from cache")
-            return decoded_content
+            # Return TOON string as-is (don't decode - preserves space savings)
+            logger.debug(f"{log_prefix} Retrieved and decrypted embed {embed_id} from cache (TOON format)")
+            return plaintext_toon
             
         except Exception as e:
             logger.error(f"{log_prefix} Error retrieving embed {embed_id} from cache: {e}", exc_info=True)
             return None
+
+    async def _get_cached_embed(
+        self,
+        embed_id: str,
+        user_vault_key_id: str,
+        log_prefix: str = ""
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Retrieve an embed from cache and decrypt its content, returning the full embed data dictionary.
+        
+        This is used when we need to access metadata (query, provider, etc.) from a cached embed.
+        
+        Args:
+            embed_id: The embed identifier
+            user_vault_key_id: User's vault key ID for decryption
+            log_prefix: Logging prefix for this operation
+            
+        Returns:
+            Decrypted embed data dictionary or None if not found
+        """
+        try:
+            cache_key = f"embed:{embed_id}"
+            client = await self.cache_service.client
+            if not client:
+                logger.warning(f"{log_prefix} Redis client not available")
+                return None
+                
+            embed_json = await client.get(cache_key)
+            if not embed_json:
+                logger.debug(f"{log_prefix} Embed {embed_id} not found in cache")
+                return None
+                
+            import json as json_lib
+            embed_data = json_lib.loads(embed_json)
+            
+            # Decrypt content using vault key if present
+            encrypted_content = embed_data.get("encrypted_content")
+            if encrypted_content:
+                plaintext_content = await self.encryption_service.decrypt_with_user_key(
+                    encrypted_content,
+                    user_vault_key_id
+                )
+                
+                if plaintext_content:
+                    # Parse TOON content to extract metadata
+                    try:
+                        decoded_content = decode(plaintext_content)
+                        
+                        # Log what was decoded for debugging
+                        logger.debug(
+                            f"{log_prefix} Decoded TOON content. Type: {type(decoded_content)}, "
+                            f"Is dict: {isinstance(decoded_content, dict)}"
+                        )
+                        if isinstance(decoded_content, dict):
+                            logger.debug(
+                                f"{log_prefix} Decoded TOON keys: {list(decoded_content.keys())}, "
+                                f"Has 'query': {'query' in decoded_content}, "
+                                f"Has 'provider': {'provider' in decoded_content}"
+                            )
+                            # Merge decoded content into embed_data for easy access
+                            # The decoded content contains the actual data (query, provider, etc.)
+                            embed_data.update(decoded_content)
+                            logger.debug(
+                                f"{log_prefix} After merge, embed_data has 'query': {'query' in embed_data}, "
+                                f"'provider': {'provider' in embed_data}"
+                            )
+                        else:
+                            logger.warning(
+                                f"{log_prefix} Decoded TOON content is not a dict, got {type(decoded_content)}"
+                            )
+                    except Exception as decode_err:
+                        logger.warning(
+                            f"{log_prefix} Could not decode TOON content for metadata extraction: {decode_err}",
+                            exc_info=True
+                        )
+                        # Continue without decoded content - metadata might be in embed_data already
+                else:
+                    logger.warning(f"{log_prefix} Failed to decrypt embed {embed_id} content")
+            
+            logger.debug(
+                f"{log_prefix} Retrieved embed {embed_id} from cache. Final keys: {list(embed_data.keys())}, "
+                f"query={embed_data.get('query', 'NOT FOUND')}"
+            )
+            return embed_data
+            
+        except Exception as e:
+            logger.error(f"{log_prefix} Error retrieving embed {embed_id} from cache: {e}", exc_info=True)
+            return None
+
+    async def resolve_embed_references_in_content(
+        self,
+        content: str,
+        user_vault_key_id: str,
+        log_prefix: str = ""
+    ) -> str:
+        """
+        Resolve embed references in message content by replacing JSON code blocks
+        with actual embed content from cache (as TOON format).
+        
+        According to embeds architecture, messages contain embed references like:
+        ```json
+        {"type": "app_skill_use", "embed_id": "..."}
+        ```
+        
+        This function:
+        1. Parses message markdown to find JSON code blocks with embed references
+        2. For each embed reference, loads embed from cache
+        3. Decrypts TOON content (but keeps as TOON string - not decoded to JSON)
+        4. Replaces embed reference JSON block with TOON code block containing embed content
+        
+        CRITICAL: TOON format is preserved (not decoded to JSON) to maintain space savings
+        (30-60% token reduction vs JSON). LLM can process TOON format directly.
+        
+        Args:
+            content: Message content (markdown) that may contain embed references
+            user_vault_key_id: User's vault key ID for decryption
+            log_prefix: Logging prefix for this operation
+            
+        Returns:
+            Content with embed references resolved (replaced with TOON code blocks)
+        """
+        import re
+        import json as json_lib
+        
+        # Pattern to match JSON code blocks that might contain embed references
+        # Format: ```json\n{...}\n```
+        json_block_pattern = r'```json\s*\n([\s\S]*?)\n```'
+        
+        # Find all embed references first
+        embed_refs = []
+        for match in re.finditer(json_block_pattern, content):
+            json_content = match.group(1).strip()
+            try:
+                embed_ref = json_lib.loads(json_content)
+                if isinstance(embed_ref, dict):
+                    embed_type = embed_ref.get("type")
+                    embed_id = embed_ref.get("embed_id")
+                    if embed_type and embed_id:
+                        embed_refs.append({
+                            "match": match,
+                            "embed_id": embed_id,
+                            "embed_type": embed_type,
+                            "full_match": match.group(0)
+                        })
+            except json_lib.JSONDecodeError:
+                continue
+        
+        # If no embed references found, return original content
+        if not embed_refs:
+            return content
+        
+        # Resolve all embed references (async)
+        resolved_parts = []
+        last_end = 0
+        
+        for embed_ref_info in embed_refs:
+            match = embed_ref_info["match"]
+            embed_id = embed_ref_info["embed_id"]
+            embed_type = embed_ref_info["embed_type"]
+            
+            # Add content before this match
+            resolved_parts.append(content[last_end:match.start()])
+            
+            # Load embed from cache (returns TOON string, not decoded)
+            toon_content = await self._get_cached_embed_toon(embed_id, user_vault_key_id, log_prefix)
+            
+            if not toon_content:
+                # CRITICAL: If embed not found in cache, log a warning but continue with reference
+                # This allows the LLM to process the request even if embeds are missing from cache
+                # The embed reference will be included in the message history, which is better than failing
+                logger.warning(
+                    f"{log_prefix} Embed {embed_id} not found in cache during resolution. "
+                    f"This may indicate embeds expired from cache (24h TTL) or were not cached properly. "
+                    f"Keeping embed reference in message content. LLM will receive reference instead of content."
+                )
+                resolved_parts.append(embed_ref_info["full_match"])  # Keep original reference
+            else:
+                # Replace embed reference with TOON content directly
+                # TOON format is space-efficient (30-60% savings vs JSON) and LLM can process it
+                # Format as code block to preserve TOON structure
+                resolved_text = f"```toon\n{toon_content}\n```"
+                
+                logger.debug(f"{log_prefix} Resolved embed reference {embed_id} ({embed_type}) with TOON content ({len(toon_content)} chars)")
+                resolved_parts.append(resolved_text)
+            
+            last_end = match.end()
+        
+        # Add remaining content after last match
+        resolved_parts.append(content[last_end:])
+        
+        return "".join(resolved_parts)
 
     async def update_embed_with_results(
         self,
@@ -320,16 +522,48 @@ class EmbedService:
             original_metadata = {}
             if original_content:
                 # Extract metadata fields that should be preserved
+                # The decoded TOON content is merged into embed_data, so check both places
+                # CRITICAL: Log what we actually retrieved for debugging
+                logger.debug(
+                    f"{log_prefix} Retrieved original_content from cache. "
+                    f"Keys: {list(original_content.keys())}, "
+                    f"Has 'query': {'query' in original_content}, "
+                    f"Has 'provider': {'provider' in original_content}, "
+                    f"Has 'app_id': {'app_id' in original_content}, "
+                    f"Has 'skill_id': {'skill_id' in original_content}"
+                )
+                
+                # Extract metadata fields that should be preserved
                 for key in ['query', 'provider', 'url', 'input_data']:
                     if key in original_content:
                         original_metadata[key] = original_content[key]
-                logger.debug(f"{log_prefix} Preserving original metadata: {list(original_metadata.keys())}")
+                        logger.debug(f"{log_prefix} Found metadata key '{key}': {original_metadata[key]}")
+                    else:
+                        logger.debug(f"{log_prefix} Metadata key '{key}' not found in original_content")
+                
+                # CRITICAL: Log detailed metadata extraction for debugging
+                logger.info(
+                    f"{log_prefix} Preserving original metadata: {list(original_metadata.keys())} "
+                    f"(query={original_metadata.get('query', 'NOT FOUND')}, "
+                    f"provider={original_metadata.get('provider', 'NOT FOUND')})"
+                )
             else:
                 logger.warning(f"{log_prefix} Could not retrieve original embed metadata for {embed_id}")
 
             if is_composite:
                 # Create child embeds (one per result)
-                child_type = "website" if skill_id == "search" else ("place" if skill_id == "places_search" else "event")
+                # Maps search (app_id="maps", skill_id="search") should create "place" embeds
+                # Web search (app_id="web", skill_id="search") should create "website" embeds
+                if app_id == "maps" and skill_id == "search":
+                    child_type = "place"
+                elif skill_id == "search":
+                    child_type = "website"  # Web search, news search, videos search
+                elif skill_id == "places_search":
+                    child_type = "place"
+                elif skill_id == "events_search":
+                    child_type = "event"
+                else:
+                    child_type = "website"  # Default fallback
 
                 for result in results:
                     # Generate embed_id for child
@@ -392,6 +626,7 @@ class EmbedService:
 
                 # Update parent embed with child embed_ids and results
                 # Include original metadata (query, provider, etc.) for proper frontend rendering
+                # CRITICAL: original_metadata must include query for web search embeds to display correctly
                 parent_content = {
                     "app_id": app_id,
                     "skill_id": skill_id,
@@ -400,6 +635,14 @@ class EmbedService:
                     "status": "finished",
                     **original_metadata  # Preserve query, provider, url, etc. from placeholder
                 }
+                
+                # Log final parent content to verify query is included
+                logger.info(
+                    f"{log_prefix} Parent embed content includes: "
+                    f"query={parent_content.get('query', 'MISSING')}, "
+                    f"provider={parent_content.get('provider', 'MISSING')}, "
+                    f"result_count={parent_content.get('result_count')}"
+                )
 
                 # Convert to TOON (PLAINTEXT)
                 flattened_parent = _flatten_for_toon_tabular(parent_content)
@@ -704,14 +947,26 @@ class EmbedService:
             hashed_task_id = hashlib.sha256(task_id.encode()).hexdigest() if task_id else None
             
             # Determine if this is a composite result (web search, places, events)
-            # For now, we'll check the skill_id to determine composite vs single
+            # Check both app_id and skill_id to determine composite vs single
+            # Maps search uses skill_id "search" but should create "place" embeds, not "website" embeds
             is_composite = skill_id in ["search", "places_search", "events_search"]
             
             child_embed_ids = []
             
             if is_composite:
                 # Create child embeds (one per result)
-                child_type = "website" if skill_id == "search" else ("place" if skill_id == "places_search" else "event")
+                # Maps search (app_id="maps", skill_id="search") should create "place" embeds
+                # Web search (app_id="web", skill_id="search") should create "website" embeds
+                if app_id == "maps" and skill_id == "search":
+                    child_type = "place"
+                elif skill_id == "search":
+                    child_type = "website"  # Web search, news search, videos search
+                elif skill_id == "places_search":
+                    child_type = "place"
+                elif skill_id == "events_search":
+                    child_type = "event"
+                else:
+                    child_type = "website"  # Default fallback
                 
                 for result in results:
                     # Generate embed_id for child
@@ -806,17 +1061,24 @@ class EmbedService:
                 }
             
             else:
-                # Single result - create single app_skill_use embed
+                # Non-composite result - create single app_skill_use embed
+                # All skills return results as an array, so we always structure it consistently
                 embed_id = str(uuid.uuid4())
                 
-                # Convert result to TOON format
-                if len(results) == 1:
-                    flattened_result = _flatten_for_toon_tabular(results[0])
-                    content_toon = encode(flattened_result)
-                else:
-                    # Multiple results but not composite (e.g., code generation with multiple files)
-                    flattened_results = [_flatten_for_toon_tabular(result) for result in results]
-                    content_toon = encode({"results": flattened_results, "count": len(results)})
+                # Flatten all results for TOON encoding
+                flattened_results = [_flatten_for_toon_tabular(result) for result in results]
+                
+                # Wrap with app_id and skill_id metadata for frontend rendering
+                # This ensures the frontend can identify which skill was executed
+                # and render the appropriate preview component
+                # Structure matches composite results pattern: app_id, skill_id, results array
+                content_with_metadata = {
+                    "app_id": app_id,
+                    "skill_id": skill_id,
+                    "results": flattened_results,
+                    "result_count": len(results)
+                }
+                content_toon = encode(_flatten_for_toon_tabular(content_with_metadata))
                 
                 # Encrypt with vault key
                 encrypted_content, _ = await self.encryption_service.encrypt_with_user_key(

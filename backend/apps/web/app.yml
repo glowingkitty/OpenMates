@@ -123,7 +123,8 @@ skills:
                 default: 10
               country:
                 type: string
-                description: Country code for localized results (ISO 3166-1 alpha-2, e.g., 'us', 'gb', 'de')
+                description: "Country code for localized results. Must be one of: AR, AU, AT, BE, BR, CA, CL, DK, FI, FR, DE, GR, HK, IN, ID, IT, JP, KR, MY, MX, NL, NZ, NO, CN, PL, PT, PH, RU, SA, ZA, ES, SE, CH, TW, TR, GB, US, or ALL (case-insensitive). Defaults to 'us' if invalid."
+                enum: ["AR", "AU", "AT", "BE", "BR", "CA", "CL", "DK", "FI", "FR", "DE", "GR", "HK", "IN", "ID", "IT", "JP", "KR", "MY", "MX", "NL", "NZ", "NO", "CN", "PL", "PT", "PH", "RU", "SA", "ZA", "ES", "SE", "CH", "TW", "TR", "GB", "US", "ALL", "ar", "au", "at", "be", "br", "ca", "cl", "dk", "fi", "fr", "de", "gr", "hk", "in", "id", "it", "jp", "kr", "my", "mx", "nl", "nz", "no", "cn", "pl", "pt", "ph", "ru", "sa", "za", "es", "se", "ch", "tw", "tr", "gb", "us", "all"]
                 default: "us"
               search_lang:
                 type: string
@@ -136,6 +137,63 @@ skills:
                 default: "moderate"
             required:
               - query
+      required:
+        - requests
+  - id: read
+    name_translation_key: web.read.text
+    description_translation_key: web.read.description.text
+    stage: development
+    class_path: |
+      backend.apps.web.skills.read_skill.ReadSkill
+    providers:
+      - Firecrawl
+    # Follow-up suggestions shown to users after read results
+    suggestions_follow_up_requests:
+      - "Summarize this page"
+      - "Extract key points"
+      - "Read related pages"
+    # Fields to exclude from LLM inference (but keep in full results for UI rendering)
+    # These fields are removed before adding to message history for LLM processing
+    # but remain in the full response stored in chat history for proper UI rendering
+    # Note: HTML and summary are completely removed from output.
+    # Metadata object is removed - specific fields (language, favicon, og_image, og_sitename) 
+    # are moved to root level of each result for easier access.
+    exclude_fields_for_llm:
+      - "type"
+      - "hash"
+      - "favicon"  # Favicon URL not needed for LLM inference
+      - "og_image"  # OG image URL not needed for LLM inference
+      - "og_sitename"  # OG site name not needed for LLM inference
+    tool_schema:
+      type: object
+      properties:
+        requests:
+          type: array
+          description: Array of read request objects for parallel processing (up to 9 requests). Each object must contain 'url' and can include optional parameters (formats, only_main_content, max_age, timeout).
+          items:
+            type: object
+            properties:
+              url:
+                type: string
+                description: URL of the webpage to read/scrape
+              formats:
+                type: array
+                description: List of output formats to include (e.g., 'markdown', 'html', 'summary')
+                items:
+                  type: string
+                default: ["markdown"]
+              only_main_content:
+                type: boolean
+                description: Whether to return only main content (excluding headers, navs, footers, etc.)
+                default: true
+              max_age:
+                type: integer
+                description: "Cache age in milliseconds (default: 172800000 = 2 days). Returns cached version if available."
+              timeout:
+                type: integer
+                description: Timeout in milliseconds for the request
+            required:
+              - url
       required:
         - requests
 focuses:

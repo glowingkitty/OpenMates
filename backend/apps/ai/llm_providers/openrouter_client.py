@@ -330,8 +330,37 @@ async def _stream_openrouter_response(
                 headers=headers,
                 timeout=DEFAULT_TIMEOUT
             ) as response:
-                # Check for HTTP errors
-                response.raise_for_status()
+                # Check for HTTP errors before reading stream
+                # For error responses, we need to read the body first
+                if response.status_code >= 400:
+                    # Read error response body - for error responses, read as bytes first
+                    error_body = b""
+                    try:
+                        # Read the entire response body for error responses
+                        async for chunk in response.aiter_bytes():
+                            error_body += chunk
+                            if len(error_body) > 10000:  # Limit error body size
+                                break
+                    except Exception as e:
+                        logger.warning(f"{log_prefix} Error reading error response body: {e}")
+                    
+                    # Try to parse error JSON
+                    error_msg = f"HTTP {response.status_code}"
+                    try:
+                        error_text = error_body.decode('utf-8', errors='ignore').strip()
+                        if error_text:
+                            try:
+                                error_detail = json.loads(error_text)
+                                error_msg = error_detail.get('error', {}).get('message', error_detail.get('message', error_msg))
+                            except json.JSONDecodeError:
+                                # Not JSON, use raw text
+                                error_msg = f"HTTP {response.status_code}: {error_text[:500]}"
+                    except UnicodeDecodeError:
+                        error_msg = f"HTTP {response.status_code}: {str(error_body[:500])}"
+                    
+                    logger.error(f"{log_prefix} OpenRouter API error: {error_msg}")
+                    yield f"[ERROR: HTTP error {response.status_code}: {error_msg}]"
+                    return
                 
                 async for line in response.aiter_lines():
                     # Skip empty lines
@@ -435,13 +464,20 @@ async def _stream_openrouter_response(
                 logger.info(f"{log_prefix} Stream completed")
                 
     except httpx.HTTPStatusError as e:
-        # For streaming responses, we need to read the content first before accessing .text
+        # For streaming responses that weren't caught above, try to read error body
+        # This handles cases where the exception is raised before we check status_code
         try:
-            error_body = await e.response.aread()
-            error_text = error_body.decode('utf-8')
+            # Try to read the response body if available
+            if hasattr(e.response, 'aread'):
+                error_body = await e.response.aread()
+                error_text = error_body.decode('utf-8', errors='ignore')
+            elif hasattr(e.response, 'text'):
+                error_text = e.response.text
+            else:
+                error_text = str(e)
         except Exception:
-            error_text = "Unable to read error response"
-        error_msg = f"HTTP error {e.response.status_code}: {error_text}"
+            error_text = f"Unable to read error response: {str(e)}"
+        error_msg = f"HTTP error {e.response.status_code}: {error_text[:500]}"
         logger.error(f"{log_prefix} {error_msg}")
         yield f"[ERROR: {error_msg}]"
     except httpx.RequestError as e:

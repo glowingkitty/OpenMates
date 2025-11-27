@@ -1,14 +1,12 @@
 # backend/apps/videos/skills/transcript_skill.py
 #
 # YouTube transcript skill implementation.
-# Provides functionality to fetch YouTube video transcripts via Oxylabs proxy
-# and retrieve video metadata via YouTube Data API.
+# Provides functionality to fetch YouTube video transcripts via Oxylabs proxy.
 #
 # This skill:
 # 1. Extracts video ID from YouTube URL
 # 2. Fetches transcript using youtube-transcript-api through Oxylabs proxy
-# 3. Fetches video metadata (title, description, views, likes, etc.) via YouTube Data API
-# 4. Returns both transcript and metadata for LLM processing
+# 3. Returns transcript text for LLM processing
 
 import logging
 import os
@@ -27,15 +25,12 @@ from backend.apps.ai.processing.skill_executor import sanitize_external_content
 try:
     from youtube_transcript_api import YouTubeTranscriptApi
     from youtube_transcript_api.proxies import GenericProxyConfig
-    from youtube_transcript_api.formatters import TextFormatter
+    # TextFormatter removed - we now extract timestamps directly from transcript items
     YOUTUBE_TRANSCRIPT_AVAILABLE = True
 except ImportError:
     YOUTUBE_TRANSCRIPT_AVAILABLE = False
     logger = logging.getLogger(__name__)
     logger.warning("youtube-transcript-api not available. Install with: pip install youtube-transcript-api")
-
-# HTTP client for YouTube Data API and proxy testing
-import httpx
 
 logger = logging.getLogger(__name__)
 
@@ -52,32 +47,14 @@ class TranscriptRequest(BaseModel):
     )
 
 
-class VideoMetadata(BaseModel):
-    """Video metadata model from YouTube Data API."""
-    video_id: str
-    title: str
-    description: Optional[str] = None
-    channel_title: Optional[str] = None
-    channel_id: Optional[str] = None
-    published_at: Optional[str] = None
-    duration: Optional[str] = None
-    view_count: Optional[int] = None
-    like_count: Optional[int] = None
-    comment_count: Optional[int] = None
-    thumbnail_url: Optional[str] = None
-
-
 class TranscriptResult(BaseModel):
     """Individual transcript result model."""
-    video_id: str
     url: str
-    transcript: Optional[str] = None
+    transcript: Optional[str] = None  # Formatted multiline transcript with timestamps: [HH:MM:SS.mmm] text
     word_count: Optional[int] = None
+    characters_count: Optional[int] = None
     language: Optional[str] = None
-    is_generated: Optional[bool] = None
-    metadata: Optional[VideoMetadata] = None
     error: Optional[str] = None
-    success: bool = False
 
 
 class TranscriptResponse(BaseModel):
@@ -89,8 +66,8 @@ class TranscriptResponse(BaseModel):
         description="List of transcript results. These will be flattened and encoded to TOON format by main_processor."
     )
     provider: str = Field(
-        default="YouTube Transcript API + YouTube Data API",
-        description="The providers used (e.g., 'YouTube Transcript API + YouTube Data API')"
+        default="YouTube Transcript API",
+        description="The provider used (e.g., 'YouTube Transcript API')"
     )
     suggestions_follow_up_requests: Optional[List[str]] = Field(
         None,
@@ -100,21 +77,20 @@ class TranscriptResponse(BaseModel):
     ignore_fields_for_inference: Optional[List[str]] = Field(
         default_factory=lambda: [
             "type",
-            "hash",
-            "metadata.thumbnail_url"
+            "hash"
         ],
         description="List of field paths (supports dot notation) that should be excluded from LLM inference to reduce token usage. These fields are preserved in chat history for UI rendering but filtered out before sending to LLM."
     )
-    preview_data: Optional[Dict[str, Any]] = Field(
-        None,
-        description="Preview data for frontend rendering. This is skill-specific metadata for UI display (e.g., video_count, success_count, etc.). Does NOT include actual results - those are in 'results' field."
-    )
+    # preview_data removed: redundant metadata that can be derived from results
+    # preview_data: Optional[Dict[str, Any]] = Field(
+    #     None,
+    #     description="Preview data for frontend rendering. This is skill-specific metadata for UI display (e.g., video_count, success_count, etc.). Does NOT include actual results - those are in 'results' field."
+    # )
 
 
 class TranscriptSkill(BaseSkill):
     """
-    YouTube transcript skill that fetches video transcripts via Oxylabs proxy
-    and retrieves video metadata via YouTube Data API.
+    YouTube transcript skill that fetches video transcripts via Oxylabs proxy.
     
     Supports multiple video URLs in a single request, processing them in parallel.
     Each video is processed independently and results are combined.
@@ -347,6 +323,45 @@ class TranscriptSkill(BaseSkill):
             logger.error(f"Error creating proxy config: {e}", exc_info=True)
             return None
     
+    def _format_timestamp(self, seconds: float) -> str:
+        """
+        Format timestamp in seconds to [HH:MM:SS.mmm] format.
+        
+        Args:
+            seconds: Timestamp in seconds (float)
+            
+        Returns:
+            Formatted timestamp string like [00:01:23.456]
+        """
+        hours = int(seconds // 3600)
+        minutes = int((seconds % 3600) // 60)
+        secs = int(seconds % 60)
+        milliseconds = int((seconds % 1) * 1000)
+        
+        return f"[{hours:02d}:{minutes:02d}:{secs:02d}.{milliseconds:03d}]"
+    
+    def _format_transcript_with_timestamps(self, transcript_items: List[Dict[str, Any]]) -> str:
+        """
+        Format transcript items into a single multiline string with timestamps.
+        
+        Format: [HH:MM:SS.mmm] text
+        
+        Args:
+            transcript_items: List of transcript items, each with 'text' and 'start' fields
+            
+        Returns:
+            Multiline string with timestamped transcript
+        """
+        lines = []
+        for item in transcript_items:
+            timestamp = self._format_timestamp(item['start'])
+            text = item['text'].strip()
+            # Replace newlines in text with spaces for cleaner formatting
+            text = text.replace('\n', ' ')
+            lines.append(f"{timestamp} {text}")
+        
+        return "\n".join(lines)
+    
     async def _fetch_transcript(
         self,
         video_id: str,
@@ -379,7 +394,6 @@ class TranscriptSkill(BaseSkill):
         if not YOUTUBE_TRANSCRIPT_AVAILABLE:
             return {
                 "success": False,
-                "video_id": video_id,
                 "url": url,
                 "error": "youtube-transcript-api package not installed"
             }
@@ -401,25 +415,45 @@ class TranscriptSkill(BaseSkill):
                         ytt_api = YouTubeTranscriptApi()
                     
                     # Fetch transcript - API will pick the first available language
+                    # The fetch() method returns a TranscriptList object containing transcript items
+                    # Each item has: text, start (timestamp in seconds), duration (in seconds)
                     fetched = ytt_api.fetch(video_id, languages=languages)
-                    formatter = TextFormatter()
-                    text = formatter.format_transcript(fetched)
+                    
+                    # Extract transcript items with timestamps
+                    # Each item can be accessed as dict (item['text']) or object (item.text)
+                    transcript_items = []
+                    transcript_text_parts = []
+                    
+                    for item in fetched:
+                        # Handle both dict and object access patterns
+                        text = item['text'] if isinstance(item, dict) else item.text
+                        start = item['start'] if isinstance(item, dict) else item.start
+                        duration = item['duration'] if isinstance(item, dict) else item.duration
+                        
+                        transcript_items.append({
+                            "text": text,
+                            "start": start,  # Start timestamp in seconds
+                            "duration": duration  # Duration in seconds
+                        })
+                        transcript_text_parts.append(text)
+                    
+                    # Also keep plain text for word/character counting
+                    plain_text = " ".join(transcript_text_parts)
                     
                     return {
                         "success": True,
-                        "video_id": video_id,
                         "url": url,
-                        "transcript": text,
-                        "word_count": len(text.split()),
+                        "transcript_items": transcript_items,  # Raw items - will be formatted outside sync function
+                        "plain_text": plain_text,  # Plain text for word/character counting
+                        "word_count": len(plain_text.split()),
+                        "characters_count": len(plain_text),
                         "language": fetched.language,
-                        "is_generated": fetched.is_generated,
                     }
                 except Exception as exc:
                     logger.warning(f"Transcript fetch attempt {attempt+1}/{max_retries} failed for {video_id}: {type(exc).__name__}: {exc}")
                     if attempt == max_retries - 1:
                         return {
                             "success": False,
-                            "video_id": video_id,
                             "url": url,
                             "error": str(exc),
                         }
@@ -427,7 +461,6 @@ class TranscriptSkill(BaseSkill):
             # Should never reach here
             return {
                 "success": False,
-                "video_id": video_id,
                 "url": url,
                 "error": "Unknown error after retries"
             }
@@ -436,111 +469,27 @@ class TranscriptSkill(BaseSkill):
         loop = asyncio.get_event_loop()
         try:
             result = await loop.run_in_executor(None, _fetch_sync)
+            
+            # Format transcript with timestamps if fetch was successful
+            if result.get("success") and "transcript_items" in result:
+                transcript_items = result.pop("transcript_items")
+                plain_text = result.pop("plain_text", "")
+                
+                # Format transcript as multiline string with timestamps
+                # Format: [HH:MM:SS.mmm] text (one line per timestamp segment)
+                formatted_transcript = self._format_transcript_with_timestamps(transcript_items)
+                
+                # Update result with formatted transcript (timestamps are now included in the transcript text)
+                result["transcript"] = formatted_transcript
+            
             return result
         except Exception as e:
             logger.error(f"Error in thread pool execution for transcript fetch: {e}", exc_info=True)
             return {
                 "success": False,
-                "video_id": video_id,
                 "url": url,
                 "error": f"Thread pool error: {str(e)}"
             }
-    
-    async def _fetch_metadata(
-        self,
-        video_id: str,
-        youtube_api_key: str
-    ) -> Optional[VideoMetadata]:
-        """
-        Fetch video metadata from YouTube Data API.
-        
-        Args:
-            video_id: YouTube video ID
-            youtube_api_key: YouTube Data API key
-            
-        Returns:
-            VideoMetadata object if successful, None otherwise
-        """
-        try:
-            # YouTube Data API v3 endpoint
-            url = "https://www.googleapis.com/youtube/v3/videos"
-            params = {
-                "key": youtube_api_key,
-                "id": video_id,
-                "part": "snippet,statistics,contentDetails"
-            }
-            
-            # Use httpx for async HTTP requests
-            async with httpx.AsyncClient(timeout=30.0) as client:
-                response = await client.get(url, params=params)
-                response.raise_for_status()
-                data = response.json()
-            
-            if not data.get("items"):
-                logger.warning(f"No video found for ID: {video_id}")
-                return None
-            
-            item = data["items"][0]
-            snippet = item.get("snippet", {})
-            statistics = item.get("statistics", {})
-            content_details = item.get("contentDetails", {})
-            
-            # Extract thumbnail URL (prefer high quality, fallback to default)
-            thumbnails = snippet.get("thumbnails", {})
-            thumbnail_url = None
-            if thumbnails.get("high"):
-                thumbnail_url = thumbnails["high"].get("url")
-            elif thumbnails.get("medium"):
-                thumbnail_url = thumbnails["medium"].get("url")
-            elif thumbnails.get("default"):
-                thumbnail_url = thumbnails["default"].get("url")
-            
-            # Parse view count, like count, comment count (may be strings from API)
-            view_count = None
-            like_count = None
-            comment_count = None
-            
-            try:
-                if statistics.get("viewCount"):
-                    view_count = int(statistics["viewCount"])
-            except (ValueError, TypeError):
-                pass
-            
-            try:
-                if statistics.get("likeCount"):
-                    like_count = int(statistics["likeCount"])
-            except (ValueError, TypeError):
-                pass
-            
-            try:
-                if statistics.get("commentCount"):
-                    comment_count = int(statistics["commentCount"])
-            except (ValueError, TypeError):
-                pass
-            
-            metadata = VideoMetadata(
-                video_id=video_id,
-                title=snippet.get("title", ""),
-                description=snippet.get("description"),
-                channel_title=snippet.get("channelTitle"),
-                channel_id=snippet.get("channelId"),
-                published_at=snippet.get("publishedAt"),
-                duration=content_details.get("duration"),  # ISO 8601 duration format
-                view_count=view_count,
-                like_count=like_count,
-                comment_count=comment_count,
-                thumbnail_url=thumbnail_url
-            )
-            
-            logger.debug(f"Successfully fetched metadata for video {video_id}: {metadata.title}")
-            return metadata
-            
-        except httpx.HTTPStatusError as e:
-            logger.error(f"YouTube Data API HTTP error for video {video_id}: {e.response.status_code} - {e.response.text}")
-            return None
-        except Exception as e:
-            logger.error(f"Error fetching metadata for video {video_id}: {e}", exc_info=True)
-            return None
     
     async def execute(
         self,
@@ -613,17 +562,8 @@ class TranscriptSkill(BaseSkill):
                     error=f"Request {i+1} is missing required 'url' field"
                 )
         
-        # Get required API keys and build proxy config
+        # Build proxy config
         try:
-            # Get YouTube Data API key
-            youtube_api_key = await secrets_manager.get_secret(
-                secret_path="kv/data/providers/google",
-                secret_key="youtube_api_key"
-            )
-            
-            if not youtube_api_key:
-                logger.warning("YouTube Data API key not found - metadata fetching will be skipped")
-            
             # Build Oxylabs proxy URL (if credentials available)
             proxy_url = await self._build_oxylabs_proxy_url_async(secrets_manager)
             proxy_config = self._make_proxy_config(proxy_url)
@@ -634,7 +574,7 @@ class TranscriptSkill(BaseSkill):
                 logger.debug("No Oxylabs proxy configured - transcript fetching will use direct connection")
                 
         except Exception as e:
-            logger.error(f"Error initializing API keys or proxy: {e}", exc_info=True)
+            logger.error(f"Error initializing proxy: {e}", exc_info=True)
             return TranscriptResponse(
                 results=[],
                 error=f"Configuration error: {str(e)}"
@@ -661,8 +601,6 @@ class TranscriptSkill(BaseSkill):
                 errors.append(error_msg)
                 failed_count += 1
                 all_results.append({
-                    "success": False,
-                    "video_id": None,
                     "url": video_url,
                     "error": "Invalid YouTube URL - could not extract video ID"
                 })
@@ -675,59 +613,32 @@ class TranscriptSkill(BaseSkill):
             if not isinstance(languages, list):
                 languages = ["en", "de", "es", "fr"]
             
-            # Fetch transcript and metadata in parallel
+            # Fetch transcript
             try:
-                # Fetch transcript and metadata concurrently
-                transcript_task = self._fetch_transcript(
+                transcript_result = await self._fetch_transcript(
                     video_id=video_id,
                     url=video_url,
                     proxy_config=proxy_config,
                     languages=languages
                 )
                 
-                metadata_task = None
-                if youtube_api_key:
-                    metadata_task = self._fetch_metadata(
-                        video_id=video_id,
-                        youtube_api_key=youtube_api_key
-                    )
-                
-                # Wait for both to complete
-                transcript_result = await transcript_task
-                metadata = None
-                if metadata_task:
-                    metadata = await metadata_task
-                
-                # Combine results
+                # Process results
                 if transcript_result.get("success"):
                     success_count += 1
                     
                     # Build result dict
+                    # Note: video_id removed as it's redundant (can be extracted from URL)
+                    # Note: is_generated removed (indicates if transcript was auto-generated by YouTube, not needed)
+                    # Note: success field removed (errors are indicated by presence of 'error' field)
+                    # Note: timestamps removed - timestamps are now included in the formatted transcript text
                     result = {
                         "type": "video_transcript",
-                        "video_id": video_id,
                         "url": video_url,
-                        "transcript": transcript_result.get("transcript", ""),
+                        "transcript": transcript_result.get("transcript", ""),  # Formatted multiline transcript with timestamps
                         "word_count": transcript_result.get("word_count", 0),
+                        "characters_count": transcript_result.get("characters_count", 0),
                         "language": transcript_result.get("language"),
-                        "is_generated": transcript_result.get("is_generated", False),
-                        "success": True
                     }
-                    
-                    # Add metadata if available
-                    if metadata:
-                        result["metadata"] = {
-                            "title": metadata.title,
-                            "description": metadata.description,
-                            "channel_title": metadata.channel_title,
-                            "channel_id": metadata.channel_id,
-                            "published_at": metadata.published_at,
-                            "duration": metadata.duration,
-                            "view_count": metadata.view_count,
-                            "like_count": metadata.like_count,
-                            "comment_count": metadata.comment_count,
-                            "thumbnail_url": metadata.thumbnail_url
-                        }
                     
                     # Sanitize transcript text before adding to results
                     # This is critical for security - external content must be sanitized
@@ -771,14 +682,12 @@ class TranscriptSkill(BaseSkill):
                             continue
                     
                     all_results.append(result)
-                    logger.info(f"Successfully processed video {video_id}: {transcript_result.get('word_count', 0)} words, metadata: {'yes' if metadata else 'no'}")
+                    logger.info(f"Successfully processed video {video_id}: {transcript_result.get('word_count', 0)} words")
                 else:
                     failed_count += 1
                     error_msg = transcript_result.get("error", "Unknown error")
                     errors.append(f"Video {video_id}: {error_msg}")
                     all_results.append({
-                        "success": False,
-                        "video_id": video_id,
                         "url": video_url,
                         "error": error_msg
                     })
@@ -790,8 +699,6 @@ class TranscriptSkill(BaseSkill):
                 errors.append(error_msg)
                 failed_count += 1
                 all_results.append({
-                    "success": False,
-                    "video_id": video_id,
                     "url": video_url,
                     "error": str(e)
                 })
@@ -800,19 +707,17 @@ class TranscriptSkill(BaseSkill):
             if i < len(requests) - 1:
                 await asyncio.sleep(1)
         
-        # Build preview_data for frontend rendering
-        preview_data: Dict[str, Any] = {
-            "video_count": len(requests),
-            "success_count": success_count,
-            "failed_count": failed_count
-        }
+        # preview_data removed: redundant metadata that can be derived from results
+        # - video_count: len(requests) or len(all_results)
+        # - success_count/failed_count: can be calculated from results
+        # Frontend can derive all this from the results array
         
         # Build response
         response = TranscriptResponse(
             results=all_results,
-            provider="YouTube Transcript API + YouTube Data API",
-            suggestions_follow_up_requests=None,  # Can be added from app.yml if needed
-            preview_data=preview_data
+            provider="YouTube Transcript API",
+            suggestions_follow_up_requests=None  # Can be added from app.yml if needed
+            # preview_data removed: redundant metadata
         )
         
         # Add error message if there were errors (but still return results if any)

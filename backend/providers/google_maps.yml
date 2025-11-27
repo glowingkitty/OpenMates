@@ -1,0 +1,73 @@
+# backend/providers/google_maps.yml
+#
+# Configuration for Google Maps Platform (Places API) provider.
+# Used by the maps app for place search functionality.
+
+provider_id: "google_maps"
+name: "Google Maps"
+description: "Google Maps Platform Places API for location-based search and place information."
+logo_svg: "logos/google_maps.svg" # Path for UI, relative to a common logos directory
+
+# API endpoint configuration
+api_base_url: "https://places.googleapis.com/v1"
+
+# Google Maps Platform Pricing
+# 
+# The Places API (New) uses a pay-as-you-go pricing model based on SKUs (Stock Keeping Units).
+# Different fields in the response trigger different SKUs with different costs.
+#
+# **Text Search Essentials ID Only SKU:**
+# - Cost: $0.017 per request
+# - Fields: places.attributions, places.id, places.name, nextPageToken, places.movedPlace, places.movedPlaceId
+#
+# **Text Search Pro SKU:**
+# - Cost: $0.032 per request
+# - Fields: places.displayName, places.formattedAddress, places.location, places.types, etc.
+#
+# **Text Search Enterprise SKU:**
+# - Cost: $0.032 per request
+# - Fields: places.rating, places.userRatingCount, places.priceLevel, places.websiteUri, etc.
+#
+# **Text Search Enterprise + Atmosphere SKU:**
+# - Cost: $0.032 per request
+# - Fields: places.reviews, places.generativeSummary, places.parkingOptions, etc.
+#
+# Note: The SKU charged is based on the highest-tier field requested in the FieldMask.
+# For example, if you request both Pro and Enterprise fields, you'll be charged the Enterprise SKU rate.
+#
+# Default plan uses Text Search Pro SKU (most common use case)
+#
+# Environment Variables Required:
+# - SECRET__GOOGLE_MAPS__API_KEY: Your Google Maps Platform API key (stored in Vault)
+#   Get your API key from: https://console.cloud.google.com/google/maps-apis/credentials
+#   Make sure to enable the "Places API (New)" in your Google Cloud project
+
+# Rate limiting configuration
+# Google Maps Platform has default rate limits:
+# - 100 requests per 100 seconds per user (default)
+# - Can be increased with higher-tier plans
+# These limits are enforced by Google's infrastructure
+rate_limits:
+  default:
+    requests_per_100_seconds: 100  # Default Google Maps Platform rate limit
+    requests_per_day: null  # No daily limit by default (pay-as-you-go)
+
+# Pricing information
+# Cost per request in credits (user-facing pricing, independent of Google's pricing)
+# 
+# Pricing calculation based on Text Search Enterprise SKU ($0.032 per request):
+# - Base cost: $0.032 per search request (for fields: displayName, formattedAddress, location, types, rating)
+# - Converting to OpenMates credits (1 credit = $0.001 USD):
+# - $0.032 / $0.001 = 32 credits (exact break-even cost)
+# 
+# We round up to 40 credits per request to cover:
+# - Currency conversion buffer (USD to EUR fluctuations)
+# - Small operational overhead
+# - Rounding to a clean number
+# - Maximum 20 results per request (pricing is per API request, not per result)
+#
+# Users are always charged 40 credits per search request
+# If a user makes 5 parallel search requests, they are charged 200 credits total (5 * 40)
+pricing:
+  per_request_credits: 40  # Always 40 credits per search request for users
+

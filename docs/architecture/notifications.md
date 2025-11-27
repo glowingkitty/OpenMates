@@ -98,12 +98,29 @@ The following notification types trigger PWA system notifications (in addition t
 2. **Software update available** - Server admins receive system notifications for critical updates
 3. **Security-related notifications** (future) - Important security events like logins from other devices will trigger system notifications
 
+### Reply to Notification (Future Enhancement)
+
+We plan to add support for direct replies to notifications at the OS level via PWA functionality on supported platforms. This will allow users to respond to messages directly from system notifications without switching back to the application.
+
+**Planned Features**:
+- **macOS**: Users will be able to see notifications in the macOS notification center and reply directly to messages
+- **Windows**: Similar reply functionality for Windows system notifications
+- **Android**: Reply action for Android system notifications
+- **Fallback**: On platforms without native reply support, notifications will open the relevant chat when clicked
+
+**Implementation Approach**:
+- Utilize the Notification API's `actions` property to add a reply action button
+- Integrate with platform-specific notification features (e.g., reply boxes in macOS and Windows)
+- Send the reply directly to the server with context about which chat/conversation it belongs to
+- Provide visual feedback to confirm the message was sent
+
 ### Implementation Notes
 
 - PWA notifications require user permission (requested on first use)
 - Notifications should be actionable when possible (e.g., clicking a notification opens the relevant chat or page)
 - Notification content should be concise but informative
 - Respect user preferences for notification types (users may want to disable certain notification categories)
+- Reply-to-notification will be prioritized for message notifications first, with potential expansion to other notification types
 
 ## Integration with PWA & Offline Support
 

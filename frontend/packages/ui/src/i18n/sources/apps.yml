@@ -734,3 +734,279 @@ books.description:
   cs: Spravujte své e-knihy, překládejte je a další.
   sv: Hantera dina e-böcker, översätt dem och mer.
   verified_by_human: [en,de]
+maps:
+  context: App name for the Maps app
+  en: Maps
+  de: Karten
+  zh: 地图
+  es: Mapas
+  fr: Cartes
+  pt: Mapas
+  ru: Карты
+  ja: 地図
+  ko: 지도
+  it: Mappe
+  tr: Haritalar
+  vi: Bản đồ
+  id: Peta
+  pl: Mapy
+  nl: Kaarten
+  ar: الخرائط
+  hi: नक्शे
+  th: แผนที่
+  cs: Mapy
+  sv: Kartor
+  verified_by_human: [en,de]
+maps.description:
+  context: Description for the Maps app
+  en: Search for places, get directions & more.
+  de: Suche nach Orten, erhalte Wegbeschreibungen und mehr.
+  zh: 搜索地点、获取路线等。
+  es: Busca lugares, obtén direcciones y más.
+  fr: Recherchez des lieux, obtenez des itinéraires et plus encore.
+  pt: Pesquise lugares, obtenha direções e muito mais.
+  ru: Ищите места, получайте маршруты и многое другое.
+  ja: 場所を検索し、ルートを取得するなど。
+  ko: 장소를 검색하고 경로를 얻는 등.
+  it: Cerca luoghi, ottieni indicazioni stradali e altro ancora.
+  tr: Yerler arayın, yol tarifi alın ve daha fazlası.
+  vi: Tìm kiếm địa điểm, nhận chỉ đường và hơn thế nữa.
+  id: Cari tempat, dapatkan arah, dan lainnya.
+  pl: Szukaj miejsc, uzyskaj wskazówki i nie tylko.
+  nl: Zoek naar plaatsen, krijg routebeschrijvingen en meer.
+  ar: ابحث عن الأماكن واحصل على الاتجاهات والمزيد.
+  hi: स्थान खोजें, दिशा-निर्देश प्राप्त करें और बहुत कुछ।
+  th: ค้นหาสถานที่ รับเส้นทาง และอื่นๆ
+  cs: Hledejte místa, získejte směry a další.
+  sv: Sök efter platser, få vägbeskrivningar och mer.
+  verified_by_human: [en,de]
+maps.favorite_places:
+  context: Setting name for favorite places in Maps app
+  en: Favorite places
+  de: Lieblingsorte
+  zh: 收藏地点
+  es: Lugares favoritos
+  fr: Lieux favoris
+  pt: Lugares favoritos
+  ru: Избранные места
+  ja: お気に入りの場所
+  ko: 즐겨찾는 장소
+  it: Luoghi preferiti
+  tr: Favori yerler
+  vi: Địa điểm yêu thích
+  id: Tempat favorit
+  pl: Ulubione miejsca
+  nl: Favoriete plaatsen
+  ar: الأماكن المفضلة
+  hi: पसंदीदा स्थान
+  th: สถานที่โปรด
+  cs: Oblíbená místa
+  sv: Favoritplatser
+  verified_by_human: [en,de]
+maps.favorite_places.description:
+  context: Description for favorite places setting in Maps app
+  en: Your saved favorite places for quick access.
+  de: Deine gespeicherten Lieblingsorte für schnellen Zugriff.
+  zh: 您保存的收藏地点，方便快速访问。
+  es: Tus lugares favoritos guardados para acceso rápido.
+  fr: Vos lieux favoris enregistrés pour un accès rapide.
+  pt: Seus lugares favoritos salvos para acesso rápido.
+  ru: Ваши сохраненные избранные места для быстрого доступа.
+  ja: クイックアクセスのための保存されたお気に入りの場所。
+  ko: 빠른 액세스를 위한 저장된 즐겨찾는 장소.
+  it: I tuoi luoghi preferiti salvati per un accesso rapido.
+  tr: Hızlı erişim için kaydedilmiş favori yerleriniz.
+  vi: Các địa điểm yêu thích đã lưu của bạn để truy cập nhanh.
+  id: Tempat favorit yang disimpan untuk akses cepat.
+  pl: Twoje zapisane ulubione miejsca do szybkiego dostępu.
+  nl: Je opgeslagen favoriete plaatsen voor snelle toegang.
+  ar: الأماكن المفضلة المحفوظة للوصول السريع.
+  hi: त्वरित पहुंच के लिए आपके सहेजे गए पसंदीदा स्थान।
+  th: สถานที่โปรดที่บันทึกไว้สำหรับการเข้าถึงอย่างรวดเร็ว
+  cs: Vaše uložená oblíbená místa pro rychlý přístup.
+  sv: Dina sparade favoritplatser för snabb åtkomst.
+  verified_by_human: [en,de]
+maps.search:
+  context: Skill name for search in Maps app
+  en: Search
+  de: Suche
+  zh: 搜索
+  es: Buscar
+  fr: Rechercher
+  pt: Pesquisar
+  ru: Поиск
+  ja: 検索
+  ko: 검색
+  it: Cerca
+  tr: Ara
+  vi: Tìm kiếm
+  id: Cari
+  pl: Szukaj
+  nl: Zoeken
+  ar: بحث
+  hi: खोजें
+  th: ค้นหา
+  cs: Hledat
+  sv: Sök
+  verified_by_human: [en,de]
+maps.search.description:
+  context: Description for search skill in Maps app
+  en: Search for places, businesses, and locations.
+  de: Suche nach Orten, Geschäften und Standorten.
+  zh: 搜索地点、商家和位置。
+  es: Busca lugares, negocios y ubicaciones.
+  fr: Recherchez des lieux, des entreprises et des emplacements.
+  pt: Pesquise lugares, empresas e localizações.
+  ru: Ищите места, предприятия и местоположения.
+  ja: 場所、ビジネス、位置を検索する。
+  ko: 장소, 비즈니스 및 위치를 검색하세요.
+  it: Cerca luoghi, attività commerciali e località.
+  tr: Yerler, işletmeler ve konumlar arayın.
+  vi: Tìm kiếm địa điểm, doanh nghiệp và vị trí.
+  id: Cari tempat, bisnis, dan lokasi.
+  pl: Szukaj miejsc, firm i lokalizacji.
+  nl: Zoek naar plaatsen, bedrijven en locaties.
+  ar: ابحث عن الأماكن والشركات والمواقع.
+  hi: स्थान, व्यवसाय और स्थान खोजें।
+  th: ค้นหาสถานที่ ธุรกิจ และตำแหน่ง
+  cs: Hledejte místa, podniky a lokace.
+  sv: Sök efter platser, företag och platser.
+  verified_by_human: [en,de]
+news:
+  context: App name for the News app
+  en: News
+  de: Nachrichten
+  zh: 新闻
+  es: Noticias
+  fr: Actualités
+  pt: Notícias
+  ru: Новости
+  ja: ニュース
+  ko: 뉴스
+  it: Notizie
+  tr: Haberler
+  vi: Tin tức
+  id: Berita
+  pl: Wiadomości
+  nl: Nieuws
+  ar: الأخبار
+  hi: समाचार
+  th: ข่าว
+  cs: Zprávy
+  sv: Nyheter
+  verified_by_human: [en,de]
+news.description:
+  context: Description for the News app
+  en: Stay informed with the latest news and articles.
+  de: Bleib informiert mit den neuesten Nachrichten und Artikeln.
+  zh: 通过最新新闻和文章保持了解。
+  es: Mantente informado con las últimas noticias y artículos.
+  fr: Restez informé avec les dernières actualités et articles.
+  pt: Mantenha-se informado com as últimas notícias e artigos.
+  ru: Будьте в курсе последних новостей и статей.
+  ja: 最新のニュースと記事で情報を得る。
+  ko: 최신 뉴스와 기사로 정보를 얻으세요.
+  it: Resta informato con le ultime notizie e articoli.
+  tr: En son haberler ve makalelerle bilgili kalın.
+  vi: Cập nhật thông tin với tin tức và bài viết mới nhất.
+  id: Tetap terinformasi dengan berita dan artikel terbaru.
+  pl: Bądź na bieżąco z najnowszymi wiadomościami i artykułami.
+  nl: Blijf op de hoogte met het laatste nieuws en artikelen.
+  ar: ابق على اطلاع بآخر الأخبار والمقالات.
+  hi: नवीनतम समाचार और लेखों के साथ सूचित रहें।
+  th: ติดตามข่าวสารด้วยข่าวและบทความล่าสุด
+  cs: Zůstaňte informováni s nejnovějšími zprávami a články.
+  sv: Håll dig informerad med de senaste nyheterna och artiklarna.
+  verified_by_human: [en,de]
+news.search:
+  context: Skill name for search in News app
+  en: Search
+  de: Suche
+  zh: 搜索
+  es: Buscar
+  fr: Rechercher
+  pt: Pesquisar
+  ru: Поиск
+  ja: 検索
+  ko: 검색
+  it: Cerca
+  tr: Ara
+  vi: Tìm kiếm
+  id: Cari
+  pl: Szukaj
+  nl: Zoeken
+  ar: بحث
+  hi: खोजें
+  th: ค้นหา
+  cs: Hledat
+  sv: Sök
+  verified_by_human: [en,de]
+news.search.description:
+  context: Description for search skill in News app
+  en: Search for news articles and stories.
+  de: Suche nach Nachrichtenartikeln und Geschichten.
+  zh: 搜索新闻文章和报道。
+  es: Busca artículos de noticias e historias.
+  fr: Recherchez des articles et des actualités.
+  pt: Pesquise artigos de notícias e histórias.
+  ru: Ищите новостные статьи и истории.
+  ja: ニュース記事やストーリーを検索する。
+  ko: 뉴스 기사와 스토리를 검색하세요.
+  it: Cerca articoli di notizie e storie.
+  tr: Haber makaleleri ve hikayeleri arayın.
+  vi: Tìm kiếm bài viết và tin tức.
+  id: Cari artikel berita dan cerita.
+  pl: Szukaj artykułów i wiadomości.
+  nl: Zoek naar nieuwsartikelen en verhalen.
+  ar: ابحث عن مقالات الأخبار والقصص.
+  hi: समाचार लेख और कहानियां खोजें।
+  th: ค้นหาบทความข่าวและเรื่องราว
+  cs: Hledejte novinové články a příběhy.
+  sv: Sök efter nyhetsartiklar och berättelser.
+  verified_by_human: [en,de]
+news.understand_the_news:
+  context: Focus name for understanding the news in News app
+  en: Understand the news
+  de: Nachrichten verstehen
+  zh: 理解新闻
+  es: Entender las noticias
+  fr: Comprendre l'actualité
+  pt: Entender as notícias
+  ru: Понимать новости
+  ja: ニュースを理解する
+  ko: 뉴스 이해하기
+  it: Capire le notizie
+  tr: Haberleri anlamak
+  vi: Hiểu tin tức
+  id: Memahami berita
+  pl: Zrozumieć wiadomości
+  nl: Het nieuws begrijpen
+  ar: فهم الأخبار
+  hi: समाचार समझें
+  th: เข้าใจข่าว
+  cs: Porozumět zprávám
+  sv: Förstå nyheterna
+  verified_by_human: [en,de]
+news.understand_the_news.description:
+  context: Description for understand the news focus in News app
+  en: Get help understanding current events and news articles.
+  de: Erhalte Hilfe beim Verstehen aktueller Ereignisse und Nachrichtenartikel.
+  zh: 获得帮助理解时事和新闻文章。
+  es: Obtén ayuda para entender eventos actuales y artículos de noticias.
+  fr: Obtenez de l'aide pour comprendre l'actualité et les articles de presse.
+  pt: Obtenha ajuda para entender eventos atuais e artigos de notícias.
+  ru: Получите помощь в понимании текущих событий и новостных статей.
+  ja: 時事問題やニュース記事を理解するためのヘルプを得る。
+  ko: 현재 사건과 뉴스 기사를 이해하는 데 도움을 받으세요.
+  it: Ottieni aiuto per comprendere eventi attuali e articoli di notizie.
+  tr: Güncel olayları ve haber makalelerini anlamak için yardım alın.
+  vi: Nhận trợ giúp hiểu các sự kiện hiện tại và bài viết tin tức.
+  id: Dapatkan bantuan memahami peristiwa terkini dan artikel berita.
+  pl: Uzyskaj pomoc w zrozumieniu aktualnych wydarzeń i artykułów prasowych.
+  nl: Krijg hulp bij het begrijpen van actuele gebeurtenissen en nieuwsartikelen.
+  ar: احصل على مساعدة في فهم الأحداث الحالية ومقالات الأخبار.
+  hi: वर्तमान घटनाओं और समाचार लेखों को समझने में मदद प्राप्त करें।
+  th: รับความช่วยเหลือในการทำความเข้าใจเหตุการณ์ปัจจุบันและบทความข่าว
+  cs: Získejte pomoc s porozuměním aktuálním událostem a novinovým článkům.
+  sv: Få hjälp med att förstå aktuella händelser och nyhetsartiklar.
+  verified_by_human: [en,de]

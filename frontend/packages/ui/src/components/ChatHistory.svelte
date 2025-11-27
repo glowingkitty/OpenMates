@@ -48,7 +48,10 @@
     
     if (typeof incomingMessage.content === 'string') {
       // Content is markdown string - convert to Tiptap JSON with unified parsing (includes embed parsing)
-      const tiptapJson = parse_message(incomingMessage.content, 'read', { unifiedParsingEnabled: true });
+      // CRITICAL FIX: Use 'write' mode for streaming messages to show 'processing' status on embeds
+      // This ensures users see "processing" state during streaming instead of waiting for embed data
+      const parseMode = incomingMessage.status === 'streaming' ? 'write' : 'read';
+      const tiptapJson = parse_message(incomingMessage.content, parseMode, { unifiedParsingEnabled: true });
       processedContent = preprocessTiptapJsonForEmbeds(tiptapJson);
 
       // Apply truncation at TipTap level for user messages to avoid breaking node structure

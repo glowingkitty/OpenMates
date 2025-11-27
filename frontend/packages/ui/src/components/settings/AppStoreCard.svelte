@@ -179,6 +179,7 @@
         return valid;
     });
     
+    
     /**
      * Get app gradient from theme.css based on app id.
      * Constructs CSS variable name directly from app ID: var(--color-app-{appId})

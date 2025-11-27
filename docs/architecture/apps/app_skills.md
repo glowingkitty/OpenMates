@@ -95,7 +95,7 @@ Some skills provide additional context or instructions to help your digital team
 
 1. **Split Long Text**: If text content exceeds 50,000 tokens, split it into chunks of 50,000 tokens maximum each
 2. **Detect Prompt Injection Attacks**: Process each chunk through an optimized LLM function call with a specialized system prompt designed solely for prompt injection detection
-3. **Sanitize Text Content**: If prompt injection is detected, sanitize the text content to remove or neutralize malicious instructions using the extracted `injection_strings`
+3. **Sanitize Text Content**: If prompt injection is detected, replace the detected injection strings with the placeholder `[PROMPT INJECTION DETECTED & REMOVED]` using the extracted `injection_strings`. This makes it transparent that content was removed for security reasons.
 4. **Combine Results**: Merge sanitized chunks back together, maintaining the original structure
 5. **Reject Images**: If images contain prompt injection attacks (detected via image analysis), reject the image entirely
 6. **Last Step Before Return**: This sanitization must be the **final step** before the app skill API endpoint returns data to the main processing system
@@ -108,7 +108,7 @@ Some skills provide additional context or instructions to help your digital team
 - **Function Definition**: Tool definition for `detect_prompt_injection` that extracts exact injection strings for removal
 - **Model Configuration**: Default model configured in [`backend/apps/ai/app.yml`](../../../backend/apps/ai/app.yml) under `skill_config.default_llms.content_sanitization_model`
 - **Threshold**: Content with scores above 7.0 should be flagged or blocked; content between 5.0-7.0 should be reviewed
-- **Sanitization**: Remove or neutralize detected injection patterns using extracted `injection_strings` from the detection result
+- **Sanitization**: Replace detected injection patterns with the placeholder `[PROMPT INJECTION DETECTED & REMOVED]` using extracted `injection_strings` from the detection result. This provides transparency about what content was removed for security.
 - **Parallel Processing**: When processing multiple chunks, sanitize them in parallel when possible to improve performance
 
 For detailed implementation guidelines, detection patterns, testing guidelines, and alternative prompt formats, see [Prompt Injection Protection](../prompt_injection_protection.md).

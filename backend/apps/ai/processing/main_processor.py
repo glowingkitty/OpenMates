@@ -358,7 +358,14 @@ async def _charge_skill_credits(
             # Normalize provider name to lowercase (provider IDs in YAML are lowercase, e.g., "brave")
             provider_id = provider_name.lower()
             
-            logger.debug(f"{log_prefix} Skill '{app_id}.{skill_id}' has no explicit pricing, attempting to fetch provider-level pricing from '{provider_id}'")
+            # Map provider names to provider IDs (handles cases like "Google" -> "google_maps" for maps app)
+            # This matches the frontend mapping logic in generate-apps-metadata.js
+            if provider_name == "Google" and app_id == "maps":
+                provider_id = "google_maps"
+            elif provider_name == "Brave" or provider_name == "Brave Search":
+                provider_id = "brave"
+            
+            logger.debug(f"{log_prefix} Skill '{app_id}.{skill_id}' has no explicit pricing, attempting to fetch provider-level pricing from '{provider_id}' (mapped from '{provider_name}')")
             
             try:
                 # Fetch provider pricing via internal API
@@ -545,6 +552,9 @@ async def handle_main_processing(
     now = datetime.datetime.now(datetime.timezone.utc)
     date_time_str = now.strftime("%Y-%m-%d %H:%M:%S %Z")
     prompt_parts.append(f"Current date and time: {date_time_str}")
+    # Add temporal awareness instruction right after the date to emphasize its importance
+    # This ensures the LLM properly filters past vs future events based on the current date
+    prompt_parts.append(base_instructions.get("base_temporal_awareness_instruction", ""))
     prompt_parts.append(base_instructions.get("base_ethics_instruction", ""))
     selected_mate_config = next((mate for mate in all_mates_configs if mate.id == preprocessing_results.selected_mate_id), None)
     if selected_mate_config:
@@ -752,16 +762,24 @@ async def handle_main_processing(
                         
                         # Extract metadata for placeholder display
                         # Handle both direct args (query) and nested args (requests[0].query)
+                        # CRITICAL: This metadata is included in the embed placeholder so the frontend
+                        # can display the query immediately while the skill executes
                         metadata = {}
                         
                         # Direct query (simple skill format)
                         if "query" in parsed_args:
                             metadata["query"] = parsed_args["query"]
+                            logger.debug(f"{log_prefix} INLINE: Extracted query from direct args: {metadata['query']}")
                         # Nested query (web search uses requests array)
                         elif "requests" in parsed_args and isinstance(parsed_args["requests"], list) and len(parsed_args["requests"]) > 0:
                             first_request = parsed_args["requests"][0]
                             if isinstance(first_request, dict) and "query" in first_request:
                                 metadata["query"] = first_request["query"]
+                                logger.debug(f"{log_prefix} INLINE: Extracted query from requests[0]: {metadata['query']}")
+                            else:
+                                logger.warning(f"{log_prefix} INLINE: No query found in requests[0]: {first_request}")
+                        else:
+                            logger.warning(f"{log_prefix} INLINE: No query found in parsed_args. Keys: {list(parsed_args.keys())}")
                         
                         # Direct provider
                         if "provider" in parsed_args:
@@ -772,9 +790,25 @@ async def handle_main_processing(
                             if isinstance(first_request, dict) and "provider" in first_request:
                                 metadata["provider"] = first_request["provider"]
                         
-                        # Default provider for web search
+                        # Default provider based on app_id and skill_id
                         if skill_id == "search" and "provider" not in metadata:
-                            metadata["provider"] = "Brave Search"
+                            if app_id == "maps":
+                                metadata["provider"] = "Google Maps"
+                            elif app_id == "web":
+                                metadata["provider"] = "Brave Search"
+                            elif app_id == "news":
+                                metadata["provider"] = "Brave Search"
+                            elif app_id == "videos":
+                                metadata["provider"] = "Brave Search"
+                            else:
+                                metadata["provider"] = "Brave Search"  # Default fallback
+                        
+                        # Log final metadata for debugging
+                        logger.info(
+                            f"{log_prefix} INLINE: Final metadata for placeholder: "
+                            f"query={metadata.get('query', 'MISSING')}, "
+                            f"provider={metadata.get('provider', 'MISSING')}"
+                        )
                         
                         # Create the placeholder embed
                         placeholder_embed_data = await embed_service.create_processing_embed_placeholder(
@@ -794,17 +828,25 @@ async def handle_main_processing(
                             # Store for later use during skill execution
                             inline_placeholder_embeds[tool_call_id] = placeholder_embed_data
                             
-                            # Yield the embed reference IMMEDIATELY so frontend can show "processing" state
+                            # CRITICAL: Yield the embed reference IMMEDIATELY as a code block chunk
+                            # This ensures the frontend shows "processing" state BEFORE skill execution starts
+                            # The code block format allows the frontend to parse and render the embed placeholder
                             embed_reference_json = placeholder_embed_data.get("embed_reference")
-                            embed_code_block = f"```json\n{embed_reference_json}\n```\n\n"
-                            yield embed_code_block
+                            if embed_reference_json:
+                                embed_code_block = f"```json\n{embed_reference_json}\n```\n\n"
+                                # Yield immediately - this will be picked up by stream consumer and published right away
+                                yield embed_code_block
+                                
+                                logger.info(
+                                    f"{log_prefix} INLINE: Created and yielded processing placeholder code block for '{tool_name}': "
+                                    f"embed_id={placeholder_embed_data.get('embed_id')}, "
+                                    f"code_block_length={len(embed_code_block)}"
+                                )
+                            else:
+                                logger.warning(f"{log_prefix} INLINE: Placeholder embed_data missing embed_reference JSON")
                             
-                            logger.info(
-                                f"{log_prefix} INLINE: Created and streamed processing placeholder for '{tool_name}': "
-                                f"embed_id={placeholder_embed_data.get('embed_id')}"
-                            )
-                            
-                            # Publish "processing" status immediately
+                            # Publish "processing" status immediately via Redis event
+                            # This provides additional signal to frontend that skill is processing
                             await _publish_skill_status(
                                 cache_service=cache_service,
                                 task_id=task_id,
@@ -822,9 +864,12 @@ async def handle_main_processing(
                 
             elif isinstance(chunk, str):
                 llm_turn_had_content = True
-                if not tool_calls_for_this_turn:
-                    yield chunk
-                else:
+                # CRITICAL: Always yield text chunks immediately, even when tool calls are pending
+                # This ensures paragraph-by-paragraph streaming works correctly
+                # Tool calls will be executed after the LLM finishes its turn, but text should stream immediately
+                yield chunk
+                # Also buffer for message history (needed for tool execution context)
+                if tool_calls_for_this_turn:
                     current_turn_text_buffer.append(chunk)
             else:
                 logger.warning(f"{log_prefix} Received unexpected chunk type from stream: {type(chunk)}")
@@ -999,22 +1044,25 @@ async def handle_main_processing(
                             logger.error(f"{log_prefix} FALLBACK: Error creating placeholder embed: {e}", exc_info=True)
 
                 # STEP 2: Execute skill with support for multiple parallel requests
+                # Pass chat_id and message_id so skills can use them when recording usage
                 results = await execute_skill_with_multiple_requests(
                     app_id=app_id,
                     skill_id=skill_id,
                     arguments=parsed_args,
-                    timeout=30.0
+                    timeout=30.0,
+                    chat_id=request_data.chat_id,
+                    message_id=request_data.message_id
                 )
 
                 # Normalize skill responses that wrap actual results in a "results" field (e.g., web search)
                 # execute_skill_with_multiple_requests returns one entry per request, but search skills return
                 # a response object with its own "results" array. Flatten those arrays so downstream logic
                 # (embeds, preview_data, TOON encoding) operates on individual search results.
-                normalized_preview_data: Dict[str, Any] = {}
+                # Note: Skills no longer return preview_data (removed as redundant)
                 response_ignore_fields: Optional[List[str]] = None
                 if results and all(isinstance(r, dict) and "results" in r for r in results):
                     first_response = results[0]
-                    normalized_preview_data = (first_response.get("preview_data") or {}).copy()
+                    # Skills no longer provide preview_data - we'll create it in main_processor
                     response_ignore_fields = first_response.get("ignore_fields_for_inference")
 
                     flattened_results: List[Dict[str, Any]] = []
@@ -1056,50 +1104,33 @@ async def handle_main_processing(
                                 )
                                 break
                 
-                # Extract preview_data from skill response (if present)
-                # Skills can define their own preview_data structure for frontend rendering
-                # This makes the architecture scalable - no skill-specific logic needed here
-                # Each skill is responsible for populating preview_data with its own metadata
-                # NOTE: Skills should NOT include actual results in preview_data - they will be converted to TOON
+                # Create minimal preview_data - only contains results_toon and essential metadata
+                # Skills no longer provide preview_data (removed as redundant)
+                # We create a minimal preview_data here with:
+                # - results_toon: Full TOON-encoded results (added below)
+                # - query: Extracted from input arguments if available (for frontend previews)
+                # - provider: Extracted from response if available (for frontend previews)
                 preview_data: Dict[str, Any] = {}
-
-                # Use preview_data provided by the skill response wrapper when available
-                if normalized_preview_data:
-                    preview_data = normalized_preview_data
                 
-                if not preview_data:
-                    if results and len(results) > 0:
-                        first_result = results[0]
-                        if isinstance(first_result, dict):
-                            # Check if skill returned preview_data directly in the response
-                            if "preview_data" in first_result:
-                                preview_data = first_result.get("preview_data", {}).copy()
-                                # Remove any JSON results from preview_data - we'll add TOON instead
-                                # Skills should only include metadata (query, provider, counts, etc.)
-                                preview_data.pop("results", None)
-                                preview_data.pop("previews", None)
-                                logger.debug(
-                                    f"{log_prefix} Skill '{tool_name}' returned preview_data with keys: {list(preview_data.keys())}"
-                                )
-                            else:
-                                # Fallback: create minimal preview_data (for backward compatibility)
-                                # This handles skills that haven't been updated to use preview_data yet
-                                preview_data = {
-                                    "result_count": len(results)
-                                }
-                                logger.debug(
-                                    f"{log_prefix} Skill '{tool_name}' did not return preview_data, using minimal fallback"
-                                )
-                        else:
-                            # Non-dict result - create minimal preview_data
-                            preview_data = {
-                                "result_count": len(results)
-                            }
-                    else:
-                        # No results
-                        preview_data = {
-                            "result_count": 0
-                        }
+                # Extract query from input arguments if available (for search skills)
+                # This is used by frontend for preview display
+                if parsed_args and isinstance(parsed_args, dict):
+                    # Try to extract query from various possible input structures
+                    if "query" in parsed_args:
+                        preview_data["query"] = parsed_args["query"]
+                    elif "requests" in parsed_args and isinstance(parsed_args["requests"], list) and len(parsed_args["requests"]) > 0:
+                        first_request = parsed_args["requests"][0]
+                        if isinstance(first_request, dict) and "query" in first_request:
+                            preview_data["query"] = first_request["query"]
+                
+                # Extract provider from response if available
+                # This is used by frontend for preview display
+                if first_response and isinstance(first_response, dict):
+                    if "provider" in first_response:
+                        preview_data["provider"] = first_response["provider"]
+                
+                # Add result count (can be derived from results, but useful for frontend)
+                preview_data["result_count"] = len(results) if results else 0
                 
                 # CRITICAL: Add full results in TOON format ONLY (no JSON)
                 # The frontend can decode this TOON string to get all fields (page_age, profile.name, url, etc.)

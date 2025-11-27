@@ -589,6 +589,44 @@ async def handle_preprocessing(
 
     # Note: icon_names validation is handled client-side, so we pass through the LLM value as-is
     
+    # --- Validate chat_summary field (required field) ---
+    # CRITICAL: chat_summary is required for post-processing suggestions generation
+    # If missing, we need to understand why and log detailed information for debugging
+    chat_summary_val = llm_analysis_args.get("chat_summary")
+    if not chat_summary_val:
+        # chat_summary is missing or empty - this is a critical issue that needs investigation
+        logger.error(
+            f"{log_prefix} CRITICAL: 'chat_summary' is missing or empty from LLM response! "
+            f"This field is REQUIRED in the tool definition. "
+            f"LLM response keys: {list(llm_analysis_args.keys())}. "
+            f"Raw LLM response summary: {llm_call_result.raw_provider_response_summary}. "
+            f"This will cause post-processing to fail. "
+            f"Message history length: {len(sanitized_message_history)}. "
+            f"Preprocessing model: {preprocessing_model}."
+        )
+        # Log the full sanitized args to see what the LLM actually returned
+        logger.error(
+            f"{log_prefix} Full LLM analysis args (sanitized): {sanitized_args}. "
+            f"This will help identify if the LLM is not following the tool definition correctly."
+        )
+        # Set to None explicitly so we can track this issue
+        chat_summary_val = None
+    elif not isinstance(chat_summary_val, str):
+        logger.error(
+            f"{log_prefix} CRITICAL: 'chat_summary' is not a string: {type(chat_summary_val)} = {chat_summary_val}. "
+            f"Expected a string. This will cause post-processing to fail."
+        )
+        chat_summary_val = None
+    elif not chat_summary_val.strip():
+        logger.error(
+            f"{log_prefix} CRITICAL: 'chat_summary' is an empty or whitespace-only string. "
+            f"This will cause post-processing to fail."
+        )
+        chat_summary_val = None
+    else:
+        # chat_summary is valid - log its length for debugging
+        logger.debug(f"{log_prefix} 'chat_summary' is valid (length: {len(chat_summary_val)} characters)")
+    
     # --- Validate chat_tags field (maxItems: 10) ---
     chat_tags_val = llm_analysis_args.get("chat_tags", [])
     if not isinstance(chat_tags_val, list):
@@ -640,7 +678,7 @@ async def handle_preprocessing(
         relevant_embedded_previews=relevant_embedded_previews_val,  # Use relevant embedded preview types for main LLM instruction
         title=llm_analysis_args.get("title"), # Get the title from LLM args (no strict validation needed, just length check in schema)
         icon_names=llm_analysis_args.get("icon_names", []), # Get icon names from LLM args (validation handled client-side)
-        chat_summary=llm_analysis_args.get("chat_summary"), # Get chat summary from LLM (based on full history)
+        chat_summary=chat_summary_val,  # Use validated chat_summary (validated above - may be None if LLM didn't provide it)
         chat_tags=chat_tags_val,  # Use validated chat tags (maxItems: 10)
         relevant_app_skills=validated_relevant_skills,  # Use validated relevant skills (filtered against available skills)
         selected_main_llm_model_id=selected_llm_for_main_id,

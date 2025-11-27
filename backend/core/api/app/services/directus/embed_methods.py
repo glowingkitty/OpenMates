@@ -302,8 +302,8 @@ class EmbedMethods:
                 logger.info("No embed IDs found to delete.")
                 return True
             
-            # Use bulk delete
-            success = await self.directus_service.delete_items('embeds', embed_ids)
+            # Use bulk delete for efficiency
+            success = await self.directus_service.bulk_delete_items(collection='embeds', item_ids=embed_ids)
             
             if success:
                 logger.info(f"Successfully deleted {len(embed_ids)} embeds for hashed_chat_id: {hashed_chat_id[:16]}... (embed_ids: {embed_uuid_ids[:5]}...)")

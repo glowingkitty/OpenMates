@@ -58,7 +58,7 @@ def _sanitize_schema_for_llm_providers(schema: Dict[str, Any]) -> Dict[str, Any]
     Recursively sanitizes a JSON schema to remove fields that LLM providers don't accept.
     
     Many LLM providers (Cerebras, OpenAI, OpenRouter, etc.) reject schemas with 
-    'minimum' and 'maximum' fields for integer types, even though these are valid 
+    'minimum' and 'maximum' fields for integer and number types, even though these are valid 
     JSON Schema fields. This function removes these fields to ensure compatibility.
     
     Note: The original schema (with min/max) is kept in app.yml and used for
@@ -68,7 +68,7 @@ def _sanitize_schema_for_llm_providers(schema: Dict[str, Any]) -> Dict[str, Any]
         schema: The JSON schema dictionary to sanitize
         
     Returns:
-        A sanitized copy of the schema with minimum/maximum fields removed from integer properties
+        A sanitized copy of the schema with minimum/maximum fields removed from integer and number properties
     """
     if not isinstance(schema, dict):
         return schema
@@ -76,8 +76,9 @@ def _sanitize_schema_for_llm_providers(schema: Dict[str, Any]) -> Dict[str, Any]
     # Create a copy to avoid modifying the original
     sanitized = schema.copy()
     
-    # If this is a property definition with type 'integer', remove minimum/maximum
-    if sanitized.get("type") == "integer":
+    # If this is a property definition with type 'integer' or 'number', remove minimum/maximum
+    # Cerebras and other providers reject schemas with minimum/maximum for both integer and number types
+    if sanitized.get("type") in ("integer", "number"):
         # Remove minimum and maximum fields (LLM providers don't accept them)
         sanitized.pop("minimum", None)
         sanitized.pop("maximum", None)

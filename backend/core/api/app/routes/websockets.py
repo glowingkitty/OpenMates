@@ -174,6 +174,9 @@ async def listen_for_ai_chat_streams(app: FastAPI):
 
                     # Iterate over all connections for this user (using UUID)
                     user_connections = manager.get_connections_for_user(user_id_uuid)
+                    # CRITICAL: Send messages immediately without blocking on completion
+                    # WebSocket.send_json() is fast (just queues in buffer), so we can await it
+                    # but we process all devices in parallel to avoid sequential delays
                     for device_hash, websocket_conn in user_connections.items():
                         active_chat_on_device = manager.get_active_chat(user_id_uuid, device_hash)
                         
@@ -184,13 +187,14 @@ async def listen_for_ai_chat_streams(app: FastAPI):
                                 # Overwrite with a generic key for the frontend
                                 redis_payload["full_content_so_far"] = "chat.an_error_occured.text"
 
-                            # This device has the chat open, send the full stream update
+                            # CRITICAL: Send immediately - websocket.send_json() is fast (just queues message)
+                            # This ensures chunks are forwarded as soon as they arrive from Redis
                             await manager.send_personal_message(
                                 message={"type": "ai_message_update", "payload": redis_payload},
                                 user_id=user_id_uuid, # Use UUID
                                 device_fingerprint_hash=device_hash
                             )
-                            logger.debug(f"AI Stream Listener: Sent 'ai_message_update' to active chat on {user_id_uuid}/{device_hash}.")
+                            logger.debug(f"AI Stream Listener: Sent 'ai_message_update' to active chat on {user_id_uuid}/{device_hash} (seq: {redis_payload.get('sequence', 'unknown')}).")
                         else:
                             # Chat is not active on this device.
                             # For background processing: only send completed response when final marker arrives

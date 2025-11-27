@@ -1,0 +1,51 @@
+search:
+  context: Skill name for search in Maps app
+  en: Search
+  de: Suche
+  zh: 搜索
+  es: Buscar
+  fr: Rechercher
+  pt: Pesquisar
+  ru: Поиск
+  ja: 検索
+  ko: 검색
+  it: Cerca
+  tr: Ara
+  vi: Tìm kiếm
+  id: Cari
+  pl: Szukaj
+  nl: Zoeken
+  ar: بحث
+  hi: खोजें
+  th: ค้นหา
+  cs: Hledat
+  sv: Sök
+  verified_by_human:
+    - en
+    - de
+search.description:
+  context: Description for search skill in Maps app
+  en: Search for places, businesses, and locations.
+  de: Suche nach Orten, Geschäften und Standorten.
+  zh: 搜索地点、商家和位置。
+  es: Busca lugares, negocios y ubicaciones.
+  fr: Recherchez des lieux, des entreprises et des emplacements.
+  pt: Pesquise lugares, empresas e localizações.
+  ru: Ищите места, предприятия и местоположения.
+  ja: 場所、ビジネス、位置を検索する。
+  ko: 장소, 비즈니스 및 위치를 검색하세요.
+  it: Cerca luoghi, attività commerciali e località.
+  tr: Yerler, işletmeler ve konumlar arayın.
+  vi: Tìm kiếm địa điểm, doanh nghiệp và vị trí.
+  id: Cari tempat, bisnis, dan lokasi.
+  pl: Szukaj miejsc, firm i lokalizacji.
+  nl: Zoek naar plaatsen, bedrijven en locaties.
+  ar: ابحث عن الأماكن والشركات والمواقع.
+  hi: स्थान, व्यवसाय और स्थान खोजें।
+  th: ค้นหาสถานที่ ธุรกิจ และตำแหน่ง
+  cs: Hledejte místa, podniky a lokace.
+  sv: Sök efter platser, företag och platser.
+  verified_by_human:
+    - en
+    - de
+

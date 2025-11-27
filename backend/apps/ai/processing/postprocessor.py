@@ -115,8 +115,11 @@ async def handle_postprocessing(
     if llm_result.error_message:
         raise RuntimeError(f"LLM call failed: {llm_result.error_message}")
 
-    if not llm_result.arguments:
-        raise RuntimeError("No arguments returned from LLM")
+    # Handle case where LLM returns empty arguments (might be valid - LLM chose not to generate suggestions)
+    # Use empty dict as default if arguments is None or empty
+    if llm_result.arguments is None:
+        logger.warning(f"[Task ID: {task_id}] [PostProcessor] LLM returned None arguments. Using empty defaults.")
+        llm_result.arguments = {}
 
     # Parse the LLM response into PostProcessingResult
     raw_top_recommended_apps = llm_result.arguments.get("top_recommended_apps_for_user", [])

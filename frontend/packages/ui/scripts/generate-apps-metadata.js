@@ -103,6 +103,28 @@ function loadProviderYaml(providerId) {
 }
 
 /**
+ * Map provider name from app.yml to provider ID (provider YAML filename).
+ * 
+ * @param {string} providerName - Provider name from app.yml (e.g., "Brave", "Google", "Firecrawl", "YouTube")
+ * @param {string} appId - App ID for context (e.g., "maps" for Google Maps)
+ * @returns {string|null} Provider ID (lowercase, matches provider YAML filename) or null if unknown
+ */
+function mapProviderNameToId(providerName, appId) {
+    const normalized = providerName.toLowerCase().trim();
+    
+    // Handle special cases
+    if (providerName === 'Google' && appId === 'maps') {
+        return 'google_maps';
+    }
+    // YouTube -> youtube
+    if (providerName === 'YouTube') {
+        return 'youtube';
+    }
+    // Most providers just need to be lowercased (Brave -> brave, Firecrawl -> firecrawl, etc.)
+    return normalized;
+}
+
+/**
  * Extract pricing from provider YAML for a specific model.
  * 
  * @param {string} providerId - Provider ID (e.g., "alibaba", "brave")
@@ -340,17 +362,22 @@ function parseAppYaml(appId, filePath) {
                 
                 // If still no pricing, try to extract from provider YAML based on skill providers
                 if (!pricing && skill.providers && skill.providers.length > 0) {
-                    // Normalize provider name to provider ID (e.g., "Brave" -> "brave")
-                    const providerId = skill.providers[0].toLowerCase();
+                    const providerName = skill.providers[0];
+                    const providerId = mapProviderNameToId(providerName, appId);
                     
-                    // For web search skill (Brave), extract provider-level pricing
-                    if (skill.id === 'search' && appId === 'web') {
+                    // Extract provider-level pricing for all skills with providers
+                    if (providerId) {
                         pricing = extractProviderPricing(providerId);
                     }
-                    // For videos get_transcript skill, YouTube doesn't have a provider yml file
-                    // so we skip pricing extraction for now (can be added later if needed)
                 }
                 
+                // Fallback: if no pricing found, default to 1 credit minimum
+                // No skill should ever be free - minimum charge is always 1 credit
+                if (!pricing || Object.keys(pricing).length === 0) {
+                    pricing = { fixed: 1 };
+                }
+                
+                // Only set pricing if we have valid pricing data
                 if (pricing && Object.keys(pricing).length > 0) {
                     skillMetadata.pricing = pricing;
                 }

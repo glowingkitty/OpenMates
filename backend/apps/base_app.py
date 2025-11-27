@@ -95,15 +95,25 @@ class BaseApp:
                     logger.error(f"Skill '{skill_def.id}' class_path '{skill_def.class_path}' does not point to a class. Skipping.")
                     continue
 
-                @self.fastapi_app.post(f"/skills/{skill_def.id}", tags=["Skills"], name=f"execute_skill_{skill_def.id}")
-                async def _dynamic_skill_executor(request: Request):
+                # CRITICAL: Capture all values as default parameters to avoid Python closure late-binding issues
+                # Python closures capture variables by reference, not by value. Using default parameters
+                # forces evaluation at function definition time, ensuring each route uses the correct skill.
+                skill_id_for_route = skill_def.id
+                captured_skill_def = skill_def
+                captured_skill_class = skill_class_attr
+                
+                @self.fastapi_app.post(f"/skills/{skill_id_for_route}", tags=["Skills"], name=f"execute_skill_{skill_id_for_route}")
+                async def _dynamic_skill_executor(
+                    request: Request,
+                    skill_definition=captured_skill_def,
+                    captured_class=captured_skill_class
+                ):
                     """
                     Dynamic skill executor endpoint.
                     Manually parses request body as JSON to bypass FastAPI validation.
                     This allows us to dynamically validate against the skill's request model.
                     """
-                    # Capture skill_def in closure to avoid late binding issues
-                    skill_definition = skill_def
+                    # Use the captured values from default parameters (evaluated at function definition time)
                     
                     logger.info(f"[SKILL_ROUTE] Received request for skill '{skill_definition.id}' at /skills/{skill_definition.id}")
                     
@@ -128,6 +138,12 @@ class BaseApp:
                         
                         logger.debug(f"Executing skill '{skill_definition.id}' with request body: {list(request_body.keys())}")
                         
+                        # Extract metadata fields (_chat_id, _message_id) from request body if present
+                        # These are used for linking usage entries to chat sessions
+                        # We'll remove them from request_body before passing to skill to avoid validation errors
+                        chat_id = request_body.get("_chat_id")
+                        message_id = request_body.get("_message_id")
+                        
                         # Initialize skill instance
                         # Extract full_model_reference from default_config if present, otherwise use None
                         # Note: AppSkillDefinition doesn't have full_model_reference field,
@@ -141,7 +157,7 @@ class BaseApp:
                         skill_name = self._resolve_translation_key(skill_definition.name_translation_key)
                         skill_description = self._resolve_translation_key(skill_definition.description_translation_key)
                         
-                        skill_instance = skill_class_attr(
+                        skill_instance = captured_class(
                             app=self,
                             app_id=self.id,
                             skill_id=skill_definition.id,
@@ -153,6 +169,13 @@ class BaseApp:
                             celery_producer=self.celery_producer,
                             skill_operational_defaults=skill_definition.default_config
                         )
+                        
+                        # Set execution context (chat_id, message_id) on skill instance
+                        # This allows skills to use these values when recording usage via record_skill_usage
+                        if chat_id:
+                            skill_instance._current_chat_id = chat_id
+                        if message_id:
+                            skill_instance._current_message_id = message_id
                     except HTTPException:
                         raise
                     except Exception as init_e:
@@ -194,10 +217,14 @@ class BaseApp:
                                     break
                             
                             if request_model:
+                                # Remove metadata fields before instantiating Pydantic model
+                                # These fields are not part of the skill's schema
+                                clean_request_body = {k: v for k, v in request_body.items() if not k.startswith("_")}
+                                
                                 # Instantiate the Pydantic model from request body
                                 try:
                                     logger.debug(f"Instantiating {request_model.__name__} from request body for skill '{skill_definition.id}'")
-                                    request_obj = request_model(**request_body)
+                                    request_obj = request_model(**clean_request_body)
                                     response = await skill_instance.execute(request_obj)
                                 except Exception as validation_error:
                                     logger.error(f"Validation error for skill '{skill_definition.id}': {validation_error}", exc_info=True)
@@ -213,8 +240,10 @@ class BaseApp:
                                     )
                             else:
                                 # No Pydantic model found - try unpacking as keyword arguments
+                                # Remove metadata fields before passing to skill
+                                clean_request_body = {k: v for k, v in request_body.items() if not k.startswith("_")}
                                 logger.debug(f"No Pydantic model found for skill '{skill_definition.id}', using kwargs")
-                                response = await skill_instance.execute(**request_body)
+                                response = await skill_instance.execute(**clean_request_body)
                             
                             return response
                         else:

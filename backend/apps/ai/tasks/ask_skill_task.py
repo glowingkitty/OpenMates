@@ -737,30 +737,46 @@ async def _async_process_ai_skill_ask_task(
         chat_summary = preprocessing_result.chat_summary if preprocessing_result else ""
         chat_tags = preprocessing_result.chat_tags if preprocessing_result else []
 
+        # CRITICAL: chat_summary is required for post-processing
+        # If missing, log detailed information to understand why the preprocessing LLM didn't return it
         if not chat_summary:
-            raise RuntimeError("Chat summary not available from preprocessing - cannot generate suggestions")
+            logger.error(
+                f"[Task ID: {task_id}] CRITICAL: Chat summary not available from preprocessing - cannot generate suggestions. "
+                f"This indicates the preprocessing LLM failed to return a required field. "
+                f"Preprocessing result available: {preprocessing_result is not None}. "
+                f"Preprocessing result keys: {list(preprocessing_result.model_dump().keys()) if preprocessing_result else 'N/A'}. "
+                f"Raw LLM response from preprocessing: {preprocessing_result.raw_llm_response if preprocessing_result else 'N/A'}. "
+                f"Chat ID: {request_data.chat_id}. "
+                f"Message ID: {request_data.message_id}. "
+                f"Message history length: {len(request_data.message_history) if request_data.message_history else 0}. "
+                f"This is a critical error that needs investigation - the preprocessing LLM should always return chat_summary."
+            )
+            # Skip post-processing but log the error for debugging
+            postprocessing_result = None
+        else:
+            # Extract available app IDs from discovered_apps_metadata for post-processing validation
+            available_app_ids = list(discovered_apps_metadata.keys()) if discovered_apps_metadata else []
+            if not available_app_ids:
+                logger.warning(f"[Task ID: {task_id}] No available app IDs found in discovered_apps_metadata for post-processing validation")
 
-        # Extract available app IDs from discovered_apps_metadata for post-processing validation
-        available_app_ids = list(discovered_apps_metadata.keys()) if discovered_apps_metadata else []
-        if not available_app_ids:
-            logger.warning(f"[Task ID: {task_id}] No available app IDs found in discovered_apps_metadata for post-processing validation")
-
-        postprocessing_result = await handle_postprocessing(
-            task_id=task_id,
-            user_message=last_user_message,
-            assistant_response=aggregated_final_response,
-            chat_summary=chat_summary,
-            chat_tags=chat_tags,
-            base_instructions=base_instructions,
-            secrets_manager=secrets_manager,
-            cache_service=cache_service_instance,
-            available_app_ids=available_app_ids,
-        )
+            postprocessing_result = await handle_postprocessing(
+                task_id=task_id,
+                user_message=last_user_message,
+                assistant_response=aggregated_final_response,
+                chat_summary=chat_summary,
+                chat_tags=chat_tags,
+                base_instructions=base_instructions,
+                secrets_manager=secrets_manager,
+                cache_service=cache_service_instance,
+                available_app_ids=available_app_ids,
+            )
 
         if postprocessing_result and cache_service_instance:
             # Publish post-processing results to Redis for WebSocket delivery to client
             # Client will encrypt with chat-specific key and sync back to Directus
             # Note: chat_summary and chat_tags come from preprocessing (full history context)
+            # Use the extracted variables (chat_summary, chat_tags) which are safe to use here
+            # since we only reach this point if postprocessing_result was successfully created
             postprocessing_payload = {
                 "type": "post_processing_completed",
                 "event_for_client": "post_processing_completed",
@@ -770,8 +786,8 @@ async def _async_process_ai_skill_ask_task(
                 "user_id_hash": request_data.user_id_hash,
                 "follow_up_request_suggestions": postprocessing_result.follow_up_request_suggestions,
                 "new_chat_request_suggestions": postprocessing_result.new_chat_request_suggestions,
-                "chat_summary": preprocessing_result.chat_summary,  # From preprocessing (full history)
-                "chat_tags": preprocessing_result.chat_tags,  # From preprocessing (full history)
+                "chat_summary": chat_summary,  # From preprocessing (full history) - use extracted variable
+                "chat_tags": chat_tags,  # From preprocessing (full history) - use extracted variable
                 "harmful_response": postprocessing_result.harmful_response,
                 "top_recommended_apps_for_user": postprocessing_result.top_recommended_apps_for_user,
             }

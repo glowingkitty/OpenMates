@@ -15,6 +15,10 @@ from backend.core.api.app.utils.secrets_manager import SecretsManager
 
 logger = logging.getLogger(__name__)
 
+# Placeholder text used to replace detected prompt injection strings
+# This makes it transparent that content was removed for security reasons
+PROMPT_INJECTION_PLACEHOLDER = "[PROMPT INJECTION DETECTED & REMOVED]"
+
 
 def _split_text_into_chunks(text: str, max_chars_per_chunk: int) -> List[str]:
     """
@@ -188,7 +192,11 @@ async def _sanitize_text_chunk(
     secrets_manager: Optional[SecretsManager]
 ) -> Optional[str]:
     """
-    Sanitize a single text chunk by detecting and removing prompt injection strings.
+    Sanitize a single text chunk by detecting and replacing prompt injection strings with a placeholder.
+    
+    When prompt injection strings are detected, they are replaced with '[PROMPT INJECTION DETECTED & REMOVED]'
+    to make it transparent that content was removed for security reasons. This helps with debugging and
+    provides visibility into what was sanitized.
     
     Args:
         chunk: The text chunk to sanitize
@@ -201,7 +209,7 @@ async def _sanitize_text_chunk(
         secrets_manager: Optional secrets manager for LLM calls
     
     Returns:
-        Sanitized chunk, or None if chunk should be blocked
+        Sanitized chunk with injection strings replaced by placeholder, or None if chunk should be blocked
     """
     try:
         # Get the detection tool definition and system prompt
@@ -289,17 +297,27 @@ async def _sanitize_text_chunk(
             )
             return None  # Block this chunk
         
-        # Remove injection strings if any were detected
+        # Replace injection strings with placeholder if any were detected
         sanitized_chunk = chunk
         if injection_strings:
             logger.info(
-                f"[{task_id}] Removing {len(injection_strings)} injection string(s) from chunk {chunk_index+1}/{total_chunks}"
+                f"[{task_id}] Replacing {len(injection_strings)} injection string(s) with placeholder in chunk {chunk_index+1}/{total_chunks}"
             )
             for injection_string in injection_strings:
-                # Remove exact string matches (case-sensitive)
-                sanitized_chunk = sanitized_chunk.replace(injection_string, "")
+                # Replace exact string matches (case-sensitive) with placeholder
+                # This makes it transparent that content was removed for security
+                sanitized_chunk = sanitized_chunk.replace(injection_string, PROMPT_INJECTION_PLACEHOLDER)
             
-            # Clean up any double spaces or newlines that might result
+            # Clean up any double placeholders that might result from overlapping or adjacent replacements
+            # Replace multiple consecutive placeholders with a single one
+            sanitized_chunk = re.sub(
+                rf'({re.escape(PROMPT_INJECTION_PLACEHOLDER)}\s*)+',
+                PROMPT_INJECTION_PLACEHOLDER,
+                sanitized_chunk
+            )
+            
+            # Clean up any excessive whitespace while preserving the placeholder
+            # Replace multiple spaces/newlines with single space, but keep placeholders intact
             sanitized_chunk = re.sub(r'\s+', ' ', sanitized_chunk).strip()
         
         # Log if score is in review range
@@ -337,7 +355,7 @@ async def sanitize_external_content(
     1. For images: Return empty string (image processing comes later)
     2. For text: Split long text into chunks of 50,000 tokens maximum
     3. Detect prompt injection attacks using LLM function call
-    4. Sanitize text content to remove malicious instructions
+    4. Sanitize text content by replacing detected injection strings with '[PROMPT INJECTION DETECTED & REMOVED]'
     5. Combine sanitized chunks back together
     
     Args:

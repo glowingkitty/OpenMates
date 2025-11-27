@@ -48,3 +48,53 @@ search.description:
   verified_by_human:
   - en
   - de
+read:
+  context: Skill name for web read
+  en: Read
+  de: Lesen
+  zh: 阅读
+  es: Leer
+  fr: Lire
+  pt: Ler
+  ru: Читать
+  ja: 読む
+  ko: 읽기
+  it: Leggere
+  tr: Oku
+  vi: Đọc
+  id: Baca
+  pl: Czytaj
+  nl: Lezen
+  ar: اقرأ
+  hi: पढ़ें
+  th: อ่าน
+  cs: Číst
+  sv: Läsa
+  verified_by_human:
+  - en
+  - de
+read.description:
+  context: Description for web read skill
+  en: Browse websites, research topics & more.
+  de: Websites durchsuchen, Themen recherchieren & mehr.
+  zh: 浏览网站、研究主题等。
+  es: Navegar por sitios web, investigar temas y más.
+  fr: Parcourir des sites web, rechercher des sujets et plus encore.
+  pt: Navegar em sites, pesquisar tópicos e muito mais.
+  ru: Просматривать веб-сайты, исследовать темы и многое другое.
+  ja: ウェブサイトを閲覧し、トピックを調査するなど。
+  ko: 웹사이트를 탐색하고 주제를 조사하세요.
+  it: Sfoglia siti web, ricerca argomenti e altro ancora.
+  tr: Web sitelerini göz atın, konuları araştırın ve daha fazlası.
+  vi: Duyệt các trang web, nghiên cứu chủ đề và hơn thế nữa.
+  id: Jelajahi situs web, teliti topik & lainnya.
+  pl: Przeglądaj strony internetowe, badaj tematy i nie tylko.
+  nl: Blader door websites, onderzoek onderwerpen en meer.
+  ar: تصفح المواقع، وابحث عن المواضيع والمزيد.
+  hi: वेबसाइट ब्राउज़ करें, विषयों पर शोध करें और अधिक।
+  th: เรียกดูเว็บไซต์ วิจัยหัวข้อ และอื่นๆ
+  cs: Procházejte webové stránky, zkoumejte témata a další.
+  sv: Bläddra på webbplatser, forskning om ämnen och mer.
+  verified_by_human:
+  - en
+  - de

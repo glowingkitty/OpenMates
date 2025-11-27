@@ -49,3 +49,54 @@ get_transcript.description:
     - en
     - de
 
+search:
+  context: Skill name for search in Videos app
+  en: Search
+  de: Suche
+  zh: 搜索
+  es: Buscar
+  fr: Rechercher
+  pt: Pesquisar
+  ru: Поиск
+  ja: 検索
+  ko: 검색
+  it: Cerca
+  tr: Ara
+  vi: Tìm kiếm
+  id: Cari
+  pl: Szukaj
+  nl: Zoeken
+  ar: بحث
+  hi: खोजें
+  th: ค้นหา
+  cs: Hledat
+  sv: Sök
+  verified_by_human:
+    - en
+    - de
+search.description:
+  context: Description for search skill in Videos app
+  en: Search for videos on the web.
+  de: Suche nach Videos im Internet.
+  zh: 在网络上搜索视频。
+  es: Busca videos en la web.
+  fr: Recherchez des vidéos sur le web.
+  pt: Pesquise vídeos na web.
+  ru: Ищите видео в интернете.
+  ja: ウェブで動画を検索する。
+  ko: 웹에서 비디오를 검색하세요.
+  it: Cerca video sul web.
+  tr: Web'de video ara.
+  vi: Tìm kiếm video trên web.
+  id: Cari video di web.
+  pl: Szukaj filmów w internecie.
+  nl: Zoek naar video's op het web.
+  ar: ابحث عن مقاطع الفيديو على الويب.
+  hi: वेब पर वीडियो खोजें।
+  th: ค้นหาวิดีโอบนเว็บ
+  cs: Hledejte videa na webu.
+  sv: Sök efter videor på webben.
+  verified_by_human:
+    - en
+    - de
+

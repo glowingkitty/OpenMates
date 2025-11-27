@@ -157,7 +157,7 @@ async def get_apps_metadata(request: Request):
     - App metadata schemas: `backend/shared/python_schemas/app_metadata_schemas.py`
     
     **Reference**: 
-    - App Store UI: `frontend/packages/ui/src/components/settings/SettingsApps.svelte`
+    - App Store UI: `frontend/packages/ui/src/components/settings/SettingsAppStore.svelte`
     """
     # Get discovered apps from app state (populated during startup)
     if not hasattr(request.app.state, 'discovered_apps_metadata'):

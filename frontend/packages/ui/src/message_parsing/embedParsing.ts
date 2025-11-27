@@ -51,17 +51,25 @@ export function parseEmbedNodes(markdown: string, mode: 'write' | 'read'): Embed
         // Check if this is an embed reference (has type and embed_id)
         if (embedRef.type && embedRef.embed_id) {
           const id = generateUUID();
+          // CRITICAL FIX: Use mode to determine status
+          // In 'write' mode (streaming), embeds should show 'processing' state initially
+          // In 'read' mode (reading completed messages), embeds are assumed 'finished'
+          // This ensures the UI shows "processing" during streaming before embed data arrives
+          const embedStatus = mode === 'write' ? 'processing' : 'finished';
+          
           embedNodes.push({
             id,
             type: mapEmbedReferenceType(embedRef.type),
-            status: 'finished', // Will be updated when embed is resolved
+            status: embedStatus,
             contentRef: `embed:${embedRef.embed_id}`, // Reference to embed in EmbedStore
             // Additional metadata will be loaded from embed when resolved
           });
           console.debug('[parseEmbedNodes] Created embed node from JSON reference:', {
             type: embedRef.type,
             embed_id: embedRef.embed_id,
-            nodeId: id
+            nodeId: id,
+            status: embedStatus,
+            mode
           });
         }
       } catch (error) {

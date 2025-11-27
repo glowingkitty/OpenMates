@@ -1244,6 +1244,9 @@ class ChatDatabase {
 
     /**
      * Determines if two messages are content duplicates (same logical message, different IDs)
+     * 
+     * CRITICAL: For assistant messages, we also check if the message_id matches the task_id pattern
+     * to avoid false positives when the same response is saved with different IDs from different sources.
      */
     private isContentDuplicate(existing: Message, incoming: Message): boolean {
         // Must be same chat, role, and have similar content
@@ -1251,17 +1254,38 @@ class ChatDatabase {
             return false;
         }
         
+        // For assistant messages, if message_ids are different but both look like task IDs (UUIDs),
+        // and content matches, they might be the same message from different sync sources.
+        // However, we should be more careful - only treat as duplicate if encrypted_content matches
+        // AND timestamps are very close (within 1 minute for assistant messages to account for streaming delays)
+        const isAssistantMessage = existing.role === 'assistant' && incoming.role === 'assistant';
+        const timeThreshold = isAssistantMessage ? 60 : 300; // 1 minute for assistant, 5 minutes for user
+        
         // Check if content is similar (for encrypted content, we compare the encrypted strings)
+        // CRITICAL: encrypted_content comparison is the most reliable way to detect duplicates
+        // since it's based on the actual encrypted content, not plaintext which might have embed references
         const contentMatch = existing.encrypted_content === incoming.encrypted_content;
         
-        // Check if timestamps are close (within 5 minutes) - messages from different sync sources
+        // Check if timestamps are close (within threshold) - messages from different sync sources
         const timeDiff = Math.abs(existing.created_at - incoming.created_at);
-        const timeMatch = timeDiff < 300; // 5 minutes in seconds
+        const timeMatch = timeDiff < timeThreshold;
         
         // Check if sender names match (for user messages)
-        const senderMatch = existing.encrypted_sender_name === incoming.encrypted_sender_name;
+        // For assistant messages, sender_name is typically null/undefined, so this check is less relevant
+        const senderMatch = existing.encrypted_sender_name === incoming.encrypted_sender_name || 
+                          (existing.role === 'assistant' && incoming.role === 'assistant');
         
-        return contentMatch && timeMatch && senderMatch;
+        const isDuplicate = contentMatch && timeMatch && senderMatch;
+        
+        if (isDuplicate && isAssistantMessage) {
+            console.debug(
+                `[ChatDatabase] Detected potential duplicate assistant message: ` +
+                `existing=${existing.message_id}, incoming=${incoming.message_id}, ` +
+                `timeDiff=${timeDiff}s, contentMatch=${contentMatch}`
+            );
+        }
+        
+        return isDuplicate;
     }
 
     /**

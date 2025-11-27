@@ -466,13 +466,34 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                 await cache_service.delete_chat_messages_history(user_id, chat_id)
                 
                 for hist_msg in client_provided_history:
+                    # CRITICAL: Resolve embed references in message content before adding to AI history
+                    # According to embeds architecture, messages contain embed references (JSON blocks)
+                    # that need to be replaced with actual embed content for LLM context
+                    hist_content = hist_msg.get("content", "")
+                    resolved_hist_content = hist_content
+                    try:
+                        from backend.core.api.app.services.embed_service import EmbedService
+                        embed_service = EmbedService(
+                            cache_service=cache_service,
+                            directus_service=directus_service,
+                            encryption_service=encryption_service
+                        )
+                        resolved_hist_content = await embed_service.resolve_embed_references_in_content(
+                            content=hist_content,
+                            user_vault_key_id=user_vault_key_id,
+                            log_prefix=f"[Chat {chat_id}]"
+                        )
+                    except Exception as e_resolve:
+                        logger.warning(f"Failed to resolve embed references in client-provided message for chat {chat_id}: {e_resolve}. Using original content.")
+                        # Continue with original content if resolution fails
+                    
                     # Add to AI history
                     message_history_for_ai.append(
                         AIHistoryMessage(
                             role=hist_msg.get("role", "user"),
                             category=hist_msg.get("category"),
                             sender_name=hist_msg.get("sender_name", "user"),
-                            content=hist_msg.get("content", ""),
+                            content=resolved_hist_content, # Resolved content with embeds replaced
                             created_at=int(hist_msg.get("created_at", datetime.now(timezone.utc).timestamp()))
                         )
                     )
@@ -520,9 +541,11 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                 logger.info(f"[PERF] Cache fetch for AI history took {cache_fetch_time:.3f}s, found {len(cached_messages_str_list) if cached_messages_str_list else 0} messages")
                 
                 if cached_messages_str_list:
-                    logger.debug(f"Found {len(cached_messages_str_list)} encrypted messages in cache for chat {chat_id} for AI history.")
+                    logger.info(f"Found {len(cached_messages_str_list)} encrypted messages in AI cache for chat {chat_id}. Loading in chronological order (oldest first).")
                     decryption_failures = 0
-                    for msg_str in reversed(cached_messages_str_list): # Cache stores newest first (LPUSH), reverse for chronological
+                    # CRITICAL: Cache stores newest first (LPUSH), so we reverse to get chronological order (oldest first)
+                    # This ensures message history is in the correct order for AI processing
+                    for msg_str in reversed(cached_messages_str_list):
                         try:
                             msg_cache_data = json.loads(msg_str)
                             
@@ -562,12 +585,43 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                                 logger.warning(f"Cached message for chat {chat_id} has non-integer or missing timestamp '{msg_cache_data.get('created_at')}'. Defaulting to current time.")
                                 history_timestamp_val = int(datetime.now(timezone.utc).timestamp())
 
+                            # CRITICAL: Resolve embed references in message content before adding to AI history
+                            # According to embeds architecture, messages contain embed references (JSON blocks)
+                            # that need to be replaced with actual embed content for LLM context
+                            resolved_content = decrypted_content
+                            try:
+                                from backend.core.api.app.services.embed_service import EmbedService
+                                embed_service = EmbedService(
+                                    cache_service=cache_service,
+                                    directus_service=directus_service,
+                                    encryption_service=encryption_service
+                                )
+                                resolved_content = await embed_service.resolve_embed_references_in_content(
+                                    content=decrypted_content,
+                                    user_vault_key_id=user_vault_key_id,
+                                    log_prefix=f"[Chat {chat_id}]"
+                                )
+                                # Log if any embed references were found but not resolved
+                                if "```json" in decrypted_content and "```json" in resolved_content:
+                                    logger.debug(
+                                        f"[Chat {chat_id}] Some embed references may not have been resolved "
+                                        f"(embeds may be missing from cache). Original content length: {len(decrypted_content)}, "
+                                        f"resolved length: {len(resolved_content)}"
+                                    )
+                            except Exception as e_resolve:
+                                logger.error(
+                                    f"Failed to resolve embed references in message for chat {chat_id}: {e_resolve}. "
+                                    f"Using original content. This may cause LLM context issues.",
+                                    exc_info=True
+                                )
+                                # Continue with original content if resolution fails
+
                             message_history_for_ai.append(
                                 AIHistoryMessage(
                                     role=history_role,
                                     category=history_category,
                                     sender_name=history_sender_name,
-                                    content=decrypted_content, # Decrypted content for AI
+                                    content=resolved_content, # Resolved content with embeds replaced
                                     created_at=history_timestamp_val
                                 )
                             )
@@ -576,7 +630,11 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                         except Exception as e_hist_parse:
                             logger.warning(f"Error processing cached message for AI history: {e_hist_parse}")
                     
-                    logger.info(f"Successfully decrypted {len(message_history_for_ai)} messages from cache for AI history in chat {chat_id} (failures: {decryption_failures}/{len(cached_messages_str_list)})")
+                    logger.info(
+                        f"Successfully decrypted {len(message_history_for_ai)} messages from AI cache for chat {chat_id} "
+                        f"(failures: {decryption_failures}/{len(cached_messages_str_list)}). "
+                        f"Message roles: {[msg.role for msg in message_history_for_ai]}"
+                    )
                     
                     # If we have no successfully decrypted messages, or too many decryption failures, request history from client
                     # For follow-up messages (chat_has_title=True), we need at least some context from previous messages

@@ -71,6 +71,10 @@ class BaseSkill:
 
     # Dependencies like ConfigManager and DirectusService will be accessed via internal API calls.
     app: 'BaseApp' # Type hint for the parent BaseApp instance, resolved by TYPE_CHECKING import
+    
+    # Context information for usage tracking (set by BaseApp when skill is executed)
+    _current_chat_id: Optional[str] = None  # Chat ID for current execution context
+    _current_message_id: Optional[str] = None  # Message ID for current execution context
 
     # TODO: Ensure Celery tasks spawned from skills are cancellable.
     # This might involve:
@@ -196,24 +200,38 @@ class BaseSkill:
         Args:
             user_id: Actual user ID (needed to look up vault_key_id for encryption)
             user_id_hash: Hashed user ID for privacy
+            credits_charged: Number of credits charged for this skill execution
+            cost_system_prompt_credits: Optional system prompt credit cost
+            cost_history_credits: Optional history credit cost
+            cost_response_credits: Optional response credit cost
+            actual_input_tokens: Optional input token count
+            actual_output_tokens: Optional output token count
+            usage_type: Type of usage (default: "skill_execution")
+            chat_id: Optional chat ID (if not provided, will use _current_chat_id from execution context)
+            message_id: Optional message ID (if not provided, will use _current_message_id from execution context)
         """
         if not self.app: # Should not happen if BaseApp passes itself correctly
             print(f"CRITICAL: BaseApp instance not available in skill '{self.skill_id}' for API call to record usage.")
             return
+
+        # Use provided chat_id/message_id, or fall back to execution context if available
+        # This allows skills to explicitly pass these values, or use the context from the current execution
+        effective_chat_id = chat_id or self._current_chat_id
+        effective_message_id = message_id or self._current_message_id
 
         current_ts = int(time.time())
         
         usage_payload = {
             "user_id": user_id,  # Required for encryption key lookup
             "user_id_hash": user_id_hash,
-            "app_id": self.app_id,
-            "skill_id": self.skill_id,
+            "app_id": self.app_id,  # Required: ID of the app that contains the skill
+            "skill_id": self.skill_id,  # Required: ID of the skill that was executed
             "type": usage_type,
             "timestamp": current_ts,
             "credits_charged": credits_charged,
             "model_used": self.full_model_reference,
-            "chat_id": chat_id,
-            "message_id": message_id,
+            "chat_id": effective_chat_id,  # Use execution context if not explicitly provided
+            "message_id": effective_message_id,  # Use execution context if not explicitly provided
             "cost_details": { # Raw, unencrypted data for the main API to process and encrypt
                 "system_prompt_credits": cost_system_prompt_credits,
                 "history_credits": cost_history_credits,

@@ -838,7 +838,8 @@ async def call_preprocessing_llm(
         result = await _call_single_provider(provider_model_id)
         
         # If successful, return immediately
-        if result.arguments and not result.error_message:
+        # Note: result.arguments can be an empty dict {} which is falsy, so check for None explicitly
+        if result.arguments is not None and not result.error_message:
             logger.info(f"[{task_id}] LLM Utils: Preprocessing succeeded with provider: {provider_model_id}")
             return result
         

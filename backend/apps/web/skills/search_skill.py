@@ -75,10 +75,11 @@ class SearchResponse(BaseModel):
         ],
         description="List of field paths (supports dot notation) that should be excluded from LLM inference to reduce token usage. These fields are preserved in chat history for UI rendering but filtered out before sending to LLM."
     )
-    preview_data: Optional[Dict[str, Any]] = Field(
-        None,
-        description="Preview data for frontend rendering. This is skill-specific metadata for UI display (e.g., query, result_count, etc.). Does NOT include actual results - those are in 'results' field."
-    )
+    # preview_data removed: redundant metadata that can be derived from results and input
+    # preview_data: Optional[Dict[str, Any]] = Field(
+    #     None,
+    #     description="Preview data for frontend rendering. This is skill-specific metadata for UI display (e.g., query, result_count, etc.). Does NOT include actual results - those are in 'results' field."
+    # )
 
 
 class SearchSkill(BaseSkill):
@@ -338,13 +339,31 @@ class SearchSkill(BaseSkill):
             
             # Extract request-specific parameters (with defaults from schema)
             req_count = req.get("count", 10)  # Default from schema
-            req_country = req.get("country", "us")  # Default from schema
+            req_country_raw = req.get("country", "us")  # Default from schema
             req_lang = req.get("search_lang", "en")  # Default from schema
             req_safesearch = req.get("safesearch", "moderate")  # Default from schema
             # Default to web articles only (excludes news, videos, discussions, etc.)
             req_result_filter = req.get("result_filter", "web")  # Default to "web" for web articles
             
-            logger.debug(f"Executing search {i+1}/{len(search_requests)}: query='{search_query}', result_filter='{req_result_filter}'")
+            # CRITICAL: Validate and correct country code to ensure it's valid for Brave Search API
+            # Valid codes: AR, AU, AT, BE, BR, CA, CL, DK, FI, FR, DE, GR, HK, IN, ID, IT, JP, KR, MY, MX, NL, NZ, NO, CN, PL, PT, PH, RU, SA, ZA, ES, SE, CH, TW, TR, GB, US, ALL
+            VALID_BRAVE_COUNTRY_CODES = {
+                "AR", "AU", "AT", "BE", "BR", "CA", "CL", "DK", "FI", "FR", "DE", "GR", "HK", 
+                "IN", "ID", "IT", "JP", "KR", "MY", "MX", "NL", "NZ", "NO", "CN", "PL", "PT", 
+                "PH", "RU", "SA", "ZA", "ES", "SE", "CH", "TW", "TR", "GB", "US", "ALL"
+            }
+            req_country_upper = req_country_raw.upper() if req_country_raw else "US"
+            if req_country_upper not in VALID_BRAVE_COUNTRY_CODES:
+                # Invalid country code - log warning and fallback to "us"
+                logger.warning(
+                    f"Invalid country code '{req_country_raw}' for search '{search_query}'. "
+                    f"Valid codes: {sorted(VALID_BRAVE_COUNTRY_CODES)}. Falling back to 'us'."
+                )
+                req_country = "us"
+            else:
+                req_country = req_country_upper
+            
+            logger.debug(f"Executing search {i+1}/{len(search_requests)}: query='{search_query}', country='{req_country}', result_filter='{req_result_filter}'")
             
             try:
                 # Check and enforce rate limits before calling external API
@@ -686,32 +705,20 @@ class SearchSkill(BaseSkill):
         if len(all_previews) > 0 and self.suggestions_follow_up_requests:
             suggestions = self.suggestions_follow_up_requests
         
-        # Build preview_data for frontend rendering
-        # This is skill-specific metadata that the frontend needs to render search results
-        # NOTE: Do NOT include actual results here - they are in 'results' field
-        # NOTE: Do NOT include provider here - it's at root level
-        preview_data: Dict[str, Any] = {
-            "result_count": len(all_previews),
-            "completed_count": len(search_requests),
-            "total_count": len(search_requests)
-        }
+        # preview_data removed: redundant metadata that can be derived from results and input
+        # - result_count: len(all_previews)
+        # - query: can be extracted from input arguments in main_processor
+        # - provider: already at root level
+        # Frontend can derive all this from the results array and tool_call_info.input
         
-        # Extract query from first request for preview_data
-        if search_requests and len(search_requests) > 0:
-            first_request = search_requests[0]
-            preview_data["query"] = first_request.get("query", "")
-        else:
-            preview_data["query"] = "Unknown query"
-        
-        # Build response with new structure:
+        # Build response:
         # - results: actual search results (will be flattened and encoded to TOON by main_processor)
-        # - provider: at root level (moved from preview_data)
-        # - preview_data: metadata only (no results, no provider)
+        # - provider: at root level
         response = SearchResponse(
             results=all_previews,  # Results directly (not nested in 'previews')
             provider="Brave Search",  # Provider at root level
-            suggestions_follow_up_requests=suggestions,
-            preview_data=preview_data  # Metadata only (for frontend UI)
+            suggestions_follow_up_requests=suggestions
+            # preview_data removed: redundant metadata
         )
         
         # Add error message if there were errors (but still return results if any)

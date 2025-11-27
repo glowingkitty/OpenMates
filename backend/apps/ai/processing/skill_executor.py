@@ -49,7 +49,9 @@ async def execute_skill(
     app_id: str,
     skill_id: str,
     arguments: Dict[str, Any],
-    timeout: float = 30.0
+    timeout: float = 30.0,
+    chat_id: Optional[str] = None,
+    message_id: Optional[str] = None
 ) -> Dict[str, Any]:
     """
     Executes a skill by routing to the correct app service.
@@ -59,6 +61,8 @@ async def execute_skill(
         skill_id: The ID of the skill to execute
         arguments: The arguments to pass to the skill (from function call)
         timeout: Request timeout in seconds
+        chat_id: Optional chat ID for linking usage entries to chat sessions
+        message_id: Optional message ID for linking usage entries to messages
     
     Returns:
         Dict containing the skill execution result
@@ -72,13 +76,21 @@ async def execute_skill(
     # BaseApp registers routes as /skills/{skill_id}
     skill_url = f"http://app-{app_id}:{DEFAULT_APP_INTERNAL_PORT}/skills/{skill_id}"
     
+    # Include chat_id and message_id in the request body as metadata
+    # Skills can extract these to use when recording usage
+    request_body = arguments.copy()
+    if chat_id:
+        request_body["_chat_id"] = chat_id  # Prefix with _ to indicate metadata
+    if message_id:
+        request_body["_message_id"] = message_id  # Prefix with _ to indicate metadata
+    
     logger.debug(f"Executing skill '{app_id}.{skill_id}' at {skill_url} with arguments: {list(arguments.keys())}")
     
     try:
         async with httpx.AsyncClient(timeout=timeout) as client:
             response = await client.post(
                 skill_url,
-                json=arguments,
+                json=request_body,
                 headers={"Content-Type": "application/json"}
             )
             response.raise_for_status()
@@ -107,7 +119,9 @@ async def execute_skill_with_multiple_requests(
     app_id: str,
     skill_id: str,
     arguments: Dict[str, Any],
-    timeout: float = 30.0
+    timeout: float = 30.0,
+    chat_id: Optional[str] = None,
+    message_id: Optional[str] = None
 ) -> List[Dict[str, Any]]:
     """
     Executes a skill with support for multiple parallel requests.
@@ -121,10 +135,17 @@ async def execute_skill_with_multiple_requests(
         arguments: The arguments to pass to the skill
                    If it contains a list-like structure, multiple requests will be created
         timeout: Request timeout in seconds per request
+        chat_id: Optional chat ID for linking usage entries to chat sessions
+        message_id: Optional message ID for linking usage entries to messages
     
     Returns:
         List of results from skill execution (one per request)
     """
+    # Extract metadata fields from arguments if present (they might have been added by caller)
+    # Don't modify the original arguments dict - create a copy for processing
+    extracted_chat_id = arguments.get("_chat_id") or chat_id
+    extracted_message_id = arguments.get("_message_id") or message_id
+    
     # Check if arguments contain multiple requests
     # This is a heuristic - skills should document their multi-request format
     # Common patterns: list of queries, list of URLs, etc.
@@ -132,7 +153,7 @@ async def execute_skill_with_multiple_requests(
     
     if not multiple_requests or len(multiple_requests) == 1:
         # Single request - execute normally
-        result = await execute_skill(app_id, skill_id, arguments, timeout)
+        result = await execute_skill(app_id, skill_id, arguments, timeout, extracted_chat_id, extracted_message_id)
         return [result]
     
     # Limit to MAX_PARALLEL_REQUESTS
@@ -144,10 +165,18 @@ async def execute_skill_with_multiple_requests(
         multiple_requests = multiple_requests[:MAX_PARALLEL_REQUESTS]
     
     # Execute multiple requests in parallel
+    # Each request should have the same chat_id and message_id for usage tracking
     logger.info(f"Executing {len(multiple_requests)} parallel requests for skill '{app_id}.{skill_id}'")
     
     tasks = [
-        execute_skill(app_id, skill_id, request_args, timeout)
+        execute_skill(
+            app_id, 
+            skill_id, 
+            request_args, 
+            timeout, 
+            extracted_chat_id,  # Same chat_id for all requests in this batch
+            extracted_message_id  # Same message_id for all requests in this batch
+        )
         for request_args in multiple_requests
     ]
     
