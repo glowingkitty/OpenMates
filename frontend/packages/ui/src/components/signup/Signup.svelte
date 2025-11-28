@@ -15,11 +15,10 @@
     import { clearKeyFromStorage, clearAllEmailData } from '../../services/cryptoService';
     
     // Import signup state stores
-    import { isSignupSettingsStep, isInSignupProcess, isSettingsStep, currentSignupStep, showSignupFooter, getPathFromStep } from '../../stores/signupState';
+    import { isSignupSettingsStep, isInSignupProcess, isSettingsStep, currentSignupStep, showSignupFooter, getPathFromStep, STEP_ALPHA_DISCLAIMER } from '../../stores/signupState';
     import { isRecoveryKeyCreationActive } from '../../stores/recoveryKeyUIState';
     
     // Step name constants
-    const STEP_ALPHA_DISCLAIMER = 'alpha_disclaimer';
     const STEP_BASICS = 'basics';
     const STEP_CONFIRM_EMAIL = 'confirm_email';
     const STEP_SECURE_ACCOUNT = 'secure_account';

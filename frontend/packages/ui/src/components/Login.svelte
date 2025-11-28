@@ -4,7 +4,7 @@
     import AppIconGrid from './AppIconGrid.svelte';
     import { createEventDispatcher } from 'svelte';
     import { authStore, isCheckingAuth, needsDeviceVerification, login, checkAuth } from '../stores/authStore'; // Import login and checkAuth functions
-    import { currentSignupStep, isInSignupProcess, STEP_BASICS, getStepFromPath, STEP_ONE_TIME_CODES, isSignupPath } from '../stores/signupState';
+    import { currentSignupStep, isInSignupProcess, STEP_ALPHA_DISCLAIMER, STEP_BASICS, getStepFromPath, STEP_ONE_TIME_CODES, isSignupPath } from '../stores/signupState';
     import { clearIncompleteSignupData } from '../stores/signupStore';
     import { onMount, onDestroy } from 'svelte';
     import { MOBILE_BREAKPOINT } from '../styles/constants';
@@ -255,8 +255,9 @@
         tfaErrorMessage = null;
         loginFailedWarning = false; // Also clear general login errors
 
-        // Reset the signup step to basics when starting a new signup process
-        currentSignupStep.set(STEP_BASICS);
+        // Reset the signup step to alpha disclaimer when starting a new signup process
+        // This ensures users see the alpha disclaimer before proceeding with signup
+        currentSignupStep.set(STEP_ALPHA_DISCLAIMER);
         
         // Set the signup process flag, which will reactively change the view
         isInSignupProcess.set(true);
