@@ -19,6 +19,8 @@ changes to the documentation (to keep the documentation up to date).
     import { createEventDispatcher, onMount } from 'svelte';
     import { settingsNavigationStore, updateBreadcrumbsWithLanguage } from '../../../stores/settingsNavigationStore';
     import { getApiUrl, apiEndpoints } from '../../../config/api'; // Import API config
+    import { contentCache } from '../../../utils/contentCache'; // Import content cache to clear on language change
+    import { authStore } from '../../../stores/authStore'; // Import auth store to check authentication status
 
     const dispatch = createEventDispatcher();
 
@@ -142,6 +144,11 @@ changes to the documentation (to keep the documentation up to date).
             // Update breadcrumbs with new translations
             updateNavigationAndBreadcrumbs();
 
+            // Clear content cache to force re-processing of messages with new locale
+            // This ensures that cached TipTap JSON content is regenerated with correct translations
+            contentCache.clear();
+            console.debug('[SettingsLanguage] Cleared content cache on language change');
+
             // Force re-render of components
             setTimeout(() => {
                 // Dispatch event to inform parent components that language has changed
@@ -160,25 +167,31 @@ changes to the documentation (to keep the documentation up to date).
             }, 0);
 
             // --- Call API to save preference (Moved to the end of the try block) ---
-            try {
-                const response = await fetch(getApiUrl() + apiEndpoints.settings.user.language, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/json',
-                    },
-                    body: JSON.stringify({ language: newLocale }),
-                    credentials: 'include' // Important for sending auth cookies
-                });
-                if (!response.ok) {
-                    console.error('Failed to update language setting on server:', response.statusText);
+            // Only save to server if user is authenticated
+            // For unauthenticated users, language preference is stored locally only (localStorage + cookies)
+            if ($authStore.isAuthenticated) {
+                try {
+                    const response = await fetch(getApiUrl() + apiEndpoints.settings.user.language, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json',
+                        },
+                        body: JSON.stringify({ language: newLocale }),
+                        credentials: 'include' // Important for sending auth cookies
+                    });
+                    if (!response.ok) {
+                        console.error('Failed to update language setting on server:', response.statusText);
+                        // Optional: Add user feedback about the failure
+                    } else {
+                        console.debug('Language preference saved to server successfully.');
+                    }
+                } catch (apiError) {
+                    console.error('Error sending language setting to server:', apiError);
                     // Optional: Add user feedback about the failure
-                } else {
-                    console.debug('Language preference saved to server successfully.');
                 }
-            } catch (apiError) {
-                console.error('Error sending language setting to server:', apiError);
-                // Optional: Add user feedback about the failure
+            } else {
+                console.debug('User not authenticated - language preference saved locally only (localStorage + cookies)');
             }
             // --- End API Call ---
 

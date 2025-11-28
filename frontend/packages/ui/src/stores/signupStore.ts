@@ -40,20 +40,27 @@ export async function clearIncompleteSignupData(): Promise<void> {
   // Only clear username from IndexedDB if user is not authenticated
   // This ensures we don't clear data for users who completed signup
   const isAuthenticated = get(authStore).isAuthenticated;
-  
+
   if (!isAuthenticated) {
     try {
       // Clear username from IndexedDB using updateUserData with empty string
       // This is safer than clearUserData() which would clear all user data
-      await userDB.updateUserData({ username: '' });
-      
+      // Add timeout to prevent hanging if IndexedDB is not responding
+      const timeoutPromise = new Promise<void>((_, reject) => {
+        setTimeout(() => reject(new Error('IndexedDB operation timeout')), 2000);
+      });
+
+      const updatePromise = userDB.updateUserData({ username: '' });
+
+      await Promise.race([updatePromise, timeoutPromise]);
+
       // Also clear username from userProfile store to ensure UI updates immediately
       // This prevents the username from showing in Settings component after clearing
       userProfile.update(profile => ({
         ...profile,
         username: ''
       }));
-      
+
       console.debug('[SignupStore] Cleared incomplete signup username from IndexedDB and userProfile store');
     } catch (error) {
       console.error('[SignupStore] Error clearing incomplete signup data from IndexedDB:', error);

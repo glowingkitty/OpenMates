@@ -56,6 +56,52 @@ providers:
     server_location: US
     used_for:
       - LLM requests processing for web app via Cerebras as a provider on OpenRouter
+  brave:
+    privacy_policy: https://brave.com/privacy/
+    provider_location: US
+    used_for:
+      - web search skill (when users search the web)
+      - videos search skill (when users search for videos)
+      - news search skill (when users search for news)
+    data_shared:
+      - Search queries entered by users (Brave sees the content of what you search for)
+      - Country and language preferences for localized results
+      - Note: All data is shared without user identifiers - Brave does not know which specific user made each search
+  oxylabs:
+    privacy_policy: https://oxylabs.io/legal/privacy
+    provider_location: EU
+    used_for:
+      - videos get transcript skill (when users request video transcripts)
+    data_shared:
+      - URLs of YouTube videos for which transcripts are requested (Oxylabs sees which videos you request transcripts for)
+      - Note: Oxylabs acts as a proxy service, routing requests to YouTube. All data is shared without user identifiers - Oxylabs does not know which specific user requested each transcript
+  google:
+    privacy_policy: https://policies.google.com/privacy
+    provider_location: US
+    used_for:
+      - maps search skill (when users search for places)
+      - LLM requests processing for web app (Google GenAI)
+    data_shared:
+      - Place search queries entered by users (Google sees the content of what places you search for via Google Maps Platform)
+      - Chat messages and prompts (Google GenAI sees the content of your chat messages and prompts when processing LLM requests)
+      - Note: All data is shared without user identifiers - Google does not know which specific user made each search or sent each message
+  firecrawl:
+    privacy_policy: https://www.firecrawl.dev/privacy-policy
+    provider_location: US
+    used_for:
+      - web read skill (when users read/scrape web pages)
+    data_shared:
+      - URLs of web pages requested to be scraped
+      - The actual content of those web pages (Firecrawl sees and processes the full content of websites you request to read)
+      - Note: All data is shared without user identifiers - Firecrawl does not know which specific user requested each web page
+  groq:
+    privacy_policy: https://groq.com/privacy-policy
+    provider_location: US
+    used_for:
+      - LLM requests processing for external data sanitization (when users use skills that retrieve external data like search results, website content, etc.)
+    data_shared:
+      - External content retrieved from search providers (Brave) and web scraping (Firecrawl) for processing and sanitization (Groq sees the actual content of search results and scraped web pages)
+      - Note: Groq is used to process and sanitize external content before it's included in chat responses. All data is shared without user identifiers - Groq does not know which specific user requested the processing of each piece of content
 security_measures:
   device_fingerprinting:
     purpose: >

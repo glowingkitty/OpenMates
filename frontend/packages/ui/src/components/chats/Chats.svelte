@@ -1371,10 +1371,13 @@
             const zipBlob = await zip.generateAsync({ type: 'blob' });
             
             // Create download link
+            // Zip filename uses current date and time (not chat creation dates)
+            const now = new Date();
+            const zipDateStr = now.toISOString().slice(0, 19).replace(/[:-]/g, '-').replace('T', '_');
             const url = URL.createObjectURL(zipBlob);
             const link = document.createElement('a');
             link.href = url;
-            link.download = `chats_${new Date().toISOString().slice(0, 10)}.zip`;
+            link.download = `chats_${zipDateStr}.zip`;
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);

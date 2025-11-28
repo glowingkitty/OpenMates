@@ -13,21 +13,30 @@ api_base_url: "https://api.search.brave.com/res/v1"
 
 # Brave Search API Plans
 # 
-# **Free Plan:**
+# **Free AI Plan:**
 # - Price: $0.00 (credit card required via Stripe)
 # - Rate Limits: 1 request per second, 2,000 requests per month
-# - Features: Web search, Goggles, News cluster, Videos cluster, Videos, News, Images
+# - Features Included: Web search, Goggles, News cluster, Videos cluster, Extra alternate snippets for AI,
+#                      Videos, News, Images, Rights to use data for AI inference
+# - Features Not Included: Schema-enriched Web results, Infobox, FAQ, Discussions, Locations,
+#                          Summarizer, Rich search results, Rights to store data
 #
-# **Base Plan:**
-# - Price: $3.00 per 1,000 requests (Brave's cost to us)
-# - Rate Limits: 20 requests per second, 20,000,000 requests per month
-# - Features: Web search, Goggles, News cluster, Videos cluster, Videos, News, Images
-#
-# **Pro Plan:**
+# **Base AI Plan:**
 # - Price: $5.00 per 1,000 requests (Brave's cost to us)
+# - Rate Limits: 20 requests per second, 20,000,000 requests per month
+# - Features Included: Web search, Goggles, News cluster, Videos cluster, Extra alternate snippets for AI,
+#                      Videos, News, Images, Rights to use data for AI inference
+# - Features Not Included: Schema-enriched Web results, Infobox, FAQ, Discussions, Locations,
+#                          Summarizer, Rich search results, Rights to store data
+#
+# **Pro AI Plan:**
+# - Price: $9.00 per 1,000 requests (Brave's cost to us)
 # - Rate Limits: 50 requests per second, Unlimited requests per month
-# - Features: Web search, Goggles, News cluster, Videos cluster, Videos, News, Images,
-#             Schema-enriched Web results, Infobox, FAQ, Discussions, Locations
+# - Features Included: All features including Web search, Goggles, News cluster, Videos cluster,
+#                      Extra alternate snippets for AI, Videos, News, Images,
+#                      Rights to use data for AI inference, Schema-enriched Web results,
+#                      Infobox, FAQ, Discussions, Locations, Summarizer, Rich search results,
+#                      Rights to store data
 
 # Default plan is "pro" (set via BRAVE_SEARCH_PLAN environment variable)
 #
@@ -54,10 +63,10 @@ rate_limits:
 
 # Pricing information
 # Cost per request in credits (user-facing pricing, independent of Brave plan)
-# Users are always charged 5 credits per search request
-# If a user makes 5 parallel search requests, they are charged 25 credits total (5 * 5)
+# Users are always charged 10 credits per search request
+# If a user makes 5 parallel search requests, they are charged 50 credits total (5 * 10)
 # Note: The Brave plan (free/base/pro) only affects rate limits and available features,
 #       not the user-facing pricing
 pricing:
-  per_request_credits: 5  # Always 5 credits per search request for users
+  per_request_credits: 10  # Always 10 credits per search request for users
 

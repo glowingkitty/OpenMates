@@ -41,10 +41,13 @@ export async function downloadChatAsYaml(chat: Chat, messages: Message[]): Promi
 /**
  * Generates a filename for the chat export
  * Format: YYYY-MM-DD_HH-MM-SS_[title].yaml
+ * Uses the chat's creation date/time instead of current date/time
  */
 export async function generateChatFilename(chat: Chat, extension: string = 'yaml'): Promise<string> {
-    const now = new Date();
-    const dateStr = now.toISOString().slice(0, 19).replace(/[:-]/g, '-').replace('T', '_');
+    // Use chat's creation timestamp instead of current time
+    // chat.created_at is a Unix timestamp (in seconds)
+    const chatDate = new Date(chat.created_at * 1000);
+    const dateStr = chatDate.toISOString().slice(0, 19).replace(/[:-]/g, '-').replace('T', '_');
     
     let title = 'Untitled Chat';
     
@@ -111,6 +114,36 @@ async function loadEmbedsRecursively(embedIds: string[], loadedEmbedIds: Set<str
     // Process each embed
     for (const embed of loadedEmbeds) {
         try {
+            // DEBUG: Log embed structure to diagnose missing content
+            console.debug('[ChatExportService] Processing embed for export:', {
+                embed_id: embed.embed_id,
+                type: embed.type,
+                hasContent: 'content' in embed,
+                contentType: typeof embed.content,
+                contentLength: embed.content ? String(embed.content).length : 0,
+                contentPreview: embed.content ? String(embed.content).substring(0, 100) : 'MISSING',
+                embedKeys: Object.keys(embed)
+            });
+            
+            // Check if content field exists and is a string
+            if (!embed.content || typeof embed.content !== 'string') {
+                console.error('[ChatExportService] Embed missing content field or content is not a string:', {
+                    embed_id: embed.embed_id,
+                    hasContent: 'content' in embed,
+                    contentType: typeof embed.content,
+                    embedKeys: Object.keys(embed)
+                });
+                // Include embed with error indicator
+                embedsForExport.push({
+                    embed_id: embed.embed_id,
+                    type: embed.type,
+                    status: 'error',
+                    content: null,
+                    error: 'Embed content field is missing or invalid'
+                });
+                continue;
+            }
+            
             // Decode TOON content to get actual embed values
             const decodedContent = await decodeToonContent(embed.content);
             

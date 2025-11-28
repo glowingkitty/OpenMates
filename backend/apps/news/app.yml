@@ -33,7 +33,7 @@ skills:
       properties:
         requests:
           type: array
-          description: Array of search request objects for parallel processing (up to 9 requests). Each object must contain 'query' and can include optional parameters (count, country, search_lang, safesearch).
+          description: Array of search request objects for parallel processing (up to 5 requests). Each object must contain 'query' and can include optional parameters (count, country, search_lang, safesearch).
           items:
             type: object
             properties:

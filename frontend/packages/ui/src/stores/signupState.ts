@@ -1,6 +1,7 @@
 import { writable, derived } from 'svelte/store';
 
 // Step name constants
+export const STEP_ALPHA_DISCLAIMER = 'alpha_disclaimer';
 export const STEP_BASICS = 'basics';
 export const STEP_CONFIRM_EMAIL = 'confirm_email';
 export const STEP_SECURE_ACCOUNT = 'secure_account';
@@ -41,7 +42,8 @@ export const isInSignupProcess = writable<boolean>(false);
 export const isLoggingOut = writable(false);
 
 // Store to track current signup step
-export const currentSignupStep = writable<string>(STEP_BASICS);
+// Initialize to null/empty so that Signup.svelte can properly detect new signups and show alpha disclaimer
+export const currentSignupStep = writable<string>('');
 
 // Store to track if user is resetting 2FA from TFA App Reminder step
 export const isResettingTFA = writable<boolean>(false);

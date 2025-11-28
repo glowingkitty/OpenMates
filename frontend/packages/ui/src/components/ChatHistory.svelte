@@ -26,6 +26,9 @@
   import { parseMarkdownToTiptap } from '../components/enter_message/utils/markdownParser';
   import { parse_message } from '../message_parsing/parse_message';
   import { createTruncatedMessage, truncateTiptapContent } from '../utils/messageTruncation';
+  import { locale } from 'svelte-i18n';
+  import { contentCache } from '../utils/contentCache';
+  import { getDemoMessages, isPublicChat, DEMO_CHATS, LEGAL_CHATS } from '../demo_chats'; // Import demo chat utilities for re-fetching on locale change
 
   interface InternalMessage {
     id: string; // Derived from message_id
@@ -110,6 +113,10 @@
   let shouldScrollToNewUserMessage = false;
   let isScrolling = false;
 
+  // Track current locale reactively to detect changes
+  // Use $derived to ensure it's always in sync with $locale
+  let currentLocale = $derived($locale || 'en');
+
   /**
    * Exposed function to add a new message to the chat.
    * This is called from the ActiveChat component when a new message is sent.
@@ -163,24 +170,63 @@
     }
   }
 
+  // Track previous locale to detect changes
+  let previousLocale = $state($locale || 'en');
+
   // Add method to update messages
   export function updateMessages(newMessagesArray: GlobalMessage[]) {
-    console.debug('[ChatHistory] updateMessages CALLED with', newMessagesArray.length, 'messages');
+    // Check if locale has changed - if so, force re-processing of all messages
+    // Use previousLocale to detect changes since currentLocale is $derived
+    const newLocale = $locale || 'en';
+    const localeChanged = newLocale !== previousLocale;
+    if (localeChanged) {
+      // DON'T update previousLocale here - update it after processing messages
+      // This ensures localeChanged stays true throughout the message processing
+      // Clear cache to ensure fresh processing with new locale
+      contentCache.clear();
+    }
+    
+    // Update previousLocale AFTER checking localeChanged but BEFORE processing messages
+    // This ensures localeChanged flag is preserved during message processing
+    if (localeChanged) {
+      previousLocale = newLocale;
+    }
 
     const previousMessagesLength = messages.length;
+    
+    
     const newInternalMessages = newMessagesArray.map(newMessage => {
         const oldMessage = messages.find(m => m.id === newMessage.message_id);
         const newInternalMessage = G_mapToInternalMessage(newMessage);
 
-        // CRITICAL FIX: Skip content optimization for streaming messages
+        // CRITICAL FIX: Skip content optimization for streaming messages AND when locale changes
         // Streaming messages need to re-render on every chunk update
+        // When locale changes, we need to re-process content to get correct translations
         // If an old message exists and its content is identical to the new one,
         // reuse the old content object reference to prevent unnecessary re-renders
-        // of the ReadOnlyMessage component. BUT skip this for streaming messages.
+        // of the ReadOnlyMessage component. BUT skip this for streaming messages and locale changes.
         if (oldMessage &&
-            newMessage.status !== 'streaming' &&
-            JSON.stringify(oldMessage.content) === JSON.stringify(newInternalMessage.content)) {
-            newInternalMessage.content = oldMessage.content;
+            !localeChanged &&
+            newMessage.status !== 'streaming') {
+            // Compare content to see if it's actually different
+            const oldContentStr = JSON.stringify(oldMessage.content);
+            const newContentStr = JSON.stringify(newInternalMessage.content);
+            if (oldContentStr === newContentStr) {
+                // Content is identical, reuse old reference for optimization
+                newInternalMessage.content = oldMessage.content;
+            } else {
+                // Content is different - log for debugging
+                console.debug('[ChatHistory] Message content changed for', newMessage.message_id);
+            }
+        } else if (localeChanged) {
+            // Locale changed - always use new content even if it appears identical
+            // This ensures translations are refreshed
+            // CRITICAL: Force new content object reference to break any object equality checks
+            // This ensures ReadOnlyMessage detects the change and re-renders
+            console.debug('[ChatHistory] Locale changed - forcing new content for', newMessage.message_id);
+            // Create a completely new content object to force reactivity
+            // This breaks object reference equality, forcing Svelte to detect the change
+            newInternalMessage.content = JSON.parse(JSON.stringify(newInternalMessage.content));
         }
         return newInternalMessage;
     });
@@ -413,6 +459,85 @@
     
     requestAnimationFrame(() => attemptRestore());
   }
+
+  // Listen for language changes to force re-processing of messages
+  // This ensures translations update immediately when language changes
+  // Note: For demo chats, ActiveChat will call updateMessages with newly translated messages
+  // This handler ensures non-demo chats also update when language changes
+  // CRITICAL: Only listen to 'language-changed-complete' to avoid race conditions
+  // ActiveChat's handler will call updateMessages with new messages, which will detect locale change
+  // This handler is a fallback for non-demo chats
+  onMount(() => {
+    const handleLanguageChange = async () => {
+      // Clear cache to ensure fresh processing with new locale
+      contentCache.clear();
+      
+      // CRITICAL: Check if messages are from a public chat (demo or legal)
+      // If so, re-fetch them with new translations
+      // This is a fallback in case ActiveChat's handler didn't run or failed
+      if (messages.length > 0 && messages[0].original_message?.chat_id) {
+        const chatId = messages[0].original_message.chat_id;
+        if (isPublicChat(chatId)) {
+          try {
+            // Re-fetch messages with new translations
+            const newMessages = getDemoMessages(chatId, DEMO_CHATS, LEGAL_CHATS);
+            if (newMessages.length > 0) {
+              // Call updateMessages to process the new messages
+              // This will detect locale change and force re-processing
+              updateMessages(newMessages);
+              return; // Exit early since updateMessages handled everything
+            } else {
+              console.warn('[ChatHistory] No messages found for public chat:', chatId);
+            }
+          } catch (error) {
+            console.error('[ChatHistory] Error re-fetching demo messages:', error);
+            // Fall through to fallback re-render
+          }
+        }
+      }
+      
+      // CRITICAL: Don't update previousLocale here - let updateMessages handle it
+      // This ensures that when ActiveChat calls updateMessages, it will detect the locale change
+      // Only force re-render if updateMessages hasn't been called (non-demo chats)
+      // For demo chats, ActiveChat will call updateMessages with new messages
+      
+      // Force complete re-render by creating entirely new message objects
+      // This ensures ReadOnlyMessage components detect the change and re-process content
+      // This is especially important for non-demo chats where ActiveChat might not call updateMessages
+      // For non-demo chats, we force a re-render which will trigger ReadOnlyMessage to re-process
+      messages = messages.map(msg => {
+        // Create a completely new message object with new content reference
+        // This forces Svelte to detect the change and re-render ReadOnlyMessage
+        const newContent = JSON.parse(JSON.stringify(msg.content));
+        
+        return {
+          ...msg,
+          content: newContent,
+          // Force new object reference for original_message too
+          // If original_message has markdown content, it will be re-processed with new locale
+          original_message: msg.original_message ? {
+            ...msg.original_message,
+            // Re-process original message content if it's a string (markdown)
+            // This ensures translations are updated when ReadOnlyMessage processes it
+            content: typeof msg.original_message.content === 'string' 
+              ? msg.original_message.content // Keep markdown string, will be re-processed with new locale
+              : msg.original_message.content
+          } : msg.original_message
+        };
+      });
+      
+    };
+
+    // Listen to language change complete event
+    // This fires after ActiveChat has processed, so updateMessages should have been called
+    // But we still handle it as a fallback for non-demo chats
+    window.addEventListener('language-changed-complete', handleLanguageChange);
+
+    // Cleanup on component destroy
+    return () => {
+      window.removeEventListener('language-changed-complete', handleLanguageChange);
+    };
+  });
 
   // Cleanup on component destroy
   onDestroy(() => {

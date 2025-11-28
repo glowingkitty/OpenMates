@@ -1,11 +1,10 @@
 <script lang="ts">
-    import { createEventDispatcher } from 'svelte';
     import { _ } from 'svelte-i18n';
     import { userProfile } from '../../stores/userProfile'; // Import userProfile store
     import { getWebsiteUrl, routes } from '../../config/links';
     // Import current step store and gift check stores
-    import { currentSignupStep, isLoadingGiftCheck, hasGiftForSignup } from '../../stores/signupState'; 
-    
+    import { currentSignupStep, isLoadingGiftCheck, hasGiftForSignup } from '../../stores/signupState';
+
     // Step name constants - must match those in Signup.svelte
     const STEP_ALPHA_DISCLAIMER = 'alpha_disclaimer';
     const STEP_BASICS = 'basics';
@@ -29,36 +28,44 @@
         STEP_ONE_TIME_CODES, STEP_TFA_APP_REMINDER, STEP_BACKUP_CODES, STEP_RECOVERY_KEY, // STEP_PROFILE_PICTURE,
         STEP_CREDITS, STEP_PAYMENT, STEP_AUTO_TOP_UP, STEP_COMPLETION
     ];
-    
-    const dispatch = createEventDispatcher();
 
-    // Props using Svelte 5 runes mode
-    let { 
+    // Props using Svelte 5 runes mode with callback props
+    let {
         showSkip = false,
         currentStep = STEP_BASICS,
         selectedAppName = null,
         showAdminButton = false,
-        isAppSaved = false
+        isAppSaved = false,
+        onback = () => {},
+        onstep = (event: { step: string }) => {},
+        onskip = () => {},
+        onlogout = () => {}
     }: {
         showSkip?: boolean,
         currentStep?: string,
         selectedAppName?: string | null,
         showAdminButton?: boolean,
-        isAppSaved?: boolean
+        isAppSaved?: boolean,
+        onback?: () => void,
+        onstep?: (event: { step: string }) => void,
+        onskip?: () => void,
+        onlogout?: () => void
     } = $props();
 
     function handleBackClick() {
+        console.log('[SignupNav] handleBackClick called, currentStep:', currentStep);
         if (currentStep === STEP_BASICS || currentStep === STEP_ALPHA_DISCLAIMER) {
-            dispatch('back');
+            console.log('[SignupNav] Calling onback()');
+            onback();
         } else if (currentStep === STEP_ONE_TIME_CODES) {
-            dispatch('logout');
+            onlogout();
         } else if (currentStep === STEP_SECURE_ACCOUNT) {
             // Special case: Go back from Secure Account to Basics (skipping confirm email)
-            dispatch('step', { step: STEP_BASICS });
+            onstep({ step: STEP_BASICS });
         } else {
             const currentIndex = stepSequence.indexOf(currentStep);
             if (currentIndex > 0) {
-                dispatch('step', { step: stepSequence[currentIndex - 1] });
+                onstep({ step: stepSequence[currentIndex - 1] });
             }
         }
     }
@@ -66,20 +73,20 @@
     function handleSkipClick() {
         // Profile picture step removed
         if (currentStep === STEP_ONE_TIME_CODES && $userProfile.tfa_enabled) {
-            dispatch('step', { step: STEP_TFA_APP_REMINDER });
+            onstep({ step: STEP_TFA_APP_REMINDER });
     } else if (currentStep === STEP_TFA_APP_REMINDER) {
          // Always go to backup codes step next, regardless of whether an app is selected
-         dispatch('step', { step: STEP_BACKUP_CODES });
+         onstep({ step: STEP_BACKUP_CODES });
         } else if (currentStep === STEP_SETTINGS && $userProfile.consent_privacy_and_apps_default_settings) {
-            dispatch('step', { step: STEP_MATE_SETTINGS });
+            onstep({ step: STEP_MATE_SETTINGS });
         } else if (currentStep === STEP_MATE_SETTINGS && $userProfile.consent_mates_default_settings) {
-            dispatch('step', { step: STEP_CREDITS });
+            onstep({ step: STEP_CREDITS });
         } else if (currentStep === STEP_CREDITS) {
             console.debug('Skip and show demo first');
             // Custom action for credits step - will be replaced later with real action
         } else {
             // Default skip action
-            dispatch('skip');
+            onskip();
         }
     }
 

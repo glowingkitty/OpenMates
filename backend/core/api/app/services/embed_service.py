@@ -708,14 +708,19 @@ class EmbedService:
 
             else:
                 # Single result - update embed with result content
-                # Convert result to TOON format (PLAINTEXT)
-                if len(results) == 1:
-                    flattened_result = _flatten_for_toon_tabular(results[0])
-                    content_toon = encode(flattened_result)
-                else:
-                    # Multiple results but not composite
-                    flattened_results = [_flatten_for_toon_tabular(result) for result in results]
-                    content_toon = encode({"results": flattened_results, "count": len(results)})
+                # CRITICAL: Wrap results with app_id and skill_id metadata for consistency with create_embeds_from_skill_results
+                # This ensures the frontend can identify which skill was executed and render the appropriate preview component
+                # Structure matches composite results pattern: app_id, skill_id, results array
+                flattened_results = [_flatten_for_toon_tabular(result) for result in results]
+                
+                # Wrap with app_id and skill_id metadata (same structure as create_embeds_from_skill_results)
+                content_with_metadata = {
+                    "app_id": app_id,
+                    "skill_id": skill_id,
+                    "results": flattened_results,
+                    "result_count": len(results)
+                }
+                content_toon = encode(_flatten_for_toon_tabular(content_with_metadata))
 
                 # Calculate text length
                 single_text_length_chars = len(content_toon)

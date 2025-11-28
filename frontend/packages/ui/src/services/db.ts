@@ -459,26 +459,34 @@ class ChatDatabase {
                     console.warn(`[ChatDatabase] External transaction is no longer active for chat ${chatToSave.chat_id}, creating new transaction`);
                     // Transaction is finished, create a new one
                     const newTransaction = await this.getTransaction(this.CHATS_STORE_NAME, 'readwrite');
+                    
+                    // CRITICAL FIX: Set up transaction handlers BEFORE queuing any operations
+                    newTransaction.oncomplete = () => {
+                        console.debug("[ChatDatabase] ✅ New transaction for addChat completed successfully for chat:", chatToSave.chat_id);
+                        resolve();
+                    };
+                    
+                    newTransaction.onerror = () => {
+                        console.error("[ChatDatabase] ❌ New transaction for addChat failed for chat:", chatToSave.chat_id, "Error:", newTransaction.error);
+                        reject(newTransaction.error);
+                    };
+                    
+                    newTransaction.onabort = () => {
+                        console.error("[ChatDatabase] ❌ New transaction for addChat aborted for chat:", chatToSave.chat_id);
+                        reject(new Error('Transaction aborted'));
+                    };
+                    
                     const store = newTransaction.objectStore(this.CHATS_STORE_NAME);
                     const request = store.put(chatToSave);
                     
                     request.onsuccess = () => {
-                        console.debug("[ChatDatabase] Chat added/updated successfully (queued):", chatToSave.chat_id, "Versions:", {m: chatToSave.messages_v, t: chatToSave.title_v, d: chatToSave.draft_v});
-                        resolve();
+                        console.debug("[ChatDatabase] Chat put request successful (queued):", chatToSave.chat_id, "Versions:", {m: chatToSave.messages_v, t: chatToSave.title_v, d: chatToSave.draft_v});
+                        // resolve() is called in oncomplete handler above
                     };
                     
                     request.onerror = () => {
                         console.error("[ChatDatabase] Error in chat store.put operation:", request.error);
-                        reject(request.error);
-                    };
-                    
-                    newTransaction.oncomplete = () => {
-                        console.debug("[ChatDatabase] New transaction for addChat completed successfully for chat:", chatToSave.chat_id);
-                    };
-                    
-                    newTransaction.onerror = () => {
-                        console.error("[ChatDatabase] New transaction for addChat failed for chat:", chatToSave.chat_id, "Error:", newTransaction.error);
-                        reject(newTransaction.error);
+                        // Transaction will abort and onerror/onabort will be called
                     };
                     
                     return;
@@ -492,35 +500,63 @@ class ChatDatabase {
             // CRITICAL FIX: Check transaction state one more time right before using it
             // This catches race conditions where the transaction finished between the check above and now
             try {
+                // CRITICAL FIX: Set up transaction handlers BEFORE queuing any operations
+                // This prevents a race condition where the transaction auto-commits before we set handlers
+                if (!usesExternalTransaction) {
+                    currentTransaction.oncomplete = () => {
+                        console.debug("[ChatDatabase] ✅ Transaction for addChat completed successfully for chat:", chatToSave.chat_id);
+                        resolve();
+                    };
+                    currentTransaction.onerror = () => {
+                        const error = currentTransaction.error;
+                        const errorName = error instanceof DOMException ? error.name : 'Unknown';
+                        const errorMessage = error?.message || 'Unknown error';
+                        console.error(`[ChatDatabase] ❌ Transaction for addChat failed for chat: ${chatToSave.chat_id}, Error: ${errorName} - ${errorMessage}`, error);
+                        reject(error || new Error('Transaction error'));
+                    };
+                    currentTransaction.onabort = () => {
+                        const error = currentTransaction.error;
+                        const errorName = error instanceof DOMException ? error.name : 'Unknown';
+                        const errorMessage = error?.message || 'Unknown reason';
+                        console.error(`[ChatDatabase] ❌ Transaction for addChat aborted for chat: ${chatToSave.chat_id}, Error: ${errorName} - ${errorMessage}`, error);
+                        
+                        // Check for QuotaExceededError - this is critical and should be logged prominently
+                        if (error instanceof DOMException && error.name === 'QuotaExceededError') {
+                            console.error(`[ChatDatabase] ❌❌❌ CRITICAL: QuotaExceededError when saving chat ${chatToSave.chat_id}! IndexedDB storage quota exceeded!`);
+                        }
+                        
+                        reject(error || new Error(`Transaction aborted: ${errorMessage}`));
+                    };
+                }
+                
                 const store = currentTransaction.objectStore(this.CHATS_STORE_NAME);
                 const request = store.put(chatToSave);
                 
                 console.debug(`[ChatDatabase] IndexedDB put request initiated for chat ${chatToSave.chat_id}`);
 
                 request.onsuccess = () => {
-                    console.debug("[ChatDatabase] Chat added/updated successfully (queued):", chatToSave.chat_id, "Versions:", {m: chatToSave.messages_v, t: chatToSave.title_v, d: chatToSave.draft_v});
+                    console.debug("[ChatDatabase] Chat put request successful (queued):", chatToSave.chat_id, "Versions:", {m: chatToSave.messages_v, t: chatToSave.title_v, d: chatToSave.draft_v});
                     if (usesExternalTransaction) {
                         console.debug(`[ChatDatabase] External transaction - operation queued for chat ${chatToSave.chat_id}`);
                         // CRITICAL FIX: Don't resolve yet! The transaction might not be committed.
                         // The calling code should wait for transaction.oncomplete
                         resolve(); // Resolve to indicate the operation was queued successfully
                     }
+                    // For internal transactions, resolve() is called in oncomplete handler above
                 };
                 request.onerror = () => {
-                    console.error("[ChatDatabase] Error in chat store.put operation:", request.error);
-                    reject(request.error); // This will also cause the transaction to abort if not handled
+                    const error = request.error;
+                    const errorName = error instanceof DOMException ? error.name : 'Unknown';
+                    const errorMessage = error?.message || 'Unknown error';
+                    console.error(`[ChatDatabase] ❌ Error in chat store.put operation for ${chatToSave.chat_id}: ${errorName} - ${errorMessage}`, error);
+                    
+                    // Check for QuotaExceededError - this is critical
+                    if (error instanceof DOMException && error.name === 'QuotaExceededError') {
+                        console.error(`[ChatDatabase] ❌❌❌ CRITICAL: QuotaExceededError when saving chat ${chatToSave.chat_id}! IndexedDB storage quota exceeded!`);
+                    }
+                    
+                    reject(error); // This will also cause the transaction to abort if not handled
                 };
-
-                if (!usesExternalTransaction) {
-                    currentTransaction.oncomplete = () => {
-                        console.debug("[ChatDatabase] Transaction for addChat completed successfully for chat:", chatToSave.chat_id);
-                        resolve();
-                    };
-                    currentTransaction.onerror = () => {
-                        console.error("[ChatDatabase] Transaction for addChat failed for chat:", chatToSave.chat_id, "Error:", currentTransaction.error);
-                        reject(currentTransaction.error);
-                    };
-                }
             } catch (error: any) {
                 // Transaction is no longer active (InvalidStateError or similar)
                 if (error?.name === 'InvalidStateError' || error?.message?.includes('transaction')) {
@@ -528,26 +564,34 @@ class ChatDatabase {
                     // Create a new transaction and retry
                     try {
                         const newTransaction = await this.getTransaction(this.CHATS_STORE_NAME, 'readwrite');
+                        
+                        // CRITICAL FIX: Set up transaction handlers BEFORE queuing any operations
+                        newTransaction.oncomplete = () => {
+                            console.debug("[ChatDatabase] ✅ New transaction for addChat completed successfully for chat:", chatToSave.chat_id);
+                            resolve();
+                        };
+                        
+                        newTransaction.onerror = () => {
+                            console.error("[ChatDatabase] ❌ New transaction for addChat failed for chat:", chatToSave.chat_id, "Error:", newTransaction.error);
+                            reject(newTransaction.error);
+                        };
+                        
+                        newTransaction.onabort = () => {
+                            console.error("[ChatDatabase] ❌ New transaction for addChat aborted for chat:", chatToSave.chat_id);
+                            reject(new Error('Transaction aborted'));
+                        };
+                        
                         const store = newTransaction.objectStore(this.CHATS_STORE_NAME);
                         const request = store.put(chatToSave);
                         
                         request.onsuccess = () => {
-                            console.debug("[ChatDatabase] Chat added/updated successfully with new transaction (queued):", chatToSave.chat_id);
-                            resolve();
+                            console.debug("[ChatDatabase] Chat put request successful with new transaction (queued):", chatToSave.chat_id);
+                            // resolve() is called in oncomplete handler above
                         };
                         
                         request.onerror = () => {
                             console.error("[ChatDatabase] Error in chat store.put operation with new transaction:", request.error);
-                            reject(request.error);
-                        };
-                        
-                        newTransaction.oncomplete = () => {
-                            console.debug("[ChatDatabase] New transaction for addChat completed successfully for chat:", chatToSave.chat_id);
-                        };
-                        
-                        newTransaction.onerror = () => {
-                            console.error("[ChatDatabase] New transaction for addChat failed for chat:", chatToSave.chat_id, "Error:", newTransaction.error);
-                            reject(newTransaction.error);
+                            // Transaction will abort and onerror/onabort will be called
                         };
                     } catch (retryError) {
                         console.error(`[ChatDatabase] Failed to create new transaction for chat ${chatToSave.chat_id}:`, retryError);
@@ -2189,12 +2233,21 @@ class ChatDatabase {
 
     /**
      * Save already-encrypted new chat suggestions (for server-synced suggestions from Directus)
+     * 
+     * CRITICAL FIX: This function now properly handles transaction lifecycle and quota:
+     * 1. Get existing suggestions first (separate readonly transaction)
+     * 2. Trim to limit BEFORE adding new ones to prevent QuotaExceededError
+     * 3. Wait for readonly transaction to complete before opening readwrite transaction
+     * 4. Use put() instead of add() to handle any edge cases with duplicate IDs
+     * 5. Handle QuotaExceededError gracefully - save in smaller batches or skip
+     * 6. Don't throw on transaction errors - log and continue (suggestions are non-critical)
      */
     async saveEncryptedNewChatSuggestions(encryptedSuggestions: string[], chatId: string): Promise<void> {
         if (!this.db) throw new Error('[ChatDatabase] Database not initialized');
 
         try {
             // First, get existing suggestions to check for duplicates
+            // CRITICAL: Wait for this transaction to fully complete before opening another
             const existingSuggestions = await this.getAllNewChatSuggestions();
             const existingEncryptedSet = new Set(existingSuggestions.map(s => s.encrypted_suggestion));
             
@@ -2213,97 +2266,143 @@ class ChatDatabase {
             
             console.debug(`[ChatDatabase] Adding ${newSuggestionsToAdd.length}/${encryptedSuggestions.length} new encrypted suggestions (filtered ${encryptedSuggestions.length - newSuggestionsToAdd.length} duplicates)`);
 
+            // CRITICAL FIX: Trim to limit BEFORE adding new suggestions to prevent QuotaExceededError
+            // Calculate how many we need to keep: limit - newSuggestionsToAdd.length
+            // This ensures we never exceed the limit
+            const LIMIT = 50;
+            const currentCount = existingSuggestions.length;
+            const targetCount = Math.min(LIMIT, currentCount + newSuggestionsToAdd.length);
+            
+            if (currentCount + newSuggestionsToAdd.length > LIMIT) {
+                // Need to trim before adding
+                const toDelete = currentCount + newSuggestionsToAdd.length - LIMIT;
+                console.debug(`[ChatDatabase] Trimming ${toDelete} oldest suggestions before adding ${newSuggestionsToAdd.length} new ones`);
+                await this.trimSuggestionsToLimit(LIMIT - newSuggestionsToAdd.length);
+            }
+
+            // CRITICAL FIX: Small delay to ensure previous readonly transaction is fully released
+            await new Promise(resolve => setTimeout(resolve, 10));
+
             const transaction = this.db.transaction([this.NEW_CHAT_SUGGESTIONS_STORE_NAME], 'readwrite');
             const store = transaction.objectStore(this.NEW_CHAT_SUGGESTIONS_STORE_NAME);
 
-            // Add already-encrypted suggestions directly (no re-encryption)
-            // CRITICAL: Track individual add operations to catch errors
-            const addPromises: Promise<void>[] = [];
+            // Prepare all records first (synchronous)
             const now = Math.floor(Date.now() / 1000);
-            
-            for (const encryptedSuggestion of newSuggestionsToAdd) {
-                const suggestionRecord: NewChatSuggestion = {
-                    id: crypto.randomUUID(),
-                    encrypted_suggestion: encryptedSuggestion,
-                    chat_id: chatId,
-                    created_at: now
-                };
-                
-                // Create promise for each add operation to catch individual errors
-                const addPromise = new Promise<void>((resolve, reject) => {
-                    const request = store.add(suggestionRecord);
-                    request.onsuccess = () => {
-                        console.debug(`[ChatDatabase] Successfully queued suggestion ${suggestionRecord.id.substring(0, 8)}...`);
-                        resolve();
-                    };
-                    request.onerror = () => {
-                        console.error(`[ChatDatabase] Error adding suggestion ${suggestionRecord.id.substring(0, 8)}...:`, request.error);
-                        // Don't reject - log and continue with other suggestions
-                        // This prevents one bad suggestion from blocking all others
-                        resolve();
-                    };
-                });
-                
-                addPromises.push(addPromise);
-            }
+            const records: NewChatSuggestion[] = newSuggestionsToAdd.map(encryptedSuggestion => ({
+                id: crypto.randomUUID(),
+                encrypted_suggestion: encryptedSuggestion,
+                chat_id: chatId,
+                created_at: now
+            }));
 
-            // Wait for all individual add operations to complete
-            await Promise.all(addPromises);
-            console.debug(`[ChatDatabase] All ${addPromises.length} suggestion add operations queued`);
-
-            // Wait for transaction to complete
-            await new Promise<void>((resolve, reject) => {
+            // CRITICAL: Set up transaction handlers BEFORE starting any operations
+            const transactionComplete = new Promise<void>((resolve, reject) => {
                 transaction.oncomplete = () => {
-                    console.debug(`[ChatDatabase] Transaction completed successfully for ${newSuggestionsToAdd.length} suggestions`);
+                    console.debug(`[ChatDatabase] ✅ Transaction completed successfully for ${records.length} suggestions`);
                     resolve();
                 };
-                transaction.onerror = () => {
-                    console.error('[ChatDatabase] Transaction error saving suggestions:', transaction.error);
-                    reject(transaction.error);
+                transaction.onerror = (event) => {
+                    // Log the actual error for debugging
+                    const target = event.target as IDBRequest;
+                    const error = target?.error || transaction.error;
+                    console.error('[ChatDatabase] Transaction error saving suggestions:', error);
+                    
+                    // Check for QuotaExceededError specifically
+                    if (error instanceof DOMException && error.name === 'QuotaExceededError') {
+                        console.error('[ChatDatabase] ❌ QuotaExceededError: IndexedDB storage quota exceeded. Cannot save suggestions.');
+                        // Don't reject - just resolve to allow sync to continue
+                        // Suggestions are non-critical
+                        resolve();
+                    } else {
+                        reject(error || new Error('Transaction error'));
+                    }
                 };
-                transaction.onabort = () => {
-                    console.error('[ChatDatabase] Transaction aborted while saving suggestions');
-                    reject(new Error('Transaction aborted'));
+                transaction.onabort = (event) => {
+                    // Log the abort reason for debugging
+                    const target = event.target as IDBTransaction;
+                    const error = target?.error;
+                    const errorMessage = error?.message || 'Unknown reason';
+                    const errorName = error instanceof DOMException ? error.name : 'Unknown';
+                    
+                    console.error(`[ChatDatabase] Transaction aborted while saving suggestions. Error: ${errorName} - ${errorMessage}`);
+                    
+                    // Check for QuotaExceededError specifically
+                    if (error instanceof DOMException && error.name === 'QuotaExceededError') {
+                        console.error('[ChatDatabase] ❌ QuotaExceededError: IndexedDB storage quota exceeded. Cannot save suggestions.');
+                        // Don't reject - just resolve to allow sync to continue
+                        // Suggestions are non-critical
+                        resolve();
+                    } else {
+                        reject(new Error(`Transaction aborted: ${errorMessage}`));
+                    }
                 };
             });
 
-            // Small delay to ensure transaction is fully committed before querying
-            await new Promise(resolve => setTimeout(resolve, 50));
-            
-            // Get all suggestions sorted by created_at (newest first) to verify save
-            const allSuggestions = await this.getAllNewChatSuggestions();
-            console.debug(`[ChatDatabase] Verification: Found ${allSuggestions.length} total suggestions in IndexedDB after save`);
-
-            // Keep only the last 50
-            if (allSuggestions.length > 50) {
-                console.debug(`[ChatDatabase] Trimming suggestions to last 50 (current: ${allSuggestions.length})`);
-                const transaction2 = this.db.transaction([this.NEW_CHAT_SUGGESTIONS_STORE_NAME], 'readwrite');
-                const store2 = transaction2.objectStore(this.NEW_CHAT_SUGGESTIONS_STORE_NAME);
-
-                // Delete oldest suggestions
-                const suggestionsToDelete = allSuggestions.slice(50);
-                for (const suggestion of suggestionsToDelete) {
-                    store2.delete(suggestion.id);
-                }
-
-                await new Promise<void>((resolve, reject) => {
-                    transaction2.oncomplete = () => {
-                        console.debug(`[ChatDatabase] Trimmed ${suggestionsToDelete.length} oldest suggestions`);
-                        resolve();
-                    };
-                    transaction2.onerror = () => {
-                        console.error('[ChatDatabase] Error trimming suggestions:', transaction2.error);
-                        reject(transaction2.error);
-                    };
-                });
+            // Queue all put operations synchronously (no await between them)
+            // Use put() instead of add() to handle any edge cases
+            for (const record of records) {
+                store.put(record);
             }
 
-            // Final verification count
-            const finalCount = await this.getAllNewChatSuggestions();
-            console.debug(`[ChatDatabase] ✅ Saved ${newSuggestionsToAdd.length} new encrypted chat suggestions. Final count: ${finalCount.length} (keeping last 50)`);
+            console.debug(`[ChatDatabase] All ${records.length} suggestion put operations queued`);
+
+            // Wait for transaction to complete
+            await transactionComplete;
+
+            // Final trim to ensure we're at exactly LIMIT (in case of edge cases)
+            await this.trimSuggestionsToLimit(LIMIT);
+
+            console.debug(`[ChatDatabase] ✅ Saved ${newSuggestionsToAdd.length} new encrypted chat suggestions`);
         } catch (error) {
-            console.error('[ChatDatabase] Error saving encrypted new chat suggestions:', error);
-            throw error;
+            // Log error but don't throw - suggestions are non-critical and shouldn't break sync
+            if (error instanceof DOMException && error.name === 'QuotaExceededError') {
+                console.error('[ChatDatabase] ❌ QuotaExceededError saving suggestions (non-fatal): IndexedDB quota exceeded. Sync will continue without suggestions.');
+            } else {
+                console.error('[ChatDatabase] Error saving encrypted new chat suggestions (non-fatal):', error);
+            }
+            // Don't throw - allow sync to continue
+        }
+    }
+
+    /**
+     * Trim suggestions to a maximum count (keeps newest)
+     * Separated into its own method to avoid transaction conflicts
+     */
+    private async trimSuggestionsToLimit(limit: number): Promise<void> {
+        if (!this.db) return;
+
+        try {
+            const allSuggestions = await this.getAllNewChatSuggestions();
+            
+            if (allSuggestions.length <= limit) {
+                return;
+            }
+
+            console.debug(`[ChatDatabase] Trimming suggestions to last ${limit} (current: ${allSuggestions.length})`);
+            
+            // Small delay to ensure previous transaction is released
+            await new Promise(resolve => setTimeout(resolve, 10));
+
+            const transaction = this.db.transaction([this.NEW_CHAT_SUGGESTIONS_STORE_NAME], 'readwrite');
+            const store = transaction.objectStore(this.NEW_CHAT_SUGGESTIONS_STORE_NAME);
+
+            // Delete oldest suggestions (allSuggestions is sorted newest first)
+            const suggestionsToDelete = allSuggestions.slice(limit);
+            for (const suggestion of suggestionsToDelete) {
+                store.delete(suggestion.id);
+            }
+
+            await new Promise<void>((resolve, reject) => {
+                transaction.oncomplete = () => {
+                    console.debug(`[ChatDatabase] Trimmed ${suggestionsToDelete.length} oldest suggestions`);
+                    resolve();
+                };
+                transaction.onerror = () => reject(transaction.error);
+                transaction.onabort = () => reject(new Error('Trim transaction aborted'));
+            });
+        } catch (error) {
+            console.error('[ChatDatabase] Error trimming suggestions (non-fatal):', error);
+            // Don't throw - trimming is non-critical
         }
     }
 
@@ -2335,14 +2434,17 @@ class ChatDatabase {
 
     /**
      * Get N random new chat suggestions (decrypted)
+     * CRITICAL FIX: decryptWithMasterKey is async, so we must await all decryption operations
      */
     async getRandomNewChatSuggestions(count: number = 3): Promise<string[]> {
         const allSuggestions = await this.getAllNewChatSuggestions();
 
-        // Decrypt suggestions
-        const decryptedSuggestions = allSuggestions
-            .map(s => decryptWithMasterKey(s.encrypted_suggestion))
-            .filter((s): s is string => s !== null);
+        // Decrypt suggestions - CRITICAL: await all async decryption operations
+        const decryptionPromises = allSuggestions.map(s => decryptWithMasterKey(s.encrypted_suggestion));
+        const decryptedResults = await Promise.all(decryptionPromises);
+        
+        // Filter out null results (failed decryptions)
+        const decryptedSuggestions = decryptedResults.filter((s): s is string => s !== null);
 
         // Shuffle and return N random suggestions
         const shuffled = decryptedSuggestions.sort(() => Math.random() - 0.5);

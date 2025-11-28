@@ -98,6 +98,36 @@ export function buildPrivacyPolicyContent(t: TranslationFunction): string {
 	lines.push(t('legal.privacy.cerebras.description.text'));
 	lines.push('');
 
+	// Section 3.10: Brave Search
+	lines.push(`### ${t('legal.privacy.brave.heading.text')}`);
+	lines.push('');
+	lines.push(t('legal.privacy.brave.description.text'));
+	lines.push('');
+
+	// Section 3.11: Oxylabs
+	lines.push(`### ${t('legal.privacy.oxylabs.heading.text')}`);
+	lines.push('');
+	lines.push(t('legal.privacy.oxylabs.description.text'));
+	lines.push('');
+
+	// Section 3.12: Google
+	lines.push(`### ${t('legal.privacy.google.heading.text')}`);
+	lines.push('');
+	lines.push(t('legal.privacy.google.description.text'));
+	lines.push('');
+
+	// Section 3.13: Firecrawl
+	lines.push(`### ${t('legal.privacy.firecrawl.heading.text')}`);
+	lines.push('');
+	lines.push(t('legal.privacy.firecrawl.description.text'));
+	lines.push('');
+
+	// Section 3.14: Groq
+	lines.push(`### ${t('legal.privacy.groq.heading.text')}`);
+	lines.push('');
+	lines.push(t('legal.privacy.groq.description.text'));
+	lines.push('');
+
 	// Section 4: Security Measures
 	lines.push(`## ${t('legal.privacy.security_measures.heading.text')}`);
 	lines.push('');

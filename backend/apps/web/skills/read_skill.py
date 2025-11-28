@@ -4,13 +4,14 @@
 # Provides web page reading functionality using the Firecrawl API.
 #
 # This skill supports multiple URLs in a single request,
-# processing them in parallel (up to 9 parallel requests).
+# processing them in parallel (up to 5 parallel requests).
 
 import logging
 import os
 import json
 import yaml
-from typing import Dict, Any, List, Optional
+import asyncio
+from typing import Dict, Any, List, Optional, Tuple
 from pydantic import BaseModel, Field
 from celery import Celery  # For Celery type hinting
 from toon_format import encode, decode, DecodeOptions
@@ -59,11 +60,11 @@ class ReadResult(BaseModel):
 
 class ReadResponse(BaseModel):
     """Response model for web read skill."""
-    # Results are returned directly (not nested in 'previews')
-    # The main_processor will extract these and structure them as app_skill_use.output
+    # Results are grouped by request id - each entry contains 'id' and 'results' array
+    # This structure allows clients to match responses to original requests without redundant data
     results: List[Dict[str, Any]] = Field(
         default_factory=list,
-        description="List of read results. These will be flattened and encoded to TOON format by main_processor."
+        description="List of request results. Each entry contains 'id' (matching request id) and 'results' array with actual read results for that request."
     )
     provider: str = Field(
         default="Firecrawl",
@@ -261,6 +262,232 @@ class ReadSkill(BaseSkill):
             logger.error(f"Error loading follow-up suggestions from app.yml: {e}", exc_info=True)
             self.suggestions_follow_up_requests = []
     
+    async def _process_single_read_request(
+        self,
+        req: Dict[str, Any],
+        request_id: Any,
+        secrets_manager: SecretsManager,
+        cache_service: CacheService
+    ) -> Tuple[Any, List[Dict[str, Any]], Optional[str]]:
+        """
+        Process a single web read request.
+        
+        This method handles all the logic for processing one web read request:
+        - Parameter extraction and validation
+        - Rate limit checking
+        - API call to Firecrawl
+        - Content sanitization
+        - Result formatting
+        
+        Args:
+            req: Request dictionary with url and optional parameters
+            request_id: The id of this request (for matching in response)
+            secrets_manager: SecretsManager instance
+            cache_service: CacheService instance for rate limiting
+        
+        Returns:
+            Tuple of (request_id, results_list, error_string_or_none)
+            - request_id: The id of the request (for grouping in response)
+            - results_list: List containing single read result (empty if error)
+            - error_string_or_none: Error message if processing failed, None if successful
+        """
+        # Extract URL and parameters from request
+        read_url = req.get("url")
+        if not read_url:
+            return (request_id, [], f"Missing 'url' parameter")
+        
+        # Extract request-specific parameters (with defaults from schema)
+        req_formats = req.get("formats", ["markdown"])
+        req_only_main_content = req.get("only_main_content", True)
+        req_max_age = req.get("max_age")
+        req_timeout = req.get("timeout")
+        
+        logger.debug(f"Executing web read (id: {request_id}): url='{read_url}', formats={req_formats}")
+        
+        try:
+            # Check and enforce rate limits before calling external API
+            provider_id = "firecrawl"
+            skill_id = "read"
+            
+            # Check rate limit
+            is_allowed, retry_after = await check_rate_limit(
+                provider_id=provider_id,
+                skill_id=skill_id,
+                cache_service=cache_service
+            )
+            
+            # If rate limited, wait for the limit to reset
+            if not is_allowed:
+                logger.info(f"Rate limit hit for web read '{read_url}' (id: {request_id}), waiting for reset...")
+                try:
+                    celery_producer = None
+                    celery_task_context = None
+                    if hasattr(self.app, 'celery_producer') and self.app.celery_producer:
+                        celery_producer = self.app.celery_producer
+                        celery_task_context = {
+                            "app_id": self.app_id,
+                            "skill_id": self.skill_id,
+                            "arguments": {
+                                "url": read_url,
+                                "formats": req_formats,
+                                "only_main_content": req_only_main_content,
+                                "max_age": req_max_age,
+                                "timeout": req_timeout
+                            }
+                        }
+                    
+                    await wait_for_rate_limit(
+                        provider_id=provider_id,
+                        skill_id=skill_id,
+                        cache_service=cache_service,
+                        celery_producer=celery_producer,
+                        celery_task_context=celery_task_context
+                    )
+                except RateLimitScheduledException as e:
+                    logger.warning(
+                        f"Web read '{read_url}' (id: {request_id}) was scheduled via Celery (task_id: {e.task_id}) "
+                        f"due to rate limit."
+                    )
+                    return (request_id, [], f"Request was scheduled via Celery due to rate limit (task_id: {e.task_id})")
+            
+            # Call Firecrawl API
+            scrape_result = await scrape_url(
+                url=read_url,
+                secrets_manager=secrets_manager,
+                formats=req_formats,
+                only_main_content=req_only_main_content,
+                max_age=req_max_age,
+                timeout=req_timeout,
+                sanitize_output=True
+            )
+            
+            if scrape_result.get("error"):
+                return (request_id, [], f"URL '{read_url}': {scrape_result['error']}")
+            
+            # Check if sanitization should be skipped
+            should_sanitize = scrape_result.get("sanitize_output", True)
+            
+            # Extract data from scrape result
+            data = scrape_result.get("data", {})
+            metadata = data.get("metadata", {})
+            title = metadata.get("title", "") if isinstance(metadata, dict) else ""
+            markdown = data.get("markdown", "")
+            
+            # Extract specific fields from metadata
+            language = None
+            favicon = None
+            og_image = None
+            og_sitename = None
+            
+            if isinstance(metadata, dict):
+                language = metadata.get("language")
+                favicon = metadata.get("favicon")
+                og_image = metadata.get("ogImage") or metadata.get("og:image")
+                og_sitename = metadata.get("ogSiteName") or metadata.get("og:site_name")
+            
+            # Build result with sanitized content
+            task_id = f"read_{request_id}_{read_url[:50]}"
+            
+            # Build JSON structure with only text fields that need sanitization
+            text_data_for_sanitization = {
+                "title": title,
+                "markdown": markdown
+            }
+            
+            # Skip sanitization if sanitize_output=False
+            if not should_sanitize:
+                logger.debug(f"[{task_id}] Sanitization skipped (sanitize_output=False), using raw results")
+                result = {
+                    "type": "read_result",
+                    "url": read_url,
+                    "title": title,
+                    "markdown": markdown,
+                    "language": language,
+                    "favicon": favicon,
+                    "og_image": og_image,
+                    "og_sitename": og_sitename,
+                    "hash": self._generate_result_hash(read_url)
+                }
+                return (request_id, [result], None)
+            else:
+                # Convert JSON to TOON format and sanitize
+                try:
+                    toon_text = encode(text_data_for_sanitization)
+                    logger.info(f"[{task_id}] Encoding web read content into TOON format ({len(toon_text)} chars, ~{len(toon_text)/4:.0f} tokens)")
+                    
+                    # Sanitize all text content in one request
+                    sanitized_toon = await sanitize_external_content(
+                        content=toon_text,
+                        content_type="text",
+                        task_id=task_id,
+                        secrets_manager=secrets_manager
+                    )
+                    
+                    if sanitized_toon is None:
+                        error_msg = f"[{task_id}] Content sanitization failed: sanitization returned None."
+                        logger.error(error_msg)
+                        return (request_id, [], f"URL '{read_url}': Content sanitization failed - LLM call failed")
+                    
+                    if not sanitized_toon or not sanitized_toon.strip():
+                        error_msg = f"[{task_id}] Content sanitization blocked: sanitization returned empty."
+                        logger.error(error_msg)
+                        return (request_id, [], f"URL '{read_url}': Content sanitization blocked - high prompt injection risk detected")
+                    
+                    # Decode sanitized TOON back to Python dict
+                    sanitized_data = None
+                    try:
+                        try:
+                            sanitized_data = decode(sanitized_toon, DecodeOptions(indent=2, strict=True))
+                        except (ValueError, Exception) as decode_error:
+                            logger.warning(f"[{task_id}] Strict TOON decode failed: {decode_error}. Attempting lenient decode...")
+                            sanitized_data = decode(sanitized_toon, DecodeOptions(indent=2, strict=False))
+                            logger.info(f"[{task_id}] Lenient TOON decode succeeded.")
+                        
+                        if not isinstance(sanitized_data, dict):
+                            raise ValueError("Invalid sanitized TOON structure")
+                            
+                    except Exception as e:
+                        error_msg = f"[{task_id}] Failed to decode sanitized TOON: {e}"
+                        logger.error(error_msg, exc_info=True)
+                        return (request_id, [], f"URL '{read_url}': Failed to decode sanitized TOON content - {str(e)}")
+                    
+                    # Extract sanitized content
+                    sanitized_title = sanitized_data.get("title", "").strip() if isinstance(sanitized_data.get("title"), str) else ""
+                    sanitized_markdown = sanitized_data.get("markdown", "").strip() if isinstance(sanitized_data.get("markdown"), str) else ""
+                    
+                    if not sanitized_title or not sanitized_title.strip():
+                        logger.warning(f"[{task_id}] Web read title empty after sanitization, using original")
+                        sanitized_title = title
+                    
+                    if not sanitized_markdown or not sanitized_markdown.strip():
+                        sanitized_markdown = markdown
+                    
+                    # Build result with sanitized content
+                    result = {
+                        "type": "read_result",
+                        "url": read_url,
+                        "title": sanitized_title,
+                        "markdown": sanitized_markdown,
+                        "language": language,
+                        "favicon": favicon,
+                        "og_image": og_image,
+                        "og_sitename": og_sitename,
+                        "hash": self._generate_result_hash(read_url)
+                    }
+                    
+                    logger.info(f"Web read (id: {request_id}) completed: url='{read_url}'")
+                    return (request_id, [result], None)
+                
+                except Exception as e:
+                    error_msg = f"[{task_id}] Error encoding/decoding TOON format: {e}"
+                    logger.error(error_msg, exc_info=True)
+                    return (request_id, [], f"URL '{read_url}': TOON encoding/decoding error - {str(e)}")
+            
+        except Exception as e:
+            error_msg = f"URL '{read_url}' (id: {request_id}): {str(e)}"
+            logger.error(error_msg, exc_info=True)
+            return (request_id, [], error_msg)
+    
     async def execute(
         self,
         requests: List[Dict[str, Any]],
@@ -324,319 +551,110 @@ class ReadSkill(BaseSkill):
                 error="No read requests provided. 'requests' array must contain at least one request with a 'url' field."
             )
         
-        # Validate that all requests have a url
+        # Validate that all requests have required fields: 'id' and 'url'
+        request_ids = set()
         for i, req in enumerate(requests):
-            if not req.get("url"):
-                logger.error(f"Request {i+1} in requests array is missing 'url' field")
+            # Validate 'id' field (mandatory for request/response matching)
+            if "id" not in req:
+                logger.error(f"Request {i+1} in requests array is missing required 'id' field")
                 return ReadResponse(
                     results=[],
-                    error=f"Request {i+1} is missing required 'url' field"
+                    error=f"Request {i+1} is missing required 'id' field. Each request must have a unique 'id' (number or UUID string) for matching responses."
+                )
+            
+            request_id = req.get("id")
+            # Validate id is unique within this batch
+            if request_id in request_ids:
+                logger.error(f"Request {i+1} has duplicate 'id' value: {request_id}")
+                return ReadResponse(
+                    results=[],
+                    error=f"Request {i+1} has duplicate 'id' value '{request_id}'. Each request must have a unique 'id'."
+                )
+            request_ids.add(request_id)
+            
+            # Validate 'url' field
+            if not req.get("url"):
+                logger.error(f"Request {i+1} (id: {request_id}) in requests array is missing 'url' field")
+                return ReadResponse(
+                    results=[],
+                    error=f"Request {i+1} (id: {request_id}) is missing required 'url' field"
                 )
         
         read_requests = requests
         
-        # Process all read requests
-        all_results: List[Dict[str, Any]] = []
+        # Initialize cache service for rate limiting (shared across all requests)
+        cache_service = CacheService()
+        
+        # Process all read requests in parallel using asyncio.gather()
+        # Each request is processed independently and results are grouped by request id
+        logger.info(f"Processing {len(read_requests)} web read requests in parallel")
+        tasks = [
+            self._process_single_read_request(
+                req=req,
+                request_id=req.get("id"),
+                secrets_manager=secrets_manager,
+                cache_service=cache_service
+            )
+            for req in read_requests
+        ]
+        
+        # Wait for all requests to complete (parallel execution)
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        
+        # Process results and group by request id
+        grouped_results: List[Dict[str, Any]] = []
         errors: List[str] = []
         
-        for i, req in enumerate(read_requests):
-            # Extract URL and parameters from request
-            read_url = req.get("url")
-            if not read_url:
-                errors.append(f"Request {i+1}: Missing 'url' parameter")
-                continue
-            
-            # Extract request-specific parameters (with defaults from schema)
-            req_formats = req.get("formats", ["markdown"])  # Default from schema
-            req_only_main_content = req.get("only_main_content", True)  # Default from schema
-            req_max_age = req.get("max_age")  # Optional
-            req_timeout = req.get("timeout")  # Optional
-            
-            logger.debug(f"Executing read {i+1}/{len(read_requests)}: url='{read_url}', formats={req_formats}")
-            
-            try:
-                # Check and enforce rate limits before calling external API
-                # According to app_skills.md: "Requests are never rejected due to rate limits.
-                # Instead, they're queued and processed when limits allow."
-                provider_id = "firecrawl"  # Firecrawl provider
-                skill_id = "read"
-                
-                # Check rate limit
-                cache_service = CacheService()
-                is_allowed, retry_after = await check_rate_limit(
-                    provider_id=provider_id,
-                    skill_id=skill_id,
-                    cache_service=cache_service
-                )
-                
-                # If rate limited, wait for the limit to reset
-                if not is_allowed:
-                    logger.info(f"Rate limit hit for read '{read_url}', waiting for reset...")
-                    try:
-                        # Try to get celery_producer from app if available
-                        celery_producer = None
-                        celery_task_context = None
-                        if hasattr(self.app, 'celery_producer') and self.app.celery_producer:
-                            celery_producer = self.app.celery_producer
-                            celery_task_context = {
-                                "app_id": self.app_id,
-                                "skill_id": self.skill_id,
-                                "arguments": {
-                                    "url": read_url,
-                                    "formats": req_formats,
-                                    "only_main_content": req_only_main_content,
-                                    "max_age": req_max_age,
-                                    "timeout": req_timeout
-                                }
-                            }
-                        
-                        await wait_for_rate_limit(
-                            provider_id=provider_id,
-                            skill_id=skill_id,
-                            cache_service=cache_service,
-                            celery_producer=celery_producer,
-                            celery_task_context=celery_task_context
-                        )
-                    except RateLimitScheduledException as e:
-                        # Task was scheduled via Celery - this shouldn't happen in inline execution
-                        # but if it does, we'll log and skip this read
-                        logger.warning(
-                            f"Read '{read_url}' was scheduled via Celery (task_id: {e.task_id}) "
-                            f"due to rate limit. This read will be processed asynchronously."
-                        )
-                        # Skip this read request as it's been scheduled
-                        continue
-                
-                # Call Firecrawl API
-                # sanitize_output defaults to True for user-facing requests (sanitization required)
-                scrape_result = await scrape_url(
-                    url=read_url,
-                    secrets_manager=secrets_manager,
-                    formats=req_formats,
-                    only_main_content=req_only_main_content,
-                    max_age=req_max_age,
-                    timeout=req_timeout,
-                    sanitize_output=True  # Enable sanitization for user-facing requests (default)
-                )
-                
-                if scrape_result.get("error"):
-                    errors.append(f"URL '{read_url}': {scrape_result['error']}")
-                    continue
-                
-                # Check if sanitization should be skipped (e.g., for health checks)
-                should_sanitize = scrape_result.get("sanitize_output", True)  # Default to True for safety
-                
-                # Extract data from scrape result
-                data = scrape_result.get("data", {})
-                metadata = data.get("metadata", {})
-                title = metadata.get("title", "") if isinstance(metadata, dict) else ""
-                markdown = data.get("markdown", "")
-                # HTML is removed entirely - not needed for LLM and significantly increases payload size
-                # html = data.get("html")  # Removed: HTML is redundant (markdown is sufficient) and very large
-                # Summary removed: not needed and reduces payload size
-                # summary = data.get("summary")
-                
-                # Extract specific fields from metadata to add to root level of result
-                # These fields are moved from metadata to root level for easier access
-                language = None
-                favicon = None
-                og_image = None
-                og_sitename = None
-                
-                if isinstance(metadata, dict):
-                    # Extract language
-                    language = metadata.get("language")
-                    
-                    # Extract favicon
-                    favicon = metadata.get("favicon")
-                    
-                    # Extract OG image (try both formats: ogImage and og:image)
-                    og_image = metadata.get("ogImage") or metadata.get("og:image")
-                    
-                    # Extract OG site name (try both formats: ogSiteName and og:site_name)
-                    og_sitename = metadata.get("ogSiteName") or metadata.get("og:site_name")
-                
-                # Build result with sanitized content
-                # Batch all text content into a single sanitization request using TOON format
-                task_id = f"read_{i+1}_{read_url[:50]}"  # Limit length for logging
-                
-                # Build JSON structure with only text fields that need sanitization
-                # Summary removed: not needed and reduces payload size
-                text_data_for_sanitization = {
-                    "title": title,
-                    "markdown": markdown
-                }
-                
-                # Skip sanitization if sanitize_output=False (e.g., for health checks)
-                if not should_sanitize:
-                    logger.debug(f"[{task_id}] Sanitization skipped (sanitize_output=False), using raw results")
-                    # Use raw results without sanitization
-                    result = {
-                        "type": "read_result",
-                        "url": read_url,
-                        "title": title,
-                        "markdown": markdown,
-                        # HTML removed: not needed for LLM and significantly increases payload size
-                        # Summary removed: not needed and reduces payload size
-                        # Metadata removed: specific fields moved to root level
-                        "language": language,
-                        "favicon": favicon,
-                        "og_image": og_image,
-                        "og_sitename": og_sitename,
-                        "hash": self._generate_result_hash(read_url)
-                    }
-                    all_results.append(result)
-                else:
-                    # Convert JSON to TOON format using toon-format package
-                    if text_data_for_sanitization.get("markdown") or text_data_for_sanitization.get("title"):
-                        try:
-                            # Encode to TOON format
-                            toon_text = encode(text_data_for_sanitization)
-                            
-                            logger.info(f"[{task_id}] Batching read result into TOON-format sanitization request ({len(toon_text)} chars, ~{len(toon_text)/4:.0f} tokens)")
-                            logger.debug(f"[{task_id}] TOON format data (full):\n{toon_text}")
-                            
-                            # Sanitize all text content in one request (preserves TOON format)
-                            sanitized_toon = await sanitize_external_content(
-                                content=toon_text,
-                                content_type="text",
-                                task_id=task_id,
-                                secrets_manager=secrets_manager
-                            )
-                            
-                            # Check if sanitization failed (returned None or empty)
-                            # None indicates sanitization failed (LLM call error, etc.)
-                            # Empty string indicates content was blocked (high risk detected)
-                            if sanitized_toon is None:
-                                error_msg = f"[{task_id}] Content sanitization failed: sanitization returned None. This indicates a critical security failure (LLM call failed) - request cannot proceed with unsanitized external content."
-                                logger.error(error_msg)
-                                errors.append(f"URL '{read_url}': Content sanitization failed - LLM call failed, cannot proceed with unsanitized external content")
-                                continue
-                            
-                            if not sanitized_toon or not sanitized_toon.strip():
-                                error_msg = f"[{task_id}] Content sanitization blocked: sanitization returned empty. This indicates high prompt injection risk was detected - content blocked for security."
-                                logger.error(error_msg)
-                                errors.append(f"URL '{read_url}': Content sanitization blocked - high prompt injection risk detected, content blocked")
-                                continue
-                            
-                            # Decode sanitized TOON back to Python dict for processing
-                            # Try strict mode first, then fall back to lenient mode if that fails
-                            sanitized_data = None
-                            try:
-                                # First attempt: strict mode for validation
-                                try:
-                                    sanitized_data = decode(sanitized_toon, DecodeOptions(indent=2, strict=True))
-                                except (ValueError, Exception) as decode_error:
-                                    logger.warning(f"[{task_id}] Strict TOON decode failed: {decode_error}. Attempting lenient decode...")
-                                    # Fallback: lenient mode to handle potential format variations from LLM sanitization
-                                    sanitized_data = decode(sanitized_toon, DecodeOptions(indent=2, strict=False))
-                                    logger.info(f"[{task_id}] Lenient TOON decode succeeded. Sanitized content may have minor format variations.")
-                                
-                                # Validate that decoded data is a dict
-                                if not isinstance(sanitized_data, dict):
-                                    raise ValueError(f"Decoded TOON data is not a dict, got {type(sanitized_data)}")
-                                    
-                            except Exception as e:
-                                error_msg = f"[{task_id}] Failed to decode sanitized TOON or invalid structure: {e}"
-                                logger.error(error_msg, exc_info=True)
-                                logger.error(f"[{task_id}] Sanitized TOON content (first 3000 chars):\n{sanitized_toon[:3000]}")
-                                errors.append(f"URL '{read_url}': Failed to decode sanitized TOON content - format may be corrupted: {str(e)}")
-                                continue
-                            
-                            # Extract sanitized content
-                            sanitized_title = sanitized_data.get("title", "").strip() if isinstance(sanitized_data.get("title"), str) else ""
-                            sanitized_markdown = sanitized_data.get("markdown", "").strip() if isinstance(sanitized_data.get("markdown"), str) else ""
-                            # Summary removed: not needed and reduces payload size
-                            
-                            # If sanitization returned empty, use original (but log warning)
-                            if not sanitized_title or not sanitized_title.strip():
-                                logger.warning(f"[{task_id}] Title empty after sanitization, using original: {read_url}")
-                                sanitized_title = title
-                            
-                            if not sanitized_markdown or not sanitized_markdown.strip():
-                                sanitized_markdown = markdown
-                            
-                            # Skip result if markdown was blocked (high risk - empty after sanitization)
-                            if not sanitized_markdown or not sanitized_markdown.strip():
-                                logger.warning(f"[{task_id}] Markdown blocked due to prompt injection risk: {read_url}")
-                                continue
-                            
-                            # Build result with sanitized content
-                            result = {
-                                "type": "read_result",
-                                "url": read_url,
-                                "title": sanitized_title,
-                                "markdown": sanitized_markdown,
-                                # HTML removed: not needed for LLM and significantly increases payload size
-                                # Summary removed: not needed and reduces payload size
-                                # Metadata removed: specific fields moved to root level
-                                "language": language,
-                                "favicon": favicon,
-                                "og_image": og_image,
-                                "og_sitename": og_sitename,
-                                "hash": self._generate_result_hash(read_url)
-                            }
-                            all_results.append(result)
-                        
-                        except Exception as e:
-                            error_msg = f"[{task_id}] Error encoding/decoding TOON format: {e}"
-                            logger.error(error_msg, exc_info=True)
-                            errors.append(f"URL '{read_url}': TOON encoding/decoding error - {str(e)}")
-                            continue
-                    else:
-                        # No text content to sanitize - add result as-is (shouldn't happen but handle it)
-                        logger.warning(f"[{task_id}] No text content found in read result to sanitize")
-                        result = {
-                            "type": "read_result",
-                            "url": read_url,
-                            "title": title,
-                            "markdown": markdown,
-                            # HTML removed: not needed for LLM and significantly increases payload size
-                            # Summary removed: not needed and reduces payload size
-                            # Metadata removed: specific fields moved to root level
-                            "language": language,
-                            "favicon": favicon,
-                            "og_image": og_image,
-                            "og_sitename": og_sitename,
-                            "hash": self._generate_result_hash(read_url)
-                        }
-                        all_results.append(result)
-                
-                logger.info(f"Read {i+1}/{len(read_requests)} completed: successfully read '{read_url}'")
-                
-            except Exception as e:
-                error_msg = f"URL '{read_url}': {str(e)}"
+        for result in results:
+            if isinstance(result, Exception):
+                # Handle exceptions from asyncio.gather
+                error_msg = f"Unexpected error processing request: {str(result)}"
                 logger.error(error_msg, exc_info=True)
                 errors.append(error_msg)
+                continue
+            
+            request_id, read_results, error = result
+            
+            if error:
+                errors.append(error)
+                # Still include the request in results (with empty results array) for consistency
+                grouped_results.append({
+                    "id": request_id,
+                    "results": []
+                })
+            else:
+                # Group results by request id (each read request produces one result)
+                grouped_results.append({
+                    "id": request_id,
+                    "results": read_results
+                })
+        
+        # Sort results by request order (maintain original request order in response)
+        request_order = {req.get("id"): i for i, req in enumerate(read_requests)}
+        grouped_results.sort(key=lambda x: request_order.get(x["id"], 999))
         
         # Use follow-up suggestions loaded from app.yml
         # Only include suggestions if we have results and suggestions are configured
         suggestions = None
-        if len(all_results) > 0 and self.suggestions_follow_up_requests:
+        total_results = sum(len(group.get("results", [])) for group in grouped_results)
+        if total_results > 0 and self.suggestions_follow_up_requests:
             suggestions = self.suggestions_follow_up_requests
         
-        # preview_data removed: redundant metadata that can be derived from results
-        # - result_count: len(all_results)
-        # - completed_count/total_count: len(read_requests)
-        # - url: all_results[0].url if results exist
-        # Frontend can derive all this from the results array itself
-        
-        # Build response:
-        # - results: actual read results (will be flattened and encoded to TOON by main_processor)
+        # Build response with grouped results structure:
+        # - results: List of request results, each with 'id' and 'results' array
         # - provider: at root level
         response = ReadResponse(
-            results=all_results,  # Results directly (not nested in 'previews')
+            results=grouped_results,  # Grouped by request id
             provider="Firecrawl",  # Provider at root level
             suggestions_follow_up_requests=suggestions
-            # preview_data removed: redundant metadata
         )
         
         # Add error message if there were errors (but still return results if any)
         if errors:
             response.error = "; ".join(errors)
-            logger.warning(f"Read completed with {len(errors)} error(s): {response.error}")
+            logger.warning(f"Web read completed with {len(errors)} error(s): {response.error}")
         
-        logger.info(f"Read skill execution completed: {len(all_results)} total results, {len(errors)} errors")
+        logger.info(f"Web read skill execution completed: {len(grouped_results)} request groups, {total_results} total results, {len(errors)} errors")
         return response
     
     def _generate_result_hash(self, url: str) -> str:
@@ -652,4 +670,3 @@ class ReadSkill(BaseSkill):
         """
         import hashlib
         return hashlib.sha256(url.encode()).hexdigest()[:16]
-

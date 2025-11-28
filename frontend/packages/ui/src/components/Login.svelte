@@ -4,7 +4,7 @@
     import AppIconGrid from './AppIconGrid.svelte';
     import { createEventDispatcher } from 'svelte';
     import { authStore, isCheckingAuth, needsDeviceVerification, login, checkAuth } from '../stores/authStore'; // Import login and checkAuth functions
-    import { currentSignupStep, isInSignupProcess, STEP_BASICS, getStepFromPath, STEP_ONE_TIME_CODES, isSignupPath } from '../stores/signupState';
+    import { currentSignupStep, isInSignupProcess, STEP_ALPHA_DISCLAIMER, STEP_BASICS, getStepFromPath, STEP_ONE_TIME_CODES, isSignupPath } from '../stores/signupState';
     import { clearIncompleteSignupData } from '../stores/signupStore';
     import { onMount, onDestroy } from 'svelte';
     import { MOBILE_BREAKPOINT } from '../styles/constants';
@@ -255,8 +255,9 @@
         tfaErrorMessage = null;
         loginFailedWarning = false; // Also clear general login errors
 
-        // Reset the signup step to basics when starting a new signup process
-        currentSignupStep.set(STEP_BASICS);
+        // Reset the signup step to alpha disclaimer when starting a new signup process
+        // This ensures users see the alpha disclaimer before proceeding with signup
+        currentSignupStep.set(STEP_ALPHA_DISCLAIMER);
         
         // Set the signup process flag, which will reactively change the view
         isInSignupProcess.set(true);
@@ -315,20 +316,20 @@
     }
     
     async function switchToLogin() {
+        console.log('[Login] switchToLogin called - resetting signup process');
+
         // Reset the signup process flag, which will reactively change the view
         isInSignupProcess.set(false);
-        
-        // SECURITY: Clear incomplete signup data from IndexedDB when switching from signup to login
-        // This ensures username doesn't persist if user interrupts signup
-        await clearIncompleteSignupData();
-        
+
         // PRIVACY: Clear pending draft when user switches from signup to login
         // This ensures the saved message is deleted if user doesn't complete the flow
         clearPendingDraft();
-        
+
         // Wait for the view change to take effect
         await tick();
-        
+
+        console.log('[Login] View should now be:', $isInSignupProcess ? 'signup' : 'login');
+
         // Only focus if not touch device
         if (emailInput && !isTouchDevice) {
             emailInput.focus();
@@ -377,14 +378,18 @@
      */
     async function startPasskeyLogin() {
         if (isPasskeyLoading || isLoading) return;
-        
+
         // Cancel any pending conditional UI passkey request to avoid WebAuthn conflicts
         cancelConditionalUIPasskey();
-        
+
+        // Wait a bit longer to ensure the conditional UI request is fully cancelled
+        // This prevents "A request is already pending" errors
+        await new Promise(resolve => setTimeout(resolve, 100));
+
         // Show loading screen
         isPasskeyLoading = true;
         passkeyLoginAbortController = new AbortController();
-        
+
         // Wait a tick for the UI to update, then start passkey login flow
         await tick();
         await performPasskeyLogin();
@@ -495,11 +500,19 @@
             let assertion: PublicKeyCredential;
             try {
                 assertion = await navigator.credentials.get({
-                    publicKey: publicKeyCredentialRequestOptions
+                    publicKey: publicKeyCredentialRequestOptions,
+                    signal: passkeyLoginAbortController?.signal
                 }) as PublicKeyCredential;
             } catch (error: any) {
                 console.error('WebAuthn assertion failed:', error);
-                // User cancellation or other errors
+                // Handle abort or user cancellation
+                if (error.name === 'AbortError') {
+                    // Request was aborted - just reset, don't show error
+                    console.log('[Login] Passkey login was cancelled');
+                    isPasskeyLoading = false;
+                    isLoading = false;
+                    return;
+                }
                 if (error.name === 'NotAllowedError') {
                     // User cancelled - just reset, don't show error
                     isPasskeyLoading = false;
@@ -1675,36 +1688,21 @@
         // 3. Auth check is complete (not checking)
         // 4. Form is visible
         // 5. We're on the email step
-        // 6. Conditional UI is supported
+        // 6. Not already active
         if (
-            currentView === 'login' && 
-            !$authStore.isAuthenticated && 
-            !$isCheckingAuth && 
-            showForm && 
+            currentView === 'login' &&
+            !$authStore.isAuthenticated &&
+            !$isCheckingAuth &&
+            showForm &&
             currentLoginStep === 'email' &&
-            !$isInSignupProcess
+            !$isInSignupProcess &&
+            !conditionalUIAbortController
         ) {
             // Start conditional UI passkey flow (autofill passkeys)
             // This enables the OS/browser to show passkey suggestions automatically
             // The request will wait silently until user interacts with the email field
-            if (isConditionalUISupported || window.PublicKeyCredential) {
-                // Only start if not already active (avoid duplicate requests)
-                if (!conditionalUIAbortController) {
-                    console.log('[Login] Starting conditional UI passkey flow for automatic passkey suggestions');
-                    startConditionalUIPasskey();
-                }
-            } else {
-                // Check support asynchronously and start if available
-                PublicKeyCredential.isConditionalMediationAvailable?.().then((available) => {
-                    if (available && !conditionalUIAbortController) {
-                        isConditionalUISupported = true;
-                        console.log('[Login] Conditional UI support confirmed, starting passkey flow');
-                        startConditionalUIPasskey();
-                    }
-                }).catch(() => {
-                    // Browser doesn't support conditional UI, that's okay
-                });
-            }
+            console.log('[Login] Starting conditional UI passkey flow for automatic passkey suggestions');
+            startConditionalUIPasskey();
         } else {
             // Cancel conditional UI if we're not in the right state
             if (conditionalUIAbortController && (currentView !== 'login' || $isInSignupProcess || currentLoginStep !== 'email')) {
@@ -2084,7 +2082,7 @@
                     </div> <!-- End content-area for login view -->
                 {:else} <!-- Handles currentView !== 'login' -->
                     <div in:fade={{ duration: 200 }}>
-                        <Signup on:switchToLogin={switchToLogin} />
+                        <Signup onswitchToLogin={switchToLogin} />
                         <!-- Removed stray </button> here -->
                     </div>
                 {/if} <!-- This closes the main #if / :else if / :else block -->

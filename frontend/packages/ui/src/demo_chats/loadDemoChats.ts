@@ -17,7 +17,7 @@ export async function loadDemoChatsIntoDB(): Promise<void> {
 		// Convert and store each demo chat
 		for (const demoChat of DEMO_CHATS) {
 			const chat = convertDemoChatToChat(demoChat);
-			const messages = convertDemoMessagesToMessages(demoChat.messages);
+			const messages = convertDemoMessagesToMessages(demoChat.messages, demoChat.chat_id, demoChat.metadata.category);
 
 			// Store chat - database will detect demo chat and skip encryption
 			await chatDB.addChat(chat);

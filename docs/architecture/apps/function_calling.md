@@ -144,7 +144,7 @@ These instructions are defined in [`backend/apps/ai/base_instructions.yml`](../.
 
 **Multiple Requests:**
 
-Skills can handle multiple requests in a single call (up to 9 parallel requests). Each request creates a separate Celery task for parallel processing. See [App Skills Architecture](./app_skills.md#multiple-requests-per-skill-call) for details.
+Skills can handle multiple requests in a single call (up to 5 parallel requests). Requests are processed in parallel using `asyncio.gather()` within the skill's `execute()` method. Each request must include a unique `id` field, and results are grouped by `id` in the response. See [App Skills Architecture](./app_skills.md#multiple-requests-per-skill-call) for details.
 
 ### Focus Mode Activation
 
