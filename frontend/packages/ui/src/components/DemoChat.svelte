@@ -1,20 +1,33 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, onDestroy } from 'svelte';
 	import type { DemoChat as DemoChatType } from '../demo_chats/types';
 	import ReadOnlyMessage from './ReadOnlyMessage.svelte';
 	import { fade, fly } from 'svelte/transition';
 	import { authStore } from '../stores/authStore';
+	import { translateDemoChat } from '../demo_chats/translateDemoChat';
+	import { locale } from 'svelte-i18n';
 
 	interface Props {
 		demoChat: DemoChatType;
 		onSignupClick?: () => void;
 	}
 
-	let { demoChat, onSignupClick }: Props = $props();
+	let { demoChat: initialDemoChat, onSignupClick }: Props = $props();
 
 	// State for message input
 	let draftMessage = $state('');
 	let messageInputRef: HTMLTextAreaElement | null = $state(null);
+
+	// Reactive translation of demo chat - re-translates when locale changes
+	// This ensures demo chat content updates immediately when language changes
+	// Include $locale in the derived to force re-translation when locale changes
+	let translatedDemoChat = $derived.by(() => {
+		// Access $locale to make this reactive to locale changes
+		const currentLocale = $locale;
+		// translateDemoChat uses get(_) internally, which reads from the locale store
+		// By accessing $locale here, we ensure this derived re-runs when locale changes
+		return translateDemoChat(initialDemoChat);
+	});
 
 	// Auto-resize textarea
 	function handleInput(event: Event) {
@@ -26,7 +39,7 @@
 	function handleSignupClick() {
 		// Store draft message in localStorage
 		if (draftMessage.trim()) {
-			localStorage.setItem(`demo_draft_${demoChat.chat_id}`, draftMessage);
+			localStorage.setItem(`demo_draft_${translatedDemoChat.chat_id}`, draftMessage);
 		}
 
 		// Call parent handler or default to opening signup
@@ -40,7 +53,7 @@
 
 	onMount(() => {
 		// Check for saved draft
-		const savedDraft = localStorage.getItem(`demo_draft_${demoChat.chat_id}`);
+		const savedDraft = localStorage.getItem(`demo_draft_${translatedDemoChat.chat_id}`);
 		if (savedDraft) {
 			draftMessage = savedDraft;
 		}
@@ -56,12 +69,12 @@
 			</svg>
 			<span>Demo Chat</span>
 		</div>
-		<h1 class="demo-title">{demoChat.title}</h1>
+		<h1 class="demo-title">{translatedDemoChat.title}</h1>
 	</div>
 
 	<!-- Chat Messages -->
 	<div class="messages-container">
-		{#each demoChat.messages as message, index (message.id)}
+		{#each translatedDemoChat.messages as message, index (message.id)}
 			<div
 				class="message-wrapper"
 				in:fly={{ y: 20, duration: 300, delay: index * 100 }}

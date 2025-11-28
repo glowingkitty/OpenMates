@@ -113,7 +113,11 @@
                     }
                 }
                 
+                // CRITICAL: When locale changes, TipTap JSON content might have old translations embedded
+                // We can't re-translate it here because we don't have the original translation keys
+                // Instead, we rely on ChatHistory to re-process messages from original_message when locale changes
                 // Content is already processed by ChatHistory, don't double-process
+                // NOTE: For locale changes, ChatHistory should provide new content with updated translations
                 return newContent;
             }
             
@@ -251,23 +255,37 @@
         };
     });
 
+    // Track previous locale to detect changes
+    let previousLocale = $state($locale || 'en');
+    
     // Reactive statement to update Tiptap editor when 'content' prop OR locale changes using $effect (Svelte 5 runes mode)
     $effect(() => {
         // Include $locale in the effect to trigger re-processing on language change
-        const currentLocale = $locale;
+        const currentLocale = $locale || 'en';
+        const localeChanged = currentLocale !== previousLocale;
+        
+        if (localeChanged) {
+            previousLocale = currentLocale;
+            // Clear cache for this component's content
+            // The cache is already cleared globally, but ensure we don't use stale cache
+        }
         
         if (editor && content) {
+            // Always re-process content when locale changes to ensure translations are updated
+            // The processContent function uses $text() which depends on the current locale
             const newProcessedContent = processContent(content);
             
-            if (JSON.stringify(editor.getJSON()) !== JSON.stringify(newProcessedContent)) {
-                logger.debug('Content or locale changed, updating Tiptap editor. Locale:', currentLocale);
+            // Compare processed content to detect changes (including translation updates)
+            const currentEditorContent = editor.getJSON();
+            const contentChanged = JSON.stringify(currentEditorContent) !== JSON.stringify(newProcessedContent);
+            
+            // Force update if locale changed, even if content appears identical
+            // This ensures translations are refreshed
+            if (contentChanged || localeChanged) {
                 editor.commands.setContent(newProcessedContent, { emitUpdate: false });
-            } else {
-                logger.debug('Content prop changed, but editor content is already up-to-date.');
             }
         } else if (editor && !content) {
             // Handle case where content becomes null/undefined after editor initialization
-            logger.debug('Content prop became null/undefined, clearing Tiptap editor.');
             editor.commands.clearContent(false);
         }
     });

@@ -41,6 +41,8 @@
     import { DEMO_CHATS, LEGAL_CHATS, getDemoMessages, isPublicChat, translateDemoChat } from '../demo_chats'; // Import demo chat utilities
     import { convertDemoChatToChat } from '../demo_chats/convertToChat'; // Import conversion function
     import { isDesktop } from '../utils/platform'; // Import desktop detection for conditional auto-focus
+    import { waitLocale, locale } from 'svelte-i18n'; // Import waitLocale and locale for waiting for translations to load
+    import { get } from 'svelte/store'; // Import get to read store values
     
     const dispatch = createEventDispatcher();
     
@@ -1981,36 +1983,73 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         
         // Add language change listener to reload public chats (demo + legal) when language changes
         const handleLanguageChange = async () => {
-            if (currentChat && isPublicChat(currentChat.chat_id)) {
-                console.debug('[ActiveChat] Language changed, reloading public chat:', currentChat.chat_id);
+            try {
+                // CRITICAL: Use $state.snapshot to get current value in async context
+                const snapshotChat = $state.snapshot(currentChat);
+                
+                if (!snapshotChat || !isPublicChat(snapshotChat.chat_id)) {
+                    return;
+                }
+                
+                // CRITICAL: Wait for translations to be fully loaded before re-translating
+                // waitLocale() ensures the translation files are loaded for the new locale
+                // This is essential for getDemoMessages to get the correct translations
+                await waitLocale();
+                
+                // Wait multiple ticks to ensure locale store and translation store are fully updated
+                // The _ store is derived from locale, so it needs time to update
+                await tick();
+                await tick(); // Extra tick to ensure derived stores have updated
+                
+                // CRITICAL: Force a read of the translation store to ensure it's updated
+                // This ensures get(_) will get the new translation function
+                const { _: translationStore } = await import('svelte-i18n');
+                get(translationStore); // Ensure translation store is updated
                 
                 // Find the public chat (check both DEMO_CHATS and LEGAL_CHATS) and translate it
-                let publicChat = DEMO_CHATS.find(chat => chat.chat_id === currentChat.chat_id);
+                // Use snapshotChat to ensure we have the current value
+                let publicChat = DEMO_CHATS.find(chat => chat.chat_id === snapshotChat.chat_id);
                 if (!publicChat) {
-                    publicChat = LEGAL_CHATS.find(chat => chat.chat_id === currentChat.chat_id);
+                    publicChat = LEGAL_CHATS.find(chat => chat.chat_id === snapshotChat.chat_id);
                 }
                 if (publicChat) {
+                    // CRITICAL: Re-translate the chat with the new locale
+                    // translateDemoChat uses get(_) which reads from the locale store
+                    // By waiting for waitLocale() and tick() above, we ensure translations are loaded and store is updated
                     const translatedChat = translateDemoChat(publicChat);
                     
                     // Reload the public chat messages with new translations (check both DEMO_CHATS and LEGAL_CHATS)
-                    const newMessages = getDemoMessages(currentChat.chat_id, DEMO_CHATS, LEGAL_CHATS);
-                    currentMessages = newMessages;
+                    // getDemoMessages internally calls translateDemoChat again, which will use the updated locale
+                    const newMessages = getDemoMessages(snapshotChat.chat_id, DEMO_CHATS, LEGAL_CHATS);
+                    
+                    // CRITICAL: Force new array reference to ensure reactivity
+                    // This ensures ChatHistory detects the change even if message IDs are the same
+                    // Also ensure each message object is new to force re-rendering
+                    currentMessages = newMessages.map(msg => ({ ...msg }));
                     
                     // Reload follow-up suggestions with new translations
                     if (translatedChat.follow_up_suggestions) {
                         followUpSuggestions = translatedChat.follow_up_suggestions;
-                        console.debug('[ActiveChat] Reloaded follow-up suggestions:', $state.snapshot(followUpSuggestions));
                     }
                     
-                    // Update chat history display
+                    // Update chat history display - this will force re-processing
                     if (chatHistoryRef) {
                         chatHistoryRef.updateMessages(currentMessages);
+                    } else {
+                        console.warn('[ActiveChat] chatHistoryRef is null - cannot update messages');
                     }
+                } else {
+                    console.warn('[ActiveChat] Public chat not found in DEMO_CHATS or LEGAL_CHATS:', snapshotChat.chat_id);
                 }
+            } catch (error) {
+                console.error('[ActiveChat] Error in language change handler:', error);
             }
         };
         
+        // Listen to both events to catch language changes
+        // 'language-changed' fires immediately, 'language-changed-complete' fires after a delay
         window.addEventListener('language-changed', handleLanguageChange);
+        window.addEventListener('language-changed-complete', handleLanguageChange);
 
         // Add event listeners for both chat updates and message status changes
         const chatUpdateHandler = ((event: CustomEvent) => {
@@ -2263,6 +2302,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             skillPreviewService.removeEventListener('skillPreviewUpdate', handleSkillPreviewUpdate as EventListener);
             // Remove language change listener
             window.removeEventListener('language-changed', handleLanguageChange);
+            window.removeEventListener('language-changed-complete', handleLanguageChange);
             // Remove login interface event listeners
             window.removeEventListener('openLoginInterface', handleOpenLoginInterface as EventListener);
             window.removeEventListener('closeLoginInterface', handleCloseLoginInterface as EventListener);

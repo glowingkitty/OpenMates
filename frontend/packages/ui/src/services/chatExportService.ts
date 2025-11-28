@@ -111,6 +111,36 @@ async function loadEmbedsRecursively(embedIds: string[], loadedEmbedIds: Set<str
     // Process each embed
     for (const embed of loadedEmbeds) {
         try {
+            // DEBUG: Log embed structure to diagnose missing content
+            console.debug('[ChatExportService] Processing embed for export:', {
+                embed_id: embed.embed_id,
+                type: embed.type,
+                hasContent: 'content' in embed,
+                contentType: typeof embed.content,
+                contentLength: embed.content ? String(embed.content).length : 0,
+                contentPreview: embed.content ? String(embed.content).substring(0, 100) : 'MISSING',
+                embedKeys: Object.keys(embed)
+            });
+            
+            // Check if content field exists and is a string
+            if (!embed.content || typeof embed.content !== 'string') {
+                console.error('[ChatExportService] Embed missing content field or content is not a string:', {
+                    embed_id: embed.embed_id,
+                    hasContent: 'content' in embed,
+                    contentType: typeof embed.content,
+                    embedKeys: Object.keys(embed)
+                });
+                // Include embed with error indicator
+                embedsForExport.push({
+                    embed_id: embed.embed_id,
+                    type: embed.type,
+                    status: 'error',
+                    content: null,
+                    error: 'Embed content field is missing or invalid'
+                });
+                continue;
+            }
+            
             // Decode TOON content to get actual embed values
             const decodedContent = await decodeToonContent(embed.content);
             
