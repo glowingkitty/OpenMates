@@ -42,7 +42,7 @@ __all__ = [
 DEFAULT_APP_INTERNAL_PORT = 8000
 
 # Maximum number of parallel requests per skill call
-MAX_PARALLEL_REQUESTS = 9
+MAX_PARALLEL_REQUESTS = 5
 
 
 async def execute_skill(

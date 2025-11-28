@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { createEventDispatcher, tick } from 'svelte';
+    import { tick } from 'svelte';
     import { getWebsiteUrl, routes } from '../../config/links';
     import { _ } from 'svelte-i18n';
     import { tooltip } from '../../actions/tooltip';
@@ -13,11 +13,11 @@
     import { signupStore, clearSignupData, clearIncompleteSignupData } from '../../stores/signupStore';
     // Import crypto service cleanup functions for secure logout
     import { clearKeyFromStorage, clearAllEmailData } from '../../services/cryptoService';
-    
+
     // Import signup state stores
     import { isSignupSettingsStep, isInSignupProcess, isSettingsStep, currentSignupStep, showSignupFooter, getPathFromStep, STEP_ALPHA_DISCLAIMER } from '../../stores/signupState';
     import { isRecoveryKeyCreationActive } from '../../stores/recoveryKeyUIState';
-    
+
     // Step name constants
     const STEP_BASICS = 'basics';
     const STEP_CONFIRM_EMAIL = 'confirm_email';
@@ -78,7 +78,12 @@
     // Import API utilities
     import { getApiUrl, apiEndpoints } from '../../config/api';
 
-    const dispatch = createEventDispatcher();
+    // Props using Svelte 5 runes mode with callback props
+    let {
+        onswitchToLogin = () => {}
+    }: {
+        onswitchToLogin?: () => void
+    } = $props();
 
     // Initialize step from store using Svelte 5 runes
     let currentStep = $state(STEP_ALPHA_DISCLAIMER);
@@ -189,10 +194,21 @@
         isInSignupProcess.set(false);
         isSignupSettingsStep.set(false);
         showSignupFooter.set(true); // Reset footer state on destroy
-        
+
         // SECURITY: Clear incomplete signup data from IndexedDB if signup was not completed
         // This ensures username doesn't persist if user leaves signup without completing it
-        await clearIncompleteSignupData();
+        // Only do this if we're past the alpha disclaimer step (i.e., actual signup data may exist)
+        if (currentStep !== STEP_ALPHA_DISCLAIMER) {
+            console.log('[Signup] onDestroy: Clearing incomplete signup data from IndexedDB...');
+            try {
+                await clearIncompleteSignupData();
+                console.log('[Signup] onDestroy: Incomplete signup data cleared');
+            } catch (error) {
+                console.error('[Signup] onDestroy: Error clearing incomplete signup data:', error);
+            }
+        } else {
+            console.log('[Signup] onDestroy: Skipping IndexedDB clear (on alpha disclaimer step, no data entered yet)');
+        }
     });
 
     // Function to update settings step state and close panel if necessary
@@ -215,15 +231,42 @@
 
     // Removed reactive block for previousStep handling
 
+    let isSwitchingToLogin = $state(false);
+
     async function handleSwitchToLogin() {
+        // Prevent multiple simultaneous calls
+        if (isSwitchingToLogin) {
+            console.log('[Signup] Already switching to login, ignoring duplicate call');
+            return;
+        }
+
+        isSwitchingToLogin = true;
+        console.log('[Signup] handleSwitchToLogin called');
+
         // Clear the signup store data when switching to login
+        console.log('[Signup] Clearing signup data...');
         clearSignupData();
-        
+        console.log('[Signup] Signup data cleared');
+
         // SECURITY: Clear incomplete signup data from IndexedDB when switching to login
         // This ensures username doesn't persist if user interrupts signup
-        await clearIncompleteSignupData();
-        
-        dispatch('switchToLogin');
+        // Only do this if we're past the alpha disclaimer step (i.e., actual signup data may exist)
+        if (currentStep !== STEP_ALPHA_DISCLAIMER) {
+            console.log('[Signup] Clearing incomplete signup data from IndexedDB...');
+            try {
+                await clearIncompleteSignupData();
+                console.log('[Signup] Incomplete signup data cleared');
+            } catch (error) {
+                console.error('[Signup] Error clearing incomplete signup data:', error);
+            }
+        } else {
+            console.log('[Signup] Skipping IndexedDB clear (on alpha disclaimer step, no data entered yet)');
+        }
+
+        console.log('[Signup] Calling onswitchToLogin callback');
+        onswitchToLogin();
+
+        isSwitchingToLogin = false;
     }
 
     /**
@@ -723,11 +766,11 @@
 <div class="signup-content visible" bind:this={signupContentElement} in:fade={{ duration: 400 }}>
     {#if showUIControls}
         <div transition:fade={fadeParams}>
-            <SignupNav 
-                on:back={handleSwitchToLogin}
-                on:step={handleStep}
-                on:skip={handleSkip}
-                on:logout={handleLogout}
+            <SignupNav
+                onback={handleSwitchToLogin}
+                onstep={(e) => handleStep({ detail: e })}
+                onskip={handleSkip}
+                onlogout={handleLogout}
                 {showSkip}
                 {currentStep}
                 {selectedAppName}

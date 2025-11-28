@@ -6,15 +6,72 @@ Skills are functions that your digital team mates can use to fulfill your reques
 
 All skills support processing multiple requests in a single skill call. This enables parallel processing of related tasks, improving efficiency and user experience.
 
+### Request Structure
+
+Each request in a multi-request call **must** include a unique `id` field (number or UUID string) to reliably match responses to requests:
+
+```json
+{
+  "requests": [
+    {"id": 1, "query": "iphone", "count": 10, "country": "us"},
+    {"id": "abc-123", "query": "android", "count": 5, "country": "de"},
+    {"id": 2, "query": "python", "count": 10}
+  ]
+}
+```
+
+The `id` field is mandatory and must be unique within a single skill call. It can be:
+- A number (e.g., `1`, `2`, `3`)
+- A UUID string (e.g., `"550e8400-e29b-41d4-a716-446655440000"`)
+
+### Response Structure
+
+Skills return results grouped by request `id`, with minimal data to avoid redundancy:
+
+```json
+{
+  "results": [
+    {
+      "id": 1,
+      "results": [
+        {"title": "iPhone 15", "url": "...", "description": "..."},
+        {"title": "iPhone 14", "url": "...", "description": "..."}
+      ]
+    },
+    {
+      "id": "abc-123",
+      "results": [
+        {"title": "Android 14", "url": "...", "description": "..."}
+      ]
+    },
+    {
+      "id": 2,
+      "results": [
+        {"title": "Python 3.12", "url": "...", "description": "..."}
+      ]
+    }
+  ],
+  "provider": "Brave Search"
+}
+```
+
+**Key Points:**
+- Each entry in `results` corresponds to one request (matched by `id`)
+- Only `id` and `results` are included in the response - no redundant query/parameter data
+- The client matches response `id` to original request to get query/metadata for display
+- This minimizes response payload while maintaining reliable request/response matching
+
 ### How It Works
 
 When you make a request that involves multiple items (e.g., searching for multiple topics, getting transcripts from multiple videos), the system:
 
-1. **Processes in Parallel**: All requests are processed simultaneously (up to 9 parallel requests)
-2. **Incremental Results**: Results appear incrementally as each sub-request completes
-3. **Completion**: The overall request is considered complete once all sub-requests are finished
+1. **Validates Request IDs**: Ensures each request has a unique `id` field
+2. **Processes in Parallel**: All requests are processed simultaneously using `asyncio.gather()` (up to 5 parallel requests)
+3. **Groups Results**: Results are grouped by request `id` in the response
+4. **Incremental Results**: Results appear incrementally as each sub-request completes
+5. **Completion**: The overall request is considered complete once all sub-requests are finished
 
-**Example:** If you ask to search for 9 different topics, the system will process all 9 searches in parallel. You'll see results appear one by one as each search completes, rather than waiting for all 9 to finish.
+**Example:** If you ask to search for 5 different topics, the system will process all 5 searches in parallel. You'll see results appear one by one as each search completes, rather than waiting for all 5 to finish.
 
 ### Example Use Cases
 
@@ -34,8 +91,23 @@ The system ensures your requests are processed reliably:
 
 - **No Rejections**: Requests are never rejected due to rate limits. Instead, they're queued and processed when limits allow
 - **Automatic Retry**: If a request hits a rate limit, it automatically retries once the limit resets
-- **Parallel Processing**: Multiple requests are processed simultaneously when possible (up to 9 parallel requests)
+- **Parallel Processing**: Multiple requests are processed simultaneously using `asyncio.gather()` when possible (up to 5 parallel requests)
+- **Request Matching**: Each request's `id` is preserved in the response, ensuring reliable matching between requests and results
 - **Incremental Results**: You see results as they complete, rather than waiting for everything to finish
+
+### Implementation Details
+
+**Backend Processing:**
+- Skills use `asyncio.gather()` to process multiple requests concurrently within the `execute()` method
+- Each request is processed independently, with its `id` preserved throughout the pipeline
+- Results are grouped by `id` before returning the response
+- No redundant data (query, parameters) is included in responses - clients match by `id`
+
+**Frontend Rendering:**
+- Single `app_skill_use` embed is created for all requests in a skill call
+- Frontend matches response `id` to original request to display query/metadata
+- Results are rendered as horizontally scrollable groups, one per request
+- Each group shows the query (from original request) and its results
 
 ### Long-Running Tasks and Auto-Followup Messages
 
@@ -52,7 +124,7 @@ When you make a request that takes longer to process (e.g., generating images, p
 
 - Results appear incrementally as each sub-request completes
 - You see partial results immediately rather than waiting for everything to finish
-- Example: With 9 parallel searches, results appear one by one as each search completes
+- Example: With 5 parallel searches, results appear one by one as each search completes
 - A request is considered complete once all its sub-requests are finished
 
 ## Skill Results

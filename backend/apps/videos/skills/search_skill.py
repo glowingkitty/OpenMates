@@ -4,13 +4,14 @@
 # Provides video search functionality using the Brave Search API.
 #
 # This skill supports multiple search queries in a single request,
-# processing them in parallel (up to 9 parallel requests).
+# processing them in parallel (up to 5 parallel requests).
 
 import logging
 import os
 import json
 import yaml
-from typing import Dict, Any, List, Optional
+import asyncio
+from typing import Dict, Any, List, Optional, Tuple
 from pydantic import BaseModel, Field
 from celery import Celery  # For Celery type hinting
 from toon_format import encode, decode, DecodeOptions
@@ -51,11 +52,11 @@ class SearchResult(BaseModel):
 
 class SearchResponse(BaseModel):
     """Response model for videos search skill."""
-    # Results are returned directly (not nested in 'previews')
-    # The main_processor will extract these and structure them as app_skill_use.output
+    # Results are grouped by request id - each entry contains 'id' and 'results' array
+    # This structure allows clients to match responses to original requests without redundant data
     results: List[Dict[str, Any]] = Field(
         default_factory=list,
-        description="List of search results. These will be flattened and encoded to TOON format by main_processor."
+        description="List of request results. Each entry contains 'id' (matching request id) and 'results' array with actual video search results for that request."
     )
     provider: str = Field(
         default="Brave Search",
@@ -252,6 +253,303 @@ class SearchSkill(BaseSkill):
             logger.error(f"Error loading follow-up suggestions from app.yml: {e}", exc_info=True)
             self.suggestions_follow_up_requests = []
     
+    async def _process_single_search_request(
+        self,
+        req: Dict[str, Any],
+        request_id: Any,
+        secrets_manager: SecretsManager,
+        cache_service: CacheService
+    ) -> Tuple[Any, List[Dict[str, Any]], Optional[str]]:
+        """
+        Process a single video search request.
+        
+        This method handles all the logic for processing one video search request:
+        - Parameter extraction and validation
+        - Rate limit checking
+        - API call to Brave Videos Search
+        - Content sanitization
+        - Result formatting
+        
+        Args:
+            req: Request dictionary with query and optional parameters
+            request_id: The id of this request (for matching in response)
+            secrets_manager: SecretsManager instance
+            cache_service: CacheService instance for rate limiting
+        
+        Returns:
+            Tuple of (request_id, results_list, error_string_or_none)
+            - request_id: The id of the request (for grouping in response)
+            - results_list: List of video search result previews (empty if error)
+            - error_string_or_none: Error message if processing failed, None if successful
+        """
+        # Extract query and parameters from request
+        search_query = req.get("query") or req.get("q")
+        if not search_query:
+            return (request_id, [], f"Missing 'query' parameter")
+        
+        # Extract request-specific parameters (with defaults from schema)
+        req_count = req.get("count", 10)  # Default from schema
+        req_country_raw = req.get("country", "us")  # Default from schema
+        req_lang = req.get("search_lang", "en")  # Default from schema
+        req_safesearch = req.get("safesearch", "moderate")  # Default from schema
+        
+        # CRITICAL: Validate and correct country code to ensure it's valid for Brave Search API
+        VALID_BRAVE_COUNTRY_CODES = {
+            "AR", "AU", "AT", "BE", "BR", "CA", "CL", "DK", "FI", "FR", "DE", "GR", "HK", 
+            "IN", "ID", "IT", "JP", "KR", "MY", "MX", "NL", "NZ", "NO", "CN", "PL", "PT", 
+            "PH", "RU", "SA", "ZA", "ES", "SE", "CH", "TW", "TR", "GB", "US", "ALL"
+        }
+        req_country_upper = req_country_raw.upper() if req_country_raw else "US"
+        if req_country_upper not in VALID_BRAVE_COUNTRY_CODES:
+            logger.warning(
+                f"Invalid country code '{req_country_raw}' for video search '{search_query}' (id: {request_id}). "
+                f"Valid codes: {sorted(VALID_BRAVE_COUNTRY_CODES)}. Falling back to 'us'."
+            )
+            req_country = "us"
+        else:
+            req_country = req_country_upper
+        
+        logger.debug(f"Executing video search (id: {request_id}): query='{search_query}', country='{req_country}'")
+        
+        try:
+            # Check and enforce rate limits before calling external API
+            provider_id = "brave"  # Brave Search provider
+            skill_id = "search"
+            
+            # Check rate limit
+            is_allowed, retry_after = await check_rate_limit(
+                provider_id=provider_id,
+                skill_id=skill_id,
+                cache_service=cache_service
+            )
+            
+            # If rate limited, wait for the limit to reset
+            if not is_allowed:
+                logger.info(f"Rate limit hit for video search '{search_query}' (id: {request_id}), waiting for reset...")
+                try:
+                    celery_producer = None
+                    celery_task_context = None
+                    if hasattr(self.app, 'celery_producer') and self.app.celery_producer:
+                        celery_producer = self.app.celery_producer
+                        celery_task_context = {
+                            "app_id": self.app_id,
+                            "skill_id": self.skill_id,
+                            "arguments": {
+                                "query": search_query,
+                                "count": req_count,
+                                "country": req_country,
+                                "search_lang": req_lang,
+                                "safesearch": req_safesearch
+                            }
+                        }
+                    
+                    await wait_for_rate_limit(
+                        provider_id=provider_id,
+                        skill_id=skill_id,
+                        cache_service=cache_service,
+                        celery_producer=celery_producer,
+                        celery_task_context=celery_task_context
+                    )
+                except RateLimitScheduledException as e:
+                    logger.warning(
+                        f"Video search '{search_query}' (id: {request_id}) was scheduled via Celery (task_id: {e.task_id}) "
+                        f"due to rate limit."
+                    )
+                    return (request_id, [], f"Request was scheduled via Celery due to rate limit (task_id: {e.task_id})")
+            
+            # Call Brave Videos Search API
+            search_result = await search_videos(
+                query=search_query,
+                secrets_manager=secrets_manager,
+                count=req_count,
+                country=req_country,
+                search_lang=req_lang,
+                safesearch=req_safesearch,
+                sanitize_output=True
+            )
+            
+            if search_result.get("error"):
+                return (request_id, [], f"Query '{search_query}': {search_result['error']}")
+            
+            # Check if sanitization should be skipped
+            should_sanitize = search_result.get("sanitize_output", True)
+            
+            # Convert results to preview format and sanitize external content
+            results = search_result.get("results", [])
+            task_id = f"video_search_{request_id}_{search_query[:50]}"
+            
+            # Build JSON structure with only text fields that need sanitization
+            text_data_for_sanitization = {"results": []}
+            result_metadata = []
+            
+            for idx, result in enumerate(results):
+                title = result.get("title", "").strip()
+                description = result.get("description", "").strip()
+                
+                text_data_for_sanitization["results"].append({
+                    "title": title,
+                    "description": description
+                })
+                
+                # Store non-text metadata
+                meta_url = result.get("meta_url", {})
+                favicon = None
+                if isinstance(meta_url, dict):
+                    favicon = meta_url.get("favicon")
+                
+                thumbnail = result.get("thumbnail", {})
+                thumbnail_original = None
+                if isinstance(thumbnail, dict):
+                    thumbnail_original = thumbnail.get("original")
+                
+                result_metadata.append({
+                    "url": result.get("url", ""),
+                    "age": result.get("age", ""),
+                    "favicon": favicon,
+                    "thumbnail_original": thumbnail_original,
+                    "original_title": title,
+                    "original_description": description
+                })
+            
+            previews: List[Dict[str, Any]] = []
+            
+            # Skip sanitization if sanitize_output=False
+            if not should_sanitize:
+                logger.debug(f"[{task_id}] Sanitization skipped (sanitize_output=False), using raw results")
+                for idx, result in enumerate(results):
+                    preview = {
+                        "type": "video_result",
+                        "title": result.get("title", ""),
+                        "url": result.get("url", ""),
+                        "description": result.get("description", ""),
+                        "age": result.get("age", ""),
+                        "meta_url": result.get("meta_url"),
+                        "thumbnail": result.get("thumbnail"),
+                        "hash": self._generate_result_hash(result.get("url", ""))
+                    }
+                    previews.append(preview)
+            else:
+                # Convert JSON to TOON format and sanitize
+                if text_data_for_sanitization["results"]:
+                    try:
+                        toon_data_for_encoding = {"results": []}
+                        for result in text_data_for_sanitization["results"]:
+                            toon_data_for_encoding["results"].append({
+                                "title": result.get("title", ""),
+                                "description": result.get("description", "")
+                            })
+                        
+                        toon_text = encode(toon_data_for_encoding)
+                        logger.info(f"[{task_id}] Batching {len(results)} video search results into single TOON-format sanitization request ({len(toon_text)} chars, ~{len(toon_text)/4:.0f} tokens)")
+                        
+                        # Sanitize all text content in one request
+                        sanitized_toon = await sanitize_external_content(
+                            content=toon_text,
+                            content_type="text",
+                            task_id=task_id,
+                            secrets_manager=secrets_manager
+                        )
+                        
+                        if sanitized_toon is None:
+                            error_msg = f"[{task_id}] Content sanitization failed: sanitization returned None."
+                            logger.error(error_msg)
+                            return (request_id, [], f"Query '{search_query}': Content sanitization failed - LLM call failed")
+                        
+                        if not sanitized_toon or not sanitized_toon.strip():
+                            error_msg = f"[{task_id}] Content sanitization blocked: sanitization returned empty."
+                            logger.error(error_msg)
+                            return (request_id, [], f"Query '{search_query}': Content sanitization blocked - high prompt injection risk detected")
+                        
+                        # Decode sanitized TOON back to Python dict
+                        sanitized_data = None
+                        try:
+                            try:
+                                sanitized_data = decode(sanitized_toon, DecodeOptions(indent=2, strict=True))
+                            except (ValueError, Exception) as decode_error:
+                                logger.warning(f"[{task_id}] Strict TOON decode failed: {decode_error}. Attempting lenient decode...")
+                                sanitized_data = decode(sanitized_toon, DecodeOptions(indent=2, strict=False))
+                                logger.info(f"[{task_id}] Lenient TOON decode succeeded.")
+                            
+                            if not isinstance(sanitized_data, dict) or "results" not in sanitized_data:
+                                raise ValueError("Invalid sanitized TOON structure")
+                            
+                            sanitized_results = sanitized_data.get("results", [])
+                            if not all(isinstance(r, dict) for r in sanitized_results):
+                                raise ValueError("Sanitized results contain non-dict items")
+                                
+                        except Exception as e:
+                            error_msg = f"[{task_id}] Failed to decode sanitized TOON: {e}"
+                            logger.error(error_msg, exc_info=True)
+                            return (request_id, [], f"Query '{search_query}': Failed to decode sanitized TOON content - {str(e)}")
+                        
+                        # Map sanitized content back to results
+                        sanitized_results = sanitized_data.get("results", [])
+                        
+                        for idx, metadata in enumerate(result_metadata):
+                            sanitized_result = sanitized_results[idx] if idx < len(sanitized_results) else None
+                            
+                            if not isinstance(sanitized_result, dict):
+                                continue
+                            
+                            sanitized_title = sanitized_result.get("title", "").strip() if isinstance(sanitized_result.get("title"), str) else ""
+                            sanitized_description = sanitized_result.get("description", "").strip() if isinstance(sanitized_result.get("description"), str) else ""
+                            
+                            if not sanitized_title or not sanitized_title.strip():
+                                logger.warning(f"[{task_id}] Video search result {idx} title empty after sanitization, using original")
+                                sanitized_title = metadata["original_title"]
+                            
+                            if not sanitized_description or not sanitized_description.strip():
+                                sanitized_description = metadata["original_description"]
+                            
+                            if not sanitized_title or not sanitized_title.strip():
+                                logger.warning(f"[{task_id}] Video search result {idx} title blocked due to prompt injection risk")
+                                continue
+                            
+                            # Build preview with sanitized content
+                            preview = {
+                                "type": "video_result",
+                                "title": sanitized_title,
+                                "url": metadata["url"],
+                                "description": sanitized_description,
+                                "age": metadata["age"],
+                                "meta_url": {"favicon": metadata["favicon"]} if metadata["favicon"] else None,
+                                "thumbnail": {"original": metadata["thumbnail_original"]} if metadata["thumbnail_original"] else None,
+                                "hash": self._generate_result_hash(metadata["url"])
+                            }
+                            previews.append(preview)
+                    
+                    except Exception as e:
+                        error_msg = f"[{task_id}] Error encoding/decoding TOON format: {e}"
+                        logger.error(error_msg, exc_info=True)
+                        return (request_id, [], f"Query '{search_query}': TOON encoding/decoding error - {str(e)}")
+                else:
+                    logger.warning(f"[{task_id}] No text content found in video search results to sanitize")
+                    for idx, result in enumerate(results):
+                        meta_url = result.get("meta_url", {})
+                        favicon = meta_url.get("favicon") if isinstance(meta_url, dict) else None
+                        thumbnail = result.get("thumbnail", {})
+                        thumbnail_original = thumbnail.get("original") if isinstance(thumbnail, dict) else None
+                        
+                        preview = {
+                            "type": "video_result",
+                            "title": result.get("title", ""),
+                            "url": result.get("url", ""),
+                            "description": result.get("description", ""),
+                            "age": result.get("age", ""),
+                            "meta_url": {"favicon": favicon} if favicon else None,
+                            "thumbnail": {"original": thumbnail_original} if thumbnail_original else None,
+                            "hash": self._generate_result_hash(result.get("url", ""))
+                        }
+                        previews.append(preview)
+            
+            logger.info(f"Video search (id: {request_id}) completed: {len(previews)} results for '{search_query}'")
+            return (request_id, previews, None)
+            
+        except Exception as e:
+            error_msg = f"Query '{search_query}' (id: {request_id}): {str(e)}"
+            logger.error(error_msg, exc_info=True)
+            return (request_id, [], error_msg)
+    
     async def execute(
         self,
         requests: List[Dict[str, Any]],
@@ -315,407 +613,102 @@ class SearchSkill(BaseSkill):
                 error="No search requests provided. 'requests' array must contain at least one request with a 'query' field."
             )
         
-        # Validate that all requests have a query
+        # Validate that all requests have required fields: 'id' and 'query'
+        request_ids = set()
         for i, req in enumerate(requests):
-            if not req.get("query"):
-                logger.error(f"Request {i+1} in requests array is missing 'query' field")
+            # Validate 'id' field (mandatory for request/response matching)
+            if "id" not in req:
+                logger.error(f"Request {i+1} in requests array is missing required 'id' field")
                 return SearchResponse(
                     results=[],
-                    error=f"Request {i+1} is missing required 'query' field"
+                    error=f"Request {i+1} is missing required 'id' field. Each request must have a unique 'id' (number or UUID string) for matching responses."
+                )
+            
+            request_id = req.get("id")
+            # Validate id is unique within this batch
+            if request_id in request_ids:
+                logger.error(f"Request {i+1} has duplicate 'id' value: {request_id}")
+                return SearchResponse(
+                    results=[],
+                    error=f"Request {i+1} has duplicate 'id' value '{request_id}'. Each request must have a unique 'id'."
+                )
+            request_ids.add(request_id)
+            
+            # Validate 'query' field
+            if not req.get("query"):
+                logger.error(f"Request {i+1} (id: {request_id}) in requests array is missing 'query' field")
+                return SearchResponse(
+                    results=[],
+                    error=f"Request {i+1} (id: {request_id}) is missing required 'query' field"
                 )
         
         search_requests = requests
         
-        # Process all search requests
-        all_previews: List[Dict[str, Any]] = []
+        # Initialize cache service for rate limiting (shared across all requests)
+        cache_service = CacheService()
+        
+        # Process all search requests in parallel using asyncio.gather()
+        # Each request is processed independently and results are grouped by request id
+        logger.info(f"Processing {len(search_requests)} video search requests in parallel")
+        tasks = [
+            self._process_single_search_request(
+                req=req,
+                request_id=req.get("id"),
+                secrets_manager=secrets_manager,
+                cache_service=cache_service
+            )
+            for req in search_requests
+        ]
+        
+        # Wait for all requests to complete (parallel execution)
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        
+        # Process results and group by request id
+        grouped_results: List[Dict[str, Any]] = []
         errors: List[str] = []
         
-        for i, req in enumerate(search_requests):
-            # Extract query and parameters from request
-            search_query = req.get("query") or req.get("q")
-            if not search_query:
-                errors.append(f"Request {i+1}: Missing 'query' parameter")
-                continue
-            
-            # Extract request-specific parameters (with defaults from schema)
-            req_count = req.get("count", 10)  # Default from schema
-            req_country_raw = req.get("country", "us")  # Default from schema
-            req_lang = req.get("search_lang", "en")  # Default from schema
-            req_safesearch = req.get("safesearch", "moderate")  # Default from schema
-            req_freshness = req.get("freshness")  # Optional freshness parameter
-            
-            # CRITICAL: Validate and correct country code to ensure it's valid for Brave Search API
-            # Valid codes: AR, AU, AT, BE, BR, CA, CL, DK, FI, FR, DE, GR, HK, IN, ID, IT, JP, KR, MY, MX, NL, NZ, NO, CN, PL, PT, PH, RU, SA, ZA, ES, SE, CH, TW, TR, GB, US, ALL
-            VALID_BRAVE_COUNTRY_CODES = {
-                "AR", "AU", "AT", "BE", "BR", "CA", "CL", "DK", "FI", "FR", "DE", "GR", "HK", 
-                "IN", "ID", "IT", "JP", "KR", "MY", "MX", "NL", "NZ", "NO", "CN", "PL", "PT", 
-                "PH", "RU", "SA", "ZA", "ES", "SE", "CH", "TW", "TR", "GB", "US", "ALL"
-            }
-            req_country_upper = req_country_raw.upper() if req_country_raw else "US"
-            if req_country_upper not in VALID_BRAVE_COUNTRY_CODES:
-                # Invalid country code - log warning and fallback to "us"
-                logger.warning(
-                    f"Invalid country code '{req_country_raw}' for search '{search_query}'. "
-                    f"Valid codes: {sorted(VALID_BRAVE_COUNTRY_CODES)}. Falling back to 'us'."
-                )
-                req_country = "us"
-            else:
-                req_country = req_country_upper
-            
-            logger.debug(f"Executing video search {i+1}/{len(search_requests)}: query='{search_query}', country='{req_country}'")
-            
-            try:
-                # Check and enforce rate limits before calling external API
-                # According to app_skills.md: "Requests are never rejected due to rate limits.
-                # Instead, they're queued and processed when limits allow."
-                provider_id = "brave"  # Brave Search provider
-                skill_id = "search"
-                
-                # Check rate limit
-                cache_service = CacheService()
-                is_allowed, retry_after = await check_rate_limit(
-                    provider_id=provider_id,
-                    skill_id=skill_id,
-                    cache_service=cache_service
-                )
-                
-                # If rate limited, wait for the limit to reset
-                if not is_allowed:
-                    logger.info(f"Rate limit hit for video search '{search_query}', waiting for reset...")
-                    try:
-                        # Try to get celery_producer from app if available
-                        celery_producer = None
-                        celery_task_context = None
-                        if hasattr(self.app, 'celery_producer') and self.app.celery_producer:
-                            celery_producer = self.app.celery_producer
-                            celery_task_context = {
-                                "app_id": self.app_id,
-                                "skill_id": self.skill_id,
-                                "arguments": {
-                                    "query": search_query,
-                                    "count": req_count,
-                                    "country": req_country,
-                                    "search_lang": req_lang,
-                                    "safesearch": req_safesearch
-                                }
-                            }
-                        
-                        await wait_for_rate_limit(
-                            provider_id=provider_id,
-                            skill_id=skill_id,
-                            cache_service=cache_service,
-                            celery_producer=celery_producer,
-                            celery_task_context=celery_task_context
-                        )
-                    except RateLimitScheduledException as e:
-                        # Task was scheduled via Celery - this shouldn't happen in inline execution
-                        # but if it does, we'll log and skip this search
-                        logger.warning(
-                            f"Video search '{search_query}' was scheduled via Celery (task_id: {e.task_id}) "
-                            f"due to rate limit. This search will be processed asynchronously."
-                        )
-                        # Skip this search request as it's been scheduled
-                        continue
-                
-                # Call Brave Videos Search API using dedicated /videos/search endpoint
-                # sanitize_output defaults to True for user-facing requests (sanitization required)
-                search_result = await search_videos(
-                    query=search_query,
-                    secrets_manager=secrets_manager,
-                    count=req_count,
-                    country=req_country,
-                    search_lang=req_lang,
-                    safesearch=req_safesearch,
-                    freshness=req_freshness,  # Optional freshness parameter
-                    sanitize_output=True  # Enable sanitization for user-facing requests (default)
-                )
-                
-                if search_result.get("error"):
-                    errors.append(f"Query '{search_query}': {search_result['error']}")
-                    continue
-                
-                # Check if sanitization should be skipped (e.g., for health checks)
-                should_sanitize = search_result.get("sanitize_output", True)  # Default to True for safety
-                
-                # Convert results to preview format and sanitize external content
-                # Batch all text content from all results into a single sanitization request using TOON format
-                results = search_result.get("results", [])
-                task_id = f"video_search_{i+1}_{search_query[:50]}"  # Limit length for logging
-                
-                # Build JSON structure with only text fields that need sanitization
-                # Exclude: url, page_age, profile.name, meta_url.favicon, thumbnail.original (non-text fields)
-                # Include: title, description, extra_snippets (text fields for LLM inference)
-                text_data_for_sanitization = {
-                    "results": []
-                }
-                result_metadata = []  # Store non-text metadata for each result
-                
-                for idx, result in enumerate(results):
-                    # Extract text fields that need sanitization
-                    title = result.get("title", "").strip()
-                    description = result.get("description", "").strip()
-                    extra_snippets = result.get("extra_snippets", [])
-                    if not isinstance(extra_snippets, list):
-                        extra_snippets = []
-                    
-                    # Add to text data structure for sanitization
-                    text_data_for_sanitization["results"].append({
-                        "title": title,
-                        "description": description,
-                        "extra_snippets": extra_snippets
-                    })
-                    
-                    # Store non-text metadata (will be merged back after sanitization)
-                    meta_url = result.get("meta_url", {})
-                    favicon = None
-                    if isinstance(meta_url, dict):
-                        favicon = meta_url.get("favicon")
-                    
-                    profile = result.get("profile", {})
-                    profile_name = None
-                    if isinstance(profile, dict):
-                        profile_name = profile.get("name")
-                    
-                    thumbnail = result.get("thumbnail", {})
-                    thumbnail_original = None
-                    if isinstance(thumbnail, dict):
-                        thumbnail_original = thumbnail.get("original")
-                    
-                    result_metadata.append({
-                        "url": result.get("url", ""),
-                        "page_age": result.get("page_age", result.get("age", "")),
-                        "profile_name": profile_name,
-                        "favicon": favicon,
-                        "thumbnail_original": thumbnail_original,
-                        "original_title": title,
-                        "original_description": description,
-                        "original_extra_snippets": extra_snippets
-                    })
-                
-                # Skip sanitization if sanitize_output=False (e.g., for health checks)
-                if not should_sanitize:
-                    logger.debug(f"[{task_id}] Sanitization skipped (sanitize_output=False), using raw results")
-                    # Use raw results without sanitization
-                    for idx, result in enumerate(results):
-                        preview = {
-                            "type": "search_result",
-                            "title": result.get("title", ""),
-                            "url": result.get("url", ""),
-                            "description": result.get("description", ""),
-                            "page_age": result.get("page_age", result.get("age", "")),
-                            "profile": result.get("profile"),
-                            "meta_url": result.get("meta_url"),
-                            "thumbnail": result.get("thumbnail"),
-                            "extra_snippets": result.get("extra_snippets", []),
-                            "hash": self._generate_result_hash(result.get("url", ""))
-                        }
-                        all_previews.append(preview)
-                else:
-                    # Convert JSON to TOON format using toon-format package
-                    # For proper TOON tabular format, we need uniform objects with primitive fields only
-                    # Convert extra_snippets list to a delimited string for tabular encoding
-                    if text_data_for_sanitization["results"]:
-                        try:
-                            # Prepare data for TOON tabular format (all fields must be primitives)
-                            # Convert extra_snippets from list to pipe-delimited string for tabular format
-                            toon_data_for_encoding = {
-                                "results": []
-                            }
-                            for result in text_data_for_sanitization["results"]:
-                                # Convert extra_snippets list to pipe-delimited string for tabular format
-                                extra_snippets_str = "|".join(result.get("extra_snippets", [])) if isinstance(result.get("extra_snippets"), list) else ""
-                                toon_data_for_encoding["results"].append({
-                                    "title": result.get("title", ""),
-                                    "description": result.get("description", ""),
-                                    "extra_snippets": extra_snippets_str  # String for tabular format
-                                })
-                            
-                            # Encode to TOON format - will use tabular format for uniform objects
-                            toon_text = encode(toon_data_for_encoding)
-                            
-                            logger.info(f"[{task_id}] Batching {len(results)} video search results into single TOON-format sanitization request ({len(toon_text)} chars, ~{len(toon_text)/4:.0f} tokens)")
-                            logger.debug(f"[{task_id}] TOON format data (full):\n{toon_text}")
-                            
-                            # Sanitize all text content in one request (preserves TOON format)
-                            sanitized_toon = await sanitize_external_content(
-                                content=toon_text,
-                                content_type="text",
-                                task_id=task_id,
-                                secrets_manager=secrets_manager
-                            )
-                            
-                            # Check if sanitization failed (returned None or empty)
-                            # None indicates sanitization failed (LLM call error, etc.)
-                            # Empty string indicates content was blocked (high risk detected)
-                            if sanitized_toon is None:
-                                error_msg = f"[{task_id}] Content sanitization failed: sanitization returned None. This indicates a critical security failure (LLM call failed) - request cannot proceed with unsanitized external content."
-                                logger.error(error_msg)
-                                errors.append(f"Query '{search_query}': Content sanitization failed - LLM call failed, cannot proceed with unsanitized external content")
-                                continue
-                            
-                            if not sanitized_toon or not sanitized_toon.strip():
-                                error_msg = f"[{task_id}] Content sanitization blocked: sanitization returned empty. This indicates high prompt injection risk was detected - content blocked for security."
-                                logger.error(error_msg)
-                                errors.append(f"Query '{search_query}': Content sanitization blocked - high prompt injection risk detected, content blocked")
-                                continue
-                            
-                            # Decode sanitized TOON back to Python dict for processing
-                            # Try strict mode first, then fall back to lenient mode if that fails
-                            sanitized_data = None
-                            try:
-                                # First attempt: strict mode for validation
-                                try:
-                                    sanitized_data = decode(sanitized_toon, DecodeOptions(indent=2, strict=True))
-                                except (ValueError, Exception) as decode_error:
-                                    logger.warning(f"[{task_id}] Strict TOON decode failed: {decode_error}. Attempting lenient decode...")
-                                    # Fallback: lenient mode to handle potential format variations from LLM sanitization
-                                    sanitized_data = decode(sanitized_toon, DecodeOptions(indent=2, strict=False))
-                                    logger.info(f"[{task_id}] Lenient TOON decode succeeded. Sanitized content may have minor format variations.")
-                                
-                                # Validate that decoded data is a dict with expected structure
-                                if not isinstance(sanitized_data, dict):
-                                    raise ValueError(f"Decoded TOON data is not a dict, got {type(sanitized_data)}")
-                                if "results" not in sanitized_data:
-                                    raise ValueError("Decoded TOON data missing 'results' key")
-                                if not isinstance(sanitized_data["results"], list):
-                                    raise ValueError(f"Decoded TOON 'results' is not a list, got {type(sanitized_data['results'])}")
-                                
-                                # Validate all results are dicts - if any are not, log detailed info and fail
-                                sanitized_results = sanitized_data.get("results", [])
-                                invalid_indices = []
-                                for i, result in enumerate(sanitized_results):
-                                    if not isinstance(result, dict):
-                                        invalid_indices.append((i, type(result).__name__, str(result)[:100] if result else "None"))
-                                
-                                if invalid_indices:
-                                    error_details = "; ".join([f"idx {idx}: {type_name} ({value})" for idx, type_name, value in invalid_indices])
-                                    error_msg = f"[{task_id}] Invalid sanitized TOON structure: {len(invalid_indices)} result(s) are not dicts: {error_details}"
-                                    logger.error(error_msg)
-                                    logger.error(f"[{task_id}] Sanitized TOON (first 2000 chars): {sanitized_toon[:2000]}")
-                                    logger.error(f"[{task_id}] Decoded data structure: {json.dumps(sanitized_data, indent=2)[:2000]}")
-                                    raise ValueError(f"Sanitized TOON decode produced invalid structure: {len(invalid_indices)} result(s) are not dicts")
-                                    
-                            except Exception as e:
-                                error_msg = f"[{task_id}] Failed to decode sanitized TOON or invalid structure: {e}"
-                                logger.error(error_msg, exc_info=True)
-                                logger.error(f"[{task_id}] Sanitized TOON content (first 3000 chars):\n{sanitized_toon[:3000]}")
-                                errors.append(f"Query '{search_query}': Failed to decode sanitized TOON content - format may be corrupted: {str(e)}")
-                                continue
-                            
-                            # Map sanitized content back to results
-                            sanitized_results = sanitized_data.get("results", [])
-                            
-                            # Log the structure for debugging
-                            logger.debug(f"[{task_id}] Decoded {len(sanitized_results)} sanitized results. All are dicts: {all(isinstance(r, dict) for r in sanitized_results)}")
-                            
-                            for idx, metadata in enumerate(result_metadata):
-                                # Get sanitized content
-                                sanitized_result = sanitized_results[idx] if idx < len(sanitized_results) else None
-                                
-                                # This should never happen now due to validation above, but keep as safety check
-                                if not isinstance(sanitized_result, dict):
-                                    error_msg = f"[{task_id}] Video search result {idx} sanitized data is not a dict, got {type(sanitized_result)}. This should not happen after validation."
-                                    logger.error(error_msg)
-                                    errors.append(f"Query '{search_query}': Invalid sanitized result structure for result {idx} - sanitization failed")
-                                    continue
-                                
-                                sanitized_title = sanitized_result.get("title", "").strip() if isinstance(sanitized_result.get("title"), str) else ""
-                                sanitized_description = sanitized_result.get("description", "").strip() if isinstance(sanitized_result.get("description"), str) else ""
-                                # Parse extra_snippets back from pipe-delimited string
-                                extra_snippets_str = sanitized_result.get("extra_snippets", "")
-                                sanitized_extra_snippets = extra_snippets_str.split("|") if extra_snippets_str else []
-                                
-                                # If sanitization returned empty, use original (but log warning)
-                                if not sanitized_title or not sanitized_title.strip():
-                                    logger.warning(f"[{task_id}] Video search result {idx} title empty after sanitization, using original: {metadata.get('url', 'unknown')}")
-                                    sanitized_title = metadata["original_title"]
-                                
-                                if not sanitized_description or not sanitized_description.strip():
-                                    sanitized_description = metadata["original_description"]
-                                
-                                # Skip result if title was blocked (high risk - empty after sanitization)
-                                if not sanitized_title or not sanitized_title.strip():
-                                    logger.warning(f"[{task_id}] Video search result {idx} title blocked due to prompt injection risk: {metadata.get('url', 'unknown')}")
-                                    continue
-                                
-                                # Build preview with sanitized content
-                                preview = {
-                                    "type": "search_result",
-                                    "title": sanitized_title,
-                                    "url": metadata["url"],
-                                    "description": sanitized_description,
-                                    "page_age": metadata["page_age"],
-                                    "profile": {
-                                        "name": metadata["profile_name"]
-                                    } if metadata["profile_name"] else None,
-                                    "meta_url": {
-                                        "favicon": metadata["favicon"]
-                                    } if metadata["favicon"] else None,
-                                    "thumbnail": {
-                                        "original": metadata["thumbnail_original"]
-                                    } if metadata["thumbnail_original"] else None,
-                                    "extra_snippets": sanitized_extra_snippets,
-                                    "hash": self._generate_result_hash(metadata["url"])
-                                }
-                                all_previews.append(preview)
-                        
-                        except Exception as e:
-                            error_msg = f"[{task_id}] Error encoding/decoding TOON format: {e}"
-                            logger.error(error_msg, exc_info=True)
-                            errors.append(f"Query '{search_query}': TOON encoding/decoding error - {str(e)}")
-                            continue
-                    else:
-                        # No text content to sanitize - add results as-is (shouldn't happen but handle it)
-                        logger.warning(f"[{task_id}] No text content found in video search results to sanitize")
-                        for idx, result in enumerate(results):
-                            meta_url = result.get("meta_url", {})
-                            favicon = meta_url.get("favicon") if isinstance(meta_url, dict) else None
-                            profile = result.get("profile", {})
-                            profile_name = profile.get("name") if isinstance(profile, dict) else None
-                            thumbnail = result.get("thumbnail", {})
-                            thumbnail_original = thumbnail.get("original") if isinstance(thumbnail, dict) else None
-                            
-                            preview = {
-                                "type": "search_result",
-                                "title": result.get("title", ""),
-                                "url": result.get("url", ""),
-                                "description": result.get("description", ""),
-                                "page_age": result.get("page_age", result.get("age", "")),
-                                "profile": {"name": profile_name} if profile_name else None,
-                                "meta_url": {"favicon": favicon} if favicon else None,
-                                "thumbnail": {"original": thumbnail_original} if thumbnail_original else None,
-                                "extra_snippets": result.get("extra_snippets", []),
-                                "hash": self._generate_result_hash(result.get("url", ""))
-                            }
-                            all_previews.append(preview)
-                
-                logger.info(f"Video search {i+1}/{len(search_requests)} completed: {len(results)} results for '{search_query}'")
-                
-            except Exception as e:
-                error_msg = f"Query '{search_query}': {str(e)}"
+        for result in results:
+            if isinstance(result, Exception):
+                # Handle exceptions from asyncio.gather
+                error_msg = f"Unexpected error processing request: {str(result)}"
                 logger.error(error_msg, exc_info=True)
                 errors.append(error_msg)
+                continue
+            
+            request_id, previews, error = result
+            
+            if error:
+                errors.append(error)
+                # Still include the request in results (with empty results array) for consistency
+                grouped_results.append({
+                    "id": request_id,
+                    "results": []
+                })
+            else:
+                # Group results by request id
+                grouped_results.append({
+                    "id": request_id,
+                    "results": previews
+                })
+        
+        # Sort results by request order (maintain original request order in response)
+        request_order = {req.get("id"): i for i, req in enumerate(search_requests)}
+        grouped_results.sort(key=lambda x: request_order.get(x["id"], 999))
         
         # Use follow-up suggestions loaded from app.yml
         # Only include suggestions if we have results and suggestions are configured
         suggestions = None
-        if len(all_previews) > 0 and self.suggestions_follow_up_requests:
+        total_results = sum(len(group.get("results", [])) for group in grouped_results)
+        if total_results > 0 and self.suggestions_follow_up_requests:
             suggestions = self.suggestions_follow_up_requests
         
-        # preview_data removed: redundant metadata that can be derived from results and input
-        # - result_count: len(all_previews)
-        # - query: can be extracted from input arguments in main_processor
-        # - provider: already at root level
-        # Frontend can derive all this from the results array and tool_call_info.input
-        
-        # Build response:
-        # - results: actual search results (will be flattened and encoded to TOON by main_processor)
+        # Build response with grouped results structure:
+        # - results: List of request results, each with 'id' and 'results' array
         # - provider: at root level
         response = SearchResponse(
-            results=all_previews,  # Results directly (not nested in 'previews')
+            results=grouped_results,  # Grouped by request id
             provider="Brave Search",  # Provider at root level
             suggestions_follow_up_requests=suggestions
-            # preview_data removed: redundant metadata
         )
         
         # Add error message if there were errors (but still return results if any)
@@ -723,7 +716,7 @@ class SearchSkill(BaseSkill):
             response.error = "; ".join(errors)
             logger.warning(f"Video search completed with {len(errors)} error(s): {response.error}")
         
-        logger.info(f"Video search skill execution completed: {len(all_previews)} total results, {len(errors)} errors")
+        logger.info(f"Video search skill execution completed: {len(grouped_results)} request groups, {total_results} total results, {len(errors)} errors")
         return response
     
     def _generate_result_hash(self, url: str) -> str:
@@ -739,4 +732,3 @@ class SearchSkill(BaseSkill):
         """
         import hashlib
         return hashlib.sha256(url.encode()).hexdigest()[:16]
-

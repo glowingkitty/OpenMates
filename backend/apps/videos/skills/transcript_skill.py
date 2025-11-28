@@ -12,7 +12,7 @@ import logging
 import os
 import time
 import asyncio
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Tuple
 from urllib.parse import urlparse, parse_qs, quote_plus
 from pydantic import BaseModel, Field
 from celery import Celery  # For Celery type hinting
@@ -59,11 +59,11 @@ class TranscriptResult(BaseModel):
 
 class TranscriptResponse(BaseModel):
     """Response model for transcript skill."""
-    # Results are returned directly (not nested in 'previews')
-    # The main_processor will extract these and structure them as app_skill_use.output
+    # Results are grouped by request id - each entry contains 'id' and 'results' array
+    # This structure allows clients to match responses to original requests without redundant data
     results: List[Dict[str, Any]] = Field(
         default_factory=list,
-        description="List of transcript results. These will be flattened and encoded to TOON format by main_processor."
+        description="List of request results. Each entry contains 'id' (matching request id) and 'results' array with actual transcript results for that request."
     )
     provider: str = Field(
         default="YouTube Transcript API",
@@ -491,6 +491,111 @@ class TranscriptSkill(BaseSkill):
                 "error": f"Thread pool error: {str(e)}"
             }
     
+    async def _process_single_transcript_request(
+        self,
+        req: Dict[str, Any],
+        request_id: Any,
+        secrets_manager: SecretsManager,
+        proxy_config: Optional[GenericProxyConfig]
+    ) -> Tuple[Any, List[Dict[str, Any]], Optional[str]]:
+        """
+        Process a single transcript request.
+        
+        This method handles all the logic for processing one transcript request:
+        - Parameter extraction and validation
+        - Video ID extraction
+        - Transcript fetching
+        - Content sanitization
+        - Result formatting
+        
+        Args:
+            req: Request dictionary with url and optional parameters
+            request_id: The id of this request (for matching in response)
+            secrets_manager: SecretsManager instance
+            proxy_config: Proxy configuration for YouTube API calls
+        
+        Returns:
+            Tuple of (request_id, results_list, error_string_or_none)
+            - request_id: The id of the request (for grouping in response)
+            - results_list: List containing single transcript result (empty if error)
+            - error_string_or_none: Error message if processing failed, None if successful
+        """
+        video_url = req.get("url", "")
+        if not video_url:
+            return (request_id, [], f"Missing 'url' parameter")
+        
+        # Extract optional languages parameter
+        languages = req.get("languages")
+        
+        logger.debug(f"Executing transcript fetch (id: {request_id}): url='{video_url}'")
+        
+        try:
+            # Extract video ID from URL
+            video_id = self._extract_video_id(video_url)
+            if not video_id:
+                return (request_id, [], f"Invalid YouTube URL: '{video_url}' - could not extract video ID")
+            
+            # Fetch transcript
+            result = await self._fetch_transcript(
+                video_id=video_id,
+                url=video_url,
+                proxy_config=proxy_config,
+                languages=languages
+            )
+            
+            if not result.get("success"):
+                error_msg = result.get("error", "Unknown error")
+                return (request_id, [], f"Video {video_id}: {error_msg}")
+            
+            # Sanitize transcript content if present
+            transcript_text = result.get("transcript", "")
+            if transcript_text:
+                try:
+                    sanitized_transcript = await sanitize_external_content(
+                        content=transcript_text,
+                        content_type="text",
+                        task_id=f"transcript_{request_id}_{video_id}",
+                        secrets_manager=secrets_manager
+                    )
+                    
+                    # Check if sanitization failed or was blocked
+                    if sanitized_transcript is None:
+                        error_msg = f"Content sanitization failed for video {video_id}: sanitization returned None."
+                        logger.error(error_msg)
+                        return (request_id, [], f"Video {video_id}: Content sanitization failed - LLM call failed")
+                    
+                    if not sanitized_transcript or not sanitized_transcript.strip():
+                        error_msg = f"Content sanitization blocked for video {video_id}: sanitization returned empty."
+                        logger.error(error_msg)
+                        return (request_id, [], f"Video {video_id}: Content sanitization blocked - high prompt injection risk detected")
+                    
+                    # Update result with sanitized transcript
+                    result["transcript"] = sanitized_transcript
+                    
+                except Exception as e:
+                    error_msg = f"Error sanitizing transcript for video {video_id}: {str(e)}"
+                    logger.error(error_msg, exc_info=True)
+                    return (request_id, [], f"Video {video_id}: Error sanitizing transcript - {str(e)}")
+            
+            # Build result in expected format
+            transcript_result = {
+                "type": "transcript_result",
+                "url": video_url,
+                "transcript": result.get("transcript"),
+                "word_count": result.get("word_count"),
+                "characters_count": result.get("characters_count"),
+                "language": result.get("language"),
+                "hash": self._generate_result_hash(video_url)
+            }
+            
+            logger.info(f"Transcript fetch (id: {request_id}) completed: video_id='{video_id}'")
+            return (request_id, [transcript_result], None)
+            
+        except Exception as e:
+            error_msg = f"URL '{video_url}' (id: {request_id}): {str(e)}"
+            logger.error(error_msg, exc_info=True)
+            return (request_id, [], error_msg)
+    
     async def execute(
         self,
         requests: List[Dict[str, Any]],
@@ -553,13 +658,33 @@ class TranscriptSkill(BaseSkill):
                 error="No transcript requests provided. 'requests' array must contain at least one request with a 'url' field."
             )
         
-        # Validate that all requests have a URL
+        # Validate that all requests have required fields: 'id' and 'url'
+        request_ids = set()
         for i, req in enumerate(requests):
-            if not req.get("url"):
-                logger.error(f"Request {i+1} in requests array is missing 'url' field")
+            # Validate 'id' field (mandatory for request/response matching)
+            if "id" not in req:
+                logger.error(f"Request {i+1} in requests array is missing required 'id' field")
                 return TranscriptResponse(
                     results=[],
-                    error=f"Request {i+1} is missing required 'url' field"
+                    error=f"Request {i+1} is missing required 'id' field. Each request must have a unique 'id' (number or UUID string) for matching responses."
+                )
+            
+            request_id = req.get("id")
+            # Validate id is unique within this batch
+            if request_id in request_ids:
+                logger.error(f"Request {i+1} has duplicate 'id' value: {request_id}")
+                return TranscriptResponse(
+                    results=[],
+                    error=f"Request {i+1} has duplicate 'id' value '{request_id}'. Each request must have a unique 'id'."
+                )
+            request_ids.add(request_id)
+            
+            # Validate 'url' field
+            if not req.get("url"):
+                logger.error(f"Request {i+1} (id: {request_id}) in requests array is missing 'url' field")
+                return TranscriptResponse(
+                    results=[],
+                    error=f"Request {i+1} (id: {request_id}) is missing required 'url' field"
                 )
         
         # Build proxy config
@@ -580,144 +705,72 @@ class TranscriptSkill(BaseSkill):
                 error=f"Configuration error: {str(e)}"
             )
         
-        # Process all transcript requests
-        all_results: List[Dict[str, Any]] = []
+        # Process all transcript requests in parallel using asyncio.gather()
+        # Each request is processed independently and results are grouped by request id
+        logger.info(f"Processing {len(requests)} transcript requests in parallel")
+        tasks = [
+            self._process_single_transcript_request(
+                req=req,
+                request_id=req.get("id"),
+                secrets_manager=secrets_manager,
+                proxy_config=proxy_config
+            )
+            for req in requests
+        ]
+        
+        # Wait for all requests to complete (parallel execution)
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        
+        # Process results and group by request id
+        grouped_results: List[Dict[str, Any]] = []
         errors: List[str] = []
         success_count = 0
         failed_count = 0
         
-        for i, req in enumerate(requests):
-            video_url = req.get("url", "")
-            if not video_url:
-                errors.append(f"Request {i+1}: Missing 'url' parameter")
-                failed_count += 1
-                continue
-            
-            # Extract video ID from URL
-            video_id = self._extract_video_id(video_url)
-            if not video_id:
-                error_msg = f"Request {i+1}: Could not extract video ID from URL '{video_url}'"
-                logger.error(error_msg)
-                errors.append(error_msg)
-                failed_count += 1
-                all_results.append({
-                    "url": video_url,
-                    "error": "Invalid YouTube URL - could not extract video ID"
-                })
-                continue
-            
-            logger.info(f"Processing video {i+1}/{len(requests)}: {video_id} ({video_url})")
-            
-            # Extract optional parameters
-            languages = req.get("languages", ["en", "de", "es", "fr"])
-            if not isinstance(languages, list):
-                languages = ["en", "de", "es", "fr"]
-            
-            # Fetch transcript
-            try:
-                transcript_result = await self._fetch_transcript(
-                    video_id=video_id,
-                    url=video_url,
-                    proxy_config=proxy_config,
-                    languages=languages
-                )
-                
-                # Process results
-                if transcript_result.get("success"):
-                    success_count += 1
-                    
-                    # Build result dict
-                    # Note: video_id removed as it's redundant (can be extracted from URL)
-                    # Note: is_generated removed (indicates if transcript was auto-generated by YouTube, not needed)
-                    # Note: success field removed (errors are indicated by presence of 'error' field)
-                    # Note: timestamps removed - timestamps are now included in the formatted transcript text
-                    result = {
-                        "type": "video_transcript",
-                        "url": video_url,
-                        "transcript": transcript_result.get("transcript", ""),  # Formatted multiline transcript with timestamps
-                        "word_count": transcript_result.get("word_count", 0),
-                        "characters_count": transcript_result.get("characters_count", 0),
-                        "language": transcript_result.get("language"),
-                    }
-                    
-                    # Sanitize transcript text before adding to results
-                    # This is critical for security - external content must be sanitized
-                    transcript_text = result.get("transcript", "")
-                    if transcript_text:
-                        try:
-                            sanitized_transcript = await sanitize_external_content(
-                                content=transcript_text,
-                                content_type="text",
-                                task_id=f"transcript_{video_id}",
-                                secrets_manager=secrets_manager
-                            )
-                            
-                            # Check if sanitization failed or was blocked
-                            if sanitized_transcript is None:
-                                error_msg = f"Content sanitization failed for video {video_id}: sanitization returned None. This indicates a critical security failure."
-                                logger.error(error_msg)
-                                errors.append(f"Video {video_id}: Content sanitization failed - LLM call failed")
-                                failed_count += 1
-                                success_count -= 1
-                                continue
-                            
-                            if not sanitized_transcript or not sanitized_transcript.strip():
-                                error_msg = f"Content sanitization blocked for video {video_id}: sanitization returned empty. This indicates high prompt injection risk was detected."
-                                logger.error(error_msg)
-                                errors.append(f"Video {video_id}: Content sanitization blocked - high prompt injection risk detected")
-                                failed_count += 1
-                                success_count -= 1
-                                continue
-                            
-                            # Update result with sanitized transcript
-                            result["transcript"] = sanitized_transcript
-                            
-                        except Exception as e:
-                            error_msg = f"Error sanitizing transcript for video {video_id}: {e}"
-                            logger.error(error_msg, exc_info=True)
-                            errors.append(f"Video {video_id}: Sanitization error - {str(e)}")
-                            # Continue with unsanitized content is NOT safe - fail the request
-                            failed_count += 1
-                            success_count -= 1
-                            continue
-                    
-                    all_results.append(result)
-                    logger.info(f"Successfully processed video {video_id}: {transcript_result.get('word_count', 0)} words")
-                else:
-                    failed_count += 1
-                    error_msg = transcript_result.get("error", "Unknown error")
-                    errors.append(f"Video {video_id}: {error_msg}")
-                    all_results.append({
-                        "url": video_url,
-                        "error": error_msg
-                    })
-                    logger.warning(f"Failed to fetch transcript for video {video_id}: {error_msg}")
-                
-            except Exception as e:
-                error_msg = f"Video {video_id}: {str(e)}"
+        for result in results:
+            if isinstance(result, Exception):
+                # Handle exceptions from asyncio.gather
+                error_msg = f"Unexpected error processing request: {str(result)}"
                 logger.error(error_msg, exc_info=True)
                 errors.append(error_msg)
                 failed_count += 1
-                all_results.append({
-                    "url": video_url,
-                    "error": str(e)
-                })
+                continue
             
-            # Be nice to YouTube - a short pause between calls
-            if i < len(requests) - 1:
-                await asyncio.sleep(1)
+            request_id, transcript_results, error = result
+            
+            if error:
+                errors.append(error)
+                failed_count += 1
+                # Still include the request in results (with empty results array) for consistency
+                grouped_results.append({
+                    "id": request_id,
+                    "results": []
+                })
+            else:
+                success_count += 1
+                # Group results by request id (each transcript request produces one result)
+                grouped_results.append({
+                    "id": request_id,
+                    "results": transcript_results
+                })
         
-        # preview_data removed: redundant metadata that can be derived from results
-        # - video_count: len(requests) or len(all_results)
-        # - success_count/failed_count: can be calculated from results
-        # Frontend can derive all this from the results array
+        # Sort results by request order (maintain original request order in response)
+        request_order = {req.get("id"): i for i, req in enumerate(requests)}
+        grouped_results.sort(key=lambda x: request_order.get(x["id"], 999))
         
-        # Build response
+        # Use follow-up suggestions loaded from app.yml (if available)
+        suggestions = None
+        total_results = sum(len(group.get("results", [])) for group in grouped_results)
+        if total_results > 0 and hasattr(self, 'suggestions_follow_up_requests') and self.suggestions_follow_up_requests:
+            suggestions = self.suggestions_follow_up_requests
+        
+        # Build response with grouped results structure:
+        # - results: List of request results, each with 'id' and 'results' array
+        # - provider: at root level
         response = TranscriptResponse(
-            results=all_results,
+            results=grouped_results,  # Grouped by request id
             provider="YouTube Transcript API",
-            suggestions_follow_up_requests=None  # Can be added from app.yml if needed
-            # preview_data removed: redundant metadata
+            suggestions_follow_up_requests=suggestions
         )
         
         # Add error message if there were errors (but still return results if any)
@@ -725,6 +778,19 @@ class TranscriptSkill(BaseSkill):
             response.error = "; ".join(errors)
             logger.warning(f"Transcript skill execution completed with {len(errors)} error(s): {response.error}")
         
-        logger.info(f"Transcript skill execution completed: {success_count} successful, {failed_count} failed")
+        logger.info(f"Transcript skill execution completed: {len(grouped_results)} request groups, {success_count} successful, {failed_count} failed, {total_results} total results")
         return response
-
+    
+    def _generate_result_hash(self, url: str) -> str:
+        """
+        Generate a hash for a transcript result URL.
+        Used for deduplication and tracking.
+        
+        Args:
+            url: The video URL
+        
+        Returns:
+            Hash string
+        """
+        import hashlib
+        return hashlib.sha256(url.encode()).hexdigest()[:16]

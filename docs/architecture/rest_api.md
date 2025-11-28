@@ -93,7 +93,7 @@ All skills support processing multiple requests in a single API call. This enabl
 
 **Rate Limiting:**
 
-- Maximum 9 parallel requests per skill call
+- Maximum 5 parallel requests per skill call
 - Requests are processed simultaneously when API rate limits allow
 - Each request creates a separate Celery task for parallel execution
 
@@ -291,7 +291,7 @@ All endpoints return standard HTTP status codes:
 ## Rate Limiting
 
 - **Per-user rate limits:** Applied based on your subscription tier
-- **Parallel requests:** Maximum 9 parallel requests per skill call
+- **Parallel requests:** Maximum 5 parallel requests per skill call
 - **Rate limit headers:** Check `X-RateLimit-Remaining` and `X-RateLimit-Reset` headers
 
 When rate limits are exceeded, you'll receive a `429 Too Many Requests` response.
