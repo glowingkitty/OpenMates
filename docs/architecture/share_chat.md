@@ -170,3 +170,228 @@ When someone opens a shared embed link:
 - **Independent of Chats**: Embeds can be shared without sharing the entire chat
 - **No Message Visibility Control**: Embeds are shared as complete entities (no timestamp-based cutoff)
 - **Cross-Chat References**: Shared embeds can be referenced in multiple chats
+
+## Database Schema for Sharing Metadata
+
+### Problem Statement
+
+For social media sharing (OG tags), the server needs to be able to read chat/embed metadata (title, summary) to generate previews. However, the current architecture uses client-side encryption (zero-knowledge), where fields like `encrypted_title` and `encrypted_chat_summary` are encrypted with user-specific keys that the server cannot decrypt.
+
+### Solution: Vault-Encrypted Shared Metadata Fields
+
+Add new vault-encrypted fields to the database schema that are only populated when sharing is enabled. These fields use a **shared vault key** (not user-specific) so the server can decrypt them for OG tag generation without needing user context.
+
+### Database Schema Changes
+
+#### Chats Collection
+
+Add the following fields to the `chats` collection:
+
+- `shared_encrypted_title` (text, nullable)
+  - Vault-encrypted title using shared vault key
+  - Only populated when `share_mode` is enabled
+  - Server can decrypt for OG tag generation
+
+- `shared_encrypted_summary` (text, nullable)
+  - Vault-encrypted chat summary using shared vault key
+  - Only populated when `share_mode` is enabled
+  - Server can decrypt for OG tag generation
+
+#### Embeds Collection
+
+Add the following fields to the `embeds` collection:
+
+- `shared_encrypted_title` (text, nullable)
+  - Vault-encrypted title/description using shared vault key
+  - Only populated when `share_mode` is not 'private'
+  - Server can decrypt for OG tag generation
+
+- `shared_encrypted_description` (text, nullable)
+  - Vault-encrypted description/preview using shared vault key
+  - Only populated when `share_mode` is not 'private'
+  - Server can decrypt for OG tag generation
+
+### Shared Vault Key
+
+- **Key Name**: `shared-content-metadata` (or similar)
+- **Purpose**: Encrypt/decrypt metadata for all shared chats and embeds
+- **Access**: Server has access via Vault (not user-specific)
+- **Benefits**:
+  - Works for public shares (no user context needed)
+  - Fast OG tag generation (no user lookup required)
+  - Simple: one key for all shared metadata
+  - Secure: still vault-encrypted, just not user-specific
+
+### Sharing Flow
+
+1. **User Initiates Sharing**:
+   - Client decrypts `encrypted_title` and `encrypted_chat_summary` using chat key (derived from master key)
+   - Client sends plaintext title and summary to server (only when sharing is enabled)
+
+2. **Server Stores Shared Metadata**:
+   - Server encrypts title and summary with shared vault key (`shared-content-metadata`)
+   - Server stores encrypted values in `shared_encrypted_title` and `shared_encrypted_summary`
+   - Original `encrypted_title` and `encrypted_chat_summary` remain unchanged (zero-knowledge preserved)
+
+3. **OG Tag Generation**:
+   - Server receives request for `/share/chat/{chat-id}` (no user context needed)
+   - Server looks up chat by `chat_id`
+   - Server decrypts `shared_encrypted_title` and `shared_encrypted_summary` using shared vault key
+   - Server generates OG tags with decrypted metadata
+
+4. **Updating Shared Metadata**:
+   - When chat title or summary changes, if chat is shared, update `shared_encrypted_*` fields
+   - Client sends updated plaintext metadata → Server re-encrypts with shared vault key
+
+### Privacy Considerations
+
+- **Zero-Knowledge Maintained**: Original `encrypted_title` and `encrypted_chat_summary` fields remain client-encrypted and unchanged
+- **Shared Metadata Only**: New vault-encrypted fields only exist when sharing is enabled
+- **Clear Separation**: Private metadata (client-encrypted) vs. shared metadata (vault-encrypted)
+- **No User Context Needed**: Shared vault key allows OG tag generation without user lookup
+
+### Benefits
+
+- **Works for Public Shares**: No user context required for OG tag generation
+- **Fast Performance**: Direct decryption without user lookup
+- **Simple Architecture**: One shared key for all shared content
+- **Maintains Privacy**: Original zero-knowledge fields remain untouched
+
+## Social Media Sharing & Hosting Considerations
+
+### Social Media Optimization (OG Tags)
+
+Shared chats and embeds need to be optimized for social media platforms (WhatsApp, iMessage, Twitter, Facebook, etc.) which require Open Graph (OG) meta tags for rich previews. However, URL fragments (hash-based URLs) are not accessible to social media crawlers, requiring a hybrid URL approach.
+
+### URL Structure for Social Sharing
+
+**Public-facing URL (for social crawlers):**
+
+```text
+/share/chat/{chat-id}
+/share/embed/{embed-id}
+```
+
+**Full access URL (with encryption key):**
+
+```text
+/share/chat/{chat-id}#key={encryption-key}
+/share/embed/{embed-id}#key={encryption-key}
+```
+
+**Final redirect URL (main app):**
+
+```text
+/#chat-id={chat-id}&key={encryption-key}
+/#embed-id={embed-id}&key={encryption-key}
+```
+
+### Implementation Requirements
+
+1. **Server Route for OG Tags**: A server route at `/share/chat/{chat-id}` must serve HTML with OG meta tags when accessed without a key fragment
+2. **Client-Side Redirect**: When accessed with a key fragment, the page redirects to the main app URL
+3. **OG Image Selection**: Server selects predefined OG images based on chat category (for chats) or app skill/embed type (for embeds)
+4. **Metadata Endpoint**: Backend API endpoint that returns public metadata (encrypted title, summary) for OG tag generation
+
+### Hosting Migration Considerations
+
+The sharing feature requires server-side routes (`+server.ts` in SvelteKit) to serve OG tags. The implementation must be portable across hosting providers.
+
+#### Current Setup (Vercel)
+
+- Uses `@sveltejs/adapter-vercel` which supports serverless functions
+- Server routes automatically run on Vercel's serverless infrastructure
+- No additional configuration needed
+
+#### Migration Options
+
+##### Option 1: Node.js Adapter (Recommended for VM hosting)
+
+- Switch to `@sveltejs/adapter-node` for traditional Node.js server
+- Runs as a Node.js process on your VM
+- Requires reverse proxy (Nginx) configuration
+- Full control over server environment
+- Works with Docker containers
+
+##### Option 2: Static Adapter + Backend API
+
+- Use `@sveltejs/adapter-static` for frontend
+- Move server routes to FastAPI backend
+- Serve OG tags via FastAPI endpoints
+- Nginx routes `/share/*` to FastAPI, static files to CDN
+- Clean separation of concerns
+
+##### Option 3: Docker Container
+
+- Containerize Node.js app with adapter-node
+- Deploy alongside existing backend services
+- Use docker-compose for orchestration
+- Consistent deployment across environments
+
+### Code Portability Principles
+
+To ensure easy migration between hosting providers:
+
+1. **Avoid Platform-Specific APIs**: Use only standard SvelteKit APIs in server routes
+2. **Abstract Environment Variables**: Use config abstraction layer, not direct `process.env` access
+3. **Keep Server Routes Simple**: Server routes only serve static HTML with OG tags - no heavy operations
+4. **Static Asset Serving**: Predefined OG images are served as static assets, compatible with any hosting provider
+5. **No Platform-Specific Dependencies**: Avoid platform-specific packages (e.g., `@vercel/og`) - use static images instead
+
+### OG Image Strategy
+
+To simplify implementation and reduce complexity, OG images use a predefined set of static images rather than generating them dynamically for each shared chat or embed.
+
+#### For Shared Chats
+
+- **Image Selection**: One predefined OG image per mate category (e.g., `software_development`, `business_development`, `medical_health`, etc.)
+- **Mapping**: Server determines chat category from the chat's metadata and selects the corresponding predefined image
+- **Fallback**: If category is unknown or missing, use a default OG image for general chats
+- **Storage**: Predefined images stored as static assets (e.g., `/static/og-images/category-{category-name}.png`)
+- **Benefits**:
+  - No image generation overhead
+  - Fast serving (static files)
+  - Consistent branding per category
+  - Simple to maintain and update
+
+#### For Shared Embeds
+
+- **Image Selection**: One predefined OG image per app skill or embed type (e.g., `web.read` for app skills, `website` for website embeds, `code` for code embeds, `file` for file embeds, etc.)
+- **Mapping**: Server determines embed type (app skill or content embed type) from embed metadata and selects the corresponding predefined image
+- **Fallback**: If embed type is unknown or missing, use a default OG image for general embeds
+- **Storage**: Predefined images stored as static assets (e.g., `/static/og-images/embed-{embed-type}.png` or `/static/og-images/skill-{app-id}-{skill-id}.png` for app skills)
+- **Benefits**:
+  - No image generation overhead
+  - Fast serving (static files)
+  - Consistent branding per embed type
+  - Simple to maintain and update
+
+#### OG Title and Description
+
+While OG images are predefined, the **OG title and description remain specific to each chat/embed**:
+
+- **Title**: Server decrypts `shared_encrypted_title` using shared vault key and uses it for `og:title`
+- **Description**: Server decrypts `shared_encrypted_summary` (for chats) or `shared_encrypted_description` (for embeds) using shared vault key and uses it for `og:description`
+- **Personalization**: Each shared chat/embed gets unique, descriptive title and description while using category/skill-appropriate images
+
+#### Future Enhancement
+
+This simplified approach can be enhanced later to generate custom OG images per chat/embed if needed, but the predefined approach provides:
+
+- Immediate implementation without complex image generation
+- Fast performance (no generation overhead)
+- Consistent visual branding
+- Easy maintenance
+
+### Access Flow with Social Sharing
+
+1. **Social Crawler Access**: Hits `/share/chat/{chat-id}` → Server returns HTML with OG tags → Crawler extracts preview
+2. **User Click**: Opens `/share/chat/{chat-id}#key={key}` → Client-side JS redirects to `/#chat-id={chat-id}&key={key}`
+3. **Main App**: Loads chat, extracts key from URL fragment, decrypts and displays content
+
+### Privacy Maintained
+
+- Encryption key remains in URL fragment (never sent to server)
+- Server only sees `chat-id` or `embed-id` (non-sensitive identifiers)
+- OG tags generated from encrypted metadata only (no content decryption)
+- Zero-knowledge architecture preserved
