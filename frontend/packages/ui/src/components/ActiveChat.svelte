@@ -1129,10 +1129,19 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         messageInputHasContent = false;
         console.debug("[ActiveChat] Reset liveInputText and messageInputHasContent");
         
-        // Do NOT auto-focus the message input field - user must manually click to focus
-        // This prevents unwanted focus on page load and when creating new chats
-        // Users should explicitly click on the input field when they want to type
-        console.debug("[ActiveChat] Skipping auto-focus - user must manually click input to focus");
+        // Auto-focus the message input field on desktop devices only
+        // On touch devices, users must manually tap to focus to avoid unwanted keyboard popups
+        if (isDesktop() && messageInputFieldRef) {
+            // Use a small delay to ensure the editor is ready after clearing
+            setTimeout(() => {
+                if (messageInputFieldRef) {
+                    messageInputFieldRef.focus();
+                    console.debug("[ActiveChat] Auto-focused message input on desktop after new chat creation");
+                }
+            }, 100);
+        } else {
+            console.debug("[ActiveChat] Skipping auto-focus - touch device or messageInputFieldRef not available");
+        }
         
         // Trigger container scale down
         activeScaling = true;

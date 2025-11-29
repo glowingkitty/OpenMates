@@ -584,7 +584,7 @@ div.clickable-icon {
   }
 }
 
-.icon_rounded.video {
+.icon_rounded.videos {
   background: var(--color-app-videos);
   &::after {
     background-image: url('@openmates/ui/static/icons/videos.svg');

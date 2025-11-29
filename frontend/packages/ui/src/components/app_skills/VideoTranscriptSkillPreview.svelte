@@ -299,7 +299,7 @@
     position: relative;
   }
   
-  .desktop-content .icon_rounded.video {
+  .desktop-content .icon_rounded.videos {
     width: 26px;
     height: 26px;
     flex-shrink: 0;
