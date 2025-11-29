@@ -76,6 +76,16 @@ def _sanitize_schema_for_llm_providers(schema: Dict[str, Any]) -> Dict[str, Any]
     # Create a copy to avoid modifying the original
     sanitized = schema.copy()
     
+    # Convert type list (e.g., type: [string, integer]) to anyOf format
+    # Some LLM providers (Cerebras, Google) don't support list types and require anyOf instead
+    # This must be done BEFORE processing nested structures
+    if isinstance(sanitized.get("type"), list):
+        type_list = sanitized.pop("type")
+        # Convert to anyOf format: anyOf: [{type: "string"}, {type: "integer"}]
+        sanitized["anyOf"] = [{"type": t} for t in type_list if isinstance(t, str)]
+        # After converting to anyOf, we still need to recursively sanitize the anyOf items
+        # This will be handled by the anyOf processing below
+    
     # If this is a property definition with type 'integer' or 'number', remove minimum/maximum
     # Cerebras and other providers reject schemas with minimum/maximum for both integer and number types
     if sanitized.get("type") in ("integer", "number"):

@@ -1079,6 +1079,7 @@ async def handle_main_processing(
                 # (embeds, preview_data, TOON encoding) operates on individual search results.
                 # Note: Skills no longer return preview_data (removed as redundant)
                 response_ignore_fields: Optional[List[str]] = None
+                first_response: Optional[Dict[str, Any]] = None  # Initialize to avoid UnboundLocalError
                 if results and all(isinstance(r, dict) and "results" in r for r in results):
                     first_response = results[0]
                     # Skills no longer provide preview_data - we'll create it in main_processor

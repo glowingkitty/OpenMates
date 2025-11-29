@@ -181,11 +181,18 @@ async def listen_for_ai_chat_streams(app: FastAPI):
                         active_chat_on_device = manager.get_active_chat(user_id_uuid, device_hash)
                         
                         if chat_id_from_payload == active_chat_on_device:
-                            # Check for errors in the stream content
-                            if redis_payload.get("full_content_so_far") and isinstance(redis_payload["full_content_so_far"], str) and "[ERROR" in redis_payload["full_content_so_far"]:
-                                logger.warning(f"AI Stream Listener: Detected error in stream for chat {chat_id_from_payload}. Original error: {redis_payload['full_content_so_far']}")
-                                # Overwrite with a generic key for the frontend
-                                redis_payload["full_content_so_far"] = "chat.an_error_occured.text"
+                            # Check for errors in the stream content (both old "[ERROR:" format and new standardized format)
+                            full_content = redis_payload.get("full_content_so_far", "")
+                            standardized_error = "The AI service encountered an error while processing your request. Please try again in a moment."
+                            if full_content and isinstance(full_content, str):
+                                if "[ERROR" in full_content:
+                                    logger.warning(f"AI Stream Listener: Detected error in stream for chat {chat_id_from_payload}. Original error: {full_content}")
+                                    # Overwrite with a generic key for the frontend
+                                    redis_payload["full_content_so_far"] = "chat.an_error_occured.text"
+                                elif full_content.strip() == standardized_error:
+                                    # New standardized error format - already user-friendly, but convert to translation key for consistency
+                                    logger.warning(f"AI Stream Listener: Detected standardized error in stream for chat {chat_id_from_payload}")
+                                    redis_payload["full_content_so_far"] = "chat.an_error_occured.text"
 
                             # CRITICAL: Send immediately - websocket.send_json() is fast (just queues message)
                             # This ensures chunks are forwarded as soon as they arrive from Redis
@@ -207,10 +214,16 @@ async def listen_for_ai_chat_streams(app: FastAPI):
                                 
                                 # Check for errors in the stream content (same as active chat)
                                 full_content = redis_payload.get("full_content_so_far", "")
-                                if full_content and isinstance(full_content, str) and "[ERROR" in full_content:
-                                    logger.warning(f"AI Stream Listener: Detected error in background stream for chat {chat_id_from_payload}. Original error: {full_content}")
-                                    # Overwrite with a generic key for the frontend
-                                    full_content = "chat.an_error_occured.text"
+                                standardized_error = "The AI service encountered an error while processing your request. Please try again in a moment."
+                                if full_content and isinstance(full_content, str):
+                                    if "[ERROR" in full_content:
+                                        logger.warning(f"AI Stream Listener: Detected error in background stream for chat {chat_id_from_payload}. Original error: {full_content}")
+                                        # Overwrite with a generic key for the frontend
+                                        full_content = "chat.an_error_occured.text"
+                                    elif full_content.strip() == standardized_error:
+                                        # New standardized error format - already user-friendly, but convert to translation key for consistency
+                                        logger.warning(f"AI Stream Listener: Detected standardized error in background stream for chat {chat_id_from_payload}")
+                                        full_content = "chat.an_error_occured.text"
                                 
                                 # Send background completion event with full response
                                 background_completion_payload = {
@@ -561,10 +574,16 @@ async def listen_for_ai_message_persisted_events(app: FastAPI):
                     try:
                         # The content is nested within the message structure
                         text_content = message_content_for_client.get("content", {}).get("content", [{}])[0].get("content", [{}])[0].get("text", "")
-                        if isinstance(text_content, str) and "[ERROR" in text_content:
-                            logger.warning(f"AI Persisted Listener: Detected error in persisted message for chat {redis_payload.get('chat_id')}. Original error: {text_content}")
-                            # Overwrite with a generic key for the frontend
-                            message_content_for_client["content"]["content"][0]["content"][0]["text"] = "chat.an_error_occured.text"
+                        standardized_error = "The AI service encountered an error while processing your request. Please try again in a moment."
+                        if isinstance(text_content, str):
+                            if "[ERROR" in text_content:
+                                logger.warning(f"AI Persisted Listener: Detected error in persisted message for chat {redis_payload.get('chat_id')}. Original error: {text_content}")
+                                # Overwrite with a generic key for the frontend
+                                message_content_for_client["content"]["content"][0]["content"][0]["text"] = "chat.an_error_occured.text"
+                            elif text_content.strip() == standardized_error:
+                                # New standardized error format - already user-friendly, but convert to translation key for consistency
+                                logger.warning(f"AI Persisted Listener: Detected standardized error in persisted message for chat {redis_payload.get('chat_id')}")
+                                message_content_for_client["content"]["content"][0]["content"][0]["text"] = "chat.an_error_occured.text"
                     except (IndexError, KeyError, AttributeError) as e:
                         logger.debug(f"AI Persisted Listener: Could not find text content in message, structure may be different or not an error. Error: {e}")
 

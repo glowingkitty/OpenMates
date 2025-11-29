@@ -760,9 +760,16 @@ async def _consume_main_processing_stream(
     # User interruptions (revoked/soft limit) should still be billed as they consumed resources
     
     # Determine if this is a server error (all providers failed) vs user interruption
+    # Check for both old "[ERROR:" format and new standardized error message format
+    standardized_error_message = "The AI service encountered an error while processing your request. Please try again in a moment."
+    is_old_format_error = aggregated_response.strip().startswith("[ERROR:")
+    is_new_format_error = aggregated_response.strip() == standardized_error_message
+    is_error = is_old_format_error or is_new_format_error
+    
     is_server_error = (
-        aggregated_response.strip().startswith("[ERROR:") and 
-        ("All servers failed" in aggregated_response or "All provider" in aggregated_response or "HTTP error" in aggregated_response)
+        is_error and 
+        (is_old_format_error and ("All servers failed" in aggregated_response or "All provider" in aggregated_response or "HTTP error" in aggregated_response)) or
+        is_new_format_error  # New standardized format always indicates server error
     )
     
     # Bill if:
@@ -771,7 +778,7 @@ async def _consume_main_processing_stream(
     # 3. It's NOT a server error (all providers failed)
     should_bill = (
         usage is not None and 
-        (not aggregated_response.strip().startswith("[ERROR:") or was_revoked_during_stream or was_soft_limited_during_stream) and
+        (not is_error or was_revoked_during_stream or was_soft_limited_during_stream) and
         not is_server_error
     )
     
@@ -781,7 +788,7 @@ async def _consume_main_processing_stream(
         )
     elif usage and is_server_error:
         logger.warning(f"{log_prefix} Skipping billing because all providers failed (server error). Usage metadata was present but will not be billed.")
-    elif usage and aggregated_response.strip().startswith("[ERROR:") and not (was_revoked_during_stream or was_soft_limited_during_stream):
+    elif usage and is_error and not (was_revoked_during_stream or was_soft_limited_during_stream):
         logger.warning(f"{log_prefix} Skipping billing because response contains error messages and was not user-interrupted.")
     elif not usage:
         logger.info(f"{log_prefix} No usage metadata available. Skipping billing.")

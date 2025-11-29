@@ -146,55 +146,63 @@ async def execute_skill_with_multiple_requests(
     extracted_chat_id = arguments.get("_chat_id") or chat_id
     extracted_message_id = arguments.get("_message_id") or message_id
     
-    # Check if arguments contain multiple requests
-    # This is a heuristic - skills should document their multi-request format
-    # Common patterns: list of queries, list of URLs, etc.
+    # Check if arguments contain multiple requests in the standard "requests" array format
+    # Skills that support multiple requests expect them in a single call with {"requests": [...]}
+    # The skill's execute() method handles parallel processing internally
+    if "requests" in arguments and isinstance(arguments["requests"], list):
+        requests_list = arguments["requests"]
+        if len(requests_list) > 1:
+            # Multiple requests in standard format - make ONE call with all requests
+            # The skill will process them in parallel internally
+            # Limit to MAX_PARALLEL_REQUESTS
+            if len(requests_list) > MAX_PARALLEL_REQUESTS:
+                logger.warning(
+                    f"Skill '{app_id}.{skill_id}' has {len(requests_list)} requests, "
+                    f"limiting to {MAX_PARALLEL_REQUESTS} parallel requests"
+                )
+                # Create a copy of arguments with limited requests
+                limited_arguments = arguments.copy()
+                limited_arguments["requests"] = requests_list[:MAX_PARALLEL_REQUESTS]
+                arguments = limited_arguments
+            
+            logger.info(f"Executing skill '{app_id}.{skill_id}' with {len(arguments['requests'])} requests in a single call")
+            # Make ONE call to the skill with all requests - the skill handles parallel processing
+            result = await execute_skill(app_id, skill_id, arguments, timeout, extracted_chat_id, extracted_message_id)
+            # Skills return a response with a "results" array - return as list for consistency
+            return [result]
+        elif len(requests_list) == 1:
+            # Single request in array format - execute normally
+            result = await execute_skill(app_id, skill_id, arguments, timeout, extracted_chat_id, extracted_message_id)
+            return [result]
+        else:
+            # Empty requests array
+            return [{"error": "Empty requests array"}]
+    
+    # Check for legacy pattern: a parameter with a list of values
+    # Example: {"query": ["search1", "search2", "search3"]}
+    # This is for backward compatibility - convert to standard format
     multiple_requests = _extract_multiple_requests(arguments)
     
-    if not multiple_requests or len(multiple_requests) == 1:
-        # Single request - execute normally
-        result = await execute_skill(app_id, skill_id, arguments, timeout, extracted_chat_id, extracted_message_id)
+    if multiple_requests and len(multiple_requests) > 1:
+        # Legacy pattern detected - convert to standard "requests" array format
+        # Limit to MAX_PARALLEL_REQUESTS
+        if len(multiple_requests) > MAX_PARALLEL_REQUESTS:
+            logger.warning(
+                f"Skill '{app_id}.{skill_id}' has {len(multiple_requests)} requests (legacy format), "
+                f"limiting to {MAX_PARALLEL_REQUESTS} parallel requests"
+            )
+            multiple_requests = multiple_requests[:MAX_PARALLEL_REQUESTS]
+        
+        # Convert to standard format: {"requests": [...]}
+        standard_arguments = {"requests": multiple_requests}
+        logger.info(f"Executing skill '{app_id}.{skill_id}' with {len(multiple_requests)} requests in a single call (converted from legacy format)")
+        # Make ONE call to the skill with all requests
+        result = await execute_skill(app_id, skill_id, standard_arguments, timeout, extracted_chat_id, extracted_message_id)
         return [result]
     
-    # Limit to MAX_PARALLEL_REQUESTS
-    if len(multiple_requests) > MAX_PARALLEL_REQUESTS:
-        logger.warning(
-            f"Skill '{app_id}.{skill_id}' has {len(multiple_requests)} requests, "
-            f"limiting to {MAX_PARALLEL_REQUESTS} parallel requests"
-        )
-        multiple_requests = multiple_requests[:MAX_PARALLEL_REQUESTS]
-    
-    # Execute multiple requests in parallel
-    # Each request should have the same chat_id and message_id for usage tracking
-    logger.info(f"Executing {len(multiple_requests)} parallel requests for skill '{app_id}.{skill_id}'")
-    
-    tasks = [
-        execute_skill(
-            app_id, 
-            skill_id, 
-            request_args, 
-            timeout, 
-            extracted_chat_id,  # Same chat_id for all requests in this batch
-            extracted_message_id  # Same message_id for all requests in this batch
-        )
-        for request_args in multiple_requests
-    ]
-    
-    results = await asyncio.gather(*tasks, return_exceptions=True)
-    
-    # Process results and handle exceptions
-    processed_results = []
-    for i, result in enumerate(results):
-        if isinstance(result, Exception):
-            logger.error(f"Request {i+1} of {len(multiple_requests)} failed for skill '{app_id}.{skill_id}': {result}")
-            processed_results.append({
-                "error": str(result),
-                "request_index": i
-            })
-        else:
-            processed_results.append(result)
-    
-    return processed_results
+    # Single request - execute normally
+    result = await execute_skill(app_id, skill_id, arguments, timeout, extracted_chat_id, extracted_message_id)
+    return [result]
 
 
 def _extract_multiple_requests(arguments: Dict[str, Any]) -> Optional[List[Dict[str, Any]]]:

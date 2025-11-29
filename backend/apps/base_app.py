@@ -226,7 +226,28 @@ class BaseApp:
                                 try:
                                     logger.debug(f"Instantiating {request_model.__name__} from request body for skill '{skill_definition.id}'")
                                     request_obj = request_model(**clean_request_body)
-                                    response = await skill_instance.execute(request_obj)
+                                    
+                                    # Check if the execute method expects the Pydantic model or just the requests list
+                                    # Most skills expect requests: List[Dict[str, Any]] directly, not the Pydantic wrapper
+                                    # Reuse the signature we already have
+                                    first_param = None
+                                    for param_name, param in params.items():
+                                        if param_name != 'self' and param_name != 'secrets_manager':
+                                            first_param = param
+                                            break
+                                    
+                                    # If execute() expects a list (requests), extract it from the Pydantic model
+                                    # Otherwise pass the Pydantic model directly
+                                    if first_param and 'List' in str(first_param.annotation):
+                                        # Execute method expects a list - extract requests from Pydantic model
+                                        if hasattr(request_obj, 'requests'):
+                                            response = await skill_instance.execute(request_obj.requests, secrets_manager=None)
+                                        else:
+                                            # Fallback: try to pass the model and let the skill handle it
+                                            response = await skill_instance.execute(request_obj)
+                                    else:
+                                        # Execute method expects the Pydantic model directly
+                                        response = await skill_instance.execute(request_obj)
                                 except Exception as validation_error:
                                     logger.error(f"Validation error for skill '{skill_definition.id}': {validation_error}", exc_info=True)
                                     # Format Pydantic validation errors properly

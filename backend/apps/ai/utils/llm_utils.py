@@ -1076,7 +1076,9 @@ async def call_main_llm_stream(
             last_error = err_msg
             # If this is the last server to try, yield error
             if len(attempted_servers) >= len(servers_to_try):
-                yield f"[ERROR: Model provider for '{server_model_id}' not supported. Available: {', '.join(sorted(PROVIDER_CLIENT_REGISTRY.keys()))}]"
+                # Use standardized user-friendly error message - technical details are logged but not shown to user
+                logger.error(f"{log_prefix} Technical error (not shown to user): Model provider for '{server_model_id}' not supported. Available: {', '.join(sorted(PROVIDER_CLIENT_REGISTRY.keys()))}")
+                yield "The AI service encountered an error while processing your request. Please try again in a moment."
             continue
 
         try:
@@ -1102,7 +1104,9 @@ async def call_main_llm_stream(
                         logger.warning(f"{attempt_log_prefix} Timeout error detected. Will try next server if available.")
                         continue
                     else:
-                        yield f"[ERROR: LLM stream failed - {timeout_err}]"
+                        # Use standardized user-friendly error message - technical details are logged but not shown to user
+                        logger.error(f"{attempt_log_prefix} Technical timeout error (not shown to user): {timeout_err}")
+                        yield "The AI service encountered an error while processing your request. Please try again in a moment."
                         return
             else:
                 error_msg = f"Expected a stream but did not receive one. Response type: {type(raw_chunk_stream)}"
@@ -1110,7 +1114,9 @@ async def call_main_llm_stream(
                 last_error = error_msg
                 # If this is the last server to try, yield error
                 if len(attempted_servers) >= len(servers_to_try):
-                    yield f"[ERROR: Expected a stream but received {type(raw_chunk_stream)}]"
+                    # Use standardized user-friendly error message - technical details are logged but not shown to user
+                    logger.error(f"{attempt_log_prefix} Technical stream error (not shown to user): Expected a stream but received {type(raw_chunk_stream)}")
+                    yield "The AI service encountered an error while processing your request. Please try again in a moment."
                 continue
 
         except (ValueError, IOError) as e:
@@ -1127,7 +1133,9 @@ async def call_main_llm_stream(
             else:
                 # Non-retryable error - fail immediately
                 logger.warning(f"{attempt_log_prefix} Non-retryable error detected. Not trying fallback servers.")
-                yield f"[ERROR: LLM stream failed - {e}]"
+                # Use standardized user-friendly error message - technical details are logged but not shown to user
+                logger.error(f"{attempt_log_prefix} Technical error (not shown to user): {e}")
+                yield "The AI service encountered an error while processing your request. Please try again in a moment."
                 return
                 
         except Exception as e:
@@ -1144,13 +1152,16 @@ async def call_main_llm_stream(
             else:
                 # Non-retryable error - fail immediately
                 logger.warning(f"{attempt_log_prefix} Non-retryable error detected. Not trying fallback servers.")
-                yield f"[ERROR: An unexpected error occurred - {e}]"
+                # Use standardized user-friendly error message - technical details are logged but not shown to user
+                logger.error(f"{attempt_log_prefix} Technical unexpected error (not shown to user): {e}")
+                yield "The AI service encountered an error while processing your request. Please try again in a moment."
                 return
     
     # All servers failed
     error_summary = f"All {len(servers_to_try)} server(s) failed. Attempted servers: {', '.join(attempted_servers)}. Last error: {last_error}"
     logger.error(f"{log_prefix} {error_summary}")
-    yield f"[ERROR: LLM stream failed - All servers failed. Last error: {last_error}]"
+    # Use standardized user-friendly error message - technical details are logged but not shown to user
+    yield "The AI service encountered an error while processing your request. Please try again in a moment."
 
 
 def log_main_llm_stream_aggregated_output(task_id: str, aggregated_response: str, error_message: Optional[str] = None):

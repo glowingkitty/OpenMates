@@ -117,6 +117,9 @@ skills:
           items:
             type: object
             properties:
+              id:
+                type: [string, integer]
+                description: Unique identifier for this request (number or UUID string). Must be unique within a single skill call.
               query:
                 type: string
                 description: Search query string
@@ -141,6 +144,7 @@ skills:
                 enum: ["off", "moderate", "strict"]
                 default: "moderate"
             required:
+              - id
               - query
       required:
         - requests
