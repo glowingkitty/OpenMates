@@ -496,7 +496,8 @@ class TranscriptSkill(BaseSkill):
         req: Dict[str, Any],
         request_id: Any,
         secrets_manager: SecretsManager,
-        proxy_config: Optional[GenericProxyConfig]
+        proxy_config: Optional[GenericProxyConfig],
+        cache_service: Optional[Any] = None  # CacheService type, but avoid circular import
     ) -> Tuple[Any, List[Dict[str, Any]], Optional[str]]:
         """
         Process a single transcript request.
@@ -555,7 +556,8 @@ class TranscriptSkill(BaseSkill):
                         content=transcript_text,
                         content_type="text",
                         task_id=f"transcript_{request_id}_{video_id}",
-                        secrets_manager=secrets_manager
+                        secrets_manager=secrets_manager,
+                        cache_service=cache_service
                     )
                     
                     # Check if sanitization failed or was blocked
@@ -671,13 +673,18 @@ class TranscriptSkill(BaseSkill):
                 error=f"Configuration error: {str(e)}"
             )
         
+        # Initialize cache service for content sanitization (shared across all requests)
+        from backend.core.api.app.services.cache import CacheService
+        cache_service = CacheService()
+        
         # Process all transcript requests in parallel using BaseSkill helper
         results = await self._process_requests_in_parallel(
             requests=validated_requests,
             process_single_request_func=self._process_single_transcript_request,
             logger=logger,
             secrets_manager=secrets_manager,
-            proxy_config=proxy_config
+            proxy_config=proxy_config,
+            cache_service=cache_service
         )
         
         # Group results by request ID using BaseSkill helper

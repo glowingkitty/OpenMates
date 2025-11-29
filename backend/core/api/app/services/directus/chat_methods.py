@@ -562,7 +562,8 @@ class ChatMethods:
         Returns list ordered by created_at descending (newest first).
         
         NOTE: We don't sort by created_at because Directus role permissions may not allow sorting.
-        Instead, we rely on the database index and fetch limit. The client will shuffle suggestions anyway.
+        Instead, we rely on the database index and fetch limit. The client shuffles suggestions
+        to provide variety in display order.
         """
         logger.info(f"Fetching new chat suggestions for user {hashed_user_id}, limit: {limit}")
         params = {

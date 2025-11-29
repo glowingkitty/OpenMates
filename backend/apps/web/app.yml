@@ -113,13 +113,11 @@ skills:
             This parameter is MANDATORY - you MUST always provide a 'requests' array, even for a single search.
             Example for single search: {"requests": [{"id": 1, "query": "Python async"}]}
             Example for multiple searches: {"requests": [{"id": 1, "query": "Python async"}, {"id": 2, "query": "FastAPI best practices"}]}
-            Each object must contain 'id' (unique identifier) and 'query' (search query string), and can include optional parameters (count, country, search_lang, safesearch).
+            Each object must contain 'query' (search query string), and can include optional parameters (id, count, country, search_lang, safesearch).
+            Note: The 'id' field is automatically added to all skills with 'requests' arrays - it's optional for single requests (defaults to 1) and required for multiple requests to match responses.
           items:
             type: object
             properties:
-              id:
-                type: [string, integer]
-                description: Unique identifier for this request (number or UUID string). Must be unique within a single skill call.
               query:
                 type: string
                 description: Search query string
@@ -144,7 +142,6 @@ skills:
                 enum: ["off", "moderate", "strict"]
                 default: "moderate"
             required:
-              - id
               - query
       required:
         - requests

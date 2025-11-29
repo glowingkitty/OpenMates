@@ -183,16 +183,70 @@ async def _async_process_ai_skill_ask_task(
         raise RuntimeError(f"Service initialization failed: {e}")
 
 
-    # --- Load configurations ---
-    base_instructions = load_base_instructions()
+    # --- Load configurations from cache (preloaded by main API server at startup) ---
+    # The main API server preloads these into the shared Dragonfly cache during startup.
+    # Task workers read from cache to avoid disk I/O and ensure consistency across containers.
+    # Fallback to disk loading if cache is empty (e.g., cache expired or server restarted).
+    
+    base_instructions: Dict[str, Any] = {}
+    try:
+        if cache_service_instance:
+            cached_base_instructions = await cache_service_instance.get_base_instructions()
+            if cached_base_instructions:
+                base_instructions = cached_base_instructions
+                logger.info(f"[Task ID: {task_id}] Successfully loaded base_instructions from cache (preloaded by main API server).")
+            else:
+                # Fallback: Cache is empty (expired or server restarted) - load from disk and re-cache
+                logger.warning(f"[Task ID: {task_id}] base_instructions not found in cache. Loading from disk and re-caching...")
+                base_instructions = load_base_instructions()
+                if base_instructions:
+                    try:
+                        await cache_service_instance.set_base_instructions(base_instructions)
+                        logger.info(f"[Task ID: {task_id}] Re-cached base_instructions after disk load.")
+                    except Exception as e:
+                        logger.warning(f"[Task ID: {task_id}] Failed to re-cache base_instructions: {e}")
+        else:
+            # No cache service available, load from disk
+            logger.warning(f"[Task ID: {task_id}] CacheService not available. Loading base_instructions from disk...")
+            base_instructions = load_base_instructions()
+    except Exception as e:
+        logger.error(f"[Task ID: {task_id}] Error loading base_instructions: {e}", exc_info=True)
+        # Fallback to disk loading
+        base_instructions = load_base_instructions()
+    
     if not base_instructions:
-        logger.error(f"[Task ID: {task_id}] Failed to load base_instructions.yml. Aborting task.")
+        logger.error(f"[Task ID: {task_id}] Failed to load base_instructions.yml from cache or disk. Aborting task.")
         # Sync wrapper handles Celery state update
         raise RuntimeError("base_instructions.yml not found or empty.")
 
-    all_mates_configs: List[MateConfig] = load_mates_config()
+    all_mates_configs: List[MateConfig] = []
+    try:
+        if cache_service_instance:
+            cached_mates_configs = await cache_service_instance.get_mates_configs()
+            if cached_mates_configs:
+                all_mates_configs = cached_mates_configs
+                logger.info(f"[Task ID: {task_id}] Successfully loaded {len(all_mates_configs)} mates_configs from cache (preloaded by main API server).")
+            else:
+                # Fallback: Cache is empty (expired or server restarted) - load from disk and re-cache
+                logger.warning(f"[Task ID: {task_id}] mates_configs not found in cache. Loading from disk and re-caching...")
+                all_mates_configs = load_mates_config()
+                if all_mates_configs:
+                    try:
+                        await cache_service_instance.set_mates_configs(all_mates_configs)
+                        logger.info(f"[Task ID: {task_id}] Re-cached {len(all_mates_configs)} mates_configs after disk load.")
+                    except Exception as e:
+                        logger.warning(f"[Task ID: {task_id}] Failed to re-cache mates_configs: {e}")
+        else:
+            # No cache service available, load from disk
+            logger.warning(f"[Task ID: {task_id}] CacheService not available. Loading mates_configs from disk...")
+            all_mates_configs = load_mates_config()
+    except Exception as e:
+        logger.error(f"[Task ID: {task_id}] Error loading mates_configs: {e}", exc_info=True)
+        # Fallback to disk loading
+        all_mates_configs = load_mates_config()
+    
     if not all_mates_configs:
-        logger.critical(f"[Task ID: {task_id}] Failed to load mates_config.yml or it was empty. Aborting task.")
+        logger.critical(f"[Task ID: {task_id}] Failed to load mates_config.yml from cache or disk. Aborting task.")
         # Sync wrapper handles Celery state update
         raise RuntimeError("mates.yml not found, empty, or invalid.")
 

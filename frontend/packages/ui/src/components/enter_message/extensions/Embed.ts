@@ -298,38 +298,48 @@ export const Embed = Node.create<EmbedOptions>({
         wrapper.style.marginBottom = '8px';
       }
       
-      // Create container element for the actual embed content
-      const container = document.createElement('div');
+      // For app-skill-use embeds, mount Svelte component directly into wrapper (no intermediate container)
+      // For other embeds, create container element
+      let container: HTMLElement;
+      let mountTarget: HTMLElement;
       
-      // Use different class for group containers vs individual embeds
-      if (attrs.type && attrs.type.endsWith('-group')) {
-        container.classList.add('embed-group-container');
+      if (attrs.type === 'app-skill-use') {
+        // For app-skill-use, mount directly into wrapper - Svelte component creates unified-embed-preview
+        // NO intermediate container - wrapper is used directly
+        container = wrapper;
+        mountTarget = wrapper;
+        // Ensure wrapper does NOT have embed-unified-container class
+        wrapper.classList.remove('embed-unified-container');
       } else {
-        container.classList.add('embed-unified-container');
+        // Create container element for other embed types
+        container = document.createElement('div');
+        
+        // Use different class for group containers vs individual embeds
+        if (attrs.type && attrs.type.endsWith('-group')) {
+          container.classList.add('embed-group-container');
+        } else {
+          container.classList.add('embed-unified-container');
+          container.setAttribute('data-embed-type', attrs.type);
+          container.setAttribute('data-embed-status', attrs.status);
+        }
+        
+        // For image embeds, add a special class to identify them
+        if (attrs.type === 'image') {
+          container.classList.add('embed-image-non-interactive');
+        }
+        
+        // Add processing/finished visual indicators
+        if (attrs.status === 'processing') {
+          container.classList.add('embed-processing');
+        } else {
+          container.classList.add('embed-finished');
+        }
+        
+        // Add container to wrapper
+        wrapper.appendChild(container);
+        mountTarget = container;
       }
-      
-      // For image embeds, add a special class to identify them
-      if (attrs.type === 'image') {
-        container.classList.add('embed-image-non-interactive');
-      }
-      
-      container.setAttribute('data-embed-type', attrs.type);
-      container.setAttribute('data-embed-status', attrs.status);
-      
-      // Add processing/finished visual indicators
-      if (attrs.status === 'processing') {
-        container.classList.add('embed-processing');
-      } else {
-        container.classList.add('embed-finished');
-      }
-      
-      // Add container to wrapper
-      wrapper.appendChild(container);
 
-      // Create a placeholder content element
-      const content = document.createElement('div');
-      content.classList.add('embed-content');
-      
       // Check if we have a specific renderer for this embed type
       const renderer = getEmbedRenderer(attrs.type);
       
@@ -339,16 +349,18 @@ export const Embed = Node.create<EmbedOptions>({
       
       if (renderer) {
         // Use the dedicated renderer
+        // For app-skill-use: mount directly into wrapper (Svelte component creates unified-embed-preview)
+        // For other types: mount into container (renderers create their own content structure)
         console.log('[Embed] Using renderer for type:', attrs.type);
         
         // If renderer.render is async (returns Promise), handle it
-        const renderResult = renderer.render({ attrs, container, content });
+        const renderResult = renderer.render({ attrs, container, content: mountTarget });
         
         if (renderResult instanceof Promise) {
           // Handle async rendering (e.g., loading from EmbedStore)
           renderResult.catch((error) => {
             console.error('[Embed] Error during async render:', error);
-            content.innerHTML = `<div class="embed-error">Error loading embed: ${error.message}</div>`;
+            mountTarget.innerHTML = `<div class="embed-error">Error loading embed: ${error.message}</div>`;
           });
         }
       } else {
@@ -357,11 +369,10 @@ export const Embed = Node.create<EmbedOptions>({
         throw new Error(`No renderer found for embed type: ${attrs.type}. This indicates a missing renderer registration.`);
       }
       
-      container.appendChild(content);
-      
       // Make the node selectable and add basic interaction
       // BUT: Skip click handlers for image embeds (they should not be clickable)
-      if (attrs.type !== 'image') {
+      // For app-skill-use, the Svelte component handles its own click events
+      if (attrs.type !== 'image' && attrs.type !== 'app-skill-use') {
         container.addEventListener('click', () => {
           if (typeof getPos === 'function') {
             const pos = getPos();
@@ -372,7 +383,8 @@ export const Embed = Node.create<EmbedOptions>({
 
       // Prevent cursor from being positioned before the embed
       // BUT: Skip this for image embeds (they should not be interactive)
-      if (attrs.type !== 'image') {
+      // For app-skill-use, the Svelte component handles its own interactions
+      if (attrs.type !== 'image' && attrs.type !== 'app-skill-use') {
         container.addEventListener('mousedown', (event) => {
           // If clicking at the start of the embed, move cursor to after it
           const rect = container.getBoundingClientRect();
@@ -404,20 +416,32 @@ export const Embed = Node.create<EmbedOptions>({
           if (updatedNode.type.name !== 'embed') return false;
           
           const newAttrs = updatedNode.attrs as EmbedNodeAttributes;
-          container.setAttribute('data-embed-type', newAttrs.type);
-          container.setAttribute('data-embed-status', newAttrs.status);
           
-          // Update classes - use different class for group containers vs individual embeds
-          if (newAttrs.type && newAttrs.type.endsWith('-group')) {
-            container.className = 'embed-group-container';
+          // For app-skill-use, the wrapper is the container (no intermediate container)
+          // For other types, update the container classes
+          if (newAttrs.type === 'app-skill-use') {
+            // No container to update - Svelte component handles its own structure
+            // Just update wrapper attributes if needed
+            wrapper.setAttribute('data-embed-type', newAttrs.type);
+            wrapper.setAttribute('data-embed-status', newAttrs.status);
+            // CRITICAL: Ensure wrapper never has embed-unified-container class
+            wrapper.classList.remove('embed-unified-container');
           } else {
-            container.className = 'embed-unified-container';
-          }
-          
-          if (newAttrs.status === 'processing') {
-            container.classList.add('embed-processing');
-          } else {
-            container.classList.add('embed-finished');
+            // Update classes for non-app-skill-use embeds
+            if (newAttrs.type && newAttrs.type.endsWith('-group')) {
+              container.className = 'embed-group-container';
+            } else {
+              container.className = 'embed-unified-container';
+              container.setAttribute('data-embed-type', newAttrs.type);
+              container.setAttribute('data-embed-status', newAttrs.status);
+            }
+            
+            // Add processing/finished visual indicators
+            if (newAttrs.status === 'processing') {
+              container.classList.add('embed-processing');
+            } else {
+              container.classList.add('embed-finished');
+            }
           }
           
           return true;

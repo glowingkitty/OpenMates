@@ -783,100 +783,194 @@ async def handle_main_processing(
                         # Handle both direct args (query) and nested args (requests[0].query)
                         # CRITICAL: This metadata is included in the embed placeholder so the frontend
                         # can display the query immediately while the skill executes
-                        metadata = {}
                         
-                        # Direct query (simple skill format)
-                        if "query" in parsed_args:
-                            metadata["query"] = parsed_args["query"]
-                            logger.debug(f"{log_prefix} INLINE: Extracted query from direct args: {metadata['query']}")
-                        # Nested query (web search uses requests array)
-                        elif "requests" in parsed_args and isinstance(parsed_args["requests"], list) and len(parsed_args["requests"]) > 0:
-                            first_request = parsed_args["requests"][0]
-                            if isinstance(first_request, dict) and "query" in first_request:
-                                metadata["query"] = first_request["query"]
-                                logger.debug(f"{log_prefix} INLINE: Extracted query from requests[0]: {metadata['query']}")
-                            else:
-                                logger.warning(f"{log_prefix} INLINE: No query found in requests[0]: {first_request}")
-                        else:
-                            logger.warning(f"{log_prefix} INLINE: No query found in parsed_args. Keys: {list(parsed_args.keys())}")
+                        # Check if we have multiple requests
+                        requests_list = parsed_args.get("requests", []) if isinstance(parsed_args, dict) else []
+                        is_multiple_requests = isinstance(requests_list, list) and len(requests_list) > 1
                         
-                        # Direct provider
-                        if "provider" in parsed_args:
-                            metadata["provider"] = parsed_args["provider"]
-                        # Nested provider
-                        elif "requests" in parsed_args and isinstance(parsed_args["requests"], list) and len(parsed_args["requests"]) > 0:
-                            first_request = parsed_args["requests"][0]
-                            if isinstance(first_request, dict) and "provider" in first_request:
-                                metadata["provider"] = first_request["provider"]
-                        
-                        # Default provider based on app_id and skill_id
-                        if skill_id == "search" and "provider" not in metadata:
-                            if app_id == "maps":
-                                metadata["provider"] = "Google Maps"
-                            elif app_id == "web":
-                                metadata["provider"] = "Brave Search"
-                            elif app_id == "news":
-                                metadata["provider"] = "Brave Search"
-                            elif app_id == "videos":
-                                metadata["provider"] = "Brave Search"
-                            else:
-                                metadata["provider"] = "Brave Search"  # Default fallback
-                        
-                        # Log final metadata for debugging
-                        logger.info(
-                            f"{log_prefix} INLINE: Final metadata for placeholder: "
-                            f"query={metadata.get('query', 'MISSING')}, "
-                            f"provider={metadata.get('provider', 'MISSING')}"
-                        )
-                        
-                        # Create the placeholder embed
-                        placeholder_embed_data = await embed_service.create_processing_embed_placeholder(
-                            app_id=app_id,
-                            skill_id=skill_id,
-                            chat_id=request_data.chat_id,
-                            message_id=request_data.message_id,
-                            user_id=request_data.user_id,
-                            user_id_hash=request_data.user_id_hash,
-                            user_vault_key_id=user_vault_key_id,
-                            task_id=task_id,
-                            metadata=metadata,
-                            log_prefix=log_prefix
-                        )
-                        
-                        if placeholder_embed_data:
-                            # Store for later use during skill execution
-                            inline_placeholder_embeds[tool_call_id] = placeholder_embed_data
+                        if is_multiple_requests:
+                            # MULTIPLE REQUESTS: Create one placeholder per request
+                            logger.info(
+                                f"{log_prefix} INLINE: Detected {len(requests_list)} requests, creating placeholders for each"
+                            )
                             
-                            # CRITICAL: Yield the embed reference IMMEDIATELY as a code block chunk
-                            # This ensures the frontend shows "processing" state BEFORE skill execution starts
-                            # The code block format allows the frontend to parse and render the embed placeholder
-                            embed_reference_json = placeholder_embed_data.get("embed_reference")
-                            if embed_reference_json:
-                                embed_code_block = f"```json\n{embed_reference_json}\n```\n\n"
-                                # Yield immediately - this will be picked up by stream consumer and published right away
-                                yield embed_code_block
+                            # Store multiple placeholders - key by request index/id for later matching
+                            placeholder_embeds_list = []
+                            
+                            for request_idx, request in enumerate(requests_list):
+                                if not isinstance(request, dict):
+                                    continue
                                 
-                                logger.info(
-                                    f"{log_prefix} INLINE: Created and yielded processing placeholder code block for '{tool_name}': "
-                                    f"embed_id={placeholder_embed_data.get('embed_id')}, "
-                                    f"code_block_length={len(embed_code_block)}"
+                                # Extract ALL input parameters for this specific request
+                                # This ensures placeholders include all relevant metadata (query, url, languages, etc.)
+                                # not just query and provider
+                                request_metadata = {}
+                                
+                                # Copy all input parameters from the request to metadata
+                                # This preserves all skill-specific parameters (url for videos, query for search, etc.)
+                                for key, value in request.items():
+                                    # Skip internal metadata fields (id is handled separately)
+                                    if key != "id":
+                                        request_metadata[key] = value
+                                
+                                # Provider from request or fallback (for search skills)
+                                if "provider" not in request_metadata and skill_id == "search":
+                                    if app_id == "maps":
+                                        request_metadata["provider"] = "Google Maps"
+                                    else:
+                                        request_metadata["provider"] = "Brave Search"
+                                
+                                # Add request ID for later matching (use id if present, otherwise use index)
+                                request_id = request.get("id", request_idx)
+                                # Normalize to string for consistent matching (handles int/str mismatches)
+                                request_id_normalized = str(request_id)
+                                request_metadata["request_id"] = request_id
+                                
+                                # Log all extracted metadata for debugging
+                                metadata_summary = ", ".join([f"{k}={v}" for k, v in request_metadata.items() if k != "request_id"])
+                                logger.debug(
+                                    f"{log_prefix} INLINE: Creating placeholder {request_idx + 1}/{len(requests_list)}: "
+                                    f"request_id={request_id} (normalized={request_id_normalized}), metadata=[{metadata_summary}]"
                                 )
-                            else:
-                                logger.warning(f"{log_prefix} INLINE: Placeholder embed_data missing embed_reference JSON")
+                                
+                                # Create placeholder for this request
+                                placeholder_embed_data = await embed_service.create_processing_embed_placeholder(
+                                    app_id=app_id,
+                                    skill_id=skill_id,
+                                    chat_id=request_data.chat_id,
+                                    message_id=request_data.message_id,
+                                    user_id=request_data.user_id,
+                                    user_id_hash=request_data.user_id_hash,
+                                    user_vault_key_id=user_vault_key_id,
+                                    task_id=task_id,
+                                    metadata=request_metadata,
+                                    log_prefix=f"{log_prefix}[request_{request_idx}]"
+                                )
+                                
+                                if placeholder_embed_data:
+                                    # Store with normalized request ID for later matching
+                                    placeholder_embed_data["request_id"] = request_id_normalized
+                                    placeholder_embeds_list.append(placeholder_embed_data)
+                                    
+                                    # Yield embed reference immediately
+                                    embed_reference_json = placeholder_embed_data.get("embed_reference")
+                                    if embed_reference_json:
+                                        embed_code_block = f"```json\n{embed_reference_json}\n```\n\n"
+                                        yield embed_code_block
+                                        logger.info(
+                                            f"{log_prefix} INLINE: Created and yielded placeholder {request_idx + 1}/{len(requests_list)}: "
+                                            f"embed_id={placeholder_embed_data.get('embed_id')}, "
+                                            f"request_id={request_id}, "
+                                            f"query={request_metadata.get('query', 'N/A')}"
+                                        )
                             
-                            # Publish "processing" status immediately via Redis event
-                            # This provides additional signal to frontend that skill is processing
-                            await _publish_skill_status(
-                                cache_service=cache_service,
-                                task_id=task_id,
-                                request_data=request_data,
+                            # Store list of placeholders for later matching
+                            if placeholder_embeds_list:
+                                inline_placeholder_embeds[tool_call_id] = {
+                                    "multiple": True,
+                                    "placeholders": placeholder_embeds_list
+                                }
+                                
+                                # Publish "processing" status for all requests
+                                await _publish_skill_status(
+                                    cache_service=cache_service,
+                                    task_id=task_id,
+                                    request_data=request_data,
+                                    app_id=app_id,
+                                    skill_id=skill_id,
+                                    status="processing",
+                                    preview_data={"request_count": len(placeholder_embeds_list)}
+                                )
+                        else:
+                            # SINGLE REQUEST: Extract ALL input parameters
+                            # This ensures placeholders include all relevant metadata (query, url, languages, etc.)
+                            # not just query and provider
+                            metadata = {}
+                            
+                            # If we have a requests array with one item, extract all parameters from that
+                            if requests_list and len(requests_list) > 0:
+                                first_request = requests_list[0]
+                                if isinstance(first_request, dict):
+                                    # Copy all input parameters from the first request
+                                    for key, value in first_request.items():
+                                        if key != "id":  # Skip id field
+                                            metadata[key] = value
+                                    logger.debug(f"{log_prefix} INLINE: Extracted metadata from requests[0]: {list(metadata.keys())}")
+                            else:
+                                # Direct parameters (simple skill format without requests array)
+                                # Copy all input parameters from parsed_args
+                                for key, value in parsed_args.items():
+                                    if key not in ['requests']:  # Skip requests array if present
+                                        metadata[key] = value
+                                logger.debug(f"{log_prefix} INLINE: Extracted metadata from direct args: {list(metadata.keys())}")
+                            
+                            # Provider fallback for search skills
+                            if "provider" not in metadata and skill_id == "search":
+                                if app_id == "maps":
+                                    metadata["provider"] = "Google Maps"
+                                elif app_id == "web":
+                                    metadata["provider"] = "Brave Search"
+                                elif app_id == "news":
+                                    metadata["provider"] = "Brave Search"
+                                elif app_id == "videos":
+                                    metadata["provider"] = "Brave Search"
+                                else:
+                                    metadata["provider"] = "Brave Search"  # Default fallback
+                            
+                            # Log final metadata for debugging
+                            metadata_summary = ", ".join([f"{k}={v}" for k, v in metadata.items()])
+                            logger.info(
+                                f"{log_prefix} INLINE: Final metadata for placeholder: [{metadata_summary}]"
+                            )
+                            
+                            # Create single placeholder
+                            placeholder_embed_data = await embed_service.create_processing_embed_placeholder(
                                 app_id=app_id,
                                 skill_id=skill_id,
-                                status="processing",
-                                preview_data=metadata  # Include query/provider in preview
+                                chat_id=request_data.chat_id,
+                                message_id=request_data.message_id,
+                                user_id=request_data.user_id,
+                                user_id_hash=request_data.user_id_hash,
+                                user_vault_key_id=user_vault_key_id,
+                                task_id=task_id,
+                                metadata=metadata,
+                                log_prefix=log_prefix
                             )
-                        else:
-                            logger.warning(f"{log_prefix} INLINE: Failed to create placeholder embed for '{tool_name}'")
+                            
+                            if placeholder_embed_data:
+                                # Store for later use during skill execution
+                                inline_placeholder_embeds[tool_call_id] = placeholder_embed_data
+                                
+                                # CRITICAL: Yield the embed reference IMMEDIATELY as a code block chunk
+                                # This ensures the frontend shows "processing" state BEFORE skill execution starts
+                                # The code block format allows the frontend to parse and render the embed placeholder
+                                embed_reference_json = placeholder_embed_data.get("embed_reference")
+                                if embed_reference_json:
+                                    embed_code_block = f"```json\n{embed_reference_json}\n```\n\n"
+                                    # Yield immediately - this will be picked up by stream consumer and published right away
+                                    yield embed_code_block
+                                    
+                                    logger.info(
+                                        f"{log_prefix} INLINE: Created and yielded processing placeholder code block for '{tool_name}': "
+                                        f"embed_id={placeholder_embed_data.get('embed_id')}, "
+                                        f"code_block_length={len(embed_code_block)}"
+                                    )
+                                else:
+                                    logger.warning(f"{log_prefix} INLINE: Placeholder embed_data missing embed_reference JSON")
+                                
+                                # Publish "processing" status immediately via Redis event
+                                # This provides additional signal to frontend that skill is processing
+                                await _publish_skill_status(
+                                    cache_service=cache_service,
+                                    task_id=task_id,
+                                    request_data=request_data,
+                                    app_id=app_id,
+                                    skill_id=skill_id,
+                                    status="processing",
+                                    preview_data=metadata  # Include query/provider in preview
+                                )
+                            else:
+                                logger.warning(f"{log_prefix} INLINE: Failed to create placeholder embed for '{tool_name}'")
                 except Exception as e:
                     # Don't fail the stream processing if inline placeholder creation fails
                     logger.error(f"{log_prefix} INLINE: Error creating placeholder during stream: {e}", exc_info=True)
@@ -1075,22 +1169,53 @@ async def handle_main_processing(
 
                 # Normalize skill responses that wrap actual results in a "results" field (e.g., web search)
                 # execute_skill_with_multiple_requests returns one entry per request, but search skills return
-                # a response object with its own "results" array. Flatten those arrays so downstream logic
-                # (embeds, preview_data, TOON encoding) operates on individual search results.
-                # Note: Skills no longer return preview_data (removed as redundant)
+                # a response object with its own "results" array.
+                # 
+                # CRITICAL: Preserve grouped structure for embed creation (multiple requests = multiple embeds)
+                # Flatten only for LLM inference (token efficiency)
                 response_ignore_fields: Optional[List[str]] = None
                 first_response: Optional[Dict[str, Any]] = None  # Initialize to avoid UnboundLocalError
+                grouped_results: Optional[List[Dict[str, Any]]] = None  # Preserve grouping for embed creation
+                
                 if results and all(isinstance(r, dict) and "results" in r for r in results):
                     first_response = results[0]
                     # Skills no longer provide preview_data - we'll create it in main_processor
                     response_ignore_fields = first_response.get("ignore_fields_for_inference")
 
+                    # PRESERVE GROUPING: Extract the grouped structure from the response
+                    # execute_skill_with_multiple_requests returns [response_dict] where response_dict is:
+                    # {"results": [{"id": 1, "results": [...]}, {"id": 2, "results": [...]}, ...], "provider": "...", ...}
+                    # We need to extract the "results" array from the response dict to get the grouped structure
+                    response_results_array = first_response.get("results", [])
+                    
+                    # Check if response_results_array contains the grouped structure (each item has "id" and "results")
+                    if (isinstance(response_results_array, list) and 
+                        len(response_results_array) > 0 and 
+                        all(isinstance(r, dict) and "id" in r and "results" in r for r in response_results_array)):
+                        # This is the grouped structure: [{"id": 1, "results": [...]}, {"id": 2, "results": [...]}, ...]
+                        grouped_results = response_results_array
+                        logger.debug(f"{log_prefix} Detected grouped results structure with {len(grouped_results)} request groups")
+                    else:
+                        # Fallback: Not grouped, treat as single request
+                        grouped_results = None
+                        logger.debug(f"{log_prefix} Results are not in grouped structure format")
+                    
+                    # Flatten only for LLM inference (token efficiency)
                     flattened_results: List[Dict[str, Any]] = []
                     for response in results:
                         response_results = response.get("results")
                         if isinstance(response_results, list):
-                            flattened_results.extend(response_results)
-                    results = flattened_results
+                            # Check if response_results is grouped structure or flat list
+                            if response_results and isinstance(response_results[0], dict) and "id" in response_results[0] and "results" in response_results[0]:
+                                # Grouped structure: extract results from each group
+                                for group in response_results:
+                                    group_results = group.get("results", [])
+                                    if isinstance(group_results, list):
+                                        flattened_results.extend(group_results)
+                            else:
+                                # Flat list: use directly
+                                flattened_results.extend(response_results)
+                    results = flattened_results  # Use flattened for LLM inference
                 
                 # Extract ignore_fields_for_inference from skill results (if present)
                 # This is a skill-defined list of fields to exclude from LLM inference
@@ -1256,10 +1381,11 @@ async def handle_main_processing(
                     log_prefix=log_prefix
                 )
                 
-                # STEP 3: Update placeholder embed with actual results
-                # This updates the existing placeholder (created before skill execution) with real data
-                updated_embed_data = None
-                if placeholder_embed_data and cache_service and user_vault_key_id and directus_service:
+                # STEP 3: Create embeds from results
+                # For multiple requests: Create one app_skill_use embed per request group
+                # For single request: Update the existing placeholder embed
+                updated_embed_data_list: List[Dict[str, Any]] = []
+                if cache_service and user_vault_key_id and directus_service:
                     try:
                         from backend.core.api.app.services.embed_service import EmbedService
                         from backend.core.api.app.utils.encryption import EncryptionService
@@ -1271,31 +1397,312 @@ async def handle_main_processing(
                             encryption_service=encryption_service
                         )
 
-                        # Update the placeholder embed with results
-                        updated_embed_data = await embed_service.update_embed_with_results(
-                            embed_id=placeholder_embed_data.get('embed_id'),
-                            app_id=app_id,
-                            skill_id=skill_id,
-                            results=results,
-                            chat_id=request_data.chat_id,
-                            message_id=request_data.message_id,
-                            user_id=request_data.user_id,
-                            user_id_hash=request_data.user_id_hash,
-                            user_vault_key_id=user_vault_key_id,
-                            task_id=task_id,
-                            log_prefix=log_prefix
+                        # Check if we have grouped results (multiple requests)
+                        # Grouped results structure: [{"id": 1, "results": [...]}, {"id": 2, "results": [...]}, ...]
+                        is_multiple_requests = (
+                            grouped_results is not None and 
+                            len(grouped_results) > 1 and
+                            all(isinstance(r, dict) and "id" in r and "results" in r for r in grouped_results)
                         )
-
-                        if updated_embed_data:
+                        
+                        if is_multiple_requests:
+                            # Multiple requests: Update existing placeholders or create new embeds
                             logger.info(
-                                f"{log_prefix} Updated embed {updated_embed_data.get('embed_id')} with results: "
-                                f"child_count={len(updated_embed_data.get('child_embed_ids', []))}, "
-                                f"status={updated_embed_data.get('status')}"
+                                f"{log_prefix} Processing {len(grouped_results)} separate embeds for multiple requests. "
+                                f"Grouped results structure: {[{'id': r.get('id'), 'result_count': len(r.get('results', []))} for r in grouped_results]}"
                             )
+                            
+                            # Check if we have multiple placeholders stored (from inline creation)
+                            placeholder_embeds_map = {}
+                            if placeholder_embed_data and isinstance(placeholder_embed_data, dict) and placeholder_embed_data.get("multiple"):
+                                # We have multiple placeholders - map them by request_id
+                                # Normalize request_id types (int/str) for reliable matching
+                                for placeholder in placeholder_embed_data.get("placeholders", []):
+                                    placeholder_request_id = placeholder.get("request_id")
+                                    if placeholder_request_id is not None:
+                                        # Normalize to string for consistent matching (handles int/str mismatches)
+                                        placeholder_request_id_key = str(placeholder_request_id)
+                                        placeholder_embeds_map[placeholder_request_id_key] = placeholder
+                                logger.info(
+                                    f"{log_prefix} Found {len(placeholder_embeds_map)} placeholders to update for multiple requests. "
+                                    f"Request IDs: {list(placeholder_embeds_map.keys())}"
+                                )
+                            elif placeholder_embed_data and isinstance(placeholder_embed_data, dict) and "embed_id" in placeholder_embed_data:
+                                # Fallback: Single placeholder was created (old behavior)
+                                # This shouldn't happen with the new code, but handle gracefully
+                                logger.warning(
+                                    f"{log_prefix} Multiple requests detected but only single placeholder found. "
+                                    f"This indicates the placeholder creation logic didn't detect multiple requests. "
+                                    f"Creating new embeds for each request."
+                                )
+                            
+                            # Extract request metadata from parsed_args for each request
+                            requests_list = parsed_args.get("requests", []) if isinstance(parsed_args, dict) else []
+                            request_metadata_map = {}
+                            for req in requests_list:
+                                if isinstance(req, dict) and "id" in req:
+                                    request_metadata_map[req["id"]] = req
+                            
+                            for grouped_result in grouped_results:
+                                request_id = grouped_result.get("id")
+                                request_results = grouped_result.get("results", [])
+                                
+                                # Normalize request_id to string for consistent matching with placeholders
+                                request_id_key = str(request_id) if request_id is not None else None
+                                
+                                logger.debug(
+                                    f"{log_prefix} Processing grouped result: request_id={request_id} (key={request_id_key}), "
+                                    f"result_count={len(request_results)}"
+                                )
+                                
+                                # Get request metadata (query, url, etc.) for this specific request
+                                # Try both original request_id and normalized key
+                                request_metadata = request_metadata_map.get(request_id, request_metadata_map.get(request_id_key, {}))
+                                
+                                # Include provider from first_response if available
+                                request_metadata_with_provider = request_metadata.copy()
+                                if first_response and isinstance(first_response, dict) and "provider" in first_response:
+                                    request_metadata_with_provider["provider"] = first_response["provider"]
+                                
+                                # Check if this request failed (no results)
+                                if not request_results:
+                                    # Request failed - update placeholder to error or create error embed
+                                    error_message = grouped_result.get("error") or "Request failed with no results"
+                                    logger.warning(
+                                        f"{log_prefix} Request {request_id} failed: {error_message}."
+                                    )
+                                    
+                                    # Check if we have a placeholder for this request (use normalized key)
+                                    matching_placeholder = placeholder_embeds_map.get(request_id_key) if request_id_key else None
+                                    if matching_placeholder:
+                                        # Update existing placeholder to error status
+                                        placeholder_embed_id = matching_placeholder.get("embed_id")
+                                        logger.info(
+                                            f"{log_prefix} Updating placeholder {placeholder_embed_id} to error status for failed request {request_id}"
+                                        )
+                                        try:
+                                            updated_error_embed = await embed_service.update_embed_status_to_error(
+                                                embed_id=placeholder_embed_id,
+                                                app_id=app_id,
+                                                skill_id=skill_id,
+                                                error_message=error_message,
+                                                chat_id=request_data.chat_id,
+                                                message_id=request_data.message_id,
+                                                user_id=request_data.user_id,
+                                                user_id_hash=request_data.user_id_hash,
+                                                user_vault_key_id=user_vault_key_id,
+                                                task_id=task_id,
+                                                log_prefix=f"{log_prefix}[request_id={request_id}]"
+                                            )
+                                            
+                                            if updated_error_embed:
+                                                # Generate embed_reference for the error embed
+                                                updated_error_embed["embed_reference"] = json.dumps({
+                                                    "type": "app_skill_use",
+                                                    "embed_id": placeholder_embed_id
+                                                })
+                                                updated_error_embed["request_id"] = request_id
+                                                updated_error_embed["request_metadata"] = request_metadata
+                                                updated_embed_data_list.append(updated_error_embed)
+                                                logger.info(
+                                                    f"{log_prefix} Updated placeholder {placeholder_embed_id} to error for request {request_id}"
+                                                )
+                                        except Exception as error_update_error:
+                                            logger.warning(
+                                                f"{log_prefix} Failed to update placeholder to error status: {error_update_error}"
+                                            )
+                                    else:
+                                        # No placeholder found - create new error embed
+                                        logger.warning(
+                                            f"{log_prefix} No placeholder found for request {request_id}, creating new error embed"
+                                        )
+                                        error_embed_data = await embed_service.create_processing_embed_placeholder(
+                                            app_id=app_id,
+                                            skill_id=skill_id,
+                                            chat_id=request_data.chat_id,
+                                            message_id=request_data.message_id,
+                                            user_id=request_data.user_id,
+                                            user_id_hash=request_data.user_id_hash,
+                                            user_vault_key_id=user_vault_key_id,
+                                            task_id=task_id,
+                                            metadata=request_metadata_with_provider,
+                                            log_prefix=f"{log_prefix}[request_id={request_id}]"
+                                        )
+                                        
+                                        if error_embed_data:
+                                            error_embed_id = error_embed_data.get("embed_id")
+                                            updated_error_embed = await embed_service.update_embed_status_to_error(
+                                                embed_id=error_embed_id,
+                                                app_id=app_id,
+                                                skill_id=skill_id,
+                                                error_message=error_message,
+                                                chat_id=request_data.chat_id,
+                                                message_id=request_data.message_id,
+                                                user_id=request_data.user_id,
+                                                user_id_hash=request_data.user_id_hash,
+                                                user_vault_key_id=user_vault_key_id,
+                                                task_id=task_id,
+                                                log_prefix=f"{log_prefix}[request_id={request_id}]"
+                                            )
+                                            
+                                            if updated_error_embed:
+                                                updated_error_embed["request_id"] = request_id
+                                                updated_error_embed["request_metadata"] = request_metadata
+                                                updated_embed_data_list.append(updated_error_embed)
+                                    continue
+                                
+                                # Request succeeded - update placeholder or create new embed (use normalized key)
+                                matching_placeholder = placeholder_embeds_map.get(request_id_key) if request_id_key else None
+                                if matching_placeholder:
+                                    # Update existing placeholder with results
+                                    placeholder_embed_id = matching_placeholder.get("embed_id")
+                                    logger.info(
+                                        f"{log_prefix} Updating placeholder {placeholder_embed_id} with results for request {request_id}"
+                                    )
+                                    
+                                    updated_embed_data = await embed_service.update_embed_with_results(
+                                        embed_id=placeholder_embed_id,
+                                        app_id=app_id,
+                                        skill_id=skill_id,
+                                        results=request_results,
+                                        chat_id=request_data.chat_id,
+                                        message_id=request_data.message_id,
+                                        user_id=request_data.user_id,
+                                        user_id_hash=request_data.user_id_hash,
+                                        user_vault_key_id=user_vault_key_id,
+                                        task_id=task_id,
+                                        log_prefix=f"{log_prefix}[request_id={request_id}]",
+                                        request_metadata=request_metadata_with_provider
+                                    )
+                                    
+                                    if updated_embed_data:
+                                        # Generate embed_reference for the updated embed (same embed_id, so same reference)
+                                        updated_embed_data["embed_reference"] = json.dumps({
+                                            "type": "app_skill_use",
+                                            "embed_id": placeholder_embed_id
+                                        })
+                                        updated_embed_data["request_id"] = request_id
+                                        updated_embed_data["request_metadata"] = request_metadata
+                                        updated_embed_data_list.append(updated_embed_data)
+                                        logger.info(
+                                            f"{log_prefix} Updated placeholder {placeholder_embed_id} with results for request {request_id}: "
+                                            f"child_count={len(updated_embed_data.get('child_embed_ids', []))}"
+                                        )
+                                    else:
+                                        logger.warning(f"{log_prefix} Failed to update placeholder for request {request_id}")
+                                else:
+                                    # No placeholder found - create new embed
+                                    logger.info(
+                                        f"{log_prefix} No placeholder found for request {request_id}, creating new embed"
+                                    )
+                                    embed_data = await embed_service.create_embeds_from_skill_results(
+                                        app_id=app_id,
+                                        skill_id=skill_id,
+                                        results=request_results,
+                                        chat_id=request_data.chat_id,
+                                        message_id=request_data.message_id,
+                                        user_id=request_data.user_id,
+                                        user_id_hash=request_data.user_id_hash,
+                                        user_vault_key_id=user_vault_key_id,
+                                        task_id=task_id,
+                                        log_prefix=f"{log_prefix}[request_id={request_id}]",
+                                        request_metadata=request_metadata_with_provider
+                                    )
+                                    
+                                    if embed_data:
+                                        embed_data["request_id"] = request_id
+                                        embed_data["request_metadata"] = request_metadata
+                                        updated_embed_data_list.append(embed_data)
+                                        logger.info(
+                                            f"{log_prefix} Created embed {embed_data.get('parent_embed_id')} for request {request_id}: "
+                                            f"child_count={len(embed_data.get('child_embed_ids', []))}"
+                                        )
+                                    else:
+                                        logger.warning(f"{log_prefix} Failed to create embed for request {request_id}")
+                            
+                            # Stream all embed references as separate JSON code blocks
+                            for embed_data in updated_embed_data_list:
+                                embed_reference = embed_data.get("embed_reference")
+                                if embed_reference:
+                                    embed_code_block = f"```json\n{embed_reference}\n```\n\n"
+                                    yield embed_code_block
+                                    logger.debug(f"{log_prefix} Streamed embed reference for request {embed_data.get('request_id')}")
                         else:
-                            logger.warning(f"{log_prefix} Failed to update embed for '{tool_name}'")
+                            # Single request: Update the existing placeholder embed
+                            if placeholder_embed_data:
+                                # Extract metadata from parsed_args for single request
+                                # This preserves input parameters (query, url, provider, etc.) in the embed
+                                single_request_metadata = {}
+                                if parsed_args and isinstance(parsed_args, dict):
+                                    # Copy all input parameters except internal fields
+                                    for key, value in parsed_args.items():
+                                        if key not in ['requests']:  # Skip requests array for single request
+                                            single_request_metadata[key] = value
+                                    
+                                    # If we have a requests array with one item, extract from that
+                                    if "requests" in parsed_args and isinstance(parsed_args["requests"], list) and len(parsed_args["requests"]) > 0:
+                                        first_request = parsed_args["requests"][0]
+                                        if isinstance(first_request, dict):
+                                            # Copy all fields from the first request
+                                            for key, value in first_request.items():
+                                                if key != "id":  # Skip id field
+                                                    single_request_metadata[key] = value
+                                
+                                # Add provider fallback for search skills
+                                if "provider" not in single_request_metadata and skill_id == "search":
+                                    if app_id == "maps":
+                                        single_request_metadata["provider"] = "Google Maps"
+                                    else:
+                                        single_request_metadata["provider"] = "Brave Search"
+                                
+                                updated_embed_data = await embed_service.update_embed_with_results(
+                                    embed_id=placeholder_embed_data.get('embed_id'),
+                                    app_id=app_id,
+                                    skill_id=skill_id,
+                                    results=results,
+                                    chat_id=request_data.chat_id,
+                                    message_id=request_data.message_id,
+                                    user_id=request_data.user_id,
+                                    user_id_hash=request_data.user_id_hash,
+                                    user_vault_key_id=user_vault_key_id,
+                                    task_id=task_id,
+                                    log_prefix=log_prefix,
+                                    request_metadata=single_request_metadata
+                                )
+
+                                if updated_embed_data:
+                                    updated_embed_data_list.append(updated_embed_data)
+                                    logger.info(
+                                        f"{log_prefix} Updated embed {updated_embed_data.get('embed_id')} with results: "
+                                        f"child_count={len(updated_embed_data.get('child_embed_ids', []))}, "
+                                        f"status={updated_embed_data.get('status')}"
+                                    )
+                                else:
+                                    logger.warning(f"{log_prefix} Failed to update embed for '{tool_name}'")
+                            else:
+                                # No placeholder, create new embed
+                                embed_data = await embed_service.create_embeds_from_skill_results(
+                                    app_id=app_id,
+                                    skill_id=skill_id,
+                                    results=results,
+                                    chat_id=request_data.chat_id,
+                                    message_id=request_data.message_id,
+                                    user_id=request_data.user_id,
+                                    user_id_hash=request_data.user_id_hash,
+                                    user_vault_key_id=user_vault_key_id,
+                                    task_id=task_id,
+                                    log_prefix=log_prefix
+                                )
+                                
+                                if embed_data:
+                                    updated_embed_data_list.append(embed_data)
+                                    # Stream embed reference
+                                    embed_reference = embed_data.get("embed_reference")
+                                    if embed_reference:
+                                        embed_code_block = f"```json\n{embed_reference}\n```\n\n"
+                                        yield embed_code_block
                     except Exception as e:
-                        logger.error(f"{log_prefix} Error updating embed for '{tool_name}': {e}", exc_info=True)
+                        logger.error(f"{log_prefix} Error creating/updating embeds for '{tool_name}': {e}", exc_info=True)
                         # Continue without embed update - don't fail the entire skill execution
 
                 # Publish "finished" status with preview data
@@ -1310,50 +1717,78 @@ async def handle_main_processing(
                     preview_data=preview_data if preview_data else None
                 )
 
-                # Publish embed_update event to notify frontend that embed has been updated
-                if updated_embed_data and placeholder_embed_data and cache_service:
+                # Publish embed_update events to notify frontend that embeds have been updated
+                # For multiple requests, publish one event per embed
+                if updated_embed_data_list and cache_service:
                     try:
-                        embed_update_payload = {
-                            "type": "embed_update",
-                            "event_for_client": "embed_update",
-                            "embed_id": placeholder_embed_data.get("embed_id"),
-                            "chat_id": request_data.chat_id,
-                            "message_id": request_data.message_id,
-                            "user_id_uuid": request_data.user_id,
-                            "user_id_hash": request_data.user_id_hash,
-                            "status": "finished",
-                            "child_embed_ids": updated_embed_data.get("child_embed_ids", [])
-                        }
-
-                        # Publish to Redis for WebSocket delivery
                         client = await cache_service.client
                         if client:
                             import json as json_lib
                             channel_key = f"websocket:user:{request_data.user_id_hash}"
-                            await client.publish(channel_key, json_lib.dumps(embed_update_payload))
-                            logger.debug(f"{log_prefix} Published embed_update event for embed {placeholder_embed_data.get('embed_id')}")
+                            
+                            for embed_data in updated_embed_data_list:
+                                embed_id = embed_data.get("parent_embed_id") or embed_data.get("embed_id")
+                                if not embed_id:
+                                    continue
+                                
+                                embed_update_payload = {
+                                    "type": "embed_update",
+                                    "event_for_client": "embed_update",
+                                    "embed_id": embed_id,
+                                    "chat_id": request_data.chat_id,
+                                    "message_id": request_data.message_id,
+                                    "user_id_uuid": request_data.user_id,
+                                    "user_id_hash": request_data.user_id_hash,
+                                    "status": "finished",
+                                    "child_embed_ids": embed_data.get("child_embed_ids", [])
+                                }
+
+                                await client.publish(channel_key, json_lib.dumps(embed_update_payload))
+                                logger.debug(f"{log_prefix} Published embed_update event for embed {embed_id}")
                         else:
-                            logger.warning(f"{log_prefix} Redis client not available, skipping embed_update event")
+                            logger.warning(f"{log_prefix} Redis client not available, skipping embed_update events")
                     except Exception as e:
-                        logger.error(f"{log_prefix} Error publishing embed_update event: {e}", exc_info=True)
+                        logger.error(f"{log_prefix} Error publishing embed_update events: {e}", exc_info=True)
                         # Don't fail if event publish fails
                 
                 # Track tool call info for code block generation
                 # NOTE: With new embeds architecture, embed references are streamed as chunks
                 # We still track tool_call_info for TOON code block (for backward compatibility and follow-up questions)
+                # For multiple requests, track all embed references
+                embed_references = []
+                embed_ids = []
+                if updated_embed_data_list:
+                    for embed_data in updated_embed_data_list:
+                        embed_ref = embed_data.get("embed_reference")
+                        embed_id = embed_data.get("parent_embed_id") or embed_data.get("embed_id")
+                        if embed_ref:
+                            embed_references.append(embed_ref)
+                        if embed_id:
+                            embed_ids.append(embed_id)
+                elif placeholder_embed_data:
+                    # Fallback to placeholder for single request
+                    embed_ref = placeholder_embed_data.get("embed_reference")
+                    embed_id = placeholder_embed_data.get("embed_id")
+                    if embed_ref:
+                        embed_references.append(embed_ref)
+                    if embed_id:
+                        embed_ids.append(embed_id)
+                
                 tool_call_info = {
                     "app_id": app_id,
                     "skill_id": skill_id,
                     "input": parsed_args,  # Tool input arguments
                     "preview_data": preview_data,  # Metadata + results_toon (contains full TOON-encoded results)
                     "ignore_fields_for_inference": ignore_fields_for_inference,  # Fields excluded from LLM inference
-                    "embed_reference": placeholder_embed_data.get("embed_reference") if placeholder_embed_data else None,  # Embed reference JSON (already streamed)
-                    "embed_id": placeholder_embed_data.get("embed_id") if placeholder_embed_data else None  # Embed ID for tracking
+                    "embed_reference": embed_references[0] if embed_references else None,  # First embed reference (for backward compatibility)
+                    "embed_references": embed_references if len(embed_references) > 1 else None,  # All embed references (for multiple requests)
+                    "embed_id": embed_ids[0] if embed_ids else None,  # First embed ID (for backward compatibility)
+                    "embed_ids": embed_ids if len(embed_ids) > 1 else None  # All embed IDs (for multiple requests)
                 }
                 tool_calls_info.append(tool_call_info)
                 logger.debug(
                     f"{log_prefix} Tracked tool call info for '{tool_name}': "
-                    f"app_id={app_id}, skill_id={skill_id}, embed_id={placeholder_embed_data.get('embed_id') if placeholder_embed_data else 'none'}, "
+                    f"app_id={app_id}, skill_id={skill_id}, embed_count={len(embed_ids)}, "
                     f"results_toon_length={len(preview_data.get('results_toon', ''))}"
                 )
                 

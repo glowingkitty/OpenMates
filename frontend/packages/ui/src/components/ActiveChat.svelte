@@ -1129,19 +1129,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         messageInputHasContent = false;
         console.debug("[ActiveChat] Reset liveInputText and messageInputHasContent");
         
-        // Focus the message input field on desktop devices only
-        // On touch devices (iPhone/iPad), programmatic focus doesn't trigger the virtual keyboard
-        // and can cause unwanted layout shifts. Users expect to manually tap the input on mobile.
-        if (isDesktop()) {
-            setTimeout(() => {
-                if (messageInputFieldRef?.focus) {
-                    messageInputFieldRef.focus();
-                    console.debug("[ActiveChat] Focused message input after new chat creation (desktop)");
-                }
-            }, 100); // Small delay to ensure DOM is ready
-        } else {
-            console.debug("[ActiveChat] Skipping auto-focus on touch device - user will tap input manually");
-        }
+        // Do NOT auto-focus the message input field - user must manually click to focus
+        // This prevents unwanted focus on page load and when creating new chats
+        // Users should explicitly click on the input field when they want to type
+        console.debug("[ActiveChat] Skipping auto-focus - user must manually click input to focus");
         
         // Trigger container scale down
         activeScaling = true;

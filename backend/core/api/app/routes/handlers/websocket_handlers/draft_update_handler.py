@@ -106,13 +106,18 @@ async def handle_update_draft(
         logger.error(f"Failed to update user draft in cache for user {user_id}, chat {chat_id}.")
         # Log error but continue, version was incremented.
 
-    # Update last_edited_overall_timestamp for the chat and re-sort
-    now_ts = int(time.time())
-    update_score_success = await cache_service.update_chat_score_in_ids_versions(user_id, chat_id, now_ts)
-    if not update_score_success:
-         logger.error(f"Failed to update last_edited_overall_timestamp score for chat {chat_id}. User: {user_id}")
+    # CRITICAL: Don't update last_edited_overall_timestamp for drafts
+    # Only messages should update this timestamp for proper sorting
+    # Chats with drafts will appear at the top via frontend sorting logic, but won't affect message-based sorting
+    # now_ts = int(time.time())
+    # update_score_success = await cache_service.update_chat_score_in_ids_versions(user_id, chat_id, now_ts)
+    # if not update_score_success:
+    #      logger.error(f"Failed to update last_edited_overall_timestamp score for chat {chat_id}. User: {user_id}")
     # --- Top N Message Cache Maintenance (Section 9.1) ---
-    if update_score_success: # Only proceed if the score update was likely successful
+    # NOTE: Top N cache maintenance removed since we're not updating the score anymore
+    # Chats with drafts will still appear in the list, but won't affect Top N cache ordering
+    # if update_score_success: # Only proceed if the score update was likely successful
+    if False:  # Disabled - Top N maintenance not needed for draft updates
         try:
             top_n_chat_ids = await cache_service.get_chat_ids_versions(
                 user_id, start=0, end=cache_service.TOP_N_MESSAGES_COUNT - 1
@@ -180,7 +185,7 @@ async def handle_update_draft(
         "chat_id": chat_id,
         "data": {"encrypted_draft_md": encrypted_draft_str}, # Send encrypted draft (or null)
         "versions": {"draft_v": new_user_draft_v}, # Send new user-specific draft version, renamed to draft_v
-        "last_edited_overall_timestamp": now_ts # Send the new timestamp for the chat
+        # REMOVED: "last_edited_overall_timestamp": now_ts # Don't send timestamp update for drafts
     }
     # Broadcast only to the current user's other connected devices
     await manager.broadcast_to_user(

@@ -46,7 +46,7 @@ class ChatInDB(BaseModel): # Represents the structure in Directus 'chats' table
     encrypted_title: Optional[str] = None # Encrypted with chat-specific key
     messages_v: int
     title_v: int
-    last_edited_overall_timestamp: datetime # Updated if chat's messages or any user's draft for this chat changes
+    last_edited_overall_timestamp: datetime # Updated when messages are sent to this chat (for sorting). Drafts do NOT update this timestamp.
     unread_count: int
     created_at: datetime
     updated_at: datetime

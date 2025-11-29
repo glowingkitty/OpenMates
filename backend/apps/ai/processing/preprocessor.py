@@ -207,9 +207,38 @@ async def handle_preprocessing(
 
     logger.info(f"{log_prefix} Loaded and potentially modified instruction tool (preprocess_request_tool).")
     
-    all_mates: List[MateConfig] = load_mates_config()
+    # Load mates_configs from cache (preloaded by main API server at startup)
+    # The main API server preloads these into the shared Dragonfly cache during startup.
+    # Task workers read from cache to avoid disk I/O and ensure consistency across containers.
+    # Fallback to disk loading if cache is empty (e.g., cache expired or server restarted).
+    all_mates: List[MateConfig] = []
+    try:
+        if cache_service:
+            cached_mates = await cache_service.get_mates_configs()
+            if cached_mates:
+                all_mates = cached_mates
+                logger.debug(f"{log_prefix} Successfully loaded {len(all_mates)} mates_configs from cache (preloaded by main API server).")
+            else:
+                # Fallback: Cache is empty (expired or server restarted) - load from disk and re-cache
+                logger.warning(f"{log_prefix} mates_configs not found in cache. Loading from disk and re-caching...")
+                all_mates = load_mates_config()
+                if all_mates:
+                    try:
+                        await cache_service.set_mates_configs(all_mates)
+                        logger.debug(f"{log_prefix} Re-cached {len(all_mates)} mates_configs after disk load.")
+                    except Exception as e:
+                        logger.warning(f"{log_prefix} Failed to re-cache mates_configs: {e}")
+        else:
+            # No cache service available, load from disk
+            logger.warning(f"{log_prefix} CacheService not available. Loading mates_configs from disk...")
+            all_mates = load_mates_config()
+    except Exception as e:
+        logger.error(f"{log_prefix} Error loading mates_configs: {e}", exc_info=True)
+        # Fallback to disk loading
+        all_mates = load_mates_config()
+    
     if not all_mates:
-        logger.critical(f"{log_prefix} CRITICAL: No mates were loaded from mates.yml. Cannot proceed with mate selection or determine available categories.")
+        logger.critical(f"{log_prefix} CRITICAL: No mates were loaded from cache or disk. Cannot proceed with mate selection or determine available categories.")
         return PreprocessingResult(
             can_proceed=False,
             rejection_reason="internal_error_missing_mates_config",

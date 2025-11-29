@@ -6,6 +6,7 @@ import type { EmbedNodeAttributes } from '../../../../message_parsing/types';
 import { groupHandlerRegistry } from '../../../../message_parsing/groupHandlers';
 import { mount, unmount } from 'svelte';
 import WebsiteEmbedPreview from '../../../embeds/WebsiteEmbedPreview.svelte';
+import VideoEmbedPreview from '../../../embeds/VideoEmbedPreview.svelte';
 
 // Track mounted components for cleanup
 const mountedComponents = new WeakMap<HTMLElement, ReturnType<typeof mount>>();
@@ -52,6 +53,12 @@ export class GroupRenderer implements EmbedRenderer {
       // For website embeds, use Svelte component instead of HTML
       if (baseType === 'web-website') {
         await this.renderWebsiteComponent(attrs, embedData, decodedContent, content);
+        return;
+      }
+      
+      // For video embeds, use Svelte component instead of HTML
+      if (baseType === 'videos-video') {
+        await this.renderVideoComponent(attrs, embedData, decodedContent, content);
         return;
       }
       
@@ -369,6 +376,86 @@ export class GroupRenderer implements EmbedRenderer {
     decodedContent: any = null
   ): Promise<string> {
     return this.renderWebsiteItemHTML(item, embedData, decodedContent);
+  }
+  
+  /**
+   * Render video embed using Svelte component
+   */
+  private async renderVideoComponent(
+    item: EmbedNodeAttributes,
+    embedData: any = null,
+    decodedContent: any = null,
+    content: HTMLElement
+  ): Promise<void> {
+    // Use decoded content if available, otherwise fall back to item attributes
+    const videoUrl = decodedContent?.url || item.url;
+    const videoTitle = decodedContent?.title || item.title;
+    
+    // Determine status
+    const status = item.status || (videoUrl ? 'finished' : 'processing');
+    
+    // Get embed ID
+    const embedId = item.contentRef?.replace('embed:', '') || '';
+    
+    // Cleanup any existing mounted component
+    const existingComponent = mountedComponents.get(content);
+    if (existingComponent) {
+      try {
+        unmount(existingComponent);
+      } catch (e) {
+        console.warn('[GroupRenderer] Error unmounting existing component:', e);
+      }
+    }
+    
+    // Clear the content element
+    content.innerHTML = '';
+    
+    // Mount the Svelte component
+    try {
+      // Create a handler for fullscreen that dispatches the event
+      const handleFullscreen = () => {
+        this.openFullscreen(item, embedData, decodedContent);
+      };
+      
+      const component = mount(VideoEmbedPreview, {
+        target: content,
+        props: {
+          id: embedId,
+          url: videoUrl || '',
+          title: videoTitle,
+          status: status as 'processing' | 'finished' | 'error',
+          isMobile: false, // Default to desktop in message view
+          onFullscreen: handleFullscreen
+        }
+      });
+      
+      // Store reference for cleanup
+      mountedComponents.set(content, component);
+      
+      console.debug('[GroupRenderer] Mounted VideoEmbedPreview component:', {
+        embedId,
+        url: videoUrl?.substring(0, 50) + '...',
+        status,
+        hasTitle: !!videoTitle
+      });
+      
+    } catch (error) {
+      console.error('[GroupRenderer] Error mounting VideoEmbedPreview component:', error);
+      // Fallback to HTML rendering
+      const fallbackHtml = await this.renderVideoItemHTML(item, embedData, decodedContent);
+      content.innerHTML = fallbackHtml;
+    }
+  }
+  
+  /**
+   * Fallback HTML rendering for videos (used when Svelte mount fails)
+   */
+  private async renderVideoItemHTML(
+    item: EmbedNodeAttributes,
+    embedData: any = null,
+    decodedContent: any = null
+  ): Promise<string> {
+    return this.renderVideoItem(item, embedData, decodedContent);
   }
   
   private async renderVideoItem(

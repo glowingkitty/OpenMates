@@ -572,9 +572,11 @@ class BaseSkill:
             if error:
                 errors.append(error)
                 # Still include the request in results (with empty results array) for consistency
+                # Include error message in grouped_result so it can be used for error embeds
                 grouped_results.append({
                     "id": request_id,
-                    "results": []
+                    "results": [],
+                    "error": error  # Store error message for this specific request
                 })
             else:
                 # Group results by request id

@@ -470,7 +470,8 @@ class EmbedService:
         user_id_hash: str,
         user_vault_key_id: str,
         task_id: Optional[str] = None,
-        log_prefix: str = ""
+        log_prefix: str = "",
+        request_metadata: Optional[Dict[str, Any]] = None
     ) -> Optional[Dict[str, Any]]:
         """
         Update an existing "processing" embed with actual skill results.
@@ -493,6 +494,8 @@ class EmbedService:
             user_vault_key_id: User's vault key ID for encryption
             task_id: Optional task ID for long-running tasks
             log_prefix: Logging prefix for this operation
+            request_metadata: Optional metadata from the original request (query, url, provider, etc.)
+                             This preserves input parameters in the embed content
 
         Returns:
             Dictionary with:
@@ -516,25 +519,39 @@ class EmbedService:
 
             child_embed_ids = []
 
-            # Retrieve original placeholder metadata (query, provider, etc.)
+            # Retrieve original placeholder metadata (query, provider, url, etc.)
             # This ensures we preserve the original metadata when updating the embed
+            # Priority: request_metadata (passed in) > original_content (from cache)
             original_content = await self._get_cached_embed(embed_id, user_vault_key_id, log_prefix)
             original_metadata = {}
-            if original_content:
+            
+            # First, use request_metadata if provided (most reliable source)
+            if request_metadata:
+                # Copy all metadata except internal fields
+                for key, value in request_metadata.items():
+                    if key not in ['request_id']:  # Skip internal tracking fields
+                        original_metadata[key] = value
+                logger.debug(
+                    f"{log_prefix} Using request_metadata for original_metadata: {list(original_metadata.keys())}"
+                )
+            
+            # Fallback to original_content from cache if request_metadata not provided
+            if not original_metadata and original_content:
                 # Extract metadata fields that should be preserved
                 # The decoded TOON content is merged into embed_data, so check both places
-                # CRITICAL: Log what we actually retrieved for debugging
                 logger.debug(
                     f"{log_prefix} Retrieved original_content from cache. "
                     f"Keys: {list(original_content.keys())}, "
                     f"Has 'query': {'query' in original_content}, "
                     f"Has 'provider': {'provider' in original_content}, "
+                    f"Has 'url': {'url' in original_content}, "
                     f"Has 'app_id': {'app_id' in original_content}, "
                     f"Has 'skill_id': {'skill_id' in original_content}"
                 )
                 
-                # Extract metadata fields that should be preserved
-                for key in ['query', 'provider', 'url', 'input_data']:
+                # Extract common metadata fields that should be preserved
+                # Include all common input parameters (query, url, provider, languages, etc.)
+                for key in ['query', 'provider', 'url', 'languages', 'input_data', 'count', 'country', 'search_lang', 'safesearch']:
                     if key in original_content:
                         original_metadata[key] = original_content[key]
                         logger.debug(f"{log_prefix} Found metadata key '{key}': {original_metadata[key]}")
@@ -543,12 +560,13 @@ class EmbedService:
                 
                 # CRITICAL: Log detailed metadata extraction for debugging
                 logger.info(
-                    f"{log_prefix} Preserving original metadata: {list(original_metadata.keys())} "
+                    f"{log_prefix} Preserving original metadata from cache: {list(original_metadata.keys())} "
                     f"(query={original_metadata.get('query', 'NOT FOUND')}, "
+                    f"url={original_metadata.get('url', 'NOT FOUND')}, "
                     f"provider={original_metadata.get('provider', 'NOT FOUND')})"
                 )
-            else:
-                logger.warning(f"{log_prefix} Could not retrieve original embed metadata for {embed_id}")
+            elif not original_metadata:
+                logger.warning(f"{log_prefix} Could not retrieve original embed metadata for {embed_id} and no request_metadata provided")
 
             if is_composite:
                 # Create child embeds (one per result)
@@ -711,15 +729,29 @@ class EmbedService:
                 # CRITICAL: Wrap results with app_id and skill_id metadata for consistency with create_embeds_from_skill_results
                 # This ensures the frontend can identify which skill was executed and render the appropriate preview component
                 # Structure matches composite results pattern: app_id, skill_id, results array
+                # Also include original_metadata (query, url, provider, etc.) to preserve input parameters
                 flattened_results = [_flatten_for_toon_tabular(result) for result in results]
                 
                 # Wrap with app_id and skill_id metadata (same structure as create_embeds_from_skill_results)
+                # Include original_metadata to preserve input parameters (url for videos, query for search, etc.)
                 content_with_metadata = {
                     "app_id": app_id,
                     "skill_id": skill_id,
                     "results": flattened_results,
-                    "result_count": len(results)
+                    "result_count": len(results),
+                    "status": "finished",
+                    **original_metadata  # Preserve query, url, provider, languages, etc. from placeholder
                 }
+                
+                # Log final content to verify metadata is included
+                logger.info(
+                    f"{log_prefix} Single result embed content includes: "
+                    f"query={content_with_metadata.get('query', 'MISSING')}, "
+                    f"url={content_with_metadata.get('url', 'MISSING')}, "
+                    f"provider={content_with_metadata.get('provider', 'MISSING')}, "
+                    f"result_count={content_with_metadata.get('result_count')}"
+                )
+                
                 content_toon = encode(_flatten_for_toon_tabular(content_with_metadata))
 
                 # Calculate text length
@@ -1043,7 +1075,8 @@ class EmbedService:
         user_id_hash: str,
         user_vault_key_id: str,
         task_id: Optional[str] = None,
-        log_prefix: str = ""
+        log_prefix: str = "",
+        request_metadata: Optional[Dict[str, Any]] = None
     ) -> Optional[Dict[str, Any]]:
         """
         Create embeds from skill results immediately after skill execution.
@@ -1147,12 +1180,24 @@ class EmbedService:
                 parent_embed_id = str(uuid.uuid4())
                 
                 # Parent embed content: metadata about the skill execution
+                # Include request metadata (query, etc.) if provided for proper frontend rendering
                 parent_content = {
                     "app_id": app_id,
                     "skill_id": skill_id,
                     "result_count": len(results),
                     "embed_ids": child_embed_ids
                 }
+                
+                # Add request metadata (query, provider, etc.) if available
+                if request_metadata:
+                    if "query" in request_metadata:
+                        parent_content["query"] = request_metadata["query"]
+                    if "provider" in request_metadata:
+                        parent_content["provider"] = request_metadata["provider"]
+                    # Add other metadata fields as needed
+                    for key in ["country", "search_lang", "safesearch"]:
+                        if key in request_metadata:
+                            parent_content[key] = request_metadata[key]
                 
                 # Convert to TOON
                 flattened_parent = _flatten_for_toon_tabular(parent_content)

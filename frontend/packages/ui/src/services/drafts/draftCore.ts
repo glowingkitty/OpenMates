@@ -93,8 +93,9 @@ export async function setCurrentChatContext(
 		console.debug('[DraftService] Setting editor content:', contentToSet);
 		// Use different methods to avoid triggering 'update' event which calls triggerSaveDraft
 		editorInstance.chain().setContent(contentToSet, false).run();
-		// Ensure cursor is at the end after setting content
-		setTimeout(() => editorInstance?.commands.focus('end'), 50);
+		// Do NOT auto-focus the editor - user must manually click to focus
+		// This prevents unwanted focus when switching between chats
+		console.debug('[DraftService] Skipped auto-focus - user must click to focus');
 	} else {
 		console.error('[DraftService] Editor instance not available to set content.');
 	}

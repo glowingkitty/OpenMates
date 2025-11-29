@@ -237,13 +237,32 @@
 	 * Handles 'chatUpdated' events from chatSyncService.
 	 * Refreshes the chat list from DB and re-dispatches selection if the updated chat was selected.
 	 */
-	const handleChatUpdatedEvent = async (event: CustomEvent<{ chat_id: string; newMessage?: Message }>) => {
-		console.debug(`[Chats] Chat updated event received for chat_id: ${event.detail.chat_id}`);
+	const handleChatUpdatedEvent = async (event: CustomEvent<{ chat_id: string; newMessage?: Message; type?: string; chat?: ChatType }>) => {
+		console.debug(`[Chats] Chat updated event received for chat_id: ${event.detail.chat_id}, type: ${event.detail.type}`);
 		
 		// Invalidate cache for the updated chat to ensure fresh metadata
 		chatMetadataCache.invalidateChat(event.detail.chat_id);
 		
-		await updateChatListFromDB(); // Corrected function name
+		// CRITICAL: If a draft was deleted and we have the updated chat object, update it directly in the array
+		// This ensures immediate sorting update without waiting for IndexedDB read
+		if (event.detail.type === 'draft_deleted' && event.detail.chat) {
+			const updatedChat = event.detail.chat;
+			const chatIndex = allChatsFromDB.findIndex(c => c.chat_id === updatedChat.chat_id);
+			if (chatIndex !== -1) {
+				// Update the chat object directly in the array with the cleared draft state
+				allChatsFromDB[chatIndex] = updatedChat;
+				// Force reactivity by creating a new array reference
+				allChatsFromDB = [...allChatsFromDB];
+				console.debug('[Chats] Draft deleted - updated chat object directly in array to trigger immediate re-sorting');
+			} else {
+				// Chat not in array yet, refresh from DB
+				await updateChatListFromDB();
+			}
+		} else {
+			// For other update types, refresh from DB as usual
+			await updateChatListFromDB();
+		}
+		
 		// If the updated chat is the currently selected one, re-dispatch to update main view
 		if (selectedChatId === event.detail.chat_id) {
 			const updatedChat = allChatsFromDB.find(c => c.chat_id === event.detail.chat_id); // Corrected variable name
@@ -422,7 +441,36 @@
 			sessionStorageDraftUpdateTrigger++;
 			console.debug('[Chats] Triggered reactivity update for sessionStorage drafts, trigger:', sessionStorageDraftUpdateTrigger);
 		} else {
-			await updateChatListFromDB(); // Refresh the chat list from local database
+			// If a draft was deleted, fetch the updated chat from DB and update it directly in the array
+			// This ensures immediate sorting update without waiting for full list refresh
+			if (customEvent.detail?.draftDeleted && customEvent.detail?.chat_id) {
+				try {
+					const updatedChat = await chatDB.getChat(customEvent.detail.chat_id);
+					if (updatedChat) {
+						const chatIndex = allChatsFromDB.findIndex(c => c.chat_id === updatedChat.chat_id);
+						if (chatIndex !== -1) {
+							// Update the chat object directly in the array with the cleared draft state
+							allChatsFromDB[chatIndex] = updatedChat;
+							// Force reactivity by creating a new array reference
+							allChatsFromDB = [...allChatsFromDB];
+							console.debug('[Chats] Draft deleted - updated chat object directly in array to trigger immediate re-sorting');
+						} else {
+							// Chat not in array yet, refresh from DB
+							await updateChatListFromDB();
+						}
+					} else {
+						// Chat not found, refresh from DB
+						await updateChatListFromDB();
+					}
+				} catch (error) {
+					console.error('[Chats] Error fetching updated chat after draft deletion:', error);
+					// Fallback to full refresh
+					await updateChatListFromDB();
+				}
+			} else {
+				// For other updates, refresh from DB as usual
+				await updateChatListFromDB();
+			}
 		}
 	};
 
@@ -831,6 +879,20 @@
 		
 		// Update the persistent store so the selection survives component unmount/remount
 		activeChatStore.setActiveChat(chat.chat_id);
+
+		// CRITICAL: Save last_opened to IndexedDB immediately when switching chats
+		// This ensures tab reload opens the correct chat (from IndexedDB, not server)
+		// ActiveChat.loadChat() also calls sendSetActiveChat, but we do it here too for immediate IndexedDB update
+		if ($authStore.isAuthenticated) {
+			try {
+				const { chatSyncService } = await import('../../services/chatSyncService');
+				await chatSyncService.sendSetActiveChat(chat.chat_id);
+				console.debug('[Chats] Updated last_opened in IndexedDB for chat:', chat.chat_id);
+			} catch (error) {
+				console.error('[Chats] Error updating last_opened in IndexedDB:', error);
+				// Don't fail the whole operation if IndexedDB update fails
+			}
+		}
 
 		// Dispatch event to notify parent components like +page.svelte
 		dispatch('chatSelected', { chat: chat });

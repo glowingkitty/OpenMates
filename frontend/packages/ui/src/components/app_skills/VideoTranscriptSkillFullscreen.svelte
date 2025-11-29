@@ -87,7 +87,7 @@
   {#snippet headerExtra()}
     {#if results.length > 1}
       <div class="results-indicator">
-        <div class="icon_rounded videos"></div>
+        <div class="icon_rounded video"></div>
         <span class="results-count">+{results.length - 1} more</span>
       </div>
     {/if}

@@ -148,6 +148,10 @@
     
     // --- Blur timeout tracking ---
     let blurTimeoutId: NodeJS.Timeout | null = null; // Track blur timeout to cancel it if focus is regained
+    
+    // --- Initial mount tracking ---
+    let isInitialMount = $state(true); // Flag to prevent auto-focus during initial mount
+    let mountCompleteTimeout: NodeJS.Timeout | null = null; // Track when mount is complete
  
     // --- Unified Parsing Handler ---
     function handleUnifiedParsing(editor: Editor) {
@@ -938,6 +942,11 @@
             }
         });
 
+        // Explicitly blur the editor on mount to prevent auto-focus on page load
+        // This ensures the editor doesn't automatically get focus when the page loads
+        editor.commands.blur();
+        console.debug('[MessageInput] Blurred editor on mount to prevent auto-focus');
+
         initializeDraftService(editor);
         hasContent = !isContentEmptyExceptMention(editor);
 
@@ -952,15 +961,36 @@
         // Initial height calculation (immediate)
         updateHeight();
         
+        // Aggressively prevent auto-focus during initial mount phase
+        // TipTap or the browser might try to focus the editor multiple times
+        const preventAutoFocus = () => {
+            if (editor && !editor.isDestroyed && editor.isFocused && isInitialMount) {
+                editor.commands.blur();
+                console.debug('[MessageInput] Prevented auto-focus during initial mount');
+            }
+        };
+        
+        // Try to blur immediately
+        preventAutoFocus();
+        
         tick().then(() => {
             updateHeight(); // Update again after tick
             updateEmbedGroupLayouts(); // Initial layout check
+            preventAutoFocus(); // Blur again after tick
         });
         
         // Force height update after a short delay to ensure proper rendering
         setTimeout(() => {
             updateHeight();
+            preventAutoFocus(); // Blur again after short delay
         }, 100);
+        
+        // Mark mount as complete after a longer delay to allow all async operations to finish
+        // This ensures we don't prevent legitimate user-initiated focus after page load
+        mountCompleteTimeout = setTimeout(() => {
+            isInitialMount = false;
+            console.debug('[MessageInput] Initial mount phase complete - focus prevention disabled');
+        }, 500);
 
         // AI Task related updates
         updateActiveAITaskStatus(); // Initial check
@@ -989,6 +1019,14 @@
 
     // --- Editor Lifecycle Handlers ---
     function handleEditorFocus({ editor }: { editor: Editor }) {
+        // Prevent auto-focus during initial mount phase
+        // Only allow focus if it's user-initiated (not during initial mount)
+        if (isInitialMount) {
+            console.debug('[MessageInput] Blocking auto-focus during initial mount phase');
+            editor.commands.blur();
+            return; // Exit early to prevent focus during mount
+        }
+        
         // Cancel any pending blur timeout - focus was regained
         if (blurTimeoutId) {
             clearTimeout(blurTimeoutId);
@@ -1141,6 +1179,11 @@
         if (blurTimeoutId) {
             clearTimeout(blurTimeoutId);
             blurTimeoutId = null;
+        }
+        // Clear mount complete timeout
+        if (mountCompleteTimeout) {
+            clearTimeout(mountCompleteTimeout);
+            mountCompleteTimeout = null;
         }
         document.removeEventListener('embedclick', handleEmbedClick as EventListener);
         document.removeEventListener('mateclick', handleMateClick as EventListener);
@@ -1665,7 +1708,7 @@
         }
         return '';
     }
-    export function setDraftContent(chatId: string | null, draftContent: any | null, version: number, shouldFocus: boolean = true) {
+    export function setDraftContent(chatId: string | null, draftContent: any | null, version: number, shouldFocus: boolean = false) {
         // CRITICAL: setCurrentChatContext already sets the editor content (to draftContent or initial content)
         // So we don't need to clear it again if draftContent is null - that would trigger unnecessary update events
         // The setCurrentChatContext function handles setting the editor content with emitUpdate: false to prevent triggering saves
@@ -1684,8 +1727,13 @@
                 originalMarkdown = ''; // Clear markdown tracking for chats with no draft
             }
             
+            // Only focus if explicitly requested - default is false to prevent unwanted auto-focus
+            // Users should manually click on the input field when they want to type
             if (shouldFocus) {
                 editor.commands.focus('end');
+                console.debug('[MessageInput] Focused editor after setDraftContent (explicitly requested)');
+            } else {
+                console.debug('[MessageInput] Skipped focus after setDraftContent (user must click to focus)');
             }
         }
     }

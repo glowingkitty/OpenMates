@@ -494,7 +494,8 @@ class SearchSkill(BaseSkill):
                             content=toon_text,
                             content_type="text",
                             task_id=task_id,
-                            secrets_manager=secrets_manager
+                            secrets_manager=secrets_manager,
+                            cache_service=cache_service
                         )
                         
                         # Check if sanitization failed (returned None or empty)

@@ -207,7 +207,9 @@ const handleChatDetails = async (payload: ChatDetailsServerResponse) => { // Cha
 					}
 					console.debug('[DraftService] Setting editor content from chat_details:', contentToSet);
 					editorInstance.chain().setContent(contentToSet, false).run();
-					setTimeout(() => editorInstance?.commands.focus('end'), 50);
+					// Do NOT auto-focus the editor - user must manually click to focus
+					// This prevents unwanted focus when receiving draft updates from websocket
+					console.debug('[DraftService] Skipped auto-focus after websocket draft update - user must click to focus');
 				}
 				return {
 					...currentState,
