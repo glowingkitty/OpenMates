@@ -527,147 +527,56 @@ class ReadSkill(BaseSkill):
         - Simple architecture (direct execution)
         - Immediate results (no polling required)
         """
-        # Use injected secrets_manager or create a new one
-        if secrets_manager is None:
-            # Try to get from app if available
-            if hasattr(self.app, 'secrets_manager') and self.app.secrets_manager:
-                secrets_manager = self.app.secrets_manager
-            else:
-                # Create a new SecretsManager instance
-                # Skills that need secrets should initialize their own SecretsManager
-                try:
-                    secrets_manager = SecretsManager()
-                    await secrets_manager.initialize()
-                    logger.debug("ReadSkill initialized its own SecretsManager instance")
-                except Exception as e:
-                    logger.error(f"Failed to initialize SecretsManager for ReadSkill: {e}", exc_info=True)
-                    return ReadResponse(
-                        results=[],
-                        error="Read service configuration error: Failed to initialize secrets manager"
-                    )
+        # Get or create SecretsManager using BaseSkill helper
+        secrets_manager, error_response = await self._get_or_create_secrets_manager(
+            secrets_manager=secrets_manager,
+            skill_name="ReadSkill",
+            error_response_factory=lambda msg: ReadResponse(results=[], error=msg),
+            logger=logger
+        )
+        if error_response:
+            return error_response
         
-        # Validate requests array
-        if not requests or len(requests) == 0:
-            logger.error("No requests provided to ReadSkill")
-            return ReadResponse(
-                results=[],
-                error="No read requests provided. 'requests' array must contain at least one request with a 'url' field."
-            )
-        
-        # Validate that all requests have required fields: 'id' and 'url'
-        # Use BaseSkill helper method for consistent validation across all skills
-        request_ids = set()
-        for i, req in enumerate(requests):
-            # Validate and normalize request 'id' field using BaseSkill helper
-            request_id, error = self._validate_and_normalize_request_id(
-                req=req,
-                request_index=i,
-                total_requests=len(requests),
-                request_ids=request_ids,
-                logger=logger
-            )
-            if error:
-                logger.error(f"Request {i+1} validation failed: {error}")
-                return ReadResponse(
-                    results=[],
-                    error=error
-                )
-            
-            # Validate 'url' field
-            if not req.get("url"):
-                logger.error(f"Request {i+1} (id: {request_id}) in requests array is missing 'url' field")
-                return ReadResponse(
-                    results=[],
-                    error=f"Request {i+1} (id: {request_id}) is missing required 'url' field"
-                )
-        
-        read_requests = requests
+        # Validate requests array using BaseSkill helper
+        validated_requests, error = self._validate_requests_array(
+            requests=requests,
+            required_field="url",
+            field_display_name="url",
+            empty_error_message="No read requests provided. 'requests' array must contain at least one request with a 'url' field.",
+            logger=logger
+        )
+        if error:
+            return ReadResponse(results=[], error=error)
         
         # Initialize cache service for rate limiting (shared across all requests)
         cache_service = CacheService()
         
-        # Process all read requests in parallel using asyncio.gather()
-        # Each request is processed independently and results are grouped by request id
-        logger.info(f"Processing {len(read_requests)} web read requests in parallel")
-        tasks = [
-            self._process_single_read_request(
-                req=req,
-                request_id=req.get("id"),
-                secrets_manager=secrets_manager,
-                cache_service=cache_service
-            )
-            for req in read_requests
-        ]
-        
-        # Wait for all requests to complete (parallel execution)
-        results = await asyncio.gather(*tasks, return_exceptions=True)
-        
-        # Process results and group by request id
-        grouped_results: List[Dict[str, Any]] = []
-        errors: List[str] = []
-        
-        for result in results:
-            if isinstance(result, Exception):
-                # Handle exceptions from asyncio.gather
-                error_msg = f"Unexpected error processing request: {str(result)}"
-                logger.error(error_msg, exc_info=True)
-                errors.append(error_msg)
-                continue
-            
-            request_id, read_results, error = result
-            
-            if error:
-                errors.append(error)
-                # Still include the request in results (with empty results array) for consistency
-                grouped_results.append({
-                    "id": request_id,
-                    "results": []
-                })
-            else:
-                # Group results by request id (each read request produces one result)
-                grouped_results.append({
-                    "id": request_id,
-                    "results": read_results
-                })
-        
-        # Sort results by request order (maintain original request order in response)
-        request_order = {req.get("id"): i for i, req in enumerate(read_requests)}
-        grouped_results.sort(key=lambda x: request_order.get(x["id"], 999))
-        
-        # Use follow-up suggestions loaded from app.yml
-        # Only include suggestions if we have results and suggestions are configured
-        suggestions = None
-        total_results = sum(len(group.get("results", [])) for group in grouped_results)
-        if total_results > 0 and self.suggestions_follow_up_requests:
-            suggestions = self.suggestions_follow_up_requests
-        
-        # Build response with grouped results structure:
-        # - results: List of request results, each with 'id' and 'results' array
-        # - provider: at root level
-        response = ReadResponse(
-            results=grouped_results,  # Grouped by request id
-            provider="Firecrawl",  # Provider at root level
-            suggestions_follow_up_requests=suggestions
+        # Process all read requests in parallel using BaseSkill helper
+        results = await self._process_requests_in_parallel(
+            requests=validated_requests,
+            process_single_request_func=self._process_single_read_request,
+            logger=logger,
+            secrets_manager=secrets_manager,
+            cache_service=cache_service
         )
         
-        # Add error message if there were errors (but still return results if any)
-        if errors:
-            response.error = "; ".join(errors)
-            logger.warning(f"Web read completed with {len(errors)} error(s): {response.error}")
+        # Group results by request ID using BaseSkill helper
+        grouped_results, errors = self._group_results_by_request_id(
+            results=results,
+            requests=validated_requests,
+            logger=logger
+        )
         
-        logger.info(f"Web read skill execution completed: {len(grouped_results)} request groups, {total_results} total results, {len(errors)} errors")
+        # Build response with errors using BaseSkill helper
+        response = self._build_response_with_errors(
+            response_class=ReadResponse,
+            grouped_results=grouped_results,
+            errors=errors,
+            provider="Firecrawl",
+            suggestions=self.suggestions_follow_up_requests,
+            logger=logger
+        )
+        
         return response
     
-    def _generate_result_hash(self, url: str) -> str:
-        """
-        Generate a hash for a read result URL.
-        Used for deduplication and tracking.
-        
-        Args:
-            url: The result URL
-        
-        Returns:
-            Hash string
-        """
-        import hashlib
-        return hashlib.sha256(url.encode()).hexdigest()[:16]
+    # _generate_result_hash is now provided by BaseSkill
