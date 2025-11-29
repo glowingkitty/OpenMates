@@ -659,25 +659,23 @@ class TranscriptSkill(BaseSkill):
             )
         
         # Validate that all requests have required fields: 'id' and 'url'
+        # Use BaseSkill helper method for consistent validation across all skills
         request_ids = set()
         for i, req in enumerate(requests):
-            # Validate 'id' field (mandatory for request/response matching)
-            if "id" not in req:
-                logger.error(f"Request {i+1} in requests array is missing required 'id' field")
+            # Validate and normalize request 'id' field using BaseSkill helper
+            request_id, error = self._validate_and_normalize_request_id(
+                req=req,
+                request_index=i,
+                total_requests=len(requests),
+                request_ids=request_ids,
+                logger=logger
+            )
+            if error:
+                logger.error(f"Request {i+1} validation failed: {error}")
                 return TranscriptResponse(
                     results=[],
-                    error=f"Request {i+1} is missing required 'id' field. Each request must have a unique 'id' (number or UUID string) for matching responses."
+                    error=error
                 )
-            
-            request_id = req.get("id")
-            # Validate id is unique within this batch
-            if request_id in request_ids:
-                logger.error(f"Request {i+1} has duplicate 'id' value: {request_id}")
-                return TranscriptResponse(
-                    results=[],
-                    error=f"Request {i+1} has duplicate 'id' value '{request_id}'. Each request must have a unique 'id'."
-                )
-            request_ids.add(request_id)
             
             # Validate 'url' field
             if not req.get("url"):

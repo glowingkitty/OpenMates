@@ -3,10 +3,11 @@
 # component for all skills within the application framework. It will encapsulate
 # common logic, configuration handling, and integration points for skills.
 
-from typing import Optional, Dict, Any, Union, TYPE_CHECKING
+from typing import Optional, Dict, Any, Union, Tuple, Set, TYPE_CHECKING
 from pydantic import BaseModel, Field, validator
 import asyncio # For potential async operations
 import time # For generating timestamps
+import logging
 
 # Import shared utilities
 from backend.shared.python_utils.billing_utils import calculate_total_credits, BillingError, MINIMUM_CREDITS_CHARGED
@@ -269,6 +270,82 @@ class BaseSkill:
             "pricing": self.pricing.model_dump(exclude_none=True) if self.pricing else None,
             # Add other relevant metadata
         }
+
+    def _validate_and_normalize_request_id(
+        self,
+        req: Dict[str, Any],
+        request_index: int,
+        total_requests: int,
+        request_ids: Set[Any],
+        logger: Optional[logging.Logger] = None
+    ) -> Tuple[Optional[Any], Optional[str]]:
+        """
+        Validates and normalizes the 'id' field for a request in a multi-request skill call.
+        
+        This helper method implements the standard pattern for handling request IDs:
+        - For single requests: 'id' is optional - auto-generates id=1 if missing
+        - For multiple requests: 'id' is required to match responses to requests
+        - Validates that 'id' values are unique within the batch
+        
+        Args:
+            req: The request dictionary to validate
+            request_index: Zero-based index of the request in the requests array (for error messages)
+            total_requests: Total number of requests in the batch
+            request_ids: Set of already-seen request IDs (for uniqueness validation)
+            logger: Optional logger instance for debug messages (if None, uses print)
+        
+        Returns:
+            Tuple of (request_id, error_message_or_none):
+            - request_id: The validated/normalized request ID, or None if validation failed
+            - error_message_or_none: Error message string if validation failed, None if successful
+        
+        Example usage in a skill's execute() method:
+            request_ids = set()
+            for i, req in enumerate(requests):
+                request_id, error = self._validate_and_normalize_request_id(
+                    req=req,
+                    request_index=i,
+                    total_requests=len(requests),
+                    request_ids=request_ids,
+                    logger=logger
+                )
+                if error:
+                    return Response(results=[], error=error)
+                # Note: request_id is already added to request_ids by the helper
+        """
+        # Use provided logger or fall back to print for debug messages
+        log_func = logger.debug if logger else print
+        
+        # For single requests, 'id' is optional - auto-generate if missing
+        # For multi-request calls, 'id' is required to match responses to requests
+        if total_requests == 1:
+            # Single request: auto-generate 'id' if missing
+            if "id" not in req:
+                req["id"] = 1  # Default to 1 for single requests
+                log_func(f"Auto-generated 'id'=1 for single request")
+        else:
+            # Multiple requests: 'id' is required
+            if "id" not in req:
+                error_msg = (
+                    f"Request {request_index + 1} is missing required 'id' field. "
+                    f"Each request must have a unique 'id' (number or UUID string) for matching responses in multi-request calls."
+                )
+                return (None, error_msg)
+        
+        request_id = req.get("id")
+        
+        # Validate id is unique within this batch
+        if request_id in request_ids:
+            error_msg = (
+                f"Request {request_index + 1} has duplicate 'id' value '{request_id}'. "
+                f"Each request must have a unique 'id'."
+            )
+            return (None, error_msg)
+        
+        # Add to set for future uniqueness checks (caller should also add it)
+        request_ids.add(request_id)
+        
+        return (request_id, None)
 
     # Placeholder for Celery task management
     # async def run_as_task(self, *args, **kwargs) -> Optional[str]:

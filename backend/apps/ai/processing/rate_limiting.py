@@ -241,6 +241,8 @@ async def wait_for_rate_limit(
         app_id = celery_task_context.get("app_id")
         skill_id_for_celery = celery_task_context.get("skill_id")
         arguments = celery_task_context.get("arguments")
+        chat_id = celery_task_context.get("chat_id")
+        message_id = celery_task_context.get("message_id")
         
         if app_id and skill_id_for_celery and arguments is not None:
             try:
@@ -251,23 +253,58 @@ async def wait_for_rate_limit(
                 task_name = f"apps.{app_id}.tasks.skill_{skill_id_for_celery}"
                 queue_name = f"app_{app_id}"
                 
-                task_signature = celery_producer.send_task(
-                    name=task_name,
-                    kwargs={"arguments": arguments},
+                # Include chat context in task arguments for followup processing
+                task_kwargs = {
+                    "arguments": arguments
+                }
+                if chat_id:
+                    task_kwargs["_chat_id"] = chat_id
+                if message_id:
+                    task_kwargs["_message_id"] = message_id
+                
+                # Chain a followup task that will process results and send followup message
+                # when the skill task completes
+                from celery import chain
+                from backend.apps.ai.tasks.rate_limit_followup_task import process_rate_limit_followup_task
+                
+                # Create the skill task
+                skill_task = celery_producer.signature(
+                    task_name,
+                    kwargs=task_kwargs,
                     queue=queue_name,
-                    countdown=countdown_seconds  # Schedule for delayed execution
+                    countdown=countdown_seconds
                 )
+                
+                # Create the followup task (runs after skill task completes)
+                # Note: In Celery chains, the followup task receives the skill task result as first argument
+                # So we need to use .s() with the result as first arg, then other args
+                followup_task = process_rate_limit_followup_task.s(
+                    app_id=app_id,
+                    skill_id=skill_id_for_celery,
+                    chat_id=chat_id,
+                    message_id=message_id,
+                    user_id=None,  # TODO: Get from context if available
+                    user_id_hash=None  # TODO: Get from context if available
+                )
+                
+                # Chain tasks: skill_task -> followup_task
+                # The followup task will receive skill_result as first argument automatically
+                task_chain = chain(skill_task, followup_task)
+                result = task_chain.apply_async()
+                
+                # Get the skill task ID (first task in chain)
+                skill_task_id = skill_task.id
                 
                 logger.info(
                     f"Rate limit wait for provider '{provider_id}', skill '{skill_id}': "
-                    f"long wait ({retry_after:.2f}s), scheduled Celery task {task_signature.id} "
-                    f"with {countdown_seconds}s countdown"
+                    f"long wait ({retry_after:.2f}s), scheduled Celery task chain with skill task {skill_task_id} "
+                    f"and followup task, countdown={countdown_seconds}s"
                 )
                 
                 # Raise a special exception to indicate task was scheduled
                 # The caller should handle this appropriately
                 raise RateLimitScheduledException(
-                    task_id=task_signature.id,
+                    task_id=skill_task_id,
                     wait_time=retry_after,
                     message=f"Skill execution scheduled via Celery due to rate limit"
                 )

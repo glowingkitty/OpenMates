@@ -20,7 +20,7 @@ from backend.apps.base_skill import BaseSkill
 from backend.shared.providers.brave.brave_search import search_news
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 from backend.apps.ai.processing.skill_executor import sanitize_external_content, check_rate_limit, wait_for_rate_limit
-from backend.apps.ai.processing.rate_limiting import RateLimitScheduledException
+# RateLimitScheduledException is no longer caught here - it bubbles up to route handler
 from backend.core.api.app.services.cache import CacheService
 
 logger = logging.getLogger(__name__)
@@ -343,9 +343,14 @@ class SearchSkill(BaseSkill):
                                 "country": req_country,
                                 "search_lang": req_lang,
                                 "safesearch": req_safesearch
-                            }
+                            },
+                            # Include chat context for followup message generation
+                            "chat_id": self._current_chat_id,
+                            "message_id": self._current_message_id
                         }
                     
+                    # Wait for rate limit - if rate limit requires long wait, this will raise
+                    # RateLimitScheduledException which should bubble up to route handler
                     await wait_for_rate_limit(
                         provider_id=provider_id,
                         skill_id=skill_id,
@@ -353,12 +358,10 @@ class SearchSkill(BaseSkill):
                         celery_producer=celery_producer,
                         celery_task_context=celery_task_context
                     )
-                except RateLimitScheduledException as e:
-                    logger.warning(
-                        f"News search '{search_query}' (id: {request_id}) was scheduled via Celery (task_id: {e.task_id}) "
-                        f"due to rate limit. This search will be processed asynchronously."
-                    )
-                    return (request_id, [], f"Request was scheduled via Celery due to rate limit (task_id: {e.task_id})")
+                except Exception as e:
+                    # Re-raise exceptions from wait_for_rate_limit (e.g., RateLimitScheduledException)
+                    # These should bubble up to the route handler
+                    raise
             
             # Call Brave News Search API
             search_result = await search_news(
@@ -581,7 +584,7 @@ class SearchSkill(BaseSkill):
     
     async def execute(
         self,
-        requests: List[Dict[str, Any]],
+        request: SearchRequest,
         secrets_manager: Optional[SecretsManager] = None
     ) -> SearchResponse:
         """
@@ -595,7 +598,7 @@ class SearchSkill(BaseSkill):
         The async/await pattern ensures non-blocking execution and excellent concurrency.
         
         Args:
-            requests: Array of search request objects. Each object must contain 'query' and can include optional parameters (count, country, search_lang, safesearch).
+            request: SearchRequest Pydantic model containing the requests array. Each request object must contain 'query' and can include optional parameters (count, country, search_lang, safesearch).
             secrets_manager: SecretsManager instance (injected by app)
         
         Returns:
@@ -634,6 +637,10 @@ class SearchSkill(BaseSkill):
                         error="Search service configuration error: Failed to initialize secrets manager"
                     )
         
+        # Extract requests array from Pydantic model
+        # The Pydantic model validates the structure, but we still need to validate individual request items
+        requests = request.requests
+        
         # Validate requests array
         if not requests or len(requests) == 0:
             logger.error("No requests provided to SearchSkill")
@@ -643,25 +650,23 @@ class SearchSkill(BaseSkill):
             )
         
         # Validate that all requests have required fields: 'id' and 'query'
+        # Use BaseSkill helper method for consistent validation across all skills
         request_ids = set()
         for i, req in enumerate(requests):
-            # Validate 'id' field (mandatory for request/response matching)
-            if "id" not in req:
-                logger.error(f"Request {i+1} in requests array is missing required 'id' field")
+            # Validate and normalize request 'id' field using BaseSkill helper
+            request_id, error = self._validate_and_normalize_request_id(
+                req=req,
+                request_index=i,
+                total_requests=len(requests),
+                request_ids=request_ids,
+                logger=logger
+            )
+            if error:
+                logger.error(f"Request {i+1} validation failed: {error}")
                 return SearchResponse(
                     results=[],
-                    error=f"Request {i+1} is missing required 'id' field. Each request must have a unique 'id' (number or UUID string) for matching responses."
+                    error=error
                 )
-            
-            request_id = req.get("id")
-            # Validate id is unique within this batch
-            if request_id in request_ids:
-                logger.error(f"Request {i+1} has duplicate 'id' value: {request_id}")
-                return SearchResponse(
-                    results=[],
-                    error=f"Request {i+1} has duplicate 'id' value '{request_id}'. Each request must have a unique 'id'."
-                )
-            request_ids.add(request_id)
             
             # Validate 'query' field
             if not req.get("query"):

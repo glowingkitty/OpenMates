@@ -590,7 +590,26 @@ async def handle_main_processing(
         )
     # TODO: Update this key once app use is implemented - currently using base_capabilities_instruction
     # which explains what the chatbot can and cannot do yet
-    prompt_parts.append(base_instructions.get("base_capabilities_instruction", ""))
+    # Inject available apps list into capabilities instruction
+    base_capabilities_instruction_template = base_instructions.get("base_capabilities_instruction", "")
+    if base_capabilities_instruction_template:
+        # Extract available app IDs from discovered_apps_metadata
+        available_app_ids = sorted(list(discovered_apps_metadata.keys())) if discovered_apps_metadata else []
+        available_apps_str = ", ".join(available_app_ids) if available_app_ids else "none (no apps available)"
+        
+        # Replace placeholder with actual available apps list
+        filled_capabilities_instruction = base_capabilities_instruction_template.replace(
+            "{AVAILABLE_APPS}",
+            available_apps_str
+        )
+        prompt_parts.append(filled_capabilities_instruction)
+        logger.info(
+            f"{log_prefix} Injected available apps list into system prompt: {available_apps_str} "
+            f"({len(available_app_ids)} app(s) available)"
+        )
+    else:
+        logger.warning(f"{log_prefix} base_capabilities_instruction not found in base_instructions.yml")
+    
     prompt_parts.append(base_instructions.get("follow_up_instruction", ""))
     if loaded_app_settings_and_memories_content:
         settings_and_memories_prompt_section = ["\n--- Relevant Information from Your App Settings and Memories ---"]
@@ -1353,6 +1372,34 @@ async def handle_main_processing(
                     tool_calls_info.append(tool_call_info)
                 except:
                     pass  # Don't fail if tracking fails
+                # Update embed status to error if placeholder exists
+                try:
+                    app_id, skill_id = tool_name.split('-', 1)
+                    placeholder_embed_data = inline_placeholder_embeds.get(tool_call_id)
+                    if placeholder_embed_data and cache_service and user_vault_key_id and directus_service:
+                        from backend.core.api.app.services.embed_service import EmbedService
+                        from backend.core.api.app.utils.encryption import EncryptionService
+                        encryption_service = EncryptionService()
+                        embed_service = EmbedService(
+                            cache_service=cache_service,
+                            directus_service=directus_service,
+                            encryption_service=encryption_service
+                        )
+                        await embed_service.update_embed_status_to_error(
+                            embed_id=placeholder_embed_data.get('embed_id'),
+                            app_id=app_id,
+                            skill_id=skill_id,
+                            error_message="Invalid JSON in function arguments",
+                            chat_id=request_data.chat_id,
+                            message_id=request_data.message_id,
+                            user_id=request_data.user_id,
+                            user_id_hash=request_data.user_id_hash,
+                            user_vault_key_id=user_vault_key_id,
+                            task_id=task_id,
+                            log_prefix=log_prefix
+                        )
+                except Exception as embed_error:
+                    logger.error(f"{log_prefix} Error updating embed to error status: {embed_error}", exc_info=True)
                 # Publish error status
                 try:
                     app_id, skill_id = tool_name.split('-', 1)
@@ -1383,6 +1430,39 @@ async def handle_main_processing(
                     tool_calls_info.append(tool_call_info)
                 except:
                     pass  # Don't fail if tracking fails
+                # Update embed status to error if placeholder exists
+                try:
+                    placeholder_embed_data = inline_placeholder_embeds.get(tool_call_id)
+                    if placeholder_embed_data and cache_service and user_vault_key_id and directus_service:
+                        from backend.core.api.app.services.embed_service import EmbedService
+                        from backend.core.api.app.utils.encryption import EncryptionService
+                        encryption_service = EncryptionService()
+                        embed_service = EmbedService(
+                            cache_service=cache_service,
+                            directus_service=directus_service,
+                            encryption_service=encryption_service
+                        )
+                        # Try to extract app_id and skill_id, fallback to unknown
+                        try:
+                            app_id, skill_id = tool_name.split('-', 1)
+                        except:
+                            app_id = "unknown"
+                            skill_id = "unknown"
+                        await embed_service.update_embed_status_to_error(
+                            embed_id=placeholder_embed_data.get('embed_id'),
+                            app_id=app_id,
+                            skill_id=skill_id,
+                            error_message="Invalid tool name format",
+                            chat_id=request_data.chat_id,
+                            message_id=request_data.message_id,
+                            user_id=request_data.user_id,
+                            user_id_hash=request_data.user_id_hash,
+                            user_vault_key_id=user_vault_key_id,
+                            task_id=task_id,
+                            log_prefix=log_prefix
+                        )
+                except Exception as embed_error:
+                    logger.error(f"{log_prefix} Error updating embed to error status: {embed_error}", exc_info=True)
                 # Publish error status
                 try:
                     app_id, skill_id = tool_name.split('-', 1)
@@ -1413,6 +1493,34 @@ async def handle_main_processing(
                     tool_calls_info.append(tool_call_info)
                 except:
                     pass  # Don't fail if tracking fails
+                # Update embed status to error if placeholder exists
+                try:
+                    app_id, skill_id = tool_name.split('-', 1)
+                    placeholder_embed_data = inline_placeholder_embeds.get(tool_call_id)
+                    if placeholder_embed_data and cache_service and user_vault_key_id and directus_service:
+                        from backend.core.api.app.services.embed_service import EmbedService
+                        from backend.core.api.app.utils.encryption import EncryptionService
+                        encryption_service = EncryptionService()
+                        embed_service = EmbedService(
+                            cache_service=cache_service,
+                            directus_service=directus_service,
+                            encryption_service=encryption_service
+                        )
+                        await embed_service.update_embed_status_to_error(
+                            embed_id=placeholder_embed_data.get('embed_id'),
+                            app_id=app_id,
+                            skill_id=skill_id,
+                            error_message=str(e),
+                            chat_id=request_data.chat_id,
+                            message_id=request_data.message_id,
+                            user_id=request_data.user_id,
+                            user_id_hash=request_data.user_id_hash,
+                            user_vault_key_id=user_vault_key_id,
+                            task_id=task_id,
+                            log_prefix=log_prefix
+                        )
+                except Exception as embed_error:
+                    logger.error(f"{log_prefix} Error updating embed to error status: {embed_error}", exc_info=True)
                 # Publish error status
                 try:
                     app_id, skill_id = tool_name.split('-', 1)

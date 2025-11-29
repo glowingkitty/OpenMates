@@ -169,12 +169,17 @@ base_capabilities_instruction: |
   - **Access external tools and APIs** - Through available app skills, you can interact with external services
   - All capabilities that a regular language model offers through conversation
 
+  **CRITICAL: Available Apps and Tools**
+  - **Available Apps**: The following apps are currently available in the system: {AVAILABLE_APPS}
+  - **NO OTHER APPS EXIST**: Only the apps listed above exist. Do not attempt to use apps that are not in this list. If a user requests functionality from an unavailable app, explain that the app is not currently available and suggest alternatives if possible.
+  - **Available Tools**: The tools available to you are provided in the function calling interface. Only use tools that are actually provided - do not invent or assume tools exist.
+  - **Tool Naming**: Tools are named using the format '{app_id}-{skill_id}'. Always use hyphens to separate app_id and skill_id. Do not use underscores in tool names.
+
   **Important Guidelines:**
   - **Use available tools proactively**: When a user requests something that can be fulfilled with an available app skill (like web search, image generation, etc.), use the appropriate skill to fulfill the request
   - **Be transparent about capabilities**: If a user asks for something that cannot be done with available tools, explain what is possible with the current tools
   - **Don't claim limitations that don't exist**: If a skill is available (like web-search), use it rather than saying it's not available
   - **Check available tools**: The tools available to you are provided in the function calling interface - use them when appropriate
-  - **Tool Naming**: Tools are named using hyphens (e.g., 'web-search', 'images-generate'). Do not use underscores in tool names.
   - Do not invent apps, skills, or capabilities that don't exist - only use the tools that are actually provided to you
 
 follow_up_instruction: |

@@ -223,12 +223,25 @@ async def _async_process_ai_skill_ask_task(
                     app_names = list(discovered_apps_metadata.keys())
                     logger.info(f"[Task ID: {task_id}] Successfully fetched discovered_apps_metadata from API fallback.")
                     logger.info(f"[Task ID: {task_id}] Discovered apps ({len(app_names)} total): {', '.join(app_names) if app_names else 'None'}")
+                    
+                    # Warn if only one app is discovered (likely indicates other apps are not running/available)
+                    if len(app_names) == 1:
+                        logger.warning(
+                            f"[Task ID: {task_id}] WARNING: Only one app discovered ({app_names[0]}). "
+                            f"This may indicate that other app containers are not running or not responding to /metadata endpoint. "
+                            f"Check docker-compose logs and ensure all app containers (app-web, app-ai, etc.) are healthy."
+                        )
+                    
                     for app_id, metadata in discovered_apps_metadata.items():
                         skill_ids = [skill.id for skill in metadata.skills] if metadata.skills else []
-                        skill_identifiers = [f"{app_id}.{skill_id}" for skill_id in skill_ids]
+                        skill_identifiers = [f"{app_id}-{skill_id}" for skill_id in skill_ids]  # Use hyphen format for consistency
                         logger.info(f"[Task ID: {task_id}]   App '{app_id}': Skills: {', '.join(skill_identifiers) if skill_identifiers else 'None'}")
                 else:
-                    logger.error(f"[Task ID: {task_id}] CRITICAL: Failed to load discovered_apps_metadata from both cache and API. LLM will have NO tools available!")
+                    logger.error(
+                        f"[Task ID: {task_id}] CRITICAL: Failed to load discovered_apps_metadata from both cache and API. "
+                        f"LLM will have NO tools available! This will cause the LLM to hallucinate tool results instead of actually calling them. "
+                        f"Check that the API service is running and /apps/metadata endpoint is accessible."
+                    )
         else:
             logger.error(f"[Task ID: {task_id}] CacheService instance not available for loading discovered_apps_metadata.")
     except Exception as e_cache_get:

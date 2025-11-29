@@ -28,6 +28,7 @@ from backend.shared.python_schemas.app_metadata_schemas import (
 )
 from backend.core.api.app.utils.internal_auth import verify_internal_token
 from backend.core.api.app.services.translations import TranslationService
+from backend.apps.ai.processing.rate_limiting import RateLimitScheduledException
 
 logger = logging.getLogger(__name__)
 
@@ -248,6 +249,19 @@ class BaseApp:
                             return response
                         else:
                             raise HTTPException(status_code=500, detail=f"Skill '{skill_definition.id}' is not executable.")
+                    except RateLimitScheduledException as rate_limit_e:
+                        # Rate limit hit - task was scheduled via Celery
+                        # Return task_id response so client knows to wait for followup
+                        logger.info(
+                            f"Skill '{skill_definition.id}' execution scheduled via Celery due to rate limit. "
+                            f"Task ID: {rate_limit_e.task_id}, Wait time: {rate_limit_e.wait_time:.2f}s"
+                        )
+                        return {
+                            "task_id": rate_limit_e.task_id,
+                            "status": "scheduled",
+                            "message": "Request scheduled due to rate limit. I'll let you know once completed.",
+                            "wait_time_seconds": rate_limit_e.wait_time
+                        }
                     except HTTPException:
                         raise
                     except Exception as exec_e:
@@ -322,9 +336,20 @@ class BaseApp:
     def _register_default_routes(self):
         @self.fastapi_app.get("/metadata", tags=["App Info"], response_model=AppYAML)
         async def get_app_metadata():
-            if not self.is_valid or not self.app_config:
+            # Debug logging to help diagnose metadata endpoint issues
+            logger.info(f"Metadata endpoint called for app '{self.app_id}'. is_valid={self.is_valid}, app_config={'exists' if self.app_config else 'None'}")
+            if not self.is_valid:
+                logger.error(f"Metadata endpoint failed: is_valid is False for app '{self.app_id}'")
                 raise HTTPException(status_code=500, detail="App configuration is not loaded or invalid.")
-            return self.app_config
+            if not self.app_config:
+                logger.error(f"Metadata endpoint failed: app_config is None for app '{self.app_id}'")
+                raise HTTPException(status_code=500, detail="App configuration is not loaded or invalid.")
+            try:
+                # Try to return the config - if serialization fails, we'll catch it
+                return self.app_config
+            except Exception as e:
+                logger.error(f"Metadata endpoint serialization error for app '{self.app_id}': {e}", exc_info=True)
+                raise HTTPException(status_code=500, detail=f"Error serializing app configuration: {str(e)}")
 
         @self.fastapi_app.get("/health", tags=["App Info"])
         async def health_check():
