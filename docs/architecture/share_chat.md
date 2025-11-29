@@ -10,14 +10,39 @@ The share chat feature allows users to share their conversations with other user
 
 ## Sharing Options
 
-### Share with User
+### Share with Public
 
-When sharing with a specific user:
+When sharing publicly:
+
+1. **Sharing Process:**
+   - The chat owner clicks "Share public" to make the chat publicly accessible
+   - A shareable link is generated with the format: `/share/chat/{chat-id}#key={encryption-key}` where the chat ID is in the path and the encryption key is stored in the URL fragment (after the `#`)
+   - Anyone with the link can access the chat (no email verification required)
+   - The system checks if the chat is marked as publicly shared before allowing access
+
+2. **Access Mode:**
+   - **Read-Only by Default:** Public shared chats are read-only by default
+   - **User Response Behavior:** If a user attempts to respond to a public read-only chat:
+     - The chat is automatically copied to the user's account
+     - The user's follow-up messages and assistant responses are only visible to that user
+     - The original shared chat remains unchanged and unaffected
+     - This ensures that public shares remain stable and don't get cluttered with individual user interactions
+
+3. **Security:**
+   - Similar security and encryption principles apply as with user-specific sharing
+   - The encryption key is included in the link initially, but is automatically stored securely after first access
+   - The key is removed from the URL after being saved to prevent exposure
+   - On subsequent visits, the stored key is used automatically
+   - **Password Protection (Optional):** Users can optionally set a password when sharing publicly. The password is used to derive an additional encryption key that is combined with the shared encryption key, providing an extra layer of security. The server has no knowledge of whether a chat is password-protected (true zero-knowledge).
+
+### Share with User (Invite via Email)
+
+When sharing with specific users:
 
 1. **Sharing Process:**
    - The chat owner enters the recipient's email address
    - An email notification is sent to the recipient with a secure link to access the chat
-   - The link uses the format: `/#chat-id={chatid}&key={encryption-key}` where both the chat ID and encryption key are stored in the URL fragment (after the `#`)
+   - The link uses the format: `/share/chat/{chat-id}#key={encryption-key}` where the chat ID is in the path and the encryption key is stored in the URL fragment (after the `#`)
    - The system verifies that the recipient is authorized to view the chat
 
 2. **Access Management:**
@@ -25,8 +50,18 @@ When sharing with a specific user:
    - Access persists as long as the chat remains shared with them
 
 3. **Sharing Modes:**
-   - **Read-Only Mode:** Recipients can view the chat and its messages but cannot send new messages. This mode is ideal for sharing completed conversations or knowledge base material.
-   - **Collaborative Group Chat Mode:** Recipients can read and contribute to the chat by sending messages. This enables team collaboration on shared conversations. In this mode, users need to explicitly mention **@OpenMates** to trigger OpenMates to respond in the conversation. This design allows groups to discuss and collaborate naturally without OpenMates responding to every message, making it suitable for team discussions and collaborative problem-solving.
+   - **Read-Only Mode:** Recipients can view the chat and its messages. If a recipient attempts to respond:
+     - The chat is automatically copied to the recipient's account
+     - The recipient's follow-up messages and assistant responses are only visible to that recipient
+     - The original shared chat remains unchanged and unaffected
+     - This mode is ideal for sharing completed conversations or knowledge base material
+
+   - **Group Chat Mode:** Recipients can read and contribute to the chat by sending messages. This enables true team collaboration on shared conversations:
+     - **Message Synchronization:** All messages sent by any user are synced and visible to all users who have access to the chat
+     - **OpenMates Mentions:** Users must explicitly mention **@OpenMates** to trigger OpenMates to respond in the conversation
+     - **Natural Collaboration:** Without @OpenMates mentions, the chat acts as a regular conversation between people, allowing groups to discuss and collaborate naturally
+     - **Public Usernames:** When a chat is first converted to a group chat, users are prompted to create a unique public username (globally unique across the entire OpenMates server). Users can also set an optional display name that shows instead of the public username to others in the chat
+     - This design makes group chats suitable for team discussions and collaborative problem-solving
 
 4. **Security:**
    - The encryption key is included in the link initially, but is automatically stored securely after first access
@@ -34,19 +69,62 @@ When sharing with a specific user:
    - On subsequent visits, the stored key is used automatically
    - **Password Protection (Optional):** Users can optionally set a password when sharing a chat. The password is used to derive an additional encryption key that is combined with the shared encryption key, providing an extra layer of security. The server has no knowledge of whether a chat is password-protected (true zero-knowledge).
 
-### Share with Public
+## Public Usernames and Group Chat Identity
 
-When sharing publicly:
+### Public Username Requirements
 
-- Similar security and encryption principles apply
-- Anyone with the link can access the chat (no email verification required)
-- The system checks if the chat is marked as publicly shared before allowing access
+When a chat is converted to a group chat mode (for user-specific sharing), users need to establish a public identity:
+
+1. **First-Time Setup:**
+   - When a chat owner first enables group chat mode, they are prompted to create a unique public username
+   - The public username must be globally unique across the entire OpenMates server
+   - This username is used to identify users in group chat conversations
+
+2. **Username Properties:**
+   - **Uniqueness:** Must be unique across all OpenMates users (server-wide validation)
+   - **Persistence:** Once created, the public username is tied to the user's account
+   - **Visibility:** The public username is visible to all participants in group chats where the user is involved
+
+3. **Display Name (Optional):**
+   - Users can set an optional display name that shows instead of the public username in group chats
+   - The display name is per-chat or global (implementation decision)
+   - If no display name is set, the public username is shown
+   - Display names do not need to be unique
+
+4. **Identity in Group Chats:**
+   - In group chat messages, users are identified by their display name (if set) or public username
+   - This allows for clear attribution of messages in collaborative conversations
+   - The system maintains a mapping between public usernames and user accounts for message synchronization
+
+### Group Chat Message Flow
+
+In group chat mode:
+
+1. **User Sends Message:**
+   - User types a message and sends it
+   - Message is encrypted and stored with the user's public username/display name
+   - Message is synced to all users who have access to the chat
+
+2. **OpenMates Response Trigger:**
+   - If the message contains **@OpenMates** mention:
+     - Message is sent to LLM inference with full chat history
+     - OpenMates generates a response
+     - Response is encrypted and synced to all users in the group chat
+   - If the message does not contain **@OpenMates** mention:
+     - Message is treated as a regular human-to-human message
+     - No LLM inference is triggered
+     - Message remains visible to all group chat participants
+
+3. **Message Synchronization:**
+   - All messages (both user messages and OpenMates responses) are synchronized in real-time to all participants
+   - Each participant sees the same conversation state
+   - Message order is preserved across all participants
 
 ## Privacy and Security
 
-- **URL Pattern:** Shared chat links use the format `/#chat-id={chatid}&key={encryption-key}` where both the chat ID and encryption key are stored in the URL fragment (everything after the `#` symbol)
-- **Server Privacy:** The URL fragment is never sent to the server - it remains entirely on the client side. This means the server never receives or sees the chat ID or encryption key, ensuring maximum privacy
-- **Search Engine Protection:** Shared chats are designed to prevent search engine indexing since the fragment portion of URLs is not accessible to search engines
+- **URL Pattern:** Shared chat links use the format `/share/chat/{chat-id}#key={encryption-key}` where the chat ID is in the path (accessible to server for OG tag generation) and the encryption key is stored in the URL fragment (everything after the `#` symbol)
+- **Server Privacy:** The URL fragment is never sent to the server - it remains entirely on the client side. This means the server never receives or sees the encryption key, ensuring maximum privacy. The server only sees the chat ID from the path, which is used for access control and OG tag generation
+- **Search Engine Protection:** Shared chats are optimized for social media sharing via the `/share/chat/{chat-id}` path (without fragment), while the encryption key in the fragment ensures privacy for direct access
 - **Zero-Knowledge Encryption:** All messages remain encrypted, even when shared
 
 ## Password Protection
@@ -68,13 +146,14 @@ Users can optionally set a password when sharing a chat or embed to add an addit
    - This ensures that even if someone obtains the shared encryption key from the URL, they cannot decrypt password-protected content without the password
 
 3. **Access Flow (Zero-Knowledge):**
-   - When someone accesses a shared chat:
-     1. Client extracts `chat_id` and `key` from URL fragment
-     2. Client sends request to server with `chat_id` (key stays in fragment)
+   - When someone accesses a shared chat via `/share/chat/{chat-id}#key={encryption-key}`:
+     1. Client extracts `chat_id` from URL path and `key` from URL fragment
+     2. Client sends request to server with `chat_id` (key stays in fragment, never sent to server)
      3. Server checks if chat exists and is shared, then returns encrypted content
-     4. Client attempts to decrypt content using `shared_encryption_key` from URL fragment
-     5. **If decryption succeeds:** Content is displayed ✅
-     6. **If decryption fails:**
+     4. Client-side JavaScript redirects to main app URL format: `/#chat-id={chat-id}&key={encryption-key}` for final rendering
+     5. Client attempts to decrypt content using `shared_encryption_key` from URL fragment
+     6. **If decryption succeeds:** Content is displayed ✅
+     7. **If decryption fails:**
         - Client prompts user: "Enter the password:"
         - User enters password (if applicable)
         - Client derives key from password using the same salt generation method (salt must be deterministically derived or stored client-side)
@@ -92,41 +171,171 @@ Users can optionally set a password when sharing a chat or embed to add an addit
 
 ## Message Visibility Control
 
-### Initial Sharing
+### Read-Only Mode (Public and User-Specific)
 
-When a chat is first shared:
+For read-only shared chats (both public and user-specific):
+
+#### Initial Sharing (Read-Only)
+
+When a chat is first shared in read-only mode:
 
 - **All existing messages are shared:** When sharing is enabled, all messages up to the most recent one at that moment are immediately available to shared users
 - The system records the timestamp of the most recent message at the time of sharing
 - This timestamp defines the cutoff point for what shared users can access
 
-### Follow-up Messages
+#### Follow-up Messages
 
-After sharing a chat:
+After sharing a chat in read-only mode:
 
 - **New messages are private by default:** When the chat owner sends follow-up messages after sharing, these new messages are not automatically included in the shared version
 - Shared users cannot see these newer messages until the owner explicitly updates the shared chat
 - This gives the owner control over when to make new content visible to others
 
-### Updating Shared Content
+#### User Response Behavior
 
-To include newer messages in the shared chat:
+If a shared user attempts to respond to a read-only chat:
+
+- The chat is automatically copied to the user's account
+- The user's follow-up messages and assistant responses are only visible to that user
+- The original shared chat remains unchanged and unaffected
+- This ensures read-only shares remain stable and don't get cluttered with individual user interactions
+
+#### Updating Shared Content
+
+To include newer messages in a read-only shared chat:
 
 - The chat owner clicks the "Update shared chat" button in the interface
 - This action updates the timestamp cutoff point to include all messages up to the most recent one
 - No new share link is needed - the existing link continues to work, but now shows the updated content
 - The UI clearly indicates which messages are currently shared and which remain private
 
+### Group Chat Mode (User-Specific Only)
+
+For group chat mode (only available for user-specific sharing):
+
+#### Initial Sharing (Group Chat)
+
+When a chat is first shared in group chat mode:
+
+- **All existing messages are shared:** All messages up to the most recent one at that moment are immediately available to all group chat participants
+- All participants can see the full conversation history from the point of sharing
+
+#### Follow-up Messages (Group Chat)
+
+After sharing a chat in group chat mode:
+
+- **All new messages are automatically synced:** When any participant (including the original owner) sends a message, it is immediately visible to all group chat participants
+- **Real-time synchronization:** Messages are synchronized in real-time to all participants
+- **No update button needed:** Unlike read-only mode, there is no "Update shared chat" button - all messages are automatically included as they are sent
+
+#### Message Attribution
+
+- Each message is attributed to the sender using their display name (if set) or public username
+- All participants can see who sent each message
+- OpenMates responses are clearly marked and only occur when **@OpenMates** is mentioned
+
 ## User Interface Requirements
 
-The interface must provide clear visual feedback:
+The interface must provide clear visual feedback and controls for different sharing modes:
+
+### UI Requirements for Read-Only Mode (Public and User-Specific)
 
 - **Visual Boundary:** A clear divider or indicator showing where the shared portion ends
 - **Message Status:** Users can easily see which messages are shared and which are private
 - **Update Control:** An "Update shared chat" button allows owners to easily extend the shared portion to include more recent messages
 - **Sync Status:** The interface shows which messages are synced with the shared version and allows owners to update the shared content
+- **Response Warning:** When a user attempts to respond to a read-only chat, the UI should clearly indicate that their response will create a copy of the chat for their personal use
+
+### UI Requirements for Group Chat Mode (User-Specific Only)
+
+- **Participant List:** Display all participants in the group chat with their display names or public usernames
+- **Real-time Sync Indicator:** Show when messages are being synchronized to other participants
+- **@OpenMates Mentioning:** Clear UI indication that mentioning @OpenMates is required to trigger OpenMates responses
+- **Message Attribution:** Each message clearly shows the sender's display name or public username
+- **Public Username Setup:** When first enabling group chat mode, prompt the user to create a unique public username with clear instructions about uniqueness requirements
+- **Display Name Management:** Allow users to set and update their display name for the group chat
+
+### General Sharing UI
+
+- **Sharing Mode Selection:** Clear options to choose between read-only and group chat modes (for user-specific sharing)
+- **Password Protection Toggle:** Option to set an optional password for both public and user-specific sharing
+- **Share Link Display:** Show the shareable link with clear copy-to-clipboard functionality
+- **Access Control:** For user-specific sharing, show list of users who have access and allow adding/removing users
 
 This design enables flexible, secure sharing while maintaining user control over privacy and message visibility.
+
+## Additional Implementation Considerations
+
+### Public Username Management
+
+1. **Username Validation:**
+   - Server must validate username uniqueness across all users before creation
+   - Username format requirements (e.g., alphanumeric, length constraints) should be defined
+   - Username changes after creation may be allowed or restricted (implementation decision)
+
+2. **Username Lookup:**
+   - System needs efficient lookup mechanism to resolve public usernames to user accounts
+   - This is needed for message attribution and participant management in group chats
+
+### Group Chat Participant Management
+
+1. **Adding Participants:**
+   - Chat owner can add new participants by email address
+   - New participants receive email notification with access link
+   - New participants must have a public username to participate (prompted on first access if needed)
+
+2. **Removing Participants:**
+   - Chat owner can remove participants from group chat
+   - Removed participants lose access but their past messages remain visible (historical record)
+   - Consider whether removed participants should be notified
+
+3. **Participant Status:**
+   - Track active/inactive participants
+   - Consider showing "last seen" or online status indicators
+
+### Mode Conversion
+
+1. **Read-Only to Group Chat:**
+   - Chat owner may want to convert a read-only shared chat to group chat mode
+   - This should prompt for public username creation if not already set
+   - Historical messages remain visible to all participants
+
+2. **Group Chat to Read-Only:**
+   - Chat owner may want to convert a group chat back to read-only mode
+   - This stops new messages from being synced but preserves existing conversation
+   - Consider whether to allow this conversion or require creating a new share
+
+### Message Management in Group Chats
+
+1. **Message Editing:**
+   - Consider whether users can edit their messages in group chats
+   - If allowed, edited messages should sync to all participants
+   - Consider showing edit history or timestamps
+
+2. **Message Deletion:**
+   - Consider whether users can delete their messages in group chats
+   - If allowed, deletion should sync to all participants
+   - Consider soft-delete vs hard-delete options
+
+3. **Message Ordering:**
+   - Ensure consistent message ordering across all participants
+   - Handle race conditions when multiple users send messages simultaneously
+   - Use timestamps and conflict resolution strategies
+
+### Error Handling and Edge Cases
+
+1. **Username Conflicts:**
+   - Handle race conditions when multiple users try to claim the same username
+   - Provide clear error messages when username is already taken
+
+2. **Network Failures:**
+   - Handle cases where message synchronization fails
+   - Implement retry mechanisms for failed syncs
+   - Show clear error states to users
+
+3. **Access Revocation:**
+   - Handle cases where a user's access is revoked while they are viewing the chat
+   - Gracefully handle encryption key changes or chat deletion
 
 ## Embed Sharing
 
@@ -134,16 +343,16 @@ Embeds (app skill results, files, code, etc.) can be shared independently of cha
 
 ### Key Similarities
 
-- **URL Pattern**: Shared embed links use the format `/#embed-id={embed_id}&key={shared_encryption_key}` where both the embed ID and encryption key are stored in the URL fragment
-- **Server Privacy**: The URL fragment is never sent to the server - it remains entirely on the client side
+- **URL Pattern**: Shared embed links use the format `/share/embed/{embed-id}#key={shared_encryption_key}` where the embed ID is in the path and the encryption key is stored in the URL fragment
+- **Server Privacy**: The URL fragment is never sent to the server - it remains entirely on the client side. The server only sees the embed ID from the path
 - **Zero-Knowledge Encryption**: All embed content remains encrypted, even when shared
 - **Access Control**: Server checks `share_mode` ('private', 'shared_with_user', 'public') and `shared_with_users` array for access control
 
 ### Access Flow
 
-When someone opens a shared embed link:
+When someone opens a shared embed link via `/share/embed/{embed-id}#key={shared_encryption_key}`:
 
-1. Client extracts `embed_id` and `key` from URL fragment
+1. Client extracts `embed_id` from URL path and `key` from URL fragment
 2. Client sends request to server with `embed_id` (key stays in fragment, never sent to server)
 3. Server checks:
    - Does embed exist?
@@ -153,9 +362,10 @@ When someone opens a shared embed link:
      - If no: Return error
    - If `share_mode === 'private'`: Return error
 4. If access granted: Server returns encrypted content (server has no knowledge of password protection)
-5. Client attempts to decrypt content using `shared_encryption_key` from URL fragment
-6. **If decryption succeeds:** Content is displayed ✅
-7. **If decryption fails:**
+5. Client-side JavaScript redirects to main app URL format: `/#embed-id={embed-id}&key={shared_encryption_key}` for final rendering
+6. Client attempts to decrypt content using `shared_encryption_key` from URL fragment
+7. **If decryption succeeds:** Content is displayed ✅
+8. **If decryption fails:**
    - Client prompts user: "Unable to decrypt. If this share is password-protected, enter the password:"
    - User enters password (if applicable)
    - Client derives key from password (using deterministic salt or client-stored salt)
@@ -163,7 +373,7 @@ When someone opens a shared embed link:
    - Client attempts decryption again with combined key
    - If decryption succeeds: Content is displayed ✅
    - If decryption still fails: Show error: "Unable to decrypt. Please verify the link and password (if required)."
-8. If access denied or embed doesn't exist: Show unified error message: "Embed can't be found. Either it doesn't exist or you don't have access to it."
+9. If access denied or embed doesn't exist: Show unified error message: "Embed can't be found. Either it doesn't exist or you don't have access to it."
 
 ### Differences from Chat Sharing
 
@@ -385,9 +595,9 @@ This simplified approach can be enhanced later to generate custom OG images per 
 
 ### Access Flow with Social Sharing
 
-1. **Social Crawler Access**: Hits `/share/chat/{chat-id}` → Server returns HTML with OG tags → Crawler extracts preview
-2. **User Click**: Opens `/share/chat/{chat-id}#key={key}` → Client-side JS redirects to `/#chat-id={chat-id}&key={key}`
-3. **Main App**: Loads chat, extracts key from URL fragment, decrypts and displays content
+1. **Social Crawler Access**: Hits `/share/chat/{chat-id}` (no fragment) → Server returns HTML with OG tags → Crawler extracts preview for social media platforms
+2. **User Click**: Opens `/share/chat/{chat-id}#key={encryption-key}` → Client-side JavaScript detects the key fragment and redirects to main app URL format: `/#chat-id={chat-id}&key={encryption-key}`
+3. **Main App**: Loads chat, extracts `chat-id` and `key` from URL fragment, decrypts and displays content
 
 ### Privacy Maintained
 
