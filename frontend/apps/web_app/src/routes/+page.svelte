@@ -189,17 +189,21 @@
      * Handler for sync completion - automatically loads the last opened chat
      * This implements the "Auto-Open Logic" from sync.md Phase 1 requirements
      * 
+     * IMPORTANT: This function is only called on login (when sync completes after authentication).
+     * On tab reload, we load from IndexedDB directly (see instant load logic below).
+     * 
      * OPTIMIZATION: Check if chat is already loaded to avoid duplicate loads
      * Only loads if chat exists in IndexedDB but isn't currently displayed
      */
     async function handleSyncCompleteAndLoadLastChat() {
-        console.debug('[+page.svelte] Sync event received, checking for last opened chat...');
+        console.debug('[+page.svelte] Sync event received (login scenario), checking for last opened chat from server...');
         
-        // Get the last opened chat ID from user profile
+        // On login, use server state (from userProfile which was synced from server)
+        // This ensures new devices get the correct last opened chat from server
         const lastOpenedChatId = $userProfile.last_opened;
         
         if (!lastOpenedChatId) {
-            console.debug('[+page.svelte] No last opened chat in user profile');
+            console.debug('[+page.svelte] No last opened chat in user profile (from server)');
             return;
         }
         
@@ -218,7 +222,7 @@
             const lastChat = await chatDB.getChat(lastOpenedChatId);
             
             if (lastChat && activeChat) {
-                console.debug('[+page.svelte] ✅ Loading last opened chat from sync:', lastOpenedChatId);
+                console.debug('[+page.svelte] ✅ Loading last opened chat from sync (login):', lastOpenedChatId);
                 
                 // Update the active chat store so the sidebar highlights it when opened
                 activeChatStore.setActiveChat(lastOpenedChatId);
@@ -226,7 +230,7 @@
                 // Load the chat in the UI
                 activeChat.loadChat(lastChat);
                 
-                console.debug('[+page.svelte] ✅ Successfully loaded last opened chat from sync');
+                console.debug('[+page.svelte] ✅ Successfully loaded last opened chat from sync (login)');
             } else if (!lastChat) {
                 console.debug('[+page.svelte] Last opened chat not yet in IndexedDB, will try again after next sync phase');
             } else if (!activeChat) {
@@ -487,19 +491,42 @@
 		
 		// INSTANT LOAD: Check if last opened chat is already in IndexedDB (non-blocking)
 		// This provides instant load on page reload without waiting for sync
+		// CRITICAL: On tab reload, load from IndexedDB (not server state) to prevent sudden chat switches
+		// On login, server state will be used (via handleSyncCompleteAndLoadLastChat)
 		if ($authStore.isAuthenticated && dbInitPromise) {
 			dbInitPromise.then(async () => {
-				const lastOpenedChatId = $userProfile.last_opened;
-				if (lastOpenedChatId && activeChat) {
-					console.debug('[+page.svelte] Checking if last opened chat is already in IndexedDB:', lastOpenedChatId);
+				// Load last_opened from IndexedDB (local state) instead of server state
+				// This prevents the sudden switch when server sync completes after tab reload
+				const { userDB } = await import('@repo/ui');
+				const localProfile = await userDB.getUserProfile();
+				const lastOpenedChatId = localProfile?.last_opened;
+				
+				if (!lastOpenedChatId) {
+					console.debug('[+page.svelte] [TAB RELOAD] No last opened chat in IndexedDB, will wait for sync or use server state on login');
+					return;
+				}
+				
+				// Handle "new chat window" case
+				if (lastOpenedChatId === '/chat/new' || lastOpenedChatId === 'new') {
+					console.debug('[+page.svelte] [TAB RELOAD] Last opened was new chat window, clearing active chat');
+					// Clear active chat to show new chat window
+					// The ActiveChat component will show the new chat interface when no chat is selected
+					activeChatStore.clearActiveChat();
+					phasedSyncState.markSyncCompleted();
+					return;
+				}
+				
+				// Handle real chat ID
+				if (activeChat) {
+					console.debug('[+page.svelte] [TAB RELOAD] Checking if last opened chat is already in IndexedDB:', lastOpenedChatId);
 					const lastChat = await chatDB.getChat(lastOpenedChatId);
 					if (lastChat) {
-						console.debug('[+page.svelte] ✅ INSTANT LOAD: Last opened chat found in IndexedDB, loading immediately');
+						console.debug('[+page.svelte] ✅ INSTANT LOAD: Last opened chat found in IndexedDB (tab reload), loading immediately');
 						activeChatStore.setActiveChat(lastOpenedChatId);
 						activeChat.loadChat(lastChat);
 						// Mark sync as completed since we already have data
 						phasedSyncState.markSyncCompleted();
-						console.debug('[+page.svelte] ✅ Chat loaded instantly from cache');
+						console.debug('[+page.svelte] ✅ Chat loaded instantly from IndexedDB cache (tab reload)');
 					} else {
 						console.debug('[+page.svelte] Last opened chat not in IndexedDB yet, will wait for sync');
 					}
@@ -531,13 +558,37 @@
             console.debug('[+page.svelte] Skipping phased sync - already completed in this session');
             
             // If sync already completed but we're just mounting (e.g., after page reload),
-            // check if we should load the last opened chat
-            if ($userProfile.last_opened && activeChat) {
-                const lastChat = await chatDB.getChat($userProfile.last_opened);
-                if (lastChat) {
-                    console.debug('[+page.svelte] Sync already complete, loading last opened chat:', $userProfile.last_opened);
-                    activeChatStore.setActiveChat($userProfile.last_opened);
-                    activeChat.loadChat(lastChat);
+            // check if we should load the last opened chat from IndexedDB (not server state)
+            // This prevents sudden chat switches when already logged in
+            if (activeChat) {
+                try {
+                    // Load from IndexedDB (local state) instead of server state
+                    const { userDB } = await import('@repo/ui');
+                    const localProfile = await userDB.getUserProfile();
+                    const lastOpenedChatId = localProfile?.last_opened;
+                    
+                    if (!lastOpenedChatId) {
+                        return;
+                    }
+                    
+                    // Handle "new chat window" case
+                    if (lastOpenedChatId === '/chat/new' || lastOpenedChatId === 'new') {
+                        console.debug('[+page.svelte] [TAB RELOAD] Last opened was new chat window, clearing active chat');
+                        // Clear active chat to show new chat window
+                        // The ActiveChat component will show the new chat interface when no chat is selected
+                        activeChatStore.clearActiveChat();
+                        return;
+                    }
+                    
+                    // Handle real chat ID
+                    const lastChat = await chatDB.getChat(lastOpenedChatId);
+                    if (lastChat) {
+                        console.debug('[+page.svelte] [TAB RELOAD] Sync already complete, loading last opened chat from IndexedDB:', lastOpenedChatId);
+                        activeChatStore.setActiveChat(lastOpenedChatId);
+                        activeChat.loadChat(lastChat);
+                    }
+                } catch (error) {
+                    console.error('[+page.svelte] Error loading last opened chat from IndexedDB:', error);
                 }
             }
         }

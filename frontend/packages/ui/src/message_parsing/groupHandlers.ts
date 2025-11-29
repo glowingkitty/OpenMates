@@ -657,7 +657,149 @@ export class SheetsSheetGroupHandler implements EmbedGroupHandler {
   }
 }
 
-
+/**
+ * App skill use embed group handler
+ * Groups consecutive app_skill_use embeds (e.g., multiple search requests) for horizontal scrolling
+ */
+export class AppSkillUseGroupHandler implements EmbedGroupHandler {
+  embedType = 'app-skill-use';
+  
+  canGroup(nodeA: EmbedNodeAttributes, nodeB: EmbedNodeAttributes): boolean {
+    // App skill use embeds can be grouped together if they're the same type
+    // This allows multiple search requests to be displayed as a horizontally scrollable group
+    return nodeA.type === 'app-skill-use' && nodeB.type === 'app-skill-use';
+  }
+  
+  createGroup(embedNodes: EmbedNodeAttributes[]): EmbedNodeAttributes {
+    // Sort according to status: processing first, then finished
+    const sortedEmbeds = [...embedNodes].sort((a, b) => {
+      if (a.status === 'processing' && b.status !== 'processing') return -1;
+      if (a.status !== 'processing' && b.status === 'processing') return 1;
+      return 0; // Keep original order for same status
+    });
+    
+    // Extract only the essential, serializable attributes for groupedItems
+    const serializableGroupedItems = sortedEmbeds.map(embed => ({
+      id: embed.id,
+      type: embed.type as any,
+      status: embed.status as 'processing' | 'finished',
+      contentRef: embed.contentRef
+    }));
+    
+    console.log('[AppSkillUseGroupHandler] Creating group with items:', serializableGroupedItems);
+    
+    const result = {
+      id: this.generateGroupId(),
+      type: 'app-skill-use-group',
+      status: 'finished',
+      contentRef: null,
+      groupedItems: serializableGroupedItems,
+      groupCount: sortedEmbeds.length
+    } as EmbedNodeAttributes;
+    
+    console.log('[AppSkillUseGroupHandler] Created group:', result);
+    return result;
+  }
+  
+  handleGroupBackspace(groupAttrs: EmbedNodeAttributes): GroupBackspaceResult {
+    const groupedItems = groupAttrs.groupedItems || [];
+    
+    if (groupedItems.length > 2) {
+      // For groups with >2 items: keep remaining items grouped, show last one in edit mode
+      const remainingItems = groupedItems.slice(0, -1);
+      const lastItem = groupedItems[groupedItems.length - 1];
+      
+      // Create a new group with the remaining items
+      const remainingGroupAttrs = this.createGroup(remainingItems);
+      
+      // Build the replacement content: group + editable text
+      const replacementContent: any[] = [
+        {
+          type: 'embed',
+          attrs: remainingGroupAttrs
+        },
+        { type: 'text', text: ' ' }, // Space between group and editable text
+        { type: 'text', text: '' }, // Last item removed (can't edit app_skill_use as text)
+        { type: 'hardBreak' } // Hard break after editable text
+      ];
+      
+      return {
+        action: 'split-group',
+        replacementContent
+      };
+    } else if (groupedItems.length === 2) {
+      // For groups with 2 items: split into individual items
+      const firstItem = groupedItems[0];
+      const lastItem = groupedItems[groupedItems.length - 1];
+      
+      // Create individual embed nodes for both items
+      const replacementContent: any[] = [
+        {
+          type: 'embed',
+          attrs: {
+            ...firstItem,
+            type: 'app-skill-use' // Convert back to individual app-skill-use embed
+          }
+        },
+        { type: 'text', text: ' ' }, // Space between embeds
+        {
+          type: 'embed',
+          attrs: {
+            ...lastItem,
+            type: 'app-skill-use' // Convert back to individual app-skill-use embed
+          }
+        }
+      ];
+      
+      return {
+        action: 'split-group',
+        replacementContent
+      };
+    } else if (groupedItems.length === 1) {
+      // Single item group - convert back to individual embed
+      const singleItem = groupedItems[0];
+      const replacementContent: any[] = [
+        {
+          type: 'embed',
+          attrs: {
+            ...singleItem,
+            type: 'app-skill-use'
+          }
+        }
+      ];
+      
+      return {
+        action: 'split-group',
+        replacementContent
+      };
+    }
+    
+    // Empty group - just delete
+    return {
+      action: 'delete-group'
+    };
+  }
+  
+  groupToMarkdown(groupAttrs: EmbedNodeAttributes): string {
+    // Serialize app_skill_use groups back to individual JSON embed blocks
+    const groupedItems = groupAttrs.groupedItems || [];
+    return groupedItems.map(item => {
+      // Extract embed_id from contentRef (format: "embed:...")
+      const embedId = item.contentRef?.replace('embed:', '') || '';
+      const embedData: any = {
+        type: 'app_skill_use',
+        embed_id: embedId
+      };
+      
+      const jsonContent = JSON.stringify(embedData, null, 2);
+      return `\`\`\`json\n${jsonContent}\n\`\`\``;
+    }).join('\n\n');
+  }
+  
+  private generateGroupId(): string {
+    return 'group_' + Math.random().toString(36).substr(2, 9);
+  }
+}
 
 /**
  * Registry of group handlers
@@ -672,6 +814,7 @@ export class GroupHandlerRegistry {
     this.register(new CodeCodeGroupHandler());
     this.register(new DocsDocGroupHandler());
     this.register(new SheetsSheetGroupHandler());
+    this.register(new AppSkillUseGroupHandler());
   }
   
   /**

@@ -202,7 +202,16 @@ function serializeParagraph(node: any): string {
               text = `\`${text}\``;
               break;
             case 'link':
-              text = `[${text}](${mark.attrs?.href || ''})`;
+              // If the link text is the same as the href (plain URL), output just the URL
+              // This preserves user input without adding unnecessary markdown link syntax
+              const href = mark.attrs?.href || '';
+              if (text === href || text.trim() === href.trim()) {
+                // Plain URL - output as-is without markdown link syntax
+                text = href;
+              } else {
+                // Actual markdown link with different text - use markdown syntax
+                text = `[${text}](${href})`;
+              }
               break;
           }
         }

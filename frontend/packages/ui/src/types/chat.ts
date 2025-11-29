@@ -50,7 +50,7 @@ export interface Chat {
   messages_v: number; // Client's current version for messages for this chat
   title_v: number; // Client's current version for title for this chat
 
-  last_edited_overall_timestamp: number; // Unix timestamp of the most recent modification to messages or the user's draft for this chat (for sorting)
+  last_edited_overall_timestamp: number; // Unix timestamp of the most recent message sent to this chat (for sorting). Only messages update this timestamp, not drafts.
   unread_count: number; // Number of unread messages in this chat for the current user
 
   // Scroll position tracking

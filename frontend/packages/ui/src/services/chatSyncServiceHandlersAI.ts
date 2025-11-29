@@ -1146,7 +1146,19 @@ export async function handleEmbedUpdateImpl(
                 }
             }));
         } else {
-            console.warn(`[ChatSyncService:AI] Embed ${payload.embed_id} not found in cache for update`);
+            // CRITICAL FIX: If embed doesn't exist yet, request it from server
+            // This can happen if embed_update is sent before send_embed_data is processed
+            // or if the embed was not properly stored
+            console.warn(`[ChatSyncService:AI] Embed ${payload.embed_id} not found in cache for update. Requesting from server.`);
+            
+            // Request embed from server via request_embed event
+            const { sendRequestEmbed } = await import('./chatSyncServiceSenders');
+            try {
+                await sendRequestEmbed(serviceInstance, payload.embed_id);
+                console.info(`[ChatSyncService:AI] Requested embed ${payload.embed_id} from server`);
+            } catch (error) {
+                console.error(`[ChatSyncService:AI] Error requesting embed ${payload.embed_id} from server:`, error);
+            }
         }
     } catch (error) {
         console.error(`[ChatSyncService:AI] Error handling embed_update for embed ${payload.embed_id}:`, error);

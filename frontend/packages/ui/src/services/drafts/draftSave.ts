@@ -244,12 +244,29 @@ export const saveDraftDebounced = debounce(async (chatIdFromMessageInput?: strin
         }
         
         // Determine chat ID for sessionStorage draft
-        // CRITICAL: Use draft state's currentChatId, not the prop, to avoid race conditions
-        // The draft state is updated synchronously in setCurrentChatContext, so it's more reliable
+        // CRITICAL: For demo chats, always prioritize the draft state's currentChatId to ensure separate drafts per demo chat
+        // The draft state is updated synchronously in setCurrentChatContext when switching chats, so it's more reliable
+        // Only use chatIdFromMessageInput if the state doesn't have a chat ID yet (e.g., new chat creation)
+        // This ensures that when switching between demo chats, each chat maintains its own separate draft
         if (currentState.currentChatId) {
+            // Always use the draft state's currentChatId for demo chats to ensure separate drafts
+            // This prevents overwriting one demo chat's draft when typing in another demo chat
             currentChatIdForOperation = currentState.currentChatId;
+            console.debug('[DraftService] Using draft state chat ID for non-authenticated user:', {
+                chatId: currentChatIdForOperation,
+                propChatId: chatIdFromMessageInput,
+                isDemoChat: currentChatIdForOperation.startsWith('demo-') || currentChatIdForOperation.startsWith('legal-')
+            });
         } else if (chatIdFromMessageInput) {
+            // Fallback to prop if state doesn't have a chat ID (e.g., new chat creation)
             currentChatIdForOperation = chatIdFromMessageInput;
+            console.debug('[DraftService] Using prop chat ID for non-authenticated user (state has no chat ID):', currentChatIdForOperation);
+            
+            // Update draft state with the prop's chat ID to keep them in sync
+            draftEditorUIState.update(s => ({
+                ...s,
+                currentChatId: currentChatIdForOperation
+            }));
         } else {
             // No chat ID available - generate a new one for new chats
             // This ensures new chats created by non-authenticated users get a chat ID
@@ -269,11 +286,27 @@ export const saveDraftDebounced = debounce(async (chatIdFromMessageInput?: strin
         // CRITICAL: Only delete draft if we're sure the editor is actually empty
         // AND we're not in the middle of a context switch
         // AND the chat ID matches the current context (to prevent deleting wrong chat's draft)
+        // AND we're not switching to a demo chat (which might have no draft initially)
         if (editor.isEmpty || isContentEmptyExceptMention(editor)) {
+            // CRITICAL: Never delete drafts during context switches - this prevents deleting the wrong chat's draft
+            // when switching between demo chats. The isSwitchingContext flag is set for 200ms after setCurrentChatContext,
+            // which should be enough time for the context switch to complete.
+            if (currentState.isSwitchingContext) {
+                console.debug('[DraftService] Editor empty but context switch in progress - skipping deletion to prevent data loss:', {
+                    chatIdForOperation: currentChatIdForOperation,
+                    currentStateChatId: currentState.currentChatId,
+                    isSwitchingContext: currentState.isSwitchingContext
+                });
+                return;
+            }
+            
             // Double-check: Only delete if the chat ID matches the current context
             // This prevents deleting the wrong chat's draft during rapid switching
-            if (currentChatIdForOperation === currentState.currentChatId && !currentState.isSwitchingContext) {
-                console.info('[DraftService] Editor content is empty for non-authenticated user, deleting sessionStorage draft');
+            if (currentChatIdForOperation === currentState.currentChatId) {
+                console.info('[DraftService] Editor content is empty for non-authenticated user, deleting sessionStorage draft:', {
+                    chatId: currentChatIdForOperation,
+                    isDemoChat: currentChatIdForOperation?.startsWith('demo-') || currentChatIdForOperation?.startsWith('legal-')
+                });
                 deleteSessionStorageDraft(currentChatIdForOperation);
                 
                 // Update state
@@ -288,10 +321,9 @@ export const saveDraftDebounced = debounce(async (chatIdFromMessageInput?: strin
                     detail: { chat_id: currentChatIdForOperation, draftDeleted: true } 
                 }));
             } else {
-                console.debug('[DraftService] Editor empty but context mismatch or switching - skipping deletion to prevent data loss:', {
+                console.debug('[DraftService] Editor empty but context mismatch - skipping deletion to prevent data loss:', {
                     chatIdForOperation: currentChatIdForOperation,
-                    currentStateChatId: currentState.currentChatId,
-                    isSwitchingContext: currentState.isSwitchingContext
+                    currentStateChatId: currentState.currentChatId
                 });
             }
             return;

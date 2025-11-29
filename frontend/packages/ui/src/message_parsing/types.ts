@@ -4,7 +4,7 @@ export type EmbedType = 'code-code' | 'sheets-sheet' | 'docs-doc' | 'web-website
                        // App skill results (new embeds architecture)
                        'app-skill-use' |
                        // Group types (follow pattern: {type}-group)
-                       'web-website-group' | 'code-code-group' | 'docs-doc-group' | 'sheets-sheet-group' | 'videos-video-group' | 'audio-group' | 'image-group' | 'file-group' |
+                       'app-skill-use-group' | 'web-website-group' | 'code-code-group' | 'docs-doc-group' | 'sheets-sheet-group' | 'videos-video-group' | 'audio-group' | 'image-group' | 'file-group' |
                        // Allow for future extensions
                        string;
 

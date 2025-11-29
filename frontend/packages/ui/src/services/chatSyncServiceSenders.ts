@@ -389,6 +389,35 @@ export async function sendSetActiveChatImpl(
     serviceInstance: ChatSynchronizationService,
     chatId: string | null
 ): Promise<void> {
+    // CRITICAL: Update IndexedDB immediately when switching chats or opening new chat window
+    // This ensures tab reload uses the correct last_opened chat (from IndexedDB, not server)
+    // The server update happens via WebSocket, but IndexedDB update is immediate for better UX
+    try {
+        // Import userDB and updateProfile dynamically to avoid circular dependencies
+        const { userDB } = await import('../services/userDB');
+        const { updateProfile } = await import('../stores/userProfile');
+        
+        // Determine the last_opened value:
+        // - If chatId is a real chat ID, use it
+        // - If chatId is null (new chat window), use '/chat/new'
+        // - This ensures tab reload opens the correct view (chat or new chat window)
+        const lastOpenedValue = chatId || '/chat/new';
+        
+        // Update IndexedDB with new last_opened chat/window
+        // This is the source of truth for tab reload scenarios
+        await userDB.updateUserData({ last_opened: lastOpenedValue });
+        
+        // Also update the userProfile store to keep it in sync
+        updateProfile({ last_opened: lastOpenedValue });
+        
+        console.debug(`[ChatSyncService:Senders] Updated IndexedDB with last_opened: ${lastOpenedValue} (chatId: ${chatId})`);
+    } catch (error) {
+        console.error(`[ChatSyncService:Senders] Error updating IndexedDB with last_opened: ${chatId}:`, error);
+        // Don't fail the whole operation if IndexedDB update fails
+    }
+    
+    // Send to server via WebSocket (for cross-device sync and login scenarios)
+    // Note: Server handles null chatId by not updating last_opened (per backend logic)
     if (!(serviceInstance as any).webSocketConnected) {
         console.warn("[ChatSyncService:Senders] WebSocket not connected. Cannot send 'set_active_chat'.");
         return;
@@ -396,6 +425,7 @@ export async function sendSetActiveChatImpl(
     const payload: SetActiveChatPayload = { chat_id: chatId };
     try {
         await webSocketService.sendMessage('set_active_chat', payload);
+        console.debug(`[ChatSyncService:Senders] Sent 'set_active_chat' to server: ${chatId}`);
     } catch (error) {
         console.error(`[ChatSyncService:Senders] Error sending 'set_active_chat' for chat_id: ${chatId}:`, error);
     }
@@ -790,6 +820,28 @@ export async function sendStoreEmbedImpl(
         await webSocketService.sendMessage('store_embed', payload);
     } catch (error) {
         console.error('[ChatSyncService:Senders] Error sending store_embed:', error);
+        throw error;
+    }
+}
+
+/**
+ * Request embed data from server via WebSocket
+ * Server will respond with send_embed_data event containing the embed content
+ */
+export async function sendRequestEmbed(
+    serviceInstance: ChatSynchronizationService,
+    embed_id: string
+): Promise<void> {
+    if (!serviceInstance.webSocketConnected_FOR_SENDERS_ONLY) {
+        console.warn('[ChatSyncService:Senders] Cannot send request_embed - WebSocket not connected');
+        return;
+    }
+
+    try {
+        console.debug(`[ChatSyncService:Senders] Requesting embed ${embed_id} from server`);
+        await webSocketService.sendMessage('request_embed', { embed_id });
+    } catch (error) {
+        console.error('[ChatSyncService:Senders] Error requesting embed:', error);
         throw error;
     }
 }

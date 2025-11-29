@@ -695,8 +695,11 @@ class ChatDatabase {
             }
             chat.encrypted_draft_md = draft_content; // Now stores encrypted markdown string
             chat.encrypted_draft_preview = draft_preview; // Store encrypted preview for chat list display
-            chat.last_edited_overall_timestamp = nowTimestamp;
-            chat.updated_at = nowTimestamp;
+            // CRITICAL: Don't update last_edited_overall_timestamp for drafts
+            // Only messages should update this timestamp for proper sorting
+            // Chats with drafts will appear at the top via sorting logic, but won't affect message-based sorting
+            // chat.last_edited_overall_timestamp = nowTimestamp; // REMOVED
+            chat.updated_at = nowTimestamp; // Keep updated_at for internal tracking
             
             console.debug('[ChatDatabase] Saving draft with preview:', {
                 chatId: chat_id,
@@ -780,10 +783,12 @@ class ChatDatabase {
                 chat.encrypted_draft_md = null;
                 chat.encrypted_draft_preview = null; // Clear preview as well
                 chat.draft_v = 0; // Reset draft version to 0
-                // Still update timestamps as an operation occurred
+                // CRITICAL: Don't update last_edited_overall_timestamp when clearing drafts
+                // Only messages should update this timestamp for proper sorting
+                // The chat should revert to its position based on last message timestamp
                 const nowTimestamp = Math.floor(Date.now() / 1000);
-                chat.last_edited_overall_timestamp = nowTimestamp;
-                chat.updated_at = nowTimestamp;
+                // chat.last_edited_overall_timestamp = nowTimestamp; // REMOVED
+                chat.updated_at = nowTimestamp; // Keep updated_at for internal tracking
                 
                 // Use addChat without external transaction to ensure proper completion
                 await this.addChat(chat);

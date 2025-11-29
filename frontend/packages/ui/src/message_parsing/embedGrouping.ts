@@ -18,18 +18,147 @@ export function groupConsecutiveEmbedsInDocument(doc: any): any {
   
   console.debug('[groupConsecutiveEmbedsInDocument] Processing document');
   
-  // Process each top-level content node (paragraphs, etc.)
-  const modifiedContent = doc.content.map((contentNode: any) => {
+  // First, group embeds within each paragraph
+  const contentWithParagraphGrouping = doc.content.map((contentNode: any) => {
     if (contentNode.type === 'paragraph' && contentNode.content) {
       return groupConsecutiveEmbedsInParagraph(contentNode);
     }
     return contentNode;
   });
   
+  // Then, group consecutive paragraphs that contain embeds of the same type
+  // This handles cases where JSON code blocks are in separate paragraphs
+  const modifiedContent = groupConsecutiveEmbedParagraphs(contentWithParagraphGrouping);
+  
   return {
     ...doc,
     content: modifiedContent
   };
+}
+
+/**
+ * Group consecutive paragraphs that contain embeds of the same type
+ * This handles cases where embed references are in separate paragraphs (e.g., JSON code blocks separated by blank lines)
+ * @param content - Array of content nodes (paragraphs, etc.)
+ * @returns Modified content with grouped embed paragraphs
+ */
+function groupConsecutiveEmbedParagraphs(content: any[]): any[] {
+  const newContent: any[] = [];
+  let currentGroup: any[] = [];
+  let currentGroupType: string | null = null;
+  
+  for (let i = 0; i < content.length; i++) {
+    const node = content[i];
+    
+    // Check if this paragraph contains a single embed
+    if (node.type === 'paragraph' && node.content && node.content.length === 1) {
+      const embedNode = node.content[0];
+      if (embedNode.type === 'embed') {
+        const embedType = embedNode.attrs.type;
+        
+        // Check if this embed can continue the current group
+        if (currentGroupType === embedType && currentGroup.length > 0) {
+          const canGroupWithLast = groupHandlerRegistry.canGroup(
+            currentGroup[currentGroup.length - 1].content[0].attrs,
+            embedNode.attrs
+          );
+          
+          if (canGroupWithLast) {
+            // Can be grouped, add to current group
+            currentGroup.push(node);
+            console.debug('[groupConsecutiveEmbedParagraphs] Added embed paragraph to group:', { 
+              type: embedType,
+              groupSize: currentGroup.length 
+            });
+            continue;
+          }
+        }
+        
+        // Different type or can't be grouped - flush current group and start new one
+        if (currentGroup.length > 0) {
+          const groupedParagraph = flushEmbedParagraphGroup(currentGroup, currentGroupType!);
+          newContent.push(...groupedParagraph);
+        }
+        
+        // Start new group
+        currentGroup = [node];
+        currentGroupType = embedType;
+        console.debug('[groupConsecutiveEmbedParagraphs] Started new group:', { 
+          type: embedType
+        });
+        continue;
+      }
+    }
+    
+    // Non-embed paragraph or other node - flush current group if it exists
+    if (currentGroup.length > 0) {
+      const groupedParagraph = flushEmbedParagraphGroup(currentGroup, currentGroupType!);
+      newContent.push(...groupedParagraph);
+      currentGroup = [];
+      currentGroupType = null;
+    }
+    
+    // Add the non-embed node
+    newContent.push(node);
+  }
+  
+  // Flush any remaining group
+  if (currentGroup.length > 0) {
+    const groupedParagraph = flushEmbedParagraphGroup(currentGroup, currentGroupType!);
+    newContent.push(...groupedParagraph);
+  }
+  
+  return newContent;
+}
+
+/**
+ * Flush a group of consecutive embed paragraphs, creating a group if there are multiple items
+ * @param group - Array of consecutive paragraph nodes, each containing a single embed
+ * @param embedType - The type of embeds in this group
+ * @returns Array with either individual paragraphs or a grouped paragraph
+ */
+function flushEmbedParagraphGroup(group: any[], embedType: string): any[] {
+  if (group.length === 1) {
+    // Single embed paragraph - return as is
+    console.debug('[flushEmbedParagraphGroup] Single embed paragraph, no grouping needed:', embedType);
+    return group;
+  }
+  
+  if (group.length > 1) {
+    // Multiple embed paragraphs - create a group using the appropriate handler
+    console.debug('[flushEmbedParagraphGroup] Creating group for', group.length, embedType, 'embed paragraphs');
+    
+    // Extract the embed attributes from the paragraphs
+    const embedAttrs = group.map(paragraph => paragraph.content[0].attrs);
+    
+    // Use the group handler to create the group
+    const groupAttrs = groupHandlerRegistry.createGroup(embedAttrs);
+    
+    if (groupAttrs) {
+      // Create a single paragraph with the grouped embed
+      const groupParagraph = {
+        type: 'paragraph',
+        content: [{
+          type: 'embed',
+          attrs: groupAttrs
+        }]
+      };
+      
+      console.debug('[flushEmbedParagraphGroup] Created grouped embed paragraph:', {
+        groupId: groupAttrs.id,
+        groupType: groupAttrs.type,
+        itemCount: groupAttrs.groupCount
+      });
+      
+      return [groupParagraph];
+    } else {
+      console.warn('[flushEmbedParagraphGroup] No group handler found for embed type:', embedType);
+      // Fallback: return individual paragraphs
+      return group;
+    }
+  }
+  
+  return [];
 }
 
 /**

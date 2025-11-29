@@ -458,11 +458,27 @@ function detectInlineUnclosedFences(
       }
 
       // Link/image syntax tokens: [, ], (, ), and leading '!'
+      // BUT exclude brackets/parentheses that are part of URLs to avoid false positives
       {
+        // Build protected ranges for URLs to exclude their brackets/parentheses from markdown detection
+        const protectedRanges: Array<{ start: number; end: number }> = [];
+        const urlRegex = /https?:\/\/[^\s]+/g;
+        let urlMatch: RegExpExecArray | null;
+        while ((urlMatch = urlRegex.exec(line)) !== null) {
+          const urlStart = urlMatch.index ?? 0;
+          const urlEnd = urlStart + urlMatch[0].length;
+          protectedRanges.push({ start: urlStart, end: urlEnd });
+        }
+        
         const bracketRegex = /\[|\]|\(|\)/g;
         let m: RegExpExecArray | null;
         while ((m = bracketRegex.exec(line)) !== null) {
-          const idx = m.index; pushToken(idx, idx + 1);
+          const idx = m.index;
+          // Skip brackets/parentheses that are inside URLs
+          const isInsideUrl = protectedRanges.some(r => idx >= r.start && idx < r.end);
+          if (!isInsideUrl) {
+            pushToken(idx, idx + 1);
+          }
         }
       }
       const bangIdx = line.indexOf('!['); if (bangIdx !== -1) pushToken(bangIdx, bangIdx + 1);

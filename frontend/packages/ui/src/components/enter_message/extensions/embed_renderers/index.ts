@@ -12,6 +12,8 @@ import type { EmbedRendererRegistry } from './types';
 export const embedRenderers: EmbedRendererRegistry = {
   // App skill use renderer (web search, code generation, etc.)
   'app-skill-use': new AppSkillUseRenderer(),
+  // App skill use group renderer (multiple search requests in horizontal scrollable group)
+  'app-skill-use-group': new GroupRenderer(),
   // Use GroupRenderer for all website embeds (individual and grouped)
   'web-website': new GroupRenderer(),
   'web-website-group': new GroupRenderer(),

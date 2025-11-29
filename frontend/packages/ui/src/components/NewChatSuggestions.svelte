@@ -32,6 +32,21 @@
     return tmp.textContent || tmp.innerText || '';
   }
 
+  /**
+   * Shuffle an array using Fisher-Yates algorithm
+   * This ensures suggestions are displayed in random order rather than always newest-first
+   * @param array - The array to shuffle
+   * @returns A new shuffled array (original array is not modified)
+   */
+  function shuffleArray<T>(array: T[]): T[] {
+    const shuffled = [...array]; // Create a copy to avoid mutating the original
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    return shuffled;
+  }
+
   // Detect if device is touch-capable
   // Checks for ontouchstart event support and maxTouchPoints
   const isTouchDevice = () => {
@@ -71,11 +86,13 @@
             const plainTextSuggestions = translatedSuggestions.map(s => stripHtmlTags(s));
             
             // Use default suggestions (no encrypted versions for non-auth users)
-            fullSuggestionsWithEncrypted = plainTextSuggestions.map(text => ({
+            const defaultSuggestionsWithEncrypted = plainTextSuggestions.map(text => ({
                 text,
                 encrypted: '' // No encrypted version for default suggestions
             }));
-            fullSuggestions = plainTextSuggestions;
+            // Shuffle default suggestions for variety
+            fullSuggestionsWithEncrypted = shuffleArray(defaultSuggestionsWithEncrypted);
+            fullSuggestions = fullSuggestionsWithEncrypted.map(s => s.text);
             console.debug('[NewChatSuggestions] Loaded default pool:', fullSuggestions.length);
             currentSlide = 0; // Reset to first page when suggestions are reloaded
             loading = false;
@@ -105,7 +122,11 @@
             );
             fullSuggestionsWithEncrypted = decryptedSuggestions.filter((s): s is { text: string; encrypted: string } => s !== null);
 
-            // Create decrypted-only array for filtering
+            // Shuffle suggestions to ensure random order (not always newest-first)
+            // This provides variety in what users see each time suggestions are loaded
+            fullSuggestionsWithEncrypted = shuffleArray(fullSuggestionsWithEncrypted);
+
+            // Create decrypted-only array for filtering (maintains shuffled order)
             fullSuggestions = fullSuggestionsWithEncrypted.map(s => s.text);
 
             // CRITICAL FIX: If authenticated user has no suggestions, fall back to default suggestions
@@ -120,11 +141,13 @@
                 const plainTextSuggestions = translatedSuggestions.map(s => stripHtmlTags(s));
                 
                 // Use default suggestions (no encrypted versions for fallback)
-                fullSuggestionsWithEncrypted = plainTextSuggestions.map(text => ({
+                const defaultSuggestionsWithEncrypted = plainTextSuggestions.map(text => ({
                     text,
                     encrypted: '' // No encrypted version for default suggestions
                 }));
-                fullSuggestions = plainTextSuggestions;
+                // Shuffle default suggestions for variety
+                fullSuggestionsWithEncrypted = shuffleArray(defaultSuggestionsWithEncrypted);
+                fullSuggestions = fullSuggestionsWithEncrypted.map(s => s.text);
             }
 
             console.debug('[NewChatSuggestions] Loaded full pool:', fullSuggestions.length);
@@ -138,11 +161,13 @@
                 const t = get(_);
                 const translatedSuggestions = DEFAULT_NEW_CHAT_SUGGESTION_KEYS.map(key => t(key));
                 const plainTextSuggestions = translatedSuggestions.map(s => stripHtmlTags(s));
-                fullSuggestionsWithEncrypted = plainTextSuggestions.map(text => ({
+                const defaultSuggestionsWithEncrypted = plainTextSuggestions.map(text => ({
                     text,
                     encrypted: ''
                 }));
-                fullSuggestions = plainTextSuggestions;
+                // Shuffle default suggestions for variety
+                fullSuggestionsWithEncrypted = shuffleArray(defaultSuggestionsWithEncrypted);
+                fullSuggestions = fullSuggestionsWithEncrypted.map(s => s.text);
                 currentSlide = 0; // Reset to first page when suggestions are reloaded
             } else {
                 console.error('[NewChatSuggestions] Error loading suggestions:', error);
@@ -150,11 +175,13 @@
                 const t = get(_);
                 const translatedSuggestions = DEFAULT_NEW_CHAT_SUGGESTION_KEYS.map(key => t(key));
                 const plainTextSuggestions = translatedSuggestions.map(s => stripHtmlTags(s));
-                fullSuggestionsWithEncrypted = plainTextSuggestions.map(text => ({
+                const defaultSuggestionsWithEncrypted = plainTextSuggestions.map(text => ({
                     text,
                     encrypted: ''
                 }));
-                fullSuggestions = plainTextSuggestions;
+                // Shuffle default suggestions for variety
+                fullSuggestionsWithEncrypted = shuffleArray(defaultSuggestionsWithEncrypted);
+                fullSuggestions = fullSuggestionsWithEncrypted.map(s => s.text);
                 currentSlide = 0; // Reset to first page when suggestions are reloaded
             }
         } finally {
@@ -237,6 +264,7 @@
 
     if (!messageInputContent || messageInputContent.trim() === '') {
       // When input is empty, return all suggestions (will be paginated)
+      // Suggestions are already shuffled when loaded, so we maintain that order
       const uniqueSuggestions = Array.from(new Set(fullSuggestions));
       return uniqueSuggestions.map(text => ({ 
         text, 
@@ -272,9 +300,13 @@
       // Exclude exact matches (100% match) - no point showing what user already typed
       .filter(item => item.text.toLowerCase() !== searchTermLower);
 
-    console.debug('[NewChatSuggestions] Filtered results:', filtered.length, 'unique matches');
+    // Shuffle filtered results to avoid always showing the same matches first
+    // This provides variety when multiple suggestions match the search term
+    const shuffledFiltered = shuffleArray(filtered);
 
-    return filtered;
+    console.debug('[NewChatSuggestions] Filtered results:', shuffledFiltered.length, 'unique matches');
+
+    return shuffledFiltered;
   });
 
   function renderHighlightedText(suggestion: { text: string; matchIndex: number; matchLength: number }) {

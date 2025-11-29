@@ -515,6 +515,7 @@ export class GroupRenderer implements EmbedRenderer {
   
   private getGroupDisplayName(baseType: string, count: number): string {
     const typeDisplayNames: { [key: string]: string } = {
+      'app-skill-use': 'request',
       'web-website': 'website',
       'videos-video': 'video',
       'code-code': 'code file',

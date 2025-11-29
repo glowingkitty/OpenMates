@@ -46,11 +46,14 @@ const handleDraftUpdated = async (payload: ServerChatDraftUpdatedEventPayload) =
             chat.encrypted_draft_md = encrypted_draft_md; // from payload.data
             chat.encrypted_draft_preview = encrypted_draft_preview || null; // from payload.data
             chat.draft_v = newUserDraftVersion; // from payload.versions (corrected)
-            chat.last_edited_overall_timestamp = last_edited_overall_timestamp; // from payload
-            chat.updated_at = last_edited_overall_timestamp;
+            // CRITICAL: Don't update last_edited_overall_timestamp from draft updates
+            // Only messages should update this timestamp for proper sorting
+            // Chats with drafts will appear at the top via sorting logic, but won't affect message-based sorting
+            // chat.last_edited_overall_timestamp = last_edited_overall_timestamp; // REMOVED
+            chat.updated_at = last_edited_overall_timestamp; // Keep updated_at for internal tracking
 
             await chatDB.updateChat(chat);
-            console.info(`[DraftService] Updated chat ${chat_id} with new draft in DB. Version: ${newUserDraftVersion}, Timestamp: ${last_edited_overall_timestamp}`);
+            console.info(`[DraftService] Updated chat ${chat_id} with new draft in DB. Version: ${newUserDraftVersion}`);
             // Invalidate metadata cache since draft content changed
             chatMetadataCache.invalidateChat(chat_id);
             dbOperationSuccess = true;

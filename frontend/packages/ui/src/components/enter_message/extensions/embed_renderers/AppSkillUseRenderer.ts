@@ -47,6 +47,22 @@ export class AppSkillUseRenderer implements EmbedRenderer {
       const embedData = await resolveEmbed(embedId);
       
       if (embedData) {
+        // CRITICAL FIX: Filter out error embeds with "superseded" message
+        // These are placeholder embeds that were replaced by multiple request-specific embeds
+        // They should not be rendered to avoid showing confusing error messages
+        if (embedData.status === 'error') {
+          const decodedContent = await decodeToonContent(embedData.content);
+          if (decodedContent && decodedContent.error) {
+            const errorMessage = decodedContent.error;
+            if (typeof errorMessage === 'string' && errorMessage.includes('superseded')) {
+              console.debug('[AppSkillUseRenderer] Skipping superseded error embed:', embedId);
+              // Don't render this embed - it was replaced by multiple specific embeds
+              content.innerHTML = '';
+              return;
+            }
+          }
+        }
+        
         // Decode TOON content
         const decodedContent = await decodeToonContent(embedData.content);
         

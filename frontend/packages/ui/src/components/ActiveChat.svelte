@@ -33,7 +33,7 @@
     import { aiTypingStore, type AITypingStatus } from '../stores/aiTypingStore'; // Import the new store
     import { decryptWithMasterKey } from '../services/cryptoService'; // Import decryption function
     import { parse_message } from '../message_parsing/parse_message'; // Import markdown parser
-    import { loadSessionStorageDraft, migrateSessionStorageDraftsToIndexedDB } from '../services/drafts/sessionStorageDraftService'; // Import sessionStorage draft service
+    import { loadSessionStorageDraft, getSessionStorageDraftMarkdown, migrateSessionStorageDraftsToIndexedDB } from '../services/drafts/sessionStorageDraftService'; // Import sessionStorage draft service
     import { draftEditorUIState } from '../services/drafts/draftState'; // Import draft state
     import { phasedSyncState } from '../stores/phasedSyncStateStore'; // Import phased sync state store
     import { websocketStatus } from '../stores/websocketStatusStore'; // Import WebSocket status for connection checks
@@ -1114,16 +1114,15 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             await messageInputFieldRef.clearMessageField(false, true);
         }
         
-        // CRITICAL: Clear currentChatId in draft state after preserving context
-        // This ensures that when the user types in the new chat, a new chat ID will be generated
-        // instead of using the previous chat's ID (which would overwrite the previous draft)
-        // We've already preserved the previous chat's draft above, so it's safe to clear the chat ID
+        // CRITICAL: Set the new temporary chat ID in draft state
+        // This ensures that when the user types in the new chat, the draft service uses this chat ID
+        // This allows separate drafts for new chats vs demo chats
         draftEditorUIState.update(s => ({
             ...s,
-            currentChatId: null, // Clear chat ID so a new one is generated when user types
+            currentChatId: temporaryChatId, // Set to the new temporary chat ID for the new chat
             newlyCreatedChatIdToSelect: null // Clear any pending selection
         }));
-        console.debug("[ActiveChat] Cleared currentChatId in draft state for new chat");
+        console.debug("[ActiveChat] Set currentChatId in draft state to new temporary chat ID:", temporaryChatId);
         // Reset live input text state to clear search term for NewChatSuggestions
         // This ensures suggestions show the random 3 instead of filtering with old search term
         liveInputText = '';
@@ -1406,8 +1405,26 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             // Public chats don't need database access - use the provided chat object
             freshChat = chat;
             console.debug(`[ActiveChat] Loading public chat ${chat.chat_id} - skipping database access`);
+        } else if (!$authStore.isAuthenticated) {
+            // CRITICAL: For non-authenticated users, check if this is a sessionStorage-only chat
+            // (new chat with draft that doesn't exist in database yet)
+            const sessionDraft = loadSessionStorageDraft(chat.chat_id);
+            if (sessionDraft) {
+                // This is a sessionStorage-only chat - use the provided chat object directly
+                freshChat = chat;
+                console.debug(`[ActiveChat] Loading sessionStorage-only chat ${chat.chat_id} - skipping database access`);
+            } else {
+                // Try to get from database (might be a real chat that was created before)
+                try {
+                    freshChat = await chatDB.getChat(chat.chat_id);
+                } catch (error) {
+                    // If database is unavailable, use the provided chat object
+                    console.debug(`[ActiveChat] Database unavailable for ${chat.chat_id}, using provided chat object:`, error);
+                    freshChat = chat;
+                }
+            }
         } else {
-            // For real chats, try to get fresh data from database
+            // For authenticated users, try to get fresh data from database
             // But handle the case where database is being deleted (e.g., during logout)
             try {
                 freshChat = await chatDB.getChat(chat.chat_id);
@@ -1428,9 +1445,29 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         // This prevents Phase 1 from auto-selecting a different chat when the panel is reopened
         phasedSyncState.setCurrentActiveChatId(chat.chat_id);
         
-        // Clear temporary chat ID since we now have a real chat
-        temporaryChatId = null;
-        console.debug("[ActiveChat] Loaded real chat, cleared temporary chat ID");
+        // CRITICAL: Only clear temporaryChatId if this is not a sessionStorage-only chat
+        // SessionStorage-only chats (new chats with drafts) should keep their temporaryChatId
+        // so drafts can be saved and loaded correctly
+        if (!$authStore.isAuthenticated) {
+            const sessionDraft = loadSessionStorageDraft(chat.chat_id);
+            if (!sessionDraft) {
+                // This is a real chat (not sessionStorage-only), clear temporaryChatId
+                temporaryChatId = null;
+                console.debug("[ActiveChat] Loaded real chat, cleared temporary chat ID");
+            } else {
+                // This is a sessionStorage-only chat, keep temporaryChatId for draft saving
+                // Also update draft state to use this chat ID
+                draftEditorUIState.update(s => ({
+                    ...s,
+                    currentChatId: chat.chat_id
+                }));
+                console.debug("[ActiveChat] SessionStorage-only chat, keeping temporary chat ID for draft saving:", chat.chat_id);
+            }
+        } else {
+            // Authenticated user - always clear temporaryChatId for real chats
+            temporaryChatId = null;
+            console.debug("[ActiveChat] Loaded real chat, cleared temporary chat ID");
+        }
         
         // Reset scroll position tracking for new chat
         lastSavedMessageId = null;
@@ -1449,8 +1486,27 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 if (newMessages.length === 0) {
                     console.warn(`[ActiveChat] WARNING: No messages found for ${currentChat.chat_id}. Available public chats:`, [...DEMO_CHATS, ...LEGAL_CHATS].map(c => c.chat_id));
                 }
+            } else if (!$authStore.isAuthenticated) {
+                // CRITICAL: For non-authenticated users, check if this is a sessionStorage-only chat
+                // (new chat with draft that doesn't exist in database yet)
+                const sessionDraft = loadSessionStorageDraft(currentChat.chat_id);
+                if (sessionDraft) {
+                    // SessionStorage-only chat - no messages yet (user hasn't sent any)
+                    newMessages = [];
+                    console.debug(`[ActiveChat] SessionStorage-only chat ${currentChat.chat_id} - no messages (new chat with draft only)`);
+                } else {
+                    // Try to load messages from IndexedDB (might be a real chat)
+                    try {
+                        newMessages = await chatDB.getMessagesForChat(currentChat.chat_id);
+                        console.debug(`[ActiveChat] Loaded ${newMessages.length} messages from IndexedDB for ${currentChat.chat_id}`);
+                    } catch (error) {
+                        // If database is unavailable, use empty messages
+                        console.debug(`[ActiveChat] Database unavailable for messages, using empty array:`, error);
+                        newMessages = [];
+                    }
+                }
             } else {
-                // For real chats, load messages from IndexedDB
+                // For authenticated users, load messages from IndexedDB
                 // Handle case where database might be unavailable (e.g., during logout/deletion)
                 try {
                     newMessages = await chatDB.getMessagesForChat(currentChat.chat_id);
@@ -1568,16 +1624,28 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             if (!$authStore.isAuthenticated) {
                 // Non-authenticated user: check sessionStorage for draft
                 const sessionDraft = loadSessionStorageDraft(currentChat.chat_id);
+                const sessionDraftMarkdown = getSessionStorageDraftMarkdown(currentChat.chat_id);
                 if (sessionDraft) {
                     console.debug(`[ActiveChat] Loading sessionStorage draft for demo chat ${currentChat.chat_id}`);
                     setTimeout(() => {
                         messageInputFieldRef.setDraftContent(currentChat.chat_id, sessionDraft, 0, false);
+                        // CRITICAL: Restore the original markdown from the stored draft to preserve user input
+                        // This ensures URLs and other content are preserved exactly as the user typed them
+                        if (sessionDraftMarkdown && messageInputFieldRef.setOriginalMarkdown) {
+                            messageInputFieldRef.setOriginalMarkdown(sessionDraftMarkdown);
+                        }
                     }, 50);
                 } else {
-                    console.debug(`[ActiveChat] No sessionStorage draft found for demo chat ${currentChat.chat_id}. Clearing editor.`);
-                    // CRITICAL: Preserve context when clearing - we're just switching to a chat with no draft
-                    // This prevents deleting the previous chat's draft during context switches
-                    await messageInputFieldRef.clearMessageField(false, true);
+                    console.debug(`[ActiveChat] No sessionStorage draft found for demo chat ${currentChat.chat_id}. Setting context and clearing editor.`);
+                    // CRITICAL: Even when there's no draft, we must update the draft service's context to the new demo chat ID
+                    // This ensures that when the user types in this demo chat, the draft is saved to the correct chat ID
+                    // Without this, the draft service might still use the previous chat's ID, causing drafts to overwrite each other
+                    setTimeout(() => {
+                        // Set the draft context to the new demo chat ID, even though there's no draft content
+                        // This ensures the draft service knows which chat ID to use when saving drafts
+                        messageInputFieldRef.setDraftContent(currentChat.chat_id, null, 0, false);
+                        console.debug(`[ActiveChat] Updated draft context to demo chat ${currentChat.chat_id} (no draft content)`);
+                    }, 50);
                 }
             } else {
                 // Authenticated user: load encrypted draft from IndexedDB

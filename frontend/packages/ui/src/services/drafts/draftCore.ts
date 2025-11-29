@@ -99,11 +99,14 @@ export async function setCurrentChatContext(
 		console.error('[DraftService] Editor instance not available to set content.');
 	}
 	
-	// Clear the switching flag after a short delay to allow editor updates to settle
+	// Clear the switching flag after a delay to allow editor updates to settle
+	// CRITICAL: Use a longer delay (500ms) to ensure all editor update events from the context switch
+	// have completed before allowing draft saves/deletions. This prevents deleting the wrong chat's draft
+	// when switching between demo chats.
 	setTimeout(() => {
 		draftEditorUIState.update(s => ({ ...s, isSwitchingContext: false }));
 		console.debug('[DraftService] Context switch complete, cleared isSwitchingContext flag');
-	}, 200); // 200ms should be enough for editor updates to settle
+	}, 500); // 500ms to ensure all editor updates from context switch have settled
 }
 
 /**
