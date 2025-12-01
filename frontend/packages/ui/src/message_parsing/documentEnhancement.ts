@@ -121,6 +121,12 @@ function findMatchingEmbedForCodeBlock(codeBlockNode: any, embedNodes: EmbedNode
           embedNodeId: matchingEmbed.id,
           embedNodeType: matchingEmbed.type
         });
+        // Remove from array to prevent reuse (same pattern as code-code embeds)
+        const index = embedNodes.indexOf(matchingEmbed);
+        if (index > -1) {
+          embedNodes.splice(index, 1);
+          console.debug('[findMatchingEmbedForCodeBlock] Removed matched embed from array, remaining:', embedNodes.length);
+        }
         return matchingEmbed;
       } else {
         console.warn('[findMatchingEmbedForCodeBlock] No matching embed found for:', {

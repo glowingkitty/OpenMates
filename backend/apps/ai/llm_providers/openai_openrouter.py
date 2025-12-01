@@ -42,7 +42,10 @@ async def _get_openrouter_api_key(secrets_manager: SecretsManager) -> Optional[s
         )
         
         if not api_key:
-            logger.error("OpenRouter API key not found in Vault")
+            logger.error(
+                "OpenRouter API key not found in Vault at path 'kv/data/providers/openrouter' with key 'api_key'. "
+                "Please configure the OpenRouter API key in Vault to enable OpenRouter API access."
+            )
             return None
         
         _openrouter_api_key = api_key
@@ -178,7 +181,10 @@ async def invoke_openrouter_chat_completions(
     # Get the OpenRouter API key
     api_key = await _get_openrouter_api_key(secrets_manager)
     if not api_key:
-        error_msg = "Failed to retrieve OpenRouter API key"
+        error_msg = (
+            "Failed to retrieve OpenRouter API key from Vault. "
+            "Please ensure the API key is configured at 'kv/data/providers/openrouter' with key 'api_key'."
+        )
         logger.error(f"{log_prefix} {error_msg}")
         if stream:
             raise ValueError(error_msg)
@@ -189,15 +195,18 @@ async def invoke_openrouter_chat_completions(
             error_message=error_msg
         )
     
-    # When using OpenRouter, always use 'auto' provider selection to let OpenRouter
-    # choose the best available provider automatically. This prevents failures when
-    # a specific provider (like Mistral) is having issues.
-    # OpenRouter's 'auto' will select the best provider based on availability and performance.
-    resolved_model_id = "auto"
-    logger.info(f"{log_prefix} Using OpenRouter 'auto' provider selection (original model_id: '{model_id}')")
+    # Resolve the model ID to the exact string OpenRouter expects
+    # This handles cases where the model_id is in provider format (e.g., "alibaba/qwen3-235b-a22b-2507")
+    # and needs to be resolved to OpenRouter format (e.g., "qwen/qwen3-235b-a22b-2507")
+    resolved_model_id = _resolve_openrouter_model_id(model_id)
+    logger.info(f"{log_prefix} Resolved OpenRouter model_id: '{resolved_model_id}' (original: '{model_id}')")
     
-    # Don't use provider overrides when using 'auto' - let OpenRouter choose
-    provider_overrides = None
+    # Get provider overrides if configured for this model
+    # Provider overrides allow specifying which upstream provider OpenRouter should use
+    # (e.g., forcing a specific provider when multiple are available)
+    provider_overrides = _get_provider_overrides_for_model(model_id)
+    if provider_overrides:
+        logger.debug(f"{log_prefix} Using provider overrides: {provider_overrides}")
     
     # Invoke the OpenRouter API
     return await invoke_openrouter_api(

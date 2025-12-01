@@ -5,6 +5,7 @@ import logging
 import json
 import time
 import httpx
+import asyncio
 from typing import Dict, Any, List, Optional, AsyncIterator, Union
 
 from celery.exceptions import SoftTimeLimitExceeded
@@ -28,6 +29,7 @@ from backend.apps.ai.llm_providers.mistral_client import MistralUsage
 from backend.apps.ai.llm_providers.google_client import GoogleUsageMetadata
 from backend.apps.ai.llm_providers.anthropic_client import AnthropicUsageMetadata
 from backend.apps.ai.llm_providers.openai_shared import OpenAIUsageMetadata
+from backend.apps.ai.processing.url_validator import validate_urls_in_paragraph, extract_urls_from_markdown
 
 logger = logging.getLogger(__name__)
 
@@ -510,6 +512,50 @@ async def _generate_fake_stream_for_simple_message(
     logger.info(f"{log_prefix} Simple fake stream generation completed. Response length: {len(message_text)}.")
     return message_text, False, False
 
+async def _validate_paragraph_urls(
+    paragraph: str,
+    task_id: str,
+    broken_urls_collector: List[Dict[str, Any]],
+    log_prefix: str
+) -> None:
+    """
+    Background task to validate URLs in a paragraph.
+    Collects broken URLs in the provided list (thread-safe append).
+    This runs asynchronously and doesn't block streaming.
+    
+    Args:
+        paragraph: The paragraph text to validate
+        task_id: Task ID for logging
+        broken_urls_collector: List to collect broken URLs (will be appended to)
+        log_prefix: Log prefix for consistent logging
+    """
+    try:
+        # Validate URLs in this paragraph
+        validation_results = await validate_urls_in_paragraph(paragraph, task_id)
+        
+        # Filter broken URLs (4xx errors, not temporary)
+        broken_urls = [
+            r for r in validation_results 
+            if not r.get('is_valid') and not r.get('is_temporary')
+        ]
+        
+        if broken_urls:
+            logger.info(
+                f"{log_prefix} Found {len(broken_urls)} broken URL(s) in paragraph"
+            )
+            # Append to collector (list append is thread-safe in Python)
+            broken_urls_collector.extend(broken_urls)
+        else:
+            logger.debug(f"{log_prefix} All URLs valid in paragraph")
+            
+    except Exception as e:
+        logger.error(
+            f"{log_prefix} Error validating URLs in paragraph: {e}",
+            exc_info=True
+        )
+        # Don't raise - this is a background task, errors shouldn't break the stream
+
+
 async def _consume_main_processing_stream(
     task_id: str,
     request_data: AskSkillRequest,
@@ -623,6 +669,11 @@ async def _consume_main_processing_stream(
     usage: Optional[Union[MistralUsage, GoogleUsageMetadata, AnthropicUsageMetadata, OpenAIUsageMetadata]] = None
     redis_channel_name = f"chat_stream::{request_data.chat_id}"
     tool_calls_info: Optional[List[Dict[str, Any]]] = None  # Track tool calls for code block generation
+    
+    # URL validation tracking: collect all validation tasks and broken URLs
+    # These are used to validate URLs during streaming and correct the full response after completion
+    url_validation_tasks: List[asyncio.Task] = []  # Track all background URL validation tasks
+    all_broken_urls: List[Dict[str, Any]] = []  # Collect all broken URLs found across all paragraphs
 
     try:
         async for chunk in main_processing_stream:
@@ -661,6 +712,13 @@ async def _consume_main_processing_stream(
 
             # Process string chunks (text or code blocks) - publish IMMEDIATELY
             if isinstance(chunk, str):
+                # CRITICAL: Sanitize error messages before adding to response
+                # Replace any [ERROR: ...] messages with the translation key for generic error message
+                # This ensures users never see technical error details
+                if chunk.strip().startswith("[ERROR"):
+                    logger.warning(f"{log_prefix} Detected error message in stream chunk: {chunk[:200]}... Replacing with generic error message.")
+                    chunk = "chat.an_error_occured.text"
+                
                 final_response_chunks.append(chunk)
                 stream_chunk_count += 1
 
@@ -684,6 +742,25 @@ async def _consume_main_processing_stream(
                     await _publish_to_redis(
                         cache_service, redis_channel_name, payload, log_prefix, log_message
                     )
+                    
+                    # URL Validation: Check if this paragraph contains URLs and validate them in background
+                    # Skip code blocks (they might contain URLs that are just examples)
+                    if not is_code_block:
+                        # Check if chunk contains markdown links
+                        urls_in_chunk = await extract_urls_from_markdown(chunk)
+                        if urls_in_chunk:
+                            # Start background task to validate URLs in this paragraph
+                            # This runs asynchronously and doesn't block streaming
+                            # Broken URLs will be collected and processed after streaming completes
+                            validation_task = asyncio.create_task(
+                                _validate_paragraph_urls(
+                                    paragraph=chunk,
+                                    task_id=task_id,
+                                    broken_urls_collector=all_broken_urls,
+                                    log_prefix=log_prefix
+                                )
+                            )
+                            url_validation_tasks.append(validation_task)
                 elif stream_chunk_count == 1:
                     logger.warning(f"{log_prefix} Cache service not available. Skipping Redis publish for chunks.")
             else:
@@ -699,6 +776,76 @@ async def _consume_main_processing_stream(
             was_revoked_during_stream = True
 
     aggregated_response = "".join(final_response_chunks)
+    
+    # Wait for all URL validation tasks to complete (non-blocking during streaming, but wait now)
+    if url_validation_tasks:
+        logger.info(
+            f"{log_prefix} Waiting for {len(url_validation_tasks)} URL validation task(s) to complete..."
+        )
+        try:
+            # Wait for all validation tasks to complete
+            await asyncio.gather(*url_validation_tasks, return_exceptions=True)
+            logger.info(
+                f"{log_prefix} All URL validation tasks completed. Found {len(all_broken_urls)} broken URL(s) total."
+            )
+        except Exception as e:
+            logger.error(
+                f"{log_prefix} Error waiting for URL validation tasks: {e}",
+                exc_info=True
+            )
+        
+        # If broken URLs found, correct the entire response
+        if all_broken_urls:
+            logger.info(
+                f"{log_prefix} Correcting full response with {len(all_broken_urls)} broken URL(s)..."
+            )
+            
+            # Get the model ID used for main processing (from preprocessing result)
+            main_model_id = preprocessing_result.selected_main_llm_model_id or "gpt-4o-mini"
+            
+            # Import here to avoid circular imports
+            from backend.apps.ai.processing.url_corrector import correct_full_response_with_broken_urls
+            
+            corrected_response = await correct_full_response_with_broken_urls(
+                original_response=aggregated_response,
+                broken_urls=all_broken_urls,
+                user_message=request_data.message_content or "",
+                task_id=task_id,
+                model_id=main_model_id,  # Use same model as main processing
+                secrets_manager=secrets_manager
+            )
+            
+            if corrected_response and corrected_response != aggregated_response:
+                logger.info(
+                    f"{log_prefix} Successfully corrected response. "
+                    f"Original length: {len(aggregated_response)}, "
+                    f"Corrected length: {len(corrected_response)}"
+                )
+                
+                # Replace the aggregated response with corrected version
+                aggregated_response = corrected_response
+                
+                # Update final_response_chunks to reflect correction (for cache saving)
+                # Rebuild chunks from corrected response (simple approach: single chunk)
+                final_response_chunks = [corrected_response]
+                
+                # Publish corrected response to client (user will see text update)
+                correction_payload = _create_redis_payload(
+                    task_id, request_data, corrected_response, stream_chunk_count + 2,
+                    is_final=False  # Not final, just a correction update
+                )
+                await _publish_to_redis(
+                    cache_service, redis_channel_name, correction_payload, log_prefix,
+                    f"Published corrected response (seq: {stream_chunk_count + 2}) "
+                    f"with {len(all_broken_urls)} broken URL(s) fixed. Length: {len(corrected_response)}"
+                )
+                
+                logger.info(f"{log_prefix} Published corrected response to client")
+            else:
+                logger.warning(
+                    f"{log_prefix} Correction failed or returned same content. "
+                    f"Using original response."
+                )
     
     # NOTE: Embed references are now streamed as chunks during skill execution
     # They appear in final_response_chunks and are already part of aggregated_response

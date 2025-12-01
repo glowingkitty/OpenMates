@@ -155,6 +155,33 @@ def _prepare_messages_and_system_prompt(messages: List[Dict[str, str]]) -> (Opti
     return system_prompt, history
 
 
+def _normalize_google_model_id(model_id: str) -> str:
+    """
+    Normalize Google Vertex AI model ID by stripping publisher prefixes.
+    
+    Google Vertex AI publisher models may be specified with publisher prefixes
+    (e.g., "qwen/qwen3-235b-a22b-instruct-2507-maas"), but the google-genai SDK
+    expects just the model name (e.g., "qwen3-235b-a22b-instruct-2507-maas").
+    The SDK automatically handles the publisher path construction.
+    
+    Args:
+        model_id: The model ID which may contain a publisher prefix
+        
+    Returns:
+        The normalized model ID without publisher prefix
+    """
+    # Known publisher prefixes that should be stripped
+    publisher_prefixes = ["qwen/", "openai/", "mistral/", "anthropic/", "meta/"]
+    
+    for prefix in publisher_prefixes:
+        if model_id.startswith(prefix):
+            normalized = model_id[len(prefix):]
+            logger.debug(f"Stripped publisher prefix '{prefix}' from model_id '{model_id}' -> '{normalized}'")
+            return normalized
+    
+    return model_id
+
+
 async def invoke_google_chat_completions(
     task_id: str,
     model_id: str,
@@ -189,7 +216,11 @@ async def invoke_google_chat_completions(
         if stream: raise ValueError(error_msg)
         return UnifiedGoogleResponse(task_id=task_id, model_id=model_id, success=False, error_message=error_msg)
 
-    log_prefix = f"[{task_id}] Google Client ({model_id}):"
+    # Normalize model_id by stripping publisher prefixes if present
+    # Google Vertex AI expects just the model name, not "publisher/model-name"
+    normalized_model_id = _normalize_google_model_id(model_id)
+    
+    log_prefix = f"[{task_id}] Google Client ({normalized_model_id}):"
     logger.info(f"{log_prefix} Attempting chat completion. Stream: {stream}. Tools: {'Yes' if tools else 'No'}. Choice: {tool_choice}")
 
     try:
@@ -280,7 +311,7 @@ async def invoke_google_chat_completions(
         stream_succeeded = False  # Track if stream completed successfully (no exception)
         try:
             stream_iterator = await google_genai_client.aio.models.generate_content_stream(
-                model=model_id,
+                model=normalized_model_id,
                 contents=contents,
                 config=generation_config
             )
@@ -330,8 +361,20 @@ async def invoke_google_chat_completions(
             logger.info(f"{log_prefix} Stream finished.")
 
         except google_errors.APIError as e_api:
-            err_msg = f"Google API error during streaming: {e_api}"
-            logger.error(f"{log_prefix} {err_msg}", exc_info=True)
+            # Improve error message for 404 errors (model not found)
+            error_str = str(e_api)
+            if "404" in error_str or "NOT_FOUND" in error_str or "not found" in error_str.lower():
+                logger.error(
+                    f"{log_prefix} Google API error: Model not found (404). "
+                    f"This usually means the model path is incorrect or the project doesn't have access to this model. "
+                    f"Model ID used: '{model_id}'. "
+                    f"Please verify the model identifier in the provider configuration. "
+                    f"Original error: {e_api}",
+                    exc_info=True
+                )
+            else:
+                err_msg = f"Google API error during streaming: {e_api}"
+                logger.error(f"{log_prefix} {err_msg}", exc_info=True)
             # Don't estimate usage for API errors - stream failed
             raise IOError(f"Google API Error: {e_api}") from e_api
         except Exception as e_stream:
@@ -367,7 +410,7 @@ async def invoke_google_chat_completions(
     else:
         try:
             response = await google_genai_client.aio.models.generate_content(
-                model=model_id,
+                model=normalized_model_id,
                 contents=contents,
                 config=generation_config
             )

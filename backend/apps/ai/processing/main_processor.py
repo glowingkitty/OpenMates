@@ -611,6 +611,7 @@ async def handle_main_processing(
         logger.warning(f"{log_prefix} base_capabilities_instruction not found in base_instructions.yml")
     
     prompt_parts.append(base_instructions.get("follow_up_instruction", ""))
+    prompt_parts.append(base_instructions.get("base_link_encouragement_instruction", ""))
     if loaded_app_settings_and_memories_content:
         settings_and_memories_prompt_section = ["\n--- Relevant Information from Your App Settings and Memories ---"]
         for key, value in loaded_app_settings_and_memories_content.items():
