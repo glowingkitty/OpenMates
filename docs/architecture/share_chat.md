@@ -8,6 +8,116 @@
 
 The share chat feature allows users to share their conversations with other users or make them publicly accessible. All shared chats remain encrypted, ensuring privacy even when shared.
 
+## Offline-First Sharing Architecture
+
+The sharing feature is designed to work **completely offline** when generating share links. No server request is required to create a shareable link with encryption key and optional time limits.
+
+### Key Blob Structure
+
+When generating a share link, the system creates an encrypted **key blob** that contains:
+
+**Blob Contents (conceptual structure):**
+
+- `chat_encryption_key`: The encryption key for the chat (256-bit key, may be password-encrypted)
+- `generated_at`: Unix timestamp when the share link was created
+- `duration_seconds`: Expiration duration in seconds (e.g., 3600 for 1 hour, 86400 for 24 hours)
+- `pwd`: Password protection flag (0 = no password, 1 = password required)
+
+**Key Points:**
+
+- The blob always contains: `chat_encryption_key`, `generated_at`, `duration_seconds`, and `pwd` flag
+- The `pwd` flag indicates whether password protection is enabled (1) or not (0)
+- If `pwd=1`, the `chat_encryption_key` value inside the blob is itself encrypted with a password-derived key
+- The entire blob is always encrypted with a key derived from the chat ID: `KDF(chat_id) → derived_key`
+- This ensures consistent encryption approach regardless of password protection
+
+**Blob Format:**
+
+- The blob is stored as **URL-encoded parameters** before encryption: `chat_encryption_key=...&generated_at=...&duration_seconds=...&pwd=0`
+- This format is more compact than JSON and easier to parse after decryption
+- After encryption with AES-GCM and base64 URL-safe encoding, the blob becomes a single string in the URL fragment
+
+**URL Length Characteristics:**
+
+- **Without password:** Encrypted blob size ~150-200 base64 characters
+- **With password (max 10 chars):** Encrypted blob size ~230-250 base64 characters
+- **Total URL length:** ~300-320 characters (including domain, path, and fragment)
+- **QR Code compatibility:** Well within QR code limits (max 2,953 chars for version 40)
+- URL fragments (after `#`) are not sent to servers, so they can be longer than query parameters
+- The encrypted blob is base64 URL-safe encoded (uses `-` and `_` instead of `+` and `/`)
+- **Without password:** Encrypted blob size ~150-200 base64 characters
+- **With password (max 10 chars):** Encrypted blob size ~230-250 base64 characters
+- **Total URL length:** ~300-320 characters (including domain, path, and fragment)
+- **QR Code compatibility:** Well within QR code limits (max 2,953 chars for version 40)
+- URL fragments (after `#`) are not sent to servers, so they can be longer than query parameters
+- The encrypted blob is base64 URL-safe encoded (uses `-` and `_` instead of `+` and `/`)
+
+### Without Password Protection
+
+1. **Sharer (offline):**
+   - Generate random encryption key for the chat
+   - Record current time: `generated_at`
+   - Set duration: `duration_seconds` (e.g., 3600 for 1 hour, 86400 for 24 hours, etc.)
+   - Create key blob with: `chat_encryption_key` (plaintext), `generated_at`, `duration_seconds`, `pwd=0`
+   - Encrypt blob with a **fixed key derived from chat ID**: `KDF(chat_id) → derived_key`
+   - Generate URL: `/share/chat/{chat-id}#key={encrypted_blob}`
+   - Share link + QR code (entirely offline, no server needed)
+
+2. **Receiver:**
+   - Loads URL, extracts `key` parameter from fragment
+   - Derives decryption key from chat ID: `KDF(chat_id) → derived_key`
+   - Decrypts blob → extracts `chat_encryption_key`, `generated_at`, `duration_seconds`, `pwd`
+   - Checks `pwd` flag: if `pwd=0`, proceed directly
+   - Fetches chat from server (server provides current time)
+   - Validates: `server_time - generated_at ≤ duration_seconds`
+   - If valid: uses `chat_encryption_key` to decrypt chat data locally
+   - If expired: show error "This chat link has expired"
+
+### With Password Protection
+
+1. **Sharer (offline):**
+   - Generate random encryption key for the chat
+   - User enters password
+   - Record current time: `generated_at`
+   - Set duration: `duration_seconds`
+   - Encrypt `chat_encryption_key` with password-derived key: `KDF(password) → password_derived_key`, then `AES_encrypt(chat_encryption_key, password_derived_key) → encrypted_chat_key`
+   - Create key blob with: `chat_encryption_key=encrypted_chat_key`, `generated_at`, `duration_seconds`, `pwd=1`
+   - Encrypt entire blob with chat-ID-derived key: `KDF(chat_id) → derived_key`, then `AES_encrypt(key_blob, derived_key)`
+   - Generate URL: `/share/chat/{chat-id}#key={encrypted_blob}`
+   - Share link + QR code (entirely offline, no server needed)
+
+2. **Receiver:**
+   - Loads URL, extracts `key` parameter from fragment
+   - Derives decryption key from chat ID: `KDF(chat_id) → derived_key`
+   - Decrypts blob with chat-ID-derived key → extracts `chat_encryption_key` (still encrypted), `generated_at`, `duration_seconds`, `pwd`
+   - Checks `pwd` flag: if `pwd=1`, password is required
+   - Prompts user: "This chat requires a password"
+   - User enters password
+   - Derives decryption key from password: `KDF(password) → password_derived_key`
+   - Decrypts `chat_encryption_key` with password-derived key → extracts actual `chat_encryption_key`
+   - Fetches chat from server (server provides current time)
+   - Validates: `server_time - generated_at ≤ duration_seconds`
+   - If valid: uses `chat_encryption_key` to decrypt chat data locally
+   - If expired: show error "This chat link has expired"
+   - If password incorrect: decryption of `chat_encryption_key` fails, prompt again or show error
+
+### Expiration Validation - Tamper-Proof Design
+
+**Why this approach is tamper-proof:**
+
+- The `generated_at` and `duration_seconds` are encrypted inside the blob and immutable
+- Users cannot modify them without the encryption key
+- Expiration validation uses **server time** (not client time), which prevents clock-manipulation attacks
+- Even if a user sets their device clock to the future, the server time check will catch it
+- There's no client-side expiration check that could be bypassed—the server provides authoritative time
+
+**User Clock Manipulation Scenario:**
+- Attacker generates a 1-hour link at 12:00 PM
+- Attacker sets their device clock forward to 2:00 PM and tries to access the link
+- Client receives server time: 12:10 PM (the real server time)
+- Validation check: `12:10 - 12:00 ≤ 3600` ✓ Still valid
+- Server time is authoritative, attacker's clock doesn't matter
+
 ## Sharing Options
 
 ### Share with Public
@@ -16,7 +126,7 @@ When sharing publicly:
 
 1. **Sharing Process:**
    - The chat owner clicks "Share public" to make the chat publicly accessible
-   - A shareable link is generated with the format: `/share/chat/{chat-id}#key={encryption-key}` where the chat ID is in the path and the encryption key is stored in the URL fragment (after the `#`)
+   - A shareable link is generated with the format: `/share/chat/{chat-id}#key={encryption-key}` where the chat ID is in the path and the encryption key blob is stored in the URL fragment (after the `#`)
    - Anyone with the link can access the chat (no email verification required)
    - The system checks if the chat is marked as publicly shared before allowing access
 
@@ -131,43 +241,54 @@ In group chat mode:
 
 Users can optionally set a password when sharing a chat or embed to add an additional layer of security. The password protection works as follows:
 
-### Password-Based Encryption
+### Password-Based Key Blob Encryption
 
-1. **Password Derivation:**
-   - When a user sets a password for sharing, a random salt is generated client-side
-   - The password is combined with the salt and processed through PBKDF2 (100,000 iterations, SHA-256) to derive a 256-bit encryption key
-   - The password-derived key is combined with the shared encryption key using a key derivation function (KDF)
-   - The combined key is used to encrypt the shared content
+1. **Unified Encryption Approach:**
+   - The key blob is **always** encrypted with a key derived from the chat ID: `KDF(chat_id) → derived_key`
+   - The blob contains: `chat_encryption_key`, `generated_at`, `duration_seconds`, and `pwd` flag
+   - **Without password:** `chat_encryption_key` is stored as plaintext in the blob, `pwd=0`
+   - **With password:** `chat_encryption_key` is encrypted with password-derived key before being stored in the blob, `pwd=1`
+   - The encrypted blob is stored in the URL: `/share/chat/{chat-id}#key={encrypted_blob}`
+   - The `pwd` flag inside the blob tells the receiver: "This share requires a password"
    - **No server storage:** The server never stores any password-related information (no hash, no salt, no indication of password protection)
 
-2. **Encryption Process:**
-   - If password is set: Content is encrypted with `shared_encryption_key + password-derived key`
-   - If no password: Content is encrypted with `shared_encryption_key` only
-   - This ensures that even if someone obtains the shared encryption key from the URL, they cannot decrypt password-protected content without the password
-
-3. **Access Flow (Zero-Knowledge):**
-   - When someone accesses a shared chat via `/share/chat/{chat-id}#key={encryption-key}`:
-     1. Client extracts `chat_id` from URL path and `key` from URL fragment
-     2. Client sends request to server with `chat_id` (key stays in fragment, never sent to server)
-     3. Server checks if chat exists and is shared, then returns encrypted content
-     4. Client-side JavaScript redirects to main app URL format: `/#chat-id={chat-id}&key={encryption-key}` for final rendering
-     5. Client attempts to decrypt content using `shared_encryption_key` from URL fragment
-     6. **If decryption succeeds:** Content is displayed ✅
-     7. **If decryption fails:**
-        - Client prompts user: "Enter the password:"
-        - User enters password (if applicable)
-        - Client derives key from password using the same salt generation method (salt must be deterministically derived or stored client-side)
-        - Client combines password-derived key with `shared_encryption_key`
-        - Client attempts decryption again with combined key
-        - If decryption succeeds: Content is displayed ✅
-        - If decryption still fails: Show error: "Unable to decrypt. Please verify the link and password (if required)."
-
-4. **Security Properties:**
+2. **Security Properties:**
    - **True Zero-Knowledge:** Server has no knowledge of password protection - it cannot distinguish between password-protected and non-password-protected shares
    - **No Server Storage:** No password hash, salt, or any password-related data is stored on the server
    - **Brute Force Protection:** Failed decryption attempts provide no feedback, making brute force attacks impractical
-   - **Key Combination:** Password-derived key is combined with shared key, so both are required for decryption
-   - **Salt Management:** Salt must be deterministically derived (e.g., from chat_id/embed_id) or stored client-side (e.g., in URL fragment or local storage) to allow password derivation on access
+   - **Key Binding:** Password is cryptographically bound to the `chat_encryption_key`—changing the password invalidates decryption
+   - **Time-Bound:** Duration is encrypted in the blob alongside the password flag, so both password and expiration are protected
+   - **Consistent Architecture:** Always uses chat-ID-derived key for blob encryption, simplifying implementation
+
+3. **Access Flow (Zero-Knowledge):**
+   - When someone accesses a password-protected share via `/share/chat/{chat-id}#key={encrypted_blob}`:
+     1. Client extracts `chat_id` from URL path and `key` from URL fragment
+     2. Client derives key from chat ID: `KDF(chat_id) → derived_key`
+     3. Client decrypts blob with chat-ID-derived key → extracts `chat_encryption_key` (may be encrypted), `generated_at`, `duration_seconds`, `pwd`
+     4. Client checks `pwd` flag:
+        - **If `pwd=0`:** `chat_encryption_key` is plaintext, proceed directly
+        - **If `pwd=1`:** `chat_encryption_key` is encrypted, password required
+     5. **If password required (`pwd=1`):**
+        - Client prompts user: "This chat requires a password"
+        - User enters password
+        - Client derives key from password: `KDF(password) → password_derived_key`
+        - Client attempts to decrypt `chat_encryption_key` with password-derived key
+        - **If decryption succeeds:** Extract actual `chat_encryption_key` ✅
+        - **If decryption fails:** Show error "Incorrect password. Please try again." and prompt retry
+     6. **After obtaining `chat_encryption_key` (from step 4 or 5):**
+        - Client sends request to server with `chat_id` (blob and key stay in fragment, never sent to server)
+        - Server checks if chat exists and is shared, then returns encrypted content
+        - Client fetches server time and validates: `server_time - generated_at ≤ duration_seconds`
+        - If valid: Use `chat_encryption_key` to decrypt chat content
+        - If expired: Show error "This chat link has expired"
+        - Content is displayed ✅
+
+4. **Comparison: With and Without Password**
+   - **Without password:** Blob encrypted with `KDF(chat_id)`, `chat_encryption_key` is plaintext in blob, `pwd=0`—anyone with the link can decrypt the blob and access the chat
+   - **With password:** Blob encrypted with `KDF(chat_id)`, `chat_encryption_key` is encrypted with `KDF(password)` before being stored in blob, `pwd=1`—anyone with the link can decrypt the blob, but only users with the password can decrypt the `chat_encryption_key` to access the chat
+   - In both cases, the blob structure is identical: `{chat_encryption_key, generated_at, duration_seconds, pwd}`
+   - The difference is whether `chat_encryption_key` is plaintext or password-encrypted inside the blob
+   - The blob encryption key is always derived from the chat ID, ensuring consistent architecture
 
 ## Message Visibility Control
 
@@ -261,6 +382,41 @@ The interface must provide clear visual feedback and controls for different shar
 - **Password Protection Toggle:** Option to set an optional password for both public and user-specific sharing
 - **Share Link Display:** Show the shareable link with clear copy-to-clipboard functionality
 - **Access Control:** For user-specific sharing, show list of users who have access and allow adding/removing users
+
+### Chat Context Menu Behavior for Shared Chats
+
+The context menu (right-click or long-press on a chat in the sidebar) shows different actions based on the user's relationship to the chat:
+
+#### For Chat Owner (Original Creator)
+- **All sharing modes** (private, read-only, group chat, public):
+  - Show **"Delete"** option - the owner can always delete the chat they created
+  - Owner can remove their own chat from all devices and revoke access from all participants
+
+#### For Shared Users (Read-Only Mode)
+- **Read-only shared chats:**
+  - Show **"Leave"** option instead of "Delete" - shared users cannot delete the owner's chat
+  - Show **"Download"** and **"Copy"** options to export the shared content
+  - Leaving a read-only shared chat removes it from the user's sidebar but doesn't delete the original chat
+
+#### For Group Chat Participants
+- **Group chat mode:**
+  - Show **"Leave"** option instead of "Delete" - participants cannot delete the shared group chat
+  - Show **"Download"** and **"Copy"** options to export the conversation
+  - Leaving a group chat removes the user from participants and hides it from their sidebar
+  - The user's historical messages remain visible to other participants
+
+#### For Public Chat Viewers
+- **Public shared chats (not started by user):**
+  - Show **"Leave"** option instead of "Delete"
+  - The chat can be downloaded or copied before leaving
+  - Leaving hides the public chat from the user's sidebar (but it remains publicly accessible to others)
+
+#### Context Menu Actions Available
+- **Delete:** Only shown for chat owner (removes chat and all data)
+- **Leave:** Shown for shared users and public chat viewers (removes from sidebar, doesn't delete)
+- **Download:** Available to all users (exports chat as YAML)
+- **Copy:** Available to all users (copies chat to clipboard as YAML with embedded link)
+- **Select:** Entry point to multi-select mode for bulk operations
 
 This design enables flexible, secure sharing while maintaining user control over privacy and message visibility.
 

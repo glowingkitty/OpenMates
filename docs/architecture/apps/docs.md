@@ -120,6 +120,50 @@ General rule for all previews/apps: If multiple previews of the same type are re
 If there is only one preview of the same type, no additional container with scrollbar is needed. If a text is following the preview, it will be regularly rendered below the preview. Same if a preview or group of previews of another type is following the preview. Uses "desktop" layout of the preview both for mobile and desktop.
 
 
+## Skills
+
+### Search
+
+Searches text-based documents (Word documents, text files, Google Docs, OpenOffice documents) for patterns or specific content using grep-like functionality. For PDF searching, see [PDF App](./pdf.md).
+
+**Features:**
+- Support for multiple documents and search queries in a single call (processed in parallel, up to 5 requests)
+- Regex pattern matching support (`grep` / `rg` style)
+- Case-sensitive and case-insensitive search options
+- Returns matched lines with context (surrounding lines) and line numbers
+- Efficient for long documents without re-parsing on every search
+- Works with encrypted documents via per-user decryption
+
+**Input Parameters:**
+- `file_ids`: Array of uploaded document IDs to search within
+- `query`: Search pattern (supports regex)
+- `case_sensitive`: Boolean (default: false)
+- `context_lines`: Number of lines before/after match to include (default: 2)
+- `regex`: Boolean to enable regex mode (default: true)
+
+**Output:**
+- Grouped results by file and query
+- Each match includes:
+  - Line number
+  - Matched text
+  - Context lines before/after
+  - File metadata (name, type)
+
+**Processing:**
+- For each search request, caches extracted text from documents to avoid re-parsing
+- Celery-based processing with parallel requests
+- Returns results incrementally as searches complete
+
+### Summarize
+
+Generates summaries of document content at various detail levels (brief, detailed, key points only).
+
+**Features:**
+- Support for multiple documents in a single call
+- Customizable summary length and focus areas
+- Extracts key points, main arguments, and conclusions
+- Integrates with LLM for intelligent summarization
+
 ## Focuses
 
 ### Creative writing session

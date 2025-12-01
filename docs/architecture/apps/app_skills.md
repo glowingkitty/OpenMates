@@ -20,9 +20,14 @@ Each request in a multi-request call **must** include a unique `id` field (numbe
 }
 ```
 
-The `id` field is mandatory and must be unique within a single skill call. It can be:
+The `id` field is automatically injected into all skill tool schemas that have a `requests` array. It can be:
 - A number (e.g., `1`, `2`, `3`)
 - A UUID string (e.g., `"550e8400-e29b-41d4-a716-446655440000"`)
+
+**ID Field Requirements:**
+- **Single requests**: The `id` field is optional and will default to `1` if not provided
+- **Multiple requests**: The `id` field is required and must be unique within a single skill call
+- **Automatic Injection**: The `id` field is automatically added to tool schemas by the tool generator, so skills don't need to define it in their `app.yml` files
 
 ### Response Structure
 
@@ -102,6 +107,7 @@ The system ensures your requests are processed reliably:
 - Each request is processed independently, with its `id` preserved throughout the pipeline
 - Results are grouped by `id` before returning the response
 - No redundant data (query, parameters) is included in responses - clients match by `id`
+- **Automatic ID Injection**: The `id` field is automatically injected into tool schemas by `tool_generator.py` for all skills with `requests` arrays, ensuring consistency across all skills without requiring manual schema definitions
 
 **Frontend Rendering:**
 - Single `app_skill_use` embed is created for all requests in a skill call

@@ -35,6 +35,7 @@
 - **Web**: [apps/web.md](apps/web.md)
 - **Jobs**: [apps/jobs.md](apps/jobs.md)
 - **Docs**: [apps/docs.md](apps/docs.md)
+- **PDF**: [apps/pdf.md](apps/pdf.md)
 - **Sheets**: [apps/sheets.md](apps/sheets.md)
 
 ## Servers
