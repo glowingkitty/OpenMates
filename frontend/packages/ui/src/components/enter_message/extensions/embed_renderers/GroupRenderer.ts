@@ -7,6 +7,7 @@ import { groupHandlerRegistry } from '../../../../message_parsing/groupHandlers'
 import { mount, unmount } from 'svelte';
 import WebsiteEmbedPreview from '../../../embeds/WebsiteEmbedPreview.svelte';
 import VideoEmbedPreview from '../../../embeds/VideoEmbedPreview.svelte';
+import CodeEmbedPreview from '../../../embeds/CodeEmbedPreview.svelte';
 
 // Track mounted components for cleanup
 const mountedComponents = new WeakMap<HTMLElement, ReturnType<typeof mount>>();
@@ -59,6 +60,12 @@ export class GroupRenderer implements EmbedRenderer {
       // For video embeds, use Svelte component instead of HTML
       if (baseType === 'videos-video') {
         await this.renderVideoComponent(attrs, embedData, decodedContent, content);
+        return;
+      }
+      
+      // For code embeds, use Svelte component instead of HTML
+      if (baseType === 'code-code') {
+        await this.renderCodeComponent(attrs, embedData, decodedContent, content);
         return;
       }
       
@@ -456,6 +463,92 @@ export class GroupRenderer implements EmbedRenderer {
     decodedContent: any = null
   ): Promise<string> {
     return this.renderVideoItem(item, embedData, decodedContent);
+  }
+  
+  /**
+   * Render code embed using Svelte component
+   * Uses CodeEmbedPreview for consistent sizing (300x200px desktop, 150x290px mobile)
+   */
+  private async renderCodeComponent(
+    item: EmbedNodeAttributes,
+    embedData: any = null,
+    decodedContent: any = null,
+    content: HTMLElement
+  ): Promise<void> {
+    // Use decoded content if available, otherwise fall back to item attributes
+    const language = decodedContent?.language || item.language || 'text';
+    const filename = decodedContent?.filename || item.filename;
+    const lineCount = decodedContent?.lineCount || item.lineCount || 0;
+    
+    // For preview embeds (contentRef starts with 'preview:'), get code from item attributes
+    // For real embeds, get code from decodedContent
+    let codeContent = '';
+    if (item.contentRef?.startsWith('preview:')) {
+      // Preview embed - code is stored temporarily in item attributes
+      codeContent = item.code || '';
+      console.debug('[GroupRenderer] Rendering preview code embed with inline code content');
+    } else {
+      // Real embed - code comes from decodedContent (loaded from EmbedStore)
+      codeContent = decodedContent?.code || '';
+    }
+    
+    // Determine status
+    const status = item.status || 'finished';
+    
+    // Get embed ID (remove prefixes for preview embeds)
+    const embedId = item.contentRef?.replace('embed:', '')?.replace('preview:code:', '') || item.id || '';
+    
+    // Cleanup any existing mounted component
+    const existingComponent = mountedComponents.get(content);
+    if (existingComponent) {
+      try {
+        unmount(existingComponent);
+      } catch (e) {
+        console.warn('[GroupRenderer] Error unmounting existing component:', e);
+      }
+    }
+    
+    // Clear the content element
+    content.innerHTML = '';
+    
+    // Mount the Svelte component
+    try {
+      // Create a handler for fullscreen that dispatches the event
+      const handleFullscreen = () => {
+        this.openFullscreen(item, embedData, decodedContent);
+      };
+      
+      const component = mount(CodeEmbedPreview, {
+        target: content,
+        props: {
+          id: embedId,
+          language,
+          filename,
+          lineCount,
+          status: status as 'processing' | 'finished' | 'error',
+          isMobile: false, // Default to desktop in message view
+          onFullscreen: handleFullscreen,
+          codeContent // Pass full code content - component handles preview extraction
+        }
+      });
+      
+      // Store reference for cleanup
+      mountedComponents.set(content, component);
+      
+      console.debug('[GroupRenderer] Mounted CodeEmbedPreview component:', {
+        embedId,
+        language,
+        filename,
+        lineCount,
+        status
+      });
+      
+    } catch (error) {
+      console.error('[GroupRenderer] Error mounting CodeEmbedPreview component:', error);
+      // Fallback to HTML rendering
+      const fallbackHtml = await this.renderCodeItem(item, embedData, decodedContent);
+      content.innerHTML = fallbackHtml;
+    }
   }
   
   private async renderVideoItem(

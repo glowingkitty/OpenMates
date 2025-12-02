@@ -265,14 +265,50 @@ export class EmbedStore {
       }
       
       // If parsed object has encrypted_content, decrypt it now
+      // For shared chats, try chat key decryption if master key fails
       if (parsed && parsed.encrypted_content && typeof parsed.encrypted_content === 'string') {
         try {
-          const decryptedContent = await decryptWithMasterKey(parsed.encrypted_content);
+          let decryptedContent = await decryptWithMasterKey(parsed.encrypted_content);
+          
+          // If master key decryption failed, try chat key decryption (for shared chats)
+          if (!decryptedContent && parsed.hashed_chat_id) {
+            // Try to find the chat ID from hashed_chat_id
+            // For shared chats, we need to get the chat key from chatDB
+            try {
+              const { chatDB } = await import('./db');
+              const { decryptWithChatKey } = await import('./cryptoService');
+              
+              // Get all chats to find the one with matching hashed_chat_id
+              // This is a fallback for shared chats where master key isn't available
+              const allChats = await chatDB.getAllChats();
+              for (const chat of allChats) {
+                // Compute hash of chat_id to match hashed_chat_id
+                const { computeSHA256 } = await import('../message_parsing/utils');
+                const chatIdHash = await computeSHA256(chat.chat_id);
+                
+                if (chatIdHash === parsed.hashed_chat_id) {
+                  // Found the chat - try decrypting with chat key
+                  const chatKey = chatDB.getChatKey(chat.chat_id);
+                  if (chatKey) {
+                    decryptedContent = await decryptWithChatKey(parsed.encrypted_content, chatKey);
+                    if (decryptedContent) {
+                      console.debug('[EmbedStore] Successfully decrypted embed content with chat key for shared chat:', chat.chat_id);
+                      break;
+                    }
+                  }
+                }
+              }
+            } catch (chatKeyError) {
+              console.debug('[EmbedStore] Chat key decryption fallback failed:', chatKeyError);
+            }
+          }
+          
           if (decryptedContent) {
             parsed.content = decryptedContent;
             // Keep encrypted_content for reference but content is now decrypted
           } else {
-            console.warn('[EmbedStore] Failed to decrypt encrypted_content field');
+            console.warn('[EmbedStore] Failed to decrypt encrypted_content field (tried master key and chat key)');
+            // Return embed with encrypted_content - renderer may handle it gracefully
           }
         } catch (error) {
           console.warn('[EmbedStore] Error decrypting encrypted_content field:', error);
@@ -280,11 +316,44 @@ export class EmbedStore {
       }
       
       // If parsed object has encrypted_type, decrypt it
+      // For shared chats, try chat key decryption if master key fails
       if (parsed && parsed.encrypted_type && typeof parsed.encrypted_type === 'string') {
-        const decryptedType = await decryptWithMasterKey(parsed.encrypted_type);
-        if (decryptedType) {
-          parsed.type = decryptedType;
-          parsed.embed_type = decryptedType;
+        try {
+          let decryptedType = await decryptWithMasterKey(parsed.encrypted_type);
+          
+          // If master key decryption failed, try chat key decryption (for shared chats)
+          if (!decryptedType && parsed.hashed_chat_id) {
+            try {
+              const { chatDB } = await import('./db');
+              const { decryptWithChatKey } = await import('./cryptoService');
+              
+              const allChats = await chatDB.getAllChats();
+              for (const chat of allChats) {
+                const { computeSHA256 } = await import('../message_parsing/utils');
+                const chatIdHash = await computeSHA256(chat.chat_id);
+                
+                if (chatIdHash === parsed.hashed_chat_id) {
+                  const chatKey = chatDB.getChatKey(chat.chat_id);
+                  if (chatKey) {
+                    decryptedType = await decryptWithChatKey(parsed.encrypted_type, chatKey);
+                    if (decryptedType) {
+                      console.debug('[EmbedStore] Successfully decrypted embed type with chat key for shared chat:', chat.chat_id);
+                      break;
+                    }
+                  }
+                }
+              }
+            } catch (chatKeyError) {
+              console.debug('[EmbedStore] Chat key decryption fallback for type failed:', chatKeyError);
+            }
+          }
+          
+          if (decryptedType) {
+            parsed.type = decryptedType;
+            parsed.embed_type = decryptedType;
+          }
+        } catch (error) {
+          console.warn('[EmbedStore] Error decrypting encrypted_type field:', error);
         }
       }
     }

@@ -1067,6 +1067,14 @@ div.clickable-icon {
   }
 }
 
+.icon.shared {
+  background: var(--color-primary);
+
+  &::before {
+      background-image: url('@openmates/ui/static/icons/share.svg');
+  }
+}
+
 .icon.language {
   background: var(--color-primary);
 

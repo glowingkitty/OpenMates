@@ -148,6 +148,18 @@ export const Embed = Node.create<EmbedOptions>({
           return { 'data-line-count': attributes.lineCount.toString() };
         },
       },
+      // Temporary field for preview code embeds (stores code content inline)
+      // This is only used for preview embeds in write mode, not persisted
+      code: {
+        default: null,
+        parseHTML: element => element.getAttribute('data-code'),
+        renderHTML: attributes => {
+          if (!attributes.code) {
+            return {};
+          }
+          return { 'data-code': attributes.code };
+        },
+      },
       wordCount: {
         default: null,
         parseHTML: element => {
@@ -676,18 +688,48 @@ export const Embed = Node.create<EmbedOptions>({
             case 'code-code':
               const language = attrs.language || '';
               const filename = attrs.filename ? `:${attrs.filename}` : '';
-              markdown = `\`\`\`${language}${filename}\n\`\`\``;
-              console.debug('[Embed] Converting code-code to markdown:', markdown);
+              
+              // For preview embeds (contentRef starts with 'preview:'), restore code block WITHOUT closing fence
+              // This allows the user to continue editing the code block
+              // For real embeds, just restore the fence (content is in EmbedStore)
+              if (attrs.contentRef?.startsWith('preview:')) {
+                const codeContent = attrs.code || '';
+                // Remove closing fence to allow continued editing
+                markdown = `\`\`\`${language}${filename}\n${codeContent}`;
+                console.debug('[Embed] Converting preview code-code to edit mode (no closing fence)');
+              } else {
+                markdown = `\`\`\`${language}${filename}\n\`\`\``;
+                console.debug('[Embed] Converting code-code to markdown fence only');
+              }
               break;
             case 'docs-doc':
-              const title = attrs.title ? `<!-- title: "${attrs.title}" -->\n` : '';
-              markdown = `\`\`\`document_html\n${title}\`\`\``;
-              console.debug('[Embed] Converting docs-doc to markdown:', markdown);
+              // For preview embeds, restore content WITHOUT closing fence for continued editing
+              // For real embeds, just restore the fence
+              if (attrs.contentRef?.startsWith('preview:')) {
+                const docContent = attrs.code || '';
+                const title = attrs.title ? `<!-- title: "${attrs.title}" -->\n` : '';
+                // Remove closing fence to allow continued editing
+                markdown = `\`\`\`doc\n${title}${docContent}`;
+                console.debug('[Embed] Converting preview docs-doc to edit mode (no closing fence)');
+              } else {
+                const title = attrs.title ? `<!-- title: "${attrs.title}" -->\n` : '';
+                markdown = `\`\`\`document_html\n${title}\`\`\``;
+                console.debug('[Embed] Converting docs-doc to markdown fence only');
+              }
               break;
             case 'sheets-sheet':
-              const sheetTitle = attrs.title ? `<!-- title: "${attrs.title}" -->\n` : '';
-              markdown = `${sheetTitle}| Column 1 | Column 2 |\n|----------|----------|\n| Data 1   | Data 2   |`;
-              console.debug('[Embed] Converting sheets-sheet to markdown:', markdown);
+              // For preview embeds, restore full table content
+              // For real embeds, restore a placeholder table
+              if (attrs.contentRef?.startsWith('preview:')) {
+                const tableContent = attrs.code || '';
+                const title = attrs.title ? `<!-- title: "${attrs.title}" -->\n` : '';
+                markdown = `${title}${tableContent}`;
+                console.debug('[Embed] Converting preview sheets-sheet to full markdown with content');
+              } else {
+                const sheetTitle = attrs.title ? `<!-- title: "${attrs.title}" -->\n` : '';
+                markdown = `${sheetTitle}| Column 1 | Column 2 |\n|----------|----------|\n| Data 1   | Data 2   |`;
+                console.debug('[Embed] Converting sheets-sheet to markdown placeholder');
+              }
               break;
             default:
               markdown = `[${attrs.type} content]`;

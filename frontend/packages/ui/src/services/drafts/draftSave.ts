@@ -32,14 +32,29 @@ function generateDraftPreview(markdown: string, maxLength: number = 100): string
     if (!markdown) return '';
     
     try {
+        let displayText = markdown;
+        
         // Replace json_embed code blocks with their URLs for display, ensuring proper spacing
-        const displayText = markdown.replace(/```json_embed\n([\s\S]*?)\n```/g, (match, jsonContent) => {
+        displayText = displayText.replace(/```json_embed\n([\s\S]*?)\n```/g, (match, jsonContent) => {
             const url = extractUrlFromJsonEmbedBlock(match);
             if (url) {
                 // Ensure the URL has spaces around it for proper separation from surrounding text
                 return ` ${url} `;
             }
             return match; // Return original if URL extraction failed
+        });
+        
+        // Replace regular code blocks with a placeholder showing the code content
+        // This handles ```python\ncode\n``` style blocks
+        displayText = displayText.replace(/```(\w*)\n([\s\S]*?)\n```/g, (match, language, codeContent) => {
+            // Show the actual code content, not just the language
+            const trimmedCode = codeContent.trim();
+            if (trimmedCode) {
+                // Show first line of code or truncated version
+                const firstLine = trimmedCode.split('\n')[0].trim();
+                return ` [Code: ${firstLine.substring(0, 30)}${firstLine.length > 30 ? '...' : ''}] `;
+            }
+            return language ? ` [${language} code] ` : ' [code] ';
         });
         
         // Clean up multiple spaces and trim

@@ -208,6 +208,346 @@ class EmbedService:
             logger.error(f"{log_prefix} Error creating processing embed placeholder: {e}", exc_info=True)
             return None
 
+    async def create_code_embed_placeholder(
+        self,
+        language: str,
+        chat_id: str,
+        message_id: str,
+        user_id: str,
+        user_id_hash: str,
+        user_vault_key_id: str,
+        task_id: Optional[str] = None,
+        filename: Optional[str] = None,
+        log_prefix: str = ""
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Create a "processing" code embed placeholder immediately when code block starts.
+        This allows the frontend to show the code block embed immediately while code streams.
+        
+        The embed will be updated with code content as it streams paragraph by paragraph,
+        and finalized when the code block closes.
+        
+        Args:
+            language: Programming language (e.g., "python", "javascript", "" for no language)
+            chat_id: Chat ID where the embed is created
+            message_id: Message ID that references the embed
+            user_id: User ID (UUID)
+            user_id_hash: Hashed user ID
+            user_vault_key_id: User's vault key ID for encryption
+            task_id: Optional task ID for tracking
+            filename: Optional filename (extracted from language:filename format)
+            log_prefix: Logging prefix for this operation
+            
+        Returns:
+            Dictionary with:
+            - embed_id: The embed_id of the placeholder
+            - embed_reference: JSON string for embedding in message markdown
+            None if creation fails
+        """
+        try:
+            # Hash sensitive IDs for privacy protection
+            hashed_chat_id = hashlib.sha256(chat_id.encode()).hexdigest()
+            hashed_message_id = hashlib.sha256(message_id.encode()).hexdigest()
+            hashed_task_id = hashlib.sha256(task_id.encode()).hexdigest() if task_id else None
+
+            # Generate embed_id for placeholder
+            embed_id = str(uuid.uuid4())
+
+            # Create minimal placeholder content with language and filename
+            placeholder_content = {
+                "type": "code",
+                "language": language or "",
+                "code": "",  # Empty initially, will be updated as code streams
+                "filename": filename,
+                "status": "processing"
+            }
+
+            # Convert to TOON format
+            placeholder_toon = encode(placeholder_content)
+
+            # Encrypt with vault key for server cache
+            encrypted_content, _ = await self.encryption_service.encrypt_with_user_key(
+                placeholder_toon,
+                user_vault_key_id
+            )
+
+            # Create placeholder embed entry
+            embed_data = {
+                "embed_id": embed_id,
+                "type": "code",
+                "chat_id": chat_id,
+                "message_id": message_id,
+                "hashed_chat_id": hashed_chat_id,
+                "hashed_message_id": hashed_message_id,
+                "hashed_task_id": hashed_task_id,
+                "status": "processing",
+                "hashed_user_id": user_id_hash,
+                "share_mode": "private",
+                "embed_ids": None,  # Code embeds don't have child embeds
+                "encrypted_content": encrypted_content,
+                "created_at": int(datetime.now().timestamp()),
+                "updated_at": int(datetime.now().timestamp())
+            }
+
+            # Cache placeholder embed
+            await self._cache_embed(embed_id, embed_data, chat_id, user_id_hash)
+
+            # SEND PLAINTEXT TOON TO CLIENT via WebSocket
+            # This ensures the client has the embed data immediately to render the placeholder
+            await self.send_embed_data_to_client(
+                embed_id=embed_id,
+                embed_type="code",
+                content_toon=placeholder_toon,  # PLAINTEXT TOON
+                chat_id=chat_id,
+                message_id=message_id,
+                user_id=user_id,
+                user_id_hash=user_id_hash,
+                status="processing",
+                task_id=task_id,
+                share_mode="private",
+                created_at=embed_data["created_at"],
+                updated_at=embed_data["updated_at"],
+                log_prefix=log_prefix
+            )
+
+            logger.info(f"{log_prefix} Created processing code embed placeholder {embed_id} (language: {language or 'none'})")
+
+            # Generate embed reference JSON
+            embed_reference = json.dumps({
+                "type": "code",
+                "embed_id": embed_id
+            })
+
+            return {
+                "embed_id": embed_id,
+                "embed_reference": embed_reference
+            }
+
+        except Exception as e:
+            logger.error(f"{log_prefix} Error creating code embed placeholder: {e}", exc_info=True)
+            return None
+
+    async def update_code_embed_content(
+        self,
+        embed_id: str,
+        code_content: str,
+        chat_id: str,
+        user_id: str,
+        user_id_hash: str,
+        user_vault_key_id: str,
+        status: str = "processing",
+        log_prefix: str = ""
+    ) -> bool:
+        """
+        Update code embed content as code streams paragraph by paragraph.
+        
+        This method updates the cached embed with new code content and sends
+        the updated content to the client via WebSocket.
+        
+        Args:
+            embed_id: The embed identifier
+            code_content: The code content to update (accumulated so far)
+            chat_id: Chat ID for cache indexing
+            user_id: User ID (UUID)
+            user_id_hash: Hashed user ID
+            user_vault_key_id: User's vault key ID for encryption
+            status: Embed status ("processing" while streaming, "finished" when complete)
+            log_prefix: Logging prefix for this operation
+            
+        Returns:
+            True if update succeeded, False otherwise
+        """
+        try:
+            # Get existing embed from cache to preserve metadata
+            cached_embed = await self._get_cached_embed(embed_id, user_vault_key_id, log_prefix)
+            if not cached_embed:
+                logger.warning(f"{log_prefix} Code embed {embed_id} not found in cache, cannot update")
+                return False
+
+            # Decode existing content to get language and filename
+            existing_toon = await self._get_cached_embed_toon(embed_id, user_vault_key_id, log_prefix)
+            if existing_toon:
+                try:
+                    existing_content = decode(existing_toon)
+                    language = existing_content.get("language", "")
+                    filename = existing_content.get("filename")
+                except Exception as e:
+                    logger.warning(f"{log_prefix} Failed to decode existing code embed content: {e}")
+                    language = ""
+                    filename = None
+            else:
+                language = ""
+                filename = None
+
+            # Create updated content with new code
+            updated_content = {
+                "type": "code",
+                "language": language,
+                "code": code_content,
+                "filename": filename,
+                "status": status
+            }
+
+            # Convert to TOON format
+            updated_toon = encode(updated_content)
+
+            # Encrypt with vault key for server cache
+            encrypted_content, _ = await self.encryption_service.encrypt_with_user_key(
+                updated_toon,
+                user_vault_key_id
+            )
+
+            # Update embed data
+            updated_embed_data = {
+                **cached_embed,
+                "encrypted_content": encrypted_content,
+                "status": status,
+                "updated_at": int(datetime.now().timestamp())
+            }
+
+            # Update cache
+            await self._cache_embed(embed_id, updated_embed_data, chat_id, user_id_hash)
+
+            # Send updated content to client via WebSocket
+            await self.send_embed_data_to_client(
+                embed_id=embed_id,
+                embed_type="code",
+                content_toon=updated_toon,  # PLAINTEXT TOON
+                chat_id=chat_id,
+                message_id=cached_embed.get("message_id", ""),
+                user_id=user_id,
+                user_id_hash=user_id_hash,
+                status=status,
+                task_id=cached_embed.get("hashed_task_id"),
+                share_mode=cached_embed.get("share_mode", "private"),
+                created_at=cached_embed.get("created_at"),
+                updated_at=updated_embed_data["updated_at"],
+                log_prefix=log_prefix
+            )
+
+            logger.debug(f"{log_prefix} Updated code embed {embed_id} with {len(code_content)} chars (status: {status})")
+            return True
+
+        except Exception as e:
+            logger.error(f"{log_prefix} Error updating code embed content: {e}", exc_info=True)
+            return False
+
+    async def extract_code_blocks_from_user_message(
+        self,
+        content: str,
+        chat_id: str,
+        message_id: str,
+        user_id: str,
+        user_id_hash: str,
+        user_vault_key_id: str,
+        log_prefix: str = ""
+    ) -> Tuple[str, List[Dict[str, Any]]]:
+        """
+        Extract code blocks from user message content and create embeds for each.
+        
+        This is called when a user message is received to:
+        1. Find all markdown code blocks in the message
+        2. Create an embed for each code block
+        3. Replace code blocks with embed references
+        4. Return modified content and list of created embeds
+        
+        Args:
+            content: User message markdown content
+            chat_id: Chat ID
+            message_id: Message ID
+            user_id: User ID
+            user_id_hash: Hashed user ID
+            user_vault_key_id: User's vault key ID for encryption
+            log_prefix: Logging prefix
+            
+        Returns:
+            Tuple of (modified_content, list_of_embed_data)
+            - modified_content: Message with code blocks replaced by embed references
+            - list_of_embed_data: List of embed dictionaries to send to client for encrypted storage
+        """
+        import re
+        
+        # Pattern to match markdown code blocks with optional language and filename
+        # Format: ```language:filename\ncontent\n``` or ```language\ncontent\n``` or ```\ncontent\n```
+        # IMPORTANT: Skip JSON blocks that are already embed references
+        code_block_pattern = r'```([a-zA-Z0-9_+\-#.]*?)(?::([^\n`]+))?\n([\s\S]*?)\n```'
+        
+        created_embeds = []
+        
+        def replace_code_block(match):
+            """Replace a code block with an embed reference."""
+            nonlocal created_embeds
+            
+            full_match = match.group(0)
+            language = (match.group(1) or '').strip()
+            filename = match.group(2).strip() if match.group(2) else None
+            code_content = match.group(3)
+            
+            # Skip JSON blocks that are already embed references
+            if language.lower() in ('json', 'json_embed'):
+                try:
+                    import json as json_lib
+                    json_data = json_lib.loads(code_content.strip())
+                    if 'embed_id' in json_data or 'embed_ids' in json_data:
+                        logger.debug(f"{log_prefix} Skipping existing embed reference JSON block")
+                        return full_match  # Keep as-is
+                except:
+                    pass  # Not valid JSON, treat as code block
+            
+            # Generate embed ID
+            embed_id = str(uuid.uuid4())
+            
+            # Create embed content structure
+            embed_content = {
+                "type": "code",
+                "language": language,
+                "code": code_content,
+                "filename": filename,
+                "status": "finished",
+                "line_count": code_content.count('\n') + 1 if code_content else 0
+            }
+            
+            # Encode to TOON format
+            toon_content = encode(embed_content)
+            
+            # Hash IDs for privacy
+            hashed_chat_id = hashlib.sha256(chat_id.encode()).hexdigest()
+            hashed_message_id = hashlib.sha256(message_id.encode()).hexdigest()
+            
+            # Create embed data for client storage
+            embed_data = {
+                "embed_id": embed_id,
+                "type": "code",
+                "content": toon_content,  # TOON-encoded string (cleartext for client to encrypt)
+                "status": "finished",
+                "language": language,
+                "filename": filename,
+                "line_count": embed_content["line_count"]
+            }
+            created_embeds.append(embed_data)
+            
+            logger.info(f"{log_prefix} Created code embed {embed_id} from user message (language: {language or 'none'}, {embed_content['line_count']} lines)")
+            
+            # Return embed reference JSON block to replace the code block
+            embed_reference = json.dumps({
+                "type": "code",
+                "embed_id": embed_id
+            })
+            return f"```json\n{embed_reference}\n```"
+        
+        try:
+            # Replace all code blocks with embed references
+            modified_content = re.sub(code_block_pattern, replace_code_block, content)
+            
+            if created_embeds:
+                logger.info(f"{log_prefix} Extracted {len(created_embeds)} code blocks from user message and created embeds")
+            
+            return modified_content, created_embeds
+            
+        except Exception as e:
+            logger.error(f"{log_prefix} Error extracting code blocks from user message: {e}", exc_info=True)
+            return content, []  # Return original content on error
+
     async def _get_cached_embed_toon(
         self,
         embed_id: str,

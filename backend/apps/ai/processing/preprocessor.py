@@ -686,12 +686,15 @@ async def handle_preprocessing(
         if validated_relevant_skills:
             logger.info(f"{log_prefix} Preprocessing selected {len(validated_relevant_skills)} relevant skill(s) for main processing: {', '.join(validated_relevant_skills)}")
         else:
-            logger.info(f"{log_prefix} Preprocessing selected no relevant skills (or all were invalid). All available skills will be provided to main processing.")
-            validated_relevant_skills = None
+            # Empty list means no skills are relevant - this is valid per architecture
+            # We should NOT include all skills, only the preselected ones (which is empty)
+            logger.info(f"{log_prefix} Preprocessing selected no relevant skills (or all were invalid). No skills will be provided to main processing (architecture: only preselected skills are forwarded).")
+            validated_relevant_skills = []  # Keep as empty list, not None - this ensures only preselected skills are forwarded
     else:
-        # No preselection - all skills will be available
-        validated_relevant_skills = None
-        logger.info(f"{log_prefix} No skill preselection from preprocessing. All {len(available_skills_list)} available skills will be provided to main processing.")
+        # No preselection provided by LLM - treat as empty list (no skills preselected)
+        # Architecture requires only preselected skills to be forwarded, so empty list means no skills
+        validated_relevant_skills = []  # Keep as empty list, not None - this ensures only preselected skills are forwarded
+        logger.info(f"{log_prefix} No skill preselection from preprocessing. No skills will be provided to main processing (architecture: only preselected skills are forwarded).")
     
     # Use validated values instead of raw llm_analysis_args values
     # This ensures all fields meet their constraints and prevents downstream errors

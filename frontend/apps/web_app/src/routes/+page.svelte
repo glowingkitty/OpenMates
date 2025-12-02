@@ -308,6 +308,64 @@
 		// Now check auth state after optimistic loading
 		const isAuth = $authStore.isAuthenticated;
 		
+		// FALLBACK: Cleanup shared chats on page load (if unload events didn't fire)
+		// This handles cases where browser crashed, force quit, or events didn't fire
+		// Only run for non-authenticated users (authenticated users' chats should persist)
+		if (!isAuth) {
+			try {
+				// Check if this is a new session (sessionStorage doesn't have shared_chats)
+				// sessionStorage is cleared when tab/window closes, so empty = new session
+				const hasSharedChatsInSession = sessionStorage.getItem('shared_chats') !== null;
+				
+				if (!hasSharedChatsInSession) {
+					// This is a new session - cleanup any leftover shared chats from previous session
+					console.debug('[+page.svelte] New session detected - cleaning up any leftover shared chats from IndexedDB');
+					
+					try {
+						// Initialize DB if needed (non-blocking, may fail if DB is unavailable)
+						await chatDB.init();
+						
+						// Get all chats from IndexedDB
+						const allChats = await chatDB.getAllChats();
+						
+						// Import isPublicChat helper
+						const { isPublicChat } = await import('@repo/ui');
+						
+						// Delete all chats that aren't demo/legal chats (these are leftover shared chats)
+						let deletedCount = 0;
+						for (const chat of allChats) {
+							if (!isPublicChat(chat.chat_id)) {
+								try {
+									await chatDB.deleteChat(chat.chat_id);
+									deletedCount++;
+									console.debug('[+page.svelte] Deleted leftover shared chat:', chat.chat_id);
+								} catch (error) {
+									console.warn('[+page.svelte] Error deleting leftover shared chat:', chat.chat_id, error);
+								}
+							}
+						}
+						
+						if (deletedCount > 0) {
+							console.info(`[+page.svelte] Cleaned up ${deletedCount} leftover shared chat(s) from previous session`);
+						}
+					} catch (dbError: any) {
+						// If DB is being deleted (e.g., during logout) or unavailable, skip cleanup
+						if (dbError?.message?.includes('being deleted') || dbError?.message?.includes('cannot be initialized')) {
+							console.debug('[+page.svelte] Database unavailable during shared chat cleanup - skipping (likely during logout)');
+						} else {
+							console.warn('[+page.svelte] Error accessing database during shared chat cleanup:', dbError);
+						}
+					}
+				} else {
+					// Session has shared chats - they're still valid, don't delete
+					console.debug('[+page.svelte] Existing session with shared chats - skipping cleanup');
+				}
+			} catch (error) {
+				console.warn('[+page.svelte] Error during shared chat cleanup on load:', error);
+				// Don't fail the whole app if cleanup fails
+			}
+		}
+		
 		// CRITICAL: Check for signup hash in URL BEFORE initialize() to ensure hash-based signup state takes precedence
 		// This ensures signup flow opens immediately on page reload if URL has #signup/ hash
 		// The hash takes precedence over last_opened from IndexedDB and checkAuth() logic
@@ -375,6 +433,61 @@
 		// Register listener for WebSocket auth errors
 		webSocketService.addEventListener('authError', handleWebSocketAuthError as EventListener);
 		console.debug('[+page.svelte] Registered WebSocket auth error listener');
+		
+		// CRITICAL: Setup cleanup for shared chats on session close (non-authenticated users only)
+		// Shared chats are stored in IndexedDB but should be deleted when the session ends
+		// This ensures shared chats don't persist long-term for non-authenticated users
+		const cleanupSharedChats = async () => {
+			// Only cleanup if user is not authenticated
+			if (!$authStore.isAuthenticated) {
+				try {
+					const sharedChatIds = JSON.parse(sessionStorage.getItem('shared_chats') || '[]');
+					if (sharedChatIds.length > 0) {
+						console.debug('[+page.svelte] Cleaning up shared chats on session close:', sharedChatIds);
+						
+						// Delete chats from IndexedDB
+						for (const chatId of sharedChatIds) {
+							try {
+								await chatDB.deleteChat(chatId);
+								console.debug('[+page.svelte] Deleted shared chat from IndexedDB:', chatId);
+							} catch (error) {
+								console.warn('[+page.svelte] Error deleting shared chat:', chatId, error);
+							}
+						}
+						
+						// Clear sessionStorage tracking
+						sessionStorage.removeItem('shared_chats');
+						console.debug('[+page.svelte] Cleaned up shared chats on session close');
+					}
+				} catch (error) {
+					console.warn('[+page.svelte] Error cleaning up shared chats:', error);
+				}
+			}
+		};
+		
+		// Use visibilitychange and pagehide events for better reliability
+		const handlePageUnload = () => {
+			// Use non-blocking approach - initiate cleanup (may not complete if page closes immediately)
+			cleanupSharedChats().catch((error) => {
+				// Ignore errors - cleanup will happen on next page load if needed
+				console.debug('[+page.svelte] Shared chat cleanup on unload incomplete (will be handled on next page load)');
+			});
+		};
+		
+		// Use visibilitychange to detect when page becomes hidden (more reliable than beforeunload)
+		document.addEventListener('visibilitychange', () => {
+			if (document.visibilityState === 'hidden') {
+				handlePageUnload();
+			}
+		});
+		
+		// Use pagehide for better mobile browser support (fires on tab close, browser close, navigation)
+		window.addEventListener('pagehide', handlePageUnload);
+		
+		// Also use beforeunload as fallback for desktop browsers
+		window.addEventListener('beforeunload', handlePageUnload);
+		
+		console.debug('[+page.svelte] Registered shared chat cleanup handlers');
 
 		// CRITICAL: Register sync event listeners FIRST, before initialization
 		// chatSyncService can auto-start sync when WebSocket connects during initialize()

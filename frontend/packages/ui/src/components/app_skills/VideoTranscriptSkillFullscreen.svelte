@@ -355,8 +355,7 @@
     color: var(--color-font-primary);
     white-space: pre-wrap;
     word-wrap: break-word;
-    max-height: 600px;
-    overflow-y: auto;
+    /* Removed max-height to show full transcript - content is scrollable within fullscreen view */
   }
   
   .transcript-content::-webkit-scrollbar {

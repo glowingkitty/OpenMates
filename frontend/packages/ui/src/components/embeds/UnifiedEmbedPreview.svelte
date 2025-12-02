@@ -51,6 +51,10 @@
     showStatus?: boolean;
     /** Custom favicon URL for basic infos bar (shows instead of app icon) */
     faviconUrl?: string;
+    /** Custom status text (overrides default status text) */
+    customStatusText?: string;
+    /** Whether to show skill icon (only for app skills, not for individual embeds like code, website, video) */
+    showSkillIcon?: boolean;
   }
   
   let {
@@ -66,7 +70,9 @@
     onStop,
     details,
     showStatus = true,
-    faviconUrl
+    faviconUrl,
+    customStatusText,
+    showSkillIcon = true
   }: Props = $props();
   
   // Determine layout based on isMobile prop only
@@ -142,6 +148,8 @@
         onStop={handleStop}
         {showStatus}
         {faviconUrl}
+        {showSkillIcon}
+        customStatusText={customStatusText}
       />
     </div>
   {:else}
@@ -164,6 +172,8 @@
         onStop={handleStop}
         {showStatus}
         {faviconUrl}
+        {showSkillIcon}
+        customStatusText={customStatusText}
       />
     </div>
   {/if}

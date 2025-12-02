@@ -141,7 +141,9 @@ function serializeEmbedToMarkdown(attrs: EmbedNodeAttributes): string {
     case 'code-code':
       const languagePrefix = attrs.language ? `${attrs.language}` : '';
       const pathSuffix = attrs.filename ? `:${attrs.filename}` : '';
-      return `\`\`\`${languagePrefix}${pathSuffix}\n\`\`\``;
+      // Include the actual code content if available (stored in attrs.code for preview embeds)
+      const codeContent = attrs.code || '';
+      return `\`\`\`${languagePrefix}${pathSuffix}\n${codeContent}\n\`\`\``;
     
     case 'docs-doc':
       let docResult = '```document_html\n';

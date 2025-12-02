@@ -95,6 +95,7 @@
   {onFullscreen}
   onStop={handleStop}
   showStatus={false}
+  showSkillIcon={false}
 >
   {#snippet details({ isMobile: isMobileLayout })}
     <div class="video-details" class:mobile={isMobileLayout}>

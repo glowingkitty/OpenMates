@@ -62,6 +62,52 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             )
             return
 
+        # CRITICAL: Verify chat ownership before processing message
+        # This prevents authenticated users from sending messages to shared chats they don't own
+        # For now, shared chats are read-only for non-owners (group chat support will be added later)
+        try:
+            chat_metadata = await directus_service.chat.get_chat_metadata(chat_id)
+            if chat_metadata:
+                # Check if user owns this chat
+                is_owner = await directus_service.chat.check_chat_ownership(chat_id, user_id)
+                if not is_owner:
+                    logger.warning(
+                        f"User {user_id} attempted to send message to chat {chat_id} they don't own. "
+                        f"Rejecting message (read-only shared chat)."
+                    )
+                    await manager.send_personal_message(
+                        {
+                            "type": "error",
+                            "payload": {
+                                "message": "You cannot send messages to this shared chat. Shared chats are read-only for non-owners.",
+                                "chat_id": chat_id,
+                                "message_id": message_payload_from_client.get("message_id")
+                            }
+                        },
+                        user_id,
+                        device_fingerprint_hash
+                    )
+                    return
+            else:
+                # Chat doesn't exist - this might be a new chat creation, which is allowed
+                logger.debug(f"Chat {chat_id} not found in database - treating as new chat creation")
+        except Exception as e_ownership:
+            logger.error(f"Error checking chat ownership for chat {chat_id}, user {user_id}: {e_ownership}", exc_info=True)
+            # On error, reject the message for security (fail closed)
+            await manager.send_personal_message(
+                {
+                    "type": "error",
+                    "payload": {
+                        "message": "Unable to verify chat ownership. Please try again.",
+                        "chat_id": chat_id,
+                        "message_id": message_payload_from_client.get("message_id")
+                    }
+                },
+                user_id,
+                device_fingerprint_hash
+            )
+            return
+
         message_id = message_payload_from_client.get("message_id")
         role = message_payload_from_client.get("role") 
         content_plain = message_payload_from_client.get("content") # Markdown content for AI processing
@@ -179,6 +225,41 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
         
         if user_vault_key_id:
             logger.debug(f"Using cached vault_key_id for user {user_id}")
+        
+        # EXTRACT CODE BLOCKS FROM USER MESSAGE
+        # Server-side extraction of code blocks into embeds
+        # This replaces code blocks with embed references and creates embeds for client storage
+        extracted_code_embeds: List[Dict[str, Any]] = []
+        hashed_user_id_for_embeds = hashlib.sha256(user_id.encode()).hexdigest()
+        
+        if isinstance(content_plain, str) and '```' in content_plain:
+            # Content has potential code blocks - extract them
+            try:
+                from backend.core.api.app.services.embed_service import EmbedService
+                embed_service = EmbedService(
+                    cache_service=cache_service,
+                    directus_service=directus_service,
+                    encryption_service=encryption_service
+                )
+                
+                code_extract_start = time.time()
+                content_plain, extracted_code_embeds = await embed_service.extract_code_blocks_from_user_message(
+                    content=content_plain,
+                    chat_id=chat_id,
+                    message_id=message_id,
+                    user_id=user_id,
+                    user_id_hash=hashed_user_id_for_embeds,
+                    user_vault_key_id=user_vault_key_id,
+                    log_prefix=f"[Chat {chat_id}]"
+                )
+                code_extract_time = time.time() - code_extract_start
+                
+                if extracted_code_embeds:
+                    logger.info(f"[PERF] Code block extraction took {code_extract_time:.3f}s, extracted {len(extracted_code_embeds)} embeds from user message {message_id}")
+                    
+            except Exception as e_code_extract:
+                logger.error(f"Error extracting code blocks from user message {message_id}: {e_code_extract}", exc_info=True)
+                # Non-critical error - continue with original content
         
         content_to_encrypt_str: str
         if isinstance(content_plain, dict):
@@ -404,6 +485,82 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             payload=confirmation_payload["payload"]
         )
         logger.debug(f"Broadcasted chat_message_confirmed event for message {message_id} to user {user_id}")
+
+        # SEND EXTRACTED CODE EMBEDS TO CLIENT
+        # These embeds were extracted from code blocks in the user message
+        # Client needs to encrypt and store them, then send back for Directus storage
+        if extracted_code_embeds:
+            current_timestamp = int(datetime.now(timezone.utc).timestamp())
+            
+            for embed_data in extracted_code_embeds:
+                try:
+                    # Send embed data to client for encryption and storage
+                    # Using send_embed_data event type which client already handles
+                    # Payload structure must match SendEmbedDataPayload type in frontend
+                    await manager.send_personal_message(
+                        message={
+                            "type": "send_embed_data",
+                            "event_for_client": "send_embed_data",
+                            "payload": {
+                                "embed_id": embed_data["embed_id"],
+                                "type": embed_data["type"],  # "code" - plaintext for client to encrypt
+                                "content": embed_data["content"],  # TOON-encoded string (cleartext for client to encrypt)
+                                "status": embed_data["status"],
+                                "chat_id": chat_id,
+                                "message_id": message_id,
+                                "user_id": user_id,
+                                "share_mode": "private",
+                                "createdAt": current_timestamp,
+                                "updatedAt": current_timestamp,
+                                "file_path": embed_data.get("filename"),  # filename maps to file_path
+                                "text_length_chars": len(embed_data.get("content", ""))
+                            }
+                        },
+                        user_id=user_id,
+                        device_fingerprint_hash=device_fingerprint_hash
+                    )
+                    logger.debug(f"Sent code embed {embed_data['embed_id']} to client for encrypted storage")
+                    
+                    # Also cache the embed server-side with vault encryption for AI processing
+                    hashed_chat_id = hashlib.sha256(chat_id.encode()).hexdigest()
+                    hashed_message_id = hashlib.sha256(message_id.encode()).hexdigest()
+                    
+                    # Encrypt embed content with vault key for server cache
+                    encrypted_embed_content = encryption_service.encrypt_with_vault_key(
+                        user_vault_key_id=user_vault_key_id,
+                        plaintext=embed_data["content"]
+                    )
+                    encrypted_embed_type = encryption_service.encrypt_with_vault_key(
+                        user_vault_key_id=user_vault_key_id,
+                        plaintext=embed_data["type"]
+                    )
+                    
+                    embed_cache_data = {
+                        "embed_id": embed_data["embed_id"],
+                        "encrypted_type": encrypted_embed_type,
+                        "encrypted_content": encrypted_embed_content,
+                        "status": embed_data["status"],
+                        "hashed_chat_id": hashed_chat_id,
+                        "hashed_message_id": hashed_message_id,
+                        "hashed_user_id": hashed_user_id_for_embeds,
+                        "created_at": int(datetime.now(timezone.utc).timestamp()),
+                        "updated_at": int(datetime.now(timezone.utc).timestamp())
+                    }
+                    
+                    await cache_service.set_embed_in_cache(
+                        embed_id=embed_data["embed_id"],
+                        embed_data=embed_cache_data,
+                        user_vault_key_id=user_vault_key_id
+                    )
+                    await cache_service.add_embed_id_to_chat_index(chat_id, embed_data["embed_id"])
+                    
+                    logger.debug(f"Cached code embed {embed_data['embed_id']} for AI processing")
+                    
+                except Exception as e_embed_send:
+                    logger.error(f"Error sending/caching code embed {embed_data.get('embed_id')}: {e_embed_send}", exc_info=True)
+                    # Non-critical error - continue with other embeds
+            
+            logger.info(f"Sent {len(extracted_code_embeds)} code embeds to client for message {message_id}")
 
         # Fetch encrypted_chat_key for device sync if not provided by client
         # This is critical for zero-knowledge architecture across multiple devices

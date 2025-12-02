@@ -135,6 +135,40 @@ class ChatMethods:
             logger.error(f"Error fetching chat metadata for {chat_id}: {e}", exc_info=True)
             return None
 
+    async def check_chat_ownership(self, chat_id: str, user_id: str) -> bool:
+        """
+        Checks if a user owns a chat by comparing hashed_user_id.
+        
+        Args:
+            chat_id: The chat ID to check
+            user_id: The user ID to verify ownership
+            
+        Returns:
+            True if the user owns the chat, False otherwise
+        """
+        try:
+            chat_metadata = await self.get_chat_metadata(chat_id)
+            if not chat_metadata:
+                logger.warning(f"Chat {chat_id} not found when checking ownership for user {user_id}")
+                return False
+            
+            # Get hashed_user_id from chat metadata
+            chat_hashed_user_id = chat_metadata.get('hashed_user_id')
+            if not chat_hashed_user_id:
+                logger.warning(f"Chat {chat_id} has no hashed_user_id field")
+                return False
+            
+            # Hash the provided user_id and compare
+            user_hashed_id = hashlib.sha256(user_id.encode()).hexdigest()
+            is_owner = chat_hashed_user_id == user_hashed_id
+            
+            logger.debug(f"Ownership check for chat {chat_id}, user {user_id}: {is_owner}")
+            return is_owner
+            
+        except Exception as e:
+            logger.error(f"Error checking chat ownership for chat {chat_id}, user {user_id}: {e}", exc_info=True)
+            return False
+
     async def get_user_chats_metadata(self, user_id: str, limit: int = 100, offset: int = 0) -> List[Dict[str, Any]]:
         """
         Fetches metadata for all chats belonging to a user from Directus, excluding content.

@@ -63,6 +63,8 @@ export { chatSyncService } from "./src/services/chatSyncService"; // Export chat
 export { webSocketService } from "./src/services/websocketService"; // Export WebSocket service for auth error handling
 export * from "./src/services/chatUrlService"; // Export chat URL service for deep linking
 export { getKeyFromStorage, checkAndClearMasterKeyOnLoad } from "./src/services/cryptoService"; // Export getKeyFromStorage and checkAndClearMasterKeyOnLoad for offline-first auth
+export { decryptShareKeyBlob } from "./src/services/shareEncryption"; // Export share encryption utilities
+export { embedStore } from "./src/services/embedStore"; // Export embed store
 
 // Styles
 export * from "./src/styles/constants";
@@ -81,3 +83,4 @@ export { tooltip } from "./src/actions/tooltip";
 // Config
 export * from "./src/config/links";
 export * from "./src/config/meta";
+export * from "./src/config/api"; // Export API config helpers

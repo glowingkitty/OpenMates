@@ -26,6 +26,7 @@ from typing import Dict, List, Any, Optional # For type hinting
 from backend.core.api.app.routes import auth, email, invoice, credit_note, settings, payments, websockets
 from backend.core.api.app.routes import internal_api # Import the new internal API router
 from backend.core.api.app.routes import apps # Import apps router
+from backend.core.api.app.routes import share # Import share router
 from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.metrics import MetricsService
@@ -791,6 +792,7 @@ def create_app() -> FastAPI:
     app.include_router(websockets.router) # Include websockets router
     app.include_router(internal_api.router) # Include the internal API router
     app.include_router(apps.router) # Include apps router for app metadata endpoints
+    app.include_router(share.router) # Include share router for share chat endpoints
 
     # Health check endpoint with rate limiting
     @app.get("/health")

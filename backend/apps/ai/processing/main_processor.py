@@ -638,11 +638,21 @@ async def handle_main_processing(
     full_system_prompt = "\n\n".join(filter(None, prompt_parts))
     
     # Generate tool definitions from discovered apps using the tool generator
-    # Filter by preselected skills from preprocessing if available
+    # Filter by preselected skills from preprocessing (architecture: only preselected skills are forwarded)
+    # Note: Empty list means no skills preselected (valid case), None should not occur
     preselected_skills = None
-    if hasattr(preprocessing_results, 'relevant_app_skills') and preprocessing_results.relevant_app_skills:
-        preselected_skills = set(preprocessing_results.relevant_app_skills)
-        logger.debug(f"{log_prefix} Using preselected skills: {preselected_skills}")
+    if hasattr(preprocessing_results, 'relevant_app_skills'):
+        if preprocessing_results.relevant_app_skills is not None:
+            # Convert list to set for efficient lookup
+            preselected_skills = set(preprocessing_results.relevant_app_skills)
+            if preselected_skills:
+                logger.debug(f"{log_prefix} Using preselected skills: {preselected_skills}")
+            else:
+                logger.debug(f"{log_prefix} No skills preselected (empty list) - no tools will be provided to main processing LLM")
+        else:
+            # None should not occur, but handle gracefully
+            logger.warning(f"{log_prefix} relevant_app_skills is None (should be list or empty list). Treating as empty list.")
+            preselected_skills = set()  # Empty set means no skills
     
     assigned_app_ids = selected_mate_config.assigned_apps if selected_mate_config else None
     

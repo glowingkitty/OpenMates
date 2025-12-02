@@ -38,6 +38,10 @@ export interface EmbedNodeAttributes {
   favicon?: string;
   image?: string;
   
+  // Temporary field for preview code embeds (write mode only)
+  // Stores code content inline for visual preview before server creates real embed
+  code?: string;
+  
   // Group-specific attributes
   groupedItems?: EmbedNodeAttributes[];
   groupCount?: number;

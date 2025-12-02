@@ -122,10 +122,20 @@ def skill_definition_to_tool_definition(
             logger.debug(f"Skipping skill '{skill_def.id}' from app '{app_id}' - stage is '{skill_def.stage}', not 'development' or 'production'")
             return None
     
-    # Check preselection filter if provided
+    # Check preselection filter (architecture: only preselected skills are forwarded)
     # Use hyphen separator for LLM provider compatibility (Cerebras and others don't allow dots in function names)
     skill_identifier = f"{app_id}-{skill_def.id}"
-    if preselected_skills is not None and skill_identifier not in preselected_skills:
+    # preselected_skills can be:
+    # - None: Should not occur (error case), but we'll treat as empty set (no skills)
+    # - Empty set: No skills preselected (valid - means no tools should be provided)
+    # - Non-empty set: Only skills in this set should be included
+    if preselected_skills is None:
+        # None should not occur - this is an error case
+        # Architecture violation: we should always have preselected_skills (even if empty)
+        logger.warning(f"preselected_skills is None for skill '{skill_def.id}' from app '{app_id}' - this violates architecture. Treating as empty set (no skills).")
+        return None  # Exclude all skills when None (error case)
+    elif skill_identifier not in preselected_skills:
+        # Skill not in preselected set - exclude it (architecture: only preselected skills are forwarded)
         logger.debug(f"Skipping skill '{skill_def.id}' from app '{app_id}' - not in preselected skills")
         return None
     

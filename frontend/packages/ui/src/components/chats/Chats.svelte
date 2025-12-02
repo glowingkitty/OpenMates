@@ -89,6 +89,7 @@
 
 	// Combine public chats (demo + legal) with real chats from IndexedDB
 	// Also include sessionStorage-only chats for non-authenticated users (new chats with drafts)
+	// Also include shared chats for non-authenticated users (loaded from IndexedDB but marked for cleanup)
 	// Filter out any duplicates (legal chats might be in IndexedDB if previously opened)
 	let allChats = $derived((() => {
 		const publicChatIds = new Set(visiblePublicChats.map(c => c.chat_id));
@@ -100,6 +101,7 @@
 		// Reference sessionStorageDraftUpdateTrigger to make this reactive to draft changes
 		const _trigger = sessionStorageDraftUpdateTrigger; // Reference to trigger reactivity
 		let sessionStorageChats: ChatType[] = [];
+		let sharedChats: ChatType[] = [];
 		if (!$authStore.isAuthenticated) {
 			const sessionDraftChatIds = getAllDraftChatIdsWithDrafts();
 			// Filter out demo/legal chat IDs (they're already in visiblePublicChats)
@@ -135,9 +137,26 @@
 					console.debug('[Chats] Added sessionStorage-only chat to list:', chatId);
 				}
 			}
+			
+			// Include shared chats from IndexedDB for non-authenticated users
+			// These are chats that were loaded via share links and stored in IndexedDB
+			// They're tracked in sessionStorage for cleanup on session close
+			try {
+				const sharedChatIds = JSON.parse(sessionStorage.getItem('shared_chats') || '[]');
+				for (const sharedChatId of sharedChatIds) {
+					// Check if chat exists in IndexedDB
+					const sharedChat = realChatsFromDB.find(c => c.chat_id === sharedChatId);
+					if (sharedChat && !existingChatIds.has(sharedChatId)) {
+						sharedChats.push(sharedChat);
+						console.debug('[Chats] Added shared chat to list:', sharedChatId);
+					}
+				}
+			} catch (e) {
+				console.warn('[Chats] Error reading shared chats from sessionStorage:', e);
+			}
 		}
 		
-		return [...visiblePublicChats, ...realChatsFromDB, ...sessionStorageChats];
+		return [...visiblePublicChats, ...realChatsFromDB, ...sessionStorageChats, ...sharedChats];
 	})());
 
 	// Sort all chats (demo + real) using the utility function
@@ -748,11 +767,13 @@
 		* CRITICAL: Only loads chats if user is authenticated.
 		*/
 	async function initializeAndLoadDataFromDB() {
-		// CRITICAL: Check auth state FIRST - don't load user chats if not authenticated
+		// CRITICAL: For non-authenticated users, load shared chats from IndexedDB
+		// For authenticated users, load all chats normally
 		if (!$authStore.isAuthenticated) {
-			console.debug("[Chats] User not authenticated - skipping database load, only showing demo/legal chats");
-			allChatsFromDB = []; // Ensure user chats are cleared
-			return; // Exit early - demo/legal chats are already in visiblePublicChats
+			console.debug("[Chats] User not authenticated - loading shared chats from IndexedDB");
+			// Call updateChatListFromDB which handles shared chat loading for non-auth users
+			await updateChatListFromDB();
+			return;
 		}
 		
 		try {
@@ -873,26 +894,26 @@
 	async function handleChatClick(chat: ChatType, userInitiated: boolean = true) {
 		console.debug('[Chats] Chat clicked:', chat.chat_id, 'userInitiated:', userInitiated);
 		selectedChatId = chat.chat_id;
-		
+
 		// Update last selected for potential range selection (even when not in select mode)
 		lastSelectedChatId = chat.chat_id;
-		
-		// Update the persistent store so the selection survives component unmount/remount
-		activeChatStore.setActiveChat(chat.chat_id);
 
-		// CRITICAL: Save last_opened to IndexedDB immediately when switching chats
-		// This ensures tab reload opens the correct chat (from IndexedDB, not server)
-		// ActiveChat.loadChat() also calls sendSetActiveChat, but we do it here too for immediate IndexedDB update
-		if ($authStore.isAuthenticated) {
-			try {
-				const { chatSyncService } = await import('../../services/chatSyncService');
-				await chatSyncService.sendSetActiveChat(chat.chat_id);
-				console.debug('[Chats] Updated last_opened in IndexedDB for chat:', chat.chat_id);
-			} catch (error) {
-				console.error('[Chats] Error updating last_opened in IndexedDB:', error);
-				// Don't fail the whole operation if IndexedDB update fails
-			}
+		// CRITICAL: Always save last_opened to IndexedDB when switching chats (before updating UI stores)
+		// This ensures tab reload opens the correct chat even if the component unmounts during the update
+		// IndexedDB update happens for all users (authenticated and non-authenticated) for tab reload persistence
+		// Server sync (via WebSocket) only happens for authenticated users (handled by sendSetActiveChatImpl)
+		try {
+			const { chatSyncService } = await import('../../services/chatSyncService');
+			await chatSyncService.sendSetActiveChat(chat.chat_id);
+			console.debug('[Chats] ✅ Updated last_opened in IndexedDB for chat:', chat.chat_id);
+		} catch (error) {
+			console.error('[Chats] Error updating last_opened in IndexedDB:', error);
+			// Don't fail the whole operation if IndexedDB update fails, continue to update UI
 		}
+
+		// Update the persistent store so the selection survives component unmount/remount
+		// This happens AFTER IndexedDB is updated to ensure data consistency
+		activeChatStore.setActiveChat(chat.chat_id);
 
 		// Dispatch event to notify parent components like +page.svelte
 		dispatch('chatSelected', { chat: chat });
@@ -941,12 +962,50 @@
  async function updateChatListFromDB() { // Corrected function name
   console.debug("[Chats] Updating chat list from DB...");
   
-  // CRITICAL: Check auth state FIRST - don't load user chats if not authenticated
+  // CRITICAL: For non-authenticated users, only load shared chats (tracked in sessionStorage)
+  // For authenticated users, load all chats normally
   if (!$authStore.isAuthenticated) {
-   console.debug("[Chats] User not authenticated during updateChatListFromDB - clearing user chats");
-   allChatsFromDB = []; // Clear user chats immediately
-   selectedChatId = null;
-   return; // Exit early - demo/legal chats are already in visiblePublicChats
+   console.debug("[Chats] User not authenticated - loading only shared chats from IndexedDB");
+   
+   try {
+    // Check if database is being deleted (e.g., during logout)
+    try {
+     await chatDB.init();
+    } catch (initError: any) {
+     if (initError?.message?.includes('being deleted') || initError?.message?.includes('cannot be initialized')) {
+      console.debug("[Chats] Database unavailable, skipping shared chat load");
+      allChatsFromDB = [];
+      return;
+     }
+     throw initError;
+    }
+    
+    // Get shared chat IDs from sessionStorage
+    const sharedChatIds = JSON.parse(sessionStorage.getItem('shared_chats') || '[]');
+    
+    if (sharedChatIds.length > 0) {
+     // Load only the shared chats from IndexedDB
+     const sharedChats: ChatType[] = [];
+     for (const chatId of sharedChatIds) {
+      try {
+       const chat = await chatDB.getChat(chatId);
+       if (chat) {
+        sharedChats.push(chat);
+       }
+      } catch (error) {
+       console.warn(`[Chats] Error loading shared chat ${chatId}:`, error);
+      }
+     }
+     allChatsFromDB = sharedChats;
+     console.debug(`[Chats] Loaded ${sharedChats.length} shared chat(s) from IndexedDB`);
+    } else {
+     allChatsFromDB = [];
+    }
+   } catch (error) {
+    console.error("[Chats] Error loading shared chats from DB:", error);
+    allChatsFromDB = [];
+   }
+   return; // Exit early - shared chats are now in allChatsFromDB, will be included in allChats derived
   }
   
   const previouslySelectedChatId = selectedChatId;

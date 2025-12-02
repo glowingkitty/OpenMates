@@ -412,6 +412,29 @@ shared:
   cs: ''
   sv: ''
   verified_by_human: []
+share:
+  context: Share chat submenu title
+  en: Share
+  de: Teilen
+  zh: 分享
+  es: Compartir
+  fr: Partager
+  pt: Compartilhar
+  ru: Поделиться
+  ja: 共有
+  ko: 공유
+  it: Condividi
+  tr: Paylaş
+  vi: Chia sẻ
+  id: Bagikan
+  pl: Udostępnij
+  nl: Delen
+  ar: مشاركة
+  hi: साझा करें
+  th: แชร์
+  cs: Sdílet
+  sv: Dela
+  verified_by_human: []
 messengers:
   context: Messengers settings menu item
   en: Messengers

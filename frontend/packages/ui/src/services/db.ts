@@ -22,8 +22,9 @@ class ChatDatabase {
     private readonly OFFLINE_CHANGES_STORE_NAME = 'pending_sync_changes';
     private readonly NEW_CHAT_SUGGESTIONS_STORE_NAME = 'new_chat_suggestions'; // Store for new chat suggestions
     private readonly APP_SETTINGS_MEMORIES_STORE_NAME = 'app_settings_memories'; // Store for app settings and memories entries
-    // Version incremented due to schema change (adding app_settings_memories store)
-    private readonly VERSION = 11;
+    private readonly PENDING_OG_METADATA_STORE_NAME = 'pending_og_metadata_updates'; // Store for pending OG metadata updates
+    // Version incremented due to schema change (adding pending_og_metadata_updates store)
+    private readonly VERSION = 12;
     private initializationPromise: Promise<void> | null = null;
     
     // Flag to prevent new operations during database deletion
@@ -221,6 +222,14 @@ class ChatDatabase {
                     appSettingsStore.createIndex('updated_at', 'updated_at', { unique: false });
                     appSettingsStore.createIndex('item_version', 'item_version', { unique: false });
                     console.debug('[ChatDatabase] Created app_settings_memories store');
+                }
+
+                // Pending OG metadata updates store (ensure it exists)
+                if (!db.objectStoreNames.contains(this.PENDING_OG_METADATA_STORE_NAME)) {
+                    const ogMetadataStore = db.createObjectStore(this.PENDING_OG_METADATA_STORE_NAME, { keyPath: 'update_id' });
+                    ogMetadataStore.createIndex('chat_id', 'chat_id', { unique: false });
+                    ogMetadataStore.createIndex('created_at', 'created_at', { unique: false });
+                    console.debug('[ChatDatabase] Created pending_og_metadata_updates store');
                 }
             };
         });

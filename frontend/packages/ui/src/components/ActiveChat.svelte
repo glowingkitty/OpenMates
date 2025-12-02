@@ -23,12 +23,15 @@
     import NewsSearchEmbedFullscreen from './embeds/NewsSearchEmbedFullscreen.svelte';
     import VideosSearchEmbedFullscreen from './embeds/VideosSearchEmbedFullscreen.svelte';
     import MapsSearchEmbedFullscreen from './embeds/MapsSearchEmbedFullscreen.svelte';
+    import CodeEmbedFullscreen from './embeds/CodeEmbedFullscreen.svelte';
     import VideoTranscriptSkillPreview from './app_skills/VideoTranscriptSkillPreview.svelte';
     import VideoTranscriptSkillFullscreen from './app_skills/VideoTranscriptSkillFullscreen.svelte';
+    import WebReadSkillFullscreen from './app_skills/WebReadSkillFullscreen.svelte';
     import WebsiteFullscreen from './embeds/WebsiteFullscreen.svelte';
     import WebsiteEmbedFullscreen from './embeds/WebsiteEmbedFullscreen.svelte';
     import { userProfile, loadUserProfileFromDB } from '../stores/userProfile';
     import { isInSignupProcess, currentSignupStep, getStepFromPath, isLoggingOut, isSignupPath } from '../stores/signupState';
+    import { userDB } from '../services/userDB';
     import { initializeApp } from '../app';
     import { aiTypingStore, type AITypingStatus } from '../stores/aiTypingStore'; // Import the new store
     import { decryptWithMasterKey } from '../services/cryptoService'; // Import decryption function
@@ -38,6 +41,7 @@
     import { phasedSyncState } from '../stores/phasedSyncStateStore'; // Import phased sync state store
     import { websocketStatus } from '../stores/websocketStatusStore'; // Import WebSocket status for connection checks
     import { activeChatStore } from '../stores/activeChatStore'; // For clearing persistent active chat selection
+    import { settingsDeepLink } from '../stores/settingsDeepLinkStore'; // For opening settings to specific page (share)
     import { DEMO_CHATS, LEGAL_CHATS, getDemoMessages, isPublicChat, translateDemoChat } from '../demo_chats'; // Import demo chat utilities
     import { convertDemoChatToChat } from '../demo_chats/convertToChat'; // Import conversion function
     import { isDesktop } from '../utils/platform'; // Import desktop detection for conditional auto-focus
@@ -49,6 +53,67 @@
     // Get username from the store using Svelte 5 $derived
     // Use empty string for non-authenticated users - translation will handle "Hey there!" vs "Hey {username}!"
     let username = $derived($userProfile.username || '');
+    
+    // State for current user ID (cached to avoid repeated DB lookups)
+    let currentUserId = $state<string | null>(null);
+    
+    // State for chat ownership check
+    let chatOwnershipResolved = $state<boolean>(true); // Default to true (allow editing)
+    
+    /**
+     * Check if the current user owns the chat.
+     * For shared chats, if user_id is set and doesn't match current user, it's read-only.
+     * If user_id is not set, assume the user owns it (backwards compatibility).
+     */
+    async function checkChatOwnership() {
+        if (!currentChat || !$authStore.isAuthenticated) {
+            // Non-authenticated users can always edit (demo chats)
+            // No chat loaded means welcome screen
+            chatOwnershipResolved = true;
+            return;
+        }
+        
+        // If chat has no user_id, assume it's owned (backwards compatibility)
+        if (!currentChat.user_id) {
+            chatOwnershipResolved = true;
+            return;
+        }
+        
+        // Get current user ID (cache it to avoid repeated DB lookups)
+        if (!currentUserId) {
+            try {
+                const profile = await userDB.getUserProfile();
+                currentUserId = (profile as any)?.user_id || null;
+            } catch (error) {
+                console.warn('[ActiveChat] Error getting user_id from profile:', error);
+                // Fail open for UX - allow editing if we can't determine ownership
+                chatOwnershipResolved = true;
+                return;
+            }
+        }
+        
+        if (!currentUserId) {
+            // Can't determine ownership, default to allowing (fail open for UX)
+            chatOwnershipResolved = true;
+            return;
+        }
+        
+        // Compare chat's user_id with current user's user_id
+        const isOwned = currentChat.user_id === currentUserId;
+        chatOwnershipResolved = isOwned;
+        console.debug(`[ActiveChat] Chat ownership check: ${isOwned} for chat ${currentChat.chat_id} (chat.user_id: ${currentChat.user_id}, currentUserId: ${currentUserId})`);
+    }
+    
+    // Check ownership whenever chat or auth state changes
+    $effect(() => {
+        // Track dependencies
+        void currentChat?.chat_id;
+        void currentChat?.user_id;
+        void $authStore.isAuthenticated;
+        
+        // Check ownership asynchronously
+        checkChatOwnership();
+    });
 
     // Add state for code fullscreen using $state
     let showCodeFullscreen = $state(false);
@@ -1178,12 +1243,29 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         await handleNewChatClick();
     }
 
-    // Add a handler for the share button click.
-    // This function will be triggered when the share button is clicked.
+    /**
+     * Handler for the share button click.
+     * Opens the settings menu and navigates to the share submenu.
+     * This allows users to share the current chat with various options
+     * like password protection and time limits.
+     */
     function handleShareChat() {
-        // Using console.debug for logging in Svelte.
-        console.debug("[ActiveChat] Share chat button clicked.");
-        // TODO: Insert the actual share logic here if needed.
+        console.debug("[ActiveChat] Share chat button clicked, opening share settings");
+        
+        // Ensure the current chat ID is set in the activeChatStore
+        // This allows SettingsShare component to access the chat ID
+        if (currentChat?.chat_id) {
+            activeChatStore.setActiveChat(currentChat.chat_id);
+            console.debug("[ActiveChat] Set active chat in store:", currentChat.chat_id);
+        } else {
+            console.warn("[ActiveChat] No current chat available to share");
+        }
+        
+        // Navigate to the share settings submenu
+        // The settingsDeepLink store triggers the Settings component to open
+        // and navigate to the specified path
+        // Use 'shared/share' to navigate to the share submenu under Shared
+        settingsDeepLink.set('shared/share');
     }
 
     // Update handler for chat updates to be more selective
@@ -2444,14 +2526,18 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                 </div>
                             {/if}
                             {#if !showWelcome}
-                                <!-- TODO uncomment once share feature is implemented -->
-                                <!-- <button
-                                    class="clickable-icon icon_share top-button"
-                                    aria-label={$text('chat.share.text')}
-                                    onclick={handleShareChat}
-                                    use:tooltip
-                                >
-                                </button> -->
+                                <!-- Share button - opens settings menu with share submenu -->
+                                <!-- Use same wrapper design as new chat button -->
+                                <div class="new-chat-button-wrapper">
+                                    <button
+                                        class="clickable-icon icon_share top-button"
+                                        aria-label={$text('chat.share.text')}
+                                        onclick={handleShareChat}
+                                        use:tooltip
+                                        style="margin: 5px;"
+                                    >
+                                    </button>
+                                </div>
                             {/if}
                         </div>
 
@@ -2536,25 +2622,36 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             />
                         {/if}
 
+                        <!-- Read-only indicator for shared chats -->
+                        {#if currentChat && !chatOwnershipResolved && $authStore.isAuthenticated}
+                            <div class="read-only-indicator" transition:fade={{ duration: 200 }}>
+                                <div class="read-only-icon">🔒</div>
+                                <p class="read-only-text">{$text('chat.read_only_shared.text', { default: 'This shared chat is read-only. You cannot send messages.' })}</p>
+                            </div>
+                        {/if}
+
                         <!-- Pass currentChat?.id or temporaryChatId to MessageInput -->
-                        <MessageInput 
-                            bind:this={messageInputFieldRef}
-                            currentChatId={currentChat?.chat_id || temporaryChatId}
-                            showActionButtons={showActionButtons}
-                            on:codefullscreen={handleCodeFullscreen}
-                            on:sendMessage={handleSendMessage}
-                            on:heightchange={handleInputHeightChange}
-                            on:draftSaved={handleDraftSaved}
-                            on:textchange={(e) => { 
-                                const t = (e.detail?.text || '');
-                                console.debug('[ActiveChat] textchange event received:', { text: t, length: t.length });
-                                liveInputText = t;
-                                messageInputHasContent = t.trim().length > 0; 
-                            }}
-                            bind:isFullscreen
-                            bind:hasContent={messageInputHasContent}
-                            bind:isFocused={messageInputFocused}
-                        />
+                        <!-- Only show message input if user owns the chat or is not authenticated -->
+                        {#if chatOwnershipResolved || !$authStore.isAuthenticated}
+                            <MessageInput 
+                                bind:this={messageInputFieldRef}
+                                currentChatId={currentChat?.chat_id || temporaryChatId}
+                                showActionButtons={showActionButtons}
+                                on:codefullscreen={handleCodeFullscreen}
+                                on:sendMessage={handleSendMessage}
+                                on:heightchange={handleInputHeightChange}
+                                on:draftSaved={handleDraftSaved}
+                                on:textchange={(e) => { 
+                                    const t = (e.detail?.text || '');
+                                    console.debug('[ActiveChat] textchange event received:', { text: t, length: t.length });
+                                    liveInputText = t;
+                                    messageInputHasContent = t.trim().length > 0; 
+                                }}
+                                bind:isFullscreen
+                                bind:hasContent={messageInputHasContent}
+                                bind:isFocused={messageInputFocused}
+                            />
+                        {/if}
                     </div>
                 </div>
             </div>
@@ -2622,6 +2719,18 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             previewData={previewData}
                             onClose={handleCloseEmbedFullscreen}
                         />
+                    {:else if appId === 'web' && skillId === 'read'}
+                        <!-- Web Read Fullscreen -->
+                        {@const previewData = {
+                            app_id: appId,
+                            skill_id: skillId,
+                            status: embedFullscreenData.embedData?.status || 'finished',
+                            results: embedFullscreenData.decodedContent?.results || []
+                        }}
+                        <WebReadSkillFullscreen 
+                            previewData={previewData}
+                            onClose={handleCloseEmbedFullscreen}
+                        />
                     {:else}
                         <!-- Generic app skill fullscreen (fallback) -->
                         <div class="embed-fullscreen-fallback">
@@ -2645,6 +2754,17 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             snippets={embedFullscreenData.decodedContent?.snippets}
                             meta_url_favicon={embedFullscreenData.decodedContent?.meta_url_favicon}
                             thumbnail_original={embedFullscreenData.decodedContent?.thumbnail_original}
+                            onClose={handleCloseEmbedFullscreen}
+                        />
+                    {/if}
+                {:else if embedFullscreenData.embedType === 'code'}
+                    <!-- Code Fullscreen -->
+                    {#if embedFullscreenData.decodedContent?.code || embedFullscreenData.attrs?.code}
+                        <CodeEmbedFullscreen 
+                            codeContent={embedFullscreenData.decodedContent?.code || embedFullscreenData.attrs?.code || ''}
+                            language={embedFullscreenData.decodedContent?.language || embedFullscreenData.attrs?.language}
+                            filename={embedFullscreenData.decodedContent?.filename || embedFullscreenData.attrs?.filename}
+                            lineCount={embedFullscreenData.decodedContent?.lineCount || embedFullscreenData.attrs?.lineCount || 0}
                             onClose={handleCloseEmbedFullscreen}
                         />
                     {/if}
@@ -2768,6 +2888,34 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         background-color: var(--color-grey-15);
         border-radius: 8px;
         font-style: italic;
+    }
+    
+    /* Read-only indicator for shared chats */
+    .read-only-indicator {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 24px 16px;
+        margin-bottom: 12px;
+        background-color: var(--color-grey-10, #f0f0f0);
+        border: 1px solid var(--color-grey-30, #d0d0d0);
+        border-radius: 8px;
+        text-align: center;
+    }
+    
+    .read-only-icon {
+        font-size: 32px;
+        margin-bottom: 12px;
+        opacity: 0.7;
+    }
+    
+    .read-only-text {
+        font-size: 14px;
+        color: var(--color-grey-70, #666);
+        margin: 0;
+        line-height: 1.5;
+        max-width: 500px;
     }
 
     .message-input-container {
@@ -2902,7 +3050,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     /* Add styles for left and right button containers */
     .left-buttons {
         display: flex;
-        gap: 25px; /* Space between buttons */
+        gap: 10px; /* Space between buttons */
     }
 
     .right-buttons {

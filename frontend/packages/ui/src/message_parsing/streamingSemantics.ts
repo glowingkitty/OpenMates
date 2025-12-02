@@ -1,13 +1,14 @@
 // Streaming semantics for partial/unclosed blocks
 // Handles detection and processing of incomplete content during writing
+// Uses the shared CodeBlockStateMachine for reliable code fence detection
 
 import { EmbedNodeAttributes } from './types';
-import { EMBED_PATTERNS, generateUUID } from './utils';
+import { EMBED_PATTERNS, generateUUID, CodeBlockStateMachine } from './utils';
 
 /**
  * Handle streaming semantics for partial/unclosed blocks
- * In write mode, emit highlighted-but-unclosed nodes
- * In read mode, finalize nodes and rekey content references
+ * In write mode, emit highlighted-but-unclosed nodes for visual feedback
+ * Uses the shared CodeBlockStateMachine for reliable fence detection
  */
 export function handleStreamingSemantics(markdown: string, mode: 'write' | 'read'): {
   partialEmbeds: EmbedNodeAttributes[];
@@ -15,187 +16,53 @@ export function handleStreamingSemantics(markdown: string, mode: 'write' | 'read
 } {
   const lines = markdown.split('\n');
   const partialEmbeds: EmbedNodeAttributes[] = [];
-  const unclosedBlocks: { type: string; startLine: number; content: string }[] = [];
-  // Track fence states in the main scan to avoid misclassifying closing fences
-  let inDocFenceMain = false;
-  let inJsonEmbedFenceMain = false;
+  const unclosedBlocks: { type: string; startLine: number; content: string; tokenStartCol?: number; tokenEndCol?: number }[] = [];
   
-  // Also check for inline unclosed fences in the full text
-  if (mode === 'write') {
-      const beforeCount = unclosedBlocks.length;
-      detectInlineUnclosedFences(markdown, mode, partialEmbeds, unclosedBlocks);
-      const afterCount = unclosedBlocks.length;
-      console.debug('[handleStreamingSemantics] detectInlineUnclosedFences added', afterCount - beforeCount, 'unclosed blocks');
+  // Use the shared state machine for reliable code block detection
+  const stateMachine = new CodeBlockStateMachine();
+  
+  // Process all lines through the state machine
+  for (let i = 0; i < lines.length; i++) {
+    stateMachine.processLine(lines[i], i);
   }
   
-  let i = 0;
-  while (i < lines.length) {
-    const line = lines[i].trim();
-
-    // Maintain fence state for json_embed and document_html before any detection
-    const isDocFenceStartMain = line.startsWith('```document_html');
-    const isJsonEmbedFenceStartMain = line.startsWith('```json_embed');
-    const isAnyFenceLineMain = line.startsWith('```');
-
-    if (isJsonEmbedFenceStartMain) {
-      inJsonEmbedFenceMain = true;
-    } else if (inJsonEmbedFenceMain && isAnyFenceLineMain) {
-      // This is the closing fence for json_embed
-      inJsonEmbedFenceMain = false;
-      // Move to next line and continue without treating this as a new code fence
-      i++;
-      continue;
-    } else if (isDocFenceStartMain) {
-      inDocFenceMain = true;
-    } else if (inDocFenceMain && isAnyFenceLineMain) {
-      // Closing fence for document_html
-      inDocFenceMain = false;
-      i++;
-      continue;
-    }
-    
-    // Detect unclosed code fences (skip when inside json_embed/document_html)
-    if (line.startsWith('```') && !inJsonEmbedFenceMain && !inDocFenceMain) {
-      const codeMatch = line.match(EMBED_PATTERNS.CODE_FENCE_START);
-      if (codeMatch) {
-        const [, language, path] = codeMatch;
-        let content = '';
-        let j = i + 1;
-        let foundClosing = false;
-        
-        // Look for closing fence
-        while (j < lines.length) {
-          if (lines[j].trim().startsWith('```')) {
-            foundClosing = true;
-            break;
-          }
-          content += lines[j] + '\n';
-          j++;
-        }
-        
-        if (!foundClosing && mode === 'write') {
-          // In write mode, create a partial embed for highlighting
-          const id = generateUUID();
-          partialEmbeds.push({
-            id,
-            type: 'code',
-            status: 'processing',
-            contentRef: `stream:${id}`,
-            language: language || undefined,
-            filename: path || undefined
-          });
-          
-          unclosedBlocks.push({
-            type: 'code',
-            startLine: i,
-            content: line + '\n' + content
-          });
-        } else if (foundClosing) {
-          // Normal processing for closed blocks
-          i = j; // Skip to end of fence
-        }
-      }
-    }
-    
-    // Handle json_embed blocks (they are always complete, skip processing)
-    else if (line.startsWith('```json_embed')) {
-      let j = i + 1;
-      // Skip to closing fence
-      while (j < lines.length && !lines[j].trim().startsWith('```')) {
-        j++;
-      }
-      if (j < lines.length) {
-        console.debug('[streamingSemantics] Skipped complete json_embed block at lines', i, 'to', j);
-        // Reset state and skip past the closing fence line
-        inJsonEmbedFenceMain = false;
-        i = j + 1; // Skip past the closing fence line
-        continue; // Continue to avoid processing the closing fence line again
-      } else {
-        console.debug('[streamingSemantics] Found unclosed json_embed block at line', i);
-        i = j; // Move to the end if no closing fence found
-      }
-    }
-    
-    // Detect unclosed document_html fences
-    else if (line.startsWith('```document_html')) {
-      let content = '';
-      let j = i + 1;
-      let foundClosing = false;
+  // After processing all lines, check if we have an unclosed block
+  if (stateMachine.isInsideCodeBlock() && mode === 'write') {
+    const partialInfo = stateMachine.getPartialBlockInfo();
+    if (partialInfo) {
+      const id = generateUUID();
       
-      while (j < lines.length) {
-        if (lines[j].trim().startsWith('```')) {
-          foundClosing = true;
-          break;
-        }
-        content += lines[j] + '\n';
-        j++;
+      // Determine type based on special fence or language
+      let embedType = 'code';
+      if (partialInfo.specialFence === 'document_html') {
+        embedType = 'doc';
+      } else if (partialInfo.specialFence === 'json_embed' || partialInfo.specialFence === 'json') {
+        // Skip json_embed and json blocks - they shouldn't create partial embeds
+        // These are internal formats
       }
       
-      if (!foundClosing && mode === 'write') {
-        const id = generateUUID();
+      if (embedType !== 'code' || !partialInfo.specialFence) {
         partialEmbeds.push({
           id,
-          type: 'doc',
+          type: embedType,
           status: 'processing',
-          contentRef: `stream:${id}`
+          contentRef: `stream:${id}`,
+          language: partialInfo.language || undefined,
+          filename: partialInfo.filename || undefined
         });
         
         unclosedBlocks.push({
-          type: 'document_html',
-          startLine: i,
-          content: line + '\n' + content
+          type: partialInfo.specialFence === 'document_html' ? 'document_html' : 'code',
+          startLine: partialInfo.startLine,
+          content: partialInfo.content
         });
-      } else if (foundClosing) {
-        i = j + 1; // Skip past the closing fence line
-        continue; // Continue to avoid processing the closing fence line again
-      } else {
-        i = j; // Move to the end if no closing fence found
       }
     }
-    
-    // Detect partial table structures
-    else if (EMBED_PATTERNS.TABLE_FENCE.test(line)) {
-      let tableContent = '';
-      let j = i;
-      let hasHeaderSeparator = false;
-      
-      // Check if this looks like a complete table or partial
-      while (j < lines.length && (EMBED_PATTERNS.TABLE_FENCE.test(lines[j].trim()) || lines[j].trim() === '')) {
-        const currentLine = lines[j].trim();
-        if (currentLine) {
-          tableContent += currentLine + '\n';
-          // Check for header separator (e.g., |---|---|)
-          if (currentLine.includes('---')) {
-            hasHeaderSeparator = true;
-          }
-        }
-        j++;
-      }
-      
-      // Remove empty lines from table content to prevent spacing issues
-      tableContent = tableContent.replace(/\n\s*\n/g, '\n');
-      
-      // In write mode, if we have table rows but it looks incomplete, mark as partial
-      if (mode === 'write' && tableContent && !hasHeaderSeparator) {
-        const id = generateUUID();
-        partialEmbeds.push({
-          id,
-          type: 'sheet',
-          status: 'processing',
-          contentRef: `stream:${id}`
-        });
-        
-        unclosedBlocks.push({
-          type: 'table',
-          startLine: i,
-          content: tableContent
-        });
-      }
-      
-      i = j - 1; // Will be incremented at end of loop
-    }
-    
-    i++;
+  }
+  
+  // Also detect non-code-block elements (URLs, tables, markdown syntax)
+  if (mode === 'write') {
+    detectNonCodeBlockElements(lines, partialEmbeds, unclosedBlocks);
   }
   
   console.debug('[handleStreamingSemantics] Results:', {
@@ -209,129 +76,47 @@ export function handleStreamingSemantics(markdown: string, mode: 'write' | 'read
 }
 
 /**
- * Detect inline unclosed fences that may appear anywhere in the text
- * This handles cases where code fences are not at the start of a line
+ * Detect non-code-block elements for highlighting (URLs, tables, markdown syntax)
+ * Uses the shared state machine to skip content inside code blocks
  */
-function detectInlineUnclosedFences(
-  markdown: string,
-  mode: 'write' | 'read',
+function detectNonCodeBlockElements(
+  lines: string[],
   partialEmbeds: EmbedNodeAttributes[],
   unclosedBlocks: { type: string; startLine: number; content: string; tokenStartCol?: number; tokenEndCol?: number }[]
 ): void {
-  const lines = markdown.split('\n');
-  // Track whether we are inside a triple backtick code fence block.
-  // When true, we should not emit markdown token highlights for this region.
-  let inCodeFence = false;
-  // Track whether we are inside a document_html fenced block
-  let inDocFence = false;
-  // Track whether we are inside a json_embed fenced block
-  let inJsonEmbedFence = false;
-  // Track whether we are inside a table block (contiguous table lines)
+  // Use a fresh state machine to track code blocks
+  const stateMachine = new CodeBlockStateMachine();
   let inTableBlock = false;
   
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     const trimmed = line.trim();
-    const isDocFenceStart = trimmed.startsWith('```document_html');
-    const isJsonEmbedFenceStart = trimmed.startsWith('```json_embed');
-    const isAnyFenceLine = trimmed.startsWith('```');
-    const isCodeFenceLine = isAnyFenceLine && !isDocFenceStart && !isJsonEmbedFenceStart;
+    const event = stateMachine.processLine(line, i);
     
-    // Update fence states BEFORE processing line content (especially URL detection)
-    // This ensures that closing fences properly reset the state before we check for URLs
-    if (isJsonEmbedFenceStart) {
-      inJsonEmbedFence = true; // opening line of json_embed
-    } else if (inJsonEmbedFence && isAnyFenceLine) {
-      // Any ``` that occurs while inside json_embed closes it
-      inJsonEmbedFence = false;
-      continue; // Skip further processing of this line to avoid detecting closing fence as new code block
-    } else if (isDocFenceStart) {
-      inDocFence = true; // opening line of document_html
-    } else if (inDocFence && isAnyFenceLine) {
-      // Any ``` that occurs while inside document_html closes it
-      inDocFence = false;
-      continue; // Skip further processing of this line to avoid detecting closing fence as new code block
-    } else if (!inDocFence && !inJsonEmbedFence && isCodeFenceLine) {
-      // Regular code fence toggle (only if not inside doc or json_embed)
-      inCodeFence = !inCodeFence;
+    // Skip lines inside code blocks
+    if (event.event === 'content_line' || event.event === 'block_opened') {
+      continue;
     }
     
-    // Look for code fences anywhere in the line (but skip if inside json_embed or doc fences)
-    // Only look for new opening fences if we're not already inside a code fence
-    // Updated regex to handle:
-    // - Code fences with language and optional path: ```python:test.py
-    // - Code fences without language: ```
-    // - Code fences with language only: ```python
-    // - More strict matching to avoid false positives like "```is great"
-
+    // Also skip the closing fence line
+    if (event.event === 'block_closed') {
+      continue;
+    }
     
-    if (!inJsonEmbedFence && !inDocFence && !inCodeFence) {
-     // Only look for opening fences at the start of lines (with optional whitespace)
-     // This prevents detecting closing fences followed by text as new openings
-     // Use stricter regex that won't match json_embed or document_html fences
-     const codeFenceRegex = /^\s*```(?!(json_embed|document_html)\b)([a-zA-Z0-9_-]+)?(?::([^`\s\n]+))?(?:\s|$)/;
-     const codeFenceMatch = codeFenceRegex.exec(line);
-     
-     if (codeFenceMatch) {
-       const [, language, path] = codeFenceMatch;
-       const fenceIndex = codeFenceMatch.index;
-       
-       // Check if there's a closing fence
-       let foundClosing = false;
-       let content = '';
-       
-       // Look for closing fence in the same line first
-       const fullMatch = codeFenceMatch[0];
-       const afterFence = line.substring(fenceIndex + fullMatch.length);
-       if (afterFence.includes('```')) {
-         foundClosing = true;
-       } else {
-         // Look for closing fence in subsequent lines
-         for (let j = i + 1; j < lines.length; j++) {
-           if (lines[j].includes('```')) {
-             foundClosing = true;
-             break;
-           }
-           content += lines[j] + '\n';
-         }
-       }
-       
-       // For code fences, we want to highlight even if there's no content yet
-       // This ensures the blue color is maintained after typing the colon
-       if (!foundClosing) {
-         
-         const id = generateUUID();
-         partialEmbeds.push({
-           id,
-           type: 'code',
-           status: 'processing',
-           contentRef: `stream:${id}`,
-           language: language || undefined,
-           filename: path || undefined
-         });
-         
-         unclosedBlocks.push({
-           type: 'code',
-           startLine: i,
-           content: line.substring(fenceIndex) + '\n' + content
-         });
-       }
-     }
-   }
+    const isAnyFenceLine = trimmed.startsWith('```');
     
-    // Look for table patterns: highlight contiguous table block, allowing single/multiple blank lines between rows
-    if (EMBED_PATTERNS.TABLE_FENCE.test(line)) {
+    // Detect table patterns
+    if (EMBED_PATTERNS.TABLE_FENCE.test(trimmed)) {
       let tableContent = '';
       let j = i;
       while (j < lines.length) {
         const current = lines[j];
         const currentTrim = current.trim();
         if (currentTrim === '') {
-          // Look ahead over blank lines; continue table if next non-blank is a table row
+          // Look ahead over blank lines
           let k = j + 1;
           while (k < lines.length && lines[k].trim() === '') k++;
           if (k < lines.length && EMBED_PATTERNS.TABLE_FENCE.test(lines[k].trim())) {
-            // Include the blank line(s) as part of the block (to keep continuous range)
             tableContent += currentTrim + '\n';
             j = k;
             continue;
@@ -342,25 +127,27 @@ function detectInlineUnclosedFences(
         tableContent += currentTrim + '\n';
         j++;
       }
-      if (mode === 'write' && tableContent) {
+      if (tableContent) {
         const id = generateUUID();
         partialEmbeds.push({ id, type: 'sheet', status: 'processing', contentRef: `stream:${id}` });
         unclosedBlocks.push({ type: 'table', startLine: i, content: tableContent });
       }
-      i = j - 1;
+      // Skip processed table lines (handled by continuing to next iteration)
+      inTableBlock = true;
+    } else if (trimmed === '') {
+      inTableBlock = false;
     }
     
-    // Look for URLs that aren't part of markdown links [text](url)
-    // Skip URL detection if we're inside ANY type of code block
-    if (!(inCodeFence || inDocFence || inJsonEmbedFence)) {
-      // Build protected ranges for URL segments within markdown links
+    // Detect URLs (not inside code blocks)
+    if (event.event === 'outside_block') {
+      // Build protected ranges for URLs inside markdown links
       const protectedRanges: Array<{ start: number; end: number }> = [];
       const linkRegex = /\[[^\]]*\]\((https?:\/\/[^\s)]+)\)/g;
       let lm: RegExpExecArray | null;
       while ((lm = linkRegex.exec(line)) !== null) {
         const full = lm[0];
         const url = lm[1];
-        const urlStartInFull = full.indexOf('(') + 1; // start of URL inside (...)
+        const urlStartInFull = full.indexOf('(') + 1;
         const absStart = (lm.index ?? 0) + urlStartInFull;
         protectedRanges.push({ start: absStart, end: absStart + url.length });
       }
@@ -373,10 +160,14 @@ function detectInlineUnclosedFences(
         const endIdx = startIdx + url.length;
         const isProtected = protectedRanges.some(r => startIdx >= r.start && startIdx < r.end);
         if (isProtected) continue;
+        
         const id = generateUUID();
         let type = 'web-website';
         let blockType = 'url';
-        if (EMBED_PATTERNS.YOUTUBE_URL.test(url)) { type = 'videos-video'; blockType = 'video'; }
+        if (EMBED_PATTERNS.YOUTUBE_URL.test(url)) { 
+          type = 'videos-video'; 
+          blockType = 'video'; 
+        }
         partialEmbeds.push({ id, type, status: 'processing', contentRef: `stream:${id}`, url });
         unclosedBlocks.push({ 
           type: blockType, 
@@ -388,105 +179,103 @@ function detectInlineUnclosedFences(
       }
     }
     
-    // Look for markdown syntax like headings, bold, italic, etc.
-    if (mode === 'write') {
-      // Maintain table block state: enter on table row, exit on blank line
-      if (EMBED_PATTERNS.TABLE_FENCE.test(line)) {
-        inTableBlock = true;
-      } else if (trimmed === '') {
-        inTableBlock = false;
-      }
+    // Detect markdown syntax (headings, bold, italic, etc.)
+    if (event.event === 'outside_block' && !inTableBlock && !isAnyFenceLine) {
+      detectMarkdownSyntax(line, i, partialEmbeds, unclosedBlocks);
+    }
+  }
+}
 
-      // Skip markdown token highlighting inside code/doc/json_embed/table regions or on fence lines
-      if (!(inCodeFence || inDocFence || inJsonEmbedFence || inTableBlock || isAnyFenceLine)) {
-      // Helper to push an exact token range for markdown syntax
-      const pushToken = (start: number, end: number) => {
-        if (start == null || end == null || end <= start) return;
-        const id = generateUUID();
-        partialEmbeds.push({ id, type: 'markdown', status: 'processing', contentRef: `stream:${id}` });
-        unclosedBlocks.push({ type: 'markdown', startLine: i, content: line.slice(start, end), tokenStartCol: start, tokenEndCol: end });
-      };
+/**
+ * Detect markdown syntax tokens for highlighting
+ */
+function detectMarkdownSyntax(
+  line: string,
+  lineIndex: number,
+  partialEmbeds: EmbedNodeAttributes[],
+  unclosedBlocks: { type: string; startLine: number; content: string; tokenStartCol?: number; tokenEndCol?: number }[]
+): void {
+  // Helper to push an exact token range for markdown syntax
+  const pushToken = (start: number, end: number) => {
+    if (start == null || end == null || end <= start) return;
+    const id = generateUUID();
+    partialEmbeds.push({ id, type: 'markdown', status: 'processing', contentRef: `stream:${id}` });
+    unclosedBlocks.push({ type: 'markdown', startLine: lineIndex, content: line.slice(start, end), tokenStartCol: start, tokenEndCol: end });
+  };
 
-      // Headings: highlight only the leading # run
-      const h = line.match(EMBED_PATTERNS.HEADING);
-      if (h && h[1]) pushToken(0, h[1].length);
+  // Headings: highlight only the leading # run
+  const h = line.match(EMBED_PATTERNS.HEADING);
+  if (h && h[1]) pushToken(0, h[1].length);
 
-      // Bold tokens: ** or __
-      {
-        const boldRegex = /\*\*|__/g;
-        let m: RegExpExecArray | null;
-        while ((m = boldRegex.exec(line)) !== null) {
-          const idx = m.index; pushToken(idx, idx + m[0].length);
-        }
-      }
+  // Bold tokens: ** or __
+  {
+    const boldRegex = /\*\*|__/g;
+    let m: RegExpExecArray | null;
+    while ((m = boldRegex.exec(line)) !== null) {
+      const idx = m.index; pushToken(idx, idx + m[0].length);
+    }
+  }
 
-      // Italic tokens: * or _ not part of bold
-      {
-        const italicRegex = /\*|_/g;
-        let m: RegExpExecArray | null;
-        while ((m = italicRegex.exec(line)) !== null) {
-          const idx = m.index; const ch = m[0];
-          const prev = idx > 0 ? line[idx - 1] : ''; const next = idx + 1 < line.length ? line[idx + 1] : '';
-          if (prev === ch || next === ch) continue; // part of ** or __
-          pushToken(idx, idx + 1);
-        }
-      }
+  // Italic tokens: * or _ not part of bold
+  {
+    const italicRegex = /\*|_/g;
+    let m: RegExpExecArray | null;
+    while ((m = italicRegex.exec(line)) !== null) {
+      const idx = m.index; const ch = m[0];
+      const prev = idx > 0 ? line[idx - 1] : ''; const next = idx + 1 < line.length ? line[idx + 1] : '';
+      if (prev === ch || next === ch) continue; // part of ** or __
+      pushToken(idx, idx + 1);
+    }
+  }
 
-      // Strikethrough: ~~
-      {
-        const strikeRegex = /~~/g;
-        let m: RegExpExecArray | null;
-        while ((m = strikeRegex.exec(line)) !== null) {
-          const idx = m.index; pushToken(idx, idx + 2);
-        }
-      }
+  // Strikethrough: ~~
+  {
+    const strikeRegex = /~~/g;
+    let m: RegExpExecArray | null;
+    while ((m = strikeRegex.exec(line)) !== null) {
+      const idx = m.index; pushToken(idx, idx + 2);
+    }
+  }
 
-      // Blockquotes at start of line: >> or >
-      if (line.startsWith('>>')) pushToken(0, 2); else if (line.startsWith('>')) pushToken(0, 1);
+  // Blockquotes at start of line: >> or >
+  if (line.startsWith('>>')) pushToken(0, 2); else if (line.startsWith('>')) pushToken(0, 1);
 
-      // Unordered list markers at start: -, *, + followed by space
-      const ul = line.match(/^([-*+])(\s+)/); if (ul) pushToken(0, ul[1].length);
+  // Unordered list markers at start: -, *, + followed by space
+  const ul = line.match(/^([-*+])(\s+)/); if (ul) pushToken(0, ul[1].length);
 
-      // Ordered list markers: number. at start
-      const ol = line.match(/^(\d+\.)/); if (ol && ol[1]) pushToken(0, ol[1].length);
+  // Ordered list markers: number. at start
+  const ol = line.match(/^(\d+\.)/); if (ol && ol[1]) pushToken(0, ol[1].length);
 
-      // Task list: - [ ] or - [x]
-      if (/^- \[[ x]\]/.test(line)) {
-        pushToken(0, 1); // '-'
-        const openIdx = line.indexOf('['); if (openIdx !== -1) pushToken(openIdx, openIdx + 1);
-        const closeIdx = line.indexOf(']'); if (closeIdx !== -1) pushToken(closeIdx, closeIdx + 1);
-      }
+  // Task list: - [ ] or - [x]
+  if (/^- \[[ x]\]/.test(line)) {
+    pushToken(0, 1); // '-'
+    const openIdx = line.indexOf('['); if (openIdx !== -1) pushToken(openIdx, openIdx + 1);
+    const closeIdx = line.indexOf(']'); if (closeIdx !== -1) pushToken(closeIdx, closeIdx + 1);
+  }
 
-      // Link/image syntax tokens: [, ], (, ), and leading '!'
-      // BUT exclude brackets/parentheses that are part of URLs to avoid false positives
-      {
-        // Build protected ranges for URLs to exclude their brackets/parentheses from markdown detection
-        const protectedRanges: Array<{ start: number; end: number }> = [];
-        const urlRegex = /https?:\/\/[^\s]+/g;
-        let urlMatch: RegExpExecArray | null;
-        while ((urlMatch = urlRegex.exec(line)) !== null) {
-          const urlStart = urlMatch.index ?? 0;
-          const urlEnd = urlStart + urlMatch[0].length;
-          protectedRanges.push({ start: urlStart, end: urlEnd });
-        }
-        
-        const bracketRegex = /\[|\]|\(|\)/g;
-        let m: RegExpExecArray | null;
-        while ((m = bracketRegex.exec(line)) !== null) {
-          const idx = m.index;
-          // Skip brackets/parentheses that are inside URLs
-          const isInsideUrl = protectedRanges.some(r => idx >= r.start && idx < r.end);
-          if (!isInsideUrl) {
-            pushToken(idx, idx + 1);
-          }
-        }
-      }
-      const bangIdx = line.indexOf('!['); if (bangIdx !== -1) pushToken(bangIdx, bangIdx + 1);
+  // Link/image syntax tokens: [, ], (, ), and leading '!'
+  // BUT exclude brackets/parentheses that are part of URLs
+  {
+    const protectedRanges: Array<{ start: number; end: number }> = [];
+    const urlRegex = /https?:\/\/[^\s]+/g;
+    let urlMatch: RegExpExecArray | null;
+    while ((urlMatch = urlRegex.exec(line)) !== null) {
+      const urlStart = urlMatch.index ?? 0;
+      const urlEnd = urlStart + urlMatch[0].length;
+      protectedRanges.push({ start: urlStart, end: urlEnd });
+    }
+    
+    const bracketRegex = /\[|\]|\(|\)/g;
+    let m: RegExpExecArray | null;
+    while ((m = bracketRegex.exec(line)) !== null) {
+      const idx = m.index;
+      const isInsideUrl = protectedRanges.some(r => idx >= r.start && idx < r.end);
+      if (!isInsideUrl) {
+        pushToken(idx, idx + 1);
       }
     }
-
-
   }
+  const bangIdx = line.indexOf('!['); if (bangIdx !== -1) pushToken(bangIdx, bangIdx + 1);
 }
 
 /**

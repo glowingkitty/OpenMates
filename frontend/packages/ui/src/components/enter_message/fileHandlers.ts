@@ -156,7 +156,9 @@ export function extractChatLinkFromYAML(text: string): string | null {
 
 /**
  * Handles pasting files and text into the editor.
- * Special handling for chat YAML: extracts just the link when pasting inside OpenMates
+ * Special handling:
+ * - Chat YAML: extracts just the link when pasting inside OpenMates
+ * - Long text: converts to ```doc\n{text}\n``` for document preview
  */
 export async function handlePaste(
     event: ClipboardEvent,
@@ -175,6 +177,35 @@ export async function handlePaste(
             // Insert just the link
             editor.commands.insertContent(chatLink + ' ');
             console.debug('[FileHandlers] Pasted chat link from YAML:', chatLink);
+            return;
+        }
+        
+        // Check if this is long text that should be converted to doc code block
+        // Threshold: 200+ characters and contains multiple lines or significant whitespace
+        const isLongText = text.length >= 200 && (
+            text.includes('\n') || 
+            text.split(/\s+/).length > 30 || // More than 30 words
+            text.length > 500 // Or very long single-line text
+        );
+        
+        // Don't convert if it's already a code block, URL, or structured content
+        const isAlreadyStructured = 
+            text.trim().startsWith('```') || // Already a code block
+            /^https?:\/\//.test(text.trim()) || // URL
+            text.trim().startsWith('|') && text.includes('|'); // Table
+        
+        if (isLongText && !isAlreadyStructured) {
+            // Convert long text to doc code block
+            event.preventDefault();
+            event.stopPropagation();
+            
+            // Wrap in doc code block
+            const docBlock = `\`\`\`doc\n${text}\n\`\`\``;
+            editor.commands.insertContent(docBlock);
+            console.debug('[FileHandlers] Converted long pasted text to doc code block:', {
+                originalLength: text.length,
+                wordCount: text.split(/\s+/).length
+            });
             return;
         }
     }

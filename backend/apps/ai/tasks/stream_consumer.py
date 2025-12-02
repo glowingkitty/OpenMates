@@ -675,6 +675,14 @@ async def _consume_main_processing_stream(
     url_validation_tasks: List[asyncio.Task] = []  # Track all background URL validation tasks
     all_broken_urls: List[Dict[str, Any]] = []  # Collect all broken URLs found across all paragraphs
 
+    # Code block tracking: detect and convert code blocks to embeds in real-time
+    in_code_block = False
+    current_code_language = ""
+    current_code_filename: Optional[str] = None
+    current_code_content = ""
+    current_code_embed_id: Optional[str] = None
+    code_block_update_counter = 0  # Track updates to avoid updating too frequently
+
     try:
         async for chunk in main_processing_stream:
             # Check for tool calls info marker (special dict at end of stream)
@@ -719,8 +727,246 @@ async def _consume_main_processing_stream(
                     logger.warning(f"{log_prefix} Detected error message in stream chunk: {chunk[:200]}... Replacing with generic error message.")
                     chunk = "chat.an_error_occured.text"
                 
-                final_response_chunks.append(chunk)
-                stream_chunk_count += 1
+                # Code block detection and embed creation
+                # Detect code block opening: ```language or ```language:filename
+                # IMPORTANT: Skip JSON blocks that contain embed references - these are already processed embeds!
+                should_process_as_code_block = False
+                if not in_code_block and chunk.strip().startswith("```"):
+                    # Extract language and filename from opening fence
+                    # Format: ```language or ```language:filename
+                    lines = chunk.split('\n')
+                    fence_line = lines[0].strip()
+                    fence_content = fence_line[3:].strip()  # Remove ```
+                    
+                    # SKIP: JSON blocks that are embed references (already processed by skills)
+                    # These contain {"type": "...", "embed_id": "..."} or {"type": "...", "embed_ids": [...]}
+                    is_embed_reference = False
+                    if fence_content.lower() in ('json', 'json_embed'):
+                        # Check if this is an embed reference JSON block
+                        remaining_content = '\n'.join(lines[1:]) if len(lines) > 1 else ''
+                        # Look for embed reference patterns
+                        is_embed_reference = (
+                            '"embed_id"' in remaining_content or 
+                            '"embed_ids"' in remaining_content or
+                            'embed_id' in remaining_content
+                        )
+                        if is_embed_reference:
+                            logger.debug(f"{log_prefix} Skipping JSON embed reference block (not a code block to convert)")
+                            # Don't process as code block - let it pass through as-is
+                    
+                    # Only process as code block if it's NOT an embed reference
+                    if not is_embed_reference:
+                        should_process_as_code_block = True
+                
+                # Process code block if detected and not an embed reference
+                if should_process_as_code_block:
+                    # Re-extract lines for processing (already extracted above but safer to re-extract)
+                    lines = chunk.split('\n')
+                    fence_line = lines[0].strip()
+                    fence_content = fence_line[3:].strip()  # Remove ```
+                    
+                    if ':' in fence_content:
+                        # Has filename: language:filename
+                        parts = fence_content.split(':', 1)
+                        current_code_language = parts[0].strip()
+                        current_code_filename = parts[1].strip() if len(parts) > 1 else None
+                    else:
+                        # Just language or empty
+                        current_code_language = fence_content
+                        current_code_filename = None
+                    
+                    # Check if this chunk contains both opening and closing fence (complete code block)
+                    # Look for closing fence in remaining lines (after the opening fence line)
+                    found_closing = False
+                    closing_line_idx = -1
+                    for i, line in enumerate(lines[1:], 1):
+                        if line.strip() == '```':
+                            found_closing = True
+                            closing_line_idx = i
+                            break
+                    
+                    if found_closing:
+                        # Complete code block in single chunk - extract content and finalize immediately
+                        # Extract content between opening and closing fences
+                        content_lines = lines[1:closing_line_idx]  # Lines between fences
+                        code_content = '\n'.join(content_lines)
+                        
+                        # Create embed and finalize immediately
+                        if directus_service and encryption_service and user_vault_key_id:
+                            try:
+                                from backend.core.api.app.services.embed_service import EmbedService
+                                embed_service = EmbedService(cache_service, directus_service, encryption_service)
+                                
+                                # Create code embed placeholder
+                                embed_data = await embed_service.create_code_embed_placeholder(
+                                    language=current_code_language,
+                                    chat_id=request_data.chat_id,
+                                    message_id=request_data.message_id,
+                                    user_id=request_data.user_id,
+                                    user_id_hash=request_data.user_id_hash,
+                                    user_vault_key_id=user_vault_key_id,
+                                    task_id=task_id,
+                                    filename=current_code_filename,
+                                    log_prefix=log_prefix
+                                )
+                                
+                                if embed_data:
+                                    current_code_embed_id = embed_data["embed_id"]
+                                    
+                                    # Update with full content and finalize
+                                    await embed_service.update_code_embed_content(
+                                        embed_id=current_code_embed_id,
+                                        code_content=code_content,
+                                        chat_id=request_data.chat_id,
+                                        user_id=request_data.user_id,
+                                        user_id_hash=request_data.user_id_hash,
+                                        user_vault_key_id=user_vault_key_id,
+                                        status="finished",
+                                        log_prefix=log_prefix
+                                    )
+                                    
+                                    # Replace code block with embed reference in chunk
+                                    embed_reference_code = f"```json\n{embed_data['embed_reference']}\n```\n\n"
+                                    chunk = embed_reference_code
+                                    logger.info(f"{log_prefix} Created and finalized code embed {current_code_embed_id} for complete code block")
+                                    
+                                    # Reset state
+                                    in_code_block = False
+                                    current_code_language = ""
+                                    current_code_filename = None
+                                    current_code_content = ""
+                                    current_code_embed_id = None
+                            except Exception as e:
+                                logger.error(f"{log_prefix} Error creating code embed for complete block: {e}", exc_info=True)
+                                # Continue with original chunk if embed creation fails
+                    else:
+                        # Opening fence but no closing fence in this chunk - start code block tracking
+                        in_code_block = True
+                        current_code_content = ""
+                        current_code_embed_id = None
+                        
+                        # Extract any content after opening fence in this chunk
+                        if len(lines) > 1:
+                            # There's content after the opening fence line
+                            content_after_fence = '\n'.join(lines[1:])
+                            current_code_content = content_after_fence
+                        
+                        # Create code embed placeholder
+                        if directus_service and encryption_service and user_vault_key_id:
+                            try:
+                                from backend.core.api.app.services.embed_service import EmbedService
+                                embed_service = EmbedService(cache_service, directus_service, encryption_service)
+                                
+                                embed_data = await embed_service.create_code_embed_placeholder(
+                                    language=current_code_language,
+                                    chat_id=request_data.chat_id,
+                                    message_id=request_data.message_id,
+                                    user_id=request_data.user_id,
+                                    user_id_hash=request_data.user_id_hash,
+                                    user_vault_key_id=user_vault_key_id,
+                                    task_id=task_id,
+                                    filename=current_code_filename,
+                                    log_prefix=log_prefix
+                                )
+                                
+                                if embed_data:
+                                    current_code_embed_id = embed_data["embed_id"]
+                                    
+                                    # If there's content after the opening fence, update embed immediately
+                                    if current_code_content:
+                                        await embed_service.update_code_embed_content(
+                                            embed_id=current_code_embed_id,
+                                            code_content=current_code_content,
+                                            chat_id=request_data.chat_id,
+                                            user_id=request_data.user_id,
+                                            user_id_hash=request_data.user_id_hash,
+                                            user_vault_key_id=user_vault_key_id,
+                                            status="processing",
+                                            log_prefix=log_prefix
+                                        )
+                                    
+                                    # Replace opening fence with embed reference
+                                    embed_reference_code = f"```json\n{embed_data['embed_reference']}\n```\n\n"
+                                    chunk = embed_reference_code
+                                    logger.info(f"{log_prefix} Created code embed placeholder {current_code_embed_id} (language: {current_code_language or 'none'})")
+                            except Exception as e:
+                                logger.error(f"{log_prefix} Error creating code embed placeholder: {e}", exc_info=True)
+                                # Continue with original chunk if embed creation fails
+                
+                # Handle code block content accumulation and closing
+                elif in_code_block:
+                    # Check if this chunk contains closing fence
+                    if '```' in chunk:
+                        # Extract content before closing fence
+                        closing_fence_idx = chunk.find('```')
+                        code_chunk_content = chunk[:closing_fence_idx]
+                        current_code_content += code_chunk_content
+                        
+                        # Finalize code embed
+                        if current_code_embed_id and directus_service and encryption_service and user_vault_key_id:
+                            try:
+                                from backend.core.api.app.services.embed_service import EmbedService
+                                embed_service = EmbedService(cache_service, directus_service, encryption_service)
+                                
+                                await embed_service.update_code_embed_content(
+                                    embed_id=current_code_embed_id,
+                                    code_content=current_code_content,
+                                    chat_id=request_data.chat_id,
+                                    user_id=request_data.user_id,
+                                    user_id_hash=request_data.user_id_hash,
+                                    user_vault_key_id=user_vault_key_id,
+                                    status="finished",
+                                    log_prefix=log_prefix
+                                )
+                                
+                                logger.info(f"{log_prefix} Finalized code embed {current_code_embed_id} with {len(current_code_content)} chars")
+                            except Exception as e:
+                                logger.error(f"{log_prefix} Error finalizing code embed: {e}", exc_info=True)
+                        
+                        # Reset state
+                        in_code_block = False
+                        current_code_language = ""
+                        current_code_filename = None
+                        current_code_content = ""
+                        current_code_embed_id = None
+                        code_block_update_counter = 0
+                        
+                        # Don't include closing fence in response (already replaced with embed reference)
+                        chunk = ""  # Empty chunk - embed reference was already sent
+                    else:
+                        # Accumulate code content
+                        current_code_content += chunk
+                        code_block_update_counter += 1
+                        
+                        # Update embed periodically (every 3 chunks to avoid too frequent updates)
+                        if current_code_embed_id and code_block_update_counter >= 3 and directus_service and encryption_service and user_vault_key_id:
+                            try:
+                                from backend.core.api.app.services.embed_service import EmbedService
+                                embed_service = EmbedService(cache_service, directus_service, encryption_service)
+                                
+                                await embed_service.update_code_embed_content(
+                                    embed_id=current_code_embed_id,
+                                    code_content=current_code_content,
+                                    chat_id=request_data.chat_id,
+                                    user_id=request_data.user_id,
+                                    user_id_hash=request_data.user_id_hash,
+                                    user_vault_key_id=user_vault_key_id,
+                                    status="processing",
+                                    log_prefix=log_prefix
+                                )
+                                
+                                code_block_update_counter = 0  # Reset counter
+                                logger.debug(f"{log_prefix} Updated code embed {current_code_embed_id} (intermediate update, {len(current_code_content)} chars)")
+                            except Exception as e:
+                                logger.error(f"{log_prefix} Error updating code embed: {e}", exc_info=True)
+                        
+                        # Don't include code content in response (embed reference was already sent)
+                        chunk = ""  # Empty chunk - code content goes to embed, not message
+                
+                # Only add non-empty chunks to final response
+                if chunk:
+                    final_response_chunks.append(chunk)
+                    stream_chunk_count += 1
 
                 # CRITICAL: Publish chunk IMMEDIATELY without buffering
                 # This ensures paragraph-by-paragraph streaming and embed placeholders show up right away
@@ -774,6 +1020,28 @@ async def _consume_main_processing_stream(
         # Check if revoked after an unexpected error
         if celery_config.app.AsyncResult(task_id).state == TASK_STATE_REVOKED:
             was_revoked_during_stream = True
+    
+    # Finalize any open code block if stream was interrupted
+    if in_code_block and current_code_embed_id and directus_service and encryption_service and user_vault_key_id:
+        try:
+            from backend.core.api.app.services.embed_service import EmbedService
+            embed_service = EmbedService(cache_service, directus_service, encryption_service)
+            
+            # Finalize with partial content (interrupted)
+            await embed_service.update_code_embed_content(
+                embed_id=current_code_embed_id,
+                code_content=current_code_content,
+                chat_id=request_data.chat_id,
+                user_id=request_data.user_id,
+                user_id_hash=request_data.user_id_hash,
+                user_vault_key_id=user_vault_key_id,
+                status="finished",  # Mark as finished even if interrupted
+                log_prefix=log_prefix
+            )
+            
+            logger.info(f"{log_prefix} Finalized interrupted code embed {current_code_embed_id} with {len(current_code_content)} chars")
+        except Exception as e:
+            logger.error(f"{log_prefix} Error finalizing interrupted code embed: {e}", exc_info=True)
 
     aggregated_response = "".join(final_response_chunks)
     

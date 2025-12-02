@@ -202,12 +202,50 @@
                 if (decorationPropsSet && editor?.view) {
                     editor.view.dispatch(editor.state.tr);
                 }
+                
+                // Check if the parsed document contains preview embeds (closed code blocks)
+                // If so, update the editor content to show the rendered embed preview
+                if (parsedDoc && parsedDoc.content && hasPreviewEmbeds(parsedDoc)) {
+                    console.debug('[MessageInput] Found preview embeds, updating editor with parsed document');
+                    // Set flag to prevent originalMarkdown update during this content change
+                    isConvertingEmbeds = true;
+                    try {
+                        editor.chain().setContent(parsedDoc, { emitUpdate: false }).run();
+                        console.debug('[MessageInput] Updated editor with preview embeds');
+                    } finally {
+                        isConvertingEmbeds = false;
+                    }
+                }
             }
             
         } catch (error) {
             console.error('[MessageInput] Error in unified parsing:', error);
             // Log the error but don't fall back to legacy - we need to fix the unified parser
         }
+    }
+    
+    /**
+     * Check if a parsed document contains preview embeds (closed code blocks, tables, etc.)
+     * Preview embeds have contentRef starting with 'preview:'
+     */
+    function hasPreviewEmbeds(doc: any): boolean {
+        if (!doc || !doc.content) return false;
+        
+        for (const node of doc.content) {
+            // Check if this node is a paragraph containing an embed
+            if (node.type === 'paragraph' && node.content) {
+                for (const child of node.content) {
+                    if (child.type === 'embed' && child.attrs?.contentRef?.startsWith('preview:')) {
+                        return true;
+                    }
+                }
+            }
+            // Check for direct embed nodes (shouldn't happen but be safe)
+            if (node.type === 'embed' && node.attrs?.contentRef?.startsWith('preview:')) {
+                return true;
+            }
+        }
+        return false;
     }
     
     /**
@@ -371,6 +409,14 @@
         
         return closedUrls;
     }
+    
+    // NOTE: Code block detection and embed creation is handled SERVER-SIDE
+    // When user sends a message with code blocks:
+    // 1. Client sends raw markdown (with code blocks as-is)
+    // 2. Server extracts code blocks and creates embeds
+    // 3. Server sends embed data back to client for encrypted storage
+    // 4. Server replaces code blocks with embed references in stored message
+    // This avoids client-side complexity and draft serialization issues
     
     /**
      * Process closed URLs by fetching metadata and storing them for the unified parser
@@ -1082,6 +1128,9 @@
         
         // Update original markdown tracking
         updateOriginalMarkdown(editor);
+        
+        // NOTE: Code block detection is handled SERVER-SIDE when message is sent
+        // Client keeps raw markdown with code blocks - no client-side embed creation
         
         // Always trigger save/delete operation - the draft service handles both scenarios
         triggerSaveDraft(currentChatId);

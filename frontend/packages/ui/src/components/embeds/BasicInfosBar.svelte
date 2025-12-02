@@ -41,6 +41,10 @@
     showStatus?: boolean;
     /** Custom favicon URL to show instead of app icon */
     faviconUrl?: string;
+    /** Whether to show skill icon (only for app skills, not for individual embeds like code, website, video) */
+    showSkillIcon?: boolean;
+    /** Custom status text (overrides default status text) */
+    customStatusText?: string;
   }
   
   let {
@@ -53,17 +57,25 @@
     isMobile = false,
     onStop,
     showStatus = true,
-    faviconUrl
+    faviconUrl,
+    showSkillIcon = true,
+    customStatusText
   }: Props = $props();
   
-  // Status text from translations
+  // Status text from translations or custom text
   let statusText = $derived(() => {
-    if (status === 'processing') {
-      return $text('embeds.processing.text') || 'Processing...';
-    } else if (status === 'finished') {
-      return $text('embeds.completed.text') || 'Completed';
+    // Use custom status text if provided
+    if (customStatusText) {
+      return customStatusText;
     }
-    return $text('embeds.error.text') || 'Error';
+    
+    // Otherwise use default status text
+    if (status === 'processing') {
+      return $text('embeds.processing.text');
+    } else if (status === 'finished') {
+      return $text('embeds.completed.text');
+    }
+    return $text('embeds.error.text');
   });
   
   // Compute app gradient style using CSS variables from theme.css
@@ -92,10 +104,12 @@
       </div>
     {/if}
     
-    <!-- Skill icon (centered) -->
-    <div class="skill-icon-container">
-      <div class="skill-icon" data-skill-icon={skillIconName}></div>
-    </div>
+    <!-- Skill icon (centered) - only show for app skills -->
+    {#if showSkillIcon}
+      <div class="skill-icon-container">
+        <div class="skill-icon" data-skill-icon={skillIconName}></div>
+      </div>
+    {/if}
     
     <!-- Status text lines -->
     <div class="status-text-container" class:single-line={!showStatus}>
@@ -125,8 +139,10 @@
       <div class="icon_rounded {appId}"></div>
     </div>
     
-    <!-- Skill icon (29x29px) -->
-    <div class="skill-icon" data-skill-icon={skillIconName}></div>
+    <!-- Skill icon (29x29px) - only show for app skills -->
+    {#if showSkillIcon}
+      <div class="skill-icon" data-skill-icon={skillIconName}></div>
+    {/if}
     
     <!-- Status text with optional favicon next to title -->
     <div class="status-text" class:single-line={!showStatus}>
