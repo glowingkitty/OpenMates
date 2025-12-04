@@ -2,6 +2,47 @@
 
 The Sheets app allows for viewing and editing spreadsheets.
 
+## Skills
+
+### Search
+
+Searches spreadsheets and uploaded table data for values, formulas, or patterns using grep-like functionality.
+
+**Features:**
+- Support for searching multiple spreadsheets in parallel (up to 5 requests)
+- Searches cell values, formula results, and formula text
+- Case-sensitive and case-insensitive search options
+- Regex pattern matching for complex queries
+- Returns matched cells with row/column references and context
+- Shows surrounding cells for context
+- Works with Excel, Google Sheets, OpenOffice Calc formats
+
+**Input Parameters:**
+- `file_ids`: Array of spreadsheet file IDs
+- `query`: Search pattern (e.g., "value", regex pattern, formula pattern)
+- `case_sensitive`: Boolean (default: false)
+- `search_formulas`: Boolean to search formula text instead of values (default: false)
+- `regex`: Boolean to enable regex mode (default: false)
+
+**Output:**
+- Results grouped by spreadsheet and query
+- Each match includes:
+  - Cell reference (e.g., A1, B3:D5)
+  - Cell value or formula
+  - Row and column context
+  - Sheet name (if multiple sheets)
+  - Match count per spreadsheet
+
+### Filter & Aggregate
+
+Filters rows based on criteria and performs aggregations (sum, count, average) across multiple data ranges.
+
+**Features:**
+- Multiple filter conditions with AND/OR logic
+- Aggregation functions (SUM, COUNT, AVERAGE, MIN, MAX, etc.)
+- Support for date and numeric comparisons
+- Returns filtered results and summary statistics
+
 ## Embedded previews
 
 ### Sheet

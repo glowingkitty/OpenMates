@@ -496,7 +496,8 @@ class TranscriptSkill(BaseSkill):
         req: Dict[str, Any],
         request_id: Any,
         secrets_manager: SecretsManager,
-        proxy_config: Optional[GenericProxyConfig]
+        proxy_config: Optional[GenericProxyConfig],
+        cache_service: Optional[Any] = None  # CacheService type, but avoid circular import
     ) -> Tuple[Any, List[Dict[str, Any]], Optional[str]]:
         """
         Process a single transcript request.
@@ -555,7 +556,8 @@ class TranscriptSkill(BaseSkill):
                         content=transcript_text,
                         content_type="text",
                         task_id=f"transcript_{request_id}_{video_id}",
-                        secrets_manager=secrets_manager
+                        secrets_manager=secrets_manager,
+                        cache_service=cache_service
                     )
                     
                     # Check if sanitization failed or was blocked
@@ -632,62 +634,28 @@ class TranscriptSkill(BaseSkill):
         - Simple architecture (direct execution)
         - Immediate results (no polling required)
         """
-        # Use injected secrets_manager or create a new one
-        if secrets_manager is None:
-            # Try to get from app if available
-            if hasattr(self.app, 'secrets_manager') and self.app.secrets_manager:
-                secrets_manager = self.app.secrets_manager
-            else:
-                # Create a new SecretsManager instance
-                try:
-                    secrets_manager = SecretsManager()
-                    await secrets_manager.initialize()
-                    logger.debug("TranscriptSkill initialized its own SecretsManager instance")
-                except Exception as e:
-                    logger.error(f"Failed to initialize SecretsManager for TranscriptSkill: {e}", exc_info=True)
-                    return TranscriptResponse(
-                        results=[],
-                        error="Transcript service configuration error: Failed to initialize secrets manager"
-                    )
+        # Get or create SecretsManager using BaseSkill helper
+        secrets_manager, error_response = await self._get_or_create_secrets_manager(
+            secrets_manager=secrets_manager,
+            skill_name="TranscriptSkill",
+            error_response_factory=lambda msg: TranscriptResponse(results=[], error=msg),
+            logger=logger
+        )
+        if error_response:
+            return error_response
         
-        # Validate requests array
-        if not requests or len(requests) == 0:
-            logger.error("No requests provided to TranscriptSkill")
-            return TranscriptResponse(
-                results=[],
-                error="No transcript requests provided. 'requests' array must contain at least one request with a 'url' field."
-            )
+        # Validate requests array using BaseSkill helper
+        validated_requests, error = self._validate_requests_array(
+            requests=requests,
+            required_field="url",
+            field_display_name="url",
+            empty_error_message="No transcript requests provided. 'requests' array must contain at least one request with a 'url' field.",
+            logger=logger
+        )
+        if error:
+            return TranscriptResponse(results=[], error=error)
         
-        # Validate that all requests have required fields: 'id' and 'url'
-        request_ids = set()
-        for i, req in enumerate(requests):
-            # Validate 'id' field (mandatory for request/response matching)
-            if "id" not in req:
-                logger.error(f"Request {i+1} in requests array is missing required 'id' field")
-                return TranscriptResponse(
-                    results=[],
-                    error=f"Request {i+1} is missing required 'id' field. Each request must have a unique 'id' (number or UUID string) for matching responses."
-                )
-            
-            request_id = req.get("id")
-            # Validate id is unique within this batch
-            if request_id in request_ids:
-                logger.error(f"Request {i+1} has duplicate 'id' value: {request_id}")
-                return TranscriptResponse(
-                    results=[],
-                    error=f"Request {i+1} has duplicate 'id' value '{request_id}'. Each request must have a unique 'id'."
-                )
-            request_ids.add(request_id)
-            
-            # Validate 'url' field
-            if not req.get("url"):
-                logger.error(f"Request {i+1} (id: {request_id}) in requests array is missing 'url' field")
-                return TranscriptResponse(
-                    results=[],
-                    error=f"Request {i+1} (id: {request_id}) is missing required 'url' field"
-                )
-        
-        # Build proxy config
+        # Build proxy config (skill-specific setup)
         try:
             # Build Oxylabs proxy URL (if credentials available)
             proxy_url = await self._build_oxylabs_proxy_url_async(secrets_manager)
@@ -705,92 +673,45 @@ class TranscriptSkill(BaseSkill):
                 error=f"Configuration error: {str(e)}"
             )
         
-        # Process all transcript requests in parallel using asyncio.gather()
-        # Each request is processed independently and results are grouped by request id
-        logger.info(f"Processing {len(requests)} transcript requests in parallel")
-        tasks = [
-            self._process_single_transcript_request(
-                req=req,
-                request_id=req.get("id"),
-                secrets_manager=secrets_manager,
-                proxy_config=proxy_config
-            )
-            for req in requests
-        ]
+        # Initialize cache service for content sanitization (shared across all requests)
+        from backend.core.api.app.services.cache import CacheService
+        cache_service = CacheService()
         
-        # Wait for all requests to complete (parallel execution)
-        results = await asyncio.gather(*tasks, return_exceptions=True)
-        
-        # Process results and group by request id
-        grouped_results: List[Dict[str, Any]] = []
-        errors: List[str] = []
-        success_count = 0
-        failed_count = 0
-        
-        for result in results:
-            if isinstance(result, Exception):
-                # Handle exceptions from asyncio.gather
-                error_msg = f"Unexpected error processing request: {str(result)}"
-                logger.error(error_msg, exc_info=True)
-                errors.append(error_msg)
-                failed_count += 1
-                continue
-            
-            request_id, transcript_results, error = result
-            
-            if error:
-                errors.append(error)
-                failed_count += 1
-                # Still include the request in results (with empty results array) for consistency
-                grouped_results.append({
-                    "id": request_id,
-                    "results": []
-                })
-            else:
-                success_count += 1
-                # Group results by request id (each transcript request produces one result)
-                grouped_results.append({
-                    "id": request_id,
-                    "results": transcript_results
-                })
-        
-        # Sort results by request order (maintain original request order in response)
-        request_order = {req.get("id"): i for i, req in enumerate(requests)}
-        grouped_results.sort(key=lambda x: request_order.get(x["id"], 999))
-        
-        # Use follow-up suggestions loaded from app.yml (if available)
-        suggestions = None
-        total_results = sum(len(group.get("results", [])) for group in grouped_results)
-        if total_results > 0 and hasattr(self, 'suggestions_follow_up_requests') and self.suggestions_follow_up_requests:
-            suggestions = self.suggestions_follow_up_requests
-        
-        # Build response with grouped results structure:
-        # - results: List of request results, each with 'id' and 'results' array
-        # - provider: at root level
-        response = TranscriptResponse(
-            results=grouped_results,  # Grouped by request id
-            provider="YouTube Transcript API",
-            suggestions_follow_up_requests=suggestions
+        # Process all transcript requests in parallel using BaseSkill helper
+        results = await self._process_requests_in_parallel(
+            requests=validated_requests,
+            process_single_request_func=self._process_single_transcript_request,
+            logger=logger,
+            secrets_manager=secrets_manager,
+            proxy_config=proxy_config,
+            cache_service=cache_service
         )
         
-        # Add error message if there were errors (but still return results if any)
-        if errors:
-            response.error = "; ".join(errors)
-            logger.warning(f"Transcript skill execution completed with {len(errors)} error(s): {response.error}")
+        # Group results by request ID using BaseSkill helper
+        grouped_results, errors = self._group_results_by_request_id(
+            results=results,
+            requests=validated_requests,
+            logger=logger
+        )
         
+        # Calculate success/failed counts for logging (skill-specific tracking)
+        success_count = sum(1 for group in grouped_results if len(group.get("results", [])) > 0)
+        failed_count = len(errors)
+        
+        # Build response with errors using BaseSkill helper
+        response = self._build_response_with_errors(
+            response_class=TranscriptResponse,
+            grouped_results=grouped_results,
+            errors=errors,
+            provider="YouTube Transcript API",
+            suggestions=getattr(self, 'suggestions_follow_up_requests', None),
+            logger=logger
+        )
+        
+        # Add skill-specific logging
+        total_results = sum(len(group.get("results", [])) for group in grouped_results)
         logger.info(f"Transcript skill execution completed: {len(grouped_results)} request groups, {success_count} successful, {failed_count} failed, {total_results} total results")
+        
         return response
     
-    def _generate_result_hash(self, url: str) -> str:
-        """
-        Generate a hash for a transcript result URL.
-        Used for deduplication and tracking.
-        
-        Args:
-            url: The video URL
-        
-        Returns:
-            Hash string
-        """
-        import hashlib
-        return hashlib.sha256(url.encode()).hexdigest()[:16]
+    # _generate_result_hash is now provided by BaseSkill

@@ -3,6 +3,7 @@ Shared dependencies for authentication routes.
 This file contains functions that provide services to all auth-related endpoints,
 including retrieving the currently authenticated user.
 """
+import logging
 from fastapi import Request, HTTPException, Depends, Cookie
 from typing import Optional
 
@@ -10,6 +11,8 @@ from typing import Optional
 from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.models.user import User
+
+logger = logging.getLogger(__name__)
 
 # All functions now accept Request and fetch services from backend.core.api.app.state
 # (Keep existing service getters)
@@ -62,17 +65,35 @@ async def get_current_user(
     cached_data = await cache_service.get_user_by_token(refresh_token)
 
     if cached_data:
+        # CRITICAL: Validate required fields before creating User object - fail fast if missing
+        # These fields are required by the User model and must not be None
+        cached_user_id = cached_data.get("user_id")
+        cached_username = cached_data.get("username")
+        cached_vault_key_id = cached_data.get("vault_key_id")
+        
+        if not cached_user_id:
+            logger.error(f"CRITICAL: user_id is missing from cached data for token")
+            raise HTTPException(status_code=500, detail="User data incomplete: missing user ID")
+        
+        if not cached_username:
+            logger.error(f"CRITICAL: username is missing from cached data for user {cached_user_id}")
+            raise HTTPException(status_code=500, detail="User data incomplete: missing username")
+        
+        if not cached_vault_key_id:
+            logger.error(f"CRITICAL: vault_key_id is missing from cached data for user {cached_user_id}")
+            raise HTTPException(status_code=500, detail="User data incomplete: missing encryption key")
+        
         # Ensure all fields expected by the User model are present, providing defaults if necessary
         return User(
-            id=cached_data.get("user_id"),
-            username=cached_data.get("username"),
+            id=cached_user_id,
+            username=cached_username,
             # Handle None values for boolean fields - default to False if None
             is_admin=cached_data.get("is_admin") or False,
             credits=cached_data.get("credits", 0),
             profile_image_url=cached_data.get("profile_image_url"),
             tfa_app_name=cached_data.get("tfa_app_name"),
             last_opened=cached_data.get("last_opened"),
-            vault_key_id=cached_data.get("vault_key_id"),
+            vault_key_id=cached_vault_key_id,
             consent_privacy_and_apps_default_settings=cached_data.get("consent_privacy_and_apps_default_settings"),
             consent_mates_default_settings=cached_data.get("consent_mates_default_settings"),
             language=cached_data.get("language", 'en'),
@@ -113,21 +134,37 @@ async def get_current_user(
         raise HTTPException(status_code=401, detail="Invalid token data: Missing user ID")
 
     # Fetch complete user profile (which now includes decrypted gifted_credits_for_signup)
-    success, user_data, _ = await directus_service.get_user_profile(user_id)
+    success, user_data, profile_message = await directus_service.get_user_profile(user_id)
     if not success or not user_data:
-        raise HTTPException(status_code=401, detail="Could not fetch user data")
+        logger.error(f"Failed to fetch user profile for user {user_id}: {profile_message}")
+        raise HTTPException(status_code=500, detail=f"Could not fetch user data: {profile_message}")
+
+    # CRITICAL: Validate required fields before creating User object - fail fast if missing
+    # These fields are required by the User model and must not be None
+    profile_username = user_data.get("username")
+    profile_vault_key_id = user_data.get("vault_key_id")
+    
+    if not profile_username:
+        logger.error(f"CRITICAL: username is missing from user profile for user {user_id}")
+        logger.error(f"Profile data keys: {list(user_data.keys())}")
+        raise HTTPException(status_code=500, detail="User data incomplete: missing username. This indicates a data integrity issue.")
+    
+    if not profile_vault_key_id:
+        logger.error(f"CRITICAL: vault_key_id is missing from user profile for user {user_id}")
+        logger.error(f"Profile data keys: {list(user_data.keys())}")
+        raise HTTPException(status_code=500, detail="User data incomplete: missing encryption key. This indicates a data integrity issue.")
 
     # Create User object from profile data
     # The get_user_profile function now returns decrypted fields directly
     user = User(
         id=user_id,
-        username=user_data.get("username"),
+        username=profile_username,
         # Handle None values for boolean fields - default to False if None
         is_admin=user_data.get("is_admin") or False,
         credits=user_data.get("credits", 0),
         profile_image_url=user_data.get("profile_image_url"),
         last_opened=user_data.get("last_opened"),
-        vault_key_id=user_data.get("vault_key_id"),
+        vault_key_id=profile_vault_key_id,
         tfa_app_name=user_data.get("tfa_app_name"),
         consent_privacy_and_apps_default_settings=user_data.get("consent_privacy_and_apps_default_settings"),
         consent_mates_default_settings=user_data.get("consent_mates_default_settings"),

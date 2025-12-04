@@ -189,7 +189,8 @@ async def _sanitize_text_chunk(
     detection_config: Dict[str, Any],
     block_threshold: float,
     review_threshold: float,
-    secrets_manager: Optional[SecretsManager]
+    secrets_manager: Optional[SecretsManager],
+    cache_service: Optional[Any] = None  # CacheService type, but avoid circular import
 ) -> Optional[str]:
     """
     Sanitize a single text chunk by detecting and replacing prompt injection strings with a placeholder.
@@ -220,11 +221,36 @@ async def _sanitize_text_chunk(
             logger.error(f"[{task_id}] Detection tool definition not found in config")
             return chunk  # Return as-is if config is invalid
         
-        # Load content sanitization model from app.yml
-        # This must be loaded from the AI app's app.yml - no hardcoded fallbacks!
-        model_id = _load_content_sanitization_model()
+        # Load content sanitization model from cache (preloaded by main API server at startup)
+        # The main API server preloads this into the shared Dragonfly cache during startup.
+        # Fallback to disk loading if cache is empty (e.g., cache expired or server restarted).
+        model_id: Optional[str] = None
+        try:
+            if cache_service:
+                model_id = await cache_service.get_content_sanitization_model()
+                if model_id:
+                    logger.debug(f"[{task_id}] Successfully loaded content_sanitization_model from cache (preloaded by main API server): {model_id}")
+                else:
+                    # Fallback: Cache is empty (expired or server restarted) - load from disk and re-cache
+                    logger.warning(f"[{task_id}] content_sanitization_model not found in cache. Loading from disk and re-caching...")
+                    model_id = _load_content_sanitization_model()
+                    if model_id:
+                        try:
+                            await cache_service.set_content_sanitization_model(model_id)
+                            logger.debug(f"[{task_id}] Re-cached content_sanitization_model after disk load: {model_id}")
+                        except Exception as e:
+                            logger.warning(f"[{task_id}] Failed to re-cache content_sanitization_model: {e}")
+            else:
+                # No cache service available, load from disk
+                logger.warning(f"[{task_id}] CacheService not available. Loading content_sanitization_model from disk...")
+                model_id = _load_content_sanitization_model()
+        except Exception as e:
+            logger.error(f"[{task_id}] Error loading content_sanitization_model: {e}", exc_info=True)
+            # Fallback to disk loading
+            model_id = _load_content_sanitization_model()
+        
         if not model_id:
-            error_msg = f"[{task_id}] Content sanitization model not configured in app.yml. Cannot sanitize content."
+            error_msg = f"[{task_id}] Content sanitization model not configured in app.yml or cache. Cannot sanitize content."
             logger.error(error_msg)
             raise ValueError(error_msg)
         
@@ -342,7 +368,8 @@ async def sanitize_external_content(
     content: str,
     content_type: str = "text",
     task_id: str = "sanitization",
-    secrets_manager: Optional[SecretsManager] = None
+    secrets_manager: Optional[SecretsManager] = None,
+    cache_service: Optional[Any] = None  # CacheService type, but avoid circular import
 ) -> str:
     """
     Sanitize external content to prevent prompt injection attacks.
@@ -382,10 +409,36 @@ async def sanitize_external_content(
         return content
     
     try:
-        # Load prompt injection detection configuration
-        detection_config = _load_prompt_injection_detection_config()
+        # Load prompt injection detection configuration from cache (preloaded by main API server at startup)
+        # The main API server preloads this into the shared Dragonfly cache during startup.
+        # Fallback to disk loading if cache is empty (e.g., cache expired or server restarted).
+        detection_config: Optional[Dict[str, Any]] = None
+        try:
+            if cache_service:
+                detection_config = await cache_service.get_prompt_injection_detection_config()
+                if detection_config:
+                    logger.debug(f"[{task_id}] Successfully loaded prompt_injection_detection_config from cache (preloaded by main API server).")
+                else:
+                    # Fallback: Cache is empty (expired or server restarted) - load from disk and re-cache
+                    logger.warning(f"[{task_id}] prompt_injection_detection_config not found in cache. Loading from disk and re-caching...")
+                    detection_config = _load_prompt_injection_detection_config()
+                    if detection_config:
+                        try:
+                            await cache_service.set_prompt_injection_detection_config(detection_config)
+                            logger.debug(f"[{task_id}] Re-cached prompt_injection_detection_config after disk load.")
+                        except Exception as e:
+                            logger.warning(f"[{task_id}] Failed to re-cache prompt_injection_detection_config: {e}")
+            else:
+                # No cache service available, load from disk
+                logger.warning(f"[{task_id}] CacheService not available. Loading prompt_injection_detection_config from disk...")
+                detection_config = _load_prompt_injection_detection_config()
+        except Exception as e:
+            logger.error(f"[{task_id}] Error loading prompt_injection_detection_config: {e}", exc_info=True)
+            # Fallback to disk loading
+            detection_config = _load_prompt_injection_detection_config()
+        
         if not detection_config:
-            logger.error(f"[{task_id}] Failed to load prompt injection detection config, skipping sanitization")
+            logger.error(f"[{task_id}] Failed to load prompt injection detection config from cache or disk, skipping sanitization")
             return content
         
         # Get configuration values
@@ -419,7 +472,8 @@ async def sanitize_external_content(
                 detection_config=detection_config,
                 block_threshold=block_threshold,
                 review_threshold=review_threshold,
-                secrets_manager=secrets_manager
+                secrets_manager=secrets_manager,
+                cache_service=cache_service
             )
             
             # If chunk was blocked (high risk), block entire content

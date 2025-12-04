@@ -189,17 +189,21 @@
      * Handler for sync completion - automatically loads the last opened chat
      * This implements the "Auto-Open Logic" from sync.md Phase 1 requirements
      * 
+     * IMPORTANT: This function is only called on login (when sync completes after authentication).
+     * On tab reload, we load from IndexedDB directly (see instant load logic below).
+     * 
      * OPTIMIZATION: Check if chat is already loaded to avoid duplicate loads
      * Only loads if chat exists in IndexedDB but isn't currently displayed
      */
     async function handleSyncCompleteAndLoadLastChat() {
-        console.debug('[+page.svelte] Sync event received, checking for last opened chat...');
+        console.debug('[+page.svelte] Sync event received (login scenario), checking for last opened chat from server...');
         
-        // Get the last opened chat ID from user profile
+        // On login, use server state (from userProfile which was synced from server)
+        // This ensures new devices get the correct last opened chat from server
         const lastOpenedChatId = $userProfile.last_opened;
         
         if (!lastOpenedChatId) {
-            console.debug('[+page.svelte] No last opened chat in user profile');
+            console.debug('[+page.svelte] No last opened chat in user profile (from server)');
             return;
         }
         
@@ -218,7 +222,7 @@
             const lastChat = await chatDB.getChat(lastOpenedChatId);
             
             if (lastChat && activeChat) {
-                console.debug('[+page.svelte] ✅ Loading last opened chat from sync:', lastOpenedChatId);
+                console.debug('[+page.svelte] ✅ Loading last opened chat from sync (login):', lastOpenedChatId);
                 
                 // Update the active chat store so the sidebar highlights it when opened
                 activeChatStore.setActiveChat(lastOpenedChatId);
@@ -226,7 +230,7 @@
                 // Load the chat in the UI
                 activeChat.loadChat(lastChat);
                 
-                console.debug('[+page.svelte] ✅ Successfully loaded last opened chat from sync');
+                console.debug('[+page.svelte] ✅ Successfully loaded last opened chat from sync (login)');
             } else if (!lastChat) {
                 console.debug('[+page.svelte] Last opened chat not yet in IndexedDB, will try again after next sync phase');
             } else if (!activeChat) {
@@ -304,6 +308,64 @@
 		// Now check auth state after optimistic loading
 		const isAuth = $authStore.isAuthenticated;
 		
+		// FALLBACK: Cleanup shared chats on page load (if unload events didn't fire)
+		// This handles cases where browser crashed, force quit, or events didn't fire
+		// Only run for non-authenticated users (authenticated users' chats should persist)
+		if (!isAuth) {
+			try {
+				// Check if this is a new session (sessionStorage doesn't have shared_chats)
+				// sessionStorage is cleared when tab/window closes, so empty = new session
+				const hasSharedChatsInSession = sessionStorage.getItem('shared_chats') !== null;
+				
+				if (!hasSharedChatsInSession) {
+					// This is a new session - cleanup any leftover shared chats from previous session
+					console.debug('[+page.svelte] New session detected - cleaning up any leftover shared chats from IndexedDB');
+					
+					try {
+						// Initialize DB if needed (non-blocking, may fail if DB is unavailable)
+						await chatDB.init();
+						
+						// Get all chats from IndexedDB
+						const allChats = await chatDB.getAllChats();
+						
+						// Import isPublicChat helper
+						const { isPublicChat } = await import('@repo/ui');
+						
+						// Delete all chats that aren't demo/legal chats (these are leftover shared chats)
+						let deletedCount = 0;
+						for (const chat of allChats) {
+							if (!isPublicChat(chat.chat_id)) {
+								try {
+									await chatDB.deleteChat(chat.chat_id);
+									deletedCount++;
+									console.debug('[+page.svelte] Deleted leftover shared chat:', chat.chat_id);
+								} catch (error) {
+									console.warn('[+page.svelte] Error deleting leftover shared chat:', chat.chat_id, error);
+								}
+							}
+						}
+						
+						if (deletedCount > 0) {
+							console.info(`[+page.svelte] Cleaned up ${deletedCount} leftover shared chat(s) from previous session`);
+						}
+					} catch (dbError: any) {
+						// If DB is being deleted (e.g., during logout) or unavailable, skip cleanup
+						if (dbError?.message?.includes('being deleted') || dbError?.message?.includes('cannot be initialized')) {
+							console.debug('[+page.svelte] Database unavailable during shared chat cleanup - skipping (likely during logout)');
+						} else {
+							console.warn('[+page.svelte] Error accessing database during shared chat cleanup:', dbError);
+						}
+					}
+				} else {
+					// Session has shared chats - they're still valid, don't delete
+					console.debug('[+page.svelte] Existing session with shared chats - skipping cleanup');
+				}
+			} catch (error) {
+				console.warn('[+page.svelte] Error during shared chat cleanup on load:', error);
+				// Don't fail the whole app if cleanup fails
+			}
+		}
+		
 		// CRITICAL: Check for signup hash in URL BEFORE initialize() to ensure hash-based signup state takes precedence
 		// This ensures signup flow opens immediately on page reload if URL has #signup/ hash
 		// The hash takes precedence over last_opened from IndexedDB and checkAuth() logic
@@ -371,6 +433,61 @@
 		// Register listener for WebSocket auth errors
 		webSocketService.addEventListener('authError', handleWebSocketAuthError as EventListener);
 		console.debug('[+page.svelte] Registered WebSocket auth error listener');
+		
+		// CRITICAL: Setup cleanup for shared chats on session close (non-authenticated users only)
+		// Shared chats are stored in IndexedDB but should be deleted when the session ends
+		// This ensures shared chats don't persist long-term for non-authenticated users
+		const cleanupSharedChats = async () => {
+			// Only cleanup if user is not authenticated
+			if (!$authStore.isAuthenticated) {
+				try {
+					const sharedChatIds = JSON.parse(sessionStorage.getItem('shared_chats') || '[]');
+					if (sharedChatIds.length > 0) {
+						console.debug('[+page.svelte] Cleaning up shared chats on session close:', sharedChatIds);
+						
+						// Delete chats from IndexedDB
+						for (const chatId of sharedChatIds) {
+							try {
+								await chatDB.deleteChat(chatId);
+								console.debug('[+page.svelte] Deleted shared chat from IndexedDB:', chatId);
+							} catch (error) {
+								console.warn('[+page.svelte] Error deleting shared chat:', chatId, error);
+							}
+						}
+						
+						// Clear sessionStorage tracking
+						sessionStorage.removeItem('shared_chats');
+						console.debug('[+page.svelte] Cleaned up shared chats on session close');
+					}
+				} catch (error) {
+					console.warn('[+page.svelte] Error cleaning up shared chats:', error);
+				}
+			}
+		};
+		
+		// Use visibilitychange and pagehide events for better reliability
+		const handlePageUnload = () => {
+			// Use non-blocking approach - initiate cleanup (may not complete if page closes immediately)
+			cleanupSharedChats().catch((error) => {
+				// Ignore errors - cleanup will happen on next page load if needed
+				console.debug('[+page.svelte] Shared chat cleanup on unload incomplete (will be handled on next page load)');
+			});
+		};
+		
+		// Use visibilitychange to detect when page becomes hidden (more reliable than beforeunload)
+		document.addEventListener('visibilitychange', () => {
+			if (document.visibilityState === 'hidden') {
+				handlePageUnload();
+			}
+		});
+		
+		// Use pagehide for better mobile browser support (fires on tab close, browser close, navigation)
+		window.addEventListener('pagehide', handlePageUnload);
+		
+		// Also use beforeunload as fallback for desktop browsers
+		window.addEventListener('beforeunload', handlePageUnload);
+		
+		console.debug('[+page.svelte] Registered shared chat cleanup handlers');
 
 		// CRITICAL: Register sync event listeners FIRST, before initialization
 		// chatSyncService can auto-start sync when WebSocket connects during initialize()
@@ -487,19 +604,42 @@
 		
 		// INSTANT LOAD: Check if last opened chat is already in IndexedDB (non-blocking)
 		// This provides instant load on page reload without waiting for sync
+		// CRITICAL: On tab reload, load from IndexedDB (not server state) to prevent sudden chat switches
+		// On login, server state will be used (via handleSyncCompleteAndLoadLastChat)
 		if ($authStore.isAuthenticated && dbInitPromise) {
 			dbInitPromise.then(async () => {
-				const lastOpenedChatId = $userProfile.last_opened;
-				if (lastOpenedChatId && activeChat) {
-					console.debug('[+page.svelte] Checking if last opened chat is already in IndexedDB:', lastOpenedChatId);
+				// Load last_opened from IndexedDB (local state) instead of server state
+				// This prevents the sudden switch when server sync completes after tab reload
+				const { userDB } = await import('@repo/ui');
+				const localProfile = await userDB.getUserProfile();
+				const lastOpenedChatId = localProfile?.last_opened;
+				
+				if (!lastOpenedChatId) {
+					console.debug('[+page.svelte] [TAB RELOAD] No last opened chat in IndexedDB, will wait for sync or use server state on login');
+					return;
+				}
+				
+				// Handle "new chat window" case
+				if (lastOpenedChatId === '/chat/new' || lastOpenedChatId === 'new') {
+					console.debug('[+page.svelte] [TAB RELOAD] Last opened was new chat window, clearing active chat');
+					// Clear active chat to show new chat window
+					// The ActiveChat component will show the new chat interface when no chat is selected
+					activeChatStore.clearActiveChat();
+					phasedSyncState.markSyncCompleted();
+					return;
+				}
+				
+				// Handle real chat ID
+				if (activeChat) {
+					console.debug('[+page.svelte] [TAB RELOAD] Checking if last opened chat is already in IndexedDB:', lastOpenedChatId);
 					const lastChat = await chatDB.getChat(lastOpenedChatId);
 					if (lastChat) {
-						console.debug('[+page.svelte] ✅ INSTANT LOAD: Last opened chat found in IndexedDB, loading immediately');
+						console.debug('[+page.svelte] ✅ INSTANT LOAD: Last opened chat found in IndexedDB (tab reload), loading immediately');
 						activeChatStore.setActiveChat(lastOpenedChatId);
 						activeChat.loadChat(lastChat);
 						// Mark sync as completed since we already have data
 						phasedSyncState.markSyncCompleted();
-						console.debug('[+page.svelte] ✅ Chat loaded instantly from cache');
+						console.debug('[+page.svelte] ✅ Chat loaded instantly from IndexedDB cache (tab reload)');
 					} else {
 						console.debug('[+page.svelte] Last opened chat not in IndexedDB yet, will wait for sync');
 					}
@@ -531,13 +671,37 @@
             console.debug('[+page.svelte] Skipping phased sync - already completed in this session');
             
             // If sync already completed but we're just mounting (e.g., after page reload),
-            // check if we should load the last opened chat
-            if ($userProfile.last_opened && activeChat) {
-                const lastChat = await chatDB.getChat($userProfile.last_opened);
-                if (lastChat) {
-                    console.debug('[+page.svelte] Sync already complete, loading last opened chat:', $userProfile.last_opened);
-                    activeChatStore.setActiveChat($userProfile.last_opened);
-                    activeChat.loadChat(lastChat);
+            // check if we should load the last opened chat from IndexedDB (not server state)
+            // This prevents sudden chat switches when already logged in
+            if (activeChat) {
+                try {
+                    // Load from IndexedDB (local state) instead of server state
+                    const { userDB } = await import('@repo/ui');
+                    const localProfile = await userDB.getUserProfile();
+                    const lastOpenedChatId = localProfile?.last_opened;
+                    
+                    if (!lastOpenedChatId) {
+                        return;
+                    }
+                    
+                    // Handle "new chat window" case
+                    if (lastOpenedChatId === '/chat/new' || lastOpenedChatId === 'new') {
+                        console.debug('[+page.svelte] [TAB RELOAD] Last opened was new chat window, clearing active chat');
+                        // Clear active chat to show new chat window
+                        // The ActiveChat component will show the new chat interface when no chat is selected
+                        activeChatStore.clearActiveChat();
+                        return;
+                    }
+                    
+                    // Handle real chat ID
+                    const lastChat = await chatDB.getChat(lastOpenedChatId);
+                    if (lastChat) {
+                        console.debug('[+page.svelte] [TAB RELOAD] Sync already complete, loading last opened chat from IndexedDB:', lastOpenedChatId);
+                        activeChatStore.setActiveChat(lastOpenedChatId);
+                        activeChat.loadChat(lastChat);
+                    }
+                } catch (error) {
+                    console.error('[+page.svelte] Error loading last opened chat from IndexedDB:', error);
                 }
             }
         }

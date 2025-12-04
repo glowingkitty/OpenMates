@@ -88,6 +88,7 @@
   onStop={handleStop}
   showStatus={false}
   faviconUrl={faviconUrl}
+  showSkillIcon={false}
 >
   {#snippet details({ isMobile: isMobileLayout })}
     <div class="website-details" class:mobile={isMobileLayout}>

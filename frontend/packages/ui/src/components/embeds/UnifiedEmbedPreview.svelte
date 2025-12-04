@@ -45,12 +45,16 @@
     onFullscreen?: () => void;
     /** Click handler for stop button */
     onStop?: () => void;
-    /** Snippet for details content (skill-specific) */
-    details: import('svelte').Snippet<[{ isMobile: boolean }]>;
+    /** Snippet for details content (skill-specific) - REQUIRED but made optional for defensive programming */
+    details?: import('svelte').Snippet<[{ isMobile: boolean }]>;
     /** Whether to show status line in basic infos bar (default: true) */
     showStatus?: boolean;
     /** Custom favicon URL for basic infos bar (shows instead of app icon) */
     faviconUrl?: string;
+    /** Custom status text (overrides default status text) */
+    customStatusText?: string;
+    /** Whether to show skill icon (only for app skills, not for individual embeds like code, website, video) */
+    showSkillIcon?: boolean;
   }
   
   let {
@@ -66,8 +70,23 @@
     onStop,
     details,
     showStatus = true,
-    faviconUrl
+    faviconUrl,
+    customStatusText,
+    showSkillIcon = true
   }: Props = $props();
+  
+  // DEBUG: Log when details snippet is missing - this helps identify which embed is broken
+  $effect(() => {
+    if (!details) {
+      console.error('[UnifiedEmbedPreview] MISSING details snippet! This will cause rendering issues.', {
+        id,
+        appId,
+        skillId,
+        skillName,
+        status
+      });
+    }
+  });
   
   // Determine layout based on isMobile prop only
   // Mobile layout should only be used inside groups of embedded previews
@@ -125,9 +144,16 @@
   {#if useMobileLayout}
     <!-- Mobile Layout: Vertical card (150x290px) -->
     <div class="mobile-layout">
-      <!-- Details content (skill-specific) -->
+      <!-- Details content (skill-specific) - with defensive guard -->
       <div class="details-section">
-        {@render details({ isMobile: true })}
+        {#if details}
+          {@render details({ isMobile: true })}
+        {:else}
+          <!-- Fallback when details snippet is missing -->
+          <div class="missing-details-fallback">
+            <span class="fallback-text">{skillName || appId}</span>
+          </div>
+        {/if}
       </div>
       
       <!-- Basic infos bar (mobile layout) -->
@@ -142,14 +168,23 @@
         onStop={handleStop}
         {showStatus}
         {faviconUrl}
+        {showSkillIcon}
+        customStatusText={customStatusText}
       />
     </div>
   {:else}
     <!-- Desktop Layout: Horizontal card (300x200px) -->
     <div class="desktop-layout">
-      <!-- Details content (skill-specific) at top -->
+      <!-- Details content (skill-specific) at top - with defensive guard -->
       <div class="details-section">
-        {@render details({ isMobile: false })}
+        {#if details}
+          {@render details({ isMobile: false })}
+        {:else}
+          <!-- Fallback when details snippet is missing -->
+          <div class="missing-details-fallback">
+            <span class="fallback-text">{skillName || appId}</span>
+          </div>
+        {/if}
       </div>
       
       <!-- Basic infos bar (desktop layout) -->
@@ -164,6 +199,8 @@
         onStop={handleStop}
         {showStatus}
         {faviconUrl}
+        {showSkillIcon}
+        customStatusText={customStatusText}
       />
     </div>
   {/if}
@@ -261,6 +298,31 @@
     width: 100%;
     flex: 1;
     min-height: 0;
+  }
+  
+  /* ===========================================
+     Fallback for Missing Details Snippet
+     =========================================== */
+  
+  .missing-details-fallback {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    padding: 16px;
+    color: var(--color-grey-70);
+    font-size: 14px;
+    text-align: center;
+  }
+  
+  .fallback-text {
+    word-break: break-word;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
+    -webkit-box-orient: vertical;
   }
 </style>
 

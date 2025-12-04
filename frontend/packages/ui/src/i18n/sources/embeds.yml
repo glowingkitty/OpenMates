@@ -251,3 +251,141 @@ open_on_provider:
   cs: 'Otevřít na {provider}'
   sv: 'Öppna på {provider}'
   verified_by_human: []
+code_snippet:
+  context: Default filename for code embeds when no filename is provided
+  en: Code snippet
+  de: Code-Ausschnitt
+  zh: 代码片段
+  es: Fragmento de código
+  fr: Extrait de code
+  pt: Trecho de código
+  ru: Фрагмент кода
+  ja: コードスニペット
+  ko: 코드 스니펫
+  it: Frammento di codice
+  tr: Kod parçası
+  vi: Đoạn mã
+  id: Potongan kode
+  pl: Fragment kodu
+  nl: Codefragment
+  ar: مقتطف من الكود
+  hi: कोड स्निपेट
+  th: ตัวอย่างโค้ด
+  cs: Úryvek kódu
+  sv: Kodstycke
+  verified_by_human: []
+code_line_singular:
+  context: Singular form of 'line' for code embeds, e.g. 'line'
+  en: line
+  de: Zeile
+  zh: 行
+  es: línea
+  fr: ligne
+  pt: linha
+  ru: строка
+  ja: 行
+  ko: 줄
+  it: riga
+  tr: satır
+  vi: dòng
+  id: baris
+  pl: linia
+  nl: regel
+  ar: سطر
+  hi: पंक्ति
+  th: บรรทัด
+  cs: řádek
+  sv: rad
+  verified_by_human: []
+code_line_plural:
+  context: Plural form of 'line' for code embeds, e.g. 'lines'
+  en: lines
+  de: Zeilen
+  zh: 行
+  es: líneas
+  fr: lignes
+  pt: linhas
+  ru: строк
+  ja: 行
+  ko: 줄
+  it: righe
+  tr: satır
+  vi: dòng
+  id: baris
+  pl: linii
+  nl: regels
+  ar: أسطر
+  hi: पंक्तियाँ
+  th: บรรทัด
+  cs: řádků
+  sv: rader
+  verified_by_human: []
+code_lines:
+  context: Line count text for code embeds with plural handling, e.g. '5 lines' or '1 line'
+  en: '{count, plural, one {# line} other {# lines}}'
+  de: '{count, plural, one {# Zeile} other {# Zeilen}}'
+  zh: '{count} 行'
+  es: '{count, plural, one {# línea} other {# líneas}}'
+  fr: '{count, plural, one {# ligne} other {# lignes}}'
+  pt: '{count, plural, one {# linha} other {# linhas}}'
+  ru: '{count, plural, one {# строка} few {# строки} other {# строк}}'
+  ja: '{count} 行'
+  ko: '{count} 줄'
+  it: '{count, plural, one {# riga} other {# righe}}'
+  tr: '{count} satır'
+  vi: '{count} dòng'
+  id: '{count} baris'
+  pl: '{count, plural, one {# linia} few {# linie} other {# linii}}'
+  nl: '{count, plural, one {# regel} other {# regels}}'
+  ar: '{count, plural, one {سطر #} other {# أسطر}}'
+  hi: '{count, plural, one {# पंक्ति} other {# पंक्तियाँ}}'
+  th: '{count} บรรทัด'
+  cs: '{count, plural, one {# řádek} few {# řádky} other {# řádků}}'
+  sv: '{count, plural, one {# rad} other {# rader}}'
+  verified_by_human: []
+code_info:
+  context: Text showing line count and language for code embeds, e.g. '5 lines, Python' or '1 line'
+  en: '{lineCount}, {language}'
+  de: '{lineCount}, {language}'
+  zh: '{lineCount}，{language}'
+  es: '{lineCount}, {language}'
+  fr: '{lineCount}, {language}'
+  pt: '{lineCount}, {language}'
+  ru: '{lineCount}, {language}'
+  ja: '{lineCount}、{language}'
+  ko: '{lineCount}, {language}'
+  it: '{lineCount}, {language}'
+  tr: '{lineCount}, {language}'
+  vi: '{lineCount}, {language}'
+  id: '{lineCount}, {language}'
+  pl: '{lineCount}, {language}'
+  nl: '{lineCount}, {language}'
+  ar: '{lineCount}، {language}'
+  hi: '{lineCount}, {language}'
+  th: '{lineCount}, {language}'
+  cs: '{lineCount}, {language}'
+  sv: '{lineCount}, {language}'
+  verified_by_human: []
+error:
+  context: Status text when skill execution has an error
+  en: Error
+  de: Fehler
+  zh: 错误
+  es: Error
+  fr: Erreur
+  pt: Erro
+  ru: Ошибка
+  ja: エラー
+  ko: 오류
+  it: Errore
+  tr: Hata
+  vi: Lỗi
+  id: Kesalahan
+  pl: Błąd
+  nl: Fout
+  ar: خطأ
+  hi: त्रुटि
+  th: ข้อผิดพลาด
+  cs: Chyba
+  sv: Fel
+  verified_by_human: []

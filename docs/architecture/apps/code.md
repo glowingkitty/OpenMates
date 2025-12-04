@@ -228,7 +228,40 @@ Use Sentry or similar providers to get the error logs after an issue occured, fo
 
 ### Search
 
-**Recommended Approach:** Use `grep` (with `rg` as preferred alternative) for searching code in the codebase. This provides reliable pattern matching for the Search skill.
+Searches code repositories and uploaded code files for patterns, functions, variables, or specific content using grep-like functionality.
+
+**Features:**
+- Support for searching within uploaded code files or connected repositories
+- Regex pattern matching support (`grep` / `rg` style)
+- Language-aware search (highlights syntax, respects language-specific patterns)
+- Case-sensitive and case-insensitive options
+- Returns matched lines with context (surrounding lines) and line numbers
+- File-type filtering (e.g., search only in `.py`, `.js`, `.ts` files)
+- Works across multiple files in parallel (up to 5 requests)
+
+**Input Parameters:**
+- `file_ids`: Array of uploaded code file IDs or repository reference
+- `query`: Search pattern (supports regex, e.g., `def function_name`, `import.*request`)
+- `case_sensitive`: Boolean (default: false)
+- `context_lines`: Number of lines before/after match to include (default: 3)
+- `regex`: Boolean to enable regex mode (default: true)
+- `file_pattern`: Optional glob pattern to filter files (e.g., `*.py`, `src/**/*.ts`)
+
+**Output:**
+- Grouped results by file and query
+- Each match includes:
+  - File path and language
+  - Line number(s)
+  - Matched text with syntax highlighting
+  - Context lines before/after
+  - Match count per file
+
+**Implementation:**
+- Uses `rg` (ripgrep) as preferred tool for fast, efficient searching
+- Supports incremental results for large codebases
+- Caches search results for repeated queries
+- Celery-based processing with parallel requests
+- Returns results incrementally as searches complete
 
 ### Replace
 

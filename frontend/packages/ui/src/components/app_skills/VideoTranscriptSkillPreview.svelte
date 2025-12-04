@@ -85,109 +85,112 @@
   }
 </script>
 
+<!-- Content snippet for AppSkillPreviewBase -->
+{#snippet content({ useMobileLayout })}
+  {#if useMobileLayout}
+    <!-- Mobile layout: vertical card matching Figma design -->
+    <div class="mobile-content">
+      <!-- Title section -->
+      <div class="title-section">
+        <div class="title">{videoTitle}</div>
+        <div class="subtitle">{providerSubtitle}</div>
+      </div>
+      
+      <!-- Word count indicator (only when finished) -->
+      {#if previewData.status === 'finished' && wordCount > 0}
+        <div class="word-count-indicator">
+          {wordCount.toLocaleString()} {wordCount === 1 ? 'word' : 'words'}
+        </div>
+      {/if}
+      
+      <!-- Video count indicator (when multiple videos) -->
+      {#if previewData.status === 'finished' && videoCount > 1}
+        <div class="video-count-indicator">
+          {videoCount} {videoCount === 1 ? 'video' : 'videos'}
+        </div>
+      {/if}
+      
+      <!-- Status bar -->
+      <div class="status-bar">
+        <div class="icon_rounded video"></div>
+        <div class="status-content">
+          <span class="status-label">{statusLabel}</span>
+          <span class="status-text">{statusText}</span>
+        </div>
+      </div>
+      
+      <!-- Stop button (only when processing) -->
+      {#if previewData.status === 'processing'}
+        <!-- @ts-expect-error - onclick is valid Svelte 5 syntax -->
+        <button 
+          class="stop-button"
+          onclick={handleStopClick}
+          aria-label={$text('embeds.stop.text')}
+          title={$text('embeds.stop.text')}
+        >
+          <span class="clickable-icon icon_stop_processing"></span>
+        </button>
+      {/if}
+    </div>
+  {:else}
+    <!-- Desktop layout: horizontal card matching Figma design -->
+    <div class="desktop-content">
+      <!-- Videos icon -->
+      <div class="icon_rounded video"></div>
+      
+      <!-- Title section -->
+      <div class="title-section">
+        <div class="title">{videoTitle}</div>
+        <div class="subtitle">{providerSubtitle}</div>
+      </div>
+      
+      <!-- Status bar -->
+      <div class="status-bar">
+        <div class="icon_rounded video"></div>
+        <div class="status-content">
+          <span class="status-label">{statusLabel}</span>
+          <span class="status-text">{statusText}</span>
+        </div>
+      </div>
+      
+      <!-- Word count indicator (only when finished) -->
+      {#if previewData.status === 'finished' && wordCount > 0}
+        <div class="word-count-indicator">
+          {wordCount.toLocaleString()} {wordCount === 1 ? 'word' : 'words'}
+        </div>
+      {/if}
+      
+      <!-- Video count indicator (when multiple videos) -->
+      {#if previewData.status === 'finished' && videoCount > 1}
+        <div class="video-count-indicator">
+          {videoCount} {videoCount === 1 ? 'video' : 'videos'}
+        </div>
+      {/if}
+      
+      <!-- Stop button (only when processing, positioned on right) -->
+      {#if previewData.status === 'processing'}
+        <!-- @ts-expect-error - onclick is valid Svelte 5 syntax -->
+        <button 
+          class="stop-button"
+          onclick={handleStopClick}
+          aria-label={$text('embeds.stop.text')}
+          title={$text('embeds.stop.text')}
+        >
+          <span class="clickable-icon icon_stop_processing"></span>
+        </button>
+      {/if}
+    </div>
+  {/if}
+{/snippet}
+
 <!-- @ts-ignore - Svelte 5 type inference issue with component props -->
 <AppSkillPreviewBase 
     id={id}
     previewData={previewData}
     isMobile={isMobile}
     onFullscreen={onFullscreen}
+    {content}
 >
-  <svelte:fragment slot="content" let:useMobileLayout>
-    {#if useMobileLayout}
-      <!-- Mobile layout: vertical card matching Figma design -->
-      <div class="mobile-content">
-        <!-- Title section -->
-        <div class="title-section">
-          <div class="title">{videoTitle}</div>
-          <div class="subtitle">{providerSubtitle}</div>
-        </div>
-        
-        <!-- Word count indicator (only when finished) -->
-        {#if previewData.status === 'finished' && wordCount > 0}
-          <div class="word-count-indicator">
-            {wordCount.toLocaleString()} {wordCount === 1 ? 'word' : 'words'}
-          </div>
-        {/if}
-        
-        <!-- Video count indicator (when multiple videos) -->
-        {#if previewData.status === 'finished' && videoCount > 1}
-          <div class="video-count-indicator">
-            {videoCount} {videoCount === 1 ? 'video' : 'videos'}
-          </div>
-        {/if}
-        
-        <!-- Status bar -->
-        <div class="status-bar">
-          <div class="icon_rounded videos"></div>
-          <div class="status-content">
-            <span class="status-label">{statusLabel}</span>
-            <span class="status-text">{statusText}</span>
-          </div>
-        </div>
-        
-        <!-- Stop button (only when processing) -->
-        {#if previewData.status === 'processing'}
-          <!-- @ts-expect-error - onclick is valid Svelte 5 syntax -->
-          <button 
-            class="stop-button"
-            onclick={handleStopClick}
-            aria-label={$text('embeds.stop.text')}
-            title={$text('embeds.stop.text')}
-          >
-            <span class="clickable-icon icon_stop_processing"></span>
-          </button>
-        {/if}
-      </div>
-    {:else}
-      <!-- Desktop layout: horizontal card matching Figma design -->
-      <div class="desktop-content">
-        <!-- Videos icon -->
-        <div class="icon_rounded videos"></div>
-        
-        <!-- Title section -->
-        <div class="title-section">
-          <div class="title">{videoTitle}</div>
-          <div class="subtitle">{providerSubtitle}</div>
-        </div>
-        
-        <!-- Status bar -->
-        <div class="status-bar">
-          <div class="icon_rounded videos"></div>
-          <div class="status-content">
-            <span class="status-label">{statusLabel}</span>
-            <span class="status-text">{statusText}</span>
-          </div>
-        </div>
-        
-        <!-- Word count indicator (only when finished) -->
-        {#if previewData.status === 'finished' && wordCount > 0}
-          <div class="word-count-indicator">
-            {wordCount.toLocaleString()} {wordCount === 1 ? 'word' : 'words'}
-          </div>
-        {/if}
-        
-        <!-- Video count indicator (when multiple videos) -->
-        {#if previewData.status === 'finished' && videoCount > 1}
-          <div class="video-count-indicator">
-            {videoCount} {videoCount === 1 ? 'video' : 'videos'}
-          </div>
-        {/if}
-        
-        <!-- Stop button (only when processing, positioned on right) -->
-        {#if previewData.status === 'processing'}
-          <!-- @ts-expect-error - onclick is valid Svelte 5 syntax -->
-          <button 
-            class="stop-button"
-            onclick={handleStopClick}
-            aria-label={$text('embeds.stop.text')}
-            title={$text('embeds.stop.text')}
-          >
-            <span class="clickable-icon icon_stop_processing"></span>
-          </button>
-        {/if}
-      </div>
-    {/if}
-  </svelte:fragment>
 </AppSkillPreviewBase>
 
 <style>

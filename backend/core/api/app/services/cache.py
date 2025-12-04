@@ -1,6 +1,6 @@
 import logging
 import json # For serializing/deserializing metadata
-from typing import Dict, Optional, List # For type hinting
+from typing import Dict, Optional, List, Any # For type hinting
 
 # Import base service and mixins
 from .cache_base import CacheServiceBase
@@ -26,6 +26,8 @@ MOST_USED_APPS_CACHE_KEY = "app_usage:most_used:30d"
 # Cache keys for AI processing configuration
 BASE_INSTRUCTIONS_CACHE_KEY = "ai:base_instructions_v1"
 MATES_CONFIGS_CACHE_KEY = "ai:mates_configs_v1"
+CONTENT_SANITIZATION_MODEL_CACHE_KEY = "ai:content_sanitization_model_v1"
+PROMPT_INJECTION_DETECTION_CONFIG_CACHE_KEY = "ai:prompt_injection_detection_config_v1"
 
 class CacheService(
     CacheServiceBase,
@@ -277,6 +279,103 @@ class CacheService(
             return None
         except Exception as e:
             logger.error(f"Error retrieving or parsing mates_configs from cache for key '{MATES_CONFIGS_CACHE_KEY}': {e}", exc_info=True)
+            return None
+
+    async def set_content_sanitization_model(self, model_id: str, ttl: int = 86400):
+        """
+        Stores the content sanitization model ID in the cache.
+        
+        This is preloaded on server startup to avoid disk I/O on every content sanitization request.
+        
+        Args:
+            model_id (str): The model ID for content sanitization (e.g., "openai/gpt-oss-safeguard-20b").
+            ttl (int): Time-to-live for the cached data in seconds. Defaults to 24 hours.
+        """
+        try:
+            await self.set(CONTENT_SANITIZATION_MODEL_CACHE_KEY, model_id, ttl=ttl)
+            logger.info(f"Successfully cached content_sanitization_model to Redis with key '{CONTENT_SANITIZATION_MODEL_CACHE_KEY}' (TTL: {ttl}s).")
+        except Exception as e:
+            logger.error(f"Failed to set content_sanitization_model in cache: {e}", exc_info=True)
+            # Don't raise - allow fallback to disk loading
+
+    async def get_content_sanitization_model(self) -> Optional[str]:
+        """
+        Retrieves the content sanitization model ID from the cache.
+        
+        Returns:
+            Optional[str]: The model ID string, or None if not found or an error occurs.
+        """
+        try:
+            logger.debug(f"Attempting to retrieve content_sanitization_model from cache with key '{CONTENT_SANITIZATION_MODEL_CACHE_KEY}'")
+            model_id = await self.get(CONTENT_SANITIZATION_MODEL_CACHE_KEY)
+            if not model_id:
+                logger.warning(f"Content sanitization model not found in cache with key '{CONTENT_SANITIZATION_MODEL_CACHE_KEY}'. Cache may be empty or expired.")
+                return None
+
+            # Handle bytes response (Redis returns bytes when decode_responses=False)
+            if isinstance(model_id, bytes):
+                model_id = model_id.decode('utf-8')
+                logger.debug(f"Decoded bytes response from cache to string")
+
+            if isinstance(model_id, str):
+                logger.debug(f"Successfully retrieved content_sanitization_model from cache: {model_id}")
+                return model_id
+            else:
+                logger.error(f"Content sanitization model from cache is not a string: {type(model_id)}")
+                return None
+        except Exception as e:
+            logger.error(f"Error retrieving content_sanitization_model from cache for key '{CONTENT_SANITIZATION_MODEL_CACHE_KEY}': {e}", exc_info=True)
+            return None
+
+    async def set_prompt_injection_detection_config(self, config: Dict[str, Any], ttl: int = 86400):
+        """
+        Serializes and stores the prompt injection detection configuration in the cache.
+        
+        This is preloaded on server startup to avoid disk I/O on every content sanitization request.
+        
+        Args:
+            config (Dict[str, Any]): The prompt injection detection configuration dictionary.
+            ttl (int): Time-to-live for the cached data in seconds. Defaults to 24 hours.
+        """
+        try:
+            config_json = json.dumps(config)
+            await self.set(PROMPT_INJECTION_DETECTION_CONFIG_CACHE_KEY, config_json, ttl=ttl)
+            logger.info(f"Successfully cached prompt_injection_detection_config to Redis with key '{PROMPT_INJECTION_DETECTION_CONFIG_CACHE_KEY}' (TTL: {ttl}s).")
+        except Exception as e:
+            logger.error(f"Failed to set prompt_injection_detection_config in cache: {e}", exc_info=True)
+            # Don't raise - allow fallback to disk loading
+
+    async def get_prompt_injection_detection_config(self) -> Optional[Dict[str, Any]]:
+        """
+        Retrieves and deserializes the prompt injection detection configuration from the cache.
+        
+        Returns:
+            Optional[Dict[str, Any]]: The configuration dictionary, or None if not found or an error occurs.
+        """
+        try:
+            logger.debug(f"Attempting to retrieve prompt_injection_detection_config from cache with key '{PROMPT_INJECTION_DETECTION_CONFIG_CACHE_KEY}'")
+            config_json = await self.get(PROMPT_INJECTION_DETECTION_CONFIG_CACHE_KEY)
+            if not config_json:
+                logger.warning(f"Prompt injection detection config not found in cache with key '{PROMPT_INJECTION_DETECTION_CONFIG_CACHE_KEY}'. Cache may be empty or expired.")
+                return None
+
+            # Handle bytes response (Redis returns bytes when decode_responses=False)
+            if isinstance(config_json, bytes):
+                config_json = config_json.decode('utf-8')
+                logger.debug(f"Decoded bytes response from cache to string (length: {len(config_json)})")
+
+            # Check if the data is already a dictionary
+            if isinstance(config_json, dict):
+                return config_json
+            else:
+                config = json.loads(config_json)
+                logger.debug(f"Successfully retrieved prompt_injection_detection_config from cache.")
+                return config
+        except json.JSONDecodeError as jde:
+            logger.error(f"Failed to parse prompt_injection_detection_config from cache (JSONDecodeError) for key '{PROMPT_INJECTION_DETECTION_CONFIG_CACHE_KEY}': {jde}", exc_info=True)
+            return None
+        except Exception as e:
+            logger.error(f"Error retrieving or parsing prompt_injection_detection_config from cache for key '{PROMPT_INJECTION_DETECTION_CONFIG_CACHE_KEY}': {e}", exc_info=True)
             return None
 
     async def set_user_cache_primed_flag(self, user_id: str, expiry_seconds: int = 21600): # 6 hours

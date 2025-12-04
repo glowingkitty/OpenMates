@@ -59,10 +59,28 @@ export * from "./src/demo_chats"; // Export demo chat data and helpers
 
 // Services
 export { chatDB } from "./src/services/db"; // Export chat database
+export { userDB } from "./src/services/userDB"; // Export user database
 export { chatSyncService } from "./src/services/chatSyncService"; // Export chat sync service
 export { webSocketService } from "./src/services/websocketService"; // Export WebSocket service for auth error handling
 export * from "./src/services/chatUrlService"; // Export chat URL service for deep linking
-export { getKeyFromStorage, checkAndClearMasterKeyOnLoad } from "./src/services/cryptoService"; // Export getKeyFromStorage and checkAndClearMasterKeyOnLoad for offline-first auth
+export { 
+    getKeyFromStorage, 
+    checkAndClearMasterKeyOnLoad,
+    // Embed key management functions for wrapped key architecture
+    generateEmbedKey,
+    wrapEmbedKeyWithMasterKey,
+    wrapEmbedKeyWithChatKey,
+    unwrapEmbedKeyWithMasterKey,
+    unwrapEmbedKeyWithChatKey,
+    encryptWithEmbedKey,
+    decryptWithEmbedKey
+} from "./src/services/cryptoService"; // Export cryptographic utilities
+export { decryptShareKeyBlob } from "./src/services/shareEncryption"; // Export share encryption utilities
+export { embedStore } from "./src/services/embedStore"; // Export embed store
+export { shareMetadataQueue } from "./src/services/shareMetadataQueue"; // Export share metadata queue service
+
+// Utils - export computeSHA256 for hashing
+export { computeSHA256 } from "./src/message_parsing/utils";
 
 // Styles
 export * from "./src/styles/constants";
@@ -81,3 +99,4 @@ export { tooltip } from "./src/actions/tooltip";
 // Config
 export * from "./src/config/links";
 export * from "./src/config/meta";
+export * from "./src/config/api"; // Export API config helpers

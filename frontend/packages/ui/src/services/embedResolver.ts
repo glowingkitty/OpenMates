@@ -61,12 +61,28 @@ export async function resolveEmbed(embed_id: string): Promise<EmbedData | null> 
       return cachedEmbed as EmbedData;
     }
     
-    // If not in EmbedStore, fetch from Directus
-    // TODO: Implement Directus fetch when sync service is ready
-    console.debug('[embedResolver] Embed not in EmbedStore, fetching from Directus:', embed_id);
+    // If not in EmbedStore, request from server via WebSocket (async, non-blocking)
+    // This handles cases where embeds weren't in the sync payload
+    // The embed will be stored when the server responds, and the UI will re-render
+    console.warn('[embedResolver] Embed not in EmbedStore, requesting from server (async):', embed_id);
     
-    // For now, return null if not cached
-    // This will be implemented when sync service handles embed fetching
+    try {
+      const { webSocketService } = await import('./websocketService');
+      
+      // Request embed from server via WebSocket (non-blocking)
+      // Server will respond with send_embed_data event, which will store the embed
+      // The UI will automatically re-render when the embed is stored
+      webSocketService.sendMessage('request_embed', {
+        embed_id: embed_id
+      }).catch(error => {
+        console.error('[embedResolver] Error requesting embed from server:', error);
+      });
+    } catch (error) {
+      console.error('[embedResolver] Error setting up embed request:', error);
+    }
+    
+    // Return null for now - the embed will be available after server responds
+    // The renderer should handle null gracefully and show a loading/error state
     return null;
   } catch (error) {
     console.error('[embedResolver] Error resolving embed:', embed_id, error);
@@ -77,9 +93,26 @@ export async function resolveEmbed(embed_id: string): Promise<EmbedData | null> 
 /**
  * Decode TOON content to JavaScript object
  * @param toonContent - TOON-encoded string
- * @returns Decoded object
+ * @returns Decoded object or null if content is invalid/missing
  */
-export async function decodeToonContent(toonContent: string): Promise<any> {
+export async function decodeToonContent(toonContent: string | null | undefined): Promise<any> {
+  // CRITICAL: Handle null/undefined content gracefully to prevent crashes
+  // This can happen when embeds fail to decrypt (e.g., missing embed keys)
+  if (!toonContent) {
+    console.warn('[embedResolver] decodeToonContent called with null/undefined content');
+    return null;
+  }
+  
+  // Also check if it's not a string (could be an object if already decoded)
+  if (typeof toonContent !== 'string') {
+    console.warn('[embedResolver] decodeToonContent called with non-string content:', typeof toonContent);
+    // If it's already an object, return it as-is
+    if (typeof toonContent === 'object') {
+      return toonContent;
+    }
+    return null;
+  }
+  
   await initToonDecoder();
   
   if (toonDecode) {

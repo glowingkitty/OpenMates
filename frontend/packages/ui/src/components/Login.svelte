@@ -248,6 +248,15 @@
         // Cancel any pending conditional UI passkey request
         cancelConditionalUIPasskey();
         
+        // Cancel any pending manual passkey login request
+        // This prevents NotAllowedError when user navigates to signup during passkey login
+        if (passkeyLoginAbortController) {
+            passkeyLoginAbortController.abort();
+            passkeyLoginAbortController = null;
+            isPasskeyLoading = false;
+            isLoading = false;
+        }
+        
         // Clear login and 2FA state before switching view
         email = '';
         password = '';
@@ -504,21 +513,32 @@
                     signal: passkeyLoginAbortController?.signal
                 }) as PublicKeyCredential;
             } catch (error: any) {
-                console.error('WebAuthn assertion failed:', error);
-                // Handle abort or user cancellation
+                // Handle expected cancellations first (don't log as errors)
                 if (error.name === 'AbortError') {
-                    // Request was aborted - just reset, don't show error
+                    // Request was aborted (e.g., user navigated to signup) - expected behavior
                     console.log('[Login] Passkey login was cancelled');
                     isPasskeyLoading = false;
                     isLoading = false;
                     return;
                 }
                 if (error.name === 'NotAllowedError') {
-                    // User cancelled - just reset, don't show error
+                    // NotAllowedError can occur when:
+                    // 1. User cancelled the passkey prompt
+                    // 2. Request timed out
+                    // 3. User navigated away (e.g., to signup) before completing
+                    // This is expected behavior during navigation, so log as info, not error
+                    const isExpectedCancellation = $isInSignupProcess || !passkeyLoginAbortController;
+                    if (isExpectedCancellation) {
+                        console.log('[Login] Passkey login cancelled (expected during navigation)');
+                    } else {
+                        console.log('[Login] Passkey login was cancelled by user');
+                    }
                     isPasskeyLoading = false;
                     isLoading = false;
                     return;
                 }
+                // Only log unexpected errors as errors
+                console.error('WebAuthn assertion failed with unexpected error:', error);
                 loginFailedWarning = true;
                 isPasskeyLoading = false;
                 isLoading = false;

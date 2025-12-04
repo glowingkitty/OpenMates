@@ -23,7 +23,7 @@ models:
         model_id: "qwen-3-235b-a22b-instruct-2507"  # Direct Cerebras model identifier (Preview model)
       - id: "google"
         name: "Google Cloud Vertex AI"
-        model_id: "qwen/qwen3-235b-a22b-instruct-2507-maas"  # Google Vertex AI model identifier
+        model_id: "qwen3-235b-a22b-instruct-2507-maas"  # Google Vertex AI model identifier (without publisher prefix)
       - id: "openrouter"
         name: "OpenRouter"
         model_id: "qwen/qwen3-235b-a22b-2507"  # OpenRouter's model identifier

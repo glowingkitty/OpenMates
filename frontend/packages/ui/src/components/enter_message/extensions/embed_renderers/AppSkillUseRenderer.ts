@@ -18,6 +18,7 @@ import WebSearchEmbedPreview from '../../../embeds/WebSearchEmbedPreview.svelte'
 import NewsSearchEmbedPreview from '../../../embeds/NewsSearchEmbedPreview.svelte';
 import VideosSearchEmbedPreview from '../../../embeds/VideosSearchEmbedPreview.svelte';
 import MapsSearchEmbedPreview from '../../../embeds/MapsSearchEmbedPreview.svelte';
+import VideoTranscriptEmbedPreview from '../../../embeds/VideoTranscriptEmbedPreview.svelte';
 
 // Track mounted components for cleanup
 const mountedComponents = new WeakMap<HTMLElement, ReturnType<typeof mount>>();
@@ -32,63 +33,79 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     if (attrs.contentRef && attrs.contentRef.startsWith('embed:')) {
       const embedId = attrs.contentRef.replace('embed:', '');
       
-      // CRITICAL FIX: Show processing state IMMEDIATELY if attrs.status indicates processing
-      // This ensures the user sees "processing" state during streaming, not waiting
-      // for the embed data to be fetched. The embed data might arrive with "finished"
-      // status due to race conditions in the JavaScript event loop where send_embed_data
-      // is processed during the await below.
-      if (attrs.status === 'processing') {
-        content.innerHTML = this.renderProcessingState(attrs);
-        console.debug('[AppSkillUseRenderer] Immediately rendered processing state for embed:', embedId);
-        return;
-      }
-      
-      // Load embed from EmbedStore
+      // Load embed from EmbedStore (even if processing, so we can mount the correct component)
       const embedData = await resolveEmbed(embedId);
       
       if (embedData) {
-        // Decode TOON content
-        const decodedContent = await decodeToonContent(embedData.content);
+        // CRITICAL FIX: Filter out error embeds with "superseded" message
+        // These are placeholder embeds that were replaced by multiple request-specific embeds
+        // They should not be rendered to avoid showing confusing error messages
+        if (embedData.status === 'error') {
+          const decodedContent = await decodeToonContent(embedData.content);
+          if (decodedContent && decodedContent.error) {
+            const errorMessage = decodedContent.error;
+            if (typeof errorMessage === 'string' && errorMessage.includes('superseded')) {
+              console.debug('[AppSkillUseRenderer] Skipping superseded error embed:', embedId);
+              // Don't render this embed - it was replaced by multiple specific embeds
+              content.innerHTML = '';
+              return;
+            }
+          }
+        }
         
-        // Render based on skill type
-        if (decodedContent) {
-          const skillId = decodedContent.skill_id || '';
-          const appId = decodedContent.app_id || '';
-          
+        // Decode TOON content (may be minimal for processing state)
+        // Even in processing state, the content should have app_id and skill_id
+        let decodedContent = null;
+        try {
+          decodedContent = embedData.content ? await decodeToonContent(embedData.content) : null;
+        } catch (error) {
+          console.debug('[AppSkillUseRenderer] Error decoding content, may be processing state:', error);
+          // Continue with null decodedContent - we'll use fallback rendering
+        }
+        
+        // Determine status - use embedData status if available, otherwise use attrs.status
+        const status = embedData.status || attrs.status || 'processing';
+        
+        // Extract app_id and skill_id from decodedContent (even if minimal)
+        const skillId = decodedContent?.skill_id || '';
+        const appId = decodedContent?.app_id || '';
+        
+        // Render based on skill type (even if decodedContent is minimal/processing)
+        if (decodedContent || (appId && skillId)) {
           // For web search, render using Svelte component
           if (appId === 'web' && skillId === 'search') {
-            return this.renderWebSearchComponent(attrs, embedData, decodedContent, content);
+            return this.renderWebSearchComponent(attrs, embedData, decodedContent || {}, content);
           }
           
           // For news search, render using Svelte component
           if (appId === 'news' && skillId === 'search') {
-            return this.renderNewsSearchComponent(attrs, embedData, decodedContent, content);
+            return this.renderNewsSearchComponent(attrs, embedData, decodedContent || {}, content);
           }
           
           // For videos search, render using Svelte component
           if (appId === 'videos' && skillId === 'search') {
-            return this.renderVideosSearchComponent(attrs, embedData, decodedContent, content);
+            return this.renderVideosSearchComponent(attrs, embedData, decodedContent || {}, content);
           }
           
           // For maps search, render using Svelte component
           if (appId === 'maps' && skillId === 'search') {
-            return this.renderMapsSearchComponent(attrs, embedData, decodedContent, content);
+            return this.renderMapsSearchComponent(attrs, embedData, decodedContent || {}, content);
           }
           
-          // For video transcript, render video transcript preview
+          // For video transcript, render video transcript preview using Svelte component
           // Check both 'get_transcript' and 'get-transcript' (hyphen variant)
           if (appId === 'videos' && (skillId === 'get_transcript' || skillId === 'get-transcript')) {
-            console.debug('[AppSkillUseRenderer] Rendering video transcript for', { appId, skillId, decodedContent });
-            return this.renderVideoTranscript(attrs, embedData, decodedContent, content);
+            console.debug('[AppSkillUseRenderer] Rendering video transcript for', { appId, skillId, decodedContent, status });
+            return this.renderVideoTranscriptComponent(attrs, embedData, decodedContent || {}, content);
           }
           
           // For web read, render web read preview
           if (appId === 'web' && skillId === 'read') {
-            return this.renderWebRead(attrs, embedData, decodedContent, content);
+            return this.renderWebRead(attrs, embedData, decodedContent || {}, content);
           }
           
           // For other skills, render generic app skill preview
-          return this.renderGenericSkill(attrs, embedData, decodedContent, content);
+          return this.renderGenericSkill(attrs, embedData, decodedContent || {}, content);
         }
       }
     }
@@ -423,7 +440,74 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     return div.innerHTML;
   }
   
-  private renderVideoTranscript(
+  /**
+   * Render video transcript embed using Svelte component
+   * Uses Svelte 5's mount() API to mount the component into the DOM
+   */
+  private renderVideoTranscriptComponent(
+    attrs: EmbedNodeAttributes,
+    embedData: any,
+    decodedContent: any,
+    content: HTMLElement
+  ): void {
+    const results = decodedContent.results || [];
+    const status = decodedContent.status || attrs.status || 'finished';
+    const taskId = decodedContent.task_id || '';
+    
+    // Cleanup any existing mounted component
+    const existingComponent = mountedComponents.get(content);
+    if (existingComponent) {
+      try {
+        unmount(existingComponent);
+      } catch (e) {
+        console.warn('[AppSkillUseRenderer] Error unmounting existing component:', e);
+      }
+    }
+    
+    // Clear the content element
+    content.innerHTML = '';
+    
+    // Mount the Svelte component
+    try {
+      const embedId = attrs.contentRef?.replace('embed:', '') || '';
+      
+      // Create a handler for fullscreen that dispatches the event
+      const handleFullscreen = () => {
+        this.openFullscreen(attrs, embedData, decodedContent);
+      };
+      
+      const component = mount(VideoTranscriptEmbedPreview, {
+        target: content,
+        props: {
+          id: embedId,
+          results,
+          status: status as 'processing' | 'finished' | 'error',
+          taskId,
+          isMobile: false, // Default to desktop in message view
+          onFullscreen: handleFullscreen
+        }
+      });
+      
+      // Store reference for cleanup
+      mountedComponents.set(content, component);
+      
+      console.debug('[AppSkillUseRenderer] Mounted VideoTranscriptEmbedPreview component:', {
+        embedId,
+        status,
+        resultsCount: results.length
+      });
+      
+    } catch (error) {
+      console.error('[AppSkillUseRenderer] Error mounting VideoTranscriptEmbedPreview component:', error);
+      // Fallback to HTML rendering
+      this.renderVideoTranscriptHTML(attrs, embedData, decodedContent, content);
+    }
+  }
+  
+  /**
+   * Fallback HTML rendering for video transcript (used when Svelte mount fails)
+   */
+  private renderVideoTranscriptHTML(
     attrs: EmbedNodeAttributes,
     embedData: any,
     decodedContent: any,
@@ -436,27 +520,22 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     const videoCount = results.length || 0;
     const status = decodedContent.status || attrs.status || 'finished';
     
-    // Render video transcript preview with proper container structure
-    // This matches the structure used by other embed previews
+    // Render video transcript preview - no need for embed-unified-container wrapper
+    // The container is already provided by Embed.ts, just create the content directly
     const html = `
-      <div class="embed-unified-container embed-finished" 
-           data-embed-type="app-skill-use" 
-           data-embed-status="${status}"
-           ${status === 'finished' ? 'style="cursor: pointer;"' : ''}>
-        <div class="embed-content">
-          <div class="embed-app-icon videos">
-            <span class="icon icon_videos"></span>
-          </div>
-          <div class="embed-text-content">
-            <div class="embed-text-line">Video Transcript: ${this.escapeHtml(videoTitle)}</div>
-            <div class="embed-text-line">via YouTube Transcript API</div>
-          </div>
-          <div class="embed-extended-preview">
-            <div class="video-transcript-preview">
-              <div class="transcript-title">${this.escapeHtml(videoTitle)}</div>
-              ${wordCount > 0 ? `<div class="transcript-word-count">${wordCount.toLocaleString()} words</div>` : ''}
-              ${videoCount > 1 ? `<div class="transcript-video-count">${videoCount} videos</div>` : ''}
-            </div>
+      <div class="embed-content">
+        <div class="embed-app-icon videos">
+          <span class="icon icon_videos"></span>
+        </div>
+        <div class="embed-text-content">
+          <div class="embed-text-line">Video Transcript: ${this.escapeHtml(videoTitle)}</div>
+          <div class="embed-text-line">via YouTube Transcript API</div>
+        </div>
+        <div class="embed-extended-preview">
+          <div class="video-transcript-preview">
+            <div class="transcript-title">${this.escapeHtml(videoTitle)}</div>
+            ${wordCount > 0 ? `<div class="transcript-word-count">${wordCount.toLocaleString()} words</div>` : ''}
+            ${videoCount > 1 ? `<div class="transcript-video-count">${videoCount} videos</div>` : ''}
           </div>
         </div>
       </div>
@@ -466,12 +545,10 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     
     // Add click handler for fullscreen
     if (status === 'finished') {
-      const container = content.querySelector('.embed-unified-container');
-      if (container) {
-        container.addEventListener('click', () => {
-          this.openFullscreen(attrs, embedData, decodedContent);
-        });
-      }
+      content.style.cursor = 'pointer';
+      content.addEventListener('click', () => {
+        this.openFullscreen(attrs, embedData, decodedContent);
+      });
     }
   }
   
@@ -496,25 +573,21 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     const displayTitle = title || hostname || 'Website';
     const resultCount = results.length;
     
-    // Render web read preview
+    // Render web read preview - no need for embed-unified-container wrapper
+    // The container is already provided by Embed.ts, just create the content directly
     const html = `
-      <div class="embed-unified-container embed-finished" 
-           data-embed-type="app-skill-use" 
-           data-embed-status="finished"
-           ${attrs.status === 'finished' ? 'style="cursor: pointer;"' : ''}>
-        <div class="embed-content">
-          <div class="embed-app-icon web">
-            <span class="icon icon_web"></span>
-          </div>
-          <div class="embed-text-content">
-            <div class="embed-text-line">${this.escapeHtml(displayTitle)}</div>
-            <div class="embed-text-line">${hostname ? this.escapeHtml(hostname) : 'Web Read'}</div>
-          </div>
-          <div class="embed-extended-preview">
-            <div class="web-read-preview">
-              ${resultCount > 1 ? `<div class="read-result-count">${resultCount} pages read</div>` : ''}
-              ${url ? `<div class="read-url">${this.escapeHtml(url)}</div>` : ''}
-            </div>
+      <div class="embed-content">
+        <div class="embed-app-icon web">
+          <span class="icon icon_web"></span>
+        </div>
+        <div class="embed-text-content">
+          <div class="embed-text-line">${this.escapeHtml(displayTitle)}</div>
+          <div class="embed-text-line">${hostname ? this.escapeHtml(hostname) : 'Web Read'}</div>
+        </div>
+        <div class="embed-extended-preview">
+          <div class="web-read-preview">
+            ${resultCount > 1 ? `<div class="read-result-count">${resultCount} pages read</div>` : ''}
+            ${url ? `<div class="read-url">${this.escapeHtml(url)}</div>` : ''}
           </div>
         </div>
       </div>
@@ -524,10 +597,10 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     
     // Add click handler for fullscreen
     if (attrs.status === 'finished') {
+      content.style.cursor = 'pointer';
       content.addEventListener('click', () => {
         this.openFullscreen(attrs, embedData, decodedContent);
       });
-      content.style.cursor = 'pointer';
     }
   }
   
@@ -545,23 +618,20 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     // Log when generic skill is rendered (for debugging)
     console.debug('[AppSkillUseRenderer] Rendering generic skill:', { appId, skillId, decodedContent });
     
+    // Render generic skill preview - no need for embed-unified-container wrapper
+    // The container is already provided by Embed.ts, just create the content directly
     const html = `
-      <div class="embed-unified-container embed-finished" 
-           data-embed-type="app-skill-use" 
-           data-embed-status="${status}"
-           ${status === 'finished' ? 'style="cursor: pointer;"' : ''}>
-        <div class="embed-content">
-          <div class="embed-app-icon ${appId}">
-            <span class="icon icon_${appId}"></span>
-          </div>
-          <div class="embed-text-content">
-            <div class="embed-text-line">${this.escapeHtml(title)}</div>
-            <div class="embed-text-line">${appId} | ${skillId}</div>
-          </div>
-          <div class="embed-extended-preview">
-            <div class="app-skill-preview-content">
-              <div class="skill-result-preview">Skill result preview</div>
-            </div>
+      <div class="embed-content">
+        <div class="embed-app-icon ${appId}">
+          <span class="icon icon_${appId}"></span>
+        </div>
+        <div class="embed-text-content">
+          <div class="embed-text-line">${this.escapeHtml(title)}</div>
+          <div class="embed-text-line">${appId} | ${skillId}</div>
+        </div>
+        <div class="embed-extended-preview">
+          <div class="app-skill-preview-content">
+            <div class="skill-result-preview">Skill result preview</div>
           </div>
         </div>
       </div>
@@ -571,12 +641,10 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     
     // Add click handler for fullscreen
     if (status === 'finished') {
-      const container = content.querySelector('.embed-unified-container');
-      if (container) {
-        container.addEventListener('click', () => {
-          this.openFullscreen(attrs, embedData, decodedContent);
-        });
-      }
+      content.style.cursor = 'pointer';
+      content.addEventListener('click', () => {
+        this.openFullscreen(attrs, embedData, decodedContent);
+      });
     }
   }
   

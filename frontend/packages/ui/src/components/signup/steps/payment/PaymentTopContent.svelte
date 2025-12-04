@@ -119,6 +119,7 @@ step_10_top_content_svelte:
         position: relative;
         width: 100%;
         height: 100%;
+        min-height: 400px; /* Ensure minimum height for payment form visibility */
     }
     
     .top-container {
@@ -141,8 +142,6 @@ step_10_top_content_svelte:
         padding-bottom: 20px;
     }
     
-    
-    
     .primary-text {
         white-space: nowrap;
         display: flex;
@@ -158,7 +157,8 @@ step_10_top_content_svelte:
         right: 0;
         bottom: 0;
         padding: 0 24px;
-        overflow-y: hidden;
+        overflow-y: auto; /* Allow scrolling if content exceeds container */
+        overflow-x: hidden;
     }
 
     @media (max-width: 600px) {
@@ -176,26 +176,30 @@ step_10_top_content_svelte:
         align-items: center;
         justify-content: flex-start;
         width: 100%;
-        gap: 24px;
+        height: 100%; /* Fill available space */
+        gap: 0; /* Remove gap to allow full height usage */
     }
 
     .separated-block {
         position: relative;
         width: 95%;
-        height: 490px;
         max-width: 400px;
+        /* Fill full height of container - payment form is expanded step with full height */
+        height: 100%;
         background-color: var(--color-grey-20);
         border-radius: 16px;
         padding: 16px;
         box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
         display: flex;
         flex-direction: column;
+        overflow: hidden; /* Prevent content overflow */
+        box-sizing: border-box; /* Include padding in height calculation */
     }
     
     /* Target the bottom containers of our payment components */
     .separated-block :global(.bottom-container) {
         position: absolute;
-        bottom: 20px; /* Position 50px from the bottom as requested */
+        bottom: 20px;
         left: 0;
         width: 100%;
         padding-bottom: 0;

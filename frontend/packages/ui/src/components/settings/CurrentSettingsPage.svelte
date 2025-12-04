@@ -49,13 +49,15 @@
             dockedProfileTimeout = null;
         }
         
+        // Only show profile on main settings view
+        // Hide immediately for all sub-settings views (including when opened via deep link)
         if (isMenuVisible && activeSettingsView === 'main') {
             // Delay fade-in to match original profile animation timing (400ms transition)
             dockedProfileTimeout = setTimeout(() => {
                 showDockedProfile = true;
             }, 400);
         } else {
-            // Hide immediately when menu closes or view changes
+            // Hide immediately when menu closes or view changes to any non-main view
             showDockedProfile = false;
         }
         

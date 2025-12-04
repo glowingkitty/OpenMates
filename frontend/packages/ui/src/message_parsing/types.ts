@@ -4,7 +4,7 @@ export type EmbedType = 'code-code' | 'sheets-sheet' | 'docs-doc' | 'web-website
                        // App skill results (new embeds architecture)
                        'app-skill-use' |
                        // Group types (follow pattern: {type}-group)
-                       'web-website-group' | 'code-code-group' | 'docs-doc-group' | 'sheets-sheet-group' | 'videos-video-group' | 'audio-group' | 'image-group' | 'file-group' |
+                       'app-skill-use-group' | 'web-website-group' | 'code-code-group' | 'docs-doc-group' | 'sheets-sheet-group' | 'videos-video-group' | 'audio-group' | 'image-group' | 'file-group' |
                        // Allow for future extensions
                        string;
 
@@ -15,8 +15,8 @@ export interface EmbedNodeAttributes {
   // Type of embed content
   type: EmbedType;
   
-  // Processing status
-  status: 'processing' | 'finished';
+  // Processing status (including error state for failed decryption/loading)
+  status: 'processing' | 'finished' | 'error';
   
   // Content reference: stream:<uuid> during generation, cid:sha256:<hash> when finished, null for web embeds
   contentRef: string | null;
@@ -37,6 +37,10 @@ export interface EmbedNodeAttributes {
   description?: string;
   favicon?: string;
   image?: string;
+  
+  // Temporary field for preview code embeds (write mode only)
+  // Stores code content inline for visual preview before server creates real embed
+  code?: string;
   
   // Group-specific attributes
   groupedItems?: EmbedNodeAttributes[];

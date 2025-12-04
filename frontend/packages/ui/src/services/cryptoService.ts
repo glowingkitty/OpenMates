@@ -873,7 +873,14 @@ export async function decryptWithChatKey(encryptedDataWithIV: string, chatKey: U
     const decoder = new TextDecoder();
     return decoder.decode(decrypted);
   } catch (error) {
-    console.error('Chat decryption failed:', error);
+    // Enhanced logging to help diagnose decryption failures
+    console.error(
+      `[CryptoService] Chat decryption failed: ${error instanceof Error ? error.message : String(error)}. ` +
+      `Error type: ${error instanceof Error ? error.constructor.name : typeof error}. ` +
+      `Encrypted data length: ${encryptedDataWithIV.length} chars. ` +
+      `Chat key length: ${chatKey.length} bytes. ` +
+      `This usually indicates: wrong chat key, malformed encrypted content, or content encrypted with different key.`
+    );
     return null;
   }
 }
@@ -965,6 +972,218 @@ export async function decryptArrayWithChatKey(encryptedArrayWithIV: string, chat
     return JSON.parse(decryptedJson);
   } catch (error) {
     console.error('Error parsing decrypted array:', error);
+    return null;
+  }
+}
+
+// ============================================================================
+// EMBED KEY MANAGEMENT
+// ============================================================================
+
+/**
+ * Generates an embed-specific AES key (32 bytes for AES-256)
+ * Each embed has its own unique encryption key
+ * @returns Uint8Array - The generated embed key
+ */
+export function generateEmbedKey(): Uint8Array {
+  return crypto.getRandomValues(new Uint8Array(32));
+}
+
+/**
+ * Wraps an embed key with the user's master key for owner cross-chat access
+ * @param embedKey - The embed-specific key to wrap
+ * @returns Promise<string | null> - Base64 encoded wrapped key or null if master key not found
+ */
+export async function wrapEmbedKeyWithMasterKey(embedKey: Uint8Array): Promise<string | null> {
+  const masterKey = await getKeyFromStorage();
+  if (!masterKey) {
+    return null;
+  }
+
+  try {
+    const iv = crypto.getRandomValues(new Uint8Array(AES_IV_LENGTH));
+    const embedKeyBuffer = new Uint8Array(embedKey);
+    const encrypted = await crypto.subtle.encrypt(
+      { name: 'AES-GCM', iv },
+      masterKey,
+      embedKeyBuffer
+    );
+
+    // Combine IV + ciphertext
+    const combined = new Uint8Array(iv.length + encrypted.byteLength);
+    combined.set(iv);
+    combined.set(new Uint8Array(encrypted), iv.length);
+
+    return uint8ArrayToBase64(combined);
+  } catch (error) {
+    console.error('Failed to wrap embed key with master key:', error);
+    return null;
+  }
+}
+
+/**
+ * Unwraps an embed key using the user's master key
+ * @param wrappedEmbedKey - Base64 encoded wrapped embed key with IV
+ * @returns Promise<Uint8Array | null> - Unwrapped embed key or null if unwrapping fails
+ */
+export async function unwrapEmbedKeyWithMasterKey(wrappedEmbedKey: string): Promise<Uint8Array | null> {
+  const masterKey = await getKeyFromStorage();
+  if (!masterKey) {
+    console.warn('[CryptoService] unwrapEmbedKeyWithMasterKey: No master key in storage!');
+    return null;
+  }
+
+  try {
+    const combined = base64ToUint8Array(wrappedEmbedKey);
+    const iv = combined.slice(0, AES_IV_LENGTH);
+    const ciphertext = combined.slice(AES_IV_LENGTH);
+
+    const decrypted = await crypto.subtle.decrypt(
+      { name: 'AES-GCM', iv },
+      masterKey,
+      ciphertext
+    );
+
+    console.debug('[CryptoService] Successfully unwrapped embed key with master key, length:', decrypted.byteLength);
+    return new Uint8Array(decrypted);
+  } catch (error) {
+    console.warn('[CryptoService] Failed to unwrap embed key with master key (key mismatch?):', error);
+    return null;
+  }
+}
+
+/**
+ * Wraps an embed key with a chat key for shared chat access
+ * @param embedKey - The embed-specific key to wrap
+ * @param chatKey - The chat-specific key to use for wrapping
+ * @returns Promise<string> - Base64 encoded wrapped key
+ */
+export async function wrapEmbedKeyWithChatKey(embedKey: Uint8Array, chatKey: Uint8Array): Promise<string> {
+  const chatKeyBuffer = new Uint8Array(chatKey);
+  const cryptoKey = await crypto.subtle.importKey(
+    'raw',
+    chatKeyBuffer,
+    { name: 'AES-GCM' },
+    false,
+    ['encrypt']
+  );
+
+  const iv = crypto.getRandomValues(new Uint8Array(AES_IV_LENGTH));
+  const embedKeyBuffer = new Uint8Array(embedKey);
+  const encrypted = await crypto.subtle.encrypt(
+    { name: 'AES-GCM', iv },
+    cryptoKey,
+    embedKeyBuffer
+  );
+
+  // Combine IV + ciphertext
+  const combined = new Uint8Array(iv.length + encrypted.byteLength);
+  combined.set(iv);
+  combined.set(new Uint8Array(encrypted), iv.length);
+
+  return uint8ArrayToBase64(combined);
+}
+
+/**
+ * Unwraps an embed key using a chat key (for shared chat access)
+ * @param wrappedEmbedKey - Base64 encoded wrapped embed key with IV
+ * @param chatKey - The chat-specific key to use for unwrapping
+ * @returns Promise<Uint8Array | null> - Unwrapped embed key or null if unwrapping fails
+ */
+export async function unwrapEmbedKeyWithChatKey(wrappedEmbedKey: string, chatKey: Uint8Array): Promise<Uint8Array | null> {
+  try {
+    const chatKeyBuffer = new Uint8Array(chatKey);
+    const cryptoKey = await crypto.subtle.importKey(
+      'raw',
+      chatKeyBuffer,
+      { name: 'AES-GCM' },
+      false,
+      ['decrypt']
+    );
+
+    const combined = base64ToUint8Array(wrappedEmbedKey);
+    const iv = combined.slice(0, AES_IV_LENGTH);
+    const ciphertext = combined.slice(AES_IV_LENGTH);
+
+    const decrypted = await crypto.subtle.decrypt(
+      { name: 'AES-GCM', iv },
+      cryptoKey,
+      ciphertext
+    );
+
+    console.debug('[CryptoService] Successfully unwrapped embed key with chat key, length:', decrypted.byteLength);
+    return new Uint8Array(decrypted);
+  } catch (error) {
+    console.warn('[CryptoService] Failed to unwrap embed key with chat key:', error);
+    return null;
+  }
+}
+
+/**
+ * Encrypts data using an embed-specific key (AES-GCM)
+ * @param data - The data to encrypt
+ * @param embedKey - The embed-specific encryption key
+ * @returns Promise<string> - Base64 encoded encrypted data with IV
+ */
+export async function encryptWithEmbedKey(data: string, embedKey: Uint8Array): Promise<string> {
+  const encoder = new TextEncoder();
+  const dataBytes = encoder.encode(data);
+
+  const embedKeyBuffer = new Uint8Array(embedKey);
+  const cryptoKey = await crypto.subtle.importKey(
+    'raw',
+    embedKeyBuffer,
+    { name: 'AES-GCM' },
+    false,
+    ['encrypt']
+  );
+
+  const iv = crypto.getRandomValues(new Uint8Array(AES_IV_LENGTH));
+  const encrypted = await crypto.subtle.encrypt(
+    { name: 'AES-GCM', iv },
+    cryptoKey,
+    dataBytes
+  );
+
+  // Combine IV + ciphertext
+  const combined = new Uint8Array(iv.length + encrypted.byteLength);
+  combined.set(iv);
+  combined.set(new Uint8Array(encrypted), iv.length);
+
+  return uint8ArrayToBase64(combined);
+}
+
+/**
+ * Decrypts data using an embed-specific key (AES-GCM)
+ * @param encryptedDataWithIV - Base64 encoded encrypted data with IV
+ * @param embedKey - The embed-specific decryption key
+ * @returns Promise<string | null> - Decrypted data or null if decryption fails
+ */
+export async function decryptWithEmbedKey(encryptedDataWithIV: string, embedKey: Uint8Array): Promise<string | null> {
+  try {
+    const combined = base64ToUint8Array(encryptedDataWithIV);
+    const iv = combined.slice(0, AES_IV_LENGTH);
+    const ciphertext = combined.slice(AES_IV_LENGTH);
+
+    const embedKeyBuffer = new Uint8Array(embedKey);
+    const cryptoKey = await crypto.subtle.importKey(
+      'raw',
+      embedKeyBuffer,
+      { name: 'AES-GCM' },
+      false,
+      ['decrypt']
+    );
+
+    const decrypted = await crypto.subtle.decrypt(
+      { name: 'AES-GCM', iv },
+      cryptoKey,
+      ciphertext
+    );
+
+    const decoder = new TextDecoder();
+    return decoder.decode(decrypted);
+  } catch (error) {
+    console.error('Embed decryption failed:', error);
     return null;
   }
 }

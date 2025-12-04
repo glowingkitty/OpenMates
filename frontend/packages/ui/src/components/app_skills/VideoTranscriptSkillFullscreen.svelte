@@ -87,7 +87,7 @@
   {#snippet headerExtra()}
     {#if results.length > 1}
       <div class="results-indicator">
-        <div class="icon_rounded videos"></div>
+        <div class="icon_rounded video"></div>
         <span class="results-count">+{results.length - 1} more</span>
       </div>
     {/if}
@@ -355,8 +355,7 @@
     color: var(--color-font-primary);
     white-space: pre-wrap;
     word-wrap: break-word;
-    max-height: 600px;
-    overflow-y: auto;
+    /* Removed max-height to show full transcript - content is scrollable within fullscreen view */
   }
   
   .transcript-content::-webkit-scrollbar {

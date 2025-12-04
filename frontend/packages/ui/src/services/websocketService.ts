@@ -60,7 +60,7 @@ type KnownMessageTypes =
     | 'priority_chat_ready'            // Section 4.2, Phase 1: Server notification that target chat (from last_opened_path) is ready in cache
     | 'cache_primed'                   // Section 4.2, Phase 2: Server notification that general cache warming (e.g., 1000 chats list_item_data & versions) is ready
     | 'chat_title_updated'             // Section 6.3 & title_update_handler.py: Broadcast of title change (includes new title_v)
-    | 'chat_draft_updated'             // Section 7.3 & draft_update_handler.py: Broadcast of draft change (includes new draft_v and last_edited_overall_timestamp)
+    | 'chat_draft_updated'             // Section 7.3 & draft_update_handler.py: Broadcast of draft change (includes new draft_v). Note: Does NOT include last_edited_overall_timestamp (only messages update that)
     | 'chat_message_added'          // Section 8 & (implicitly by message persistence logic): Broadcast of a new message (includes new message object, messages_v, last_edited_overall_timestamp)
     | 'chat_deleted'                   // delete_chat_handler.py: Broadcast that a chat was deleted (client should remove from local store)
     | 'offline_sync_complete'          // offline_sync_handler.py: Response to sync_offline_changes, indicating status of processed offline items

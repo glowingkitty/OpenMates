@@ -1248,8 +1248,57 @@ async def passkey_registration_complete(
                     user={"id": user_id}
                 )
             
+            # CRITICAL: Fetch and cache user profile with username BEFORE finalize_login_session
+            # This ensures username is in cache even if decryption fails in login_user_with_lookup_hash
+            # Same pattern as password signup in auth_password.py
+            profile_success, user_profile, profile_message = await directus_service.get_user_profile(user_id)
+            if not profile_success or not user_profile:
+                logger.error(f"Failed to fetch user profile after passkey creation: {profile_message}")
+                return PasskeyRegistrationCompleteResponse(
+                    success=False,
+                    message="Account created but profile setup failed. Please try logging in manually.",
+                    user=None
+                )
+            
+            # Add user_email_salt to the profile since get_user_profile doesn't include it
+            user_profile["user_email_salt"] = complete_request.user_email_salt
+            
+            # Cache the user using the same logic as password signup
+            user_data_to_cache = {
+                "user_id": user_id,
+                "username": complete_request.username,  # Use username from request - it's guaranteed to be present during signup
+                "is_admin": is_admin,
+                "credits": user_profile.get("credits", 0),
+                "profile_image_url": user_profile.get("profile_image_url"),
+                "tfa_app_name": user_profile.get("tfa_app_name"),
+                "tfa_enabled": user_profile.get("tfa_enabled", False),
+                "last_opened": user_profile.get("last_opened"),
+                "vault_key_id": user_profile.get("vault_key_id"),
+                "consent_privacy_and_apps_default_settings": user_profile.get("consent_privacy_and_apps_default_settings"),
+                "consent_mates_default_settings": user_profile.get("consent_mates_default_settings"),
+                "language": complete_request.language,
+                "darkmode": complete_request.darkmode,
+                "gifted_credits_for_signup": user_profile.get("gifted_credits_for_signup"),
+                "encrypted_email_address": user_profile.get("encrypted_email_address"),
+                "invoice_counter": user_profile.get("invoice_counter", 0),
+                "lookup_hashes": user_profile.get("lookup_hashes", []),
+                "account_id": user_data.get("account_id"),  # From the original user_data
+                "user_email_salt": complete_request.user_email_salt  # Include the salt
+            }
+            
+            # Remove gifted_credits_for_signup if it's None or 0 before caching
+            if not user_data_to_cache.get("gifted_credits_for_signup"):
+                user_data_to_cache.pop("gifted_credits_for_signup", None)
+            
+            # Cache the user data (without refresh_token since finalize_login_session will handle that)
+            await cache_service.set_user(user_data_to_cache)
+            logger.info(f"Cached complete user profile for user {user_id} during passkey signup")
+            
+            # Update user_data with cached profile data for finalize_login_session
+            user_data.update(user_data_to_cache)
+            
             # Finalize login session
-            user = auth_data.get("user", {})
+            user = user_data  # Use the updated user_data with cached profile data
             device_hash, connection_hash, os_name, country_code, city, region, latitude, longitude = generate_device_fingerprint_hash(request, user_id)
             refresh_token = await finalize_login_session(
                 request=request,

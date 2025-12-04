@@ -14,7 +14,7 @@ Skills are functions which are executed on the OpenMates server or via external 
 
 **Key Features:**
 
-- Support for multiple requests per skill call (up to 9 parallel requests)
+- Support for multiple requests per skill call (up to 5 parallel requests)
 - Automatic parallel processing via Celery tasks
 - Rate limiting and retry logic for external APIs
 
@@ -66,9 +66,9 @@ For detailed documentation, see [App Settings and Memories](./app_settings_and_m
 
 ### Skills implementation
 
-- ✅ **Multiple requests support**: All skills support multiple requests in the same skill call (up to 9 parallel requests). Example: videos | get transcript using list of YouTube urls, or web | search using list of search queries
+- ✅ **Multiple requests support**: All skills support multiple requests in the same skill call (up to 5 parallel requests). Example: videos | get transcript using list of YouTube urls, or web | search using list of search queries
 - ✅ **Parallel processing**: Multiple requests in same skill call create multiple celery tasks for the same API endpoint
-- ✅ **Rate limiting**: Will be processed simultaneously, if API rate limit allows (maximum 9 parallel requests per skill call)
+- ✅ **Rate limiting**: Will be processed simultaneously, if API rate limit allows (maximum 5 parallel requests per skill call)
 - ✅ **Rate limit enforcement**: Enforce third party API rate limits via Dragonfly / cache based counter that auto expires after rate limit reset time (every second, every minute) and which counts up with every request, incl. auto retry once key expired (calculate when to retry task)
 - ✅ **Celery usage**: Always use celery for skills involving external APIs, regardless of processing time. Fast skills (< 1 second) process via Celery but the API waits for completion and returns results directly. Long-running skills return task IDs immediately.
 - ✅ **Response delivery**: Whenever an individual skill call is completed, response will be sent via websocket connection to device which has chat currently open (for devices which don't have chat currently open, only completed assistant response that includes the app skill results will be sent once completed)

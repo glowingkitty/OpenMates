@@ -6,6 +6,7 @@
 
 import logging
 import os
+import copy
 from typing import Dict, Any, List, Optional, Set, TYPE_CHECKING
 import importlib
 import inspect
@@ -121,10 +122,20 @@ def skill_definition_to_tool_definition(
             logger.debug(f"Skipping skill '{skill_def.id}' from app '{app_id}' - stage is '{skill_def.stage}', not 'development' or 'production'")
             return None
     
-    # Check preselection filter if provided
+    # Check preselection filter (architecture: only preselected skills are forwarded)
     # Use hyphen separator for LLM provider compatibility (Cerebras and others don't allow dots in function names)
     skill_identifier = f"{app_id}-{skill_def.id}"
-    if preselected_skills is not None and skill_identifier not in preselected_skills:
+    # preselected_skills can be:
+    # - None: Should not occur (error case), but we'll treat as empty set (no skills)
+    # - Empty set: No skills preselected (valid - means no tools should be provided)
+    # - Non-empty set: Only skills in this set should be included
+    if preselected_skills is None:
+        # None should not occur - this is an error case
+        # Architecture violation: we should always have preselected_skills (even if empty)
+        logger.warning(f"preselected_skills is None for skill '{skill_def.id}' from app '{app_id}' - this violates architecture. Treating as empty set (no skills).")
+        return None  # Exclude all skills when None (error case)
+    elif skill_identifier not in preselected_skills:
+        # Skill not in preselected set - exclude it (architecture: only preselected skills are forwarded)
         logger.debug(f"Skipping skill '{skill_def.id}' from app '{app_id}' - not in preselected skills")
         return None
     
@@ -185,11 +196,15 @@ def _extract_skill_parameters_schema(skill_def: AppSkillDefinition) -> Dict[str,
     Skills used as tools must define tool_schema in their app.yml file.
     Entry-point skills (like ai.ask) don't need tool_schema.
     
+    This function automatically injects the 'id' field into any schema that has a
+    'requests' array with object items, ensuring consistency across all skills that
+    support multiple requests per call.
+    
     Args:
         skill_def: The skill definition containing tool_schema
     
     Returns:
-        JSON schema dict for the skill's parameters
+        JSON schema dict for the skill's parameters (with 'id' field automatically injected if needed)
     
     Raises:
         ValueError: If tool_schema is missing or invalid (for skills that should have it)
@@ -210,8 +225,83 @@ def _extract_skill_parameters_schema(skill_def: AppSkillDefinition) -> Dict[str,
         logger.warning(f"Skill '{skill_def.id}' tool_schema missing 'type' field, assuming 'object'")
         # Don't fail, but log warning - some schemas might be valid without explicit type
     
-    logger.debug(f"Using tool_schema from app.yml for skill '{skill_def.id}'")
-    return skill_def.tool_schema
+    # Deep copy the schema to avoid mutating the original
+    schema = copy.deepcopy(skill_def.tool_schema)
+    
+    # Automatically inject 'id' field into schemas with 'requests' arrays
+    # This ensures all skills that support multiple requests have consistent 'id' field definitions
+    schema = _inject_id_field_if_needed(schema, skill_def.id)
+    
+    logger.debug(f"Using tool_schema from app.yml for skill '{skill_def.id}' (with automatic 'id' field injection if needed)")
+    return schema
+
+
+def _inject_id_field_if_needed(schema: Dict[str, Any], skill_id: str) -> Dict[str, Any]:
+    """
+    Automatically injects the 'id' field into tool schemas that have a 'requests' array.
+    
+    All skills that support multiple requests per call (via a 'requests' array) need
+    an 'id' field in each request object to match responses to requests. This function
+    ensures the 'id' field is automatically added to the schema if it's missing.
+    
+    The 'id' field is defined as:
+    - Type: string or integer (supports both numbers and UUID strings)
+    - Description: Unique identifier for matching responses to requests
+    - Required: Only for multi-request calls (single requests auto-generate id=1)
+    
+    Args:
+        schema: The tool schema dictionary (will be modified in place)
+        skill_id: The skill ID (for logging purposes)
+    
+    Returns:
+        The schema dictionary with 'id' field injected if needed
+    """
+    # Check if schema has a 'requests' property
+    properties = schema.get("properties", {})
+    requests_prop = properties.get("requests")
+    
+    if not requests_prop:
+        # No 'requests' property - nothing to inject
+        return schema
+    
+    # Check if 'requests' is an array type
+    if requests_prop.get("type") != "array":
+        # 'requests' exists but is not an array - nothing to inject
+        return schema
+    
+    # Check if array has 'items' that is an object
+    items = requests_prop.get("items")
+    if not items or items.get("type") != "object":
+        # 'requests' array doesn't have object items - nothing to inject
+        return schema
+    
+    # Check if 'id' field already exists in items properties
+    items_properties = items.get("properties", {})
+    if "id" in items_properties:
+        # 'id' field already exists - don't override it (allows skills to customize if needed)
+        logger.debug(f"Skill '{skill_id}' already has 'id' field in requests items - keeping existing definition")
+        return schema
+    
+    # Inject 'id' field into items properties
+    # This matches the definition from web/app.yml but is now automatically added
+    items_properties["id"] = {
+        "type": ["string", "integer"],
+        "description": "Unique identifier for this request (number or UUID string). Must be unique within a single skill call. For single requests, this is optional and will default to 1. For multiple requests, this is required to match responses to requests."
+    }
+    
+    # Ensure 'properties' dict exists in items
+    if "properties" not in items:
+        items["properties"] = items_properties
+    else:
+        items["properties"] = items_properties
+    
+    # Update the schema with modified items
+    requests_prop["items"] = items
+    properties["requests"] = requests_prop
+    schema["properties"] = properties
+    
+    logger.debug(f"Injected 'id' field into requests items for skill '{skill_id}'")
+    return schema
 
 
 def generate_tools_from_apps(

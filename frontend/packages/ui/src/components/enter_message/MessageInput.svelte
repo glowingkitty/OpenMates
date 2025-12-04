@@ -148,6 +148,10 @@
     
     // --- Blur timeout tracking ---
     let blurTimeoutId: NodeJS.Timeout | null = null; // Track blur timeout to cancel it if focus is regained
+    
+    // --- Initial mount tracking ---
+    let isInitialMount = $state(true); // Flag to prevent auto-focus during initial mount
+    let mountCompleteTimeout: NodeJS.Timeout | null = null; // Track when mount is complete
  
     // --- Unified Parsing Handler ---
     function handleUnifiedParsing(editor: Editor) {
@@ -198,6 +202,20 @@
                 if (decorationPropsSet && editor?.view) {
                     editor.view.dispatch(editor.state.tr);
                 }
+                
+                // Check if the parsed document contains preview embeds (closed code blocks)
+                // If so, update the editor content to show the rendered embed preview
+                if (parsedDoc && parsedDoc.content && hasPreviewEmbeds(parsedDoc)) {
+                    console.debug('[MessageInput] Found preview embeds, updating editor with parsed document');
+                    // Set flag to prevent originalMarkdown update during this content change
+                    isConvertingEmbeds = true;
+                    try {
+                        editor.chain().setContent(parsedDoc, { emitUpdate: false }).run();
+                        console.debug('[MessageInput] Updated editor with preview embeds');
+                    } finally {
+                        isConvertingEmbeds = false;
+                    }
+                }
             }
             
         } catch (error) {
@@ -207,8 +225,34 @@
     }
     
     /**
+     * Check if a parsed document contains preview embeds (closed code blocks, tables, etc.)
+     * Preview embeds have contentRef starting with 'preview:'
+     */
+    function hasPreviewEmbeds(doc: any): boolean {
+        if (!doc || !doc.content) return false;
+        
+        for (const node of doc.content) {
+            // Check if this node is a paragraph containing an embed
+            if (node.type === 'paragraph' && node.content) {
+                for (const child of node.content) {
+                    if (child.type === 'embed' && child.attrs?.contentRef?.startsWith('preview:')) {
+                        return true;
+                    }
+                }
+            }
+            // Check for direct embed nodes (shouldn't happen but be safe)
+            if (node.type === 'embed' && node.attrs?.contentRef?.startsWith('preview:')) {
+                return true;
+            }
+        }
+        return false;
+    }
+    
+    /**
      * Detect URLs that have become "closed" and should be processed for metadata
      * A URL is considered closed when it has whitespace (space or newline) after it
+     * This function properly handles multiple URLs pasted together by detecting all URLs
+     * that are followed by whitespace in the recent content
      */
     function detectClosedUrls(editor: Editor): Array<{url: string, startPos: number, endPos: number}> {
         const closedUrls: Array<{url: string, startPos: number, endPos: number}> = [];
@@ -226,6 +270,7 @@
         });
         
         // Only check for closed URLs if the user just typed a space or newline
+        // This ensures we only process URLs when they're actually "closed" (followed by whitespace)
         if (lastChar !== ' ' && lastChar !== '\n') {
             return closedUrls;
         }
@@ -258,51 +303,120 @@
         
         console.debug('[MessageInput] Total code block ranges to exclude:', codeBlockRanges.length);
         
-        // Find URLs in the source text that end just before the space/newline
+        // Find all URLs in the source text
+        // We'll check each one to see if it's closed (followed by whitespace) and recently added
         const urlRegex = /https?:\/\/[^\s]+/g;
         let match;
         
         // Reset regex lastIndex to ensure we get all matches
         urlRegex.lastIndex = 0;
         
+        // Track all URLs and their positions
+        const allUrls: Array<{url: string, startPos: number, endPos: number}> = [];
+        
         while ((match = urlRegex.exec(sourceText)) !== null) {
             const url = match[0];
             const urlStart = match.index!;
             const urlEnd = urlStart + url.length;
             
-            // Check if this URL ends just before where we typed the space/newline
-            // For multiple URLs, we need to check if ANY URL was just closed
-            const isRecentlyClosed = (
-                // URL ends exactly where we typed the space/newline (last URL scenario)
-                urlEnd === sourceText.length - 1 ||
-                // OR URL is followed by the character we just typed (space/newline) - handle multiple URLs
-                (urlEnd < sourceText.length && 
-                 (sourceText[urlEnd] === ' ' || sourceText[urlEnd] === '\n') &&
-                 urlEnd >= sourceText.length - 50) // Within last 50 chars for recent typing (more lenient)
+            // Check if this URL is inside any code block - skip if it is
+            const isInsideCodeBlock = codeBlockRanges.some(range => 
+                urlStart >= range.start && urlEnd <= range.end
             );
             
-            if (isRecentlyClosed && (lastChar === ' ' || lastChar === '\n')) {
-                console.debug('[MessageInput] Found newly closed URL:', url, 'at position', urlStart, '-', urlEnd);
-                
-                // Check if this URL is inside any code block
-                const isInsideCodeBlock = codeBlockRanges.some(range => 
-                    urlStart >= range.start && urlEnd <= range.end
-                );
-                
-                if (!isInsideCodeBlock) {
-                    closedUrls.push({
-                        url,
-                        startPos: urlStart,
-                        endPos: urlEnd
-                    });
-                } else {
-                    console.debug('[MessageInput] URL is inside a code block, skipping processing:', url);
-                }
+            if (!isInsideCodeBlock) {
+                allUrls.push({
+                    url,
+                    startPos: urlStart,
+                    endPos: urlEnd
+                });
+            } else {
+                console.debug('[MessageInput] URL is inside a code block, skipping:', url);
             }
         }
         
+        // Now check which URLs are "closed" (followed by whitespace)
+        // For multiple URLs pasted together, we need to detect all that are followed by space/newline
+        // and are in the recent content (within a reasonable distance from the end)
+        // Use a more generous threshold to handle multiple long URLs pasted together
+        const recentContentThreshold = Math.max(500, sourceText.length * 0.3); // At least 500 chars or 30% of content
+        
+        for (const urlInfo of allUrls) {
+            const { url, startPos, endPos } = urlInfo;
+            
+            // Check if URL is followed by whitespace (space or newline)
+            // This indicates the URL is "closed" and ready for processing
+            const charAfterUrl = sourceText[endPos];
+            const isFollowedByWhitespace = charAfterUrl === ' ' || charAfterUrl === '\n';
+            
+            // Check if this URL is in the recent content area
+            // This helps us focus on URLs that were just pasted/typed, not old ones
+            const distanceFromEnd = sourceText.length - endPos;
+            const isInRecentContent = distanceFromEnd <= recentContentThreshold;
+            
+            // Check if URL is part of a sentence (has non-whitespace text before it)
+            // URLs that are part of sentences like "summarize {url}" should NOT be converted to embeds
+            // Only standalone URLs (at start of text, after newline, after only whitespace, or after another URL) should be converted
+            const textBeforeUrl = sourceText.substring(0, startPos);
+            const trimmedBeforeUrl = textBeforeUrl.trim();
+            
+            // Check if the text before the URL is just another URL (for handling multiple URLs pasted together)
+            // This allows "url1 url2 " to convert both URLs
+            const urlRegexBefore = /https?:\/\/[^\s]+$/;
+            const textBeforeTrimmed = textBeforeUrl.trimEnd();
+            const isAfterAnotherUrl = urlRegexBefore.test(textBeforeTrimmed);
+            
+            // A URL is standalone if:
+            // 1. There's no non-whitespace content before it (at start or after only whitespace)
+            // 2. It's after a newline
+            // 3. It's after another URL (for multiple URLs pasted together)
+            const isStandaloneUrl = trimmedBeforeUrl.length === 0 || textBeforeUrl.endsWith('\n') || isAfterAnotherUrl;
+            
+            // A URL is considered "recently closed" and ready for conversion if:
+            // 1. It's followed by whitespace (closed)
+            // 2. It's in the recent content area (likely just pasted/typed)
+            // 3. The last character of the text is whitespace (user just closed something)
+            // 4. It's a standalone URL (not part of a sentence)
+            const isRecentlyClosed = isFollowedByWhitespace && isInRecentContent && (lastChar === ' ' || lastChar === '\n') && isStandaloneUrl;
+            
+            if (isRecentlyClosed) {
+                console.debug('[MessageInput] Found newly closed standalone URL:', {
+                    url,
+                    startPos,
+                    endPos,
+                    charAfterUrl,
+                    distanceFromEnd,
+                    threshold: recentContentThreshold,
+                    isStandaloneUrl,
+                    textBeforeUrl: textBeforeUrl.substring(Math.max(0, textBeforeUrl.length - 20)) // Last 20 chars for debugging
+                });
+                
+                closedUrls.push({
+                    url,
+                    startPos,
+                    endPos
+                });
+            } else if (isFollowedByWhitespace && isInRecentContent && (lastChar === ' ' || lastChar === '\n') && !isStandaloneUrl) {
+                // Log when we skip a URL because it's part of a sentence
+                console.debug('[MessageInput] Skipping URL conversion - URL is part of a sentence:', {
+                    url,
+                    textBeforeUrl: textBeforeUrl.substring(Math.max(0, textBeforeUrl.length - 30)) // Last 30 chars for debugging
+                });
+            }
+        }
+        
+        console.debug('[MessageInput] Total closed URLs detected:', closedUrls.length);
+        
         return closedUrls;
     }
+    
+    // NOTE: Code block detection and embed creation is handled SERVER-SIDE
+    // When user sends a message with code blocks:
+    // 1. Client sends raw markdown (with code blocks as-is)
+    // 2. Server extracts code blocks and creates embeds
+    // 3. Server sends embed data back to client for encrypted storage
+    // 4. Server replaces code blocks with embed references in stored message
+    // This avoids client-side complexity and draft serialization issues
     
     /**
      * Process closed URLs by fetching metadata and storing them for the unified parser
@@ -542,14 +656,20 @@
                     case 'document_html': className = 'unclosed-block-html'; break;
                     case 'url':
                         // Check if this is a YouTube URL from the block content
-                        if (block.content && /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)/.test(block.content)) {
+                        // Use the same pattern as EMBED_PATTERNS.YOUTUBE_URL for consistency
+                        // Note: This is a fallback - YouTube URLs should be detected as 'video' type in streamingSemantics
+                        const youtubePattern = /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
+                        if (block.content && youtubePattern.test(block.content)) {
                             className = 'unclosed-block-video';
+                            console.debug('[MessageInput] Detected YouTube URL in url block, using video highlight color (red):', block.content.substring(0, 50));
                         } else {
                             className = 'unclosed-block-url';
                         }
                         break;
                     case 'video':
+                        // YouTube videos should always use red color (#A70B09)
                         className = 'unclosed-block-video';
+                        console.debug('[MessageInput] Video block detected, using video highlight color (red):', block.content?.substring(0, 50));
                         break;
                     case 'markdown':
                         className = 'unclosed-block-markdown';
@@ -583,6 +703,44 @@
                 }
 
                 if (block.type === 'url' || block.type === 'video') {
+                    // Check if URL is part of a sentence - if so, skip highlighting
+                    // URLs that are part of sentences like "summarize {url}" should NOT be highlighted
+                    // Only standalone URLs should be highlighted
+                    const url = block.content;
+                    let urlStartPos: number;
+                    
+                    if (typeof (block as any).tokenStartCol === 'number') {
+                        urlStartPos = startLineOffset + (block as any).tokenStartCol;
+                    } else {
+                        const startIndex = text.indexOf(url, startLineOffset);
+                        if (startIndex === -1) continue; // URL not found, skip
+                        urlStartPos = startIndex;
+                    }
+                    
+                    // Check if URL is standalone (not part of a sentence)
+                    const textBeforeUrl = text.substring(0, urlStartPos);
+                    const trimmedBeforeUrl = textBeforeUrl.trim();
+                    
+                    // Check if the text before the URL is just another URL (for handling multiple URLs pasted together)
+                    const urlRegexBefore = /https?:\/\/[^\s]+$/;
+                    const textBeforeTrimmed = textBeforeUrl.trimEnd();
+                    const isAfterAnotherUrl = urlRegexBefore.test(textBeforeTrimmed);
+                    
+                    // A URL is standalone if:
+                    // 1. There's no non-whitespace content before it (at start or after only whitespace)
+                    // 2. It's after a newline
+                    // 3. It's after another URL (for multiple URLs pasted together)
+                    const isStandaloneUrl = trimmedBeforeUrl.length === 0 || textBeforeUrl.endsWith('\n') || isAfterAnotherUrl;
+                    
+                    // Only highlight standalone URLs - skip URLs that are part of sentences
+                    if (!isStandaloneUrl) {
+                        console.debug('[MessageInput] Skipping URL highlight - URL is part of a sentence:', {
+                            url: url.substring(0, 50),
+                            textBeforeUrl: textBeforeUrl.substring(Math.max(0, textBeforeUrl.length - 30))
+                        });
+                        continue;
+                    }
+                    
                     // Use precise character positions when available (preferred)
                     if (typeof (block as any).tokenStartCol === 'number' && typeof (block as any).tokenEndCol === 'number') {
                         const tokenStartCol = (block as any).tokenStartCol as number;
@@ -594,7 +752,6 @@
                         }
                     } else {
                         // Fallback to indexOf method for backwards compatibility
-                        const url = block.content;
                         const startIndex = text.indexOf(url, startLineOffset);
                         if (startIndex !== -1) {
                             const endIndex = startIndex + url.length;
@@ -664,15 +821,18 @@
 
             console.debug('[MessageInput] Created decorations:', decorations, 'from unclosedBlocks:', unclosedBlocks);
 
-            const tipTapDecorations = decorations.map(dec =>
-                Decoration.inline(dec.from, dec.to, {
+            const tipTapDecorations = decorations.map(dec => {
+                // For URLs/videos, use inclusiveEnd: false to prevent highlighting beyond the URL
+                // For other block types, use inclusiveEnd: true to include the end position
+                const isUrlOrVideo = dec.type === 'url' || dec.type === 'video';
+                return Decoration.inline(dec.from, dec.to, {
                     class: dec.className,
                     'data-block-type': dec.type
                 }, {
                     inclusiveStart: false,
-                    inclusiveEnd: true
-                })
-            );
+                    inclusiveEnd: !isUrlOrVideo // URLs/videos: false, others: true
+                });
+            });
 
             currentDecorationSet = DecorationSet.create(doc, tipTapDecorations);
             if (!decorationPropsSet) {
@@ -828,6 +988,11 @@
             }
         });
 
+        // Explicitly blur the editor on mount to prevent auto-focus on page load
+        // This ensures the editor doesn't automatically get focus when the page loads
+        editor.commands.blur();
+        console.debug('[MessageInput] Blurred editor on mount to prevent auto-focus');
+
         initializeDraftService(editor);
         hasContent = !isContentEmptyExceptMention(editor);
 
@@ -842,15 +1007,36 @@
         // Initial height calculation (immediate)
         updateHeight();
         
+        // Aggressively prevent auto-focus during initial mount phase
+        // TipTap or the browser might try to focus the editor multiple times
+        const preventAutoFocus = () => {
+            if (editor && !editor.isDestroyed && editor.isFocused && isInitialMount) {
+                editor.commands.blur();
+                console.debug('[MessageInput] Prevented auto-focus during initial mount');
+            }
+        };
+        
+        // Try to blur immediately
+        preventAutoFocus();
+        
         tick().then(() => {
             updateHeight(); // Update again after tick
             updateEmbedGroupLayouts(); // Initial layout check
+            preventAutoFocus(); // Blur again after tick
         });
         
         // Force height update after a short delay to ensure proper rendering
         setTimeout(() => {
             updateHeight();
+            preventAutoFocus(); // Blur again after short delay
         }, 100);
+        
+        // Mark mount as complete after a longer delay to allow all async operations to finish
+        // This ensures we don't prevent legitimate user-initiated focus after page load
+        mountCompleteTimeout = setTimeout(() => {
+            isInitialMount = false;
+            console.debug('[MessageInput] Initial mount phase complete - focus prevention disabled');
+        }, 500);
 
         // AI Task related updates
         updateActiveAITaskStatus(); // Initial check
@@ -879,6 +1065,14 @@
 
     // --- Editor Lifecycle Handlers ---
     function handleEditorFocus({ editor }: { editor: Editor }) {
+        // Prevent auto-focus during initial mount phase
+        // Only allow focus if it's user-initiated (not during initial mount)
+        if (isInitialMount) {
+            console.debug('[MessageInput] Blocking auto-focus during initial mount phase');
+            editor.commands.blur();
+            return; // Exit early to prevent focus during mount
+        }
+        
         // Cancel any pending blur timeout - focus was regained
         if (blurTimeoutId) {
             clearTimeout(blurTimeoutId);
@@ -934,6 +1128,9 @@
         
         // Update original markdown tracking
         updateOriginalMarkdown(editor);
+        
+        // NOTE: Code block detection is handled SERVER-SIDE when message is sent
+        // Client keeps raw markdown with code blocks - no client-side embed creation
         
         // Always trigger save/delete operation - the draft service handles both scenarios
         triggerSaveDraft(currentChatId);
@@ -1031,6 +1228,11 @@
         if (blurTimeoutId) {
             clearTimeout(blurTimeoutId);
             blurTimeoutId = null;
+        }
+        // Clear mount complete timeout
+        if (mountCompleteTimeout) {
+            clearTimeout(mountCompleteTimeout);
+            mountCompleteTimeout = null;
         }
         document.removeEventListener('embedclick', handleEmbedClick as EventListener);
         document.removeEventListener('mateclick', handleMateClick as EventListener);
@@ -1555,23 +1757,32 @@
         }
         return '';
     }
-    export function setDraftContent(chatId: string | null, draftContent: any | null, version: number, shouldFocus: boolean = true) {
+    export function setDraftContent(chatId: string | null, draftContent: any | null, version: number, shouldFocus: boolean = false) {
+        // CRITICAL: setCurrentChatContext already sets the editor content (to draftContent or initial content)
+        // So we don't need to clear it again if draftContent is null - that would trigger unnecessary update events
+        // The setCurrentChatContext function handles setting the editor content with emitUpdate: false to prevent triggering saves
         setCurrentChatContext(chatId, draftContent, version);
         
-        // If draftContent is null, it means the draft was deleted on another device
-        // We need to clear the editor content
-        if (draftContent === null && editor) {
-            console.debug("[MessageInput] Received null draft from sync, clearing editor content");
-            editor.commands.setContent(getInitialContent());
-            hasContent = false;
-            originalMarkdown = ''; // Clear markdown tracking
-        } else if (editor) {
-            // Always update hasContent state when there's draft content, regardless of shouldFocus
+        // Update local state based on the editor content after setCurrentChatContext
+        if (editor) {
+            // Always update hasContent state based on current editor content
             hasContent = !isContentEmptyExceptMention(editor);
-            updateOriginalMarkdown(editor); // Update markdown tracking
             
+            // Only update originalMarkdown if there's actual content
+            // For demo chats with no draft, we don't want to set originalMarkdown
+            if (draftContent !== null) {
+                updateOriginalMarkdown(editor); // Update markdown tracking
+            } else {
+                originalMarkdown = ''; // Clear markdown tracking for chats with no draft
+            }
+            
+            // Only focus if explicitly requested - default is false to prevent unwanted auto-focus
+            // Users should manually click on the input field when they want to type
             if (shouldFocus) {
                 editor.commands.focus('end');
+                console.debug('[MessageInput] Focused editor after setDraftContent (explicitly requested)');
+            } else {
+                console.debug('[MessageInput] Skipped focus after setDraftContent (user must click to focus)');
             }
         }
     }
@@ -1589,6 +1800,13 @@
     }
     export function getOriginalMarkdown(): string {
         return getOriginalMarkdownForSending();
+    }
+    export function setOriginalMarkdown(markdown: string) {
+        originalMarkdown = markdown;
+        console.debug('[MessageInput] Set original markdown from draft:', {
+            length: markdown.length,
+            preview: markdown.substring(0, 100)
+        });
     }
 
     // --- Reactive Calculations using Svelte 5 runes ---

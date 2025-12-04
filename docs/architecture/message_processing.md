@@ -372,9 +372,76 @@ For detailed documentation on how function calling works, see [Function Calling 
 - **new_learnings**: (idea phase) Better collect new learnings
 
 **Additional Features** (to be implemented):
-- Auto-parse URLs in response and validate links (replace 404s with Brave search?)
 - Consider user interests without creating tracking profile
 - Consider user's learning type (visual, auditory, reading, etc.)
+
+### URL Validation and Correction
+
+**Status**: ✅ **IMPLEMENTED**
+
+**Overview**: As the assistant response is streamed paragraph-by-paragraph, the system automatically validates URLs in each completed paragraph in the background (non-blocking). After the full response completes, if broken links (404 errors) are detected, the entire response is corrected by removing broken links and, when appropriate, asking if the user wants the chatbot to search for that topic. The user sees the text update when the correction is applied.
+
+**Implementation Flow**:
+
+1. **Paragraph Completion Detection**: As the response streams, paragraphs are detected when complete (delimited by `\n\n` or end of code blocks). See [`backend/apps/ai/utils/stream_utils.py`](../../backend/apps/ai/utils/stream_utils.py) for paragraph aggregation logic.
+
+2. **Per-Paragraph URL Extraction & Validation**: When a paragraph is complete:
+   - All markdown links `[text](url)` are extracted from that paragraph
+   - Each URL is validated via HTTP HEAD/GET request in the background (non-blocking, doesn't delay streaming)
+   - Broken URLs (4xx errors) are collected for later correction
+   - Validation continues in parallel as more paragraphs stream
+
+3. **URL Validation Results**:
+   - **2xx status codes**: Valid (no action needed)
+   - **4xx status codes**: Broken (404, 403, etc.) - collected for correction
+   - **5xx status codes**: Server errors - treated as potentially temporary (not corrected)
+   - **Timeouts/Connection errors**: Treated as potentially temporary (not corrected)
+
+4. **Full Response Correction** (after streaming completes):
+   - After the full response is streamed, the system waits for all URL validations to complete
+   - If broken URLs are found, the entire response is corrected in one LLM call
+   - Uses the same main processing model for consistency (not a cheaper model)
+   - Removes broken links completely
+   - When appropriate, adds natural language questions asking if the user wants the chatbot to search for that topic
+   - Only asks about search when the link was to valuable information (documentation, articles, resources)
+   - If link wasn't essential, just removes it without adding a question
+   - Maintains the same response structure, tone, and content
+
+5. **Response Update**: The corrected response replaces the original:
+   - Client is notified via Redis Pub/Sub (user sees text update)
+   - Server cache is updated with corrected response
+   - Normal processing continues (client-side encryption, Directus storage, etc.)
+
+**Key Benefits**:
+- **No streaming delay**: URL validation happens in background, doesn't slow down response streaming
+- **Efficient correction**: Single LLM call corrects entire response (not per-paragraph)
+- **Model consistency**: Uses same main processing model for correction
+- **Complete update**: Both client display and server cache are updated with corrected response
+
+**Configuration**:
+- URL validation timeout: 5 seconds per URL
+- Validation runs in background (doesn't block response streaming)
+- Correction uses the same main processing model (from preprocessing result)
+- Tool definition: [`backend/apps/ai/base_instructions.yml`](../../backend/apps/ai/base_instructions.yml) - `url_correction_tool`
+- Uses HEAD requests by default (more efficient, ~1.46 KB per URL vs ~217 KB with GET)
+- Includes User-Agent header to avoid bot detection
+
+**Monitoring for Datacenter Blocking**:
+- **Current Approach**: Direct connection with User-Agent header (no proxy)
+- **Traffic**: Minimal (~129 MB/month for 30k messages with HEAD requests)
+- **Monitoring Point**: If broken URLs are not being removed from assistant responses, this may indicate datacenter IP blocking
+  - Check logs for high rates of `connection_error` or `timeout` errors
+  - Monitor if valid URLs are incorrectly marked as broken
+- **Oxylabs Proxy Option**: If blocking becomes an issue, Oxylabs proxy can be added (similar to YouTube transcript skill)
+  - HEAD requests work through Oxylabs (standard HTTP method)
+  - Implementation: See [`backend/apps/videos/skills/transcript_skill.py`](../../backend/apps/videos/skills/transcript_skill.py) for Oxylabs integration pattern
+  - Cost: ~$0.08/month (datacenter) or ~$1/month (residential) for typical usage
+  - Traffic remains minimal with HEAD requests (~0.13 GB/month)
+
+**Implementation Files**:
+- URL extraction and validation: [`backend/apps/ai/processing/url_validator.py`](../../backend/apps/ai/processing/url_validator.py)
+- URL correction: [`backend/apps/ai/processing/url_corrector.py`](../../backend/apps/ai/processing/url_corrector.py)
+- Integration: [`backend/apps/ai/tasks/stream_consumer.py`](../../backend/apps/ai/tasks/stream_consumer.py) - validates during streaming, corrects after completion
 
 > **Note from dev meetup (2025-10-08)**: How to implement harm detection with pre-processing and post-processing without overreacting - what parameters to include? Consider balancing false positives vs. false negatives, defining clear thresholds, and establishing criteria for when to flag vs. block vs. redirect responses.
 > **Note from dev meetup (2025-10-08)**: Implement 'compress conversation history' functionality, to reduce the size of the conversation history for the LLM? But if so, we need to show user the compresses conversation by default and show a 'Show full conversation' button to show the full conversation from before, with the clear dislaimer that the conversation history is not used anymore when the user asks a new question. Althought we can consider implementing a functionality that allows the chatbot to search in the full chat history of that chat and include matches again into the conversation - a "Remember" functionality?

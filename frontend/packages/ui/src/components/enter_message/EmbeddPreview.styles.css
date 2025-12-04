@@ -31,7 +31,6 @@
 :global(.ProseMirror .embed-unified-container) {
     display: inline-block;
     width: min(300px, 100%);
-    height: 60px;
     background-color: var(--color-grey-10);
     border-radius: 30px;
     position: relative;

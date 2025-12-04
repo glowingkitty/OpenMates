@@ -1,8 +1,9 @@
 // Embed node parsing functions
 // Handles parsing of different embed types from markdown content
+// Uses the shared CodeBlockStateMachine for reliable code fence detection
 
 import { EmbedNodeAttributes } from './types';
-import { EMBED_PATTERNS, generateUUID } from './utils';
+import { EMBED_PATTERNS, generateUUID, CodeBlockStateMachine } from './utils';
 
 /**
  * Map embed reference type from server to EmbedNodeType
@@ -25,167 +26,311 @@ function mapEmbedReferenceType(embedType: string): string {
 }
 
 /**
+ * Determine embed type based on language
+ * @param language - The code fence language (e.g., 'python', 'doc', 'document')
+ * @returns The embed type ('code-code' or 'docs-doc')
+ */
+function getEmbedTypeFromLanguage(language?: string): 'code-code' | 'docs-doc' {
+  const normalizedLang = (language || '').toLowerCase().trim();
+  if (normalizedLang === 'doc' || normalizedLang === 'document') {
+    return 'docs-doc';
+  }
+  return 'code-code';
+}
+
+/**
+ * Create a preview embed node for write mode
+ * These are temporary and don't create entries in EmbedStore
+ */
+function createPreviewEmbed(
+  content: string,
+  language?: string,
+  filename?: string
+): EmbedNodeAttributes {
+  const id = generateUUID();
+  const embedType = getEmbedTypeFromLanguage(language);
+  const normalizedLang = (language || '').toLowerCase().trim();
+  
+  const previewEmbed: EmbedNodeAttributes = {
+    id,
+    type: embedType,
+    status: 'finished', // Show as finished for preview
+    contentRef: `preview:${embedType}:${id}`, // Special prefix for preview embeds
+    // Count all lines including empty ones (matches backend: code_content.count('\n') + 1)
+    lineCount: embedType === 'code-code' ? content.split('\n').length : undefined,
+    wordCount: embedType === 'docs-doc' ? content.split(/\s+/).filter(w => w.trim()).length : undefined,
+    code: content // Store content for preview rendering
+  };
+  
+  // Add type-specific attributes
+  if (embedType === 'code-code') {
+    previewEmbed.language = normalizedLang || undefined;
+    previewEmbed.filename = filename || undefined;
+  } else {
+    // For doc blocks, check for title comment
+    const titleMatch = content.match(EMBED_PATTERNS.TITLE_COMMENT);
+    if (titleMatch) {
+      previewEmbed.title = titleMatch[1];
+    }
+  }
+  
+  return previewEmbed;
+}
+
+/**
+ * Create a read mode embed node for streamed content
+ */
+function createReadEmbed(
+  content: string,
+  language?: string,
+  filename?: string
+): EmbedNodeAttributes {
+  const id = generateUUID();
+  const embedType = getEmbedTypeFromLanguage(language);
+  const normalizedLang = (language || '').toLowerCase().trim();
+  
+  const readEmbed: EmbedNodeAttributes = {
+    id,
+    type: embedType,
+    status: 'finished',
+    contentRef: `stream:${id}`,
+    // Count all lines including empty ones (matches backend: code_content.count('\n') + 1)
+    lineCount: embedType === 'code-code' ? content.split('\n').length : undefined,
+    wordCount: embedType === 'docs-doc' ? content.split(/\s+/).filter(w => w.trim()).length : undefined
+  };
+  
+  if (embedType === 'code-code') {
+    readEmbed.language = normalizedLang || undefined;
+    readEmbed.filename = filename || undefined;
+  } else {
+    const titleMatch = content.match(EMBED_PATTERNS.TITLE_COMMENT);
+    if (titleMatch) {
+      readEmbed.title = titleMatch[1];
+    }
+  }
+  
+  return readEmbed;
+}
+
+/**
  * Parse embed nodes from markdown content
- * Handles Path-or-Title fences for different embed types
+ * Uses the shared CodeBlockStateMachine for reliable code fence detection
+ * 
+ * Handles:
+ * - JSON embed references (```json with embed_id)
+ * - json_embed blocks (legacy URL format)
+ * - Regular code blocks (```python, etc.)
+ * - document_html blocks
+ * - Tables
+ * - URLs (in read mode only)
  */
 export function parseEmbedNodes(markdown: string, mode: 'write' | 'read'): EmbedNodeAttributes[] {
   const lines = markdown.split('\n');
   const embedNodes: EmbedNodeAttributes[] = [];
-  let i = 0;
   
-  while (i < lines.length) {
-    const line = lines[i].trim();
+  // Use the shared state machine for reliable code block detection
+  const stateMachine = new CodeBlockStateMachine();
+  
+  // Track pending blocks that need post-processing
+  let pendingJsonContent = '';
+  let pendingJsonEmbedContent = '';
+  let pendingDocHtmlContent = '';
+  let pendingDocHtmlTitle: string | undefined;
+  let pendingCodeContent = '';
+  let pendingCodeLanguage: string | undefined;
+  let pendingCodeFilename: string | undefined;
+  
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const event = stateMachine.processLine(line, i);
     
-    // Parse JSON code blocks for embed references (new embeds architecture)
-    // Format: ```json\n{"type": "app_skill_use", "embed_id": "..."}\n```
-    if (line.startsWith('```json')) {
-      let content = '';
-      let j = i + 1;
-      while (j < lines.length && !lines[j].trim().startsWith('```')) {
-        content += lines[j] + '\n';
-        j++;
-      }
-      
-      try {
-        const embedRef = JSON.parse(content.trim());
-        // Check if this is an embed reference (has type and embed_id)
-        if (embedRef.type && embedRef.embed_id) {
-          const id = generateUUID();
-          // CRITICAL FIX: Use mode to determine status
-          // In 'write' mode (streaming), embeds should show 'processing' state initially
-          // In 'read' mode (reading completed messages), embeds are assumed 'finished'
-          // This ensures the UI shows "processing" during streaming before embed data arrives
-          const embedStatus = mode === 'write' ? 'processing' : 'finished';
-          
-          embedNodes.push({
-            id,
-            type: mapEmbedReferenceType(embedRef.type),
-            status: embedStatus,
-            contentRef: `embed:${embedRef.embed_id}`, // Reference to embed in EmbedStore
-            // Additional metadata will be loaded from embed when resolved
-          });
-          console.debug('[parseEmbedNodes] Created embed node from JSON reference:', {
-            type: embedRef.type,
-            embed_id: embedRef.embed_id,
-            nodeId: id,
-            status: embedStatus,
-            mode
-          });
+    switch (event.event) {
+      case 'block_opened':
+        // Reset pending content for the new block
+        if (event.specialFence === 'json') {
+          pendingJsonContent = '';
+        } else if (event.specialFence === 'json_embed') {
+          pendingJsonEmbedContent = '';
+        } else if (event.specialFence === 'document_html') {
+          pendingDocHtmlContent = '';
+          pendingDocHtmlTitle = undefined;
+        } else {
+          // Regular code block
+          pendingCodeContent = '';
+          pendingCodeLanguage = event.language;
+          pendingCodeFilename = event.filename;
         }
-      } catch (error) {
-        // Not a valid embed reference, continue parsing
-        console.debug('[parseEmbedNodes] JSON block is not an embed reference:', error);
-      }
-      
-      i = j; // Skip to end of fence
+        break;
+        
+      case 'content_line':
+        // Accumulate content based on what type of block we're in
+        if (event.specialFence === 'json') {
+          pendingJsonContent += line + '\n';
+        } else if (event.specialFence === 'json_embed') {
+          pendingJsonEmbedContent += line + '\n';
+        } else if (event.specialFence === 'document_html') {
+          pendingDocHtmlContent += line + '\n';
+          // Check for title comment
+          const titleMatch = line.trim().match(EMBED_PATTERNS.TITLE_COMMENT);
+          if (titleMatch && !pendingDocHtmlTitle) {
+            pendingDocHtmlTitle = titleMatch[1];
+          }
+        } else {
+          // Regular code block content
+          pendingCodeContent += line + '\n';
+        }
+        break;
+        
+      case 'block_closed':
+        // Process the completed block based on its type
+        if (event.specialFence === 'json') {
+          // Parse JSON embed reference
+          const content = event.content || pendingJsonContent;
+          try {
+            const embedRef = JSON.parse(content.trim());
+            if (embedRef.type && embedRef.embed_id) {
+              const id = generateUUID();
+              const embedStatus = mode === 'write' ? 'processing' : 'finished';
+              
+              embedNodes.push({
+                id,
+                type: mapEmbedReferenceType(embedRef.type),
+                status: embedStatus,
+                contentRef: `embed:${embedRef.embed_id}`,
+              });
+              console.debug('[parseEmbedNodes] Created embed from JSON reference:', {
+                type: embedRef.type,
+                embed_id: embedRef.embed_id,
+                status: embedStatus,
+                mode
+              });
+            }
+          } catch (error) {
+            console.debug('[parseEmbedNodes] JSON block is not an embed reference:', error);
+          }
+          pendingJsonContent = '';
+        } else if (event.specialFence === 'json_embed') {
+          // Parse json_embed block (legacy URL format)
+          const content = event.content || pendingJsonEmbedContent;
+          try {
+            const embedData = JSON.parse(content.trim());
+            if (embedData.type === 'website' && embedData.url) {
+              const id = generateUUID();
+              embedNodes.push({
+                id,
+                type: 'web-website',
+                status: 'finished',
+                contentRef: null,
+                url: embedData.url,
+                title: embedData.title || null,
+                description: embedData.description || null,
+                favicon: embedData.favicon || null,
+                image: embedData.image || null
+              });
+              console.debug('[parseEmbedNodes] Created web embed from json_embed:', {
+                url: embedData.url,
+                hasMetadata: !!(embedData.title || embedData.description)
+              });
+            }
+          } catch (error) {
+            console.error('[parseEmbedNodes] Error parsing json_embed block:', error);
+          }
+          pendingJsonEmbedContent = '';
+        } else if (event.specialFence === 'document_html') {
+          // Create docs-doc embed from document_html block
+          const content = (event.content || pendingDocHtmlContent).replace(/\n$/, '');
+          const wordCount = content.split(/\s+/).filter(w => w.trim()).length;
+          const id = generateUUID();
+          
+          if (mode === 'write') {
+            embedNodes.push({
+              id,
+              type: 'docs-doc',
+              status: 'finished',
+              contentRef: `preview:docs-doc:${id}`,
+              title: pendingDocHtmlTitle,
+              wordCount,
+              code: content
+            });
+            console.debug('[parseEmbedNodes] Created preview docs-doc embed:', { id, wordCount });
+          } else {
+            embedNodes.push({
+              id,
+              type: 'docs-doc',
+              status: 'finished',
+              contentRef: `stream:${id}`,
+              title: pendingDocHtmlTitle,
+              wordCount
+            });
+          }
+          pendingDocHtmlContent = '';
+          pendingDocHtmlTitle = undefined;
+        } else {
+          // Regular code block - create embed
+          const content = (event.content || pendingCodeContent).replace(/\n$/, '');
+          const language = event.language || pendingCodeLanguage;
+          const filename = event.filename || pendingCodeFilename;
+          
+          if (mode === 'write') {
+            const embed = createPreviewEmbed(content, language, filename);
+            embedNodes.push(embed);
+            console.debug('[parseEmbedNodes] Created preview code embed:', {
+              id: embed.id,
+              type: embed.type,
+              language: language || 'none',
+              contentLength: content.length
+            });
+          } else {
+            const embed = createReadEmbed(content, language, filename);
+            embedNodes.push(embed);
+          }
+          
+          pendingCodeContent = '';
+          pendingCodeLanguage = undefined;
+          pendingCodeFilename = undefined;
+        }
+        break;
+        
+      case 'outside_block':
+        // Not inside any code block - check for other embed types
+        // (tables and URLs are handled below)
+        break;
+    }
+  }
+  
+  // Now handle non-code-block embeds (tables and URLs)
+  // These need a separate pass since they don't use code fences
+  parseNonCodeBlockEmbeds(lines, mode, embedNodes);
+  
+  return embedNodes;
+}
+
+/**
+ * Parse non-code-block embeds (tables and URLs)
+ * These are handled separately since they don't use code fences
+ */
+function parseNonCodeBlockEmbeds(
+  lines: string[],
+  mode: 'write' | 'read',
+  embedNodes: EmbedNodeAttributes[]
+): void {
+  // Use a fresh state machine to track code blocks (to skip content inside them)
+  const stateMachine = new CodeBlockStateMachine();
+  
+  let i = 0;
+  while (i < lines.length) {
+    const line = lines[i];
+    const trimmedLine = line.trim();
+    const event = stateMachine.processLine(line, i);
+    
+    // Skip lines inside code blocks
+    if (event.event === 'content_line' || event.event === 'block_opened') {
+      i++;
       continue;
     }
     
-    // Parse json_embed blocks for URL embeds (legacy format)
-    if (line.startsWith('```json_embed')) {
-      let content = '';
-      let j = i + 1;
-      while (j < lines.length && !lines[j].trim().startsWith('```')) {
-        content += lines[j] + '\n';
-        j++;
-      }
-      
-        try {
-          const embedData = JSON.parse(content.trim());
-          if (embedData.type === 'website' && embedData.url) {
-            const id = generateUUID();
-            embedNodes.push({
-              id,
-              type: 'web-website',
-              status: 'finished',
-              contentRef: null,
-              url: embedData.url,
-              title: embedData.title || null,
-              description: embedData.description || null,
-              favicon: embedData.favicon || null,
-              image: embedData.image || null
-            });
-            console.debug('[parseEmbedNodes] Created web embed from json_embed:', {
-              url: embedData.url,
-              title: embedData.title,
-              hasMetadata: !!(embedData.title || embedData.description),
-              hasFavicon: !!embedData.favicon,
-              hasImage: !!embedData.image
-            });
-          }
-        } catch (error) {
-          console.error('[parseEmbedNodes] Error parsing json_embed block:', error);
-        }
-      
-      i = j; // Skip to end of fence
-    }
-    // Parse code fences: ```<lang>[:relative/path] or ```[:relative/path]
-    else if (line.startsWith('```') && !line.startsWith('```document_html')) {
-      const codeMatch = line.match(EMBED_PATTERNS.CODE_FENCE_START);
-      if (codeMatch) {
-        const [, language, path] = codeMatch;
-        const id = generateUUID();
-        
-        // Extract code content between fences
-        let content = '';
-        let j = i + 1;
-        while (j < lines.length && !lines[j].trim().startsWith('```')) {
-          content += lines[j] + '\n';
-          j++;
-        }
-        
-        embedNodes.push({
-          id,
-          type: 'code-code',
-          status: mode === 'write' ? 'processing' : 'finished',
-          contentRef: `stream:${id}`,
-          language: language || undefined,
-          filename: path || undefined,
-          lineCount: content.split('\n').filter(l => l.trim()).length
-        });
-        
-        i = j; // Skip to end of fence
-      }
-    }
-    
-    // Parse document HTML fences
-    else if (line.startsWith('```document_html')) {
-      const id = generateUUID();
-      let title: string | undefined;
-      let content = '';
-      
-      // Look for title in the next few lines
-      for (let j = i + 1; j < Math.min(i + 5, lines.length); j++) {
-        const titleMatch = lines[j].trim().match(EMBED_PATTERNS.TITLE_COMMENT);
-        if (titleMatch) {
-          title = titleMatch[1];
-          break;
-        }
-      }
-      
-      // Extract content between fences
-      let j = i + 1;
-      while (j < lines.length && !lines[j].trim().startsWith('```')) {
-        content += lines[j] + '\n';
-        j++;
-      }
-      
-      const wordCount = content.split(/\s+/).filter(w => w.trim()).length;
-      
-      embedNodes.push({
-        id,
-        type: 'docs-doc',
-        status: mode === 'write' ? 'processing' : 'finished',
-        contentRef: `stream:${id}`,
-        title,
-        wordCount
-      });
-      
-      i = j; // Skip to end of fence
-    }
-    
     // Parse table blocks (GitHub-style markdown tables)
-    else if (EMBED_PATTERNS.TABLE_FENCE.test(line)) {
+    if (EMBED_PATTERNS.TABLE_FENCE.test(trimmedLine) && event.event === 'outside_block') {
       const id = generateUUID();
       let title: string | undefined;
       let tableContent = '';
@@ -215,79 +360,90 @@ export function parseEmbedNodes(markdown: string, mode: 'write' | 'read'): Embed
         j++;
       }
       
-      if (rows > 0) {
-        embedNodes.push({
-          id,
-          type: 'sheets-sheet',
-          status: mode === 'write' ? 'processing' : 'finished',
-          contentRef: `stream:${id}`,
-          title,
-          rows,
-          cols,
-          cellCount: rows * cols
-        });
+      // Remove trailing newline
+      if (tableContent.endsWith('\n')) {
+        tableContent = tableContent.slice(0, -1);
       }
       
-      i = j - 1; // Will be incremented at end of loop
+      if (rows > 0) {
+        if (mode === 'write') {
+          embedNodes.push({
+            id,
+            type: 'sheets-sheet',
+            status: 'finished',
+            contentRef: `preview:sheets-sheet:${id}`,
+            title,
+            rows,
+            cols,
+            cellCount: rows * cols,
+            code: tableContent
+          });
+          console.debug('[parseEmbedNodes] Created preview table embed:', { id, rows, cols });
+        } else {
+          embedNodes.push({
+            id,
+            type: 'sheets-sheet',
+            status: 'finished',
+            contentRef: `stream:${id}`,
+            title,
+            rows,
+            cols,
+            cellCount: rows * cols
+          });
+        }
+      }
+      
+      i = j;
+      continue;
     }
     
-    // Parse URLs and YouTube links only in read mode
-    // In write mode, plain URLs are handled by handleStreamingSemantics for highlighting
-    // and will be converted to json_embed blocks when closed
-    // IMPORTANT: Skip URLs that are part of markdown links [text](url)
-    // Only standalone URLs should be converted to embeds
-    if (mode === 'read') {
-      // Use the original untrimmed line for position calculations
+    // Parse URLs only in read mode (write mode URLs are handled by streamingSemantics)
+    if (mode === 'read' && event.event === 'outside_block') {
       const originalLine = lines[i];
       
-      // Build protected ranges for URL segments within markdown links
-      // This prevents URLs in [text](url) format from being converted to embeds
+      // Build protected ranges for URLs inside markdown links [text](url)
       const protectedRanges: Array<{ start: number; end: number }> = [];
       const linkRegex = /\[[^\]]*\]\((https?:\/\/[^\s)]+)\)/g;
       let linkMatch: RegExpExecArray | null;
       while ((linkMatch = linkRegex.exec(originalLine)) !== null) {
         const full = linkMatch[0];
         const url = linkMatch[1];
-        const urlStartInFull = full.indexOf('(') + 1; // start of URL inside (...)
+        const urlStartInFull = full.indexOf('(') + 1;
         const absStart = (linkMatch.index ?? 0) + urlStartInFull;
         protectedRanges.push({ start: absStart, end: absStart + url.length });
       }
       
-      // Now find all URLs and check if they're protected (inside markdown links)
+      // Find standalone URLs
       const urlRegex = /https?:\/\/[^\s]+/g;
       let urlMatch: RegExpExecArray | null;
       while ((urlMatch = urlRegex.exec(originalLine)) !== null) {
         const url = urlMatch[0];
         const startIdx = urlMatch.index ?? 0;
-        const endIdx = startIdx + url.length;
         
-        // Skip URLs that are inside markdown link syntax [text](url)
+        // Skip URLs inside markdown links
         const isProtected = protectedRanges.some(r => startIdx >= r.start && startIdx < r.end);
         if (isProtected) {
-          console.debug('[parseEmbedNodes] Skipping URL inside markdown link:', url);
           continue;
         }
         
-          const id = generateUUID();
-          let type = 'web-website';
-          
-          // Check if it's a YouTube URL
-          if (EMBED_PATTERNS.YOUTUBE_URL.test(url)) {
-            type = 'videos-video';
-          }
-          
-          embedNodes.push({
-            id,
-            type,
-            status: 'finished',
-            contentRef: `stream:${id}`,
-            url
-          });
+        const id = generateUUID();
+        let type = 'web-website';
+        
+        // Check if it's a YouTube URL
+        if (EMBED_PATTERNS.YOUTUBE_URL.test(url)) {
+          type = 'videos-video';
+        }
+        
+        embedNodes.push({
+          id,
+          type,
+          status: 'finished',
+          contentRef: `stream:${id}`,
+          url
+        });
       }
     }
     
     i++;
   }
-  
-  return embedNodes;
 }

@@ -278,25 +278,31 @@ export async function convertChatToYaml(chat: Chat, messages: Message[], include
             title: null,
             exported_at: new Date().toISOString(),
             message_count: messages.length,
-            draft: null
+            draft: null,
+            summary: null
         },
         messages: [],
         embeds: [] // Separate field for embeds with decoded content
     };
-    
+
     // Add chat link at the top if requested (for clipboard copy)
     if (includeLink) {
         yamlData.chat.link = generateChatLink(chat.chat_id);
         console.debug('[ChatExportService] Including chat link in YAML:', yamlData.chat.link);
     }
-    
-    // Try to get decrypted title from cache
+
+    // Try to get decrypted title and summary from cache
     const metadata = await chatMetadataCache.getDecryptedMetadata(chat);
     if (metadata?.title) {
         yamlData.chat.title = metadata.title;
         console.debug('[ChatExportService] Using decrypted title:', metadata.title);
     } else {
         console.warn('[ChatExportService] Could not decrypt title for YAML export');
+    }
+
+    if (metadata?.summary) {
+        yamlData.chat.summary = metadata.summary;
+        console.debug('[ChatExportService] Using decrypted summary:', metadata.summary.substring(0, 50));
     }
     
     // Add draft if present

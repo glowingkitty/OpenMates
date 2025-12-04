@@ -914,6 +914,27 @@ For implementation details and complete flow, see [app_settings_and_memories.md]
 ### encryption_key_chat
 
 - AES key used for chat encryption, generated client-side per chat
+- Used to wrap `embed_key` for shared chat access (see `embed_keys` collection)
+
+### embed_key
+
+- AES key used for embed content encryption, generated client-side per embed
+- Multiple wrapped versions stored in `embed_keys` collection:
+  - `key_type="master"`: `AES(embed_key, master_key)` - for owner's cross-chat access
+  - `key_type="chat"`: `AES(embed_key, chat_key)` - one per chat for shared chat access
+- Follows same pattern as `wrapped_master_key` with multiple login methods
+- Enables offline-first chat sharing: all wrapped keys pre-stored on server
+- **Nested Embeds**: Child embeds with `parent_embed_id` automatically use parent's `embed_key` (inherited key architecture)
+  - No separate `embed_keys` entries needed for children
+  - Single unwrap operation decrypts entire composite result set
+  - Reduces database entries and cryptographic operations by ~80% for multi-result app skills
+
+### hashed_embed_id
+
+- SHA256(embed_id)
+- Computed client-side on-demand when querying `embed_keys` collection
+- Used in `embed_keys` collection for privacy-preserving lookups (not stored in `embeds` collection)
+- Server cannot link embed_keys entries to embeds without knowing original embed_id
 
 ### encryption_key_user_app
 

@@ -26,6 +26,7 @@ from typing import Dict, List, Any, Optional # For type hinting
 from backend.core.api.app.routes import auth, email, invoice, credit_note, settings, payments, websockets
 from backend.core.api.app.routes import internal_api # Import the new internal API router
 from backend.core.api.app.routes import apps # Import apps router
+from backend.core.api.app.routes import share # Import share router
 from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.metrics import MetricsService
@@ -436,6 +437,42 @@ async def lifespan(app: FastAPI):
                     # Don't fail startup - will fallback to disk loading on first request
             else:
                 logger.warning("Failed to load mates.yml during startup. Will fallback to disk loading on first request.")
+            
+            # Load content sanitization model from AI app.yml and cache it
+            logger.info("Loading content sanitization model from AI app.yml...")
+            try:
+                from backend.apps.ai.processing.content_sanitization import _load_content_sanitization_model
+                content_sanitization_model = _load_content_sanitization_model()
+                if content_sanitization_model:
+                    try:
+                        await app.state.cache_service.set_content_sanitization_model(content_sanitization_model)
+                        logger.info(f"Successfully preloaded and cached content_sanitization_model: {content_sanitization_model}")
+                    except Exception as e_model:
+                        logger.error(f"Failed to cache content_sanitization_model during startup: {e_model}", exc_info=True)
+                        # Don't fail startup - will fallback to disk loading on first request
+                else:
+                    logger.warning("Failed to load content_sanitization_model from AI app.yml during startup. Will fallback to disk loading on first request.")
+            except Exception as e_model_load:
+                logger.error(f"Error loading content_sanitization_model during startup: {e_model_load}", exc_info=True)
+                # Don't fail startup - will fallback to disk loading on first request
+            
+            # Load prompt injection detection config from YAML and cache it
+            logger.info("Loading prompt_injection_detection.yml from disk...")
+            try:
+                from backend.apps.ai.processing.content_sanitization import _load_prompt_injection_detection_config
+                prompt_injection_config = _load_prompt_injection_detection_config()
+                if prompt_injection_config:
+                    try:
+                        await app.state.cache_service.set_prompt_injection_detection_config(prompt_injection_config)
+                        logger.info("Successfully preloaded and cached prompt_injection_detection_config.")
+                    except Exception as e_config:
+                        logger.error(f"Failed to cache prompt_injection_detection_config during startup: {e_config}", exc_info=True)
+                        # Don't fail startup - will fallback to disk loading on first request
+                else:
+                    logger.warning("Failed to load prompt_injection_detection.yml during startup. Will fallback to disk loading on first request.")
+            except Exception as e_config_load:
+                logger.error(f"Error loading prompt_injection_detection_config during startup: {e_config_load}", exc_info=True)
+                # Don't fail startup - will fallback to disk loading on first request
         except Exception as e_preload:
             logger.error(f"Error during AI configuration preloading: {e_preload}", exc_info=True)
             # Don't fail startup - will fallback to disk loading on first request
@@ -755,6 +792,7 @@ def create_app() -> FastAPI:
     app.include_router(websockets.router) # Include websockets router
     app.include_router(internal_api.router) # Include the internal API router
     app.include_router(apps.router) # Include apps router for app metadata endpoints
+    app.include_router(share.router) # Include share router for share chat endpoints
 
     # Health check endpoint with rate limiting
     @app.get("/health")

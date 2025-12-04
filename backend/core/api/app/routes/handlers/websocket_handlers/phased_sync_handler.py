@@ -400,10 +400,10 @@ async def _handle_phase1_sync(
         # Get embeds from sync cache for this chat
         # Filter out embeds already sent in previous phases (cross-phase deduplication)
         raw_embeds_data = await cache_service.get_sync_embeds_for_chat(chat_id)
+        import hashlib
+        hashed_chat_id = hashlib.sha256(chat_id.encode()).hexdigest()
         if not raw_embeds_data:
             # Fallback: try to get embeds from Directus if not in sync cache
-            import hashlib
-            hashed_chat_id = hashlib.sha256(chat_id.encode()).hexdigest()
             raw_embeds_data = await directus_service.embed.get_embeds_by_hashed_chat_id(hashed_chat_id)
         
         # Filter and track sent embeds to prevent duplicates across phases
@@ -416,7 +416,18 @@ async def _handle_phase1_sync(
                     sent_embed_ids.add(embed_id)
             logger.info(f"Phase 1: Sending {len(embeds_data)} embeds for chat {chat_id} (filtered from {len(raw_embeds_data)}, {len(sent_embed_ids)} total sent)")
         
-        # Send Phase 1 data to client WITH suggestions (always) AND embeds
+        # CRITICAL: Also fetch embed_keys for this chat
+        # Embed keys are needed to decrypt the encrypted embed content on the client
+        # Without embed_keys, embeds cannot be decrypted and will show errors
+        embed_keys_data = []
+        try:
+            embed_keys_data = await directus_service.embed.get_embed_keys_by_hashed_chat_id(hashed_chat_id)
+            if embed_keys_data:
+                logger.info(f"Phase 1: Fetched {len(embed_keys_data)} embed_keys for chat {chat_id}")
+        except Exception as e:
+            logger.warning(f"Phase 1: Error fetching embed_keys for chat {chat_id}: {e}")
+        
+        # Send Phase 1 data to client WITH suggestions, embeds, AND embed_keys
         await manager.send_personal_message(
             {
                 "type": "phase_1_last_chat_ready",
@@ -425,6 +436,7 @@ async def _handle_phase1_sync(
                     "chat_details": chat_details,
                     "messages": messages_data or [],
                     "embeds": embeds_data or [],  # Include embeds for client-side storage
+                    "embed_keys": embed_keys_data or [],  # Include embed_keys for decryption
                     "new_chat_suggestions": new_chat_suggestions,  # Always include suggestions
                     "phase": "phase1",
                     "already_synced": False
@@ -434,7 +446,7 @@ async def _handle_phase1_sync(
             device_fingerprint_hash
         )
         
-        logger.info(f"Phase 1 sync complete for user {user_id}, chat: {chat_id}, sent: {len(messages_data or [])} messages, {len(embeds_data or [])} embeds, and {len(new_chat_suggestions)} suggestions")
+        logger.info(f"Phase 1 sync complete for user {user_id}, chat: {chat_id}, sent: {len(messages_data or [])} messages, {len(embeds_data or [])} embeds, {len(embed_keys_data)} embed_keys, and {len(new_chat_suggestions)} suggestions")
         
     except Exception as e:
         logger.error(f"Error in Phase 1 sync for user {user_id}: {e}", exc_info=True)
@@ -745,14 +757,37 @@ async def _handle_phase2_sync(
         if embeds_list:
             logger.info(f"Phase 2: Sending {len(embeds_list)} new embeds ({len(sent_embed_ids)} total sent across phases)")
         
+        # CRITICAL: Also collect embed_keys for all chats in this phase
+        # Embed keys are needed to decrypt the encrypted embed content on the client
+        all_embed_keys = []
+        seen_embed_key_ids = set()  # Deduplicate by id
+        for chat_wrapper in chats_to_send:
+            chat_id = chat_wrapper.get("chat_details", {}).get("id")
+            if chat_id:
+                try:
+                    hashed_chat_id = hashlib.sha256(chat_id.encode()).hexdigest()
+                    embed_keys = await directus_service.embed.get_embed_keys_by_hashed_chat_id(hashed_chat_id)
+                    if embed_keys:
+                        for key_entry in embed_keys:
+                            key_id = key_entry.get("id")
+                            if key_id and key_id not in seen_embed_key_ids:
+                                all_embed_keys.append(key_entry)
+                                seen_embed_key_ids.add(key_id)
+                except Exception as e:
+                    logger.warning(f"Phase 2: Error fetching embed_keys for chat {chat_id}: {e}")
+        
+        if all_embed_keys:
+            logger.info(f"Phase 2: Sending {len(all_embed_keys)} embed_keys for {len(chats_to_send)} chats")
+        
         # Send Phase 2 data to client (only chats that need updating)
-        # Embeds are sent as a flat deduplicated array, not per-chat
+        # Embeds and embed_keys are sent as flat deduplicated arrays, not per-chat
         await manager.send_personal_message(
             {
                 "type": "phase_2_last_20_chats_ready",
                 "payload": {
                     "chats": chats_to_send,
                     "embeds": embeds_list,  # Flat deduplicated array
+                    "embed_keys": all_embed_keys,  # Flat deduplicated array of embed keys
                     "chat_count": len(chats_to_send),
                     "phase": "phase2"
                 }
@@ -761,7 +796,7 @@ async def _handle_phase2_sync(
             device_fingerprint_hash
         )
         
-        logger.info(f"Phase 2 sync complete for user {user_id}, sent: {len(chats_to_send)} chats, {len(embeds_list)} embeds, skipped: {chats_skipped}")
+        logger.info(f"Phase 2 sync complete for user {user_id}, sent: {len(chats_to_send)} chats, {len(embeds_list)} embeds, {len(all_embed_keys)} embed_keys, skipped: {chats_skipped}")
         
     except Exception as e:
         logger.error(f"Error in Phase 2 sync for user {user_id}: {e}", exc_info=True)
@@ -1060,14 +1095,37 @@ async def _handle_phase3_sync(
         if embeds_list:
             logger.info(f"Phase 3: Sending {len(embeds_list)} new embeds ({len(sent_embed_ids)} total sent across all phases)")
 
+        # CRITICAL: Also collect embed_keys for all chats in this phase
+        # Embed keys are needed to decrypt the encrypted embed content on the client
+        all_embed_keys = []
+        seen_embed_key_ids = set()  # Deduplicate by id
+        for chat_wrapper in chats_to_send:
+            chat_id = chat_wrapper.get("chat_details", {}).get("id")
+            if chat_id:
+                try:
+                    hashed_chat_id = hashlib.sha256(chat_id.encode()).hexdigest()
+                    embed_keys = await directus_service.embed.get_embed_keys_by_hashed_chat_id(hashed_chat_id)
+                    if embed_keys:
+                        for key_entry in embed_keys:
+                            key_id = key_entry.get("id")
+                            if key_id and key_id not in seen_embed_key_ids:
+                                all_embed_keys.append(key_entry)
+                                seen_embed_key_ids.add(key_id)
+                except Exception as e:
+                    logger.warning(f"Phase 3: Error fetching embed_keys for chat {chat_id}: {e}")
+        
+        if all_embed_keys:
+            logger.info(f"Phase 3: Sending {len(all_embed_keys)} embed_keys for {len(chats_to_send)} chats")
+
         # Send Phase 3 data to client (chats only - NO suggestions, always sent in Phase 1)
-        # Embeds are sent as a flat deduplicated array, not per-chat
+        # Embeds and embed_keys are sent as flat deduplicated arrays, not per-chat
         await manager.send_personal_message(
             {
                 "type": "phase_3_last_100_chats_ready",
                 "payload": {
                     "chats": chats_to_send,
                     "embeds": embeds_list,  # Flat deduplicated array
+                    "embed_keys": all_embed_keys,  # Flat deduplicated array of embed keys
                     "chat_count": len(chats_to_send),
                     "phase": "phase3"
                 }
@@ -1076,7 +1134,7 @@ async def _handle_phase3_sync(
             device_fingerprint_hash
         )
 
-        logger.info(f"Phase 3 sync complete for user {user_id}, sent: {len(chats_to_send)} chats, {len(embeds_list)} embeds (skipped: {chats_skipped})")
+        logger.info(f"Phase 3 sync complete for user {user_id}, sent: {len(chats_to_send)} chats, {len(embeds_list)} embeds, {len(all_embed_keys)} embed_keys (skipped: {chats_skipped})")
         
         # Clear sync cache after successful Phase 3 completion (1h TTL, no longer needed)
         try:

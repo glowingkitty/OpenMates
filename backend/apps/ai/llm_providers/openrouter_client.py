@@ -358,7 +358,21 @@ async def _stream_openrouter_response(
                     except UnicodeDecodeError:
                         error_msg = f"HTTP {response.status_code}: {str(error_body[:500])}"
                     
-                    logger.error(f"{log_prefix} OpenRouter API error: {error_msg}")
+                    # Improve error message for 401 errors (API key issues)
+                    if response.status_code == 401:
+                        if "user not found" in error_msg.lower() or "unauthorized" in error_msg.lower():
+                            logger.error(
+                                f"{log_prefix} OpenRouter API authentication failed (401). "
+                                f"This usually means the OpenRouter API key is missing or invalid. "
+                                f"Please check Vault configuration at 'kv/data/providers/openrouter' with key 'api_key'. "
+                                f"Original error: {error_msg}"
+                            )
+                            error_msg = "OpenRouter API key is missing or invalid. Please configure the API key in Vault."
+                        else:
+                            logger.error(f"{log_prefix} OpenRouter API authentication error (401): {error_msg}")
+                    else:
+                        logger.error(f"{log_prefix} OpenRouter API error: {error_msg}")
+                    
                     yield f"[ERROR: HTTP error {response.status_code}: {error_msg}]"
                     return
                 

@@ -77,6 +77,9 @@ changes to the documentation (to keep the documentation up to date).
     import SettingsLowBalanceAutotopup from './settings/billing/autotopup/SettingsLowBalanceAutotopup.svelte';
     import SettingsMonthlyAutotopup from './settings/billing/autotopup/SettingsMonthlyAutotopup.svelte';
     
+    // Import share settings component
+    import SettingsShare from './settings/share/SettingsShare.svelte';
+    
     // Import the normal store instead of the derived one that was causing the error
     import { settingsNavigationStore } from '../stores/settingsNavigationStore';
 
@@ -131,7 +134,7 @@ changes to the documentation (to keep the documentation up to date).
         'app_store': SettingsAppStore,
         'app_store/all': SettingsAllApps,
         // 'mates': SettingsMates,
-        // 'shared': SettingsShared,
+        'shared': SettingsShared,
         // 'messengers': SettingsMessengers,
         // 'developers': SettingsDevelopers,
         'interface': SettingsInterface,
@@ -140,7 +143,9 @@ changes to the documentation (to keep the documentation up to date).
         'account': SettingsAccount,
         'account/security': SettingsSecurity,
         'account/security/passkeys': SettingsPasskeys,
-        // 'server/software-update': SettingsSoftwareUpdate
+        // 'server/software-update': SettingsSoftwareUpdate,
+        // Share chat settings - allows users to share the current chat
+        'shared/share': SettingsShare
     };
     
     /**
@@ -196,18 +201,22 @@ changes to the documentation (to keep the documentation up to date).
 
     // Reactive settingsViews that filters out server options for non-admins
     // For non-authenticated users, show interface settings (and nested language settings) and app store
-    // This allows them to explore available features like mates and apps
+    // This allows them to explore available features like apps
+    // Shared settings (including share chat) are only available for authenticated users
     let settingsViews = $derived.by(() => {
         const isAuthenticated = $authStore.isAuthenticated;
         return Object.entries(allSettingsViews).reduce((filtered, [key, component]) => {
-            // For non-authenticated users, include interface settings (top-level and nested) and app store (including app details)
+            // For non-authenticated users, include interface settings (top-level and nested) 
+            // and app store (including app details)
             // App store is read-only for non-authenticated users (browse only, no modifications)
             if (!isAuthenticated) {
-                if (key === 'interface' || key === 'interface/language' || key === 'app_store' || key.startsWith('app_store/')) {
+                if (key === 'interface' || key === 'interface/language' || 
+                    key === 'app_store' || key.startsWith('app_store/')) {
                     filtered[key] = component;
                 }
             } else {
                 // For authenticated users, include all non-server settings, or include server settings if user is admin
+                // Shared settings (including nested share chat) are only for authenticated users
                 if (!key.startsWith('server') || $userProfile.is_admin) {
                     filtered[key] = component;
                 }
@@ -451,6 +460,9 @@ changes to the documentation (to keep the documentation up to date).
             // Special handling for passkeys - skip "security" segment in translation key
             if (settingsPath === 'account/security/passkeys') {
                 activeSubMenuTitleKey = 'settings.account.passkeys.text';
+            } else if (settingsPath === 'shared/share') {
+                // Special case: 'shared/share' uses 'settings.share.text' (share is at root level, not nested)
+                activeSubMenuTitleKey = 'settings.share.text';
             } else {
                 // Build the translation key from the path
                 const translationKeyParts = settingsPath.split('/').map(segment => segment.replace(/-/g, '_'));
@@ -867,8 +879,20 @@ changes to the documentation (to keep the documentation up to date).
             // After a brief delay to ensure menu is open, navigate to the requested settings path
             setTimeout(() => {
                 // Determine the icon and title based on the path
-                const icon = settingsPath.split('/')[0];
-                const title = $text(`settings.${icon}.text`);
+                // For nested paths like 'shared/share', use the last segment for icon
+                const pathParts = settingsPath.split('/');
+                const icon = pathParts.length > 1 ? pathParts[pathParts.length - 1] : pathParts[0];
+                
+                // Build translation key from full path
+                // Special case: 'shared/share' uses 'settings.share.text' (share is at root level, not nested)
+                let translationKey;
+                if (settingsPath === 'shared/share') {
+                    translationKey = 'settings.share.text';
+                } else {
+                    const translationKeyParts = settingsPath.split('/').map(segment => segment.replace(/-/g, '_'));
+                    translationKey = `settings.${translationKeyParts.join('.')}.text`;
+                }
+                const title = $text(translationKey);
 
                 handleOpenSettings({
                     detail: {

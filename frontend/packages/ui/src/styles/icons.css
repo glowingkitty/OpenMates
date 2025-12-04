@@ -584,7 +584,7 @@ div.clickable-icon {
   }
 }
 
-.icon_rounded.video {
+.icon_rounded.videos {
   background: var(--color-app-videos);
   &::after {
     background-image: url('@openmates/ui/static/icons/videos.svg');
@@ -1064,6 +1064,14 @@ div.clickable-icon {
 
   &::before {
       background-image: url('@openmates/ui/static/icons/app.svg');
+  }
+}
+
+.icon.shared {
+  background: var(--color-primary);
+
+  &::before {
+      background-image: url('@openmates/ui/static/icons/share.svg');
   }
 }
 

@@ -39,8 +39,8 @@
     onShare?: () => void;
     /** Snippet for header extra content (optional) */
     headerExtra?: import('svelte').Snippet<[]>;
-    /** Snippet for main content */
-    content: import('svelte').Snippet<[]>;
+    /** Snippet for main content - REQUIRED but made optional for defensive programming */
+    content?: import('svelte').Snippet<[]>;
     /** Snippet for bottom bar (optional, defaults to basic infos bar) */
     bottomBar?: import('svelte').Snippet<[]>;
   }
@@ -57,6 +57,17 @@
     content,
     bottomBar
   }: Props = $props();
+  
+  // DEBUG: Log when content snippet is missing - this helps identify which embed is broken
+  $effect(() => {
+    if (!content) {
+      console.error('[UnifiedEmbedFullscreen] MISSING content snippet! This will cause rendering issues.', {
+        appId,
+        skillId,
+        title
+      });
+    }
+  });
   
   // Handle smooth closing animation
   function handleClose() {
@@ -153,9 +164,16 @@
       {/if}
     </div>
     
-    <!-- Main content area (scrollable) -->
+    <!-- Main content area (scrollable) - with defensive guard -->
     <div class="content-area">
-      {@render content()}
+      {#if content}
+        {@render content()}
+      {:else}
+        <!-- Fallback when content snippet is missing -->
+        <div class="missing-content-fallback">
+          <p>Content unavailable</p>
+        </div>
+      {/if}
     </div>
     
     <!-- Bottom preview bar -->
@@ -377,6 +395,20 @@
     width: 100%;
     position: relative;
     z-index: 1;
+  }
+  
+  /* ===========================================
+     Fallback for Missing Content Snippet
+     =========================================== */
+  
+  .missing-content-fallback {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 200px;
+    color: var(--color-grey-70);
+    font-size: 16px;
+    text-align: center;
   }
 </style>
 

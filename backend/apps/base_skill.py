@@ -3,10 +3,12 @@
 # component for all skills within the application framework. It will encapsulate
 # common logic, configuration handling, and integration points for skills.
 
-from typing import Optional, Dict, Any, Union, TYPE_CHECKING
+from typing import Optional, Dict, Any, Union, Tuple, Set, List, Callable, Type, TYPE_CHECKING
 from pydantic import BaseModel, Field, validator
 import asyncio # For potential async operations
 import time # For generating timestamps
+import logging
+import hashlib
 
 # Import shared utilities
 from backend.shared.python_utils.billing_utils import calculate_total_credits, BillingError, MINIMUM_CREDITS_CHARGED
@@ -269,6 +271,406 @@ class BaseSkill:
             "pricing": self.pricing.model_dump(exclude_none=True) if self.pricing else None,
             # Add other relevant metadata
         }
+
+    def _validate_and_normalize_request_id(
+        self,
+        req: Dict[str, Any],
+        request_index: int,
+        total_requests: int,
+        request_ids: Set[Any],
+        logger: Optional[logging.Logger] = None
+    ) -> Tuple[Optional[Any], Optional[str]]:
+        """
+        Validates and normalizes the 'id' field for a request in a multi-request skill call.
+        
+        This helper method implements the standard pattern for handling request IDs:
+        - For single requests: 'id' is optional - auto-generates id=1 if missing
+        - For multiple requests: 'id' is required to match responses to requests
+        - Validates that 'id' values are unique within the batch
+        
+        Args:
+            req: The request dictionary to validate
+            request_index: Zero-based index of the request in the requests array (for error messages)
+            total_requests: Total number of requests in the batch
+            request_ids: Set of already-seen request IDs (for uniqueness validation)
+            logger: Optional logger instance for debug messages (if None, uses print)
+        
+        Returns:
+            Tuple of (request_id, error_message_or_none):
+            - request_id: The validated/normalized request ID, or None if validation failed
+            - error_message_or_none: Error message string if validation failed, None if successful
+        
+        Example usage in a skill's execute() method:
+            request_ids = set()
+            for i, req in enumerate(requests):
+                request_id, error = self._validate_and_normalize_request_id(
+                    req=req,
+                    request_index=i,
+                    total_requests=len(requests),
+                    request_ids=request_ids,
+                    logger=logger
+                )
+                if error:
+                    return Response(results=[], error=error)
+                # Note: request_id is already added to request_ids by the helper
+        """
+        # Use provided logger or fall back to print for debug messages
+        log_func = logger.debug if logger else print
+        
+        # For single requests, 'id' is optional - auto-generate if missing
+        # For multi-request calls, 'id' is required to match responses to requests
+        if total_requests == 1:
+            # Single request: auto-generate 'id' if missing
+            if "id" not in req:
+                req["id"] = 1  # Default to 1 for single requests
+                log_func(f"Auto-generated 'id'=1 for single request")
+        else:
+            # Multiple requests: 'id' is required
+            if "id" not in req:
+                error_msg = (
+                    f"Request {request_index + 1} is missing required 'id' field. "
+                    f"Each request must have a unique 'id' (number or UUID string) for matching responses in multi-request calls."
+                )
+                return (None, error_msg)
+        
+        request_id = req.get("id")
+        
+        # Validate id is unique within this batch
+        if request_id in request_ids:
+            error_msg = (
+                f"Request {request_index + 1} has duplicate 'id' value '{request_id}'. "
+                f"Each request must have a unique 'id'."
+            )
+            return (None, error_msg)
+        
+        # Add to set for future uniqueness checks (caller should also add it)
+        request_ids.add(request_id)
+        
+        return (request_id, None)
+
+    async def _get_or_create_secrets_manager(
+        self,
+        secrets_manager: Optional[Any],
+        skill_name: str,
+        error_response_factory: Callable[[str], Any],
+        logger: Optional[logging.Logger] = None
+    ) -> Tuple[Optional[Any], Optional[Any]]:
+        """
+        Get or create a SecretsManager instance.
+        
+        This helper method standardizes the pattern of getting or creating a SecretsManager
+        instance that is used across all skills. It first tries to use an injected instance,
+        then tries to get one from the app, and finally creates a new one if needed.
+        
+        Args:
+            secrets_manager: Optional SecretsManager instance (may be injected by app)
+            skill_name: Name of the skill (for logging and error messages)
+            error_response_factory: Callable that takes an error message and returns an error response object
+            logger: Optional logger instance (if None, uses print)
+        
+        Returns:
+            Tuple of (secrets_manager, error_response_or_none):
+            - secrets_manager: The SecretsManager instance, or None if initialization failed
+            - error_response_or_none: Error response object if initialization failed, None if successful
+        
+        Example usage:
+            secrets_manager, error_response = await self._get_or_create_secrets_manager(
+                secrets_manager=secrets_manager,
+                skill_name="ReadSkill",
+                error_response_factory=lambda msg: ReadResponse(results=[], error=msg),
+                logger=logger
+            )
+            if error_response:
+                return error_response
+        """
+        # Use injected secrets_manager or create a new one
+        if secrets_manager is None:
+            # Try to get from app if available
+            if hasattr(self.app, 'secrets_manager') and self.app.secrets_manager:
+                secrets_manager = self.app.secrets_manager
+            else:
+                # Create a new SecretsManager instance
+                # Skills that need secrets should initialize their own SecretsManager
+                try:
+                    # Import here to avoid circular dependencies
+                    from backend.core.api.app.utils.secrets_manager import SecretsManager
+                    secrets_manager = SecretsManager()
+                    await secrets_manager.initialize()
+                    if logger:
+                        logger.debug(f"{skill_name} initialized its own SecretsManager instance")
+                    else:
+                        print(f"{skill_name} initialized its own SecretsManager instance")
+                except Exception as e:
+                    error_msg = f"{skill_name} service configuration error: Failed to initialize secrets manager"
+                    if logger:
+                        logger.error(f"Failed to initialize SecretsManager for {skill_name}: {e}", exc_info=True)
+                    else:
+                        print(f"Failed to initialize SecretsManager for {skill_name}: {e}", exc_info=True)
+                    return (None, error_response_factory(error_msg))
+        
+        return (secrets_manager, None)
+
+    def _validate_requests_array(
+        self,
+        requests: List[Dict[str, Any]],
+        required_field: str,
+        field_display_name: str,
+        empty_error_message: str,
+        logger: logging.Logger
+    ) -> Tuple[Optional[List[Dict[str, Any]]], Optional[str]]:
+        """
+        Validate requests array structure, IDs, and required fields.
+        
+        This helper method standardizes the validation pattern used across all skills:
+        - Validates that requests array is not empty
+        - Validates and normalizes request IDs using _validate_and_normalize_request_id
+        - Validates that each request has the required field
+        
+        Args:
+            requests: List of request dictionaries to validate
+            required_field: Name of the required field to check (e.g., 'url', 'query')
+            field_display_name: Display name for the field in error messages (e.g., 'url', 'query')
+            empty_error_message: Error message to return if requests array is empty
+            logger: Logger instance for error logging
+        
+        Returns:
+            Tuple of (validated_requests, error_message_or_none):
+            - validated_requests: The validated requests list, or None if validation failed
+            - error_message_or_none: Error message string if validation failed, None if successful
+        
+        Example usage:
+            validated_requests, error = self._validate_requests_array(
+                requests=requests,
+                required_field="url",
+                field_display_name="url",
+                empty_error_message="No read requests provided. 'requests' array must contain at least one request with a 'url' field.",
+                logger=logger
+            )
+            if error:
+                return ReadResponse(results=[], error=error)
+        """
+        # Validate requests array is not empty
+        if not requests or len(requests) == 0:
+            logger.error(f"No requests provided to {self.skill_name}")
+            return (None, empty_error_message)
+        
+        # Validate that all requests have required fields: 'id' and the specified required field
+        # Use BaseSkill helper method for consistent validation across all skills
+        request_ids = set()
+        for i, req in enumerate(requests):
+            # Validate and normalize request 'id' field using BaseSkill helper
+            request_id, error = self._validate_and_normalize_request_id(
+                req=req,
+                request_index=i,
+                total_requests=len(requests),
+                request_ids=request_ids,
+                logger=logger
+            )
+            if error:
+                logger.error(f"Request {i+1} validation failed: {error}")
+                return (None, error)
+            
+            # Validate required field
+            if not req.get(required_field):
+                logger.error(f"Request {i+1} (id: {request_id}) in requests array is missing '{field_display_name}' field")
+                return (None, f"Request {i+1} (id: {request_id}) is missing required '{field_display_name}' field")
+        
+        return (requests, None)
+
+    async def _process_requests_in_parallel(
+        self,
+        requests: List[Dict[str, Any]],
+        process_single_request_func: Callable,
+        logger: logging.Logger,
+        **kwargs
+    ) -> List[Any]:
+        """
+        Process multiple requests in parallel using asyncio.gather.
+        
+        This helper method standardizes the parallel processing pattern used across all skills.
+        It creates tasks for each request and executes them in parallel.
+        
+        Args:
+            requests: List of request dictionaries to process
+            process_single_request_func: Async function to process a single request
+                                        Must accept req, request_id, and other kwargs
+            logger: Logger instance for logging
+            **kwargs: Additional keyword arguments to pass to process_single_request_func
+        
+        Returns:
+            List of results from asyncio.gather (may include exceptions)
+        
+        Example usage:
+            results = await self._process_requests_in_parallel(
+                requests=read_requests,
+                process_single_request_func=self._process_single_read_request,
+                logger=logger,
+                secrets_manager=secrets_manager,
+                cache_service=cache_service
+            )
+        """
+        # Process all requests in parallel using asyncio.gather()
+        # Each request is processed independently
+        logger.info(f"Processing {len(requests)} requests in parallel")
+        tasks = [
+            process_single_request_func(
+                req=req,
+                request_id=req.get("id"),
+                **kwargs
+            )
+            for req in requests
+        ]
+        
+        # Wait for all requests to complete (parallel execution)
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        return results
+
+    def _group_results_by_request_id(
+        self,
+        results: List[Any],
+        requests: List[Dict[str, Any]],
+        logger: logging.Logger
+    ) -> Tuple[List[Dict[str, Any]], List[str]]:
+        """
+        Group results by request ID and handle errors.
+        
+        This helper method standardizes the result processing pattern used across all skills.
+        It processes results from asyncio.gather, handles exceptions, and groups results by request ID.
+        
+        Args:
+            results: List of results from asyncio.gather (may include exceptions)
+            requests: Original list of requests (for maintaining order)
+            logger: Logger instance for error logging
+        
+        Returns:
+            Tuple of (grouped_results, errors):
+            - grouped_results: List of dicts with 'id' and 'results' keys, grouped by request ID
+            - errors: List of error message strings
+        
+        Example usage:
+            grouped_results, errors = self._group_results_by_request_id(
+                results=results,
+                requests=read_requests,
+                logger=logger
+            )
+        """
+        # Process results and group by request id
+        grouped_results: List[Dict[str, Any]] = []
+        errors: List[str] = []
+        
+        for result in results:
+            if isinstance(result, Exception):
+                # Handle exceptions from asyncio.gather
+                error_msg = f"Unexpected error processing request: {str(result)}"
+                logger.error(error_msg, exc_info=True)
+                errors.append(error_msg)
+                continue
+            
+            # Result should be a tuple of (request_id, items, error)
+            request_id, items, error = result
+            
+            if error:
+                errors.append(error)
+                # Still include the request in results (with empty results array) for consistency
+                # Include error message in grouped_result so it can be used for error embeds
+                grouped_results.append({
+                    "id": request_id,
+                    "results": [],
+                    "error": error  # Store error message for this specific request
+                })
+            else:
+                # Group results by request id
+                grouped_results.append({
+                    "id": request_id,
+                    "results": items
+                })
+        
+        # Sort results by request order (maintain original request order in response)
+        request_order = {req.get("id"): i for i, req in enumerate(requests)}
+        grouped_results.sort(key=lambda x: request_order.get(x["id"], 999))
+        
+        return (grouped_results, errors)
+
+    def _build_response_with_errors(
+        self,
+        response_class: Type,
+        grouped_results: List[Dict[str, Any]],
+        errors: List[str],
+        provider: str,
+        suggestions: Optional[List[str]],
+        logger: logging.Logger,
+        **response_kwargs
+    ) -> Any:
+        """
+        Build response object with error handling and suggestions.
+        
+        This helper method standardizes the response building pattern used across all skills.
+        It creates a response object, adds errors if any, and includes suggestions if configured.
+        
+        Args:
+            response_class: The response class to instantiate (e.g., ReadResponse, SearchResponse)
+            grouped_results: List of grouped results (from _group_results_by_request_id)
+            errors: List of error message strings
+            provider: Provider name (e.g., "Firecrawl", "Brave Search")
+            suggestions: Optional list of follow-up suggestions
+            logger: Logger instance for logging
+            **response_kwargs: Additional keyword arguments to pass to response_class constructor
+        
+        Returns:
+            Instance of response_class with results, errors, and suggestions set
+        
+        Example usage:
+            response = self._build_response_with_errors(
+                response_class=ReadResponse,
+                grouped_results=grouped_results,
+                errors=errors,
+                provider="Firecrawl",
+                suggestions=suggestions,
+                logger=logger
+            )
+        """
+        # Calculate total results
+        total_results = sum(len(group.get("results", [])) for group in grouped_results)
+        
+        # Use follow-up suggestions if we have results and suggestions are configured
+        final_suggestions = None
+        if total_results > 0 and suggestions:
+            final_suggestions = suggestions
+        
+        # Build response with grouped results structure
+        response = response_class(
+            results=grouped_results,  # Grouped by request id
+            provider=provider,  # Provider at root level
+            suggestions_follow_up_requests=final_suggestions,
+            **response_kwargs
+        )
+        
+        # Add error message if there were errors (but still return results if any)
+        if errors:
+            response.error = "; ".join(errors)
+            logger.warning(f"{self.skill_name} completed with {len(errors)} error(s): {response.error}")
+        
+        logger.info(f"{self.skill_name} execution completed: {len(grouped_results)} request groups, {total_results} total results, {len(errors)} errors")
+        return response
+
+    def _generate_result_hash(self, url: str) -> str:
+        """
+        Generate a hash for a result URL.
+        Used for deduplication and tracking.
+        
+        This helper method provides a consistent way to generate hashes for URLs
+        across all skills that need to track or deduplicate results.
+        
+        Args:
+            url: The result URL to hash
+        
+        Returns:
+            Hash string (first 16 characters of SHA256 hash)
+        
+        Example usage:
+            hash_value = self._generate_result_hash(result_url)
+        """
+        return hashlib.sha256(url.encode()).hexdigest()[:16]
 
     # Placeholder for Celery task management
     # async def run_as_task(self, *args, **kwargs) -> Optional[str]:

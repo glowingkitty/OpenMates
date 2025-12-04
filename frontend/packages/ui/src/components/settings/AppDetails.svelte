@@ -13,6 +13,7 @@
     import { appSkillsStore } from '../../stores/appSkillsStore';
     import { authStore } from '../../stores/authStore';
     import AppStoreCard from './AppStoreCard.svelte';
+    import AppSettingsMemoriesPanel from './appSettings/AppSettingsMemoriesPanel.svelte';
     import SettingsItem from '../SettingsItem.svelte';
     import type { AppMetadata, SkillMetadata, FocusModeMetadata, MemoryFieldMetadata } from '../../types/apps';
     import { createEventDispatcher } from 'svelte';
@@ -210,29 +211,35 @@
         <!-- Settings & Memories section -->
         {#if memoryFields.length > 0}
             <div class="section">
-                <SettingsItem 
+                <SettingsItem
                     type="heading"
                     icon="settings"
                     title={$text('settings.app_store.settings_memories.title.text')}
                 />
-                <div class="items-scroll-container">
-                    <div class="items-scroll">
-                        {#each memoryFields as category (category.id)}
-                            {@const categoryApp: AppMetadata = {
-                                id: appId,
-                                name_translation_key: category.name_translation_key,
-                                description_translation_key: category.description_translation_key,
-                                icon_image: app.icon_image,
-                                icon_colorgradient: app.icon_colorgradient,
-                                providers: [],
-                                skills: [],
-                                focus_modes: [],
-                                settings_and_memories: []
-                            }}
-                            <AppStoreCard app={categoryApp} onSelect={() => handleSettingsMemoriesCategorySelect(category.id)} />
-                        {/each}
+                {#if isAuthenticated}
+                    <div class="settings-memories-preview">
+                        <AppSettingsMemoriesPanel {appId} />
                     </div>
-                </div>
+                {:else}
+                    <div class="items-scroll-container">
+                        <div class="items-scroll">
+                            {#each memoryFields as category (category.id)}
+                                {@const categoryApp: AppMetadata = {
+                                    id: appId,
+                                    name_translation_key: category.name_translation_key,
+                                    description_translation_key: category.description_translation_key,
+                                    icon_image: app.icon_image,
+                                    icon_colorgradient: app.icon_colorgradient,
+                                    providers: [],
+                                    skills: [],
+                                    focus_modes: [],
+                                    settings_and_memories: []
+                                }}
+                                <AppStoreCard app={categoryApp} onSelect={() => handleSettingsMemoriesCategorySelect(category.id)} />
+                            {/each}
+                        </div>
+                    </div>
+                {/if}
             </div>
         {/if}
     {/if}
@@ -273,7 +280,15 @@
     .section :global(.items-scroll-container) {
         margin-left: 0;
     }
-    
+
+    .settings-memories-preview {
+        margin-top: 0.5rem;
+        padding: 1rem;
+        background: var(--color-grey-10);
+        border-radius: 8px;
+        border: 1px solid var(--color-grey-20);
+    }
+
     .error {
         padding: 2rem;
         text-align: center;

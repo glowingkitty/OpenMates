@@ -52,37 +52,98 @@ class UserDatabaseService {
 
             // console.debug(userData);
 
-            // Only store essential fields
-            store.put(userData.username || '', 'username');
-            store.put(!!userData.is_admin, 'is_admin');  // Convert to boolean
-             store.put(userData.profile_image_url || null, 'profile_image_url');
-             store.put(userData.credits || 0, 'credits');
-             store.put(userData.tfa_app_name || null, 'tfa_app_name');
-             store.put(!!userData.tfa_enabled, 'tfa_enabled'); // Store 2FA enabled status
-             // Use boolean flags from backend
-             store.put(!!userData.consent_privacy_and_apps_default_settings, 'consent_privacy_and_apps_default_settings');
-             store.put(!!userData.consent_mates_default_settings, 'consent_mates_default_settings');
-             // Add language and darkmode
-             store.put(userData.language || 'en', 'language');
-             store.put(!!userData.darkmode, 'darkmode');
-             store.put(userData.currency || '', 'currency'); // Save currency
-             store.put(userData.last_sync_timestamp || 0, 'last_sync_timestamp');
-             store.put(userData.last_opened || '', 'last_opened'); // Save last_opened
-             // Save top recommended apps (encrypted)
-             if (userData.encrypted_top_recommended_apps !== undefined) {
-                 store.put(userData.encrypted_top_recommended_apps, 'encrypted_top_recommended_apps');
-             }
-             // Save top recommended apps (decrypted, for local use)
-             if (userData.top_recommended_apps !== undefined) {
-                 store.put(JSON.stringify(userData.top_recommended_apps || []), 'top_recommended_apps');
-             }
-             // Save random explore apps and timestamp
-             if (userData.random_explore_apps !== undefined) {
-                 store.put(JSON.stringify(userData.random_explore_apps || []), 'random_explore_apps');
-             }
-             if (userData.random_explore_apps_timestamp !== undefined) {
-                 store.put(userData.random_explore_apps_timestamp || 0, 'random_explore_apps_timestamp');
-             }
+            // CRITICAL: Preserve local last_opened if server value is empty/null/undefined
+            // This prevents server sync from overwriting the user's current chat selection on tab reload
+            // Only update last_opened from server if it has a meaningful value
+            const lastOpenedRequest = store.get('last_opened');
+            let localLastOpened: string = '';
+            
+            lastOpenedRequest.onsuccess = () => {
+                localLastOpened = lastOpenedRequest.result || '';
+                
+                // Only store essential fields
+                store.put(userData.username || '', 'username');
+                store.put(!!userData.is_admin, 'is_admin');  // Convert to boolean
+                 store.put(userData.profile_image_url || null, 'profile_image_url');
+                 store.put(userData.credits || 0, 'credits');
+                 store.put(userData.tfa_app_name || null, 'tfa_app_name');
+                 store.put(!!userData.tfa_enabled, 'tfa_enabled'); // Store 2FA enabled status
+                 // Use boolean flags from backend
+                 store.put(!!userData.consent_privacy_and_apps_default_settings, 'consent_privacy_and_apps_default_settings');
+                 store.put(!!userData.consent_mates_default_settings, 'consent_mates_default_settings');
+                 // Add language and darkmode
+                 store.put(userData.language || 'en', 'language');
+                 store.put(!!userData.darkmode, 'darkmode');
+                 store.put(userData.currency || '', 'currency'); // Save currency
+                 store.put(userData.last_sync_timestamp || 0, 'last_sync_timestamp');
+                 
+                 // CRITICAL: Preserve local last_opened if server value is empty/null/undefined
+                 // Only update from server if server has a meaningful value (not null, undefined, or empty string)
+                 // This ensures tab reload uses the user's current chat selection, not stale server data
+                 const serverLastOpened = userData.last_opened;
+                 if (serverLastOpened && serverLastOpened.trim() !== '') {
+                     // Server has a meaningful value, use it (for cross-device sync)
+                     store.put(serverLastOpened, 'last_opened');
+                     console.debug(`[UserDatabase] Updated last_opened from server: ${serverLastOpened}`);
+                 } else if (localLastOpened) {
+                     // Server value is empty/null, preserve local value
+                     store.put(localLastOpened, 'last_opened');
+                     console.debug(`[UserDatabase] Preserved local last_opened (server value was empty): ${localLastOpened}`);
+                 } else {
+                     // Both are empty, store empty string
+                     store.put('', 'last_opened');
+                 }
+                 
+                 // Save top recommended apps (encrypted)
+                 if (userData.encrypted_top_recommended_apps !== undefined) {
+                     store.put(userData.encrypted_top_recommended_apps, 'encrypted_top_recommended_apps');
+                 }
+                 // Save top recommended apps (decrypted, for local use)
+                 if (userData.top_recommended_apps !== undefined) {
+                     store.put(JSON.stringify(userData.top_recommended_apps || []), 'top_recommended_apps');
+                 }
+                 // Save random explore apps and timestamp
+                 if (userData.random_explore_apps !== undefined) {
+                     store.put(JSON.stringify(userData.random_explore_apps || []), 'random_explore_apps');
+                 }
+                 if (userData.random_explore_apps_timestamp !== undefined) {
+                     store.put(userData.random_explore_apps_timestamp || 0, 'random_explore_apps_timestamp');
+                 }
+            };
+            
+            lastOpenedRequest.onerror = () => {
+                // If we can't read local last_opened, fall back to server value or empty string
+                console.warn('[UserDatabase] Could not read local last_opened, using server value');
+                const serverLastOpened = userData.last_opened;
+                store.put(serverLastOpened || '', 'last_opened');
+                
+                // Still save other fields
+                store.put(userData.username || '', 'username');
+                store.put(!!userData.is_admin, 'is_admin');
+                store.put(userData.profile_image_url || null, 'profile_image_url');
+                store.put(userData.credits || 0, 'credits');
+                store.put(userData.tfa_app_name || null, 'tfa_app_name');
+                store.put(!!userData.tfa_enabled, 'tfa_enabled');
+                store.put(!!userData.consent_privacy_and_apps_default_settings, 'consent_privacy_and_apps_default_settings');
+                store.put(!!userData.consent_mates_default_settings, 'consent_mates_default_settings');
+                store.put(userData.language || 'en', 'language');
+                store.put(!!userData.darkmode, 'darkmode');
+                store.put(userData.currency || '', 'currency');
+                store.put(userData.last_sync_timestamp || 0, 'last_sync_timestamp');
+                
+                if (userData.encrypted_top_recommended_apps !== undefined) {
+                    store.put(userData.encrypted_top_recommended_apps, 'encrypted_top_recommended_apps');
+                }
+                if (userData.top_recommended_apps !== undefined) {
+                    store.put(JSON.stringify(userData.top_recommended_apps || []), 'top_recommended_apps');
+                }
+                if (userData.random_explore_apps !== undefined) {
+                    store.put(JSON.stringify(userData.random_explore_apps || []), 'random_explore_apps');
+                }
+                if (userData.random_explore_apps_timestamp !== undefined) {
+                    store.put(userData.random_explore_apps_timestamp || 0, 'random_explore_apps_timestamp');
+                }
+            };
 
              transaction.oncomplete = () => {
                  console.debug("[UserDatabase] User data saved successfully");

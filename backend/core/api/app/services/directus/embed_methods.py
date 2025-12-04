@@ -18,7 +18,7 @@ EMBED_ALL_FIELDS = (
     "encrypted_type,"
     "status,"
     "hashed_user_id,"
-    "encryption_key_embed,"
+    # encryption_key_embed moved to embed_keys collection for wrapped key architecture
     "share_mode,"
     "shared_with_users,"
     "embed_ids,"
@@ -31,6 +31,17 @@ EMBED_ALL_FIELDS = (
     "content_hash,"
     "created_at,"
     "updated_at"
+)
+
+# Fields for embed_keys collection (wrapped key architecture)
+EMBED_KEY_ALL_FIELDS = (
+    "id,"
+    "hashed_embed_id,"
+    "key_type,"
+    "hashed_chat_id,"
+    "encrypted_embed_key,"
+    "hashed_user_id,"
+    "created_at"
 )
 
 EMBED_BASIC_FIELDS = (
@@ -175,16 +186,18 @@ class EmbedMethods:
         try:
             # Use create_item from api_methods
             from backend.core.api.app.services.directus.api_methods import create_item
-            created_embed = await create_item(
+            # FIX: create_item returns a tuple (success: bool, data: dict)
+            # Must unpack the tuple to check success and get the actual data
+            success, created_embed = await create_item(
                 self.directus_service,
                 'embeds',
                 embed_data
             )
-            if created_embed:
+            if success and created_embed:
                 logger.info(f"Successfully created embed {embed_data.get('embed_id', 'unknown')}")
                 return created_embed
             else:
-                logger.error(f"Failed to create embed {embed_data.get('embed_id', 'unknown')}")
+                logger.error(f"Failed to create embed {embed_data.get('embed_id', 'unknown')}: {created_embed}")
                 return None
         except Exception as e:
             logger.error(f"Error creating embed: {e}", exc_info=True)
@@ -261,6 +274,117 @@ class EmbedMethods:
             logger.error(f"Error checking for duplicate embed: {e}", exc_info=True)
             return None
     
+    async def get_embed_keys_by_hashed_chat_id(self, hashed_chat_id: str, include_master_keys: bool = True) -> List[Dict[str, Any]]:
+        """
+        Fetch all embed_keys entries for a chat by hashed_chat_id.
+        
+        This returns wrapped embed keys that can be unwrapped to access embed content:
+        - key_type='chat': AES(embed_key, chat_key) for shared chat access
+        - key_type='master': AES(embed_key, master_key) for owner cross-chat access (if include_master_keys=True)
+        
+        The wrapped key architecture enables offline-first chat sharing:
+        - Each embed has multiple key wrappers stored in embed_keys collection
+        - key_type='master': AES(embed_key, master_key) for owner cross-chat access
+        - key_type='chat': AES(embed_key, chat_key) for shared chat access
+        
+        Args:
+            hashed_chat_id: SHA256 hash of the chat_id
+            include_master_keys: If True (default), also fetch master key entries for the same embeds
+            
+        Returns:
+            List of embed_keys entries for the chat (both chat and master key entries)
+        """
+        logger.debug(f"Fetching embed_keys for hashed_chat_id: {hashed_chat_id[:16]}... (include_master_keys={include_master_keys})")
+        
+        all_embed_keys = []
+        
+        # First, fetch chat key entries (these have hashed_chat_id set)
+        chat_key_params = {
+            'filter[hashed_chat_id][_eq]': hashed_chat_id,
+            'filter[key_type][_eq]': 'chat',
+            'fields': EMBED_KEY_ALL_FIELDS,
+            'limit': -1
+        }
+        try:
+            chat_key_response = await self.directus_service.get_items('embed_keys', params=chat_key_params, no_cache=True)
+            if chat_key_response and isinstance(chat_key_response, list):
+                logger.debug(f"Found {len(chat_key_response)} chat key entries for chat")
+                all_embed_keys.extend(chat_key_response)
+                
+                # If we should include master keys, fetch them using the hashed_embed_ids from chat keys
+                if include_master_keys and chat_key_response:
+                    # Get unique hashed_embed_ids from chat keys
+                    hashed_embed_ids = list(set(k.get('hashed_embed_id') for k in chat_key_response if k.get('hashed_embed_id')))
+                    
+                    if hashed_embed_ids:
+                        # Fetch master key entries for these embeds
+                        # Use _in filter to get all in one query
+                        master_key_params = {
+                            'filter[hashed_embed_id][_in]': ','.join(hashed_embed_ids),
+                            'filter[key_type][_eq]': 'master',
+                            'fields': EMBED_KEY_ALL_FIELDS,
+                            'limit': -1
+                        }
+                        try:
+                            master_key_response = await self.directus_service.get_items('embed_keys', params=master_key_params, no_cache=True)
+                            if master_key_response and isinstance(master_key_response, list):
+                                logger.debug(f"Found {len(master_key_response)} master key entries for chat embeds")
+                                all_embed_keys.extend(master_key_response)
+                        except Exception as e:
+                            logger.warning(f"Error fetching master key entries: {e}")
+            
+            logger.info(f"Total embed_keys for chat: {len(all_embed_keys)} (chat + master)")
+            return all_embed_keys
+        except Exception as e:
+            logger.error(f"Error fetching embed_keys by hashed_chat_id: {e}", exc_info=True)
+            return []
+
+    async def create_embed_key(self, embed_key_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """
+        Create a new embed_key entry in Directus.
+        
+        **Performance Note**: This method does NOT check for existing keys before creating.
+        The client is responsible for ensuring no duplicate keys are sent. This avoids
+        unnecessary database queries and improves performance.
+
+        Used when:
+        - Creating a new root embed (creates both master and chat key wrappers)
+        - Copying an embed to a new chat (creates new chat key wrapper)
+
+        **NOT used for child embeds**: Child embeds with parent_embed_id automatically inherit
+        the parent's encryption key. The client will decrypt the parent's key and use it to
+        encrypt the child content. Server stores only the parent's wrapped keys in embed_keys collection.
+
+        Args:
+            embed_key_data: Dictionary containing embed_key fields
+
+        Returns:
+            Created embed_key dictionary if successful, None otherwise
+        """
+        hashed_embed_id = embed_key_data.get('hashed_embed_id')
+        key_type = embed_key_data.get('key_type')
+        
+        logger.debug(f"Creating embed_key with hashed_embed_id: {hashed_embed_id[:16] if hashed_embed_id else 'unknown'}..., key_type={key_type}")
+        
+        try:
+            from backend.core.api.app.services.directus.api_methods import create_item
+            # FIX: create_item returns a tuple (success: bool, data: dict)
+            # Must unpack the tuple to check success and get the actual data
+            success, created_key = await create_item(
+                self.directus_service,
+                'embed_keys',
+                embed_key_data
+            )
+            if success and created_key:
+                logger.info(f"Successfully created embed_key for {hashed_embed_id[:16] if hashed_embed_id else 'unknown'}...")
+                return created_key
+            else:
+                logger.error(f"Failed to create embed_key: {created_key}")
+                return None
+        except Exception as e:
+            logger.error(f"Error creating embed_key: {e}", exc_info=True)
+            return None
+
     async def delete_all_embeds_for_chat(self, hashed_chat_id: str) -> bool:
         """
         Deletes ALL embeds for a specific chat from Directus.

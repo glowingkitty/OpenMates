@@ -625,18 +625,4 @@
         margin: 0;
         line-height: 1.4;
     }
-    
-    
-    .additional-options-text {
-        font-size: 14px;
-        color: var(--color-grey-50);
-        text-align: center;
-        margin-top: auto;
-        font-style: italic;
-        position: absolute;
-        bottom: 0;
-        left: 0;
-        right: 0;
-        padding-bottom: 16px;
-    }
 </style>

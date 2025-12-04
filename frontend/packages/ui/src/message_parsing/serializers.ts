@@ -141,7 +141,9 @@ function serializeEmbedToMarkdown(attrs: EmbedNodeAttributes): string {
     case 'code-code':
       const languagePrefix = attrs.language ? `${attrs.language}` : '';
       const pathSuffix = attrs.filename ? `:${attrs.filename}` : '';
-      return `\`\`\`${languagePrefix}${pathSuffix}\n\`\`\``;
+      // Include the actual code content if available (stored in attrs.code for preview embeds)
+      const codeContent = attrs.code || '';
+      return `\`\`\`${languagePrefix}${pathSuffix}\n${codeContent}\n\`\`\``;
     
     case 'docs-doc':
       let docResult = '```document_html\n';
@@ -202,7 +204,16 @@ function serializeParagraph(node: any): string {
               text = `\`${text}\``;
               break;
             case 'link':
-              text = `[${text}](${mark.attrs?.href || ''})`;
+              // If the link text is the same as the href (plain URL), output just the URL
+              // This preserves user input without adding unnecessary markdown link syntax
+              const href = mark.attrs?.href || '';
+              if (text === href || text.trim() === href.trim()) {
+                // Plain URL - output as-is without markdown link syntax
+                text = href;
+              } else {
+                // Actual markdown link with different text - use markdown syntax
+                text = `[${text}](${href})`;
+              }
               break;
           }
         }

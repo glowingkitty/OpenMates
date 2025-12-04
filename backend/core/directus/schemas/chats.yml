@@ -80,11 +80,31 @@ chats:
 
     shared_public:
       type: boolean
-      note: "Whether this chat is publicly shared. If true, anyone with the link can access it (subject to encryption key in URL fragment)."
+      note: "Whether this chat is publicly shared. If true, anyone with the link can access it (subject to encryption key in URL fragment). DEPRECATED: Use is_private field instead."
 
     shared_timestamp:
       type: integer
       note: "Unix timestamp (seconds) marking the point up to which shared messages can be read by others. Messages with timestamps <= this value are visible to users with access. Null if chat is not shared. Updated when sharing is enabled or when the owner wants to limit message visibility to shared users."
+
+    is_private:
+      type: boolean
+      default: false
+      note: "Whether this chat is private (not shared). If true, the chat is not accessible via share links. Defaults to false (shareable) to enable offline sharing. When a user unshares a chat, this is set to true. The security model relies on: (1) Chat IDs are not easily guessable, (2) Encryption key in URL fragment is required to decrypt, (3) Server returns dummy data for non-existent chats to prevent enumeration, (4) Rate limiting on share endpoints."
+
+    is_shared:
+      type: boolean
+      default: false
+      note: "Whether this chat has been shared (share link generated). Set to true on client when share link is created, then synced to server. Used to track which chats appear in the 'Shared' menu. When unsharing, both is_private and is_shared are updated."
+
+    shared_encrypted_title:
+      type: text
+      nullable: true
+      note: "[Vault-Encrypted] Title for shared chat, encrypted with shared vault key (shared-content-metadata) for OG tag generation. Only populated when is_private = false. Server can decrypt for OG tags without user context."
+
+    shared_encrypted_summary:
+      type: text
+      nullable: true
+      note: "[Vault-Encrypted] Summary for shared chat, encrypted with shared vault key (shared-content-metadata) for OG tag generation. Only populated when is_private = false. Server can decrypt for OG tags without user context."
 
 # TODO: Create separate model for new_chat_request_suggestions
 # According to message_processing.md, new_chat_request_suggestions should be stored separately

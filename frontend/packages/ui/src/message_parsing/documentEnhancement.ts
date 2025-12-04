@@ -15,11 +15,6 @@ export function enhanceDocumentWithEmbeds(doc: any, embedNodes: EmbedNodeAttribu
     return doc;
   }
   
-  // If there are no embed nodes, return the original document
-  if (embedNodes.length === 0) {
-    return doc;
-  }
-  
   // For json_embed blocks, we need to replace them in the text, not just append
   let modifiedContent = [...doc.content];
   
@@ -28,19 +23,68 @@ export function enhanceDocumentWithEmbeds(doc: any, embedNodes: EmbedNodeAttribu
   // Find and replace embed blocks with embed nodes
   modifiedContent = modifiedContent.map(node => {
     // Handle code blocks that should be replaced with embed nodes
+    // In write mode, replace codeBlocks with PREVIEW embed nodes for visual rendering
+    // These preview embeds are temporary and don't create EmbedStore entries
     if (node.type === 'codeBlock') {
       // Try to match this code block with an embed node
       const matchingEmbed = findMatchingEmbedForCodeBlock(node, embedNodes);
       if (matchingEmbed) {
-        console.debug('[enhanceDocumentWithEmbeds] Replacing codeBlock with embed node:', matchingEmbed);
-        // Wrap embed in a paragraph since embed is an inline node and codeBlock is block-level
-        // This prevents ProseMirror schema validation errors (contentMatchAt on a node with invalid content)
+        // In write mode, replace with preview embeds (contentRef starts with 'preview:')
+        // These are temporary visual previews that will be converted to real embeds server-side
+        if (mode === 'write' && matchingEmbed.contentRef?.startsWith('preview:')) {
+          console.debug('[enhanceDocumentWithEmbeds] Replacing codeBlock with preview embed in write mode:', matchingEmbed);
+          // Wrap embed in a paragraph since embed is an inline node and codeBlock is block-level
+          return {
+            type: 'paragraph',
+            content: [
+              {
+                type: 'embed',
+                attrs: matchingEmbed
+              }
+            ]
+          };
+        }
+        
+        // In read mode, replace with real embed nodes (from assistant responses)
+        if (mode === 'read' || matchingEmbed.contentRef?.startsWith('embed:') || matchingEmbed.contentRef?.startsWith('stream:')) {
+          console.debug('[enhanceDocumentWithEmbeds] Replacing codeBlock with embed node:', matchingEmbed);
+          return {
+            type: 'paragraph',
+            content: [
+              {
+                type: 'embed',
+                attrs: matchingEmbed
+              }
+            ]
+          };
+        }
+      }
+      
+      // CRITICAL: In write mode, if there's no matching embed (e.g., unclosed code block),
+      // convert the codeBlock back to a plain text paragraph to avoid TipTap schema errors.
+      // TipTap's schema doesn't include 'codeBlock' as a valid node type in write mode.
+      // The raw markdown will be preserved as text, and decorations will handle highlighting.
+      if (mode === 'write') {
+        const codeText = node.content?.[0]?.text || '';
+        const language = node.attrs?.language || '';
+        
+        // Reconstruct the raw markdown code block syntax
+        // This preserves the user's input as plain text
+        const rawMarkdown = language 
+          ? `\`\`\`${language}\n${codeText}`  // Unclosed code block with language
+          : `\`\`\`\n${codeText}`;             // Unclosed code block without language
+        
+        console.debug('[enhanceDocumentWithEmbeds] Converting unclosed codeBlock to paragraph in write mode:', {
+          language,
+          codeTextLength: codeText.length
+        });
+        
         return {
           type: 'paragraph',
           content: [
             {
-              type: 'embed',
-              attrs: matchingEmbed
+              type: 'text',
+              text: rawMarkdown
             }
           ]
         };
@@ -121,6 +165,12 @@ function findMatchingEmbedForCodeBlock(codeBlockNode: any, embedNodes: EmbedNode
           embedNodeId: matchingEmbed.id,
           embedNodeType: matchingEmbed.type
         });
+        // Remove from array to prevent reuse (same pattern as code-code embeds)
+        const index = embedNodes.indexOf(matchingEmbed);
+        if (index > -1) {
+          embedNodes.splice(index, 1);
+          console.debug('[findMatchingEmbedForCodeBlock] Removed matched embed from array, remaining:', embedNodes.length);
+        }
         return matchingEmbed;
       } else {
         console.warn('[findMatchingEmbedForCodeBlock] No matching embed found for:', {
@@ -138,16 +188,44 @@ function findMatchingEmbedForCodeBlock(codeBlockNode: any, embedNodes: EmbedNode
   // Check if this is a code-code embed (code snippet with language)
   // Match by checking if there's a code-code embed with similar content
   const codeEmbeds = embedNodes.filter(node => node.type === 'code-code');
-  if (codeEmbeds.length > 0 && codeBlockNode.attrs?.language) {
-    // Try to find a match by language and approximate content
-    const matchingCodeEmbed = codeEmbeds.find(embed =>
-      embed.language === codeBlockNode.attrs.language
-    );
+  if (codeEmbeds.length > 0) {
+    const codeBlockLanguage = codeBlockNode.attrs?.language;
+    
+    // For preview embeds (contentRef starts with 'preview:'), match by language AND code content
+    // For real embeds, match by language only (content is in EmbedStore)
+    const matchingCodeEmbed = codeEmbeds.find(embed => {
+      // Match language: both undefined/empty, or both the same value
+      const embedLanguage = embed.language || '';
+      const blockLanguage = codeBlockLanguage || '';
+      const languageMatch = embedLanguage === blockLanguage;
+      
+      // If it's a preview embed, also match by code content
+      if (embed.contentRef?.startsWith('preview:')) {
+        const embedCode = embed.code || '';
+        const codeBlockText = codeText.trim();
+        const contentMatch = embedCode.trim() === codeBlockText;
+        
+        console.debug('[findMatchingEmbedForCodeBlock] Preview embed comparison:', {
+          embedLanguage,
+          blockLanguage,
+          languageMatch,
+          embedCodeLength: embedCode.trim().length,
+          codeBlockTextLength: codeBlockText.length,
+          contentMatch
+        });
+        
+        return languageMatch && contentMatch;
+      }
+      
+      // For real embeds, just match by language
+      return languageMatch;
+    });
 
     if (matchingCodeEmbed) {
       console.debug('[findMatchingEmbedForCodeBlock] Found matching code embed:', {
         language: matchingCodeEmbed.language,
-        embedNodeId: matchingCodeEmbed.id
+        embedNodeId: matchingCodeEmbed.id,
+        isPreview: matchingCodeEmbed.contentRef?.startsWith('preview:')
       });
       // Remove from array to prevent reuse
       const index = embedNodes.indexOf(matchingCodeEmbed);

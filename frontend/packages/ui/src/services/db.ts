@@ -22,8 +22,9 @@ class ChatDatabase {
     private readonly OFFLINE_CHANGES_STORE_NAME = 'pending_sync_changes';
     private readonly NEW_CHAT_SUGGESTIONS_STORE_NAME = 'new_chat_suggestions'; // Store for new chat suggestions
     private readonly APP_SETTINGS_MEMORIES_STORE_NAME = 'app_settings_memories'; // Store for app settings and memories entries
-    // Version incremented due to schema change (adding app_settings_memories store)
-    private readonly VERSION = 11;
+    private readonly PENDING_OG_METADATA_STORE_NAME = 'pending_og_metadata_updates'; // Store for pending OG metadata updates
+    // Version incremented due to schema change (adding embed_keys store for wrapped key architecture)
+    private readonly VERSION = 13;
     private initializationPromise: Promise<void> | null = null;
     
     // Flag to prevent new operations during database deletion
@@ -213,6 +214,19 @@ class ChatDatabase {
                     console.debug('[ChatDatabase] Created embeds store for unified parsing');
                 }
 
+                // Embed keys store for wrapped key architecture (offline-first sharing)
+                // Each embed can have multiple wrapped key entries:
+                // - key_type="master": AES(embed_key, master_key) for owner cross-chat access
+                // - key_type="chat": AES(embed_key, chat_key) for shared chat access
+                const EMBED_KEYS_STORE_NAME = 'embed_keys';
+                if (!db.objectStoreNames.contains(EMBED_KEYS_STORE_NAME)) {
+                    const embedKeysStore = db.createObjectStore(EMBED_KEYS_STORE_NAME, { keyPath: 'id' });
+                    embedKeysStore.createIndex('hashed_embed_id', 'hashed_embed_id', { unique: false });
+                    embedKeysStore.createIndex('key_type', 'key_type', { unique: false });
+                    embedKeysStore.createIndex('hashed_chat_id', 'hashed_chat_id', { unique: false });
+                    console.debug('[ChatDatabase] Created embed_keys store for wrapped key architecture');
+                }
+
                 // App settings and memories store (ensure it exists)
                 if (!db.objectStoreNames.contains(this.APP_SETTINGS_MEMORIES_STORE_NAME)) {
                     const appSettingsStore = db.createObjectStore(this.APP_SETTINGS_MEMORIES_STORE_NAME, { keyPath: 'id' });
@@ -221,6 +235,14 @@ class ChatDatabase {
                     appSettingsStore.createIndex('updated_at', 'updated_at', { unique: false });
                     appSettingsStore.createIndex('item_version', 'item_version', { unique: false });
                     console.debug('[ChatDatabase] Created app_settings_memories store');
+                }
+
+                // Pending OG metadata updates store (ensure it exists)
+                if (!db.objectStoreNames.contains(this.PENDING_OG_METADATA_STORE_NAME)) {
+                    const ogMetadataStore = db.createObjectStore(this.PENDING_OG_METADATA_STORE_NAME, { keyPath: 'update_id' });
+                    ogMetadataStore.createIndex('chat_id', 'chat_id', { unique: false });
+                    ogMetadataStore.createIndex('created_at', 'created_at', { unique: false });
+                    console.debug('[ChatDatabase] Created pending_og_metadata_updates store');
                 }
             };
         });
@@ -695,8 +717,11 @@ class ChatDatabase {
             }
             chat.encrypted_draft_md = draft_content; // Now stores encrypted markdown string
             chat.encrypted_draft_preview = draft_preview; // Store encrypted preview for chat list display
-            chat.last_edited_overall_timestamp = nowTimestamp;
-            chat.updated_at = nowTimestamp;
+            // CRITICAL: Don't update last_edited_overall_timestamp for drafts
+            // Only messages should update this timestamp for proper sorting
+            // Chats with drafts will appear at the top via sorting logic, but won't affect message-based sorting
+            // chat.last_edited_overall_timestamp = nowTimestamp; // REMOVED
+            chat.updated_at = nowTimestamp; // Keep updated_at for internal tracking
             
             console.debug('[ChatDatabase] Saving draft with preview:', {
                 chatId: chat_id,
@@ -780,10 +805,12 @@ class ChatDatabase {
                 chat.encrypted_draft_md = null;
                 chat.encrypted_draft_preview = null; // Clear preview as well
                 chat.draft_v = 0; // Reset draft version to 0
-                // Still update timestamps as an operation occurred
+                // CRITICAL: Don't update last_edited_overall_timestamp when clearing drafts
+                // Only messages should update this timestamp for proper sorting
+                // The chat should revert to its position based on last message timestamp
                 const nowTimestamp = Math.floor(Date.now() / 1000);
-                chat.last_edited_overall_timestamp = nowTimestamp;
-                chat.updated_at = nowTimestamp;
+                // chat.last_edited_overall_timestamp = nowTimestamp; // REMOVED
+                chat.updated_at = nowTimestamp; // Keep updated_at for internal tracking
                 
                 // Use addChat without external transaction to ensure proper completion
                 await this.addChat(chat);
@@ -2084,7 +2111,10 @@ class ChatDatabase {
         const chatKey = this.getChatKey(chatId);
 
         if (!chatKey) {
-            console.warn(`[ChatDatabase] No chat key found for chat ${chatId}, cannot decrypt message fields`);
+            console.warn(
+                `[ChatDatabase] [DECRYPT] No chat key found for chat ${chatId}, cannot decrypt message fields. ` +
+                `Message ID: ${message.message_id}, Status: ${message.status}, Has encrypted_content: ${!!message.encrypted_content}`
+            );
             return decryptedMessage;
         }
 
@@ -2094,6 +2124,11 @@ class ChatDatabase {
         // Decrypt content if present
         if (message.encrypted_content) {
             try {
+                // Enhanced logging for decryption attempts
+                console.debug(
+                    `[ChatDatabase] [DECRYPT] Attempting to decrypt message ${message.message_id} ` +
+                    `(chat: ${chatId}, status: ${message.status}, encrypted_content length: ${message.encrypted_content.length})`
+                );
                 const decryptedContentString = await decryptWithChatKey(message.encrypted_content, chatKey);
                 if (decryptedContentString) {
                     // Content is now a markdown string (never Tiptap JSON on server!)
@@ -2108,10 +2143,18 @@ class ChatDatabase {
                 }
             } catch (error) {
                 // DEFENSIVE: Handle malformed encrypted_content (e.g., from messages with status 'sending' that never completed encryption)
-                console.error(`[ChatDatabase] Error decrypting content for message ${message.message_id} (status: ${message.status}):`, error);
+                console.error(
+                    `[ChatDatabase] [DECRYPT] ❌ Error decrypting content for message ${message.message_id} ` +
+                    `(status: ${message.status}, chat: ${chatId}): ${error instanceof Error ? error.message : String(error)}. ` +
+                    `Encrypted content length: ${message.encrypted_content?.length || 0}, ` +
+                    `Has plaintext fallback: ${!!message.content}`
+                );
                 // If message already has plaintext content, use it (common for status='sending')
                 if (message.content) {
-                    console.warn(`[ChatDatabase] Using existing plaintext content for message ${message.message_id} - encryption may not have completed`);
+                    console.warn(
+                        `[ChatDatabase] [DECRYPT] Using existing plaintext content for message ${message.message_id} - ` +
+                        `encryption may not have completed or content was stored incorrectly`
+                    );
                     decryptedMessage.content = message.content;
                 } else {
                     decryptedMessage.content = '[Content decryption failed]';

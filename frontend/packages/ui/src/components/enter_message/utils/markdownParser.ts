@@ -189,8 +189,28 @@ function convertNodeToTiptap(node: Node): any {
     case 'pre':
       const codeElement = element.querySelector('code');
       const codeText = codeElement ? codeElement.textContent || '' : element.textContent || '';
+      
+      // Extract language from the code element's class (markdown-it sets it as 'language-xxx')
+      // This is critical for matching code blocks with embed nodes
+      // Supports ALL programming languages - any valid language identifier after ```
+      let language: string | undefined;
+      if (codeElement) {
+        const classList = codeElement.className.split(' ');
+        for (const cls of classList) {
+          if (cls.startsWith('language-')) {
+            // Extract the language name after 'language-' prefix
+            // This handles any language: python, javascript, rust, go, c++, etc.
+            language = cls.replace('language-', '');
+            break;
+          }
+        }
+      }
+      
+      // Always include attrs object for consistent structure
+      // language can be undefined for plain code blocks (```)
       return {
         type: 'codeBlock',
+        attrs: { language: language || undefined },
         content: [{ type: 'text', text: codeText }]
       };
 

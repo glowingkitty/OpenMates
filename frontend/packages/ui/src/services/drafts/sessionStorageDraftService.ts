@@ -138,6 +138,25 @@ export function loadSessionStorageDraft(chatId: string): TiptapJSON | null {
 }
 
 /**
+ * Get the markdown content from a sessionStorage draft
+ * @param chatId The chat ID to get the markdown for
+ * @returns The markdown content or null if no draft exists
+ */
+export function getSessionStorageDraftMarkdown(chatId: string): string | null {
+	try {
+		const key = getDraftKey(chatId);
+		const draftJson = sessionStorage.getItem(key);
+		if (!draftJson) return null;
+		
+		const draft: SessionStorageDraft = JSON.parse(draftJson);
+		return draft.markdown;
+	} catch (error) {
+		console.error('[SessionStorageDraftService] Error getting draft markdown:', error);
+		return null;
+	}
+}
+
+/**
  * Get draft preview text from sessionStorage
  * @param chatId The chat ID to get the preview for
  * @returns The preview text or null if no draft exists

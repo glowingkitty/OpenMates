@@ -69,7 +69,12 @@ skills:
       properties:
         requests:
           type: array
-          description: Array of transcript request objects for parallel processing. Each object must contain 'url' and can include optional parameters (languages).
+          description: |
+            REQUIRED: Array of transcript request objects for parallel processing. 
+            This parameter is MANDATORY - you MUST always provide a 'requests' array, even for a single transcript.
+            Example for single transcript: {"requests": [{"id": 1, "url": "https://youtube.com/watch?v=abc123"}]}
+            Example for multiple transcripts: {"requests": [{"id": 1, "url": "https://youtube.com/watch?v=abc123"}, {"id": 2, "url": "https://youtube.com/watch?v=def456"}]}
+            Each object must contain 'id' (unique identifier) and 'url' (YouTube video URL), and can include optional parameters (languages).
           items:
             type: object
             properties:
@@ -112,7 +117,12 @@ skills:
       properties:
         requests:
           type: array
-          description: Array of search request objects for parallel processing (up to 5 requests). Each object must contain 'query' and can include optional parameters (count, country, search_lang, safesearch).
+          description: |
+            REQUIRED: Array of search request objects for parallel processing (up to 5 requests). 
+            This parameter is MANDATORY - you MUST always provide a 'requests' array, even for a single search.
+            Example for single search: {"requests": [{"id": 1, "query": "Python tutorial"}]}
+            Example for multiple searches: {"requests": [{"id": 1, "query": "Python tutorial"}, {"id": 2, "query": "FastAPI tutorial"}]}
+            Each object must contain 'id' (unique identifier) and 'query' (search query string), and can include optional parameters (count, country, search_lang, safesearch).
           items:
             type: object
             properties:

@@ -5,6 +5,7 @@ import logging
 import json
 import time
 import httpx
+import asyncio
 from typing import Dict, Any, List, Optional, AsyncIterator, Union
 
 from celery.exceptions import SoftTimeLimitExceeded
@@ -28,6 +29,7 @@ from backend.apps.ai.llm_providers.mistral_client import MistralUsage
 from backend.apps.ai.llm_providers.google_client import GoogleUsageMetadata
 from backend.apps.ai.llm_providers.anthropic_client import AnthropicUsageMetadata
 from backend.apps.ai.llm_providers.openai_shared import OpenAIUsageMetadata
+from backend.apps.ai.processing.url_validator import validate_urls_in_paragraph, extract_urls_from_markdown
 
 logger = logging.getLogger(__name__)
 
@@ -510,6 +512,50 @@ async def _generate_fake_stream_for_simple_message(
     logger.info(f"{log_prefix} Simple fake stream generation completed. Response length: {len(message_text)}.")
     return message_text, False, False
 
+async def _validate_paragraph_urls(
+    paragraph: str,
+    task_id: str,
+    broken_urls_collector: List[Dict[str, Any]],
+    log_prefix: str
+) -> None:
+    """
+    Background task to validate URLs in a paragraph.
+    Collects broken URLs in the provided list (thread-safe append).
+    This runs asynchronously and doesn't block streaming.
+    
+    Args:
+        paragraph: The paragraph text to validate
+        task_id: Task ID for logging
+        broken_urls_collector: List to collect broken URLs (will be appended to)
+        log_prefix: Log prefix for consistent logging
+    """
+    try:
+        # Validate URLs in this paragraph
+        validation_results = await validate_urls_in_paragraph(paragraph, task_id)
+        
+        # Filter broken URLs (4xx errors, not temporary)
+        broken_urls = [
+            r for r in validation_results 
+            if not r.get('is_valid') and not r.get('is_temporary')
+        ]
+        
+        if broken_urls:
+            logger.info(
+                f"{log_prefix} Found {len(broken_urls)} broken URL(s) in paragraph"
+            )
+            # Append to collector (list append is thread-safe in Python)
+            broken_urls_collector.extend(broken_urls)
+        else:
+            logger.debug(f"{log_prefix} All URLs valid in paragraph")
+            
+    except Exception as e:
+        logger.error(
+            f"{log_prefix} Error validating URLs in paragraph: {e}",
+            exc_info=True
+        )
+        # Don't raise - this is a background task, errors shouldn't break the stream
+
+
 async def _consume_main_processing_stream(
     task_id: str,
     request_data: AskSkillRequest,
@@ -623,6 +669,21 @@ async def _consume_main_processing_stream(
     usage: Optional[Union[MistralUsage, GoogleUsageMetadata, AnthropicUsageMetadata, OpenAIUsageMetadata]] = None
     redis_channel_name = f"chat_stream::{request_data.chat_id}"
     tool_calls_info: Optional[List[Dict[str, Any]]] = None  # Track tool calls for code block generation
+    
+    # URL validation tracking: collect all validation tasks and broken URLs
+    # These are used to validate URLs during streaming and correct the full response after completion
+    url_validation_tasks: List[asyncio.Task] = []  # Track all background URL validation tasks
+    all_broken_urls: List[Dict[str, Any]] = []  # Collect all broken URLs found across all paragraphs
+
+    # Code block tracking: detect and convert code blocks to embeds in real-time
+    in_code_block = False
+    current_code_language = ""
+    current_code_filename: Optional[str] = None
+    current_code_content = ""
+    current_code_embed_id: Optional[str] = None
+    # New state: when LLM streams ``` and language separately, wait for next chunk
+    waiting_for_code_language = False
+    pending_code_fence_chunk = ""  # Store the original ``` chunk to replay if needed
 
     try:
         async for chunk in main_processing_stream:
@@ -661,8 +722,352 @@ async def _consume_main_processing_stream(
 
             # Process string chunks (text or code blocks) - publish IMMEDIATELY
             if isinstance(chunk, str):
-                final_response_chunks.append(chunk)
-                stream_chunk_count += 1
+                # CRITICAL: Sanitize error messages before adding to response
+                # Replace any [ERROR: ...] messages with the translation key for generic error message
+                # This ensures users never see technical error details
+                if chunk.strip().startswith("[ERROR"):
+                    logger.warning(f"{log_prefix} Detected error message in stream chunk: {chunk[:200]}... Replacing with generic error message.")
+                    chunk = "chat.an_error_occured.text"
+                
+                # Code block detection and embed creation
+                # Detect code block opening: ```language or ```language:filename
+                # IMPORTANT: Skip JSON blocks that contain embed references - these are already processed embeds!
+                should_process_as_code_block = False
+                if not in_code_block and chunk.strip().startswith("```"):
+                    # Extract language and filename from opening fence
+                    # Format: ```language or ```language:filename
+                    lines = chunk.split('\n')
+                    fence_line = lines[0].strip()
+                    fence_content = fence_line[3:].strip()  # Remove ```
+                    
+                    # SKIP: JSON blocks that are embed references (already processed by skills)
+                    # These contain {"type": "...", "embed_id": "..."} or {"type": "...", "embed_ids": [...]}
+                    is_embed_reference = False
+                    if fence_content.lower() in ('json', 'json_embed'):
+                        # Check if this is an embed reference JSON block
+                        remaining_content = '\n'.join(lines[1:]) if len(lines) > 1 else ''
+                        # Look for embed reference patterns
+                        is_embed_reference = (
+                            '"embed_id"' in remaining_content or 
+                            '"embed_ids"' in remaining_content or
+                            'embed_id' in remaining_content
+                        )
+                        if is_embed_reference:
+                            logger.debug(f"{log_prefix} Skipping JSON embed reference block (not a code block to convert)")
+                            # Don't process as code block - let it pass through as-is
+                    
+                    # Only process as code block if it's NOT an embed reference
+                    if not is_embed_reference:
+                        should_process_as_code_block = True
+                
+                # Process code block if detected and not an embed reference
+                if should_process_as_code_block:
+                    # Re-extract lines for processing (already extracted above but safer to re-extract)
+                    lines = chunk.split('\n')
+                    fence_line = lines[0].strip()
+                    fence_content = fence_line[3:].strip()  # Remove ```
+                    
+                    # DEBUG: Log the raw chunk and extracted values for code block debugging
+                    logger.info(f"{log_prefix} [CODE_BLOCK_DEBUG] Raw chunk (first 500 chars): {repr(chunk[:500])}")
+                    logger.info(f"{log_prefix} [CODE_BLOCK_DEBUG] Lines count: {len(lines)}")
+                    logger.info(f"{log_prefix} [CODE_BLOCK_DEBUG] fence_line: {repr(fence_line)}")
+                    logger.info(f"{log_prefix} [CODE_BLOCK_DEBUG] fence_content (after removing ```): {repr(fence_content)}")
+                    
+                    if ':' in fence_content:
+                        # Has filename: language:filename
+                        parts = fence_content.split(':', 1)
+                        current_code_language = parts[0].strip()
+                        current_code_filename = parts[1].strip() if len(parts) > 1 else None
+                    else:
+                        # Just language or empty
+                        current_code_language = fence_content
+                        current_code_filename = None
+                    
+                    # DEBUG: Log extracted language and filename
+                    logger.info(f"{log_prefix} [CODE_BLOCK_DEBUG] Extracted language: {repr(current_code_language)}")
+                    logger.info(f"{log_prefix} [CODE_BLOCK_DEBUG] Extracted filename: {repr(current_code_filename)}")
+                    
+                    # Check if this chunk contains both opening and closing fence (complete code block)
+                    # Look for closing fence in remaining lines (after the opening fence line)
+                    found_closing = False
+                    closing_line_idx = -1
+                    for i, line in enumerate(lines[1:], 1):
+                        if line.strip() == '```':
+                            found_closing = True
+                            closing_line_idx = i
+                            break
+                    
+                    if found_closing:
+                        # Complete code block in single chunk - extract content and finalize immediately
+                        # Extract content between opening and closing fences
+                        content_lines = lines[1:closing_line_idx]  # Lines between fences
+                        code_content = '\n'.join(content_lines)
+                        
+                        # DEBUG: Log extracted code content
+                        logger.info(f"{log_prefix} [CODE_BLOCK_DEBUG] Complete code block detected, closing_line_idx: {closing_line_idx}")
+                        logger.info(f"{log_prefix} [CODE_BLOCK_DEBUG] content_lines: {repr(content_lines[:5])}{'...' if len(content_lines) > 5 else ''}")
+                        logger.info(f"{log_prefix} [CODE_BLOCK_DEBUG] code_content (first 200 chars): {repr(code_content[:200])}")
+                        
+                        # Create embed and finalize immediately
+                        if directus_service and encryption_service and user_vault_key_id:
+                            try:
+                                from backend.core.api.app.services.embed_service import EmbedService
+                                embed_service = EmbedService(cache_service, directus_service, encryption_service)
+                                
+                                # Create code embed placeholder
+                                embed_data = await embed_service.create_code_embed_placeholder(
+                                    language=current_code_language,
+                                    chat_id=request_data.chat_id,
+                                    message_id=request_data.message_id,
+                                    user_id=request_data.user_id,
+                                    user_id_hash=request_data.user_id_hash,
+                                    user_vault_key_id=user_vault_key_id,
+                                    task_id=task_id,
+                                    filename=current_code_filename,
+                                    log_prefix=log_prefix
+                                )
+                                
+                                if embed_data:
+                                    current_code_embed_id = embed_data["embed_id"]
+                                    
+                                    # Update with full content and finalize
+                                    await embed_service.update_code_embed_content(
+                                        embed_id=current_code_embed_id,
+                                        code_content=code_content,
+                                        chat_id=request_data.chat_id,
+                                        user_id=request_data.user_id,
+                                        user_id_hash=request_data.user_id_hash,
+                                        user_vault_key_id=user_vault_key_id,
+                                        status="finished",
+                                        log_prefix=log_prefix
+                                    )
+                                    
+                                    # Replace code block with embed reference in chunk
+                                    embed_reference_code = f"```json\n{embed_data['embed_reference']}\n```\n\n"
+                                    chunk = embed_reference_code
+                                    logger.info(f"{log_prefix} Created and finalized code embed {current_code_embed_id} for complete code block")
+                                    
+                                    # Reset state
+                                    in_code_block = False
+                                    current_code_language = ""
+                                    current_code_filename = None
+                                    current_code_content = ""
+                                    current_code_embed_id = None
+                            except Exception as e:
+                                logger.error(f"{log_prefix} Error creating code embed for complete block: {e}", exc_info=True)
+                                # Continue with original chunk if embed creation fails
+                    else:
+                        # Opening fence but no closing fence in this chunk - start code block tracking
+                        in_code_block = True
+                        current_code_content = ""
+                        current_code_embed_id = None
+                        
+                        # CRITICAL FIX: If fence has no language (e.g., just ```), wait for next chunk
+                        # LLMs often stream ``` and language as separate tokens
+                        if not current_code_language and len(lines) == 1:
+                            # Bare fence with no content - language might come in next chunk
+                            waiting_for_code_language = True
+                            pending_code_fence_chunk = chunk  # Save original chunk
+                            chunk = ""  # Don't emit anything yet
+                            logger.info(f"{log_prefix} [CODE_BLOCK_DEBUG] Detected bare fence '```', waiting for potential language in next chunk")
+                            continue  # Skip the rest of processing, wait for next chunk
+                        
+                        # Extract any content after opening fence in this chunk
+                        if len(lines) > 1:
+                            # There's content after the opening fence line
+                            content_after_fence = '\n'.join(lines[1:])
+                            current_code_content = content_after_fence
+                        
+                        # Create code embed placeholder
+                        if directus_service and encryption_service and user_vault_key_id:
+                            try:
+                                from backend.core.api.app.services.embed_service import EmbedService
+                                embed_service = EmbedService(cache_service, directus_service, encryption_service)
+                                
+                                embed_data = await embed_service.create_code_embed_placeholder(
+                                    language=current_code_language,
+                                    chat_id=request_data.chat_id,
+                                    message_id=request_data.message_id,
+                                    user_id=request_data.user_id,
+                                    user_id_hash=request_data.user_id_hash,
+                                    user_vault_key_id=user_vault_key_id,
+                                    task_id=task_id,
+                                    filename=current_code_filename,
+                                    log_prefix=log_prefix
+                                )
+                                
+                                if embed_data:
+                                    current_code_embed_id = embed_data["embed_id"]
+                                    
+                                    # If there's content after the opening fence, update embed immediately
+                                    if current_code_content:
+                                        await embed_service.update_code_embed_content(
+                                            embed_id=current_code_embed_id,
+                                            code_content=current_code_content,
+                                            chat_id=request_data.chat_id,
+                                            user_id=request_data.user_id,
+                                            user_id_hash=request_data.user_id_hash,
+                                            user_vault_key_id=user_vault_key_id,
+                                            status="processing",
+                                            log_prefix=log_prefix
+                                        )
+                                    
+                                    # Replace opening fence with embed reference
+                                    embed_reference_code = f"```json\n{embed_data['embed_reference']}\n```\n\n"
+                                    chunk = embed_reference_code
+                                    logger.info(f"{log_prefix} Created code embed placeholder {current_code_embed_id} (language: {current_code_language or 'none'})")
+                            except Exception as e:
+                                logger.error(f"{log_prefix} Error creating code embed placeholder: {e}", exc_info=True)
+                                # Continue with original chunk if embed creation fails
+                
+                # Handle code block content accumulation and closing
+                elif in_code_block:
+                    # CRITICAL FIX: Check if we're waiting for language after a bare ``` fence
+                    if waiting_for_code_language:
+                        waiting_for_code_language = False  # Reset flag
+                        
+                        # Check if this chunk starts with what looks like a language identifier
+                        # Language identifiers: single word, alphanumeric with optional -, _, +, #
+                        first_line = chunk.split('\n')[0].strip() if chunk else ""
+                        remaining_content = '\n'.join(chunk.split('\n')[1:]) if '\n' in chunk else ""
+                        
+                        # Language pattern: single word like "python", "javascript", "c++", "c#", etc.
+                        import re
+                        lang_pattern = r'^[a-zA-Z][a-zA-Z0-9_+#-]*$'
+                        
+                        if first_line and re.match(lang_pattern, first_line) and len(first_line) <= 20:
+                            # This looks like a language identifier
+                            if ':' in first_line:
+                                # Has filename: language:filename
+                                parts = first_line.split(':', 1)
+                                current_code_language = parts[0].strip()
+                                current_code_filename = parts[1].strip() if len(parts) > 1 else None
+                            else:
+                                current_code_language = first_line
+                            
+                            # Any remaining lines after the language are code content
+                            current_code_content = remaining_content
+                            logger.info(f"{log_prefix} [CODE_BLOCK_DEBUG] Extracted language from next chunk: {repr(current_code_language)}")
+                        else:
+                            # Not a language - treat entire chunk as code content
+                            current_code_content = chunk
+                            logger.info(f"{log_prefix} [CODE_BLOCK_DEBUG] No language found in chunk, treating as code: {repr(first_line[:50])}")
+                        
+                        # Now create the embed placeholder with the extracted (or empty) language
+                        if directus_service and encryption_service and user_vault_key_id:
+                            try:
+                                from backend.core.api.app.services.embed_service import EmbedService
+                                embed_service = EmbedService(cache_service, directus_service, encryption_service)
+                                
+                                embed_data = await embed_service.create_code_embed_placeholder(
+                                    language=current_code_language,
+                                    chat_id=request_data.chat_id,
+                                    message_id=request_data.message_id,
+                                    user_id=request_data.user_id,
+                                    user_id_hash=request_data.user_id_hash,
+                                    user_vault_key_id=user_vault_key_id,
+                                    task_id=task_id,
+                                    filename=current_code_filename,
+                                    log_prefix=log_prefix
+                                )
+                                
+                                if embed_data:
+                                    current_code_embed_id = embed_data["embed_id"]
+                                    
+                                    # If there's content, update embed immediately
+                                    if current_code_content:
+                                        await embed_service.update_code_embed_content(
+                                            embed_id=current_code_embed_id,
+                                            code_content=current_code_content,
+                                            chat_id=request_data.chat_id,
+                                            user_id=request_data.user_id,
+                                            user_id_hash=request_data.user_id_hash,
+                                            user_vault_key_id=user_vault_key_id,
+                                            status="processing",
+                                            log_prefix=log_prefix
+                                        )
+                                    
+                                    # Emit the embed reference now
+                                    embed_reference_code = f"```json\n{embed_data['embed_reference']}\n```\n\n"
+                                    chunk = embed_reference_code
+                                    logger.info(f"{log_prefix} Created code embed placeholder {current_code_embed_id} (language: {current_code_language or 'none'}) after waiting for language")
+                                else:
+                                    chunk = ""  # Failed to create embed
+                            except Exception as e:
+                                logger.error(f"{log_prefix} Error creating code embed placeholder after waiting for language: {e}", exc_info=True)
+                                chunk = ""
+                        else:
+                            chunk = ""  # No services available
+                    # Check if this chunk contains closing fence
+                    elif '```' in chunk:
+                        # Extract content before closing fence
+                        closing_fence_idx = chunk.find('```')
+                        code_chunk_content = chunk[:closing_fence_idx]
+                        current_code_content += code_chunk_content
+                        
+                        # Finalize code embed
+                        if current_code_embed_id and directus_service and encryption_service and user_vault_key_id:
+                            try:
+                                from backend.core.api.app.services.embed_service import EmbedService
+                                embed_service = EmbedService(cache_service, directus_service, encryption_service)
+                                
+                                await embed_service.update_code_embed_content(
+                                    embed_id=current_code_embed_id,
+                                    code_content=current_code_content,
+                                    chat_id=request_data.chat_id,
+                                    user_id=request_data.user_id,
+                                    user_id_hash=request_data.user_id_hash,
+                                    user_vault_key_id=user_vault_key_id,
+                                    status="finished",
+                                    log_prefix=log_prefix
+                                )
+                                
+                                logger.info(f"{log_prefix} Finalized code embed {current_code_embed_id} with {len(current_code_content)} chars")
+                            except Exception as e:
+                                logger.error(f"{log_prefix} Error finalizing code embed: {e}", exc_info=True)
+                        
+                        # Reset state
+                        in_code_block = False
+                        current_code_language = ""
+                        current_code_filename = None
+                        current_code_content = ""
+                        current_code_embed_id = None
+                        
+                        # Don't include closing fence in response (already replaced with embed reference)
+                        chunk = ""  # Empty chunk - embed reference was already sent
+                    else:
+                        # Accumulate code content
+                        current_code_content += chunk
+                        
+                        # Update embed on every newline (per-line streaming for better UX)
+                        # This provides smooth line-by-line updates instead of arbitrary chunk-based updates
+                        if current_code_embed_id and '\n' in chunk and directus_service and encryption_service and user_vault_key_id:
+                            try:
+                                from backend.core.api.app.services.embed_service import EmbedService
+                                embed_service = EmbedService(cache_service, directus_service, encryption_service)
+                                
+                                await embed_service.update_code_embed_content(
+                                    embed_id=current_code_embed_id,
+                                    code_content=current_code_content,
+                                    chat_id=request_data.chat_id,
+                                    user_id=request_data.user_id,
+                                    user_id_hash=request_data.user_id_hash,
+                                    user_vault_key_id=user_vault_key_id,
+                                    status="processing",
+                                    log_prefix=log_prefix
+                                )
+                                
+                                logger.debug(f"{log_prefix} Updated code embed {current_code_embed_id} (per-line update, {len(current_code_content)} chars, {current_code_content.count(chr(10))} lines)")
+                            except Exception as e:
+                                logger.error(f"{log_prefix} Error updating code embed: {e}", exc_info=True)
+                        
+                        # Don't include code content in response (embed reference was already sent)
+                        chunk = ""  # Empty chunk - code content goes to embed, not message
+                
+                # Only add non-empty chunks to final response
+                if chunk:
+                    final_response_chunks.append(chunk)
+                    stream_chunk_count += 1
 
                 # CRITICAL: Publish chunk IMMEDIATELY without buffering
                 # This ensures paragraph-by-paragraph streaming and embed placeholders show up right away
@@ -684,6 +1089,25 @@ async def _consume_main_processing_stream(
                     await _publish_to_redis(
                         cache_service, redis_channel_name, payload, log_prefix, log_message
                     )
+                    
+                    # URL Validation: Check if this paragraph contains URLs and validate them in background
+                    # Skip code blocks (they might contain URLs that are just examples)
+                    if not is_code_block:
+                        # Check if chunk contains markdown links
+                        urls_in_chunk = await extract_urls_from_markdown(chunk)
+                        if urls_in_chunk:
+                            # Start background task to validate URLs in this paragraph
+                            # This runs asynchronously and doesn't block streaming
+                            # Broken URLs will be collected and processed after streaming completes
+                            validation_task = asyncio.create_task(
+                                _validate_paragraph_urls(
+                                    paragraph=chunk,
+                                    task_id=task_id,
+                                    broken_urls_collector=all_broken_urls,
+                                    log_prefix=log_prefix
+                                )
+                            )
+                            url_validation_tasks.append(validation_task)
                 elif stream_chunk_count == 1:
                     logger.warning(f"{log_prefix} Cache service not available. Skipping Redis publish for chunks.")
             else:
@@ -697,8 +1121,100 @@ async def _consume_main_processing_stream(
         # Check if revoked after an unexpected error
         if celery_config.app.AsyncResult(task_id).state == TASK_STATE_REVOKED:
             was_revoked_during_stream = True
+    
+    # Finalize any open code block if stream was interrupted
+    if in_code_block and current_code_embed_id and directus_service and encryption_service and user_vault_key_id:
+        try:
+            from backend.core.api.app.services.embed_service import EmbedService
+            embed_service = EmbedService(cache_service, directus_service, encryption_service)
+            
+            # Finalize with partial content (interrupted)
+            await embed_service.update_code_embed_content(
+                embed_id=current_code_embed_id,
+                code_content=current_code_content,
+                chat_id=request_data.chat_id,
+                user_id=request_data.user_id,
+                user_id_hash=request_data.user_id_hash,
+                user_vault_key_id=user_vault_key_id,
+                status="finished",  # Mark as finished even if interrupted
+                log_prefix=log_prefix
+            )
+            
+            logger.info(f"{log_prefix} Finalized interrupted code embed {current_code_embed_id} with {len(current_code_content)} chars")
+        except Exception as e:
+            logger.error(f"{log_prefix} Error finalizing interrupted code embed: {e}", exc_info=True)
 
     aggregated_response = "".join(final_response_chunks)
+    
+    # Wait for all URL validation tasks to complete (non-blocking during streaming, but wait now)
+    if url_validation_tasks:
+        logger.info(
+            f"{log_prefix} Waiting for {len(url_validation_tasks)} URL validation task(s) to complete..."
+        )
+        try:
+            # Wait for all validation tasks to complete
+            await asyncio.gather(*url_validation_tasks, return_exceptions=True)
+            logger.info(
+                f"{log_prefix} All URL validation tasks completed. Found {len(all_broken_urls)} broken URL(s) total."
+            )
+        except Exception as e:
+            logger.error(
+                f"{log_prefix} Error waiting for URL validation tasks: {e}",
+                exc_info=True
+            )
+        
+        # If broken URLs found, correct the entire response
+        if all_broken_urls:
+            logger.info(
+                f"{log_prefix} Correcting full response with {len(all_broken_urls)} broken URL(s)..."
+            )
+            
+            # Get the model ID used for main processing (from preprocessing result)
+            main_model_id = preprocessing_result.selected_main_llm_model_id or "gpt-4o-mini"
+            
+            # Import here to avoid circular imports
+            from backend.apps.ai.processing.url_corrector import correct_full_response_with_broken_urls
+            
+            corrected_response = await correct_full_response_with_broken_urls(
+                original_response=aggregated_response,
+                broken_urls=all_broken_urls,
+                user_message=request_data.message_content or "",
+                task_id=task_id,
+                model_id=main_model_id,  # Use same model as main processing
+                secrets_manager=secrets_manager
+            )
+            
+            if corrected_response and corrected_response != aggregated_response:
+                logger.info(
+                    f"{log_prefix} Successfully corrected response. "
+                    f"Original length: {len(aggregated_response)}, "
+                    f"Corrected length: {len(corrected_response)}"
+                )
+                
+                # Replace the aggregated response with corrected version
+                aggregated_response = corrected_response
+                
+                # Update final_response_chunks to reflect correction (for cache saving)
+                # Rebuild chunks from corrected response (simple approach: single chunk)
+                final_response_chunks = [corrected_response]
+                
+                # Publish corrected response to client (user will see text update)
+                correction_payload = _create_redis_payload(
+                    task_id, request_data, corrected_response, stream_chunk_count + 2,
+                    is_final=False  # Not final, just a correction update
+                )
+                await _publish_to_redis(
+                    cache_service, redis_channel_name, correction_payload, log_prefix,
+                    f"Published corrected response (seq: {stream_chunk_count + 2}) "
+                    f"with {len(all_broken_urls)} broken URL(s) fixed. Length: {len(corrected_response)}"
+                )
+                
+                logger.info(f"{log_prefix} Published corrected response to client")
+            else:
+                logger.warning(
+                    f"{log_prefix} Correction failed or returned same content. "
+                    f"Using original response."
+                )
     
     # NOTE: Embed references are now streamed as chunks during skill execution
     # They appear in final_response_chunks and are already part of aggregated_response
@@ -760,9 +1276,16 @@ async def _consume_main_processing_stream(
     # User interruptions (revoked/soft limit) should still be billed as they consumed resources
     
     # Determine if this is a server error (all providers failed) vs user interruption
+    # Check for both old "[ERROR:" format and new standardized error message format
+    standardized_error_message = "The AI service encountered an error while processing your request. Please try again in a moment."
+    is_old_format_error = aggregated_response.strip().startswith("[ERROR:")
+    is_new_format_error = aggregated_response.strip() == standardized_error_message
+    is_error = is_old_format_error or is_new_format_error
+    
     is_server_error = (
-        aggregated_response.strip().startswith("[ERROR:") and 
-        ("All servers failed" in aggregated_response or "All provider" in aggregated_response or "HTTP error" in aggregated_response)
+        is_error and 
+        (is_old_format_error and ("All servers failed" in aggregated_response or "All provider" in aggregated_response or "HTTP error" in aggregated_response)) or
+        is_new_format_error  # New standardized format always indicates server error
     )
     
     # Bill if:
@@ -771,7 +1294,7 @@ async def _consume_main_processing_stream(
     # 3. It's NOT a server error (all providers failed)
     should_bill = (
         usage is not None and 
-        (not aggregated_response.strip().startswith("[ERROR:") or was_revoked_during_stream or was_soft_limited_during_stream) and
+        (not is_error or was_revoked_during_stream or was_soft_limited_during_stream) and
         not is_server_error
     )
     
@@ -781,7 +1304,7 @@ async def _consume_main_processing_stream(
         )
     elif usage and is_server_error:
         logger.warning(f"{log_prefix} Skipping billing because all providers failed (server error). Usage metadata was present but will not be billed.")
-    elif usage and aggregated_response.strip().startswith("[ERROR:") and not (was_revoked_during_stream or was_soft_limited_during_stream):
+    elif usage and is_error and not (was_revoked_during_stream or was_soft_limited_during_stream):
         logger.warning(f"{log_prefix} Skipping billing because response contains error messages and was not user-interrupted.")
     elif not usage:
         logger.info(f"{log_prefix} No usage metadata available. Skipping billing.")

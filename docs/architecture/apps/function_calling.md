@@ -67,7 +67,12 @@ This format ensures unambiguous routing to the correct app and skill while maint
 
 ### Skill Tools
 
-Each production-stage skill becomes a tool. Tool schemas are generated from Pydantic models defined in each skill class. See [`backend/apps/base_skill.py`](../../backend/apps/base_skill.py) for the base skill implementation.
+Each production-stage skill becomes a tool. Tool schemas are generated from the `tool_schema` field in each skill's `app.yml` file. See [`backend/apps/base_skill.py`](../../backend/apps/base_skill.py) for the base skill implementation.
+
+**Automatic Schema Enhancement:**
+- The `id` field is automatically injected into tool schemas that have a `requests` array, ensuring all skills that support multiple requests have consistent `id` field definitions
+- This automatic injection happens in [`backend/apps/ai/processing/tool_generator.py`](../../backend/apps/ai/processing/tool_generator.py) via the `_inject_id_field_if_needed()` function
+- Skills don't need to manually define the `id` field in their `app.yml` files - it's added automatically during tool generation
 
 ### Focus Mode Tools
 

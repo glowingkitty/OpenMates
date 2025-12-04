@@ -5,21 +5,21 @@ login:
   zh: 登录
   es: Iniciar sesión
   fr: Se connecter
-  pt: ''
-  ru: ''
+  pt: Entrar
+  ru: Войти
   ja: ログイン
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: 로그인
+  it: Accedi
+  tr: Giriş yap
+  vi: Đăng nhập
+  id: Masuk
+  pl: Zaloguj się
+  nl: Inloggen
+  ar: تسجيل الدخول
+  hi: लॉग इन करें
+  th: เข้าสู่ระบบ
+  cs: Přihlásit se
+  sv: Logga in
   verified_by_human: []
 to_chat_to_your:
   context: '''Login to chat to your digital team mates'
@@ -28,21 +28,21 @@ to_chat_to_your:
   zh: 与您的
   es: Para chatear con tus
   fr: Pour discuter avec vos
-  pt: ''
-  ru: ''
+  pt: Para conversar com seus
+  ru: Чтобы общаться с вашими
   ja: チャットするには
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: 당신의
+  it: Per chattare con i tuoi
+  tr: Dijital takım arkadaşlarınızla sohbet etmek için
+  vi: Để trò chuyện với
+  id: Untuk mengobrol dengan
+  pl: Aby rozmawiać z
+  nl: Om te chatten met je
+  ar: للدردشة مع
+  hi: अपने
+  th: เพื่อแชทกับ
+  cs: Pro chatování s vašimi
+  sv: För att chatta med dina
   verified_by_human: []
 digital_team_mates:
   context: '''Login to chat to your digital team mates'
@@ -51,21 +51,21 @@ digital_team_mates:
   zh: 数字团队伙伴聊天
   es: compañeros digitales
   fr: collègues numériques
-  pt: ''
-  ru: ''
+  pt: companheiros digitais
+  ru: цифровыми коллегами
   ja: デジタルチームメイトと
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: 디지털 팀원들과
+  it: compagni digitali
+  tr: dijital takım arkadaşlarınız
+  vi: đồng đội kỹ thuật số
+  id: rekan digital
+  pl: cyfrowymi kolegami
+  nl: digitale teamgenoten
+  ar: زملاء الفريق الرقميين
+  hi: डिजिटल टीम साथी
+  th: เพื่อนร่วมทีมดิจิทัล
+  cs: digitálními kolegy
+  sv: digitala teamkamrater
   verified_by_human: []
 not_signed_up_yet:
   context: Asking the user if they are not signed up yet for the app
@@ -74,67 +74,67 @@ not_signed_up_yet:
   zh: 还没注册？
   es: ¿Aún no te has registrado?
   fr: Pas encore inscrit ?
-  pt: ''
-  ru: ''
+  pt: Ainda não se cadastrou?
+  ru: Еще не зарегистрированы?
   ja: まだ登録していませんか？
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: 아직 가입하지 않으셨나요?
+  it: Non sei ancora registrato?
+  tr: Henüz kayıt olmadınız mı?
+  vi: Chưa đăng ký?
+  id: Belum mendaftar?
+  pl: Nie zarejestrowałeś się jeszcze?
+  nl: Nog niet geregistreerd?
+  ar: لم تسجل بعد؟
+  hi: अभी तक साइन अप नहीं किया?
+  th: ยังไม่ได้สมัครสมาชิก?
+  cs: Ještě nejste registrováni?
+  sv: Inte registrerad än?
   verified_by_human: []
 create_account:
   context: Button text for creating a new account
   en: Create account
-  de: ''
-  zh: ''
+  de: Konto erstellen
+  zh: 创建账户
   es: Crear cuenta
-  fr: ''
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  fr: Créer un compte
+  pt: Criar conta
+  ru: Создать аккаунт
+  ja: アカウントを作成
+  ko: 계정 만들기
+  it: Crea account
+  tr: Hesap oluştur
+  vi: Tạo tài khoản
+  id: Buat akun
+  pl: Utwórz konto
+  nl: Account aanmaken
+  ar: إنشاء حساب
+  hi: खाता बनाएं
+  th: สร้างบัญชี
+  cs: Vytvořit účet
+  sv: Skapa konto
   verified_by_human: []
 demo:
   context: Button text for going back to demo from login screen
   en: Demo
-  de: ''
-  zh: ''
-  es: ''
-  fr: ''
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  de: Demo
+  zh: 演示
+  es: Demo
+  fr: Démo
+  pt: Demo
+  ru: Демо
+  ja: デモ
+  ko: 데모
+  it: Demo
+  tr: Demo
+  vi: Bản demo
+  id: Demo
+  pl: Demo
+  nl: Demo
+  ar: عرض تجريبي
+  hi: डेमो
+  th: ตัวอย่าง
+  cs: Demo
+  sv: Demo
   verified_by_human: []
 session_expired:
   context: Message shown when the session has expired
@@ -163,25 +163,81 @@ session_expired:
     Vous avez été déconnecté.
 
     '
-  pt: ''
-  ru: ''
+  pt: 'Sua sessão expirou.
+
+    Você foi desconectado.
+
+    '
+  ru: 'Ваша сессия истекла.
+
+    Вы были выйдены из системы.
+
+    '
   ja: 'あなたのセッションは期限切れです。
 
     ログアウトしました。
 
     '
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: '세션이 만료되었습니다.
+
+    로그아웃되었습니다.
+
+    '
+  it: 'La tua sessione è scaduta.
+
+    Sei stato disconnesso.
+
+    '
+  tr: 'Oturumunuzun süresi doldu.
+
+    Oturumunuz kapatıldı.
+
+    '
+  vi: 'Phiên của bạn đã hết hạn.
+
+    Bạn đã bị đăng xuất.
+
+    '
+  id: 'Sesi Anda telah berakhir.
+
+    Anda telah keluar.
+
+    '
+  pl: 'Twoja sesja wygasła.
+
+    Zostałeś wylogowany.
+
+    '
+  nl: 'Uw sessie is verlopen.
+
+    U bent uitgelogd.
+
+    '
+  ar: 'انتهت جلستك.
+
+    تم تسجيل خروجك.
+
+    '
+  hi: 'आपका सत्र समाप्त हो गया है।
+
+    आपको लॉग आउट कर दिया गया है।
+
+    '
+  th: 'เซสชันของคุณหมดอายุแล้ว
+
+    คุณถูกออกจากระบบแล้ว
+
+    '
+  cs: 'Vaše relace vypršela.
+
+    Byli jste odhlášeni.
+
+    '
+  sv: 'Din session har gått ut.
+
+    Du har loggats ut.
+
+    '
   verified_by_human: []
 stay_logged_in:
   context: Checkbox text for staying logged in
@@ -210,25 +266,81 @@ stay_logged_in:
     (ne pas utiliser sur des ordinateurs partagés)
 
     '
-  pt: ''
-  ru: ''
+  pt: 'Permanecer conectado neste dispositivo
+
+    (não usar em computadores compartilhados)
+
+    '
+  ru: 'Оставаться в системе на этом устройстве
+
+    (не использовать на общих компьютерах)
+
+    '
   ja: 'このデバイスにログインしたままにする
 
     (共有コンピューターでは使用しないでください)
 
     '
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: '이 기기에서 로그인 상태 유지
+
+    (공유 컴퓨터에서는 사용하지 마세요)
+
+    '
+  it: 'Resta connesso su questo dispositivo
+
+    (non usare su computer condivisi)
+
+    '
+  tr: 'Bu cihazda oturum açık kalsın
+
+    (paylaşılan bilgisayarlarda kullanmayın)
+
+    '
+  vi: 'Giữ đăng nhập trên thiết bị này
+
+    (không sử dụng trên máy tính dùng chung)
+
+    '
+  id: 'Tetap masuk di perangkat ini
+
+    (jangan gunakan di komputer bersama)
+
+    '
+  pl: 'Pozostań zalogowany na tym urządzeniu
+
+    (nie używaj na współdzielonych komputerach)
+
+    '
+  nl: 'Ingelogd blijven op dit apparaat
+
+    (niet gebruiken op gedeelde computers)
+
+    '
+  ar: 'البقاء متصلاً على هذا الجهاز
+
+    (لا تستخدم على أجهزة الكمبيوتر المشتركة)
+
+    '
+  hi: 'इस डिवाइस पर लॉग इन रहें
+
+    (साझा कंप्यूटर पर उपयोग न करें)
+
+    '
+  th: 'เข้าสู่ระบบค้างไว้บนอุปกรณ์นี้
+
+    (อย่าใช้ในคอมพิวเตอร์ที่ใช้ร่วมกัน)
+
+    '
+  cs: 'Zůstat přihlášen na tomto zařízení
+
+    (nepoužívejte na sdílených počítačích)
+
+    '
+  sv: 'Förbli inloggad på denna enhet
+
+    (använd inte på delade datorer)
+
+    '
   verified_by_human: []
 email_placeholder:
   context: Placeholder text for email input field
@@ -237,21 +349,21 @@ email_placeholder:
   zh: 输入电子邮件地址
   es: Introduce tu dirección de correo electrónico
   fr: Entrez votre adresse e-mail
-  pt: ''
-  ru: ''
+  pt: Digite o endereço de e-mail
+  ru: Введите адрес электронной почты
   ja: メールアドレスを入力
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: 이메일 주소를 입력하세요
+  it: Inserisci l'indirizzo email
+  tr: E-posta adresini girin
+  vi: Nhập địa chỉ email
+  id: Masukkan alamat email
+  pl: Wprowadź adres e-mail
+  nl: Voer e-mailadres in
+  ar: أدخل عنوان البريد الإلكتروني
+  hi: ईमेल पता दर्ज करें
+  th: ใส่อีเมลแอดเดรส
+  cs: Zadejte e-mailovou adresu
+  sv: Ange e-postadress
   verified_by_human: []
 password_placeholder:
   context: Placeholder text for password input field
@@ -260,44 +372,44 @@ password_placeholder:
   zh: 输入密码
   es: Introduce tu contraseña
   fr: Entrez votre mot de passe
-  pt: ''
-  ru: ''
+  pt: Digite a senha
+  ru: Введите пароль
   ja: パスワードを入力
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: 비밀번호를 입력하세요
+  it: Inserisci la password
+  tr: Şifrenizi girin
+  vi: Nhập mật khẩu
+  id: Masukkan kata sandi
+  pl: Wprowadź hasło
+  nl: Voer wachtwoord in
+  ar: أدخل كلمة المرور
+  hi: पासवर्ड दर्ज करें
+  th: ใส่รหัสผ่าน
+  cs: Zadejte heslo
+  sv: Ange lösenord
   verified_by_human: []
 recoverykey_placeholder:
   context: Placeholder text for recovery key input field
   en: Enter recovery key
-  de: ''
-  zh: ''
+  de: Wiederherstellungsschlüssel eingeben
+  zh: 输入恢复密钥
   es: Introduce la clave de recuperación
-  fr: ''
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  fr: Entrez la clé de récupération
+  pt: Digite a chave de recuperação
+  ru: Введите ключ восстановления
+  ja: 回復キーを入力
+  ko: 복구 키를 입력하세요
+  it: Inserisci la chiave di recupero
+  tr: Kurtarma anahtarını girin
+  vi: Nhập khóa khôi phục
+  id: Masukkan kunci pemulihan
+  pl: Wprowadź klucz odzyskiwania
+  nl: Voer herstelsleutel in
+  ar: أدخل مفتاح الاسترداد
+  hi: पुनर्प्राप्ति कुंजी दर्ज करें
+  th: ใส่คีย์กู้คืน
+  cs: Zadejte klíč pro obnovu
+  sv: Ange återställningsnyckel
   verified_by_human: []
 check_your_2fa_app:
   context: Text for asking the user to check their 2FA app for the one-time code
@@ -306,44 +418,44 @@ check_your_2fa_app:
   zh: 查看您的双重身份验证应用
   es: Revisa {tfa_app}
   fr: Vérifiez votre application 2FA
-  pt: ''
-  ru: ''
+  pt: Verifique {tfa_app}
+  ru: Проверьте {tfa_app}
   ja: 2FAアプリを確認してください
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: '{tfa_app} 확인'
+  it: Controlla {tfa_app}
+  tr: '{tfa_app} uygulamanızı kontrol edin'
+  vi: Kiểm tra {tfa_app}
+  id: Periksa {tfa_app}
+  pl: Sprawdź {tfa_app}
+  nl: Controleer {tfa_app}
+  ar: تحقق من {tfa_app}
+  hi: '{tfa_app} जांचें'
+  th: ตรวจสอบ {tfa_app}
+  cs: Zkontrolujte {tfa_app}
+  sv: Kontrollera {tfa_app}
   verified_by_human: []
 your_tfa_app:
   context: Placeholder if no 2FA app name is selected.
   en: your 2FA app
-  de: ''
-  zh: ''
+  de: deine 2FA-App
+  zh: 您的双重身份验证应用
   es: tu aplicación 2FA
-  fr: ''
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  fr: votre application 2FA
+  pt: seu aplicativo 2FA
+  ru: ваше приложение 2FA
+  ja: あなたの2FAアプリ
+  ko: 2FA 앱
+  it: la tua app 2FA
+  tr: 2FA uygulamanız
+  vi: ứng dụng 2FA của bạn
+  id: aplikasi 2FA Anda
+  pl: aplikacja 2FA
+  nl: uw 2FA-app
+  ar: تطبيق المصادقة الثنائية الخاص بك
+  hi: आपका 2FA ऐप
+  th: แอป 2FA ของคุณ
+  cs: vaše aplikace 2FA
+  sv: din 2FA-app
   verified_by_human: []
 2fa_code_placeholder:
   context: Placeholder text for 2FA code input field
@@ -352,21 +464,21 @@ your_tfa_app:
   zh: 输入 6 位一次性代码
   es: Introduce el código único de 6 dígitos
   fr: Entrez le code à 6 chiffres
-  pt: ''
-  ru: ''
+  pt: Digite o código único de 6 dígitos
+  ru: Введите 6-значный одноразовый код
   ja: 6桁のワンタイムコードを入力
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: 6자리 일회용 코드를 입력하세요
+  it: Inserisci il codice monouso a 6 cifre
+  tr: 6 haneli tek kullanımlık kodu girin
+  vi: Nhập mã 6 chữ số dùng một lần
+  id: Masukkan kode satu kali 6 digit
+  pl: Wprowadź 6-cyfrowy kod jednorazowy
+  nl: Voer 6-cijferige eenmalige code in
+  ar: أدخل الرمز المؤقت المكون من 6 أرقام
+  hi: 6 अंकों का एक बार उपयोग होने वाला कोड दर्ज करें
+  th: ใส่รหัสใช้ครั้งเดียว 6 หลัก
+  cs: Zadejte 6místný jednorázový kód
+  sv: Ange 6-siffrig engångskod
   verified_by_human: []
 enter_backup_code:
   context: Placeholder text for backup code input field
@@ -375,21 +487,21 @@ enter_backup_code:
   zh: 输入备用密码
   es: Introduce el código de respaldo de 14 caracteres
   fr: Entrez le code de sauvegarde
-  pt: ''
-  ru: ''
+  pt: Digite o código de backup de 14 caracteres
+  ru: Введите 14-символьный резервный код
   ja: バックアップコードを入力
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: 14자리 백업 코드를 입력하세요
+  it: Inserisci il codice di backup di 14 caratteri
+  tr: 14 karakterlik yedek kodu girin
+  vi: Nhập mã sao lưu 14 ký tự
+  id: Masukkan kode cadangan 14 karakter
+  pl: Wprowadź 14-znakowy kod zapasowy
+  nl: Voer 14-teken back-upcode in
+  ar: أدخل رمز النسخ الاحتياطي المكون من 14 حرفًا
+  hi: 14 अक्षरों का बैकअप कोड दर्ज करें
+  th: ใส่รหัสสำรอง 14 ตัวอักษร
+  cs: Zadejte 14místný záložní kód
+  sv: Ange 14-tecken säkerhetskopieringskod
   verified_by_human: []
 login_with_another_account:
   context: Button text for logging in with another account
@@ -398,113 +510,113 @@ login_with_another_account:
   zh: 使用其他帐户登录
   es: Iniciar sesión con otra cuenta
   fr: Se connecter avec un autre compte
-  pt: ''
-  ru: ''
+  pt: Entrar com outra conta
+  ru: Войти с другим аккаунтом
   ja: 別のアカウントでログイン
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: 다른 계정으로 로그인
+  it: Accedi con un altro account
+  tr: Başka bir hesapla giriş yap
+  vi: Đăng nhập bằng tài khoản khác
+  id: Masuk dengan akun lain
+  pl: Zaloguj się innym kontem
+  nl: Inloggen met een ander account
+  ar: تسجيل الدخول بحساب آخر
+  hi: दूसरे खाते से लॉग इन करें
+  th: เข้าสู่ระบบด้วยบัญชีอื่น
+  cs: Přihlásit se jiným účtem
+  sv: Logga in med ett annat konto
   verified_by_human: []
 login_with_backup_code:
   context: Button text for logging in with a backup code
   en: Login with backup code
-  de: ''
-  zh: ''
+  de: Mit Backup-Code anmelden
+  zh: 使用备用代码登录
   es: Iniciar sesión con código de respaldo
-  fr: ''
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  fr: Se connecter avec le code de sauvegarde
+  pt: Entrar com código de backup
+  ru: Войти с резервным кодом
+  ja: バックアップコードでログイン
+  ko: 백업 코드로 로그인
+  it: Accedi con codice di backup
+  tr: Yedek kod ile giriş yap
+  vi: Đăng nhập bằng mã sao lưu
+  id: Masuk dengan kode cadangan
+  pl: Zaloguj się kodem zapasowym
+  nl: Inloggen met back-upcode
+  ar: تسجيل الدخول برمز النسخ الاحتياطي
+  hi: बैकअप कोड के साथ लॉग इन करें
+  th: เข้าสู่ระบบด้วยรหัสสำรอง
+  cs: Přihlásit se záložním kódem
+  sv: Logga in med säkerhetskopieringskod
   verified_by_human: []
 login_with_recovery_key:
   context: Button text for logging in with a recovery key
   en: Login with recovery key
-  de: ''
-  zh: ''
+  de: Mit Wiederherstellungsschlüssel anmelden
+  zh: 使用恢复密钥登录
   es: Iniciar sesión con clave de recuperación
-  fr: ''
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  fr: Se connecter avec la clé de récupération
+  pt: Entrar com chave de recuperação
+  ru: Войти с ключом восстановления
+  ja: 回復キーでログイン
+  ko: 복구 키로 로그인
+  it: Accedi con chiave di recupero
+  tr: Kurtarma anahtarı ile giriş yap
+  vi: Đăng nhập bằng khóa khôi phục
+  id: Masuk dengan kunci pemulihan
+  pl: Zaloguj się kluczem odzyskiwania
+  nl: Inloggen met herstelsleutel
+  ar: تسجيل الدخول بمفتاح الاسترداد
+  hi: पुनर्प्राप्ति कुंजी के साथ लॉग इन करें
+  th: เข้าสู่ระบบด้วยคีย์กู้คืน
+  cs: Přihlásit se klíčem pro obnovu
+  sv: Logga in med återställningsnyckel
   verified_by_human: []
 login_with_tfa_app:
   context: Button text for logging in with a 2FA app
   en: Login with 2FA app
-  de: ''
-  zh: ''
+  de: Mit 2FA-App anmelden
+  zh: 使用双重身份验证应用登录
   es: Iniciar sesión con aplicación 2FA
-  fr: ''
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  fr: Se connecter avec l'application 2FA
+  pt: Entrar com aplicativo 2FA
+  ru: Войти с приложением 2FA
+  ja: 2FAアプリでログイン
+  ko: 2FA 앱으로 로그인
+  it: Accedi con app 2FA
+  tr: 2FA uygulaması ile giriş yap
+  vi: Đăng nhập bằng ứng dụng 2FA
+  id: Masuk dengan aplikasi 2FA
+  pl: Zaloguj się aplikacją 2FA
+  nl: Inloggen met 2FA-app
+  ar: تسجيل الدخول بتطبيق المصادقة الثنائية
+  hi: 2FA ऐप के साथ लॉग इन करें
+  th: เข้าสู่ระบบด้วยแอป 2FA
+  cs: Přihlásit se aplikací 2FA
+  sv: Logga in med 2FA-app
   verified_by_human: []
 login_with_password_and_tfa:
   context: Button text for logging in with password and 2FA
   en: Login with password & 2FA app
-  de: ''
-  zh: ''
+  de: Mit Passwort & 2FA-App anmelden
+  zh: 使用密码和双重身份验证应用登录
   es: Iniciar sesión con contraseña y aplicación 2FA
-  fr: ''
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  fr: Se connecter avec mot de passe et application 2FA
+  pt: Entrar com senha e aplicativo 2FA
+  ru: Войти с паролем и приложением 2FA
+  ja: パスワードと2FAアプリでログイン
+  ko: 비밀번호 및 2FA 앱으로 로그인
+  it: Accedi con password e app 2FA
+  tr: Şifre ve 2FA uygulaması ile giriş yap
+  vi: Đăng nhập bằng mật khẩu và ứng dụng 2FA
+  id: Masuk dengan kata sandi dan aplikasi 2FA
+  pl: Zaloguj się hasłem i aplikacją 2FA
+  nl: Inloggen met wachtwoord en 2FA-app
+  ar: تسجيل الدخول بكلمة المرور وتطبيق المصادقة الثنائية
+  hi: पासवर्ड और 2FA ऐप के साथ लॉग इन करें
+  th: เข้าสู่ระบบด้วยรหัสผ่านและแอป 2FA
+  cs: Přihlásit se heslem a aplikací 2FA
+  sv: Logga in med lösenord och 2FA-app
   verified_by_human: []
 login_with_passkey:
   context: Button text for logging in with a passkey
@@ -550,7 +662,7 @@ or:
   hi: या
   th: หรือ
   cs: nebo
-  sv: ''
+  sv: eller
   verified_by_human: []
 logging_in_with_passkey:
   context: Loading message shown when passkey login is in progress
@@ -573,7 +685,7 @@ logging_in_with_passkey:
   hi: पासकी के साथ लॉगिन हो रहा है...
   th: กำลังเข้าสู่ระบบด้วยคีย์ผ่าน...
   cs: Přihlašování pomocí přístupového klíče...
-  sv: ''
+  sv: Loggar in med åtkomstnyckel...
   verified_by_human: []
 login_with_email:
   context: Button text to switch from passkey login to email login
@@ -596,7 +708,7 @@ login_with_email:
   hi: ईमेल पते से लॉगिन करें
   th: เข้าสู่ระบบด้วยที่อยู่อีเมล
   cs: Přihlásit se pomocí e-mailové adresy
-  sv: ''
+  sv: Logga in med e-postadress
   verified_by_human: []
 back_to_email:
   context: Button text to go back to email input step
@@ -619,7 +731,7 @@ back_to_email:
   hi: ईमेल पर वापस जाएं
   th: กลับไปที่อีเมล
   cs: Zpět na e-mail
-  sv: ''
+  sv: Tillbaka till e-post
   verified_by_human: []
 cant_connect_to_server:
   context: Error message shown when server connection times out
@@ -628,117 +740,193 @@ cant_connect_to_server:
     Please check your internet connection.
 
     '
-  de: ''
-  zh: ''
-  es: ''
-  fr: ''
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  de: 'Verbindung zum Server nicht möglich.
+
+    Bitte überprüfen Sie Ihre Internetverbindung.
+
+    '
+  zh: '无法连接到服务器。
+
+    请检查您的互联网连接。
+
+    '
+  es: 'No se puede conectar al servidor.
+
+    Por favor, verifica tu conexión a Internet.
+
+    '
+  fr: 'Impossible de se connecter au serveur.
+
+    Veuillez vérifier votre connexion Internet.
+
+    '
+  pt: 'Não é possível conectar ao servidor.
+
+    Por favor, verifique sua conexão com a Internet.
+
+    '
+  ru: 'Не удается подключиться к серверу.
+
+    Пожалуйста, проверьте ваше интернет-соединение.
+
+    '
+  ja: 'サーバーに接続できません。
+
+    インターネット接続を確認してください。
+
+    '
+  ko: '서버에 연결할 수 없습니다.
+
+    인터넷 연결을 확인해주세요.
+
+    '
+  it: 'Impossibile connettersi al server.
+
+    Controlla la tua connessione Internet.
+
+    '
+  tr: 'Sunucuya bağlanılamıyor.
+
+    Lütfen internet bağlantınızı kontrol edin.
+
+    '
+  vi: 'Không thể kết nối đến máy chủ.
+
+    Vui lòng kiểm tra kết nối internet của bạn.
+
+    '
+  id: 'Tidak dapat terhubung ke server.
+
+    Silakan periksa koneksi internet Anda.
+
+    '
+  pl: 'Nie można połączyć się z serwerem.
+
+    Sprawdź połączenie internetowe.
+
+    '
+  nl: 'Kan geen verbinding maken met de server.
+
+    Controleer uw internetverbinding.
+
+    '
+  ar: 'لا يمكن الاتصال بالخادم.
+
+    يرجى التحقق من اتصالك بالإنترنت.
+
+    '
+  hi: 'सर्वर से कनेक्ट नहीं हो सकता।
+
+    कृपया अपने इंटरनेट कनेक्शन की जांच करें।
+
+    '
+  th: 'ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้
+
+    กรุณาตรวจสอบการเชื่อมต่ออินเทอร์เน็ตของคุณ
+
+    '
+  cs: 'Nelze se připojit k serveru.
+
+    Zkontrolujte prosím vaše internetové připojení.
+
+    '
+  sv: 'Kan inte ansluta till servern.
+
+    Kontrollera din internetanslutning.
+
+    '
   verified_by_human: []
 retry:
   context: Button text for retrying server connection
   en: Retry
-  de: ''
-  zh: ''
-  es: ''
-  fr: ''
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  de: Erneut versuchen
+  zh: 重试
+  es: Reintentar
+  fr: Réessayer
+  pt: Tentar novamente
+  ru: Повторить
+  ja: 再試行
+  ko: 다시 시도
+  it: Riprova
+  tr: Yeniden dene
+  vi: Thử lại
+  id: Coba lagi
+  pl: Spróbuj ponownie
+  nl: Opnieuw proberen
+  ar: إعادة المحاولة
+  hi: पुनः प्रयास करें
+  th: ลองอีกครั้ง
+  cs: Zkusit znovu
+  sv: Försök igen
   verified_by_human: []
 login_with_security_key:
   context: Button text for logging in with a security key
   en: Login with security key
-  de: ''
-  zh: ''
+  de: Mit Sicherheitsschlüssel anmelden
+  zh: 使用安全密钥登录
   es: Iniciar sesión con llave de seguridad
-  fr: ''
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  fr: Se connecter avec la clé de sécurité
+  pt: Entrar com chave de segurança
+  ru: Войти с ключом безопасности
+  ja: セキュリティキーでログイン
+  ko: 보안 키로 로그인
+  it: Accedi con chiave di sicurezza
+  tr: Güvenlik anahtarı ile giriş yap
+  vi: Đăng nhập bằng khóa bảo mật
+  id: Masuk dengan kunci keamanan
+  pl: Zaloguj się kluczem bezpieczeństwa
+  nl: Inloggen met beveiligingssleutel
+  ar: تسجيل الدخول بمفتاح الأمان
+  hi: सुरक्षा कुंजी के साथ लॉग इन करें
+  th: เข้าสู่ระบบด้วยคีย์ความปลอดภัย
+  cs: Přihlásit se bezpečnostním klíčem
+  sv: Logga in med säkerhetsnyckel
   verified_by_human: []
 backup_code_is_single_use:
   context: Message explaining that the backup code can only be used once
   en: Every code is single use only!
-  de: ''
-  zh: ''
+  de: Jeder Code kann nur einmal verwendet werden!
+  zh: 每个代码只能使用一次！
   es: ¡Cada código es de un solo uso!
-  fr: ''
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  fr: Chaque code ne peut être utilisé qu'une seule fois !
+  pt: Cada código é de uso único!
+  ru: Каждый код можно использовать только один раз!
+  ja: 各コードは一度だけ使用できます！
+  ko: 각 코드는 한 번만 사용할 수 있습니다!
+  it: Ogni codice può essere utilizzato una sola volta!
+  tr: Her kod yalnızca bir kez kullanılabilir!
+  vi: Mỗi mã chỉ được sử dụng một lần!
+  id: Setiap kode hanya dapat digunakan sekali!
+  pl: Każdy kod można użyć tylko raz!
+  nl: Elke code kan slechts één keer worden gebruikt!
+  ar: كل رمز قابل للاستخدام مرة واحدة فقط!
+  hi: प्रत्येक कोड केवल एक बार उपयोग किया जा सकता है!
+  th: รหัสแต่ละรหัสใช้ได้เพียงครั้งเดียว!
+  cs: Každý kód lze použít pouze jednou!
+  sv: Varje kod kan endast användas en gång!
   verified_by_human: []
 logging_in_with_security_key:
   context: Text shown while logging in with a security key
   en: Logging in with security key...
-  de: ''
-  zh: ''
+  de: Mit Sicherheitsschlüssel anmelden...
+  zh: 正在使用安全密钥登录...
   es: Iniciando sesión con llave de seguridad...
-  fr: ''
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  fr: Connexion avec la clé de sécurité...
+  pt: Entrando com chave de segurança...
+  ru: Вход с ключом безопасности...
+  ja: セキュリティキーでログイン中...
+  ko: 보안 키로 로그인 중...
+  it: Accesso con chiave di sicurezza...
+  tr: Güvenlik anahtarı ile giriş yapılıyor...
+  vi: Đang đăng nhập bằng khóa bảo mật...
+  id: Masuk dengan kunci keamanan...
+  pl: Logowanie kluczem bezpieczeństwa...
+  nl: Inloggen met beveiligingssleutel...
+  ar: تسجيل الدخول بمفتاح الأمان...
+  hi: सुरक्षा कुंजी के साथ लॉग इन हो रहा है...
+  th: กำลังเข้าสู่ระบบด้วยคีย์ความปลอดภัย...
+  cs: Přihlašování bezpečnostním klíčem...
+  sv: Loggar in med säkerhetsnyckel...
   verified_by_human: []
 use_for_emergencies_only:
   context: Message explaining that the recovery key should only be used in emergencies
@@ -747,29 +935,101 @@ use_for_emergencies_only:
     if you lost access to your login credentials.
 
     '
-  de: ''
-  zh: ''
+  de: 'Nur für Notfälle verwenden,
+
+    wenn Sie den Zugang zu Ihren Anmeldedaten verloren haben.
+
+    '
+  zh: '仅在紧急情况下使用，
+
+    如果您丢失了登录凭据的访问权限。
+
+    '
   es: 'Usar solo para emergencias,
 
     si perdiste el acceso a tus credenciales de inicio de sesión.
 
     '
-  fr: ''
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  fr: 'Utiliser uniquement en cas d''urgence,
+
+    si vous avez perdu l''accès à vos identifiants de connexion.
+
+    '
+  pt: 'Use apenas em emergências,
+
+    se você perdeu o acesso às suas credenciais de login.
+
+    '
+  ru: 'Использовать только в экстренных случаях,
+
+    если вы потеряли доступ к своим учетным данным.
+
+    '
+  ja: '緊急時のみ使用してください。
+
+    ログイン認証情報へのアクセスを失った場合。
+
+    '
+  ko: '긴급 상황에서만 사용하세요.
+
+    로그인 자격 증명에 대한 액세스를 잃은 경우.
+
+    '
+  it: 'Usare solo per emergenze,
+
+    se hai perso l''accesso alle tue credenziali di accesso.
+
+    '
+  tr: 'Yalnızca acil durumlarda kullanın,
+
+    giriş bilgilerinize erişimi kaybettiyseniz.
+
+    '
+  vi: 'Chỉ sử dụng trong trường hợp khẩn cấp,
+
+    nếu bạn mất quyền truy cập vào thông tin đăng nhập.
+
+    '
+  id: 'Gunakan hanya untuk keadaan darurat,
+
+    jika Anda kehilangan akses ke kredensial login Anda.
+
+    '
+  pl: 'Używać tylko w nagłych wypadkach,
+
+    jeśli utraciłeś dostęp do swoich danych logowania.
+
+    '
+  nl: 'Alleen gebruiken in noodgevallen,
+
+    als u de toegang tot uw inloggegegevens bent kwijtgeraakt.
+
+    '
+  ar: 'استخدم فقط في حالات الطوارئ،
+
+    إذا فقدت الوصول إلى بيانات تسجيل الدخول الخاصة بك.
+
+    '
+  hi: 'केवल आपात स्थितियों के लिए उपयोग करें,
+
+    यदि आपने अपने लॉगिन क्रेडेंशियल तक पहुंच खो दी है।
+
+    '
+  th: 'ใช้เฉพาะในกรณีฉุกเฉินเท่านั้น
+
+    หากคุณสูญเสียการเข้าถึงข้อมูลประจำตัวการเข้าสู่ระบบของคุณ
+
+    '
+  cs: 'Použít pouze v nouzových případech,
+
+    pokud jste ztratili přístup ke svým přihlašovacím údajům.
+
+    '
+  sv: 'Använd endast i nödsituationer,
+
+    om du har förlorat tillgången till dina inloggningsuppgifter.
+
+    '
   verified_by_human: []
 login_button:
   context: Button text for logging in
@@ -778,21 +1038,21 @@ login_button:
   zh: 登录
   es: Iniciar sesión
   fr: Se connecter
-  pt: ''
-  ru: ''
+  pt: Entrar
+  ru: Войти
   ja: ログイン
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: 로그인
+  it: Accedi
+  tr: Giriş yap
+  vi: Đăng nhập
+  id: Masuk
+  pl: Zaloguj się
+  nl: Inloggen
+  ar: تسجيل الدخول
+  hi: लॉग इन करें
+  th: เข้าสู่ระบบ
+  cs: Přihlásit se
+  sv: Logga in
   verified_by_human: []
 loading:
   context: Text shown when checking authentication
@@ -801,21 +1061,21 @@ loading:
   zh: 正在加载...
   es: Cargando...
   fr: Chargement...
-  pt: ''
-  ru: ''
+  pt: Carregando...
+  ru: Загрузка...
   ja: 読み込み中...
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: 로딩 중...
+  it: Caricamento...
+  tr: Yükleniyor...
+  vi: Đang tải...
+  id: Memuat...
+  pl: Ładowanie...
+  nl: Laden...
+  ar: جاري التحميل...
+  hi: लोड हो रहा है...
+  th: กำลังโหลด...
+  cs: Načítání...
+  sv: Laddar...
   verified_by_human: []
 login_failed:
   context: Error message shown when login fails
@@ -824,90 +1084,90 @@ login_failed:
   zh: 登录数据错误
   es: Datos de inicio de sesión incorrectos
   fr: Données de connexion incorrectes
-  pt: ''
-  ru: ''
+  pt: Dados de login incorretos
+  ru: Неверные данные для входа
   ja: ログイン情報が間違っています
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: 로그인 데이터가 잘못되었습니다
+  it: Dati di accesso errati
+  tr: Giriş verileri yanlış
+  vi: Dữ liệu đăng nhập sai
+  id: Data login salah
+  pl: Nieprawidłowe dane logowania
+  nl: Onjuiste inloggegevens
+  ar: بيانات تسجيل الدخول خاطئة
+  hi: लॉगिन डेटा गलत है
+  th: ข้อมูลเข้าสู่ระบบผิด
+  cs: Nesprávné přihlašovací údaje
+  sv: Felaktiga inloggningsuppgifter
   verified_by_human: []
 email_or_password_wrong:
   context: Error message shown when email address or password is incorrect
   en: E-Mail address or password wrong
-  de: ''
-  zh: ''
+  de: E-Mail-Adresse oder Passwort falsch
+  zh: 电子邮件地址或密码错误
   es: Dirección de correo electrónico o contraseña incorrecta
-  fr: ''
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  fr: Adresse e-mail ou mot de passe incorrect
+  pt: Endereço de e-mail ou senha incorretos
+  ru: Неверный адрес электронной почты или пароль
+  ja: メールアドレスまたはパスワードが間違っています
+  ko: 이메일 주소 또는 비밀번호가 잘못되었습니다
+  it: Indirizzo email o password errati
+  tr: E-posta adresi veya şifre yanlış
+  vi: Địa chỉ email hoặc mật khẩu sai
+  id: Alamat email atau kata sandi salah
+  pl: Nieprawidłowy adres e-mail lub hasło
+  nl: E-mailadres of wachtwoord onjuist
+  ar: عنوان البريد الإلكتروني أو كلمة المرور خاطئة
+  hi: ईमेल पता या पासवर्ड गलत है
+  th: ที่อยู่อีเมลหรือรหัสผ่านผิด
+  cs: Nesprávná e-mailová adresa nebo heslo
+  sv: Felaktig e-postadress eller lösenord
   verified_by_human: []
 recovery_key_wrong:
   context: Error message shown when recovery key is incorrect
   en: Recovery key wrong
-  de: ''
-  zh: ''
+  de: Wiederherstellungsschlüssel falsch
+  zh: 恢复密钥错误
   es: Clave de recuperación incorrecta
-  fr: ''
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  fr: Clé de récupération incorrecte
+  pt: Chave de recuperação incorreta
+  ru: Неверный ключ восстановления
+  ja: 回復キーが間違っています
+  ko: 복구 키가 잘못되었습니다
+  it: Chiave di recupero errata
+  tr: Kurtarma anahtarı yanlış
+  vi: Khóa khôi phục sai
+  id: Kunci pemulihan salah
+  pl: Nieprawidłowy klucz odzyskiwania
+  nl: Herstelsleutel onjuist
+  ar: مفتاح الاسترداد خاطئ
+  hi: पुनर्प्राप्ति कुंजी गलत है
+  th: คีย์กู้คืนผิด
+  cs: Nesprávný klíč pro obnovu
+  sv: Felaktig återställningsnyckel
   verified_by_human: []
 code_wrong:
   context: Error message shown when 2FA code or backup code is incorrect
   en: Code wrong
-  de: ''
-  zh: ''
+  de: Code falsch
+  zh: 代码错误
   es: Código incorrecto
-  fr: ''
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  fr: Code incorrect
+  pt: Código incorreto
+  ru: Неверный код
+  ja: コードが間違っています
+  ko: 코드가 잘못되었습니다
+  it: Codice errato
+  tr: Kod yanlış
+  vi: Mã sai
+  id: Kode salah
+  pl: Nieprawidłowy kod
+  nl: Code onjuist
+  ar: الرمز خاطئ
+  hi: कोड गलत है
+  th: รหัสผิด
+  cs: Nesprávný kód
+  sv: Felaktig kod
   verified_by_human: []
 forgot_password:
   context: Starting process of resetting password
@@ -916,19 +1176,19 @@ forgot_password:
   zh: 忘记密码
   es: Olvidé mi contraseña
   fr: Mot de passe oublié
-  pt: ''
-  ru: ''
+  pt: Esqueci minha senha
+  ru: Забыл пароль
   ja: パスワードを忘れた
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: 비밀번호를 잊었습니다
+  it: Ho dimenticato la password
+  tr: Şifremi unuttum
+  vi: Quên mật khẩu
+  id: Lupa kata sandi
+  pl: Zapomniałem hasła
+  nl: Wachtwoord vergeten
+  ar: نسيت كلمة المرور
+  hi: मैंने अपना पासवर्ड भूल गया
+  th: ลืมรหัสผ่าน
+  cs: Zapomenuté heslo
+  sv: Glömt mitt lösenord
   verified_by_human: []

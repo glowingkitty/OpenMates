@@ -19,10 +19,61 @@
 
 :global(.ProseMirror .unclosed-block-video) {
     color: var(--color-app-videos-start) !important;
+    text-decoration: none !important;
+}
+
+/* Ensure YouTube URLs are red and not underlined even if they have link styling */
+:global(.ProseMirror .unclosed-block-video a),
+:global(.ProseMirror a.unclosed-block-video) {
+    color: var(--color-app-videos-start) !important;
+    text-decoration: none !important;
 }
 
 :global(.ProseMirror .unclosed-block-markdown) {
     color: #6A737D !important;
+}
+
+/* Style all links in the ProseMirror editor */
+/* Default: web app start color for regular URLs */
+:global(.ProseMirror a.markdown-link),
+:global(.ProseMirror a) {
+    color: var(--color-app-web-start) !important;
+    text-decoration: none !important;
+    transition: none !important;
+}
+
+/* Hover states - maintain color and no underline */
+:global(.ProseMirror a.markdown-link:hover),
+:global(.ProseMirror a:hover) {
+    color: var(--color-app-web-start) !important;
+    text-decoration: none !important;
+}
+
+/* YouTube URLs: video app start color */
+/* Match YouTube URLs using attribute selectors - higher specificity to override default link styles */
+:global(.ProseMirror a.markdown-link[href*="youtube.com/watch"]),
+:global(.ProseMirror a.markdown-link[href*="youtube.com/v/"]),
+:global(.ProseMirror a.markdown-link[href*="youtube.com/embed/"]),
+:global(.ProseMirror a.markdown-link[href*="youtu.be/"]),
+:global(.ProseMirror a[href*="youtube.com/watch"]),
+:global(.ProseMirror a[href*="youtube.com/v/"]),
+:global(.ProseMirror a[href*="youtube.com/embed/"]),
+:global(.ProseMirror a[href*="youtu.be/"]) {
+    color: var(--color-app-videos-start) !important;
+    text-decoration: none !important;
+}
+
+/* YouTube URLs hover states - maintain video color and no underline */
+:global(.ProseMirror a.markdown-link[href*="youtube.com/watch"]:hover),
+:global(.ProseMirror a.markdown-link[href*="youtube.com/v/"]:hover),
+:global(.ProseMirror a.markdown-link[href*="youtube.com/embed/"]:hover),
+:global(.ProseMirror a.markdown-link[href*="youtu.be/"]:hover),
+:global(.ProseMirror a[href*="youtube.com/watch"]:hover),
+:global(.ProseMirror a[href*="youtube.com/v/"]:hover),
+:global(.ProseMirror a[href*="youtube.com/embed/"]:hover),
+:global(.ProseMirror a[href*="youtu.be/"]:hover) {
+    color: var(--color-app-videos-start) !important;
+    text-decoration: none !important;
 }
 
 /* Embed styles moved to EmbeddPreview.styles.css */

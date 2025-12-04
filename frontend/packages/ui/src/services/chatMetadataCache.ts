@@ -14,6 +14,7 @@ export interface DecryptedChatMetadata {
     draftPreview: string | null; // Decrypted draft preview text
     icon: string | null; // Decrypted icon name
     category: string | null; // Decrypted category name
+    summary: string | null; // Decrypted chat summary (2-3 sentences)
     lastDecrypted: number; // Timestamp when this metadata was last decrypted
 }
 
@@ -128,32 +129,40 @@ class ChatMetadataCache {
                 // });
             }
             
-            // Decrypt icon and category with chat-specific key
+            // Decrypt icon, category, and summary with chat-specific key
             let icon: string | null = null;
             let category: string | null = null;
+            let summary: string | null = null;
             const chatKey = chatDB.getChatKey(chat.chat_id);
             if (chatKey) {
                 const { decryptWithChatKey } = await import('./cryptoService');
-                
+
                 if (chat.encrypted_icon) {
                     // CRITICAL FIX: await decryptWithChatKey since it's async to prevent storing Promises
                     icon = await decryptWithChatKey(chat.encrypted_icon, chatKey);
                     console.debug(`[ChatMetadataCache] Decrypted icon for chat ${chat.chat_id}: ${icon}`);
                 }
-                
+
                 if (chat.encrypted_category) {
                     // CRITICAL FIX: await decryptWithChatKey since it's async to prevent storing Promises
                     category = await decryptWithChatKey(chat.encrypted_category, chatKey);
                     console.debug(`[ChatMetadataCache] Decrypted category for chat ${chat.chat_id}: ${category}`);
                 }
+
+                if (chat.encrypted_chat_summary) {
+                    // CRITICAL FIX: await decryptWithChatKey since it's async to prevent storing Promises
+                    summary = await decryptWithChatKey(chat.encrypted_chat_summary, chatKey);
+                    console.debug(`[ChatMetadataCache] Decrypted summary for chat ${chat.chat_id}: ${summary?.substring(0, 50)}...`);
+                }
             }
-            
+
             return {
                 chat_id: chat.chat_id,
                 title,
                 draftPreview,
                 icon,
                 category,
+                summary,
                 lastDecrypted: Date.now()
             };
         } catch (error) {

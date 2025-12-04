@@ -1099,35 +1099,56 @@ async def finalize_login_session(
             # Get existing cached user data and update it with session info
             cached_user_data = await cache_service.get_user_by_id(user_id)
             if cached_user_data:
-                # Ensure user_id is always present in cached data (required for WebSocket auth)
-                if "user_id" not in cached_user_data:
-                    cached_user_data["user_id"] = user_id
-                # Also ensure "id" is present for compatibility
-                if "id" not in cached_user_data:
-                    cached_user_data["id"] = user_id
-                # Update last_online_timestamp in cached data
-                cached_user_data["last_online_timestamp"] = current_time
-                # Store stay_logged_in preference for session endpoint to use
-                cached_user_data["stay_logged_in"] = login_data.stay_logged_in
-                # Update with any additional session data that might be needed
-                # Pass custom TTL to match cookie expiration
-                await cache_service.set_user(cached_user_data, refresh_token=refresh_token, ttl=cache_ttl)
-                logger.info(f"Updated cached user data with stay_logged_in={login_data.stay_logged_in} for user {user_id[:6]}...")
+                # CRITICAL: Validate that required fields are present before updating cache
+                # If username or vault_key_id are missing, this indicates a data integrity issue
+                if not cached_user_data.get("username"):
+                    logger.error(f"CRITICAL: Cannot update cache for user {user_id} - username is missing from cached data. This indicates a data integrity issue.")
+                    # Don't update cache with incomplete data - let get_current_user handle the error
+                elif not cached_user_data.get("vault_key_id"):
+                    logger.error(f"CRITICAL: Cannot update cache for user {user_id} - vault_key_id is missing from cached data. This indicates a data integrity issue.")
+                    # Don't update cache with incomplete data - let get_current_user handle the error
+                else:
+                    # Ensure user_id is always present in cached data (required for WebSocket auth)
+                    if "user_id" not in cached_user_data:
+                        cached_user_data["user_id"] = user_id
+                    # Also ensure "id" is present for compatibility
+                    if "id" not in cached_user_data:
+                        cached_user_data["id"] = user_id
+                    # Update last_online_timestamp in cached data
+                    cached_user_data["last_online_timestamp"] = current_time
+                    # Store stay_logged_in preference for session endpoint to use
+                    cached_user_data["stay_logged_in"] = login_data.stay_logged_in
+                    # CRITICAL: Preserve username and vault_key_id - don't overwrite with incomplete data from user parameter
+                    # The user parameter might come from login_user_with_lookup_hash which could have incomplete data
+                    # Update with any additional session data that might be needed
+                    # Pass custom TTL to match cookie expiration
+                    await cache_service.set_user(cached_user_data, refresh_token=refresh_token, ttl=cache_ttl)
+                    logger.info(f"Updated cached user data with stay_logged_in={login_data.stay_logged_in} for user {user_id[:6]}...")
             else:
                 # Cache entry doesn't exist - fetch user profile and create cache entry with stay_logged_in
                 logger.warning(f"No cached user data found for user {user_id} during session finalization. Fetching profile to create cache entry.")
-                profile_success, user_profile, _ = await directus_service.get_user_profile(user_id)
+                profile_success, user_profile, profile_message = await directus_service.get_user_profile(user_id)
                 if profile_success and user_profile:
-                    # Ensure stay_logged_in is set in the profile data
-                    user_profile["stay_logged_in"] = login_data.stay_logged_in
-                    user_profile["last_online_timestamp"] = current_time
-                    # Ensure user_id is in the profile for set_user to work
-                    if "user_id" not in user_profile and "id" in user_profile:
-                        user_profile["user_id"] = user_profile["id"]
-                    await cache_service.set_user(user_profile, refresh_token=refresh_token, ttl=cache_ttl)
-                    logger.info(f"Created cache entry with stay_logged_in={login_data.stay_logged_in} for user {user_id[:6]}...")
+                    # CRITICAL: Validate that required fields are present before caching
+                    # If username or vault_key_id are missing, this indicates a data integrity issue
+                    if not user_profile.get("username"):
+                        logger.error(f"CRITICAL: Cannot cache user profile for user {user_id} - username is missing from profile. This indicates a data integrity issue.")
+                        logger.error(f"Profile message: {profile_message}")
+                        # Don't cache incomplete data - let get_current_user handle the error
+                    elif not user_profile.get("vault_key_id"):
+                        logger.error(f"CRITICAL: Cannot cache user profile for user {user_id} - vault_key_id is missing from profile. This indicates a data integrity issue.")
+                        # Don't cache incomplete data - let get_current_user handle the error
+                    else:
+                        # Ensure stay_logged_in is set in the profile data
+                        user_profile["stay_logged_in"] = login_data.stay_logged_in
+                        user_profile["last_online_timestamp"] = current_time
+                        # Ensure user_id is in the profile for set_user to work
+                        if "user_id" not in user_profile and "id" in user_profile:
+                            user_profile["user_id"] = user_profile["id"]
+                        await cache_service.set_user(user_profile, refresh_token=refresh_token, ttl=cache_ttl)
+                        logger.info(f"Created cache entry with stay_logged_in={login_data.stay_logged_in} for user {user_id[:6]}...")
                 else:
-                    logger.error(f"Failed to fetch user profile for user {user_id} during session finalization. stay_logged_in preference may be lost.")
+                    logger.error(f"Failed to fetch user profile for user {user_id} during session finalization: {profile_message}. stay_logged_in preference may be lost.")
 
             # Manage refresh tokens with extended TTL
             token_hash = hashlib.sha256(refresh_token.encode()).hexdigest()

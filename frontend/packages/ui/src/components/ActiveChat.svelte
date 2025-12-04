@@ -23,21 +23,25 @@
     import NewsSearchEmbedFullscreen from './embeds/NewsSearchEmbedFullscreen.svelte';
     import VideosSearchEmbedFullscreen from './embeds/VideosSearchEmbedFullscreen.svelte';
     import MapsSearchEmbedFullscreen from './embeds/MapsSearchEmbedFullscreen.svelte';
+    import CodeEmbedFullscreen from './embeds/CodeEmbedFullscreen.svelte';
     import VideoTranscriptSkillPreview from './app_skills/VideoTranscriptSkillPreview.svelte';
     import VideoTranscriptSkillFullscreen from './app_skills/VideoTranscriptSkillFullscreen.svelte';
+    import WebReadSkillFullscreen from './app_skills/WebReadSkillFullscreen.svelte';
     import WebsiteFullscreen from './embeds/WebsiteFullscreen.svelte';
     import WebsiteEmbedFullscreen from './embeds/WebsiteEmbedFullscreen.svelte';
     import { userProfile, loadUserProfileFromDB } from '../stores/userProfile';
     import { isInSignupProcess, currentSignupStep, getStepFromPath, isLoggingOut, isSignupPath } from '../stores/signupState';
+    import { userDB } from '../services/userDB';
     import { initializeApp } from '../app';
     import { aiTypingStore, type AITypingStatus } from '../stores/aiTypingStore'; // Import the new store
     import { decryptWithMasterKey } from '../services/cryptoService'; // Import decryption function
     import { parse_message } from '../message_parsing/parse_message'; // Import markdown parser
-    import { loadSessionStorageDraft, migrateSessionStorageDraftsToIndexedDB } from '../services/drafts/sessionStorageDraftService'; // Import sessionStorage draft service
+    import { loadSessionStorageDraft, getSessionStorageDraftMarkdown, migrateSessionStorageDraftsToIndexedDB } from '../services/drafts/sessionStorageDraftService'; // Import sessionStorage draft service
     import { draftEditorUIState } from '../services/drafts/draftState'; // Import draft state
     import { phasedSyncState } from '../stores/phasedSyncStateStore'; // Import phased sync state store
     import { websocketStatus } from '../stores/websocketStatusStore'; // Import WebSocket status for connection checks
     import { activeChatStore } from '../stores/activeChatStore'; // For clearing persistent active chat selection
+    import { settingsDeepLink } from '../stores/settingsDeepLinkStore'; // For opening settings to specific page (share)
     import { DEMO_CHATS, LEGAL_CHATS, getDemoMessages, isPublicChat, translateDemoChat } from '../demo_chats'; // Import demo chat utilities
     import { convertDemoChatToChat } from '../demo_chats/convertToChat'; // Import conversion function
     import { isDesktop } from '../utils/platform'; // Import desktop detection for conditional auto-focus
@@ -49,6 +53,67 @@
     // Get username from the store using Svelte 5 $derived
     // Use empty string for non-authenticated users - translation will handle "Hey there!" vs "Hey {username}!"
     let username = $derived($userProfile.username || '');
+    
+    // State for current user ID (cached to avoid repeated DB lookups)
+    let currentUserId = $state<string | null>(null);
+    
+    // State for chat ownership check
+    let chatOwnershipResolved = $state<boolean>(true); // Default to true (allow editing)
+    
+    /**
+     * Check if the current user owns the chat.
+     * For shared chats, if user_id is set and doesn't match current user, it's read-only.
+     * If user_id is not set, assume the user owns it (backwards compatibility).
+     */
+    async function checkChatOwnership() {
+        if (!currentChat || !$authStore.isAuthenticated) {
+            // Non-authenticated users can always edit (demo chats)
+            // No chat loaded means welcome screen
+            chatOwnershipResolved = true;
+            return;
+        }
+        
+        // If chat has no user_id, assume it's owned (backwards compatibility)
+        if (!currentChat.user_id) {
+            chatOwnershipResolved = true;
+            return;
+        }
+        
+        // Get current user ID (cache it to avoid repeated DB lookups)
+        if (!currentUserId) {
+            try {
+                const profile = await userDB.getUserProfile();
+                currentUserId = (profile as any)?.user_id || null;
+            } catch (error) {
+                console.warn('[ActiveChat] Error getting user_id from profile:', error);
+                // Fail open for UX - allow editing if we can't determine ownership
+                chatOwnershipResolved = true;
+                return;
+            }
+        }
+        
+        if (!currentUserId) {
+            // Can't determine ownership, default to allowing (fail open for UX)
+            chatOwnershipResolved = true;
+            return;
+        }
+        
+        // Compare chat's user_id with current user's user_id
+        const isOwned = currentChat.user_id === currentUserId;
+        chatOwnershipResolved = isOwned;
+        console.debug(`[ActiveChat] Chat ownership check: ${isOwned} for chat ${currentChat.chat_id} (chat.user_id: ${currentChat.user_id}, currentUserId: ${currentUserId})`);
+    }
+    
+    // Check ownership whenever chat or auth state changes
+    $effect(() => {
+        // Track dependencies
+        void currentChat?.chat_id;
+        void currentChat?.user_id;
+        void $authStore.isAuthenticated;
+        
+        // Check ownership asynchronously
+        checkChatOwnership();
+    });
 
     // Add state for code fullscreen using $state
     let showCodeFullscreen = $state(false);
@@ -1114,34 +1179,33 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             await messageInputFieldRef.clearMessageField(false, true);
         }
         
-        // CRITICAL: Clear currentChatId in draft state after preserving context
-        // This ensures that when the user types in the new chat, a new chat ID will be generated
-        // instead of using the previous chat's ID (which would overwrite the previous draft)
-        // We've already preserved the previous chat's draft above, so it's safe to clear the chat ID
+        // CRITICAL: Set the new temporary chat ID in draft state
+        // This ensures that when the user types in the new chat, the draft service uses this chat ID
+        // This allows separate drafts for new chats vs demo chats
         draftEditorUIState.update(s => ({
             ...s,
-            currentChatId: null, // Clear chat ID so a new one is generated when user types
+            currentChatId: temporaryChatId, // Set to the new temporary chat ID for the new chat
             newlyCreatedChatIdToSelect: null // Clear any pending selection
         }));
-        console.debug("[ActiveChat] Cleared currentChatId in draft state for new chat");
+        console.debug("[ActiveChat] Set currentChatId in draft state to new temporary chat ID:", temporaryChatId);
         // Reset live input text state to clear search term for NewChatSuggestions
         // This ensures suggestions show the random 3 instead of filtering with old search term
         liveInputText = '';
         messageInputHasContent = false;
         console.debug("[ActiveChat] Reset liveInputText and messageInputHasContent");
         
-        // Focus the message input field on desktop devices only
-        // On touch devices (iPhone/iPad), programmatic focus doesn't trigger the virtual keyboard
-        // and can cause unwanted layout shifts. Users expect to manually tap the input on mobile.
-        if (isDesktop()) {
+        // Auto-focus the message input field on desktop devices only
+        // On touch devices, users must manually tap to focus to avoid unwanted keyboard popups
+        if (isDesktop() && messageInputFieldRef) {
+            // Use a small delay to ensure the editor is ready after clearing
             setTimeout(() => {
-                if (messageInputFieldRef?.focus) {
+                if (messageInputFieldRef) {
                     messageInputFieldRef.focus();
-                    console.debug("[ActiveChat] Focused message input after new chat creation (desktop)");
+                    console.debug("[ActiveChat] Auto-focused message input on desktop after new chat creation");
                 }
-            }, 100); // Small delay to ensure DOM is ready
+            }, 100);
         } else {
-            console.debug("[ActiveChat] Skipping auto-focus on touch device - user will tap input manually");
+            console.debug("[ActiveChat] Skipping auto-focus - touch device or messageInputFieldRef not available");
         }
         
         // Trigger container scale down
@@ -1179,12 +1243,29 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         await handleNewChatClick();
     }
 
-    // Add a handler for the share button click.
-    // This function will be triggered when the share button is clicked.
+    /**
+     * Handler for the share button click.
+     * Opens the settings menu and navigates to the share submenu.
+     * This allows users to share the current chat with various options
+     * like password protection and time limits.
+     */
     function handleShareChat() {
-        // Using console.debug for logging in Svelte.
-        console.debug("[ActiveChat] Share chat button clicked.");
-        // TODO: Insert the actual share logic here if needed.
+        console.debug("[ActiveChat] Share chat button clicked, opening share settings");
+        
+        // Ensure the current chat ID is set in the activeChatStore
+        // This allows SettingsShare component to access the chat ID
+        if (currentChat?.chat_id) {
+            activeChatStore.setActiveChat(currentChat.chat_id);
+            console.debug("[ActiveChat] Set active chat in store:", currentChat.chat_id);
+        } else {
+            console.warn("[ActiveChat] No current chat available to share");
+        }
+        
+        // Navigate to the share settings submenu
+        // The settingsDeepLink store triggers the Settings component to open
+        // and navigate to the specified path
+        // Use 'shared/share' to navigate to the share submenu under Shared
+        settingsDeepLink.set('shared/share');
     }
 
     // Update handler for chat updates to be more selective
@@ -1406,8 +1487,26 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             // Public chats don't need database access - use the provided chat object
             freshChat = chat;
             console.debug(`[ActiveChat] Loading public chat ${chat.chat_id} - skipping database access`);
+        } else if (!$authStore.isAuthenticated) {
+            // CRITICAL: For non-authenticated users, check if this is a sessionStorage-only chat
+            // (new chat with draft that doesn't exist in database yet)
+            const sessionDraft = loadSessionStorageDraft(chat.chat_id);
+            if (sessionDraft) {
+                // This is a sessionStorage-only chat - use the provided chat object directly
+                freshChat = chat;
+                console.debug(`[ActiveChat] Loading sessionStorage-only chat ${chat.chat_id} - skipping database access`);
+            } else {
+                // Try to get from database (might be a real chat that was created before)
+                try {
+                    freshChat = await chatDB.getChat(chat.chat_id);
+                } catch (error) {
+                    // If database is unavailable, use the provided chat object
+                    console.debug(`[ActiveChat] Database unavailable for ${chat.chat_id}, using provided chat object:`, error);
+                    freshChat = chat;
+                }
+            }
         } else {
-            // For real chats, try to get fresh data from database
+            // For authenticated users, try to get fresh data from database
             // But handle the case where database is being deleted (e.g., during logout)
             try {
                 freshChat = await chatDB.getChat(chat.chat_id);
@@ -1428,9 +1527,29 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         // This prevents Phase 1 from auto-selecting a different chat when the panel is reopened
         phasedSyncState.setCurrentActiveChatId(chat.chat_id);
         
-        // Clear temporary chat ID since we now have a real chat
-        temporaryChatId = null;
-        console.debug("[ActiveChat] Loaded real chat, cleared temporary chat ID");
+        // CRITICAL: Only clear temporaryChatId if this is not a sessionStorage-only chat
+        // SessionStorage-only chats (new chats with drafts) should keep their temporaryChatId
+        // so drafts can be saved and loaded correctly
+        if (!$authStore.isAuthenticated) {
+            const sessionDraft = loadSessionStorageDraft(chat.chat_id);
+            if (!sessionDraft) {
+                // This is a real chat (not sessionStorage-only), clear temporaryChatId
+                temporaryChatId = null;
+                console.debug("[ActiveChat] Loaded real chat, cleared temporary chat ID");
+            } else {
+                // This is a sessionStorage-only chat, keep temporaryChatId for draft saving
+                // Also update draft state to use this chat ID
+                draftEditorUIState.update(s => ({
+                    ...s,
+                    currentChatId: chat.chat_id
+                }));
+                console.debug("[ActiveChat] SessionStorage-only chat, keeping temporary chat ID for draft saving:", chat.chat_id);
+            }
+        } else {
+            // Authenticated user - always clear temporaryChatId for real chats
+            temporaryChatId = null;
+            console.debug("[ActiveChat] Loaded real chat, cleared temporary chat ID");
+        }
         
         // Reset scroll position tracking for new chat
         lastSavedMessageId = null;
@@ -1449,8 +1568,27 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 if (newMessages.length === 0) {
                     console.warn(`[ActiveChat] WARNING: No messages found for ${currentChat.chat_id}. Available public chats:`, [...DEMO_CHATS, ...LEGAL_CHATS].map(c => c.chat_id));
                 }
+            } else if (!$authStore.isAuthenticated) {
+                // CRITICAL: For non-authenticated users, check if this is a sessionStorage-only chat
+                // (new chat with draft that doesn't exist in database yet)
+                const sessionDraft = loadSessionStorageDraft(currentChat.chat_id);
+                if (sessionDraft) {
+                    // SessionStorage-only chat - no messages yet (user hasn't sent any)
+                    newMessages = [];
+                    console.debug(`[ActiveChat] SessionStorage-only chat ${currentChat.chat_id} - no messages (new chat with draft only)`);
+                } else {
+                    // Try to load messages from IndexedDB (might be a real chat)
+                    try {
+                        newMessages = await chatDB.getMessagesForChat(currentChat.chat_id);
+                        console.debug(`[ActiveChat] Loaded ${newMessages.length} messages from IndexedDB for ${currentChat.chat_id}`);
+                    } catch (error) {
+                        // If database is unavailable, use empty messages
+                        console.debug(`[ActiveChat] Database unavailable for messages, using empty array:`, error);
+                        newMessages = [];
+                    }
+                }
             } else {
-                // For real chats, load messages from IndexedDB
+                // For authenticated users, load messages from IndexedDB
                 // Handle case where database might be unavailable (e.g., during logout/deletion)
                 try {
                     newMessages = await chatDB.getMessagesForChat(currentChat.chat_id);
@@ -1568,16 +1706,28 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             if (!$authStore.isAuthenticated) {
                 // Non-authenticated user: check sessionStorage for draft
                 const sessionDraft = loadSessionStorageDraft(currentChat.chat_id);
+                const sessionDraftMarkdown = getSessionStorageDraftMarkdown(currentChat.chat_id);
                 if (sessionDraft) {
                     console.debug(`[ActiveChat] Loading sessionStorage draft for demo chat ${currentChat.chat_id}`);
                     setTimeout(() => {
                         messageInputFieldRef.setDraftContent(currentChat.chat_id, sessionDraft, 0, false);
+                        // CRITICAL: Restore the original markdown from the stored draft to preserve user input
+                        // This ensures URLs and other content are preserved exactly as the user typed them
+                        if (sessionDraftMarkdown && messageInputFieldRef.setOriginalMarkdown) {
+                            messageInputFieldRef.setOriginalMarkdown(sessionDraftMarkdown);
+                        }
                     }, 50);
                 } else {
-                    console.debug(`[ActiveChat] No sessionStorage draft found for demo chat ${currentChat.chat_id}. Clearing editor.`);
-                    // CRITICAL: Preserve context when clearing - we're just switching to a chat with no draft
-                    // This prevents deleting the previous chat's draft during context switches
-                    await messageInputFieldRef.clearMessageField(false, true);
+                    console.debug(`[ActiveChat] No sessionStorage draft found for demo chat ${currentChat.chat_id}. Setting context and clearing editor.`);
+                    // CRITICAL: Even when there's no draft, we must update the draft service's context to the new demo chat ID
+                    // This ensures that when the user types in this demo chat, the draft is saved to the correct chat ID
+                    // Without this, the draft service might still use the previous chat's ID, causing drafts to overwrite each other
+                    setTimeout(() => {
+                        // Set the draft context to the new demo chat ID, even though there's no draft content
+                        // This ensures the draft service knows which chat ID to use when saving drafts
+                        messageInputFieldRef.setDraftContent(currentChat.chat_id, null, 0, false);
+                        console.debug(`[ActiveChat] Updated draft context to demo chat ${currentChat.chat_id} (no draft content)`);
+                    }, 50);
                 }
             } else {
                 // Authenticated user: load encrypted draft from IndexedDB
@@ -2376,14 +2526,18 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                 </div>
                             {/if}
                             {#if !showWelcome}
-                                <!-- TODO uncomment once share feature is implemented -->
-                                <!-- <button
-                                    class="clickable-icon icon_share top-button"
-                                    aria-label={$text('chat.share.text')}
-                                    onclick={handleShareChat}
-                                    use:tooltip
-                                >
-                                </button> -->
+                                <!-- Share button - opens settings menu with share submenu -->
+                                <!-- Use same wrapper design as new chat button -->
+                                <div class="new-chat-button-wrapper">
+                                    <button
+                                        class="clickable-icon icon_share top-button"
+                                        aria-label={$text('chat.share.text')}
+                                        onclick={handleShareChat}
+                                        use:tooltip
+                                        style="margin: 5px;"
+                                    >
+                                    </button>
+                                </div>
                             {/if}
                         </div>
 
@@ -2468,25 +2622,36 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             />
                         {/if}
 
+                        <!-- Read-only indicator for shared chats -->
+                        {#if currentChat && !chatOwnershipResolved && $authStore.isAuthenticated}
+                            <div class="read-only-indicator" transition:fade={{ duration: 200 }}>
+                                <div class="read-only-icon">🔒</div>
+                                <p class="read-only-text">{$text('chat.read_only_shared.text', { default: 'This shared chat is read-only. You cannot send messages.' })}</p>
+                            </div>
+                        {/if}
+
                         <!-- Pass currentChat?.id or temporaryChatId to MessageInput -->
-                        <MessageInput 
-                            bind:this={messageInputFieldRef}
-                            currentChatId={currentChat?.chat_id || temporaryChatId}
-                            showActionButtons={showActionButtons}
-                            on:codefullscreen={handleCodeFullscreen}
-                            on:sendMessage={handleSendMessage}
-                            on:heightchange={handleInputHeightChange}
-                            on:draftSaved={handleDraftSaved}
-                            on:textchange={(e) => { 
-                                const t = (e.detail?.text || '');
-                                console.debug('[ActiveChat] textchange event received:', { text: t, length: t.length });
-                                liveInputText = t;
-                                messageInputHasContent = t.trim().length > 0; 
-                            }}
-                            bind:isFullscreen
-                            bind:hasContent={messageInputHasContent}
-                            bind:isFocused={messageInputFocused}
-                        />
+                        <!-- Only show message input if user owns the chat or is not authenticated -->
+                        {#if chatOwnershipResolved || !$authStore.isAuthenticated}
+                            <MessageInput 
+                                bind:this={messageInputFieldRef}
+                                currentChatId={currentChat?.chat_id || temporaryChatId}
+                                showActionButtons={showActionButtons}
+                                on:codefullscreen={handleCodeFullscreen}
+                                on:sendMessage={handleSendMessage}
+                                on:heightchange={handleInputHeightChange}
+                                on:draftSaved={handleDraftSaved}
+                                on:textchange={(e) => { 
+                                    const t = (e.detail?.text || '');
+                                    console.debug('[ActiveChat] textchange event received:', { text: t, length: t.length });
+                                    liveInputText = t;
+                                    messageInputHasContent = t.trim().length > 0; 
+                                }}
+                                bind:isFullscreen
+                                bind:hasContent={messageInputHasContent}
+                                bind:isFocused={messageInputFocused}
+                            />
+                        {/if}
                     </div>
                 </div>
             </div>
@@ -2554,6 +2719,18 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             previewData={previewData}
                             onClose={handleCloseEmbedFullscreen}
                         />
+                    {:else if appId === 'web' && skillId === 'read'}
+                        <!-- Web Read Fullscreen -->
+                        {@const previewData = {
+                            app_id: appId,
+                            skill_id: skillId,
+                            status: embedFullscreenData.embedData?.status || 'finished',
+                            results: embedFullscreenData.decodedContent?.results || []
+                        }}
+                        <WebReadSkillFullscreen 
+                            previewData={previewData}
+                            onClose={handleCloseEmbedFullscreen}
+                        />
                     {:else}
                         <!-- Generic app skill fullscreen (fallback) -->
                         <div class="embed-fullscreen-fallback">
@@ -2577,6 +2754,17 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             snippets={embedFullscreenData.decodedContent?.snippets}
                             meta_url_favicon={embedFullscreenData.decodedContent?.meta_url_favicon}
                             thumbnail_original={embedFullscreenData.decodedContent?.thumbnail_original}
+                            onClose={handleCloseEmbedFullscreen}
+                        />
+                    {/if}
+                {:else if embedFullscreenData.embedType === 'code'}
+                    <!-- Code Fullscreen -->
+                    {#if embedFullscreenData.decodedContent?.code || embedFullscreenData.attrs?.code}
+                        <CodeEmbedFullscreen 
+                            codeContent={embedFullscreenData.decodedContent?.code || embedFullscreenData.attrs?.code || ''}
+                            language={embedFullscreenData.decodedContent?.language || embedFullscreenData.attrs?.language}
+                            filename={embedFullscreenData.decodedContent?.filename || embedFullscreenData.attrs?.filename}
+                            lineCount={embedFullscreenData.decodedContent?.lineCount || embedFullscreenData.attrs?.lineCount || 0}
                             onClose={handleCloseEmbedFullscreen}
                         />
                     {/if}
@@ -2700,6 +2888,34 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         background-color: var(--color-grey-15);
         border-radius: 8px;
         font-style: italic;
+    }
+    
+    /* Read-only indicator for shared chats */
+    .read-only-indicator {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 24px 16px;
+        margin-bottom: 12px;
+        background-color: var(--color-grey-10, #f0f0f0);
+        border: 1px solid var(--color-grey-30, #d0d0d0);
+        border-radius: 8px;
+        text-align: center;
+    }
+    
+    .read-only-icon {
+        font-size: 32px;
+        margin-bottom: 12px;
+        opacity: 0.7;
+    }
+    
+    .read-only-text {
+        font-size: 14px;
+        color: var(--color-grey-70, #666);
+        margin: 0;
+        line-height: 1.5;
+        max-width: 500px;
     }
 
     .message-input-container {
@@ -2834,7 +3050,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     /* Add styles for left and right button containers */
     .left-buttons {
         display: flex;
-        gap: 25px; /* Space between buttons */
+        gap: 10px; /* Space between buttons */
     }
 
     .right-buttons {
