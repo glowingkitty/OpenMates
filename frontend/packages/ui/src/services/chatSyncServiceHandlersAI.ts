@@ -58,6 +58,32 @@ import type {
     SendEmbedDataPayload
 } from '../types/chat'; // Assuming these types might be moved or are already in a shared types file
 
+// --- Deduplication tracking for embed processing ---
+// Track which finalized embeds have already been processed to prevent duplicate key generation
+// Key: embed_id, Value: true if already processed
+const processedFinalizedEmbeds = new Set<string>();
+
+/**
+ * Check if a finalized embed has already been processed
+ */
+function isEmbedAlreadyProcessed(embedId: string): boolean {
+    return processedFinalizedEmbeds.has(embedId);
+}
+
+/**
+ * Mark an embed as processed (for finalized embeds only)
+ */
+function markEmbedAsProcessed(embedId: string): void {
+    processedFinalizedEmbeds.add(embedId);
+}
+
+/**
+ * Clear processed embeds tracking (e.g., on logout)
+ */
+export function clearProcessedEmbedsTracking(): void {
+    processedFinalizedEmbeds.clear();
+}
+
 // --- AI Task and Stream Event Handler Implementations ---
 
 export function handleAITaskInitiatedImpl(
@@ -1179,7 +1205,10 @@ export async function handleSendEmbedDataImpl(
         console.warn('[ChatSyncService:AI] Received send_embed_data payload without embed_id', payload);
         return;
     }
-    console.info(`[ChatSyncService:AI] Received 'send_embed_data' for embed ${embedData.embed_id}`);
+    console.info(
+        `[ChatSyncService:AI] [EMBED_EVENT] Received 'send_embed_data' for embed ${embedData.embed_id} ` +
+        `(status=${embedData.status}, type=${embedData.type}, chat_id=${embedData.chat_id}, message_id=${embedData.message_id})`
+    );
 
     // DEBUG: Check if embedData contains any Promises
     for (const [key, value] of Object.entries(embedData)) {
@@ -1189,179 +1218,249 @@ export async function handleSendEmbedDataImpl(
     }
 
     try {
-        // Import crypto functions
-        const { encryptWithMasterKey, computeSHA256 } = await import('../message_parsing/utils').then(async utils => {
-            const cryptoService = await import('./cryptoService');
-            return {
-                encryptWithMasterKey: cryptoService.encryptWithMasterKey,
-                computeSHA256: utils.computeSHA256
-            };
-        });
-
-        // 1. Encrypt content with master key
-        const encryptedContent = await encryptWithMasterKey(embedData.content);
-        if (!encryptedContent) {
-            throw new Error('Failed to encrypt embed content');
-        }
-
-        // 2. Encrypt type with master key
-        const encryptedType = await encryptWithMasterKey(embedData.type);
-        if (!encryptedType) {
-            throw new Error('Failed to encrypt embed type');
-        }
-
-        // 3. Encrypt text preview if present
-        let encryptedTextPreview: string | undefined;
-        if (embedData.text_preview) {
-            const encrypted = await encryptWithMasterKey(embedData.text_preview);
-            if (encrypted) {
-                encryptedTextPreview = encrypted;
-            }
-        }
-
-        // 4. Hash IDs for privacy
-        const hashedChatId = await computeSHA256(embedData.chat_id);
-        const hashedMessageId = await computeSHA256(embedData.message_id);
-        const hashedUserId = await computeSHA256(embedData.user_id);
+        // Determine if this is a "processing" placeholder or a finalized embed
+        const isProcessingPlaceholder = embedData.status === 'processing';
         
-        let hashedTaskId: string | undefined;
-        if (embedData.task_id) {
-            hashedTaskId = await computeSHA256(embedData.task_id);
-        }
-
-        // 5. Generate embed-specific encryption key (encrypted with master key)
-        // For now, we use the master key directly for simplicity as per current architecture,
-        // but the schema supports a separate key. We'll generate a dummy key for now or reuse master key concept.
-        // In the future, we should generate a random key, encrypt content with it, then encrypt that key with master key.
-        // For this implementation, we'll stick to master key encryption for content as implemented in step 1.
-        // We'll store a placeholder or the master key ID if needed.
-        // The architecture doc says: "Encrypt 'content' (TOON string) with master key ('encryption_key_embed' derived from master)"
-        // Let's generate a random key, encrypt it with master key, and use that as the "encryption_key_embed" field value
-        // But wait, step 1 already used encryptWithMasterKey directly.
-        // To strictly follow "Zero-Knowledge" where server stores "encryption_key_embed", we should:
-        // a. Generate random AES key
-        // b. Encrypt content with random key
-        // c. Encrypt random key with master key
-        // However, the current cryptoService.ts only exposes encryptWithMasterKey.
-        // For now, we will use encryptWithMasterKey directly for content, and store a marker or empty string for encryption_key_embed
-        // until we implement full key hierarchy.
-        // UPDATE: The doc says "Encrypt 'content' ... with master key". So we are good.
-        // We'll just encrypt a dummy value for encryption_key_embed to satisfy the schema if needed, or leave it empty.
-        // Let's encrypt the string "master" to indicate master key usage.
-        const encryptionKeyEmbed = await encryptWithMasterKey("master_key_v1");
-
-        // 6. Store in IndexedDB (Encrypted)
-        const embedStoreModule = await import('./embedStore');
-        const embedStore = embedStoreModule.embedStore;
-        console.log('[ChatSyncService:AI] DEBUG embedStore:', {
-            hasEmbedStore: !!embedStore,
-            type: typeof embedStore,
-            hasPutMethod: typeof embedStore?.put
-        });
-        const embedRef = `embed:${embedData.embed_id}`;
-        
-        // Construct the embed object for local storage
-        // Note: EmbedStore.put expects the data structure.
-        // We store the decrypted version in memory/IndexedDB (EmbedStore handles encryption internally)
-        // BUT wait, the requirement is "Client receives plaintext TOON -> Encrypt with master key -> IndexedDB (encrypted!)"
-        // EmbedStore.put() takes raw data and encrypts it. So we should pass the PLAINTEXT data to EmbedStore.put().
-        // EmbedStore.put() will encrypt it before storing to IndexedDB.
-        
-        const embedForLocalStore = {
-            embed_id: embedData.embed_id,
-            type: embedData.type,
-            status: embedData.status,
-            content: embedData.content, // Plaintext TOON
-            text_preview: embedData.text_preview,
-            chat_id: embedData.chat_id,
-            message_id: embedData.message_id,
-            task_id: embedData.task_id,
-            embed_ids: embedData.embed_ids,
-            parent_embed_id: embedData.parent_embed_id,
-            version_number: embedData.version_number,
-            file_path: embedData.file_path,
-            content_hash: embedData.content_hash,
-            text_length_chars: embedData.text_length_chars,
-            share_mode: embedData.share_mode,
-            createdAt: embedData.createdAt,
-            updatedAt: embedData.updatedAt
-        };
-
-        // DEBUG: Check if any fields are Promises
-        for (const [key, value] of Object.entries(embedForLocalStore)) {
-            if (value instanceof Promise) {
-                console.error(`[ChatSyncService:AI] ERROR: Field "${key}" is a Promise!`, value);
-            }
-        }
-
-        // Store in IndexedDB (EmbedStore will encrypt this)
-        await embedStore.put(embedRef, embedForLocalStore, embedData.type as any);
-        console.info(`[ChatSyncService:AI] Stored embed ${embedData.embed_id} in local EmbedStore`);
-
-        // 7. Send encrypted version to server for Directus storage
-        // We need to construct the payload with the ALREADY ENCRYPTED values we generated in steps 1-4
-        
-        const storePayload: import('../types/chat').StoreEmbedPayload = {
-            embed_id: embedData.embed_id,
-            encrypted_type: encryptedType,
-            encrypted_content: encryptedContent,
-            encrypted_text_preview: encryptedTextPreview,
-            status: embedData.status,
-            hashed_chat_id: hashedChatId,
-            hashed_message_id: hashedMessageId,
-            hashed_task_id: hashedTaskId,
-            hashed_user_id: hashedUserId,
-            encryption_key_embed: encryptionKeyEmbed || "", // Fallback
-            embed_ids: embedData.embed_ids,
-            parent_embed_id: embedData.parent_embed_id,
-            version_number: embedData.version_number,
-            // encrypted_diff: ... // Handle diff if present
-            file_path: embedData.file_path,
-            content_hash: embedData.content_hash,
-            text_length_chars: embedData.text_length_chars,
-            share_mode: embedData.share_mode,
-            createdAt: embedData.createdAt,
-            updatedAt: embedData.updatedAt
-        };
-
-        // Send to server - use dynamic import to avoid circular dependency
-        const sendersModule = await import('./chatSyncServiceSenders');
-        const moduleKeys = Object.keys(sendersModule);
-        console.log('[ChatSyncService:AI] DEBUG imported module:', {
-            hasFunction: typeof sendersModule.sendStoreEmbedImpl,
-            keys: moduleKeys,
-            keyCount: moduleKeys.length,
-            // Log first 5 keys for debugging
-            firstKeys: moduleKeys.slice(0, 5),
-            // Check if function exists under any name with "sendStore" or "storeEmbed"
-            matchingKeys: moduleKeys.filter(k =>
-                k.toLowerCase().includes('sendstore') ||
-                k.toLowerCase().includes('storeembed')
-            )
-        });
-
-        // Try to access the function - check if it might be under a different property
-        const sendStoreFunction = sendersModule.sendStoreEmbedImpl ||
-                                  (sendersModule as any).default?.sendStoreEmbedImpl;
-
-        if (typeof sendStoreFunction !== 'function') {
-            console.error('[ChatSyncService:AI] sendStoreEmbedImpl is not a function! Available keys:', moduleKeys);
-            console.error('[ChatSyncService:AI] Skipping server storage. Module:', sendersModule);
+        if (isProcessingPlaceholder) {
+            // ============================================================
+            // "PROCESSING" STATUS: In-memory only, no persistence
+            // ============================================================
+            // Don't store in IndexedDB - just dispatch event for UI to render from event data
+            // This is a temporary placeholder that will be replaced when status changes to "completed"
+            console.info(`[ChatSyncService:AI] Embed ${embedData.embed_id} is "processing" - dispatching for in-memory rendering only (no storage)`);
+            
+            // Dispatch event with FULL embed data so UI can render from it directly
+            serviceInstance.dispatchEvent(new CustomEvent('embedUpdated', {
+                detail: {
+                    embed_id: embedData.embed_id,
+                    chat_id: embedData.chat_id,
+                    message_id: embedData.message_id,
+                    status: embedData.status,
+                    type: embedData.type,
+                    content: embedData.content, // Plaintext TOON for in-memory rendering
+                    text_preview: embedData.text_preview,
+                    task_id: embedData.task_id,
+                    embed_ids: embedData.embed_ids,
+                    parent_embed_id: embedData.parent_embed_id,
+                    // Include all fields UI might need for rendering
+                    isProcessing: true
+                }
+            }));
+            
         } else {
-            await sendStoreFunction(serviceInstance as any, storePayload);
-            console.info(`[ChatSyncService:AI] Sent encrypted embed ${embedData.embed_id} to server for Directus storage`);
-        }
-
-        // Dispatch event for UI to refresh
-        serviceInstance.dispatchEvent(new CustomEvent('embedUpdated', {
-            detail: {
-                embed_id: embedData.embed_id,
-                chat_id: embedData.chat_id,
-                message_id: embedData.message_id,
-                status: embedData.status,
-                child_embed_ids: embedData.embed_ids
+            // ============================================================
+            // FINALIZED STATUS (completed/error/etc): Full encryption and persistence
+            // ============================================================
+            // CRITICAL: Check if this embed has already been processed to prevent duplicate keys
+            // The same send_embed_data event may be received multiple times (e.g., duplicate WebSocket messages)
+            if (isEmbedAlreadyProcessed(embedData.embed_id)) {
+                console.warn(
+                    `[ChatSyncService:AI] [EMBED_EVENT] ⚠️ DUPLICATE DETECTED: Embed ${embedData.embed_id} already processed ` +
+                    `(status=${embedData.status}) - skipping duplicate processing. ` +
+                    `This should not happen if deduplication is working correctly!`
+                );
+                // Still dispatch event for UI refresh, but don't re-encrypt or re-send
+                serviceInstance.dispatchEvent(new CustomEvent('embedUpdated', {
+                    detail: {
+                        embed_id: embedData.embed_id,
+                        chat_id: embedData.chat_id,
+                        message_id: embedData.message_id,
+                        status: embedData.status,
+                        child_embed_ids: embedData.embed_ids,
+                        isProcessing: false
+                    }
+                }));
+                return;
             }
-        }));
+            
+            // Mark as processed BEFORE starting async operations to prevent race conditions
+            markEmbedAsProcessed(embedData.embed_id);
+            console.info(
+                `[ChatSyncService:AI] [EMBED_EVENT] Marked embed ${embedData.embed_id} as processed. ` +
+                `Total processed embeds: ${processedFinalizedEmbeds.size}`
+            );
+            
+            // Generate embed key, encrypt content, store locally, send to Directus
+            console.info(`[ChatSyncService:AI] Embed ${embedData.embed_id} is finalized (status=${embedData.status}) - encrypting and persisting`);
+            
+            // Import dependencies
+            const embedStoreModule = await import('./embedStore');
+            const embedStore = embedStoreModule.embedStore;
+            const cryptoService = await import('./cryptoService');
+            const { computeSHA256 } = await import('../message_parsing/utils');
+            const { chatDB } = await import('./db');
+            
+            const {
+                generateEmbedKey,
+                encryptWithEmbedKey,
+                wrapEmbedKeyWithMasterKey,
+                wrapEmbedKeyWithChatKey
+            } = cryptoService;
+            
+            // 1. Generate embed-specific encryption key (256-bit random key)
+            // Only generated ONCE per embed, when it's finalized
+            const embedKey = generateEmbedKey();
+            console.debug(`[ChatSyncService:AI] Generated embed_key for finalized embed ${embedData.embed_id}`);
+            
+            // 2. Encrypt content with embed_key
+            const encryptedContent = await encryptWithEmbedKey(embedData.content, embedKey);
+            if (!encryptedContent) {
+                throw new Error('Failed to encrypt embed content with embed_key');
+            }
+
+            // 3. Encrypt type with embed_key
+            const encryptedType = await encryptWithEmbedKey(embedData.type, embedKey);
+            if (!encryptedType) {
+                throw new Error('Failed to encrypt embed type with embed_key');
+            }
+
+            // 4. Encrypt text preview if present
+            let encryptedTextPreview: string | undefined;
+            if (embedData.text_preview) {
+                const encrypted = await encryptWithEmbedKey(embedData.text_preview, embedKey);
+                if (encrypted) {
+                    encryptedTextPreview = encrypted;
+                }
+            }
+
+            // 5. Hash IDs for privacy (zero-knowledge - server cannot determine actual IDs)
+            const hashedChatId = await computeSHA256(embedData.chat_id);
+            const hashedMessageId = await computeSHA256(embedData.message_id);
+            const hashedUserId = await computeSHA256(embedData.user_id);
+            const hashedEmbedId = await computeSHA256(embedData.embed_id);
+            
+            let hashedTaskId: string | undefined;
+            if (embedData.task_id) {
+                hashedTaskId = await computeSHA256(embedData.task_id);
+            }
+
+            // 6. Create key wrappers for offline sharing support
+            // Master key wrapper: AES(embed_key, master_key) - for owner's cross-chat access
+            const wrappedMasterKey = await wrapEmbedKeyWithMasterKey(embedKey);
+            if (!wrappedMasterKey) {
+                throw new Error('Failed to wrap embed_key with master key');
+            }
+
+            // Chat key wrapper: AES(embed_key, chat_key) - for shared chat access
+            const chatKey = chatDB.getOrGenerateChatKey(embedData.chat_id);
+            if (!chatKey) {
+                throw new Error('Failed to get chat key for wrapping embed_key');
+            }
+            const wrappedChatKey = await wrapEmbedKeyWithChatKey(embedKey, chatKey);
+            
+            console.debug(`[ChatSyncService:AI] Created key wrappers for embed ${embedData.embed_id}`);
+
+            // 7. Store encrypted embed locally in IndexedDB
+            // This uses putEncrypted() since content is already encrypted with embed_key
+            const embedRef = `embed:${embedData.embed_id}`;
+            const encryptedEmbedForStorage = {
+                embed_id: embedData.embed_id,
+                encrypted_type: encryptedType,
+                encrypted_content: encryptedContent,
+                encrypted_text_preview: encryptedTextPreview,
+                status: embedData.status,
+                hashed_chat_id: hashedChatId,
+                hashed_message_id: hashedMessageId,
+                hashed_task_id: hashedTaskId,
+                embed_ids: embedData.embed_ids,
+                parent_embed_id: embedData.parent_embed_id,
+                version_number: embedData.version_number,
+                file_path: embedData.file_path,
+                content_hash: embedData.content_hash,
+                text_length_chars: embedData.text_length_chars,
+                share_mode: embedData.share_mode,
+                createdAt: embedData.createdAt,
+                updatedAt: embedData.updatedAt
+            };
+            
+            await embedStore.putEncrypted(embedRef, encryptedEmbedForStorage, embedData.type as any);
+            console.info(`[ChatSyncService:AI] Stored encrypted embed ${embedData.embed_id} in local IndexedDB`);
+
+            // 8. Store embed keys locally in IndexedDB (for decryption after page reload)
+            const now = Math.floor(Date.now() / 1000);
+            const embedKeysForStorage = [
+                {
+                    hashed_embed_id: hashedEmbedId,
+                    key_type: 'master' as const,
+                    hashed_chat_id: null,
+                    encrypted_embed_key: wrappedMasterKey,
+                    hashed_user_id: hashedUserId,
+                    created_at: now
+                },
+                {
+                    hashed_embed_id: hashedEmbedId,
+                    key_type: 'chat' as const,
+                    hashed_chat_id: hashedChatId,
+                    encrypted_embed_key: wrappedChatKey,
+                    hashed_user_id: hashedUserId,
+                    created_at: now
+                }
+            ];
+            
+            await embedStore.storeEmbedKeys(embedKeysForStorage);
+            console.info(`[ChatSyncService:AI] Stored key wrappers for embed ${embedData.embed_id} locally`);
+
+            // 9. Send encrypted embed to server for Directus storage
+            const storePayload: import('../types/chat').StoreEmbedPayload = {
+                embed_id: embedData.embed_id,
+                encrypted_type: encryptedType,
+                encrypted_content: encryptedContent,
+                encrypted_text_preview: encryptedTextPreview,
+                status: embedData.status,
+                hashed_chat_id: hashedChatId,
+                hashed_message_id: hashedMessageId,
+                hashed_task_id: hashedTaskId,
+                hashed_user_id: hashedUserId,
+                embed_ids: embedData.embed_ids,
+                parent_embed_id: embedData.parent_embed_id,
+                version_number: embedData.version_number,
+                file_path: embedData.file_path,
+                content_hash: embedData.content_hash,
+                text_length_chars: embedData.text_length_chars,
+                share_mode: embedData.share_mode,
+                createdAt: embedData.createdAt,
+                updatedAt: embedData.updatedAt
+            };
+
+            const sendersModule = await import('./chatSyncServiceSenders');
+            const sendStoreFunction = sendersModule.sendStoreEmbedImpl ||
+                                      (sendersModule as any).default?.sendStoreEmbedImpl;
+
+            if (typeof sendStoreFunction !== 'function') {
+                throw new Error('sendStoreEmbedImpl function not found');
+            }
+            
+            await sendStoreFunction(serviceInstance as any, storePayload);
+            console.info(`[ChatSyncService:AI] Sent encrypted embed ${embedData.embed_id} to Directus`);
+
+            // 10. Send key wrappers to server for embed_keys collection
+            const embedKeysPayload = { keys: embedKeysForStorage };
+
+            const sendStoreEmbedKeysFunction = sendersModule.sendStoreEmbedKeysImpl ||
+                                              (sendersModule as any).default?.sendStoreEmbedKeysImpl;
+
+            if (typeof sendStoreEmbedKeysFunction !== 'function') {
+                throw new Error('sendStoreEmbedKeysImpl function not found');
+            }
+            
+            await sendStoreEmbedKeysFunction(serviceInstance as any, embedKeysPayload);
+            console.info(
+                `[ChatSyncService:AI] [EMBED_EVENT] ✅ Sent key wrappers for embed ${embedData.embed_id} to Directus ` +
+                `(master + chat). This should only happen ONCE per finalized embed!`
+            );
+
+            // 11. Dispatch event for UI to refresh from stored data
+            serviceInstance.dispatchEvent(new CustomEvent('embedUpdated', {
+                detail: {
+                    embed_id: embedData.embed_id,
+                    chat_id: embedData.chat_id,
+                    message_id: embedData.message_id,
+                    status: embedData.status,
+                    child_embed_ids: embedData.embed_ids,
+                    isProcessing: false
+                }
+            }));
+        }
 
     } catch (error) {
         console.error(`[ChatSyncService:AI] Error handling send_embed_data for embed ${embedData.embed_id}:`, error);

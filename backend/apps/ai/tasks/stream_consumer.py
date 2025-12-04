@@ -681,7 +681,9 @@ async def _consume_main_processing_stream(
     current_code_filename: Optional[str] = None
     current_code_content = ""
     current_code_embed_id: Optional[str] = None
-    code_block_update_counter = 0  # Track updates to avoid updating too frequently
+    # New state: when LLM streams ``` and language separately, wait for next chunk
+    waiting_for_code_language = False
+    pending_code_fence_chunk = ""  # Store the original ``` chunk to replay if needed
 
     try:
         async for chunk in main_processing_stream:
@@ -765,6 +767,12 @@ async def _consume_main_processing_stream(
                     fence_line = lines[0].strip()
                     fence_content = fence_line[3:].strip()  # Remove ```
                     
+                    # DEBUG: Log the raw chunk and extracted values for code block debugging
+                    logger.info(f"{log_prefix} [CODE_BLOCK_DEBUG] Raw chunk (first 500 chars): {repr(chunk[:500])}")
+                    logger.info(f"{log_prefix} [CODE_BLOCK_DEBUG] Lines count: {len(lines)}")
+                    logger.info(f"{log_prefix} [CODE_BLOCK_DEBUG] fence_line: {repr(fence_line)}")
+                    logger.info(f"{log_prefix} [CODE_BLOCK_DEBUG] fence_content (after removing ```): {repr(fence_content)}")
+                    
                     if ':' in fence_content:
                         # Has filename: language:filename
                         parts = fence_content.split(':', 1)
@@ -774,6 +782,10 @@ async def _consume_main_processing_stream(
                         # Just language or empty
                         current_code_language = fence_content
                         current_code_filename = None
+                    
+                    # DEBUG: Log extracted language and filename
+                    logger.info(f"{log_prefix} [CODE_BLOCK_DEBUG] Extracted language: {repr(current_code_language)}")
+                    logger.info(f"{log_prefix} [CODE_BLOCK_DEBUG] Extracted filename: {repr(current_code_filename)}")
                     
                     # Check if this chunk contains both opening and closing fence (complete code block)
                     # Look for closing fence in remaining lines (after the opening fence line)
@@ -790,6 +802,11 @@ async def _consume_main_processing_stream(
                         # Extract content between opening and closing fences
                         content_lines = lines[1:closing_line_idx]  # Lines between fences
                         code_content = '\n'.join(content_lines)
+                        
+                        # DEBUG: Log extracted code content
+                        logger.info(f"{log_prefix} [CODE_BLOCK_DEBUG] Complete code block detected, closing_line_idx: {closing_line_idx}")
+                        logger.info(f"{log_prefix} [CODE_BLOCK_DEBUG] content_lines: {repr(content_lines[:5])}{'...' if len(content_lines) > 5 else ''}")
+                        logger.info(f"{log_prefix} [CODE_BLOCK_DEBUG] code_content (first 200 chars): {repr(code_content[:200])}")
                         
                         # Create embed and finalize immediately
                         if directus_service and encryption_service and user_vault_key_id:
@@ -845,6 +862,16 @@ async def _consume_main_processing_stream(
                         current_code_content = ""
                         current_code_embed_id = None
                         
+                        # CRITICAL FIX: If fence has no language (e.g., just ```), wait for next chunk
+                        # LLMs often stream ``` and language as separate tokens
+                        if not current_code_language and len(lines) == 1:
+                            # Bare fence with no content - language might come in next chunk
+                            waiting_for_code_language = True
+                            pending_code_fence_chunk = chunk  # Save original chunk
+                            chunk = ""  # Don't emit anything yet
+                            logger.info(f"{log_prefix} [CODE_BLOCK_DEBUG] Detected bare fence '```', waiting for potential language in next chunk")
+                            continue  # Skip the rest of processing, wait for next chunk
+                        
                         # Extract any content after opening fence in this chunk
                         if len(lines) > 1:
                             # There's content after the opening fence line
@@ -895,8 +922,84 @@ async def _consume_main_processing_stream(
                 
                 # Handle code block content accumulation and closing
                 elif in_code_block:
+                    # CRITICAL FIX: Check if we're waiting for language after a bare ``` fence
+                    if waiting_for_code_language:
+                        waiting_for_code_language = False  # Reset flag
+                        
+                        # Check if this chunk starts with what looks like a language identifier
+                        # Language identifiers: single word, alphanumeric with optional -, _, +, #
+                        first_line = chunk.split('\n')[0].strip() if chunk else ""
+                        remaining_content = '\n'.join(chunk.split('\n')[1:]) if '\n' in chunk else ""
+                        
+                        # Language pattern: single word like "python", "javascript", "c++", "c#", etc.
+                        import re
+                        lang_pattern = r'^[a-zA-Z][a-zA-Z0-9_+#-]*$'
+                        
+                        if first_line and re.match(lang_pattern, first_line) and len(first_line) <= 20:
+                            # This looks like a language identifier
+                            if ':' in first_line:
+                                # Has filename: language:filename
+                                parts = first_line.split(':', 1)
+                                current_code_language = parts[0].strip()
+                                current_code_filename = parts[1].strip() if len(parts) > 1 else None
+                            else:
+                                current_code_language = first_line
+                            
+                            # Any remaining lines after the language are code content
+                            current_code_content = remaining_content
+                            logger.info(f"{log_prefix} [CODE_BLOCK_DEBUG] Extracted language from next chunk: {repr(current_code_language)}")
+                        else:
+                            # Not a language - treat entire chunk as code content
+                            current_code_content = chunk
+                            logger.info(f"{log_prefix} [CODE_BLOCK_DEBUG] No language found in chunk, treating as code: {repr(first_line[:50])}")
+                        
+                        # Now create the embed placeholder with the extracted (or empty) language
+                        if directus_service and encryption_service and user_vault_key_id:
+                            try:
+                                from backend.core.api.app.services.embed_service import EmbedService
+                                embed_service = EmbedService(cache_service, directus_service, encryption_service)
+                                
+                                embed_data = await embed_service.create_code_embed_placeholder(
+                                    language=current_code_language,
+                                    chat_id=request_data.chat_id,
+                                    message_id=request_data.message_id,
+                                    user_id=request_data.user_id,
+                                    user_id_hash=request_data.user_id_hash,
+                                    user_vault_key_id=user_vault_key_id,
+                                    task_id=task_id,
+                                    filename=current_code_filename,
+                                    log_prefix=log_prefix
+                                )
+                                
+                                if embed_data:
+                                    current_code_embed_id = embed_data["embed_id"]
+                                    
+                                    # If there's content, update embed immediately
+                                    if current_code_content:
+                                        await embed_service.update_code_embed_content(
+                                            embed_id=current_code_embed_id,
+                                            code_content=current_code_content,
+                                            chat_id=request_data.chat_id,
+                                            user_id=request_data.user_id,
+                                            user_id_hash=request_data.user_id_hash,
+                                            user_vault_key_id=user_vault_key_id,
+                                            status="processing",
+                                            log_prefix=log_prefix
+                                        )
+                                    
+                                    # Emit the embed reference now
+                                    embed_reference_code = f"```json\n{embed_data['embed_reference']}\n```\n\n"
+                                    chunk = embed_reference_code
+                                    logger.info(f"{log_prefix} Created code embed placeholder {current_code_embed_id} (language: {current_code_language or 'none'}) after waiting for language")
+                                else:
+                                    chunk = ""  # Failed to create embed
+                            except Exception as e:
+                                logger.error(f"{log_prefix} Error creating code embed placeholder after waiting for language: {e}", exc_info=True)
+                                chunk = ""
+                        else:
+                            chunk = ""  # No services available
                     # Check if this chunk contains closing fence
-                    if '```' in chunk:
+                    elif '```' in chunk:
                         # Extract content before closing fence
                         closing_fence_idx = chunk.find('```')
                         code_chunk_content = chunk[:closing_fence_idx]
@@ -929,17 +1032,16 @@ async def _consume_main_processing_stream(
                         current_code_filename = None
                         current_code_content = ""
                         current_code_embed_id = None
-                        code_block_update_counter = 0
                         
                         # Don't include closing fence in response (already replaced with embed reference)
                         chunk = ""  # Empty chunk - embed reference was already sent
                     else:
                         # Accumulate code content
                         current_code_content += chunk
-                        code_block_update_counter += 1
                         
-                        # Update embed periodically (every 3 chunks to avoid too frequent updates)
-                        if current_code_embed_id and code_block_update_counter >= 3 and directus_service and encryption_service and user_vault_key_id:
+                        # Update embed on every newline (per-line streaming for better UX)
+                        # This provides smooth line-by-line updates instead of arbitrary chunk-based updates
+                        if current_code_embed_id and '\n' in chunk and directus_service and encryption_service and user_vault_key_id:
                             try:
                                 from backend.core.api.app.services.embed_service import EmbedService
                                 embed_service = EmbedService(cache_service, directus_service, encryption_service)
@@ -955,8 +1057,7 @@ async def _consume_main_processing_stream(
                                     log_prefix=log_prefix
                                 )
                                 
-                                code_block_update_counter = 0  # Reset counter
-                                logger.debug(f"{log_prefix} Updated code embed {current_code_embed_id} (intermediate update, {len(current_code_content)} chars)")
+                                logger.debug(f"{log_prefix} Updated code embed {current_code_embed_id} (per-line update, {len(current_code_content)} chars, {current_code_content.count(chr(10))} lines)")
                             except Exception as e:
                                 logger.error(f"{log_prefix} Error updating code embed: {e}", exc_info=True)
                         

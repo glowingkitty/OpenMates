@@ -845,3 +845,51 @@ export async function sendRequestEmbed(
         throw error;
     }
 }
+
+/**
+ * Send wrapped embed keys to server for embed_keys collection storage
+ * This enables offline sharing and cross-chat access (wrapped key architecture)
+ * 
+ * Payload structure:
+ * {
+ *   keys: [
+ *     {
+ *       hashed_embed_id: string,
+ *       key_type: 'master' | 'chat',
+ *       hashed_chat_id: string | null,
+ *       encrypted_embed_key: string,
+ *       hashed_user_id: string,
+ *       created_at: number
+ *     },
+ *     ...
+ *   ]
+ * }
+ */
+export async function sendStoreEmbedKeysImpl(
+    serviceInstance: ChatSynchronizationService,
+    payload: {
+        keys: Array<{
+            hashed_embed_id: string;
+            key_type: 'master' | 'chat';
+            hashed_chat_id: string | null;
+            encrypted_embed_key: string;
+            hashed_user_id: string;
+            created_at: number;
+        }>;
+    }
+): Promise<void> {
+    if (!serviceInstance.webSocketConnected_FOR_SENDERS_ONLY) {
+        console.warn('[ChatSyncService:Senders] Cannot send store_embed_keys - WebSocket not connected');
+        // TODO: Queue for offline sync?
+        return;
+    }
+
+    try {
+        console.debug(`[ChatSyncService:Senders] Sending ${payload.keys.length} embed key wrapper(s) to server`);
+        await webSocketService.sendMessage('store_embed_keys', payload);
+        console.info(`[ChatSyncService:Senders] Successfully sent embed key wrappers to server`);
+    } catch (error) {
+        console.error('[ChatSyncService:Senders] Error sending store_embed_keys:', error);
+        throw error;
+    }
+}

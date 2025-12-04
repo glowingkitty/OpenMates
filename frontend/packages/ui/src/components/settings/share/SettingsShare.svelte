@@ -135,6 +135,9 @@
             // Generate QR code
             generateQRCode(generatedLink);
             
+            // Mark chat as shared in IndexedDB
+            await markChatAsShared(currentChatId);
+            
             // Queue OG metadata update to server (retry if offline)
             // Only for authenticated users (non-auth users can't update OG metadata)
             if ($authStore.isAuthenticated) {
@@ -159,6 +162,33 @@
     });
     
     /**
+     * Mark chat as shared in IndexedDB
+     * Sets is_shared = true locally, which will be synced to server
+     */
+    async function markChatAsShared(chatId: string) {
+        if (!chatId) return;
+        
+        try {
+            const { chatDB } = await import('../../../services/db');
+            const chat = await chatDB.getChat(chatId);
+            
+            if (chat) {
+                // Update chat with is_shared = true and is_private = false
+                await chatDB.updateChat({
+                    ...chat,
+                    is_shared: true,
+                    is_private: false
+                });
+                console.debug('[SettingsShare] Marked chat as shared in IndexedDB:', chatId);
+            } else {
+                console.warn('[SettingsShare] Chat not found for marking as shared:', chatId);
+            }
+        } catch (error) {
+            console.error('[SettingsShare] Error marking chat as shared:', error);
+        }
+    }
+    
+    /**
      * Queue OG metadata update to server
      * This updates the server with title and summary for social media previews
      * If offline, the request is queued and retried when connection is restored
@@ -167,6 +197,7 @@
      * 1. Client decrypts encrypted_title and encrypted_chat_summary using chat key
      * 2. Client sends plaintext title and summary to server
      * 3. Server encrypts with shared vault key and stores in shared_encrypted_title and shared_encrypted_summary
+     * 4. Also sends is_shared = true to mark the chat as shared on the server
      */
     async function queueOGMetadataUpdate() {
         if (!currentChatId) return;
@@ -212,49 +243,47 @@
                 }
             }
             
-            // If we have at least title or summary, send to server
-            if (title || summary) {
-                try {
-                    const response = await fetch(getApiEndpoint('/v1/share/chat/metadata'), {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Accept': 'application/json',
-                            'Origin': window.location.origin
-                        },
-                        body: JSON.stringify({
-                            chat_id: currentChatId,
-                            title: title || null,
-                            summary: summary || null
-                        }),
-                        credentials: 'include' // Include cookies for authentication
-                    });
+            // Always send is_shared = true when sharing (even if no title/summary)
+            // This ensures the server marks the chat as shared
+            try {
+                const response = await fetch(getApiEndpoint('/v1/share/chat/metadata'), {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'Origin': window.location.origin
+                    },
+                    body: JSON.stringify({
+                        chat_id: currentChatId,
+                        title: title || null,
+                        summary: summary || null,
+                        is_shared: true  // Mark chat as shared on server
+                    }),
+                    credentials: 'include' // Include cookies for authentication
+                });
+                
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({ detail: 'Unknown error' }));
+                    console.warn('[SettingsShare] Failed to update OG metadata, queueing for retry:', errorData);
                     
-                    if (!response.ok) {
-                        const errorData = await response.json().catch(() => ({ detail: 'Unknown error' }));
-                        console.warn('[SettingsShare] Failed to update OG metadata, queueing for retry:', errorData);
-                        
-                        // Queue for retry if offline or server error
-                        // Network errors will be caught in the catch block
-                        await shareMetadataQueue.queueUpdate(currentChatId, title, summary);
-                        return;
-                    }
-                    
-                    const data = await response.json();
-                    if (data.success) {
-                        console.debug('[SettingsShare] Successfully updated OG metadata for shared chat:', currentChatId);
-                    } else {
-                        console.warn('[SettingsShare] OG metadata update returned success=false, queueing for retry:', data);
-                        // Queue for retry even if server returned success=false
-                        await shareMetadataQueue.queueUpdate(currentChatId, title, summary);
-                    }
-                } catch (fetchError: any) {
-                    // Network error (offline, timeout, etc.) - queue for retry
-                    console.debug('[SettingsShare] Network error sending OG metadata update, queueing for retry:', fetchError);
+                    // Queue for retry if offline or server error
+                    // Network errors will be caught in the catch block
+                    await shareMetadataQueue.queueUpdate(currentChatId, title, summary);
+                    return;
+                }
+                
+                const data = await response.json();
+                if (data.success) {
+                    console.debug('[SettingsShare] Successfully updated OG metadata and sharing status for chat:', currentChatId);
+                } else {
+                    console.warn('[SettingsShare] OG metadata update returned success=false, queueing for retry:', data);
+                    // Queue for retry even if server returned success=false
                     await shareMetadataQueue.queueUpdate(currentChatId, title, summary);
                 }
-            } else {
-                console.warn('[SettingsShare] No title or summary available for OG metadata update');
+            } catch (fetchError: any) {
+                // Network error (offline, timeout, etc.) - queue for retry
+                console.debug('[SettingsShare] Network error sending OG metadata update, queueing for retry:', fetchError);
+                await shareMetadataQueue.queueUpdate(currentChatId, title, summary);
             }
         } catch (error) {
             console.error('[SettingsShare] Error queueing OG metadata update:', error);

@@ -83,14 +83,17 @@ async def check_url_status(url: str, timeout: float = URL_VALIDATION_TIMEOUT) ->
             # Fallback to GET only if HEAD returns 405 (Method Not Allowed) or 501 (Not Implemented)
             response = None
             try:
-                response = await client.head(url, allow_redirects=True)
+                # Note: follow_redirects is already set to True on the client (line 80)
+                # so we don't need to pass it again, but removing allow_redirects which was incorrect
+                response = await client.head(url)
                 # If HEAD succeeds, use it (even if status is 404/500 - that's valid info)
             except httpx.HTTPStatusError as e:
                 # HEAD returned an error status - check if it's because HEAD isn't supported
                 if e.response.status_code in [405, 501]:
                     # HEAD method not allowed/implemented - fallback to GET
                     try:
-                        response = await client.get(url, allow_redirects=True)
+                        # Note: follow_redirects is already set to True on the client (line 80)
+                        response = await client.get(url)
                     except Exception:
                         # If GET also fails, re-raise to be handled by outer handlers
                         raise

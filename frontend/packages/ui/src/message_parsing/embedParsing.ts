@@ -56,7 +56,8 @@ function createPreviewEmbed(
     type: embedType,
     status: 'finished', // Show as finished for preview
     contentRef: `preview:${embedType}:${id}`, // Special prefix for preview embeds
-    lineCount: embedType === 'code-code' ? content.split('\n').filter(l => l.trim()).length : undefined,
+    // Count all lines including empty ones (matches backend: code_content.count('\n') + 1)
+    lineCount: embedType === 'code-code' ? content.split('\n').length : undefined,
     wordCount: embedType === 'docs-doc' ? content.split(/\s+/).filter(w => w.trim()).length : undefined,
     code: content // Store content for preview rendering
   };
@@ -93,7 +94,8 @@ function createReadEmbed(
     type: embedType,
     status: 'finished',
     contentRef: `stream:${id}`,
-    lineCount: embedType === 'code-code' ? content.split('\n').filter(l => l.trim()).length : undefined,
+    // Count all lines including empty ones (matches backend: code_content.count('\n') + 1)
+    lineCount: embedType === 'code-code' ? content.split('\n').length : undefined,
     wordCount: embedType === 'docs-doc' ? content.split(/\s+/).filter(w => w.trim()).length : undefined
   };
   

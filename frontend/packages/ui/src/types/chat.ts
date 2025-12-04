@@ -71,6 +71,10 @@ export interface Chat {
   encrypted_chat_key?: string | null; // Chat-specific encryption key, encrypted with user's master key for device sync
   encrypted_icon?: string | null; // Encrypted icon name from Lucide library, generated during pre-processing
   encrypted_category?: string | null; // Encrypted category name, generated during pre-processing
+  
+  // Sharing fields
+  is_shared?: boolean; // Whether this chat has been shared (share link generated). Set on client when share link is created, then synced to server.
+  is_private?: boolean; // Whether this chat is private (not shared). Defaults to false (shareable) to enable offline sharing.
 }
 
 export interface ChatComponentVersions {
@@ -181,7 +185,7 @@ export interface StoreEmbedPayload {
     hashed_message_id: string; // SHA256 hash of message_id (privacy protection)
     hashed_task_id?: string; // Optional, SHA256 hash of task_id
     hashed_user_id: string; // SHA256 hash of user_id
-    encryption_key_embed: string; // Embed-specific key, encrypted with master key
+    encryption_key_embed?: string; // DEPRECATED: Embed keys are now stored in embed_keys collection via store_embed_keys event
     embed_ids?: string[]; // For composite embeds
     parent_embed_id?: string;
     version_number?: number;

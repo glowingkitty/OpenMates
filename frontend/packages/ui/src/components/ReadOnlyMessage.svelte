@@ -346,6 +346,17 @@
         display: none;
     }
 
+    /* Hide ProseMirror separator and trailingBreak after embed previews to reduce spacing */
+    /* These are ProseMirror's internal elements used for cursor positioning in the editor,
+       but they create unwanted gaps in read-only view. The separator is an <img> element
+       that marks the end of a node view, and trailingBreak is a <br> for cursor positioning. */
+    :global(.read-only-message .markdown-paragraph .embed-full-width-wrapper ~ .ProseMirror-separator),
+    :global(.read-only-message .markdown-paragraph .embed-full-width-wrapper ~ .ProseMirror-trailingBreak),
+    :global(.read-only-message .markdown-paragraph:has(.embed-full-width-wrapper) .ProseMirror-separator),
+    :global(.read-only-message .markdown-paragraph:has(.embed-full-width-wrapper) .ProseMirror-trailingBreak) {
+        display: none;
+    }
+
     :global(code) {
         background-color: black;
         padding: 5px;

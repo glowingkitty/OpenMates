@@ -49,6 +49,7 @@ class ShareChatMetadataUpdate(BaseModel):
     chat_id: str
     title: Optional[str] = None
     summary: Optional[str] = None
+    is_shared: Optional[bool] = None  # Whether the chat is being shared (set to true when share link is created)
 
 class UnshareChatRequest(BaseModel):
     """Request model for unsharing a chat"""
@@ -149,6 +150,13 @@ async def get_shared_chat(
         hashed_chat_id = hashlib.sha256(chat_id.encode()).hexdigest()
         embeds = await directus_service.embed.get_embeds_by_hashed_chat_id(hashed_chat_id)
         
+        # Get embed_keys for this chat (wrapped key architecture)
+        # These contain AES(embed_key, chat_key) entries that allow shared chat recipients
+        # to unwrap embed_keys using the chat_encryption_key from the share link
+        # NOTE: For share links, we only need chat key entries (not master keys) since
+        # share recipients don't have access to the owner's master key
+        embed_keys = await directus_service.embed.get_embed_keys_by_hashed_chat_id(hashed_chat_id, include_master_keys=False)
+        
         return {
             "chat_id": chat_id,
             "encrypted_title": chat.get("encrypted_title"),
@@ -156,6 +164,7 @@ async def get_shared_chat(
             "encrypted_follow_up_request_suggestions": chat.get("encrypted_follow_up_request_suggestions"),
             "messages": messages or [],
             "embeds": embeds or [],
+            "embed_keys": embed_keys or [],
             "is_dummy": False  # Internal flag, not sent to client
         }
         
@@ -209,10 +218,17 @@ async def update_share_metadata(
             )
             updates["shared_encrypted_summary"] = encrypted_summary
         
+        # Update sharing status: set is_shared=true and is_private=false when sharing
+        if payload.is_shared is not None:
+            updates["is_shared"] = payload.is_shared
+            # When sharing (is_shared=true), ensure is_private=false
+            if payload.is_shared:
+                updates["is_private"] = False
+        
         # Update chat in database
         if updates:
             await directus_service.update_item("chats", chat_id, updates)
-            logger.info(f"Updated OG metadata for shared chat {chat_id}")
+            logger.info(f"Updated OG metadata and sharing status for chat {chat_id}")
         
         return {"success": True, "chat_id": chat_id}
         
@@ -243,9 +259,10 @@ async def unshare_chat(
         if not chat:
             raise HTTPException(status_code=404, detail="Chat not found")
         
-        # Set is_private = true and clear shared metadata
+        # Set is_private = true, is_shared = false, and clear shared metadata
         updates = {
             "is_private": True,
+            "is_shared": False,
             "shared_encrypted_title": None,
             "shared_encrypted_summary": None
         }

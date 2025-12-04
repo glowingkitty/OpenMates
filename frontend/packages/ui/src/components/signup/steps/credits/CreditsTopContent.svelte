@@ -169,6 +169,7 @@ step_9_top_content_svelte:
         position: relative;
         width: 100%;
         height: 100%;
+        min-height: 400px; /* Ensure minimum height for credits form visibility */
     }
     
     .top-container {
@@ -198,7 +199,8 @@ step_9_top_content_svelte:
         right: 0;
         bottom: 0;
         padding: 0 24px;
-        overflow-y: auto;
+        overflow-y: auto; /* Allow scrolling if content exceeds container */
+        overflow-x: hidden;
     }
 
     @media (max-width: 600px) {
@@ -215,7 +217,7 @@ step_9_top_content_svelte:
         flex-direction: column;
         justify-content: space-between;
         align-items: center;
-        height: 100%;
+        height: 100%; /* Fill available space */
         padding: 25px 0;
         box-sizing: border-box;
     }
@@ -273,12 +275,6 @@ step_9_top_content_svelte:
         flex-direction: column;
         align-items: center;
         gap: 10px;
-    }
-    
-    .pricing-details-text {
-        color: var(--color-grey-60);
-        font-size: 14px;
-        text-align: center;
     }
 
     .text-button {

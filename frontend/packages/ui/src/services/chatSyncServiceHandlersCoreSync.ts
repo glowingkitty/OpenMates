@@ -259,6 +259,12 @@ export async function handlePhase1LastChatImpl(
         // CRITICAL: Save embeds to EmbedStore (Phase 1 may include embeds for the chat)
         // This ensures embeds are available for rendering when messages are displayed
         // Embeds from sync are already client-encrypted, so we store them as-is (no re-encryption)
+        console.debug("[ChatSyncService:CoreSync] Phase 1 payload embeds check:", {
+            hasEmbeds: !!payload.embeds,
+            embedsLength: payload.embeds?.length || 0,
+            embedIds: payload.embeds?.map((e: any) => e.embed_id).slice(0, 5) || []
+        });
+        
         if (payload.embeds && payload.embeds.length > 0) {
             console.info("[ChatSyncService:CoreSync] Saving", payload.embeds.length, "embeds to EmbedStore");
             try {
@@ -302,6 +308,24 @@ export async function handlePhase1LastChatImpl(
             }
         } else {
             console.debug("[ChatSyncService:CoreSync] No embeds in Phase 1 payload (chat may not have any)");
+        }
+        
+        // CRITICAL: Save embed_keys to EmbedStore (needed to decrypt embed content)
+        // Without embed_keys, embeds cannot be decrypted and will show errors
+        if (payload.embed_keys && payload.embed_keys.length > 0) {
+            console.info("[ChatSyncService:CoreSync] Saving", payload.embed_keys.length, "embed_keys to EmbedStore");
+            try {
+                const { embedStore } = await import('./embedStore');
+                
+                // Store all embed key entries
+                await embedStore.storeEmbedKeys(payload.embed_keys);
+                
+                console.info("[ChatSyncService:CoreSync] ✅ Successfully saved", payload.embed_keys.length, "embed_keys to EmbedStore");
+            } catch (embedKeyError) {
+                console.error("[ChatSyncService:CoreSync] Error saving embed_keys to EmbedStore:", embedKeyError);
+            }
+        } else {
+            console.debug("[ChatSyncService:CoreSync] No embed_keys in Phase 1 payload (embeds may not have keys yet)");
         }
         
         // CRITICAL FIX: Add delay to ensure ALL IndexedDB operations are queryable

@@ -188,6 +188,22 @@
         // Update footer visibility based on step
         const settingsSteps = [STEP_SETTINGS, STEP_MATE_SETTINGS, STEP_CREDITS, STEP_PAYMENT, STEP_COMPLETION];
         showSignupFooter.set(true);
+        
+        // Listen for credit updates via WebSocket (e.g., after successful payment)
+        const handleCreditUpdate = (payload: { credits: number }) => {
+            const newCredits = payload.credits;
+            if (typeof newCredits === 'number') {
+                console.debug(`[Signup] Received credit update via WebSocket: ${newCredits}`);
+                updateProfile({ credits: newCredits });
+            }
+        };
+        
+        webSocketService.on('user_credits_updated', handleCreditUpdate);
+        
+        // Return cleanup function
+        return () => {
+            webSocketService.off('user_credits_updated', handleCreditUpdate);
+        };
     });
     
     onDestroy(async () => {
@@ -630,6 +646,17 @@
                 // Continue anyway - they can still finish signup
             }
             
+            // Credits will be updated via WebSocket 'user_credits_updated' event from backend
+            // The listener set up in onMount will handle the update automatically
+            // If WebSocket is not connected, ensure it's connected to receive the update
+            if (!webSocketService.isConnected()) {
+                console.debug("[Signup] WebSocket not connected, attempting to connect to receive credit updates...");
+                webSocketService.connect().catch(error => {
+                    console.warn("[Signup] Failed to connect WebSocket after payment:", error);
+                    // Continue anyway - credits will update when WebSocket connects or on next sync
+                });
+            }
+            
             // After payment success, go to auto top-up step
             setTimeout(() => {
                 goToStep(STEP_AUTO_TOP_UP);
@@ -755,9 +782,11 @@
     // Show expanded header on credits and payment steps using Svelte 5 runes
     let showExpandedHeader = $derived(currentStep === STEP_CREDITS || currentStep === STEP_PAYMENT);
 
-    // For payment step, secure account step, one-time codes step, and backup codes step, use expanded height for the top content wrapper
+    // For credits step, payment step, auto top-up step, secure account step, one-time codes step, and backup codes step, use expanded height for the top content wrapper
     // For recovery key step, only expand if the creation UI is not active using Svelte 5 runes
-    let isExpandedTopContent = $derived(currentStep === STEP_PAYMENT ||
+    let isExpandedTopContent = $derived(currentStep === STEP_CREDITS ||
+                             currentStep === STEP_PAYMENT ||
+                             currentStep === STEP_AUTO_TOP_UP ||
                              currentStep === STEP_SECURE_ACCOUNT ||
                              currentStep === STEP_ONE_TIME_CODES ||
                              (currentStep === STEP_RECOVERY_KEY && !$isRecoveryKeyCreationActive));
@@ -849,6 +878,8 @@
                                             purchasedCredits={selectedCreditsAmount}
                                             purchasedPrice={selectedPrice}
                                             currency={selectedCurrency}
+                                            oncomplete={handleAutoTopUpComplete}
+                                            onactivate-subscription={handleActivateSubscription}
                                         />
                                     {/if}
                                 </div>
@@ -933,14 +964,6 @@
                                                 on:step={handleStep}
                                                 on:uploading={handleImageUploading}
                                                 on:selectedApp={handleSelectedApp}
-                                            />
-                                        {:else if currentStep === STEP_AUTO_TOP_UP}
-                                            <AutoTopUpBottomContent
-                                                purchasedCredits={selectedCreditsAmount}
-                                                purchasedPrice={selectedPrice}
-                                                currency={selectedCurrency}
-                                                oncomplete={handleAutoTopUpComplete}
-                                                onactivate-subscription={handleActivateSubscription}
                                             />
                                         {/if}
                                     {/if}

@@ -519,14 +519,21 @@ form.hidden {
         min-height: 300px;
     }
     
-    /* Expanded wrapper needs more height for steps without bottom content */
+    /* For expanded wrapper (steps without bottom content), use full height */
     .top-content-wrapper.expanded {
-        height: auto;
-        min-height: 400px;
+        height: 640px;
+        max-height: calc(100vh - 265px);
     }
     
     /* Top content must fill the wrapper */
     .top-content {
+        height: 100%;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    
+    /* For expanded steps, ensure top-content fills wrapper and allows scrolling */
+    .top-content-wrapper.expanded .top-content {
         height: 100%;
         overflow-y: auto;
         -webkit-overflow-scrolling: touch;
@@ -548,26 +555,31 @@ form.hidden {
         -webkit-overflow-scrolling: touch;
     }
     
+    /* For expanded steps, slide should fill content-slider */
+    .top-content-wrapper.expanded .top-content .content-slider .slide {
+        position: relative;
+        height: 100%;
+    }
+    
     /* Content should fill slide */
     .top-content .content {
         height: 100%;
         min-height: 100%;
     }
     
-    /* For expanded wrapper (steps without bottom content), let content determine height */
     .top-content-wrapper.expanded .top-content {
-        height: auto;
-        overflow: visible;
-        min-height: auto;
+        height: 100%;
+        overflow-y: auto; /* Allow scrolling if content exceeds */
+        overflow-x: hidden;
     }
     
     .top-content-wrapper.expanded .top-content .content-slider {
-        height: auto;
+        height: 100%;
     }
     
     .top-content-wrapper.expanded .top-content .content-slider .slide {
         position: relative;
-        height: auto;
+        height: 100%;
         top: auto;
         bottom: auto;
         left: auto;
@@ -598,14 +610,21 @@ form.hidden {
         min-height: 300px;
     }
     
-    /* Expanded wrapper needs more height */
+    /* Expanded wrapper needs full height */
     .top-content-wrapper.expanded {
-        height: 400px;
-        min-height: 400px;
+        height: 640px;
+        max-height: calc(100vh - 265px);
     }
     
     /* Top content must fill the wrapper */
     .top-content {
+        height: 100%;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    
+    /* For expanded steps, ensure top-content fills wrapper */
+    .top-content-wrapper.expanded .top-content {
         height: 100%;
         overflow-y: auto;
         -webkit-overflow-scrolling: touch;
@@ -626,6 +645,12 @@ form.hidden {
         height: 100%;
         -webkit-overflow-scrolling: touch;
     }
+    
+    /* For expanded steps, slide should fill content-slider */
+    .top-content-wrapper.expanded .top-content .content-slider .slide {
+        position: relative;
+        height: 100%;
+    }
 }
 
 /* On desktop (above 730px), make top-content-wrapper height fit content */
@@ -638,20 +663,48 @@ form.hidden {
         max-height: 535px; /* Keep max-height for secure-account step which needs full height */
     }
     
-    /* Top content should fit content */
-    .top-content {
+    /* For expanded wrapper, use the full height defined in Signup.svelte (640px or calc(100vh - 265px)) */
+    .top-content-wrapper.expanded {
+        height: 640px;
+        max-height: calc(100vh - 265px);
+    }
+    
+    /* Top content should fill the wrapper height for expanded steps */
+    .top-content-wrapper.expanded .top-content {
+        height: 100%;
+        overflow-y: auto; /* Allow scrolling if content exceeds */
+        overflow-x: hidden;
+    }
+    
+    /* Content slider should fill top-content for expanded steps */
+    .top-content-wrapper.expanded .top-content .content-slider {
+        height: 100%;
+    }
+    
+    /* Slide should fill content-slider for expanded steps */
+    .top-content-wrapper.expanded .top-content .content-slider .slide {
+        position: relative;
+        height: 100%;
+        top: auto;
+        bottom: auto;
+        left: auto;
+        right: auto;
+    }
+    
+    /* For non-expanded steps, keep auto height */
+    .top-content-wrapper:not(.expanded) .top-content {
         height: auto;
         min-height: auto;
     }
     
-    /* Content slider should also be auto height */
-    .top-content .content-slider {
+    /* Content slider should also be auto height for non-expanded */
+    .top-content-wrapper:not(.expanded) .top-content .content-slider {
         height: auto;
     }
     
     /* Make slides position relative on desktop so wrapper doesn't collapse */
     /* This allows the wrapper to size based on content */
-    .top-content .content-slider .slide {
+    .top-content-wrapper:not(.expanded) .top-content .content-slider .slide {
         position: relative;
         top: auto;
         bottom: auto;

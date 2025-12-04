@@ -825,6 +825,167 @@ settings_memories.pending:
   cs: Čekající
   sv: Väntande
   verified_by_human: []
+settings_memories.loading:
+  context: Loading message while fetching settings and memories entries
+  en: Loading settings and memories...
+  de: Laden von Einstellungen und Erinnerungen...
+  zh: 正在加载设置和记忆...
+  es: Cargando configuración y recuerdos...
+  fr: Chargement des paramètres et des souvenirs...
+  pt: Carregando configurações e memórias...
+  ru: Загрузка настроек и воспоминаний...
+  ja: 設定とメモリを読み込み中...
+  ko: 설정 및 메모리 로드 중...
+  it: Caricamento di impostazioni e ricordi...
+  tr: Ayarlar ve anılar yükleniyor...
+  vi: Đang tải cài đặt và ký ức...
+  id: Memuat pengaturan dan memori...
+  pl: Ładowanie ustawień i wspomnień...
+  nl: Instellingen en herinneringen laden...
+  ar: جاري تحميل الإعدادات والذكريات...
+  hi: सेटिंग्स और यादें लोड की जा रही हैं...
+  th: กำลังโหลดการตั้งค่าและความทรงจำ...
+  cs: Načítání nastavení a paměti...
+  sv: Läser in inställningar och minnen...
+  verified_by_human: []
+settings_memories.no_settings:
+  context: Message when no settings and memories have been synced for an app
+  en: No settings or memories synced yet. They will appear here once available.
+  de: Noch keine Einstellungen oder Erinnerungen synchronisiert. Sie werden hier angezeigt, wenn verfügbar.
+  zh: 尚未同步任何设置或记忆。可用后会在此显示。
+  es: Aún no hay configuración ni recuerdos sincronizados. Aparecerán aquí una vez disponibles.
+  fr: Aucun paramètre ou souvenir encore synchronisé. Ils apparaîtront ici une fois disponibles.
+  pt: Nenhuma configuração ou memória sincronizada ainda. Eles aparecerão aqui assim que disponíveis.
+  ru: Настройки и воспоминания еще не синхронизированы. Они появятся здесь после доступности.
+  ja: 設定とメモリはまだ同期されていません。利用可能になると表示されます。
+  ko: 아직 동기화된 설정 또는 메모리가 없습니다. 이용 가능할 때 여기에 표시됩니다.
+  it: Nessuna impostazione o ricordo sincronizzato ancora. Appariranno qui una volta disponibili.
+  tr: Henüz hiçbir ayar veya anı senkronize edilmedi. Mevcut olduğunda burada görünecekler.
+  vi: Chưa có cài đặt hoặc ký ức nào được đồng bộ hóa. Chúng sẽ xuất hiện ở đây khi có sẵn.
+  id: Belum ada pengaturan atau memori yang disinkronkan. Mereka akan muncul di sini setelah tersedia.
+  pl: Brak jeszcze zsynchronizowanych ustawień ani wspomnień. Pojawią się tutaj, gdy tylko będą dostępne.
+  nl: Nog geen instellingen of herinneringen gesynchroniseerd. Ze verschijnen hier zodra deze beschikbaar zijn.
+  ar: لم يتم مزامنة أي إعدادات أو ذكريات حتى الآن. ستظهر هنا بمجرد توفرها.
+  hi: अभी तक कोई सेटिंग्स या यादें सिंक नहीं की गई हैं। वे यहां उपलब्ध हो जाने के बाद दिखाई देंगे।
+  th: ยังไม่มีการตั้งค่าหรือความทรงจำที่ซิงค์แล้ว พวกเขาจะปรากฏที่นี่เมื่อมีให้บริการ
+  cs: Zatím nejsou synchronizovány žádné nastavení ani paměti. Zobrazí se zde, jakmile budou dostupná.
+  sv: Inga inställningar eller minnen ännu inte synkroniserade. De visas här när de är tillgängliga.
+  verified_by_human: []
+settings_memories.item_key:
+  context: Label for entry key input field
+  en: Entry Key
+  de: Eintragschlüssel
+  zh: 条目键
+  es: Clave de entrada
+  fr: Clé d'entrée
+  pt: Chave de entrada
+  ru: Ключ записи
+  ja: エントリキー
+  ko: 항목 키
+  it: Chiave voce
+  tr: Giriş Anahtarı
+  vi: Khóa mục
+  id: Kunci Masukan
+  pl: Klucz wpisu
+  nl: Invoersleutel
+  ar: مفتاح الإدخال
+  hi: प्रविष्टि कुंजी
+  th: คีย์รายการ
+  cs: Klíč položky
+  sv: Inmatningsnyckel
+  verified_by_human: []
+settings_memories.settings_group:
+  context: Label for settings group input field
+  en: Settings Group
+  de: Einstellungsgruppe
+  zh: 设置组
+  es: Grupo de configuración
+  fr: Groupe de paramètres
+  pt: Grupo de configurações
+  ru: Группа настроек
+  ja: 設定グループ
+  ko: 설정 그룹
+  it: Gruppo di impostazioni
+  tr: Ayarlar Grubu
+  vi: Nhóm cài đặt
+  id: Grup Pengaturan
+  pl: Grupa ustawień
+  nl: Instellingengroep
+  ar: مجموعة الإعدادات
+  hi: सेटिंग्स समूह
+  th: กลุ่มการตั้งค่า
+  cs: Skupina nastavení
+  sv: Inställningsgrupp
+  verified_by_human: []
+settings_memories.item_value:
+  context: Label for entry value input field
+  en: Entry Value
+  de: Eintragswert
+  zh: 条目值
+  es: Valor de entrada
+  fr: Valeur d'entrée
+  pt: Valor da entrada
+  ru: Значение записи
+  ja: エントリ値
+  ko: 항목 값
+  it: Valore voce
+  tr: Giriş Değeri
+  vi: Giá trị mục
+  id: Nilai Masukan
+  pl: Wartość wpisu
+  nl: Invoerwaarde
+  ar: قيمة الإدخال
+  hi: प्रविष्टि मूल्य
+  th: ค่ารายการ
+  cs: Hodnota položky
+  sv: Ingångsvärde
+  verified_by_human: []
+settings_memories.cancel:
+  context: Cancel button text
+  en: Cancel
+  de: Abbrechen
+  zh: 取消
+  es: Cancelar
+  fr: Annuler
+  pt: Cancelar
+  ru: Отмена
+  ja: キャンセル
+  ko: 취소
+  it: Annulla
+  tr: İptal
+  vi: Hủy
+  id: Batal
+  pl: Anuluj
+  nl: Annuleren
+  ar: إلغاء
+  hi: रद्द करें
+  th: ยกเลิก
+  cs: Zrušit
+  sv: Avbryt
+  verified_by_human: []
+settings_memories.creating:
+  context: Button text while creating entry
+  en: Creating...
+  de: Wird erstellt...
+  zh: 正在创建...
+  es: Creando...
+  fr: Création en cours...
+  pt: Criando...
+  ru: Создание...
+  ja: 作成中...
+  ko: 생성 중...
+  it: Creazione...
+  tr: Oluşturuluyor...
+  vi: Đang tạo...
+  id: Membuat...
+  pl: Tworzenie...
+  nl: Maken...
+  ar: جاري الإنشاء...
+  hi: बना रहा है...
+  th: กำลังสร้าง...
+  cs: Vytváření...
+  sv: Skapar...
+  verified_by_human: []
 app_not_found:
   context: Error message when app is not found
   en: App not found.

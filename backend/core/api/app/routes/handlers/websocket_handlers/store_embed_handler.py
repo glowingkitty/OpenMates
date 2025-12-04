@@ -24,16 +24,15 @@ async def handle_store_embed(
     Payload structure:
     {
         "embed_id": "...",
-        "encrypted_type": "...",
-        "encrypted_content": "...",
-        "encrypted_text_preview": "...",
+        "encrypted_type": "...",  // Encrypted with embed_key (client-side)
+        "encrypted_content": "...",  // Encrypted with embed_key (client-side)
+        "encrypted_text_preview": "...",  // Encrypted with embed_key (client-side)
         "status": "...",
         "hashed_chat_id": "...",
         "hashed_message_id": "...",
         "hashed_task_id": "...",
         "hashed_user_id": "...",
-        "encryption_key_embed": "...",
-        "embed_ids": [...],
+        "embed_ids": [...],  // For composite embeds
         "parent_embed_id": "...",
         "version_number": 1,
         "encrypted_diff": "...",
@@ -44,6 +43,9 @@ async def handle_store_embed(
         "createdAt": 1234567890,
         "updatedAt": 1234567890
     }
+    
+    Note: encryption_key_embed is no longer part of this payload.
+    Embed keys are stored separately via store_embed_keys event in embed_keys collection.
     """
     try:
         embed_id = payload.get("embed_id")

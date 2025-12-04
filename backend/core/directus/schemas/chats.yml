@@ -91,6 +91,11 @@ chats:
       default: false
       note: "Whether this chat is private (not shared). If true, the chat is not accessible via share links. Defaults to false (shareable) to enable offline sharing. When a user unshares a chat, this is set to true. The security model relies on: (1) Chat IDs are not easily guessable, (2) Encryption key in URL fragment is required to decrypt, (3) Server returns dummy data for non-existent chats to prevent enumeration, (4) Rate limiting on share endpoints."
 
+    is_shared:
+      type: boolean
+      default: false
+      note: "Whether this chat has been shared (share link generated). Set to true on client when share link is created, then synced to server. Used to track which chats appear in the 'Shared' menu. When unsharing, both is_private and is_shared are updated."
+
     shared_encrypted_title:
       type: text
       nullable: true

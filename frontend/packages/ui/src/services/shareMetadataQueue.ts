@@ -240,11 +240,12 @@ class ShareMetadataQueueService {
                         continue;
                     }
 
-                    // Attempt to send the update
+                    // Attempt to send the update (always include is_shared=true for retries)
                     const success = await this.sendOGMetadataUpdate(
                         update.chat_id,
                         update.title,
-                        update.summary
+                        update.summary,
+                        true  // is_shared = true
                     );
 
                     if (success) {
@@ -275,7 +276,7 @@ class ShareMetadataQueueService {
      * Send OG metadata update to server
      * Returns true if successful, false otherwise
      */
-    private async sendOGMetadataUpdate(chatId: string, title: string | null, summary: string | null): Promise<boolean> {
+    private async sendOGMetadataUpdate(chatId: string, title: string | null, summary: string | null, isShared: boolean = true): Promise<boolean> {
         try {
             const response = await fetch(getApiEndpoint('/v1/share/chat/metadata'), {
                 method: 'POST',
@@ -287,7 +288,8 @@ class ShareMetadataQueueService {
                 body: JSON.stringify({
                     chat_id: chatId,
                     title: title || null,
-                    summary: summary || null
+                    summary: summary || null,
+                    is_shared: isShared  // Mark chat as shared on server
                 }),
                 credentials: 'include'
             });

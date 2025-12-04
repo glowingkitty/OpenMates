@@ -53,18 +53,15 @@
             const allChats = await chatDB.getAllChats();
             console.debug('[SettingsShared] Loaded', allChats.length, 'chats from IndexedDB');
             
-            // Filter chats owned by current user (potentially shared)
-            // TODO: Also check is_private = false from server to show only actually shared chats
+            // Filter chats owned by current user that are shared (is_shared = true)
             ownedSharedChats = allChats.filter(chat => 
-                chat.user_id === currentUserId
-                // TODO: Add check for is_private = false when available
+                chat.user_id === currentUserId && chat.is_shared === true
             );
             
             // Filter chats owned by others (shared with me)
-            // TODO: Also check is_private = false from server
+            // These are chats where the user is not the owner
             sharedWithMeChats = allChats.filter(chat => 
                 chat.user_id && chat.user_id !== currentUserId
-                // TODO: Add check for is_private = false when available
             );
             
             console.debug('[SettingsShared] Found', ownedSharedChats.length, 'owned shared chats');
@@ -77,20 +74,56 @@
     }
     
     /**
-     * Unshare a chat by setting is_private = true on the server
+     * Unshare a chat by setting is_private = true and is_shared = false
+     * Updates both IndexedDB and server
      * @param chatId The ID of the chat to unshare
      */
     async function unshareChat(chatId: string) {
+        if (!isAuthenticated) {
+            console.warn('[SettingsShared] Cannot unshare chat: user not authenticated');
+            return;
+        }
+        
         try {
             console.debug('[SettingsShared] Unsharing chat:', chatId);
             
-            // TODO: Make server request to set is_private = true
-            // This should be done via chatSyncService or a dedicated share service
-            // For now, we'll just remove it from the list locally
-            // In production, we'll:
-            // 1. Send request to server to set is_private = true
-            // 2. Server clears shared_encrypted_title and shared_encrypted_summary
-            // 3. Update local state to remove from shared list
+            // Update IndexedDB: set is_private = true and is_shared = false
+            const chat = await chatDB.getChat(chatId);
+            if (chat) {
+                // Update chat with new sharing status
+                await chatDB.updateChat({
+                    ...chat,
+                    is_private: true,
+                    is_shared: false
+                });
+                console.debug('[SettingsShared] Updated chat in IndexedDB:', chatId);
+            }
+            
+            // Send request to server to set is_private = true and is_shared = false
+            const { getApiEndpoint } = await import('../../config/api');
+            const response = await fetch(getApiEndpoint('/v1/share/chat/unshare'), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'Origin': window.location.origin
+                },
+                body: JSON.stringify({
+                    chat_id: chatId
+                }),
+                credentials: 'include'
+            });
+            
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({ detail: 'Unknown error' }));
+                console.error('[SettingsShared] Failed to unshare chat on server:', errorData);
+                // Still remove from list locally even if server request fails
+            } else {
+                const data = await response.json();
+                if (data.success) {
+                    console.debug('[SettingsShared] Successfully unshared chat on server:', chatId);
+                }
+            }
             
             // Remove from owned shared chats list
             ownedSharedChats = ownedSharedChats.filter(chat => chat.chat_id !== chatId);
@@ -168,6 +201,7 @@
                                 class="unshare-button"
                                 onclick={() => unshareChat(chat.chat_id)}
                                 title={$text('settings.share.unshare.text')}
+                                aria-label={$text('settings.share.unshare.text')}
                             >
                                 <div class="icon settings_size icon_close"></div>
                             </button>

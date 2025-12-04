@@ -221,12 +221,22 @@ class ConnectionManager:
             message = {"type": event_name, "payload": payload}
             tasks = []
             websockets_to_send = []
+            connection_count = len(self.active_connections[user_id])
 
             for device_hash, websocket in list(self.active_connections[user_id].items()):
                 tasks.append(websocket.send_json(message))
                 websockets_to_send.append(websocket)
             
             if tasks:
+                # Enhanced logging for send_embed_data events
+                if event_name == "send_embed_data":
+                    embed_id = payload.get("embed_id", "unknown")
+                    status = payload.get("status", "unknown")
+                    logger.info(
+                        f"[EMBED_EVENT] Broadcasting 'send_embed_data' for embed {embed_id} (status={status}) "
+                        f"to User {user_id} across {connection_count} WebSocket connection(s)"
+                    )
+                
                 results = await asyncio.gather(*tasks, return_exceptions=True)
                 for i, result in enumerate(results):
                     if isinstance(result, Exception):
@@ -240,7 +250,8 @@ class ConnectionManager:
                         logger.error(f"Error broadcasting event '{event_name}' to User {user_id}, Device {failed_device_hash_lookup} (WS ID: {ws_id}): {result}. Initiating disconnect process.")
                         self.disconnect(failed_websocket, reason=f"Broadcast event error: {type(result).__name__}") # Pass reason
                 
-                logger.debug(f"Broadcasted event '{event_name}' to User {user_id}. Payload: {payload}")
+                if event_name != "send_embed_data":  # Avoid duplicate logging for send_embed_data
+                    logger.debug(f"Broadcasted event '{event_name}' to User {user_id}. Payload: {payload}")
 
     def is_user_active(self, user_id: str) -> bool:
         """Checks if a user has any active WebSocket connections or connections in grace period."""

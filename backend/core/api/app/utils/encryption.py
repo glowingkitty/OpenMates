@@ -327,6 +327,49 @@ class EncryptionService:
             logger.error(f"Failed to ensure email HMAC key exists: {str(e)}")
             raise Exception(f"Failed to initialize email HMAC key: {str(e)}")
 
+        # --- Ensure SHARED_CONTENT_METADATA_KEY exists in transit engine ---
+        # This key is used for encrypting shared chat/embed metadata for OG tag generation
+        SHARED_CONTENT_METADATA_KEY_NAME = "shared-content-metadata"
+        try:
+            logger.debug(f"Checking for shared content metadata key '{SHARED_CONTENT_METADATA_KEY_NAME}' in transit engine...")
+            key_exists = False
+            try:
+                # Check if key exists by attempting to read its configuration
+                response = await self._vault_request("get", f"{self.transit_mount}/keys/{SHARED_CONTENT_METADATA_KEY_NAME}")
+                # If the response has data (not just the default {"data": {}} from 404 handling), the key exists.
+                if response and response.get("data") and response["data"].get("name") == SHARED_CONTENT_METADATA_KEY_NAME:
+                    key_exists = True
+                    logger.debug(f"Shared content metadata key '{SHARED_CONTENT_METADATA_KEY_NAME}' already exists.")
+                else:
+                    # This case handles 404 or unexpected empty data
+                    logger.debug(f"Shared content metadata key '{SHARED_CONTENT_METADATA_KEY_NAME}' not found.")
+            except Exception as e:
+                 # Log error during check, but proceed assuming key might not exist
+                 logger.warning(f"Error checking for shared content metadata key '{SHARED_CONTENT_METADATA_KEY_NAME}': {str(e)}. Assuming it might not exist.")
+                 key_exists = False # Ensure we try to create if check failed
+
+            # If key does not exist, create it
+            if not key_exists:
+                 logger.debug(f"Attempting to create shared content metadata key '{SHARED_CONTENT_METADATA_KEY_NAME}'...")
+                 try:
+                     # Create the key (non-derived, since it's shared across all users)
+                     await self._vault_request("post", f"{self.transit_mount}/keys/{SHARED_CONTENT_METADATA_KEY_NAME}", {
+                         "type": "aes256-gcm96", # AES with GCM mode for authenticated encryption
+                         "allow_plaintext_backup": False # Good practice
+                     })
+                     logger.debug(f"Successfully created shared content metadata key '{SHARED_CONTENT_METADATA_KEY_NAME}'.")
+                 except Exception as create_error:
+                     # Handle potential race condition if another instance created it
+                     if "already exists" in str(create_error).lower():
+                         logger.debug(f"Shared content metadata key '{SHARED_CONTENT_METADATA_KEY_NAME}' was created by another process.")
+                     else:
+                         logger.error(f"Failed to create shared content metadata key '{SHARED_CONTENT_METADATA_KEY_NAME}': {str(create_error)}")
+                         raise Exception(f"Failed to initialize shared content metadata key: {str(create_error)}")
+
+        except Exception as e:
+            logger.error(f"Failed to ensure shared content metadata key exists: {str(e)}")
+            raise Exception(f"Failed to initialize shared content metadata key: {str(e)}")
+
     # Removed get_email_hash_key method
 
     async def create_user_key(self) -> str:

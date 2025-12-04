@@ -23,8 +23,8 @@ class ChatDatabase {
     private readonly NEW_CHAT_SUGGESTIONS_STORE_NAME = 'new_chat_suggestions'; // Store for new chat suggestions
     private readonly APP_SETTINGS_MEMORIES_STORE_NAME = 'app_settings_memories'; // Store for app settings and memories entries
     private readonly PENDING_OG_METADATA_STORE_NAME = 'pending_og_metadata_updates'; // Store for pending OG metadata updates
-    // Version incremented due to schema change (adding pending_og_metadata_updates store)
-    private readonly VERSION = 12;
+    // Version incremented due to schema change (adding embed_keys store for wrapped key architecture)
+    private readonly VERSION = 13;
     private initializationPromise: Promise<void> | null = null;
     
     // Flag to prevent new operations during database deletion
@@ -212,6 +212,19 @@ class ChatDatabase {
                     embedsStore.createIndex('type', 'type', { unique: false });
                     embedsStore.createIndex('createdAt', 'createdAt', { unique: false });
                     console.debug('[ChatDatabase] Created embeds store for unified parsing');
+                }
+
+                // Embed keys store for wrapped key architecture (offline-first sharing)
+                // Each embed can have multiple wrapped key entries:
+                // - key_type="master": AES(embed_key, master_key) for owner cross-chat access
+                // - key_type="chat": AES(embed_key, chat_key) for shared chat access
+                const EMBED_KEYS_STORE_NAME = 'embed_keys';
+                if (!db.objectStoreNames.contains(EMBED_KEYS_STORE_NAME)) {
+                    const embedKeysStore = db.createObjectStore(EMBED_KEYS_STORE_NAME, { keyPath: 'id' });
+                    embedKeysStore.createIndex('hashed_embed_id', 'hashed_embed_id', { unique: false });
+                    embedKeysStore.createIndex('key_type', 'key_type', { unique: false });
+                    embedKeysStore.createIndex('hashed_chat_id', 'hashed_chat_id', { unique: false });
+                    console.debug('[ChatDatabase] Created embed_keys store for wrapped key architecture');
                 }
 
                 // App settings and memories store (ensure it exists)
@@ -2098,7 +2111,10 @@ class ChatDatabase {
         const chatKey = this.getChatKey(chatId);
 
         if (!chatKey) {
-            console.warn(`[ChatDatabase] No chat key found for chat ${chatId}, cannot decrypt message fields`);
+            console.warn(
+                `[ChatDatabase] [DECRYPT] No chat key found for chat ${chatId}, cannot decrypt message fields. ` +
+                `Message ID: ${message.message_id}, Status: ${message.status}, Has encrypted_content: ${!!message.encrypted_content}`
+            );
             return decryptedMessage;
         }
 
@@ -2108,6 +2124,11 @@ class ChatDatabase {
         // Decrypt content if present
         if (message.encrypted_content) {
             try {
+                // Enhanced logging for decryption attempts
+                console.debug(
+                    `[ChatDatabase] [DECRYPT] Attempting to decrypt message ${message.message_id} ` +
+                    `(chat: ${chatId}, status: ${message.status}, encrypted_content length: ${message.encrypted_content.length})`
+                );
                 const decryptedContentString = await decryptWithChatKey(message.encrypted_content, chatKey);
                 if (decryptedContentString) {
                     // Content is now a markdown string (never Tiptap JSON on server!)
@@ -2122,10 +2143,18 @@ class ChatDatabase {
                 }
             } catch (error) {
                 // DEFENSIVE: Handle malformed encrypted_content (e.g., from messages with status 'sending' that never completed encryption)
-                console.error(`[ChatDatabase] Error decrypting content for message ${message.message_id} (status: ${message.status}):`, error);
+                console.error(
+                    `[ChatDatabase] [DECRYPT] ❌ Error decrypting content for message ${message.message_id} ` +
+                    `(status: ${message.status}, chat: ${chatId}): ${error instanceof Error ? error.message : String(error)}. ` +
+                    `Encrypted content length: ${message.encrypted_content?.length || 0}, ` +
+                    `Has plaintext fallback: ${!!message.content}`
+                );
                 // If message already has plaintext content, use it (common for status='sending')
                 if (message.content) {
-                    console.warn(`[ChatDatabase] Using existing plaintext content for message ${message.message_id} - encryption may not have completed`);
+                    console.warn(
+                        `[ChatDatabase] [DECRYPT] Using existing plaintext content for message ${message.message_id} - ` +
+                        `encryption may not have completed or content was stored incorrectly`
+                    );
                     decryptedMessage.content = message.content;
                 } else {
                     decryptedMessage.content = '[Content decryption failed]';

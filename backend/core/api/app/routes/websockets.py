@@ -35,6 +35,7 @@ from .handlers.websocket_handlers.post_processing_metadata_handler import handle
 from .handlers.websocket_handlers.phased_sync_handler import handle_phased_sync_request, handle_sync_status_request # Handlers for phased sync
 from .handlers.websocket_handlers.app_settings_memories_confirmed_handler import handle_app_settings_memories_confirmed # Handler for app settings/memories confirmations
 from .handlers.websocket_handlers.store_embed_handler import handle_store_embed # Handler for storing encrypted embeds
+from .handlers.websocket_handlers.store_embed_keys_handler import handle_store_embed_keys # Handler for storing embed key wrappers
 
 manager = ConnectionManager() # This is the correct manager instance for websockets
 
@@ -514,10 +515,19 @@ async def listen_for_embed_data_events(app: FastAPI):
                     )
                     continue
 
-                logger.debug(
-                    f"Embed Data Listener: Forwarding '{event_for_client}' for user_id {user_id_uuid} "
-                    f"(hash from channel: {user_id_hash_from_channel}) with payload keys: {list(payload_for_client.keys())}"
-                )
+                # Enhanced logging for send_embed_data events to track duplication
+                if event_for_client == "send_embed_data":
+                    embed_id = payload_for_client.get("embed_id", "unknown")
+                    status = payload_for_client.get("status", "unknown")
+                    logger.info(
+                        f"[EMBED_EVENT] Embed Data Listener: Forwarding 'send_embed_data' for embed {embed_id} "
+                        f"(status={status}) to user_id {user_id_uuid} via WebSocket"
+                    )
+                else:
+                    logger.debug(
+                        f"Embed Data Listener: Forwarding '{event_for_client}' for user_id {user_id_uuid} "
+                        f"(hash from channel: {user_id_hash_from_channel}) with payload keys: {list(payload_for_client.keys())}"
+                    )
 
                 await manager.broadcast_to_user_specific_event(
                     user_id=user_id_uuid,
@@ -1021,6 +1031,18 @@ async def websocket_endpoint(
             elif message_type == "store_embed":
                 # Handle storing encrypted embed in Directus (zero-knowledge)
                 await handle_store_embed(
+                    websocket=websocket,
+                    manager=manager,
+                    cache_service=cache_service,
+                    directus_service=directus_service,
+                    user_id=user_id,
+                    device_fingerprint_hash=device_fingerprint_hash,
+                    payload=payload
+                )
+            elif message_type == "store_embed_keys":
+                # Handle storing wrapped embed keys in Directus embed_keys collection (zero-knowledge)
+                # This implements the wrapped key architecture for offline sharing and cross-chat access
+                await handle_store_embed_keys(
                     websocket=websocket,
                     manager=manager,
                     cache_service=cache_service,

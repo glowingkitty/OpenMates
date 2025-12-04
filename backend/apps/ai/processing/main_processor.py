@@ -612,6 +612,10 @@ async def handle_main_processing(
     
     prompt_parts.append(base_instructions.get("follow_up_instruction", ""))
     prompt_parts.append(base_instructions.get("base_link_encouragement_instruction", ""))
+    prompt_parts.append(base_instructions.get("base_url_sourcing_instruction", ""))
+    # Add code block formatting instruction to ensure proper language and filename syntax
+    # This helps with consistent parsing and rendering of code embeds
+    prompt_parts.append(base_instructions.get("base_code_block_instruction", ""))
     if loaded_app_settings_and_memories_content:
         settings_and_memories_prompt_section = ["\n--- Relevant Information from Your App Settings and Memories ---"]
         for key, value in loaded_app_settings_and_memories_content.items():

@@ -72,8 +72,9 @@
     
     /**
      * Fetch chat data from server
+     * Returns chat, messages, embeds, and embed_keys for the wrapped key architecture
      */
-    async function fetchChatFromServer(chatId: string): Promise<{ chat: Chat | null; messages: Message[]; embeds: any[] }> {
+    async function fetchChatFromServer(chatId: string): Promise<{ chat: Chat | null; messages: Message[]; embeds: any[]; embed_keys: any[] }> {
         try {
             const response = await fetch(getApiEndpoint(`/v1/share/chat/${chatId}`));
             if (!response.ok) {
@@ -88,7 +89,9 @@
             console.debug('[ShareChat] Received chat data from server:', {
                 chat_id: data.chat_id,
                 has_title: !!data.encrypted_title,
-                message_count: data.messages?.length || 0
+                message_count: data.messages?.length || 0,
+                embed_count: data.embeds?.length || 0,
+                embed_keys_count: data.embed_keys?.length || 0
             });
             
             // Parse messages first (backend returns JSON strings when decrypt_content=False)
@@ -175,10 +178,15 @@
                 // If chat is from another user, ownership check will fail and chat will be read-only
             };
             
-            return { chat, messages, embeds: data.embeds || [] };
+            return { 
+                chat, 
+                messages, 
+                embeds: data.embeds || [],
+                embed_keys: data.embed_keys || []
+            };
         } catch (error) {
             console.error('[ShareChat] Error fetching chat from server:', error);
-            return { chat: null, messages: [], embeds: [] };
+            return { chat: null, messages: [], embeds: [], embed_keys: [] };
         }
     }
     
@@ -241,7 +249,7 @@
             // The server returns encrypted chat data for existing chats
             // or dummy encrypted data for non-existent chats (to prevent enumeration)
             console.debug('[ShareChat] Fetching chat data from server...');
-            const { chat: fetchedChat, messages: fetchedMessages, embeds: fetchedEmbeds } = await fetchChatFromServer(chatId);
+            const { chat: fetchedChat, messages: fetchedMessages, embeds: fetchedEmbeds, embed_keys: fetchedEmbedKeys } = await fetchChatFromServer(chatId);
             
             if (!fetchedChat) {
                 error = 'Chat not found. The chat may have been deleted or the link is invalid.';
@@ -270,13 +278,56 @@
                 console.debug(`[ShareChat] Stored ${fetchedMessages.length} messages`);
             }
             
+            // Process embed_keys first - unwrap them with chat key and store
+            // This is the wrapped key architecture: embed_keys contain AES(embed_key, chat_key)
+            // We unwrap to get embed_key, which is used to decrypt embed content
+            const { embedStore, unwrapEmbedKeyWithChatKey } = await import('@repo/ui');
+            const { computeSHA256 } = await import('@repo/ui');
+            
+            // Compute hashed_chat_id for matching embed_keys
+            const hashedChatId = await computeSHA256(chatId);
+            
+            if (fetchedEmbedKeys && fetchedEmbedKeys.length > 0) {
+                // Store embed keys and unwrap them with chat key
+                for (const keyEntry of fetchedEmbedKeys) {
+                    try {
+                        // Only process key entries for this chat (key_type='chat' with matching hashed_chat_id)
+                        if (keyEntry.key_type === 'chat' && keyEntry.hashed_chat_id === hashedChatId) {
+                            // Unwrap the embed key using the chat key
+                            const embedKey = await unwrapEmbedKeyWithChatKey(keyEntry.encrypted_embed_key, keyBytes);
+                            if (embedKey) {
+                                // Find matching embed by computing hashed_embed_id from embed_id
+                                // We need to match keyEntry.hashed_embed_id with computed hash of each embed's embed_id
+                                for (const embed of fetchedEmbeds) {
+                                    if (embed.embed_id) {
+                                        const embedIdHash = await computeSHA256(embed.embed_id);
+                                        if (embedIdHash === keyEntry.hashed_embed_id) {
+                                            // Store the unwrapped embed key in cache for decryption
+                                            embedStore.setEmbedKeyInCache(embed.embed_id, embedKey, hashedChatId);
+                                            console.debug('[ShareChat] Unwrapped and cached embed key for:', embed.embed_id);
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    } catch (keyError) {
+                        console.warn('[ShareChat] Error processing embed key:', keyError);
+                    }
+                }
+                
+                // Also store the raw embed_keys entries in IndexedDB for future use
+                await embedStore.storeEmbedKeys(fetchedEmbedKeys);
+                console.debug(`[ShareChat] Stored ${fetchedEmbedKeys.length} embed keys`);
+            }
+            
             // Store embeds if any
             if (fetchedEmbeds && fetchedEmbeds.length > 0) {
-                const { embedStore } = await import('@repo/ui');
                 for (const embed of fetchedEmbeds) {
                     try {
                         const contentRef = `embed:${embed.embed_id}`;
                         // Store the embed with its already-encrypted content (no re-encryption)
+                        // The embed_key is already in cache, so decryption will work
                         await embedStore.putEncrypted(contentRef, {
                             encrypted_content: embed.encrypted_content,
                             encrypted_type: embed.encrypted_type,

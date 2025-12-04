@@ -274,28 +274,74 @@ code_snippet:
   cs: Úryvek kódu
   sv: Kodstycke
   verified_by_human: []
+code_line_singular:
+  context: Singular form of 'line' for code embeds, e.g. 'line'
+  en: line
+  de: Zeile
+  zh: 行
+  es: línea
+  fr: ligne
+  pt: linha
+  ru: строка
+  ja: 行
+  ko: 줄
+  it: riga
+  tr: satır
+  vi: dòng
+  id: baris
+  pl: linia
+  nl: regel
+  ar: سطر
+  hi: पंक्ति
+  th: บรรทัด
+  cs: řádek
+  sv: rad
+  verified_by_human: []
+code_line_plural:
+  context: Plural form of 'line' for code embeds, e.g. 'lines'
+  en: lines
+  de: Zeilen
+  zh: 行
+  es: líneas
+  fr: lignes
+  pt: linhas
+  ru: строк
+  ja: 行
+  ko: 줄
+  it: righe
+  tr: satır
+  vi: dòng
+  id: baris
+  pl: linii
+  nl: regels
+  ar: أسطر
+  hi: पंक्तियाँ
+  th: บรรทัด
+  cs: řádků
+  sv: rader
+  verified_by_human: []
 code_lines:
-  context: Text showing line count for code embeds, e.g. '5 lines' or '1 line'
-  en: '{count} {count, plural, =1 {line} other {lines}}'
-  de: '{count} {count, plural, =1 {Zeile} other {Zeilen}}'
+  context: Line count text for code embeds with plural handling, e.g. '5 lines' or '1 line'
+  en: '{count, plural, one {# line} other {# lines}}'
+  de: '{count, plural, one {# Zeile} other {# Zeilen}}'
   zh: '{count} 行'
-  es: '{count} {count, plural, =1 {línea} other {líneas}}'
-  fr: '{count} {count, plural, =1 {ligne} other {lignes}}'
-  pt: '{count} {count, plural, =1 {linha} other {linhas}}'
-  ru: '{count} {count, plural, =1 {строка} other {строк}}'
+  es: '{count, plural, one {# línea} other {# líneas}}'
+  fr: '{count, plural, one {# ligne} other {# lignes}}'
+  pt: '{count, plural, one {# linha} other {# linhas}}'
+  ru: '{count, plural, one {# строка} few {# строки} other {# строк}}'
   ja: '{count} 行'
-  ko: '{count}줄'
-  it: '{count} {count, plural, =1 {riga} other {righe}}'
-  tr: '{count} {count, plural, =1 {satır} other {satır}}'
+  ko: '{count} 줄'
+  it: '{count, plural, one {# riga} other {# righe}}'
+  tr: '{count} satır'
   vi: '{count} dòng'
   id: '{count} baris'
-  pl: '{count} {count, plural, =1 {linia} other {linii}}'
-  nl: '{count} {count, plural, =1 {regel} other {regels}}'
-  ar: '{count} {count, plural, =1 {سطر} other {أسطر}}'
-  hi: '{count} {count, plural, =1 {पंक्ति} other {पंक्तियाँ}}'
+  pl: '{count, plural, one {# linia} few {# linie} other {# linii}}'
+  nl: '{count, plural, one {# regel} other {# regels}}'
+  ar: '{count, plural, one {سطر #} other {# أسطر}}'
+  hi: '{count, plural, one {# पंक्ति} other {# पंक्तियाँ}}'
   th: '{count} บรรทัด'
-  cs: '{count} {count, plural, =1 {řádek} other {řádků}}'
-  sv: '{count} {count, plural, =1 {rad} other {rader}}'
+  cs: '{count, plural, one {# řádek} few {# řádky} other {# řádků}}'
+  sv: '{count, plural, one {# rad} other {# rader}}'
   verified_by_human: []
 code_info:
   context: Text showing line count and language for code embeds, e.g. '5 lines, Python' or '1 line'

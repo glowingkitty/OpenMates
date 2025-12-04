@@ -495,41 +495,57 @@ This design enables flexible, secure sharing while maintaining user control over
 
 ## Embed Sharing
 
-Embeds (app skill results, files, code, etc.) can be shared independently of chats using the same zero-knowledge architecture. See [Embeds Architecture](./embeds.md) for detailed information.
+Embeds (app skill results, files, code, etc.) can be shared both as part of shared chats and independently. See [Embeds Architecture](./embeds.md) for detailed information.
 
-### Key Similarities
+### Embed Decryption in Shared Chats
 
-- **URL Pattern**: Shared embed links use the format `/share/embed/{embed-id}#key={shared_encryption_key}` where the embed ID is in the path and the encryption key is stored in the URL fragment
-- **Server Privacy**: The URL fragment is never sent to the server - it remains entirely on the client side. The server only sees the embed ID from the path
-- **Zero-Knowledge Encryption**: All embed content remains encrypted, even when shared
-- **Access Control**: Server checks `share_mode` ('private', 'shared_with_user', 'public') and `shared_with_users` array for access control
+When a chat is shared, embedded content must also be decryptable by the recipient using the `chat_encryption_key` from the share link. This is achieved through the **wrapped key architecture**:
 
-### Access Flow
+**How It Works:**
+1. Each embed has a unique `embed_key` that encrypts its content
+2. The `embed_key` is stored in multiple wrapped forms in the `embed_keys` collection:
+   - `key_type="master"`: `AES(embed_key, master_key)` - for owner's cross-chat access
+   - `key_type="chat"`: `AES(embed_key, chat_key)` - one per chat the embed is referenced in
+3. When chat is shared, recipient uses `chat_encryption_key` to unwrap `embed_key` from the `key_type="chat"` entry
+4. Recipient uses `embed_key` to decrypt embed content
 
-When someone opens a shared embed link via `/share/embed/{embed-id}#key={shared_encryption_key}`:
+**Offline-First Sharing:**
+- All wrapped keys are pre-stored on server when embed is created/copied to chat
+- No server request needed at share time - sharer already has `chat_encryption_key`
+- Share link contains `chat_encryption_key` in encrypted blob (URL fragment)
 
-1. Client extracts `embed_id` from URL path and `key` from URL fragment
-2. Client sends request to server with `embed_id` (key stays in fragment, never sent to server)
-3. Server checks:
-   - Does embed exist?
-   - If `share_mode === 'public'`: Return encrypted content
-   - If `share_mode === 'shared_with_user'`: Check if user's `hashed_user_id` is in `shared_with_users` array
-     - If yes: Return encrypted content
-     - If no: Return error
-   - If `share_mode === 'private'`: Return error
-4. If access granted: Server returns encrypted content (server has no knowledge of password protection)
-5. Client-side JavaScript redirects to main app URL format: `/#embed-id={embed-id}&key={shared_encryption_key}` for final rendering
-6. Client attempts to decrypt content using `shared_encryption_key` from URL fragment
-7. **If decryption succeeds:** Content is displayed ✅
-8. **If decryption fails:**
-   - Client prompts user: "Unable to decrypt. If this share is password-protected, enter the password:"
-   - User enters password (if applicable)
-   - Client derives key from password (using deterministic salt or client-stored salt)
-   - Client combines password-derived key with `shared_encryption_key` from URL fragment
-   - Client attempts decryption again with combined key
-   - If decryption succeeds: Content is displayed ✅
-   - If decryption still fails: Show error: "Unable to decrypt. Please verify the link and password (if required)."
-9. If access denied or embed doesn't exist: Show unified error message: "Embed can't be found. Either it doesn't exist or you don't have access to it."
+**Access Flow for Shared Chat Embeds:**
+1. Recipient opens shared chat link, extracts `chat_encryption_key` from URL fragment
+2. Client fetches chat and embeds from server
+3. For each embed, client queries `embed_keys` by `hashed_embed_id` and `hashed_chat_id`
+4. Client unwraps `embed_key`: `AES_decrypt(encrypted_embed_key, chat_encryption_key)`
+5. Client decrypts embed content: `AES_decrypt(encrypted_content, embed_key)`
+6. Embed is displayed ✅
+
+### Independent Embed Sharing
+
+Embeds can also be shared independently of any chat:
+
+**URL Pattern**: `/share/embed/{embed-id}#key={encrypted_blob}`
+- Encrypted blob contains: `embed_key`, `generated_at`, `duration_seconds`, `pwd` flag
+- Blob encrypted with key derived from embed_id: `KDF(embed_id) → derived_key`
+- Server only sees `embed_id` from path (fragment never sent to server)
+
+**Access Flow:**
+1. Client extracts `embed_id` from URL path and encrypted blob from URL fragment
+2. Client derives decryption key from embed_id: `KDF(embed_id) → derived_key`
+3. Client decrypts blob → extracts `embed_key`, `generated_at`, `duration_seconds`, `pwd` flag
+4. If `pwd=1` (password protected): prompt for password, derive password key, decrypt `embed_key`
+5. Client sends request to server with `embed_id` to fetch encrypted content
+6. Server checks `share_mode` and returns encrypted content if allowed
+7. Client decrypts content using `embed_key`
+8. Content is displayed ✅
+
+**Access Control:**
+- Server checks `share_mode` ('private', 'shared_with_user', 'public') and `shared_with_users` array
+- If `share_mode === 'public'`: Return encrypted content
+- If `share_mode === 'shared_with_user'`: Check if user's `hashed_user_id` is in `shared_with_users` array
+- If `share_mode === 'private'`: Return error
 
 ### Differences from Chat Sharing
 
@@ -593,6 +609,7 @@ Add the following fields to the `embeds` collection:
 1. **User Initiates Sharing**:
    - Client decrypts `encrypted_title` and `encrypted_chat_summary` using chat key (derived from master key)
    - Client sends plaintext title and summary to server (only when sharing is enabled)
+   - Server has `is_private = false` by default
 
 2. **Server Stores Shared Metadata**:
    - Server encrypts title and summary with shared vault key (`shared-content-metadata`)
@@ -602,12 +619,50 @@ Add the following fields to the `embeds` collection:
 3. **OG Tag Generation**:
    - Server receives request for `/share/chat/{chat-id}` (no user context needed)
    - Server looks up chat by `chat_id`
-   - Server decrypts `shared_encrypted_title` and `shared_encrypted_summary` using shared vault key
-   - Server generates OG tags with decrypted metadata
+   - If chat doesn't exist: Server returns deterministic dummy data (prevents enumeration)
+   - If chat exists and `is_private = true`: Server returns dummy data (chat was unshared)
+   - If chat exists and `is_private = false`: Server decrypts `shared_encrypted_title` and `shared_encrypted_summary` using shared vault key
+   - Server generates OG tags with decrypted metadata (or dummy data if chat is private/non-existent)
 
 4. **Updating Shared Metadata**:
-   - When chat title or summary changes, if chat is shared, update `shared_encrypted_*` fields
+   - When chat title or summary changes, if chat is shared (`is_private = false`), update `shared_encrypted_*` fields
    - Client sends updated plaintext metadata → Server re-encrypts with shared vault key
+   - This update is queued if offline and retried when connection is restored
+
+5. **Unsharing a Chat**:
+   - User clicks "Unshare" in the Shared settings menu
+   - Client sends request to server to set `is_private = true`
+   - Server updates `is_private` field to `true`
+   - **Server MUST clear `shared_encrypted_title` and `shared_encrypted_summary`** (set to null) to remove OG metadata
+   - Existing share links become invalid (server returns dummy data for `is_private = true` chats)
+   - Users who had access via share links will lose access on next login/tab reload (client checks `is_private` field)
+
+6. **Checking for Unshared Chats**:
+   - On login and tab reload, client checks all chats where user is not the owner
+   - For each shared chat, client requests `is_private` status from server
+   - If `is_private = true`, client removes the chat from local storage and UI
+   - This ensures users don't retain access to chats that have been unshared
+
+### Security Model for Offline Sharing
+
+**Why `is_private` defaults to `false`:**
+- Enables true offline sharing - users can generate share links without server contact
+- Share link generation happens entirely client-side using the chat encryption key
+- No server request needed to create a shareable link
+
+**Security protections:**
+1. **Chat ID obfuscation**: Chat IDs are UUIDs, making them extremely difficult to guess
+2. **Encryption key requirement**: Even with a valid chat ID, the encryption key (in URL fragment) is required to decrypt content
+3. **Dummy data for non-existent chats**: Server returns realistic-looking dummy data for any chat ID that doesn't exist, preventing enumeration
+4. **Rate limiting**: `/share/chat/{chat-id}` endpoint is rate-limited to prevent brute force attempts
+5. **Unshare protection**: When `is_private = true`, server returns dummy data, making share links invalid
+
+**Access flow:**
+- User with share link: Has both chat ID (in path) and encryption key (in fragment)
+- Server sees only chat ID (fragment never sent to server)
+- Server returns encrypted data if `is_private = false` and chat exists
+- Client decrypts using key from fragment
+- Without correct key, encrypted data is useless
 
 ### Privacy Considerations
 

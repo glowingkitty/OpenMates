@@ -137,21 +137,34 @@ async def get_user_profile(self, user_id: str) -> Tuple[bool, Optional[Dict[str,
                                     profile[field] = 0 # Default to 0 if conversion fails
                             else:
                                 profile[field] = decrypted_value
-                        # If decryption results in None/empty, handle default for invoice_counter
+                        # If decryption results in None/empty, handle appropriately
                         elif field == "invoice_counter":
                              logger.info(f"Decrypted invoice_counter is None or empty for user {user_id}. Setting to 0.")
                              profile[field] = 0
+                        elif field == "username":
+                            # CRITICAL: Username decryption returned None/empty - this is a critical error
+                            logger.error(f"CRITICAL: Username decryption returned None/empty for user {user_id}. Encrypted field exists but decryption failed.")
+                            # Don't set username - let validation catch this later
+                        # For other optional fields, silently skip if decryption returns None
 
                     except Exception as e:
                         logger.error(f"Error decrypting {field} for user {user_id}: {str(e)}", exc_info=True)
+                        # CRITICAL: If username decryption fails, this is a critical error
+                        if field == "username":
+                            logger.error(f"CRITICAL: Username decryption exception for user {user_id}. This indicates a data integrity or encryption key issue.")
+                            # Don't set username - let validation catch this later
                         # Ensure default value for invoice_counter if decryption fails
-                        if field == "invoice_counter":
+                        elif field == "invoice_counter":
                             logger.warning(f"Setting invoice_counter to 0 for user {user_id} due to decryption error.")
                             profile[field] = 0
-                # If encrypted field doesn't exist or is empty, ensure default for invoice_counter
+                # If encrypted field doesn't exist or is empty, handle appropriately
                 elif field == "invoice_counter":
                      logger.info(f"encrypted_invoice_counter not found or empty for user {user_id}. Setting invoice_counter to 0.")
                      profile[field] = 0
+                elif field == "username":
+                    # CRITICAL: encrypted_username is missing - this is a critical error
+                    logger.error(f"CRITICAL: encrypted_username field is missing or empty for user {user_id}. This indicates a data integrity issue.")
+                    # Don't set username - let validation catch this later
 
         except Exception as e:
             logger.error(f"General error during user data decryption for user {user_id}: {str(e)}", exc_info=True)
@@ -164,6 +177,20 @@ async def get_user_profile(self, user_id: str) -> Tuple[bool, Optional[Dict[str,
         if "invoice_counter" not in profile:
             logger.warning(f"Invoice counter still missing for user {user_id} after decryption block. Setting to 0.")
             profile["invoice_counter"] = 0
+
+        # CRITICAL: Validate that required fields are present - fail fast if they're missing
+        # username is required for User model - if it's missing, something is broken
+        if "username" not in profile or not profile.get("username"):
+            error_msg = f"CRITICAL: Username is missing or empty for user {user_id} after decryption. This indicates a data integrity issue."
+            logger.error(error_msg)
+            logger.error(f"User data available: encrypted_username present={bool(user_data.get('encrypted_username'))}, vault_key_id={bool(vault_key_id)}")
+            return False, None, error_msg
+        
+        # vault_key_id should already be validated earlier, but double-check
+        if "vault_key_id" not in profile or not profile.get("vault_key_id"):
+            error_msg = f"CRITICAL: vault_key_id is missing for user {user_id} after profile creation. This indicates a data integrity issue."
+            logger.error(error_msg)
+            return False, None, error_msg
 
         # Cache the profile
         await self.cache.set(cache_key, profile, ttl=self.cache_ttl)

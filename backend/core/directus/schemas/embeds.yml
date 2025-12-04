@@ -39,9 +39,9 @@ embeds:
       type: string
       note: "[Indexed] Hashed user ID of embed owner"
     
-    encryption_key_embed:
-      type: string
-      note: "[Encrypted] Embed-specific encryption key, encrypted with user's master key. Allows sharing independent of chat."
+    # NOTE: encryption_key_embed moved to embed_keys collection
+    # This allows multiple wrapped versions (master key + per-chat keys) for offline sharing
+    # See embed_keys.yml for the new schema
     
     share_mode:
       type: string

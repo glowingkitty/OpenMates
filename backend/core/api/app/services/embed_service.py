@@ -259,7 +259,8 @@ class EmbedService:
                 "language": language or "",
                 "code": "",  # Empty initially, will be updated as code streams
                 "filename": filename,
-                "status": "processing"
+                "status": "processing",
+                "line_count": 0  # Will be updated when content is finalized
             }
 
             # Convert to TOON format
@@ -380,12 +381,16 @@ class EmbedService:
                 filename = None
 
             # Create updated content with new code
+            # Calculate line count for display (count all lines including empty ones)
+            line_count = code_content.count('\n') + 1 if code_content else 0
+            
             updated_content = {
                 "type": "code",
                 "language": language,
                 "code": code_content,
                 "filename": filename,
-                "status": status
+                "status": status,
+                "line_count": line_count
             }
 
             # Convert to TOON format
@@ -405,25 +410,39 @@ class EmbedService:
                 "updated_at": int(datetime.now().timestamp())
             }
 
+            # CRITICAL: Check if embed is already finalized to prevent duplicate send_embed_data events
+            # If the embed is already "finished" and we're trying to send "finished" again, skip it
+            # This prevents duplicate events when update_code_embed_content is called multiple times
+            current_status = cached_embed.get("status", "processing")
+            should_send_event = True
+            if status == "finished" and current_status == "finished":
+                # Embed is already finalized - don't send duplicate event
+                should_send_event = False
+                logger.debug(
+                    f"{log_prefix} [EMBED_EVENT] Skipping duplicate send_embed_data for already-finalized embed {embed_id} "
+                    f"(current_status={current_status}, new_status={status})"
+                )
+
             # Update cache
             await self._cache_embed(embed_id, updated_embed_data, chat_id, user_id_hash)
 
-            # Send updated content to client via WebSocket
-            await self.send_embed_data_to_client(
-                embed_id=embed_id,
-                embed_type="code",
-                content_toon=updated_toon,  # PLAINTEXT TOON
-                chat_id=chat_id,
-                message_id=cached_embed.get("message_id", ""),
-                user_id=user_id,
-                user_id_hash=user_id_hash,
-                status=status,
-                task_id=cached_embed.get("hashed_task_id"),
-                share_mode=cached_embed.get("share_mode", "private"),
-                created_at=cached_embed.get("created_at"),
-                updated_at=updated_embed_data["updated_at"],
-                log_prefix=log_prefix
-            )
+            # Send updated content to client via WebSocket (only if not a duplicate finalization)
+            if should_send_event:
+                await self.send_embed_data_to_client(
+                    embed_id=embed_id,
+                    embed_type="code",
+                    content_toon=updated_toon,  # PLAINTEXT TOON
+                    chat_id=chat_id,
+                    message_id=cached_embed.get("message_id", ""),
+                    user_id=user_id,
+                    user_id_hash=user_id_hash,
+                    status=status,
+                    task_id=cached_embed.get("hashed_task_id"),
+                    share_mode=cached_embed.get("share_mode", "private"),
+                    created_at=cached_embed.get("created_at"),
+                    updated_at=updated_embed_data["updated_at"],
+                    log_prefix=log_prefix
+                )
 
             logger.debug(f"{log_prefix} Updated code embed {embed_id} with {len(code_content)} chars (status: {status})")
             return True
@@ -1039,6 +1058,7 @@ class EmbedService:
                 await self._cache_embed(embed_id, updated_embed_data, chat_id, user_id_hash)
 
                 # SEND PLAINTEXT TOON TO CLIENT via WebSocket
+                # check_cache_status=True prevents duplicate "finished" events
                 await self.send_embed_data_to_client(
                     embed_id=embed_id,
                     embed_type="app_skill_use",
@@ -1053,7 +1073,8 @@ class EmbedService:
                     text_length_chars=parent_text_length_chars,
                     created_at=updated_at,
                     updated_at=updated_at,
-                    log_prefix=log_prefix
+                    log_prefix=log_prefix,
+                    check_cache_status=True  # Enable deduplication check
                 )
 
                 logger.info(f"{log_prefix} Updated embed {embed_id} with {len(child_embed_ids)} child embeds")
@@ -1309,7 +1330,8 @@ class EmbedService:
         share_mode: str = "private",
         created_at: Optional[int] = None,
         updated_at: Optional[int] = None,
-        log_prefix: str = ""
+        log_prefix: str = "",
+        check_cache_status: bool = True  # New parameter to optionally skip cache check
     ) -> bool:
         """
         Send PLAINTEXT TOON embed content to client via WebSocket for client-side encryption and storage.
@@ -1346,6 +1368,30 @@ class EmbedService:
             True if event was published successfully, False otherwise
         """
         try:
+            # CRITICAL: Deduplication check - prevent sending duplicate "finished" events
+            # If check_cache_status is True, verify the embed isn't already finalized
+            if check_cache_status and status == "finished":
+                try:
+                    # Get raw cached embed JSON to check status (status is metadata, not encrypted)
+                    cache_key = f"embed:{embed_id}"
+                    client = await self.cache_service.client
+                    if client:
+                        embed_json = await client.get(cache_key)
+                        if embed_json:
+                            import json as json_lib
+                            cached_embed_data = json_lib.loads(embed_json)
+                            current_status = cached_embed_data.get("status", "processing")
+                            if current_status == "finished":
+                                logger.warning(
+                                    f"{log_prefix} [EMBED_EVENT] ⚠️ DUPLICATE PREVENTION: Skipping send_embed_data for already-finalized embed {embed_id} "
+                                    f"(current_status={current_status}, attempted_status={status}). "
+                                    f"This indicates update_code_embed_content or update_embed_with_results was called multiple times."
+                                )
+                                return False  # Skip sending duplicate event
+                except Exception as e:
+                    # If cache check fails, log but continue (don't block the send)
+                    logger.debug(f"{log_prefix} [EMBED_EVENT] Could not check cache status for deduplication: {e}, proceeding with send")
+            
             # Auto-calculate text_length_chars if not provided
             # For text-based embeds: code, table, document, app_skill_use
             if text_length_chars is None:
@@ -1394,7 +1440,10 @@ class EmbedService:
                 import json as json_lib
                 channel_key = f"websocket:user:{user_id_hash}"
                 await client.publish(channel_key, json_lib.dumps(payload))
-                logger.debug(f"{log_prefix} Published send_embed_data event for embed {embed_id} (plaintext TOON)")
+                logger.info(
+                    f"{log_prefix} [EMBED_EVENT] Published send_embed_data event for embed {embed_id} "
+                    f"(status={status}, type={embed_type}, chat_id={chat_id}, message_id={message_id})"
+                )
                 return True
             else:
                 logger.warning(f"{log_prefix} Redis client not available, skipping send_embed_data event")

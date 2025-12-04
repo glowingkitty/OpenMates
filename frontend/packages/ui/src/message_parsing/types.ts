@@ -15,8 +15,8 @@ export interface EmbedNodeAttributes {
   // Type of embed content
   type: EmbedType;
   
-  // Processing status
-  status: 'processing' | 'finished';
+  // Processing status (including error state for failed decryption/loading)
+  status: 'processing' | 'finished' | 'error';
   
   // Content reference: stream:<uuid> during generation, cid:sha256:<hash> when finished, null for web embeds
   contentRef: string | null;
