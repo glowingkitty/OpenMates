@@ -184,7 +184,7 @@
     gap: 10px;
     height: 61px;
     min-height: 61px;
-    background-color: var(--color-grey-20);
+    background-color: var(--color-grey-30);
     border-radius: 30px;
     padding: 0 0 0 0;
     flex-shrink: 0;

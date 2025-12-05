@@ -189,7 +189,8 @@
   let parsedTranscriptHtml = $derived(parseTranscriptToHtml(transcriptText));
   
   // Handle opening video embed in fullscreen mode
-  // Tries to find video embed by URL, then dispatches embedfullscreen event
+  // Dispatches embedfullscreen event with videos-video embed type
+  // Note: This will close the current transcript fullscreen and open video fullscreen
   async function handleVideoFullscreen() {
     if (!videoUrl) {
       console.debug('[VideoTranscriptEmbedFullscreen] No video URL available');
@@ -197,41 +198,36 @@
     }
     
     try {
-      // If we have a video embed ID, use it to open the video embed in fullscreen
-      if (videoEmbedId) {
-        const { resolveEmbed, decodeToonContent } = await import('../../../services/embedResolver');
-        const embedData = await resolveEmbed(videoEmbedId);
-        
-        if (embedData) {
-          const decodedContent = embedData.content ? await decodeToonContent(embedData.content) : null;
-          
-          const event = new CustomEvent('embedfullscreen', {
-            detail: {
-              embedId: videoEmbedId,
-              embedData,
-              decodedContent,
-              embedType: 'app-skill-use',
-              attrs: {
-                contentRef: `embed:${videoEmbedId}`
-              }
-            },
-            bubbles: true
-          });
-          
-          document.dispatchEvent(event);
-          console.debug('[VideoTranscriptEmbedFullscreen] Dispatched video embed fullscreen event:', videoEmbedId);
-          return;
-        }
-      }
+      // Close the current transcript fullscreen first
+      onClose();
       
-      // Fallback: open video URL in new tab
-      // Note: In a real scenario, we might search for video embed by URL,
-      // but for now we'll just open the URL if no video embed ID is provided
-      console.debug('[VideoTranscriptEmbedFullscreen] No video embed ID provided, opening URL in new tab');
-      window.open(videoUrl, '_blank', 'noopener,noreferrer');
+      // Wait a brief moment for the close animation
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Dispatch event to open video fullscreen
+      const event = new CustomEvent('embedfullscreen', {
+        detail: {
+          embedType: 'videos-video',
+          attrs: {
+            url: videoUrl,
+            title: videoTitle
+          },
+          decodedContent: {
+            url: videoUrl,
+            title: videoTitle
+          },
+          onClose: () => {
+            console.debug('[VideoTranscriptEmbedFullscreen] Video fullscreen closed');
+          }
+        },
+        bubbles: true
+      });
+      
+      document.dispatchEvent(event);
+      console.debug('[VideoTranscriptEmbedFullscreen] Dispatched video embed fullscreen event with URL:', videoUrl);
     } catch (error) {
       console.error('[VideoTranscriptEmbedFullscreen] Error opening video embed fullscreen:', error);
-      // Fallback: open video URL in new tab
+      // Final fallback: open video URL in new tab
       if (videoUrl) {
         window.open(videoUrl, '_blank', 'noopener,noreferrer');
       }
@@ -340,8 +336,7 @@
             status="finished"
             skillName={videoTitle}
             showSkillIcon={false}
-            showStatus={true}
-            customStatusText={dateDurationString}
+            showStatus={false}
           />
         </button>
         
@@ -417,13 +412,31 @@
     width: 100%;
     max-width: 300px;
     display: flex;
-    justify-content: center;
+    justify-content: flex-start;
     margin-bottom: 8px;
     background: transparent;
     border: none;
     padding: 0;
     cursor: pointer;
     transition: opacity 0.2s;
+  }
+  
+  /* Ensure BasicInfosBar inside wrapper respects max-width and has grey-30 background */
+  .video-basic-infos-bar-wrapper :global(.basic-infos-bar) {
+    width: 100%;
+    max-width: 300px;
+    background-color: var(--color-grey-30) !important;
+  }
+  
+  /* Ensure text is left-aligned in the BasicInfosBar */
+  .video-basic-infos-bar-wrapper :global(.basic-infos-bar .status-text) {
+    text-align: left;
+    align-items: flex-start;
+  }
+  
+  .video-basic-infos-bar-wrapper :global(.basic-infos-bar .status-label) {
+    text-align: left;
+    justify-content: flex-start;
   }
   
   .video-basic-infos-bar-wrapper:hover {
@@ -482,6 +495,17 @@
   .error-message {
     color: var(--color-error);
     margin: 0;
+  }
+  
+  /* ===========================================
+     Skill Icon Styling (skill-specific)
+     =========================================== */
+  
+  /* Video Transcript skill icon - this is skill-specific and belongs here, not in UnifiedEmbedFullscreen */
+  /* Add styles for both the bottom BasicInfosBar and any skill icons in the content area */
+  :global(.unified-embed-fullscreen-overlay .skill-icon[data-skill-icon="transcript"]) {
+    -webkit-mask-image: url('@openmates/ui/static/icons/transcript.svg');
+    mask-image: url('@openmates/ui/static/icons/transcript.svg');
   }
 </style>
 
