@@ -1,31 +1,41 @@
 <!--
-  frontend/packages/ui/src/components/app_skills/VideoTranscriptSkillFullscreen.svelte
+  frontend/packages/ui/src/components/embeds/videos/VideoTranscriptEmbedFullscreen.svelte
   
-  Fullscreen view for Video Transcript skill results.
+  Fullscreen view for Video Transcript skill embeds.
+  Uses UnifiedEmbedFullscreen as base and provides video transcript-specific content.
+  
+  Supports both contexts:
+  - Skill preview context: receives previewData from skillPreviewService
+  - Embed context: receives results directly
+  
   Shows video metadata, full transcript, and allows viewing both summary and original transcript.
-  
-  According to videos.md architecture:
-  - Shows video title, channel, duration, views, likes
-  - Full transcript text in scrollable view
-  - Metadata display (title, description, channel, etc.)
-  - "Open on YouTube" button
 -->
 
 <script lang="ts">
-  import AppSkillFullscreenBase from './AppSkillFullscreenBase.svelte';
-  import type { VideoTranscriptSkillPreviewData, VideoTranscriptResult } from '../../types/appSkills';
+  import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
+  import type { VideoTranscriptSkillPreviewData, VideoTranscriptResult } from '../../../types/appSkills';
   
-  // Props using Svelte 5 runes
+  /**
+   * Props for video transcript embed fullscreen
+   * Supports both skill preview data format and direct embed format
+   */
+  interface Props {
+    /** Video transcript results (direct format) */
+    results?: VideoTranscriptResult[];
+    /** Skill preview data (skill preview context) */
+    previewData?: VideoTranscriptSkillPreviewData;
+    /** Close handler */
+    onClose: () => void;
+  }
+  
   let {
+    results: resultsProp,
     previewData,
     onClose
-  }: {
-    previewData: VideoTranscriptSkillPreviewData;
-    onClose: () => void;
-  } = $props();
+  }: Props = $props();
   
-  // Get results (should always be present in fullscreen view)
-  let results = $derived(previewData.results || []);
+  // Extract values from either previewData (skill preview context) or direct props (embed context)
+  let results = $derived(previewData?.results || resultsProp || []);
   
   // Get first result for main display
   let firstResult = $derived(results[0]);
@@ -36,9 +46,6 @@
     firstResult?.url || 
     'Video Transcript'
   );
-  
-  // Type assertion for base component prop compatibility
-  let previewDataForBase = $derived(previewData as any);
   
   // Format duration (ISO 8601 to readable format)
   function formatDuration(duration?: string): string {
@@ -70,19 +77,14 @@
       window.open(firstResult.url, '_blank', 'noopener,noreferrer');
     }
   }
-  
-  // Handle share action (override base)
-  function handleShare() {
-    handleOpenOnYouTube();
-  }
 </script>
 
-<!-- @ts-ignore - Svelte 5 type inference issue with component props -->
-<AppSkillFullscreenBase 
-  previewData={previewData as any} 
-  title={displayTitle} 
-  onClose={onClose} 
-  onShare={handleShare}
+<UnifiedEmbedFullscreen
+  appId="videos"
+  skillId="get_transcript"
+  title={displayTitle}
+  {onClose}
+  onOpen={handleOpenOnYouTube}
 >
   {#snippet headerExtra()}
     {#if results.length > 1}
@@ -98,7 +100,7 @@
     </button>
   {/snippet}
   
-  {#snippet content({ previewData })}
+  {#snippet content()}
     {#if results.length === 0}
       <div class="no-results">
         <p>No transcript results available.</p>
@@ -200,7 +202,7 @@
       {/each}
     {/if}
   {/snippet}
-</AppSkillFullscreenBase>
+</UnifiedEmbedFullscreen>
 
 <style>
   .results-indicator {
@@ -355,7 +357,6 @@
     color: var(--color-font-primary);
     white-space: pre-wrap;
     word-wrap: break-word;
-    /* Removed max-height to show full transcript - content is scrollable within fullscreen view */
   }
   
   .transcript-content::-webkit-scrollbar {

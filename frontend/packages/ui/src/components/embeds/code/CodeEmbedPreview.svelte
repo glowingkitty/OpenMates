@@ -42,7 +42,7 @@
   import 'highlight.js/lib/languages/json';
   import 'highlight.js/lib/languages/css';
   import 'highlight.js/lib/languages/dockerfile';
-  import UnifiedEmbedPreview from './UnifiedEmbedPreview.svelte';
+  import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
   // @ts-ignore - @repo/ui module exists at runtime
   import { text } from '@repo/ui';
   

@@ -55,6 +55,8 @@
     customStatusText?: string;
     /** Whether to show skill icon (only for app skills, not for individual embeds like code, website, video) */
     showSkillIcon?: boolean;
+    /** Whether the details content contains a full-width image (removes padding, adds negative margin) */
+    hasFullWidthImage?: boolean;
   }
   
   let {
@@ -72,7 +74,8 @@
     showStatus = true,
     faviconUrl,
     customStatusText,
-    showSkillIcon = true
+    showSkillIcon = true,
+    hasFullWidthImage = false
   }: Props = $props();
   
   // DEBUG: Log when details snippet is missing - this helps identify which embed is broken
@@ -176,7 +179,7 @@
     <!-- Desktop Layout: Horizontal card (300x200px) -->
     <div class="desktop-layout">
       <!-- Details content (skill-specific) at top - with defensive guard -->
-      <div class="details-section">
+      <div class="details-section" class:full-width-image={hasFullWidthImage}>
         {#if details}
           {@render details({ isMobile: false })}
         {:else}
@@ -277,8 +280,19 @@
     min-height: 0;
     display: flex;
     flex-direction: column;
+  }
+  
+  /* Default padding for text-based content */
+  .desktop-layout .details-section:not(.full-width-image) {
     padding-right: 20px;
     padding-left: 20px;
+  }
+  
+  /* Full-width image content: remove padding and add negative margin at bottom */
+  .desktop-layout .details-section.full-width-image {
+    padding-right: 0;
+    padding-left: 0;
+    margin-bottom: -35px;
   }
   
   /* ===========================================

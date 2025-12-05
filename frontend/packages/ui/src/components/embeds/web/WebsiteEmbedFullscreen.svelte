@@ -13,7 +13,7 @@
 -->
 
 <script lang="ts">
-  import UnifiedEmbedFullscreen from './UnifiedEmbedFullscreen.svelte';
+  import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
   
   /**
    * Props for website embed fullscreen

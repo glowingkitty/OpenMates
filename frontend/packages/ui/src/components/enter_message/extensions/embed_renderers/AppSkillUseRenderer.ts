@@ -14,11 +14,11 @@ import type { EmbedRenderer, EmbedRenderContext } from './types';
 import type { EmbedNodeAttributes } from '../../../../message_parsing/types';
 import { resolveEmbed, decodeToonContent } from '../../../../services/embedResolver';
 import { mount, unmount } from 'svelte';
-import WebSearchEmbedPreview from '../../../embeds/WebSearchEmbedPreview.svelte';
-import NewsSearchEmbedPreview from '../../../embeds/NewsSearchEmbedPreview.svelte';
-import VideosSearchEmbedPreview from '../../../embeds/VideosSearchEmbedPreview.svelte';
-import MapsSearchEmbedPreview from '../../../embeds/MapsSearchEmbedPreview.svelte';
-import VideoTranscriptEmbedPreview from '../../../embeds/VideoTranscriptEmbedPreview.svelte';
+import WebSearchEmbedPreview from '../../../embeds/web/WebSearchEmbedPreview.svelte';
+import NewsSearchEmbedPreview from '../../../embeds/news/NewsSearchEmbedPreview.svelte';
+import VideosSearchEmbedPreview from '../../../embeds/videos/VideosSearchEmbedPreview.svelte';
+import MapsSearchEmbedPreview from '../../../embeds/maps/MapsSearchEmbedPreview.svelte';
+import VideoTranscriptEmbedPreview from '../../../embeds/videos/VideoTranscriptEmbedPreview.svelte';
 
 // Track mounted components for cleanup
 const mountedComponents = new WeakMap<HTMLElement, ReturnType<typeof mount>>();

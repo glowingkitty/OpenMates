@@ -688,12 +688,22 @@ export class ChatSynchronizationService extends EventTarget {
                     // This method encrypts all messages BEFORE creating the transaction,
                     // then queues all put operations synchronously to keep the transaction active
                     if (shouldSyncMessages && preparedMessages.length > 0) {
-                        console.log(`[ChatSyncService] Phase 2 - Syncing ${preparedMessages.length} messages for chat ${chatId} (server v${serverMessagesV}, local v${localMessagesV})`);
+                        // Log message details before saving
+                        const messageRoles = preparedMessages.map(m => m.role || 'unknown');
+                        const messageIds = preparedMessages.map(m => m.message_id || m.id || 'unknown').slice(0, 5);
+                        console.log(
+                            `[CLIENT_SYNC] Phase 2 - Syncing ${preparedMessages.length} messages for chat ${chatId} ` +
+                            `(server v${serverMessagesV}, local v${localMessagesV}). ` +
+                            `Roles: ${messageRoles.join(', ')}, ` +
+                            `First 5 message IDs: ${messageIds.join(', ')}`
+                        );
                         
                         // Use batch save method which handles encryption and transaction lifecycle correctly
                         await chatDB.batchSaveMessages(preparedMessages);
                         
-                        console.debug(`[ChatSyncService] Phase 2 - Successfully saved ${preparedMessages.length} messages for chat ${chatId}`);
+                        console.log(
+                            `[CLIENT_SYNC] ✅ Phase 2 - Successfully saved ${preparedMessages.length} messages for chat ${chatId}`
+                        );
                     }
                 } catch (saveError) {
                     console.error(`[ChatSyncService] Phase 2 - Error saving chat/messages for chat ${chatId}:`, saveError);
@@ -792,8 +802,6 @@ export class ChatSynchronizationService extends EventTarget {
                     
                     // Prepare and save messages in a separate transaction if we have any
                     if (shouldSyncMessages && messages && Array.isArray(messages) && messages.length > 0) {
-                        console.log(`[ChatSyncService] Syncing ${messages.length} messages for chat ${chatId} from Phase 3 (server v${serverMessagesV}, local v${localMessagesV})`);
-                        
                         // Prepare all messages first to avoid async operations during transaction
                         const preparedMessages: any[] = [];
                         for (const messageData of messages) {
@@ -802,9 +810,9 @@ export class ChatSynchronizationService extends EventTarget {
                             if (typeof messageData === 'string') {
                                 try {
                                     message = JSON.parse(messageData);
-                                    console.debug(`[ChatSyncService] Parsed message JSON string for message: ${message.message_id || message.id}`);
+                                    console.debug(`[ChatSyncService] Phase 3 - Parsed message JSON string for message: ${message.message_id || message.id}`);
                                 } catch (e) {
-                                    console.error(`[ChatSyncService] Failed to parse message JSON for chat ${chatId}:`, e);
+                                    console.error(`[ChatSyncService] Phase 3 - Failed to parse message JSON for chat ${chatId}:`, e);
                                     continue;
                                 }
                             }
@@ -816,7 +824,7 @@ export class ChatSynchronizationService extends EventTarget {
                             
                             // DEFENSIVE: Skip messages without message_id
                             if (!message.message_id) {
-                                console.error(`[ChatSyncService] Message missing message_id after parsing, skipping:`, message);
+                                console.error(`[ChatSyncService] Phase 3 - Message missing message_id after parsing, skipping:`, message);
                                 continue;
                             }
                             
@@ -833,12 +841,24 @@ export class ChatSynchronizationService extends EventTarget {
                             preparedMessages.push(message);
                         }
                         
+                        // Log message details before saving
+                        const messageRoles = preparedMessages.map(m => m.role || 'unknown');
+                        const messageIds = preparedMessages.map(m => m.message_id || m.id || 'unknown').slice(0, 5);
+                        console.log(
+                            `[CLIENT_SYNC] Phase 3 - Syncing ${preparedMessages.length} messages for chat ${chatId} ` +
+                            `(server v${serverMessagesV}, local v${localMessagesV}). ` +
+                            `Roles: ${messageRoles.join(', ')}, ` +
+                            `First 5 message IDs: ${messageIds.join(', ')}`
+                        );
+                        
                         // CRITICAL FIX: Use batchSaveMessages to prevent transaction auto-commit issues
                         // This method encrypts all messages BEFORE creating the transaction,
                         // then queues all put operations synchronously to keep the transaction active
                         await chatDB.batchSaveMessages(preparedMessages);
                         
-                        console.debug(`[ChatSyncService] Phase 3 - Successfully saved ${preparedMessages.length} messages for chat ${chatId}`);
+                        console.log(
+                            `[CLIENT_SYNC] ✅ Phase 3 - Successfully saved ${preparedMessages.length} messages for chat ${chatId}`
+                        );
                     }
                 } catch (saveError) {
                     console.error(`[ChatSyncService] Phase 3 - Error saving chat/messages for chat ${chatId}:`, saveError);

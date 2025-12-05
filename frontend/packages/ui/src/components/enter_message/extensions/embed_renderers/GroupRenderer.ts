@@ -5,9 +5,9 @@ import type { EmbedRenderer, EmbedRenderContext } from './types';
 import type { EmbedNodeAttributes } from '../../../../message_parsing/types';
 import { groupHandlerRegistry } from '../../../../message_parsing/groupHandlers';
 import { mount, unmount } from 'svelte';
-import WebsiteEmbedPreview from '../../../embeds/WebsiteEmbedPreview.svelte';
-import VideoEmbedPreview from '../../../embeds/VideoEmbedPreview.svelte';
-import CodeEmbedPreview from '../../../embeds/CodeEmbedPreview.svelte';
+import WebsiteEmbedPreview from '../../../embeds/web/WebsiteEmbedPreview.svelte';
+import VideoEmbedPreview from '../../../embeds/videos/VideoEmbedPreview.svelte';
+import CodeEmbedPreview from '../../../embeds/code/CodeEmbedPreview.svelte';
 
 // Track mounted components for cleanup
 const mountedComponents = new WeakMap<HTMLElement, ReturnType<typeof mount>>();

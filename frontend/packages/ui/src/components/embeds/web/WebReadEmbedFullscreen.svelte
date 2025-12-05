@@ -1,19 +1,19 @@
 <!--
-  frontend/packages/ui/src/components/app_skills/WebReadSkillFullscreen.svelte
+  frontend/packages/ui/src/components/embeds/web/WebReadEmbedFullscreen.svelte
   
-  Fullscreen view for Web Read skill results.
+  Fullscreen view for Web Read skill embeds.
+  Uses UnifiedEmbedFullscreen as base and provides web read-specific content.
+  
+  Supports both contexts:
+  - Skill preview context: receives previewData from skillPreviewService
+  - Embed context: receives results directly
+  
   Shows website metadata and full markdown content.
-  
-  According to web.md architecture:
-  - Shows website title, URL, favicon
-  - Full markdown content in scrollable view
-  - Metadata display (language, og_image, etc.)
-  - "Open website" button
 -->
 
 <script lang="ts">
-  import AppSkillFullscreenBase from './AppSkillFullscreenBase.svelte';
-  import type { BaseSkillPreviewData } from '../../types/appSkills';
+  import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
+  import type { BaseSkillPreviewData } from '../../../types/appSkills';
   
   // Define result structure based on read_skill.py
   interface WebReadResult {
@@ -32,17 +32,27 @@
     results: WebReadResult[];
   }
   
-  // Props using Svelte 5 runes
+  /**
+   * Props for web read embed fullscreen
+   * Supports both skill preview data format and direct embed format
+   */
+  interface Props {
+    /** Web read results (direct format) */
+    results?: WebReadResult[];
+    /** Skill preview data (skill preview context) */
+    previewData?: WebReadPreviewData;
+    /** Close handler */
+    onClose: () => void;
+  }
+  
   let {
+    results: resultsProp,
     previewData,
     onClose
-  }: {
-    previewData: WebReadPreviewData;
-    onClose: () => void;
-  } = $props();
+  }: Props = $props();
   
-  // Get results (should always be present in fullscreen view)
-  let results = $derived(previewData.results || []);
+  // Extract values from either previewData (skill preview context) or direct props (embed context)
+  let results = $derived(previewData?.results || resultsProp || []);
   
   // Get first result for main display
   let firstResult = $derived(results[0]);
@@ -54,19 +64,11 @@
     'Web Read'
   );
   
-  // Type assertion for base component prop compatibility
-  let previewDataForBase = $derived(previewData as any);
-  
   // Handle opening website
   function handleOpenWebsite() {
     if (firstResult?.url) {
       window.open(firstResult.url, '_blank', 'noopener,noreferrer');
     }
-  }
-  
-  // Handle share action (override base)
-  function handleShare() {
-    handleOpenWebsite();
   }
   
   // Render markdown as HTML using markdown-it
@@ -93,7 +95,7 @@
       const html = md.render(markdown);
       renderedMarkdowns.set(index, html);
     } catch (error) {
-      console.error('[WebReadSkillFullscreen] Error rendering markdown:', error);
+      console.error('[WebReadEmbedFullscreen] Error rendering markdown:', error);
       // Fallback: escape HTML and preserve line breaks
       const html = markdown
         .replace(/&/g, '&amp;')
@@ -114,12 +116,12 @@
   });
 </script>
 
-<!-- @ts-ignore - Svelte 5 type inference issue with component props -->
-<AppSkillFullscreenBase 
-  previewData={previewData as any} 
-  title={displayTitle} 
-  onClose={onClose} 
-  onShare={handleShare}
+<UnifiedEmbedFullscreen
+  appId="web"
+  skillId="read"
+  title={displayTitle}
+  {onClose}
+  onOpen={handleOpenWebsite}
 >
   {#snippet headerExtra()}
     {#if results.length > 1}
@@ -135,7 +137,7 @@
     </button>
   {/snippet}
   
-  {#snippet content({ previewData })}
+  {#snippet content()}
     {#if results.length === 0}
       <div class="no-results">
         <p>No read results available.</p>
@@ -216,7 +218,7 @@
       {/each}
     {/if}
   {/snippet}
-</AppSkillFullscreenBase>
+</UnifiedEmbedFullscreen>
 
 <style>
   .results-indicator {

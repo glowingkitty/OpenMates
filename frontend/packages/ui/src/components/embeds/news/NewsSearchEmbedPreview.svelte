@@ -1,35 +1,38 @@
 <!--
-  frontend/packages/ui/src/components/embeds/WebSearchEmbedPreview.svelte
+  frontend/packages/ui/src/components/embeds/NewsSearchEmbedPreview.svelte
   
-  Preview component for Web Search skill embeds.
+  Preview component for News Search skill embeds.
   Uses UnifiedEmbedPreview as base and provides skill-specific details content.
   
   Details content structure:
   - Processing: query text + "via {provider}"
   - Finished: query text + "via {provider}" + favicons (first 3) + "+ N more"
-  
-  Future: Preview images placeholder (48px height) when images are available
 -->
 
 <script lang="ts">
-  import UnifiedEmbedPreview from './UnifiedEmbedPreview.svelte';
+  import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
   // @ts-ignore - @repo/ui module exists at runtime
   import { text } from '@repo/ui';
-  import { chatSyncService } from '../../services/chatSyncService';
+  import { chatSyncService } from '../../../services/chatSyncService';
   
   /**
-   * Web search result interface for favicon display
+   * News search result interface for favicon display
    */
-  interface WebSearchResult {
+  interface NewsSearchResult {
     title?: string;
     url: string;
     favicon_url?: string;
-    preview_image_url?: string;
-    snippet?: string;
+    meta_url?: {
+      favicon?: string;
+    };
+    thumbnail?: {
+      original?: string;
+    };
+    description?: string;
   }
   
   /**
-   * Props for web search embed preview
+   * Props for news search embed preview
    */
   interface Props {
     /** Unique embed ID */
@@ -41,7 +44,7 @@
     /** Processing status */
     status: 'processing' | 'finished' | 'error';
     /** Search results (for finished state) */
-    results?: WebSearchResult[];
+    results?: NewsSearchResult[];
     /** Task ID for cancellation */
     taskId?: string;
     /** Whether to use mobile layout */
@@ -73,8 +76,9 @@
   );
   
   // Get first 3 results with favicons for display
+  // Extract favicon from meta_url.favicon or favicon_url
   let faviconResults = $derived(
-    results?.filter(r => r.favicon_url).slice(0, 3) || []
+    results?.filter(r => r.favicon_url || r.meta_url?.favicon).slice(0, 3) || []
   );
   
   // Get remaining results count
@@ -87,9 +91,9 @@
     if (status === 'processing' && taskId) {
       try {
         await chatSyncService.sendCancelAiTask(taskId);
-        console.debug(`[WebSearchEmbedPreview] Sent cancel request for task ${taskId}`);
+        console.debug(`[NewsSearchEmbedPreview] Sent cancel request for task ${taskId}`);
       } catch (error) {
-        console.error(`[WebSearchEmbedPreview] Failed to cancel task ${taskId}:`, error);
+        console.error(`[NewsSearchEmbedPreview] Failed to cancel task ${taskId}:`, error);
       }
     }
   }
@@ -97,7 +101,7 @@
 
 <UnifiedEmbedPreview
   {id}
-  appId="web"
+  appId="news"
   skillId="search"
   skillIconName={skillIconName}
   {status}
@@ -108,7 +112,7 @@
   onStop={handleStop}
 >
   {#snippet details({ isMobile: isMobileLayout })}
-    <div class="web-search-details" class:mobile={isMobileLayout}>
+    <div class="news-search-details" class:mobile={isMobileLayout}>
       <!-- Query text -->
       <div class="search-query">{query}</div>
       
@@ -122,8 +126,9 @@
           {#if faviconResults.length > 0}
             <div class="favicon-row">
               {#each faviconResults as result, index}
+                {@const faviconUrl = result.meta_url?.favicon || result.favicon_url}
                 <img 
-                  src={result.favicon_url}
+                  src={faviconUrl}
                   alt=""
                   class="favicon"
                   style="z-index: {faviconResults.length - index};"
@@ -140,15 +145,6 @@
             </span>
           {/if}
         </div>
-        
-        <!-- Future: Preview images placeholder (48px height) -->
-        <!-- Uncomment when preview images are implemented:
-        {#if !isMobileLayout && hasPreviewImages}
-          <div class="preview-images-row">
-            Images would go here
-          </div>
-        {/if}
-        -->
       {/if}
     </div>
   {/snippet}
@@ -156,10 +152,10 @@
 
 <style>
   /* ===========================================
-     Web Search Details Content
+     News Search Details Content
      =========================================== */
   
-  .web-search-details {
+  .news-search-details {
     display: flex;
     flex-direction: column;
     gap: 4px;
@@ -167,12 +163,12 @@
   }
   
   /* Desktop layout: vertically centered content */
-  .web-search-details:not(.mobile) {
+  .news-search-details:not(.mobile) {
     justify-content: center;
   }
   
   /* Mobile layout: top-aligned content */
-  .web-search-details.mobile {
+  .news-search-details.mobile {
     justify-content: flex-start;
   }
   
@@ -192,7 +188,7 @@
     word-break: break-word;
   }
   
-  .web-search-details.mobile .search-query {
+  .news-search-details.mobile .search-query {
     font-size: 14px;
     -webkit-line-clamp: 4;
     line-clamp: 4;
@@ -205,7 +201,7 @@
     line-height: 1.3;
   }
   
-  .web-search-details.mobile .search-provider {
+  .news-search-details.mobile .search-provider {
     font-size: 12px;
   }
   
@@ -217,7 +213,7 @@
     margin-top: 4px;
   }
   
-  .web-search-details.mobile .search-results-info {
+  .news-search-details.mobile .search-results-info {
     margin-top: 2px;
   }
   
@@ -253,25 +249,15 @@
     font-weight: 500;
   }
   
-  .web-search-details.mobile .remaining-count {
+  .news-search-details.mobile .remaining-count {
     font-size: 12px;
-  }
-  
-  /* Future: Preview images row placeholder (48px height) */
-  .preview-images-row {
-    height: 48px;
-    margin-top: 8px;
-    display: flex;
-    gap: 4px;
-    overflow: hidden;
-    border-radius: 8px;
   }
   
   /* ===========================================
      Skill Icon Styling (skill-specific)
      =========================================== */
   
-  /* Web Search skill icon - this is skill-specific and belongs here, not in UnifiedEmbedPreview */
+  /* News Search skill icon - this is skill-specific and belongs here, not in UnifiedEmbedPreview */
   :global(.unified-embed-preview .skill-icon[data-skill-icon="search"]) {
     -webkit-mask-image: url('@openmates/ui/static/icons/search.svg');
     mask-image: url('@openmates/ui/static/icons/search.svg');

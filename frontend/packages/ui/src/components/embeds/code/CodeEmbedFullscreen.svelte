@@ -39,8 +39,8 @@
   import 'highlight.js/lib/languages/json';
   import 'highlight.js/lib/languages/css';
   import 'highlight.js/lib/languages/dockerfile';
-  import UnifiedEmbedFullscreen from './UnifiedEmbedFullscreen.svelte';
-  import BasicInfosBar from './BasicInfosBar.svelte';
+  import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
+  import BasicInfosBar from '../BasicInfosBar.svelte';
   // @ts-ignore - @repo/ui module exists at runtime
   import { text } from '@repo/ui';
   

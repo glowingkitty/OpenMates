@@ -1,50 +1,48 @@
 <!--
-  frontend/packages/ui/src/components/embeds/NewsSearchEmbedPreview.svelte
+  frontend/packages/ui/src/components/embeds/MapsSearchEmbedPreview.svelte
   
-  Preview component for News Search skill embeds.
+  Preview component for Maps Search skill embeds.
   Uses UnifiedEmbedPreview as base and provides skill-specific details content.
   
   Details content structure:
   - Processing: query text + "via {provider}"
-  - Finished: query text + "via {provider}" + favicons (first 3) + "+ N more"
+  - Finished: query text + "via {provider}" + place count
 -->
 
 <script lang="ts">
-  import UnifiedEmbedPreview from './UnifiedEmbedPreview.svelte';
+  import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
   // @ts-ignore - @repo/ui module exists at runtime
   import { text } from '@repo/ui';
-  import { chatSyncService } from '../../services/chatSyncService';
+  import { chatSyncService } from '../../../services/chatSyncService';
   
   /**
-   * News search result interface for favicon display
+   * Place search result interface
    */
-  interface NewsSearchResult {
-    title?: string;
-    url: string;
-    favicon_url?: string;
-    meta_url?: {
-      favicon?: string;
+  interface PlaceSearchResult {
+    displayName?: string;
+    formattedAddress?: string;
+    location?: {
+      latitude?: number;
+      longitude?: number;
     };
-    thumbnail?: {
-      original?: string;
-    };
-    description?: string;
+    rating?: number;
+    userRatingCount?: number;
   }
   
   /**
-   * Props for news search embed preview
+   * Props for maps search embed preview
    */
   interface Props {
     /** Unique embed ID */
     id: string;
     /** Search query */
     query: string;
-    /** Search provider (e.g., 'Brave Search') */
+    /** Search provider (e.g., 'Google') */
     provider: string;
     /** Processing status */
     status: 'processing' | 'finished' | 'error';
     /** Search results (for finished state) */
-    results?: NewsSearchResult[];
+    results?: PlaceSearchResult[];
     /** Task ID for cancellation */
     taskId?: string;
     /** Whether to use mobile layout */
@@ -75,25 +73,17 @@
     `${$text('embeds.via.text') || 'via'} ${provider}`
   );
   
-  // Get first 3 results with favicons for display
-  // Extract favicon from meta_url.favicon or favicon_url
-  let faviconResults = $derived(
-    results?.filter(r => r.favicon_url || r.meta_url?.favicon).slice(0, 3) || []
-  );
-  
-  // Get remaining results count
-  let remainingCount = $derived(
-    Math.max(0, (results?.length || 0) - 1)
-  );
+  // Get results count
+  let resultsCount = $derived(results?.length || 0);
   
   // Handle stop button click
   async function handleStop() {
     if (status === 'processing' && taskId) {
       try {
         await chatSyncService.sendCancelAiTask(taskId);
-        console.debug(`[NewsSearchEmbedPreview] Sent cancel request for task ${taskId}`);
+        console.debug(`[MapsSearchEmbedPreview] Sent cancel request for task ${taskId}`);
       } catch (error) {
-        console.error(`[NewsSearchEmbedPreview] Failed to cancel task ${taskId}:`, error);
+        console.error(`[MapsSearchEmbedPreview] Failed to cancel task ${taskId}:`, error);
       }
     }
   }
@@ -101,7 +91,7 @@
 
 <UnifiedEmbedPreview
   {id}
-  appId="news"
+  appId="maps"
   skillId="search"
   skillIconName={skillIconName}
   {status}
@@ -112,38 +102,19 @@
   onStop={handleStop}
 >
   {#snippet details({ isMobile: isMobileLayout })}
-    <div class="news-search-details" class:mobile={isMobileLayout}>
+    <div class="maps-search-details" class:mobile={isMobileLayout}>
       <!-- Query text -->
       <div class="search-query">{query}</div>
       
       <!-- Provider subtitle -->
       <div class="search-provider">{viaProvider}</div>
       
-      <!-- Finished state: show favicons and remaining count -->
-      {#if status === 'finished'}
+      <!-- Finished state: show results count -->
+      {#if status === 'finished' && resultsCount > 0}
         <div class="search-results-info">
-          <!-- Favicons row -->
-          {#if faviconResults.length > 0}
-            <div class="favicon-row">
-              {#each faviconResults as result, index}
-                {@const faviconUrl = result.meta_url?.favicon || result.favicon_url}
-                <img 
-                  src={faviconUrl}
-                  alt=""
-                  class="favicon"
-                  style="z-index: {faviconResults.length - index};"
-                  loading="lazy"
-                />
-              {/each}
-            </div>
-          {/if}
-          
-          <!-- Remaining count -->
-          {#if remainingCount > 0}
-            <span class="remaining-count">
-              + {remainingCount} {$text('embeds.more.text') || 'more'}
-            </span>
-          {/if}
+          <span class="results-count">
+            {resultsCount} {resultsCount === 1 ? ($text('embeds.place.text') || 'place') : ($text('embeds.places.text') || 'places')}
+          </span>
         </div>
       {/if}
     </div>
@@ -152,10 +123,10 @@
 
 <style>
   /* ===========================================
-     News Search Details Content
+     Maps Search Details Content
      =========================================== */
   
-  .news-search-details {
+  .maps-search-details {
     display: flex;
     flex-direction: column;
     gap: 4px;
@@ -163,12 +134,12 @@
   }
   
   /* Desktop layout: vertically centered content */
-  .news-search-details:not(.mobile) {
+  .maps-search-details:not(.mobile) {
     justify-content: center;
   }
   
   /* Mobile layout: top-aligned content */
-  .news-search-details.mobile {
+  .maps-search-details.mobile {
     justify-content: flex-start;
   }
   
@@ -188,7 +159,7 @@
     word-break: break-word;
   }
   
-  .news-search-details.mobile .search-query {
+  .maps-search-details.mobile .search-query {
     font-size: 14px;
     -webkit-line-clamp: 4;
     line-clamp: 4;
@@ -201,11 +172,11 @@
     line-height: 1.3;
   }
   
-  .news-search-details.mobile .search-provider {
+  .maps-search-details.mobile .search-provider {
     font-size: 12px;
   }
   
-  /* Search results info (favicons + remaining count) */
+  /* Search results info (results count) */
   .search-results-info {
     display: flex;
     align-items: center;
@@ -213,43 +184,18 @@
     margin-top: 4px;
   }
   
-  .news-search-details.mobile .search-results-info {
+  .maps-search-details.mobile .search-results-info {
     margin-top: 2px;
   }
   
-  /* Favicon row: overlapping circles */
-  .favicon-row {
-    display: flex;
-    align-items: center;
-    position: relative;
-    height: 19px;
-    min-width: 42px; /* 3 favicons with overlap */
-  }
-  
-  .favicon {
-    width: 19px;
-    height: 19px;
-    border-radius: 50%;
-    border: 1px solid white;
-    background-color: white;
-    object-fit: cover;
-    /* Overlapping effect */
-    margin-left: -6px;
-    position: relative;
-  }
-  
-  .favicon:first-child {
-    margin-left: 0;
-  }
-  
-  /* Remaining count */
-  .remaining-count {
+  /* Results count */
+  .results-count {
     font-size: 14px;
     color: var(--color-grey-70);
     font-weight: 500;
   }
   
-  .news-search-details.mobile .remaining-count {
+  .maps-search-details.mobile .results-count {
     font-size: 12px;
   }
   
@@ -257,7 +203,7 @@
      Skill Icon Styling (skill-specific)
      =========================================== */
   
-  /* News Search skill icon - this is skill-specific and belongs here, not in UnifiedEmbedPreview */
+  /* Maps Search skill icon - this is skill-specific and belongs here, not in UnifiedEmbedPreview */
   :global(.unified-embed-preview .skill-icon[data-skill-icon="search"]) {
     -webkit-mask-image: url('@openmates/ui/static/icons/search.svg');
     mask-image: url('@openmates/ui/static/icons/search.svg');

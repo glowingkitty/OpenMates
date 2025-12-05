@@ -1,48 +1,50 @@
 <!--
-  frontend/packages/ui/src/components/embeds/MapsSearchEmbedPreview.svelte
+  frontend/packages/ui/src/components/embeds/VideosSearchEmbedPreview.svelte
   
-  Preview component for Maps Search skill embeds.
+  Preview component for Videos Search skill embeds.
   Uses UnifiedEmbedPreview as base and provides skill-specific details content.
   
   Details content structure:
   - Processing: query text + "via {provider}"
-  - Finished: query text + "via {provider}" + place count
+  - Finished: query text + "via {provider}" + thumbnails (first 3) + "+ N more"
 -->
 
 <script lang="ts">
-  import UnifiedEmbedPreview from './UnifiedEmbedPreview.svelte';
+  import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
   // @ts-ignore - @repo/ui module exists at runtime
   import { text } from '@repo/ui';
-  import { chatSyncService } from '../../services/chatSyncService';
+  import { chatSyncService } from '../../../services/chatSyncService';
   
   /**
-   * Place search result interface
+   * Video search result interface for thumbnail display
    */
-  interface PlaceSearchResult {
-    displayName?: string;
-    formattedAddress?: string;
-    location?: {
-      latitude?: number;
-      longitude?: number;
+  interface VideoSearchResult {
+    title?: string;
+    url: string;
+    thumbnail?: {
+      src?: string;
+      original?: string;
     };
-    rating?: number;
-    userRatingCount?: number;
+    meta_url?: {
+      favicon?: string;
+    };
+    description?: string;
   }
   
   /**
-   * Props for maps search embed preview
+   * Props for videos search embed preview
    */
   interface Props {
     /** Unique embed ID */
     id: string;
     /** Search query */
     query: string;
-    /** Search provider (e.g., 'Google') */
+    /** Search provider (e.g., 'Brave Search') */
     provider: string;
     /** Processing status */
     status: 'processing' | 'finished' | 'error';
     /** Search results (for finished state) */
-    results?: PlaceSearchResult[];
+    results?: VideoSearchResult[];
     /** Task ID for cancellation */
     taskId?: string;
     /** Whether to use mobile layout */
@@ -73,17 +75,24 @@
     `${$text('embeds.via.text') || 'via'} ${provider}`
   );
   
-  // Get results count
-  let resultsCount = $derived(results?.length || 0);
+  // Get first 3 results with thumbnails for display
+  let thumbnailResults = $derived(
+    results?.filter(r => r.thumbnail?.src || r.thumbnail?.original).slice(0, 3) || []
+  );
+  
+  // Get remaining results count
+  let remainingCount = $derived(
+    Math.max(0, (results?.length || 0) - 1)
+  );
   
   // Handle stop button click
   async function handleStop() {
     if (status === 'processing' && taskId) {
       try {
         await chatSyncService.sendCancelAiTask(taskId);
-        console.debug(`[MapsSearchEmbedPreview] Sent cancel request for task ${taskId}`);
+        console.debug(`[VideosSearchEmbedPreview] Sent cancel request for task ${taskId}`);
       } catch (error) {
-        console.error(`[MapsSearchEmbedPreview] Failed to cancel task ${taskId}:`, error);
+        console.error(`[VideosSearchEmbedPreview] Failed to cancel task ${taskId}:`, error);
       }
     }
   }
@@ -91,7 +100,7 @@
 
 <UnifiedEmbedPreview
   {id}
-  appId="maps"
+  appId="videos"
   skillId="search"
   skillIconName={skillIconName}
   {status}
@@ -102,19 +111,38 @@
   onStop={handleStop}
 >
   {#snippet details({ isMobile: isMobileLayout })}
-    <div class="maps-search-details" class:mobile={isMobileLayout}>
+    <div class="videos-search-details" class:mobile={isMobileLayout}>
       <!-- Query text -->
       <div class="search-query">{query}</div>
       
       <!-- Provider subtitle -->
       <div class="search-provider">{viaProvider}</div>
       
-      <!-- Finished state: show results count -->
-      {#if status === 'finished' && resultsCount > 0}
+      <!-- Finished state: show thumbnails and remaining count -->
+      {#if status === 'finished'}
         <div class="search-results-info">
-          <span class="results-count">
-            {resultsCount} {resultsCount === 1 ? ($text('embeds.place.text') || 'place') : ($text('embeds.places.text') || 'places')}
-          </span>
+          <!-- Thumbnail row -->
+          {#if thumbnailResults.length > 0}
+            <div class="thumbnail-row">
+              {#each thumbnailResults as result, index}
+                {@const thumbnailUrl = result.thumbnail?.original || result.thumbnail?.src}
+                <img 
+                  src={thumbnailUrl}
+                  alt={result.title || ''}
+                  class="thumbnail"
+                  style="z-index: {thumbnailResults.length - index};"
+                  loading="lazy"
+                />
+              {/each}
+            </div>
+          {/if}
+          
+          <!-- Remaining count -->
+          {#if remainingCount > 0}
+            <span class="remaining-count">
+              + {remainingCount} {$text('embeds.more.text') || 'more'}
+            </span>
+          {/if}
         </div>
       {/if}
     </div>
@@ -123,10 +151,10 @@
 
 <style>
   /* ===========================================
-     Maps Search Details Content
+     Videos Search Details Content
      =========================================== */
   
-  .maps-search-details {
+  .videos-search-details {
     display: flex;
     flex-direction: column;
     gap: 4px;
@@ -134,12 +162,12 @@
   }
   
   /* Desktop layout: vertically centered content */
-  .maps-search-details:not(.mobile) {
+  .videos-search-details:not(.mobile) {
     justify-content: center;
   }
   
   /* Mobile layout: top-aligned content */
-  .maps-search-details.mobile {
+  .videos-search-details.mobile {
     justify-content: flex-start;
   }
   
@@ -159,7 +187,7 @@
     word-break: break-word;
   }
   
-  .maps-search-details.mobile .search-query {
+  .videos-search-details.mobile .search-query {
     font-size: 14px;
     -webkit-line-clamp: 4;
     line-clamp: 4;
@@ -172,11 +200,11 @@
     line-height: 1.3;
   }
   
-  .maps-search-details.mobile .search-provider {
+  .videos-search-details.mobile .search-provider {
     font-size: 12px;
   }
   
-  /* Search results info (results count) */
+  /* Search results info (thumbnails + remaining count) */
   .search-results-info {
     display: flex;
     align-items: center;
@@ -184,18 +212,43 @@
     margin-top: 4px;
   }
   
-  .maps-search-details.mobile .search-results-info {
+  .videos-search-details.mobile .search-results-info {
     margin-top: 2px;
   }
   
-  /* Results count */
-  .results-count {
+  /* Thumbnail row: overlapping rectangles */
+  .thumbnail-row {
+    display: flex;
+    align-items: center;
+    position: relative;
+    height: 19px;
+    min-width: 42px; /* 3 thumbnails with overlap */
+  }
+  
+  .thumbnail {
+    width: 19px;
+    height: 19px;
+    border-radius: 4px;
+    border: 1px solid white;
+    background-color: white;
+    object-fit: cover;
+    /* Overlapping effect */
+    margin-left: -6px;
+    position: relative;
+  }
+  
+  .thumbnail:first-child {
+    margin-left: 0;
+  }
+  
+  /* Remaining count */
+  .remaining-count {
     font-size: 14px;
     color: var(--color-grey-70);
     font-weight: 500;
   }
   
-  .maps-search-details.mobile .results-count {
+  .videos-search-details.mobile .remaining-count {
     font-size: 12px;
   }
   
@@ -203,7 +256,7 @@
      Skill Icon Styling (skill-specific)
      =========================================== */
   
-  /* Maps Search skill icon - this is skill-specific and belongs here, not in UnifiedEmbedPreview */
+  /* Videos Search skill icon - this is skill-specific and belongs here, not in UnifiedEmbedPreview */
   :global(.unified-embed-preview .skill-icon[data-skill-icon="search"]) {
     -webkit-mask-image: url('@openmates/ui/static/icons/search.svg');
     mask-image: url('@openmates/ui/static/icons/search.svg');

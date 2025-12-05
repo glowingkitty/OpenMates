@@ -1,37 +1,43 @@
 <!--
-  frontend/packages/ui/src/components/embeds/WebSearchEmbedFullscreen.svelte
+  frontend/packages/ui/src/components/embeds/NewsSearchEmbedFullscreen.svelte
   
-  Fullscreen view for Web Search skill embeds.
+  Fullscreen view for News Search skill embeds.
   Uses UnifiedEmbedFullscreen as base and provides skill-specific content.
   
   Shows:
   - Search query and provider
-  - Website embeds in a grid (3 per row on desktop, stacked on mobile)
-  - Each website uses WebsiteEmbedPreview component (300x200px)
+  - News article embeds in a grid (3 per row on desktop, stacked on mobile)
+  - Each article uses WebsiteEmbedPreview component (300x200px)
   - Basic infos bar at the bottom
   - Top bar with open, copy, and minimize buttons
 -->
 
 <script lang="ts">
-  import UnifiedEmbedFullscreen from './UnifiedEmbedFullscreen.svelte';
-  import WebsiteEmbedPreview from './WebsiteEmbedPreview.svelte';
-  import BasicInfosBar from './BasicInfosBar.svelte';
+  import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
+  import WebsiteEmbedPreview from '../web/WebsiteEmbedPreview.svelte';
+  import BasicInfosBar from '../BasicInfosBar.svelte';
   // @ts-ignore - @repo/ui module exists at runtime
   import { text } from '@repo/ui';
   
   /**
-   * Web search result interface
+   * News search result interface
    */
-  interface WebSearchResult {
+  interface NewsSearchResult {
     title?: string;
     url: string;
     favicon_url?: string;
-    preview_image_url?: string;
+    meta_url?: {
+      favicon?: string;
+    };
+    thumbnail?: {
+      original?: string;
+    };
+    description?: string;
     snippet?: string;
   }
   
   /**
-   * Props for web search embed fullscreen
+   * Props for news search embed fullscreen
    */
   interface Props {
     /** Search query */
@@ -39,7 +45,7 @@
     /** Search provider (e.g., 'Brave Search') */
     provider: string;
     /** Search results */
-    results?: WebSearchResult[];
+    results?: NewsSearchResult[];
     /** Close handler */
     onClose: () => void;
   }
@@ -74,7 +80,7 @@
         results: results.map(r => ({
           title: r.title,
           url: r.url,
-          snippet: r.snippet
+          description: r.description || r.snippet
         }))
       };
       
@@ -83,18 +89,19 @@
       yaml += `provider: "${provider}"\n`;
       yaml += `results:\n`;
       
-      results.forEach((result, index) => {
+      results.forEach((result) => {
         yaml += `  - title: "${result.title || ''}"\n`;
         yaml += `    url: "${result.url}"\n`;
-        if (result.snippet) {
-          yaml += `    snippet: "${result.snippet.replace(/"/g, '\\"')}"\n`;
+        const desc = result.description || result.snippet;
+        if (desc) {
+          yaml += `    description: "${desc.replace(/"/g, '\\"')}"\n`;
         }
       });
       
       await navigator.clipboard.writeText(yaml);
-      console.debug('[WebSearchEmbedFullscreen] Copied YAML to clipboard');
+      console.debug('[NewsSearchEmbedFullscreen] Copied YAML to clipboard');
     } catch (error) {
-      console.error('[WebSearchEmbedFullscreen] Failed to copy YAML:', error);
+      console.error('[NewsSearchEmbedFullscreen] Failed to copy YAML:', error);
     }
   }
   
@@ -109,7 +116,7 @@
 </script>
 
 <UnifiedEmbedFullscreen
-  appId="web"
+  appId="news"
   skillId="search"
   title={displayTitle}
   {onClose}
@@ -122,24 +129,27 @@
         <p>No search results available.</p>
       </div>
     {:else}
-      <!-- Website embeds grid -->
-      <div class="website-embeds-grid" class:mobile={isMobile}>
+      <!-- News article embeds grid -->
+      <div class="article-embeds-grid" class:mobile={isMobile}>
         {#each results as result, index}
+          {@const faviconUrl = result.meta_url?.favicon || result.favicon_url}
+          {@const imageUrl = result.thumbnail?.original}
+          {@const description = result.description || result.snippet}
           <WebsiteEmbedPreview
-            id={`website-${index}`}
+            id={`news-article-${index}`}
             url={result.url}
             title={result.title}
-            description={result.snippet}
-            favicon={result.favicon_url}
-            image={result.preview_image_url}
+            description={description}
+            favicon={faviconUrl}
+            image={imageUrl}
             status="finished"
             isMobile={false}
             onFullscreen={() => handleWebsiteFullscreen({
               url: result.url,
               title: result.title,
-              description: result.snippet,
-              favicon: result.favicon_url,
-              image: result.preview_image_url
+              description: description,
+              favicon: faviconUrl,
+              image: imageUrl
             })}
           />
         {/each}
@@ -150,13 +160,13 @@
   {#snippet bottomBar()}
     <div class="bottom-bar-wrapper">
       <BasicInfosBar
-        appId="web"
+        appId="news"
         skillId="search"
         skillIconName="search"
         status="finished"
         skillName={query}
         showStatus={false}
-        isMobile={isMobile}
+        {isMobile}
       />
     </div>
   {/snippet}
@@ -172,8 +182,8 @@
     color: var(--color-font-secondary);
   }
   
-  /* Website embeds grid - responsive with auto-fill */
-  .website-embeds-grid {
+  /* Article embeds grid - responsive with auto-fill */
+  .article-embeds-grid {
     display: grid;
     gap: 16px;
     width: 100%;
@@ -185,14 +195,15 @@
   }
   
   /* Mobile: single column (stacked) */
-  .website-embeds-grid.mobile {
+  .article-embeds-grid.mobile {
     grid-template-columns: 1fr;
   }
   
   /* Ensure each embed maintains proper size */
-  .website-embeds-grid :global(.unified-embed-preview) {
+  .article-embeds-grid :global(.unified-embed-preview) {
     width: 100%;
     max-width: 320px;
     margin: 0 auto;
   }
 </style>
+

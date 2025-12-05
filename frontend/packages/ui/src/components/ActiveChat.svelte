@@ -17,18 +17,16 @@
     import { chatSyncService } from '../services/chatSyncService'; // Import chatSyncService
     import { skillPreviewService } from '../services/skillPreviewService'; // Import skillPreviewService
     import KeyboardShortcuts from './KeyboardShortcuts.svelte';
-    import WebSearchSkillPreview from './app_skills/WebSearchSkillPreview.svelte';
-    import WebSearchSkillFullscreen from './app_skills/WebSearchSkillFullscreen.svelte';
-    import WebSearchEmbedFullscreen from './embeds/WebSearchEmbedFullscreen.svelte';
-    import NewsSearchEmbedFullscreen from './embeds/NewsSearchEmbedFullscreen.svelte';
-    import VideosSearchEmbedFullscreen from './embeds/VideosSearchEmbedFullscreen.svelte';
-    import MapsSearchEmbedFullscreen from './embeds/MapsSearchEmbedFullscreen.svelte';
-    import CodeEmbedFullscreen from './embeds/CodeEmbedFullscreen.svelte';
-    import VideoTranscriptSkillPreview from './app_skills/VideoTranscriptSkillPreview.svelte';
-    import VideoTranscriptSkillFullscreen from './app_skills/VideoTranscriptSkillFullscreen.svelte';
-    import WebReadSkillFullscreen from './app_skills/WebReadSkillFullscreen.svelte';
-    import WebsiteFullscreen from './embeds/WebsiteFullscreen.svelte';
-    import WebsiteEmbedFullscreen from './embeds/WebsiteEmbedFullscreen.svelte';
+    import WebSearchEmbedPreview from './embeds/web/WebSearchEmbedPreview.svelte';
+    import WebSearchEmbedFullscreen from './embeds/web/WebSearchEmbedFullscreen.svelte';
+    import NewsSearchEmbedFullscreen from './embeds/news/NewsSearchEmbedFullscreen.svelte';
+    import VideosSearchEmbedFullscreen from './embeds/videos/VideosSearchEmbedFullscreen.svelte';
+    import MapsSearchEmbedFullscreen from './embeds/maps/MapsSearchEmbedFullscreen.svelte';
+    import CodeEmbedFullscreen from './embeds/code/CodeEmbedFullscreen.svelte';
+    import VideoTranscriptEmbedPreview from './embeds/videos/VideoTranscriptEmbedPreview.svelte';
+    import VideoTranscriptEmbedFullscreen from './embeds/videos/VideoTranscriptEmbedFullscreen.svelte';
+    import WebReadEmbedFullscreen from './embeds/web/WebReadEmbedFullscreen.svelte';
+    import WebsiteEmbedFullscreen from './embeds/web/WebsiteEmbedFullscreen.svelte';
     import { userProfile, loadUserProfileFromDB } from '../stores/userProfile';
     import { isInSignupProcess, currentSignupStep, getStepFromPath, isLoggingOut, isSignupPath } from '../stores/signupState';
     import { userDB } from '../services/userDB';
@@ -2355,9 +2353,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             // Create app card from skill preview data
             let appCard: any = null;
             if (previewData.app_id === 'web' && previewData.skill_id === 'search') {
-                // Create WebSearchSkillPreview card
+                // Create WebSearchEmbedPreview card
                 appCard = {
-                    component: WebSearchSkillPreview,
+                    component: WebSearchEmbedPreview,
                     props: {
                         id: task_id,
                         previewData: previewData,
@@ -2377,9 +2375,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     }
                 };
             } else if (previewData.app_id === 'videos' && previewData.skill_id === 'get_transcript') {
-                // Create VideoTranscriptSkillPreview card
+                // Create VideoTranscriptEmbedPreview card
                 appCard = {
-                    component: VideoTranscriptSkillPreview,
+                    component: VideoTranscriptEmbedPreview,
                     props: {
                         id: task_id,
                         previewData: previewData,
@@ -2715,7 +2713,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             success_count: embedFullscreenData.decodedContent?.success_count || 0,
                             failed_count: embedFullscreenData.decodedContent?.failed_count || 0
                         }}
-                        <VideoTranscriptSkillFullscreen 
+                        <VideoTranscriptEmbedFullscreen 
                             previewData={previewData}
                             onClose={handleCloseEmbedFullscreen}
                         />
@@ -2727,7 +2725,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             status: embedFullscreenData.embedData?.status || 'finished',
                             results: embedFullscreenData.decodedContent?.results || []
                         }}
-                        <WebReadSkillFullscreen 
+                        <WebReadEmbedFullscreen 
                             previewData={previewData}
                             onClose={handleCloseEmbedFullscreen}
                         />

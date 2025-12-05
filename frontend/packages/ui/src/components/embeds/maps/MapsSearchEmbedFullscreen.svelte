@@ -15,8 +15,8 @@
 -->
 
 <script lang="ts">
-  import UnifiedEmbedFullscreen from './UnifiedEmbedFullscreen.svelte';
-  import BasicInfosBar from './BasicInfosBar.svelte';
+  import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
+  import BasicInfosBar from '../BasicInfosBar.svelte';
   import { onMount, onDestroy } from 'svelte';
   // @ts-ignore - @repo/ui module exists at runtime
   import { text } from '@repo/ui';

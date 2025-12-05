@@ -2111,9 +2111,11 @@ class ChatDatabase {
         const chatKey = this.getChatKey(chatId);
 
         if (!chatKey) {
-            console.warn(
-                `[ChatDatabase] [DECRYPT] No chat key found for chat ${chatId}, cannot decrypt message fields. ` +
-                `Message ID: ${message.message_id}, Status: ${message.status}, Has encrypted_content: ${!!message.encrypted_content}`
+            console.error(
+                `[CLIENT_DECRYPT] ❌ CRITICAL: No chat key found for chat ${chatId}, cannot decrypt message fields! ` +
+                `Message ID: ${message.message_id}, Role: ${message.role}, Status: ${message.status}, ` +
+                `Has encrypted_content: ${!!message.encrypted_content}, ` +
+                `Encrypted content length: ${message.encrypted_content?.length || 0}`
             );
             return decryptedMessage;
         }
@@ -2125,9 +2127,10 @@ class ChatDatabase {
         if (message.encrypted_content) {
             try {
                 // Enhanced logging for decryption attempts
-                console.debug(
-                    `[ChatDatabase] [DECRYPT] Attempting to decrypt message ${message.message_id} ` +
-                    `(chat: ${chatId}, status: ${message.status}, encrypted_content length: ${message.encrypted_content.length})`
+                console.log(
+                    `[CLIENT_DECRYPT] 🔓 Attempting to decrypt message ${message.message_id} ` +
+                    `(chat: ${chatId}, role: ${message.role}, status: ${message.status}, ` +
+                    `encrypted_content length: ${message.encrypted_content.length})`
                 );
                 const decryptedContentString = await decryptWithChatKey(message.encrypted_content, chatKey);
                 if (decryptedContentString) {
@@ -2135,24 +2138,34 @@ class ChatDatabase {
                     decryptedMessage.content = decryptedContentString;
                     // Clear encrypted field
                     delete decryptedMessage.encrypted_content;
+                    console.log(
+                        `[CLIENT_DECRYPT] ✅ Successfully decrypted message ${message.message_id} ` +
+                        `(content length: ${decryptedContentString.length} chars)`
+                    );
                 } else {
                     // Decryption failed but didn't throw - encrypted_content might be malformed
-                    console.warn(`[ChatDatabase] Failed to decrypt content for message ${message.message_id} - encrypted_content present but decryption returned null`);
+                    console.error(
+                        `[CLIENT_DECRYPT] ❌ Failed to decrypt content for message ${message.message_id} - ` +
+                        `encrypted_content present but decryption returned null. ` +
+                        `This may indicate vault-encrypted content was sent instead of client-encrypted!`
+                    );
                     // Keep encrypted field for debugging, set content to placeholder
                     decryptedMessage.content = message.content || '[Content decryption failed]';
                 }
             } catch (error) {
                 // DEFENSIVE: Handle malformed encrypted_content (e.g., from messages with status 'sending' that never completed encryption)
                 console.error(
-                    `[ChatDatabase] [DECRYPT] ❌ Error decrypting content for message ${message.message_id} ` +
-                    `(status: ${message.status}, chat: ${chatId}): ${error instanceof Error ? error.message : String(error)}. ` +
+                    `[CLIENT_DECRYPT] ❌ CRITICAL: Error decrypting content for message ${message.message_id} ` +
+                    `(role: ${message.role}, status: ${message.status}, chat: ${chatId}): ` +
+                    `${error instanceof Error ? error.message : String(error)}. ` +
                     `Encrypted content length: ${message.encrypted_content?.length || 0}, ` +
-                    `Has plaintext fallback: ${!!message.content}`
+                    `Has plaintext fallback: ${!!message.content}. ` +
+                    `This may indicate vault-encrypted content was sent instead of client-encrypted!`
                 );
                 // If message already has plaintext content, use it (common for status='sending')
                 if (message.content) {
                     console.warn(
-                        `[ChatDatabase] [DECRYPT] Using existing plaintext content for message ${message.message_id} - ` +
+                        `[CLIENT_DECRYPT] ⚠️ Using existing plaintext content for message ${message.message_id} - ` +
                         `encryption may not have completed or content was stored incorrectly`
                     );
                     decryptedMessage.content = message.content;
@@ -2161,6 +2174,11 @@ class ChatDatabase {
                 }
                 // Keep encrypted_content for debugging
             }
+        } else {
+            console.debug(
+                `[CLIENT_DECRYPT] ⚠️ Message ${message.message_id} has no encrypted_content ` +
+                `(chat: ${chatId}, role: ${message.role}, status: ${message.status})`
+            );
         }
 
         // Decrypt sender_name if present

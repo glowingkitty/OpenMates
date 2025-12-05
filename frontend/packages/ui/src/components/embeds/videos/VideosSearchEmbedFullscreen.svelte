@@ -1,43 +1,43 @@
 <!--
-  frontend/packages/ui/src/components/embeds/NewsSearchEmbedFullscreen.svelte
+  frontend/packages/ui/src/components/embeds/VideosSearchEmbedFullscreen.svelte
   
-  Fullscreen view for News Search skill embeds.
+  Fullscreen view for Videos Search skill embeds.
   Uses UnifiedEmbedFullscreen as base and provides skill-specific content.
   
   Shows:
   - Search query and provider
-  - News article embeds in a grid (3 per row on desktop, stacked on mobile)
-  - Each article uses WebsiteEmbedPreview component (300x200px)
+  - Video embeds in a grid (3 per row on desktop, stacked on mobile)
+  - Each video uses WebsiteEmbedPreview component (300x200px)
   - Basic infos bar at the bottom
   - Top bar with open, copy, and minimize buttons
 -->
 
 <script lang="ts">
-  import UnifiedEmbedFullscreen from './UnifiedEmbedFullscreen.svelte';
-  import WebsiteEmbedPreview from './WebsiteEmbedPreview.svelte';
-  import BasicInfosBar from './BasicInfosBar.svelte';
+  import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
+  import WebsiteEmbedPreview from '../web/WebsiteEmbedPreview.svelte';
+  import BasicInfosBar from '../BasicInfosBar.svelte';
   // @ts-ignore - @repo/ui module exists at runtime
   import { text } from '@repo/ui';
   
   /**
-   * News search result interface
+   * Video search result interface
    */
-  interface NewsSearchResult {
+  interface VideoSearchResult {
     title?: string;
     url: string;
-    favicon_url?: string;
+    thumbnail?: {
+      src?: string;
+      original?: string;
+    };
     meta_url?: {
       favicon?: string;
-    };
-    thumbnail?: {
-      original?: string;
     };
     description?: string;
     snippet?: string;
   }
   
   /**
-   * Props for news search embed fullscreen
+   * Props for videos search embed fullscreen
    */
   interface Props {
     /** Search query */
@@ -45,7 +45,7 @@
     /** Search provider (e.g., 'Brave Search') */
     provider: string;
     /** Search results */
-    results?: NewsSearchResult[];
+    results?: VideoSearchResult[];
     /** Close handler */
     onClose: () => void;
   }
@@ -99,24 +99,24 @@
       });
       
       await navigator.clipboard.writeText(yaml);
-      console.debug('[NewsSearchEmbedFullscreen] Copied YAML to clipboard');
+      console.debug('[VideosSearchEmbedFullscreen] Copied YAML to clipboard');
     } catch (error) {
-      console.error('[NewsSearchEmbedFullscreen] Failed to copy YAML:', error);
+      console.error('[VideosSearchEmbedFullscreen] Failed to copy YAML:', error);
     }
   }
   
-  // Handle website fullscreen (from WebsiteEmbedPreview)
-  function handleWebsiteFullscreen(websiteData: any) {
-    // For now, just open the website in a new tab
-    // In the future, we could show a website fullscreen view
-    if (websiteData.url) {
-      window.open(websiteData.url, '_blank', 'noopener,noreferrer');
+  // Handle video fullscreen (from WebsiteEmbedPreview)
+  function handleVideoFullscreen(videoData: any) {
+    // For now, just open the video in a new tab
+    // In the future, we could show a video player fullscreen view
+    if (videoData.url) {
+      window.open(videoData.url, '_blank', 'noopener,noreferrer');
     }
   }
 </script>
 
 <UnifiedEmbedFullscreen
-  appId="news"
+  appId="videos"
   skillId="search"
   title={displayTitle}
   {onClose}
@@ -129,27 +129,27 @@
         <p>No search results available.</p>
       </div>
     {:else}
-      <!-- News article embeds grid -->
-      <div class="article-embeds-grid" class:mobile={isMobile}>
+      <!-- Video embeds grid -->
+      <div class="video-embeds-grid" class:mobile={isMobile}>
         {#each results as result, index}
-          {@const faviconUrl = result.meta_url?.favicon || result.favicon_url}
-          {@const imageUrl = result.thumbnail?.original}
+          {@const thumbnailUrl = result.thumbnail?.original || result.thumbnail?.src}
+          {@const faviconUrl = result.meta_url?.favicon}
           {@const description = result.description || result.snippet}
           <WebsiteEmbedPreview
-            id={`news-article-${index}`}
+            id={`video-${index}`}
             url={result.url}
             title={result.title}
             description={description}
             favicon={faviconUrl}
-            image={imageUrl}
+            image={thumbnailUrl}
             status="finished"
             isMobile={false}
-            onFullscreen={() => handleWebsiteFullscreen({
+            onFullscreen={() => handleVideoFullscreen({
               url: result.url,
               title: result.title,
               description: description,
               favicon: faviconUrl,
-              image: imageUrl
+              image: thumbnailUrl
             })}
           />
         {/each}
@@ -160,7 +160,7 @@
   {#snippet bottomBar()}
     <div class="bottom-bar-wrapper">
       <BasicInfosBar
-        appId="news"
+        appId="videos"
         skillId="search"
         skillIconName="search"
         status="finished"
@@ -182,8 +182,8 @@
     color: var(--color-font-secondary);
   }
   
-  /* Article embeds grid - responsive with auto-fill */
-  .article-embeds-grid {
+  /* Video embeds grid - responsive with auto-fill */
+  .video-embeds-grid {
     display: grid;
     gap: 16px;
     width: 100%;
@@ -195,12 +195,12 @@
   }
   
   /* Mobile: single column (stacked) */
-  .article-embeds-grid.mobile {
+  .video-embeds-grid.mobile {
     grid-template-columns: 1fr;
   }
   
   /* Ensure each embed maintains proper size */
-  .article-embeds-grid :global(.unified-embed-preview) {
+  .video-embeds-grid :global(.unified-embed-preview) {
     width: 100%;
     max-width: 320px;
     margin: 0 auto;

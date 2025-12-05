@@ -10,7 +10,7 @@
 -->
 
 <script lang="ts">
-  import UnifiedEmbedPreview from './UnifiedEmbedPreview.svelte';
+  import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
   // @ts-ignore - @repo/ui module exists at runtime
   import { text } from '@repo/ui';
   
@@ -96,6 +96,7 @@
   onStop={handleStop}
   showStatus={false}
   showSkillIcon={false}
+  hasFullWidthImage={true}
 >
   {#snippet details({ isMobile: isMobileLayout })}
     <div class="video-details" class:mobile={isMobileLayout}>
@@ -151,9 +152,14 @@
     height: 100%;
   }
   
-  /* Desktop layout: vertically centered content */
-  .video-details:not(.mobile) {
+  /* Desktop layout: vertically centered content (only for text, not images) */
+  .video-details:not(.mobile):not(:has(.video-thumbnail-container)) {
     justify-content: center;
+  }
+  
+  /* When thumbnail is present, fill the full height */
+  .video-details:has(.video-thumbnail-container) {
+    gap: 0;
   }
   
   /* Mobile layout: top-aligned content */
@@ -161,16 +167,16 @@
     justify-content: flex-start;
   }
   
-  /* Video thumbnail container */
+  /* Video thumbnail container - full width and height */
   .video-thumbnail-container {
     position: relative;
     width: 100%;
-    max-width: 260px;
-    aspect-ratio: 16 / 9;
+    height: 100%;
     border-radius: 8px;
     overflow: hidden;
     background-color: var(--color-grey-15);
-    margin-top: 8px;
+    flex: 1;
+    min-height: 0;
   }
   
   .video-thumbnail {
