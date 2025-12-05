@@ -63,6 +63,8 @@
     showSkillIcon?: boolean;
     /** Custom status text for BasicInfosBar */
     customStatusText?: string;
+    /** Whether to show status text in BasicInfosBar */
+    showStatus?: boolean;
   }
   
   let {
@@ -84,7 +86,8 @@
     onBasicInfosBarClick,
     faviconUrl,
     showSkillIcon = true,
-    customStatusText
+    customStatusText,
+    showStatus = true
   }: Props = $props();
   
   // DEBUG: Log when content snippet is missing - this helps identify which embed is broken
@@ -164,6 +167,7 @@
     start: 0.5,
     easing: cubicOut
   }}
+  style="--preview-center-x: var(--preview-center-x, 50vw); --preview-center-y: var(--preview-center-y, 50vh);"
 >
   <div class="fullscreen-container">
     <!-- Top bar with action buttons -->
@@ -275,6 +279,7 @@
                 {faviconUrl}
                 {showSkillIcon}
                 {customStatusText}
+                {showStatus}
               />
             </button>
           {:else}
@@ -289,6 +294,7 @@
                 {faviconUrl}
                 {showSkillIcon}
                 {customStatusText}
+                {showStatus}
               />
             </div>
           {/if}

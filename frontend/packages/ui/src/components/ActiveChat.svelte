@@ -323,6 +323,11 @@
     let showEmbedFullscreen = $state(false);
     let embedFullscreenData = $state<any>(null);
     
+    // Debug: Track state changes
+    $effect(() => {
+        console.debug('[ActiveChat] showEmbedFullscreen changed:', showEmbedFullscreen, 'embedFullscreenData:', !!embedFullscreenData);
+    });
+    
     // Handler for embed fullscreen events (from embed renderers)
     async function handleEmbedFullscreen(event: CustomEvent) {
         console.debug('[ActiveChat] Received embedfullscreen event:', event.detail);
@@ -446,7 +451,18 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             }
         }
         
-        // Store fullscreen data
+        // Store fullscreen data (moved below after all async operations)
+        console.debug('[ActiveChat] Setting showEmbedFullscreen to true, embedFullscreenData:', {
+            embedType,
+            embedId,
+            hasEmbedData: !!finalEmbedData,
+            hasDecodedContent: !!finalDecodedContent,
+            appId: finalDecodedContent?.app_id,
+            skillId: finalDecodedContent?.skill_id
+        });
+        
+        // CRITICAL: Set embedFullscreenData first, then showEmbedFullscreen
+        // This ensures both state variables are set before the template evaluates
         embedFullscreenData = {
             embedId,
             embedData: finalEmbedData,
@@ -455,8 +471,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             attrs
         };
         
+        // Use a microtask to ensure state is fully updated before setting showEmbedFullscreen
+        // This helps with Svelte 5 reactivity
+        await Promise.resolve();
+        
         showEmbedFullscreen = true;
-        console.debug('[ActiveChat] Opening embed fullscreen:', embedType, embedId);
+        console.debug('[ActiveChat] Opening embed fullscreen:', embedType, embedId, 'showEmbedFullscreen:', showEmbedFullscreen, 'embedFullscreenData:', !!embedFullscreenData);
     }
     
     // Handler for closing embed fullscreen
@@ -2665,7 +2685,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             {/if}
             
             <!-- Embed fullscreen view (app-skill-use, website, etc.) -->
+            <!-- DEBUG: Check if condition is met -->
             {#if showEmbedFullscreen && embedFullscreenData}
+                <!-- DEBUG: Template block is rendering -->
                 {#if embedFullscreenData.embedType === 'app-skill-use'}
                     {@const skillId = embedFullscreenData.decodedContent?.skill_id || ''}
                     {@const appId = embedFullscreenData.decodedContent?.app_id || ''}
@@ -2713,6 +2735,15 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             success_count: embedFullscreenData.decodedContent?.success_count || 0,
                             failed_count: embedFullscreenData.decodedContent?.failed_count || 0
                         }}
+                        {@const debugRender = (() => {
+                            console.debug('[ActiveChat] Rendering VideoTranscriptEmbedFullscreen:', {
+                                appId,
+                                skillId,
+                                hasPreviewData: !!previewData,
+                                resultsCount: previewData.results?.length || 0
+                            });
+                            return null;
+                        })()}
                         <VideoTranscriptEmbedFullscreen 
                             previewData={previewData}
                             onClose={handleCloseEmbedFullscreen}
@@ -2766,6 +2797,31 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             onClose={handleCloseEmbedFullscreen}
                         />
                     {/if}
+                {:else if embedFullscreenData.embedType === 'videos-video'}
+                    <!-- Video Fullscreen -->
+                    {#if embedFullscreenData.decodedContent?.url || embedFullscreenData.attrs?.url}
+                        {@const VideoEmbedFullscreenPromise = import('../components/embeds/videos/VideoEmbedFullscreen.svelte')}
+                        {#await VideoEmbedFullscreenPromise then module}
+                            {@const VideoEmbedFullscreen = module.default}
+                            {@const videoUrl = embedFullscreenData.decodedContent?.url || embedFullscreenData.attrs?.url || ''}
+                            {@const videoTitle = embedFullscreenData.decodedContent?.title || embedFullscreenData.attrs?.title}
+                            <VideoEmbedFullscreen 
+                                url={videoUrl}
+                                title={videoTitle}
+                                onClose={handleCloseEmbedFullscreen}
+                            />
+                        {/await}
+                    {/if}
+                {:else}
+                    <!-- Fallback for unknown embed types -->
+                    <div class="embed-fullscreen-fallback">
+                        <div class="fullscreen-header">
+                            <button onclick={handleCloseEmbedFullscreen}>Close</button>
+                        </div>
+                        <div class="fullscreen-content">
+                            <p>Fullscreen view not available for embed type: {embedFullscreenData.embedType}</p>
+                        </div>
+                    </div>
                 {/if}
             {/if}
             <KeyboardShortcuts

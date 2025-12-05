@@ -25,7 +25,6 @@
 	import { convertDemoChatToChat } from '../../demo_chats/convertToChat'; // For converting demo chats to Chat type
 	import { getAllDraftChatIdsWithDrafts } from '../../services/drafts/sessionStorageDraftService'; // Import sessionStorage draft service
 	import { notificationStore } from '../../stores/notificationStore'; // For notifications
-	import JSZip from 'jszip'; // For creating zip files
 
 	const dispatch = createEventDispatcher();
 
@@ -1452,60 +1451,39 @@
     }
 
     /**
-     * Handle bulk download - create zip file with all YAML files
+     * Handle bulk download - create zip file with folders for each chat (YAML, Markdown, and code files)
      */
     async function handleBulkDownload() {
         if (selectedChatIds.size === 0) return;
 
         try {
             console.debug('[Chats] Starting bulk download for', selectedChatIds.size, 'chats');
-            const { convertChatToYaml, generateChatFilename } = await import('../../services/chatExportService');
-            
-            const zip = new JSZip();
-            let fileCount = 0;
+            const { downloadChatsAsZip } = await import('../../services/zipExportService');
 
-            // Process each selected chat
+            const chats: (typeof allChats)[number][] = [];
+            const messagesMap = new Map<string, Message[]>();
+
+            // Collect all chat data
             for (const chatId of selectedChatIds) {
                 const { chat, messages } = await getChatDataAndMessages(chatId);
                 if (!chat) {
                     console.warn(`[Chats] Chat ${chatId} not found for bulk download`);
                     continue;
                 }
-
-                // Convert to YAML (without link for downloads)
-                const yamlContent = await convertChatToYaml(chat, messages, false);
-                
-                // Generate filename
-                const filename = await generateChatFilename(chat, 'yaml');
-                
-                // Add to zip
-                zip.file(filename, yamlContent);
-                fileCount++;
+                chats.push(chat);
+                messagesMap.set(chatId, messages);
             }
 
-            if (fileCount === 0) {
+            if (chats.length === 0) {
                 notificationStore.error('No chats could be downloaded');
                 return;
             }
 
-            // Generate zip file
-            const zipBlob = await zip.generateAsync({ type: 'blob' });
-            
-            // Create download link
-            // Zip filename uses current date and time (not chat creation dates)
-            const now = new Date();
-            const zipDateStr = now.toISOString().slice(0, 19).replace(/[:-]/g, '-').replace('T', '_');
-            const url = URL.createObjectURL(zipBlob);
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = `chats_${zipDateStr}.zip`;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            URL.revokeObjectURL(url);
+            // Download all chats as zip
+            await downloadChatsAsZip(chats, messagesMap);
 
-            console.debug('[Chats] Bulk download completed:', fileCount, 'chats');
-            notificationStore.success(`Downloaded ${fileCount} chat${fileCount > 1 ? 's' : ''} as ZIP`);
+            console.debug('[Chats] Bulk download completed:', chats.length, 'chats');
+            notificationStore.success(`Downloaded ${chats.length} chat${chats.length > 1 ? 's' : ''} as ZIP`);
         } catch (error) {
             console.error('[Chats] Error in bulk download:', error);
             notificationStore.error('Failed to download chats. Please try again.');

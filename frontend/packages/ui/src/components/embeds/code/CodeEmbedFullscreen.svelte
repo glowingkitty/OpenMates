@@ -43,6 +43,8 @@
   import BasicInfosBar from '../BasicInfosBar.svelte';
   // @ts-ignore - @repo/ui module exists at runtime
   import { text } from '@repo/ui';
+  import { downloadCodeFile } from '../../../services/zipExportService';
+  import { notificationStore } from '../../../stores/notificationStore';
   
   /**
    * Props for code embed fullscreen
@@ -172,9 +174,22 @@
     try {
       await navigator.clipboard.writeText(codeContent);
       console.debug('[CodeEmbedFullscreen] Copied code to clipboard');
-      // TODO: Show toast notification
+      notificationStore.success('Code copied to clipboard');
     } catch (error) {
       console.error('[CodeEmbedFullscreen] Failed to copy code:', error);
+      notificationStore.error('Failed to copy code to clipboard');
+    }
+  }
+
+  // Handle download code file
+  async function handleDownload() {
+    try {
+      console.debug('[CodeEmbedFullscreen] Starting code file download');
+      await downloadCodeFile(codeContent, language, filename);
+      notificationStore.success('Code file downloaded successfully');
+    } catch (error) {
+      console.error('[CodeEmbedFullscreen] Failed to download code file:', error);
+      notificationStore.error('Failed to download code file');
     }
   }
   
@@ -190,6 +205,7 @@
   title={fullscreenTitle}
   {onClose}
   onCopy={handleCopy}
+  onDownload={handleDownload}
 >
   {#snippet content()}
     {#if codeContent}

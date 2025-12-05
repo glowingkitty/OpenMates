@@ -190,7 +190,7 @@
   
   // Handle opening video embed in fullscreen mode
   // Dispatches embedfullscreen event with videos-video embed type
-  // Note: This will close the current transcript fullscreen and open video fullscreen
+  // ActiveChat will handle closing current fullscreen and opening new one
   async function handleVideoFullscreen() {
     if (!videoUrl) {
       console.debug('[VideoTranscriptEmbedFullscreen] No video URL available');
@@ -198,13 +198,8 @@
     }
     
     try {
-      // Close the current transcript fullscreen first
-      onClose();
-      
-      // Wait a brief moment for the close animation
-      await new Promise(resolve => setTimeout(resolve, 100));
-      
       // Dispatch event to open video fullscreen
+      // ActiveChat will handle closing the current fullscreen and opening the new one
       const event = new CustomEvent('embedfullscreen', {
         detail: {
           embedType: 'videos-video',
@@ -234,20 +229,38 @@
     }
   }
   
-  // Handle copy - copies transcript text to clipboard
+  // Handle copy - copies transcript as formatted markdown (same as download)
   async function handleCopy() {
     try {
       const transcriptText = results
         .filter(r => r.transcript)
-        .map(r => r.transcript)
-        .join('\n\n');
+        .map((r, index) => {
+          let content = '';
+          if (r.metadata?.title) {
+            content += `# ${r.metadata.title}\n\n`;
+          }
+          if (r.url) {
+            content += `Source: ${r.url}\n\n`;
+          }
+          if (r.word_count) {
+            content += `Word count: ${r.word_count.toLocaleString()}\n\n`;
+          }
+          content += r.transcript || '';
+          return content;
+        })
+        .join('\n\n---\n\n');
       
       if (transcriptText) {
         await navigator.clipboard.writeText(transcriptText);
         console.debug('[VideoTranscriptEmbedFullscreen] Copied transcript to clipboard');
+        // Show success notification
+        const { notificationStore } = await import('../../../stores/notificationStore');
+        notificationStore.success('Transcript copied to clipboard');
       }
     } catch (error) {
       console.error('[VideoTranscriptEmbedFullscreen] Failed to copy transcript:', error);
+      const { notificationStore } = await import('../../../stores/notificationStore');
+      notificationStore.error('Failed to copy transcript to clipboard');
     }
   }
   

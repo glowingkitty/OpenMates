@@ -12,10 +12,8 @@
   import { LOCAL_CHAT_LIST_CHANGED_EVENT } from '../../services/drafts/draftConstants';
   import { chatMetadataCache, type DecryptedChatMetadata } from '../../services/chatMetadataCache';
   import ChatContextMenu from './ChatContextMenu.svelte';
-  import { 
-    downloadChatAsYaml, 
-    copyChatToClipboard 
-  } from '../../services/chatExportService';
+  import { copyChatToClipboard } from '../../services/chatExportService';
+  import { downloadChatAsZip } from '../../services/zipExportService';
   import type { DecryptedChatData } from '../../types/chat';
   import { DEMO_CHATS, LEGAL_CHATS, getDemoMessages, isPublicChat, isDemoChat, isLegalChat, getDemoChatById, getLegalChatById } from '../../demo_chats'; // Import demo chat utilities
   import { authStore } from '../../stores/authStore'; // Import authStore to check authentication
@@ -909,9 +907,9 @@
         }
       }
       
-      // Download as YAML (handles empty messages array and drafts)
-      await downloadChatAsYaml(chatForExport, messages);
-      
+      // Download as ZIP with YAML, Markdown, and code files
+      await downloadChatAsZip(chatForExport, messages);
+
       console.debug('[Chat] Download completed for chat:', chat.chat_id);
       notificationStore.success('Chat downloaded successfully');
     } catch (error) {

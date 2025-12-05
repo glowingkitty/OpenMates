@@ -7,7 +7,7 @@
         x?: number;
         y?: number;
         show?: boolean;
-        type?: 'default' | 'pdf' | 'web';
+        type?: 'default' | 'pdf' | 'web' | 'video-transcript' | 'video';
         isYouTube?: boolean;
         originalUrl?: string | undefined;
         hideDelete?: boolean;
@@ -23,7 +23,7 @@
     }: Props = $props();
 
     const dispatch: {
-        (e: 'close' | 'delete' | 'download' | 'view' | 'copy'): void;
+        (e: 'close' | 'delete' | 'download' | 'view' | 'copy' | 'share'): void;
     } = createEventDispatcher();
     let menuElement = $state<HTMLDivElement>();
 
@@ -87,7 +87,46 @@
             </button>
         {/if}
         
-        {#if type === 'web' || isYouTube}
+        {#if type === 'video-transcript'}
+            <!-- Video Transcript Embed: Share, Copy, Download -->
+            <button 
+                class="menu-item share"
+                onclick={(event) => handleMenuItemClick('share', event)}
+            >
+                <div class="clickable-icon icon_share"></div>
+                {$_('enter_message.press_and_hold_menu.share.text', { default: 'Share' })}
+            </button>
+            <button 
+                class="menu-item copy"
+                onclick={(event) => handleMenuItemClick('copy', event)}
+            >
+                <div class="clickable-icon icon_copy"></div>
+                {$_('enter_message.press_and_hold_menu.copy.text', { default: 'Copy' })}
+            </button>
+            <button 
+                class="menu-item download"
+                onclick={(event) => handleMenuItemClick('download', event)}
+            >
+                <div class="clickable-icon icon_download"></div>
+                {$_('enter_message.press_and_hold_menu.download.text')}
+            </button>
+        {:else if type === 'video'}
+            <!-- Video Embed: Share, Copy -->
+            <button 
+                class="menu-item share"
+                onclick={(event) => handleMenuItemClick('share', event)}
+            >
+                <div class="clickable-icon icon_share"></div>
+                {$_('enter_message.press_and_hold_menu.share.text', { default: 'Share' })}
+            </button>
+            <button 
+                class="menu-item copy"
+                onclick={(event) => handleMenuItemClick('copy', event)}
+            >
+                <div class="clickable-icon icon_copy"></div>
+                {$_('enter_message.press_and_hold_menu.copy_link.text')}
+            </button>
+        {:else if type === 'web' || isYouTube}
             <button 
                 class="menu-item copy"
                 onclick={(event) => handleMenuItemClick('copy', event)}

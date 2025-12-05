@@ -70,21 +70,21 @@
     }
   }
   
-  // Handle copy - copies video URL to clipboard
+  // Handle copy - copies video URL to clipboard with notification
   async function handleCopy() {
     try {
       if (url) {
         await navigator.clipboard.writeText(url);
         console.debug('[VideoEmbedFullscreen] Copied video URL to clipboard');
+        // Show success notification
+        const { notificationStore } = await import('../../../stores/notificationStore');
+        notificationStore.success('Video URL copied to clipboard');
       }
     } catch (error) {
       console.error('[VideoEmbedFullscreen] Failed to copy URL:', error);
+      const { notificationStore } = await import('../../../stores/notificationStore');
+      notificationStore.error('Failed to copy URL to clipboard');
     }
-  }
-  
-  // Handle download - not applicable for video embeds (placeholder)
-  function handleDownload() {
-    console.debug('[VideoEmbedFullscreen] Download action (not applicable for video embeds)');
   }
   
   // Handle share - opens share menu (placeholder for now)
@@ -100,12 +100,12 @@
   title=""
   {onClose}
   onCopy={handleCopy}
-  onDownload={handleDownload}
   onShare={handleShare}
   skillIconName="video"
   status="finished"
   skillName={displayTitle}
   showSkillIcon={false}
+  showStatus={false}
 >
   {#snippet content()}
     <div class="video-container">
@@ -129,16 +129,17 @@
         </div>
       {/if}
       
-      <!-- Open on YouTube button -->
+      <!-- Open on YouTube button - as <a> link with button styling -->
       {#if url}
         <div class="button-container">
-          <button 
+          <a 
+            href={url}
+            target="_blank"
+            rel="noopener noreferrer"
             class="open-on-youtube-button"
-            onclick={handleOpenOnYouTube}
-            type="button"
           >
             {$text('embeds.open_on_youtube.text') || 'Open on YouTube'}
-          </button>
+          </a>
         </div>
       {/if}
     </div>
@@ -201,8 +202,38 @@
     max-width: 780px;
   }
   
-  /* Open on YouTube button - styled similar to other action buttons */
+  /* Open on YouTube button - styled as button but is an <a> link */
   .open-on-youtube-button {
     margin-top: -60px;
+    /* Apply button styles from buttons.css */
+    background-color: var(--color-button-primary);
+    padding: 6px 25px;
+    border-radius: 20px;
+    border: none;
+    filter: drop-shadow(0px 4px 4px rgba(0, 0, 0, 0.25));
+    cursor: pointer;
+    transition: all 0.15s ease-in-out;
+    min-width: 112px;
+    height: 41px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 10px;
+    color: var(--color-font-button);
+    font-family: var(--button-font-family);
+    font-size: var(--button-font-size);
+    font-weight: var(--button-font-weight);
+    text-decoration: none;
+  }
+  
+  .open-on-youtube-button:hover {
+    background-color: var(--color-button-primary-hover);
+    scale: 1.02;
+  }
+  
+  .open-on-youtube-button:active {
+    background-color: var(--color-button-primary-pressed);
+    scale: 0.98;
+    filter: none;
   }
 </style>

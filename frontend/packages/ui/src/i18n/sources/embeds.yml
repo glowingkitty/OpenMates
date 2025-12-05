@@ -251,6 +251,29 @@ open_on_provider:
   cs: 'Otevřít na {provider}'
   sv: 'Öppna på {provider}'
   verified_by_human: []
+open_on_youtube:
+  context: Button label to open video on YouTube
+  en: Open on YouTube
+  de: Auf YouTube öffnen
+  zh: 在 YouTube 上打开
+  es: Abrir en YouTube
+  fr: Ouvrir sur YouTube
+  pt: Abrir no YouTube
+  ru: Открыть на YouTube
+  ja: YouTubeで開く
+  ko: YouTube에서 열기
+  it: Apri su YouTube
+  tr: YouTube'da aç
+  vi: Mở trên YouTube
+  id: Buka di YouTube
+  pl: Otwórz na YouTube
+  nl: Openen op YouTube
+  ar: فتح على YouTube
+  hi: YouTube पर खोलें
+  th: เปิดบน YouTube
+  cs: Otevřít na YouTube
+  sv: Öppna på YouTube
+  verified_by_human: []
 code_snippet:
   context: Default filename for code embeds when no filename is provided
   en: Code snippet
