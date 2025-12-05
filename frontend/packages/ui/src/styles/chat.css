@@ -28,7 +28,7 @@
 .user-message-content {
     position: relative;
     background-color: var(--color-grey-blue);
-    margin-left: 86px;
+    /* margin-left: 86px; */
     margin-right: 12px;
     color: var(--color-grey-100);
     padding: 12px;

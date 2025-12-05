@@ -274,6 +274,7 @@ async def _handle_phase1_sync(
             cached_list_item = await cache_service.get_chat_list_item_data(user_id, chat_id)
             if cached_list_item:
                 # Convert cached list item to chat details format
+                has_encrypted_chat_key = bool(cached_list_item.encrypted_chat_key)
                 chat_details = {
                     "id": chat_id,
                     "encrypted_title": cached_list_item.title,
@@ -289,35 +290,55 @@ async def _handle_phase1_sync(
                     "encrypted_active_focus_id": cached_list_item.encrypted_active_focus_id,
                     "last_message_timestamp": cached_list_item.last_message_timestamp
                 }
-                logger.info(f"Phase 1: Cache HIT for chat metadata {chat_id}")
+                logger.info(
+                    f"[PHASE1_CHAT_METADATA] ✅ Cache HIT for chat metadata {chat_id} for user {user_id[:8]}... "
+                    f"has_encrypted_chat_key={has_encrypted_chat_key}, "
+                    f"encrypted_chat_key_preview={cached_list_item.encrypted_chat_key[:30] + '...' if cached_list_item.encrypted_chat_key else 'NULL'}"
+                )
             else:
-                logger.info(f"Phase 1: Cache MISS for chat metadata {chat_id}")
+                logger.info(
+                    f"[PHASE1_CHAT_METADATA] ⚠️ Cache MISS for chat metadata {chat_id} "
+                    f"for user {user_id[:8]}... - will fetch from Directus"
+                )
         except Exception as cache_error:
-            logger.warning(f"Phase 1: Error reading chat metadata from cache for {chat_id}: {cache_error}")
+            logger.warning(
+                f"[PHASE1_CHAT_METADATA] ❌ Error reading chat metadata from cache for {chat_id}: {cache_error}"
+            )
         
         # Try to get client-encrypted messages from sync cache first
         try:
             cached_sync_messages = await cache_service.get_sync_messages_history(user_id, chat_id)
             if cached_sync_messages:
                 messages_data = cached_sync_messages
-                logger.info(f"Phase 1: Sync cache HIT for {len(messages_data)} client-encrypted messages in chat {chat_id}")
+                logger.info(
+                    f"[PHASE1_SYNC_CACHE] ✅ Sync cache HIT for {len(messages_data)} client-encrypted messages "
+                    f"in chat {chat_id} for user {user_id[:8]}..."
+                )
                 
                 # CRITICAL VALIDATION: Ensure these are client-encrypted (not vault-encrypted)
                 if messages_data and len(messages_data) > 0:
                     import json
                     try:
+                        # Check first and last messages to validate encryption
                         first_msg = json.loads(messages_data[0])
-                        logger.debug(
-                            f"[SYNC_CACHE_VALIDATION] Phase 1: First message in sync cache for {chat_id}: "
-                            f"id={first_msg.get('id')}, role={first_msg.get('role')}, "
-                            f"encrypted_content_length={len(first_msg.get('encrypted_content', ''))}"
+                        last_msg = json.loads(messages_data[-1]) if len(messages_data) > 1 else first_msg
+                        logger.info(
+                            f"[PHASE1_SYNC_CACHE] Message validation for chat {chat_id}: "
+                            f"first_msg_id={first_msg.get('id')}, first_role={first_msg.get('role')}, "
+                            f"last_msg_id={last_msg.get('id')}, last_role={last_msg.get('role')}, "
+                            f"total_messages={len(messages_data)}"
                         )
                     except Exception as parse_err:
-                        logger.error(f"[SYNC_CACHE_VALIDATION] Failed to parse first message in sync cache: {parse_err}")
+                        logger.error(f"[PHASE1_SYNC_CACHE] ❌ Failed to parse messages in sync cache: {parse_err}")
             else:
-                logger.info(f"Phase 1: Sync cache MISS for messages in chat {chat_id}")
+                logger.info(
+                    f"[PHASE1_SYNC_CACHE] ⚠️ Sync cache MISS for messages in chat {chat_id} "
+                    f"for user {user_id[:8]}... - will fetch from Directus"
+                )
         except Exception as cache_error:
-            logger.warning(f"Phase 1: Error reading messages from sync cache for {chat_id}: {cache_error}")
+            logger.warning(
+                f"[PHASE1_SYNC_CACHE] ❌ Error reading messages from sync cache for chat {chat_id}: {cache_error}"
+            )
         
         # Fallback to Directus if cache miss
         if not chat_details:
@@ -347,6 +368,10 @@ async def _handle_phase1_sync(
         # Fallback to Directus if sync cache didn't have messages
         # BUT only if messages are actually needed (client might already have up-to-date messages)
         if not messages_data:
+            logger.info(
+                f"[PHASE1_MESSAGES] Fetching messages from Directus for chat {chat_id} "
+                f"(sync cache miss or empty) for user {user_id[:8]}..."
+            )
             # CRITICAL FIX: Check if client already has up-to-date messages before fetching from Directus
             client_versions = client_chat_versions.get(chat_id, {})
             
@@ -369,19 +394,35 @@ async def _handle_phase1_sync(
                 # If client already has up-to-date messages, skip fetching from Directus
                 # Client will use messages from IndexedDB
                 if client_messages_v >= server_messages_v:
-                    logger.info(f"Phase 1: Skipping message fetch for chat {chat_id} - client already has up-to-date messages "
-                               f"(client: m={client_messages_v}, server: m={server_messages_v}). Client will use IndexedDB.")
+                    logger.info(
+                        f"[PHASE1_MESSAGES] ⏭️ Skipping message fetch for chat {chat_id} - client already has up-to-date messages "
+                        f"(client: m={client_messages_v}, server: m={server_messages_v}). Client will use IndexedDB."
+                    )
                     messages_data = []  # Empty list - client should use local data
                 else:
-                    logger.info(f"Phase 1: Fetching messages from Directus for {chat_id} (sync cache miss, messages outdated)")
+                    logger.info(
+                        f"[PHASE1_MESSAGES] 📥 Fetching messages from Directus for {chat_id} "
+                        f"(sync cache miss, messages outdated: client={client_messages_v}, server={server_messages_v})"
+                    )
                     messages_data = await directus_service.chat.get_all_messages_for_chat(
                             chat_id=chat_id, decrypt_content=False  # Zero-knowledge: keep encrypted with chat keys
                     )
+                    logger.info(
+                        f"[PHASE1_MESSAGES] ✅ Fetched {len(messages_data) if messages_data else 0} messages from Directus "
+                        f"for chat {chat_id}"
+                    )
             else:
                 # No version data available - fetch from Directus to be safe
-                logger.info(f"Phase 1: Fetching messages from Directus for {chat_id} (sync cache miss, no version data)")
+                logger.info(
+                    f"[PHASE1_MESSAGES] 📥 Fetching messages from Directus for {chat_id} "
+                    f"(sync cache miss, no version data available)"
+                )
                 messages_data = await directus_service.chat.get_all_messages_for_chat(
                         chat_id=chat_id, decrypt_content=False  # Zero-knowledge: keep encrypted with chat keys
+                )
+                logger.info(
+                    f"[PHASE1_MESSAGES] ✅ Fetched {len(messages_data) if messages_data else 0} messages from Directus "
+                    f"for chat {chat_id}"
                 )
             
             # CRITICAL VALIDATION: Ensure Directus messages are client-encrypted (not vault-encrypted)
@@ -427,6 +468,15 @@ async def _handle_phase1_sync(
         except Exception as e:
             logger.warning(f"Phase 1: Error fetching embed_keys for chat {chat_id}: {e}")
         
+        # Log what we're sending to client
+        has_encrypted_chat_key = bool(chat_details and chat_details.get("encrypted_chat_key"))
+        logger.info(
+            f"[PHASE1_SEND] 📤 Sending Phase 1 data to client for chat {chat_id}, user {user_id[:8]}...: "
+            f"messages={len(messages_data or [])}, embeds={len(embeds_data or [])}, "
+            f"embed_keys={len(embed_keys_data or [])}, suggestions={len(new_chat_suggestions)}, "
+            f"has_encrypted_chat_key={has_encrypted_chat_key}"
+        )
+        
         # Send Phase 1 data to client WITH suggestions, embeds, AND embed_keys
         await manager.send_personal_message(
             {
@@ -446,7 +496,11 @@ async def _handle_phase1_sync(
             device_fingerprint_hash
         )
         
-        logger.info(f"Phase 1 sync complete for user {user_id}, chat: {chat_id}, sent: {len(messages_data or [])} messages, {len(embeds_data or [])} embeds, {len(embed_keys_data)} embed_keys, and {len(new_chat_suggestions)} suggestions")
+        logger.info(
+            f"[PHASE1_COMPLETE] ✅ Phase 1 sync complete for user {user_id[:8]}..., chat: {chat_id}, "
+            f"sent: {len(messages_data or [])} messages, {len(embeds_data or [])} embeds, "
+            f"{len(embed_keys_data)} embed_keys, and {len(new_chat_suggestions)} suggestions"
+        )
         
     except Exception as e:
         logger.error(f"Error in Phase 1 sync for user {user_id}: {e}", exc_info=True)
