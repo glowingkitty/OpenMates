@@ -13,6 +13,9 @@
 
 <script lang="ts">
   import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
+  import BasicInfosBar from '../BasicInfosBar.svelte';
+  // @ts-ignore - @repo/ui module exists at runtime
+  import { text } from '@repo/ui';
   import type { VideoTranscriptSkillPreviewData, VideoTranscriptResult } from '../../../types/appSkills';
   
   /**
@@ -26,25 +29,49 @@
     previewData?: VideoTranscriptSkillPreviewData;
     /** Close handler */
     onClose: () => void;
+    /** Optional embed ID for the video embed (used to open video fullscreen) */
+    videoEmbedId?: string;
   }
   
   let {
     results: resultsProp,
     previewData,
-    onClose
+    onClose,
+    videoEmbedId
   }: Props = $props();
   
   // Extract values from either previewData (skill preview context) or direct props (embed context)
   let results = $derived(previewData?.results || resultsProp || []);
   
+  // DEBUG: Log results to understand data format
+  $effect(() => {
+    console.debug('[VideoTranscriptEmbedFullscreen] Results:', {
+      resultsLength: results?.length,
+      previewData: previewData,
+      resultsProp: resultsProp,
+      firstResult: results?.[0]
+    });
+  });
+  
   // Get first result for main display
   let firstResult = $derived(results[0]);
   
-  // Format display title
-  let displayTitle = $derived(
+  // Get skill name for bottom BasicInfosBar (same as VideoTranscriptEmbedPreview)
+  // This should show "Transcript" not the URL
+  let transcriptSkillName = $derived($text('embeds.transcript.text') || 'Transcript');
+  
+  // Format video title for top BasicInfosBar (video embed preview style)
+  let videoTitle = $derived(
     firstResult?.metadata?.title || 
-    firstResult?.url || 
-    'Video Transcript'
+    'YouTube Video'
+  );
+  
+  // Get video URL for opening video
+  let videoUrl = $derived(firstResult?.url || '');
+  
+  // Calculate total word count across all results
+  let totalWordCount = $derived(
+    results.reduce((sum, result) => sum + (result.word_count || 0), 0)
   );
   
   // Format duration (ISO 8601 to readable format)
@@ -65,10 +92,211 @@
     return `${minutes}:${seconds.toString().padStart(2, '0')}`;
   }
   
-  // Format numbers with commas
-  function formatNumber(num?: number): string {
-    if (num === undefined || num === null) return 'N/A';
-    return num.toLocaleString();
+  // Format date for top BasicInfosBar (from metadata.published_at)
+  let formattedDate = $derived.by(() => {
+    if (firstResult?.metadata?.published_at) {
+      const date = new Date(firstResult.metadata.published_at);
+      return date.toLocaleDateString('en-US', { 
+        month: 'short', 
+        day: 'numeric', 
+        year: 'numeric' 
+      });
+    }
+    return '';
+  });
+  
+  // Format duration for top BasicInfosBar
+  let formattedDuration = $derived(
+    firstResult?.metadata?.duration ? formatDuration(firstResult.metadata.duration) : ''
+  );
+  
+  // Format date and duration string for top BasicInfosBar (e.g., "29:26, Jul 31, 2025")
+  let dateDurationString = $derived.by(() => {
+    const parts = [];
+    if (formattedDuration) {
+      parts.push(formattedDuration);
+    }
+    if (formattedDate) {
+      parts.push(formattedDate);
+    }
+    return parts.join(', ');
+  });
+  
+  // Get transcript text from results (handles both formats)
+  let transcriptText = $derived.by(() => {
+    if (!results || results.length === 0) {
+      console.debug('[VideoTranscriptEmbedFullscreen] No results available');
+      return '';
+    }
+    
+    // Try to get transcript from first result
+    const result = results[0] as any;
+    
+    // Check various possible field names for transcript
+    if (result?.transcript) {
+      console.debug('[VideoTranscriptEmbedFullscreen] Found transcript field');
+      return result.transcript;
+    }
+    
+    // Try formatted_transcript if available
+    if (result?.formatted_transcript) {
+      console.debug('[VideoTranscriptEmbedFullscreen] Found formatted_transcript field');
+      return result.formatted_transcript;
+    }
+    
+    // Try text field
+    if (result?.text) {
+      console.debug('[VideoTranscriptEmbedFullscreen] Found text field');
+      return result.text;
+    }
+    
+    // Try content field
+    if (result?.content) {
+      console.debug('[VideoTranscriptEmbedFullscreen] Found content field');
+      return result.content;
+    }
+    
+    console.debug('[VideoTranscriptEmbedFullscreen] No transcript text found in result:', result);
+    return '';
+  });
+  
+  /**
+   * Parse transcript text into HTML with styled timestamps.
+   * Timestamps like [00:00:00.240] are wrapped in span.timestamp (without brackets).
+   * Regular text keeps its formatting.
+   * Newlines are preserved with CSS white-space: pre-wrap.
+   */
+  function parseTranscriptToHtml(text: string): string {
+    if (!text) return '';
+    
+    // Escape HTML special characters to prevent XSS
+    let escaped = text
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+    
+    // Match timestamps like [00:00:00.240] or [00:00:05.123] or [0:00:00.000]
+    // Replace with styled spans - timestamp without brackets
+    return escaped.replace(
+      /\[(\d{1,2}:\d{2}:\d{2}(?:\.\d+)?)\]/g,
+      '<span class="timestamp">$1</span>'
+    );
+  }
+  
+  // Parsed transcript HTML for styled rendering
+  let parsedTranscriptHtml = $derived(parseTranscriptToHtml(transcriptText));
+  
+  // Handle opening video embed in fullscreen mode
+  // Tries to find video embed by URL, then dispatches embedfullscreen event
+  async function handleVideoFullscreen() {
+    if (!videoUrl) {
+      console.debug('[VideoTranscriptEmbedFullscreen] No video URL available');
+      return;
+    }
+    
+    try {
+      // If we have a video embed ID, use it to open the video embed in fullscreen
+      if (videoEmbedId) {
+        const { resolveEmbed, decodeToonContent } = await import('../../../services/embedResolver');
+        const embedData = await resolveEmbed(videoEmbedId);
+        
+        if (embedData) {
+          const decodedContent = embedData.content ? await decodeToonContent(embedData.content) : null;
+          
+          const event = new CustomEvent('embedfullscreen', {
+            detail: {
+              embedId: videoEmbedId,
+              embedData,
+              decodedContent,
+              embedType: 'app-skill-use',
+              attrs: {
+                contentRef: `embed:${videoEmbedId}`
+              }
+            },
+            bubbles: true
+          });
+          
+          document.dispatchEvent(event);
+          console.debug('[VideoTranscriptEmbedFullscreen] Dispatched video embed fullscreen event:', videoEmbedId);
+          return;
+        }
+      }
+      
+      // Fallback: open video URL in new tab
+      // Note: In a real scenario, we might search for video embed by URL,
+      // but for now we'll just open the URL if no video embed ID is provided
+      console.debug('[VideoTranscriptEmbedFullscreen] No video embed ID provided, opening URL in new tab');
+      window.open(videoUrl, '_blank', 'noopener,noreferrer');
+    } catch (error) {
+      console.error('[VideoTranscriptEmbedFullscreen] Error opening video embed fullscreen:', error);
+      // Fallback: open video URL in new tab
+      if (videoUrl) {
+        window.open(videoUrl, '_blank', 'noopener,noreferrer');
+      }
+    }
+  }
+  
+  // Handle copy - copies transcript text to clipboard
+  async function handleCopy() {
+    try {
+      const transcriptText = results
+        .filter(r => r.transcript)
+        .map(r => r.transcript)
+        .join('\n\n');
+      
+      if (transcriptText) {
+        await navigator.clipboard.writeText(transcriptText);
+        console.debug('[VideoTranscriptEmbedFullscreen] Copied transcript to clipboard');
+      }
+    } catch (error) {
+      console.error('[VideoTranscriptEmbedFullscreen] Failed to copy transcript:', error);
+    }
+  }
+  
+  // Handle download - downloads transcript as markdown file
+  function handleDownload() {
+    try {
+      const transcriptText = results
+        .filter(r => r.transcript)
+        .map((r, index) => {
+          let content = '';
+          if (r.metadata?.title) {
+            content += `# ${r.metadata.title}\n\n`;
+          }
+          if (r.url) {
+            content += `Source: ${r.url}\n\n`;
+          }
+          if (r.word_count) {
+            content += `Word count: ${r.word_count.toLocaleString()}\n\n`;
+          }
+          content += r.transcript || '';
+          return content;
+        })
+        .join('\n\n---\n\n');
+      
+      if (transcriptText) {
+        const blob = new Blob([transcriptText], { type: 'text/markdown' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${videoTitle.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_transcript.md`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        console.debug('[VideoTranscriptEmbedFullscreen] Downloaded transcript as markdown');
+      }
+    } catch (error) {
+      console.error('[VideoTranscriptEmbedFullscreen] Failed to download transcript:', error);
+    }
+  }
+  
+  // Handle share - opens share menu (placeholder for now)
+  function handleShare() {
+    // TODO: Implement share functionality for video transcript embeds
+    console.debug('[VideoTranscriptEmbedFullscreen] Share action (not yet implemented)');
   }
   
   // Handle opening video on YouTube
@@ -82,158 +310,89 @@
 <UnifiedEmbedFullscreen
   appId="videos"
   skillId="get_transcript"
-  title={displayTitle}
+  title=""
   {onClose}
-  onOpen={handleOpenOnYouTube}
+  onCopy={handleCopy}
+  onDownload={handleDownload}
+  onShare={handleShare}
+  skillIconName="transcript"
+  status="finished"
+  skillName={transcriptSkillName}
+  showSkillIcon={true}
 >
-  {#snippet headerExtra()}
-    {#if results.length > 1}
-      <div class="results-indicator">
-        <div class="icon_rounded video"></div>
-        <span class="results-count">+{results.length - 1} more</span>
-      </div>
-    {/if}
-    
-    <!-- @ts-expect-error - onclick is valid Svelte 5 syntax -->
-    <button class="open-button" onclick={handleOpenOnYouTube}>
-      Open on YouTube
-    </button>
-  {/snippet}
-  
   {#snippet content()}
     {#if results.length === 0}
       <div class="no-results">
         <p>No transcript results available.</p>
       </div>
     {:else}
-      {#each results as result, index}
-        <div class="video-result">
-          <!-- Video metadata section -->
-          {#if result.metadata}
-            <div class="metadata-section">
-              {#if result.metadata.thumbnail_url}
-                <div class="thumbnail-container">
-                  <img 
-                    src={result.metadata.thumbnail_url} 
-                    alt={result.metadata.title || 'Video thumbnail'}
-                    class="thumbnail"
-                  />
+      <div class="transcript-container">
+        <!-- Top: Clickable VideoEmbedPreview-style BasicInfosBar (max-width 300px) -->
+        <button 
+          class="video-basic-infos-bar-wrapper"
+          onclick={handleVideoFullscreen}
+          type="button"
+        >
+          <BasicInfosBar
+            appId="videos"
+            skillId="video"
+            skillIconName="video"
+            status="finished"
+            skillName={videoTitle}
+            showSkillIcon={false}
+            showStatus={true}
+            customStatusText={dateDurationString}
+          />
+        </button>
+        
+        <!-- Word count centered above transcript -->
+        {#if totalWordCount > 0}
+          <div class="word-count-header">
+            {totalWordCount.toLocaleString()} words:
+          </div>
+        {/if}
+        
+        <!-- Transcript content box with styled timestamps -->
+        <div class="transcript-box">
+          {#if parsedTranscriptHtml}
+            <!-- Render transcript with styled timestamps using @html -->
+            <div class="transcript-content">{@html parsedTranscriptHtml}</div>
+          {:else if transcriptText}
+            <!-- Fallback: render plain text if parsing failed -->
+            <div class="transcript-content">{transcriptText}</div>
+          {:else}
+            <!-- Try to render each result's transcript -->
+            {#each results as result, index}
+              {@const resultAny = result as any}
+              {#if result.transcript}
+                <div class="transcript-content">{@html parseTranscriptToHtml(result.transcript)}</div>
+              {:else if resultAny.formatted_transcript}
+                <div class="transcript-content">{@html parseTranscriptToHtml(resultAny.formatted_transcript)}</div>
+              {:else if result.error}
+                <div class="error-section">
+                  <p class="error-message">Failed to fetch transcript: {result.error}</p>
+                </div>
+              {:else if result.success === false}
+                <div class="error-section">
+                  <p class="error-message">Transcript unavailable</p>
+                </div>
+              {:else}
+                <div class="error-section">
+                  <p class="error-message">No transcript content available</p>
                 </div>
               {/if}
-              
-              <div class="metadata-content">
-                {#if result.metadata.channel_title}
-                  <div class="channel-name">{result.metadata.channel_title}</div>
-                {/if}
-                
-                {#if result.metadata.view_count !== undefined || result.metadata.like_count !== undefined}
-                  <div class="stats">
-                    {#if result.metadata.view_count !== undefined}
-                      <span class="stat-item">
-                        <span class="stat-label">Views:</span> {formatNumber(result.metadata.view_count)}
-                      </span>
-                    {/if}
-                    {#if result.metadata.like_count !== undefined}
-                      <span class="stat-item">
-                        <span class="stat-label">Likes:</span> {formatNumber(result.metadata.like_count)}
-                      </span>
-                    {/if}
-                    {#if result.metadata.comment_count !== undefined}
-                      <span class="stat-item">
-                        <span class="stat-label">Comments:</span> {formatNumber(result.metadata.comment_count)}
-                      </span>
-                    {/if}
-                    {#if result.metadata.duration}
-                      <span class="stat-item">
-                        <span class="stat-label">Duration:</span> {formatDuration(result.metadata.duration)}
-                      </span>
-                    {/if}
-                  </div>
-                {/if}
-                
-                {#if result.metadata.published_at}
-                  <div class="published-date">
-                    Published: {new Date(result.metadata.published_at).toLocaleDateString()}
-                  </div>
-                {/if}
-              </div>
-            </div>
-          {/if}
-          
-          <!-- Transcript section -->
-          {#if result.success && result.transcript}
-            <div class="transcript-section">
-              <div class="transcript-header">
-                <h3>Transcript</h3>
-                {#if result.word_count}
-                  <span class="word-count">{result.word_count.toLocaleString()} words</span>
-                {/if}
-                {#if result.language}
-                  <span class="language">Language: {result.language}</span>
-                {/if}
-                {#if result.is_generated}
-                  <span class="generated-badge">Auto-generated</span>
-                {/if}
-              </div>
-              
-              <div class="transcript-content">
-                {result.transcript}
-              </div>
-            </div>
-          {:else if result.error}
-            <div class="error-section">
-              <p class="error-message">Failed to fetch transcript: {result.error}</p>
-            </div>
-          {/if}
-          
-          <!-- Video URL link -->
-          {#if result.url}
-            <div class="video-link">
-              <a href={result.url} target="_blank" rel="noopener noreferrer" class="youtube-link">
-                Watch on YouTube →
-              </a>
-            </div>
+            {/each}
           {/if}
         </div>
-        
-        {#if index < results.length - 1}
-          <hr class="result-divider" />
-        {/if}
-      {/each}
+      </div>
     {/if}
   {/snippet}
 </UnifiedEmbedFullscreen>
 
 <style>
-  .results-indicator {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-top: 8px;
-  }
-  
-  .results-count {
-    font-size: 14px;
-    color: var(--color-font-secondary);
-  }
-  
-  .open-button {
-    margin-top: 12px;
-    padding: 12px 24px;
-    background-color: var(--color-error);
-    color: white;
-    border: none;
-    border-radius: 20px;
-    font-size: 16px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: background-color 0.2s, transform 0.2s;
-  }
-  
-  .open-button:hover {
-    background-color: var(--color-error-dark);
-    transform: translateY(-2px);
-  }
+  /* ===========================================
+     Video Transcript Fullscreen - Layout
+     =========================================== */
   
   .no-results {
     display: flex;
@@ -243,133 +402,72 @@
     color: var(--color-font-secondary);
   }
   
-  .video-result {
-    margin-bottom: 32px;
-  }
-  
-  /* Metadata section */
-  .metadata-section {
-    display: flex;
-    gap: 16px;
-    margin-bottom: 24px;
-    padding: 16px;
-    background-color: var(--color-grey-15);
-    border-radius: 12px;
-  }
-  
-  .thumbnail-container {
-    flex-shrink: 0;
-  }
-  
-  .thumbnail {
-    width: 200px;
-    height: 112px;
-    object-fit: cover;
-    border-radius: 8px;
-    background-color: var(--color-grey-20);
-  }
-  
-  .metadata-content {
-    flex: 1;
+  /* Transcript container - centers all content */
+  .transcript-container {
     display: flex;
     flex-direction: column;
-    gap: 8px;
-  }
-  
-  .channel-name {
-    font-size: 16px;
-    font-weight: 500;
-    color: var(--color-font-primary);
-  }
-  
-  .stats {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 16px;
-    font-size: 14px;
-    color: var(--color-font-secondary);
-  }
-  
-  .stat-item {
-    display: flex;
-    gap: 4px;
-  }
-  
-  .stat-label {
-    font-weight: 500;
-  }
-  
-  .published-date {
-    font-size: 14px;
-    color: var(--color-font-tertiary);
-  }
-  
-  /* Transcript section */
-  .transcript-section {
-    margin-bottom: 24px;
-  }
-  
-  .transcript-header {
-    display: flex;
     align-items: center;
-    gap: 12px;
-    margin-bottom: 16px;
-    flex-wrap: wrap;
+    gap: 16px;
+    width: 100%;
+    margin-top: 80px;
   }
   
-  .transcript-header h3 {
-    font-size: 20px;
+  /* Video BasicInfosBar wrapper - full width but max 300px */
+  .video-basic-infos-bar-wrapper {
+    width: 100%;
+    max-width: 300px;
+    display: flex;
+    justify-content: center;
+    margin-bottom: 8px;
+    background: transparent;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    transition: opacity 0.2s;
+  }
+  
+  .video-basic-infos-bar-wrapper:hover {
+    opacity: 0.9;
+  }
+  
+  /* Word count header - centered above transcript */
+  .word-count-header {
     font-weight: 600;
     color: var(--color-font-primary);
-    margin: 0;
+    width: 100%;
+    max-width: 722px;
+    text-align: center;
   }
   
-  .word-count {
-    font-size: 14px;
-    color: var(--color-font-secondary);
-    background-color: var(--color-grey-15);
-    padding: 4px 12px;
-    border-radius: 12px;
-  }
-  
-  .language {
-    font-size: 14px;
-    color: var(--color-font-secondary);
-    background-color: var(--color-grey-15);
-    padding: 4px 12px;
-    border-radius: 12px;
-  }
-  
-  .generated-badge {
-    font-size: 12px;
-    color: var(--color-font-secondary);
-    background-color: var(--color-grey-20);
-    padding: 4px 8px;
-    border-radius: 8px;
-  }
-  
-  .transcript-content {
-    background-color: var(--color-grey-15);
-    border-radius: 12px;
+  /* Transcript box - rounded edges, drop shadow, grey-10 background */
+  .transcript-box {
+    width: auto;
+    max-width: 722px;
+    background-color: var(--color-grey-10);
+    border-radius: 16px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     padding: 20px;
-    font-size: 15px;
-    line-height: 1.6;
-    color: var(--color-font-primary);
+  }
+  
+  /* Transcript content - selectable text with preserved whitespace */
+  .transcript-content {
+    line-height: 1.8;
+    width: 100%;
+    user-select: text;
+    -webkit-user-select: text;
+    -moz-user-select: text;
+    -ms-user-select: text;
+    cursor: text;
     white-space: pre-wrap;
     word-wrap: break-word;
+    color: var(--color-grey-100);
   }
   
-  .transcript-content::-webkit-scrollbar {
-    width: 8px;
-  }
-  
-  .transcript-content::-webkit-scrollbar-track {
-    background: transparent;
-  }
-  
-  .transcript-content::-webkit-scrollbar-thumb {
-    background-color: rgba(128, 128, 128, 0.3);
-    border-radius: 4px;
+  /* Timestamp styling - grey-80, no brackets */
+  .transcript-content :global(.timestamp) {
+    color: var(--color-grey-80);
+    font-family: monospace;
+    margin-right: 10px;
   }
   
   /* Error section */
@@ -378,56 +476,12 @@
     background-color: rgba(var(--color-error-rgb), 0.1);
     border: 1px solid var(--color-error);
     border-radius: 12px;
-    margin-bottom: 24px;
+    width: 100%;
   }
   
   .error-message {
     color: var(--color-error);
     margin: 0;
-  }
-  
-  /* Video link */
-  .video-link {
-    margin-top: 16px;
-    text-align: center;
-  }
-  
-  .youtube-link {
-    color: var(--color-primary);
-    text-decoration: none;
-    font-size: 16px;
-    font-weight: 500;
-    transition: color 0.2s;
-  }
-  
-  .youtube-link:hover {
-    color: var(--color-primary-dark);
-    text-decoration: underline;
-  }
-  
-  /* Result divider */
-  .result-divider {
-    border: none;
-    border-top: 1px solid var(--color-grey-20);
-    margin: 32px 0;
-  }
-  
-  /* Responsive adjustments */
-  @media (max-width: 768px) {
-    .metadata-section {
-      flex-direction: column;
-    }
-    
-    .thumbnail {
-      width: 100%;
-      height: auto;
-      aspect-ratio: 16 / 9;
-    }
-    
-    .stats {
-      flex-direction: column;
-      gap: 8px;
-    }
   }
 </style>
 
