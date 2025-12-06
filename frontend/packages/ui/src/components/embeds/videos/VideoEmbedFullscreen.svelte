@@ -12,6 +12,7 @@
 -->
 
 <script lang="ts">
+  import { onDestroy } from 'svelte';
   import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
   // @ts-ignore - @repo/ui module exists at runtime
   import { text } from '@repo/ui';
@@ -39,6 +40,32 @@
   let thumbnailUrl = $derived('');
   let displayTitle = $derived(title || 'YouTube Video');
   let hostname = $derived('');
+  
+  // State to track whether video should be shown in iframe
+  // Only set to true when user clicks play button - iframe loads lazily
+  let showVideo = $state(false);
+  
+  // Reference to the iframe element for cleanup
+  let iframeElement: HTMLIFrameElement | null = $state(null);
+  
+  // Generate YouTube embed URL with privacy settings
+  // Uses youtube-nocookie.com (privacy-enhanced mode) to minimize cookie tracking
+  // Now works with strict-origin-when-cross-origin referrer policy (fixes Error 153)
+  // Only generated when showVideo is true to avoid loading until needed
+  let embedUrl = $derived(
+    showVideo && videoId
+      ? // Use privacy-enhanced mode (youtube-nocookie.com) to minimize cookie tracking
+        // This prevents YouTube from setting cookies unless user interacts with video
+        // URL parameters:
+        // - modestbranding=1: Reduces YouTube branding
+        // - rel=0: Don't show related videos from other channels
+        // - iv_load_policy=3: Don't show video annotations
+        // - fs=1: Allow fullscreen (user preference)
+        // - autoplay=1: Start playing when iframe loads (user clicked play button)
+        // - enablejsapi=0: Disable JavaScript API to reduce tracking
+        `https://www.youtube-nocookie.com/embed/${videoId}?modestbranding=1&rel=0&iv_load_policy=3&fs=1&autoplay=1&enablejsapi=0`
+      : ''
+  );
   
   // Process URL to extract video information
   $effect(() => {
@@ -92,13 +119,60 @@
     // TODO: Implement share functionality for video embeds
     console.debug('[VideoEmbedFullscreen] Share action (not yet implemented)');
   }
+  
+  // Handle play button click - loads video in iframe
+  // This is the only way the iframe gets loaded - lazy loading for privacy
+  function handlePlayClick() {
+    console.debug('[VideoEmbedFullscreen] Play button clicked, loading video');
+    showVideo = true;
+  }
+  
+  // Clean up YouTube iframe and all related data when fullscreen closes
+  // This ensures no YouTube scripts or data persist after closing
+  function cleanupYouTubeData() {
+    console.debug('[VideoEmbedFullscreen] Cleaning up YouTube iframe and data');
+    
+    // Unload iframe by removing src - this stops all YouTube scripts and connections
+    if (iframeElement) {
+      // Clear the src first to stop any ongoing requests
+      iframeElement.src = '';
+      // Remove the iframe from DOM to completely disconnect it
+      iframeElement.remove();
+      iframeElement = null;
+    }
+    
+    // Reset video state - this removes the iframe from DOM
+    showVideo = false;
+    
+    // Note about cookies:
+    // - Third-party cookies (from youtube.com) cannot be deleted from JavaScript
+    //   due to browser security restrictions (cross-origin policy)
+    // - Using youtube-nocookie.com (privacy-enhanced mode) minimizes cookie usage
+    // - Cookies are isolated to YouTube's domain and cannot access our site's data
+    // - Removing the iframe stops all active connections and prevents further tracking
+    // - Users can clear cookies manually via browser settings if desired
+    console.debug('[VideoEmbedFullscreen] Iframe removed. Note: Third-party YouTube cookies cannot be cleared from JavaScript due to browser security restrictions.');
+  }
+  
+  // Wrapper for onClose that cleans up before closing
+  function handleClose() {
+    cleanupYouTubeData();
+    onClose();
+  }
+  
+  // Cleanup on component destroy - ensures iframe is removed even if component
+  // is destroyed without explicit close (e.g., navigation away)
+  onDestroy(() => {
+    console.debug('[VideoEmbedFullscreen] Component destroying, cleaning up YouTube data');
+    cleanupYouTubeData();
+  });
 </script>
 
 <UnifiedEmbedFullscreen
   appId="videos"
   skillId="video"
   title=""
-  {onClose}
+  onClose={handleClose}
   onCopy={handleCopy}
   onShare={handleShare}
   skillIconName="video"
@@ -109,8 +183,30 @@
 >
   {#snippet content()}
     <div class="video-container">
-      <!-- Video thumbnail preview (780px max width) -->
-      {#if videoId && thumbnailUrl}
+      <!-- Video iframe or thumbnail preview (780px max width) -->
+      <!-- Iframe is only loaded when user clicks play button (showVideo = true) -->
+      {#if showVideo && videoId && embedUrl}
+        <!-- Video iframe with maximum security settings -->
+        <!-- Iframe is unloaded when fullscreen closes to remove all YouTube data -->
+        <!-- Uses privacy-enhanced mode (youtube-nocookie.com) to minimize cookie tracking -->
+        <!-- Error 153 is fixed by using strict-origin-when-cross-origin referrer policy -->
+        <!-- YouTube requires referrer info to verify embedding context, but we still maintain privacy -->
+        <!-- Privacy-enhanced mode prevents cookies unless user interacts with video -->
+        <div class="video-iframe-wrapper">
+          <iframe
+            bind:this={iframeElement}
+            src={embedUrl}
+            title={displayTitle}
+            class="video-iframe"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+            allowfullscreen
+            referrerpolicy="strict-origin-when-cross-origin"
+            loading="eager"
+            frameborder="0"
+          ></iframe>
+        </div>
+      {:else if videoId && thumbnailUrl}
+        <!-- Thumbnail with play button overlay -->
         <div class="video-thumbnail-wrapper">
           <img 
             src={thumbnailUrl} 
@@ -121,6 +217,15 @@
               (e.target as HTMLImageElement).style.display = 'none';
             }}
           />
+          <!-- Play button overlay -->
+          <button
+            class="play-button-overlay"
+            onclick={handlePlayClick}
+            aria-label="Play video"
+            type="button"
+          >
+            <span class="play-icon"></span>
+          </button>
         </div>
       {:else}
         <!-- Fallback: show URL hostname if no thumbnail -->
@@ -170,6 +275,7 @@
     overflow: hidden;
     background-color: var(--color-grey-15);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    position: relative;
   }
   
   .video-thumbnail {
@@ -177,6 +283,69 @@
     height: auto;
     display: block;
     object-fit: contain;
+  }
+  
+  /* Play button overlay - centered on thumbnail */
+  .play-button-overlay {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(0, 0, 0, 0.7);
+    border: none;
+    border-radius: 50%;
+    width: 80px;
+    height: 80px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease-in-out;
+    padding: 0;
+    z-index: 10;
+  }
+  
+  .play-button-overlay:hover {
+    background: rgba(0, 0, 0, 0.85);
+    transform: translate(-50%, -50%) scale(1.1);
+  }
+  
+  .play-button-overlay:active {
+    transform: translate(-50%, -50%) scale(0.95);
+  }
+  
+  .play-icon {
+    width: 48px;
+    height: 48px;
+    display: block;
+    background-image: url('@openmates/ui/static/icons/play.svg');
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+    filter: brightness(0) invert(1); /* Make icon white */
+    pointer-events: none;
+  }
+  
+  /* Video iframe wrapper - 780px max width, centered, 16:9 aspect ratio */
+  .video-iframe-wrapper {
+    width: 100%;
+    max-width: 780px;
+    position: relative;
+    padding-bottom: 56.25%; /* 16:9 aspect ratio */
+    height: 0;
+    border-radius: 16px;
+    overflow: hidden;
+    background-color: var(--color-grey-15);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  }
+  
+  .video-iframe {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    border: none;
   }
   
   /* Fallback container for when no thumbnail is available */
