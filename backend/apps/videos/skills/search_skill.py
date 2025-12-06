@@ -18,6 +18,11 @@ from toon_format import encode, decode, DecodeOptions
 
 from backend.apps.base_skill import BaseSkill
 from backend.shared.providers.brave.brave_search import search_videos
+from backend.shared.providers.youtube.youtube_metadata import (
+    get_video_metadata_batched,
+    get_channel_thumbnails_batched,
+    extract_youtube_id_from_url
+)
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 from backend.apps.ai.processing.skill_executor import sanitize_external_content, check_rate_limit, wait_for_rate_limit
 # RateLimitScheduledException is no longer caught here - it bubbles up to route handler
@@ -71,7 +76,7 @@ class SearchResponse(BaseModel):
         default_factory=lambda: [
             "type",
             "hash",
-            "meta_url.favicon",
+            "meta_url.profile_image",
             "thumbnail.original"
         ],
         description="List of field paths (supports dot notation) that should be excluded from LLM inference to reduce token usage. These fields are preserved in chat history for UI rendering but filtered out before sending to LLM."
@@ -360,11 +365,13 @@ class SearchSkill(BaseSkill):
                     # These should bubble up to the route handler
                     raise
             
-            # Call Brave Videos Search API
+            # Call Brave Videos Search API - always search for 50 videos to get best selection
+            # We'll filter and sort by view count, then return top 10
+            brave_search_count = 50
             search_result = await search_videos(
                 query=search_query,
                 secrets_manager=secrets_manager,
-                count=req_count,
+                count=brave_search_count,
                 country=req_country,
                 search_lang=req_lang,
                 safesearch=req_safesearch,
@@ -377,28 +384,185 @@ class SearchSkill(BaseSkill):
             # Check if sanitization should be skipped
             should_sanitize = search_result.get("sanitize_output", True)
             
-            # Convert results to preview format and sanitize external content
-            results = search_result.get("results", [])
+            # Get Brave Search results
+            brave_results = search_result.get("results", [])
+            
+            # Extract YouTube video IDs from Brave Search results
+            youtube_videos = []  # List of (video_id, brave_result) tuples
+            for result in brave_results:
+                url = result.get("url", "")
+                video_id = extract_youtube_id_from_url(url)
+                if video_id:
+                    youtube_videos.append((video_id, result))
+            
+            if not youtube_videos:
+                logger.warning(f"No YouTube videos found in Brave Search results for query '{search_query}' (id: {request_id})")
+                return (request_id, [], f"Query '{search_query}': No YouTube videos found in search results")
+            
+            logger.debug(f"Found {len(youtube_videos)} YouTube videos out of {len(brave_results)} total results")
+            
+            # Get YouTube metadata for all videos (batched)
+            video_ids = [vid for vid, _ in youtube_videos]
+            try:
+                youtube_metadata = await get_video_metadata_batched(
+                    video_ids=video_ids,
+                    secrets_manager=secrets_manager,
+                    batch_size=50
+                )
+            except ValueError as e:
+                # YouTube API key not available - fall back to Brave Search results only
+                logger.warning(f"YouTube API not available: {e}. Using Brave Search results without view count sorting.")
+                youtube_metadata = {}
+            except Exception as e:
+                logger.error(f"Error fetching YouTube metadata: {e}", exc_info=True)
+                # Continue with Brave Search results only
+                youtube_metadata = {}
+            
+            # Extract channel IDs and fetch channel thumbnails (profile images)
+            channel_ids = []
+            for video_id, _ in youtube_videos:
+                yt_metadata = youtube_metadata.get(video_id, {})
+                snippet = yt_metadata.get('snippet', {})
+                channel_id = snippet.get('channelId')
+                if channel_id:
+                    channel_ids.append(channel_id)
+            
+            # Fetch channel thumbnails (batched, 1 quota unit per batch of up to 50 channels)
+            channel_thumbnails = {}
+            if channel_ids:
+                try:
+                    channel_data = await get_channel_thumbnails_batched(
+                        channel_ids=channel_ids,
+                        secrets_manager=secrets_manager,
+                        batch_size=50
+                    )
+                    # Extract thumbnails from channel data
+                    for channel_id, channel_info in channel_data.items():
+                        snippet = channel_info.get('snippet', {})
+                        thumbnails = snippet.get('thumbnails', {})
+                        # Prefer high quality, fallback to medium, then default
+                        channel_thumbnails[channel_id] = (
+                            thumbnails.get('high', {}).get('url') or
+                            thumbnails.get('medium', {}).get('url') or
+                            thumbnails.get('default', {}).get('url') or
+                            None
+                        )
+                except Exception as e:
+                    logger.warning(f"Error fetching channel thumbnails: {e}. Continuing without channel profile images.")
+            
+            # Extract view counts and create enriched results
+            enriched_videos = []
+            for video_id, brave_result in youtube_videos:
+                yt_metadata = youtube_metadata.get(video_id, {})
+                
+                # Get view count for sorting (default to 0 if not available)
+                statistics = yt_metadata.get('statistics', {})
+                view_count = int(statistics.get('viewCount', 0)) if statistics else 0
+                
+                enriched_videos.append({
+                    'video_id': video_id,
+                    'brave_result': brave_result,
+                    'youtube_metadata': yt_metadata,
+                    'view_count': view_count
+                })
+            
+            # Sort by view count (highest first)
+            enriched_videos.sort(key=lambda x: x['view_count'], reverse=True)
+            
+            # Take top req_count videos (default 10) after sorting by view count
+            # We always search for 50 videos from Brave, but return only req_count after sorting
+            result_count = req_count if req_count else 10
+            top_videos = enriched_videos[:result_count]
+            
+            logger.info(f"Selected top {len(top_videos)} videos by view count from {len(enriched_videos)} YouTube videos (requested: {result_count})")
+            
+            # Convert to results format using YouTube API data where available
+            results = []
+            for enriched in top_videos:
+                yt_metadata = enriched['youtube_metadata']
+                brave_result = enriched['brave_result']
+                
+                # Use YouTube API data if available, otherwise fall back to Brave Search data
+                if yt_metadata:
+                    snippet = yt_metadata.get('snippet', {})
+                    statistics = yt_metadata.get('statistics', {})
+                    content_details = yt_metadata.get('contentDetails', {})
+                    
+                    # Extract first 30 tags
+                    tags = snippet.get('tags', [])[:30] if snippet.get('tags') else []
+                    
+                    # Get channel ID and profile image
+                    channel_id = snippet.get('channelId', '')
+                    channel_profile_image = channel_thumbnails.get(channel_id) if channel_id else None
+                    
+                    # Build result with YouTube API data
+                    # Remove favicon from meta_url, add channel profile image instead
+                    meta_url = {}
+                    if channel_profile_image:
+                        meta_url['profile_image'] = channel_profile_image
+                    
+                    result = {
+                        'title': snippet.get('title', brave_result.get('title', '')),
+                        'url': brave_result.get('url', ''),
+                        'description': snippet.get('description', brave_result.get('description', '')),
+                        'age': brave_result.get('age', ''),
+                        'meta_url': meta_url if meta_url else None,
+                        'thumbnail': {
+                            'original': snippet.get('thumbnails', {}).get('high', {}).get('url') or 
+                                       snippet.get('thumbnails', {}).get('medium', {}).get('url') or
+                                       brave_result.get('thumbnail', {}).get('original', '')
+                        } if snippet.get('thumbnails') else brave_result.get('thumbnail'),
+                        # YouTube API metadata fields
+                        'viewCount': int(statistics.get('viewCount', 0)) if statistics.get('viewCount') else 0,
+                        'likeCount': int(statistics.get('likeCount', 0)) if statistics.get('likeCount') else 0,
+                        'commentCount': int(statistics.get('commentCount', 0)) if statistics.get('commentCount') else 0,
+                        'tags': tags,
+                        'channelTitle': snippet.get('channelTitle', ''),
+                        'publishedAt': snippet.get('publishedAt', ''),
+                        'duration': content_details.get('duration', '') if content_details else ''
+                    }
+                else:
+                    # Fall back to Brave Search data only
+                    result = {
+                        'title': brave_result.get('title', ''),
+                        'url': brave_result.get('url', ''),
+                        'description': brave_result.get('description', ''),
+                        'age': brave_result.get('age', ''),
+                        'meta_url': brave_result.get('meta_url'),
+                        'thumbnail': brave_result.get('thumbnail'),
+                        'viewCount': 0,
+                        'likeCount': 0,
+                        'commentCount': 0,
+                        'tags': [],
+                        'channelTitle': '',
+                        'publishedAt': '',
+                        'duration': ''
+                    }
+                
+                results.append(result)
             task_id = f"video_search_{request_id}_{search_query[:50]}"
             
             # Build JSON structure with only text fields that need sanitization
+            # Include title, description, and tags from YouTube API
             text_data_for_sanitization = {"results": []}
             result_metadata = []
             
             for idx, result in enumerate(results):
                 title = result.get("title", "").strip()
                 description = result.get("description", "").strip()
+                tags = result.get("tags", [])
                 
                 text_data_for_sanitization["results"].append({
                     "title": title,
-                    "description": description
+                    "description": description,
+                    "tags": tags
                 })
                 
-                # Store non-text metadata
+                # Store non-text metadata (including YouTube API statistics)
                 meta_url = result.get("meta_url", {})
-                favicon = None
+                profile_image = None
                 if isinstance(meta_url, dict):
-                    favicon = meta_url.get("favicon")
+                    profile_image = meta_url.get("profile_image")
                 
                 thumbnail = result.get("thumbnail", {})
                 thumbnail_original = None
@@ -408,10 +572,18 @@ class SearchSkill(BaseSkill):
                 result_metadata.append({
                     "url": result.get("url", ""),
                     "age": result.get("age", ""),
-                    "favicon": favicon,
+                    "profile_image": profile_image,
                     "thumbnail_original": thumbnail_original,
                     "original_title": title,
-                    "original_description": description
+                    "original_description": description,
+                    "original_tags": tags,
+                    # YouTube API metadata
+                    "viewCount": result.get("viewCount", 0),
+                    "likeCount": result.get("likeCount", 0),
+                    "commentCount": result.get("commentCount", 0),
+                    "channelTitle": result.get("channelTitle", ""),
+                    "publishedAt": result.get("publishedAt", ""),
+                    "duration": result.get("duration", "")
                 })
             
             previews: List[Dict[str, Any]] = []
@@ -420,15 +592,29 @@ class SearchSkill(BaseSkill):
             if not should_sanitize:
                 logger.debug(f"[{task_id}] Sanitization skipped (sanitize_output=False), using raw results")
                 for idx, result in enumerate(results):
+                    # Ensure meta_url only contains profile_image, not favicon
+                    meta_url = result.get("meta_url", {})
+                    meta_url_dict = {}
+                    if isinstance(meta_url, dict) and meta_url.get("profile_image"):
+                        meta_url_dict["profile_image"] = meta_url["profile_image"]
+                    
                     preview = {
                         "type": "video_result",
                         "title": result.get("title", ""),
                         "url": result.get("url", ""),
                         "description": result.get("description", ""),
                         "age": result.get("age", ""),
-                        "meta_url": result.get("meta_url"),
+                        "meta_url": meta_url_dict if meta_url_dict else None,
                         "thumbnail": result.get("thumbnail"),
-                        "hash": self._generate_result_hash(result.get("url", ""))
+                        "hash": self._generate_result_hash(result.get("url", "")),
+                        # YouTube API metadata fields
+                        "viewCount": result.get("viewCount", 0),
+                        "likeCount": result.get("likeCount", 0),
+                        "commentCount": result.get("commentCount", 0),
+                        "tags": result.get("tags", [])[:30],  # First 30 tags
+                        "channelTitle": result.get("channelTitle", ""),
+                        "publishedAt": result.get("publishedAt", ""),
+                        "duration": result.get("duration", "")
                     }
                     previews.append(preview)
             else:
@@ -439,7 +625,8 @@ class SearchSkill(BaseSkill):
                         for result in text_data_for_sanitization["results"]:
                             toon_data_for_encoding["results"].append({
                                 "title": result.get("title", ""),
-                                "description": result.get("description", "")
+                                "description": result.get("description", ""),
+                                "tags": result.get("tags", [])
                             })
                         
                         toon_text = encode(toon_data_for_encoding)
@@ -497,6 +684,7 @@ class SearchSkill(BaseSkill):
                             
                             sanitized_title = sanitized_result.get("title", "").strip() if isinstance(sanitized_result.get("title"), str) else ""
                             sanitized_description = sanitized_result.get("description", "").strip() if isinstance(sanitized_result.get("description"), str) else ""
+                            sanitized_tags = sanitized_result.get("tags", []) if isinstance(sanitized_result.get("tags"), list) else []
                             
                             if not sanitized_title or not sanitized_title.strip():
                                 logger.warning(f"[{task_id}] Video search result {idx} title empty after sanitization, using original")
@@ -505,20 +693,35 @@ class SearchSkill(BaseSkill):
                             if not sanitized_description or not sanitized_description.strip():
                                 sanitized_description = metadata["original_description"]
                             
+                            if not sanitized_tags:
+                                sanitized_tags = metadata["original_tags"]
+                            
                             if not sanitized_title or not sanitized_title.strip():
                                 logger.warning(f"[{task_id}] Video search result {idx} title blocked due to prompt injection risk")
                                 continue
                             
-                            # Build preview with sanitized content
+                            # Build preview with sanitized content and YouTube API metadata
+                            meta_url_dict = {}
+                            if metadata.get("profile_image"):
+                                meta_url_dict["profile_image"] = metadata["profile_image"]
+                            
                             preview = {
                                 "type": "video_result",
                                 "title": sanitized_title,
                                 "url": metadata["url"],
                                 "description": sanitized_description,
                                 "age": metadata["age"],
-                                "meta_url": {"favicon": metadata["favicon"]} if metadata["favicon"] else None,
+                                "meta_url": meta_url_dict if meta_url_dict else None,
                                 "thumbnail": {"original": metadata["thumbnail_original"]} if metadata["thumbnail_original"] else None,
-                                "hash": self._generate_result_hash(metadata["url"])
+                                "hash": self._generate_result_hash(metadata["url"]),
+                                # YouTube API metadata fields
+                                "viewCount": metadata.get("viewCount", 0),
+                                "likeCount": metadata.get("likeCount", 0),
+                                "commentCount": metadata.get("commentCount", 0),
+                                "tags": sanitized_tags[:30],  # First 30 tags
+                                "channelTitle": metadata.get("channelTitle", ""),
+                                "publishedAt": metadata.get("publishedAt", ""),
+                                "duration": metadata.get("duration", "")
                             }
                             previews.append(preview)
                     
@@ -530,9 +733,13 @@ class SearchSkill(BaseSkill):
                     logger.warning(f"[{task_id}] No text content found in video search results to sanitize")
                     for idx, result in enumerate(results):
                         meta_url = result.get("meta_url", {})
-                        favicon = meta_url.get("favicon") if isinstance(meta_url, dict) else None
+                        profile_image = meta_url.get("profile_image") if isinstance(meta_url, dict) else None
                         thumbnail = result.get("thumbnail", {})
                         thumbnail_original = thumbnail.get("original") if isinstance(thumbnail, dict) else None
+                        
+                        meta_url_dict = {}
+                        if profile_image:
+                            meta_url_dict["profile_image"] = profile_image
                         
                         preview = {
                             "type": "video_result",
@@ -540,9 +747,17 @@ class SearchSkill(BaseSkill):
                             "url": result.get("url", ""),
                             "description": result.get("description", ""),
                             "age": result.get("age", ""),
-                            "meta_url": {"favicon": favicon} if favicon else None,
+                            "meta_url": meta_url_dict if meta_url_dict else None,
                             "thumbnail": {"original": thumbnail_original} if thumbnail_original else None,
-                            "hash": self._generate_result_hash(result.get("url", ""))
+                            "hash": self._generate_result_hash(result.get("url", "")),
+                            # YouTube API metadata fields
+                            "viewCount": result.get("viewCount", 0),
+                            "likeCount": result.get("likeCount", 0),
+                            "commentCount": result.get("commentCount", 0),
+                            "tags": result.get("tags", [])[:30],  # First 30 tags
+                            "channelTitle": result.get("channelTitle", ""),
+                            "publishedAt": result.get("publishedAt", ""),
+                            "duration": result.get("duration", "")
                         }
                         previews.append(preview)
             
