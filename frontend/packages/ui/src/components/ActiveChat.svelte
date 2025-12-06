@@ -2786,7 +2786,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             onClose={handleCloseEmbedFullscreen}
                         />
                     {/if}
-                {:else if embedFullscreenData.embedType === 'code'}
+                {:else if embedFullscreenData.embedType === 'code-code'}
                     <!-- Code Fullscreen -->
                     {#if embedFullscreenData.decodedContent?.code || embedFullscreenData.attrs?.code}
                         <CodeEmbedFullscreen 

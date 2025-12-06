@@ -76,6 +76,7 @@ changes to the documentation (to keep the documentation up to date).
     import SettingsAutoTopUp from './settings/billing/SettingsAutoTopUp.svelte';
     import SettingsLowBalanceAutotopup from './settings/billing/autotopup/SettingsLowBalanceAutotopup.svelte';
     import SettingsMonthlyAutotopup from './settings/billing/autotopup/SettingsMonthlyAutotopup.svelte';
+    import SettingsInvoices from './settings/billing/SettingsInvoices.svelte';
     
     // Import share settings component
     import SettingsShare from './settings/share/SettingsShare.svelte';
@@ -131,6 +132,7 @@ changes to the documentation (to keep the documentation up to date).
         'billing/auto-topup': SettingsAutoTopUp,
         'billing/auto-topup/low-balance': SettingsLowBalanceAutotopup,
         'billing/auto-topup/monthly': SettingsMonthlyAutotopup,
+        'billing/invoices': SettingsInvoices,
         'app_store': SettingsAppStore,
         'app_store/all': SettingsAllApps,
         // 'mates': SettingsMates,

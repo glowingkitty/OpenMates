@@ -120,35 +120,39 @@
   // Build skill name for BasicInfosBar: filename (or "Code snippet") on first line
   // Second line will be handled by showStatus (line count + language)
   let skillName = $derived.by(() => {
-    // Use filename if provided
+    // If filename is provided, extract just the filename from path if needed
     if (filename) {
-      return filename;
+      // Extract filename from filepath (handle both forward and backslash paths)
+      const pathParts = filename.split(/[/\\]/);
+      return pathParts[pathParts.length - 1];
     }
-    // If we have language and content, generate a filename
-    if (language && codeContent) {
-      return `code.${language}`;
-    }
-    // Otherwise use translation for "Code snippet"
+    // If no filename provided, use translation for "Code snippet"
     return $text('embeds.code_snippet.text');
   });
   
-  // Build status text: line count + language (only if language is known)
+  // Build status text: line count + language (always use code_info.text format)
   let statusText = $derived.by(() => {
     const lineCount = actualLineCount();
     if (lineCount === 0) return '';
     
-    // Build line count text with plural handling
-    const lineCountText = $text('embeds.code_lines.text', { count: lineCount });
+    // Build line count text with proper singular/plural handling
+    const lineCountText = lineCount === 1 
+      ? $text('embeds.code_line_singular.text')
+      : $text('embeds.code_line_plural.text');
     
-    // Add language only if known
-    if (language && language !== 'text' && language !== 'plaintext') {
-      return $text('embeds.code_info.text', {
-        lineCount: lineCountText,
-        language: displayLanguage
-      });
-    }
+    // Always use code_info.text format, with language if available
+    const languageToShow = (language && language !== 'text' && language !== 'plaintext') 
+      ? displayLanguage 
+      : '';
     
-    return lineCountText;
+    const result = $text('embeds.code_info.text', {
+      lineCount: lineCount,
+      lineCountText: lineCountText,
+      language: languageToShow
+    });
+    
+    // Clean up trailing comma and space if language is empty
+    return languageToShow ? result : result.replace(/,\s*$/, '');
   });
   
   // Map skillId to icon name

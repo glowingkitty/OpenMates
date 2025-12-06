@@ -115,6 +115,8 @@ export const apiEndpoints = {
         getSubscription:            '/v1/payments/subscription',                // Get user's subscription details
         cancelSubscription:         '/v1/payments/cancel-subscription',         // Cancel monthly subscription
         redeemGiftCard:             '/v1/payments/redeem-gift-card',           // Redeem a gift card code
+        getInvoices:                '/v1/payments/invoices',                   // Get user's invoices
+        downloadInvoice:            '/v1/payments/invoices/{id}/download',      // Download specific invoice PDF
         // Webhook endpoint is only called by payment providers, not the frontend
     },
     apps: {
