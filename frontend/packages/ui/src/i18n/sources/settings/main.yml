@@ -903,6 +903,126 @@ developers_devices_access_type_npm:
   sv: npm Paket
   verified_by_human: []
 
+developers_devices_rename:
+  context: Button to rename a device
+  en: Rename
+  de: Umbenennen
+  zh: 重命名
+  es: Renombrar
+  fr: Renommer
+  pt: Renomear
+  ru: Переименовать
+  ja: 名前を変更
+  ko: 이름 변경
+  it: Rinomina
+  tr: Yeniden Adlandır
+  vi: Đổi tên
+  id: Ubah Nama
+  pl: Zmień nazwę
+  nl: Hernoemen
+  ar: إعادة تسمية
+  hi: नाम बदलें
+  th: เปลี่ยนชื่อ
+  cs: Přejmenovat
+  sv: Byt namn
+  verified_by_human: []
+
+developers_devices_save:
+  context: Button to save device name changes
+  en: Save
+  de: Speichern
+  zh: 保存
+  es: Guardar
+  fr: Enregistrer
+  pt: Salvar
+  ru: Сохранить
+  ja: 保存
+  ko: 저장
+  it: Salva
+  tr: Kaydet
+  vi: Lưu
+  id: Simpan
+  pl: Zapisz
+  nl: Opslaan
+  ar: حفظ
+  hi: सहेजें
+  th: บันทึก
+  cs: Uložit
+  sv: Spara
+  verified_by_human: []
+
+developers_devices_cancel:
+  context: Button to cancel device name editing
+  en: Cancel
+  de: Abbrechen
+  zh: 取消
+  es: Cancelar
+  fr: Annuler
+  pt: Cancelar
+  ru: Отмена
+  ja: キャンセル
+  ko: 취소
+  it: Annulla
+  tr: İptal
+  vi: Hủy
+  id: Batal
+  pl: Anuluj
+  nl: Annuleren
+  ar: إلغاء
+  hi: रद्द करें
+  th: ยกเลิก
+  cs: Zrušit
+  sv: Avbryt
+  verified_by_human: []
+
+developers_devices_name_placeholder:
+  context: Placeholder text for device name input field
+  en: Enter device name (e.g., Work Laptop, Home Server)
+  de: Gerätename eingeben (z.B. Arbeitslaptop, Heimserver)
+  zh: "输入设备名称（例如：工作笔记本电脑、家庭服务器）"
+  es: "Ingrese el nombre del dispositivo (ej: Portátil del trabajo, Servidor doméstico)"
+  fr: "Entrez le nom de l'appareil (ex: Ordinateur portable du travail, Serveur domestique)"
+  pt: "Digite o nome do dispositivo (ex: Laptop do trabalho, Servidor doméstico)"
+  ru: "Введите имя устройства (например: Рабочий ноутбук, Домашний сервер)"
+  ja: "デバイス名を入力（例：仕事用ノートPC、ホームサーバー）"
+  ko: '장치 이름 입력 (예: 작업용 노트북, 홈 서버)'
+  it: "Inserisci il nome del dispositivo (es: Laptop di lavoro, Server domestico)"
+  tr: "Cihaz adını girin (örn: İş Laptopu, Ev Sunucusu)"
+  vi: "Nhập tên thiết bị (vd: Laptop công việc, Máy chủ gia đình)"
+  id: "Masukkan nama perangkat (mis: Laptop Kerja, Server Rumah)"
+  pl: "Wprowadź nazwę urządzenia (np. Laptop do pracy, Serwer domowy)"
+  nl: "Voer apparaatnaam in (bijv. Werk Laptop, Thuis Server)"
+  ar: "أدخل اسم الجهاز (مثال: كمبيوتر العمل المحمول، خادم المنزل)"
+  hi: "डिवाइस नाम दर्ज करें (उदाहरण: कार्य लैपटॉप, होम सर्वर)"
+  th: "ใส่ชื่ออุปกรณ์ (เช่น: แล็ปท็อปทำงาน, เซิร์ฟเวอร์บ้าน)"
+  cs: "Zadejte název zařízení (např. Pracovní notebook, Domácí server)"
+  sv: Ange enhetsnamn (t.ex. Arbetslaptop, Hemserver)
+  verified_by_human: []
+
+developers_devices_rename_empty_error:
+  context: Error message when device name is empty
+  en: Device name cannot be empty
+  de: Gerätename darf nicht leer sein
+  zh: 设备名称不能为空
+  es: El nombre del dispositivo no puede estar vacío
+  fr: Le nom de l'appareil ne peut pas être vide
+  pt: O nome do dispositivo não pode estar vazio
+  ru: Имя устройства не может быть пустым
+  ja: デバイス名は空にできません
+  ko: 장치 이름은 비워둘 수 없습니다
+  it: Il nome del dispositivo non può essere vuoto
+  tr: Cihaz adı boş olamaz
+  vi: Tên thiết bị không được để trống
+  id: Nama perangkat tidak boleh kosong
+  pl: Nazwa urządzenia nie może być pusta
+  nl: Apparaatnaam mag niet leeg zijn
+  ar: لا يمكن أن يكون اسم الجهاز فارغًا
+  hi: डिवाइस नाम खाली नहीं हो सकता
+  th: ชื่ออุปกรณ์ไม่สามารถว่างได้
+  cs: Název zařízení nemůže být prázdný
+  sv: Enhetsnamnet kan inte vara tomt
+  verified_by_human: []
+
 dark_mode:
   context: Dark mode toggle
   en: Dark mode

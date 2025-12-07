@@ -37,7 +37,8 @@ from backend.core.api.app.services.directus.api_key_device_methods import (
     get_api_key_devices,
     approve_api_key_device,
     revoke_api_key_device,
-    get_pending_api_key_devices
+    get_pending_api_key_devices,
+    update_api_key_device_name
 )
 
 logger = logging.getLogger(__name__)
@@ -889,6 +890,7 @@ class DirectusService:
     approve_api_key_device = approve_api_key_device
     revoke_api_key_device = revoke_api_key_device
     get_pending_api_key_devices = get_pending_api_key_devices
+    update_api_key_device_name = update_api_key_device_name
 
     # Chat methods are accessed via self.chat.method_name
     # e.g., await self.chat.get_chat_metadata(chat_id)

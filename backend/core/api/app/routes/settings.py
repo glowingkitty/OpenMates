@@ -2,7 +2,7 @@ from fastapi import APIRouter, UploadFile, File, HTTPException, Depends, Cookie,
 import logging
 import time
 from typing import Optional
-from pydantic import BaseModel # Import BaseModel for response model
+from pydantic import BaseModel, Field # Import BaseModel and Field for response models
 from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.utils.encryption import EncryptionService
@@ -702,6 +702,7 @@ class DeviceResponse(BaseModel):
     last_access_at: Optional[str] = None
     access_type: str
     machine_identifier: Optional[str] = None
+    encrypted_device_name: Optional[str] = None  # Client-side encrypted device name (client decrypts with master key)
 
 class DeviceListResponse(BaseModel):
     """Response model for list of API key devices"""
@@ -745,7 +746,8 @@ async def get_api_key_devices(
                 first_access_at=device.get('first_access_at'),
                 last_access_at=device.get('last_access_at'),
                 access_type=device.get('access_type', 'rest_api'),
-                machine_identifier=device.get('machine_identifier')
+                machine_identifier=device.get('machine_identifier'),
+                encrypted_device_name=device.get('encrypted_device_name')  # Client-side encrypted (client decrypts)
             )
             for device in all_devices
         ]
@@ -881,5 +883,66 @@ async def revoke_api_key_device(
     except Exception as e:
         logger.error(f"Error revoking API key device {device_id} for user {current_user.id}: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to revoke device")
+
+
+class DeviceRenameRequest(BaseModel):
+    """Request to rename an API key device"""
+    encrypted_device_name: str = Field(..., description="New encrypted device name (encrypted client-side with master key)")
+
+
+@router.patch("/api-key-devices/{device_id}/rename", response_model=SimpleSuccessResponse)
+@limiter.limit("30/minute")
+async def rename_api_key_device(
+    request: Request,
+    device_id: str,
+    rename_request: DeviceRenameRequest,
+    current_user: User = Depends(get_current_user),
+    directus_service: DirectusService = Depends(get_directus_service)
+):
+    """
+    Rename an API key device with a custom name.
+    The device name is encrypted client-side with the user's master key (zero-knowledge).
+    Only the owner of the API key can rename devices.
+    """
+    try:
+        # Verify the device belongs to one of the user's API keys
+        api_keys_data = await directus_service.get_user_api_keys_by_user_id(current_user.id)
+        api_key_ids = [key.get('id') for key in api_keys_data if key.get('id')]
+        
+        # Get the device to verify ownership
+        user_device = None
+        for api_key_id in api_key_ids:
+            devices = await directus_service.get_api_key_devices(api_key_id)
+            for device in devices:
+                if device.get('id') == device_id:
+                    user_device = device
+                    break
+            if user_device:
+                break
+        
+        if not user_device:
+            raise HTTPException(status_code=404, detail="Device not found or you don't have permission to rename it")
+        
+        # Device name is already encrypted client-side with master key
+        # Just store it as-is (zero-knowledge: server never sees plaintext)
+        encrypted_device_name = rename_request.encrypted_device_name
+        
+        # Update the device name
+        success = await directus_service.update_api_key_device_name(
+            device_id,
+            encrypted_device_name
+        )
+        
+        if not success:
+            raise HTTPException(status_code=500, detail="Failed to rename device")
+        
+        logger.info(f"Successfully renamed API key device {device_id[:6]}... for user {current_user.id[:8]}...")
+        return SimpleSuccessResponse(success=True, message="Device renamed successfully")
+        
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        logger.error(f"Error renaming API key device {device_id} for user {current_user.id}: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to rename device")
 
 

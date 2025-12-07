@@ -393,6 +393,47 @@ async def revoke_api_key_device(
         return False, error_msg
 
 
+async def update_api_key_device_name(
+    self,
+    device_id: str,
+    encrypted_device_name: str
+) -> bool:
+    """
+    Updates the encrypted device name for an API key device.
+    Device name is encrypted client-side with user's master key (zero-knowledge).
+    
+    Args:
+        self: The DirectusService instance
+        device_id: The device record ID
+        encrypted_device_name: The new encrypted device name (client-side encrypted)
+        
+    Returns:
+        True if update was successful, False otherwise
+    """
+    try:
+        url = f"{self.base_url}/items/api_key_devices/{device_id}"
+        now = datetime.now(timezone.utc).isoformat()
+        update_data = {
+            "encrypted_device_name": encrypted_device_name,
+            "updated_at": now
+        }
+        
+        response = await self._make_api_request("PATCH", url, json=update_data)
+        
+        if response.status_code == 200:
+            logger.info(f"Successfully updated device name for API key device {device_id[:6]}...")
+            return True
+        else:
+            error_msg = f"Failed to update API key device name: {response.status_code} - {response.text}"
+            logger.error(error_msg)
+            return False
+            
+    except Exception as e:
+        error_msg = f"Error updating API key device name: {e}"
+        logger.error(error_msg, exc_info=True)
+        return False
+
+
 async def get_pending_api_key_devices(
     self,
     user_id: str

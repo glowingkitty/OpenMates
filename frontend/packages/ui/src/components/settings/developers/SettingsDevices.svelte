@@ -6,14 +6,31 @@ SettingsDevices - Manage API key devices (approve/revoke devices that use API ke
     import { onMount, createEventDispatcher } from 'svelte';
     import { text } from '@repo/ui';
     import { getApiEndpoint } from '../../../config/api';
+    import { encryptWithMasterKey, decryptWithMasterKey } from '../../../services/cryptoService';
 
     const dispatch = createEventDispatcher();
 
     // State using Svelte 5 $state() runes
-    let devices = $state<any[]>([]);
+    let devices = $state<Array<{
+        id: string;
+        api_key_id: string;
+        anonymized_ip: string;
+        country_code?: string;
+        region?: string;
+        city?: string;
+        approved_at?: string;
+        first_access_at?: string;
+        last_access_at?: string;
+        access_type: string;
+        machine_identifier?: string;
+        encrypted_device_name?: string;
+        device_name?: string | null; // Decrypted device name for display
+    }>>([]);
     let loading = $state(true);
     let error = $state<string>('');
     let processingDeviceId = $state<string | null>(null);
+    let editingDeviceId = $state<string | null>(null);
+    let editingDeviceName = $state('');
 
     // Load devices on mount
     onMount(() => {
@@ -39,7 +56,25 @@ SettingsDevices - Manage API key devices (approve/revoke devices that use API ke
             }
 
             const data = await response.json();
-            devices = data.devices || [];
+            const rawDevices = data.devices || [];
+            
+            // Decrypt device names client-side using master key
+            const decryptedDevices = [];
+            for (const device of rawDevices) {
+                let deviceName = null;
+                if (device.encrypted_device_name) {
+                    // Decrypt device name using master key (client-side only)
+                    deviceName = await decryptWithMasterKey(device.encrypted_device_name);
+                    if (!deviceName) {
+                        console.warn(`[SettingsDevices] Failed to decrypt device name for device ${device.id}`);
+                    }
+                }
+                decryptedDevices.push({
+                    ...device,
+                    device_name: deviceName
+                });
+            }
+            devices = decryptedDevices;
         } catch (err: any) {
             console.error('Error loading devices:', err);
             error = err.message || 'Failed to load devices';
@@ -127,6 +162,64 @@ SettingsDevices - Manage API key devices (approve/revoke devices that use API ke
         };
         return labels[accessType] || accessType;
     }
+
+    // Start editing a device name
+    function startEdit(device: any) {
+        editingDeviceId = device.id;
+        editingDeviceName = device.device_name || '';
+    }
+
+    // Cancel editing
+    function cancelEdit() {
+        editingDeviceId = null;
+        editingDeviceName = '';
+    }
+
+    // Save renamed device
+    async function saveRename(deviceId: string) {
+        if (!editingDeviceName.trim()) {
+            error = $text('settings.developers_devices_rename_empty_error.text');
+            return;
+        }
+
+        try {
+            processingDeviceId = deviceId;
+            error = '';
+            
+            // Encrypt device name client-side using master key before sending to server
+            const encryptedDeviceName = await encryptWithMasterKey(editingDeviceName.trim());
+            if (!encryptedDeviceName) {
+                throw new Error('Failed to encrypt device name');
+            }
+
+            const response = await fetch(getApiEndpoint(`/v1/settings/api-key-devices/${deviceId}/rename`), {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                credentials: 'include',
+                body: JSON.stringify({
+                    encrypted_device_name: encryptedDeviceName
+                })
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.detail || 'Failed to rename device');
+            }
+
+            // Reload devices after rename
+            await loadDevices();
+            editingDeviceId = null;
+            editingDeviceName = '';
+        } catch (err: any) {
+            console.error('Error renaming device:', err);
+            error = err.message || 'Failed to rename device';
+        } finally {
+            processingDeviceId = null;
+        }
+    }
 </script>
 
 <div class="devices-container">
@@ -149,12 +242,42 @@ SettingsDevices - Manage API key devices (approve/revoke devices that use API ke
                 <div class="device-card" class:pending={!device.approved_at}>
                     <div class="device-header">
                         <div class="device-info">
-                            <h3 class="device-location">
-                                {device.city || device.region || device.country_code || 'Unknown Location'}
-                                {#if device.country_code}
-                                    <span class="country-code">({device.country_code})</span>
-                                {/if}
-                            </h3>
+                            {#if editingDeviceId === device.id}
+                                <!-- Edit mode: show input field -->
+                                <div class="device-name-edit">
+                                    <input
+                                        type="text"
+                                        class="device-name-input"
+                                        bind:value={editingDeviceName}
+                                        placeholder={$text('settings.developers_devices_name_placeholder.text')}
+                                        disabled={processingDeviceId === device.id}
+                                    />
+                                    <div class="device-name-actions">
+                                        <button
+                                            class="btn btn-save"
+                                            onclick={() => saveRename(device.id)}
+                                            disabled={processingDeviceId === device.id}
+                                        >
+                                            {processingDeviceId === device.id ? $text('settings.developers_devices_processing.text') : $text('settings.developers_devices_save.text')}
+                                        </button>
+                                        <button
+                                            class="btn btn-cancel"
+                                            onclick={() => cancelEdit()}
+                                            disabled={processingDeviceId === device.id}
+                                        >
+                                            {$text('settings.developers_devices_cancel.text')}
+                                        </button>
+                                    </div>
+                                </div>
+                            {:else}
+                                <!-- Display mode: show device name or location -->
+                                <h3 class="device-location">
+                                    {device.device_name || device.city || device.region || device.country_code || 'Unknown Location'}
+                                    {#if device.country_code && !device.device_name}
+                                        <span class="country-code">({device.country_code})</span>
+                                    {/if}
+                                </h3>
+                            {/if}
                             <p class="device-ip">{device.anonymized_ip || 'Unknown IP'}</p>
                             <p class="device-type">{getAccessTypeLabel(device.access_type || 'rest_api')}</p>
                         </div>
@@ -179,22 +302,31 @@ SettingsDevices - Manage API key devices (approve/revoke devices that use API ke
                     </div>
 
                     <div class="device-actions">
-                        {#if !device.approved_at}
+                        {#if editingDeviceId !== device.id}
                             <button
-                                class="btn btn-approve"
-                                onclick={() => approveDevice(device.id)}
+                                class="btn btn-rename"
+                                onclick={() => startEdit(device)}
                                 disabled={processingDeviceId === device.id}
                             >
-                                {processingDeviceId === device.id ? $text('settings.developers_devices_processing.text') : $text('settings.developers_devices_approve.text')}
+                                {$text('settings.developers_devices_rename.text')}
+                            </button>
+                            {#if !device.approved_at}
+                                <button
+                                    class="btn btn-approve"
+                                    onclick={() => approveDevice(device.id)}
+                                    disabled={processingDeviceId === device.id}
+                                >
+                                    {processingDeviceId === device.id ? $text('settings.developers_devices_processing.text') : $text('settings.developers_devices_approve.text')}
+                                </button>
+                            {/if}
+                            <button
+                                class="btn btn-revoke"
+                                onclick={() => revokeDevice(device.id)}
+                                disabled={processingDeviceId === device.id}
+                            >
+                                {processingDeviceId === device.id ? $text('settings.developers_devices_processing.text') : $text('settings.developers_devices_revoke.text')}
                             </button>
                         {/if}
-                        <button
-                            class="btn btn-revoke"
-                            onclick={() => revokeDevice(device.id)}
-                            disabled={processingDeviceId === device.id}
-                        >
-                            {processingDeviceId === device.id ? $text('settings.developers_devices_processing.text') : $text('settings.developers_devices_revoke.text')}
-                        </button>
                     </div>
                 </div>
             {/each}
@@ -376,6 +508,65 @@ SettingsDevices - Manage API key devices (approve/revoke devices that use API ke
 
     .btn-revoke:hover:not(:disabled) {
         background: rgba(223, 27, 65, 0.2);
+    }
+
+    .btn-rename {
+        background: rgba(59, 130, 246, 0.1);
+        color: #3b82f6;
+    }
+
+    .btn-rename:hover:not(:disabled) {
+        background: rgba(59, 130, 246, 0.2);
+    }
+
+    .btn-save {
+        background: #22c55e;
+        color: white;
+    }
+
+    .btn-save:hover:not(:disabled) {
+        background: #16a34a;
+    }
+
+    .btn-cancel {
+        background: var(--color-grey-20);
+        color: var(--color-grey-100);
+    }
+
+    .btn-cancel:hover:not(:disabled) {
+        background: var(--color-grey-30);
+    }
+
+    .device-name-edit {
+        width: 100%;
+        margin-bottom: 8px;
+    }
+
+    .device-name-input {
+        width: 100%;
+        padding: 8px 12px;
+        border-radius: 8px;
+        border: 1px solid var(--color-grey-30);
+        background: var(--color-grey-10);
+        color: var(--color-grey-100);
+        font-size: 18px;
+        font-weight: 600;
+        margin-bottom: 8px;
+    }
+
+    .device-name-input:focus {
+        outline: none;
+        border-color: #3b82f6;
+    }
+
+    .device-name-input:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    .device-name-actions {
+        display: flex;
+        gap: 8px;
     }
 
     @media (max-width: 768px) {
