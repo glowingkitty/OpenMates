@@ -167,11 +167,31 @@ When daily inspirations are generated, the system attempts immediate delivery:
 ### Video Processing
 
 #### Video Search and Selection
-Videos are retrieved via Brave search API using the generated search query:
+Videos are retrieved using a three-step process to ensure high-quality, relevant, and popular content:
 
-- **Source**: Brave search API (via search skill)
-- **Selection**: Select relevant videos from search results that best match the inspiration topic
-- **Purpose**: Find educational videos that directly encourage learning about the topic
+1. **Initial Search**: Use Brave Search API to find relevant videos
+   - **Source**: Brave Search Videos API (via search skill)
+   - **Query**: Generated video search query from LLM
+   - **Results**: Returns up to 50 video results with metadata (title, description, thumbnail, duration, etc.)
+   - **Purpose**: Find educational videos that match the inspiration topic
+
+2. **View Count and Engagement Enrichment**: Use YouTube Data API to get view counts, likes, and engagement metrics
+   - **Source**: YouTube Data API v3 `videos.list` endpoint
+   - **Process**: Extract YouTube video IDs from Brave Search results, batch request engagement metrics
+   - **Batching**: Up to 50 video IDs per API request (1 quota unit per batch)
+   - **Metrics Retrieved**: View counts, like counts, and other engagement data
+   - **Purpose**: Gather popularity and engagement metrics to inform intelligent video selection
+
+3. **LLM-Based Intelligent Selection**: Process top 20 videos with LLM to select the most relevant video
+   - **Input**: Top 20 videos (sorted by view count) with full metadata (title, description, view count, likes, duration, etc.)
+   - **Model**: Uses the default main processing model (same as inspiration generation)
+   - **Selection Criteria**: LLM evaluates videos based on:
+     - **Relevance**: How well the video matches the inspiration topic and phrase
+     - **View Count**: Popularity indicator (higher views suggest quality and trustworthiness)
+     - **Likes**: Engagement quality indicator (likes relative to views)
+     - **Content Quality**: Educational value and appropriateness for the topic
+   - **Output**: Single best video selected that balances relevance with popularity metrics
+   - **Purpose**: Ensure the selected video is both highly relevant to the topic AND popular/engaging, preventing irrelevant but highly-viewed videos from being selected
 
 #### Video Processing Pipeline
 Selected videos undergo processing before storage:
@@ -250,15 +270,17 @@ Daily inspiration generation is **not billed to users**:
 ### Cost Analysis
 
 **Base Cost Per Inspiration** (approximate):
-- LLM generation (Qwen3 235B): ~$0.012 per inspiration (1,600 input + 60 output tokens)
+- LLM generation for inspiration (Qwen3 235B): ~$0.012 per inspiration (1,600 input + 60 output tokens)
+- LLM generation for video selection (Qwen3 235B): ~$0.008 per inspiration (1,200 input + 40 output tokens for top 20 video evaluation)
 - Brave Search API: ~$0.005 per video search
-- **Total per inspiration**: ~$0.017
+- YouTube Data API: Free (1 quota unit per batch of up to 50 videos, default 10,000 units/day)
+- **Total per inspiration**: ~$0.025 (includes LLM-based video selection)
 
 **Optimized Cost Per User Per Month** (with view-based generation):
 - **Best case** (user views 0 inspirations): $0.00/month (no generation)
-- **Low engagement** (user views 1 inspiration/day): ~$0.51/month (30 × 1 × $0.017)
-- **Medium engagement** (user views 2 inspirations/day): ~$1.02/month (30 × 2 × $0.017)
-- **High engagement** (user views 3 inspirations/day): ~$1.53/month (30 × 3 × $0.017)
+- **Low engagement** (user views 1 inspiration/day): ~$0.75/month (30 × 1 × $0.025)
+- **Medium engagement** (user views 2 inspirations/day): ~$1.50/month (30 × 2 × $0.025)
+- **High engagement** (user views 3 inspirations/day): ~$2.25/month (30 × 3 × $0.025)
 
 **Cost Savings**:
 - View-based generation can reduce costs by 0-67% compared to always generating 3 inspirations
@@ -266,10 +288,11 @@ Daily inspiration generation is **not billed to users**:
 - Immediate first generation provides value without waiting, improving user experience
 
 **Cost Absorption Justification**:
-- At ~$0.50-$1.50 per active user per month, costs are reasonable to absorb
+- At ~$0.75-$2.25 per active user per month, costs are reasonable to absorb
 - Encourages exploration and engagement, potentially leading to more paid requests
 - Costs scale with actual user engagement (view-based generation)
 - Only incurred for users who have made paid requests (revenue alignment)
+- LLM-based video selection ensures higher quality, more relevant content, improving user experience and engagement
 
 ### Cost Optimization
 To manage generation costs:
@@ -283,6 +306,15 @@ To manage generation costs:
   - If user viewed 3 inspirations: Generate 3 (full generation)
 - **Caching**: Reuse topic suggestions from cache to inform generation context
 - **Immediate First Generation**: Generate immediately after first paid request to provide instant value without waiting for daily job
+- **YouTube API Batching**: Batch up to 50 video IDs per API request to minimize quota usage (1 quota unit per batch regardless of number of videos)
+  - Example: 20 videos = 1 quota unit, 50 videos = 1 quota unit, 100 videos = 2 quota units
+  - Default quota: 10,000 units/day = ~500,000 videos/day capacity
+- **LLM-Based Video Selection**: Process top 20 videos with LLM to select the most relevant video, balancing relevance with popularity metrics (view counts and likes)
+  - Ensures selected videos are both highly relevant to the topic AND popular/engaging
+  - Prevents irrelevant but highly-viewed videos from being selected
+  - Uses efficient function calling to minimize token usage
+- **Top 20 Processing**: Only process top 20 videos (by view count) with LLM to balance quality with cost efficiency
+- **Scalability**: With default YouTube API quota, can process thousands of daily inspirations per day without quota concerns
 
 ## Data Flow
 
@@ -301,7 +333,13 @@ Load Last 50 Topic Suggestions →
 Individual LLM Function Call → 
 Generate 3 Inspirations → 
 For Each Inspiration:
-  Video Search (Brave) → 
+  Video Search (Brave Search API) → 
+  Extract YouTube Video IDs → 
+  Batch Request View Counts & Engagement Metrics (YouTube API) → 
+  Sort by View Count → 
+  Select Top 20 Videos → 
+  LLM-Based Video Selection (evaluates relevance, view counts, likes) → 
+  Select Best Video → 
   Video Processing (thumbnail extraction) → 
   Upload to previews.openmates.org → 
 Store Inspiration Data → 
@@ -319,7 +357,13 @@ For Each User:
     Individual LLM Function Call → 
     Generate N Inspirations (N = count of viewed inspirations) → 
     For Each Inspiration:
-      Video Search (Brave) → 
+      Video Search (Brave Search API) → 
+      Extract YouTube Video IDs → 
+      Batch Request View Counts & Engagement Metrics (YouTube API, 1 quota per batch of 50) → 
+      Sort by View Count → 
+      Select Top 20 Videos → 
+      LLM-Based Video Selection (evaluates relevance, view counts, likes) → 
+      Select Best Video → 
       Video Processing (thumbnail extraction) → 
       Upload to previews.openmates.org → 
     Encrypt Inspiration Data (server-side encryption with user's vault key) → 
@@ -501,6 +545,8 @@ And return:
 - **Fallback Thumbnails**: Use default placeholder if video processing fails
 - **URL Validation**: Validate video URLs before processing
 - **Timeout Handling**: Set appropriate timeouts for video metadata retrieval
+- **LLM Selection Failures**: If LLM-based video selection fails, fall back to selecting the top video by view count from the top 20 candidates
+- **Insufficient Videos**: If fewer than 20 videos are found, process all available videos with LLM for selection
 
 ### Cache Failures
 - **Topic Suggestions Cache**: If cache unavailable, generate without topic suggestions
