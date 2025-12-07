@@ -12,7 +12,10 @@ setup_logging()
 
 # Now import other modules that might log
 from fastapi import FastAPI, Request
+from fastapi.responses import RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.openapi.utils import get_openapi
 from contextlib import asynccontextmanager
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
@@ -27,6 +30,7 @@ from backend.core.api.app.routes import auth, email, invoice, credit_note, setti
 from backend.core.api.app.routes import internal_api # Import the new internal API router
 from backend.core.api.app.routes import apps # Import apps router
 from backend.core.api.app.routes import share # Import share router
+from backend.core.api.app.routes import apps_api # Import apps API router for external API access
 from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.metrics import MetricsService
@@ -389,6 +393,12 @@ async def lifespan(app: FastAPI):
             skill_ids = [skill.id for skill in metadata.skills]
             focus_ids = [focus.id for focus in metadata.focuses]
             logger.info(f"  App '{app_id}': Skill IDs: {skill_ids}, Focus IDs: {focus_ids}")
+        
+        # Register dynamic routes for each app and skill
+        logger.info("Registering dynamic routes for discovered apps and skills...")
+        from backend.core.api.app.routes.apps_api import register_app_and_skill_routes
+        register_app_and_skill_routes(app, app.state.discovered_apps_metadata)
+        logger.info("Successfully registered dynamic routes for all apps and skills")
     else:
         logger.warning("No apps were discovered or metadata could not be fetched/validated for any app.")
 
@@ -711,12 +721,43 @@ async def lifespan(app: FastAPI):
 def create_app() -> FastAPI:
     app = FastAPI(
         title="OpenMates API",
-        description="API for OpenMates platform",
+        description="API for OpenMates platform with app skills integration",
         version="0.1.0",
         lifespan=lifespan,
-        docs_url=None,  # Disable default docs
-        redoc_url=None  # Disable ReDoc
+        docs_url="/docs",  # Enable Swagger UI documentation
+        redoc_url=None  # ReDoc disabled - using custom Swagger UI design instead
     )
+    
+    # Customize OpenAPI schema to include security scheme for API key authentication
+    # This enables the "Authorize" button in Swagger UI
+    from backend.core.api.app.utils.api_key_auth import api_key_scheme
+    
+    def custom_openapi():
+        if app.openapi_schema:
+            return app.openapi_schema
+        openapi_schema = get_openapi(
+            title=app.title,
+            version=app.version,
+            description=app.description,
+            routes=app.routes,
+        )
+        # Add security scheme for API key authentication (Bearer token)
+        # This will make the "Authorize" button appear in Swagger UI
+        if "components" not in openapi_schema:
+            openapi_schema["components"] = {}
+        # The security scheme name must match the scheme_name in HTTPBearer
+        openapi_schema["components"]["securitySchemes"] = {
+            "API Key": {
+                "type": "http",
+                "scheme": "bearer",
+                "bearerFormat": "JWT",  # Swagger UI expects this format
+                "description": "Enter your API key. API keys start with 'sk-api-'. Use format: Bearer sk-api-..."
+            }
+        }
+        app.openapi_schema = openapi_schema
+        return app.openapi_schema
+    
+    app.openapi = custom_openapi
 
     # Compliance logging is handled by setup_logging now
 
@@ -783,21 +824,32 @@ def create_app() -> FastAPI:
     app.add_middleware(ProxyHeadersMiddleware, trusted_hosts=trusted_hosts)
 
     # Include routers
-    app.include_router(auth.router)
-    app.include_router(email.router)
-    app.include_router(invoice.router)
-    app.include_router(credit_note.router)
-    app.include_router(settings.router)
-    app.include_router(payments.router) # Include payments router
-    app.include_router(websockets.router) # Include websockets router
-    app.include_router(internal_api.router) # Include the internal API router
-    app.include_router(apps.router) # Include apps router for app metadata endpoints
-    app.include_router(share.router) # Include share router for share chat endpoints
+    # Exclude internal/web app routers from OpenAPI docs - only include endpoints that work with API keys
+    app.include_router(auth.router, include_in_schema=False)  # Auth endpoints - internal use only
+    app.include_router(email.router, include_in_schema=False)  # Email endpoints - internal use only
+    app.include_router(invoice.router, include_in_schema=False)  # Invoice endpoints - internal use only
+    app.include_router(credit_note.router, include_in_schema=False)  # Credit note endpoints - internal use only
+    app.include_router(settings.router, include_in_schema=False)  # Settings endpoints - internal use only
+    app.include_router(payments.router, include_in_schema=False)  # Payments endpoints - internal use only (invoices don't support API keys yet)
+    app.include_router(websockets.router, include_in_schema=False)  # WebSocket endpoints - internal use only
+    app.include_router(internal_api.router, include_in_schema=False)  # Internal API router - service-to-service communication only
+    app.include_router(apps.router, include_in_schema=False)  # Apps router - public endpoint, not API key based
+    app.include_router(share.router, include_in_schema=False)  # Share router - internal use only
+    # Keep apps_api router in docs - it uses API key authentication for external API access
+    app.include_router(apps_api.router)  # Include apps API router for external API access with API keys
 
+    # Redirect /health to /v1/health for backward compatibility
+    @app.get("/health", include_in_schema=False)
+    async def health_redirect():
+        """Redirect /health to /v1/health for backward compatibility."""
+        return RedirectResponse(url="/v1/health", status_code=301)
+    
     # Health check endpoint with rate limiting
-    @app.get("/health")
+    # Included in OpenAPI docs - useful public endpoint for monitoring
+    # Note: This endpoint does NOT require API key authentication (public endpoint)
+    @app.get("/v1/health", dependencies=[])  # Explicitly no dependencies (no auth required)
     @limiter.limit("60/minute")
-    async def health_check(request: Request):
+    async def health_check_v1(request: Request):
         """
         Health check endpoint that includes provider health status.
         
@@ -921,13 +973,6 @@ def create_app() -> FastAPI:
             "apps": apps_health,
             "external_services": external_services_health
         }
-    
-    # Also add /v1/health as an alias for consistency with API versioning
-    @app.get("/v1/health")
-    @limiter.limit("60/minute")
-    async def health_check_v1(request: Request):
-        """Health check endpoint (v1) - alias for /health."""
-        return await health_check(request)
 
     return app
 

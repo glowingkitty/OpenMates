@@ -1,0 +1,43 @@
+api_keys:
+  type: collection
+  fields:
+    hashed_user_id:
+      type: string
+      length: 255
+      note: "[Hashed] SHA256 hash of user_id for privacy-preserving lookups (matches encryption_keys pattern)"
+      required: true
+    user_id:
+      type: uuid
+      note: "Direct reference to user_id for efficient lookups when user is already known (e.g., settings endpoints). Can be computed from hashed_user_id, but stored for query efficiency and consistency with passkeys pattern."
+      required: true
+    key_hash:
+      type: string
+      length: 64
+      note: "SHA-256 hash of the full API key (used for validation and encryption key lookup)"
+      required: true
+      unique: true
+    encrypted_key_prefix:
+      type: string
+      length: 512
+      note: "[Encrypted] Client-side encrypted key prefix (e.g., 'sk-api-abc123...') for display, encrypted with user's master key"
+      required: true
+    encrypted_name:
+      type: string
+      length: 512
+      note: "[Encrypted] Client-side encrypted API key name (e.g., 'My App Integration'), encrypted with user's master key"
+      required: true
+    expires_at:
+      type: timestamp
+      note: "Timestamp when the API key expires (null for keys that never expire)"
+    last_used_at:
+      type: timestamp
+      note: "Timestamp when the API key was last used for authentication"
+    created_at:
+      type: timestamp
+      note: "Timestamp when the API key was created"
+      required: true
+    updated_at:
+      type: timestamp
+      note: "Timestamp when the record was last updated"
+      required: true
+

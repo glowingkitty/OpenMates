@@ -294,6 +294,10 @@ class SearchSkill(BaseSkill):
         
         # Extract request-specific parameters (with defaults from schema)
         req_count = req.get("count", 10)  # Default from schema
+        # Enforce maximum of 20 results to limit sanitization costs
+        if req_count and req_count > 20:
+            logger.warning(f"Requested count {req_count} exceeds maximum of 20 for video search '{search_query}' (id: {request_id}). Capping to 20.")
+            req_count = 20
         req_country_raw = req.get("country", "us")  # Default from schema
         req_lang = req.get("search_lang", "en")  # Default from schema
         req_safesearch = req.get("safesearch", "moderate")  # Default from schema

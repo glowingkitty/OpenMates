@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException, Request, Query
 from fastapi.responses import StreamingResponse
 from backend.core.api.app.services.pdf.invoice import InvoiceTemplateService
 from backend.core.api.app.utils.secrets_manager import SecretsManager
+from backend.core.api.app.services.limiter import limiter
 import io
 
 router = APIRouter(
@@ -14,6 +15,7 @@ secrets_manager = SecretsManager()
 invoice_template_service = InvoiceTemplateService(secrets_manager=secrets_manager)
 
 @router.post("/generate")
+@limiter.limit("30/minute")  # Prevent abuse of invoice generation
 async def generate_invoice(request: Request, lang: str = Query("en"), currency: str = Query("eur")):
     try:
         invoice_data = await request.json()
@@ -32,7 +34,8 @@ async def generate_invoice(request: Request, lang: str = Query("en"), currency: 
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/preview")
-async def preview_invoice(credits: int, lang: str = Query("en"), currency: str = Query("eur")):
+@limiter.limit("60/minute")  # Preview endpoint - less sensitive, allow higher rate
+async def preview_invoice(request: Request, credits: int, lang: str = Query("en"), currency: str = Query("eur")):
     try:
         # Validate credits against the pricing tiers
         valid_credits = credits

@@ -333,6 +333,18 @@ export async function deriveKeyFromPassword(password: string, salt: Uint8Array):
 }
 
 /**
+ * Derives a key from an API key using PBKDF2 (same as password derivation)
+ * Used for encrypting the master key with the API key for CLI/npm/pip access
+ * @param apiKey - The API key string
+ * @param salt - Random salt (should be generated per API key)
+ * @returns Promise<Uint8Array> - 256-bit derived key
+ */
+export async function deriveKeyFromApiKey(apiKey: string, salt: Uint8Array): Promise<Uint8Array> {
+  // Use the same derivation as passwords for consistency
+  return deriveKeyFromPassword(apiKey, salt);
+}
+
+/**
  * Wraps (encrypts) a master key with a password-derived key for server storage
  * Uses Web Crypto API wrapKey() for secure key wrapping
  * @param masterKey - The master CryptoKey to wrap

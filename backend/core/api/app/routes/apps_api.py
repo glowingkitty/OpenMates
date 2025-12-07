@@ -1,0 +1,774 @@
+# backend/core/api/app/routes/apps_api.py
+#
+# External API endpoints for accessing apps and their skills with API key authentication
+# This router provides a RESTful API for external clients to interact with app skills
+
+import logging
+import httpx
+import hashlib
+import os
+from typing import Dict, Any, Optional, List
+from fastapi import APIRouter, HTTPException, Request, Depends, Body, FastAPI
+from pydantic import BaseModel
+
+from backend.core.api.app.utils.api_key_auth import ApiKeyAuth
+from backend.core.api.app.services.limiter import limiter
+from backend.core.api.app.services.cache import CacheService
+from backend.core.api.app.services.directus import DirectusService
+from backend.core.api.app.utils.encryption import EncryptionService
+from backend.shared.python_schemas.app_metadata_schemas import AppYAML, AppSkillDefinition
+from backend.shared.python_utils.billing_utils import calculate_total_credits, PricingConfig
+
+logger = logging.getLogger(__name__)
+
+router = APIRouter(prefix="/v1/apps", tags=["Apps API"])
+
+# Default internal port for app services
+DEFAULT_APP_INTERNAL_PORT = 8000
+
+# Internal API base URL for billing
+INTERNAL_API_BASE_URL = os.getenv("INTERNAL_API_BASE_URL", "http://api:8000")
+INTERNAL_API_SHARED_TOKEN = os.getenv("INTERNAL_API_SHARED_TOKEN")
+
+
+# Request/Response models
+class SkillRequest(BaseModel):
+    """Request model for skill execution"""
+    input_data: Dict[str, Any]
+    parameters: Optional[Dict[str, Any]] = {}
+
+
+class SkillResponse(BaseModel):
+    """Response model for skill execution"""
+    success: bool
+    data: Optional[Dict[str, Any]] = None
+    error: Optional[str] = None
+    credits_charged: Optional[int] = None
+
+
+class SkillMetadata(BaseModel):
+    """Metadata for a skill including pricing information"""
+    id: str
+    name: str
+    description: str
+    input_schema: Dict[str, Any]
+    output_schema: Dict[str, Any]
+    parameters_schema: Optional[Dict[str, Any]] = {}
+    pricing: Optional[Dict[str, Any]] = None  # Pricing configuration if available
+
+
+class AppMetadata(BaseModel):
+    """Metadata for an app"""
+    id: str
+    name: str
+    description: str
+    skills: List[SkillMetadata]
+
+
+class AppsListResponse(BaseModel):
+    """Response model for apps list"""
+    apps: List[AppMetadata]
+
+
+# Helper functions
+async def get_cache_service(request: Request) -> CacheService:
+    """Get cache service from app state"""
+    return request.app.state.cache_service
+
+
+async def get_directus_service(request: Request) -> DirectusService:
+    """Get directus service from app state"""
+    return request.app.state.directus_service
+
+
+async def get_encryption_service(request: Request) -> EncryptionService:
+    """Get encryption service from app state"""
+    return request.app.state.encryption_service
+
+
+def get_discovered_apps(request: Request) -> Dict[str, AppYAML]:
+    """
+    Get discovered apps metadata from app state.
+    Returns empty dict if not available.
+    """
+    if not hasattr(request.app.state, 'discovered_apps_metadata'):
+        logger.warning("discovered_apps_metadata not found in app.state")
+        return {}
+    return request.app.state.discovered_apps_metadata
+
+
+def get_translation_service(request: Request):
+    """Get translation service from app state"""
+    if hasattr(request.app.state, 'translation_service'):
+        return request.app.state.translation_service
+    return None
+
+
+def resolve_translation(translation_service, translation_key: str, namespace: str, fallback: str = "") -> str:
+    """
+    Resolve a translation key using the translation service.
+    Returns the translated text or fallback if translation service is not available.
+    """
+    if not translation_service or not translation_key:
+        return fallback
+    
+    try:
+        translations = translation_service.get_translations(lang="en")  # Default to English for API
+        # Translation keys are typically in format "namespace.key"
+        # We need to navigate the nested structure
+        parts = translation_key.split(".")
+        value = translations
+        for part in parts:
+            if isinstance(value, dict):
+                value = value.get(part)
+                if value is None:
+                    return fallback
+            else:
+                return fallback
+        return value if isinstance(value, str) else fallback
+    except Exception as e:
+        logger.warning(f"Failed to resolve translation for key '{translation_key}': {e}")
+        return fallback
+
+
+async def call_app_skill(
+    app_id: str,
+    skill_id: str,
+    input_data: Dict[str, Any],
+    parameters: Dict[str, Any],
+    user_info: Dict[str, Any]
+) -> Dict[str, Any]:
+    """
+    Call an app skill via internal service communication.
+    
+    Args:
+        app_id: The ID of the app
+        skill_id: The ID of the skill to execute
+        input_data: Input data for the skill
+        parameters: Parameters for the skill
+        user_info: User information from API key authentication
+        
+    Returns:
+        Dict containing the skill execution result
+    """
+    try:
+        # Construct hostname by prepending "app-" to the app_id (standard pattern)
+        hostname = f"app-{app_id}"
+        
+        # Prepare request to internal app service
+        skill_url = f"http://{hostname}:{DEFAULT_APP_INTERNAL_PORT}/skills/{skill_id}"
+
+        headers = {
+            'Content-Type': 'application/json',
+            'X-External-User-ID': user_info['user_id'],
+            'X-API-Key-Name': user_info.get('api_key_encrypted_name', ''),  # Encrypted name (for logging, client decrypts)
+        }
+
+        request_payload = {
+            'input_data': input_data,
+            'parameters': parameters,
+            'context': {
+                'user_id': user_info['user_id'],
+                'api_key_name': user_info.get('api_key_encrypted_name', ''),  # Encrypted name (for logging, client decrypts)
+                'external_request': True
+            }
+        }
+
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.post(
+                skill_url,
+                json=request_payload,
+                headers=headers
+            )
+
+            if response.status_code == 200:
+                return response.json()
+            elif response.status_code == 404:
+                raise HTTPException(status_code=404, detail=f"Skill '{skill_id}' not found in app '{app_id}'")
+            else:
+                logger.error(f"App service error: {response.status_code} - {response.text}")
+                raise HTTPException(status_code=500, detail="Internal service error")
+
+    except httpx.TimeoutException:
+        logger.error(f"Timeout calling skill {app_id}/{skill_id}")
+        raise HTTPException(status_code=504, detail="Skill execution timeout")
+    except httpx.RequestError as e:
+        logger.error(f"Request error calling skill {app_id}/{skill_id}: {e}")
+        raise HTTPException(status_code=503, detail="Service unavailable")
+
+
+async def calculate_skill_credits(
+    app_metadata: AppYAML,
+    skill_id: str,
+    input_data: Dict[str, Any],
+    result_data: Optional[Dict[str, Any]] = None
+) -> int:
+    """
+    Calculate credits to charge for a skill execution based on pricing configuration.
+    
+    Args:
+        app_metadata: The app metadata containing skill definitions
+        skill_id: The ID of the skill that was executed
+        input_data: Input data that was sent to the skill
+        result_data: Optional result data from skill execution (for token-based pricing)
+        
+    Returns:
+        Number of credits to charge
+    """
+    # Find the skill definition
+    skill_def: Optional[AppSkillDefinition] = None
+    for skill in app_metadata.skills or []:
+        if skill.id == skill_id:
+            skill_def = skill
+            break
+    
+    if not skill_def:
+        logger.warning(f"Skill '{skill_id}' not found in app '{app_metadata.id}' metadata. Cannot calculate credits.")
+        return 0
+    
+    # Get pricing config from skill definition
+    if not skill_def.pricing:
+        logger.debug(f"Skill '{skill_id}' in app '{app_metadata.id}' has no pricing configuration. Charging 0 credits.")
+        return 0
+    
+    try:
+        # Convert AppPricing to PricingConfig format for billing_utils
+        pricing_config = PricingConfig(
+            tokens=skill_def.pricing.tokens,
+            per_unit=skill_def.pricing.per_unit,
+            per_minute=skill_def.pricing.per_minute,
+            fixed=skill_def.pricing.fixed
+        )
+        
+        # Extract metrics from result_data if available (for token-based pricing)
+        input_tokens = None
+        output_tokens = None
+        units_processed = None
+        duration_minutes = None
+        
+        if result_data:
+            # Try to extract token counts from result (if skill returns them)
+            input_tokens = result_data.get('input_tokens') or result_data.get('usage', {}).get('input_tokens')
+            output_tokens = result_data.get('output_tokens') or result_data.get('usage', {}).get('output_tokens')
+            units_processed = result_data.get('units_processed')
+            duration_minutes = result_data.get('duration_minutes')
+        
+        # Calculate credits using billing_utils
+        credits = calculate_total_credits(
+            pricing_config=pricing_config,
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
+            units_processed=units_processed,
+            duration_minutes=duration_minutes
+        )
+        
+        logger.info(f"Calculated {credits} credits for skill '{app_metadata.id}.{skill_id}'")
+        return credits
+        
+    except Exception as e:
+        logger.error(f"Error calculating credits for skill '{skill_id}' in app '{app_metadata.id}': {e}", exc_info=True)
+        # Return 0 credits on error to avoid blocking skill execution
+        return 0
+
+
+async def charge_credits_via_internal_api(
+    user_id: str,
+    user_id_hash: str,
+    credits: int,
+    app_id: str,
+    skill_id: str,
+    usage_details: Optional[Dict[str, Any]] = None
+) -> None:
+    """
+    Charge credits via the internal billing API.
+    This creates a usage entry and deducts credits from the user's account.
+    
+    Args:
+        user_id: Actual user ID
+        user_id_hash: Hashed user ID for privacy
+        credits: Number of credits to charge
+        app_id: ID of the app that executed the skill
+        skill_id: ID of the skill that was executed
+        usage_details: Optional additional usage metadata
+    """
+    if credits <= 0:
+        logger.debug(f"Skipping credit charge for user {user_id} - credits is {credits}")
+        return
+    
+    charge_payload = {
+        "user_id": user_id,
+        "user_id_hash": user_id_hash,
+        "credits": credits,
+        "skill_id": skill_id,
+        "app_id": app_id,
+        "usage_details": usage_details or {}
+    }
+    
+    headers = {"Content-Type": "application/json"}
+    if INTERNAL_API_SHARED_TOKEN:
+        headers["X-Internal-Service-Token"] = INTERNAL_API_SHARED_TOKEN
+    
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            url = f"{INTERNAL_API_BASE_URL}/internal/billing/charge"
+            logger.info(f"Charging {credits} credits for skill '{app_id}.{skill_id}' via internal API")
+            response = await client.post(url, json=charge_payload, headers=headers)
+            response.raise_for_status()
+            logger.info(f"Successfully charged {credits} credits for skill '{app_id}.{skill_id}'")
+    except httpx.HTTPStatusError as e:
+        logger.error(f"HTTP error charging credits for skill '{app_id}.{skill_id}': {e.response.status_code} - {e.response.text}", exc_info=True)
+        # Don't raise - billing failure shouldn't break skill execution response
+    except Exception as e:
+        logger.error(f"Error charging credits for skill '{app_id}.{skill_id}': {e}", exc_info=True)
+        # Don't raise - billing failure shouldn't break skill execution response
+
+
+# API Endpoints
+
+@router.get(
+    "",
+    response_model=AppsListResponse,
+    dependencies=[ApiKeyAuth],  # Mark endpoint as requiring API key
+    summary="List all available apps",
+    description="List all available apps and their skills. Requires API key authentication."
+)
+@limiter.limit("60/minute")
+async def list_apps(
+    request: Request,
+    user_info: Dict[str, Any] = ApiKeyAuth,
+    cache_service: CacheService = Depends(get_cache_service)
+):
+    """
+    List all available apps and their skills.
+    
+    Requires API key authentication.
+    Returns apps that are discovered and available on the server.
+    """
+    try:
+        discovered_apps = get_discovered_apps(request)
+        translation_service = get_translation_service(request)
+        
+        if not discovered_apps:
+            logger.info("No apps discovered, returning empty list")
+            return AppsListResponse(apps=[])
+        
+        # Get server environment for stage filtering
+        server_environment = os.getenv("SERVER_ENVIRONMENT", "development").lower()
+        allowed_stages = ["production"] if server_environment == "production" else ["development", "production"]
+        
+        apps = []
+        for app_id, app_metadata in discovered_apps.items():
+            # Resolve app name and description
+            app_name = resolve_translation(
+                translation_service,
+                app_metadata.name_translation_key,
+                namespace="apps",
+                fallback=app_id
+            )
+            app_description = resolve_translation(
+                translation_service,
+                app_metadata.description_translation_key,
+                namespace="apps",
+                fallback=""
+            )
+            
+            # Convert skills - filter by stage
+            skills = []
+            for skill in app_metadata.skills or []:
+                skill_stage = getattr(skill, 'stage', 'development').lower()
+                if skill_stage not in allowed_stages:
+                    continue
+                
+                skill_name = resolve_translation(
+                    translation_service,
+                    skill.name_translation_key,
+                    namespace="app_skills",
+                    fallback=skill.id
+                )
+                skill_description = resolve_translation(
+                    translation_service,
+                    skill.description_translation_key,
+                    namespace="app_skills",
+                    fallback=""
+                )
+                
+                # Get input/output schemas from tool_schema if available
+                input_schema = {}
+                output_schema = {}
+                parameters_schema = {}
+                
+                if skill.tool_schema:
+                    # Extract input schema from tool_schema
+                    input_schema = skill.tool_schema.get('parameters', {}).get('properties', {})
+                    # Output schema is typically not in tool_schema, use empty dict
+                    output_schema = {}
+                    # Parameters schema could be the same as input schema for now
+                    parameters_schema = {}
+                
+                # Convert pricing to dict if available
+                pricing_dict = None
+                if skill.pricing:
+                    pricing_dict = {}
+                    if skill.pricing.tokens:
+                        pricing_dict['tokens'] = skill.pricing.tokens
+                    if skill.pricing.per_unit:
+                        pricing_dict['per_unit'] = skill.pricing.per_unit
+                    if skill.pricing.per_minute:
+                        pricing_dict['per_minute'] = skill.pricing.per_minute
+                    if skill.pricing.fixed:
+                        pricing_dict['fixed'] = skill.pricing.fixed
+                
+                skills.append(SkillMetadata(
+                    id=skill.id,
+                    name=skill_name,
+                    description=skill_description,
+                    input_schema=input_schema,
+                    output_schema=output_schema,
+                    parameters_schema=parameters_schema,
+                    pricing=pricing_dict
+                ))
+            
+            if skills:  # Only include apps that have at least one skill
+                apps.append(AppMetadata(
+                    id=app_id,
+                    name=app_name,
+                    description=app_description,
+                    skills=skills
+                ))
+        
+        return AppsListResponse(apps=apps)
+        
+    except Exception as e:
+        logger.error(f"Error listing apps for user {user_info['user_id']}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to list apps")
+
+
+def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYAML]):
+    """
+    Dynamically register explicit routes for each app and each skill.
+    
+    This creates explicit endpoints like:
+    - GET /v1/apps/web
+    - GET /v1/apps/web/skills/search
+    - POST /v1/apps/web/skills/search
+    
+    Args:
+        app: The FastAPI application instance
+        discovered_apps: Dictionary of discovered app metadata
+    """
+    translation_service = None
+    if hasattr(app.state, 'translation_service'):
+        translation_service = app.state.translation_service
+    
+    # Get server environment for stage filtering
+    server_environment = os.getenv("SERVER_ENVIRONMENT", "development").lower()
+    allowed_stages = ["production"] if server_environment == "production" else ["development", "production"]
+    
+    for app_id, app_metadata in discovered_apps.items():
+        # Resolve app name and description
+        app_name = resolve_translation(
+            translation_service,
+            app_metadata.name_translation_key,
+            namespace="apps",
+            fallback=app_id
+        )
+        app_description = resolve_translation(
+            translation_service,
+            app_metadata.description_translation_key,
+            namespace="apps",
+            fallback=""
+        )
+        
+        # Create route handler for GET /v1/apps/{app_id}
+        # Use closure to capture app_id and app_metadata
+        def create_get_app_handler(captured_app_id: str, captured_app_metadata: AppYAML):
+            async def get_app_handler(
+                request: Request,
+                user_info: Dict[str, Any] = ApiKeyAuth  # This will be injected by Security()
+            ) -> AppMetadata:
+                """Get metadata for a specific app. Requires API key authentication."""
+                try:
+                    # Get server environment for stage filtering
+                    server_env = os.getenv("SERVER_ENVIRONMENT", "development").lower()
+                    allowed = ["production"] if server_env == "production" else ["development", "production"]
+                    
+                    trans_service = get_translation_service(request)
+                    
+                    # Resolve app name and description
+                    resolved_name = resolve_translation(
+                        trans_service,
+                        captured_app_metadata.name_translation_key,
+                        namespace="apps",
+                        fallback=captured_app_id
+                    )
+                    resolved_description = resolve_translation(
+                        trans_service,
+                        captured_app_metadata.description_translation_key,
+                        namespace="apps",
+                        fallback=""
+                    )
+                    
+                    # Convert skills - filter by stage
+                    skills = []
+                    for skill in captured_app_metadata.skills or []:
+                        skill_stage = getattr(skill, 'stage', 'development').lower()
+                        if skill_stage not in allowed:
+                            continue
+                        
+                        skill_name = resolve_translation(
+                            trans_service,
+                            skill.name_translation_key,
+                            namespace="app_skills",
+                            fallback=skill.id
+                        )
+                        skill_description = resolve_translation(
+                            trans_service,
+                            skill.description_translation_key,
+                            namespace="app_skills",
+                            fallback=""
+                        )
+                        
+                        # Get input/output schemas from tool_schema if available
+                        input_schema = {}
+                        output_schema = {}
+                        parameters_schema = {}
+                        
+                        if skill.tool_schema:
+                            input_schema = skill.tool_schema.get('parameters', {}).get('properties', {})
+                            output_schema = {}
+                            parameters_schema = {}
+                        
+                        # Convert pricing to dict if available
+                        pricing_dict = None
+                        if skill.pricing:
+                            pricing_dict = {}
+                            if skill.pricing.tokens:
+                                pricing_dict['tokens'] = skill.pricing.tokens
+                            if skill.pricing.per_unit:
+                                pricing_dict['per_unit'] = skill.pricing.per_unit
+                            if skill.pricing.per_minute:
+                                pricing_dict['per_minute'] = skill.pricing.per_minute
+                            if skill.pricing.fixed:
+                                pricing_dict['fixed'] = skill.pricing.fixed
+                        
+                        skills.append(SkillMetadata(
+                            id=skill.id,
+                            name=skill_name,
+                            description=skill_description,
+                            input_schema=input_schema,
+                            output_schema=output_schema,
+                            parameters_schema=parameters_schema,
+                            pricing=pricing_dict
+                        ))
+                    
+                    return AppMetadata(
+                        id=captured_app_id,
+                        name=resolved_name,
+                        description=resolved_description,
+                        skills=skills
+                    )
+                    
+                except Exception as e:
+                    logger.error(f"Error getting app {captured_app_id} for user {user_info['user_id']}: {e}", exc_info=True)
+                    raise HTTPException(status_code=500, detail="Failed to get app metadata")
+            
+            return get_app_handler
+        
+        # Register GET /v1/apps/{app_id} endpoint
+        handler = create_get_app_handler(app_id, app_metadata)
+        # Apply rate limiting and add security requirement
+        limited_handler = limiter.limit("60/minute")(handler)
+        app.add_api_route(
+            path=f"/v1/apps/{app_id}",
+            endpoint=limited_handler,
+            methods=["GET"],
+            response_model=AppMetadata,
+            tags=["Apps API"],
+            name=f"get_app_{app_id}",
+            summary=f"Get metadata for {app_name}",
+            description=f"Get metadata for the {app_name} app including all available skills. Requires API key authentication.",
+            dependencies=[ApiKeyAuth]  # Mark endpoint as requiring API key
+        )
+        
+        # Register routes for each skill in the app
+        for skill in app_metadata.skills or []:
+            skill_stage = getattr(skill, 'stage', 'development').lower()
+            if skill_stage not in allowed_stages:
+                continue
+            
+            # Resolve skill name for documentation
+            skill_name = resolve_translation(
+                translation_service,
+                skill.name_translation_key,
+                namespace="app_skills",
+                fallback=skill.id
+            )
+            
+            # Create GET handler for skill metadata
+            def create_get_skill_handler(captured_app_id: str, captured_skill: AppSkillDefinition, captured_app_metadata: AppYAML):
+                async def get_skill_handler(
+                    request: Request,
+                    user_info: Dict[str, Any] = ApiKeyAuth  # This will be injected by Security()
+                ) -> SkillMetadata:
+                    """Get metadata for a specific skill including pricing information. Requires API key authentication."""
+                    try:
+                        trans_service = get_translation_service(request)
+                        
+                        # Resolve skill name and description
+                        resolved_name = resolve_translation(
+                            trans_service,
+                            captured_skill.name_translation_key,
+                            namespace="app_skills",
+                            fallback=captured_skill.id
+                        )
+                        resolved_description = resolve_translation(
+                            trans_service,
+                            captured_skill.description_translation_key,
+                            namespace="app_skills",
+                            fallback=""
+                        )
+                        
+                        # Get input/output schemas from tool_schema if available
+                        input_schema = {}
+                        output_schema = {}
+                        parameters_schema = {}
+                        
+                        if captured_skill.tool_schema:
+                            input_schema = captured_skill.tool_schema.get('parameters', {}).get('properties', {})
+                            output_schema = {}
+                            parameters_schema = {}
+                        
+                        # Convert pricing to dict if available
+                        pricing_dict = None
+                        if captured_skill.pricing:
+                            pricing_dict = {}
+                            if captured_skill.pricing.tokens:
+                                pricing_dict['tokens'] = captured_skill.pricing.tokens
+                            if captured_skill.pricing.per_unit:
+                                pricing_dict['per_unit'] = captured_skill.pricing.per_unit
+                            if captured_skill.pricing.per_minute:
+                                pricing_dict['per_minute'] = captured_skill.pricing.per_minute
+                            if captured_skill.pricing.fixed:
+                                pricing_dict['fixed'] = captured_skill.pricing.fixed
+                        
+                        return SkillMetadata(
+                            id=captured_skill.id,
+                            name=resolved_name,
+                            description=resolved_description,
+                            input_schema=input_schema,
+                            output_schema=output_schema,
+                            parameters_schema=parameters_schema,
+                            pricing=pricing_dict
+                        )
+                        
+                    except Exception as e:
+                        logger.error(f"Error getting skill {captured_app_id}/{captured_skill.id} for user {user_info['user_id']}: {e}", exc_info=True)
+                        raise HTTPException(status_code=500, detail="Failed to get skill metadata")
+                
+                return get_skill_handler
+            
+            # Create POST handler for skill execution
+            def create_post_skill_handler(captured_app_id: str, captured_skill: AppSkillDefinition, captured_app_metadata: AppYAML):
+                async def post_skill_handler(
+                    request_data: SkillRequest,
+                    request: Request,
+                    user_info: Dict[str, Any] = ApiKeyAuth,  # This will be injected by Security()
+                    cache_service: CacheService = Depends(get_cache_service),
+                    directus_service: DirectusService = Depends(get_directus_service)
+                ) -> SkillResponse:
+                    """
+                    Execute a skill from a specific app.
+                    
+                    Requires API key authentication.
+                    The skill will be executed, billed, and a usage entry will be created automatically.
+                    Rate limited to 30 requests per minute per API key.
+                    """
+                    try:
+                        logger.info(f"External API: User {user_info['user_id']} executing {captured_app_id}/{captured_skill.id}")
+                        
+                        # Execute the skill
+                        result = await call_app_skill(
+                            app_id=captured_app_id,
+                            skill_id=captured_skill.id,
+                            input_data=request_data.input_data,
+                            parameters=request_data.parameters or {},
+                            user_info=user_info
+                        )
+                        
+                        # Calculate credits to charge based on pricing
+                        credits_charged = await calculate_skill_credits(
+                            app_metadata=captured_app_metadata,
+                            skill_id=captured_skill.id,
+                            input_data=request_data.input_data,
+                            result_data=result
+                        )
+                        
+                        # Charge credits via internal API (this also creates usage entry)
+                        if credits_charged > 0:
+                            # Create user_id_hash for privacy
+                            user_id_hash = hashlib.sha256(user_info['user_id'].encode()).hexdigest()
+                            
+                            # Create usage details
+                            usage_details = {
+                                "api_key_name": user_info.get('api_key_name'),
+                                "external_request": True
+                            }
+                            
+                            # Charge credits (this happens asynchronously and won't block the response)
+                            await charge_credits_via_internal_api(
+                                user_id=user_info['user_id'],
+                                user_id_hash=user_id_hash,
+                                credits=credits_charged,
+                                app_id=captured_app_id,
+                                skill_id=captured_skill.id,
+                                usage_details=usage_details
+                            )
+                        
+                        return SkillResponse(
+                            success=True,
+                            data=result,
+                            credits_charged=credits_charged
+                        )
+                        
+                    except HTTPException:
+                        raise
+                    except Exception as e:
+                        logger.error(f"Error executing skill {captured_app_id}/{captured_skill.id} for user {user_info['user_id']}: {e}", exc_info=True)
+                        return SkillResponse(
+                            success=False,
+                            error=f"Skill execution failed: {str(e)}"
+                        )
+                
+                return post_skill_handler
+            
+            # Register GET /v1/apps/{app_id}/skills/{skill_id} endpoint
+            get_handler = create_get_skill_handler(app_id, skill, app_metadata)
+            app.add_api_route(
+                path=f"/v1/apps/{app_id}/skills/{skill.id}",
+                endpoint=limiter.limit("60/minute")(get_handler),
+                methods=["GET"],
+                response_model=SkillMetadata,
+                tags=["Apps API"],
+                name=f"get_skill_{app_id}_{skill.id}",
+                summary=f"Get metadata for {skill_name}",
+                description=f"Get metadata for the {skill_name} skill including pricing information. Requires API key authentication.",
+                dependencies=[ApiKeyAuth]  # Mark endpoint as requiring API key
+            )
+            
+            # Register POST /v1/apps/{app_id}/skills/{skill_id} endpoint
+            post_handler = create_post_skill_handler(app_id, skill, app_metadata)
+            app.add_api_route(
+                path=f"/v1/apps/{app_id}/skills/{skill.id}",
+                endpoint=limiter.limit("30/minute")(post_handler),
+                methods=["POST"],
+                response_model=SkillResponse,
+                tags=["Apps API"],
+                name=f"execute_skill_{app_id}_{skill.id}",
+                summary=f"Execute {skill_name}",
+                description=f"Execute the {skill_name} skill. The skill will be executed, billed, and a usage entry will be created automatically. Requires API key authentication.",
+                dependencies=[ApiKeyAuth]  # Mark endpoint as requiring API key
+            )
+            
+            logger.info(f"Registered routes for skill: GET/POST /v1/apps/{app_id}/skills/{skill.id}")
+        
+        logger.info(f"Registered routes for app: GET /v1/apps/{app_id}")

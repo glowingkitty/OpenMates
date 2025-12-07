@@ -14,6 +14,7 @@ from slowapi.util import get_remote_address
 from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.services.cache import CacheService
+from backend.core.api.app.services.limiter import limiter
 
 logger = logging.getLogger(__name__)
 
@@ -95,9 +96,10 @@ def generate_dummy_encrypted_data(chat_id: str) -> Dict[str, Any]:
 # --- Endpoints ---
 
 @router.get("/chat/{chat_id}")
+@limiter.limit("30/minute")  # Prevent brute force attacks on chat IDs
 async def get_shared_chat(
-    chat_id: str,
     request: Request,
+    chat_id: str,
     directus_service: DirectusService = Depends(get_directus_service)
 ) -> Dict[str, Any]:
     """
@@ -109,7 +111,7 @@ async def get_shared_chat(
       (prevents enumeration attacks)
     
     Security:
-    - Rate limited to prevent brute force (TODO: apply via middleware or decorator)
+    - Rate limited to prevent brute force attacks
     - Returns consistent dummy data for non-existent chats
     - Only returns real data if is_private = false
     """
@@ -176,9 +178,10 @@ async def get_shared_chat(
         return dummy_data
 
 @router.post("/chat/metadata")
+@limiter.limit("30/minute")  # Prevent abuse of metadata updates
 async def update_share_metadata(
-    payload: ShareChatMetadataUpdate,
     request: Request,
+    payload: ShareChatMetadataUpdate,
     directus_service: DirectusService = Depends(get_directus_service),
     encryption_service: EncryptionService = Depends(get_encryption_service)
 ) -> Dict[str, Any]:

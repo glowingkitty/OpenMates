@@ -75,7 +75,7 @@ directus_users:
     api_key_hash:
       type: string
       length: 128
-      note: "Hashed API key for developer access"
+      note: "Legacy field - kept for backward compatibility (deprecated, use api_keys collection instead)"
 
     encrypted_tfa_secret:
       type: string

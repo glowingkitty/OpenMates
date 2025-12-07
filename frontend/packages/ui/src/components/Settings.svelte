@@ -63,6 +63,8 @@ changes to the documentation (to keep the documentation up to date).
     import SettingsShared from './settings/SettingsShared.svelte';
     import SettingsMessengers from './settings/SettingsMessengers.svelte';
     import SettingsDevelopers from './settings/SettingsDevelopers.svelte';
+    import SettingsApiKeys from './settings/developers/SettingsApiKeys.svelte';
+    import SettingsDevices from './settings/developers/SettingsDevices.svelte';
     import SettingsServer from './settings/SettingsServer.svelte';
     import SettingsItem from './SettingsItem.svelte';
     import SettingsLanguage from './settings/interface/SettingsLanguage.svelte';
@@ -138,7 +140,9 @@ changes to the documentation (to keep the documentation up to date).
         // 'mates': SettingsMates,
         'shared': SettingsShared,
         // 'messengers': SettingsMessengers,
-        // 'developers': SettingsDevelopers,
+        'developers': SettingsDevelopers,
+        'developers/api-keys': SettingsApiKeys,
+        'developers/devices': SettingsDevices,
         'interface': SettingsInterface,
         // 'server': SettingsServer,
         'interface/language': SettingsLanguage,
@@ -908,6 +912,55 @@ changes to the documentation (to keep the documentation up to date).
         } else if ($settingsDeepLink && !$authStore.isAuthenticated) {
             // Clear the deep link if user is not authenticated (can't navigate to settings while not logged in)
             settingsDeepLink.set(null);
+        }
+    });
+
+    // Track previous navigation path to avoid duplicate navigation
+    let previousNavigationPath = $state<string | null>(null);
+    
+    // Watch settingsNavigationStore to handle navigation from nested components
+    // This allows components like SettingsDevelopers to navigate to sub-pages
+    $effect(() => {
+        const currentPath = $settingsNavigationStore.currentPath;
+        
+        // Only update if the path is different from current view, not 'settings' (main), and actually changed
+        if (currentPath && 
+            currentPath !== activeSettingsView && 
+            currentPath !== 'settings' &&
+            currentPath !== previousNavigationPath) {
+            
+            // Update tracked path to prevent duplicate calls
+            previousNavigationPath = currentPath;
+            
+            // Find the breadcrumb for this path to get icon and title
+            const breadcrumb = $settingsNavigationStore.breadcrumbs.find(crumb => crumb.path === currentPath);
+            
+            if (breadcrumb) {
+                // Ensure settings menu is open
+                if (!isMenuVisible) {
+                    isMenuVisible = true;
+                    settingsMenuVisible.set(true);
+                }
+                
+                // Determine direction (forward if going deeper, backward if going back)
+                const currentDepth = activeSettingsView ? activeSettingsView.split('/').length : 0;
+                const newDepth = currentPath.split('/').length;
+                const navDirection = newDepth > currentDepth ? 'forward' : 'backward';
+                
+                // Get title from breadcrumb or translation
+                const title = breadcrumb.translationKey 
+                    ? $text(breadcrumb.translationKey + '.text')
+                    : breadcrumb.title;
+                
+                handleOpenSettings({
+                    detail: {
+                        settingsPath: currentPath,
+                        direction: navDirection,
+                        icon: breadcrumb.icon || currentPath.split('/').pop(),
+                        title: title
+                    }
+                });
+            }
         }
     });
 

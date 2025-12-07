@@ -406,3 +406,46 @@ class S3UploadService:
         except Exception as e:
             logger.error(f"Failed to delete from S3: {str(e)}")
             raise HTTPException(status_code=500, detail="Failed to delete file")
+
+    async def get_file(self, bucket_name: str, object_key: str) -> Optional[bytes]:
+        """
+        Download a file from S3 and return its content as bytes.
+        
+        Args:
+            bucket_name: The name of the S3 bucket
+            object_key: The key (path) of the object in the bucket
+            
+        Returns:
+            The file content as bytes, or None if the file doesn't exist or download fails
+            
+        Raises:
+            HTTPException: If the download fails due to service unavailability
+        """
+        # Ensure client is initialized before proceeding
+        if not self.client:
+            logger.error("S3 service not initialized. Cannot download file.")
+            raise HTTPException(status_code=503, detail="S3 service unavailable")
+        
+        try:
+            logger.info(f"Downloading file from S3: bucket={bucket_name}, key={object_key}")
+            
+            # Use get_object to download the file
+            response = self.client.get_object(Bucket=bucket_name, Key=object_key)
+            
+            # Read the file content
+            file_content = response['Body'].read()
+            
+            logger.info(f"Successfully downloaded file from S3: bucket={bucket_name}, key={object_key}, size={len(file_content)} bytes")
+            return file_content
+            
+        except ClientError as e:
+            error_code = e.response.get('Error', {}).get('Code')
+            if error_code == 'NoSuchKey' or error_code == '404':
+                logger.warning(f"File not found in S3: bucket={bucket_name}, key={object_key}")
+                return None
+            else:
+                logger.error(f"Failed to download file from S3: {str(e)}")
+                return None
+        except Exception as e:
+            logger.error(f"Unexpected error downloading file from S3: {str(e)}")
+            return None
