@@ -7,9 +7,10 @@ import logging
 import httpx
 import hashlib
 import os
+import json
 from typing import Dict, Any, Optional, List
 from fastapi import APIRouter, HTTPException, Request, Depends, Body, FastAPI
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from backend.core.api.app.utils.api_key_auth import ApiKeyAuth
 from backend.core.api.app.services.limiter import limiter
@@ -33,9 +34,21 @@ INTERNAL_API_SHARED_TOKEN = os.getenv("INTERNAL_API_SHARED_TOKEN")
 
 # Request/Response models
 class SkillRequest(BaseModel):
-    """Request model for skill execution"""
-    input_data: Dict[str, Any]
-    parameters: Optional[Dict[str, Any]] = {}
+    """
+    Request model for skill execution.
+    
+    The input_data field should contain the structure defined in the skill's tool_schema
+    (e.g., for news search: {"requests": [{"id": 1, "query": "..."}]}).
+    The parameters field is for additional skill-specific parameters (usually empty).
+    """
+    input_data: Dict[str, Any] = Field(
+        ...,
+        description="Input data matching the skill's tool_schema structure. For news search, this should be an object with a 'requests' array."
+    )
+    parameters: Optional[Dict[str, Any]] = Field(
+        default={},
+        description="Additional skill-specific parameters (usually empty)."
+    )
 
 
 class SkillResponse(BaseModel):
@@ -164,15 +177,17 @@ async def call_app_skill(
             'X-API-Key-Name': user_info.get('api_key_encrypted_name', ''),  # Encrypted name (for logging, client decrypts)
         }
 
-        request_payload = {
-            'input_data': input_data,
-            'parameters': parameters,
-            'context': {
-                'user_id': user_info['user_id'],
-                'api_key_name': user_info.get('api_key_encrypted_name', ''),  # Encrypted name (for logging, client decrypts)
-                'external_request': True
-            }
-        }
+        # Send input_data directly as the request body to the skill
+        # The skill expects the tool_schema structure directly (e.g., {"requests": [...]})
+        # Context is added as metadata fields prefixed with _ so they don't interfere with the skill's schema
+        request_payload = input_data.copy() if isinstance(input_data, dict) else input_data
+        if not isinstance(request_payload, dict):
+            request_payload = {}
+        
+        # Add context as metadata fields (prefixed with _)
+        request_payload['_user_id'] = user_info['user_id']
+        request_payload['_api_key_name'] = user_info.get('api_key_encrypted_name', '')
+        request_payload['_external_request'] = True
 
         async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.post(
@@ -669,75 +684,377 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
             
             # Create POST handler for skill execution
             def create_post_skill_handler(captured_app_id: str, captured_skill: AppSkillDefinition, captured_app_metadata: AppYAML):
-                async def post_skill_handler(
-                    request_data: SkillRequest,
-                    request: Request,
-                    user_info: Dict[str, Any] = ApiKeyAuth,  # This will be injected by Security()
-                    cache_service: CacheService = Depends(get_cache_service),
-                    directus_service: DirectusService = Depends(get_directus_service)
-                ) -> SkillResponse:
-                    """
-                    Execute a skill from a specific app.
-                    
-                    Requires API key authentication.
-                    The skill will be executed, billed, and a usage entry will be created automatically.
-                    Rate limited to 30 requests per minute per API key.
-                    """
+                # Try to import the skill's request/response models directly from the skill module
+                # This ensures FastAPI generates correct OpenAPI schema automatically
+                SkillRequestModel = None
+                SkillResponseModel = None
+                
+                if captured_skill.tool_schema and captured_skill.class_path:
                     try:
-                        logger.info(f"External API: User {user_info['user_id']} executing {captured_app_id}/{captured_skill.id}")
+                        import importlib
+                        # Import the skill module to get its models
+                        module_path, class_name = captured_skill.class_path.rsplit('.', 1)
+                        skill_module = importlib.import_module(module_path)
                         
-                        # Execute the skill
-                        result = await call_app_skill(
-                            app_id=captured_app_id,
-                            skill_id=captured_skill.id,
-                            input_data=request_data.input_data,
-                            parameters=request_data.parameters or {},
-                            user_info=user_info
+                        # Look for Request and Response models in the module
+                        # Common patterns: SearchRequest/SearchResponse, ReadRequest/ReadResponse, etc.
+                        for model_name in ['SearchRequest', 'ReadRequest', 'TranscriptRequest', 'Request']:
+                            if hasattr(skill_module, model_name):
+                                SkillRequestModel = getattr(skill_module, model_name)
+                                logger.debug(f"Found request model '{model_name}' for skill {captured_app_id}/{captured_skill.id}")
+                                break
+                        
+                        for model_name in ['SearchResponse', 'ReadResponse', 'TranscriptResponse', 'Response']:
+                            if hasattr(skill_module, model_name):
+                                SkillResponseModel = getattr(skill_module, model_name)
+                                logger.debug(f"Found response model '{model_name}' for skill {captured_app_id}/{captured_skill.id}")
+                                break
+                                
+                    except Exception as e:
+                        logger.warning(f"Could not import models from skill module {captured_skill.class_path}: {e}")
+                
+                # If we found the models, enhance them with proper structure from tool_schema
+                if SkillRequestModel and SkillResponseModel and captured_skill.tool_schema:
+                    # Create an enhanced request model that properly defines the requests array items
+                    # The original SearchRequest uses List[Dict[str, Any]] which doesn't show structure
+                    # We'll create a new model based on the tool_schema
+                    from pydantic import create_model
+                    import copy
+                    
+                    tool_schema = copy.deepcopy(captured_skill.tool_schema)
+                    
+                    # Inject 'id' field into requests items if missing (same logic as tool_generator)
+                    if "properties" in tool_schema and "requests" in tool_schema["properties"]:
+                        requests_prop = tool_schema["properties"]["requests"]
+                        if requests_prop.get("type") == "array" and "items" in requests_prop:
+                            items = requests_prop["items"]
+                            if items.get("type") == "object":
+                                items_properties = items.get("properties", {})
+                                if "id" not in items_properties:
+                                    # Inject 'id' field (optional, can be string or integer)
+                                    items_properties["id"] = {
+                                        "type": ["string", "integer"],
+                                        "description": "Unique identifier for this request (number or UUID string). Optional for single requests (defaults to 1), required for multiple requests."
+                                    }
+                                    if "properties" not in items:
+                                        items["properties"] = items_properties
+                                    else:
+                                        items["properties"] = items_properties
+                    
+                    # Extract the requests array items schema
+                    requests_items_schema = None
+                    if "properties" in tool_schema and "requests" in tool_schema["properties"]:
+                        requests_prop = tool_schema["properties"]["requests"]
+                        if requests_prop.get("type") == "array" and "items" in requests_prop:
+                            requests_items_schema = requests_prop["items"]
+                    
+                    # Create a proper model for request items if we have the schema
+                    RequestItemModel = None
+                    if requests_items_schema and requests_items_schema.get("type") == "object":
+                        # Build field definitions from the items schema
+                        field_definitions = {}
+                        if "properties" in requests_items_schema:
+                            for prop_name, prop_schema in requests_items_schema["properties"].items():
+                                # Determine Python type from JSON schema type
+                                prop_type = Any
+                                schema_type = prop_schema.get("type")
+                                
+                                # Handle union types (e.g., ["string", "integer"] for 'id' field)
+                                if isinstance(schema_type, list):
+                                    # For union types, use the first type or Union if multiple
+                                    if len(schema_type) > 1:
+                                        from typing import Union
+                                        # Try to determine the union type
+                                        types = []
+                                        if "string" in schema_type:
+                                            types.append(str)
+                                        if "integer" in schema_type:
+                                            types.append(int)
+                                        if types:
+                                            prop_type = Union[tuple(types)] if len(types) > 1 else types[0]
+                                        else:
+                                            prop_type = Any
+                                    else:
+                                        schema_type = schema_type[0]
+                                
+                                if schema_type == "string":
+                                    prop_type = str
+                                elif schema_type == "integer":
+                                    prop_type = int
+                                elif schema_type == "boolean":
+                                    prop_type = bool
+                                elif schema_type == "array":
+                                    prop_type = List[Any]
+                                
+                                # Check if field is required
+                                is_required = prop_name in requests_items_schema.get("required", [])
+                                
+                                # Get default value if available
+                                default_value = prop_schema.get("default")
+                                if default_value is not None:
+                                    field_definitions[prop_name] = (prop_type, Field(default=default_value, description=prop_schema.get("description", "")))
+                                elif not is_required:
+                                    field_definitions[prop_name] = (Optional[prop_type], Field(default=None, description=prop_schema.get("description", "")))
+                                else:
+                                    field_definitions[prop_name] = (prop_type, Field(..., description=prop_schema.get("description", "")))
+                        
+                        # Create the request item model
+                        if field_definitions:
+                            RequestItemModel = create_model(
+                                f"RequestItem_{captured_app_id}_{captured_skill.id}",
+                                **field_definitions
+                            )
+                    
+                    # Create enhanced request model with proper typing
+                    if RequestItemModel:
+                        # Create a new request model with properly typed requests array
+                        EnhancedRequestModel = create_model(
+                            f"EnhancedRequest_{captured_app_id}_{captured_skill.id}",
+                            requests=(List[RequestItemModel], Field(..., description=tool_schema.get("properties", {}).get("requests", {}).get("description", "Array of search request objects")))
                         )
                         
-                        # Calculate credits to charge based on pricing
-                        credits_charged = await calculate_skill_credits(
-                            app_metadata=captured_app_metadata,
-                            skill_id=captured_skill.id,
-                            input_data=request_data.input_data,
-                            result_data=result
-                        )
+                        # Override the model's JSON schema to use the tool_schema directly
+                        # This ensures FastAPI shows the correct structure in OpenAPI docs
+                        def custom_json_schema():
+                            return tool_schema
                         
-                        # Charge credits via internal API (this also creates usage entry)
-                        if credits_charged > 0:
-                            # Create user_id_hash for privacy
-                            user_id_hash = hashlib.sha256(user_info['user_id'].encode()).hexdigest()
+                        EnhancedRequestModel.model_json_schema = staticmethod(custom_json_schema)
+                        
+                        SkillRequestModel = EnhancedRequestModel
+                        logger.debug(f"Created enhanced request model with typed request items for {captured_app_id}/{captured_skill.id}")
+                    else:
+                        # Fallback: override the original model's JSON schema
+                        def custom_json_schema():
+                            return tool_schema
+                        SkillRequestModel.model_json_schema = staticmethod(custom_json_schema)
+                        logger.debug(f"Overrode JSON schema for {captured_app_id}/{captured_skill.id} request model")
+                    
+                    # Create a wrapper response model that includes the skill response in 'data'
+                    class WrappedSkillResponse(BaseModel):
+                        """Response wrapper for skill execution"""
+                        success: bool
+                        data: SkillResponseModel = Field(..., description="The skill execution result")
+                        error: Optional[str] = Field(None, description="Error message if execution failed")
+                        credits_charged: Optional[int] = Field(None, description="Credits charged for this execution")
+                    
+                    async def post_skill_handler(
+                        request_body: SkillRequestModel,
+                        request: Request = None,
+                        user_info: Dict[str, Any] = ApiKeyAuth,  # This will be injected by Security()
+                        cache_service: CacheService = Depends(get_cache_service),
+                        directus_service: DirectusService = Depends(get_directus_service)
+                    ) -> WrappedSkillResponse:
+                        """
+                        Execute a skill from a specific app.
+                        
+                        Requires API key authentication.
+                        The skill will be executed, billed, and a usage entry will be created automatically.
+                        Rate limited to 30 requests per minute per API key.
+                        
+                        The request body should match the skill's tool_schema structure directly.
+                        For news search, this means providing a 'requests' array with search queries.
+                        """
+                        try:
+                            logger.info(f"External API: User {user_info['user_id']} executing {captured_app_id}/{captured_skill.id}")
                             
-                            # Create usage details
-                            usage_details = {
-                                "api_key_name": user_info.get('api_key_name'),
-                                "external_request": True
-                            }
+                            # Convert Pydantic model to dict for skill execution
+                            request_dict = request_body.model_dump() if hasattr(request_body, 'model_dump') else dict(request_body)
                             
-                            # Charge credits (this happens asynchronously and won't block the response)
-                            await charge_credits_via_internal_api(
-                                user_id=user_info['user_id'],
-                                user_id_hash=user_id_hash,
-                                credits=credits_charged,
+                            # Execute the skill - pass request_dict directly (it matches tool_schema)
+                            result = await call_app_skill(
                                 app_id=captured_app_id,
                                 skill_id=captured_skill.id,
-                                usage_details=usage_details
+                                input_data=request_dict,  # Pass tool_schema structure directly
+                                parameters={},  # No separate parameters for skills with tool_schema
+                                user_info=user_info
                             )
+                            
+                            # Calculate credits to charge based on pricing
+                            credits_charged = await calculate_skill_credits(
+                                app_metadata=captured_app_metadata,
+                                skill_id=captured_skill.id,
+                                input_data=request_dict,  # Use request_dict for credit calculation
+                                result_data=result
+                            )
+                            
+                            # Charge credits via internal API (this also creates usage entry)
+                            if credits_charged > 0:
+                                # Create user_id_hash for privacy
+                                user_id_hash = hashlib.sha256(user_info['user_id'].encode()).hexdigest()
+                                
+                                # Create usage details
+                                usage_details = {
+                                    "api_key_name": user_info.get('api_key_name'),
+                                    "external_request": True
+                                }
+                                
+                                # Charge credits (this happens asynchronously and won't block the response)
+                                await charge_credits_via_internal_api(
+                                    user_id=user_info['user_id'],
+                                    user_id_hash=user_id_hash,
+                                    credits=credits_charged,
+                                    app_id=captured_app_id,
+                                    skill_id=captured_skill.id,
+                                    usage_details=usage_details
+                                )
+                            
+                            # Parse result into the skill's response model for proper typing
+                            try:
+                                skill_response = SkillResponseModel(**result) if isinstance(result, dict) else result
+                            except Exception as e:
+                                logger.warning(f"Could not parse result into {SkillResponseModel.__name__}: {e}, using raw result")
+                                skill_response = result
+                            
+                            return WrappedSkillResponse(
+                                success=True,
+                                data=skill_response,
+                                credits_charged=credits_charged
+                            )
+                            
+                        except HTTPException:
+                            raise
+                        except Exception as e:
+                            logger.error(f"Error executing skill {captured_app_id}/{captured_skill.id} for user {user_info['user_id']}: {e}", exc_info=True)
+                            return WrappedSkillResponse(
+                                success=False,
+                                error=f"Skill execution failed: {str(e)}"
+                            )
+                    
+                    return post_skill_handler
+                
+                # Fallback: if we couldn't import models, use tool_schema approach
+                elif captured_skill.tool_schema:
+                    import copy
+                    tool_schema = copy.deepcopy(captured_skill.tool_schema)
+                    
+                    async def post_skill_handler(
+                        request_body: Dict[str, Any] = Body(
+                            ...,
+                            description=f"Request body matching the skill's tool_schema. For {skill_name}, this should be an object with a 'requests' array.",
+                            example=tool_schema.get('example', {})
+                        ),
+                        request: Request = None,
+                        user_info: Dict[str, Any] = ApiKeyAuth,
+                        cache_service: CacheService = Depends(get_cache_service),
+                        directus_service: DirectusService = Depends(get_directus_service)
+                    ) -> SkillResponse:
+                        """Execute a skill from a specific app. Fallback handler when models can't be imported."""
+                        try:
+                            logger.info(f"External API: User {user_info['user_id']} executing {captured_app_id}/{captured_skill.id}")
+                            
+                            result = await call_app_skill(
+                                app_id=captured_app_id,
+                                skill_id=captured_skill.id,
+                                input_data=request_body,
+                                parameters={},
+                                user_info=user_info
+                            )
+                            
+                            credits_charged = await calculate_skill_credits(
+                                app_metadata=captured_app_metadata,
+                                skill_id=captured_skill.id,
+                                input_data=request_body,
+                                result_data=result
+                            )
+                            
+                            if credits_charged > 0:
+                                user_id_hash = hashlib.sha256(user_info['user_id'].encode()).hexdigest()
+                                usage_details = {
+                                    "api_key_name": user_info.get('api_key_name'),
+                                    "external_request": True
+                                }
+                                await charge_credits_via_internal_api(
+                                    user_id=user_info['user_id'],
+                                    user_id_hash=user_id_hash,
+                                    credits=credits_charged,
+                                    app_id=captured_app_id,
+                                    skill_id=captured_skill.id,
+                                    usage_details=usage_details
+                                )
+                            
+                            return SkillResponse(
+                                success=True,
+                                data=result,
+                                credits_charged=credits_charged
+                            )
+                        except HTTPException:
+                            raise
+                        except Exception as e:
+                            logger.error(f"Error executing skill {captured_app_id}/{captured_skill.id}: {e}", exc_info=True)
+                            return SkillResponse(success=False, error=f"Skill execution failed: {str(e)}")
+                    
+                    return post_skill_handler
+                else:
+                    # Fallback for skills without tool_schema - use generic SkillRequest
+                    async def post_skill_handler(
+                        request_data: SkillRequest,
+                        request: Request = None,
+                        user_info: Dict[str, Any] = ApiKeyAuth,  # This will be injected by Security()
+                        cache_service: CacheService = Depends(get_cache_service),
+                        directus_service: DirectusService = Depends(get_directus_service)
+                    ) -> SkillResponse:
+                        """
+                        Execute a skill from a specific app.
                         
-                        return SkillResponse(
-                            success=True,
-                            data=result,
-                            credits_charged=credits_charged
-                        )
-                        
-                    except HTTPException:
-                        raise
-                    except Exception as e:
-                        logger.error(f"Error executing skill {captured_app_id}/{captured_skill.id} for user {user_info['user_id']}: {e}", exc_info=True)
-                        return SkillResponse(
-                            success=False,
-                            error=f"Skill execution failed: {str(e)}"
-                        )
+                        Requires API key authentication.
+                        The skill will be executed, billed, and a usage entry will be created automatically.
+                        Rate limited to 30 requests per minute per API key.
+                        """
+                        try:
+                            logger.info(f"External API: User {user_info['user_id']} executing {captured_app_id}/{captured_skill.id}")
+                            
+                            # Execute the skill
+                            result = await call_app_skill(
+                                app_id=captured_app_id,
+                                skill_id=captured_skill.id,
+                                input_data=request_data.input_data,
+                                parameters=request_data.parameters or {},
+                                user_info=user_info
+                            )
+                            
+                            # Calculate credits to charge based on pricing
+                            credits_charged = await calculate_skill_credits(
+                                app_metadata=captured_app_metadata,
+                                skill_id=captured_skill.id,
+                                input_data=request_data.input_data,
+                                result_data=result
+                            )
+                            
+                            # Charge credits via internal API (this also creates usage entry)
+                            if credits_charged > 0:
+                                # Create user_id_hash for privacy
+                                user_id_hash = hashlib.sha256(user_info['user_id'].encode()).hexdigest()
+                                
+                                # Create usage details
+                                usage_details = {
+                                    "api_key_name": user_info.get('api_key_name'),
+                                    "external_request": True
+                                }
+                                
+                                # Charge credits (this happens asynchronously and won't block the response)
+                                await charge_credits_via_internal_api(
+                                    user_id=user_info['user_id'],
+                                    user_id_hash=user_id_hash,
+                                    credits=credits_charged,
+                                    app_id=captured_app_id,
+                                    skill_id=captured_skill.id,
+                                    usage_details=usage_details
+                                )
+                            
+                            return SkillResponse(
+                                success=True,
+                                data=result,
+                                credits_charged=credits_charged
+                            )
+                            
+                        except HTTPException:
+                            raise
+                        except Exception as e:
+                            logger.error(f"Error executing skill {captured_app_id}/{captured_skill.id} for user {user_info['user_id']}: {e}", exc_info=True)
+                            return SkillResponse(
+                                success=False,
+                                error=f"Skill execution failed: {str(e)}"
+                            )
                 
                 return post_skill_handler
             
@@ -757,11 +1074,22 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
             
             # Register POST /v1/apps/{app_id}/skills/{skill_id} endpoint
             post_handler = create_post_skill_handler(app_id, skill, app_metadata)
+            
+            # Determine response model - check if handler uses a custom response model
+            # by inspecting its return type annotation
+            import inspect
+            response_model = SkillResponse  # Default
+            sig = inspect.signature(post_handler)
+            if sig.return_annotation and sig.return_annotation != inspect.Signature.empty:
+                # Check if it's a custom model (not the default SkillResponse)
+                if hasattr(sig.return_annotation, '__name__') and sig.return_annotation.__name__ != 'SkillResponse':
+                    response_model = sig.return_annotation
+            
             app.add_api_route(
                 path=f"/v1/apps/{app_id}/skills/{skill.id}",
                 endpoint=limiter.limit("30/minute")(post_handler),
                 methods=["POST"],
-                response_model=SkillResponse,
+                response_model=response_model,
                 tags=["Apps API"],
                 name=f"execute_skill_{app_id}_{skill.id}",
                 summary=f"Execute {skill_name}",

@@ -754,6 +754,11 @@ def create_app() -> FastAPI:
                 "description": "Enter your API key. API keys start with 'sk-api-'. Use format: Bearer sk-api-..."
             }
         }
+        
+        # Note: OpenAPI schemas are now automatically generated from the skill's Pydantic models
+        # (SearchRequest, SearchResponse, etc.) which are imported directly from the skill modules.
+        # No manual customization needed - FastAPI handles this automatically.
+        
         app.openapi_schema = openapi_schema
         return app.openapi_schema
     
