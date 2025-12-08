@@ -200,6 +200,9 @@
         if (!$authStore.isAuthenticated) {
             isLoggingOutFromSignup = false;
             
+            // Clear video PiP state on logout
+            videoPipStore.clear();
+            
             // CRITICAL: Backup handler for logout - ensures demo chat loads even if userLoggingOut event wasn't caught
             // This is especially important on mobile where event timing might be off
             // Only trigger if we have a current chat that's not a demo chat (user was logged in)
@@ -486,70 +489,95 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         embedFullscreenData = null;
     }
     
-    // State for video PiP mode (reactive from store)
-    let videoPipState = $state<VideoPipState>({ isActive: false });
-    
     // Reference to PiP container for moving iframe
     let pipContainerRef: HTMLDivElement | null = $state(null);
     
     // Store original parent and nextSibling for restoring iframe position
     let originalIframeParent: Node | null = null;
     let originalIframeNextSibling: Node | null = null;
+    let wasPipActive = $state(false);
     
-    // Subscribe to video PiP store and handle iframe movement
+    // Subscribe to video PiP store - use proper subscription pattern to avoid loops
+    // Track previous state to detect changes without causing reactive loops
+    // Use regular variable (not $state) to avoid reactive updates
+    let previousPipState: VideoPipState | null = null;
+    
     $effect(() => {
         const unsubscribe = videoPipStore.subscribe((state) => {
-            const wasActive = videoPipState.isActive;
-            videoPipState = state;
-            console.debug('[ActiveChat] Video PiP state updated:', state);
+            // Only process if this is a meaningful state change
+            const stateChanged = !previousPipState || 
+                previousPipState.isActive !== state.isActive ||
+                previousPipState.iframeWrapperElement !== state.iframeWrapperElement;
             
-            // When entering PiP: move iframe wrapper to PiP container
-            if (state.isActive && state.iframeWrapperElement && pipContainerRef && !wasActive) {
-                const iframeWrapper = state.iframeWrapperElement;
+            if (stateChanged) {
+                const wasActive = previousPipState?.isActive || false;
                 
-                // Store original position for restoration
-                originalIframeParent = iframeWrapper.parentNode;
-                originalIframeNextSibling = iframeWrapper.nextSibling;
-                
-                // Ensure wrapper has the correct class for styling
-                if (!iframeWrapper.classList.contains('video-iframe-wrapper')) {
-                    iframeWrapper.classList.add('video-iframe-wrapper');
+                // When entering PiP: move iframe wrapper to PiP container
+                if (state.isActive && state.iframeWrapperElement && pipContainerRef && !wasActive) {
+                    const iframeWrapper = state.iframeWrapperElement;
+                    
+                    // Only move if not already in PiP container
+                    if (!pipContainerRef.contains(iframeWrapper)) {
+                        // Store original position for restoration
+                        originalIframeParent = iframeWrapper.parentNode;
+                        originalIframeNextSibling = iframeWrapper.nextSibling;
+                        
+                        // Ensure wrapper has the correct class for styling
+                        if (!iframeWrapper.classList.contains('video-iframe-wrapper')) {
+                            iframeWrapper.classList.add('video-iframe-wrapper');
+                        }
+                        
+                        // Move iframe wrapper to PiP container
+                        pipContainerRef.appendChild(iframeWrapper);
+                        
+                        console.debug('[ActiveChat] Moved iframe to PiP container');
+                    }
                 }
                 
-                // Move iframe wrapper to PiP container
-                // The wrapper will be positioned absolutely via CSS
-                pipContainerRef.appendChild(iframeWrapper);
+                // When exiting PiP: clear references
+                if (!state.isActive && wasActive) {
+                    originalIframeParent = null;
+                    originalIframeNextSibling = null;
+                    console.debug('[ActiveChat] PiP exited, iframe will be restored by VideoEmbedFullscreen');
+                }
                 
-                console.debug('[ActiveChat] Moved iframe to PiP container');
-            }
-            
-            // When exiting PiP: move iframe wrapper back to original position
-            if (!state.isActive && wasActive && originalIframeParent) {
-                // The iframe wrapper should be restored by VideoEmbedFullscreen component
-                // when it remounts, but we'll clear our references
-                originalIframeParent = null;
-                originalIframeNextSibling = null;
-                console.debug('[ActiveChat] PiP exited, iframe will be restored by VideoEmbedFullscreen');
+                // Update previous state (non-reactive variable, no loop)
+                previousPipState = { ...state };
+                wasPipActive = state.isActive;
             }
         });
         
-        return () => {
-            unsubscribe();
-        };
+        return unsubscribe;
+    });
+    
+    // Derive video PiP state for template use (read-only, no loops)
+    let videoPipState = $derived(get(videoPipStore));
+    
+    // Cleanup PiP on component destroy or logout
+    onDestroy(() => {
+        // Clear PiP state when component is destroyed (e.g., on logout)
+        videoPipStore.clear();
     });
     
     // Handler for clicking PiP video to restore fullscreen
     async function handlePipClick() {
-        if (!videoPipState.isActive || !videoPipState.url || !videoPipState.iframeWrapperElement) {
+        // Get current state from store directly to avoid reactive issues
+        let currentState: VideoPipState = { isActive: false };
+        const unsubscribe = videoPipStore.subscribe((state) => {
+            currentState = state;
+        });
+        unsubscribe(); // Immediately unsubscribe after getting value
+        
+        if (!currentState.isActive || !currentState.url || !currentState.iframeWrapperElement) {
             return;
         }
         
         console.debug('[ActiveChat] PiP clicked, restoring fullscreen');
         
-        const iframeWrapper = videoPipState.iframeWrapperElement;
-        const pipUrl = videoPipState.url;
-        const pipTitle = videoPipState.title;
-        const pipVideoId = videoPipState.videoId;
+        const iframeWrapper = currentState.iframeWrapperElement;
+        const pipUrl = currentState.url;
+        const pipTitle = currentState.title;
+        const pipVideoId = currentState.videoId;
         
         // Restore iframe wrapper to its original position before opening fullscreen
         // This ensures the iframe is in the right place when VideoEmbedFullscreen mounts
@@ -592,7 +620,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             // Flag to indicate this is a restore from PiP
             restoreFromPip: true,
             // Pass iframe references so component can reuse them
-            iframeElement: videoPipState.iframeElement,
+            iframeElement: currentState.iframeElement,
             iframeWrapperElement: iframeWrapper
         };
         
