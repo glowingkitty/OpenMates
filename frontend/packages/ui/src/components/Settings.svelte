@@ -82,9 +82,12 @@ changes to the documentation (to keep the documentation up to date).
     
     // Import share settings component
     import SettingsShare from './settings/share/SettingsShare.svelte';
+    // Import tip settings component
+    import SettingsTip from './settings/tip/SettingsTip.svelte';
     
     // Import the normal store instead of the derived one that was causing the error
     import { settingsNavigationStore } from '../stores/settingsNavigationStore';
+    
 
     // Create event dispatcher for forwarding events to parent components
     const dispatch = createEventDispatcher();
@@ -126,7 +129,7 @@ changes to the documentation (to keep the documentation up to date).
         // TODO: Uncomment and implement these components when available
         // 'privacy': SettingsPrivacy,
         // 'user': SettingsUser,
-        // 'usage': SettingsUsage,
+        'usage': SettingsUsage,
         'billing': SettingsBilling,
         'billing/buy-credits': SettingsBuyCredits,
         'billing/buy-credits/payment': SettingsBuyCreditsPayment,
@@ -151,7 +154,9 @@ changes to the documentation (to keep the documentation up to date).
         'account/security/passkeys': SettingsPasskeys,
         // 'server/software-update': SettingsSoftwareUpdate,
         // Share chat settings - allows users to share the current chat
-        'shared/share': SettingsShare
+        'shared/share': SettingsShare,
+        // Tip creator settings - allows users to tip creators
+        'shared/tip': SettingsTip
     };
     
     /**

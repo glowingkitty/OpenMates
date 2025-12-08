@@ -1,0 +1,713 @@
+usage:
+  context: Usage settings menu item
+  en: Usage
+  de: Nutzung
+  zh: 使用情况
+  es: Uso
+  fr: Utilisation
+  pt: Uso
+  ru: Использование
+  ja: 使用状況
+  ko: 사용량
+  it: Utilizzo
+  tr: Kullanım
+  vi: Sử dụng
+  id: Penggunaan
+  pl: Użycie
+  nl: Gebruik
+  ar: الاستخدام
+  hi: उपयोग
+  th: การใช้งาน
+  cs: Použití
+  sv: Användning
+  verified_by_human: []
+title:
+  context: Usage settings page title
+  en: Usage
+  de: Nutzung
+  zh: 使用情况
+  es: Uso
+  fr: Utilisation
+  pt: Uso
+  ru: Использование
+  ja: 使用状況
+  ko: 사용량
+  it: Utilizzo
+  tr: Kullanım
+  vi: Sử dụng
+  id: Penggunaan
+  pl: Użycie
+  nl: Gebruik
+  ar: الاستخدام
+  hi: उपयोग
+  th: การใช้งาน
+  cs: Použití
+  sv: Användning
+  verified_by_human: []
+description:
+  context: Usage settings description
+  en: Overview of last activities where credits have been spent
+  de: Übersicht der letzten Aktivitäten, bei denen Credits ausgegeben wurden
+  zh: 最近花费积分的活动概览
+  es: Resumen de las últimas actividades donde se han gastado créditos
+  fr: Aperçu des dernières activités où des crédits ont été dépensés
+  pt: Visão geral das últimas atividades onde créditos foram gastos
+  ru: Обзор последних действий, где были потрачены кредиты
+  ja: クレジットが使用された最後のアクティビティの概要
+  ko: 크레딧이 지출된 최근 활동 개요
+  it: Panoramica delle ultime attività in cui sono stati spesi crediti
+  tr: Kredilerin harcandığı son etkinliklerin özeti
+  vi: Tổng quan về các hoạt động gần đây nơi đã chi tiêu tín dụng
+  id: Ringkasan aktivitas terakhir di mana kredit telah dibelanjakan
+  pl: Przegląd ostatnich aktywności, w których wydano kredyty
+  nl: Overzicht van laatste activiteiten waar credits zijn uitgegeven
+  ar: نظرة عامة على الأنشطة الأخيرة حيث تم إنفاق الاعتمادات
+  hi: अंतिम गतिविधियों का अवलोकन जहां क्रेडिट खर्च किए गए हैं
+  th: ภาพรวมของกิจกรรมล่าสุดที่ใช้เครดิต
+  cs: Přehled posledních aktivit, kde byly utraceny kredity
+  sv: Översikt över senaste aktiviteter där krediter har spenderats
+  verified_by_human: []
+tab_chats:
+  context: Chats tab label
+  en: Chats
+  de: Chats
+  zh: 聊天
+  es: Chats
+  fr: Discussions
+  pt: Chats
+  ru: Чаты
+  ja: チャット
+  ko: 채팅
+  it: Chat
+  tr: Sohbetler
+  vi: Trò chuyện
+  id: Obrolan
+  pl: Czaty
+  nl: Gesprekken
+  ar: الدردشات
+  hi: चैट
+  th: แชท
+  cs: Chaty
+  sv: Chattar
+  verified_by_human: []
+tab_apps:
+  context: Apps tab label
+  en: Apps
+  de: Apps
+  zh: 应用
+  es: Aplicaciones
+  fr: Applications
+  pt: Aplicativos
+  ru: Приложения
+  ja: アプリ
+  ko: 앱
+  it: App
+  tr: Uygulamalar
+  vi: Ứng dụng
+  id: Aplikasi
+  pl: Aplikacje
+  nl: Apps
+  ar: التطبيقات
+  hi: ऐप्स
+  th: แอป
+  cs: Aplikace
+  sv: Appar
+  verified_by_human: []
+tab_api:
+  context: API tab label
+  en: API
+  de: API
+  zh: API
+  es: API
+  fr: API
+  pt: API
+  ru: API
+  ja: API
+  ko: API
+  it: API
+  tr: API
+  vi: API
+  id: API
+  pl: API
+  nl: API
+  ar: API
+  hi: API
+  th: API
+  cs: API
+  sv: API
+  verified_by_human: []
+group_by_month:
+  context: Group by month button label
+  en: By month
+  de: Nach Monat
+  zh: 按月
+  es: Por mes
+  fr: Par mois
+  pt: Por mês
+  ru: По месяцам
+  ja: 月別
+  ko: 월별
+  it: Per mese
+  tr: Aya göre
+  vi: Theo tháng
+  id: Per bulan
+  pl: Według miesiąca
+  nl: Per maand
+  ar: حسب الشهر
+  hi: महीने के अनुसार
+  th: ตามเดือน
+  cs: Podle měsíce
+  sv: Per månad
+  verified_by_human: []
+group_by_day:
+  context: Group by day button label
+  en: By day
+  de: Nach Tag
+  zh: 按天
+  es: Por día
+  fr: Par jour
+  pt: Por dia
+  ru: По дням
+  ja: 日別
+  ko: 일별
+  it: Per giorno
+  tr: Güne göre
+  vi: Theo ngày
+  id: Per hari
+  pl: Według dnia
+  nl: Per dag
+  ar: حسب اليوم
+  hi: दिन के अनुसार
+  th: ตามวัน
+  cs: Podle dne
+  sv: Per dag
+  verified_by_human: []
+sort:
+  context: Sort button label
+  en: Sort
+  de: Sortieren
+  zh: 排序
+  es: Ordenar
+  fr: Trier
+  pt: Ordenar
+  ru: Сортировать
+  ja: 並べ替え
+  ko: 정렬
+  it: Ordina
+  tr: Sırala
+  vi: Sắp xếp
+  id: Urutkan
+  pl: Sortuj
+  nl: Sorteren
+  ar: ترتيب
+  hi: क्रमबद्ध करें
+  th: เรียงลำดับ
+  cs: Seřadit
+  sv: Sortera
+  verified_by_human: []
+export:
+  context: Export button label
+  en: Export
+  de: Exportieren
+  zh: 导出
+  es: Exportar
+  fr: Exporter
+  pt: Exportar
+  ru: Экспорт
+  ja: エクスポート
+  ko: 내보내기
+  it: Esporta
+  tr: Dışa aktar
+  vi: Xuất
+  id: Ekspor
+  pl: Eksportuj
+  nl: Exporteren
+  ar: تصدير
+  hi: निर्यात
+  th: ส่งออก
+  cs: Exportovat
+  sv: Exportera
+  verified_by_human: []
+loading:
+  context: Loading message
+  en: Loading usage data...
+  de: Nutzungsdaten werden geladen...
+  zh: 正在加载使用数据...
+  es: Cargando datos de uso...
+  fr: Chargement des données d'utilisation...
+  pt: Carregando dados de uso...
+  ru: Загрузка данных об использовании...
+  ja: 使用データを読み込み中...
+  ko: 사용 데이터 로드 중...
+  it: Caricamento dati di utilizzo...
+  tr: Kullanım verileri yükleniyor...
+  vi: Đang tải dữ liệu sử dụng...
+  id: Memuat data penggunaan...
+  pl: Ładowanie danych użycia...
+  nl: Gebruiksgegevens laden...
+  ar: جارٍ تحميل بيانات الاستخدام...
+  hi: उपयोग डेटा लोड हो रहा है...
+  th: กำลังโหลดข้อมูลการใช้งาน...
+  cs: Načítání dat o použití...
+  sv: Laddar användningsdata...
+  verified_by_human: []
+error_loading:
+  context: Error loading usage data
+  en: Failed to load usage data
+  de: Laden der Nutzungsdaten fehlgeschlagen
+  zh: 加载使用数据失败
+  es: Error al cargar datos de uso
+  fr: Échec du chargement des données d'utilisation
+  pt: Falha ao carregar dados de uso
+  ru: Не удалось загрузить данные об использовании
+  ja: 使用データの読み込みに失敗しました
+  ko: 사용 데이터 로드 실패
+  it: Impossibile caricare i dati di utilizzo
+  tr: Kullanım verileri yüklenemedi
+  vi: Không thể tải dữ liệu sử dụng
+  id: Gagal memuat data penggunaan
+  pl: Nie udało się załadować danych użycia
+  nl: Laden van gebruiksgegevens mislukt
+  ar: فشل تحميل بيانات الاستخدام
+  hi: उपयोग डेटा लोड करने में विफल
+  th: โหลดข้อมูลการใช้งานล้มเหลว
+  cs: Načtení dat o použití se nezdařilo
+  sv: Misslyckades med att ladda användningsdata
+  verified_by_human: []
+no_usage_title:
+  context: No usage data title
+  en: No usage data
+  de: Keine Nutzungsdaten
+  zh: 无使用数据
+  es: Sin datos de uso
+  fr: Aucune donnée d'utilisation
+  pt: Sem dados de uso
+  ru: Нет данных об использовании
+  ja: 使用データがありません
+  ko: 사용 데이터 없음
+  it: Nessun dato di utilizzo
+  tr: Kullanım verisi yok
+  vi: Không có dữ liệu sử dụng
+  id: Tidak ada data penggunaan
+  pl: Brak danych użycia
+  nl: Geen gebruiksgegevens
+  ar: لا توجد بيانات استخدام
+  hi: कोई उपयोग डेटा नहीं
+  th: ไม่มีข้อมูลการใช้งาน
+  cs: Žádná data o použití
+  sv: Ingen användningsdata
+  verified_by_human: []
+no_usage_description:
+  context: No usage data description
+  en: Your usage statistics will appear here once you start using OpenMates.
+  de: Ihre Nutzungsstatistiken werden hier angezeigt, sobald Sie OpenMates verwenden.
+  zh: 当您开始使用 OpenMates 时，您的使用统计信息将显示在这里。
+  es: Sus estadísticas de uso aparecerán aquí una vez que comience a usar OpenMates.
+  fr: Vos statistiques d'utilisation apparaîtront ici une fois que vous commencerez à utiliser OpenMates.
+  pt: Suas estatísticas de uso aparecerão aqui assim que você começar a usar o OpenMates.
+  ru: Ваша статистика использования появится здесь, как только вы начнете использовать OpenMates.
+  ja: OpenMatesの使用を開始すると、使用統計がここに表示されます。
+  ko: OpenMates 사용을 시작하면 사용 통계가 여기에 표시됩니다.
+  it: Le tue statistiche di utilizzo appariranno qui una volta che inizi a usare OpenMates.
+  tr: OpenMates'i kullanmaya başladığınızda kullanım istatistikleriniz burada görünecektir.
+  vi: Thống kê sử dụng của bạn sẽ xuất hiện ở đây khi bạn bắt đầu sử dụng OpenMates.
+  id: Statistik penggunaan Anda akan muncul di sini setelah Anda mulai menggunakan OpenMates.
+  pl: Twoje statystyki użycia pojawią się tutaj, gdy zaczniesz korzystać z OpenMates.
+  nl: Uw gebruiksstatistieken verschijnen hier zodra u OpenMates begint te gebruiken.
+  ar: ستظهر إحصائيات الاستخدام الخاصة بك هنا بمجرد أن تبدأ في استخدام OpenMates.
+  hi: जैसे ही आप OpenMates का उपयोग शुरू करेंगे, आपके उपयोग आंकड़े यहां दिखाई देंगे।
+  th: สถิติการใช้งานของคุณจะปรากฏที่นี่เมื่อคุณเริ่มใช้ OpenMates
+  cs: Vaše statistiky použití se zde zobrazí, jakmile začnete používat OpenMates.
+  sv: Dina användningsstatistik kommer att visas här när du börjar använda OpenMates.
+  verified_by_human: []
+exporting:
+  context: Exporting message
+  en: Exporting usage data...
+  de: Nutzungsdaten werden exportiert...
+  zh: 正在导出使用数据...
+  es: Exportando datos de uso...
+  fr: Exportation des données d'utilisation...
+  pt: Exportando dados de uso...
+  ru: Экспорт данных об использовании...
+  ja: 使用データをエクスポート中...
+  ko: 사용 데이터 내보내는 중...
+  it: Esportazione dati di utilizzo...
+  tr: Kullanım verileri dışa aktarılıyor...
+  vi: Đang xuất dữ liệu sử dụng...
+  id: Mengekspor data penggunaan...
+  pl: Eksportowanie danych użycia...
+  nl: Gebruiksgegevens exporteren...
+  ar: جارٍ تصدير بيانات الاستخدام...
+  hi: उपयोग डेटा निर्यात कर रहा है...
+  th: กำลังส่งออกข้อมูลการใช้งาน...
+  cs: Exportování dat o použití...
+  sv: Exporterar användningsdata...
+  verified_by_human: []
+export_success:
+  context: Export success message
+  en: Usage data exported successfully
+  de: Nutzungsdaten erfolgreich exportiert
+  zh: 使用数据导出成功
+  es: Datos de uso exportados correctamente
+  fr: Données d'utilisation exportées avec succès
+  pt: Dados de uso exportados com sucesso
+  ru: Данные об использовании успешно экспортированы
+  ja: 使用データのエクスポートが完了しました
+  ko: 사용 데이터 내보내기 성공
+  it: Dati di utilizzo esportati con successo
+  tr: Kullanım verileri başarıyla dışa aktarıldı
+  vi: Xuất dữ liệu sử dụng thành công
+  id: Data penggunaan berhasil diekspor
+  pl: Dane użycia zostały pomyślnie wyeksportowane
+  nl: Gebruiksgegevens succesvol geëxporteerd
+  ar: تم تصدير بيانات الاستخدام بنجاح
+  hi: उपयोग डेटा सफलतापूर्वक निर्यात किया गया
+  th: ส่งออกข้อมูลการใช้งานสำเร็จ
+  cs: Data o použití byla úspěšně exportována
+  sv: Användningsdata exporterades framgångsrikt
+  verified_by_human: []
+export_error:
+  context: Export error message
+  en: Failed to export usage data
+  de: Export der Nutzungsdaten fehlgeschlagen
+  zh: 导出使用数据失败
+  es: Error al exportar datos de uso
+  fr: Échec de l'exportation des données d'utilisation
+  pt: Falha ao exportar dados de uso
+  ru: Не удалось экспортировать данные об использовании
+  ja: 使用データのエクスポートに失敗しました
+  ko: 사용 데이터 내보내기 실패
+  it: Impossibile esportare i dati di utilizzo
+  tr: Kullanım verileri dışa aktarılamadı
+  vi: Không thể xuất dữ liệu sử dụng
+  id: Gagal mengekspor data penggunaan
+  pl: Nie udało się wyeksportować danych użycia
+  nl: Exporteren van gebruiksgegevens mislukt
+  ar: فشل تصدير بيانات الاستخدام
+  hi: उपयोग डेटा निर्यात करने में विफल
+  th: ส่งออกข้อมูลการใช้งานล้มเหลว
+  cs: Export dat o použití se nezdařil
+  sv: Misslyckades med att exportera användningsdata
+  verified_by_human: []
+pdf_coming_soon:
+  context: PDF export coming soon message
+  en: PDF export coming soon
+  de: PDF-Export kommt bald
+  zh: PDF 导出即将推出
+  es: Exportación PDF próximamente
+  fr: Export PDF bientôt disponible
+  pt: Exportação PDF em breve
+  ru: Экспорт PDF скоро
+  ja: PDFエクスポートは近日公開予定
+  ko: PDF 내보내기 곧 출시 예정
+  it: Esportazione PDF in arrivo
+  tr: PDF dışa aktarma yakında
+  vi: Xuất PDF sắp ra mắt
+  id: Ekspor PDF segera hadir
+  pl: Eksport PDF wkrótce
+  nl: PDF-export komt binnenkort
+  ar: تصدير PDF قريباً
+  hi: PDF निर्यात जल्द ही आ रहा है
+  th: การส่งออก PDF เร็วๆ นี้
+  cs: Export PDF brzy
+  sv: PDF-export kommer snart
+  verified_by_human: []
+back:
+  context: Back button label
+  en: Back
+  de: Zurück
+  zh: 返回
+  es: Atrás
+  fr: Retour
+  pt: Voltar
+  ru: Назад
+  ja: 戻る
+  ko: 뒤로
+  it: Indietro
+  tr: Geri
+  vi: Quay lại
+  id: Kembali
+  pl: Wstecz
+  nl: Terug
+  ar: رجوع
+  hi: वापस
+  th: กลับ
+  cs: Zpět
+  sv: Tillbaka
+  verified_by_human: []
+chat_details:
+  context: Chat details header
+  en: Chat Details
+  de: Chat-Details
+  zh: 聊天详情
+  es: Detalles del chat
+  fr: Détails de la discussion
+  pt: Detalhes do chat
+  ru: Детали чата
+  ja: チャットの詳細
+  ko: 채팅 세부정보
+  it: Dettagli chat
+  tr: Sohbet detayları
+  vi: Chi tiết trò chuyện
+  id: Detail obrolan
+  pl: Szczegóły czatu
+  nl: Chatdetails
+  ar: تفاصيل الدردشة
+  hi: चैट विवरण
+  th: รายละเอียดแชท
+  cs: Podrobnosti chatu
+  sv: Chattdetaljer
+  verified_by_human: []
+activity_ai:
+  context: AI activity label
+  en: AI
+  de: KI
+  zh: AI
+  es: IA
+  fr: IA
+  pt: IA
+  ru: ИИ
+  ja: AI
+  ko: AI
+  it: IA
+  tr: AI
+  vi: AI
+  id: AI
+  pl: AI
+  nl: AI
+  ar: الذكاء الاصطناعي
+  hi: AI
+  th: AI
+  cs: AI
+  sv: AI
+  verified_by_human: []
+activity_ask:
+  context: Ask activity sublabel
+  en: Ask
+  de: Fragen
+  zh: 询问
+  es: Preguntar
+  fr: Demander
+  pt: Perguntar
+  ru: Спросить
+  ja: 質問
+  ko: 질문
+  it: Chiedi
+  tr: Sor
+  vi: Hỏi
+  id: Tanya
+  pl: Zapytaj
+  nl: Vragen
+  ar: اسأل
+  hi: पूछें
+  th: ถาม
+  cs: Zeptat se
+  sv: Fråga
+  verified_by_human: []
+unknown_activity:
+  context: Unknown activity label
+  en: Unknown activity
+  de: Unbekannte Aktivität
+  zh: 未知活动
+  es: Actividad desconocida
+  fr: Activité inconnue
+  pt: Atividade desconhecida
+  ru: Неизвестная активность
+  ja: 不明なアクティビティ
+  ko: 알 수 없는 활동
+  it: Attività sconosciuta
+  tr: Bilinmeyen etkinlik
+  vi: Hoạt động không xác định
+  id: Aktivitas tidak dikenal
+  pl: Nieznana aktywność
+  nl: Onbekende activiteit
+  ar: نشاط غير معروف
+  hi: अज्ञात गतिविधि
+  th: กิจกรรมที่ไม่ทราบ
+  cs: Neznámá aktivita
+  sv: Okänd aktivitet
+  verified_by_human: []
+just_now:
+  context: Just now time label
+  en: Just now
+  de: Gerade eben
+  zh: 刚刚
+  es: Ahora mismo
+  fr: À l'instant
+  pt: Agora mesmo
+  ru: Только что
+  ja: たった今
+  ko: 방금
+  it: Proprio ora
+  tr: Az önce
+  vi: Vừa xong
+  id: Baru saja
+  pl: Właśnie teraz
+  nl: Zojuist
+  ar: للتو
+  hi: अभी
+  th: เมื่อสักครู่
+  cs: Právě teď
+  sv: Just nu
+  verified_by_human: []
+minutes_ago:
+  context: Minutes ago label
+  en: minutes ago
+  de: Minuten zuvor
+  zh: 分钟前
+  es: hace minutos
+  fr: il y a quelques minutes
+  pt: minutos atrás
+  ru: минут назад
+  ja: 分前
+  ko: 분 전
+  it: minuti fa
+  tr: dakika önce
+  vi: phút trước
+  id: menit yang lalu
+  pl: minut temu
+  nl: minuten geleden
+  ar: منذ دقائق
+  hi: मिनट पहले
+  th: นาทีที่แล้ว
+  cs: minut zpět
+  sv: minuter sedan
+  verified_by_human: []
+hours_ago:
+  context: Hours ago label
+  en: hours ago
+  de: Stunden zuvor
+  zh: 小时前
+  es: hace horas
+  fr: il y a quelques heures
+  pt: horas atrás
+  ru: часов назад
+  ja: 時間前
+  ko: 시간 전
+  it: ore fa
+  tr: saat önce
+  vi: giờ trước
+  id: jam yang lalu
+  pl: godzin temu
+  nl: uren geleden
+  ar: منذ ساعات
+  hi: घंटे पहले
+  th: ชั่วโมงที่แล้ว
+  cs: hodin zpět
+  sv: timmar sedan
+  verified_by_human: []
+days_ago:
+  context: Days ago label
+  en: days ago
+  de: Tage zuvor
+  zh: 天前
+  es: hace días
+  fr: il y a quelques jours
+  pt: dias atrás
+  ru: дней назад
+  ja: 日前
+  ko: 일 전
+  it: giorni fa
+  tr: gün önce
+  vi: ngày trước
+  id: hari yang lalu
+  pl: dni temu
+  nl: dagen geleden
+  ar: منذ أيام
+  hi: दिन पहले
+  th: วันที่แล้ว
+  cs: dní zpět
+  sv: dagar sedan
+  verified_by_human: []
+previous_page:
+  context: Previous page button
+  en: Previous page
+  de: Vorherige Seite
+  zh: 上一页
+  es: Página anterior
+  fr: Page précédente
+  pt: Página anterior
+  ru: Предыдущая страница
+  ja: 前のページ
+  ko: 이전 페이지
+  it: Pagina precedente
+  tr: Önceki sayfa
+  vi: Trang trước
+  id: Halaman sebelumnya
+  pl: Poprzednia strona
+  nl: Vorige pagina
+  ar: الصفحة السابقة
+  hi: पिछला पृष्ठ
+  th: หน้าที่แล้ว
+  cs: Předchozí stránka
+  sv: Föregående sida
+  verified_by_human: []
+next_page:
+  context: Next page button
+  en: Next page
+  de: Nächste Seite
+  zh: 下一页
+  es: Página siguiente
+  fr: Page suivante
+  pt: Próxima página
+  ru: Следующая страница
+  ja: 次のページ
+  ko: 다음 페이지
+  it: Pagina successiva
+  tr: Sonraki sayfa
+  vi: Trang tiếp theo
+  id: Halaman berikutnya
+  pl: Następna strona
+  nl: Volgende pagina
+  ar: الصفحة التالية
+  hi: अगला पृष्ठ
+  th: หน้าถัดไป
+  cs: Další stránka
+  sv: Nästa sida
+  verified_by_human: []
+page_info:
+  context: Page information text with placeholders
+  en: Page {current} of {total}
+  de: Seite {current} von {total}
+  zh: 第 {current} 页，共 {total} 页
+  es: Página {current} de {total}
+  fr: Page {current} sur {total}
+  pt: Página {current} de {total}
+  ru: Страница {current} из {total}
+  ja: "{total} ページ中 {current} ページ目"
+  ko: "{total}페이지 중 {current}페이지"
+  it: Pagina {current} di {total}
+  tr: "{total} sayfanın {current}. sayfası"
+  vi: "Trang {current} / {total}"
+  id: "Halaman {current} dari {total}"
+  pl: Strona {current} z {total}
+  nl: Pagina {current} van {total}
+  ar: الصفحة {current} من {total}
+  hi: "{total} में से {current} पृष्ठ"
+  th: หน้า {current} จาก {total}
+  cs: Stránka {current} z {total}
+  sv: Sida {current} av {total}
+  verified_by_human: []
+view_chat_details:
+  context: View chat details button aria label
+  en: View chat details
+  de: Chat-Details anzeigen
+  zh: 查看聊天详情
+  es: Ver detalles del chat
+  fr: Voir les détails de la discussion
+  pt: Ver detalhes do chat
+  ru: Просмотреть детали чата
+  ja: チャットの詳細を表示
+  ko: 채팅 세부정보 보기
+  it: Visualizza dettagli chat
+  tr: Sohbet detaylarını görüntüle
+  vi: Xem chi tiết trò chuyện
+  id: Lihat detail obrolan
+  pl: Zobacz szczegóły czatu
+  nl: Chatdetails bekijken
+  ar: عرض تفاصيل الدردشة
+  hi: चैट विवरण देखें
+  th: ดูรายละเอียดแชท
+  cs: Zobrazit podrobnosti chatu
+  sv: Visa chattdetaljer
+  verified_by_human: []

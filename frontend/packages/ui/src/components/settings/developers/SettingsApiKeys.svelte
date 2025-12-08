@@ -61,6 +61,7 @@
                 rawKeys.map(async (key: any) => {
                     let decryptedName = key.encrypted_name || '';
                     let decryptedPrefix = key.encrypted_key_prefix || '';
+                    const lastUsed = key.last_used_at || null;
                     
                     try {
                         if (key.encrypted_name) {
@@ -83,7 +84,8 @@
                     return {
                         ...key,
                         name: decryptedName,
-                        key_prefix: decryptedPrefix
+                        key_prefix: decryptedPrefix,
+                        last_used: lastUsed
                     };
                 })
             );

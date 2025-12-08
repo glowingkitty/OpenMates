@@ -211,7 +211,20 @@ class ChatDatabase {
                     const embedsStore = db.createObjectStore(EMBEDS_STORE_NAME, { keyPath: 'contentRef' });
                     embedsStore.createIndex('type', 'type', { unique: false });
                     embedsStore.createIndex('createdAt', 'createdAt', { unique: false });
+                    embedsStore.createIndex('app_id', 'app_id', { unique: false }); // Index for filtering embeds by app
+                    embedsStore.createIndex('skill_id', 'skill_id', { unique: false }); // Index for filtering embeds by skill
                     console.debug('[ChatDatabase] Created embeds store for unified parsing');
+                } else if (transaction) {
+                    // Ensure indexes exist for existing stores (for migrations)
+                    const embedsStore = transaction.objectStore(EMBEDS_STORE_NAME);
+                    if (!embedsStore.indexNames.contains('app_id')) {
+                        embedsStore.createIndex('app_id', 'app_id', { unique: false });
+                        console.debug('[ChatDatabase] Added app_id index to embeds store');
+                    }
+                    if (!embedsStore.indexNames.contains('skill_id')) {
+                        embedsStore.createIndex('skill_id', 'skill_id', { unique: false });
+                        console.debug('[ChatDatabase] Added skill_id index to embeds store');
+                    }
                 }
 
                 // Embed keys store for wrapped key architecture (offline-first sharing)

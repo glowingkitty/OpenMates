@@ -190,6 +190,7 @@ Invoices Settings - View and download past invoices
     const groupedInvoices = $derived(groupInvoicesByMonth(invoices));
 </script>
 
+<!-- TODO add info about how long invoices are kept before being automatically deleted (10 years?) -->
 <!-- Header -->
 <div class="invoices-header">
     <p class="header-description">{$text('settings.billing.invoices_description.text')}</p>

@@ -1033,6 +1033,144 @@ invoices:
   cs: Faktury
   sv: Fakturor
   verified_by_human: []
+invoices_description:
+  context: Invoices page description
+  en: View and download your payment invoices
+  de: Zeigen Sie Ihre Zahlungsrechnungen an und laden Sie sie herunter
+  zh: 查看和下载您的付款发票
+  es: Ver y descargar tus facturas de pago
+  fr: Voir et télécharger vos factures de paiement
+  pt: Ver e baixar suas faturas de pagamento
+  ru: Просматривайте и загружайте счета за оплату
+  ja: 支払い請求書を表示およびダウンロード
+  ko: 결제 청구서 보기 및 다운로드
+  it: Visualizza e scarica le tue fatture di pagamento
+  tr: Ödeme faturalarınızı görüntüleyin ve indirin
+  vi: Xem và tải xuống hóa đơn thanh toán của bạn
+  id: Lihat dan unduh faktur pembayaran Anda
+  pl: Wyświetl i pobierz faktury płatności
+  nl: Bekijk en download uw betalingsfacturen
+  ar: عرض وتحميل فواتير الدفع الخاصة بك
+  hi: अपने भुगतान चालान देखें और डाउनलोड करें
+  th: ดูและดาวน์โหลดใบแจ้งหนี้การชำระเงินของคุณ
+  cs: Zobrazit a stáhnout vaše platební faktury
+  sv: Visa och ladda ner dina betalningsfakturor
+  verified_by_human: []
+invoices_download:
+  context: Invoices download button text
+  en: Download
+  de: Herunterladen
+  zh: 下载
+  es: Descargar
+  fr: Télécharger
+  pt: Baixar
+  ru: Скачать
+  ja: ダウンロード
+  ko: 다운로드
+  it: Scarica
+  tr: İndir
+  vi: Tải xuống
+  id: Unduh
+  pl: Pobierz
+  nl: Downloaden
+  ar: تحميل
+  hi: डाउनलोड करें
+  th: ดาวน์โหลด
+  cs: Stáhnout
+  sv: Ladda ner
+  verified_by_human: []
+invoices_loading:
+  context: Loading message for invoices
+  en: Loading invoices...
+  de: Rechnungen werden geladen...
+  zh: 正在加载发票...
+  es: Cargando facturas...
+  fr: Chargement des factures...
+  pt: Carregando faturas...
+  ru: Загрузка счетов...
+  ja: 請求書を読み込み中...
+  ko: 청구서 로딩 중...
+  it: Caricamento fatture...
+  tr: Faturalar yükleniyor...
+  vi: Đang tải hóa đơn...
+  id: Memuat faktur...
+  pl: Ładowanie faktur...
+  nl: Facturen laden...
+  ar: تحميل الفواتير...
+  hi: चालान लोड हो रहे हैं...
+  th: กำลังโหลดใบแจ้งหนี้...
+  cs: Načítání faktur...
+  sv: Laddar fakturor...
+  verified_by_human: []
+invoices_downloading:
+  context: Downloading invoice message
+  en: Downloading invoice...
+  de: Rechnung wird heruntergeladen...
+  zh: 正在下载发票...
+  es: Descargando factura...
+  fr: Téléchargement de la facture...
+  pt: Baixando fatura...
+  ru: Загрузка счета...
+  ja: 請求書をダウンロード中...
+  ko: 청구서 다운로드 중...
+  it: Scaricamento della fattura...
+  tr: Fatura indirimi yükleniyor...
+  vi: Đang tải hóa đơn...
+  id: Mengunduh faktur...
+  pl: Pobieranie faktury...
+  nl: Factuur downloaden...
+  ar: تحميل الفاتورة...
+  hi: चालान डाउनलोड हो रहा है...
+  th: กำลังดาวน์โหลดใบแจ้งหนี้...
+  cs: Stahuje fakturu...
+  sv: Laddar ner faktura...
+  verified_by_human: []
+invoices_download_success:
+  context: Success message after downloading invoice
+  en: Invoice downloaded successfully
+  de: Rechnung erfolgreich heruntergeladen
+  zh: 发票下载成功
+  es: Factura descargada exitosamente
+  fr: Facture téléchargée avec succès
+  pt: Fatura baixada com sucesso
+  ru: Счет успешно загружен
+  ja: 請求書が正常にダウンロードされました
+  ko: 청구서가 성공적으로 다운로드되었습니다
+  it: Fattura scaricata con successo
+  tr: Fatura başarıyla indirildi
+  vi: Hóa đơn đã được tải xuống thành công
+  id: Faktur berhasil diunduh
+  pl: Faktura została pobrana pomyślnie
+  nl: Factuur succesvol gedownload
+  ar: تم تحميل الفاتورة بنجاح
+  hi: चालान सफलतापूर्वक डाउनलोड किया गया
+  th: ใบแจ้งหนี้ถูกดาวน์โหลดสำเร็จ
+  cs: Faktura byla úspěšně stažena
+  sv: Faktura har laddats ner framgångsrikt
+  verified_by_human: []
+invoices_download_error:
+  context: Error message after failing to download invoice
+  en: Failed to download invoice. Please try again.
+  de: Fehler beim Herunterladen der Rechnung. Bitte versuchen Sie es erneut.
+  zh: 下载发票失败。请重试。
+  es: Error al descargar la factura. Por favor, inténtalo de nuevo.
+  fr: Échec du téléchargement de la facture. Veuillez réessayer.
+  pt: Falha ao baixar a fatura. Tente novamente.
+  ru: Не удалось загрузить счет. Попробуйте снова.
+  ja: 請求書のダウンロードに失敗しました。もう一度お試しください。
+  ko: 청구서 다운로드에 실패했습니다. 다시 시도해주세요.
+  it: Scaricamento della fattura non riuscito. Riprova.
+  tr: Fatura indirimi başarısız oldu. Lütfen tekrar deneyin.
+  vi: Không thể tải hóa đơn. Vui lòng thử lại.
+  id: Gagal mengunduh faktur. Silakan coba lagi.
+  pl: Nie udało się pobrać faktury. Spróbuj ponownie.
+  nl: Factuur downloaden mislukt. Probeer opnieuw.
+  ar: فشل تحميل الفاتورة. يرجى المحاولة مرة أخرى.
+  hi: चालान डाउनलोड करने में विफल। कृपया पुनः प्रयास करें।
+  th: ไม่สามารถโหลดใบแจ้งหนี้ได้ โปรดลองอีกครั้ง.
+  cs: Stáhnout fakturu se nezdařilo. Zkuste to znovu.
+  sv: Misslyckades med att ladda ner faktura. Försök igen.
+  verified_by_human: []
 invoices.description:
   context: Invoices page description
   en: View and download your payment invoices

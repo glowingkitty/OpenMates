@@ -27,26 +27,46 @@
     title?: string;
     /** Close handler */
     onClose: () => void;
+    /** Optional: Video ID (for restoration from PiP) */
+    videoId?: string;
+    /** Optional: Flag to auto-play video (for restoration from PiP) */
+    restoreFromPip?: boolean;
+    /** Optional: Existing iframe element (for restoration from PiP) */
+    iframeElement?: HTMLIFrameElement | null;
+    /** Optional: Existing iframe wrapper element (for restoration from PiP) */
+    iframeWrapperElement?: HTMLDivElement | null;
   }
   
   let {
     url,
     title,
-    onClose
+    onClose,
+    videoId: propVideoId,
+    restoreFromPip = false,
+    iframeElement: existingIframeElement,
+    iframeWrapperElement: existingIframeWrapper
   }: Props = $props();
   
   // Extract video ID and thumbnail for YouTube URLs
-  let videoId = $derived('');
+  // Use propVideoId if provided (from PiP restoration), otherwise extract from URL
+  let videoId = $state(propVideoId || '');
   let thumbnailUrl = $derived('');
   let displayTitle = $derived(title || 'YouTube Video');
   let hostname = $derived('');
   
   // State to track whether video should be shown in iframe
   // Only set to true when user clicks play button - iframe loads lazily
-  let showVideo = $state(false);
+  // If restoring from PiP, auto-show the video (iframe already exists and is playing)
+  let showVideo = $state(restoreFromPip || !!existingIframeElement);
   
   // Reference to the iframe element for cleanup
-  let iframeElement: HTMLIFrameElement | null = $state(null);
+  // If restoring from PiP, reuse the existing iframe element
+  let iframeElement: HTMLIFrameElement | null = $state(existingIframeElement || null);
+  
+  // Reference to the iframe wrapper for moving the iframe
+  // If restoring from PiP, reuse the existing wrapper element
+  // This will be bound to the DOM element in the template
+  let iframeWrapperElementRef: HTMLDivElement | null = $state(existingIframeWrapper || null);
   
   // Generate YouTube embed URL with privacy settings
   // Uses youtube-nocookie.com (privacy-enhanced mode) to minimize cookie tracking
@@ -74,13 +94,21 @@
         const urlObj = new URL(url);
         hostname = urlObj.hostname;
         
-        // YouTube URL patterns
-        const youtubeMatch = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\n?#]+)/);
-        if (youtubeMatch) {
-          videoId = youtubeMatch[1];
+        // If videoId was provided as prop (from PiP restoration), use it
+        // Otherwise, extract from URL
+        if (propVideoId) {
+          // Use provided videoId and generate thumbnail
+          videoId = propVideoId;
           thumbnailUrl = `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`;
-          if (!title) {
-            displayTitle = 'YouTube Video';
+        } else {
+          // YouTube URL patterns - extract video ID from URL
+          const youtubeMatch = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\n?#]+)/);
+          if (youtubeMatch) {
+            videoId = youtubeMatch[1];
+            thumbnailUrl = `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`;
+            if (!title) {
+              displayTitle = 'YouTube Video';
+            }
           }
         }
       } catch (e) {
@@ -90,10 +118,51 @@
     }
   });
   
+  // Auto-show video if restoring from PiP
+  $effect(() => {
+    if (restoreFromPip && videoId && !showVideo) {
+      console.debug('[VideoEmbedFullscreen] Restoring from PiP, auto-showing video');
+      showVideo = true;
+    }
+  });
+  
   // Handle opening video on YouTube
   function handleOpenOnYouTube() {
     if (url) {
       window.open(url, '_blank', 'noopener,noreferrer');
+    }
+  }
+  
+  // Handle tip creator - opens tip settings menu
+  async function handleTipCreator() {
+    if (!url || !videoId) {
+      console.warn('[VideoEmbedFullscreen] Cannot tip: missing URL or video ID');
+      return;
+    }
+    
+    try {
+      // Import tip store and settings navigation
+      const { tipStore } = await import('../../../stores/tipStore');
+      const { navigateToSettings } = await import('../../../stores/settingsNavigationStore');
+      const { panelState } = await import('../../../stores/panelStateStore');
+      
+      // Set tip data in store (videoUrl will be used to fetch channel ID)
+      tipStore.setTipData({
+        videoUrl: url,
+        contentType: 'video'
+      });
+      
+      // Navigate to tip settings
+      navigateToSettings('shared/tip', $text('settings.tip.tip_creator.text', { default: 'Tip Creator' }), 'tip', 'settings.tip.tip_creator.text');
+      
+      // Open settings panel if not already open
+      panelState.openSettings();
+      
+      console.debug('[VideoEmbedFullscreen] Opened tip settings for video:', videoId);
+    } catch (error) {
+      console.error('[VideoEmbedFullscreen] Error opening tip settings:', error);
+      const { notificationStore } = await import('../../../stores/notificationStore');
+      notificationStore.error('Failed to open tip menu. Please try again.');
     }
   }
   
@@ -127,9 +196,62 @@
     showVideo = true;
   }
   
+  // Flag to track if we're entering PiP (prevents cleanup)
+  let enteringPip = $state(false);
+  
+  // Handle entering picture-in-picture mode
+  // Moves the existing iframe to PiP container without recreating it
+  async function handleEnterPip() {
+    // Use the ref if it exists, otherwise use existingIframeWrapper
+    const wrapperElement = iframeWrapperElementRef || existingIframeWrapper;
+    
+    if (!showVideo || !videoId || !embedUrl || !iframeElement || !wrapperElement) {
+      console.warn('[VideoEmbedFullscreen] Cannot enter PiP: video not loaded or iframe missing');
+      return;
+    }
+    
+    try {
+      // Set flag to prevent cleanup
+      enteringPip = true;
+      
+      // Import video PiP store
+      const { videoPipStore } = await import('../../../stores/videoPipStore');
+      
+      // Store video state and iframe reference in PiP store
+      // The iframe will be moved (not recreated) to maintain video playback
+      videoPipStore.enterPip({
+        url,
+        title: displayTitle,
+        videoId,
+        embedUrl,
+        iframeElement: iframeElement, // Store reference to move the actual iframe
+        iframeWrapperElement: wrapperElement // Store wrapper for positioning
+      });
+      
+      console.debug('[VideoEmbedFullscreen] Entered PiP mode, moving iframe to PiP container');
+      
+      // Close fullscreen (cleanup will be skipped due to enteringPip flag)
+      // The iframe will be moved to PiP container in ActiveChat
+      onClose();
+    } catch (error) {
+      console.error('[VideoEmbedFullscreen] Error entering PiP mode:', error);
+      enteringPip = false; // Reset flag on error
+      const { notificationStore } = await import('../../../stores/notificationStore');
+      notificationStore.error('Failed to enter picture-in-picture mode');
+    }
+  }
+  
   // Clean up YouTube iframe and all related data when fullscreen closes
   // This ensures no YouTube scripts or data persist after closing
+  // Note: This is NOT called when entering PiP mode (PiP handles the iframe)
   function cleanupYouTubeData() {
+    // Skip cleanup if we're entering PiP mode
+    if (enteringPip) {
+      console.debug('[VideoEmbedFullscreen] Skipping cleanup - entering PiP mode');
+      enteringPip = false; // Reset flag
+      return;
+    }
+    
     console.debug('[VideoEmbedFullscreen] Cleaning up YouTube iframe and data');
     
     // Unload iframe by removing src - this stops all YouTube scripts and connections
@@ -155,6 +277,7 @@
   }
   
   // Wrapper for onClose that cleans up before closing
+  // This is called when user explicitly closes (not when entering PiP)
   function handleClose() {
     cleanupYouTubeData();
     onClose();
@@ -192,19 +315,29 @@
         <!-- Error 153 is fixed by using strict-origin-when-cross-origin referrer policy -->
         <!-- YouTube requires referrer info to verify embedding context, but we still maintain privacy -->
         <!-- Privacy-enhanced mode prevents cookies unless user interacts with video -->
-        <div class="video-iframe-wrapper">
-          <iframe
-            bind:this={iframeElement}
-            src={embedUrl}
-            title={displayTitle}
-            class="video-iframe"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-            allowfullscreen
-            referrerpolicy="strict-origin-when-cross-origin"
-            loading="eager"
-            frameborder="0"
-          ></iframe>
-        </div>
+        <!-- Iframe wrapper - will be moved to PiP container when entering PiP -->
+        {#if !existingIframeWrapper}
+          <!-- Create new wrapper if not restoring from PiP -->
+          <div class="video-iframe-wrapper" bind:this={iframeWrapperElementRef}>
+            <iframe
+              bind:this={iframeElement}
+              src={embedUrl}
+              title={displayTitle}
+              class="video-iframe"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+              allowfullscreen
+              referrerpolicy="strict-origin-when-cross-origin"
+              loading="eager"
+              frameborder="0"
+            ></iframe>
+          </div>
+        {:else}
+          <!-- Reuse existing wrapper when restoring from PiP -->
+          <!-- The wrapper is already in the DOM, just needs to be styled correctly -->
+          <div class="video-iframe-wrapper" bind:this={iframeWrapperElementRef}>
+            <!-- iframe is already inside, just ensure wrapper has correct styles -->
+          </div>
+        {/if}
       {:else if videoId && thumbnailUrl}
         <!-- Thumbnail with play button overlay -->
         <div class="video-thumbnail-wrapper">
@@ -234,7 +367,7 @@
         </div>
       {/if}
       
-      <!-- Open on YouTube button - as <a> link with button styling -->
+      <!-- Open on YouTube, PiP, and Tip buttons -->
       {#if url}
         <div class="button-container">
           <a 
@@ -245,6 +378,25 @@
           >
             {$text('embeds.open_on_youtube.text') || 'Open on YouTube'}
           </a>
+          <!-- Picture-in-Picture button - only shown when video is playing -->
+          {#if showVideo && videoId && embedUrl}
+            <button
+              class="pip-button"
+              onclick={handleEnterPip}
+              type="button"
+              aria-label="Enter picture-in-picture mode"
+            >
+              <span class="pip-icon"></span>
+              <span class="pip-text">PiP</span>
+            </button>
+          {/if}
+          <button
+            class="tip-creator-button"
+            onclick={handleTipCreator}
+            type="button"
+          >
+            {$text('embeds.tip_creator.text') || 'Tip Creator'}
+          </button>
         </div>
       {/if}
     </div>
@@ -367,6 +519,9 @@
   .button-container {
     display: flex;
     justify-content: center;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
     width: 100%;
     max-width: 780px;
   }
@@ -404,5 +559,108 @@
     background-color: var(--color-button-primary-pressed);
     scale: 0.98;
     filter: none;
+  }
+  
+  /* Tip creator button - styled similarly to Open on YouTube button */
+  .tip-creator-button {
+    margin-top: -60px;
+    background-color: var(--color-button-secondary, var(--color-grey-20));
+    padding: 6px 25px;
+    border-radius: 20px;
+    border: none;
+    filter: drop-shadow(0px 4px 4px rgba(0, 0, 0, 0.25));
+    cursor: pointer;
+    transition: all 0.15s ease-in-out;
+    min-width: 112px;
+    height: 41px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-font-button, var(--color-grey-100));
+    font-family: var(--button-font-family);
+    font-size: var(--button-font-size);
+    font-weight: var(--button-font-weight);
+  }
+  
+  .tip-creator-button:hover {
+    background-color: var(--color-button-secondary-hover, var(--color-grey-30));
+    scale: 1.02;
+  }
+  
+  .tip-creator-button:active {
+    background-color: var(--color-button-secondary-pressed, var(--color-grey-40));
+    scale: 0.98;
+    filter: none;
+  }
+  
+  /* Picture-in-Picture button - styled similarly to other buttons */
+  .pip-button {
+    margin-top: -60px;
+    background-color: var(--color-button-secondary, var(--color-grey-20));
+    padding: 6px 25px;
+    border-radius: 20px;
+    border: none;
+    filter: drop-shadow(0px 4px 4px rgba(0, 0, 0, 0.25));
+    cursor: pointer;
+    transition: all 0.15s ease-in-out;
+    min-width: 112px;
+    height: 41px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    color: var(--color-font-button, var(--color-grey-100));
+    font-family: var(--button-font-family);
+    font-size: var(--button-font-size);
+    font-weight: var(--button-font-weight);
+    margin-right: 10px;
+  }
+  
+  .pip-button:hover {
+    background-color: var(--color-button-secondary-hover, var(--color-grey-30));
+    scale: 1.02;
+  }
+  
+  .pip-button:active {
+    background-color: var(--color-button-secondary-pressed, var(--color-grey-40));
+    scale: 0.98;
+    filter: none;
+  }
+  
+  /* PiP icon - using a simple picture-in-picture icon style */
+  .pip-icon {
+    width: 20px;
+    height: 20px;
+    display: block;
+    position: relative;
+  }
+  
+  .pip-icon::before,
+  .pip-icon::after {
+    content: '';
+    position: absolute;
+    border: 2px solid currentColor;
+    border-radius: 2px;
+  }
+  
+  .pip-icon::before {
+    /* Main video frame */
+    width: 16px;
+    height: 12px;
+    top: 0;
+    left: 0;
+  }
+  
+  .pip-icon::after {
+    /* Small PiP frame */
+    width: 8px;
+    height: 6px;
+    bottom: 0;
+    right: 0;
+    border-width: 1.5px;
+  }
+  
+  .pip-text {
+    font-size: var(--button-font-size);
   }
 </style>

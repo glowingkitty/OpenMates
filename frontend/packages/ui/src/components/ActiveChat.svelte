@@ -40,6 +40,7 @@
     import { websocketStatus } from '../stores/websocketStatusStore'; // Import WebSocket status for connection checks
     import { activeChatStore } from '../stores/activeChatStore'; // For clearing persistent active chat selection
     import { settingsDeepLink } from '../stores/settingsDeepLinkStore'; // For opening settings to specific page (share)
+    import { videoPipStore, type VideoPipState } from '../stores/videoPipStore'; // For video picture-in-picture mode
     import { DEMO_CHATS, LEGAL_CHATS, getDemoMessages, isPublicChat, translateDemoChat } from '../demo_chats'; // Import demo chat utilities
     import { convertDemoChatToChat } from '../demo_chats/convertToChat'; // Import conversion function
     import { isDesktop } from '../utils/platform'; // Import desktop detection for conditional auto-focus
@@ -483,6 +484,121 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     function handleCloseEmbedFullscreen() {
         showEmbedFullscreen = false;
         embedFullscreenData = null;
+    }
+    
+    // State for video PiP mode (reactive from store)
+    let videoPipState = $state<VideoPipState>({ isActive: false });
+    
+    // Reference to PiP container for moving iframe
+    let pipContainerRef: HTMLDivElement | null = $state(null);
+    
+    // Store original parent and nextSibling for restoring iframe position
+    let originalIframeParent: Node | null = null;
+    let originalIframeNextSibling: Node | null = null;
+    
+    // Subscribe to video PiP store and handle iframe movement
+    $effect(() => {
+        const unsubscribe = videoPipStore.subscribe((state) => {
+            const wasActive = videoPipState.isActive;
+            videoPipState = state;
+            console.debug('[ActiveChat] Video PiP state updated:', state);
+            
+            // When entering PiP: move iframe wrapper to PiP container
+            if (state.isActive && state.iframeWrapperElement && pipContainerRef && !wasActive) {
+                const iframeWrapper = state.iframeWrapperElement;
+                
+                // Store original position for restoration
+                originalIframeParent = iframeWrapper.parentNode;
+                originalIframeNextSibling = iframeWrapper.nextSibling;
+                
+                // Ensure wrapper has the correct class for styling
+                if (!iframeWrapper.classList.contains('video-iframe-wrapper')) {
+                    iframeWrapper.classList.add('video-iframe-wrapper');
+                }
+                
+                // Move iframe wrapper to PiP container
+                // The wrapper will be positioned absolutely via CSS
+                pipContainerRef.appendChild(iframeWrapper);
+                
+                console.debug('[ActiveChat] Moved iframe to PiP container');
+            }
+            
+            // When exiting PiP: move iframe wrapper back to original position
+            if (!state.isActive && wasActive && originalIframeParent) {
+                // The iframe wrapper should be restored by VideoEmbedFullscreen component
+                // when it remounts, but we'll clear our references
+                originalIframeParent = null;
+                originalIframeNextSibling = null;
+                console.debug('[ActiveChat] PiP exited, iframe will be restored by VideoEmbedFullscreen');
+            }
+        });
+        
+        return () => {
+            unsubscribe();
+        };
+    });
+    
+    // Handler for clicking PiP video to restore fullscreen
+    async function handlePipClick() {
+        if (!videoPipState.isActive || !videoPipState.url || !videoPipState.iframeWrapperElement) {
+            return;
+        }
+        
+        console.debug('[ActiveChat] PiP clicked, restoring fullscreen');
+        
+        const iframeWrapper = videoPipState.iframeWrapperElement;
+        const pipUrl = videoPipState.url;
+        const pipTitle = videoPipState.title;
+        const pipVideoId = videoPipState.videoId;
+        
+        // Restore iframe wrapper to its original position before opening fullscreen
+        // This ensures the iframe is in the right place when VideoEmbedFullscreen mounts
+        if (originalIframeParent) {
+            // Reset styles
+            iframeWrapper.style.position = '';
+            iframeWrapper.style.top = '';
+            iframeWrapper.style.left = '';
+            iframeWrapper.style.width = '';
+            iframeWrapper.style.height = '';
+            iframeWrapper.style.zIndex = '';
+            
+            // Move back to original position
+            if (originalIframeNextSibling) {
+                originalIframeParent.insertBefore(iframeWrapper, originalIframeNextSibling);
+            } else {
+                originalIframeParent.appendChild(iframeWrapper);
+            }
+            
+            console.debug('[ActiveChat] Restored iframe to original position');
+        }
+        
+        // Exit PiP mode
+        videoPipStore.exitPip();
+        
+        // Open fullscreen with the same video data
+        // The VideoEmbedFullscreen component will reuse the existing iframe
+        embedFullscreenData = {
+            embedType: 'videos-video',
+            decodedContent: {
+                url: pipUrl,
+                title: pipTitle,
+                videoId: pipVideoId
+            },
+            attrs: {
+                url: pipUrl,
+                title: pipTitle,
+                videoId: pipVideoId
+            },
+            // Flag to indicate this is a restore from PiP
+            restoreFromPip: true,
+            // Pass iframe references so component can reuse them
+            iframeElement: videoPipState.iframeElement,
+            iframeWrapperElement: iframeWrapper
+        };
+        
+        // Use a microtask to ensure state is set
+        await Promise.resolve();
+        showEmbedFullscreen = true;
     }
 
     // Handler for suggestion click - copies suggestion to message input
@@ -2805,9 +2921,17 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             {@const VideoEmbedFullscreen = module.default}
                             {@const videoUrl = embedFullscreenData.decodedContent?.url || embedFullscreenData.attrs?.url || ''}
                             {@const videoTitle = embedFullscreenData.decodedContent?.title || embedFullscreenData.attrs?.title}
-                            <VideoEmbedFullscreen 
+                            {@const videoId = embedFullscreenData.decodedContent?.videoId || embedFullscreenData.attrs?.videoId}
+                            {@const restoreFromPip = embedFullscreenData.restoreFromPip || false}
+                            {@const existingIframeElement = embedFullscreenData.iframeElement}
+                            {@const existingIframeWrapper = embedFullscreenData.iframeWrapperElement}
+                            <VideoEmbedFullscreen
                                 url={videoUrl}
                                 title={videoTitle}
+                                videoId={videoId}
+                                restoreFromPip={restoreFromPip}
+                                iframeElement={existingIframeElement}
+                                iframeWrapperElement={existingIframeWrapper}
                                 onClose={handleCloseEmbedFullscreen}
                             />
                         {/await}
@@ -2824,6 +2948,26 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     </div>
                 {/if}
             {/if}
+            
+            <!-- Video Picture-in-Picture display (top right corner) -->
+            <!-- The iframe wrapper is moved here from VideoEmbedFullscreen, not recreated -->
+            {#if videoPipState.isActive && videoPipState.iframeWrapperElement}
+                <div 
+                    class="video-pip-container" 
+                    bind:this={pipContainerRef}
+                    onclick={handlePipClick} 
+                    role="button" 
+                    tabindex="0" 
+                    onkeydown={(e) => e.key === 'Enter' && handlePipClick()}
+                >
+                    <!-- The iframe wrapper will be moved here via DOM manipulation -->
+                    <!-- Click overlay to restore fullscreen -->
+                    <div class="video-pip-overlay">
+                        <div class="video-pip-hint">Click to restore fullscreen</div>
+                    </div>
+                </div>
+            {/if}
+            
             <KeyboardShortcuts
                 on:newChat={handleNewChatClick}
                 on:focusInput={() => messageInputFieldRef.focus()}
@@ -3156,6 +3300,88 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
     .active-chat-container.scaled {
         transform: scale(0.95);
+    }
+    
+    /* ===========================================
+       Video Picture-in-Picture (PiP) Styles
+       =========================================== */
+    
+    /* PiP container - fixed position in top right corner */
+    .video-pip-container {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        width: 320px;
+        height: 180px; /* 16:9 aspect ratio */
+        z-index: 1000; /* Above fullscreen but below modals */
+        cursor: pointer;
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+        background-color: var(--color-grey-15);
+        transition: all 0.3s ease-in-out;
+    }
+    
+    .video-pip-container:hover {
+        transform: scale(1.05);
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+    }
+    
+    /* The iframe wrapper is moved here from VideoEmbedFullscreen */
+    /* It will be positioned absolutely within the container */
+    .video-pip-container > .video-iframe-wrapper {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 1;
+    }
+    
+    /* Overlay that appears on hover to indicate clickability */
+    .video-pip-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: background 0.2s ease-in-out;
+        pointer-events: auto; /* Make overlay clickable */
+        z-index: 2; /* Above iframe */
+    }
+    
+    .video-pip-container:hover .video-pip-overlay {
+        background: rgba(0, 0, 0, 0.3);
+    }
+    
+    .video-pip-hint {
+        color: white;
+        font-size: 14px;
+        font-weight: 500;
+        opacity: 0;
+        transition: opacity 0.2s ease-in-out;
+        text-align: center;
+        padding: 8px 16px;
+        background: rgba(0, 0, 0, 0.6);
+        border-radius: 8px;
+    }
+    
+    .video-pip-container:hover .video-pip-hint {
+        opacity: 1;
+    }
+    
+    /* Responsive: Hide PiP on very small screens */
+    @media (max-width: 480px) {
+        .video-pip-container {
+            width: 240px;
+            height: 135px;
+            top: 10px;
+            right: 10px;
+        }
     }
 
 </style>

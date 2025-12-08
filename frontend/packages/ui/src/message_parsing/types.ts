@@ -65,6 +65,10 @@ export interface EmbedStoreEntry {
   createdAt: number;
   updatedAt: number;
   metadata?: Record<string, any>;
+  // App metadata (stored unencrypted in IndexedDB only, not sent to server)
+  // This allows efficient filtering and querying by app_id without decrypting all embeds
+  app_id?: string; // For app_skill_use embeds: the app that generated this embed
+  skill_id?: string; // For app_skill_use embeds: the skill that generated this embed
 }
 
 // Clipboard JSON format for embeds

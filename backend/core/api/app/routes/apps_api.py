@@ -221,10 +221,15 @@ async def calculate_skill_credits(
     """
     Calculate credits to charge for a skill execution based on pricing configuration.
     
+    Uses the same billing logic as main_processor.py:
+    1. Checks for explicit pricing in skill's app.yml
+    2. If not found, fetches provider pricing from provider YAML files
+    3. Calculates credits based on units_processed (number of requests)
+    
     Args:
         app_metadata: The app metadata containing skill definitions
         skill_id: The ID of the skill that was executed
-        input_data: Input data that was sent to the skill
+        input_data: Input data that was sent to the skill (should contain 'requests' array)
         result_data: Optional result data from skill execution (for token-based pricing)
         
     Returns:
@@ -241,49 +246,94 @@ async def calculate_skill_credits(
         logger.warning(f"Skill '{skill_id}' not found in app '{app_metadata.id}' metadata. Cannot calculate credits.")
         return 0
     
-    # Get pricing config from skill definition
-    if not skill_def.pricing:
-        logger.debug(f"Skill '{skill_id}' in app '{app_metadata.id}' has no pricing configuration. Charging 0 credits.")
-        return 0
+    # Get pricing config - check skill-level first, then provider-level
+    pricing_config = None
+    if skill_def.pricing:
+        # Skill has explicit pricing in app.yml - use it
+        pricing_config = skill_def.pricing.model_dump(exclude_none=True)
+        logger.debug(f"Using skill-level pricing from app.yml for '{app_metadata.id}.{skill_id}'")
+    elif skill_def.providers and len(skill_def.providers) > 0:
+        # Skill doesn't have explicit pricing, but has providers - try to get provider-level pricing
+        # Use the first provider (most skills will have one primary provider)
+        provider_name = skill_def.providers[0]
+        # Normalize provider name to lowercase (provider IDs in YAML are lowercase, e.g., "brave")
+        provider_id = provider_name.lower()
+        
+        # Map provider names to provider IDs (handles cases like "Google" -> "google_maps" for maps app)
+        if provider_name == "Google" and app_metadata.id == "maps":
+            provider_id = "google_maps"
+        elif provider_name == "Brave" or provider_name == "Brave Search":
+            provider_id = "brave"
+        
+        logger.debug(f"Skill '{app_metadata.id}.{skill_id}' has no explicit pricing, attempting to fetch provider-level pricing from '{provider_id}' (mapped from '{provider_name}')")
+        
+        try:
+            # Fetch provider pricing via internal API
+            headers = {"Content-Type": "application/json"}
+            if INTERNAL_API_SHARED_TOKEN:
+                headers["X-Internal-Service-Token"] = INTERNAL_API_SHARED_TOKEN
+            
+            endpoint = f"internal/config/provider_pricing/{provider_id}"
+            url = f"{INTERNAL_API_BASE_URL.rstrip('/')}/{endpoint.lstrip('/')}"
+            
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                response = await client.get(url, headers=headers)
+                response.raise_for_status()
+                provider_pricing = response.json()
+            
+            if provider_pricing and isinstance(provider_pricing, dict):
+                # Convert provider pricing format to billing format
+                # Provider pricing may have formats like:
+                # - per_request_credits: 10 (Brave)
+                # - per_unit: { credits: X } (already in correct format)
+                
+                if "per_request_credits" in provider_pricing:
+                    # Convert per_request_credits to per_unit.credits format
+                    credits_per_request = provider_pricing["per_request_credits"]
+                    pricing_config = {
+                        "per_unit": {
+                            "credits": credits_per_request
+                        }
+                    }
+                    logger.debug(f"Converted provider pricing: per_request_credits={credits_per_request} -> per_unit.credits={credits_per_request}")
+                elif "per_unit" in provider_pricing:
+                    # Provider already uses per_unit format
+                    pricing_config = {"per_unit": provider_pricing["per_unit"]}
+                    logger.debug(f"Using provider pricing per_unit format: {provider_pricing['per_unit']}")
+                else:
+                    logger.warning(f"Provider '{provider_id}' has pricing but unsupported format: {list(provider_pricing.keys())}. Using minimum charge.")
+            else:
+                logger.warning(f"Could not retrieve valid provider pricing for '{provider_id}'. Response: {provider_pricing}")
+        except Exception as e:
+            logger.warning(f"Error fetching provider pricing for '{provider_id}': {e}. Using minimum charge.")
     
-    try:
-        # Convert AppPricing to PricingConfig format for billing_utils
-        pricing_config = PricingConfig(
-            tokens=skill_def.pricing.tokens,
-            per_unit=skill_def.pricing.per_unit,
-            per_minute=skill_def.pricing.per_minute,
-            fixed=skill_def.pricing.fixed
+    # Calculate units_processed from input_data (number of requests)
+    # All skills use 'requests' array format - charge per request
+    units_processed = None
+    if "requests" in input_data and isinstance(input_data["requests"], list):
+        # Count number of requests in the requests array
+        units_processed = len(input_data["requests"])
+        logger.debug(f"Skill '{app_metadata.id}.{skill_id}' executed with {units_processed} request(s) in requests array")
+    else:
+        # Fallback: if no requests array found, charge for single execution
+        units_processed = 1
+        logger.debug(f"Skill '{app_metadata.id}.{skill_id}' has no 'requests' array, charging for single execution")
+    
+    # Calculate credits
+    if pricing_config:
+        # PricingConfig is a type alias for Dict[str, Any], so we can pass the dict directly
+        credits_charged = calculate_total_credits(
+            pricing_config=pricing_config,  # Pass dict directly (PricingConfig = Dict[str, Any])
+            units_processed=units_processed
         )
-        
-        # Extract metrics from result_data if available (for token-based pricing)
-        input_tokens = None
-        output_tokens = None
-        units_processed = None
-        duration_minutes = None
-        
-        if result_data:
-            # Try to extract token counts from result (if skill returns them)
-            input_tokens = result_data.get('input_tokens') or result_data.get('usage', {}).get('input_tokens')
-            output_tokens = result_data.get('output_tokens') or result_data.get('usage', {}).get('output_tokens')
-            units_processed = result_data.get('units_processed')
-            duration_minutes = result_data.get('duration_minutes')
-        
-        # Calculate credits using billing_utils
-        credits = calculate_total_credits(
-            pricing_config=pricing_config,
-            input_tokens=input_tokens,
-            output_tokens=output_tokens,
-            units_processed=units_processed,
-            duration_minutes=duration_minutes
-        )
-        
-        logger.info(f"Calculated {credits} credits for skill '{app_metadata.id}.{skill_id}'")
-        return credits
-        
-    except Exception as e:
-        logger.error(f"Error calculating credits for skill '{skill_id}' in app '{app_metadata.id}': {e}", exc_info=True)
-        # Return 0 credits on error to avoid blocking skill execution
-        return 0
+    else:
+        # Default to minimum charge if no pricing config
+        MINIMUM_CREDITS_CHARGED = 1
+        credits_charged = MINIMUM_CREDITS_CHARGED
+        logger.info(f"No pricing config for skill '{app_metadata.id}.{skill_id}', using minimum charge: {credits_charged}")
+    
+    logger.info(f"Calculated {credits_charged} credits for skill '{app_metadata.id}.{skill_id}' (units_processed={units_processed})")
+    return credits_charged
 
 
 async def charge_credits_via_internal_api(
@@ -833,7 +883,7 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                     class WrappedSkillResponse(BaseModel):
                         """Response wrapper for skill execution"""
                         success: bool
-                        data: SkillResponseModel = Field(..., description="The skill execution result")
+                        data: Optional[SkillResponseModel] = Field(None, description="The skill execution result (only present when success=True)")
                         error: Optional[str] = Field(None, description="Error message if execution failed")
                         credits_charged: Optional[int] = Field(None, description="Credits charged for this execution")
                     
@@ -870,22 +920,31 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                             )
                             
                             # Calculate credits to charge based on pricing
+                            # This uses the same logic as main_processor.py: checks skill pricing, then provider pricing
                             credits_charged = await calculate_skill_credits(
                                 app_metadata=captured_app_metadata,
                                 skill_id=captured_skill.id,
-                                input_data=request_dict,  # Use request_dict for credit calculation
+                                input_data=request_dict,  # Use request_dict for credit calculation (contains 'requests' array)
                                 result_data=result
                             )
+                            
+                            # Calculate units_processed for usage tracking
+                            units_processed = None
+                            if isinstance(request_dict, dict) and "requests" in request_dict and isinstance(request_dict["requests"], list):
+                                units_processed = len(request_dict["requests"])
+                            else:
+                                units_processed = 1
                             
                             # Charge credits via internal API (this also creates usage entry)
                             if credits_charged > 0:
                                 # Create user_id_hash for privacy
                                 user_id_hash = hashlib.sha256(user_info['user_id'].encode()).hexdigest()
                                 
-                                # Create usage details
+                                # Create usage details (matching format from main_processor.py)
                                 usage_details = {
                                     "api_key_name": user_info.get('api_key_name'),
-                                    "external_request": True
+                                    "external_request": True,
+                                    "units_processed": units_processed  # Number of requests processed
                                 }
                                 
                                 # Charge credits (this happens asynchronously and won't block the response)
@@ -950,18 +1009,28 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                                 user_info=user_info
                             )
                             
+                            # Calculate credits to charge based on pricing
+                            # This uses the same logic as main_processor.py: checks skill pricing, then provider pricing
                             credits_charged = await calculate_skill_credits(
                                 app_metadata=captured_app_metadata,
                                 skill_id=captured_skill.id,
-                                input_data=request_body,
+                                input_data=request_body,  # Contains 'requests' array
                                 result_data=result
                             )
+                            
+                            # Calculate units_processed for usage tracking
+                            units_processed = None
+                            if isinstance(request_body, dict) and "requests" in request_body and isinstance(request_body["requests"], list):
+                                units_processed = len(request_body["requests"])
+                            else:
+                                units_processed = 1
                             
                             if credits_charged > 0:
                                 user_id_hash = hashlib.sha256(user_info['user_id'].encode()).hexdigest()
                                 usage_details = {
                                     "api_key_name": user_info.get('api_key_name'),
-                                    "external_request": True
+                                    "external_request": True,
+                                    "units_processed": units_processed  # Number of requests processed
                                 }
                                 await charge_credits_via_internal_api(
                                     user_id=user_info['user_id'],
@@ -1013,22 +1082,31 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                             )
                             
                             # Calculate credits to charge based on pricing
+                            # This uses the same logic as main_processor.py: checks skill pricing, then provider pricing
                             credits_charged = await calculate_skill_credits(
                                 app_metadata=captured_app_metadata,
                                 skill_id=captured_skill.id,
-                                input_data=request_data.input_data,
+                                input_data=request_data.input_data,  # Contains 'requests' array
                                 result_data=result
                             )
+                            
+                            # Calculate units_processed for usage tracking
+                            units_processed = None
+                            if isinstance(request_data.input_data, dict) and "requests" in request_data.input_data and isinstance(request_data.input_data["requests"], list):
+                                units_processed = len(request_data.input_data["requests"])
+                            else:
+                                units_processed = 1
                             
                             # Charge credits via internal API (this also creates usage entry)
                             if credits_charged > 0:
                                 # Create user_id_hash for privacy
                                 user_id_hash = hashlib.sha256(user_info['user_id'].encode()).hexdigest()
                                 
-                                # Create usage details
+                                # Create usage details (matching format from main_processor.py)
                                 usage_details = {
                                     "api_key_name": user_info.get('api_key_name'),
-                                    "external_request": True
+                                    "external_request": True,
+                                    "units_processed": units_processed  # Number of requests processed
                                 }
                                 
                                 # Charge credits (this happens asynchronously and won't block the response)

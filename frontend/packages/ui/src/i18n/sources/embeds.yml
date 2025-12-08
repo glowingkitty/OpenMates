@@ -274,6 +274,29 @@ open_on_youtube:
   cs: Otevřít na YouTube
   sv: Öppna på YouTube
   verified_by_human: []
+tip_creator:
+  context: Button label to tip the video creator
+  en: Tip Creator
+  de: Ersteller unterstützen
+  zh: 打赏创作者
+  es: Apoyar al creador
+  fr: Soutenir le créateur
+  pt: Apoiar o criador
+  ru: Поддержать создателя
+  ja: クリエイターにチップ
+  ko: 제작자에게 팁
+  it: Supporta il creatore
+  tr: İçerik üreticisine bahşiş
+  vi: Tặng tiền cho người tạo
+  id: Beri tip kepada pembuat
+  pl: Wsparcie twórcy
+  nl: Tip de maker
+  ar: دعم المنشئ
+  hi: निर्माता को टिप दें
+  th: ให้ทิปผู้สร้าง
+  cs: Podpořit tvůrce
+  sv: Dricks till skaparen
+  verified_by_human: []
 code_snippet:
   context: Default filename for code embeds when no filename is provided
   en: Code snippet

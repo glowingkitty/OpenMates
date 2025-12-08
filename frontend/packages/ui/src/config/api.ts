@@ -122,6 +122,12 @@ export const apiEndpoints = {
     apps: {
         metadata:                   '/v1/apps/metadata',                        // Get metadata for all discovered apps
         mostUsed:                    '/v1/apps/most-used',                       // Get most used apps in last 30 days (public endpoint)
+    },
+    usage: {
+        getUsage:                    '/v1/settings/usage',                       // Get user usage data
+    },
+    creators: {
+        tip:                         '/v1/creators/tip',                        // Tip a creator with credits
     }
 } as const;
 
