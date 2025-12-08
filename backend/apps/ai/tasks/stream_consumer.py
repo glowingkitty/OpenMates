@@ -742,18 +742,22 @@ async def _consume_main_processing_stream(
                     
                     # SKIP: JSON blocks that are embed references (already processed by skills)
                     # These contain {"type": "...", "embed_id": "..."} or {"type": "...", "embed_ids": [...]}
+                    # FIX: Handle indented code blocks by stripping whitespace before checking
                     is_embed_reference = False
                     if fence_content.lower() in ('json', 'json_embed'):
                         # Check if this is an embed reference JSON block
                         remaining_content = '\n'.join(lines[1:]) if len(lines) > 1 else ''
-                        # Look for embed reference patterns
+                        # FIX: Strip whitespace from content to handle indented JSON blocks
+                        # This allows detection of embed references even when indented (e.g., "     ```json")
+                        stripped_content = remaining_content.strip()
+                        # Look for embed reference patterns in stripped content
                         is_embed_reference = (
-                            '"embed_id"' in remaining_content or 
-                            '"embed_ids"' in remaining_content or
-                            'embed_id' in remaining_content
+                            '"embed_id"' in stripped_content or 
+                            '"embed_ids"' in stripped_content or
+                            'embed_id' in stripped_content
                         )
                         if is_embed_reference:
-                            logger.debug(f"{log_prefix} Skipping JSON embed reference block (not a code block to convert)")
+                            logger.debug(f"{log_prefix} Skipping JSON embed reference block (not a code block to convert, indented={remaining_content != stripped_content})")
                             # Don't process as code block - let it pass through as-is
                     
                     # Only process as code block if it's NOT an embed reference
@@ -783,9 +787,36 @@ async def _consume_main_processing_stream(
                         current_code_language = fence_content
                         current_code_filename = None
                     
+                    # FIX: If language/filename not in fence line, check first content line
+                    # LLMs sometimes put "python:hello_world.py" in content instead of fence
+                    # Track if we extracted from first line so we can remove it from code content
+                    extracted_from_first_line = False
+                    if (not current_code_language or not current_code_filename) and len(lines) > 1:
+                        first_content_line = lines[1].strip()
+                        # Check if first line matches language:filename pattern (e.g., "python:hello_world.py")
+                        if ':' in first_content_line and not first_content_line.startswith('#'):
+                            # Pattern: language:filename (e.g., "python:hello_world.py")
+                            # Extract potential language:filename from first content line
+                            import re
+                            # Match pattern like "python:hello_world.py" or "javascript:index.js"
+                            lang_file_pattern = r'^([a-zA-Z0-9_+\-#.]+):([^\s:]+)$'
+                            match = re.match(lang_file_pattern, first_content_line)
+                            if match:
+                                potential_lang = match.group(1)
+                                potential_filename = match.group(2)
+                                # Only use if we don't already have language or filename
+                                if not current_code_language:
+                                    current_code_language = potential_lang
+                                    extracted_from_first_line = True
+                                    logger.info(f"{log_prefix} [CODE_BLOCK_DEBUG] Extracted language from first content line: {repr(current_code_language)}")
+                                if not current_code_filename:
+                                    current_code_filename = potential_filename
+                                    extracted_from_first_line = True
+                                    logger.info(f"{log_prefix} [CODE_BLOCK_DEBUG] Extracted filename from first content line: {repr(current_code_filename)}")
+                    
                     # DEBUG: Log extracted language and filename
-                    logger.info(f"{log_prefix} [CODE_BLOCK_DEBUG] Extracted language: {repr(current_code_language)}")
-                    logger.info(f"{log_prefix} [CODE_BLOCK_DEBUG] Extracted filename: {repr(current_code_filename)}")
+                    logger.info(f"{log_prefix} [CODE_BLOCK_DEBUG] Final extracted language: {repr(current_code_language)}")
+                    logger.info(f"{log_prefix} [CODE_BLOCK_DEBUG] Final extracted filename: {repr(current_code_filename)}")
                     
                     # Check if this chunk contains both opening and closing fence (complete code block)
                     # Look for closing fence in remaining lines (after the opening fence line)
@@ -801,6 +832,17 @@ async def _consume_main_processing_stream(
                         # Complete code block in single chunk - extract content and finalize immediately
                         # Extract content between opening and closing fences
                         content_lines = lines[1:closing_line_idx]  # Lines between fences
+                        # FIX: Remove language:filename line from content if we extracted it
+                        if extracted_from_first_line and content_lines:
+                            first_line_stripped = content_lines[0].strip()
+                            # Check if first line matches the pattern we extracted from
+                            if ':' in first_line_stripped and not first_line_stripped.startswith('#'):
+                                import re
+                                lang_file_pattern = r'^([a-zA-Z0-9_+\-#.]+):([^\s:]+)$'
+                                if re.match(lang_file_pattern, first_line_stripped):
+                                    # Remove the first line as it was just metadata, not actual code
+                                    content_lines = content_lines[1:]
+                                    logger.info(f"{log_prefix} [CODE_BLOCK_DEBUG] Removed language:filename line from code content")
                         code_content = '\n'.join(content_lines)
                         
                         # DEBUG: Log extracted code content
@@ -875,8 +917,19 @@ async def _consume_main_processing_stream(
                         # Extract any content after opening fence in this chunk
                         if len(lines) > 1:
                             # There's content after the opening fence line
-                            content_after_fence = '\n'.join(lines[1:])
-                            current_code_content = content_after_fence
+                            content_lines_after_fence = lines[1:]
+                            # FIX: Remove language:filename line from content if we extracted it
+                            if extracted_from_first_line and content_lines_after_fence:
+                                first_line_stripped = content_lines_after_fence[0].strip()
+                                # Check if first line matches the pattern we extracted from
+                                if ':' in first_line_stripped and not first_line_stripped.startswith('#'):
+                                    import re
+                                    lang_file_pattern = r'^([a-zA-Z0-9_+\-#.]+):([^\s:]+)$'
+                                    if re.match(lang_file_pattern, first_line_stripped):
+                                        # Remove the first line as it was just metadata, not actual code
+                                        content_lines_after_fence = content_lines_after_fence[1:]
+                                        logger.info(f"{log_prefix} [CODE_BLOCK_DEBUG] Removed language:filename line from code content (multi-chunk)")
+                            current_code_content = '\n'.join(content_lines_after_fence)
                         
                         # Create code embed placeholder
                         if directus_service and encryption_service and user_vault_key_id:
@@ -1146,6 +1199,32 @@ async def _consume_main_processing_stream(
 
     aggregated_response = "".join(final_response_chunks)
     
+    # IMPROVED LOGGING: Log the full streamed assistant message for debugging
+    # This helps diagnose parsing issues, embed reference problems, and code block extraction
+    logger.info(
+        f"{log_prefix} [FULL_STREAMED_MESSAGE] "
+        f"Total chunks: {stream_chunk_count}, "
+        f"Total length: {len(aggregated_response)} chars, "
+        f"Message preview (first 500 chars):\n{repr(aggregated_response[:500])}"
+    )
+    # Log full message in chunks if it's very long (to avoid log truncation)
+    if len(aggregated_response) > 2000:
+        # Split into chunks of 2000 chars for logging
+        chunk_size = 2000
+        for i in range(0, len(aggregated_response), chunk_size):
+            chunk_num = (i // chunk_size) + 1
+            total_chunks = (len(aggregated_response) + chunk_size - 1) // chunk_size
+            chunk_content = aggregated_response[i:i + chunk_size]
+            logger.info(
+                f"{log_prefix} [FULL_STREAMED_MESSAGE] "
+                f"Chunk {chunk_num}/{total_chunks} (chars {i}-{min(i + chunk_size, len(aggregated_response))}):\n{repr(chunk_content)}"
+            )
+    else:
+        # Log full message if it's short enough
+        logger.info(
+            f"{log_prefix} [FULL_STREAMED_MESSAGE] Complete message:\n{repr(aggregated_response)}"
+        )
+    
     # Wait for all URL validation tasks to complete (non-blocking during streaming, but wait now)
     if url_validation_tasks:
         logger.info(
@@ -1172,13 +1251,24 @@ async def _consume_main_processing_stream(
             # Get the model ID used for main processing (from preprocessing result)
             main_model_id = preprocessing_result.selected_main_llm_model_id or "gpt-4o-mini"
             
+            # Extract the last user message from message_history
+            # AskSkillRequest doesn't have message_content, it has message_history (list of AIHistoryMessage)
+            last_user_message = ""
+            if request_data.message_history and len(request_data.message_history) > 0:
+                # Find the last user message in history
+                # Note: message_history contains AIHistoryMessage Pydantic models, not dicts
+                for msg in reversed(request_data.message_history):
+                    if msg.role == "user":
+                        last_user_message = msg.content
+                        break
+            
             # Import here to avoid circular imports
             from backend.apps.ai.processing.url_corrector import correct_full_response_with_broken_urls
             
             corrected_response = await correct_full_response_with_broken_urls(
                 original_response=aggregated_response,
                 broken_urls=all_broken_urls,
-                user_message=request_data.message_content or "",
+                user_message=last_user_message,
                 task_id=task_id,
                 model_id=main_model_id,  # Use same model as main processing
                 secrets_manager=secrets_manager

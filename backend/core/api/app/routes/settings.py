@@ -18,7 +18,7 @@ from backend.core.api.app.services.limiter import limiter
 from backend.core.api.app.utils.device_fingerprint import generate_device_fingerprint_hash, _extract_client_ip # Updated imports
 from backend.core.api.app.schemas.settings import LanguageUpdateRequest, DarkModeUpdateRequest, AutoTopUpLowBalanceRequest # Import request/response models
 import pyotp  # For 2FA TOTP verification
-import hashlib  # For API key hashing
+import hashlib  # For API key hashing and user ID hashing
 import secrets  # For secure API key generation
 from datetime import datetime, timezone
 
@@ -944,5 +944,73 @@ async def rename_api_key_device(
     except Exception as e:
         logger.error(f"Error renaming API key device {device_id} for user {current_user.id}: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to rename device")
+
+
+# --- Endpoint for fetching usage data ---
+@router.get("/usage")
+@limiter.limit("30/minute")  # Rate limit usage data fetching
+async def get_usage(
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    directus_service: DirectusService = Depends(get_directus_service),
+    cache_service: CacheService = Depends(get_cache_service)
+):
+    """
+    Fetch usage data for the current user.
+    Returns decrypted usage entries grouped and formatted for display.
+    """
+    try:
+        logger.info(f"Fetching usage data for user {current_user.id}")
+        
+        # Get user's vault_key_id for decryption
+        user_vault_key_id = await cache_service.get_user_vault_key_id(current_user.id)
+        
+        if not user_vault_key_id:
+            logger.debug(f"vault_key_id not in cache for user {current_user.id}, fetching from Directus")
+            user_profile_result = await directus_service.get_user_profile(current_user.id)
+            if not user_profile_result or not user_profile_result[0]:
+                logger.error(f"Failed to fetch user profile for usage decryption: {current_user.id}")
+                raise HTTPException(status_code=404, detail="User profile not found")
+            
+            user_profile = user_profile_result[1]
+            user_vault_key_id = user_profile.get("vault_key_id")
+            if not user_vault_key_id:
+                logger.error(f"User {current_user.id} missing vault_key_id in Directus profile")
+                raise HTTPException(status_code=500, detail="User encryption key not found")
+            
+            # Cache the vault_key_id for future use
+            await cache_service.update_user(current_user.id, {"vault_key_id": user_vault_key_id})
+            logger.debug(f"Cached vault_key_id for user {current_user.id}")
+        
+        # Hash user ID for querying usage collection
+        user_id_hash = hashlib.sha256(current_user.id.encode()).hexdigest()
+        
+        # Get pagination parameters from query string (default to last 10 entries)
+        limit = int(request.query_params.get("limit", 10))
+        offset = int(request.query_params.get("offset", 0))
+        
+        # Fetch usage entries with pagination
+        usage_entries = await directus_service.usage.get_user_usage_entries(
+            user_id_hash=user_id_hash,
+            user_vault_key_id=user_vault_key_id,
+            limit=limit,
+            offset=offset,
+            sort="-created_at"
+        )
+        
+        logger.info(f"Successfully fetched {len(usage_entries)} usage entries for user {current_user.id} (limit={limit}, offset={offset})")
+        
+        return {
+            "usage": usage_entries,
+            "limit": limit,
+            "offset": offset,
+            "count": len(usage_entries)
+        }
+        
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        logger.error(f"Error fetching usage data for user {current_user.id}: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to fetch usage data")
 
 

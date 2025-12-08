@@ -23,8 +23,9 @@ class ChatDatabase {
     private readonly NEW_CHAT_SUGGESTIONS_STORE_NAME = 'new_chat_suggestions'; // Store for new chat suggestions
     private readonly APP_SETTINGS_MEMORIES_STORE_NAME = 'app_settings_memories'; // Store for app settings and memories entries
     private readonly PENDING_OG_METADATA_STORE_NAME = 'pending_og_metadata_updates'; // Store for pending OG metadata updates
-    // Version incremented due to schema change (adding embed_keys store for wrapped key architecture)
-    private readonly VERSION = 13;
+    // Version incremented due to embed data model refactoring (storing fields separately instead of JSON string)
+    // Migration converts old embeds with JSON string in data field to new separate fields format
+    private readonly VERSION = 14;
     private initializationPromise: Promise<void> | null = null;
     
     // Flag to prevent new operations during database deletion
@@ -256,6 +257,89 @@ class ChatDatabase {
                     ogMetadataStore.createIndex('chat_id', 'chat_id', { unique: false });
                     ogMetadataStore.createIndex('created_at', 'created_at', { unique: false });
                     console.debug('[ChatDatabase] Created pending_og_metadata_updates store');
+                }
+
+                // Data migration for version 14: Convert embed data from JSON string to separate fields
+                // This migration converts old embeds that stored entire object as JSON string in data field
+                // to new format with fields stored separately for better querying and indexing
+                if (transaction && event.oldVersion < 14) {
+                    console.info(`[ChatDatabase] Migrating embeds from version ${event.oldVersion} to ${event.newVersion}: converting JSON string to separate fields`);
+                    const embedsStore = transaction.objectStore(EMBEDS_STORE_NAME);
+                    const cursorRequest = embedsStore.openCursor();
+                    let migratedCount = 0;
+                    let skippedCount = 0;
+                    
+                    cursorRequest.onsuccess = (e) => {
+                        const cursor = (e.target as IDBRequest<IDBCursorWithValue | null>)?.result;
+                        if (cursor) {
+                            const entry = cursor.value as any;
+                            
+                            // Check if this embed needs migration (has data field with JSON string but no separate fields)
+                            const needsMigration = entry.data && 
+                                                   typeof entry.data === 'string' && 
+                                                   (entry.data.trim().startsWith('{') || entry.data.trim().startsWith('[')) &&
+                                                   !entry.encrypted_content; // Only migrate if not already in new format
+                            
+                            if (needsMigration) {
+                                try {
+                                    // Parse the JSON string from data field
+                                    const parsedData = JSON.parse(entry.data);
+                                    
+                                    // Extract fields from parsed data and store separately
+                                    // Preserve server timestamps if they exist in the parsed data
+                                    if (parsedData.createdAt !== undefined && parsedData.createdAt !== null) {
+                                        entry.createdAt = parsedData.createdAt;
+                                    }
+                                    if (parsedData.updatedAt !== undefined && parsedData.updatedAt !== null) {
+                                        entry.updatedAt = parsedData.updatedAt;
+                                    }
+                                    
+                                    // Extract all embed fields from parsed data
+                                    entry.embed_id = parsedData.embed_id || entry.embed_id;
+                                    entry.encrypted_content = parsedData.encrypted_content || parsedData.content;
+                                    entry.encrypted_type = parsedData.encrypted_type || parsedData.type;
+                                    entry.encrypted_text_preview = parsedData.encrypted_text_preview || parsedData.text_preview;
+                                    entry.status = parsedData.status || entry.status;
+                                    entry.hashed_chat_id = parsedData.hashed_chat_id;
+                                    entry.hashed_message_id = parsedData.hashed_message_id;
+                                    entry.hashed_task_id = parsedData.hashed_task_id;
+                                    entry.hashed_user_id = parsedData.hashed_user_id;
+                                    entry.embed_ids = parsedData.embed_ids;
+                                    entry.parent_embed_id = parsedData.parent_embed_id;
+                                    entry.version_number = parsedData.version_number;
+                                    entry.file_path = parsedData.file_path;
+                                    entry.content_hash = parsedData.content_hash;
+                                    entry.text_length_chars = parsedData.text_length_chars;
+                                    entry.share_mode = parsedData.share_mode;
+                                    
+                                    // Keep data field for backward compatibility during transition
+                                    // It will be removed in a future migration once all code paths use separate fields
+                                    
+                                    // Update the entry in IndexedDB
+                                    cursor.update(entry);
+                                    migratedCount++;
+                                    
+                                    if (migratedCount % 10 === 0) {
+                                        console.debug(`[ChatDatabase] Migrated ${migratedCount} embeds...`);
+                                    }
+                                } catch (parseError) {
+                                    // If JSON parsing fails, skip this entry (might be encrypted or malformed)
+                                    console.warn(`[ChatDatabase] Failed to parse embed data for ${entry.contentRef}:`, parseError);
+                                    skippedCount++;
+                                }
+                            } else {
+                                skippedCount++;
+                            }
+                            
+                            cursor.continue();
+                        } else {
+                            console.info(`[ChatDatabase] Embed migration completed. Migrated: ${migratedCount}, Skipped: ${skippedCount}`);
+                        }
+                    };
+                    
+                    cursorRequest.onerror = (e) => {
+                        console.error("[ChatDatabase] CRITICAL: Error during embed migration (v<14) cursor:", (e.target as IDBRequest).error);
+                    };
                 }
             };
         });

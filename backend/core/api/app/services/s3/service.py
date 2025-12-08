@@ -440,12 +440,31 @@ class S3UploadService:
             
         except ClientError as e:
             error_code = e.response.get('Error', {}).get('Code')
+            error_message = e.response.get('Error', {}).get('Message', 'Unknown error')
             if error_code == 'NoSuchKey' or error_code == '404':
                 logger.warning(f"File not found in S3: bucket={bucket_name}, key={object_key}")
                 return None
             else:
-                logger.error(f"Failed to download file from S3: {str(e)}")
-                return None
+                # Log detailed error information for debugging
+                logger.error(
+                    f"Failed to download file from S3: bucket={bucket_name}, key={object_key}, "
+                    f"error_code={error_code}, error_message={error_message}, full_error={str(e)}"
+                )
+                # Raise exception instead of returning None to prevent silent failures
+                # This follows the project rule: "Never implement fallbacks that would make errors fall silently"
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Failed to download file from S3: {error_code} - {error_message}"
+                )
         except Exception as e:
-            logger.error(f"Unexpected error downloading file from S3: {str(e)}")
-            return None
+            # Log full exception details for debugging
+            logger.error(
+                f"Unexpected error downloading file from S3: bucket={bucket_name}, key={object_key}, "
+                f"error={str(e)}",
+                exc_info=True
+            )
+            # Raise exception instead of returning None to prevent silent failures
+            raise HTTPException(
+                status_code=500,
+                detail=f"Unexpected error downloading file from S3: {str(e)}"
+            )

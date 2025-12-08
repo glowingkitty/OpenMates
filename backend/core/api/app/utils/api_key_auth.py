@@ -106,8 +106,9 @@ class ApiKeyAuthService:
 
             # Check device approval - BLOCKS if device is new or not approved
             # First request from new device is blocked until user approves in web UI
+            device_hash = None
             if request:
-                await self._check_and_register_device(
+                device_hash = await self._check_and_register_device(
                     api_key_id=api_key_record.get('id'),
                     user_id=user_id,
                     request=request
@@ -118,6 +119,8 @@ class ApiKeyAuthService:
             user_info = {
                 'user_id': user_id,
                 'api_key_id': api_key_record.get('id'),
+                'api_key_hash': api_key_hash,  # SHA-256 hash of the API key for usage tracking
+                'device_hash': device_hash,  # SHA-256 hash of the device (IP:user_id) for usage tracking
                 'api_key_encrypted_name': api_key_record.get('encrypted_name'),  # Encrypted name (client decrypts)
                 # Note: encrypted_name is not decrypted here (client decrypts it)
             }
@@ -125,7 +128,16 @@ class ApiKeyAuthService:
             # Update last_used timestamp (async, don't wait)
             # This is fire-and-forget to avoid blocking the response
             try:
-                await self.directus_service.update_api_key_last_used(api_key_hash)
+                last_used_at = datetime.now(timezone.utc).isoformat()
+                updated = await self.directus_service.update_api_key_last_used(
+                    api_key_hash, last_used_at=last_used_at
+                )
+                if updated:
+                    # Refresh cached record so subsequent requests reflect the latest usage
+                    api_key_record["last_used_at"] = last_used_at
+                    await self.cache_service.set(cache_key, api_key_record, ttl=300)
+                else:
+                    logger.warning("API key last_used_at update returned False")
             except Exception as e:
                 logger.warning(f"Failed to update API key last_used timestamp: {e}")
 
@@ -144,7 +156,7 @@ class ApiKeyAuthService:
         api_key_id: str,
         user_id: str,
         request: Request
-    ) -> None:
+    ) -> str:
         """
         Check if the device is approved for this API key, and register it if it's new.
         BLOCKS API access if device is new or not approved.
@@ -154,6 +166,9 @@ class ApiKeyAuthService:
             api_key_id: The ID of the API key
             user_id: The user ID
             request: FastAPI request object for extracting IP address
+            
+        Returns:
+            device_hash: SHA-256 hash of the device (IP:user_id) for usage tracking
             
         Raises:
             DeviceNotApprovedError: If the device is not approved (blocks API access)
@@ -196,7 +211,7 @@ class ApiKeyAuthService:
                     logger.warning(f"Failed to update device last_access timestamp: {e}")
                 
                 logger.debug(f"Device {device_hash[:8]}... approved (from cache) and access granted for API key {api_key_id}")
-                return
+                return device_hash
             
             # Not in cache - check database
             device_record = await self.directus_service.get_api_key_device_by_hash(
@@ -236,6 +251,7 @@ class ApiKeyAuthService:
                     logger.warning(f"Failed to update device last_access timestamp: {e}")
                 
                 logger.debug(f"Device {device_hash[:8]}... approved and access granted for API key {api_key_id}")
+                return device_hash
             else:
                 # New device - create record (unapproved by default)
                 logger.info(f"New device detected for API key {api_key_id}: {device_hash[:8]}...")

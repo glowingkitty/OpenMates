@@ -97,8 +97,9 @@ Maintain the same response structure, tone, and content - only remove broken lin
         )
         
         # Extract the corrected response from function call result
-        if result.function_call_result:
-            corrected_response = result.function_call_result.get("assistant_response_corrected")
+        # LLMPreprocessingCallResult has 'arguments' field (Dict[str, Any]) containing the parsed function arguments
+        if result.arguments:
+            corrected_response = result.arguments.get("assistant_response_corrected")
             
             if corrected_response:
                 logger.info(
@@ -108,13 +109,19 @@ Maintain the same response structure, tone, and content - only remove broken lin
                 return corrected_response
             else:
                 logger.warning(
-                    f"[{task_id}] URL correction function call completed but 'assistant_response_corrected' not found in result"
+                    f"[{task_id}] URL correction function call completed but 'assistant_response_corrected' not found in result arguments"
                 )
                 return None
         else:
-            logger.warning(
-                f"[{task_id}] URL correction LLM call completed but no function call result"
-            )
+            # Check if there was an error
+            if result.error_message:
+                logger.warning(
+                    f"[{task_id}] URL correction LLM call failed: {result.error_message}"
+                )
+            else:
+                logger.warning(
+                    f"[{task_id}] URL correction LLM call completed but no function call arguments returned"
+                )
             return None
             
     except Exception as e:

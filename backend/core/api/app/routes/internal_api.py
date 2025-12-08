@@ -183,6 +183,8 @@ class UsageRecordPayload(BaseModel):
     chat_id: Optional[str] = None
     message_id: Optional[str] = None
     cost_details: Optional[Dict[str, Any]] = None # Raw, unencrypted data
+    api_key_hash: Optional[str] = None  # SHA-256 hash of API key for tracking
+    device_hash: Optional[str] = None  # SHA-256 hash of device for tracking
 
 @router.post("/usage/record")
 async def record_usage_route(
@@ -230,9 +232,12 @@ async def record_usage_route(
                 logger.error(f"Error fetching user profile for encryption: {e_profile}", exc_info=True)
                 raise HTTPException(status_code=500, detail="Failed to retrieve user encryption key")
         
-        # 1. Create encrypted usage entry (user-specific, private) - blocking
-        # The directus_service.usage.create_usage_entry handles encryption
-        # using the user vault key for privacy
+        # 1. Create usage entry (user-specific, private) - blocking
+        # The directus_service.usage.create_usage_entry stores cleartext app_id/skill_id/chat_id/message_id
+        # and encrypts sensitive fields (credits, tokens, model) using the user vault key
+        # Determine source: "chat" if chat_id is provided, otherwise "api_key" or "direct"
+        source = "chat" if payload.chat_id else "api_key"  # Default to "api_key" if no chat_id
+        
         usage_entry_id = await directus_service.usage.create_usage_entry(
             user_id_hash=payload.user_id_hash,
             app_id=payload.app_id,
@@ -244,11 +249,14 @@ async def record_usage_route(
             model_used=payload.model_used,
             chat_id=payload.chat_id,
             message_id=payload.message_id,
+            source=source,
             cost_system_prompt_credits=payload.cost_details.get("system_prompt_credits") if payload.cost_details else None,
             cost_history_credits=payload.cost_details.get("history_credits") if payload.cost_details else None,
             cost_response_credits=payload.cost_details.get("response_credits") if payload.cost_details else None,
             actual_input_tokens=payload.cost_details.get("input_tokens") if payload.cost_details else None,
             actual_output_tokens=payload.cost_details.get("output_tokens") if payload.cost_details else None,
+            api_key_hash=payload.api_key_hash,  # API key hash for tracking which API key created this usage
+            device_hash=payload.device_hash,  # Device hash for tracking which device created this usage
         )
         
         # 2. Write anonymous analytics entry (fire-and-forget, non-blocking)
@@ -282,6 +290,8 @@ class CreditChargePayload(BaseModel):
     app_id: str
     idempotency_key: Optional[str] = None
     usage_details: Optional[Dict[str, Any]] = None
+    api_key_hash: Optional[str] = None  # SHA-256 hash of API key for tracking
+    device_hash: Optional[str] = None  # SHA-256 hash of device for tracking
 
 @router.post("/billing/charge")
 async def charge_credits_route(
@@ -304,7 +314,9 @@ async def charge_credits_route(
             user_id_hash=payload.user_id_hash,
             app_id=payload.app_id,
             skill_id=payload.skill_id,
-            usage_details=payload.usage_details
+            usage_details=payload.usage_details,
+            api_key_hash=payload.api_key_hash,  # API key hash for tracking which API key created this usage
+            device_hash=payload.device_hash,  # Device hash for tracking which device created this usage
         )
         
         return {

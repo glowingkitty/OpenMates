@@ -17,6 +17,7 @@ from backend.core.api.app.tasks.celery_config import app # Import the Celery app
 from backend.core.api.app.routes.websockets import manager
 from backend.core.api.app.services.compliance import ComplianceService
 from backend.core.api.app.services.s3.service import S3UploadService
+from backend.core.api.app.services.s3.config import get_bucket_name
 from backend.core.api.app.services.limiter import limiter
 from fastapi.responses import StreamingResponse
 import hashlib
@@ -1527,15 +1528,39 @@ async def download_invoice(
 
         aes_nonce = invoice["aes_nonce"]
 
-        # Download encrypted file from S3
-        encrypted_pdf_data = await s3_service.get_file(
-            bucket_name="openmates-invoices",
-            object_key=s3_object_key
-        )
+        # Get the correct bucket name based on environment (dev vs production)
+        # This ensures we use 'dev-openmates-invoices' in development and 'openmates-invoices' in production
+        bucket_name = get_bucket_name('invoices', os.getenv('SERVER_ENVIRONMENT', 'development'))
+        logger.debug(f"Using bucket '{bucket_name}' for invoice download (environment: {os.getenv('SERVER_ENVIRONMENT', 'development')})")
 
+        # Download encrypted file from S3
+        # Note: get_file will raise HTTPException on errors (not return None) to prevent silent failures
+        try:
+            encrypted_pdf_data = await s3_service.get_file(
+                bucket_name=bucket_name,
+                object_key=s3_object_key
+            )
+        except HTTPException as e:
+            # Re-raise HTTPException from S3 service with more context
+            logger.error(
+                f"Failed to download invoice file from S3 for invoice {invoice_id}: "
+                f"bucket={bucket_name}, key={s3_object_key}, error={e.detail}"
+            )
+            raise HTTPException(
+                status_code=e.status_code,
+                detail=f"Failed to retrieve invoice file: {e.detail}"
+            )
+        
+        # Check if file was found (None is only returned for 404/NoSuchKey)
         if not encrypted_pdf_data:
-            logger.error(f"Failed to download invoice file from S3: {s3_object_key}")
-            raise HTTPException(status_code=500, detail="Failed to retrieve invoice file")
+            logger.error(
+                f"Invoice file not found in S3 for invoice {invoice_id}: "
+                f"bucket={bucket_name}, key={s3_object_key}"
+            )
+            raise HTTPException(
+                status_code=404,
+                detail=f"Invoice file not found in storage"
+            )
 
         # Decrypt the PDF content using AES
         from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes

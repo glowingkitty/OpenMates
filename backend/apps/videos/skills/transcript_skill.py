@@ -20,6 +20,11 @@ from celery import Celery  # For Celery type hinting
 from backend.apps.base_skill import BaseSkill
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 from backend.apps.ai.processing.skill_executor import sanitize_external_content
+from backend.shared.providers.youtube.youtube_metadata import get_video_metadata_batched
+from backend.core.api.app.services.creators.revenue_service import CreatorRevenueService
+from backend.core.api.app.services.directus import DirectusService
+from backend.core.api.app.utils.encryption import EncryptionService
+from backend.core.api.app.services.cache import CacheService
 
 # YouTube transcript API imports
 try:
@@ -591,12 +596,120 @@ class TranscriptSkill(BaseSkill):
             }
             
             logger.info(f"Transcript fetch (id: {request_id}) completed: video_id='{video_id}'")
+            
+            # Create creator income entry asynchronously (fire-and-forget)
+            # This doesn't block the skill response
+            try:
+                asyncio.create_task(
+                    self._create_creator_income_for_video(
+                        video_id=video_id,
+                        video_url=video_url,
+                        app_id=self.app_id,
+                        skill_id=self.skill_id,
+                        secrets_manager=secrets_manager
+                    )
+                )
+            except Exception as e:
+                # Log but don't fail - income tracking failure shouldn't break skill execution
+                logger.warning(f"Failed to create creator income entry for video '{video_id}': {e}")
+            
             return (request_id, [transcript_result], None)
             
         except Exception as e:
             error_msg = f"URL '{video_url}' (id: {request_id}): {str(e)}"
             logger.error(error_msg, exc_info=True)
             return (request_id, [], error_msg)
+    
+    async def _create_creator_income_for_video(
+        self,
+        video_id: str,
+        video_url: str,
+        app_id: str,
+        skill_id: str,
+        secrets_manager: SecretsManager
+    ) -> None:
+        """
+        Create creator income entry for a YouTube video.
+        
+        This method is called asynchronously (fire-and-forget) after successful transcript fetch.
+        It fetches the channel ID from video metadata, then creates a creator_income entry
+        with 10 credits reserved for the creator (50% of 20 credits total).
+        
+        Args:
+            video_id: The YouTube video ID
+            video_url: The original video URL
+            app_id: The app ID (e.g., 'videos')
+            skill_id: The skill ID (e.g., 'get_transcript')
+            secrets_manager: SecretsManager instance for YouTube API access
+        """
+        try:
+            # Fetch video metadata to get channel ID
+            # This uses the YouTube Data API which costs 1 quota unit per batch
+            try:
+                video_metadata = await get_video_metadata_batched(
+                    video_ids=[video_id],
+                    secrets_manager=secrets_manager,
+                    batch_size=1
+                )
+                
+                video_data = video_metadata.get(video_id)
+                if not video_data:
+                    logger.warning(f"Video metadata not found for video_id '{video_id}', skipping creator income creation")
+                    return
+                
+                snippet = video_data.get('snippet', {})
+                channel_id = snippet.get('channelId')
+                
+                if not channel_id:
+                    logger.warning(f"Channel ID not found in video metadata for video_id '{video_id}', skipping creator income creation")
+                    return
+                    
+            except ValueError as e:
+                # YouTube API key not available
+                logger.debug(f"YouTube API key not available for channel ID lookup: {e}. Skipping creator income creation.")
+                return
+            except Exception as e:
+                logger.warning(f"Error fetching video metadata for channel ID: {e}. Skipping creator income creation.")
+                return
+            
+            # Create services for creator revenue service
+            # These are created fresh for each async task (fire-and-forget)
+            cache_service = CacheService()
+            encryption_service = EncryptionService(cache_service=cache_service)
+            directus_service = DirectusService(
+                cache_service=cache_service,
+                encryption_service=encryption_service
+            )
+            
+            revenue_service = CreatorRevenueService(
+                directus_service=directus_service,
+                encryption_service=encryption_service
+            )
+            
+            # Revenue split: 10 credits to creator, 10 to OpenMates (50/50 split)
+            # Total cost is 20 credits per request
+            creator_credits = 10
+            
+            # Create income entry
+            # Use video_id as content_id (already extracted and normalized)
+            success = await revenue_service.create_income_entry(
+                owner_id=channel_id,
+                content_id=video_id,
+                content_type="video",
+                app_id=app_id,
+                skill_id=skill_id,
+                credits=creator_credits,
+                income_source="skill_usage"
+            )
+            
+            if success:
+                logger.debug(f"Created creator income entry for video: channel_id={channel_id}, video_id={video_id}, credits={creator_credits}")
+            else:
+                logger.warning(f"Failed to create creator income entry for video: channel_id={channel_id}, video_id={video_id}")
+                
+        except Exception as e:
+            # Log but don't raise - income tracking failure shouldn't break skill execution
+            logger.error(f"Error creating creator income entry for video '{video_id}': {e}", exc_info=True)
     
     async def execute(
         self,

@@ -4,9 +4,8 @@
 # 'usage' collection in Directus.
 
 import logging
-import hashlib
+import asyncio
 from typing import Dict, Any, Optional, List
-import json
 
 from backend.core.api.app.utils.encryption import EncryptionService
 
@@ -30,32 +29,39 @@ class UsageMethods:
         model_used: Optional[str] = None,
         chat_id: Optional[str] = None,
         message_id: Optional[str] = None,
+        source: str = "chat",  # "chat", "api_key", or "direct"
         cost_system_prompt_credits: Optional[int] = None,
         cost_history_credits: Optional[int] = None,
         cost_response_credits: Optional[int] = None,
         actual_input_tokens: Optional[int] = None,
         actual_output_tokens: Optional[int] = None,
+        api_key_hash: Optional[str] = None,  # SHA-256 hash of API key for tracking
+        device_hash: Optional[str] = None,  # SHA-256 hash of device for tracking
     ) -> Optional[str]:
         """
         Creates a new usage entry in Directus.
-        Encrypts fields that need to be protected.
+        Stores app_id, skill_id, chat_id, message_id in cleartext for performance and client-side matching.
+        Only encrypts sensitive fields (credits, tokens, model).
         
         Args:
             user_id_hash: Hashed user ID for privacy
-            app_id: ID of the app that was used (required, must not be empty)
-            skill_id: ID of the skill that was executed (required, must not be empty)
-            usage_type: Type of usage (e.g., "skill_execution", "chat_message")
+            app_id: ID of the app that was used (required, must not be empty, stored in cleartext)
+            skill_id: ID of the skill that was executed (required, must not be empty, stored in cleartext)
+            usage_type: Type of usage (e.g., "skill_execution", "api_call")
             timestamp: Unix timestamp in seconds
             credits_charged: Number of credits charged
             user_vault_key_id: ID of the user's vault key for encryption
-            model_used: Optional model identifier
-            chat_id: Optional chat ID (should be provided when skill is triggered in a chat)
-            message_id: Optional message ID (should be provided when skill is triggered from a message)
+            model_used: Optional model identifier (encrypted)
+            chat_id: Optional chat ID (stored in cleartext for client-side matching, should be provided for chat-based usage)
+            message_id: Optional message ID (stored in cleartext for client-side matching, should be provided for chat-based usage)
+            source: Source of usage - "chat" (default), "api_key", or "direct"
             cost_system_prompt_credits: Optional system prompt credit cost
             cost_history_credits: Optional history credit cost
             cost_response_credits: Optional response credit cost
-            actual_input_tokens: Optional input token count
-            actual_output_tokens: Optional output token count
+            actual_input_tokens: Optional input token count (only saved for AI Ask skill)
+            actual_output_tokens: Optional output token count (only saved for AI Ask skill)
+            api_key_hash: Optional SHA-256 hash of the API key that created this usage entry (for API key-based usage)
+            device_hash: Optional SHA-256 hash of the device that created this usage entry (for API key-based usage)
         """
         log_prefix = f"DirectusService ({self.collection}):"
         logger.info(f"{log_prefix} Creating new usage entry for user '{user_id_hash}' (app_id='{app_id}', skill_id='{skill_id}').")
@@ -74,26 +80,23 @@ class UsageMethods:
             app_id = app_id.strip()
             skill_id = skill_id.strip()
             
+            # Normalize source (default to "chat" if invalid)
+            if source not in ["chat", "api_key", "direct"]:
+                logger.warning(f"{log_prefix} Invalid source '{source}', defaulting to 'chat'")
+                source = "chat"
+            
+            # Normalize chat_id and message_id (strip if provided)
+            normalized_chat_id = chat_id.strip() if chat_id and isinstance(chat_id, str) and chat_id.strip() else None
+            normalized_message_id = message_id.strip() if message_id and isinstance(message_id, str) and message_id.strip() else None
+            
+            # Validate: If source is "chat", chat_id should be provided
+            if source == "chat" and not normalized_chat_id:
+                logger.warning(f"{log_prefix} Source is 'chat' but chat_id is missing. Entry will be created without chat_id.")
+            
             # Encryption key is the user vault key for usage entries
             encryption_key_id = user_vault_key_id
 
-            # Encrypt sensitive metadata fields for privacy
-            # Server admins should not be able to see which apps/skills/models users are using
-            encrypted_app_id_tuple = await self.encryption_service.encrypt_with_user_key(
-                key_id=encryption_key_id, plaintext=app_id
-            )
-            encrypted_skill_id_tuple = await self.encryption_service.encrypt_with_user_key(
-                key_id=encryption_key_id, plaintext=skill_id
-            )
-            
-            encrypted_app_id = encrypted_app_id_tuple[0] if encrypted_app_id_tuple else None
-            encrypted_skill_id = encrypted_skill_id_tuple[0] if encrypted_skill_id_tuple else None
-            
-            if not encrypted_app_id or not encrypted_skill_id:
-                logger.error(f"{log_prefix} Failed to encrypt app_id or skill_id. Aborting usage entry creation.")
-                return None
-            
-            # Encrypt model_used if provided
+            # Encrypt model_used if provided (sensitive field)
             encrypted_model_used = None
             if model_used:
                 encrypted_model_used_tuple = await self.encryption_service.encrypt_with_user_key(
@@ -101,57 +104,72 @@ class UsageMethods:
                 )
                 encrypted_model_used = encrypted_model_used_tuple[0] if encrypted_model_used_tuple else None
 
-            # Hash chat_id and message_id (SHA-256, one-way) for linking without exposing actual IDs
-            # This allows users to match their usage entries later while protecting privacy
-            # Only hash if chat_id/message_id are provided and non-empty
-            hashed_chat_id = None
-            hashed_message_id = None
+            # CRITICAL: Only save tokens for AI Ask skill (app_id='ai', skill_id='ask')
+            # Other skills don't use LLM tokens directly, so storing tokens is incorrect
+            should_save_tokens = (app_id == "ai" and skill_id == "ask")
             
-            if chat_id and isinstance(chat_id, str) and chat_id.strip():
-                hashed_chat_id = hashlib.sha256(chat_id.strip().encode()).hexdigest()
-                logger.debug(f"{log_prefix} Hashed chat_id for usage entry (length: {len(hashed_chat_id)})")
-            
-            if message_id and isinstance(message_id, str) and message_id.strip():
-                hashed_message_id = hashlib.sha256(message_id.strip().encode()).hexdigest()
-                logger.debug(f"{log_prefix} Hashed message_id for usage entry (length: {len(hashed_message_id)})")
+            if actual_input_tokens is not None or actual_output_tokens is not None:
+                if not should_save_tokens:
+                    logger.warning(
+                        f"{log_prefix} Tokens provided for non-AI-Ask skill (app_id='{app_id}', skill_id='{skill_id}'). "
+                        f"Tokens will not be saved. Only AI Ask skill should have tokens."
+                    )
+                    actual_input_tokens = None
+                    actual_output_tokens = None
 
-            # Encrypt credit and token fields
+            # Encrypt credit and token fields (only tokens if AI Ask skill)
             encrypted_credits_costs_total_tuple = await self.encryption_service.encrypt_with_user_key(
                 key_id=encryption_key_id, plaintext=str(credits_charged)
             )
-            encrypted_input_tokens_tuple = await self.encryption_service.encrypt_with_user_key(
-                key_id=encryption_key_id, plaintext=str(actual_input_tokens)
-            ) if actual_input_tokens is not None else (None, None)
-            encrypted_output_tokens_tuple = await self.encryption_service.encrypt_with_user_key(
-                key_id=encryption_key_id, plaintext=str(actual_output_tokens)
-            ) if actual_output_tokens is not None else (None, None)
+            
+            encrypted_input_tokens = None
+            encrypted_output_tokens = None
+            if should_save_tokens:
+                if actual_input_tokens is not None:
+                    encrypted_input_tokens_tuple = await self.encryption_service.encrypt_with_user_key(
+                        key_id=encryption_key_id, plaintext=str(actual_input_tokens)
+                    )
+                    encrypted_input_tokens = encrypted_input_tokens_tuple[0] if encrypted_input_tokens_tuple else None
+                
+                if actual_output_tokens is not None:
+                    encrypted_output_tokens_tuple = await self.encryption_service.encrypt_with_user_key(
+                        key_id=encryption_key_id, plaintext=str(actual_output_tokens)
+                    )
+                    encrypted_output_tokens = encrypted_output_tokens_tuple[0] if encrypted_output_tokens_tuple else None
 
             encrypted_credits_costs_total = encrypted_credits_costs_total_tuple[0] if encrypted_credits_costs_total_tuple else None
-            encrypted_input_tokens = encrypted_input_tokens_tuple[0] if encrypted_input_tokens_tuple else None
-            encrypted_output_tokens = encrypted_output_tokens_tuple[0] if encrypted_output_tokens_tuple else None
 
             if not encrypted_credits_costs_total:
                 logger.error(f"{log_prefix} Failed to encrypt total credits. Aborting usage entry creation.")
                 return None
 
-            # Build payload with encrypted/hashed fields
+            # Build payload with cleartext app_id, skill_id, chat_id, message_id for performance and client-side matching
             payload = {
                 "user_id_hash": user_id_hash,
-                "encrypted_app_id": encrypted_app_id,
-                "encrypted_skill_id": encrypted_skill_id,
+                "app_id": app_id,  # Cleartext - not personally identifiable
+                "skill_id": skill_id,  # Cleartext - not personally identifiable
                 "type": usage_type,
+                "source": source,  # "chat", "api_key", or "direct"
                 "created_at": timestamp,
                 "updated_at": timestamp,
                 "encrypted_credits_costs_total": encrypted_credits_costs_total,
             }
             
-            # Add optional encrypted/hashed fields
+            # Add optional cleartext fields (for client-side matching with IndexedDB)
+            if normalized_chat_id:
+                payload["chat_id"] = normalized_chat_id
+            if normalized_message_id:
+                payload["message_id"] = normalized_message_id
+            
+            # Add optional API key and device tracking fields (for API key-based usage)
+            if api_key_hash:
+                payload["api_key_hash"] = api_key_hash
+            if device_hash:
+                payload["device_hash"] = device_hash
+            
+            # Add optional encrypted fields
             if encrypted_model_used:
                 payload["encrypted_model_used"] = encrypted_model_used
-            if hashed_chat_id:
-                payload["hashed_chat_id"] = hashed_chat_id
-            if hashed_message_id:
-                payload["hashed_message_id"] = hashed_message_id
             if encrypted_input_tokens:
                 payload["encrypted_input_tokens"] = encrypted_input_tokens
             if encrypted_output_tokens:
@@ -170,3 +188,171 @@ class UsageMethods:
         except Exception as e:
             logger.error(f"{log_prefix} Error creating usage entry: {e}", exc_info=True)
             return None
+
+    async def get_user_usage_entries(
+        self,
+        user_id_hash: str,
+        user_vault_key_id: str,
+        limit: Optional[int] = None,
+        offset: Optional[int] = None,
+        sort: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
+        """
+        Fetches usage entries for a user and decrypts encrypted fields.
+        
+        Args:
+            user_id_hash: Hashed user ID to filter usage entries
+            user_vault_key_id: User's vault key ID for decryption
+            limit: Optional limit for pagination
+            offset: Optional offset for pagination
+            sort: Optional sort field (e.g., "-created_at" for descending)
+            
+        Returns:
+            List of decrypted usage entries
+        """
+        log_prefix = f"DirectusService ({self.collection}):"
+        logger.info(f"{log_prefix} Fetching usage entries for user '{user_id_hash}'")
+        
+        try:
+            # Build query parameters - don't use sort parameter due to Directus permission issues
+            # We'll sort client-side instead to avoid 403 errors
+            # Fetch more entries than needed for pagination (we'll sort and slice client-side)
+            # Use a reasonable max limit to avoid fetching too much data
+            fetch_limit = (limit or 10) * 2 if limit else 100  # Fetch 2x the requested limit for sorting buffer
+            params = {
+                "filter": {
+                    "user_id_hash": {
+                        "_eq": user_id_hash
+                    }
+                },
+                "fields": "*",
+                "limit": min(fetch_limit, 1000)  # Cap at 1000 to avoid performance issues
+            }
+            
+            # Note: Not using sort parameter in Directus query due to permission issues
+            # We'll sort client-side after fetching and decrypting
+            # Also not using offset in Directus query - we'll apply it after sorting
+            
+            # Fetch usage entries from Directus using the SDK's get_items method
+            entries = await self.sdk.get_items(self.collection, params=params, no_cache=True)
+            
+            if not entries:
+                logger.info(f"{log_prefix} No usage entries found for user '{user_id_hash}'")
+                return []
+            
+            # Process entries: Use cleartext fields directly, decrypt only encrypted fields
+            # OPTIMIZATION: Decrypt all encrypted fields in parallel using asyncio.gather() to reduce latency
+            async def process_entry(entry: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+                """Process a single usage entry: use cleartext fields, decrypt encrypted fields in parallel"""
+                try:
+                    # Use cleartext fields directly (no backward compatibility)
+                    processed_entry = {
+                        "id": entry.get("id"),
+                        "type": entry.get("type"),
+                        "source": entry.get("source", "chat"),
+                        "created_at": entry.get("created_at"),
+                        "updated_at": entry.get("updated_at"),
+                        "app_id": entry.get("app_id"),  # Cleartext - always available for new entries
+                        "skill_id": entry.get("skill_id"),  # Cleartext - always available for new entries
+                        "chat_id": entry.get("chat_id"),  # Cleartext - for client-side matching
+                        "message_id": entry.get("message_id"),  # Cleartext - for client-side matching
+                        "api_key_hash": entry.get("api_key_hash"),  # Cleartext - API key hash for tracking (nullable)
+                        "device_hash": entry.get("device_hash"),  # Cleartext - device hash for tracking (nullable)
+                    }
+                    
+                    # Collect all decryption tasks for encrypted fields only
+                    decrypt_tasks = {}
+                    
+                    # Decrypt encrypted fields (credits, tokens, model)
+                    encrypted_model_used = entry.get("encrypted_model_used")
+                    if encrypted_model_used:
+                        decrypt_tasks["model_used"] = self.encryption_service.decrypt_with_user_key(
+                            encrypted_model_used, user_vault_key_id
+                        )
+                    
+                    encrypted_credits = entry.get("encrypted_credits_costs_total")
+                    if encrypted_credits:
+                        decrypt_tasks["credits"] = self.encryption_service.decrypt_with_user_key(
+                            encrypted_credits, user_vault_key_id
+                        )
+                    
+                    encrypted_input_tokens = entry.get("encrypted_input_tokens")
+                    if encrypted_input_tokens:
+                        decrypt_tasks["input_tokens"] = self.encryption_service.decrypt_with_user_key(
+                            encrypted_input_tokens, user_vault_key_id
+                        )
+                    
+                    encrypted_output_tokens = entry.get("encrypted_output_tokens")
+                    if encrypted_output_tokens:
+                        decrypt_tasks["output_tokens"] = self.encryption_service.decrypt_with_user_key(
+                            encrypted_output_tokens, user_vault_key_id
+                        )
+                    
+                    # Execute all decryptions in parallel for this entry
+                    if decrypt_tasks:
+                        results = await asyncio.gather(*decrypt_tasks.values(), return_exceptions=True)
+                        
+                        # Process results
+                        for i, (field_name, result) in enumerate(zip(decrypt_tasks.keys(), results)):
+                            if isinstance(result, Exception):
+                                logger.warning(f"{log_prefix} Failed to decrypt {field_name} for entry {entry.get('id')}: {result}")
+                                continue
+                            
+                            if result:
+                                if field_name == "credits":
+                                    try:
+                                        processed_entry["credits"] = int(result)
+                                    except ValueError:
+                                        logger.warning(f"{log_prefix} Invalid credits value: {result}")
+                                        processed_entry["credits"] = 0
+                                elif field_name in ["input_tokens", "output_tokens"]:
+                                    try:
+                                        processed_entry[field_name] = int(result) if result else None
+                                    except ValueError:
+                                        processed_entry[field_name] = None
+                                else:
+                                    processed_entry[field_name] = result
+                    
+                    # Ensure credits is always set (default to 0 if missing)
+                    if "credits" not in processed_entry:
+                        processed_entry["credits"] = 0
+                    
+                    return processed_entry
+                    
+                except Exception as e:
+                    logger.error(f"{log_prefix} Error decrypting usage entry {entry.get('id')}: {e}", exc_info=True)
+                    return None
+            
+            # Process all entries in parallel (each entry's encrypted fields are decrypted in parallel)
+            processing_results = await asyncio.gather(
+                *[process_entry(entry) for entry in entries],
+                return_exceptions=True
+            )
+            
+            # Filter out None results (failed processing)
+            processed_entries = [
+                result for result in processing_results
+                if result is not None and not isinstance(result, Exception)
+            ]
+            
+            logger.debug(f"{log_prefix} Processed {len(processed_entries)}/{len(entries)} entries successfully")
+            
+            # Sort client-side by created_at descending (newest first)
+            # This avoids Directus permission issues with sort parameter
+            processed_entries.sort(key=lambda x: x.get("created_at", 0), reverse=True)
+            
+            # Apply pagination after sorting (if limit/offset were specified)
+            # Note: For efficiency, we should ideally sort in Directus, but due to permission issues
+            # we sort client-side. For large datasets, consider increasing the limit or implementing
+            # server-side cursor-based pagination.
+            if limit or offset:
+                start_idx = offset or 0
+                end_idx = start_idx + (limit or len(processed_entries))
+                processed_entries = processed_entries[start_idx:end_idx]
+            
+            logger.info(f"{log_prefix} Successfully fetched and processed {len(processed_entries)} usage entries (sorted and paginated client-side)")
+            return processed_entries
+            
+        except Exception as e:
+            logger.error(f"{log_prefix} Error fetching usage entries: {e}", exc_info=True)
+            return []

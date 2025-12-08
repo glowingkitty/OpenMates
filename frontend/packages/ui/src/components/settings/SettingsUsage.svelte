@@ -160,7 +160,8 @@ Usage Settings - View usage statistics and export usage data
         if (sortOption === 'last_edited') {
             sorted.sort((a, b) => b.updated_at - a.updated_at);
         } else if (sortOption === 'most_expensive') {
-            sorted.sort((a, b) => b.credits - a.credits);
+            // Handle undefined credits by treating them as 0
+            sorted.sort((a, b) => (b.credits ?? 0) - (a.credits ?? 0));
         }
         
         return sorted;
@@ -388,10 +389,23 @@ Usage Settings - View usage statistics and export usage data
     });
 
     // Process and group usage data for display
-    const processedUsage = $derived(() => {
+    const processedUsage = $derived.by(() => {
+        console.log('Processing usage entries:', {
+            totalEntries: usageEntries.length,
+            activeTab,
+            timeGrouping,
+            sortOption
+        });
+        
         const filtered = filterByTab(usageEntries);
+        console.log('Filtered entries:', filtered.length);
+        
         const sorted = sortEntries(filtered);
+        console.log('Sorted entries:', sorted.length);
+        
         const grouped = groupByTime(sorted);
+        console.log('Grouped entries:', Object.keys(grouped).length, 'groups');
+        console.log('Grouped data:', grouped);
         
         // Calculate totals for each group
         const groupsWithTotals: Record<string, { entries: UsageEntry[], total: number }> = {};
@@ -402,6 +416,7 @@ Usage Settings - View usage statistics and export usage data
             };
         });
         
+        console.log('Final processedUsage:', groupsWithTotals);
         return groupsWithTotals;
     });
 
@@ -544,7 +559,15 @@ Usage Settings - View usage statistics and export usage data
     </div>
 {:else}
     <!-- Main usage view grouped by time -->
-    {#each Object.entries(processedUsage) as [timePeriod, { entries, total }]}
+    {@const processedEntries = Object.entries(processedUsage)}
+    {#if processedEntries.length === 0 && usageEntries.length > 0}
+        <div class="empty-state">
+            <div class="empty-icon"></div>
+            <h4>{$text('settings.usage.no_usage_title.text')}</h4>
+            <p>No entries match the current filter. Try switching tabs.</p>
+        </div>
+    {:else}
+        {#each processedEntries as [timePeriod, { entries, total }]}
         <div class="time-group">
             <div class="time-header">
                 <h4 class="time-title">{timePeriod}</h4>
@@ -585,7 +608,8 @@ Usage Settings - View usage statistics and export usage data
                 {/if}
             {/each}
         </div>
-    {/each}
+        {/each}
+    {/if}
     
     <!-- Pagination controls -->
     {#if totalPages > 1}

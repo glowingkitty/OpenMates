@@ -512,7 +512,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             if (stateChanged) {
                 const wasActive = previousPipState?.isActive || false;
                 
-                // When entering PiP: move iframe wrapper to PiP container
+                // When entering PiP: move iframe wrapper to PiP container IMMEDIATELY
+                // This must happen synchronously to prevent cleanup in VideoEmbedFullscreen
                 if (state.isActive && state.iframeWrapperElement && pipContainerRef && !wasActive) {
                     const iframeWrapper = state.iframeWrapperElement;
                     
@@ -527,10 +528,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             iframeWrapper.classList.add('video-iframe-wrapper');
                         }
                         
-                        // Move iframe wrapper to PiP container
+                        // Move iframe wrapper to PiP container IMMEDIATELY
+                        // This must happen before VideoEmbedFullscreen's cleanup runs
                         pipContainerRef.appendChild(iframeWrapper);
                         
-                        console.debug('[ActiveChat] Moved iframe to PiP container');
+                        console.debug('[ActiveChat] Moved iframe to PiP container immediately');
                     }
                 }
                 
@@ -581,8 +583,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         
         // Restore iframe wrapper to its original position before opening fullscreen
         // This ensures the iframe is in the right place when VideoEmbedFullscreen mounts
+        // The VideoIframe component will find it there and reuse it
         if (originalIframeParent) {
-            // Reset styles
+            // Reset any styles that might have been applied
             iframeWrapper.style.position = '';
             iframeWrapper.style.top = '';
             iframeWrapper.style.left = '';
@@ -597,14 +600,14 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 originalIframeParent.appendChild(iframeWrapper);
             }
             
-            console.debug('[ActiveChat] Restored iframe to original position');
+            console.debug('[ActiveChat] Restored iframe wrapper to original position');
         }
         
         // Exit PiP mode
         videoPipStore.exitPip();
         
         // Open fullscreen with the same video data
-        // The VideoEmbedFullscreen component will reuse the existing iframe
+        // VideoEmbedFullscreen will render VideoIframe, which will find the existing iframe wrapper
         embedFullscreenData = {
             embedType: 'videos-video',
             decodedContent: {
@@ -619,7 +622,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             },
             // Flag to indicate this is a restore from PiP
             restoreFromPip: true,
-            // Pass iframe references so component can reuse them
+            // Pass iframe references so VideoIframe can reuse them
             iframeElement: currentState.iframeElement,
             iframeWrapperElement: iframeWrapper
         };
@@ -2978,23 +2981,25 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             {/if}
             
             <!-- Video Picture-in-Picture display (top right corner) -->
-            <!-- The iframe wrapper is moved here from VideoEmbedFullscreen, not recreated -->
-            {#if videoPipState.isActive && videoPipState.iframeWrapperElement}
-                <div 
-                    class="video-pip-container" 
-                    bind:this={pipContainerRef}
-                    onclick={handlePipClick} 
-                    role="button" 
-                    tabindex="0" 
-                    onkeydown={(e) => e.key === 'Enter' && handlePipClick()}
-                >
-                    <!-- The iframe wrapper will be moved here via DOM manipulation -->
+            <!-- Keep container always mounted so ref is available immediately -->
+            <!-- The iframe wrapper from VideoIframe will be moved here via DOM manipulation -->
+            <div 
+                class="video-pip-container"
+                class:visible={videoPipState?.isActive}
+                bind:this={pipContainerRef}
+                onclick={handlePipClick} 
+                role="button" 
+                tabindex="0" 
+                onkeydown={(e) => e.key === 'Enter' && handlePipClick()}
+            >
+                {#if videoPipState?.isActive && videoPipState?.iframeWrapperElement}
+                    <!-- The iframe wrapper is moved here from VideoIframe component -->
                     <!-- Click overlay to restore fullscreen -->
                     <div class="video-pip-overlay">
                         <div class="video-pip-hint">Click to restore fullscreen</div>
                     </div>
-                </div>
-            {/if}
+                {/if}
+            </div>
             
             <KeyboardShortcuts
                 on:newChat={handleNewChatClick}
@@ -3348,6 +3353,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
         background-color: var(--color-grey-15);
         transition: all 0.3s ease-in-out;
+        display: none; /* hidden by default */
+        pointer-events: none;
+    }
+
+    .video-pip-container.visible {
+        display: block;
+        pointer-events: auto;
     }
     
     .video-pip-container:hover {
@@ -3357,7 +3369,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     
     /* The iframe wrapper is moved here from VideoEmbedFullscreen */
     /* It will be positioned absolutely within the container */
-    .video-pip-container > .video-iframe-wrapper {
+    .video-pip-container :global(.video-iframe-wrapper) {
         position: absolute;
         top: 0;
         left: 0;

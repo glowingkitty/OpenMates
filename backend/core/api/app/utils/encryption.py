@@ -15,6 +15,9 @@ logger = logging.getLogger(__name__)
 
 # Vault transit key name for email HMAC
 EMAIL_HMAC_KEY_NAME = "email-hmac-key"
+# Vault transit key name for creator income encryption
+# This is a system-level key used to encrypt creator income credit amounts
+CREATOR_INCOME_ENCRYPTION_KEY = "creator_income"
 # Note: All chat and draft encryption now happens client-side
 # Server-side encryption methods removed for zero-knowledge architecture
 
@@ -369,6 +372,48 @@ class EncryptionService:
         except Exception as e:
             logger.error(f"Failed to ensure shared content metadata key exists: {str(e)}")
             raise Exception(f"Failed to initialize shared content metadata key: {str(e)}")
+
+        # --- Ensure CREATOR_INCOME_ENCRYPTION_KEY exists in transit engine ---
+        # This key is used for encrypting creator income credit amounts for privacy
+        try:
+            logger.debug(f"Checking for creator income encryption key '{CREATOR_INCOME_ENCRYPTION_KEY}' in transit engine...")
+            key_exists = False
+            try:
+                # Check if key exists by attempting to read its configuration
+                response = await self._vault_request("get", f"{self.transit_mount}/keys/{CREATOR_INCOME_ENCRYPTION_KEY}")
+                # If the response has data (not just the default {"data": {}} from 404 handling), the key exists.
+                if response and response.get("data") and response["data"].get("name") == CREATOR_INCOME_ENCRYPTION_KEY:
+                    key_exists = True
+                    logger.debug(f"Creator income encryption key '{CREATOR_INCOME_ENCRYPTION_KEY}' already exists.")
+                else:
+                    # This case handles 404 or unexpected empty data
+                    logger.debug(f"Creator income encryption key '{CREATOR_INCOME_ENCRYPTION_KEY}' not found.")
+            except Exception as e:
+                 # Log error during check, but proceed assuming key might not exist
+                 logger.warning(f"Error checking for creator income encryption key '{CREATOR_INCOME_ENCRYPTION_KEY}': {str(e)}. Assuming it might not exist.")
+                 key_exists = False # Ensure we try to create if check failed
+
+            # If key does not exist, create it
+            if not key_exists:
+                 logger.debug(f"Attempting to create creator income encryption key '{CREATOR_INCOME_ENCRYPTION_KEY}'...")
+                 try:
+                     # Create the key (non-derived, since it's a system-level key for all creator income)
+                     await self._vault_request("post", f"{self.transit_mount}/keys/{CREATOR_INCOME_ENCRYPTION_KEY}", {
+                         "type": "aes256-gcm96", # AES with GCM mode for authenticated encryption
+                         "allow_plaintext_backup": False # Good practice
+                     })
+                     logger.debug(f"Successfully created creator income encryption key '{CREATOR_INCOME_ENCRYPTION_KEY}'.")
+                 except Exception as create_error:
+                     # Handle potential race condition if another instance created it
+                     if "already exists" in str(create_error).lower():
+                         logger.debug(f"Creator income encryption key '{CREATOR_INCOME_ENCRYPTION_KEY}' was created by another process.")
+                     else:
+                         logger.error(f"Failed to create creator income encryption key '{CREATOR_INCOME_ENCRYPTION_KEY}': {str(create_error)}")
+                         raise Exception(f"Failed to initialize creator income encryption key: {str(create_error)}")
+
+        except Exception as e:
+            logger.error(f"Failed to ensure creator income encryption key exists: {str(e)}")
+            raise Exception(f"Failed to initialize creator income encryption key: {str(e)}")
 
     # Removed get_email_hash_key method
 

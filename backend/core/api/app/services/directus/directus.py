@@ -94,7 +94,8 @@ class DirectusService:
         
         # For sensitive collections like directus_users, ensure we use admin token
         # user_passkeys contains user_id which requires admin permissions
-        sensitive_collections = ['directus_users', 'directus_roles', 'directus_permissions', 'user_passkeys']
+        # usage collection contains encrypted user data and requires admin permissions
+        sensitive_collections = ['directus_users', 'directus_roles', 'directus_permissions', 'user_passkeys', 'usage']
         
         if collection in sensitive_collections:
             # Ensure we have a valid admin token for sensitive collections
@@ -123,8 +124,18 @@ class DirectusService:
         if "filter" in current_params and isinstance(current_params["filter"], dict):
             current_params["filter"] = json.dumps(current_params["filter"])
         
-        if "sort" in current_params and isinstance(current_params["sort"], list):
-            current_params["sort"] = json.dumps(current_params["sort"])
+        # Directus accepts sort as a string for single field sorting
+        # For multiple fields, Directus expects comma-separated string or multiple sort[] parameters
+        # Never JSON-encode sort as an array - Directus doesn't handle that format in query strings
+        if "sort" in current_params:
+            # Ensure sort is always a string, never a list or other type
+            if isinstance(current_params["sort"], list):
+                # Convert list to comma-separated string (Directus format for multiple sorts)
+                current_params["sort"] = ",".join(str(s) for s in current_params["sort"])
+            else:
+                # Ensure it's a string (convert if needed)
+                current_params["sort"] = str(current_params["sort"])
+            logger.debug(f"Directus get_items sort parameter: '{current_params['sort']}' (type: {type(current_params['sort']).__name__})")
         
         # _make_api_request returns an httpx.Response object.
         response_obj = await self._make_api_request("GET", url, headers=headers, params=current_params)
@@ -147,6 +158,17 @@ class DirectusService:
                 else:
                     logger.warning(f"Directus get_items for '{collection}': Unexpected JSON structure. Response JSON: {response_json}")
                     return []
+            elif response_obj.status_code == 403:
+                # Log detailed error for 403 Forbidden
+                try:
+                    error_json = response_obj.json()
+                    error_detail = error_json.get("errors", [{}])[0].get("message", "Unknown permission error")
+                    logger.error(f"Directus get_items for '{collection}': Permission denied (403). Error: {error_detail}. Params: {current_params}")
+                    # Log the actual URL that was requested for debugging
+                    logger.error(f"Directus get_items for '{collection}': Request URL would be: {url}?{chr(38).join(f'{k}={v}' for k, v in current_params.items())}")
+                except:
+                    logger.error(f"Directus get_items for '{collection}': Permission denied (403). Response text: {response_obj.text[:500]}")
+                return []
             else:
                 logger.warning(f"Directus get_items for '{collection}' failed with status {response_obj.status_code}. Response text: {response_obj.text[:200]}")
                 return []
@@ -671,12 +693,13 @@ class DirectusService:
             logger.error(f"Exception deleting API key {api_key_id}: {e}", exc_info=True)
             return False
 
-    async def update_api_key_last_used(self, key_hash: str) -> bool:
+    async def update_api_key_last_used(self, key_hash: str, last_used_at: Optional[str] = None) -> bool:
         """
         Updates the last_used_at timestamp for an API key.
         
         Args:
             key_hash: SHA-256 hash of the API key
+            last_used_at: Optional ISO timestamp to set; defaults to current UTC time
             
         Returns:
             True if updated successfully, False otherwise
@@ -693,11 +716,14 @@ class DirectusService:
                 logger.error(f"API key record missing ID: {key_hash[:16]}...")
                 return False
             
-            # Update last_used_at
-            update_data = {
-                "last_used_at": datetime.now(timezone.utc).isoformat()
-            }
+            # Use provided timestamp or generate current UTC time
+            timestamp = last_used_at or datetime.now(timezone.utc).isoformat()
+            update_data = {"last_used_at": timestamp}
             updated = await self._update_item("api_keys", api_key_id, update_data)
+            if updated:
+                logger.debug(f"Updated api_key {api_key_id} last_used_at -> {timestamp}")
+            else:
+                logger.warning(f"Failed to update last_used_at for api_key {api_key_id}")
             return updated is not None
         except Exception as e:
             logger.error(f"Exception updating API key last_used_at for hash {key_hash[:16]}...: {e}", exc_info=True)

@@ -342,7 +342,9 @@ async def charge_credits_via_internal_api(
     credits: int,
     app_id: str,
     skill_id: str,
-    usage_details: Optional[Dict[str, Any]] = None
+    usage_details: Optional[Dict[str, Any]] = None,
+    api_key_hash: Optional[str] = None,  # SHA-256 hash of API key for tracking
+    device_hash: Optional[str] = None,  # SHA-256 hash of device for tracking
 ) -> None:
     """
     Charge credits via the internal billing API.
@@ -355,6 +357,8 @@ async def charge_credits_via_internal_api(
         app_id: ID of the app that executed the skill
         skill_id: ID of the skill that was executed
         usage_details: Optional additional usage metadata
+        api_key_hash: Optional SHA-256 hash of the API key that created this usage entry
+        device_hash: Optional SHA-256 hash of the device that created this usage entry
     """
     if credits <= 0:
         logger.debug(f"Skipping credit charge for user {user_id} - credits is {credits}")
@@ -366,7 +370,9 @@ async def charge_credits_via_internal_api(
         "credits": credits,
         "skill_id": skill_id,
         "app_id": app_id,
-        "usage_details": usage_details or {}
+        "usage_details": usage_details or {},
+        "api_key_hash": api_key_hash,  # API key hash for tracking
+        "device_hash": device_hash,  # Device hash for tracking
     }
     
     headers = {"Content-Type": "application/json"}
@@ -954,7 +960,9 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                                     credits=credits_charged,
                                     app_id=captured_app_id,
                                     skill_id=captured_skill.id,
-                                    usage_details=usage_details
+                                    usage_details=usage_details,
+                                    api_key_hash=user_info.get('api_key_hash'),  # API key hash for tracking
+                                    device_hash=user_info.get('device_hash'),  # Device hash for tracking
                                 )
                             
                             # Parse result into the skill's response model for proper typing
@@ -1038,7 +1046,9 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                                     credits=credits_charged,
                                     app_id=captured_app_id,
                                     skill_id=captured_skill.id,
-                                    usage_details=usage_details
+                                    usage_details=usage_details,
+                                    api_key_hash=user_info.get('api_key_hash'),  # API key hash for tracking
+                                    device_hash=user_info.get('device_hash'),  # Device hash for tracking
                                 )
                             
                             return SkillResponse(
@@ -1116,7 +1126,9 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                                     credits=credits_charged,
                                     app_id=captured_app_id,
                                     skill_id=captured_skill.id,
-                                    usage_details=usage_details
+                                    usage_details=usage_details,
+                                    api_key_hash=user_info.get('api_key_hash'),  # API key hash for tracking
+                                    device_hash=user_info.get('device_hash'),  # Device hash for tracking
                                 )
                             
                             return SkillResponse(

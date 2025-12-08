@@ -113,11 +113,17 @@ async def invoke_cerebras_api(
                 logger.debug(f"{log_prefix} Tool {idx + 1} full definition: {json.dumps(tool, indent=2)}")
             
             if tool_choice:
+                # Cerebras API expects literal strings: "none", "auto", or "required"
+                # OR a ChoiceObject with {"type": "function", "function": {"name": "function_name"}}
+                # For "required", use the string directly (simplest and most compatible)
                 if tool_choice == "required":
-                    payload["tool_choice"] = {"type": "function"}
+                    payload["tool_choice"] = "required"
                 elif tool_choice == "auto":
                     payload["tool_choice"] = "auto"
+                elif tool_choice == "none":
+                    payload["tool_choice"] = "none"
                 else:
+                    # For specific function selection, pass as-is (should be ChoiceObject format)
                     payload["tool_choice"] = tool_choice
             logger.info(f"{log_prefix} Tool choice: {payload.get('tool_choice', 'not set')}")
     

@@ -238,16 +238,24 @@ export class EmbedStore {
     // This enables efficient filtering without decrypting all embeds
     const appMetadata = await this.extractAppMetadata(dataToStore, type);
 
+    // Store fields separately instead of JSON string in data field
+    // For put(), encrypted_content contains master-key-encrypted JSON (different from putEncrypted which uses embed_key)
     const entry: EmbedStoreEntry = {
       contentRef,
-      // Always store a plain string (either encrypted or plaintext) to avoid IndexedDB cloning errors
-      data: encryptedData || dataString,
+      // DEPRECATED: data field kept for backward compatibility during migration
+      // New embeds should use encrypted_content field below
+      data: encryptedData || dataString, // Keep for backward compatibility
+      
       type,
-      createdAt: Date.now(),
+      createdAt: Date.now(), // For put(), we don't have server timestamps
       updatedAt: Date.now(),
+      
       // Store app metadata unencrypted in IndexedDB only (for efficient querying)
       app_id: appMetadata.app_id,
-      skill_id: appMetadata.skill_id
+      skill_id: appMetadata.skill_id,
+      
+      // Store encrypted content separately (master-key-encrypted JSON string)
+      encrypted_content: encryptedData || dataString
     };
 
     // Store in memory cache
@@ -283,6 +291,10 @@ export class EmbedStore {
   /**
    * Put embed into the store WITHOUT encryption (for synced embeds already client-encrypted)
    * Use this for embeds from sync that are already encrypted (same pattern as messages)
+   * 
+   * NEW: Stores fields separately in IndexedDB instead of JSON string in data field
+   * This enables better querying, indexing, and preserves server timestamps
+   * 
    * @param contentRef - The embed reference key (e.g., embed:{embed_id})
    * @param encryptedData - The already-encrypted embed data object
    * @param type - The type of embed content
@@ -296,10 +308,6 @@ export class EmbedStore {
     plaintextContent?: string,
     preExtractedMetadata?: { app_id?: string; skill_id?: string }
   ): Promise<void> {
-    // Store the encrypted data directly without re-encrypting
-    // This matches the pattern used for messages during sync
-    const dataString = JSON.stringify(encryptedData);
-    
     // Extract app_id and skill_id from plaintext content if provided, otherwise try to decrypt
     // For app_skill_use embeds, we extract metadata to enable efficient filtering in IndexedDB
     let appMetadata: { app_id?: string; skill_id?: string } = {};
@@ -353,16 +361,44 @@ export class EmbedStore {
       }
     }
     
+    // Extract server-provided timestamps if available, otherwise use current time
+    // CRITICAL: Preserve server timestamps instead of overwriting with Date.now()
+    const createdAt = encryptedData.createdAt ?? encryptedData.created_at ?? Date.now();
+    const updatedAt = encryptedData.updatedAt ?? encryptedData.updated_at ?? Date.now();
+    
+    // Store fields separately instead of JSON string in data field
+    // This enables better querying, indexing, and preserves server timestamps
     const entry: EmbedStoreEntry = {
       contentRef,
-      // Store encrypted data as-is (already client-encrypted from Directus)
-      data: dataString,
+      // DEPRECATED: data field kept for backward compatibility during migration
+      // New embeds should use separate fields below
+      // data: undefined, // Don't store JSON string anymore
+      
       type,
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
+      createdAt, // Server-provided timestamp (preserved!)
+      updatedAt, // Server-provided timestamp (preserved!)
+      
       // Store app metadata unencrypted in IndexedDB only (for efficient querying)
       app_id: appMetadata.app_id,
-      skill_id: appMetadata.skill_id
+      skill_id: appMetadata.skill_id,
+      
+      // Store all embed fields separately for clean data model
+      embed_id: encryptedData.embed_id,
+      encrypted_content: encryptedData.encrypted_content,
+      encrypted_type: encryptedData.encrypted_type,
+      encrypted_text_preview: encryptedData.encrypted_text_preview,
+      status: encryptedData.status,
+      hashed_chat_id: encryptedData.hashed_chat_id,
+      hashed_message_id: encryptedData.hashed_message_id,
+      hashed_task_id: encryptedData.hashed_task_id,
+      hashed_user_id: encryptedData.hashed_user_id,
+      embed_ids: encryptedData.embed_ids,
+      parent_embed_id: encryptedData.parent_embed_id,
+      version_number: encryptedData.version_number,
+      file_path: encryptedData.file_path,
+      content_hash: encryptedData.content_hash,
+      text_length_chars: encryptedData.text_length_chars,
+      share_mode: encryptedData.share_mode
     };
 
     // Store in memory cache
@@ -384,6 +420,119 @@ export class EmbedStore {
     } catch (error) {
       console.warn('[EmbedStore] Failed to store encrypted embed in IndexedDB, using memory cache only:', error);
     }
+  }
+
+  /**
+   * Reconstruct embed object from separate fields (new format)
+   * @param entry - The EmbedStoreEntry with separate fields
+   * @param contentRef - The embed reference key
+   * @returns The reconstructed embed object with decrypted content
+   */
+  private async getFromSeparateFields(entry: EmbedStoreEntry, contentRef: string): Promise<any> {
+    // Reconstruct embed object from separate fields
+    const embed: any = {
+      embed_id: entry.embed_id,
+      status: entry.status,
+      hashed_chat_id: entry.hashed_chat_id,
+      hashed_message_id: entry.hashed_message_id,
+      hashed_task_id: entry.hashed_task_id,
+      hashed_user_id: entry.hashed_user_id,
+      embed_ids: entry.embed_ids,
+      parent_embed_id: entry.parent_embed_id,
+      version_number: entry.version_number,
+      file_path: entry.file_path,
+      content_hash: entry.content_hash,
+      text_length_chars: entry.text_length_chars,
+      share_mode: entry.share_mode,
+      createdAt: entry.createdAt,
+      updatedAt: entry.updatedAt
+    };
+
+    // Decrypt encrypted_content if present (embed_key encryption)
+    if (entry.encrypted_content) {
+      try {
+        const embedId = entry.embed_id || contentRef.replace('embed:', '');
+        const embedKey = await this.getEmbedKey(embedId, entry.hashed_chat_id);
+        
+        if (embedKey) {
+          const decryptedContent = await decryptWithEmbedKey(entry.encrypted_content, embedKey);
+          if (decryptedContent) {
+            embed.content = decryptedContent;
+            console.debug('[EmbedStore] ✅ Successfully decrypted embed content from separate fields:', embedId);
+          } else {
+            console.warn('[EmbedStore] ❌ Failed to decrypt encrypted_content from separate fields');
+            embed._decryptionFailed = true;
+            embed.status = 'error';
+            embed.content = null;
+          }
+        } else {
+          console.warn('[EmbedStore] No embed key found for separate fields format:', embedId);
+          embed._decryptionFailed = true;
+          embed.status = 'error';
+          embed.content = null;
+        }
+      } catch (error) {
+        console.warn('[EmbedStore] Error decrypting encrypted_content from separate fields:', error);
+        embed._decryptionFailed = true;
+        embed.status = 'error';
+        embed.content = null;
+      }
+    } else if (entry.data) {
+      // Fallback: If encrypted_content not set but data is, try old format decryption
+      // This handles embeds stored via put() (master-key encrypted)
+      try {
+        const decryptedData = await decryptWithMasterKey(entry.data);
+        if (decryptedData) {
+          const parsed = JSON.parse(decryptedData);
+          embed.content = parsed.content || parsed;
+        }
+      } catch (error) {
+        console.debug('[EmbedStore] Could not decrypt data field as master-key encrypted:', error);
+      }
+    }
+
+    // Decrypt encrypted_type if present
+    if (entry.encrypted_type) {
+      try {
+        const embedId = entry.embed_id || contentRef.replace('embed:', '');
+        const embedKey = await this.getEmbedKey(embedId, entry.hashed_chat_id);
+        
+        if (embedKey) {
+          const decryptedType = await decryptWithEmbedKey(entry.encrypted_type, embedKey);
+          if (decryptedType) {
+            embed.type = decryptedType;
+            embed.embed_type = decryptedType;
+          }
+        }
+      } catch (error) {
+        console.debug('[EmbedStore] Error decrypting encrypted_type from separate fields:', error);
+      }
+    }
+
+    // Decrypt encrypted_text_preview if present
+    if (entry.encrypted_text_preview) {
+      try {
+        const embedId = entry.embed_id || contentRef.replace('embed:', '');
+        const embedKey = await this.getEmbedKey(embedId, entry.hashed_chat_id);
+        
+        if (embedKey) {
+          const decryptedPreview = await decryptWithEmbedKey(entry.encrypted_text_preview, embedKey);
+          if (decryptedPreview) {
+            embed.text_preview = decryptedPreview;
+          }
+        }
+      } catch (error) {
+        console.debug('[EmbedStore] Error decrypting encrypted_text_preview from separate fields:', error);
+      }
+    }
+
+    // Set type from entry if not decrypted
+    if (!embed.type && !embed.embed_type) {
+      embed.type = entry.type;
+      embed.embed_type = entry.type;
+    }
+
+    return embed;
   }
 
   /**
@@ -444,8 +593,16 @@ export class EmbedStore {
       return undefined;
     }
     
-    // Handle two storage formats:
-    // 1. put(): Stores encrypted JSON string (encrypted by embedStore)
+    // NEW FORMAT: Check if entry has separate fields (new clean data model)
+    // If entry has encrypted_content as separate field, reconstruct from separate fields
+    if (entry.encrypted_content !== undefined || (entry.embed_id && !entry.data)) {
+      console.debug('[EmbedStore] Loading embed from new format (separate fields):', contentRef);
+      return await this.getFromSeparateFields(entry, contentRef);
+    }
+    
+    // OLD FORMAT: Fall back to legacy JSON string in data field (backward compatibility)
+    // Handle two legacy storage formats:
+    // 1. put(): Stores encrypted JSON string (encrypted by embedStore with master key)
     // 2. putEncrypted(): Stores plain JSON string with encrypted_content field (already encrypted from sync)
     let storedData = entry.data;
 
@@ -453,6 +610,11 @@ export class EmbedStore {
     if (storedData instanceof Promise) {
       console.warn('[EmbedStore] Stored data is a Promise, awaiting resolution');
       storedData = await storedData;
+    }
+
+    if (!storedData) {
+      console.warn('[EmbedStore] Entry has no data field and no separate fields');
+      return undefined;
     }
 
     if (typeof storedData !== 'string') {

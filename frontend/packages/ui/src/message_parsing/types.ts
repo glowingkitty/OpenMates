@@ -60,15 +60,45 @@ export interface ParseMessageOptions {
 
 export interface EmbedStoreEntry {
   contentRef: string;
-  data: any;
+  
+  // DEPRECATED: Legacy field for backward compatibility during migration
+  // Old embeds stored entire object as JSON string in this field
+  // Migration will convert old data field to separate fields below
+  // New embeds should NOT use this field - use separate fields instead
+  data?: any;
+  
   type: EmbedType;
-  createdAt: number;
-  updatedAt: number;
+  createdAt: number; // Server-provided timestamp (preserved from server, not overwritten)
+  updatedAt: number; // Server-provided timestamp (preserved from server, not overwritten)
   metadata?: Record<string, any>;
+  
   // App metadata (stored unencrypted in IndexedDB only, not sent to server)
   // This allows efficient filtering and querying by app_id without decrypting all embeds
   app_id?: string; // For app_skill_use embeds: the app that generated this embed
   skill_id?: string; // For app_skill_use embeds: the skill that generated this embed
+  
+  // NEW: Separate fields for clean data model (replaces JSON string in data field)
+  // For embeds stored via putEncrypted() (synced from server with embed_key encryption):
+  embed_id?: string; // Embed ID for synced embeds
+  encrypted_content?: string; // Encrypted TOON content (client-encrypted with embed_key)
+  encrypted_type?: string; // Encrypted embed type (client-encrypted with embed_key)
+  encrypted_text_preview?: string; // Encrypted text preview (client-encrypted with embed_key)
+  status?: 'processing' | 'finished' | 'error'; // Processing status
+  hashed_chat_id?: string; // SHA256 hash of chat_id (privacy protection)
+  hashed_message_id?: string; // SHA256 hash of message_id (privacy protection)
+  hashed_task_id?: string; // SHA256 hash of task_id (optional, for long-running tasks)
+  hashed_user_id?: string; // SHA256 hash of user_id
+  embed_ids?: string[]; // For composite embeds (app_skill_use)
+  parent_embed_id?: string; // For versioned embeds
+  version_number?: number; // For versioned embeds
+  file_path?: string; // For code/file embeds
+  content_hash?: string; // SHA256 hash for deduplication
+  text_length_chars?: number; // Character count for text-based embeds
+  share_mode?: 'private' | 'shared_with_user' | 'public'; // Sharing mode
+  
+  // For embeds stored via put() (encrypted with master key):
+  // The encrypted_content field will contain master-key-encrypted JSON string
+  // This is different from putEncrypted() which uses embed_key encryption
 }
 
 // Clipboard JSON format for embeds

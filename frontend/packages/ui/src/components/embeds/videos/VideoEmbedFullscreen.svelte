@@ -12,8 +12,10 @@
 -->
 
 <script lang="ts">
-  import { onDestroy } from 'svelte';
+  import { onDestroy, tick } from 'svelte';
+  import { get } from 'svelte/store';
   import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
+  import VideoIframe from './VideoIframe.svelte';
   // @ts-ignore - @repo/ui module exists at runtime
   import { text } from '@repo/ui';
   
@@ -59,14 +61,8 @@
   // If restoring from PiP, auto-show the video (iframe already exists and is playing)
   let showVideo = $state(restoreFromPip || !!existingIframeElement);
   
-  // Reference to the iframe element for cleanup
-  // If restoring from PiP, reuse the existing iframe element
-  let iframeElement: HTMLIFrameElement | null = $state(existingIframeElement || null);
-  
-  // Reference to the iframe wrapper for moving the iframe
-  // If restoring from PiP, reuse the existing wrapper element
-  // This will be bound to the DOM element in the template
-  let iframeWrapperElementRef: HTMLDivElement | null = $state(existingIframeWrapper || null);
+  // Reference to the VideoIframe component instance
+  let videoIframeComponent: VideoIframe | null = $state(null);
   
   // Generate YouTube embed URL with privacy settings
   // Uses youtube-nocookie.com (privacy-enhanced mode) to minimize cookie tracking
@@ -197,22 +193,29 @@
   }
   
   // Flag to track if we're entering PiP (prevents cleanup)
+  // Store this in a way that persists across component lifecycle
   let enteringPip = $state(false);
   
   // Handle entering picture-in-picture mode
-  // Moves the existing iframe to PiP container without recreating it
+  // Moves the VideoIframe component to PiP container without recreating it
   async function handleEnterPip() {
-    // Use the ref if it exists, otherwise use existingIframeWrapper
-    const wrapperElement = iframeWrapperElementRef || existingIframeWrapper;
-    
-    if (!showVideo || !videoId || !embedUrl || !iframeElement || !wrapperElement) {
-      console.warn('[VideoEmbedFullscreen] Cannot enter PiP: video not loaded or iframe missing');
+    if (!showVideo || !videoId || !embedUrl || !videoIframeComponent) {
+      console.warn('[VideoEmbedFullscreen] Cannot enter PiP: video not loaded or iframe component missing');
       return;
     }
     
     try {
-      // Set flag to prevent cleanup
+      // Set flag to prevent cleanup BEFORE storing in PiP store
       enteringPip = true;
+      
+      // Get iframe references from the VideoIframe component
+      const { iframeElement, iframeWrapperElement } = videoIframeComponent.getIframeRefs();
+      
+      if (!iframeElement || !iframeWrapperElement) {
+        console.warn('[VideoEmbedFullscreen] Cannot enter PiP: iframe refs not available');
+        enteringPip = false;
+        return;
+      }
       
       // Import video PiP store
       const { videoPipStore } = await import('../../../stores/videoPipStore');
@@ -225,13 +228,26 @@
         videoId,
         embedUrl,
         iframeElement: iframeElement, // Store reference to move the actual iframe
-        iframeWrapperElement: wrapperElement // Store wrapper for positioning
+        iframeWrapperElement: iframeWrapperElement // Store wrapper for positioning
       });
       
-      console.debug('[VideoEmbedFullscreen] Entered PiP mode, moving iframe to PiP container');
+      console.debug('[VideoEmbedFullscreen] Entered PiP mode, storing iframe reference in PiP store');
       
-      // Close fullscreen (cleanup will be skipped due to enteringPip flag)
-      // The iframe will be moved to PiP container in ActiveChat
+      // Wait for store update to propagate and ActiveChat's effect to move the iframe
+      await tick();
+      await new Promise(resolve => setTimeout(resolve, 50));
+      
+      // Verify iframe has been moved before closing
+      if (iframeWrapperElement && iframeWrapperElement.parentNode) {
+        const parent = iframeWrapperElement.parentNode as HTMLElement;
+        if (parent.classList.contains('video-pip-container')) {
+          console.debug('[VideoEmbedFullscreen] Iframe confirmed moved to PiP container, closing fullscreen');
+        } else {
+          console.warn('[VideoEmbedFullscreen] Iframe not yet moved to PiP container, but proceeding with close');
+        }
+      }
+      
+      // Close fullscreen - the VideoIframe component will persist in PiP
       onClose();
     } catch (error) {
       console.error('[VideoEmbedFullscreen] Error entering PiP mode:', error);
@@ -241,39 +257,36 @@
     }
   }
   
-  // Clean up YouTube iframe and all related data when fullscreen closes
-  // This ensures no YouTube scripts or data persist after closing
-  // Note: This is NOT called when entering PiP mode (PiP handles the iframe)
-  function cleanupYouTubeData() {
-    // Skip cleanup if we're entering PiP mode
+  // Clean up when fullscreen closes
+  // Note: VideoIframe component handles its own cleanup, so we just reset state
+  // If in PiP mode, the VideoIframe will persist in the PiP container
+  async function cleanupYouTubeData() {
+    // Check if we're entering PiP mode by checking the store
+    try {
+      const { videoPipStore } = await import('../../../stores/videoPipStore');
+      const pipState = get(videoPipStore) as { isActive: boolean; iframeElement?: HTMLIFrameElement | null };
+      if (pipState.isActive && videoIframeComponent) {
+        const { iframeElement } = videoIframeComponent.getIframeRefs();
+        if (pipState.iframeElement === iframeElement) {
+          console.debug('[VideoEmbedFullscreen] Skipping cleanup - iframe is in PiP mode');
+          return;
+        }
+      }
+    } catch (e) {
+      console.debug('[VideoEmbedFullscreen] Could not check PiP store:', e);
+    }
+    
+    // Skip cleanup if we're entering PiP mode (local flag check)
     if (enteringPip) {
       console.debug('[VideoEmbedFullscreen] Skipping cleanup - entering PiP mode');
       enteringPip = false; // Reset flag
       return;
     }
     
-    console.debug('[VideoEmbedFullscreen] Cleaning up YouTube iframe and data');
+    console.debug('[VideoEmbedFullscreen] Cleaning up - VideoIframe component will handle iframe cleanup');
     
-    // Unload iframe by removing src - this stops all YouTube scripts and connections
-    if (iframeElement) {
-      // Clear the src first to stop any ongoing requests
-      iframeElement.src = '';
-      // Remove the iframe from DOM to completely disconnect it
-      iframeElement.remove();
-      iframeElement = null;
-    }
-    
-    // Reset video state - this removes the iframe from DOM
+    // Reset video state - VideoIframe component will be destroyed and clean up iframe
     showVideo = false;
-    
-    // Note about cookies:
-    // - Third-party cookies (from youtube.com) cannot be deleted from JavaScript
-    //   due to browser security restrictions (cross-origin policy)
-    // - Using youtube-nocookie.com (privacy-enhanced mode) minimizes cookie usage
-    // - Cookies are isolated to YouTube's domain and cannot access our site's data
-    // - Removing the iframe stops all active connections and prevents further tracking
-    // - Users can clear cookies manually via browser settings if desired
-    console.debug('[VideoEmbedFullscreen] Iframe removed. Note: Third-party YouTube cookies cannot be cleared from JavaScript due to browser security restrictions.');
   }
   
   // Wrapper for onClose that cleans up before closing
@@ -285,9 +298,10 @@
   
   // Cleanup on component destroy - ensures iframe is removed even if component
   // is destroyed without explicit close (e.g., navigation away)
-  onDestroy(() => {
-    console.debug('[VideoEmbedFullscreen] Component destroying, cleaning up YouTube data');
-    cleanupYouTubeData();
+  // BUT skip if iframe is in PiP mode
+  onDestroy(async () => {
+    console.debug('[VideoEmbedFullscreen] Component destroying, checking if cleanup needed');
+    await cleanupYouTubeData();
   });
 </script>
 
@@ -309,35 +323,20 @@
       <!-- Video iframe or thumbnail preview (780px max width) -->
       <!-- Iframe is only loaded when user clicks play button (showVideo = true) -->
       {#if showVideo && videoId && embedUrl}
-        <!-- Video iframe with maximum security settings -->
-        <!-- Iframe is unloaded when fullscreen closes to remove all YouTube data -->
-        <!-- Uses privacy-enhanced mode (youtube-nocookie.com) to minimize cookie tracking -->
-        <!-- Error 153 is fixed by using strict-origin-when-cross-origin referrer policy -->
-        <!-- YouTube requires referrer info to verify embedding context, but we still maintain privacy -->
-        <!-- Privacy-enhanced mode prevents cookies unless user interacts with video -->
-        <!-- Iframe wrapper - will be moved to PiP container when entering PiP -->
-        {#if !existingIframeWrapper}
-          <!-- Create new wrapper if not restoring from PiP -->
-          <div class="video-iframe-wrapper" bind:this={iframeWrapperElementRef}>
-            <iframe
-              bind:this={iframeElement}
-              src={embedUrl}
-              title={displayTitle}
-              class="video-iframe"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-              allowfullscreen
-              referrerpolicy="strict-origin-when-cross-origin"
-              loading="eager"
-              frameborder="0"
-            ></iframe>
-          </div>
-        {:else}
-          <!-- Reuse existing wrapper when restoring from PiP -->
-          <!-- The wrapper is already in the DOM, just needs to be styled correctly -->
-          <div class="video-iframe-wrapper" bind:this={iframeWrapperElementRef}>
-            <!-- iframe is already inside, just ensure wrapper has correct styles -->
-          </div>
-        {/if}
+        <!-- Video iframe component - separate from fullscreen view -->
+        <!-- This allows the iframe to persist when fullscreen closes (e.g., in PiP mode) -->
+        <!-- When restoring from PiP, pass existing iframe elements to reuse them -->
+        <div class="video-iframe-container">
+          <VideoIframe
+            bind:this={videoIframeComponent}
+            videoId={videoId}
+            title={displayTitle}
+            embedUrl={embedUrl}
+            isPip={false}
+            existingIframeElement={existingIframeElement}
+            existingIframeWrapper={existingIframeWrapper}
+          />
+        </div>
       {:else if videoId && thumbnailUrl}
         <!-- Thumbnail with play button overlay -->
         <div class="video-thumbnail-wrapper">
@@ -478,26 +477,12 @@
     pointer-events: none;
   }
   
-  /* Video iframe wrapper - 780px max width, centered, 16:9 aspect ratio */
-  .video-iframe-wrapper {
+  /* Video iframe container - 780px max width, centered */
+  .video-iframe-container {
     width: 100%;
     max-width: 780px;
-    position: relative;
-    padding-bottom: 56.25%; /* 16:9 aspect ratio */
-    height: 0;
-    border-radius: 16px;
-    overflow: hidden;
-    background-color: var(--color-grey-15);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  }
-  
-  .video-iframe {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    border: none;
+    display: flex;
+    justify-content: center;
   }
   
   /* Fallback container for when no thumbnail is available */

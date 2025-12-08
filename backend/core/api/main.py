@@ -31,6 +31,7 @@ from backend.core.api.app.routes import internal_api # Import the new internal A
 from backend.core.api.app.routes import apps # Import apps router
 from backend.core.api.app.routes import share # Import share router
 from backend.core.api.app.routes import apps_api # Import apps API router for external API access
+from backend.core.api.app.routes import creators # Import creators router
 from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.metrics import MetricsService
@@ -840,6 +841,7 @@ def create_app() -> FastAPI:
     app.include_router(internal_api.router, include_in_schema=False)  # Internal API router - service-to-service communication only
     app.include_router(apps.router, include_in_schema=False)  # Apps router - public endpoint, not API key based
     app.include_router(share.router, include_in_schema=False)  # Share router - internal use only
+    app.include_router(creators.router)  # Creators router - requires authentication, include in schema
     # Keep apps_api router in docs - it uses API key authentication for external API access
     app.include_router(apps_api.router)  # Include apps API router for external API access with API keys
 
