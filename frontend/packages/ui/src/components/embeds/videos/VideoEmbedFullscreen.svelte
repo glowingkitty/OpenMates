@@ -326,15 +326,14 @@
           </button>
         </div>
       {:else if isVideoPlaying}
-        <!-- Video is playing - show a placeholder indicating video is active -->
-        <div class="video-playing-indicator">
-          <span class="video-playing-text">Video is playing</span>
-        </div>
+        <!-- Video is playing - VideoIframe shows the actual video -->
+        <!-- This spacer maintains layout so buttons stay below the video -->
+        <div class="video-playing-spacer"></div>
       {/if}
       
-      <!-- Action buttons -->
+      <!-- Action buttons - moves down when video is playing to avoid collision -->
       {#if url}
-        <div class="button-container">
+        <div class="button-container" class:video-playing={isVideoPlaying}>
           <a 
             href={url}
             target="_blank"
@@ -395,6 +394,7 @@
     overflow: hidden;
     background-color: var(--color-grey-15);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    top: 40px;
   }
   
   .video-thumbnail {
@@ -446,32 +446,24 @@
   }
   
   /* ===========================================
-     Video Playing Indicator
+     Video Playing Spacer
      =========================================== */
   
-  .video-playing-indicator {
+  /* When video is playing, this spacer maintains the layout height
+     so buttons stay positioned below the video iframe.
+     The actual video is rendered by VideoIframe in ActiveChat. */
+  .video-playing-spacer {
     width: 100%;
     max-width: 780px;
     aspect-ratio: 16 / 9;
-    border-radius: 16px;
-    background-color: var(--color-grey-15);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  }
-  
-  .video-playing-text {
-    color: var(--color-grey-60);
-    font-size: 16px;
-    font-weight: 500;
+    /* Transparent - the actual video is shown by VideoIframe */
   }
   
   /* ===========================================
      Action Buttons
      =========================================== */
   
-  /* Button container - centered, above video iframe */
+  /* Button container - centered, moves down when video is playing */
   .button-container {
     display: flex;
     justify-content: center;
@@ -480,9 +472,15 @@
     flex-wrap: wrap;
     width: 100%;
     max-width: 780px;
-    /* Ensure buttons are above the video iframe (z-index: 50) */
-    position: relative;
-    z-index: 100;
+    /* Smooth transition for margin change */
+    transition: margin-top 0.3s ease-out;
+  }
+  
+  /* When video is playing, add margin to push buttons below the video iframe */
+  /* The VideoIframe is ~438px tall (780px * 56.25% aspect ratio) positioned at top:80px */
+  /* So buttons need to be pushed down to avoid collision */
+  .button-container.video-playing {
+    margin-top: 20px;
   }
   
   /* Open on YouTube button - styled as button but is an <a> link */

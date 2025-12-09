@@ -495,8 +495,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             const videoState = get(videoIframeStore);
             // Only close video if NOT in PiP mode (PiP should persist)
             if (videoState.isActive && !videoState.isPipMode) {
-                console.debug('[ActiveChat] Closing video player via handleCloseEmbedFullscreen');
+                console.debug('[ActiveChat] Closing video player via handleCloseEmbedFullscreen (not in PiP mode)');
                 videoIframeStore.closeWithFadeOut(300);
+            } else if (videoState.isPipMode) {
+                console.debug('[ActiveChat] Video in PiP mode - keeping video playing');
             }
         }
         
@@ -1644,16 +1646,15 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             embedFullscreenData = null;
         }
         
-        // CRITICAL: Close video player when switching chats
-        // This prevents video from persisting when user switches to a different chat
+        // CRITICAL: Close video player when switching chats (only if NOT in PiP mode)
+        // In PiP mode, video should keep playing as user browses other chats
         const videoState = get(videoIframeStore);
         if (videoState.isActive && !videoState.isPipMode) {
-            console.debug('[ActiveChat] Closing video player due to chat switch');
+            console.debug('[ActiveChat] Closing video player due to chat switch (not in PiP mode)');
             videoIframeStore.closeWithFadeOut(300);
         } else if (videoState.isActive && videoState.isPipMode) {
-            // If in PiP mode, also close since we're leaving the chat context
-            console.debug('[ActiveChat] Closing video player (PiP mode) due to chat switch');
-            videoIframeStore.closeWithFadeOut(300);
+            // In PiP mode, video keeps playing - user can continue watching while browsing chats
+            console.debug('[ActiveChat] Video in PiP mode - keeping video playing during chat switch');
         }
         
         // For public chats (demo/legal), skip database access - use the chat object directly

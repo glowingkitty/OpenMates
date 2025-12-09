@@ -895,13 +895,6 @@
     </div>
 </div>
 
-<!-- Footer outside main content -->
-{#if showFooter}
-<div class="footer-wrapper">
-    <Footer metaKey="webapp" context="webapp" />
-</div>
-{/if}
-
 <!-- Login/Signup overlay removed - incomplete feature
      TODO: Implement proper login overlay if needed -->
 
@@ -1097,16 +1090,6 @@
     /* Disable transitions during initial load */
     .main-content.initial-load {
         transition: none;
-    }
-
-    /* Update footer wrapper styles */
-    .footer-wrapper {
-        position: relative; /* Change from absolute to relative */
-        width: 100%;
-        z-index: 5; /* Ensure it's below main content */
-        margin-top: -90px; /* Adjust based on your footer height */
-        padding-top: calc(100vh + 90px);
-        padding-top: calc(100dvh + 90px);
     }
     
     /* Notification container - positioned at top of main-content */
