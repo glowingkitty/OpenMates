@@ -238,8 +238,8 @@ async def _async_persist_new_chat_message_task(
                     ttl=3600
                 )
                 logger.info(
-                    f"✅ Updated sync cache FIRST with {len(all_messages)} client-encrypted messages "
-                    f"(including new message {message_id}) for chat {chat_id} (task_id: {task_id})"
+                    f"[SYNC_CACHE_UPDATE] ✅ Updated sync cache FIRST with {len(all_messages)} client-encrypted messages "
+                    f"(including new message {message_id}, role={role}) for chat {chat_id} (task_id: {task_id})"
                 )
             except Exception as sync_cache_error:
                 # Non-critical error - sync cache will be populated during cache warming
@@ -787,6 +787,38 @@ async def _async_persist_ai_response_to_directus(
                 f"✅ Successfully persisted CLIENT-ENCRYPTED AI response {message_id} "
                 f"to Directus for chat {chat_id} (task_id: {task_id})"
             )
+            
+            # CRITICAL: Update sync cache with AI response (same as user messages)
+            # This ensures the AI response is available for sync after logout/login
+            try:
+                from backend.core.api.app.services.cache import CacheService
+                import json
+                cache_service = CacheService()
+                
+                # Get all client-encrypted messages from Directus (including the AI response we just stored)
+                all_messages = await directus_service.chat.get_all_messages_for_chat(
+                    chat_id=chat_id, 
+                    decrypt_content=False  # Zero-knowledge: keep encrypted with chat keys
+                ) or []
+                
+                # Update sync cache with all messages (including the new AI response)
+                await cache_service.set_sync_messages_history(
+                    user_id=user_id, 
+                    chat_id=chat_id, 
+                    encrypted_messages_json_list=all_messages, 
+                    ttl=3600
+                )
+                logger.info(
+                    f"[SYNC_CACHE_UPDATE] ✅ Updated sync cache with {len(all_messages)} messages "
+                    f"(including AI response {message_id}) for chat {chat_id} after AI response persistence "
+                    f"(task_id: {task_id})"
+                )
+            except Exception as sync_cache_error:
+                # Non-critical error - sync cache will be populated during cache warming
+                logger.warning(
+                    f"[SYNC_CACHE_UPDATE] ⚠️ Failed to update sync cache for chat {chat_id} after AI response storage "
+                    f"(task_id: {task_id}): {sync_cache_error}"
+                )
             
             # Update chat with new messages_v and timestamp if versions provided
             if versions:

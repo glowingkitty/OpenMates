@@ -1,4 +1,5 @@
 import logging
+from datetime import datetime
 from typing import Dict, Any, Optional
 from fastapi import WebSocket
 
@@ -95,8 +96,9 @@ async def handle_request_embed(
                 "user_id": user_id,
                 "share_mode": cached.get("share_mode", "private"),
                 "text_length_chars": cached.get("text_length_chars"),
-                "createdAt": cached.get("created_at"),
-                "updatedAt": cached.get("updated_at"),
+                # Provide fallback timestamps if missing from cache (prevents null values in IndexedDB)
+                "createdAt": cached.get("created_at") or int(datetime.now().timestamp()),
+                "updatedAt": cached.get("updated_at") or int(datetime.now().timestamp()),
                 "embed_ids": cached.get("embed_ids"),
                 "task_id": cached.get("hashed_task_id"),  # hashed if that's all we have
                 "parent_embed_id": cached.get("parent_embed_id"),

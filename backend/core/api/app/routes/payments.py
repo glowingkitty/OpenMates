@@ -3,7 +3,7 @@ from pydantic import BaseModel
 import logging
 import os
 import yaml
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 from pathlib import Path
 
 from backend.core.api.app.services.payment.payment_service import PaymentService
@@ -16,6 +16,11 @@ from backend.core.api.app.routes.auth_routes.auth_dependencies import get_curren
 from backend.core.api.app.tasks.celery_config import app # Import the Celery app
 from backend.core.api.app.routes.websockets import manager
 from backend.core.api.app.services.compliance import ComplianceService
+from backend.core.api.app.services.s3.service import S3UploadService
+from backend.core.api.app.services.s3.config import get_bucket_name
+from backend.core.api.app.services.limiter import limiter
+from fastapi.responses import StreamingResponse
+import hashlib
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/v1/payments", tags=["Payments"])
@@ -37,6 +42,9 @@ def get_cache_service(request: Request) -> CacheService:
 
 def get_encryption_service(request: Request) -> EncryptionService:
     return request.app.state.encryption_service
+
+def get_s3_service(request: Request) -> S3UploadService:
+    return request.app.state.s3_service
 
 def is_production() -> bool:
     return os.getenv("SERVER_ENVIRONMENT", "development") == "production"
@@ -85,6 +93,16 @@ class RedeemGiftCardResponse(BaseModel):
     credits_added: int
     current_credits: int
     message: str
+
+class InvoiceResponse(BaseModel):
+    id: str
+    date: str
+    amount: str
+    credits_purchased: int
+    filename: str
+
+class InvoicesListResponse(BaseModel):
+    invoices: List[InvoiceResponse]
 
 class GetSubscriptionResponse(BaseModel):
     subscription_id: str
@@ -181,7 +199,9 @@ def get_tier_info(credits_amount: int, currency: str) -> Optional[Dict[str, Any]
     }
 
 @router.get("/config", response_model=PaymentConfigResponse)
+@limiter.limit("60/minute")  # Public endpoint, allow higher rate
 async def get_payment_config(
+    request: Request,
     secrets_manager: SecretsManager = Depends(get_secrets_manager),
     payment_service: PaymentService = Depends(get_payment_service)
 ):
@@ -213,7 +233,9 @@ async def get_payment_config(
         raise HTTPException(status_code=500, detail="Internal server error fetching payment config.")
 
 @router.post("/create-order", response_model=CreateOrderResponse)
+@limiter.limit("10/minute")  # Sensitive endpoint - prevent abuse while allowing retries
 async def create_payment_order(
+    request: Request,
     order_data: CreateOrderRequest,
     current_user: User = Depends(get_current_user),
     payment_service: PaymentService = Depends(get_payment_service),
@@ -292,6 +314,10 @@ async def create_payment_order(
         raise HTTPException(status_code=500, detail="Internal server error during payment initiation.")
 
 @router.post("/webhook", status_code=200)
+# Note: Webhook endpoint is called by payment providers (Stripe/Revolut)
+# Rate limiting is handled by signature verification - providers have their own rate limits
+# We don't apply strict rate limits here to avoid blocking legitimate webhook deliveries
+# Security is ensured through signature verification in verify_and_parse_webhook
 async def payment_webhook(
     request: Request,
     payment_service: PaymentService = Depends(get_payment_service),
@@ -643,7 +669,9 @@ async def payment_webhook(
     return {"status": "received"}
 
 @router.post("/order-status", response_model=OrderStatusResponse)
+@limiter.limit("30/minute")  # Allow frequent polling for order status updates
 async def get_order_status(
+    request: Request,
     status_request: OrderStatusRequest,
     payment_service: PaymentService = Depends(get_payment_service),
     cache_service: CacheService = Depends(get_cache_service),
@@ -701,7 +729,9 @@ async def get_order_status(
         raise HTTPException(status_code=500, detail="Internal server error.")
 
 @router.post("/save-payment-method")
+@limiter.limit("5/minute")  # Very sensitive - prevent abuse of payment method storage
 async def save_payment_method(
+    request: Request,
     request_data: SavePaymentMethodRequest,
     current_user: User = Depends(get_current_user),
     payment_service: PaymentService = Depends(get_payment_service),
@@ -795,7 +825,9 @@ async def save_payment_method(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 @router.post("/create-subscription", response_model=CreateSubscriptionResponse)
+@limiter.limit("5/minute")  # Very sensitive - prevent abuse of subscription creation
 async def create_subscription(
+    request: Request,
     subscription_data: CreateSubscriptionRequest,
     current_user: User = Depends(get_current_user),
     payment_service: PaymentService = Depends(get_payment_service),
@@ -941,7 +973,9 @@ async def create_subscription(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 @router.get("/subscription", response_model=GetSubscriptionResponse)
+@limiter.limit("30/minute")  # Less sensitive read operation
 async def get_subscription(
+    request: Request,
     current_user: User = Depends(get_current_user),
     payment_service: PaymentService = Depends(get_payment_service)
 ):
@@ -1009,7 +1043,9 @@ async def get_subscription(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 @router.post("/cancel-subscription", response_model=CancelSubscriptionResponse)
+@limiter.limit("5/minute")  # Sensitive operation - prevent abuse
 async def cancel_subscription(
+    request: Request,
     current_user: User = Depends(get_current_user),
     payment_service: PaymentService = Depends(get_payment_service),
     directus_service: DirectusService = Depends(get_directus_service)
@@ -1057,8 +1093,10 @@ async def cancel_subscription(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 @router.post("/redeem-gift-card", response_model=RedeemGiftCardResponse)
+@limiter.limit("10/minute")  # Sensitive - prevent brute force attacks on gift card codes
 async def redeem_gift_card(
-    request: RedeemGiftCardRequest,
+    request: Request,
+    gift_card_request: RedeemGiftCardRequest,
     current_user: User = Depends(get_current_user),
     directus_service: DirectusService = Depends(get_directus_service),
     cache_service: CacheService = Depends(get_cache_service),
@@ -1070,7 +1108,7 @@ async def redeem_gift_card(
     Gift cards are single-use and are deleted after redemption.
     """
     user_id = current_user.id
-    code = request.code.strip().upper()  # Normalize the code (uppercase, trimmed)
+    code = gift_card_request.code.strip().upper()  # Normalize the code (uppercase, trimmed)
     
     if not code:
         logger.warning(f"User {user_id} attempted to redeem empty gift card code")
@@ -1210,3 +1248,360 @@ async def redeem_gift_card(
     except Exception as e:
         logger.error(f"Error redeeming gift card {code} for user {user_id}: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail="An error occurred while redeeming the gift card")
+
+@router.get("/invoices", response_model=InvoicesListResponse)
+@limiter.limit("30/minute")  # Less sensitive read operation
+async def get_invoices(
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    directus_service: DirectusService = Depends(get_directus_service),
+    encryption_service: EncryptionService = Depends(get_encryption_service)
+):
+    """
+    Get all invoices for the current user.
+    Returns a list of invoices with basic information.
+    """
+    logger.info(f"Fetching invoices for user {current_user.id}")
+
+    try:
+        # Create user ID hash for lookup (same method used during invoice creation)
+        user_id_hash = hashlib.sha256(current_user.id.encode()).hexdigest()
+
+        # Query invoices collection by user_id_hash
+        # Note: Directus sort parameter should be a string, not a list
+        # Using "-date" for descending order (most recent first)
+        invoices_data = await directus_service.get_items(
+            collection="invoices",
+            params={
+                "filter": {
+                    "user_id_hash": {"_eq": user_id_hash}
+                },
+                "sort": "-date"  # Most recent first (string format, not list)
+            }
+        )
+
+        if not invoices_data:
+            logger.info(f"No invoices found for user {current_user.id}")
+            return InvoicesListResponse(invoices=[])
+
+        vault_key_id = current_user.vault_key_id
+        if not vault_key_id:
+            logger.error(f"Vault key ID missing for user {current_user.id}")
+            raise HTTPException(status_code=500, detail="User encryption key not found")
+
+        processed_invoices = []
+
+        for invoice in invoices_data:
+            try:
+                # Decrypt invoice data
+                # Check if required encrypted fields exist and are not empty before attempting decryption
+                if "encrypted_amount" not in invoice or not invoice.get("encrypted_amount"):
+                    logger.error(f"Invoice {invoice.get('id', 'unknown')} missing or empty encrypted_amount field")
+                    continue
+                if "encrypted_credits_purchased" not in invoice or not invoice.get("encrypted_credits_purchased"):
+                    logger.error(f"Invoice {invoice.get('id', 'unknown')} missing or empty encrypted_credits_purchased field")
+                    continue
+
+                # Decrypt required fields
+                amount = await encryption_service.decrypt_with_user_key(
+                    invoice["encrypted_amount"],
+                    vault_key_id
+                )
+
+                credits_purchased = await encryption_service.decrypt_with_user_key(
+                    invoice["encrypted_credits_purchased"],
+                    vault_key_id
+                )
+
+                # Check if critical fields decrypted successfully
+                if not amount or not credits_purchased:
+                    logger.warning(
+                        f"Failed to decrypt critical invoice data for invoice {invoice.get('id', 'unknown')}. "
+                        f"amount={bool(amount)}, credits={bool(credits_purchased)}"
+                    )
+                    continue
+
+                # Format the date first (needed for both display and filename generation)
+                # Date is stored as ISO format string from datetime.now(timezone.utc).isoformat()
+                # Directus may return it as a string or datetime object
+                invoice_date = invoice.get("date")
+                formatted_date = None
+                date_str_filename = None
+                
+                if invoice_date:
+                    from datetime import datetime
+                    try:
+                        # Handle string format (ISO format from Directus)
+                        if isinstance(invoice_date, str):
+                            # Normalize timezone indicators (Z or +00:00)
+                            date_str = invoice_date.replace('Z', '+00:00')
+                            # Parse ISO format string
+                            parsed_date = datetime.fromisoformat(date_str)
+                        # Handle datetime object (if Directus returns it as object)
+                        elif hasattr(invoice_date, 'isoformat'):
+                            parsed_date = invoice_date
+                        else:
+                            # Try to convert to string and parse
+                            date_str = str(invoice_date)
+                            parsed_date = datetime.fromisoformat(date_str.replace('Z', '+00:00'))
+                        
+                        # Format for display (YYYY-MM-DD)
+                        formatted_date = parsed_date.strftime("%Y-%m-%d")
+                        # Format for filename (YYYY_MM_DD)
+                        date_str_filename = parsed_date.strftime("%Y_%m_%d")
+                    except Exception as date_parse_error:
+                        logger.warning(
+                            f"Failed to parse invoice date for invoice {invoice.get('id', 'unknown')}: {invoice_date}. "
+                            f"Error: {date_parse_error}. Using fallback."
+                        )
+                        # Fallback: try to extract date from string
+                        date_str = str(invoice_date)
+                        if len(date_str) >= 10:
+                            formatted_date = date_str[:10]  # Take first 10 chars (YYYY-MM-DD)
+                            date_str_filename = formatted_date.replace('-', '_')
+                        else:
+                            formatted_date = None
+                            date_str_filename = None
+                
+                # If date parsing failed completely, use a fallback
+                if not formatted_date:
+                    logger.error(f"Could not parse date for invoice {invoice.get('id', 'unknown')}. Date value: {invoice_date}")
+                    formatted_date = "1970-01-01"  # Fallback date
+                    date_str_filename = "1970_01_01"
+
+                # Handle filename - use date-based generation for older invoices that don't have encrypted_filename
+                filename = None
+                if "encrypted_filename" in invoice and invoice.get("encrypted_filename"):
+                    filename = await encryption_service.decrypt_with_user_key(
+                        invoice["encrypted_filename"],
+                        vault_key_id
+                    )
+                
+                # If filename is missing or decryption failed, generate from date
+                if not filename:
+                    logger.info(
+                        f"Invoice {invoice.get('id', 'unknown')} missing or failed to decrypt filename. "
+                        f"Generating filename from date. This may be an older invoice created before the filename field was added."
+                    )
+                    filename = f"Invoice_{date_str_filename}.pdf"
+
+                processed_invoices.append(InvoiceResponse(
+                    id=invoice["id"],
+                    date=formatted_date,
+                    amount=amount,
+                    credits_purchased=int(credits_purchased),
+                    filename=filename
+                ))
+
+            except Exception as e:
+                logger.error(
+                    f"Error processing invoice {invoice.get('id', 'unknown')}: {str(e)}",
+                    exc_info=True
+                )
+                continue
+
+        logger.info(f"Successfully fetched {len(processed_invoices)} invoices for user {current_user.id}")
+        return InvoicesListResponse(invoices=processed_invoices)
+
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        logger.error(f"Error fetching invoices for user {current_user.id}: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@router.get("/invoices/{invoice_id}/download")
+@limiter.limit("30/minute")  # Prevent abuse of file downloads
+async def download_invoice(
+    request: Request,
+    invoice_id: str,
+    current_user: User = Depends(get_current_user),
+    directus_service: DirectusService = Depends(get_directus_service),
+    encryption_service: EncryptionService = Depends(get_encryption_service),
+    s3_service: S3UploadService = Depends(get_s3_service)
+):
+    """
+    Download a specific invoice PDF by ID.
+    Returns the decrypted PDF file as a streaming response.
+    """
+    logger.info(f"Downloading invoice {invoice_id} for user {current_user.id}")
+
+    try:
+        # Create user ID hash for lookup
+        user_id_hash = hashlib.sha256(current_user.id.encode()).hexdigest()
+
+        # Get invoice by ID and verify ownership
+        invoice_data = await directus_service.get_items(
+            collection="invoices",
+            params={
+                "filter": {
+                    "id": {"_eq": invoice_id},
+                    "user_id_hash": {"_eq": user_id_hash}
+                }
+            }
+        )
+
+        if not invoice_data or len(invoice_data) == 0:
+            logger.warning(f"Invoice {invoice_id} not found for user {current_user.id}")
+            raise HTTPException(status_code=404, detail="Invoice not found")
+
+        invoice = invoice_data[0]
+        vault_key_id = current_user.vault_key_id
+        if not vault_key_id:
+            logger.error(f"Vault key ID missing for user {current_user.id}")
+            raise HTTPException(status_code=500, detail="User encryption key not found")
+
+        # Decrypt the S3 object key and AES key (required for download)
+        s3_object_key = await encryption_service.decrypt_with_user_key(
+            invoice["encrypted_s3_object_key"],
+            vault_key_id
+        )
+
+        aes_key = await encryption_service.decrypt_with_user_key(
+            invoice["encrypted_aes_key"],
+            vault_key_id
+        )
+
+        # Check if critical fields decrypted successfully
+        if not s3_object_key or not aes_key:
+            logger.error(f"Failed to decrypt invoice access data for invoice {invoice_id}")
+            raise HTTPException(status_code=500, detail="Failed to decrypt invoice data")
+
+        # Format the date for filename generation (if needed)
+        # Date is stored as ISO format string from datetime.now(timezone.utc).isoformat()
+        # Directus may return it as a string or datetime object
+        invoice_date = invoice.get("date")
+        date_str_filename = None
+        
+        if invoice_date:
+            from datetime import datetime
+            try:
+                # Handle string format (ISO format from Directus)
+                if isinstance(invoice_date, str):
+                    # Normalize timezone indicators (Z or +00:00)
+                    date_str = invoice_date.replace('Z', '+00:00')
+                    # Parse ISO format string
+                    parsed_date = datetime.fromisoformat(date_str)
+                # Handle datetime object (if Directus returns it as object)
+                elif hasattr(invoice_date, 'isoformat'):
+                    parsed_date = invoice_date
+                else:
+                    # Try to convert to string and parse
+                    date_str = str(invoice_date)
+                    parsed_date = datetime.fromisoformat(date_str.replace('Z', '+00:00'))
+                
+                # Format for filename (YYYY_MM_DD)
+                date_str_filename = parsed_date.strftime("%Y_%m_%d")
+            except Exception as date_parse_error:
+                logger.warning(
+                    f"Failed to parse invoice date for download {invoice_id}: {invoice_date}. "
+                    f"Error: {date_parse_error}. Using fallback."
+                )
+                # Fallback: try to extract date from string
+                date_str = str(invoice_date)
+                if len(date_str) >= 10:
+                    date_str_filename = date_str[:10].replace('-', '_')
+                else:
+                    date_str_filename = None
+
+        # Handle filename - generate from date for older invoices that don't have encrypted_filename
+        filename = None
+        if "encrypted_filename" in invoice and invoice.get("encrypted_filename"):
+            filename = await encryption_service.decrypt_with_user_key(
+                invoice["encrypted_filename"],
+                vault_key_id
+            )
+        
+        # If filename is missing or decryption failed, generate from date
+        if not filename:
+            if date_str_filename:
+                logger.info(
+                    f"Invoice {invoice_id} missing or failed to decrypt filename. "
+                    f"Generating filename from date: {date_str_filename}. This may be an older invoice created before the filename field was added."
+                )
+                filename = f"Invoice_{date_str_filename}.pdf"
+            else:
+                logger.warning(
+                    f"Invoice {invoice_id} missing or failed to decrypt filename and date is invalid. "
+                    f"Using fallback filename."
+                )
+                filename = "Invoice.pdf"
+
+        aes_nonce = invoice["aes_nonce"]
+
+        # Get the correct bucket name based on environment (dev vs production)
+        # This ensures we use 'dev-openmates-invoices' in development and 'openmates-invoices' in production
+        bucket_name = get_bucket_name('invoices', os.getenv('SERVER_ENVIRONMENT', 'development'))
+        logger.debug(f"Using bucket '{bucket_name}' for invoice download (environment: {os.getenv('SERVER_ENVIRONMENT', 'development')})")
+
+        # Download encrypted file from S3
+        # Note: get_file will raise HTTPException on errors (not return None) to prevent silent failures
+        try:
+            encrypted_pdf_data = await s3_service.get_file(
+                bucket_name=bucket_name,
+                object_key=s3_object_key
+            )
+        except HTTPException as e:
+            # Re-raise HTTPException from S3 service with more context
+            logger.error(
+                f"Failed to download invoice file from S3 for invoice {invoice_id}: "
+                f"bucket={bucket_name}, key={s3_object_key}, error={e.detail}"
+            )
+            raise HTTPException(
+                status_code=e.status_code,
+                detail=f"Failed to retrieve invoice file: {e.detail}"
+            )
+        
+        # Check if file was found (None is only returned for 404/NoSuchKey)
+        if not encrypted_pdf_data:
+            logger.error(
+                f"Invoice file not found in S3 for invoice {invoice_id}: "
+                f"bucket={bucket_name}, key={s3_object_key}"
+            )
+            raise HTTPException(
+                status_code=404,
+                detail=f"Invoice file not found in storage"
+            )
+
+        # Decrypt the PDF content using AES
+        from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+        from cryptography.hazmat.backends import default_backend
+        import base64
+
+        # Decode the base64 encoded AES key and nonce
+        aes_key_bytes = base64.b64decode(aes_key)
+        nonce_bytes = base64.b64decode(aes_nonce)
+
+        # Create cipher and decrypt
+        cipher = Cipher(
+            algorithms.AES(aes_key_bytes),
+            modes.GCM(nonce_bytes),
+            backend=default_backend()
+        )
+        decryptor = cipher.decryptor()
+
+        # The encrypted data includes the GCM tag at the end
+        encrypted_content = encrypted_pdf_data[:-16]  # All but last 16 bytes
+        tag = encrypted_pdf_data[-16:]  # Last 16 bytes is the tag
+
+        decryptor.authenticate_additional_data(b"")
+        decrypted_pdf_content = decryptor.update(encrypted_content) + decryptor.finalize_with_tag(tag)
+
+        logger.info(f"Successfully decrypted invoice {invoice_id} for user {current_user.id}")
+
+        # Return the PDF as a streaming response
+        from io import BytesIO
+        pdf_stream = BytesIO(decrypted_pdf_content)
+
+        return StreamingResponse(
+            pdf_stream,
+            media_type="application/pdf",
+            headers={
+                "Content-Disposition": f"attachment; filename={filename}"
+            }
+        )
+
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        logger.error(f"Error downloading invoice {invoice_id} for user {current_user.id}: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")

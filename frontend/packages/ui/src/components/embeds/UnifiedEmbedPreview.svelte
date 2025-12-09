@@ -55,6 +55,8 @@
     customStatusText?: string;
     /** Whether to show skill icon (only for app skills, not for individual embeds like code, website, video) */
     showSkillIcon?: boolean;
+    /** Whether the details content contains a full-width image (removes padding, adds negative margin) */
+    hasFullWidthImage?: boolean;
   }
   
   let {
@@ -72,7 +74,8 @@
     showStatus = true,
     faviconUrl,
     customStatusText,
-    showSkillIcon = true
+    showSkillIcon = true,
+    hasFullWidthImage = false
   }: Props = $props();
   
   // DEBUG: Log when details snippet is missing - this helps identify which embed is broken
@@ -94,10 +97,54 @@
   // Otherwise, desktop layout is used by default
   let useMobileLayout = $derived(isMobile);
   
+  // Reference to the preview element for transition calculations
+  let previewElement = $state<HTMLElement | null>(null);
+  
   // Handle click to open fullscreen (only when finished)
-  function handleClick() {
+  // Store preview element position for transition animation
+  // CRITICAL: Stop event propagation to prevent ReadOnlyMessage from showing context menu
+  function handleClick(e: MouseEvent) {
+    console.debug('[UnifiedEmbedPreview] Click handler called:', { 
+      status, 
+      hasOnFullscreen: !!onFullscreen,
+      embedId: id,
+      eventType: e.type,
+      target: e.target
+    });
+    
+    // Stop event propagation to prevent the click from bubbling to ReadOnlyMessage
+    // which would show the context menu instead of opening fullscreen
+    // NOTE: We don't call preventDefault() here because it might interfere with the click
+    e.stopPropagation();
+    
     if (status === 'finished' && onFullscreen) {
-      onFullscreen();
+      console.debug('[UnifiedEmbedPreview] Calling onFullscreen for embed:', id);
+      
+      // Store the preview element's position for transition
+      if (previewElement) {
+        const rect = previewElement.getBoundingClientRect();
+        const centerX = rect.left + rect.width / 2;
+        const centerY = rect.top + rect.height / 2;
+        
+        // Store position in a data attribute that UnifiedEmbedFullscreen can read
+        // This allows the fullscreen to animate from the preview position
+        document.documentElement.style.setProperty('--preview-center-x', `${centerX}px`);
+        document.documentElement.style.setProperty('--preview-center-y', `${centerY}px`);
+        document.documentElement.style.setProperty('--preview-width', `${rect.width}px`);
+        document.documentElement.style.setProperty('--preview-height', `${rect.height}px`);
+      }
+      
+      try {
+        onFullscreen();
+        console.debug('[UnifiedEmbedPreview] onFullscreen called successfully');
+      } catch (error) {
+        console.error('[UnifiedEmbedPreview] Error calling onFullscreen:', error);
+      }
+    } else {
+      console.warn('[UnifiedEmbedPreview] Cannot open fullscreen:', { 
+        status, 
+        hasOnFullscreen: !!onFullscreen 
+      });
     }
   }
   
@@ -126,6 +173,7 @@
 </script>
 
 <div
+  bind:this={previewElement}
   class="unified-embed-preview"
   class:mobile={useMobileLayout}
   class:desktop={!useMobileLayout}
@@ -176,7 +224,7 @@
     <!-- Desktop Layout: Horizontal card (300x200px) -->
     <div class="desktop-layout">
       <!-- Details content (skill-specific) at top - with defensive guard -->
-      <div class="details-section">
+      <div class="details-section" class:full-width-image={hasFullWidthImage}>
         {#if details}
           {@render details({ isMobile: false })}
         {:else}
@@ -277,8 +325,19 @@
     min-height: 0;
     display: flex;
     flex-direction: column;
+  }
+  
+  /* Default padding for text-based content */
+  .desktop-layout .details-section:not(.full-width-image) {
     padding-right: 20px;
     padding-left: 20px;
+  }
+  
+  /* Full-width image content: remove padding and add negative margin at bottom */
+  .desktop-layout .details-section.full-width-image {
+    padding-right: 0;
+    padding-left: 0;
+    margin-bottom: -35px;
   }
   
   /* ===========================================

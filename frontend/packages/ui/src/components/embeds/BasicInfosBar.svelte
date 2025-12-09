@@ -184,10 +184,11 @@
     gap: 10px;
     height: 61px;
     min-height: 61px;
-    background-color: var(--color-grey-20);
+    background-color: var(--color-grey-30);
     border-radius: 30px;
     padding: 0 0 0 0;
     flex-shrink: 0;
+    z-index: 1;
   }
   
   /* App icon circle: 61x61px with gradient background, contains 26x26px icon */

@@ -76,7 +76,8 @@ Billing Settings - Credit purchases, subscription management, and auto top-up co
         // Map path to icon name
         const iconMap: Record<string, string> = {
             'buy-credits': 'coins',
-            'auto-topup': 'reload'
+            'auto-topup': 'reload',
+            'invoices': 'document'
         };
         const iconName = iconMap[path.split('/')[0]] || path.split('/')[0];
 
@@ -118,6 +119,14 @@ Billing Settings - Credit purchases, subscription management, and auto top-up co
         icon="subsetting_icon subsetting_icon_reload"
         title={$text('settings.billing.auto_topup.text')}
         onClick={() => navigateToSubview('auto-topup')}
+    />
+
+    <!-- Invoices Menu Item -->
+    <SettingsItem
+        type="submenu"
+        icon="subsetting_icon subsetting_icon_document"
+        title={$text('settings.billing.invoices.text')}
+        onClick={() => navigateToSubview('invoices')}
     />
 
     {#if errorMessage}

@@ -31,6 +31,7 @@
 :global(.ProseMirror .embed-unified-container) {
     display: inline-block;
     width: min(300px, 100%);
+    min-width: 300px; /* Ensure container never shrinks below embed width */
     background-color: var(--color-grey-10);
     border-radius: 30px;
     position: relative;
@@ -40,6 +41,15 @@
     margin: 0;
     overflow: hidden;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Constrain embeds inside user messages to respect container width and maintain right alignment */
+/* This prevents embeds from forcing the user-message-content to expand beyond its intended width */
+/* The embed should respect the available space in the user message container, even if it means being smaller than 300px */
+:global(.user-message-content .ProseMirror .embed-unified-container) {
+    max-width: 100%; /* Respect parent container width */
+    min-width: 0; /* Allow shrinking below 300px to respect container constraints */
+    width: min(300px, 100%); /* Maintain 300px when possible, but respect container constraints */
 }
 
 /* ========================================
@@ -380,7 +390,13 @@
 
 :global(.ProseMirror .embed-group-container.container-mobile .embed-unified-container) {
     width: 100%;
+    min-width: 0; /* Allow shrinking on mobile to respect container constraints */
     margin: 2px 0;
+}
+
+/* Override: embeds in user messages within mobile group containers should also respect constraints */
+:global(.user-message-content .ProseMirror .embed-group-container.container-mobile .embed-unified-container) {
+    min-width: 0; /* Ensure user message embeds respect container width on mobile */
 }
 
 /* Responsive Design */

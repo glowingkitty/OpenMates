@@ -251,6 +251,52 @@ open_on_provider:
   cs: 'Otevřít na {provider}'
   sv: 'Öppna på {provider}'
   verified_by_human: []
+open_on_youtube:
+  context: Button label to open video on YouTube
+  en: Open on YouTube
+  de: Auf YouTube öffnen
+  zh: 在 YouTube 上打开
+  es: Abrir en YouTube
+  fr: Ouvrir sur YouTube
+  pt: Abrir no YouTube
+  ru: Открыть на YouTube
+  ja: YouTubeで開く
+  ko: YouTube에서 열기
+  it: Apri su YouTube
+  tr: YouTube'da aç
+  vi: Mở trên YouTube
+  id: Buka di YouTube
+  pl: Otwórz na YouTube
+  nl: Openen op YouTube
+  ar: فتح على YouTube
+  hi: YouTube पर खोलें
+  th: เปิดบน YouTube
+  cs: Otevřít na YouTube
+  sv: Öppna på YouTube
+  verified_by_human: []
+tip_creator:
+  context: Button label to tip the video creator
+  en: Tip Creator
+  de: Ersteller unterstützen
+  zh: 打赏创作者
+  es: Apoyar al creador
+  fr: Soutenir le créateur
+  pt: Apoiar o criador
+  ru: Поддержать создателя
+  ja: クリエイターにチップ
+  ko: 제작자에게 팁
+  it: Supporta il creatore
+  tr: İçerik üreticisine bahşiş
+  vi: Tặng tiền cho người tạo
+  id: Beri tip kepada pembuat
+  pl: Wsparcie twórcy
+  nl: Tip de maker
+  ar: دعم المنشئ
+  hi: निर्माता को टिप दें
+  th: ให้ทิปผู้สร้าง
+  cs: Podpořit tvůrce
+  sv: Dricks till skaparen
+  verified_by_human: []
 code_snippet:
   context: Default filename for code embeds when no filename is provided
   en: Code snippet
@@ -320,51 +366,28 @@ code_line_plural:
   cs: řádků
   sv: rader
   verified_by_human: []
-code_lines:
-  context: Line count text for code embeds with plural handling, e.g. '5 lines' or '1 line'
-  en: '{count, plural, one {# line} other {# lines}}'
-  de: '{count, plural, one {# Zeile} other {# Zeilen}}'
-  zh: '{count} 行'
-  es: '{count, plural, one {# línea} other {# líneas}}'
-  fr: '{count, plural, one {# ligne} other {# lignes}}'
-  pt: '{count, plural, one {# linha} other {# linhas}}'
-  ru: '{count, plural, one {# строка} few {# строки} other {# строк}}'
-  ja: '{count} 行'
-  ko: '{count} 줄'
-  it: '{count, plural, one {# riga} other {# righe}}'
-  tr: '{count} satır'
-  vi: '{count} dòng'
-  id: '{count} baris'
-  pl: '{count, plural, one {# linia} few {# linie} other {# linii}}'
-  nl: '{count, plural, one {# regel} other {# regels}}'
-  ar: '{count, plural, one {سطر #} other {# أسطر}}'
-  hi: '{count, plural, one {# पंक्ति} other {# पंक्तियाँ}}'
-  th: '{count} บรรทัด'
-  cs: '{count, plural, one {# řádek} few {# řádky} other {# řádků}}'
-  sv: '{count, plural, one {# rad} other {# rader}}'
-  verified_by_human: []
 code_info:
   context: Text showing line count and language for code embeds, e.g. '5 lines, Python' or '1 line'
-  en: '{lineCount}, {language}'
-  de: '{lineCount}, {language}'
-  zh: '{lineCount}，{language}'
-  es: '{lineCount}, {language}'
-  fr: '{lineCount}, {language}'
-  pt: '{lineCount}, {language}'
-  ru: '{lineCount}, {language}'
-  ja: '{lineCount}、{language}'
-  ko: '{lineCount}, {language}'
-  it: '{lineCount}, {language}'
-  tr: '{lineCount}, {language}'
-  vi: '{lineCount}, {language}'
-  id: '{lineCount}, {language}'
-  pl: '{lineCount}, {language}'
-  nl: '{lineCount}, {language}'
-  ar: '{lineCount}، {language}'
-  hi: '{lineCount}, {language}'
-  th: '{lineCount}, {language}'
-  cs: '{lineCount}, {language}'
-  sv: '{lineCount}, {language}'
+  en: '{lineCount} {lineCountText}, {language}'
+  de: '{lineCount} {lineCountText}, {language}'
+  zh: '{lineCount} {lineCountText}，{language}'
+  es: '{lineCount} {lineCountText}, {language}'
+  fr: '{lineCount} {lineCountText}, {language}'
+  pt: '{lineCount} {lineCountText}, {language}'
+  ru: '{lineCount} {lineCountText}, {language}'
+  ja: '{lineCount} {lineCountText}、{language}'
+  ko: '{lineCount} {lineCountText}, {language}'
+  it: '{lineCount} {lineCountText}, {language}'
+  tr: '{lineCount} {lineCountText}, {language}'
+  vi: '{lineCount} {lineCountText}, {language}'
+  id: '{lineCount} {lineCountText}, {language}'
+  pl: '{lineCount} {lineCountText}, {language}'
+  nl: '{lineCount} {lineCountText}, {language}'
+  ar: '{lineCount} {lineCountText}، {language}'
+  hi: '{lineCount} {lineCountText}, {language}'
+  th: '{lineCount} {lineCountText}, {language}'
+  cs: '{lineCount} {lineCountText}, {language}'
+  sv: '{lineCount} {lineCountText}, {language}'
   verified_by_human: []
 error:
   context: Status text when skill execution has an error
@@ -388,4 +411,27 @@ error:
   th: ข้อผิดพลาด
   cs: Chyba
   sv: Fel
+  verified_by_human: []
+video_transcript:
+  context: Video transcript skill label
+  en: Transcript
+  de: Transkript
+  zh: 转录
+  es: Transcripción
+  fr: Transcription
+  pt: Transcrição
+  ru: Транскрипт
+  ja: 文字起こし
+  ko: 자막
+  it: Trascrizione
+  tr: Transkript
+  vi: Bản ghi
+  id: Transkrip
+  pl: Transkrypcja
+  nl: Transcript
+  ar: النص
+  hi: प्रतिलिपि
+  th: สำเนา
+  cs: Přepis
+  sv: Transkription
   verified_by_human: []

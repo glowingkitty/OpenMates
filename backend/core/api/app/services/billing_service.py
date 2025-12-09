@@ -31,7 +31,9 @@ class BillingService:
         user_id_hash: str,
         app_id: str,
         skill_id: str,
-        usage_details: Optional[Dict[str, Any]] = None
+        usage_details: Optional[Dict[str, Any]] = None,
+        api_key_hash: Optional[str] = None,  # SHA-256 hash of API key for tracking
+        device_hash: Optional[str] = None,  # SHA-256 hash of device for tracking
     ) -> None:
         """
         Deducts credits and records the usage entry.
@@ -48,6 +50,8 @@ class BillingService:
                 - model_used: Model identifier if applicable
                 - input_tokens: Input token count if applicable
                 - output_tokens: Output token count if applicable
+            api_key_hash: Optional SHA-256 hash of the API key that created this usage entry (for API key-based usage)
+            device_hash: Optional SHA-256 hash of the device that created this usage entry (for API key-based usage)
         """
         if not isinstance(credits_to_deduct, int) or credits_to_deduct < 0:
             raise HTTPException(status_code=400, detail="Credits to deduct must be a non-negative integer.")
@@ -64,8 +68,26 @@ class BillingService:
         try:
             # 1. Get user profile using the cache service
             user = await self.cache_service.get_user_by_id(user_id)
+            
+            # If user not in cache, fetch from Directus and cache it
             if not user:
-                raise HTTPException(status_code=404, detail=f"User with ID {user_id} not found.")
+                logger.info(f"User {user_id} not found in cache, fetching from Directus")
+                profile_success, user_profile, profile_message = await self.directus_service.get_user_profile(user_id)
+                
+                if not profile_success or not user_profile:
+                    logger.error(f"User profile not found in Directus for user {user_id}: {profile_message}")
+                    raise HTTPException(status_code=404, detail=f"User with ID {user_id} not found.")
+                
+                # Ensure user_id is present in the profile for caching
+                if "user_id" not in user_profile:
+                    user_profile["user_id"] = user_id
+                if "id" not in user_profile:
+                    user_profile["id"] = user_id
+                
+                # Cache the fetched profile
+                await self.cache_service.set_user(user_profile, user_id=user_id)
+                user = user_profile
+                logger.info(f"Successfully fetched and cached user {user_id} from Directus")
 
             # Ensure credits are treated as integers, matching preprocessor logic
             current_credits = user.get("credits", 0)
@@ -156,6 +178,9 @@ class BillingService:
                 if message_id_val and isinstance(message_id_val, str) and message_id_val.strip():
                     message_id = message_id_val.strip()
             
+            # Determine source: "chat" if chat_id is provided, otherwise "api_key"
+            source = "chat" if chat_id else "api_key"
+            
             await self.directus_service.usage.create_usage_entry(
                 user_id_hash=user_id_hash,
                 app_id=app_id.strip(),  # Ensure no leading/trailing whitespace
@@ -165,10 +190,13 @@ class BillingService:
                 credits_charged=credits_to_deduct,
                 user_vault_key_id=user['vault_key_id'],
                 model_used=usage_details.get("model_used") if usage_details else None,
-                chat_id=chat_id,  # Only set if provided and non-empty
-                message_id=message_id,  # Only set if provided and non-empty
+                chat_id=chat_id,  # Cleartext - for client-side matching with IndexedDB
+                message_id=message_id,  # Cleartext - for client-side matching with IndexedDB
+                source=source,  # "chat" or "api_key"
                 actual_input_tokens=usage_details.get("input_tokens") if usage_details else None,
                 actual_output_tokens=usage_details.get("output_tokens") if usage_details else None,
+                api_key_hash=api_key_hash,  # API key hash for tracking which API key created this usage
+                device_hash=device_hash,  # Device hash for tracking which device created this usage
             )
 
         except HTTPException as e:

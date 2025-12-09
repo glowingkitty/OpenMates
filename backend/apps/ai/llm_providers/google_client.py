@@ -157,28 +157,20 @@ def _prepare_messages_and_system_prompt(messages: List[Dict[str, str]]) -> (Opti
 
 def _normalize_google_model_id(model_id: str) -> str:
     """
-    Normalize Google Vertex AI model ID by stripping publisher prefixes.
+    Normalize Google Vertex AI model ID - returns model_id as-is.
     
-    Google Vertex AI publisher models may be specified with publisher prefixes
-    (e.g., "qwen/qwen3-235b-a22b-instruct-2507-maas"), but the google-genai SDK
-    expects just the model name (e.g., "qwen3-235b-a22b-instruct-2507-maas").
-    The SDK automatically handles the publisher path construction.
+    Google Vertex AI publisher models must be specified with publisher prefixes
+    (e.g., "qwen/qwen3-235b-a22b-instruct-2507-maas"). The google-genai SDK
+    requires the full model path including the publisher prefix.
     
     Args:
-        model_id: The model ID which may contain a publisher prefix
+        model_id: The model ID which should include the publisher prefix
         
     Returns:
-        The normalized model ID without publisher prefix
+        The model ID unchanged (with publisher prefix if present)
     """
-    # Known publisher prefixes that should be stripped
-    publisher_prefixes = ["qwen/", "openai/", "mistral/", "anthropic/", "meta/"]
-    
-    for prefix in publisher_prefixes:
-        if model_id.startswith(prefix):
-            normalized = model_id[len(prefix):]
-            logger.debug(f"Stripped publisher prefix '{prefix}' from model_id '{model_id}' -> '{normalized}'")
-            return normalized
-    
+    # Return model_id as-is - Google API requires the full format including publisher prefix
+    # Example: "qwen/qwen3-235b-a22b-instruct-2507-maas"
     return model_id
 
 

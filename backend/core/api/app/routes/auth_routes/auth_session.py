@@ -25,7 +25,7 @@ async def get_session(
     response: Response,
     directus_service: DirectusService = Depends(get_directus_service),
     cache_service: CacheService = Depends(get_cache_service),
-    refresh_token: Optional[str] = Cookie(None, alias="auth_refresh_token")
+    refresh_token: Optional[str] = Cookie(None, alias="auth_refresh_token", include_in_schema=False)  # Hidden from API docs - internal use only
 ):
     """
     Validate session using cache and perform risk assessment based on device fingerprint,

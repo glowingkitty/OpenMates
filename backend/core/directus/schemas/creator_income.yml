@@ -1,0 +1,87 @@
+creator_income:
+  type: collection
+  fields:
+    id:
+      type: uuid
+      primary: true
+    
+    # Owner identification (anonymized)
+    # For videos: hashed YouTube channel ID
+    # For websites: hashed normalized domain (e.g., 'example.com')
+    hashed_owner_id:
+      type: string
+      length: 64
+      note: "[Indexed] SHA-256 hash of owner identifier (channel ID for videos, domain for websites)"
+    
+    # Content identification (anonymized) - for tracking which specific content was processed
+    # For videos: hashed video ID
+    # For websites: hashed normalized URL (without query params)
+    hashed_content_id:
+      type: string
+      length: 64
+      note: "[Indexed] SHA-256 hash of content identifier (video ID or normalized URL) - for statistics and analytics"
+    
+    content_type:
+      type: string
+      length: 50
+      note: "Type of content: 'video' or 'website'"
+      enum: ["video", "website"]
+    
+    # Income source
+    income_source:
+      type: string
+      length: 50
+      note: "Source of income: 'skill_usage' (from skill execution) or 'tip' (user tip/support)"
+      enum: ["skill_usage", "tip"]
+      default: "skill_usage"
+    
+    # Skill execution details (hashed for privacy)
+    hashed_app_id:
+      type: string
+      length: 64
+      note: "[Indexed] SHA-256 hash of app ID that executed the skill (e.g., 'videos', 'web')"
+    
+    hashed_skill_id:
+      type: string
+      length: 64
+      note: "[Indexed] SHA-256 hash of skill ID that was executed (e.g., 'get_transcript', 'read')"
+    
+    # Credit reservation (encrypted for privacy)
+    encrypted_credits_reserved:
+      type: string
+      length: 512
+      note: "[Encrypted] Number of credits reserved for the creator (encrypted with system key)"
+    
+    # Timestamp
+    processed_at:
+      type: integer
+      note: "[Indexed] Unix timestamp (seconds) when the content was processed"
+    
+    # Creator account (null until creator signs up and claims)
+    hashed_creator_user_id:
+      type: string
+      length: 64
+      nullable: true
+      note: "[Indexed] SHA-256 hash of creator's user ID (null until creator claims this income)"
+    
+    # Status
+    status:
+      type: string
+      length: 50
+      note: "Status: 'reserved' (not yet claimed), 'claimed' (creator signed up and claimed), 'expired' (6 months passed, not claimed)"
+      enum: ["reserved", "claimed", "expired"]
+      default: "reserved"
+    
+    # Timestamps
+    created_at:
+      type: integer
+      note: "Unix timestamp (seconds) when this income entry was created"
+    
+    updated_at:
+      type: integer
+      note: "Unix timestamp (seconds) when this income entry was last updated"
+    
+    claimed_at:
+      type: integer
+      nullable: true
+      note: "Unix timestamp (seconds) when creator claimed this income"

@@ -115,11 +115,22 @@ export const apiEndpoints = {
         getSubscription:            '/v1/payments/subscription',                // Get user's subscription details
         cancelSubscription:         '/v1/payments/cancel-subscription',         // Cancel monthly subscription
         redeemGiftCard:             '/v1/payments/redeem-gift-card',           // Redeem a gift card code
+        getInvoices:                '/v1/payments/invoices',                   // Get user's invoices
+        downloadInvoice:            '/v1/payments/invoices/{id}/download',      // Download specific invoice PDF
         // Webhook endpoint is only called by payment providers, not the frontend
     },
     apps: {
         metadata:                   '/v1/apps/metadata',                        // Get metadata for all discovered apps
         mostUsed:                    '/v1/apps/most-used',                       // Get most used apps in last 30 days (public endpoint)
+    },
+    usage: {
+        getUsage:                    '/v1/settings/usage',                       // Get user usage data (legacy)
+        getSummaries:                '/v1/settings/usage/summaries',             // Get usage summaries (fast)
+        getDetails:                  '/v1/settings/usage/details',               // Get usage details (lazy loading)
+        export:                      '/v1/settings/usage/export',                // Export usage data as CSV
+    },
+    creators: {
+        tip:                         '/v1/creators/tip',                        // Tip a creator with credits
     }
 } as const;
 

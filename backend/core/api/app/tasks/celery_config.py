@@ -56,6 +56,7 @@ TASK_CONFIG = [
     {'name': 'app_ai',      'module': 'backend.apps.ai.tasks'},
     {'name': 'app_web',     'module': 'backend.apps.web.tasks'},  # Web app tasks (to be implemented)
     {'name': 'health_check', 'module': 'backend.core.api.app.tasks.health_check_tasks'},  # Health check tasks
+    {'name': 'usage',       'module': 'backend.core.api.app.tasks.usage_archive_tasks'},  # Usage archive tasks
     # Add new task configurations here, e.g.:
     # {'name': 'new_queue', 'module': 'backend.core.api.app.tasks.new_tasks'}, # Example updated
 ]
@@ -338,6 +339,11 @@ app.conf.beat_schedule = {
         'task': 'health_check.check_all_apps',
         'schedule': timedelta(seconds=300),  # 5 minutes (300 seconds)
         'options': {'queue': 'health_check'},  # Explicitly route to health_check queue
+    },
+    'archive-old-usage-entries': {
+        'task': 'usage.archive_old_entries',
+        'schedule': crontab(hour=2, minute=0, day_of_month=1),  # 1st of month at 2 AM UTC
+        'options': {'queue': 'persistence'},  # Route to persistence queue
     },
 }
 app.conf.timezone = 'UTC'

@@ -63,6 +63,149 @@
         }
     }
 
+    /**
+     * Handle right-click (context menu) on embeds
+     * Dispatches the same event as handleEmbedClick to show the context menu
+     */
+    function handleEmbedContextMenu(event: MouseEvent) {
+        const target = event.target as HTMLElement;
+        // Look for any embed container with either data attribute
+        const embedContainer = target.closest('[data-embed-id], [data-code-embed], .preview-container');
+        if (embedContainer) {
+            // Prevent default browser context menu
+            event.preventDefault();
+            event.stopPropagation();
+            
+            logger.debug('[ReadOnlyMessage] Embed container right-clicked');
+            
+            // Get the node from the editor
+            const pos = editor?.view.posAtDOM(embedContainer, 0);
+            const node = pos !== undefined ? editor?.state.doc.nodeAt(pos) : null;
+            
+            if (node) {
+                const elementId = embedContainer.getAttribute('data-embed-id') || 
+                                embedContainer.getAttribute('data-code-embed') || 
+                                embedContainer.id;
+                
+                // Get container rect for menu positioning
+                const rect = embedContainer.getBoundingClientRect();
+                
+                // Dispatch the same event as left-click to show the context menu
+                dispatch('message-embed-click', {
+                    view: editor?.view,
+                    node,
+                    dom: embedContainer,
+                    elementId,
+                    rect // Pass the rect for proper menu positioning
+                });
+            }
+        }
+    }
+
+    // Touch event handlers for long-press detection on embeds (mobile support)
+    // Constants for touch handling
+    const LONG_PRESS_DURATION = 500; // milliseconds
+    const TOUCH_MOVE_THRESHOLD = 10; // pixels
+    
+    let touchTimer: ReturnType<typeof setTimeout> | null = null;
+    let touchStartX = 0;
+    let touchStartY = 0;
+    let touchTarget: HTMLElement | null = null;
+
+    /**
+     * Handle touch start for long-press detection on embeds
+     * Starts a timer that will show the context menu if the touch is held long enough
+     */
+    function handleTouchStart(event: TouchEvent) {
+        // Only handle single touch
+        if (event.touches.length !== 1) {
+            clearTouchTimer();
+            return;
+        }
+
+        const target = event.target as HTMLElement;
+        // Check if touch is on an embed container
+        const embedContainer = target.closest('[data-embed-id], [data-code-embed], .preview-container');
+        if (!embedContainer) {
+            return; // Not touching an embed, ignore
+        }
+
+        const touch = event.touches[0];
+        touchStartX = touch.clientX;
+        touchStartY = touch.clientY;
+        touchTarget = embedContainer as HTMLElement;
+
+        // Start long-press timer
+        touchTimer = setTimeout(() => {
+            if (touchTarget && editor) {
+                logger.debug('[ReadOnlyMessage] Embed container long-pressed');
+                
+                // Get the node from the editor
+                const pos = editor.view.posAtDOM(touchTarget, 0);
+                const node = pos !== undefined ? editor.state.doc.nodeAt(pos) : null;
+                
+                if (node) {
+                    const elementId = touchTarget.getAttribute('data-embed-id') || 
+                                    touchTarget.getAttribute('data-code-embed') || 
+                                    touchTarget.id;
+                    
+                    // Get container rect for menu positioning
+                    const rect = touchTarget.getBoundingClientRect();
+                    
+                    // Dispatch the same event as click to show the context menu
+                    dispatch('message-embed-click', {
+                        view: editor.view,
+                        node,
+                        dom: touchTarget,
+                        elementId,
+                        rect // Pass the rect for proper menu positioning
+                    });
+                    
+                    // Vibrate to provide haptic feedback (if supported)
+                    if (navigator.vibrate) {
+                        navigator.vibrate(50);
+                    }
+                }
+            }
+        }, LONG_PRESS_DURATION);
+    }
+
+    /**
+     * Handle touch move - cancel long-press if finger moves too much
+     */
+    function handleTouchMove(event: TouchEvent) {
+        if (!touchTimer || event.touches.length !== 1) {
+            return;
+        }
+
+        const touch = event.touches[0];
+        const deltaX = Math.abs(touch.clientX - touchStartX);
+        const deltaY = Math.abs(touch.clientY - touchStartY);
+
+        // If finger moved too much, cancel the long-press
+        if (deltaX > TOUCH_MOVE_THRESHOLD || deltaY > TOUCH_MOVE_THRESHOLD) {
+            clearTouchTimer();
+        }
+    }
+
+    /**
+     * Handle touch end - cancel long-press timer
+     */
+    function handleTouchEnd(event: TouchEvent) {
+        clearTouchTimer();
+    }
+
+    /**
+     * Clear the touch timer
+     */
+    function clearTouchTimer() {
+        if (touchTimer) {
+            clearTimeout(touchTimer);
+            touchTimer = null;
+        }
+        touchTarget = null;
+    }
+
     function processContent(inputContent: any) {
         if (!inputContent) return null;
         
@@ -213,8 +356,13 @@
             injectCSS: false, // Don't inject default styles
         });
         
-        // Listen for clicks on the editor (for embed interactions)
-        editor.view.dom.addEventListener('click', handleEmbedClick as EventListener);
+        // Listen for right-clicks on the editor (for embed context menu)
+        // Left clicks are handled by UnifiedEmbedPreview components directly
+        editor.view.dom.addEventListener('contextmenu', handleEmbedContextMenu as EventListener);
+        editor.view.dom.addEventListener('touchstart', handleTouchStart as EventListener);
+        editor.view.dom.addEventListener('touchmove', handleTouchMove as EventListener);
+        editor.view.dom.addEventListener('touchend', handleTouchEnd as EventListener);
+        editor.view.dom.addEventListener('touchcancel', handleTouchEnd as EventListener);
         editorCreated = true;
     }
 
@@ -294,7 +442,14 @@
     onDestroy(() => {
         if (editor) {
             logger.debug('Component destroying. Cleaning up Tiptap editor.');
-            editor.view.dom.removeEventListener('click', handleEmbedClick as EventListener);
+            // Remove all event listeners
+            editor.view.dom.removeEventListener('contextmenu', handleEmbedContextMenu as EventListener);
+            editor.view.dom.removeEventListener('touchstart', handleTouchStart as EventListener);
+            editor.view.dom.removeEventListener('touchmove', handleTouchMove as EventListener);
+            editor.view.dom.removeEventListener('touchend', handleTouchEnd as EventListener);
+            editor.view.dom.removeEventListener('touchcancel', handleTouchEnd as EventListener);
+            // Clear any pending touch timers
+            clearTouchTimer();
             editor.destroy();
             editor = null;
         }

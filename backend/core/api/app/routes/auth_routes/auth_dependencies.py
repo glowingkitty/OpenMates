@@ -50,7 +50,7 @@ def get_secrets_manager(request: Request):
 async def get_current_user(
     directus_service: DirectusService = Depends(get_directus_service),
     cache_service: CacheService = Depends(get_cache_service),
-    refresh_token: Optional[str] = Cookie(None, alias="auth_refresh_token")
+    refresh_token: Optional[str] = Cookie(None, alias="auth_refresh_token", include_in_schema=False)  # Hidden from API docs - internal use only
 ) -> User:
     """
     Retrieves the current authenticated user based on the refresh token cookie.
@@ -243,3 +243,100 @@ async def get_current_user(
     await cache_service.set_user(user_data_for_cache, refresh_token=refresh_token)
     
     return user
+
+
+async def get_current_user_or_api_key(
+    request: Request,
+    directus_service: DirectusService = Depends(get_directus_service),
+    cache_service: CacheService = Depends(get_cache_service),
+    refresh_token: Optional[str] = Cookie(None, alias="auth_refresh_token", include_in_schema=False)  # Hidden from API docs - internal use only
+) -> User:
+    """
+    Unified authentication dependency that supports both session and API key authentication.
+    
+    Tries session authentication first (via cookie), then falls back to API key authentication
+    (via Authorization header) if session auth fails or is not available.
+    
+    Returns:
+        User object if authenticated via either method
+        
+    Raises:
+        HTTPException(401): If neither authentication method succeeds
+    """
+    # Try session authentication first
+    if refresh_token:
+        try:
+            return await get_current_user(
+                directus_service=directus_service,
+                cache_service=cache_service,
+                refresh_token=refresh_token
+            )
+        except HTTPException:
+            # Session auth failed, try API key auth
+            pass
+    
+    # Try API key authentication
+    auth_header = request.headers.get("Authorization")
+    if auth_header and auth_header.startswith("Bearer "):
+        try:
+            from backend.core.api.app.utils.api_key_auth import get_api_key_auth_service
+            api_key_auth_service = get_api_key_auth_service(request)
+            api_key = auth_header[7:]  # Remove "Bearer " prefix
+            
+            user_info = await api_key_auth_service.authenticate_api_key(api_key, request=request)
+            user_id = user_info.get("user_id")
+            
+            if user_id:
+                # Fetch user profile to create User object
+                success, user_data, profile_message = await directus_service.get_user_profile(user_id)
+                if success and user_data:
+                    # Create User object from profile data (same as get_current_user)
+                    profile_username = user_data.get("username")
+                    profile_vault_key_id = user_data.get("vault_key_id")
+                    
+                    if not profile_username or not profile_vault_key_id:
+                        raise HTTPException(status_code=500, detail="User data incomplete")
+                    
+                    return User(
+                        id=user_id,
+                        username=profile_username,
+                        is_admin=user_data.get("is_admin") or False,
+                        credits=user_data.get("credits", 0),
+                        profile_image_url=user_data.get("profile_image_url"),
+                        last_opened=user_data.get("last_opened"),
+                        vault_key_id=profile_vault_key_id,
+                        tfa_app_name=user_data.get("tfa_app_name"),
+                        consent_privacy_and_apps_default_settings=user_data.get("consent_privacy_and_apps_default_settings"),
+                        consent_mates_default_settings=user_data.get("consent_mates_default_settings"),
+                        language=user_data.get("language", 'en'),
+                        darkmode=user_data.get("darkmode") or False,
+                        gifted_credits_for_signup=user_data.get("gifted_credits_for_signup"),
+                        encrypted_email_address=user_data.get("encrypted_email_address"),
+                        invoice_counter=user_data.get("invoice_counter", 0),
+                        encrypted_key=user_data.get("encrypted_key"),
+                        salt=user_data.get("salt"),
+                        user_email_salt=user_data.get("user_email_salt"),
+                        lookup_hashes=user_data.get("lookup_hashes"),
+                        account_id=user_data.get("account_id"),
+                        encrypted_payment_method_id=user_data.get("encrypted_payment_method_id"),
+                        stripe_customer_id=user_data.get("stripe_customer_id"),
+                        stripe_subscription_id=user_data.get("stripe_subscription_id"),
+                        subscription_status=user_data.get("subscription_status"),
+                        subscription_credits=user_data.get("subscription_credits"),
+                        subscription_currency=user_data.get("subscription_currency"),
+                        next_billing_date=user_data.get("next_billing_date"),
+                        auto_topup_low_balance_enabled=user_data.get("auto_topup_low_balance_enabled") or False,
+                        auto_topup_low_balance_threshold=user_data.get("auto_topup_low_balance_threshold"),
+                        auto_topup_low_balance_amount=user_data.get("auto_topup_low_balance_amount"),
+                        auto_topup_low_balance_currency=user_data.get("auto_topup_low_balance_currency"),
+                        encrypted_auto_topup_last_triggered=user_data.get("encrypted_auto_topup_last_triggered")
+                    )
+        except HTTPException:
+            # API key auth failed, will raise below
+            pass
+        except Exception as e:
+            logger.debug(f"API key authentication error: {e}")
+            # Continue to raise 401 below
+    
+    # Neither authentication method succeeded
+    raise HTTPException(status_code=401, detail="Not authenticated: Missing or invalid token/API key")

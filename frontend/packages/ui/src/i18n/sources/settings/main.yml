@@ -481,6 +481,548 @@ developers:
   cs: ''
   sv: ''
   verified_by_human: []
+
+# Developer settings translations
+developers_title:
+  context: Developers settings section title
+  en: Developer Settings
+  de: Entwicklereinstellungen
+  zh: 开发者设置
+  es: Configuración de Desarrollador
+  fr: Paramètres Développeur
+  verified_by_human: []
+
+developers_description:
+  context: Developers settings description
+  en: Manage your API keys and developer tools to integrate with OpenMates.
+  de: Verwalten Sie Ihre API-Schlüssel und Entwicklertools für die Integration mit OpenMates.
+  zh: 管理您的 API 密钥和开发者工具以与 OpenMates 集成。
+  es: Administre sus claves API y herramientas de desarrollador para integrar con OpenMates.
+  fr: Gérez vos clés API et outils de développeur pour intégrer avec OpenMates.
+  verified_by_human: []
+
+developers_api_keys:
+  context: API keys menu item
+  en: API Keys
+  de: API-Schlüssel
+  zh: API 密钥
+  es: Claves API
+  fr: Clés API
+  verified_by_human: []
+
+developers_api_keys_description:
+  context: API keys description
+  en: Create and manage API keys for external applications and integrations.
+  de: Erstellen und verwalten Sie API-Schlüssel für externe Anwendungen und Integrationen.
+  zh: 为外部应用程序和集成创建和管理 API 密钥。
+  es: Cree y administre claves API para aplicaciones externas e integraciones.
+  fr: Créez et gérez les clés API pour les applications externes et les intégrations.
+  verified_by_human: []
+
+developers_devices_text:
+  context: Devices menu item
+  en: Devices
+  de: Geräte
+  zh: 设备
+  es: Dispositivos
+  fr: Appareils
+  pt: Dispositivos
+  ru: Устройства
+  ja: デバイス
+  ko: 기기
+  it: Dispositivi
+  tr: Cihazlar
+  vi: Thiết bị
+  id: Perangkat
+  pl: Urządzenia
+  nl: Apparaten
+  ar: الأجهزة
+  hi: उपकरण
+  th: อุปกรณ์
+  cs: Zařízení
+  sv: Enheter
+  verified_by_human: []
+
+developers_devices_description:
+  context: Devices description
+  en: Manage devices that can use your API keys. Approve or revoke device access.
+  de: Verwalten Sie Geräte, die Ihre API-Schlüssel verwenden können. Genehmigen oder widerrufen Sie den Gerätezugriff.
+  zh: 管理可以使用您的 API 密钥的设备。批准或撤销设备访问。
+  es: Administre los dispositivos que pueden usar sus claves API. Apruebe o revoque el acceso del dispositivo.
+  fr: Gérez les appareils qui peuvent utiliser vos clés API. Approuvez ou révoquez l'accès aux appareils.
+  pt: Gerencie dispositivos que podem usar suas chaves de API. Aprove ou revogue o acesso do dispositivo.
+  ru: Управляйте устройствами, которые могут использовать ваши API-ключи. Одобряйте или отзывайте доступ устройств.
+  ja: APIキーを使用できるデバイスを管理します。デバイスアクセスを承認または取り消します。
+  ko: API 키를 사용할 수 있는 기기를 관리합니다. 기기 액세스를 승인하거나 취소합니다.
+  it: Gestisci i dispositivi che possono utilizzare le tue chiavi API. Approva o revoca l'accesso del dispositivo.
+  tr: API anahtarlarınızı kullanabilen cihazları yönetin. Cihaz erişimini onaylayın veya iptal edin.
+  vi: Quản lý các thiết bị có thể sử dụng khóa API của bạn. Phê duyệt hoặc thu hồi quyền truy cập thiết bị.
+  id: Kelola perangkat yang dapat menggunakan kunci API Anda. Setujui atau cabut akses perangkat.
+  pl: Zarządzaj urządzeniami, które mogą używać Twoich kluczy API. Zatwierdź lub cofnij dostęp urządzenia.
+  nl: Beheer apparaten die uw API-sleutels kunnen gebruiken. Keur apparaattoegang goed of trek deze in.
+  ar: إدارة الأجهزة التي يمكنها استخدام مفاتيح API الخاصة بك. الموافقة على إلغاء وصول الجهاز أو إلغاؤه.
+  hi: उन उपकरणों को प्रबंधित करें जो आपकी API कुंजियों का उपयोग कर सकते हैं। डिवाइस एक्सेस को अनुमोदित या रद्द करें।
+  th: จัดการอุปกรณ์ที่สามารถใช้คีย์ API ของคุณ อนุมัติหรือเพิกถอนการเข้าถึงอุปกรณ์
+  cs: Spravujte zařízení, která mohou používat vaše API klíče. Schvalte nebo odvolejte přístup zařízení.
+  sv: Hantera enheter som kan använda dina API-nycklar. Godkänn eller återkalla enhetsåtkomst.
+  verified_by_human: []
+
+developers_devices_loading:
+  context: Loading devices message
+  en: Loading devices...
+  de: Geräte werden geladen...
+  zh: 正在加载设备...
+  es: Cargando dispositivos...
+  fr: Chargement des appareils...
+  pt: Carregando dispositivos...
+  ru: Загрузка устройств...
+  ja: デバイスを読み込み中...
+  ko: 기기 로드 중...
+  it: Caricamento dispositivi...
+  tr: Cihazlar yükleniyor...
+  vi: Đang tải thiết bị...
+  id: Memuat perangkat...
+  pl: Ładowanie urządzeń...
+  nl: Apparaten laden...
+  ar: جارٍ تحميل الأجهزة...
+  hi: उपकरण लोड हो रहे हैं...
+  th: กำลังโหลดอุปกรณ์...
+  cs: Načítání zařízení...
+  sv: Laddar enheter...
+  verified_by_human: []
+
+developers_devices_no_devices:
+  context: No devices message
+  en: No devices found. Devices will appear here when they first attempt to use your API keys.
+  de: Keine Geräte gefunden. Geräte werden hier angezeigt, wenn sie zum ersten Mal versuchen, Ihre API-Schlüssel zu verwenden.
+  zh: 未找到设备。当设备首次尝试使用您的 API 密钥时，它们将显示在这里。
+  es: No se encontraron dispositivos. Los dispositivos aparecerán aquí cuando intenten usar sus claves API por primera vez.
+  fr: Aucun appareil trouvé. Les appareils apparaîtront ici lorsqu'ils tenteront d'utiliser vos clés API pour la première fois.
+  pt: Nenhum dispositivo encontrado. Os dispositivos aparecerão aqui quando tentarem usar suas chaves de API pela primeira vez.
+  ru: Устройства не найдены. Устройства появятся здесь, когда они впервые попытаются использовать ваши API-ключи.
+  ja: デバイスが見つかりませんでした。デバイスが初めてAPIキーを使用しようとすると、ここに表示されます。
+  ko: 기기를 찾을 수 없습니다. 기기가 처음으로 API 키를 사용하려고 할 때 여기에 표시됩니다.
+  it: Nessun dispositivo trovato. I dispositivi appariranno qui quando tenteranno di utilizzare le tue chiavi API per la prima volta.
+  tr: Cihaz bulunamadı. Cihazlar API anahtarlarınızı ilk kez kullanmaya çalıştığında burada görünecektir.
+  vi: Không tìm thấy thiết bị. Thiết bị sẽ xuất hiện ở đây khi chúng lần đầu tiên cố gắng sử dụng khóa API của bạn.
+  id: Tidak ada perangkat yang ditemukan. Perangkat akan muncul di sini ketika mereka pertama kali mencoba menggunakan kunci API Anda.
+  pl: Nie znaleziono urządzeń. Urządzenia pojawią się tutaj, gdy po raz pierwszy spróbują użyć Twoich kluczy API.
+  nl: Geen apparaten gevonden. Apparaten verschijnen hier wanneer ze voor het eerst proberen uw API-sleutels te gebruiken.
+  ar: لم يتم العثور على أجهزة. ستظهر الأجهزة هنا عندما تحاول استخدام مفاتيح API الخاصة بك لأول مرة.
+  hi: कोई उपकरण नहीं मिला। जब वे पहली बार आपकी API कुंजियों का उपयोग करने का प्रयास करेंगे तो उपकरण यहां दिखाई देंगे।
+  th: ไม่พบอุปกรณ์ อุปกรณ์จะปรากฏที่นี่เมื่อพยายามใช้คีย์ API ของคุณเป็นครั้งแรก
+  cs: Nebyla nalezena žádná zařízení. Zařízení se zde zobrazí, když se poprvé pokusí použít vaše API klíče.
+  sv: Inga enheter hittades. Enheter visas här när de först försöker använda dina API-nycklar.
+  verified_by_human: []
+
+developers_devices_status_approved:
+  context: Approved device status
+  en: Approved
+  de: Genehmigt
+  zh: 已批准
+  es: Aprobado
+  fr: Approuvé
+  pt: Aprovado
+  ru: Одобрено
+  ja: 承認済み
+  ko: 승인됨
+  it: Approvato
+  tr: Onaylandı
+  vi: Đã phê duyệt
+  id: Disetujui
+  pl: Zatwierdzone
+  nl: Goedgekeurd
+  ar: معتمد
+  hi: अनुमोदित
+  th: อนุมัติแล้ว
+  cs: Schváleno
+  sv: Godkänd
+  verified_by_human: []
+
+developers_devices_status_pending:
+  context: Pending device status
+  en: Pending Approval
+  de: Wartet auf Genehmigung
+  zh: 待批准
+  es: Pendiente de aprobación
+  fr: En attente d'approbation
+  pt: Aguardando aprovação
+  ru: Ожидает одобрения
+  ja: 承認待ち
+  ko: 승인 대기 중
+  it: In attesa di approvazione
+  tr: Onay bekleniyor
+  vi: Đang chờ phê duyệt
+  id: Menunggu persetujuan
+  pl: Oczekuje na zatwierdzenie
+  nl: Wachtend op goedkeuring
+  ar: في انتظار الموافقة
+  hi: अनुमोदन लंबित
+  th: รอการอนุมัติ
+  cs: Čeká na schválení
+  sv: Väntar på godkännande
+  verified_by_human: []
+
+developers_devices_first_access:
+  context: First access label
+  en: First Access
+  de: Erster Zugriff
+  zh: 首次访问
+  es: Primer acceso
+  fr: Premier accès
+  pt: Primeiro acesso
+  ru: Первый доступ
+  ja: 初回アクセス
+  ko: 첫 액세스
+  it: Primo accesso
+  tr: İlk erişim
+  vi: Truy cập đầu tiên
+  id: Akses pertama
+  pl: Pierwszy dostęp
+  nl: Eerste toegang
+  ar: الوصول الأول
+  hi: पहली पहुंच
+  th: การเข้าถึงครั้งแรก
+  cs: První přístup
+  sv: Första åtkomst
+  verified_by_human: []
+
+developers_devices_last_access:
+  context: Last access label
+  en: Last Access
+  de: Letzter Zugriff
+  zh: 最后访问
+  es: Último acceso
+  fr: Dernier accès
+  pt: Último acesso
+  ru: Последний доступ
+  ja: 最終アクセス
+  ko: 마지막 액세스
+  it: Ultimo accesso
+  tr: Son erişim
+  vi: Truy cập cuối cùng
+  id: Akses terakhir
+  pl: Ostatni dostęp
+  nl: Laatste toegang
+  ar: آخر وصول
+  hi: अंतिम पहुंच
+  th: การเข้าถึงล่าสุด
+  cs: Poslední přístup
+  sv: Senaste åtkomst
+  verified_by_human: []
+
+developers_devices_approve:
+  context: Approve device button
+  en: Approve
+  de: Genehmigen
+  zh: 批准
+  es: Aprobar
+  fr: Approuver
+  pt: Aprovar
+  ru: Одобрить
+  ja: 承認
+  ko: 승인
+  it: Approva
+  tr: Onayla
+  vi: Phê duyệt
+  id: Setujui
+  pl: Zatwierdź
+  nl: Goedkeuren
+  ar: الموافقة
+  hi: अनुमोदित करें
+  th: อนุมัติ
+  cs: Schválit
+  sv: Godkänn
+  verified_by_human: []
+
+developers_devices_revoke:
+  context: Revoke device button
+  en: Revoke
+  de: Widerrufen
+  zh: 撤销
+  es: Revocar
+  fr: Révoquer
+  pt: Revogar
+  ru: Отозвать
+  ja: 取り消し
+  ko: 취소
+  it: Revoca
+  tr: İptal et
+  vi: Thu hồi
+  id: Cabut
+  pl: Cofnij
+  nl: Intrekken
+  ar: إلغاء
+  hi: रद्द करें
+  th: เพิกถอน
+  cs: Odvolat
+  sv: Återkalla
+  verified_by_human: []
+
+developers_devices_confirm_revoke:
+  context: Confirm revoke device message
+  en: Are you sure you want to revoke access for this device?
+  de: Möchten Sie den Zugriff für dieses Gerät wirklich widerrufen?
+  zh: 您确定要撤销此设备的访问权限吗？
+  es: ¿Está seguro de que desea revocar el acceso para este dispositivo?
+  fr: Êtes-vous sûr de vouloir révoquer l'accès pour cet appareil?
+  pt: Tem certeza de que deseja revogar o acesso para este dispositivo?
+  ru: Вы уверены, что хотите отозвать доступ для этого устройства?
+  ja: このデバイスのアクセスを本当に取り消しますか？
+  ko: 이 기기의 액세스를 취소하시겠습니까?
+  it: Sei sicuro di voler revocare l'accesso per questo dispositivo?
+  tr: Bu cihazın erişimini gerçekten iptal etmek istiyor musunuz?
+  vi: Bạn có chắc chắn muốn thu hồi quyền truy cập cho thiết bị này không?
+  id: Apakah Anda yakin ingin mencabut akses untuk perangkat ini?
+  pl: Czy na pewno chcesz cofnąć dostęp dla tego urządzenia?
+  nl: Weet u zeker dat u de toegang voor dit apparaat wilt intrekken?
+  ar: هل أنت متأكد أنك تريد إلغاء الوصول لهذا الجهاز؟
+  hi: क्या आप वाकई इस उपकरण के लिए पहुंच रद्द करना चाहते हैं?
+  th: คุณแน่ใจหรือไม่ว่าต้องการเพิกถอนการเข้าถึงสำหรับอุปกรณ์นี้?
+  cs: Opravdu chcete odvolat přístup pro toto zařízení?
+  sv: Är du säker på att du vill återkalla åtkomsten för denna enhet?
+  verified_by_human: []
+
+developers_devices_processing:
+  context: Processing action message
+  en: Processing...
+  de: Wird verarbeitet...
+  zh: 处理中...
+  es: Procesando...
+  fr: Traitement en cours...
+  pt: Processando...
+  ru: Обработка...
+  ja: 処理中...
+  ko: 처리 중...
+  it: Elaborazione...
+  tr: İşleniyor...
+  vi: Đang xử lý...
+  id: Memproses...
+  pl: Przetwarzanie...
+  nl: Verwerken...
+  ar: جارٍ المعالجة...
+  hi: प्रसंस्करण...
+  th: กำลังประมวลผล...
+  cs: Zpracování...
+  sv: Bearbetar...
+  verified_by_human: []
+
+developers_devices_access_type_rest_api:
+  context: REST API access type
+  en: REST API
+  de: REST API
+  zh: REST API
+  es: REST API
+  fr: REST API
+  pt: REST API
+  ru: REST API
+  ja: REST API
+  ko: REST API
+  it: REST API
+  tr: REST API
+  vi: REST API
+  id: REST API
+  pl: REST API
+  nl: REST API
+  ar: REST API
+  hi: REST API
+  th: REST API
+  cs: REST API
+  sv: REST API
+  verified_by_human: []
+
+developers_devices_access_type_cli:
+  context: CLI access type
+  en: CLI
+  de: CLI
+  zh: CLI
+  es: CLI
+  fr: CLI
+  pt: CLI
+  ru: CLI
+  ja: CLI
+  ko: CLI
+  it: CLI
+  tr: CLI
+  vi: CLI
+  id: CLI
+  pl: CLI
+  nl: CLI
+  ar: CLI
+  hi: CLI
+  th: CLI
+  cs: CLI
+  sv: CLI
+  verified_by_human: []
+
+developers_devices_access_type_pip:
+  context: pip access type
+  en: pip Package
+  de: pip Paket
+  zh: pip 包
+  es: Paquete pip
+  fr: Paquet pip
+  pt: Pacote pip
+  ru: Пакет pip
+  ja: pipパッケージ
+  ko: pip 패키지
+  it: Pacchetto pip
+  tr: pip Paketi
+  vi: Gói pip
+  id: Paket pip
+  pl: Pakiet pip
+  nl: pip Pakket
+  ar: حزمة pip
+  hi: pip पैकेज
+  th: แพ็คเกจ pip
+  cs: Balíček pip
+  sv: pip Paket
+  verified_by_human: []
+
+developers_devices_access_type_npm:
+  context: npm access type
+  en: npm Package
+  de: npm Paket
+  zh: npm 包
+  es: Paquete npm
+  fr: Paquet npm
+  pt: Pacote npm
+  ru: Пакет npm
+  ja: npmパッケージ
+  ko: npm 패키지
+  it: Pacchetto npm
+  tr: npm Paketi
+  vi: Gói npm
+  id: Paket npm
+  pl: Pakiet npm
+  nl: npm Pakket
+  ar: حزمة npm
+  hi: npm पैकेज
+  th: แพ็คเกจ npm
+  cs: Balíček npm
+  sv: npm Paket
+  verified_by_human: []
+
+developers_devices_rename:
+  context: Button to rename a device
+  en: Rename
+  de: Umbenennen
+  zh: 重命名
+  es: Renombrar
+  fr: Renommer
+  pt: Renomear
+  ru: Переименовать
+  ja: 名前を変更
+  ko: 이름 변경
+  it: Rinomina
+  tr: Yeniden Adlandır
+  vi: Đổi tên
+  id: Ubah Nama
+  pl: Zmień nazwę
+  nl: Hernoemen
+  ar: إعادة تسمية
+  hi: नाम बदलें
+  th: เปลี่ยนชื่อ
+  cs: Přejmenovat
+  sv: Byt namn
+  verified_by_human: []
+
+developers_devices_save:
+  context: Button to save device name changes
+  en: Save
+  de: Speichern
+  zh: 保存
+  es: Guardar
+  fr: Enregistrer
+  pt: Salvar
+  ru: Сохранить
+  ja: 保存
+  ko: 저장
+  it: Salva
+  tr: Kaydet
+  vi: Lưu
+  id: Simpan
+  pl: Zapisz
+  nl: Opslaan
+  ar: حفظ
+  hi: सहेजें
+  th: บันทึก
+  cs: Uložit
+  sv: Spara
+  verified_by_human: []
+
+developers_devices_cancel:
+  context: Button to cancel device name editing
+  en: Cancel
+  de: Abbrechen
+  zh: 取消
+  es: Cancelar
+  fr: Annuler
+  pt: Cancelar
+  ru: Отмена
+  ja: キャンセル
+  ko: 취소
+  it: Annulla
+  tr: İptal
+  vi: Hủy
+  id: Batal
+  pl: Anuluj
+  nl: Annuleren
+  ar: إلغاء
+  hi: रद्द करें
+  th: ยกเลิก
+  cs: Zrušit
+  sv: Avbryt
+  verified_by_human: []
+
+developers_devices_name_placeholder:
+  context: Placeholder text for device name input field
+  en: Enter device name (e.g., Work Laptop, Home Server)
+  de: Gerätename eingeben (z.B. Arbeitslaptop, Heimserver)
+  zh: "输入设备名称（例如：工作笔记本电脑、家庭服务器）"
+  es: "Ingrese el nombre del dispositivo (ej: Portátil del trabajo, Servidor doméstico)"
+  fr: "Entrez le nom de l'appareil (ex: Ordinateur portable du travail, Serveur domestique)"
+  pt: "Digite o nome do dispositivo (ex: Laptop do trabalho, Servidor doméstico)"
+  ru: "Введите имя устройства (например: Рабочий ноутбук, Домашний сервер)"
+  ja: "デバイス名を入力（例：仕事用ノートPC、ホームサーバー）"
+  ko: '장치 이름 입력 (예: 작업용 노트북, 홈 서버)'
+  it: "Inserisci il nome del dispositivo (es: Laptop di lavoro, Server domestico)"
+  tr: "Cihaz adını girin (örn: İş Laptopu, Ev Sunucusu)"
+  vi: "Nhập tên thiết bị (vd: Laptop công việc, Máy chủ gia đình)"
+  id: "Masukkan nama perangkat (mis: Laptop Kerja, Server Rumah)"
+  pl: "Wprowadź nazwę urządzenia (np. Laptop do pracy, Serwer domowy)"
+  nl: "Voer apparaatnaam in (bijv. Werk Laptop, Thuis Server)"
+  ar: "أدخل اسم الجهاز (مثال: كمبيوتر العمل المحمول، خادم المنزل)"
+  hi: "डिवाइस नाम दर्ज करें (उदाहरण: कार्य लैपटॉप, होम सर्वर)"
+  th: "ใส่ชื่ออุปกรณ์ (เช่น: แล็ปท็อปทำงาน, เซิร์ฟเวอร์บ้าน)"
+  cs: "Zadejte název zařízení (např. Pracovní notebook, Domácí server)"
+  sv: Ange enhetsnamn (t.ex. Arbetslaptop, Hemserver)
+  verified_by_human: []
+
+developers_devices_rename_empty_error:
+  context: Error message when device name is empty
+  en: Device name cannot be empty
+  de: Gerätename darf nicht leer sein
+  zh: 设备名称不能为空
+  es: El nombre del dispositivo no puede estar vacío
+  fr: Le nom de l'appareil ne peut pas être vide
+  pt: O nome do dispositivo não pode estar vazio
+  ru: Имя устройства не может быть пустым
+  ja: デバイス名は空にできません
+  ko: 장치 이름은 비워둘 수 없습니다
+  it: Il nome del dispositivo non può essere vuoto
+  tr: Cihaz adı boş olamaz
+  vi: Tên thiết bị không được để trống
+  id: Nama perangkat tidak boleh kosong
+  pl: Nazwa urządzenia nie może być pusta
+  nl: Apparaatnaam mag niet leeg zijn
+  ar: لا يمكن أن يكون اسم الجهاز فارغًا
+  hi: डिवाइस नाम खाली नहीं हो सकता
+  th: ชื่ออุปกรณ์ไม่สามารถว่างได้
+  cs: Název zařízení nemůže být prázdný
+  sv: Enhetsnamnet kan inte vara tomt
+  verified_by_human: []
+
 dark_mode:
   context: Dark mode toggle
   en: Dark mode

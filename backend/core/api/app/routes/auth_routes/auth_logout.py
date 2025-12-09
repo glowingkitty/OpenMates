@@ -22,8 +22,8 @@ async def logout(
     directus_service: DirectusService = Depends(get_directus_service),
     cache_service: CacheService = Depends(get_cache_service),
     encryption_service: EncryptionService = Depends(get_encryption_service), # Add EncryptionService
-    refresh_token: Optional[str] = Cookie(None, alias="auth_refresh_token"),
-    directus_refresh_token: Optional[str] = Cookie(None)  # Also try original directus name
+    refresh_token: Optional[str] = Cookie(None, alias="auth_refresh_token", include_in_schema=False),  # Hidden from API docs - internal use only
+    directus_refresh_token: Optional[str] = Cookie(None, include_in_schema=False)  # Also try original directus name - hidden from API docs
 ):
     """
     Log out the current user by clearing session cookies, invalidating the session,
@@ -143,7 +143,7 @@ async def logout_all(
     response: Response,
     directus_service: DirectusService = Depends(get_directus_service),
     cache_service: CacheService = Depends(get_cache_service),
-    refresh_token: Optional[str] = Cookie(None, alias="auth_refresh_token"),
+    refresh_token: Optional[str] = Cookie(None, alias="auth_refresh_token", include_in_schema=False),  # Hidden from API docs - internal use only
     directus_refresh_token: Optional[str] = Cookie(None)
 ):
     """
@@ -223,7 +223,7 @@ async def policy_violation_logout(
     response: Response,
     cache_service: CacheService = Depends(get_cache_service),
     compliance_service: ComplianceService = Depends(get_compliance_service),
-    refresh_token: Optional[str] = Cookie(None, alias="auth_refresh_token")
+    refresh_token: Optional[str] = Cookie(None, alias="auth_refresh_token", include_in_schema=False)  # Hidden from API docs - internal use only
 ):
     """
     Special logout endpoint for policy violations - aggressively cleans up all user data

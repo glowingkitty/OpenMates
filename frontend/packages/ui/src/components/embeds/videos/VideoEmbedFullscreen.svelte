@@ -1,0 +1,618 @@
+<!--
+  frontend/packages/ui/src/components/embeds/videos/VideoEmbedFullscreen.svelte
+  
+  Fullscreen view for Video URL embeds (YouTube, etc.).
+  Uses UnifiedEmbedFullscreen as base and provides video-specific content.
+  
+  This component:
+  1. Shows video thumbnail preview image (780px max width)
+  2. Shows play button overlay on thumbnail
+  3. When play is clicked, signals ActiveChat to start VideoIframe
+  4. Shows "Open on YouTube" button
+  5. Shows PiP button (when video is playing)
+  6. Shows "Tip Creator" button
+  
+  The VideoIframe component lives in ActiveChat (not here).
+  This separation allows the iframe to persist when this fullscreen view closes (for PiP).
+-->
+
+<script lang="ts">
+  import { onDestroy, tick } from 'svelte';
+  import { get } from 'svelte/store';
+  import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
+  import { videoIframeStore } from '../../../stores/videoIframeStore';
+  // @ts-ignore - @repo/ui module exists at runtime
+  import { text } from '@repo/ui';
+  
+  /**
+   * Props for video embed fullscreen
+   */
+  interface Props {
+    /** Video URL */
+    url: string;
+    /** Video title */
+    title?: string;
+    /** Close handler */
+    onClose: () => void;
+    /** Optional: Video ID (for restoration from PiP) */
+    videoId?: string;
+    /** Optional: Flag indicating this was opened from PiP (video already playing) */
+    restoreFromPip?: boolean;
+  }
+  
+  let {
+    url,
+    title,
+    onClose,
+    videoId: propVideoId,
+    restoreFromPip = false
+  }: Props = $props();
+  
+  // Extract video ID and thumbnail for YouTube URLs
+  // Use propVideoId if provided (from PiP restoration), otherwise extract from URL
+  let videoId = $state(propVideoId || '');
+  let thumbnailUrl = $state('');
+  let displayTitle = $state(title || 'YouTube Video');
+  let hostname = $state('');
+  
+  // Track whether video is playing (iframe is active)
+  // Subscribe to videoIframeStore to check if video is playing
+  let isVideoPlaying = $state(false);
+  
+  // Subscribe to videoIframeStore to track if video is playing
+  $effect(() => {
+    const unsubscribe = videoIframeStore.subscribe((state) => {
+      // Video is playing if store is active and has matching videoId
+      isVideoPlaying = state.isActive && state.videoId === videoId;
+    });
+    return unsubscribe;
+  });
+  
+  // Generate YouTube embed URL with privacy settings
+  // Uses youtube-nocookie.com (privacy-enhanced mode) to minimize cookie tracking
+  let embedUrl = $derived(
+    videoId
+      ? // Use privacy-enhanced mode (youtube-nocookie.com) to minimize cookie tracking
+        // URL parameters:
+        // - modestbranding=1: Reduces YouTube branding
+        // - rel=0: Don't show related videos from other channels
+        // - iv_load_policy=3: Don't show video annotations
+        // - fs=1: Allow fullscreen (user preference)
+        // - autoplay=1: Start playing when iframe loads (user clicked play button)
+        // - enablejsapi=0: Disable JavaScript API to reduce tracking
+        `https://www.youtube-nocookie.com/embed/${videoId}?modestbranding=1&rel=0&iv_load_policy=3&fs=1&autoplay=1&enablejsapi=0`
+      : ''
+  );
+  
+  // Process URL to extract video information
+  $effect(() => {
+    if (url) {
+      try {
+        const urlObj = new URL(url);
+        hostname = urlObj.hostname;
+        
+        // If videoId was provided as prop (from PiP restoration), use it
+        // Otherwise, extract from URL
+        if (propVideoId) {
+          // Use provided videoId and generate thumbnail
+          videoId = propVideoId;
+          thumbnailUrl = `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`;
+        } else {
+          // YouTube URL patterns - extract video ID from URL
+          const youtubeMatch = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\n?#]+)/);
+          if (youtubeMatch) {
+            videoId = youtubeMatch[1];
+            thumbnailUrl = `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`;
+            if (!title) {
+              displayTitle = 'YouTube Video';
+            }
+          }
+        }
+      } catch (e) {
+        console.debug('[VideoEmbedFullscreen] Error parsing URL:', e);
+        hostname = url;
+      }
+    }
+    
+    // Update displayTitle if title prop changes
+    if (title) {
+      displayTitle = title;
+    }
+  });
+  
+  // If restoring from PiP, the video is already playing
+  // Just exit PiP mode to show it in fullscreen position
+  $effect(() => {
+    if (restoreFromPip && videoId) {
+      console.debug('[VideoEmbedFullscreen] Restoring from PiP - exiting PiP mode');
+      videoIframeStore.exitPipMode();
+    }
+  });
+  
+  // Handle play button click - signals ActiveChat to start VideoIframe
+  function handlePlayClick() {
+    if (!videoId || !embedUrl) {
+      console.warn('[VideoEmbedFullscreen] Cannot play: missing videoId or embedUrl');
+      return;
+    }
+    
+    console.debug('[VideoEmbedFullscreen] Play button clicked, starting video', {
+      videoId,
+      embedUrl,
+      thumbnailUrl,
+      title: displayTitle
+    });
+    
+    // Signal store to play video - this will trigger ActiveChat to render VideoIframe
+    videoIframeStore.playVideo({
+      url,
+      title: displayTitle,
+      videoId,
+      embedUrl,
+      thumbnailUrl
+    });
+  }
+  
+  // Handle opening video on YouTube
+  function handleOpenOnYouTube() {
+    if (url) {
+      window.open(url, '_blank', 'noopener,noreferrer');
+    }
+  }
+  
+  // Handle tip creator - opens tip settings menu
+  async function handleTipCreator() {
+    if (!url || !videoId) {
+      console.warn('[VideoEmbedFullscreen] Cannot tip: missing URL or video ID');
+      return;
+    }
+    
+    try {
+      // Import tip store and settings navigation
+      const { tipStore } = await import('../../../stores/tipStore');
+      const { navigateToSettings } = await import('../../../stores/settingsNavigationStore');
+      const { panelState } = await import('../../../stores/panelStateStore');
+      
+      // Set tip data in store (videoUrl will be used to fetch channel ID)
+      tipStore.setTipData({
+        videoUrl: url,
+        contentType: 'video'
+      });
+      
+      // Navigate to tip settings
+      navigateToSettings('shared/tip', $text('settings.tip.tip_creator.text', { default: 'Tip Creator' }), 'tip', 'settings.tip.tip_creator.text');
+      
+      // Open settings panel if not already open
+      panelState.openSettings();
+      
+      console.debug('[VideoEmbedFullscreen] Opened tip settings for video:', videoId);
+    } catch (error) {
+      console.error('[VideoEmbedFullscreen] Error opening tip settings:', error);
+      const { notificationStore } = await import('../../../stores/notificationStore');
+      notificationStore.error('Failed to open tip menu. Please try again.');
+    }
+  }
+  
+  // Handle copy - copies video URL to clipboard with notification
+  async function handleCopy() {
+    try {
+      if (url) {
+        await navigator.clipboard.writeText(url);
+        console.debug('[VideoEmbedFullscreen] Copied video URL to clipboard');
+        // Show success notification
+        const { notificationStore } = await import('../../../stores/notificationStore');
+        notificationStore.success('Video URL copied to clipboard');
+      }
+    } catch (error) {
+      console.error('[VideoEmbedFullscreen] Failed to copy URL:', error);
+      const { notificationStore } = await import('../../../stores/notificationStore');
+      notificationStore.error('Failed to copy URL to clipboard');
+    }
+  }
+  
+  // Handle share - opens share menu (placeholder for now)
+  function handleShare() {
+    // TODO: Implement share functionality for video embeds
+    console.debug('[VideoEmbedFullscreen] Share action (not yet implemented)');
+  }
+  
+  // Handle entering picture-in-picture mode
+  // This uses CSS-based transitions - no DOM movement
+  async function handleEnterPip() {
+    // Check if video is playing
+    const state = get(videoIframeStore);
+    
+    if (!state.isActive || !state.videoId) {
+      console.warn('[VideoEmbedFullscreen] Cannot enter PiP: video not playing');
+      const { notificationStore } = await import('../../../stores/notificationStore');
+      notificationStore.error('Please play the video first to enter picture-in-picture mode');
+      return;
+    }
+    
+    try {
+      console.debug('[VideoEmbedFullscreen] Entering PiP mode');
+      
+      // Signal store to enter PiP mode - this triggers CSS transition in VideoIframe
+      videoIframeStore.enterPipMode();
+      
+      // Wait for CSS transition to start
+      await tick();
+      
+      // Close this fullscreen view - VideoIframe will persist in PiP mode
+      onClose();
+    } catch (error) {
+      console.error('[VideoEmbedFullscreen] Error entering PiP mode:', error);
+      const { notificationStore } = await import('../../../stores/notificationStore');
+      notificationStore.error('Failed to enter picture-in-picture mode');
+    }
+  }
+  
+  // Wrapper for onClose that handles cleanup
+  // When user explicitly closes (not entering PiP), we should fade out and close the video
+  function handleClose() {
+    // Check if we're in PiP mode - if so, don't close the video
+    const state = get(videoIframeStore);
+    if (state.isPipMode) {
+      console.debug('[VideoEmbedFullscreen] Closing fullscreen, video stays in PiP');
+      onClose();
+      return;
+    }
+    
+    // User is closing the fullscreen view AND the video
+    // Use fade-out animation for smooth UX
+    if (state.isActive) {
+      console.debug('[VideoEmbedFullscreen] Closing fullscreen with video fade-out');
+      videoIframeStore.closeWithFadeOut(300);
+    }
+    onClose();
+  }
+  
+  // Cleanup on component destroy
+  // Only close video if NOT in PiP mode (PiP should persist)
+  onDestroy(() => {
+    const state = get(videoIframeStore);
+    if (!state.isPipMode) {
+      console.debug('[VideoEmbedFullscreen] Component destroying, not in PiP - video would close');
+      // Note: We don't close here to avoid closing when switching views
+      // The close is handled by handleClose when user explicitly closes
+    } else {
+      console.debug('[VideoEmbedFullscreen] Component destroying, in PiP - video persists');
+    }
+  });
+</script>
+
+<UnifiedEmbedFullscreen
+  appId="videos"
+  skillId="video"
+  title=""
+  onClose={handleClose}
+  onCopy={handleCopy}
+  onShare={handleShare}
+  skillIconName="video"
+  status="finished"
+  skillName={displayTitle}
+  showSkillIcon={false}
+  showStatus={false}
+>
+  {#snippet content()}
+    <div class="video-container">
+      <!-- Video thumbnail with play button -->
+      <!-- Only show thumbnail when video is NOT playing -->
+      {#if !isVideoPlaying && videoId && thumbnailUrl}
+        <div class="video-thumbnail-wrapper">
+          <img 
+            src={thumbnailUrl} 
+            alt={displayTitle}
+            class="video-thumbnail"
+            loading="lazy"
+            onerror={(e) => {
+              // Try fallback thumbnail quality
+              const img = e.target as HTMLImageElement;
+              if (img.src.includes('maxresdefault')) {
+                img.src = `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
+              } else {
+                img.style.display = 'none';
+              }
+            }}
+          />
+          <!-- Play button overlay -->
+          <button
+            class="play-button-overlay"
+            onclick={handlePlayClick}
+            aria-label="Play video"
+            type="button"
+          >
+            <span class="play-icon"></span>
+          </button>
+        </div>
+      {:else if isVideoPlaying}
+        <!-- Video is playing - VideoIframe shows the actual video -->
+        <!-- This spacer maintains layout so buttons stay below the video -->
+        <div class="video-playing-spacer"></div>
+      {/if}
+      
+      <!-- Action buttons - moves down when video is playing to avoid collision -->
+      {#if url}
+        <div class="button-container" class:video-playing={isVideoPlaying}>
+          <a 
+            href={url}
+            target="_blank"
+            rel="noopener noreferrer"
+            class="open-on-youtube-button"
+          >
+            {$text('embeds.open_on_youtube.text') || 'Open on YouTube'}
+          </a>
+          <!-- Picture-in-Picture button - only shown when video is playing -->
+          {#if isVideoPlaying && videoId && embedUrl}
+            <button
+              class="pip-button"
+              onclick={handleEnterPip}
+              type="button"
+              aria-label="Enter picture-in-picture mode"
+            >
+              <span class="pip-icon"></span>
+              <span class="pip-text">PiP</span>
+            </button>
+          {/if}
+          <button
+            class="tip-creator-button"
+            onclick={handleTipCreator}
+            type="button"
+          >
+            {$text('embeds.tip_creator.text') || 'Tip Creator'}
+          </button>
+        </div>
+      {/if}
+    </div>
+  {/snippet}
+</UnifiedEmbedFullscreen>
+
+<style>
+  /* ===========================================
+     Video Fullscreen - Layout
+     =========================================== */
+  
+  .video-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 24px;
+    width: 100%;
+    margin-top: 20px;
+  }
+  
+  /* ===========================================
+     Video Thumbnail with Play Button
+     =========================================== */
+  
+  .video-thumbnail-wrapper {
+    position: relative;
+    width: 100%;
+    max-width: 780px;
+    aspect-ratio: 16 / 9;
+    border-radius: 16px;
+    overflow: hidden;
+    background-color: var(--color-grey-15);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    top: 40px;
+  }
+  
+  .video-thumbnail {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+  
+  /* Play button overlay - centered on thumbnail */
+  .play-button-overlay {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(0, 0, 0, 0.7);
+    border: none;
+    border-radius: 50%;
+    width: 80px;
+    height: 80px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease-in-out;
+    padding: 0;
+    z-index: 10;
+  }
+  
+  .play-button-overlay:hover {
+    background: rgba(0, 0, 0, 0.85);
+    transform: translate(-50%, -50%) scale(1.1);
+  }
+  
+  .play-button-overlay:active {
+    transform: translate(-50%, -50%) scale(0.95);
+  }
+  
+  .play-icon {
+    width: 48px;
+    height: 48px;
+    display: block;
+    background-image: url('@openmates/ui/static/icons/play.svg');
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+    filter: brightness(0) invert(1); /* Make icon white */
+    pointer-events: none;
+  }
+  
+  /* ===========================================
+     Video Playing Spacer
+     =========================================== */
+  
+  /* When video is playing, this spacer maintains the layout height
+     so buttons stay positioned below the video iframe.
+     The actual video is rendered by VideoIframe in ActiveChat. */
+  .video-playing-spacer {
+    width: 100%;
+    max-width: 780px;
+    aspect-ratio: 16 / 9;
+    /* Transparent - the actual video is shown by VideoIframe */
+  }
+  
+  /* ===========================================
+     Action Buttons
+     =========================================== */
+  
+  /* Button container - centered, moves down when video is playing */
+  .button-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    width: 100%;
+    max-width: 780px;
+    /* Smooth transition for margin change */
+    transition: margin-top 0.3s ease-out;
+  }
+  
+  /* When video is playing, add margin to push buttons below the video iframe */
+  /* The VideoIframe is ~438px tall (780px * 56.25% aspect ratio) positioned at top:80px */
+  /* So buttons need to be pushed down to avoid collision */
+  .button-container.video-playing {
+    margin-top: 20px;
+  }
+  
+  /* Open on YouTube button - styled as button but is an <a> link */
+  .open-on-youtube-button {
+    /* Apply button styles from buttons.css */
+    background-color: var(--color-button-primary);
+    padding: 6px 25px;
+    border-radius: 20px;
+    border: none;
+    filter: drop-shadow(0px 4px 4px rgba(0, 0, 0, 0.25));
+    cursor: pointer;
+    transition: all 0.15s ease-in-out;
+    min-width: 112px;
+    height: 41px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-font-button);
+    font-family: var(--button-font-family);
+    font-size: var(--button-font-size);
+    font-weight: var(--button-font-weight);
+    text-decoration: none;
+  }
+  
+  .open-on-youtube-button:hover {
+    background-color: var(--color-button-primary-hover);
+    scale: 1.02;
+  }
+  
+  .open-on-youtube-button:active {
+    background-color: var(--color-button-primary-pressed);
+    scale: 0.98;
+    filter: none;
+  }
+  
+  /* Tip creator button - styled similarly to Open on YouTube button */
+  .tip-creator-button {
+    background-color: var(--color-button-secondary, var(--color-grey-20));
+    padding: 6px 25px;
+    border-radius: 20px;
+    border: none;
+    filter: drop-shadow(0px 4px 4px rgba(0, 0, 0, 0.25));
+    cursor: pointer;
+    transition: all 0.15s ease-in-out;
+    min-width: 112px;
+    height: 41px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-font-button, var(--color-grey-100));
+    font-family: var(--button-font-family);
+    font-size: var(--button-font-size);
+    font-weight: var(--button-font-weight);
+  }
+  
+  .tip-creator-button:hover {
+    background-color: var(--color-button-secondary-hover, var(--color-grey-30));
+    scale: 1.02;
+  }
+  
+  .tip-creator-button:active {
+    background-color: var(--color-button-secondary-pressed, var(--color-grey-40));
+    scale: 0.98;
+    filter: none;
+  }
+  
+  /* Picture-in-Picture button - styled similarly to other buttons */
+  .pip-button {
+    background-color: var(--color-button-secondary, var(--color-grey-20));
+    padding: 6px 25px;
+    border-radius: 20px;
+    border: none;
+    filter: drop-shadow(0px 4px 4px rgba(0, 0, 0, 0.25));
+    cursor: pointer;
+    transition: all 0.15s ease-in-out;
+    min-width: 112px;
+    height: 41px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    color: var(--color-font-button, var(--color-grey-100));
+    font-family: var(--button-font-family);
+    font-size: var(--button-font-size);
+    font-weight: var(--button-font-weight);
+  }
+  
+  .pip-button:hover {
+    background-color: var(--color-button-secondary-hover, var(--color-grey-30));
+    scale: 1.02;
+  }
+  
+  .pip-button:active {
+    background-color: var(--color-button-secondary-pressed, var(--color-grey-40));
+    scale: 0.98;
+    filter: none;
+  }
+  
+  /* PiP icon - using a simple picture-in-picture icon style */
+  .pip-icon {
+    width: 20px;
+    height: 20px;
+    display: block;
+    position: relative;
+  }
+  
+  .pip-icon::before,
+  .pip-icon::after {
+    content: '';
+    position: absolute;
+    border: 2px solid currentColor;
+    border-radius: 2px;
+  }
+  
+  .pip-icon::before {
+    /* Main video frame */
+    width: 16px;
+    height: 12px;
+    top: 0;
+    left: 0;
+  }
+  
+  .pip-icon::after {
+    /* Small PiP frame */
+    width: 8px;
+    height: 6px;
+    bottom: 0;
+    right: 0;
+    border-width: 1.5px;
+  }
+  
+  .pip-text {
+    font-size: var(--button-font-size);
+  }
+</style>

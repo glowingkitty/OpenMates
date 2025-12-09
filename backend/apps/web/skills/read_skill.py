@@ -22,6 +22,10 @@ from backend.core.api.app.utils.secrets_manager import SecretsManager
 from backend.apps.ai.processing.skill_executor import sanitize_external_content, check_rate_limit, wait_for_rate_limit
 # RateLimitScheduledException is no longer caught here - it bubbles up to route handler
 from backend.core.api.app.services.cache import CacheService
+from backend.shared.python_utils.url_normalizer import extract_domain_from_url, normalize_url_for_content_id
+from backend.core.api.app.services.creators.revenue_service import CreatorRevenueService
+from backend.core.api.app.services.directus import DirectusService
+from backend.core.api.app.utils.encryption import EncryptionService
 
 logger = logging.getLogger(__name__)
 
@@ -480,6 +484,21 @@ class ReadSkill(BaseSkill):
                     }
                     
                     logger.info(f"Web read (id: {request_id}) completed: url='{read_url}'")
+                    
+                    # Create creator income entry asynchronously (fire-and-forget)
+                    # This doesn't block the skill response
+                    try:
+                        asyncio.create_task(
+                            self._create_creator_income_for_url(
+                                url=read_url,
+                                app_id=self.app_id,
+                                skill_id=self.skill_id
+                            )
+                        )
+                    except Exception as e:
+                        # Log but don't fail - income tracking failure shouldn't break skill execution
+                        logger.warning(f"Failed to create creator income entry for URL '{read_url}': {e}")
+                    
                     return (request_id, [result], None)
                 
                 except Exception as e:
@@ -491,6 +510,71 @@ class ReadSkill(BaseSkill):
             error_msg = f"URL '{read_url}' (id: {request_id}): {str(e)}"
             logger.error(error_msg, exc_info=True)
             return (request_id, [], error_msg)
+    
+    async def _create_creator_income_for_url(
+        self,
+        url: str,
+        app_id: str,
+        skill_id: str
+    ) -> None:
+        """
+        Create creator income entry for a website URL.
+        
+        This method is called asynchronously (fire-and-forget) after successful web read.
+        It extracts the domain (owner ID) and normalized URL (content ID), then creates
+        a creator_income entry with 10 credits reserved for the creator (50% of 20 credits total).
+        
+        Args:
+            url: The URL that was read
+            app_id: The app ID (e.g., 'web')
+            skill_id: The skill ID (e.g., 'read')
+        """
+        try:
+            # Extract domain (owner ID) and normalize URL (content ID)
+            domain = extract_domain_from_url(url)
+            normalized_url = normalize_url_for_content_id(url)
+            
+            if not domain or not normalized_url:
+                logger.warning(f"Cannot create creator income: failed to extract domain or normalize URL from '{url}'")
+                return
+            
+            # Create services for creator revenue service
+            # These are created fresh for each async task (fire-and-forget)
+            cache_service = CacheService()
+            encryption_service = EncryptionService(cache_service=cache_service)
+            directus_service = DirectusService(
+                cache_service=cache_service,
+                encryption_service=encryption_service
+            )
+            
+            revenue_service = CreatorRevenueService(
+                directus_service=directus_service,
+                encryption_service=encryption_service
+            )
+            
+            # Revenue split: 10 credits to creator, 10 to OpenMates (50/50 split)
+            # Total cost is 20 credits per request
+            creator_credits = 10
+            
+            # Create income entry
+            success = await revenue_service.create_income_entry(
+                owner_id=domain,
+                content_id=normalized_url,
+                content_type="website",
+                app_id=app_id,
+                skill_id=skill_id,
+                credits=creator_credits,
+                income_source="skill_usage"
+            )
+            
+            if success:
+                logger.debug(f"Created creator income entry for website: domain={domain}, credits={creator_credits}")
+            else:
+                logger.warning(f"Failed to create creator income entry for website: domain={domain}")
+                
+        except Exception as e:
+            # Log but don't raise - income tracking failure shouldn't break skill execution
+            logger.error(f"Error creating creator income entry for URL '{url}': {e}", exc_info=True)
     
     async def execute(
         self,

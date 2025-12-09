@@ -23,8 +23,9 @@ class ChatDatabase {
     private readonly NEW_CHAT_SUGGESTIONS_STORE_NAME = 'new_chat_suggestions'; // Store for new chat suggestions
     private readonly APP_SETTINGS_MEMORIES_STORE_NAME = 'app_settings_memories'; // Store for app settings and memories entries
     private readonly PENDING_OG_METADATA_STORE_NAME = 'pending_og_metadata_updates'; // Store for pending OG metadata updates
-    // Version incremented due to schema change (adding embed_keys store for wrapped key architecture)
-    private readonly VERSION = 13;
+    // Version incremented due to embed data model refactoring (storing fields separately instead of JSON string)
+    // Migration converts old embeds with JSON string in data field to new separate fields format
+    private readonly VERSION = 14;
     private initializationPromise: Promise<void> | null = null;
     
     // Flag to prevent new operations during database deletion
@@ -211,7 +212,20 @@ class ChatDatabase {
                     const embedsStore = db.createObjectStore(EMBEDS_STORE_NAME, { keyPath: 'contentRef' });
                     embedsStore.createIndex('type', 'type', { unique: false });
                     embedsStore.createIndex('createdAt', 'createdAt', { unique: false });
+                    embedsStore.createIndex('app_id', 'app_id', { unique: false }); // Index for filtering embeds by app
+                    embedsStore.createIndex('skill_id', 'skill_id', { unique: false }); // Index for filtering embeds by skill
                     console.debug('[ChatDatabase] Created embeds store for unified parsing');
+                } else if (transaction) {
+                    // Ensure indexes exist for existing stores (for migrations)
+                    const embedsStore = transaction.objectStore(EMBEDS_STORE_NAME);
+                    if (!embedsStore.indexNames.contains('app_id')) {
+                        embedsStore.createIndex('app_id', 'app_id', { unique: false });
+                        console.debug('[ChatDatabase] Added app_id index to embeds store');
+                    }
+                    if (!embedsStore.indexNames.contains('skill_id')) {
+                        embedsStore.createIndex('skill_id', 'skill_id', { unique: false });
+                        console.debug('[ChatDatabase] Added skill_id index to embeds store');
+                    }
                 }
 
                 // Embed keys store for wrapped key architecture (offline-first sharing)
@@ -243,6 +257,89 @@ class ChatDatabase {
                     ogMetadataStore.createIndex('chat_id', 'chat_id', { unique: false });
                     ogMetadataStore.createIndex('created_at', 'created_at', { unique: false });
                     console.debug('[ChatDatabase] Created pending_og_metadata_updates store');
+                }
+
+                // Data migration for version 14: Convert embed data from JSON string to separate fields
+                // This migration converts old embeds that stored entire object as JSON string in data field
+                // to new format with fields stored separately for better querying and indexing
+                if (transaction && event.oldVersion < 14) {
+                    console.info(`[ChatDatabase] Migrating embeds from version ${event.oldVersion} to ${event.newVersion}: converting JSON string to separate fields`);
+                    const embedsStore = transaction.objectStore(EMBEDS_STORE_NAME);
+                    const cursorRequest = embedsStore.openCursor();
+                    let migratedCount = 0;
+                    let skippedCount = 0;
+                    
+                    cursorRequest.onsuccess = (e) => {
+                        const cursor = (e.target as IDBRequest<IDBCursorWithValue | null>)?.result;
+                        if (cursor) {
+                            const entry = cursor.value as any;
+                            
+                            // Check if this embed needs migration (has data field with JSON string but no separate fields)
+                            const needsMigration = entry.data && 
+                                                   typeof entry.data === 'string' && 
+                                                   (entry.data.trim().startsWith('{') || entry.data.trim().startsWith('[')) &&
+                                                   !entry.encrypted_content; // Only migrate if not already in new format
+                            
+                            if (needsMigration) {
+                                try {
+                                    // Parse the JSON string from data field
+                                    const parsedData = JSON.parse(entry.data);
+                                    
+                                    // Extract fields from parsed data and store separately
+                                    // Preserve server timestamps if they exist in the parsed data
+                                    if (parsedData.createdAt !== undefined && parsedData.createdAt !== null) {
+                                        entry.createdAt = parsedData.createdAt;
+                                    }
+                                    if (parsedData.updatedAt !== undefined && parsedData.updatedAt !== null) {
+                                        entry.updatedAt = parsedData.updatedAt;
+                                    }
+                                    
+                                    // Extract all embed fields from parsed data
+                                    entry.embed_id = parsedData.embed_id || entry.embed_id;
+                                    entry.encrypted_content = parsedData.encrypted_content || parsedData.content;
+                                    entry.encrypted_type = parsedData.encrypted_type || parsedData.type;
+                                    entry.encrypted_text_preview = parsedData.encrypted_text_preview || parsedData.text_preview;
+                                    entry.status = parsedData.status || entry.status;
+                                    entry.hashed_chat_id = parsedData.hashed_chat_id;
+                                    entry.hashed_message_id = parsedData.hashed_message_id;
+                                    entry.hashed_task_id = parsedData.hashed_task_id;
+                                    entry.hashed_user_id = parsedData.hashed_user_id;
+                                    entry.embed_ids = parsedData.embed_ids;
+                                    entry.parent_embed_id = parsedData.parent_embed_id;
+                                    entry.version_number = parsedData.version_number;
+                                    entry.file_path = parsedData.file_path;
+                                    entry.content_hash = parsedData.content_hash;
+                                    entry.text_length_chars = parsedData.text_length_chars;
+                                    entry.share_mode = parsedData.share_mode;
+                                    
+                                    // Keep data field for backward compatibility during transition
+                                    // It will be removed in a future migration once all code paths use separate fields
+                                    
+                                    // Update the entry in IndexedDB
+                                    cursor.update(entry);
+                                    migratedCount++;
+                                    
+                                    if (migratedCount % 10 === 0) {
+                                        console.debug(`[ChatDatabase] Migrated ${migratedCount} embeds...`);
+                                    }
+                                } catch (parseError) {
+                                    // If JSON parsing fails, skip this entry (might be encrypted or malformed)
+                                    console.warn(`[ChatDatabase] Failed to parse embed data for ${entry.contentRef}:`, parseError);
+                                    skippedCount++;
+                                }
+                            } else {
+                                skippedCount++;
+                            }
+                            
+                            cursor.continue();
+                        } else {
+                            console.info(`[ChatDatabase] Embed migration completed. Migrated: ${migratedCount}, Skipped: ${skippedCount}`);
+                        }
+                    };
+                    
+                    cursorRequest.onerror = (e) => {
+                        console.error("[ChatDatabase] CRITICAL: Error during embed migration (v<14) cursor:", (e.target as IDBRequest).error);
+                    };
                 }
             };
         });
@@ -2111,9 +2208,11 @@ class ChatDatabase {
         const chatKey = this.getChatKey(chatId);
 
         if (!chatKey) {
-            console.warn(
-                `[ChatDatabase] [DECRYPT] No chat key found for chat ${chatId}, cannot decrypt message fields. ` +
-                `Message ID: ${message.message_id}, Status: ${message.status}, Has encrypted_content: ${!!message.encrypted_content}`
+            console.error(
+                `[CLIENT_DECRYPT] ❌ CRITICAL: No chat key found for chat ${chatId}, cannot decrypt message fields! ` +
+                `Message ID: ${message.message_id}, Role: ${message.role}, Status: ${message.status}, ` +
+                `Has encrypted_content: ${!!message.encrypted_content}, ` +
+                `Encrypted content length: ${message.encrypted_content?.length || 0}`
             );
             return decryptedMessage;
         }
@@ -2125,9 +2224,10 @@ class ChatDatabase {
         if (message.encrypted_content) {
             try {
                 // Enhanced logging for decryption attempts
-                console.debug(
-                    `[ChatDatabase] [DECRYPT] Attempting to decrypt message ${message.message_id} ` +
-                    `(chat: ${chatId}, status: ${message.status}, encrypted_content length: ${message.encrypted_content.length})`
+                console.log(
+                    `[CLIENT_DECRYPT] 🔓 Attempting to decrypt message ${message.message_id} ` +
+                    `(chat: ${chatId}, role: ${message.role}, status: ${message.status}, ` +
+                    `encrypted_content length: ${message.encrypted_content.length})`
                 );
                 const decryptedContentString = await decryptWithChatKey(message.encrypted_content, chatKey);
                 if (decryptedContentString) {
@@ -2135,24 +2235,34 @@ class ChatDatabase {
                     decryptedMessage.content = decryptedContentString;
                     // Clear encrypted field
                     delete decryptedMessage.encrypted_content;
+                    console.log(
+                        `[CLIENT_DECRYPT] ✅ Successfully decrypted message ${message.message_id} ` +
+                        `(content length: ${decryptedContentString.length} chars)`
+                    );
                 } else {
                     // Decryption failed but didn't throw - encrypted_content might be malformed
-                    console.warn(`[ChatDatabase] Failed to decrypt content for message ${message.message_id} - encrypted_content present but decryption returned null`);
+                    console.error(
+                        `[CLIENT_DECRYPT] ❌ Failed to decrypt content for message ${message.message_id} - ` +
+                        `encrypted_content present but decryption returned null. ` +
+                        `This may indicate vault-encrypted content was sent instead of client-encrypted!`
+                    );
                     // Keep encrypted field for debugging, set content to placeholder
                     decryptedMessage.content = message.content || '[Content decryption failed]';
                 }
             } catch (error) {
                 // DEFENSIVE: Handle malformed encrypted_content (e.g., from messages with status 'sending' that never completed encryption)
                 console.error(
-                    `[ChatDatabase] [DECRYPT] ❌ Error decrypting content for message ${message.message_id} ` +
-                    `(status: ${message.status}, chat: ${chatId}): ${error instanceof Error ? error.message : String(error)}. ` +
+                    `[CLIENT_DECRYPT] ❌ CRITICAL: Error decrypting content for message ${message.message_id} ` +
+                    `(role: ${message.role}, status: ${message.status}, chat: ${chatId}): ` +
+                    `${error instanceof Error ? error.message : String(error)}. ` +
                     `Encrypted content length: ${message.encrypted_content?.length || 0}, ` +
-                    `Has plaintext fallback: ${!!message.content}`
+                    `Has plaintext fallback: ${!!message.content}. ` +
+                    `This may indicate vault-encrypted content was sent instead of client-encrypted!`
                 );
                 // If message already has plaintext content, use it (common for status='sending')
                 if (message.content) {
                     console.warn(
-                        `[ChatDatabase] [DECRYPT] Using existing plaintext content for message ${message.message_id} - ` +
+                        `[CLIENT_DECRYPT] ⚠️ Using existing plaintext content for message ${message.message_id} - ` +
                         `encryption may not have completed or content was stored incorrectly`
                     );
                     decryptedMessage.content = message.content;
@@ -2161,6 +2271,11 @@ class ChatDatabase {
                 }
                 // Keep encrypted_content for debugging
             }
+        } else {
+            console.debug(
+                `[CLIENT_DECRYPT] ⚠️ Message ${message.message_id} has no encrypted_content ` +
+                `(chat: ${chatId}, role: ${message.role}, status: ${message.status})`
+            );
         }
 
         // Decrypt sender_name if present

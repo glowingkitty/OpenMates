@@ -14,12 +14,17 @@ import time
 import asyncio
 from typing import Dict, Any, List, Optional, Tuple
 from urllib.parse import urlparse, parse_qs, quote_plus
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator, ValidationError
 from celery import Celery  # For Celery type hinting
 
 from backend.apps.base_skill import BaseSkill
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 from backend.apps.ai.processing.skill_executor import sanitize_external_content
+from backend.shared.providers.youtube.youtube_metadata import get_video_metadata_batched
+from backend.core.api.app.services.creators.revenue_service import CreatorRevenueService
+from backend.core.api.app.services.directus import DirectusService
+from backend.core.api.app.utils.encryption import EncryptionService
+from backend.core.api.app.services.cache import CacheService
 
 # YouTube transcript API imports
 try:
@@ -35,13 +40,86 @@ except ImportError:
 logger = logging.getLogger(__name__)
 
 
+class TranscriptRequestItem(BaseModel):
+    """
+    Individual transcript request item with URL validation.
+    Validates that the URL is a valid YouTube URL that can have its video ID extracted.
+    
+    NOTE: YouTube Shorts URLs are NOT supported and will be rejected at validation time.
+    """
+    url: str = Field(..., description="YouTube video URL (supports watch and youtu.be formats only - Shorts URLs are not supported)")
+    languages: Optional[List[str]] = Field(
+        default=None,
+        description="List of language codes to try for transcript (ISO 639-1, e.g., 'en', 'de', 'es', 'fr'). The API will use the first available language."
+    )
+    
+    @field_validator('url')
+    @classmethod
+    def validate_youtube_url(cls, v: str) -> str:
+        """
+        Validate that the URL is a valid YouTube URL from which we can extract a video ID.
+        
+        Supports:
+        - https://www.youtube.com/watch?v=VIDEO_ID
+        - https://youtu.be/VIDEO_ID
+        - https://m.youtube.com/watch?v=VIDEO_ID
+        
+        REJECTS:
+        - https://www.youtube.com/shorts/VIDEO_ID (Shorts URLs are not supported)
+        
+        Args:
+            v: The URL string to validate
+            
+        Returns:
+            The validated URL string
+            
+        Raises:
+            ValueError: If the URL is not a valid YouTube URL, is a Shorts URL, or video ID cannot be extracted
+        """
+        if not v or not isinstance(v, str):
+            raise ValueError("URL must be a non-empty string")
+        
+        # Extract video ID using the same logic as _extract_video_id
+        try:
+            parsed = urlparse(v)
+            
+            # EXPLICITLY REJECT Shorts URLs - they are not supported
+            if parsed.hostname and "youtube" in parsed.hostname:
+                if "/shorts/" in parsed.path:
+                    raise ValueError(f"Invalid YouTube URL: '{v}' - YouTube Shorts URLs are not supported. Please use a regular YouTube video URL (youtube.com/watch?v=VIDEO_ID or youtu.be/VIDEO_ID)")
+            
+            video_id = None
+            
+            if parsed.hostname and "youtube" in parsed.hostname:
+                # Standard YouTube URL: https://www.youtube.com/watch?v=VIDEO_ID
+                video_id = parse_qs(parsed.query).get("v", [None])[0]
+                if video_id:
+                    return v
+            
+            if parsed.hostname and "youtu.be" in parsed.hostname:
+                # Short YouTube URL: https://youtu.be/VIDEO_ID
+                video_id = parsed.path.lstrip("/").split("?")[0].split("/")[0]
+                if video_id and len(video_id) == 11:  # YouTube video IDs are 11 characters
+                    return v
+            
+            # If we get here, we couldn't extract a valid video ID
+            raise ValueError(f"Invalid YouTube URL: '{v}' - could not extract video ID. Supported formats: youtube.com/watch?v=VIDEO_ID, youtu.be/VIDEO_ID. YouTube Shorts URLs are not supported.")
+            
+        except ValueError:
+            # Re-raise ValueError (our validation error)
+            raise
+        except Exception as e:
+            # Wrap other exceptions in ValueError for consistent error handling
+            raise ValueError(f"Invalid YouTube URL: '{v}' - error parsing URL: {str(e)}")
+
+
 class TranscriptRequest(BaseModel):
     """
     Request model for transcript skill.
     Supports multiple video URLs in a single request for parallel processing.
     """
     # Multiple video URLs (standard format per REST API architecture)
-    requests: List[Dict[str, Any]] = Field(
+    requests: List[TranscriptRequestItem] = Field(
         ...,
         description="Array of transcript request objects. Each object must contain 'url' (YouTube video URL) and can include optional parameters (languages) with defaults from schema."
     )
@@ -591,12 +669,120 @@ class TranscriptSkill(BaseSkill):
             }
             
             logger.info(f"Transcript fetch (id: {request_id}) completed: video_id='{video_id}'")
+            
+            # Create creator income entry asynchronously (fire-and-forget)
+            # This doesn't block the skill response
+            try:
+                asyncio.create_task(
+                    self._create_creator_income_for_video(
+                        video_id=video_id,
+                        video_url=video_url,
+                        app_id=self.app_id,
+                        skill_id=self.skill_id,
+                        secrets_manager=secrets_manager
+                    )
+                )
+            except Exception as e:
+                # Log but don't fail - income tracking failure shouldn't break skill execution
+                logger.warning(f"Failed to create creator income entry for video '{video_id}': {e}")
+            
             return (request_id, [transcript_result], None)
             
         except Exception as e:
             error_msg = f"URL '{video_url}' (id: {request_id}): {str(e)}"
             logger.error(error_msg, exc_info=True)
             return (request_id, [], error_msg)
+    
+    async def _create_creator_income_for_video(
+        self,
+        video_id: str,
+        video_url: str,
+        app_id: str,
+        skill_id: str,
+        secrets_manager: SecretsManager
+    ) -> None:
+        """
+        Create creator income entry for a YouTube video.
+        
+        This method is called asynchronously (fire-and-forget) after successful transcript fetch.
+        It fetches the channel ID from video metadata, then creates a creator_income entry
+        with 10 credits reserved for the creator (50% of 20 credits total).
+        
+        Args:
+            video_id: The YouTube video ID
+            video_url: The original video URL
+            app_id: The app ID (e.g., 'videos')
+            skill_id: The skill ID (e.g., 'get_transcript')
+            secrets_manager: SecretsManager instance for YouTube API access
+        """
+        try:
+            # Fetch video metadata to get channel ID
+            # This uses the YouTube Data API which costs 1 quota unit per batch
+            try:
+                video_metadata = await get_video_metadata_batched(
+                    video_ids=[video_id],
+                    secrets_manager=secrets_manager,
+                    batch_size=1
+                )
+                
+                video_data = video_metadata.get(video_id)
+                if not video_data:
+                    logger.warning(f"Video metadata not found for video_id '{video_id}', skipping creator income creation")
+                    return
+                
+                snippet = video_data.get('snippet', {})
+                channel_id = snippet.get('channelId')
+                
+                if not channel_id:
+                    logger.warning(f"Channel ID not found in video metadata for video_id '{video_id}', skipping creator income creation")
+                    return
+                    
+            except ValueError as e:
+                # YouTube API key not available
+                logger.debug(f"YouTube API key not available for channel ID lookup: {e}. Skipping creator income creation.")
+                return
+            except Exception as e:
+                logger.warning(f"Error fetching video metadata for channel ID: {e}. Skipping creator income creation.")
+                return
+            
+            # Create services for creator revenue service
+            # These are created fresh for each async task (fire-and-forget)
+            cache_service = CacheService()
+            encryption_service = EncryptionService(cache_service=cache_service)
+            directus_service = DirectusService(
+                cache_service=cache_service,
+                encryption_service=encryption_service
+            )
+            
+            revenue_service = CreatorRevenueService(
+                directus_service=directus_service,
+                encryption_service=encryption_service
+            )
+            
+            # Revenue split: 10 credits to creator, 10 to OpenMates (50/50 split)
+            # Total cost is 20 credits per request
+            creator_credits = 10
+            
+            # Create income entry
+            # Use video_id as content_id (already extracted and normalized)
+            success = await revenue_service.create_income_entry(
+                owner_id=channel_id,
+                content_id=video_id,
+                content_type="video",
+                app_id=app_id,
+                skill_id=skill_id,
+                credits=creator_credits,
+                income_source="skill_usage"
+            )
+            
+            if success:
+                logger.debug(f"Created creator income entry for video: channel_id={channel_id}, video_id={video_id}, credits={creator_credits}")
+            else:
+                logger.warning(f"Failed to create creator income entry for video: channel_id={channel_id}, video_id={video_id}")
+                
+        except Exception as e:
+            # Log but don't raise - income tracking failure shouldn't break skill execution
+            logger.error(f"Error creating creator income entry for video '{video_id}': {e}", exc_info=True)
     
     async def execute(
         self,
@@ -644,9 +830,24 @@ class TranscriptSkill(BaseSkill):
         if error_response:
             return error_response
         
+        # Validate requests array - convert Pydantic models to dicts if needed
+        # The requests might be TranscriptRequestItem instances (from Pydantic validation)
+        # or plain dicts (from internal calls)
+        requests_as_dicts = []
+        for req in requests:
+            if isinstance(req, TranscriptRequestItem):
+                # Convert Pydantic model to dict
+                requests_as_dicts.append(req.model_dump())
+            elif isinstance(req, dict):
+                # Already a dict, use as-is
+                requests_as_dicts.append(req)
+            else:
+                # Try to convert to dict
+                requests_as_dicts.append(dict(req))
+        
         # Validate requests array using BaseSkill helper
         validated_requests, error = self._validate_requests_array(
-            requests=requests,
+            requests=requests_as_dicts,
             required_field="url",
             field_display_name="url",
             empty_error_message="No transcript requests provided. 'requests' array must contain at least one request with a 'url' field.",

@@ -18,6 +18,7 @@
   import { onMount, onDestroy } from 'svelte';
   // @ts-ignore - @repo/ui module exists at runtime
   import { text } from '@repo/ui';
+  import BasicInfosBar from './BasicInfosBar.svelte';
   
   /**
    * Props interface for unified embed fullscreen
@@ -33,9 +34,11 @@
     onClose: () => void;
     /** Optional open handler (for top-left open button) */
     onOpen?: () => void;
-    /** Optional copy handler (for copy button) */
+    /** Optional copy handler (for copy button) - copies text version of embed */
     onCopy?: () => void;
-    /** Optional share handler */
+    /** Optional download handler (for download button) - downloads the embed */
+    onDownload?: () => void;
+    /** Optional share handler - opens share menu for the embed */
     onShare?: () => void;
     /** Snippet for header extra content (optional) */
     headerExtra?: import('svelte').Snippet<[]>;
@@ -43,6 +46,25 @@
     content?: import('svelte').Snippet<[]>;
     /** Snippet for bottom bar (optional, defaults to basic infos bar) */
     bottomBar?: import('svelte').Snippet<[]>;
+    /** BasicInfosBar props - used when bottomBar snippet is not provided */
+    /** Skill icon name for BasicInfosBar */
+    skillIconName?: string;
+    /** Processing status for BasicInfosBar */
+    status?: 'processing' | 'finished' | 'error';
+    /** Skill display name for BasicInfosBar */
+    skillName?: string;
+    /** Task ID for BasicInfosBar */
+    taskId?: string;
+    /** Click handler for BasicInfosBar */
+    onBasicInfosBarClick?: () => void;
+    /** Custom favicon URL for BasicInfosBar */
+    faviconUrl?: string;
+    /** Whether to show skill icon in BasicInfosBar */
+    showSkillIcon?: boolean;
+    /** Custom status text for BasicInfosBar */
+    customStatusText?: string;
+    /** Whether to show status text in BasicInfosBar */
+    showStatus?: boolean;
   }
   
   let {
@@ -52,10 +74,20 @@
     onClose,
     onOpen,
     onCopy,
+    onDownload,
     onShare,
     headerExtra,
     content,
-    bottomBar
+    bottomBar,
+    skillIconName = '',
+    status = 'finished',
+    skillName,
+    taskId,
+    onBasicInfosBarClick,
+    faviconUrl,
+    showSkillIcon = true,
+    customStatusText,
+    showStatus = true
   }: Props = $props();
   
   // DEBUG: Log when content snippet is missing - this helps identify which embed is broken
@@ -83,12 +115,30 @@
     }, 300);
   }
   
-  // Handle share/export action
+  // Handle share action - opens share menu for the embed
   function handleShare() {
     if (onShare) {
       onShare();
     } else {
       console.debug('[UnifiedEmbedFullscreen] Share action (no handler provided)');
+    }
+  }
+  
+  // Handle copy action - copies text version of embed to clipboard
+  function handleCopy() {
+    if (onCopy) {
+      onCopy();
+    } else {
+      console.debug('[UnifiedEmbedFullscreen] Copy action (no handler provided)');
+    }
+  }
+  
+  // Handle download action - downloads the embed
+  function handleDownload() {
+    if (onDownload) {
+      onDownload();
+    } else {
+      console.debug('[UnifiedEmbedFullscreen] Download action (no handler provided)');
     }
   }
   
@@ -117,52 +167,78 @@
     start: 0.5,
     easing: cubicOut
   }}
+  style="--preview-center-x: var(--preview-center-x, 50vw); --preview-center-y: var(--preview-center-y, 50vh);"
 >
   <div class="fullscreen-container">
     <!-- Top bar with action buttons -->
     <div class="top-bar">
-      <!-- Left side: Open and Copy buttons -->
+      <!-- Left side: Share, Copy, and Download buttons -->
       <div class="top-bar-left">
-        {#if onOpen}
+        <!-- Share button - always shown -->
+        <div class="button-wrapper">
           <button
-            class="action-button open-button"
-            onclick={onOpen}
-            aria-label="Open"
-            title="Open"
+            class="action-button share-button"
+            onclick={handleShare}
+            aria-label={$text('chat.share.text') || 'Share'}
+            title={$text('chat.share.text') || 'Share'}
           >
             <span class="clickable-icon icon_share"></span>
           </button>
-        {/if}
+        </div>
+        <!-- Copy button -->
         {#if onCopy}
-          <button
-            class="action-button copy-button"
-            onclick={onCopy}
-            aria-label="Copy"
-            title="Copy"
-          >
-            <span class="clickable-icon icon_copy"></span>
-          </button>
+          <div class="button-wrapper">
+            <button
+              class="action-button copy-button"
+              onclick={handleCopy}
+              aria-label="Copy"
+              title="Copy"
+            >
+              <span class="clickable-icon icon_copy"></span>
+            </button>
+          </div>
+        {/if}
+        <!-- Download button -->
+        {#if onDownload}
+          <div class="button-wrapper">
+            <button
+              class="action-button download-button"
+              onclick={handleDownload}
+              aria-label="Download"
+              title="Download"
+            >
+              <span class="clickable-icon icon_download"></span>
+            </button>
+          </div>
         {/if}
       </div>
       
       <!-- Right side: Minimize button -->
       <div class="top-bar-right">
-        <button
-          class="action-button minimize-button clickable-icon icon_minimize"
-          onclick={handleClose}
-          aria-label="Minimize"
-          title="Minimize"
-        ></button>
+        <div class="button-wrapper">
+          <button
+            class="action-button minimize-button"
+            onclick={handleClose}
+            aria-label="Minimize"
+            title="Minimize"
+          >
+            <span class="clickable-icon icon_minimize"></span>
+          </button>
+        </div>
       </div>
     </div>
     
-    <!-- Header with title and optional extra content -->
-    <div class="header">
-      <div class="title">{title}</div>
-      {#if headerExtra}
+    <!-- Header with title and optional extra content (only show if title is provided and not empty) -->
+    {#if title?.trim() && headerExtra}
+      <div class="header">
+        <div class="title">{title}</div>
         {@render headerExtra()}
-      {/if}
-    </div>
+      </div>
+    {:else if title?.trim()}
+      <div class="header">
+        <div class="title">{title}</div>
+      </div>
+    {/if}
     
     <!-- Main content area (scrollable) - with defensive guard -->
     <div class="content-area">
@@ -176,16 +252,55 @@
       {/if}
     </div>
     
-    <!-- Bottom preview bar -->
-    {#if bottomBar}
-      {@render bottomBar()}
-    {:else}
-      <!-- Default bottom preview bar with app icon and title -->
-      <div class="bottom-preview">
-        <div class="icon_rounded {appId}"></div>
-        <div class="preview-title">{title}</div>
+    <!-- Bottom gradient and BasicInfosBar -->
+    <div class="bottom-gradient-wrapper">
+      <!-- Gradient fade from transparent to grey-0 -->
+      <div class="bottom-gradient"></div>
+      
+      <!-- Bottom bar (BasicInfosBar or custom) -->
+      <div class="bottom-bar-container">
+        {#if bottomBar}
+          {@render bottomBar()}
+        {:else if skillName && skillId}
+          <!-- Default BasicInfosBar with same content as embed preview -->
+          {#if onBasicInfosBarClick}
+            <button 
+              class="basic-infos-bar-wrapper clickable"
+              onclick={onBasicInfosBarClick}
+              type="button"
+            >
+              <BasicInfosBar
+                {appId}
+                {skillId}
+                skillIconName={skillIconName || skillId}
+                {status}
+                {skillName}
+                {taskId}
+                {faviconUrl}
+                {showSkillIcon}
+                {customStatusText}
+                {showStatus}
+              />
+            </button>
+          {:else}
+            <div class="basic-infos-bar-wrapper">
+              <BasicInfosBar
+                {appId}
+                {skillId}
+                skillIconName={skillIconName || skillId}
+                {status}
+                {skillName}
+                {taskId}
+                {faviconUrl}
+                {showSkillIcon}
+                {customStatusText}
+                {showStatus}
+              />
+            </div>
+          {/if}
+        {/if}
       </div>
-    {/if}
+    </div>
   </div>
 </div>
 
@@ -217,8 +332,6 @@
     flex-direction: column;
     height: 100%;
     position: relative;
-    padding: 16px;
-    padding-top: 60px; /* Space for top bar */
   }
   
   /* Top bar with action buttons - ABSOLUTE position within fullscreen overlay */
@@ -248,26 +361,37 @@
     pointer-events: auto;
   }
   
-  .action-button {
-    width: 40px;
-    height: 40px;
-    opacity: 0.7;
-    transition: opacity 0.2s, background-color 0.2s;
-    background-color: rgba(0, 0, 0, 0.3);
-    border: none;
-    border-radius: 8px;
-    cursor: pointer;
-    padding: 0;
+  /* Button wrapper - matches new-chat-button-wrapper design from ActiveChat.svelte */
+  .button-wrapper {
+    background-color: var(--color-grey-10);
+    border-radius: 40px;
+    padding: 5.5px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
     display: flex;
     align-items: center;
     justify-content: center;
   }
   
-  .action-button:hover {
-    opacity: 1;
-    background-color: rgba(0, 0, 0, 0.5);
+  .action-button {
+    width: 40px;
+    height: 40px;
+    min-width: 40px;
+    border: none;
+    border-radius: 50%;
+    cursor: pointer;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    transition: background-color 0.2s;
   }
   
+  .action-button:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+  }
+  
+  /* Icon styling inside action buttons */
   .action-button .clickable-icon {
     width: 24px;
     height: 24px;
@@ -290,14 +414,14 @@
     word-break: break-word;
   }
   
-  /* Main content area (scrollable) - with padding for bottom bar */
+  /* Main content area (scrollable) - scrollable behind the fixed top and bottom bars */
   .content-area {
     flex: 1;
     overflow-y: auto;
     overflow-x: hidden;
     padding-right: 8px;
     margin-right: -8px;
-    padding-bottom: 80px; /* Space for bottom bar */
+    padding-bottom: 120px; /* Space for absolute positioned bottom bar and gradient */
     scrollbar-width: thin;
     scrollbar-color: rgba(128, 128, 128, 0.2) transparent;
     transition: scrollbar-color 0.2s ease;
@@ -330,57 +454,23 @@
     background-color: rgba(128, 128, 128, 0.7);
   }
   
-  /* Bottom preview bar - positioned absolute at bottom */
-  .bottom-preview {
+  /* Bottom gradient and bar wrapper - ABSOLUTE positioned at bottom */
+  .bottom-gradient-wrapper {
     position: absolute;
-    bottom: 16px;
-    left: 50%;
-    transform: translateX(-50%);
-    height: 61px;
-    min-height: 61px;
-    max-width: 400px;
-    width: calc(100% - 32px);
-    background-color: var(--color-grey-20);
-    border-radius: 30px;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 0 16px 0 70px;
-    z-index: 3;
-  }
-  
-  .preview-title {
-    font-size: 16px;
-    color: var(--color-font-primary);
-    line-height: 1.3;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    max-width: 300px;
-  }
-  
-  /* Bottom bar wrapper for custom bottom bars (like BasicInfosBar) */
-  /* Centered with gradient fade above - positioned within fullscreen overlay */
-  :global(.bottom-bar-wrapper) {
-    position: absolute;
-    bottom: 5px;
+    bottom: 0;
     left: 0;
     right: 0;
     z-index: 3;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    padding: 0 16px;
+    pointer-events: none;
   }
   
-  /* Gradient fade above the bar - creates smooth transition */
-  :global(.bottom-bar-wrapper::before) {
-    content: '';
+  /* Gradient fade from transparent (0%) to grey-20 (100% opacity) - matches fullscreen background */
+  .bottom-gradient {
     position: absolute;
-    bottom: calc(100% - 16px); /* Overlap slightly with bottom bar */
+    bottom: 0;
     left: 0;
     right: 0;
-    height: 100px;
+    height: 120px;
     background: linear-gradient(
       to bottom,
       transparent 0%,
@@ -389,12 +479,41 @@
     pointer-events: none;
   }
   
-  /* The actual bar inside the wrapper */
-  :global(.bottom-bar-wrapper > *) {
-    max-width: 400px;
+  /* Bottom bar container - centered, positioned at absolute bottom */
+  .bottom-bar-container {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 16px;
+    pointer-events: auto;
+  }
+  
+  /* BasicInfosBar wrapper - max-width 300px as required */
+  .basic-infos-bar-wrapper {
+    max-width: 300px;
     width: 100%;
-    position: relative;
-    z-index: 1;
+    border: none;
+    background: transparent;
+    padding: 0;
+    cursor: default;
+  }
+  
+  /* Ensure BasicInfosBar inside wrapper respects max-width */
+  .basic-infos-bar-wrapper :global(.basic-infos-bar) {
+    max-width: 300px;
+  }
+  
+  .basic-infos-bar-wrapper.clickable {
+    cursor: pointer;
+    transition: opacity 0.2s;
+  }
+  
+  .basic-infos-bar-wrapper.clickable:hover {
+    opacity: 0.9;
   }
   
   /* ===========================================

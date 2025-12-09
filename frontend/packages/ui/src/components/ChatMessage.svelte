@@ -91,7 +91,7 @@
   let showMenu = $state(false);
   let menuX = $state(0);
   let menuY = $state(0);
-  let menuType = $state<'default' | 'pdf' | 'web'>('default');
+  let menuType = $state<'default' | 'pdf' | 'web' | 'video-transcript' | 'video'>('default');
   let selectedNode = $state<any>(null);
 
   // Add state for fullscreen using $state (Svelte 5 runes mode)
@@ -103,10 +103,10 @@
     lineCount: 0
   });
 
-  // Handle embed menu events
+  // Handle embed menu events (right-click context menu)
   function handleEmbedClick(event: CustomEvent) {
     const { view, node, dom, rect } = event.detail;
-    console.debug('[ChatMessage] Embed clicked:', { view, node, dom, rect });
+    console.debug('[ChatMessage] Embed right-clicked:', { view, node, dom, rect });
 
     if (!dom) return;
 
@@ -118,14 +118,35 @@
     menuY = rect.top - container.getBoundingClientRect().top;
 
     selectedNode = node;
-    menuType = (node.type.name === 'embed' && node.attrs.type === 'pdf') ? 'pdf' : 
-               (node.type.name === 'embed' && (node.attrs.type === 'website' || node.attrs.type === 'website-group')) ? 'web' : 
-               'default';
+    
+    // Detect embed type from node attributes and DOM data attributes
+    // Check DOM element for data attributes first (more reliable for app-skill-use embeds)
+    const appId = dom.getAttribute('data-app-id');
+    const skillId = dom.getAttribute('data-skill-id');
+    
+    // Determine menu type based on embed type
+    if (node.type.name === 'embed') {
+      if (node.attrs.type === 'pdf') {
+        menuType = 'pdf';
+      } else if (node.attrs.type === 'website' || node.attrs.type === 'website-group') {
+        menuType = 'web';
+      } else if (node.attrs.type === 'videos-video') {
+        // Video embed (YouTube, etc.)
+        menuType = 'video';
+      } else if (node.attrs.type === 'app-skill-use' && appId === 'videos' && skillId === 'get_transcript') {
+        // Video transcript embed
+        menuType = 'video-transcript';
+      } else {
+        menuType = 'default';
+      }
+    } else {
+      menuType = 'default';
+    }
 
     showMenu = true;
   }
 
-  // Update handleMenuAction
+  // Update handleMenuAction to support video transcript and video embed actions
   async function handleMenuAction(action: string) {
     if (!selectedNode) return;
 
@@ -159,23 +180,154 @@
         }
     }
 
-    // Handle other actions
-    switch (action) {
-        case 'download':
-            if (selectedNode.attrs?.src) {
-                const a = document.createElement('a');
-                a.href = selectedNode.attrs.src;
-                a.download = selectedNode.attrs.filename || '';
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
+    // Handle actions for video transcript embeds
+    if (menuType === 'video-transcript' && selectedNode.type.name === 'embed' && selectedNode.attrs.type === 'app-skill-use') {
+      const embedId = selectedNode.attrs.contentRef?.replace('embed:', '');
+      if (!embedId) {
+        console.warn('[ChatMessage] No embed ID found for video transcript embed');
+        showMenu = false;
+        selectedNode = null;
+        return;
+      }
+
+      try {
+        // Load embed data to get transcript content
+        const { resolveEmbed, decodeToonContent } = await import('../services/embedResolver');
+        const embedData = await resolveEmbed(embedId);
+        if (!embedData?.content) {
+          console.warn('[ChatMessage] No embed data found for video transcript');
+          showMenu = false;
+          selectedNode = null;
+          return;
+        }
+
+        const decodedContent = await decodeToonContent(embedData.content);
+        const results = decodedContent.results || [];
+        const firstResult = results[0] || {};
+        const videoTitle = firstResult.metadata?.title || firstResult.url || 'Video Transcript';
+        const videoUrl = firstResult.url || '';
+
+        switch (action) {
+          case 'copy':
+            // Copy transcript as formatted markdown
+            const transcriptText = results
+              .filter((r: any) => r.transcript)
+              .map((r: any) => {
+                let content = '';
+                if (r.metadata?.title) {
+                  content += `# ${r.metadata.title}\n\n`;
+                }
+                if (r.url) {
+                  content += `Source: ${r.url}\n\n`;
+                }
+                if (r.word_count) {
+                  content += `Word count: ${r.word_count.toLocaleString()}\n\n`;
+                }
+                content += r.transcript || '';
+                return content;
+              })
+              .join('\n\n---\n\n');
+            
+            if (transcriptText) {
+              await navigator.clipboard.writeText(transcriptText);
+              const { notificationStore } = await import('../stores/notificationStore');
+              notificationStore.success('Transcript copied to clipboard');
             }
             break;
+
+          case 'download':
+            // Download transcript as markdown file
+            const downloadText = results
+              .filter((r: any) => r.transcript)
+              .map((r: any) => {
+                let content = '';
+                if (r.metadata?.title) {
+                  content += `# ${r.metadata.title}\n\n`;
+                }
+                if (r.url) {
+                  content += `Source: ${r.url}\n\n`;
+                }
+                if (r.word_count) {
+                  content += `Word count: ${r.word_count.toLocaleString()}\n\n`;
+                }
+                content += r.transcript || '';
+                return content;
+              })
+              .join('\n\n---\n\n');
+            
+            if (downloadText) {
+              const blob = new Blob([downloadText], { type: 'text/markdown' });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = `${videoTitle.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_transcript.md`;
+              document.body.appendChild(a);
+              a.click();
+              document.body.removeChild(a);
+              URL.revokeObjectURL(url);
+            }
+            break;
+
+          case 'share':
+            // Share functionality (placeholder for now)
+            console.debug('[ChatMessage] Share action for video transcript (not yet implemented)');
+            const { notificationStore: shareNotificationStore } = await import('../stores/notificationStore');
+            shareNotificationStore.info('Share functionality coming soon');
+            break;
+        }
+      } catch (error) {
+        console.error('[ChatMessage] Error handling video transcript action:', error);
+        const { notificationStore } = await import('../stores/notificationStore');
+        notificationStore.error('Failed to perform action');
+      }
+    }
+    // Handle actions for video embeds
+    else if (menuType === 'video' && selectedNode.type.name === 'embed' && selectedNode.attrs.type === 'videos-video') {
+      const videoUrl = selectedNode.attrs.url || '';
+      
+      switch (action) {
         case 'copy':
-            if (selectedNode.attrs?.url || selectedNode.attrs?.src) {
-                navigator.clipboard.writeText(selectedNode.attrs.url || selectedNode.attrs.src);
+          // Copy video URL to clipboard
+          if (videoUrl) {
+            try {
+              await navigator.clipboard.writeText(videoUrl);
+              const { notificationStore } = await import('../stores/notificationStore');
+              notificationStore.success('Video URL copied to clipboard');
+            } catch (error) {
+              console.error('[ChatMessage] Failed to copy video URL:', error);
+              const { notificationStore } = await import('../stores/notificationStore');
+              notificationStore.error('Failed to copy URL to clipboard');
             }
-            break;
+          }
+          break;
+
+        case 'share':
+          // Share functionality (placeholder for now)
+          console.debug('[ChatMessage] Share action for video (not yet implemented)');
+          const { notificationStore: shareNotificationStore } = await import('../stores/notificationStore');
+          shareNotificationStore.info('Share functionality coming soon');
+          break;
+      }
+    }
+    // Handle other actions for legacy embed types
+    else {
+      switch (action) {
+        case 'download':
+          if (selectedNode.attrs?.src) {
+            const a = document.createElement('a');
+            a.href = selectedNode.attrs.src;
+            a.download = selectedNode.attrs.filename || '';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+          }
+          break;
+        case 'copy':
+          if (selectedNode.attrs?.url || selectedNode.attrs?.src) {
+            navigator.clipboard.writeText(selectedNode.attrs.url || selectedNode.attrs.src);
+          }
+          break;
+      }
     }
 
     showMenu = false;
@@ -293,6 +445,7 @@
           on:view={() => handleMenuAction('view')}
           on:download={() => handleMenuAction('download')}
           on:copy={() => handleMenuAction('copy')}
+          on:share={() => handleMenuAction('share')}
         />
       {/if}
     </div>

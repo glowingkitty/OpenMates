@@ -360,6 +360,17 @@ async def _async_process_invoice_and_send_email(
              logger.error(f"Failed to encrypt S3 object key {s3_object_key} for user invoice")
              raise Exception("Failed to encrypt S3 object key for Directus record")
 
+        # Determine which filename to use (prefer language-specific if available, otherwise English)
+        # The filename is used for the download, so we use the English filename as the primary one
+        # since it's always generated and provides a consistent download name
+        invoice_filename_to_store = invoice_filename_en
+        
+        # Encrypt the filename for storage
+        encrypted_filename, _ = await task.encryption_service.encrypt_with_user_key(invoice_filename_to_store, vault_key_id)
+        if not encrypted_filename:
+            logger.error(f"Failed to encrypt filename {invoice_filename_to_store} for user invoice")
+            raise Exception("Failed to encrypt filename for Directus record")
+
         # Base64 encode the nonce for JSON storage in Directus
         nonce_b64 = base64.b64encode(nonce).decode('utf-8')
 
@@ -372,6 +383,7 @@ async def _async_process_invoice_and_send_email(
             "encrypted_credits_purchased": encrypted_credits,
             "encrypted_s3_object_key": encrypted_s3_object_key, # Store encrypted S3 object key
             "encrypted_aes_key": encrypted_aes_key_vault, # Store the Vault-wrapped AES key
+            "encrypted_filename": encrypted_filename, # Store encrypted filename for download
             "aes_nonce": nonce_b64 # Store the base64 encoded nonce
         }
         logger.info(f"Prepared Directus payload for invoice")

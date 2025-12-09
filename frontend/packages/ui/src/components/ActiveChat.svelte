@@ -17,18 +17,16 @@
     import { chatSyncService } from '../services/chatSyncService'; // Import chatSyncService
     import { skillPreviewService } from '../services/skillPreviewService'; // Import skillPreviewService
     import KeyboardShortcuts from './KeyboardShortcuts.svelte';
-    import WebSearchSkillPreview from './app_skills/WebSearchSkillPreview.svelte';
-    import WebSearchSkillFullscreen from './app_skills/WebSearchSkillFullscreen.svelte';
-    import WebSearchEmbedFullscreen from './embeds/WebSearchEmbedFullscreen.svelte';
-    import NewsSearchEmbedFullscreen from './embeds/NewsSearchEmbedFullscreen.svelte';
-    import VideosSearchEmbedFullscreen from './embeds/VideosSearchEmbedFullscreen.svelte';
-    import MapsSearchEmbedFullscreen from './embeds/MapsSearchEmbedFullscreen.svelte';
-    import CodeEmbedFullscreen from './embeds/CodeEmbedFullscreen.svelte';
-    import VideoTranscriptSkillPreview from './app_skills/VideoTranscriptSkillPreview.svelte';
-    import VideoTranscriptSkillFullscreen from './app_skills/VideoTranscriptSkillFullscreen.svelte';
-    import WebReadSkillFullscreen from './app_skills/WebReadSkillFullscreen.svelte';
-    import WebsiteFullscreen from './embeds/WebsiteFullscreen.svelte';
-    import WebsiteEmbedFullscreen from './embeds/WebsiteEmbedFullscreen.svelte';
+    import WebSearchEmbedPreview from './embeds/web/WebSearchEmbedPreview.svelte';
+    import WebSearchEmbedFullscreen from './embeds/web/WebSearchEmbedFullscreen.svelte';
+    import NewsSearchEmbedFullscreen from './embeds/news/NewsSearchEmbedFullscreen.svelte';
+    import VideosSearchEmbedFullscreen from './embeds/videos/VideosSearchEmbedFullscreen.svelte';
+    import MapsSearchEmbedFullscreen from './embeds/maps/MapsSearchEmbedFullscreen.svelte';
+    import CodeEmbedFullscreen from './embeds/code/CodeEmbedFullscreen.svelte';
+    import VideoTranscriptEmbedPreview from './embeds/videos/VideoTranscriptEmbedPreview.svelte';
+    import VideoTranscriptEmbedFullscreen from './embeds/videos/VideoTranscriptEmbedFullscreen.svelte';
+    import WebReadEmbedFullscreen from './embeds/web/WebReadEmbedFullscreen.svelte';
+    import WebsiteEmbedFullscreen from './embeds/web/WebsiteEmbedFullscreen.svelte';
     import { userProfile, loadUserProfileFromDB } from '../stores/userProfile';
     import { isInSignupProcess, currentSignupStep, getStepFromPath, isLoggingOut, isSignupPath } from '../stores/signupState';
     import { userDB } from '../services/userDB';
@@ -42,6 +40,7 @@
     import { websocketStatus } from '../stores/websocketStatusStore'; // Import WebSocket status for connection checks
     import { activeChatStore } from '../stores/activeChatStore'; // For clearing persistent active chat selection
     import { settingsDeepLink } from '../stores/settingsDeepLinkStore'; // For opening settings to specific page (share)
+    import { videoIframeStore, type VideoIframeState } from '../stores/videoIframeStore'; // For standalone VideoIframe component with CSS-based PiP
     import { DEMO_CHATS, LEGAL_CHATS, getDemoMessages, isPublicChat, translateDemoChat } from '../demo_chats'; // Import demo chat utilities
     import { convertDemoChatToChat } from '../demo_chats/convertToChat'; // Import conversion function
     import { isDesktop } from '../utils/platform'; // Import desktop detection for conditional auto-focus
@@ -201,6 +200,9 @@
         if (!$authStore.isAuthenticated) {
             isLoggingOutFromSignup = false;
             
+            // Clear video iframe state on logout
+            videoIframeStore.clear();
+            
             // CRITICAL: Backup handler for logout - ensures demo chat loads even if userLoggingOut event wasn't caught
             // This is especially important on mobile where event timing might be off
             // Only trigger if we have a current chat that's not a demo chat (user was logged in)
@@ -325,6 +327,11 @@
     let showEmbedFullscreen = $state(false);
     let embedFullscreenData = $state<any>(null);
     
+    // Debug: Track state changes
+    $effect(() => {
+        console.debug('[ActiveChat] showEmbedFullscreen changed:', showEmbedFullscreen, 'embedFullscreenData:', !!embedFullscreenData);
+    });
+    
     // Handler for embed fullscreen events (from embed renderers)
     async function handleEmbedFullscreen(event: CustomEvent) {
         console.debug('[ActiveChat] Received embedfullscreen event:', event.detail);
@@ -448,7 +455,18 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             }
         }
         
-        // Store fullscreen data
+        // Store fullscreen data (moved below after all async operations)
+        console.debug('[ActiveChat] Setting showEmbedFullscreen to true, embedFullscreenData:', {
+            embedType,
+            embedId,
+            hasEmbedData: !!finalEmbedData,
+            hasDecodedContent: !!finalDecodedContent,
+            appId: finalDecodedContent?.app_id,
+            skillId: finalDecodedContent?.skill_id
+        });
+        
+        // CRITICAL: Set embedFullscreenData first, then showEmbedFullscreen
+        // This ensures both state variables are set before the template evaluates
         embedFullscreenData = {
             embedId,
             embedData: finalEmbedData,
@@ -457,14 +475,138 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             attrs
         };
         
+        // Use a microtask to ensure state is fully updated before setting showEmbedFullscreen
+        // This helps with Svelte 5 reactivity
+        await Promise.resolve();
+        
         showEmbedFullscreen = true;
-        console.debug('[ActiveChat] Opening embed fullscreen:', embedType, embedId);
+        console.debug('[ActiveChat] Opening embed fullscreen:', embedType, embedId, 'showEmbedFullscreen:', showEmbedFullscreen, 'embedFullscreenData:', !!embedFullscreenData);
     }
     
     // Handler for closing embed fullscreen
+    // This is called when any embed fullscreen is closed (via minimize button or other means)
+    // For video embeds, VideoEmbedFullscreen's handleClose handles video cleanup,
+    // but this is a fallback in case it's called directly
     function handleCloseEmbedFullscreen() {
+        // Check if this was a video embed and clean up if needed
+        // Note: VideoEmbedFullscreen's handleClose should handle this, but this is a safety net
+        const wasVideoEmbed = embedFullscreenData?.embedType === 'videos-video';
+        if (wasVideoEmbed) {
+            const videoState = get(videoIframeStore);
+            // Only close video if NOT in PiP mode (PiP should persist)
+            if (videoState.isActive && !videoState.isPipMode) {
+                console.debug('[ActiveChat] Closing video player via handleCloseEmbedFullscreen (not in PiP mode)');
+                videoIframeStore.closeWithFadeOut(300);
+            } else if (videoState.isPipMode) {
+                console.debug('[ActiveChat] Video in PiP mode - keeping video playing');
+            }
+        }
+        
         showEmbedFullscreen = false;
         embedFullscreenData = null;
+    }
+    
+    // Reference to PiP container for moving iframe
+    // ===========================================
+    // Video Iframe State (CSS-based PiP)
+    // ===========================================
+    // 
+    // The VideoIframe component is always rendered in the same DOM position.
+    // PiP mode is achieved purely through CSS class changes (no DOM movement).
+    // This prevents iframe reloads and ensures smooth iOS-like transitions.
+    
+    // Derive video iframe state for template use - use reactive subscription
+    // $derived(get(store)) doesn't create a subscription, so we need to use $state with subscription
+    let videoIframeState = $state(get(videoIframeStore));
+    
+    // Subscribe to videoIframeStore to keep state reactive
+    $effect(() => {
+        const unsubscribe = videoIframeStore.subscribe((state) => {
+            videoIframeState = state;
+        });
+        return unsubscribe;
+    });
+    
+    // Debug: Log videoIframeState changes to help diagnose rendering issues
+    $effect(() => {
+        const state = videoIframeState;
+        const conditionMet = state.isActive && state.videoId && state.embedUrl;
+        console.debug('[ActiveChat] VideoIframeState check:', {
+            isActive: state.isActive,
+            isPipMode: state.isPipMode,
+            videoId: state.videoId,
+            embedUrl: state.embedUrl,
+            conditionMet,
+            willRender: conditionMet,
+            fullState: state
+        });
+    });
+    
+    // Cleanup video iframe state on component destroy or logout
+    onDestroy(() => {
+        // Clear video state when component is destroyed (e.g., on logout)
+        videoIframeStore.clear();
+    });
+    
+    // Handler for clicking PiP overlay to restore fullscreen view
+    // This is called when user clicks the overlay on the VideoIframe in PiP mode
+    // It exits PiP mode (via CSS) and opens VideoEmbedFullscreen with restoreFromPip flag
+    async function handlePipOverlayClick() {
+        console.debug('[ActiveChat] PiP overlay clicked, restoring fullscreen');
+        
+        // Get current state from videoIframeStore
+        const currentState = get(videoIframeStore);
+        
+        if (!currentState.isActive || !currentState.isPipMode) {
+            console.warn('[ActiveChat] Cannot restore fullscreen - video not in PiP mode', {
+                isActive: currentState.isActive,
+                isPipMode: currentState.isPipMode
+            });
+            return;
+        }
+        
+        // Get video data for fullscreen view
+        const pipUrl = currentState.url;
+        const pipTitle = currentState.title;
+        const pipVideoId = currentState.videoId;
+        const pipEmbedUrl = currentState.embedUrl || (pipVideoId ? `https://www.youtube-nocookie.com/embed/${pipVideoId}?modestbranding=1&rel=0&iv_load_policy=3&fs=1&autoplay=1&enablejsapi=0` : '');
+        const pipThumbnailUrl = currentState.thumbnailUrl || (pipVideoId ? `https://img.youtube.com/vi/${pipVideoId}/maxresdefault.jpg` : '');
+        
+        // Exit PiP mode - this will trigger CSS transition back to fullscreen position
+        // The VideoIframe component will smoothly animate back to center
+        videoIframeStore.exitPipMode();
+        
+        // Open VideoEmbedFullscreen with the video data
+        // restoreFromPip flag tells it that video is already playing
+        embedFullscreenData = {
+            embedType: 'videos-video',
+            decodedContent: {
+                url: pipUrl,
+                title: pipTitle,
+                videoId: pipVideoId,
+                embedUrl: pipEmbedUrl,
+                thumbnailUrl: pipThumbnailUrl
+            },
+            attrs: {
+                url: pipUrl,
+                title: pipTitle,
+                videoId: pipVideoId
+            },
+            // Flag to indicate this is a restore from PiP (video already playing)
+            restoreFromPip: true
+        };
+        
+        console.debug('[ActiveChat] Setting embedFullscreenData for PiP restore', {
+            embedFullscreenData,
+            videoId: pipVideoId
+        });
+        
+        // Wait for state to be set
+        await tick();
+        
+        showEmbedFullscreen = true;
+        
+        console.debug('[ActiveChat] Fullscreen opened from PiP restore');
     }
 
     // Handler for suggestion click - copies suggestion to message input
@@ -1086,6 +1228,18 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         if (newChat) {
             console.info("[ActiveChat] handleSendMessage: New chat detected, setting currentChat and initializing messages.", newChat);
             
+            // CRITICAL: Close any open fullscreen views when creating a new chat
+            // This ensures fullscreen views don't persist when a new chat is created
+            if (showCodeFullscreen) {
+                console.debug('[ActiveChat] Closing code fullscreen view due to new chat creation');
+                showCodeFullscreen = false;
+            }
+            if (showEmbedFullscreen) {
+                console.debug('[ActiveChat] Closing embed fullscreen view due to new chat creation');
+                showEmbedFullscreen = false;
+                embedFullscreenData = null;
+            }
+            
             // Force update currentChat immediately
             currentChat = newChat;
             currentMessages = [message]; // Initialize messages with the first message
@@ -1480,6 +1634,29 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
     // Update the loadChat function
     export async function loadChat(chat: Chat) {
+        // CRITICAL: Close any open fullscreen views when switching chats
+        // This ensures fullscreen views don't persist when user switches to a different chat
+        if (showCodeFullscreen) {
+            console.debug('[ActiveChat] Closing code fullscreen view due to chat switch');
+            showCodeFullscreen = false;
+        }
+        if (showEmbedFullscreen) {
+            console.debug('[ActiveChat] Closing embed fullscreen view due to chat switch');
+            showEmbedFullscreen = false;
+            embedFullscreenData = null;
+        }
+        
+        // CRITICAL: Close video player when switching chats (only if NOT in PiP mode)
+        // In PiP mode, video should keep playing as user browses other chats
+        const videoState = get(videoIframeStore);
+        if (videoState.isActive && !videoState.isPipMode) {
+            console.debug('[ActiveChat] Closing video player due to chat switch (not in PiP mode)');
+            videoIframeStore.closeWithFadeOut(300);
+        } else if (videoState.isActive && videoState.isPipMode) {
+            // In PiP mode, video keeps playing - user can continue watching while browsing chats
+            console.debug('[ActiveChat] Video in PiP mode - keeping video playing during chat switch');
+        }
+        
         // For public chats (demo/legal), skip database access - use the chat object directly
         // This is critical during logout when database is being deleted
         let freshChat: Chat | null = null;
@@ -1990,6 +2167,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         };
         document.addEventListener('embedfullscreen', embedFullscreenHandler as EventListener);
         
+        // Add event listener for video PiP restore fullscreen events
+        // This is triggered when user clicks the overlay on PiP video (via VideoIframe component)
+        const videoPipRestoreHandler = (event: CustomEvent) => {
+            handlePipOverlayClick();
+        };
+        document.addEventListener('videopip-restore-fullscreen', videoPipRestoreHandler as EventListener);
+        
         // Add event listeners for login interface and demo chat
         window.addEventListener('closeLoginInterface', handleCloseLoginInterface);
         window.addEventListener('loadDemoChat', handleLoadDemoChat);
@@ -1997,6 +2181,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         // Cleanup on destroy
         return () => {
             document.removeEventListener('embedfullscreen', embedFullscreenHandler as EventListener);
+            document.removeEventListener('videopip-restore-fullscreen', videoPipRestoreHandler as EventListener);
             window.removeEventListener('openLoginInterface', handleOpenLoginInterface as EventListener);
             window.removeEventListener('closeLoginInterface', handleCloseLoginInterface as EventListener);
             window.removeEventListener('loadDemoChat', handleLoadDemoChat as EventListener);
@@ -2108,6 +2293,16 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     } catch (loadError) {
                         console.error('[ActiveChat] Error loading demo chat after logout:', loadError);
                         // Even if loadChat fails, ensure UI shows welcome state
+                        // CRITICAL: Close any open fullscreen views in fallback path too
+                        if (showCodeFullscreen) {
+                            console.debug('[ActiveChat] Closing code fullscreen view in fallback path');
+                            showCodeFullscreen = false;
+                        }
+                        if (showEmbedFullscreen) {
+                            console.debug('[ActiveChat] Closing embed fullscreen view in fallback path');
+                            showEmbedFullscreen = false;
+                            embedFullscreenData = null;
+                        }
                         showWelcome = true;
                         currentChat = welcomeChat; // Set chat object directly as fallback
                         currentMessages = getDemoMessages('demo-welcome', DEMO_CHATS, LEGAL_CHATS);
@@ -2355,9 +2550,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             // Create app card from skill preview data
             let appCard: any = null;
             if (previewData.app_id === 'web' && previewData.skill_id === 'search') {
-                // Create WebSearchSkillPreview card
+                // Create WebSearchEmbedPreview card
                 appCard = {
-                    component: WebSearchSkillPreview,
+                    component: WebSearchEmbedPreview,
                     props: {
                         id: task_id,
                         previewData: previewData,
@@ -2377,9 +2572,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     }
                 };
             } else if (previewData.app_id === 'videos' && previewData.skill_id === 'get_transcript') {
-                // Create VideoTranscriptSkillPreview card
+                // Create VideoTranscriptEmbedPreview card
                 appCard = {
-                    component: VideoTranscriptSkillPreview,
+                    component: VideoTranscriptEmbedPreview,
                     props: {
                         id: task_id,
                         previewData: previewData,
@@ -2667,7 +2862,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             {/if}
             
             <!-- Embed fullscreen view (app-skill-use, website, etc.) -->
+            <!-- DEBUG: Check if condition is met -->
             {#if showEmbedFullscreen && embedFullscreenData}
+                <!-- DEBUG: Template block is rendering -->
                 {#if embedFullscreenData.embedType === 'app-skill-use'}
                     {@const skillId = embedFullscreenData.decodedContent?.skill_id || ''}
                     {@const appId = embedFullscreenData.decodedContent?.app_id || ''}
@@ -2715,7 +2912,16 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             success_count: embedFullscreenData.decodedContent?.success_count || 0,
                             failed_count: embedFullscreenData.decodedContent?.failed_count || 0
                         }}
-                        <VideoTranscriptSkillFullscreen 
+                        {@const debugRender = (() => {
+                            console.debug('[ActiveChat] Rendering VideoTranscriptEmbedFullscreen:', {
+                                appId,
+                                skillId,
+                                hasPreviewData: !!previewData,
+                                resultsCount: previewData.results?.length || 0
+                            });
+                            return null;
+                        })()}
+                        <VideoTranscriptEmbedFullscreen 
                             previewData={previewData}
                             onClose={handleCloseEmbedFullscreen}
                         />
@@ -2727,7 +2933,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             status: embedFullscreenData.embedData?.status || 'finished',
                             results: embedFullscreenData.decodedContent?.results || []
                         }}
-                        <WebReadSkillFullscreen 
+                        <WebReadEmbedFullscreen 
                             previewData={previewData}
                             onClose={handleCloseEmbedFullscreen}
                         />
@@ -2757,7 +2963,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             onClose={handleCloseEmbedFullscreen}
                         />
                     {/if}
-                {:else if embedFullscreenData.embedType === 'code'}
+                {:else if embedFullscreenData.embedType === 'code-code'}
                     <!-- Code Fullscreen -->
                     {#if embedFullscreenData.decodedContent?.code || embedFullscreenData.attrs?.code}
                         <CodeEmbedFullscreen 
@@ -2768,8 +2974,73 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             onClose={handleCloseEmbedFullscreen}
                         />
                     {/if}
+                {:else if embedFullscreenData.embedType === 'videos-video'}
+                    <!-- Video Fullscreen -->
+                    {#if embedFullscreenData.decodedContent?.url || embedFullscreenData.attrs?.url}
+                        {@const VideoEmbedFullscreenPromise = import('../components/embeds/videos/VideoEmbedFullscreen.svelte')}
+                        {#await VideoEmbedFullscreenPromise then module}
+                            {@const VideoEmbedFullscreen = module.default}
+                            {@const videoUrl = embedFullscreenData.decodedContent?.url || embedFullscreenData.attrs?.url || ''}
+                            {@const videoTitle = embedFullscreenData.decodedContent?.title || embedFullscreenData.attrs?.title}
+                            {@const videoId = embedFullscreenData.decodedContent?.videoId || embedFullscreenData.attrs?.videoId}
+                            {@const restoreFromPip = embedFullscreenData.restoreFromPip || false}
+                            <VideoEmbedFullscreen
+                                url={videoUrl}
+                                title={videoTitle}
+                                videoId={videoId}
+                                restoreFromPip={restoreFromPip}
+                                onClose={handleCloseEmbedFullscreen}
+                            />
+                        {/await}
+                    {/if}
+                {:else}
+                    <!-- Fallback for unknown embed types -->
+                    <div class="embed-fullscreen-fallback">
+                        <div class="fullscreen-header">
+                            <button onclick={handleCloseEmbedFullscreen}>Close</button>
+                        </div>
+                        <div class="fullscreen-content">
+                            <p>Fullscreen view not available for embed type: {embedFullscreenData.embedType}</p>
+                        </div>
+                    </div>
                 {/if}
             {/if}
+            
+            <!-- 
+                Standalone VideoIframe component - CSS-based PiP
+                
+                This component is ALWAYS rendered in the same DOM position within ActiveChat.
+                PiP mode is achieved purely through CSS class changes (no DOM movement).
+                The iframe is never destroyed or reloaded during PiP transitions.
+                
+                The wrapper container provides:
+                - Fullscreen mode: positioned at top, centered (via .video-iframe-fullscreen-container)
+                - PiP mode: absolute position top-right within ActiveChat (via .pip-mode class)
+                - Fade-out: opacity transition when closing (via .fade-out class)
+                
+                Using position: absolute (not fixed) ensures the PiP moves with ActiveChat
+                when the settings panel opens/closes.
+            -->
+            {#if (videoIframeState.isActive || videoIframeState.isClosing) && videoIframeState.videoId && videoIframeState.embedUrl}
+                {@const VideoIframePromise = import('../components/embeds/videos/VideoIframe.svelte')}
+                {#await VideoIframePromise then module}
+                    {@const VideoIframe = module.default}
+                    <div 
+                        class="video-iframe-fullscreen-container" 
+                        class:pip-mode={videoIframeState.isPipMode}
+                        class:fade-out={videoIframeState.isClosing}
+                    >
+                        <VideoIframe
+                            videoId={videoIframeState.videoId}
+                            title={videoIframeState.title || 'Video'}
+                            embedUrl={videoIframeState.embedUrl}
+                            isPipMode={videoIframeState.isPipMode}
+                            onPipOverlayClick={handlePipOverlayClick}
+                        />
+                    </div>
+                {/await}
+            {/if}
+            
             <KeyboardShortcuts
                 on:newChat={handleNewChatClick}
                 on:focusInput={() => messageInputFieldRef.focus()}
@@ -3102,6 +3373,72 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
     .active-chat-container.scaled {
         transform: scale(0.95);
+    }
+    
+    /* ===========================================
+       Video Picture-in-Picture (PiP) Styles - CSS-based transitions
+       =========================================== */
+    
+    /*
+     * VideoIframe is wrapped in .video-iframe-fullscreen-container
+     * This container handles the positioning:
+     * - Fullscreen mode: positioned at top-center (matching thumbnail position in fullscreen view)
+     * - PiP mode: absolute position top-right of ActiveChat (moves with container)
+     *
+     * Using position: absolute (not fixed) ensures PiP moves with ActiveChat
+     * when settings panel opens/closes.
+     */
+    
+    /* Fullscreen mode container - positioned at top to match thumbnail position */
+    .video-iframe-fullscreen-container {
+        position: absolute;
+        /* Position at top, centered horizontally - matches thumbnail position in fullscreen view */
+        top: 80px; /* Below header */
+        left: 50%;
+        transform: translateX(-50%);
+        width: calc(100% - 40px); /* Account for padding */
+        max-width: 780px;
+        box-sizing: border-box;
+        z-index: 100; /* Below fullscreen buttons but above chat content */
+        pointer-events: auto;
+        
+        /* Smooth transition for position changes */
+        transition: 
+            opacity 0.3s ease-out,
+            top 0.5s cubic-bezier(0.4, 0, 0.2, 1),
+            left 0.5s cubic-bezier(0.4, 0, 0.2, 1),
+            right 0.5s cubic-bezier(0.4, 0, 0.2, 1),
+            transform 0.5s cubic-bezier(0.4, 0, 0.2, 1),
+            width 0.5s cubic-bezier(0.4, 0, 0.2, 1),
+            max-width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    
+    /* Fade out class for cleanup animation */
+    .video-iframe-fullscreen-container.fade-out {
+        opacity: 0;
+        pointer-events: none;
+    }
+    
+    /* PiP mode container - absolute position top-right within ActiveChat */
+    .video-iframe-fullscreen-container.pip-mode {
+        position: absolute;
+        top: 20px;
+        left: auto;
+        right: 20px;
+        transform: none;
+        width: 320px;
+        max-width: 320px;
+        z-index: 1000; /* Above everything in ActiveChat */
+    }
+    
+    /* Responsive PiP for small screens */
+    @media (max-width: 480px) {
+        .video-iframe-fullscreen-container.pip-mode {
+            width: 240px;
+            max-width: 240px;
+            top: 10px;
+            right: 10px;
+        }
     }
 
 </style>

@@ -4,9 +4,9 @@
 # 'usage' collection in Directus.
 
 import logging
-import hashlib
+import asyncio
 from typing import Dict, Any, Optional, List
-import json
+from datetime import datetime
 
 from backend.core.api.app.utils.encryption import EncryptionService
 
@@ -30,32 +30,39 @@ class UsageMethods:
         model_used: Optional[str] = None,
         chat_id: Optional[str] = None,
         message_id: Optional[str] = None,
+        source: str = "chat",  # "chat", "api_key", or "direct"
         cost_system_prompt_credits: Optional[int] = None,
         cost_history_credits: Optional[int] = None,
         cost_response_credits: Optional[int] = None,
         actual_input_tokens: Optional[int] = None,
         actual_output_tokens: Optional[int] = None,
+        api_key_hash: Optional[str] = None,  # SHA-256 hash of API key for tracking
+        device_hash: Optional[str] = None,  # SHA-256 hash of device for tracking
     ) -> Optional[str]:
         """
         Creates a new usage entry in Directus.
-        Encrypts fields that need to be protected.
+        Stores app_id, skill_id, chat_id, message_id in cleartext for performance and client-side matching.
+        Only encrypts sensitive fields (credits, tokens, model).
         
         Args:
             user_id_hash: Hashed user ID for privacy
-            app_id: ID of the app that was used (required, must not be empty)
-            skill_id: ID of the skill that was executed (required, must not be empty)
-            usage_type: Type of usage (e.g., "skill_execution", "chat_message")
+            app_id: ID of the app that was used (required, must not be empty, stored in cleartext)
+            skill_id: ID of the skill that was executed (required, must not be empty, stored in cleartext)
+            usage_type: Type of usage (e.g., "skill_execution", "api_call")
             timestamp: Unix timestamp in seconds
             credits_charged: Number of credits charged
             user_vault_key_id: ID of the user's vault key for encryption
-            model_used: Optional model identifier
-            chat_id: Optional chat ID (should be provided when skill is triggered in a chat)
-            message_id: Optional message ID (should be provided when skill is triggered from a message)
+            model_used: Optional model identifier (encrypted)
+            chat_id: Optional chat ID (stored in cleartext for client-side matching, should be provided for chat-based usage)
+            message_id: Optional message ID (stored in cleartext for client-side matching, should be provided for chat-based usage)
+            source: Source of usage - "chat" (default), "api_key", or "direct"
             cost_system_prompt_credits: Optional system prompt credit cost
             cost_history_credits: Optional history credit cost
             cost_response_credits: Optional response credit cost
-            actual_input_tokens: Optional input token count
-            actual_output_tokens: Optional output token count
+            actual_input_tokens: Optional input token count (only saved for AI Ask skill)
+            actual_output_tokens: Optional output token count (only saved for AI Ask skill)
+            api_key_hash: Optional SHA-256 hash of the API key that created this usage entry (for API key-based usage)
+            device_hash: Optional SHA-256 hash of the device that created this usage entry (for API key-based usage)
         """
         log_prefix = f"DirectusService ({self.collection}):"
         logger.info(f"{log_prefix} Creating new usage entry for user '{user_id_hash}' (app_id='{app_id}', skill_id='{skill_id}').")
@@ -74,26 +81,23 @@ class UsageMethods:
             app_id = app_id.strip()
             skill_id = skill_id.strip()
             
+            # Normalize source (default to "chat" if invalid)
+            if source not in ["chat", "api_key", "direct"]:
+                logger.warning(f"{log_prefix} Invalid source '{source}', defaulting to 'chat'")
+                source = "chat"
+            
+            # Normalize chat_id and message_id (strip if provided)
+            normalized_chat_id = chat_id.strip() if chat_id and isinstance(chat_id, str) and chat_id.strip() else None
+            normalized_message_id = message_id.strip() if message_id and isinstance(message_id, str) and message_id.strip() else None
+            
+            # Validate: If source is "chat", chat_id should be provided
+            if source == "chat" and not normalized_chat_id:
+                logger.warning(f"{log_prefix} Source is 'chat' but chat_id is missing. Entry will be created without chat_id.")
+            
             # Encryption key is the user vault key for usage entries
             encryption_key_id = user_vault_key_id
 
-            # Encrypt sensitive metadata fields for privacy
-            # Server admins should not be able to see which apps/skills/models users are using
-            encrypted_app_id_tuple = await self.encryption_service.encrypt_with_user_key(
-                key_id=encryption_key_id, plaintext=app_id
-            )
-            encrypted_skill_id_tuple = await self.encryption_service.encrypt_with_user_key(
-                key_id=encryption_key_id, plaintext=skill_id
-            )
-            
-            encrypted_app_id = encrypted_app_id_tuple[0] if encrypted_app_id_tuple else None
-            encrypted_skill_id = encrypted_skill_id_tuple[0] if encrypted_skill_id_tuple else None
-            
-            if not encrypted_app_id or not encrypted_skill_id:
-                logger.error(f"{log_prefix} Failed to encrypt app_id or skill_id. Aborting usage entry creation.")
-                return None
-            
-            # Encrypt model_used if provided
+            # Encrypt model_used if provided (sensitive field)
             encrypted_model_used = None
             if model_used:
                 encrypted_model_used_tuple = await self.encryption_service.encrypt_with_user_key(
@@ -101,57 +105,72 @@ class UsageMethods:
                 )
                 encrypted_model_used = encrypted_model_used_tuple[0] if encrypted_model_used_tuple else None
 
-            # Hash chat_id and message_id (SHA-256, one-way) for linking without exposing actual IDs
-            # This allows users to match their usage entries later while protecting privacy
-            # Only hash if chat_id/message_id are provided and non-empty
-            hashed_chat_id = None
-            hashed_message_id = None
+            # CRITICAL: Only save tokens for AI Ask skill (app_id='ai', skill_id='ask')
+            # Other skills don't use LLM tokens directly, so storing tokens is incorrect
+            should_save_tokens = (app_id == "ai" and skill_id == "ask")
             
-            if chat_id and isinstance(chat_id, str) and chat_id.strip():
-                hashed_chat_id = hashlib.sha256(chat_id.strip().encode()).hexdigest()
-                logger.debug(f"{log_prefix} Hashed chat_id for usage entry (length: {len(hashed_chat_id)})")
-            
-            if message_id and isinstance(message_id, str) and message_id.strip():
-                hashed_message_id = hashlib.sha256(message_id.strip().encode()).hexdigest()
-                logger.debug(f"{log_prefix} Hashed message_id for usage entry (length: {len(hashed_message_id)})")
+            if actual_input_tokens is not None or actual_output_tokens is not None:
+                if not should_save_tokens:
+                    logger.warning(
+                        f"{log_prefix} Tokens provided for non-AI-Ask skill (app_id='{app_id}', skill_id='{skill_id}'). "
+                        f"Tokens will not be saved. Only AI Ask skill should have tokens."
+                    )
+                    actual_input_tokens = None
+                    actual_output_tokens = None
 
-            # Encrypt credit and token fields
+            # Encrypt credit and token fields (only tokens if AI Ask skill)
             encrypted_credits_costs_total_tuple = await self.encryption_service.encrypt_with_user_key(
                 key_id=encryption_key_id, plaintext=str(credits_charged)
             )
-            encrypted_input_tokens_tuple = await self.encryption_service.encrypt_with_user_key(
-                key_id=encryption_key_id, plaintext=str(actual_input_tokens)
-            ) if actual_input_tokens is not None else (None, None)
-            encrypted_output_tokens_tuple = await self.encryption_service.encrypt_with_user_key(
-                key_id=encryption_key_id, plaintext=str(actual_output_tokens)
-            ) if actual_output_tokens is not None else (None, None)
+            
+            encrypted_input_tokens = None
+            encrypted_output_tokens = None
+            if should_save_tokens:
+                if actual_input_tokens is not None:
+                    encrypted_input_tokens_tuple = await self.encryption_service.encrypt_with_user_key(
+                        key_id=encryption_key_id, plaintext=str(actual_input_tokens)
+                    )
+                    encrypted_input_tokens = encrypted_input_tokens_tuple[0] if encrypted_input_tokens_tuple else None
+                
+                if actual_output_tokens is not None:
+                    encrypted_output_tokens_tuple = await self.encryption_service.encrypt_with_user_key(
+                        key_id=encryption_key_id, plaintext=str(actual_output_tokens)
+                    )
+                    encrypted_output_tokens = encrypted_output_tokens_tuple[0] if encrypted_output_tokens_tuple else None
 
             encrypted_credits_costs_total = encrypted_credits_costs_total_tuple[0] if encrypted_credits_costs_total_tuple else None
-            encrypted_input_tokens = encrypted_input_tokens_tuple[0] if encrypted_input_tokens_tuple else None
-            encrypted_output_tokens = encrypted_output_tokens_tuple[0] if encrypted_output_tokens_tuple else None
 
             if not encrypted_credits_costs_total:
                 logger.error(f"{log_prefix} Failed to encrypt total credits. Aborting usage entry creation.")
                 return None
 
-            # Build payload with encrypted/hashed fields
+            # Build payload with cleartext app_id, skill_id, chat_id, message_id for performance and client-side matching
             payload = {
                 "user_id_hash": user_id_hash,
-                "encrypted_app_id": encrypted_app_id,
-                "encrypted_skill_id": encrypted_skill_id,
+                "app_id": app_id,  # Cleartext - not personally identifiable
+                "skill_id": skill_id,  # Cleartext - not personally identifiable
                 "type": usage_type,
+                "source": source,  # "chat", "api_key", or "direct"
                 "created_at": timestamp,
                 "updated_at": timestamp,
                 "encrypted_credits_costs_total": encrypted_credits_costs_total,
             }
             
-            # Add optional encrypted/hashed fields
+            # Add optional cleartext fields (for client-side matching with IndexedDB)
+            if normalized_chat_id:
+                payload["chat_id"] = normalized_chat_id
+            if normalized_message_id:
+                payload["message_id"] = normalized_message_id
+            
+            # Add optional API key and device tracking fields (for API key-based usage)
+            if api_key_hash:
+                payload["api_key_hash"] = api_key_hash
+            if device_hash:
+                payload["device_hash"] = device_hash
+            
+            # Add optional encrypted fields
             if encrypted_model_used:
                 payload["encrypted_model_used"] = encrypted_model_used
-            if hashed_chat_id:
-                payload["hashed_chat_id"] = hashed_chat_id
-            if hashed_message_id:
-                payload["hashed_message_id"] = hashed_message_id
             if encrypted_input_tokens:
                 payload["encrypted_input_tokens"] = encrypted_input_tokens
             if encrypted_output_tokens:
@@ -162,6 +181,22 @@ class UsageMethods:
             if success and response_data and response_data.get("id"):
                 entry_id = response_data["id"]
                 logger.info(f"{log_prefix} Successfully created usage entry with ID: {entry_id}")
+                
+                # Update monthly summaries incrementally (fire-and-forget, non-blocking)
+                # This ensures summaries are always up-to-date for fast queries
+                try:
+                    await self._update_monthly_summaries(
+                        user_id_hash=user_id_hash,
+                        timestamp=timestamp,
+                        credits_charged=credits_charged,
+                        chat_id=normalized_chat_id,
+                        app_id=app_id,
+                        api_key_hash=api_key_hash
+                    )
+                except Exception as e_summary:
+                    # Log error but don't fail usage entry creation
+                    logger.error(f"{log_prefix} Error updating monthly summaries: {e_summary}", exc_info=True)
+                
                 return entry_id
             else:
                 logger.error(f"{log_prefix} Failed to create usage entry. Response: {response_data}")
@@ -170,3 +205,602 @@ class UsageMethods:
         except Exception as e:
             logger.error(f"{log_prefix} Error creating usage entry: {e}", exc_info=True)
             return None
+    
+    async def _update_monthly_summaries(
+        self,
+        user_id_hash: str,
+        timestamp: int,
+        credits_charged: int,
+        chat_id: Optional[str],
+        app_id: str,
+        api_key_hash: Optional[str]
+    ):
+        """
+        Update monthly summaries incrementally when a usage entry is created.
+        This method updates or creates summary records for chats, apps, and API keys.
+        
+        Args:
+            user_id_hash: Hashed user identifier
+            timestamp: Unix timestamp in seconds
+            credits_charged: Number of credits charged
+            chat_id: Optional chat ID (for chat summaries)
+            app_id: App identifier (for app summaries)
+            api_key_hash: Optional API key hash (for API key summaries)
+        """
+        log_prefix = f"DirectusService (usage summaries):"
+        
+        try:
+            # Convert timestamp to year_month format (YYYY-MM)
+            dt = datetime.fromtimestamp(timestamp)
+            year_month = dt.strftime("%Y-%m")
+            
+            # Update chat summary if chat_id is provided
+            if chat_id:
+                await self._update_summary(
+                    collection="usage_monthly_chat_summaries",
+                    user_id_hash=user_id_hash,
+                    identifier_key="chat_id",
+                    identifier_value=chat_id,
+                    year_month=year_month,
+                    credits_charged=credits_charged,
+                    log_prefix=log_prefix,
+                    summary_type="chat"
+                )
+            
+            # Update app summary (always, since app_id is required)
+            await self._update_summary(
+                collection="usage_monthly_app_summaries",
+                user_id_hash=user_id_hash,
+                identifier_key="app_id",
+                identifier_value=app_id,
+                year_month=year_month,
+                credits_charged=credits_charged,
+                log_prefix=log_prefix,
+                summary_type="app"
+            )
+            
+            # Update API key summary if api_key_hash is provided
+            if api_key_hash:
+                await self._update_summary(
+                    collection="usage_monthly_api_key_summaries",
+                    user_id_hash=user_id_hash,
+                    identifier_key="api_key_hash",
+                    identifier_value=api_key_hash,
+                    year_month=year_month,
+                    credits_charged=credits_charged,
+                    log_prefix=log_prefix,
+                    summary_type="api_key"
+                )
+            
+        except Exception as e:
+            logger.error(f"{log_prefix} Error updating monthly summaries: {e}", exc_info=True)
+            # Don't raise - this is a non-critical operation
+    
+    async def _update_summary(
+        self,
+        collection: str,
+        user_id_hash: str,
+        identifier_key: str,
+        identifier_value: str,
+        year_month: str,
+        credits_charged: int,
+        log_prefix: str,
+        summary_type: Optional[str] = None  # Optional summary type for cache invalidation
+    ):
+        """
+        Update or create a monthly summary record.
+        
+        Args:
+            collection: Name of the summary collection
+            user_id_hash: Hashed user identifier
+            identifier_key: Key name for the identifier (e.g., "chat_id", "app_id", "api_key_hash")
+            identifier_value: Value of the identifier
+            year_month: Month identifier in format "YYYY-MM"
+            credits_charged: Number of credits to add
+            log_prefix: Logging prefix
+        """
+        try:
+            # Try to find existing summary
+            params = {
+                "filter": {
+                    "user_id_hash": {"_eq": user_id_hash},
+                    identifier_key: {"_eq": identifier_value},
+                    "year_month": {"_eq": year_month}
+                },
+                "fields": "id,total_credits,entry_count",
+                "limit": 1
+            }
+            
+            existing_summaries = await self.sdk.get_items(collection, params=params, no_cache=True)
+            
+            if existing_summaries and len(existing_summaries) > 0:
+                # Update existing summary
+                summary = existing_summaries[0]
+                summary_id = summary.get("id")
+                current_credits = summary.get("total_credits", 0)
+                current_count = summary.get("entry_count", 0)
+                
+                update_data = {
+                    "total_credits": current_credits + credits_charged,
+                    "entry_count": current_count + 1,
+                    "updated_at": int(datetime.now().timestamp())
+                }
+                
+                await self.sdk.update_item(collection, summary_id, update_data)
+                logger.debug(f"{log_prefix} Updated {collection} summary {summary_id} (+{credits_charged} credits, +1 entry)")
+                
+                # Invalidate cache for this summary type (last 3 months)
+                # This ensures cache is updated when summaries change
+                if summary_type:
+                    for months in [1, 2, 3]:
+                        cache_key = f"usage_summaries:{user_id_hash}:{summary_type}:{months}"
+                        await self.sdk.cache.delete(cache_key)
+                        logger.debug(f"{log_prefix} Invalidated cache: {cache_key}")
+            else:
+                # Create new summary
+                current_timestamp = int(datetime.now().timestamp())
+                
+                create_data = {
+                    "user_id_hash": user_id_hash,
+                    identifier_key: identifier_value,
+                    "year_month": year_month,
+                    "total_credits": credits_charged,
+                    "entry_count": 1,
+                    "is_archived": False,
+                    "archive_s3_key": None,
+                    "created_at": current_timestamp,
+                    "updated_at": current_timestamp
+                }
+                
+                success, result = await self.sdk.create_item(collection, create_data)
+                if success and result:
+                    logger.debug(f"{log_prefix} Created new {collection} summary for {identifier_key}={identifier_value}, month={year_month}")
+                    
+                    # Invalidate cache for this summary type (last 3 months)
+                    # This ensures cache is updated when new summaries are created
+                    if summary_type:
+                        for months in [1, 2, 3]:
+                            cache_key = f"usage_summaries:{user_id_hash}:{summary_type}:{months}"
+                            await self.sdk.cache.delete(cache_key)
+                            logger.debug(f"{log_prefix} Invalidated cache: {cache_key}")
+                else:
+                    logger.warning(f"{log_prefix} Failed to create {collection} summary: {result}")
+                    
+        except Exception as e:
+            logger.error(f"{log_prefix} Error updating {collection} summary: {e}", exc_info=True)
+            # Don't raise - this is a non-critical operation
+
+    async def get_user_usage_entries(
+        self,
+        user_id_hash: str,
+        user_vault_key_id: str,
+        limit: Optional[int] = None,
+        offset: Optional[int] = None,
+        sort: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
+        """
+        Fetches usage entries for a user and decrypts encrypted fields.
+        
+        Args:
+            user_id_hash: Hashed user ID to filter usage entries
+            user_vault_key_id: User's vault key ID for decryption
+            limit: Optional limit for pagination
+            offset: Optional offset for pagination
+            sort: Optional sort field (e.g., "-created_at" for descending)
+            
+        Returns:
+            List of decrypted usage entries
+        """
+        log_prefix = f"DirectusService ({self.collection}):"
+        logger.info(f"{log_prefix} Fetching usage entries for user '{user_id_hash}'")
+        
+        try:
+            # Build query parameters - don't use sort parameter due to Directus permission issues
+            # We'll sort client-side instead to avoid 403 errors
+            # Fetch more entries than needed for pagination (we'll sort and slice client-side)
+            # Use a reasonable max limit to avoid fetching too much data
+            fetch_limit = (limit or 10) * 2 if limit else 100  # Fetch 2x the requested limit for sorting buffer
+            params = {
+                "filter": {
+                    "user_id_hash": {
+                        "_eq": user_id_hash
+                    }
+                },
+                "fields": "*",
+                "limit": min(fetch_limit, 1000)  # Cap at 1000 to avoid performance issues
+            }
+            
+            # Note: Not using sort parameter in Directus query due to permission issues
+            # We'll sort client-side after fetching and decrypting
+            # Also not using offset in Directus query - we'll apply it after sorting
+            
+            # Fetch usage entries from Directus using the SDK's get_items method
+            entries = await self.sdk.get_items(self.collection, params=params, no_cache=True)
+            
+            if not entries:
+                logger.info(f"{log_prefix} No usage entries found for user '{user_id_hash}'")
+                return []
+            
+            # Process entries: Use cleartext fields directly, decrypt only encrypted fields
+            # OPTIMIZATION: Decrypt all encrypted fields in parallel using asyncio.gather() to reduce latency
+            async def process_entry(entry: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+                """Process a single usage entry: use cleartext fields, decrypt encrypted fields in parallel"""
+                try:
+                    # Use cleartext fields directly (no backward compatibility)
+                    processed_entry = {
+                        "id": entry.get("id"),
+                        "type": entry.get("type"),
+                        "source": entry.get("source", "chat"),
+                        "created_at": entry.get("created_at"),
+                        "updated_at": entry.get("updated_at"),
+                        "app_id": entry.get("app_id"),  # Cleartext - always available for new entries
+                        "skill_id": entry.get("skill_id"),  # Cleartext - always available for new entries
+                        "chat_id": entry.get("chat_id"),  # Cleartext - for client-side matching
+                        "message_id": entry.get("message_id"),  # Cleartext - for client-side matching
+                        "api_key_hash": entry.get("api_key_hash"),  # Cleartext - API key hash for tracking (nullable)
+                        "device_hash": entry.get("device_hash"),  # Cleartext - device hash for tracking (nullable)
+                    }
+                    
+                    # Collect all decryption tasks for encrypted fields only
+                    decrypt_tasks = {}
+                    
+                    # Decrypt encrypted fields (credits, tokens, model)
+                    encrypted_model_used = entry.get("encrypted_model_used")
+                    if encrypted_model_used:
+                        decrypt_tasks["model_used"] = self.encryption_service.decrypt_with_user_key(
+                            encrypted_model_used, user_vault_key_id
+                        )
+                    
+                    encrypted_credits = entry.get("encrypted_credits_costs_total")
+                    if encrypted_credits:
+                        decrypt_tasks["credits"] = self.encryption_service.decrypt_with_user_key(
+                            encrypted_credits, user_vault_key_id
+                        )
+                    
+                    encrypted_input_tokens = entry.get("encrypted_input_tokens")
+                    if encrypted_input_tokens:
+                        decrypt_tasks["input_tokens"] = self.encryption_service.decrypt_with_user_key(
+                            encrypted_input_tokens, user_vault_key_id
+                        )
+                    
+                    encrypted_output_tokens = entry.get("encrypted_output_tokens")
+                    if encrypted_output_tokens:
+                        decrypt_tasks["output_tokens"] = self.encryption_service.decrypt_with_user_key(
+                            encrypted_output_tokens, user_vault_key_id
+                        )
+                    
+                    # Execute all decryptions in parallel for this entry
+                    if decrypt_tasks:
+                        results = await asyncio.gather(*decrypt_tasks.values(), return_exceptions=True)
+                        
+                        # Process results
+                        for i, (field_name, result) in enumerate(zip(decrypt_tasks.keys(), results)):
+                            if isinstance(result, Exception):
+                                logger.warning(f"{log_prefix} Failed to decrypt {field_name} for entry {entry.get('id')}: {result}")
+                                continue
+                            
+                            if result:
+                                if field_name == "credits":
+                                    try:
+                                        processed_entry["credits"] = int(result)
+                                    except ValueError:
+                                        logger.warning(f"{log_prefix} Invalid credits value: {result}")
+                                        processed_entry["credits"] = 0
+                                elif field_name in ["input_tokens", "output_tokens"]:
+                                    try:
+                                        processed_entry[field_name] = int(result) if result else None
+                                    except ValueError:
+                                        processed_entry[field_name] = None
+                                else:
+                                    processed_entry[field_name] = result
+                    
+                    # Ensure credits is always set (default to 0 if missing)
+                    if "credits" not in processed_entry:
+                        processed_entry["credits"] = 0
+                    
+                    return processed_entry
+                    
+                except Exception as e:
+                    logger.error(f"{log_prefix} Error decrypting usage entry {entry.get('id')}: {e}", exc_info=True)
+                    return None
+            
+            # Process all entries in parallel (each entry's encrypted fields are decrypted in parallel)
+            processing_results = await asyncio.gather(
+                *[process_entry(entry) for entry in entries],
+                return_exceptions=True
+            )
+            
+            # Filter out None results (failed processing)
+            processed_entries = [
+                result for result in processing_results
+                if result is not None and not isinstance(result, Exception)
+            ]
+            
+            logger.debug(f"{log_prefix} Processed {len(processed_entries)}/{len(entries)} entries successfully")
+            
+            # Sort client-side by created_at descending (newest first)
+            # This avoids Directus permission issues with sort parameter
+            processed_entries.sort(key=lambda x: x.get("created_at", 0), reverse=True)
+            
+            # Apply pagination after sorting (if limit/offset were specified)
+            # Note: For efficiency, we should ideally sort in Directus, but due to permission issues
+            # we sort client-side. For large datasets, consider increasing the limit or implementing
+            # server-side cursor-based pagination.
+            if limit or offset:
+                start_idx = offset or 0
+                end_idx = start_idx + (limit or len(processed_entries))
+                processed_entries = processed_entries[start_idx:end_idx]
+            
+            logger.info(f"{log_prefix} Successfully fetched and processed {len(processed_entries)} usage entries (sorted and paginated client-side)")
+            return processed_entries
+            
+        except Exception as e:
+            logger.error(f"{log_prefix} Error fetching usage entries: {e}", exc_info=True)
+            return []
+    
+    async def get_monthly_summaries(
+        self,
+        user_id_hash: str,
+        summary_type: str,  # "chat", "app", or "api_key"
+        months: int = 3
+    ) -> List[Dict[str, Any]]:
+        """
+        Fetch monthly usage summaries for a user.
+        Uses cache for the last 3 months to ensure max performance and reliable data.
+        
+        Args:
+            user_id_hash: Hashed user identifier
+            summary_type: Type of summary ("chat", "app", or "api_key")
+            months: Number of months to fetch (default: 3)
+            
+        Returns:
+            List of summary records grouped by month
+        """
+        log_prefix = f"DirectusService (usage summaries):"
+        logger.info(f"{log_prefix} Fetching {summary_type} summaries for user '{user_id_hash}', last {months} months")
+        
+        try:
+            collection_name = f"usage_monthly_{summary_type}_summaries"
+            
+            # Calculate list of year_month strings for the requested months
+            from datetime import datetime, timedelta
+            year_months = []
+            for i in range(months):
+                month_date = datetime.now() - timedelta(days=i * 30)
+                year_month = month_date.strftime("%Y-%m")
+                year_months.append(year_month)
+            
+            # Check cache first (for last 3 months)
+            cache_key = f"usage_summaries:{user_id_hash}:{summary_type}:{months}"
+            if months <= 3:
+                cached_summaries = await self.sdk.cache.get(cache_key)
+                if cached_summaries:
+                    logger.debug(f"{log_prefix} Cache HIT for {summary_type} summaries")
+                    return cached_summaries
+            
+            # Query summaries using _in operator with list of year_month strings
+            params = {
+                "filter": {
+                    "user_id_hash": {"_eq": user_id_hash},
+                    "year_month": {"_in": year_months}
+                },
+                "fields": "*",
+                "sort": ["-year_month"],  # Newest first
+                "limit": -1
+            }
+            
+            summaries = await self.sdk.get_items(collection_name, params=params, no_cache=True)
+            
+            # Cache the last 3 months for future requests
+            if months <= 3 and summaries:
+                # Cache for 5 minutes to balance freshness and performance
+                # Update cache when summaries are updated in _update_summary
+                await self.sdk.cache.set(cache_key, summaries, ttl=300)
+                logger.debug(f"{log_prefix} Cached {len(summaries)} {summary_type} summaries")
+            
+            logger.info(f"{log_prefix} Found {len(summaries)} {summary_type} summaries for user '{user_id_hash}'")
+            return summaries
+            
+        except Exception as e:
+            logger.error(f"{log_prefix} Error fetching {summary_type} summaries: {e}", exc_info=True)
+            return []
+    
+    async def get_usage_entries_for_summary(
+        self,
+        user_id_hash: str,
+        user_vault_key_id: str,
+        summary_type: str,  # "chat", "app", or "api_key"
+        identifier: str,  # chat_id, app_id, or api_key_hash
+        year_month: str  # "YYYY-MM"
+    ) -> List[Dict[str, Any]]:
+        """
+        Fetch usage entries for a specific summary (chat/app/api_key) in a specific month.
+        Checks if archived and loads from appropriate source.
+        
+        Args:
+            user_id_hash: Hashed user identifier
+            user_vault_key_id: User's vault key ID for decryption
+            summary_type: Type of summary ("chat", "app", or "api_key")
+            identifier: Identifier value (chat_id, app_id, or api_key_hash)
+            year_month: Month identifier in format "YYYY-MM"
+            
+        Returns:
+            List of decrypted usage entries
+        """
+        log_prefix = f"DirectusService (usage details):"
+        logger.info(f"{log_prefix} Fetching {summary_type} usage entries for '{identifier}', month '{year_month}'")
+        
+        try:
+            collection_name = f"usage_monthly_{summary_type}_summaries"
+            identifier_key = {
+                "chat": "chat_id",
+                "app": "app_id",
+                "api_key": "api_key_hash"
+            }[summary_type]
+            
+            # Find summary record to check if archived
+            params = {
+                "filter": {
+                    "user_id_hash": {"_eq": user_id_hash},
+                    identifier_key: {"_eq": identifier},
+                    "year_month": {"_eq": year_month}
+                },
+                "fields": "id,is_archived,archive_s3_key",
+                "limit": 1
+            }
+            
+            summaries = await self.sdk.get_items(collection_name, params=params, no_cache=True)
+            
+            if not summaries:
+                logger.warning(f"{log_prefix} No summary found for {summary_type} '{identifier}', month '{year_month}'")
+                return []
+            
+            summary = summaries[0]
+            is_archived = summary.get("is_archived", False)
+            
+            if is_archived:
+                # Load from archive (this will be handled by the API endpoint using archive service)
+                logger.info(f"{log_prefix} Summary is archived, will load from S3")
+                return []  # Return empty, API endpoint will handle archive retrieval
+            else:
+                # Load from Directus usage collection
+                # Parse year_month to get timestamp range
+                year, month = map(int, year_month.split("-"))
+                start_date = datetime(year, month, 1)
+                if month == 12:
+                    end_date = datetime(year + 1, 1, 1)
+                else:
+                    end_date = datetime(year, month + 1, 1)
+                
+                start_timestamp = int(start_date.timestamp())
+                end_timestamp = int(end_date.timestamp())
+                
+                # Build filter based on summary type
+                filter_dict = {
+                    "user_id_hash": {"_eq": user_id_hash},
+                    "created_at": {
+                        "_gte": start_timestamp,
+                        "_lt": end_timestamp
+                    }
+                }
+                
+                if summary_type == "chat":
+                    filter_dict["chat_id"] = {"_eq": identifier}
+                elif summary_type == "app":
+                    filter_dict["app_id"] = {"_eq": identifier}
+                elif summary_type == "api_key":
+                    filter_dict["api_key_hash"] = {"_eq": identifier}
+                
+                params = {
+                    "filter": filter_dict,
+                    "fields": "*",
+                    "sort": ["-created_at"],
+                    "limit": -1
+                }
+                
+                entries = await self.sdk.get_items("usage", params=params, no_cache=True)
+                
+                # Decrypt entries (same logic as get_user_usage_entries)
+                # For now, return raw entries - API endpoint will handle decryption
+                # Actually, we should decrypt here for consistency
+                return await self._decrypt_usage_entries(entries, user_vault_key_id)
+                
+        except Exception as e:
+            logger.error(f"{log_prefix} Error fetching usage entries for summary: {e}", exc_info=True)
+            return []
+    
+    async def _decrypt_usage_entries(
+        self,
+        entries: List[Dict[str, Any]],
+        user_vault_key_id: str
+    ) -> List[Dict[str, Any]]:
+        """
+        Decrypt usage entries (helper method).
+        Similar to get_user_usage_entries but for already-fetched entries.
+        """
+        log_prefix = f"DirectusService (usage):"
+        
+        async def process_entry(entry: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+            try:
+                processed_entry = {
+                    "id": entry.get("id"),
+                    "type": entry.get("type"),
+                    "source": entry.get("source", "chat"),
+                    "created_at": entry.get("created_at"),
+                    "updated_at": entry.get("updated_at"),
+                    "app_id": entry.get("app_id"),
+                    "skill_id": entry.get("skill_id"),
+                    "chat_id": entry.get("chat_id"),
+                    "message_id": entry.get("message_id"),
+                    "api_key_hash": entry.get("api_key_hash"),
+                    "device_hash": entry.get("device_hash"),
+                }
+                
+                decrypt_tasks = {}
+                
+                encrypted_model_used = entry.get("encrypted_model_used")
+                if encrypted_model_used:
+                    decrypt_tasks["model_used"] = self.encryption_service.decrypt_with_user_key(
+                        encrypted_model_used, user_vault_key_id
+                    )
+                
+                encrypted_credits = entry.get("encrypted_credits_costs_total")
+                if encrypted_credits:
+                    decrypt_tasks["credits"] = self.encryption_service.decrypt_with_user_key(
+                        encrypted_credits, user_vault_key_id
+                    )
+                
+                encrypted_input_tokens = entry.get("encrypted_input_tokens")
+                if encrypted_input_tokens:
+                    decrypt_tasks["input_tokens"] = self.encryption_service.decrypt_with_user_key(
+                        encrypted_input_tokens, user_vault_key_id
+                    )
+                
+                encrypted_output_tokens = entry.get("encrypted_output_tokens")
+                if encrypted_output_tokens:
+                    decrypt_tasks["output_tokens"] = self.encryption_service.decrypt_with_user_key(
+                        encrypted_output_tokens, user_vault_key_id
+                    )
+                
+                if decrypt_tasks:
+                    results = await asyncio.gather(*decrypt_tasks.values(), return_exceptions=True)
+                    
+                    for i, (field_name, result) in enumerate(zip(decrypt_tasks.keys(), results)):
+                        if isinstance(result, Exception):
+                            logger.warning(f"{log_prefix} Failed to decrypt {field_name}: {result}")
+                            continue
+                        
+                        if result:
+                            if field_name == "credits":
+                                try:
+                                    processed_entry["credits"] = int(result)
+                                except ValueError:
+                                    processed_entry["credits"] = 0
+                            elif field_name in ["input_tokens", "output_tokens"]:
+                                try:
+                                    processed_entry[field_name] = int(result) if result else None
+                                except ValueError:
+                                    processed_entry[field_name] = None
+                            else:
+                                processed_entry[field_name] = result
+                
+                if "credits" not in processed_entry:
+                    processed_entry["credits"] = 0
+                
+                return processed_entry
+                
+            except Exception as e:
+                logger.error(f"{log_prefix} Error decrypting entry: {e}", exc_info=True)
+                return None
+        
+        processing_results = await asyncio.gather(
+            *[process_entry(entry) for entry in entries],
+            return_exceptions=True
+        )
+        
+        processed_entries = [
+            result for result in processing_results
+            if result is not None and not isinstance(result, Exception)
+        ]
+        
+        return processed_entries

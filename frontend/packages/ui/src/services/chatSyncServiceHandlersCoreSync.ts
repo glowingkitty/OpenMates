@@ -35,30 +35,50 @@ export async function handleInitialSyncResponseImpl(
             // Decrypt encrypted title from server for in-memory use using chat-specific key
             let cleartextTitle: string | null = null;
             if (serverChat.encrypted_title && serverChat.encrypted_chat_key) {
-                console.log(`[ChatSyncService:CoreSync] ✅ Chat ${serverChat.chat_id} has encrypted_chat_key: ${serverChat.encrypted_chat_key.substring(0, 20)}...`);
+                console.log(
+                    `[CLIENT_DECRYPT] ✅ Chat ${serverChat.chat_id} has encrypted_chat_key: ` +
+                    `${serverChat.encrypted_chat_key.substring(0, 20)}... (length: ${serverChat.encrypted_chat_key.length})`
+                );
                 // First, decrypt the chat key from encrypted_chat_key using master key
                 const { decryptChatKeyWithMasterKey } = await import('./cryptoService');
-                const chatKey = decryptChatKeyWithMasterKey(serverChat.encrypted_chat_key);
+                const chatKey = await decryptChatKeyWithMasterKey(serverChat.encrypted_chat_key);
 
                 if (chatKey) {
                     // Cache the decrypted chat key for future use
                     chatDB.setChatKey(serverChat.chat_id, chatKey);
-                    console.log(`[ChatSyncService:CoreSync] ✅ Decrypted and cached chat key for ${serverChat.chat_id}`);
+                    console.log(
+                        `[CLIENT_DECRYPT] ✅ Decrypted and cached chat key for ${serverChat.chat_id} ` +
+                        `(key length: ${chatKey.length} bytes)`
+                    );
 
                     // Now decrypt the title with the chat key
                     const { decryptWithChatKey } = await import('./cryptoService');
-                    cleartextTitle = decryptWithChatKey(serverChat.encrypted_title, chatKey);
+                    cleartextTitle = await decryptWithChatKey(serverChat.encrypted_title, chatKey);
+                    if (cleartextTitle) {
+                        console.log(
+                            `[CLIENT_DECRYPT] ✅ Successfully decrypted title for chat ${serverChat.chat_id}: "${cleartextTitle.substring(0, 50)}..."`
+                        );
+                    } else {
+                        console.warn(`[CLIENT_DECRYPT] ❌ Failed to decrypt title for chat ${serverChat.chat_id}`);
+                        cleartextTitle = serverChat.encrypted_title; // Fallback to encrypted content if decryption fails
+                    }
                 } else {
-                    console.warn(`[ChatSyncService:CoreSync] ❌ Failed to decrypt chat key for chat ${serverChat.chat_id}`);
-                    cleartextTitle = serverChat.encrypted_title; // Fallback to encrypted content if decryption fails
-                }
-                if (!cleartextTitle) {
-                    console.warn(`[ChatSyncService:CoreSync] ❌ Failed to decrypt title for chat ${serverChat.chat_id}`);
+                    console.error(
+                        `[CLIENT_DECRYPT] ❌ CRITICAL: Failed to decrypt chat key for chat ${serverChat.chat_id} - ` +
+                        `chat will not be decryptable!`
+                    );
                     cleartextTitle = serverChat.encrypted_title; // Fallback to encrypted content if decryption fails
                 }
             } else if (serverChat.encrypted_title) {
-                console.warn(`[ChatSyncService:CoreSync] ⚠️ Chat ${serverChat.chat_id} missing encrypted_chat_key - cannot decrypt title`);
+                console.error(
+                    `[CLIENT_DECRYPT] ❌ CRITICAL: Chat ${serverChat.chat_id} missing encrypted_chat_key - ` +
+                    `cannot decrypt title or messages!`
+                );
                 cleartextTitle = serverChat.encrypted_title;
+            } else {
+                console.warn(
+                    `[CLIENT_DECRYPT] ⚠️ Chat ${serverChat.chat_id} has no encrypted_title or encrypted_chat_key`
+                );
             }
             
             const chat: Chat = {

@@ -4,6 +4,36 @@ import { aiTypingStore } from '../stores/aiTypingStore';
 import { notificationStore } from '../stores/notificationStore';
 import { chatDB } from './db'; // Import chatDB
 import { storeEmbed } from './embedResolver'; // Import storeEmbed
+
+// Safe TOON decoder for metadata extraction (local to avoid circular deps)
+let toonDecode: ((toonString: string) => any) | null = null;
+async function decodeToonContentSafe(toonContent: string | null | undefined): Promise<any> {
+    if (!toonContent) return null;
+    if (typeof toonContent !== 'string') {
+        if (typeof toonContent === 'object') return toonContent;
+        return null;
+    }
+    if (!toonDecode) {
+        try {
+            const toonModule = await import('@toon-format/toon');
+            toonDecode = toonModule.decode;
+        } catch (error) {
+            console.warn('[ChatSyncService:AI] TOON decoder not available, using JSON fallback:', error);
+        }
+    }
+    if (toonDecode) {
+        try {
+            return toonDecode(toonContent);
+        } catch (err) {
+            console.debug('[ChatSyncService:AI] TOON decode failed, JSON fallback:', err);
+        }
+    }
+    try {
+        return JSON.parse(toonContent);
+    } catch {
+        return null;
+    }
+}
 import * as LucideIcons from '@lucide/svelte';
 
 /**
@@ -1352,7 +1382,23 @@ export async function handleSendEmbedDataImpl(
 
             // 7. Store encrypted embed locally in IndexedDB
             // This uses putEncrypted() since content is already encrypted with embed_key
+            // CRITICAL: Pass plaintext content to extract app_id/skill_id metadata BEFORE encryption
+            // This avoids needing to decrypt later when embed keys might not be available yet
             const embedRef = `embed:${embedData.embed_id}`;
+            // Extract metadata from plaintext content (best effort)
+            let preExtractedMetadata: { app_id?: string; skill_id?: string } | undefined;
+            try {
+                const decoded = await decodeToonContentSafe(embedData.content);
+                if (decoded && typeof decoded === 'object') {
+                    preExtractedMetadata = {
+                        app_id: typeof decoded.app_id === 'string' ? decoded.app_id : undefined,
+                        skill_id: typeof decoded.skill_id === 'string' ? decoded.skill_id : undefined
+                    };
+                    console.debug('[ChatSyncService:AI] Pre-extracted app metadata from plaintext:', preExtractedMetadata);
+                }
+            } catch (metaErr) {
+                console.debug('[ChatSyncService:AI] Failed to pre-extract app metadata:', metaErr);
+            }
             const encryptedEmbedForStorage = {
                 embed_id: embedData.embed_id,
                 encrypted_type: encryptedType,
@@ -1373,7 +1419,14 @@ export async function handleSendEmbedDataImpl(
                 updatedAt: embedData.updatedAt
             };
             
-            await embedStore.putEncrypted(embedRef, encryptedEmbedForStorage, embedData.type as any);
+            // Pass plaintext content to extract app_id/skill_id metadata
+            await embedStore.putEncrypted(
+                embedRef,
+                encryptedEmbedForStorage,
+                embedData.type as any,
+                embedData.content,
+                preExtractedMetadata
+            );
             console.info(`[ChatSyncService:AI] Stored encrypted embed ${embedData.embed_id} in local IndexedDB`);
 
             // 8. Store embed keys locally in IndexedDB (for decryption after page reload)

@@ -10,30 +10,49 @@ usage:
       length: 255 # Assuming a reasonable length for a hash
       note: "[Indexed] Hashed identifier of the user this usage entry belongs to."
 
-    encrypted_app_id:
+    # Cleartext app and skill identifiers (not personally identifiable, stored in cleartext for performance)
+    app_id:
       type: string
-      length: 512
-      note: "[Encrypted] App identifier, encrypted with user vault key for privacy"
+      length: 255
+      note: "[Indexed] App identifier in cleartext (e.g., 'ai', 'web', 'videos'). Not encrypted for performance and queryability."
       
-    encrypted_skill_id:
+    skill_id:
       type: string
-      length: 512
-      note: "[Encrypted] Skill identifier, encrypted with user vault key for privacy"
+      length: 255
+      note: "[Indexed] Skill identifier in cleartext (e.g., 'ask', 'search'). Not encrypted for performance and queryability."
       
     type:
       type: string
       length: 512
-      note: "Type of usage: chat_message, api_call, etc."
+      note: "Type of usage: skill_execution, api_call, etc."
+    
+    # Source of the usage entry (for filtering)
+    source:
+      type: string
+      length: 50
+      note: "[Indexed] Source of usage: 'chat' (chat-based skill execution), 'api_key' (API key-based), 'direct' (direct API call)"
       
-    hashed_chat_id:
+    # Cleartext chat and message identifiers (for easy client-side matching with IndexedDB)
+    chat_id:
+      type: string
+      length: 255
+      note: "[Indexed, Nullable] Chat ID in cleartext (for chat-based usage). Null for API key or direct API calls. Allows client to match with IndexedDB."
+      
+    message_id:
+      type: string
+      length: 255
+      note: "[Indexed, Nullable] Message ID in cleartext (for chat-based usage). Null for API key or direct API calls. Allows client to match with IndexedDB."
+
+    # API key and device tracking (for API key-based usage)
+    api_key_hash:
       type: string
       length: 64
-      note: "[Indexed] SHA-256 hash of chat_id (for linking, but not reversible to protect privacy)"
-      
-    hashed_message_id:
+      note: "[Indexed, Nullable] SHA-256 hash of the API key that created this usage entry. Null for chat-based or direct API calls. Allows tracking which API key generated which costs."
+    
+    device_hash:
       type: string
       length: 64
-      note: "[Indexed] SHA-256 hash of message_id (for linking, but not reversible to protect privacy)"
+      note: "[Indexed, Nullable] SHA-256 hash of the device (IP:user_id or machine_identifier:user_id) that created this usage entry. Null for chat-based usage or when device tracking is not available. Allows tracking which device generated which costs."
 
     encrypted_model_used:
       type: string
@@ -48,12 +67,12 @@ usage:
     encrypted_input_tokens:
       type: string
       length: 512
-      note: "Encrypted input tokens (all systemprompt + chat history) used, if applicable."
+      note: "Encrypted input tokens (all systemprompt + chat history) used. Only saved for AI Ask skill (app_id='ai', skill_id='ask')."
 
     encrypted_output_tokens:
       type: string
       length: 512
-      note: "Encrypted output tokens used for the response, if applicable."
+      note: "Encrypted output tokens used for the response. Only saved for AI Ask skill (app_id='ai', skill_id='ask')."
       
     created_at:
       type: integer 
