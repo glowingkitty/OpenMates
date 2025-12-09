@@ -87,7 +87,7 @@ def get_creator_revenue_service(
 
 # API Endpoints
 
-@router.post("/tip", response_model=TipCreatorResponse)
+@router.post("/tip", response_model=TipCreatorResponse, include_in_schema=False)  # Exclude from OpenAPI docs for now
 @limiter.limit("30/minute")  # Rate limit: 30 tips per minute per user
 async def tip_creator(
     request: Request,

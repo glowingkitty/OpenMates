@@ -22,7 +22,7 @@ from backend.shared.python_utils.billing_utils import calculate_total_credits, P
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/v1/apps", tags=["Apps API"])
+router = APIRouter(prefix="/v1/apps", tags=["Apps"])
 
 # Default internal port for app services
 DEFAULT_APP_INTERNAL_PORT = 8000
@@ -210,6 +210,74 @@ async def call_app_skill(
     except httpx.RequestError as e:
         logger.error(f"Request error calling skill {app_id}/{skill_id}: {e}")
         raise HTTPException(status_code=503, detail="Service unavailable")
+
+
+def is_skill_execution_successful(result: Dict[str, Any]) -> bool:
+    """
+    Check if a skill execution was successful by examining the result structure.
+    
+    A skill execution is considered successful if:
+    1. There is no top-level error field (or it's None/empty)
+    2. There is no error in the data.error field
+    3. At least one result in data.results has actual results (not just errors)
+    
+    Args:
+        result: The result dictionary returned from skill execution
+        
+    Returns:
+        True if execution was successful, False if there were errors
+    """
+    if not isinstance(result, dict):
+        # If result is not a dict, we can't determine success - assume failure to be safe
+        logger.debug("Skill execution result is not a dictionary, marking as failed")
+        return False
+    
+    # Check for top-level error (must be non-empty string to indicate failure)
+    top_level_error = result.get("error")
+    if top_level_error and isinstance(top_level_error, str) and top_level_error.strip():
+        logger.debug("Skill execution has top-level error, marking as failed")
+        return False
+    
+    # Check for error in data.error field
+    # The result might be the data directly, or wrapped in a "data" field
+    data = result.get("data", result)  # If no "data" field, use result itself
+    
+    if isinstance(data, dict):
+        # Check for error field in data
+        data_error = data.get("error")
+        if data_error and isinstance(data_error, str) and data_error.strip():
+            logger.debug("Skill execution has error in data.error field, marking as failed")
+            return False
+        
+        # Check results array - if all results have errors or are empty, execution failed
+        results = data.get("results", [])
+        if isinstance(results, list) and len(results) > 0:
+            # Check if all results have errors or empty results arrays
+            all_failed = True
+            for result_item in results:
+                if isinstance(result_item, dict):
+                    # Check if this result item has actual results (not just errors)
+                    item_results = result_item.get("results", [])
+                    item_error = result_item.get("error")
+                    
+                    # If there are actual results (non-empty list), execution was at least partially successful
+                    if isinstance(item_results, list) and len(item_results) > 0:
+                        all_failed = False
+                        break
+                    # If there's no error and no results, might be a valid empty result
+                    # But we need at least one successful result to consider it successful
+                    elif not item_error or (isinstance(item_error, str) and not item_error.strip()):
+                        # Empty result without error might be valid (depends on skill)
+                        # But we still need at least one result with actual data
+                        pass
+            
+            # If all results failed (all have errors and empty results arrays), mark as failed
+            if all_failed:
+                logger.debug("All skill execution results have errors or are empty, marking as failed")
+                return False
+    
+    # If we get here, execution was successful (or at least partially successful)
+    return True
 
 
 async def calculate_skill_credits(
@@ -400,6 +468,7 @@ async def charge_credits_via_internal_api(
     "",
     response_model=AppsListResponse,
     dependencies=[ApiKeyAuth],  # Mark endpoint as requiring API key
+    tags=["Apps"],  # Use "Apps" tag (not "Apps API")
     summary="List all available apps",
     description="List all available apps and their skills. Requires API key authentication."
 )
@@ -654,7 +723,7 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
             endpoint=limited_handler,
             methods=["GET"],
             response_model=AppMetadata,
-            tags=["Apps API"],
+            tags=[f"Apps | {app_name.capitalize()}"],  # Use "Apps | {AppName}" tag for better organization (capitalized)
             name=f"get_app_{app_id}",
             summary=f"Get metadata for {app_name}",
             description=f"Get metadata for the {app_name} app including all available skills. Requires API key authentication.",
@@ -925,45 +994,53 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                                 user_info=user_info
                             )
                             
-                            # Calculate credits to charge based on pricing
-                            # This uses the same logic as main_processor.py: checks skill pricing, then provider pricing
-                            credits_charged = await calculate_skill_credits(
-                                app_metadata=captured_app_metadata,
-                                skill_id=captured_skill.id,
-                                input_data=request_dict,  # Use request_dict for credit calculation (contains 'requests' array)
-                                result_data=result
-                            )
+                            # Check if skill execution was successful before charging credits
+                            # Only charge credits if the execution was successful (no errors in result)
+                            execution_successful = is_skill_execution_successful(result)
                             
-                            # Calculate units_processed for usage tracking
-                            units_processed = None
-                            if isinstance(request_dict, dict) and "requests" in request_dict and isinstance(request_dict["requests"], list):
-                                units_processed = len(request_dict["requests"])
+                            if not execution_successful:
+                                logger.info(f"Skill execution failed for {captured_app_id}/{captured_skill.id}, not charging credits")
+                                credits_charged = 0
                             else:
-                                units_processed = 1
-                            
-                            # Charge credits via internal API (this also creates usage entry)
-                            if credits_charged > 0:
-                                # Create user_id_hash for privacy
-                                user_id_hash = hashlib.sha256(user_info['user_id'].encode()).hexdigest()
-                                
-                                # Create usage details (matching format from main_processor.py)
-                                usage_details = {
-                                    "api_key_name": user_info.get('api_key_name'),
-                                    "external_request": True,
-                                    "units_processed": units_processed  # Number of requests processed
-                                }
-                                
-                                # Charge credits (this happens asynchronously and won't block the response)
-                                await charge_credits_via_internal_api(
-                                    user_id=user_info['user_id'],
-                                    user_id_hash=user_id_hash,
-                                    credits=credits_charged,
-                                    app_id=captured_app_id,
+                                # Calculate credits to charge based on pricing
+                                # This uses the same logic as main_processor.py: checks skill pricing, then provider pricing
+                                credits_charged = await calculate_skill_credits(
+                                    app_metadata=captured_app_metadata,
                                     skill_id=captured_skill.id,
-                                    usage_details=usage_details,
-                                    api_key_hash=user_info.get('api_key_hash'),  # API key hash for tracking
-                                    device_hash=user_info.get('device_hash'),  # Device hash for tracking
+                                    input_data=request_dict,  # Use request_dict for credit calculation (contains 'requests' array)
+                                    result_data=result
                                 )
+                                
+                                # Calculate units_processed for usage tracking
+                                units_processed = None
+                                if isinstance(request_dict, dict) and "requests" in request_dict and isinstance(request_dict["requests"], list):
+                                    units_processed = len(request_dict["requests"])
+                                else:
+                                    units_processed = 1
+                                
+                                # Charge credits via internal API (this also creates usage entry)
+                                if credits_charged > 0:
+                                    # Create user_id_hash for privacy
+                                    user_id_hash = hashlib.sha256(user_info['user_id'].encode()).hexdigest()
+                                    
+                                    # Create usage details (matching format from main_processor.py)
+                                    usage_details = {
+                                        "api_key_name": user_info.get('api_key_name'),
+                                        "external_request": True,
+                                        "units_processed": units_processed  # Number of requests processed
+                                    }
+                                    
+                                    # Charge credits (this happens asynchronously and won't block the response)
+                                    await charge_credits_via_internal_api(
+                                        user_id=user_info['user_id'],
+                                        user_id_hash=user_id_hash,
+                                        credits=credits_charged,
+                                        app_id=captured_app_id,
+                                        skill_id=captured_skill.id,
+                                        usage_details=usage_details,
+                                        api_key_hash=user_info.get('api_key_hash'),  # API key hash for tracking
+                                        device_hash=user_info.get('device_hash'),  # Device hash for tracking
+                                    )
                             
                             # Parse result into the skill's response model for proper typing
                             try:
@@ -1017,39 +1094,47 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                                 user_info=user_info
                             )
                             
-                            # Calculate credits to charge based on pricing
-                            # This uses the same logic as main_processor.py: checks skill pricing, then provider pricing
-                            credits_charged = await calculate_skill_credits(
-                                app_metadata=captured_app_metadata,
-                                skill_id=captured_skill.id,
-                                input_data=request_body,  # Contains 'requests' array
-                                result_data=result
-                            )
+                            # Check if skill execution was successful before charging credits
+                            # Only charge credits if the execution was successful (no errors in result)
+                            execution_successful = is_skill_execution_successful(result)
                             
-                            # Calculate units_processed for usage tracking
-                            units_processed = None
-                            if isinstance(request_body, dict) and "requests" in request_body and isinstance(request_body["requests"], list):
-                                units_processed = len(request_body["requests"])
+                            if not execution_successful:
+                                logger.info(f"Skill execution failed for {captured_app_id}/{captured_skill.id}, not charging credits")
+                                credits_charged = 0
                             else:
-                                units_processed = 1
-                            
-                            if credits_charged > 0:
-                                user_id_hash = hashlib.sha256(user_info['user_id'].encode()).hexdigest()
-                                usage_details = {
-                                    "api_key_name": user_info.get('api_key_name'),
-                                    "external_request": True,
-                                    "units_processed": units_processed  # Number of requests processed
-                                }
-                                await charge_credits_via_internal_api(
-                                    user_id=user_info['user_id'],
-                                    user_id_hash=user_id_hash,
-                                    credits=credits_charged,
-                                    app_id=captured_app_id,
+                                # Calculate credits to charge based on pricing
+                                # This uses the same logic as main_processor.py: checks skill pricing, then provider pricing
+                                credits_charged = await calculate_skill_credits(
+                                    app_metadata=captured_app_metadata,
                                     skill_id=captured_skill.id,
-                                    usage_details=usage_details,
-                                    api_key_hash=user_info.get('api_key_hash'),  # API key hash for tracking
-                                    device_hash=user_info.get('device_hash'),  # Device hash for tracking
+                                    input_data=request_body,  # Contains 'requests' array
+                                    result_data=result
                                 )
+                                
+                                # Calculate units_processed for usage tracking
+                                units_processed = None
+                                if isinstance(request_body, dict) and "requests" in request_body and isinstance(request_body["requests"], list):
+                                    units_processed = len(request_body["requests"])
+                                else:
+                                    units_processed = 1
+                                
+                                if credits_charged > 0:
+                                    user_id_hash = hashlib.sha256(user_info['user_id'].encode()).hexdigest()
+                                    usage_details = {
+                                        "api_key_name": user_info.get('api_key_name'),
+                                        "external_request": True,
+                                        "units_processed": units_processed  # Number of requests processed
+                                    }
+                                    await charge_credits_via_internal_api(
+                                        user_id=user_info['user_id'],
+                                        user_id_hash=user_id_hash,
+                                        credits=credits_charged,
+                                        app_id=captured_app_id,
+                                        skill_id=captured_skill.id,
+                                        usage_details=usage_details,
+                                        api_key_hash=user_info.get('api_key_hash'),  # API key hash for tracking
+                                        device_hash=user_info.get('device_hash'),  # Device hash for tracking
+                                    )
                             
                             return SkillResponse(
                                 success=True,
@@ -1091,45 +1176,53 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                                 user_info=user_info
                             )
                             
-                            # Calculate credits to charge based on pricing
-                            # This uses the same logic as main_processor.py: checks skill pricing, then provider pricing
-                            credits_charged = await calculate_skill_credits(
-                                app_metadata=captured_app_metadata,
-                                skill_id=captured_skill.id,
-                                input_data=request_data.input_data,  # Contains 'requests' array
-                                result_data=result
-                            )
+                            # Check if skill execution was successful before charging credits
+                            # Only charge credits if the execution was successful (no errors in result)
+                            execution_successful = is_skill_execution_successful(result)
                             
-                            # Calculate units_processed for usage tracking
-                            units_processed = None
-                            if isinstance(request_data.input_data, dict) and "requests" in request_data.input_data and isinstance(request_data.input_data["requests"], list):
-                                units_processed = len(request_data.input_data["requests"])
+                            if not execution_successful:
+                                logger.info(f"Skill execution failed for {captured_app_id}/{captured_skill.id}, not charging credits")
+                                credits_charged = 0
                             else:
-                                units_processed = 1
-                            
-                            # Charge credits via internal API (this also creates usage entry)
-                            if credits_charged > 0:
-                                # Create user_id_hash for privacy
-                                user_id_hash = hashlib.sha256(user_info['user_id'].encode()).hexdigest()
-                                
-                                # Create usage details (matching format from main_processor.py)
-                                usage_details = {
-                                    "api_key_name": user_info.get('api_key_name'),
-                                    "external_request": True,
-                                    "units_processed": units_processed  # Number of requests processed
-                                }
-                                
-                                # Charge credits (this happens asynchronously and won't block the response)
-                                await charge_credits_via_internal_api(
-                                    user_id=user_info['user_id'],
-                                    user_id_hash=user_id_hash,
-                                    credits=credits_charged,
-                                    app_id=captured_app_id,
+                                # Calculate credits to charge based on pricing
+                                # This uses the same logic as main_processor.py: checks skill pricing, then provider pricing
+                                credits_charged = await calculate_skill_credits(
+                                    app_metadata=captured_app_metadata,
                                     skill_id=captured_skill.id,
-                                    usage_details=usage_details,
-                                    api_key_hash=user_info.get('api_key_hash'),  # API key hash for tracking
-                                    device_hash=user_info.get('device_hash'),  # Device hash for tracking
+                                    input_data=request_data.input_data,  # Contains 'requests' array
+                                    result_data=result
                                 )
+                                
+                                # Calculate units_processed for usage tracking
+                                units_processed = None
+                                if isinstance(request_data.input_data, dict) and "requests" in request_data.input_data and isinstance(request_data.input_data["requests"], list):
+                                    units_processed = len(request_data.input_data["requests"])
+                                else:
+                                    units_processed = 1
+                                
+                                # Charge credits via internal API (this also creates usage entry)
+                                if credits_charged > 0:
+                                    # Create user_id_hash for privacy
+                                    user_id_hash = hashlib.sha256(user_info['user_id'].encode()).hexdigest()
+                                    
+                                    # Create usage details (matching format from main_processor.py)
+                                    usage_details = {
+                                        "api_key_name": user_info.get('api_key_name'),
+                                        "external_request": True,
+                                        "units_processed": units_processed  # Number of requests processed
+                                    }
+                                    
+                                    # Charge credits (this happens asynchronously and won't block the response)
+                                    await charge_credits_via_internal_api(
+                                        user_id=user_info['user_id'],
+                                        user_id_hash=user_id_hash,
+                                        credits=credits_charged,
+                                        app_id=captured_app_id,
+                                        skill_id=captured_skill.id,
+                                        usage_details=usage_details,
+                                        api_key_hash=user_info.get('api_key_hash'),  # API key hash for tracking
+                                        device_hash=user_info.get('device_hash'),  # Device hash for tracking
+                                    )
                             
                             return SkillResponse(
                                 success=True,
@@ -1155,7 +1248,7 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                 endpoint=limiter.limit("60/minute")(get_handler),
                 methods=["GET"],
                 response_model=SkillMetadata,
-                tags=["Apps API"],
+                tags=[f"Apps | {app_name.capitalize()}"],  # Use "Apps | {AppName}" tag for better organization (capitalized)
                 name=f"get_skill_{app_id}_{skill.id}",
                 summary=f"Get metadata for {skill_name}",
                 description=f"Get metadata for the {skill_name} skill including pricing information. Requires API key authentication.",
@@ -1180,7 +1273,7 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                 endpoint=limiter.limit("30/minute")(post_handler),
                 methods=["POST"],
                 response_model=response_model,
-                tags=["Apps API"],
+                tags=[f"Apps | {app_name.capitalize()}"],  # Use "Apps | {AppName}" tag for better organization (capitalized)
                 name=f"execute_skill_{app_id}_{skill.id}",
                 summary=f"Execute {skill_name}",
                 description=f"Execute the {skill_name} skill. The skill will be executed, billed, and a usage entry will be created automatically. Requires API key authentication.",

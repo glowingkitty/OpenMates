@@ -4,18 +4,23 @@
   Fullscreen view for Video URL embeds (YouTube, etc.).
   Uses UnifiedEmbedFullscreen as base and provides video-specific content.
   
-  Shows:
-  - Video thumbnail preview image (780px max width)
-  - "Open on YouTube" button
-  - Video title and metadata
-  - Basic infos bar at the bottom
+  This component:
+  1. Shows video thumbnail preview image (780px max width)
+  2. Shows play button overlay on thumbnail
+  3. When play is clicked, signals ActiveChat to start VideoIframe
+  4. Shows "Open on YouTube" button
+  5. Shows PiP button (when video is playing)
+  6. Shows "Tip Creator" button
+  
+  The VideoIframe component lives in ActiveChat (not here).
+  This separation allows the iframe to persist when this fullscreen view closes (for PiP).
 -->
 
 <script lang="ts">
   import { onDestroy, tick } from 'svelte';
   import { get } from 'svelte/store';
   import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
-  import VideoIframe from './VideoIframe.svelte';
+  import { videoIframeStore } from '../../../stores/videoIframeStore';
   // @ts-ignore - @repo/ui module exists at runtime
   import { text } from '@repo/ui';
   
@@ -31,12 +36,8 @@
     onClose: () => void;
     /** Optional: Video ID (for restoration from PiP) */
     videoId?: string;
-    /** Optional: Flag to auto-play video (for restoration from PiP) */
+    /** Optional: Flag indicating this was opened from PiP (video already playing) */
     restoreFromPip?: boolean;
-    /** Optional: Existing iframe element (for restoration from PiP) */
-    iframeElement?: HTMLIFrameElement | null;
-    /** Optional: Existing iframe wrapper element (for restoration from PiP) */
-    iframeWrapperElement?: HTMLDivElement | null;
   }
   
   let {
@@ -44,34 +45,34 @@
     title,
     onClose,
     videoId: propVideoId,
-    restoreFromPip = false,
-    iframeElement: existingIframeElement,
-    iframeWrapperElement: existingIframeWrapper
+    restoreFromPip = false
   }: Props = $props();
   
   // Extract video ID and thumbnail for YouTube URLs
   // Use propVideoId if provided (from PiP restoration), otherwise extract from URL
   let videoId = $state(propVideoId || '');
-  let thumbnailUrl = $derived('');
-  let displayTitle = $derived(title || 'YouTube Video');
-  let hostname = $derived('');
+  let thumbnailUrl = $state('');
+  let displayTitle = $state(title || 'YouTube Video');
+  let hostname = $state('');
   
-  // State to track whether video should be shown in iframe
-  // Only set to true when user clicks play button - iframe loads lazily
-  // If restoring from PiP, auto-show the video (iframe already exists and is playing)
-  let showVideo = $state(restoreFromPip || !!existingIframeElement);
+  // Track whether video is playing (iframe is active)
+  // Subscribe to videoIframeStore to check if video is playing
+  let isVideoPlaying = $state(false);
   
-  // Reference to the VideoIframe component instance
-  let videoIframeComponent: VideoIframe | null = $state(null);
+  // Subscribe to videoIframeStore to track if video is playing
+  $effect(() => {
+    const unsubscribe = videoIframeStore.subscribe((state) => {
+      // Video is playing if store is active and has matching videoId
+      isVideoPlaying = state.isActive && state.videoId === videoId;
+    });
+    return unsubscribe;
+  });
   
   // Generate YouTube embed URL with privacy settings
   // Uses youtube-nocookie.com (privacy-enhanced mode) to minimize cookie tracking
-  // Now works with strict-origin-when-cross-origin referrer policy (fixes Error 153)
-  // Only generated when showVideo is true to avoid loading until needed
   let embedUrl = $derived(
-    showVideo && videoId
+    videoId
       ? // Use privacy-enhanced mode (youtube-nocookie.com) to minimize cookie tracking
-        // This prevents YouTube from setting cookies unless user interacts with video
         // URL parameters:
         // - modestbranding=1: Reduces YouTube branding
         // - rel=0: Don't show related videos from other channels
@@ -112,15 +113,45 @@
         hostname = url;
       }
     }
-  });
-  
-  // Auto-show video if restoring from PiP
-  $effect(() => {
-    if (restoreFromPip && videoId && !showVideo) {
-      console.debug('[VideoEmbedFullscreen] Restoring from PiP, auto-showing video');
-      showVideo = true;
+    
+    // Update displayTitle if title prop changes
+    if (title) {
+      displayTitle = title;
     }
   });
+  
+  // If restoring from PiP, the video is already playing
+  // Just exit PiP mode to show it in fullscreen position
+  $effect(() => {
+    if (restoreFromPip && videoId) {
+      console.debug('[VideoEmbedFullscreen] Restoring from PiP - exiting PiP mode');
+      videoIframeStore.exitPipMode();
+    }
+  });
+  
+  // Handle play button click - signals ActiveChat to start VideoIframe
+  function handlePlayClick() {
+    if (!videoId || !embedUrl) {
+      console.warn('[VideoEmbedFullscreen] Cannot play: missing videoId or embedUrl');
+      return;
+    }
+    
+    console.debug('[VideoEmbedFullscreen] Play button clicked, starting video', {
+      videoId,
+      embedUrl,
+      thumbnailUrl,
+      title: displayTitle
+    });
+    
+    // Signal store to play video - this will trigger ActiveChat to render VideoIframe
+    videoIframeStore.playVideo({
+      url,
+      title: displayTitle,
+      videoId,
+      embedUrl,
+      thumbnailUrl
+    });
+  }
   
   // Handle opening video on YouTube
   function handleOpenOnYouTube() {
@@ -185,123 +216,68 @@
     console.debug('[VideoEmbedFullscreen] Share action (not yet implemented)');
   }
   
-  // Handle play button click - loads video in iframe
-  // This is the only way the iframe gets loaded - lazy loading for privacy
-  function handlePlayClick() {
-    console.debug('[VideoEmbedFullscreen] Play button clicked, loading video');
-    showVideo = true;
-  }
-  
-  // Flag to track if we're entering PiP (prevents cleanup)
-  // Store this in a way that persists across component lifecycle
-  let enteringPip = $state(false);
-  
   // Handle entering picture-in-picture mode
-  // Moves the VideoIframe component to PiP container without recreating it
+  // This uses CSS-based transitions - no DOM movement
   async function handleEnterPip() {
-    if (!showVideo || !videoId || !embedUrl || !videoIframeComponent) {
-      console.warn('[VideoEmbedFullscreen] Cannot enter PiP: video not loaded or iframe component missing');
+    // Check if video is playing
+    const state = get(videoIframeStore);
+    
+    if (!state.isActive || !state.videoId) {
+      console.warn('[VideoEmbedFullscreen] Cannot enter PiP: video not playing');
+      const { notificationStore } = await import('../../../stores/notificationStore');
+      notificationStore.error('Please play the video first to enter picture-in-picture mode');
       return;
     }
     
     try {
-      // Set flag to prevent cleanup BEFORE storing in PiP store
-      enteringPip = true;
+      console.debug('[VideoEmbedFullscreen] Entering PiP mode');
       
-      // Get iframe references from the VideoIframe component
-      const { iframeElement, iframeWrapperElement } = videoIframeComponent.getIframeRefs();
+      // Signal store to enter PiP mode - this triggers CSS transition in VideoIframe
+      videoIframeStore.enterPipMode();
       
-      if (!iframeElement || !iframeWrapperElement) {
-        console.warn('[VideoEmbedFullscreen] Cannot enter PiP: iframe refs not available');
-        enteringPip = false;
-        return;
-      }
-      
-      // Import video PiP store
-      const { videoPipStore } = await import('../../../stores/videoPipStore');
-      
-      // Store video state and iframe reference in PiP store
-      // The iframe will be moved (not recreated) to maintain video playback
-      videoPipStore.enterPip({
-        url,
-        title: displayTitle,
-        videoId,
-        embedUrl,
-        iframeElement: iframeElement, // Store reference to move the actual iframe
-        iframeWrapperElement: iframeWrapperElement // Store wrapper for positioning
-      });
-      
-      console.debug('[VideoEmbedFullscreen] Entered PiP mode, storing iframe reference in PiP store');
-      
-      // Wait for store update to propagate and ActiveChat's effect to move the iframe
+      // Wait for CSS transition to start
       await tick();
-      await new Promise(resolve => setTimeout(resolve, 50));
       
-      // Verify iframe has been moved before closing
-      if (iframeWrapperElement && iframeWrapperElement.parentNode) {
-        const parent = iframeWrapperElement.parentNode as HTMLElement;
-        if (parent.classList.contains('video-pip-container')) {
-          console.debug('[VideoEmbedFullscreen] Iframe confirmed moved to PiP container, closing fullscreen');
-        } else {
-          console.warn('[VideoEmbedFullscreen] Iframe not yet moved to PiP container, but proceeding with close');
-        }
-      }
-      
-      // Close fullscreen - the VideoIframe component will persist in PiP
+      // Close this fullscreen view - VideoIframe will persist in PiP mode
       onClose();
     } catch (error) {
       console.error('[VideoEmbedFullscreen] Error entering PiP mode:', error);
-      enteringPip = false; // Reset flag on error
       const { notificationStore } = await import('../../../stores/notificationStore');
       notificationStore.error('Failed to enter picture-in-picture mode');
     }
   }
   
-  // Clean up when fullscreen closes
-  // Note: VideoIframe component handles its own cleanup, so we just reset state
-  // If in PiP mode, the VideoIframe will persist in the PiP container
-  async function cleanupYouTubeData() {
-    // Check if we're entering PiP mode by checking the store
-    try {
-      const { videoPipStore } = await import('../../../stores/videoPipStore');
-      const pipState = get(videoPipStore) as { isActive: boolean; iframeElement?: HTMLIFrameElement | null };
-      if (pipState.isActive && videoIframeComponent) {
-        const { iframeElement } = videoIframeComponent.getIframeRefs();
-        if (pipState.iframeElement === iframeElement) {
-          console.debug('[VideoEmbedFullscreen] Skipping cleanup - iframe is in PiP mode');
-          return;
-        }
-      }
-    } catch (e) {
-      console.debug('[VideoEmbedFullscreen] Could not check PiP store:', e);
-    }
-    
-    // Skip cleanup if we're entering PiP mode (local flag check)
-    if (enteringPip) {
-      console.debug('[VideoEmbedFullscreen] Skipping cleanup - entering PiP mode');
-      enteringPip = false; // Reset flag
+  // Wrapper for onClose that handles cleanup
+  // When user explicitly closes (not entering PiP), we should fade out and close the video
+  function handleClose() {
+    // Check if we're in PiP mode - if so, don't close the video
+    const state = get(videoIframeStore);
+    if (state.isPipMode) {
+      console.debug('[VideoEmbedFullscreen] Closing fullscreen, video stays in PiP');
+      onClose();
       return;
     }
     
-    console.debug('[VideoEmbedFullscreen] Cleaning up - VideoIframe component will handle iframe cleanup');
-    
-    // Reset video state - VideoIframe component will be destroyed and clean up iframe
-    showVideo = false;
-  }
-  
-  // Wrapper for onClose that cleans up before closing
-  // This is called when user explicitly closes (not when entering PiP)
-  function handleClose() {
-    cleanupYouTubeData();
+    // User is closing the fullscreen view AND the video
+    // Use fade-out animation for smooth UX
+    if (state.isActive) {
+      console.debug('[VideoEmbedFullscreen] Closing fullscreen with video fade-out');
+      videoIframeStore.closeWithFadeOut(300);
+    }
     onClose();
   }
   
-  // Cleanup on component destroy - ensures iframe is removed even if component
-  // is destroyed without explicit close (e.g., navigation away)
-  // BUT skip if iframe is in PiP mode
-  onDestroy(async () => {
-    console.debug('[VideoEmbedFullscreen] Component destroying, checking if cleanup needed');
-    await cleanupYouTubeData();
+  // Cleanup on component destroy
+  // Only close video if NOT in PiP mode (PiP should persist)
+  onDestroy(() => {
+    const state = get(videoIframeStore);
+    if (!state.isPipMode) {
+      console.debug('[VideoEmbedFullscreen] Component destroying, not in PiP - video would close');
+      // Note: We don't close here to avoid closing when switching views
+      // The close is handled by handleClose when user explicitly closes
+    } else {
+      console.debug('[VideoEmbedFullscreen] Component destroying, in PiP - video persists');
+    }
   });
 </script>
 
@@ -320,25 +296,9 @@
 >
   {#snippet content()}
     <div class="video-container">
-      <!-- Video iframe or thumbnail preview (780px max width) -->
-      <!-- Iframe is only loaded when user clicks play button (showVideo = true) -->
-      {#if showVideo && videoId && embedUrl}
-        <!-- Video iframe component - separate from fullscreen view -->
-        <!-- This allows the iframe to persist when fullscreen closes (e.g., in PiP mode) -->
-        <!-- When restoring from PiP, pass existing iframe elements to reuse them -->
-        <div class="video-iframe-container">
-          <VideoIframe
-            bind:this={videoIframeComponent}
-            videoId={videoId}
-            title={displayTitle}
-            embedUrl={embedUrl}
-            isPip={false}
-            existingIframeElement={existingIframeElement}
-            existingIframeWrapper={existingIframeWrapper}
-          />
-        </div>
-      {:else if videoId && thumbnailUrl}
-        <!-- Thumbnail with play button overlay -->
+      <!-- Video thumbnail with play button -->
+      <!-- Only show thumbnail when video is NOT playing -->
+      {#if !isVideoPlaying && videoId && thumbnailUrl}
         <div class="video-thumbnail-wrapper">
           <img 
             src={thumbnailUrl} 
@@ -346,7 +306,13 @@
             class="video-thumbnail"
             loading="lazy"
             onerror={(e) => {
-              (e.target as HTMLImageElement).style.display = 'none';
+              // Try fallback thumbnail quality
+              const img = e.target as HTMLImageElement;
+              if (img.src.includes('maxresdefault')) {
+                img.src = `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
+              } else {
+                img.style.display = 'none';
+              }
             }}
           />
           <!-- Play button overlay -->
@@ -359,14 +325,14 @@
             <span class="play-icon"></span>
           </button>
         </div>
-      {:else}
-        <!-- Fallback: show URL hostname if no thumbnail -->
-        <div class="video-fallback">
-          <div class="video-hostname">{hostname || url}</div>
+      {:else if isVideoPlaying}
+        <!-- Video is playing - show a placeholder indicating video is active -->
+        <div class="video-playing-indicator">
+          <span class="video-playing-text">Video is playing</span>
         </div>
       {/if}
       
-      <!-- Open on YouTube, PiP, and Tip buttons -->
+      <!-- Action buttons -->
       {#if url}
         <div class="button-container">
           <a 
@@ -378,7 +344,7 @@
             {$text('embeds.open_on_youtube.text') || 'Open on YouTube'}
           </a>
           <!-- Picture-in-Picture button - only shown when video is playing -->
-          {#if showVideo && videoId && embedUrl}
+          {#if isVideoPlaying && videoId && embedUrl}
             <button
               class="pip-button"
               onclick={handleEnterPip}
@@ -413,27 +379,29 @@
     align-items: center;
     gap: 24px;
     width: 100%;
-    margin-top: 80px;
+    margin-top: 20px;
   }
   
-  /* Video thumbnail wrapper - 780px max width, centered */
+  /* ===========================================
+     Video Thumbnail with Play Button
+     =========================================== */
+  
   .video-thumbnail-wrapper {
+    position: relative;
     width: 100%;
     max-width: 780px;
-    display: flex;
-    justify-content: center;
+    aspect-ratio: 16 / 9;
     border-radius: 16px;
     overflow: hidden;
     background-color: var(--color-grey-15);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    position: relative;
   }
   
   .video-thumbnail {
     width: 100%;
-    height: auto;
+    height: 100%;
+    object-fit: cover;
     display: block;
-    object-fit: contain;
   }
   
   /* Play button overlay - centered on thumbnail */
@@ -477,30 +445,33 @@
     pointer-events: none;
   }
   
-  /* Video iframe container - 780px max width, centered */
-  .video-iframe-container {
+  /* ===========================================
+     Video Playing Indicator
+     =========================================== */
+  
+  .video-playing-indicator {
     width: 100%;
     max-width: 780px;
+    aspect-ratio: 16 / 9;
+    border-radius: 16px;
+    background-color: var(--color-grey-15);
     display: flex;
+    align-items: center;
     justify-content: center;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   }
   
-  /* Fallback container for when no thumbnail is available */
-  .video-fallback {
-    width: 100%;
-    max-width: 780px;
-    display: flex;
-    justify-content: center;
-    padding: 40px;
-  }
-  
-  .video-hostname {
+  .video-playing-text {
+    color: var(--color-grey-60);
     font-size: 16px;
-    color: var(--color-grey-70);
-    text-align: center;
+    font-weight: 500;
   }
   
-  /* Button container - centered */
+  /* ===========================================
+     Action Buttons
+     =========================================== */
+  
+  /* Button container - centered, above video iframe */
   .button-container {
     display: flex;
     justify-content: center;
@@ -509,11 +480,13 @@
     flex-wrap: wrap;
     width: 100%;
     max-width: 780px;
+    /* Ensure buttons are above the video iframe (z-index: 50) */
+    position: relative;
+    z-index: 100;
   }
   
   /* Open on YouTube button - styled as button but is an <a> link */
   .open-on-youtube-button {
-    margin-top: -60px;
     /* Apply button styles from buttons.css */
     background-color: var(--color-button-primary);
     padding: 6px 25px;
@@ -527,7 +500,6 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    margin-right: 10px;
     color: var(--color-font-button);
     font-family: var(--button-font-family);
     font-size: var(--button-font-size);
@@ -548,7 +520,6 @@
   
   /* Tip creator button - styled similarly to Open on YouTube button */
   .tip-creator-button {
-    margin-top: -60px;
     background-color: var(--color-button-secondary, var(--color-grey-20));
     padding: 6px 25px;
     border-radius: 20px;
@@ -580,7 +551,6 @@
   
   /* Picture-in-Picture button - styled similarly to other buttons */
   .pip-button {
-    margin-top: -60px;
     background-color: var(--color-button-secondary, var(--color-grey-20));
     padding: 6px 25px;
     border-radius: 20px;
@@ -598,7 +568,6 @@
     font-family: var(--button-font-family);
     font-size: var(--button-font-size);
     font-weight: var(--button-font-weight);
-    margin-right: 10px;
   }
   
   .pip-button:hover {

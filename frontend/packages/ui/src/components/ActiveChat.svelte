@@ -40,7 +40,7 @@
     import { websocketStatus } from '../stores/websocketStatusStore'; // Import WebSocket status for connection checks
     import { activeChatStore } from '../stores/activeChatStore'; // For clearing persistent active chat selection
     import { settingsDeepLink } from '../stores/settingsDeepLinkStore'; // For opening settings to specific page (share)
-    import { videoPipStore, type VideoPipState } from '../stores/videoPipStore'; // For video picture-in-picture mode
+    import { videoIframeStore, type VideoIframeState } from '../stores/videoIframeStore'; // For standalone VideoIframe component with CSS-based PiP
     import { DEMO_CHATS, LEGAL_CHATS, getDemoMessages, isPublicChat, translateDemoChat } from '../demo_chats'; // Import demo chat utilities
     import { convertDemoChatToChat } from '../demo_chats/convertToChat'; // Import conversion function
     import { isDesktop } from '../utils/platform'; // Import desktop detection for conditional auto-focus
@@ -200,8 +200,8 @@
         if (!$authStore.isAuthenticated) {
             isLoggingOutFromSignup = false;
             
-            // Clear video PiP state on logout
-            videoPipStore.clear();
+            // Clear video iframe state on logout
+            videoIframeStore.clear();
             
             // CRITICAL: Backup handler for logout - ensures demo chat loads even if userLoggingOut event wasn't caught
             // This is especially important on mobile where event timing might be off
@@ -484,152 +484,127 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     }
     
     // Handler for closing embed fullscreen
+    // This is called when any embed fullscreen is closed (via minimize button or other means)
+    // For video embeds, VideoEmbedFullscreen's handleClose handles video cleanup,
+    // but this is a fallback in case it's called directly
     function handleCloseEmbedFullscreen() {
+        // Check if this was a video embed and clean up if needed
+        // Note: VideoEmbedFullscreen's handleClose should handle this, but this is a safety net
+        const wasVideoEmbed = embedFullscreenData?.embedType === 'videos-video';
+        if (wasVideoEmbed) {
+            const videoState = get(videoIframeStore);
+            // Only close video if NOT in PiP mode (PiP should persist)
+            if (videoState.isActive && !videoState.isPipMode) {
+                console.debug('[ActiveChat] Closing video player via handleCloseEmbedFullscreen');
+                videoIframeStore.closeWithFadeOut(300);
+            }
+        }
+        
         showEmbedFullscreen = false;
         embedFullscreenData = null;
     }
     
     // Reference to PiP container for moving iframe
-    let pipContainerRef: HTMLDivElement | null = $state(null);
+    // ===========================================
+    // Video Iframe State (CSS-based PiP)
+    // ===========================================
+    // 
+    // The VideoIframe component is always rendered in the same DOM position.
+    // PiP mode is achieved purely through CSS class changes (no DOM movement).
+    // This prevents iframe reloads and ensures smooth iOS-like transitions.
     
-    // Store original parent and nextSibling for restoring iframe position
-    let originalIframeParent: Node | null = null;
-    let originalIframeNextSibling: Node | null = null;
-    let wasPipActive = $state(false);
+    // Derive video iframe state for template use - use reactive subscription
+    // $derived(get(store)) doesn't create a subscription, so we need to use $state with subscription
+    let videoIframeState = $state(get(videoIframeStore));
     
-    // Subscribe to video PiP store - use proper subscription pattern to avoid loops
-    // Track previous state to detect changes without causing reactive loops
-    // Use regular variable (not $state) to avoid reactive updates
-    let previousPipState: VideoPipState | null = null;
-    
+    // Subscribe to videoIframeStore to keep state reactive
     $effect(() => {
-        const unsubscribe = videoPipStore.subscribe((state) => {
-            // Only process if this is a meaningful state change
-            const stateChanged = !previousPipState || 
-                previousPipState.isActive !== state.isActive ||
-                previousPipState.iframeWrapperElement !== state.iframeWrapperElement;
-            
-            if (stateChanged) {
-                const wasActive = previousPipState?.isActive || false;
-                
-                // When entering PiP: move iframe wrapper to PiP container IMMEDIATELY
-                // This must happen synchronously to prevent cleanup in VideoEmbedFullscreen
-                if (state.isActive && state.iframeWrapperElement && pipContainerRef && !wasActive) {
-                    const iframeWrapper = state.iframeWrapperElement;
-                    
-                    // Only move if not already in PiP container
-                    if (!pipContainerRef.contains(iframeWrapper)) {
-                        // Store original position for restoration
-                        originalIframeParent = iframeWrapper.parentNode;
-                        originalIframeNextSibling = iframeWrapper.nextSibling;
-                        
-                        // Ensure wrapper has the correct class for styling
-                        if (!iframeWrapper.classList.contains('video-iframe-wrapper')) {
-                            iframeWrapper.classList.add('video-iframe-wrapper');
-                        }
-                        
-                        // Move iframe wrapper to PiP container IMMEDIATELY
-                        // This must happen before VideoEmbedFullscreen's cleanup runs
-                        pipContainerRef.appendChild(iframeWrapper);
-                        
-                        console.debug('[ActiveChat] Moved iframe to PiP container immediately');
-                    }
-                }
-                
-                // When exiting PiP: clear references
-                if (!state.isActive && wasActive) {
-                    originalIframeParent = null;
-                    originalIframeNextSibling = null;
-                    console.debug('[ActiveChat] PiP exited, iframe will be restored by VideoEmbedFullscreen');
-                }
-                
-                // Update previous state (non-reactive variable, no loop)
-                previousPipState = { ...state };
-                wasPipActive = state.isActive;
-            }
+        const unsubscribe = videoIframeStore.subscribe((state) => {
+            videoIframeState = state;
         });
-        
         return unsubscribe;
     });
     
-    // Derive video PiP state for template use (read-only, no loops)
-    let videoPipState = $derived(get(videoPipStore));
-    
-    // Cleanup PiP on component destroy or logout
-    onDestroy(() => {
-        // Clear PiP state when component is destroyed (e.g., on logout)
-        videoPipStore.clear();
+    // Debug: Log videoIframeState changes to help diagnose rendering issues
+    $effect(() => {
+        const state = videoIframeState;
+        const conditionMet = state.isActive && state.videoId && state.embedUrl;
+        console.debug('[ActiveChat] VideoIframeState check:', {
+            isActive: state.isActive,
+            isPipMode: state.isPipMode,
+            videoId: state.videoId,
+            embedUrl: state.embedUrl,
+            conditionMet,
+            willRender: conditionMet,
+            fullState: state
+        });
     });
     
-    // Handler for clicking PiP video to restore fullscreen
-    async function handlePipClick() {
-        // Get current state from store directly to avoid reactive issues
-        let currentState: VideoPipState = { isActive: false };
-        const unsubscribe = videoPipStore.subscribe((state) => {
-            currentState = state;
-        });
-        unsubscribe(); // Immediately unsubscribe after getting value
+    // Cleanup video iframe state on component destroy or logout
+    onDestroy(() => {
+        // Clear video state when component is destroyed (e.g., on logout)
+        videoIframeStore.clear();
+    });
+    
+    // Handler for clicking PiP overlay to restore fullscreen view
+    // This is called when user clicks the overlay on the VideoIframe in PiP mode
+    // It exits PiP mode (via CSS) and opens VideoEmbedFullscreen with restoreFromPip flag
+    async function handlePipOverlayClick() {
+        console.debug('[ActiveChat] PiP overlay clicked, restoring fullscreen');
         
-        if (!currentState.isActive || !currentState.url || !currentState.iframeWrapperElement) {
+        // Get current state from videoIframeStore
+        const currentState = get(videoIframeStore);
+        
+        if (!currentState.isActive || !currentState.isPipMode) {
+            console.warn('[ActiveChat] Cannot restore fullscreen - video not in PiP mode', {
+                isActive: currentState.isActive,
+                isPipMode: currentState.isPipMode
+            });
             return;
         }
         
-        console.debug('[ActiveChat] PiP clicked, restoring fullscreen');
-        
-        const iframeWrapper = currentState.iframeWrapperElement;
+        // Get video data for fullscreen view
         const pipUrl = currentState.url;
         const pipTitle = currentState.title;
         const pipVideoId = currentState.videoId;
+        const pipEmbedUrl = currentState.embedUrl || (pipVideoId ? `https://www.youtube-nocookie.com/embed/${pipVideoId}?modestbranding=1&rel=0&iv_load_policy=3&fs=1&autoplay=1&enablejsapi=0` : '');
+        const pipThumbnailUrl = currentState.thumbnailUrl || (pipVideoId ? `https://img.youtube.com/vi/${pipVideoId}/maxresdefault.jpg` : '');
         
-        // Restore iframe wrapper to its original position before opening fullscreen
-        // This ensures the iframe is in the right place when VideoEmbedFullscreen mounts
-        // The VideoIframe component will find it there and reuse it
-        if (originalIframeParent) {
-            // Reset any styles that might have been applied
-            iframeWrapper.style.position = '';
-            iframeWrapper.style.top = '';
-            iframeWrapper.style.left = '';
-            iframeWrapper.style.width = '';
-            iframeWrapper.style.height = '';
-            iframeWrapper.style.zIndex = '';
-            
-            // Move back to original position
-            if (originalIframeNextSibling) {
-                originalIframeParent.insertBefore(iframeWrapper, originalIframeNextSibling);
-            } else {
-                originalIframeParent.appendChild(iframeWrapper);
-            }
-            
-            console.debug('[ActiveChat] Restored iframe wrapper to original position');
-        }
+        // Exit PiP mode - this will trigger CSS transition back to fullscreen position
+        // The VideoIframe component will smoothly animate back to center
+        videoIframeStore.exitPipMode();
         
-        // Exit PiP mode
-        videoPipStore.exitPip();
-        
-        // Open fullscreen with the same video data
-        // VideoEmbedFullscreen will render VideoIframe, which will find the existing iframe wrapper
+        // Open VideoEmbedFullscreen with the video data
+        // restoreFromPip flag tells it that video is already playing
         embedFullscreenData = {
             embedType: 'videos-video',
             decodedContent: {
                 url: pipUrl,
                 title: pipTitle,
-                videoId: pipVideoId
+                videoId: pipVideoId,
+                embedUrl: pipEmbedUrl,
+                thumbnailUrl: pipThumbnailUrl
             },
             attrs: {
                 url: pipUrl,
                 title: pipTitle,
                 videoId: pipVideoId
             },
-            // Flag to indicate this is a restore from PiP
-            restoreFromPip: true,
-            // Pass iframe references so VideoIframe can reuse them
-            iframeElement: currentState.iframeElement,
-            iframeWrapperElement: iframeWrapper
+            // Flag to indicate this is a restore from PiP (video already playing)
+            restoreFromPip: true
         };
         
-        // Use a microtask to ensure state is set
-        await Promise.resolve();
+        console.debug('[ActiveChat] Setting embedFullscreenData for PiP restore', {
+            embedFullscreenData,
+            videoId: pipVideoId
+        });
+        
+        // Wait for state to be set
+        await tick();
+        
         showEmbedFullscreen = true;
+        
+        console.debug('[ActiveChat] Fullscreen opened from PiP restore');
     }
 
     // Handler for suggestion click - copies suggestion to message input
@@ -1251,6 +1226,18 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         if (newChat) {
             console.info("[ActiveChat] handleSendMessage: New chat detected, setting currentChat and initializing messages.", newChat);
             
+            // CRITICAL: Close any open fullscreen views when creating a new chat
+            // This ensures fullscreen views don't persist when a new chat is created
+            if (showCodeFullscreen) {
+                console.debug('[ActiveChat] Closing code fullscreen view due to new chat creation');
+                showCodeFullscreen = false;
+            }
+            if (showEmbedFullscreen) {
+                console.debug('[ActiveChat] Closing embed fullscreen view due to new chat creation');
+                showEmbedFullscreen = false;
+                embedFullscreenData = null;
+            }
+            
             // Force update currentChat immediately
             currentChat = newChat;
             currentMessages = [message]; // Initialize messages with the first message
@@ -1645,6 +1632,30 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
     // Update the loadChat function
     export async function loadChat(chat: Chat) {
+        // CRITICAL: Close any open fullscreen views when switching chats
+        // This ensures fullscreen views don't persist when user switches to a different chat
+        if (showCodeFullscreen) {
+            console.debug('[ActiveChat] Closing code fullscreen view due to chat switch');
+            showCodeFullscreen = false;
+        }
+        if (showEmbedFullscreen) {
+            console.debug('[ActiveChat] Closing embed fullscreen view due to chat switch');
+            showEmbedFullscreen = false;
+            embedFullscreenData = null;
+        }
+        
+        // CRITICAL: Close video player when switching chats
+        // This prevents video from persisting when user switches to a different chat
+        const videoState = get(videoIframeStore);
+        if (videoState.isActive && !videoState.isPipMode) {
+            console.debug('[ActiveChat] Closing video player due to chat switch');
+            videoIframeStore.closeWithFadeOut(300);
+        } else if (videoState.isActive && videoState.isPipMode) {
+            // If in PiP mode, also close since we're leaving the chat context
+            console.debug('[ActiveChat] Closing video player (PiP mode) due to chat switch');
+            videoIframeStore.closeWithFadeOut(300);
+        }
+        
         // For public chats (demo/legal), skip database access - use the chat object directly
         // This is critical during logout when database is being deleted
         let freshChat: Chat | null = null;
@@ -2155,6 +2166,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         };
         document.addEventListener('embedfullscreen', embedFullscreenHandler as EventListener);
         
+        // Add event listener for video PiP restore fullscreen events
+        // This is triggered when user clicks the overlay on PiP video (via VideoIframe component)
+        const videoPipRestoreHandler = (event: CustomEvent) => {
+            handlePipOverlayClick();
+        };
+        document.addEventListener('videopip-restore-fullscreen', videoPipRestoreHandler as EventListener);
+        
         // Add event listeners for login interface and demo chat
         window.addEventListener('closeLoginInterface', handleCloseLoginInterface);
         window.addEventListener('loadDemoChat', handleLoadDemoChat);
@@ -2162,6 +2180,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         // Cleanup on destroy
         return () => {
             document.removeEventListener('embedfullscreen', embedFullscreenHandler as EventListener);
+            document.removeEventListener('videopip-restore-fullscreen', videoPipRestoreHandler as EventListener);
             window.removeEventListener('openLoginInterface', handleOpenLoginInterface as EventListener);
             window.removeEventListener('closeLoginInterface', handleCloseLoginInterface as EventListener);
             window.removeEventListener('loadDemoChat', handleLoadDemoChat as EventListener);
@@ -2273,6 +2292,16 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     } catch (loadError) {
                         console.error('[ActiveChat] Error loading demo chat after logout:', loadError);
                         // Even if loadChat fails, ensure UI shows welcome state
+                        // CRITICAL: Close any open fullscreen views in fallback path too
+                        if (showCodeFullscreen) {
+                            console.debug('[ActiveChat] Closing code fullscreen view in fallback path');
+                            showCodeFullscreen = false;
+                        }
+                        if (showEmbedFullscreen) {
+                            console.debug('[ActiveChat] Closing embed fullscreen view in fallback path');
+                            showEmbedFullscreen = false;
+                            embedFullscreenData = null;
+                        }
                         showWelcome = true;
                         currentChat = welcomeChat; // Set chat object directly as fallback
                         currentMessages = getDemoMessages('demo-welcome', DEMO_CHATS, LEGAL_CHATS);
@@ -2954,15 +2983,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             {@const videoTitle = embedFullscreenData.decodedContent?.title || embedFullscreenData.attrs?.title}
                             {@const videoId = embedFullscreenData.decodedContent?.videoId || embedFullscreenData.attrs?.videoId}
                             {@const restoreFromPip = embedFullscreenData.restoreFromPip || false}
-                            {@const existingIframeElement = embedFullscreenData.iframeElement}
-                            {@const existingIframeWrapper = embedFullscreenData.iframeWrapperElement}
                             <VideoEmbedFullscreen
                                 url={videoUrl}
                                 title={videoTitle}
                                 videoId={videoId}
                                 restoreFromPip={restoreFromPip}
-                                iframeElement={existingIframeElement}
-                                iframeWrapperElement={existingIframeWrapper}
                                 onClose={handleCloseEmbedFullscreen}
                             />
                         {/await}
@@ -2980,26 +3005,40 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 {/if}
             {/if}
             
-            <!-- Video Picture-in-Picture display (top right corner) -->
-            <!-- Keep container always mounted so ref is available immediately -->
-            <!-- The iframe wrapper from VideoIframe will be moved here via DOM manipulation -->
-            <div 
-                class="video-pip-container"
-                class:visible={videoPipState?.isActive}
-                bind:this={pipContainerRef}
-                onclick={handlePipClick} 
-                role="button" 
-                tabindex="0" 
-                onkeydown={(e) => e.key === 'Enter' && handlePipClick()}
-            >
-                {#if videoPipState?.isActive && videoPipState?.iframeWrapperElement}
-                    <!-- The iframe wrapper is moved here from VideoIframe component -->
-                    <!-- Click overlay to restore fullscreen -->
-                    <div class="video-pip-overlay">
-                        <div class="video-pip-hint">Click to restore fullscreen</div>
+            <!-- 
+                Standalone VideoIframe component - CSS-based PiP
+                
+                This component is ALWAYS rendered in the same DOM position within ActiveChat.
+                PiP mode is achieved purely through CSS class changes (no DOM movement).
+                The iframe is never destroyed or reloaded during PiP transitions.
+                
+                The wrapper container provides:
+                - Fullscreen mode: positioned at top, centered (via .video-iframe-fullscreen-container)
+                - PiP mode: absolute position top-right within ActiveChat (via .pip-mode class)
+                - Fade-out: opacity transition when closing (via .fade-out class)
+                
+                Using position: absolute (not fixed) ensures the PiP moves with ActiveChat
+                when the settings panel opens/closes.
+            -->
+            {#if (videoIframeState.isActive || videoIframeState.isClosing) && videoIframeState.videoId && videoIframeState.embedUrl}
+                {@const VideoIframePromise = import('../components/embeds/videos/VideoIframe.svelte')}
+                {#await VideoIframePromise then module}
+                    {@const VideoIframe = module.default}
+                    <div 
+                        class="video-iframe-fullscreen-container" 
+                        class:pip-mode={videoIframeState.isPipMode}
+                        class:fade-out={videoIframeState.isClosing}
+                    >
+                        <VideoIframe
+                            videoId={videoIframeState.videoId}
+                            title={videoIframeState.title || 'Video'}
+                            embedUrl={videoIframeState.embedUrl}
+                            isPipMode={videoIframeState.isPipMode}
+                            onPipOverlayClick={handlePipOverlayClick}
+                        />
                     </div>
-                {/if}
-            </div>
+                {/await}
+            {/if}
             
             <KeyboardShortcuts
                 on:newChat={handleNewChatClick}
@@ -3336,89 +3375,66 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     }
     
     /* ===========================================
-       Video Picture-in-Picture (PiP) Styles
+       Video Picture-in-Picture (PiP) Styles - CSS-based transitions
        =========================================== */
     
-    /* PiP container - fixed position in top right corner */
-    .video-pip-container {
-        position: fixed;
-        top: 20px;
-        right: 20px;
-        width: 320px;
-        height: 180px; /* 16:9 aspect ratio */
-        z-index: 1000; /* Above fullscreen but below modals */
-        cursor: pointer;
-        border-radius: 12px;
-        overflow: hidden;
-        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
-        background-color: var(--color-grey-15);
-        transition: all 0.3s ease-in-out;
-        display: none; /* hidden by default */
+    /*
+     * VideoIframe is wrapped in .video-iframe-fullscreen-container
+     * This container handles the positioning:
+     * - Fullscreen mode: positioned at top-center (matching thumbnail position in fullscreen view)
+     * - PiP mode: absolute position top-right of ActiveChat (moves with container)
+     *
+     * Using position: absolute (not fixed) ensures PiP moves with ActiveChat
+     * when settings panel opens/closes.
+     */
+    
+    /* Fullscreen mode container - positioned at top to match thumbnail position */
+    .video-iframe-fullscreen-container {
+        position: absolute;
+        /* Position at top, centered horizontally - matches thumbnail position in fullscreen view */
+        top: 80px; /* Below header */
+        left: 50%;
+        transform: translateX(-50%);
+        width: calc(100% - 40px); /* Account for padding */
+        max-width: 780px;
+        box-sizing: border-box;
+        z-index: 100; /* Below fullscreen buttons but above chat content */
+        pointer-events: auto;
+        
+        /* Smooth transition for position changes */
+        transition: 
+            opacity 0.3s ease-out,
+            top 0.5s cubic-bezier(0.4, 0, 0.2, 1),
+            left 0.5s cubic-bezier(0.4, 0, 0.2, 1),
+            right 0.5s cubic-bezier(0.4, 0, 0.2, 1),
+            transform 0.5s cubic-bezier(0.4, 0, 0.2, 1),
+            width 0.5s cubic-bezier(0.4, 0, 0.2, 1),
+            max-width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    
+    /* Fade out class for cleanup animation */
+    .video-iframe-fullscreen-container.fade-out {
+        opacity: 0;
         pointer-events: none;
     }
-
-    .video-pip-container.visible {
-        display: block;
-        pointer-events: auto;
-    }
     
-    .video-pip-container:hover {
-        transform: scale(1.05);
-        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
-    }
-    
-    /* The iframe wrapper is moved here from VideoEmbedFullscreen */
-    /* It will be positioned absolutely within the container */
-    .video-pip-container :global(.video-iframe-wrapper) {
+    /* PiP mode container - absolute position top-right within ActiveChat */
+    .video-iframe-fullscreen-container.pip-mode {
         position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        z-index: 1;
+        top: 20px;
+        left: auto;
+        right: 20px;
+        transform: none;
+        width: 320px;
+        max-width: 320px;
+        z-index: 1000; /* Above everything in ActiveChat */
     }
     
-    /* Overlay that appears on hover to indicate clickability */
-    .video-pip-overlay {
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0, 0, 0, 0);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        transition: background 0.2s ease-in-out;
-        pointer-events: auto; /* Make overlay clickable */
-        z-index: 2; /* Above iframe */
-    }
-    
-    .video-pip-container:hover .video-pip-overlay {
-        background: rgba(0, 0, 0, 0.3);
-    }
-    
-    .video-pip-hint {
-        color: white;
-        font-size: 14px;
-        font-weight: 500;
-        opacity: 0;
-        transition: opacity 0.2s ease-in-out;
-        text-align: center;
-        padding: 8px 16px;
-        background: rgba(0, 0, 0, 0.6);
-        border-radius: 8px;
-    }
-    
-    .video-pip-container:hover .video-pip-hint {
-        opacity: 1;
-    }
-    
-    /* Responsive: Hide PiP on very small screens */
+    /* Responsive PiP for small screens */
     @media (max-width: 480px) {
-        .video-pip-container {
+        .video-iframe-fullscreen-container.pip-mode {
             width: 240px;
-            height: 135px;
+            max-width: 240px;
             top: 10px;
             right: 10px;
         }

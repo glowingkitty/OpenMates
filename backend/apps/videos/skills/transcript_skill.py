@@ -14,7 +14,7 @@ import time
 import asyncio
 from typing import Dict, Any, List, Optional, Tuple
 from urllib.parse import urlparse, parse_qs, quote_plus
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator, ValidationError
 from celery import Celery  # For Celery type hinting
 
 from backend.apps.base_skill import BaseSkill
@@ -40,13 +40,86 @@ except ImportError:
 logger = logging.getLogger(__name__)
 
 
+class TranscriptRequestItem(BaseModel):
+    """
+    Individual transcript request item with URL validation.
+    Validates that the URL is a valid YouTube URL that can have its video ID extracted.
+    
+    NOTE: YouTube Shorts URLs are NOT supported and will be rejected at validation time.
+    """
+    url: str = Field(..., description="YouTube video URL (supports watch and youtu.be formats only - Shorts URLs are not supported)")
+    languages: Optional[List[str]] = Field(
+        default=None,
+        description="List of language codes to try for transcript (ISO 639-1, e.g., 'en', 'de', 'es', 'fr'). The API will use the first available language."
+    )
+    
+    @field_validator('url')
+    @classmethod
+    def validate_youtube_url(cls, v: str) -> str:
+        """
+        Validate that the URL is a valid YouTube URL from which we can extract a video ID.
+        
+        Supports:
+        - https://www.youtube.com/watch?v=VIDEO_ID
+        - https://youtu.be/VIDEO_ID
+        - https://m.youtube.com/watch?v=VIDEO_ID
+        
+        REJECTS:
+        - https://www.youtube.com/shorts/VIDEO_ID (Shorts URLs are not supported)
+        
+        Args:
+            v: The URL string to validate
+            
+        Returns:
+            The validated URL string
+            
+        Raises:
+            ValueError: If the URL is not a valid YouTube URL, is a Shorts URL, or video ID cannot be extracted
+        """
+        if not v or not isinstance(v, str):
+            raise ValueError("URL must be a non-empty string")
+        
+        # Extract video ID using the same logic as _extract_video_id
+        try:
+            parsed = urlparse(v)
+            
+            # EXPLICITLY REJECT Shorts URLs - they are not supported
+            if parsed.hostname and "youtube" in parsed.hostname:
+                if "/shorts/" in parsed.path:
+                    raise ValueError(f"Invalid YouTube URL: '{v}' - YouTube Shorts URLs are not supported. Please use a regular YouTube video URL (youtube.com/watch?v=VIDEO_ID or youtu.be/VIDEO_ID)")
+            
+            video_id = None
+            
+            if parsed.hostname and "youtube" in parsed.hostname:
+                # Standard YouTube URL: https://www.youtube.com/watch?v=VIDEO_ID
+                video_id = parse_qs(parsed.query).get("v", [None])[0]
+                if video_id:
+                    return v
+            
+            if parsed.hostname and "youtu.be" in parsed.hostname:
+                # Short YouTube URL: https://youtu.be/VIDEO_ID
+                video_id = parsed.path.lstrip("/").split("?")[0].split("/")[0]
+                if video_id and len(video_id) == 11:  # YouTube video IDs are 11 characters
+                    return v
+            
+            # If we get here, we couldn't extract a valid video ID
+            raise ValueError(f"Invalid YouTube URL: '{v}' - could not extract video ID. Supported formats: youtube.com/watch?v=VIDEO_ID, youtu.be/VIDEO_ID. YouTube Shorts URLs are not supported.")
+            
+        except ValueError:
+            # Re-raise ValueError (our validation error)
+            raise
+        except Exception as e:
+            # Wrap other exceptions in ValueError for consistent error handling
+            raise ValueError(f"Invalid YouTube URL: '{v}' - error parsing URL: {str(e)}")
+
+
 class TranscriptRequest(BaseModel):
     """
     Request model for transcript skill.
     Supports multiple video URLs in a single request for parallel processing.
     """
     # Multiple video URLs (standard format per REST API architecture)
-    requests: List[Dict[str, Any]] = Field(
+    requests: List[TranscriptRequestItem] = Field(
         ...,
         description="Array of transcript request objects. Each object must contain 'url' (YouTube video URL) and can include optional parameters (languages) with defaults from schema."
     )
@@ -757,9 +830,24 @@ class TranscriptSkill(BaseSkill):
         if error_response:
             return error_response
         
+        # Validate requests array - convert Pydantic models to dicts if needed
+        # The requests might be TranscriptRequestItem instances (from Pydantic validation)
+        # or plain dicts (from internal calls)
+        requests_as_dicts = []
+        for req in requests:
+            if isinstance(req, TranscriptRequestItem):
+                # Convert Pydantic model to dict
+                requests_as_dicts.append(req.model_dump())
+            elif isinstance(req, dict):
+                # Already a dict, use as-is
+                requests_as_dicts.append(req)
+            else:
+                # Try to convert to dict
+                requests_as_dicts.append(dict(req))
+        
         # Validate requests array using BaseSkill helper
         validated_requests, error = self._validate_requests_array(
-            requests=requests,
+            requests=requests_as_dicts,
             required_field="url",
             field_display_name="url",
             empty_error_message="No transcript requests provided. 'requests' array must contain at least one request with a 'url' field.",

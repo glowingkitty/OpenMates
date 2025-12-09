@@ -9,6 +9,11 @@ Usage Settings - View usage statistics and export usage data
     import SettingsItem from '../SettingsItem.svelte';
     import { notificationStore } from '../../stores/notificationStore';
     import { chatDB } from '../../services/db';
+    import { chatMetadataCache, type DecryptedChatMetadata } from '../../services/chatMetadataCache';
+    import type { Chat } from '../../types/chat';
+    import * as LucideIcons from '@lucide/svelte';
+    import Icon from '../Icon.svelte';
+    import { decryptWithMasterKey, getKeyFromStorage } from '../../services/cryptoService';
 
     // Usage entry interface
     interface UsageEntry {
@@ -23,8 +28,45 @@ Usage Settings - View usage statistics and export usage data
         output_tokens?: number;
         chat_id?: string | null; // Cleartext - for matching with IndexedDB
         message_id?: string | null; // Cleartext - for matching with IndexedDB
+        api_key_hash?: string | null; // SHA-256 hash of the API key that created this usage entry
         created_at: number;
         updated_at: number;
+    }
+
+    // Chat usage summary interface
+    interface ChatUsageSummary {
+        chat_id: string;
+        month: string;
+        totalCredits: number;
+        chat?: Chat | null;
+        metadata?: DecryptedChatMetadata | null;
+    }
+
+    // App usage summary interface
+    interface AppUsageSummary {
+        app_id: string;
+        month: string;
+        totalCredits: number;
+    }
+
+    // API key interface
+    interface ApiKey {
+        id: string;
+        key_hash: string;
+        name: string;
+        key_prefix: string;
+        created_at: string;
+        last_used_at?: string | null;
+    }
+
+    // API key usage summary interface
+    interface ApiKeyUsageSummary {
+        api_key_hash: string;
+        month: string;
+        totalCredits: number;
+        apiKey?: ApiKey | null;
+        encrypted_name?: string; // Encrypted API key name from backend (client decrypts)
+        encrypted_key_prefix?: string; // Encrypted API key prefix from backend (client decrypts)
     }
 
     // Tab types
@@ -36,16 +78,30 @@ Usage Settings - View usage statistics and export usage data
     let errorMessage: string | null = $state(null);
     let usageEntries: UsageEntry[] = $state([]);
     
-    // Pagination state
-    let currentPage = $state(1);
-    let pageSize = $state(10);
-    let totalCount = $state(0);
+    // Summary state (new architecture)
+    let loadedMonths = $state(3); // Number of months loaded so far
+    let isLoadingSummaries = $state(false);
+    let isLoadingDetails = $state(false);
     
     // UI state
     let activeTab: UsageTab = $state('chats');
     let timeGrouping: TimeGrouping = $state('month');
     let sortOption: SortOption = $state('last_edited');
     let selectedChatId: string | null = $state(null); // Changed from selectedChatHash to selectedChatId
+    let selectedAppId: string | null = $state(null); // Selected app for detail view
+    let selectedAppMonth: string | null = $state(null); // Selected app's month for detail view
+    let selectedApiKeyHash: string | null = $state(null); // Selected API key hash for detail view
+    let selectedApiKeyMonth: string | null = $state(null); // Selected API key's month for detail view
+    
+    // Chat metadata cache for usage display
+    let chatMetadataMap = $state<Map<string, { chat: Chat | null; metadata: DecryptedChatMetadata | null }>>(new Map());
+    
+    // API keys cache
+    let apiKeys = $state<ApiKey[]>([]);
+    let isLoadingApiKeys = $state(false);
+    
+    // Track if we've done initial load to prevent duplicate requests
+    let hasInitialized = $state(false);
 
     // Format credits with dots as thousand separators
     function formatCredits(credits: number): string {
@@ -241,15 +297,29 @@ Usage Settings - View usage statistics and export usage data
         }
     }
 
-    // Fetch usage data from API with pagination
-    async function fetchUsage(page: number = currentPage) {
-        isLoading = true;
+    // Fetch usage summaries from API (new architecture)
+    async function fetchUsageSummaries(type: UsageTab, months: number = loadedMonths) {
+        isLoadingSummaries = true;
         errorMessage = null;
 
         try {
-            const offset = (page - 1) * pageSize;
-            const endpoint = `${getApiEndpoint(apiEndpoints.usage.getUsage)}?limit=${pageSize}&offset=${offset}`;
-            console.log('Fetching usage from:', endpoint);
+            // Optionally load API keys as fallback (backend now provides encrypted data in summaries)
+            // This is kept for backward compatibility if encrypted data is missing
+            if (type === 'api' && apiKeys.length === 0 && !isLoadingApiKeys) {
+                // Load in background, don't wait for it
+                loadApiKeys().catch(err => console.warn('[SettingsUsage] Failed to load API keys:', err));
+            }
+
+            // Map tab type to API type
+            const apiTypeMap: Record<UsageTab, string> = {
+                'chats': 'chats',
+                'apps': 'apps',
+                'api': 'api_keys'
+            };
+            
+            const apiType = apiTypeMap[type];
+            const endpoint = `${getApiEndpoint(apiEndpoints.usage.getSummaries)}?type=${apiType}&months=${months}`;
+            console.log('Fetching usage summaries from:', endpoint);
             
             const response = await fetch(endpoint, {
                 credentials: 'include'
@@ -258,112 +328,258 @@ Usage Settings - View usage statistics and export usage data
             if (!response.ok) {
                 const errorData = await response.json().catch(() => ({}));
                 const errorDetail = errorData.detail || errorData.message || '';
-                throw new Error(`Failed to fetch usage: ${response.status} ${response.statusText}${errorDetail ? ` - ${errorDetail}` : ''}`);
+                throw new Error(`Failed to fetch usage summaries: ${response.status} ${response.statusText}${errorDetail ? ` - ${errorDetail}` : ''}`);
             }
 
             const data = await response.json();
-            console.log('Received usage data:', data);
+            console.log('Received usage summaries:', data);
             
-            if (!data || typeof data !== 'object') {
-                throw new Error('Invalid response format: expected object');
+            if (!data || typeof data !== 'object' || !Array.isArray(data.summaries)) {
+                throw new Error('Invalid response format: expected summaries array');
+            }
+
+            // Determine if more months exist based on API-provided count (total available months).
+            const totalAvailableMonths = typeof data.count === 'number' ? data.count : data.summaries.length;
+            hasMoreMonths = totalAvailableMonths > months;
+            
+            // Update summaries based on type
+            if (type === 'chats') {
+                await updateChatSummariesFromAPI(data.summaries);
+            } else if (type === 'apps') {
+                await updateAppSummariesFromAPI(data.summaries);
+            } else if (type === 'api') {
+                await updateApiKeySummariesFromAPI(data.summaries);
             }
             
-            if (!Array.isArray(data.usage)) {
-                console.warn('Response does not contain usage array:', data);
-                usageEntries = [];
-                totalCount = 0;
-            } else {
-                usageEntries = data.usage;
-                totalCount = data.count || usageEntries.length;
-                console.log(`Loaded ${usageEntries.length} usage entries (page ${page})`);
-            }
+            console.log(`Loaded ${data.summaries.length} ${type} summaries for ${months} months`);
         } catch (error) {
-            console.error('Error fetching usage:', error);
+            console.error('Error fetching usage summaries:', error);
+            if (error instanceof Error) {
+                errorMessage = error.message;
+            } else {
+                errorMessage = $text('settings.usage.error_loading.text');
+            }
+            hasMoreMonths = false;
+        } finally {
+            isLoadingSummaries = false;
+        }
+    }
+    
+    // Fetch usage details for a specific summary item
+    async function fetchUsageDetails(type: UsageTab, identifier: string, yearMonth: string) {
+        isLoadingDetails = true;
+        errorMessage = null;
+
+        try {
+            // Map tab type to API type
+            const apiTypeMap: Record<UsageTab, string> = {
+                'chats': 'chat',
+                'apps': 'app',
+                'api': 'api_key'
+            };
+            
+            const apiType = apiTypeMap[type];
+            const endpoint = `${getApiEndpoint(apiEndpoints.usage.getDetails)}?type=${apiType}&identifier=${encodeURIComponent(identifier)}&year_month=${yearMonth}`;
+            console.log('Fetching usage details from:', endpoint);
+            
+            const response = await fetch(endpoint, {
+                credentials: 'include'
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                const errorDetail = errorData.detail || errorData.message || '';
+                throw new Error(`Failed to fetch usage details: ${response.status} ${response.statusText}${errorDetail ? ` - ${errorDetail}` : ''}`);
+            }
+
+            const data = await response.json();
+            console.log('Received usage details:', data);
+            
+            if (!data || typeof data !== 'object' || !Array.isArray(data.entries)) {
+                throw new Error('Invalid response format: expected entries array');
+            }
+            
+            // Update usageEntries with the details
+            usageEntries = data.entries;
+            console.log(`Loaded ${data.entries.length} usage entries for ${type} '${identifier}', month '${yearMonth}'`);
+        } catch (error) {
+            console.error('Error fetching usage details:', error);
             if (error instanceof Error) {
                 errorMessage = error.message;
             } else {
                 errorMessage = $text('settings.usage.error_loading.text');
             }
             usageEntries = [];
-            totalCount = 0;
         } finally {
-            isLoading = false;
+            isLoadingDetails = false;
         }
     }
     
-    // Calculate total pages
-    const totalPages = $derived(Math.ceil(totalCount / pageSize));
-    
-    // Navigation functions
-    function goToPage(page: number) {
-        if (page >= 1 && page <= totalPages) {
-            currentPage = page;
-            fetchUsage(page);
+    // Update chat summaries from API response
+    async function updateChatSummariesFromAPI(summaries: any[]) {
+        // Clear existing data and rebuild (or merge if we want to support incremental loading)
+        const groupedByMonth = new Map<string, ChatUsageSummary[]>();
+        
+        for (const summary of summaries) {
+            const month = summary.year_month;
+            if (!groupedByMonth.has(month)) {
+                groupedByMonth.set(month, []);
+            }
+            
+            // Load chat metadata
+            const { chat, metadata } = await loadChatMetadata(summary.chat_id);
+            
+            groupedByMonth.get(month)!.push({
+                chat_id: summary.chat_id,
+                month: summary.year_month,
+                totalCredits: summary.total_credits || 0,
+                chat: chat,
+                metadata: metadata
+            });
         }
+        
+        // Sort summaries within each month by total credits (descending)
+        groupedByMonth.forEach((summaries, month) => {
+            summaries.sort((a, b) => b.totalCredits - a.totalCredits);
+        });
+        
+        // Update state - create new Map instance to trigger reactivity in Svelte 5
+        chatsByMonth = new Map(groupedByMonth);
+        console.log('Updated chatsByMonth:', chatsByMonth.size, 'months, entries:', Array.from(chatsByMonth.entries()));
     }
     
-    function nextPage() {
-        if (currentPage < totalPages) {
-            goToPage(currentPage + 1);
+    // Update app summaries from API response
+    function updateAppSummariesFromAPI(summaries: any[]) {
+        const groupedByMonth = new Map<string, AppUsageSummary[]>();
+        
+        for (const summary of summaries) {
+            const month = summary.year_month;
+            if (!groupedByMonth.has(month)) {
+                groupedByMonth.set(month, []);
+            }
+            
+            groupedByMonth.get(month)!.push({
+                app_id: summary.app_id,
+                month: summary.year_month,
+                totalCredits: summary.total_credits || 0
+            });
         }
+        
+        // Sort summaries within each month by total credits (descending)
+        groupedByMonth.forEach((summaries, month) => {
+            summaries.sort((a, b) => b.totalCredits - a.totalCredits);
+        });
+        
+        // Update state - replace entire Map to trigger reactivity
+        appsByMonth = new Map(groupedByMonth);
+        console.log('Updated appsByMonth:', appsByMonth.size, 'months');
     }
     
-    function previousPage() {
-        if (currentPage > 1) {
-            goToPage(currentPage - 1);
+    // Update API key summaries from API response
+    // Backend now includes encrypted_name and encrypted_key_prefix in summaries
+    async function updateApiKeySummariesFromAPI(summaries: any[]) {
+        const groupedByMonth = new Map<string, ApiKeyUsageSummary[]>();
+        const labelsMap = new Map<string, { title: string; subtitle: string }>();
+        
+        for (const summary of summaries) {
+            const month = summary.year_month;
+            if (!groupedByMonth.has(month)) {
+                groupedByMonth.set(month, []);
+            }
+            
+            // Use encrypted data from backend (client will decrypt)
+            // Fallback to apiKeys array lookup if encrypted data not available (backward compatibility)
+            let apiKey: ApiKey | null = null;
+            let encryptedName = summary.encrypted_name || '';
+            let encryptedPrefix = summary.encrypted_key_prefix || '';
+            
+            // If encrypted data not provided, try to find in apiKeys array (backward compatibility)
+            if (!encryptedName && !encryptedPrefix) {
+                apiKey = apiKeys.find(k => k.key_hash === summary.api_key_hash) || null;
+                if (apiKey) {
+                    encryptedName = apiKey.name || '';
+                    encryptedPrefix = apiKey.key_prefix || '';
+                }
+            }
+            
+            const summaryObj: ApiKeyUsageSummary = {
+                api_key_hash: summary.api_key_hash,
+                month: summary.year_month,
+                totalCredits: summary.total_credits || 0,
+                apiKey: apiKey,
+                encrypted_name: encryptedName,
+                encrypted_key_prefix: encryptedPrefix
+            };
+            
+            groupedByMonth.get(month)!.push(summaryObj);
+            
+            // Decrypt and cache label for this summary
+            const labelKey = `${summary.api_key_hash}:${month}`;
+            const label = await getApiKeyLabel(summaryObj);
+            labelsMap.set(labelKey, label);
         }
+        
+        // Sort summaries within each month by total credits (descending)
+        groupedByMonth.forEach((summaries, month) => {
+            summaries.sort((a, b) => b.totalCredits - a.totalCredits);
+        });
+        
+        // Update state - replace entire Map to trigger reactivity
+        apiKeysByMonth = new Map(groupedByMonth);
+        apiKeyLabels = new Map(labelsMap);
+        console.log('Updated apiKeysByMonth:', apiKeysByMonth.size, 'months');
     }
+    
+    // Show more months
+    async function showMoreMonths() {
+        loadedMonths += 3;
+        await fetchUsageSummaries(activeTab, loadedMonths);
+    }
+    
+    // Whether additional months are available based on server-provided total count.
+    let hasMoreMonths = $state(false);
 
-    // Export usage data as CSV
+    // Export usage data as CSV (backend generates the file)
+    // Exports ALL usage entries for the current time frame (chats, apps, and API keys)
     async function exportToCSV() {
         try {
             notificationStore.info($text('settings.usage.exporting.text'));
             
-            // Filter and prepare data
-            const filtered = filterByTab(usageEntries);
-            const sorted = sortEntries(filtered);
-            
-            // Create CSV header
-            const headers = [
-                'Date',
-                'Time',
-                'Type',
-                'App',
-                'Skill',
-                'Credits',
-                'Input Tokens',
-                'Output Tokens',
-                'Model'
-            ];
-            
-            // Create CSV rows
-            const rows = sorted.map(entry => {
-                const date = new Date(entry.created_at * 1000);
-                return [
-                    date.toLocaleDateString(),
-                    date.toLocaleTimeString(),
-                    entry.type || '',
-                    entry.app_id || '',
-                    entry.skill_id || '',
-                    entry.credits.toString(),
-                    entry.input_tokens?.toString() || '',
-                    entry.output_tokens?.toString() || '',
-                    entry.model_used || ''
-                ];
+            // Build export URL with current time frame (no type filter - exports everything)
+            const params = new URLSearchParams({
+                months: loadedMonths.toString()
             });
             
-            // Combine headers and rows
-            const csvContent = [
-                headers.join(','),
-                ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
-            ].join('\n');
+            const endpoint = `${getApiEndpoint(apiEndpoints.usage.export)}?${params.toString()}`;
+            console.log('Exporting ALL usage data from:', endpoint);
             
-            // Create and download file
-            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            // Fetch CSV from backend
+            const response = await fetch(endpoint, {
+                credentials: 'include'
+            });
+            
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                const errorDetail = errorData.detail || errorData.message || '';
+                throw new Error(`Failed to export usage data: ${response.status} ${response.statusText}${errorDetail ? ` - ${errorDetail}` : ''}`);
+            }
+            
+            // Get filename from Content-Disposition header or use default
+            const contentDisposition = response.headers.get('Content-Disposition');
+            let filename = `usage-export-${new Date().toISOString().split('T')[0]}.csv`;
+            if (contentDisposition) {
+                const filenameMatch = contentDisposition.match(/filename="?([^"]+)"?/);
+                if (filenameMatch) {
+                    filename = filenameMatch[1];
+                }
+            }
+            
+            // Download the CSV file
+            const blob = await response.blob();
             const url = URL.createObjectURL(blob);
             const link = document.createElement('a');
             link.href = url;
-            link.download = `usage-export-${new Date().toISOString().split('T')[0]}.csv`;
+            link.download = filename;
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
@@ -372,7 +588,11 @@ Usage Settings - View usage statistics and export usage data
             notificationStore.success($text('settings.usage.export_success.text'));
         } catch (error) {
             console.error('Error exporting usage:', error);
-            notificationStore.error($text('settings.usage.export_error.text'));
+            if (error instanceof Error) {
+                notificationStore.error(error.message);
+            } else {
+                notificationStore.error($text('settings.usage.export_error.text'));
+            }
         }
     }
 
@@ -382,10 +602,318 @@ Usage Settings - View usage statistics and export usage data
         // TODO: Implement PDF export using a library like jsPDF
     }
 
-    // Get entries for selected chat
-    const selectedChatEntries = $derived.by(() => {
-        if (!selectedChatId) return [];
-        return usageEntries.filter(e => e.chat_id === selectedChatId);
+    // Usage entries are now loaded directly via fetchUsageDetails, no need for derived values
+
+    /**
+     * Get gradient colors for a category based on mate configuration
+     * (Same as Chat.svelte)
+     */
+    function getCategoryGradientColors(category: string): { start: string; end: string } | null {
+        const categoryGradients: Record<string, { start: string; end: string }> = {
+            'software_development': { start: '#155D91', end: '#42ABF4' },
+            'business_development': { start: '#004040', end: '#008080' },
+            'medical_health': { start: '#FD50A0', end: '#F42C2D' },
+            'legal_law': { start: '#239CFF', end: '#005BA5' },
+            'openmates_official': { start: '#6366f1', end: '#4f46e5' },
+            'maker_prototyping': { start: '#EA7600', end: '#FBAB59' },
+            'marketing_sales': { start: '#FF8C00', end: '#F4B400' },
+            'finance': { start: '#119106', end: '#15780D' },
+            'design': { start: '#101010', end: '#2E2E2E' },
+            'electrical_engineering': { start: '#233888', end: '#2E4EC8' },
+            'movies_tv': { start: '#00C2C5', end: '#3170DC' },
+            'history': { start: '#4989F2', end: '#2F44BF' },
+            'science': { start: '#FF7300', end: '#D5320' },
+            'life_coach_psychology': { start: '#FDB250', end: '#F42C2D' },
+            'cooking_food': { start: '#FD8450', end: '#F42C2D' },
+            'activism': { start: '#F53D00', end: '#F56200' },
+            'general_knowledge': { start: '#DE1E66', end: '#FF763B' }
+        };
+        return categoryGradients[category] || null;
+    }
+
+    /**
+     * Get fallback icon for a category when no icon names are provided
+     * (Same as Chat.svelte)
+     */
+    function getFallbackIconForCategory(category: string): string {
+        const categoryIcons: Record<string, string> = {
+            'software_development': 'code',
+            'business_development': 'briefcase',
+            'medical_health': 'heart',
+            'legal_law': 'gavel',
+            'openmates_official': 'shield-check',
+            'maker_prototyping': 'wrench',
+            'marketing_sales': 'megaphone',
+            'finance': 'dollar-sign',
+            'design': 'palette',
+            'electrical_engineering': 'zap',
+            'movies_tv': 'tv',
+            'history': 'clock',
+            'science': 'microscope',
+            'life_coach_psychology': 'users',
+            'cooking_food': 'utensils',
+            'activism': 'trending-up',
+            'general_knowledge': 'help-circle'
+        };
+        return categoryIcons[category] || 'help-circle';
+    }
+
+    /**
+     * Get the Lucide icon component by name
+     * (Same as Chat.svelte)
+     */
+    function getLucideIcon(iconName: string) {
+        const pascalCaseName = iconName
+            .split('-')
+            .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+            .join('');
+        return LucideIcons[pascalCaseName] || LucideIcons.HelpCircle;
+    }
+
+    /**
+     * Load chat metadata for a chat_id
+     * Fetches from IndexedDB and decrypts metadata
+     */
+    async function loadChatMetadata(chatId: string): Promise<{ chat: Chat | null; metadata: DecryptedChatMetadata | null }> {
+        // Check cache first
+        if (chatMetadataMap.has(chatId)) {
+            return chatMetadataMap.get(chatId)!;
+        }
+
+        // For non-UUID chat IDs (like "demo-welcome"), return null immediately
+        // These are demo/placeholder chats not stored in IndexedDB
+        const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+        if (!uuidPattern.test(chatId)) {
+            console.debug(`[SettingsUsage] Skipping metadata load for non-UUID chat_id: ${chatId} (likely a demo/placeholder chat)`);
+            const result = { chat: null, metadata: null };
+            chatMetadataMap.set(chatId, result);
+            return result;
+        }
+
+        try {
+            // Fetch chat from IndexedDB
+            const chat = await chatDB.getChat(chatId);
+            if (!chat) {
+                const result = { chat: null, metadata: null };
+                chatMetadataMap.set(chatId, result);
+                return result;
+            }
+
+            // Get decrypted metadata
+            const metadata = await chatMetadataCache.getDecryptedMetadata(chat);
+            const result = { chat, metadata };
+            chatMetadataMap.set(chatId, result);
+            return result;
+        } catch (error) {
+            console.error(`[SettingsUsage] Error loading chat metadata for ${chatId}:`, error);
+            const result = { chat: null, metadata: null };
+            chatMetadataMap.set(chatId, result);
+            return result;
+        }
+    }
+
+    // Chat usage summaries grouped by month
+    // Use a reactive object wrapper to ensure Svelte 5 detects changes
+    let chatsByMonth = $state<Map<string, ChatUsageSummary[]>>(new Map());
+    
+    // Derived value to check if we have any chat summaries
+    const hasChatSummaries = $derived(chatsByMonth.size > 0 && Array.from(chatsByMonth.values()).some(arr => arr.length > 0));
+    let isLoadingChatMetadata = $state(false);
+
+    // Chat summaries are now loaded from API, not computed from usageEntries
+
+    // App usage summaries grouped by month
+    let appsByMonth = $state<Map<string, AppUsageSummary[]>>(new Map());
+
+    /**
+     * Load API keys from the API endpoint
+     */
+    async function loadApiKeys() {
+        isLoadingApiKeys = true;
+        try {
+            const response = await fetch(getApiEndpoint('/v1/settings/api-keys'), {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                credentials: 'include'
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.detail || 'Failed to load API keys');
+            }
+
+            const data = await response.json();
+            const rawKeys = data.api_keys || [];
+            
+            // Decrypt encrypted_name and encrypted_key_prefix for each key
+            const masterKey = await getKeyFromStorage();
+            if (!masterKey) {
+                console.warn('[SettingsUsage] Master key not found, cannot decrypt API key names');
+                apiKeys = [];
+                return;
+            }
+
+            apiKeys = await Promise.all(
+                rawKeys.map(async (key: any) => {
+                    let decryptedName = key.encrypted_name || '';
+                    let decryptedPrefix = key.encrypted_key_prefix || '';
+                    
+                    try {
+                        if (key.encrypted_name) {
+                            const decrypted = await decryptWithMasterKey(key.encrypted_name);
+                            if (decrypted) {
+                                decryptedName = decrypted;
+                            }
+                        }
+                        if (key.encrypted_key_prefix) {
+                            const decrypted = await decryptWithMasterKey(key.encrypted_key_prefix);
+                            if (decrypted) {
+                                decryptedPrefix = decrypted;
+                            }
+                        }
+                    } catch (err) {
+                        console.error('[SettingsUsage] Error decrypting API key fields:', err);
+                    }
+
+                    return {
+                        id: key.id,
+                        key_hash: key.key_hash || '',
+                        name: decryptedName,
+                        key_prefix: decryptedPrefix,
+                        created_at: key.created_at || '',
+                        last_used_at: key.last_used_at || null
+                    };
+                })
+            );
+        } catch (err: any) {
+            console.error('[SettingsUsage] Error loading API keys:', err);
+            apiKeys = [];
+        } finally {
+            isLoadingApiKeys = false;
+        }
+    }
+
+    // API key usage summaries grouped by month
+    let apiKeysByMonth = $state<Map<string, ApiKeyUsageSummary[]>>(new Map());
+    
+    // Map of (api_key_hash + month) -> decrypted label for API keys
+    let apiKeyLabels = $state<Map<string, { title: string; subtitle: string }>>(new Map());
+
+    // API key summaries are now loaded from API, not computed from usageEntries
+
+    // App summaries are now loaded from API, not computed from usageEntries
+
+    /**
+     * Get icon name from app_id
+     * Maps app_id to icon name for Icon component
+     */
+    function getAppIconName(appId: string): string {
+        // App IDs typically match icon names (e.g., "ai", "web", "videos")
+        // Handle special cases if needed
+        return appId.toLowerCase();
+    }
+
+    /**
+     * Get app name from app_id using translation
+     */
+    function getAppName(appId: string): string {
+        try {
+            return $text(`apps.${appId}.text`);
+        } catch {
+            return appId;
+        }
+    }
+
+    /**
+     * Shorten a decrypted API key prefix for display so users can identify keys without leaking full values.
+     */
+    function shortenKeyPrefix(prefix: string | null | undefined): string {
+        if (!prefix) {
+            return '';
+        }
+        if (prefix.length <= 8) {
+            return prefix;
+        }
+        return `${prefix.slice(0, 4)}…${prefix.slice(-2)}`;
+    }
+
+    /**
+     * Build a friendly label for an API key summary.
+     * Decrypts encrypted_name and encrypted_key_prefix from the summary.
+     * Falls back to apiKey object if encrypted data not available (backward compatibility).
+     */
+    async function getApiKeyLabel(summary: ApiKeyUsageSummary): Promise<{ title: string; subtitle: string }> {
+        let name = '';
+        let prefix = '';
+        let prefixFromBackend = false; // Track if prefix came from backend encrypted field
+        
+        // Try to decrypt encrypted fields from summary (preferred method)
+        if (summary.encrypted_name || summary.encrypted_key_prefix) {
+            try {
+                if (summary.encrypted_name) {
+                    const decrypted = await decryptWithMasterKey(summary.encrypted_name);
+                    if (decrypted) {
+                        name = decrypted.trim();
+                    }
+                }
+                if (summary.encrypted_key_prefix) {
+                    const decrypted = await decryptWithMasterKey(summary.encrypted_key_prefix);
+                    if (decrypted) {
+                        prefix = decrypted.trim();
+                        prefixFromBackend = true; // Prefix came from backend (already shortened)
+                    }
+                }
+            } catch (err) {
+                console.error('[SettingsUsage] Error decrypting API key fields:', err);
+            }
+        }
+        
+        // Fallback to apiKey object if encrypted data not available or decryption failed
+        if (!name && !prefix && summary.apiKey) {
+            name = summary.apiKey.name?.trim() || '';
+            prefix = summary.apiKey.key_prefix || '';
+            // prefixFromBackend remains false - this is from fallback, so we'll shorten it
+        }
+        
+        const title = name && name.length > 0 ? name : $text('settings.usage.api_key_details.text');
+        // Backend always provides a shortened prefix, so display it as-is without further shortening
+        // If no prefix available, show empty subtitle (title will be "API key")
+        const subtitle = prefix || '';
+        
+        return { title, subtitle };
+    }
+
+    // Fetch summaries when the active tab actually changes after the initial load.
+    // We explicitly track the last tab to avoid double-fetching when hasInitialized flips to true.
+    let lastFetchedTab: UsageTab = activeTab;
+    $effect(() => {
+        if (!hasInitialized) {
+            // Initial mount handled separately.
+            lastFetchedTab = activeTab;
+            return;
+        }
+        if (activeTab === lastFetchedTab) {
+            return;
+        }
+        lastFetchedTab = activeTab;
+        fetchUsageSummaries(activeTab, loadedMonths);
+    });
+
+    // Load API keys when API tab is active
+    $effect(() => {
+        if (activeTab === 'api' && apiKeys.length === 0 && !isLoadingApiKeys) {
+            loadApiKeys();
+        }
+    });
+
+    // Load metadata for selected chat when it changes
+    $effect(() => {
+        if (selectedChatId) {
+            loadChatMetadata(selectedChatId);
+        }
     });
 
     // Process and group usage data for display
@@ -421,7 +949,10 @@ Usage Settings - View usage statistics and export usage data
     });
 
     onMount(() => {
-        fetchUsage(1);
+        // Load initial summaries
+        fetchUsageSummaries(activeTab, loadedMonths).then(() => {
+            hasInitialized = true;
+        });
     });
 </script>
 
@@ -504,19 +1035,13 @@ Usage Settings - View usage statistics and export usage data
     </div>
 {:else if errorMessage}
     <div class="error-message">{errorMessage}</div>
-    <SettingsItem
-        type="quickaction"
-        icon="subsetting_icon subsetting_icon_reload"
-        title={$text('retry.text')}
-        onClick={fetchUsage}
-    />
-{:else if usageEntries.length === 0}
-    <div class="empty-state">
-        <div class="empty-icon"></div>
-        <h4>{$text('settings.usage.no_usage_title.text')}</h4>
-        <p>{$text('settings.usage.no_usage_description.text')}</p>
-    </div>
-{:else if selectedChatId && selectedChatEntries.length > 0}
+        <SettingsItem
+            type="quickaction"
+            icon="subsetting_icon subsetting_icon_reload"
+            title={$text('retry.text')}
+            onClick={() => fetchUsageSummaries(activeTab, loadedMonths)}
+        />
+{:else if selectedChatId && usageEntries.length > 0}
     <!-- Detail view for selected chat -->
     <div class="usage-detail-view">
         <button 
@@ -527,29 +1052,78 @@ Usage Settings - View usage statistics and export usage data
             <span>{$text('settings.usage.back.text')}</span>
         </button>
         
-        <div class="detail-header">
-            <div class="detail-icon icon icon_chat"></div>
-            <div class="detail-info">
-                <h3>{$text('settings.usage.chat_details.text')}</h3>
-                <p>{getMonthYear(selectedChatEntries[0]?.created_at || 0)}</p>
+        {#if selectedChatId}
+            {@const selectedChatMetadata = chatMetadataMap.get(selectedChatId)}
+            {@const selectedChat = selectedChatMetadata?.chat}
+            {@const selectedMetadata = selectedChatMetadata?.metadata}
+            {@const selectedCategory = selectedMetadata?.category || null}
+            {@const selectedIconName = selectedMetadata?.icon || (selectedCategory ? getFallbackIconForCategory(selectedCategory) : 'help-circle')}
+            {@const selectedGradientColors = selectedCategory ? getCategoryGradientColors(selectedCategory) : null}
+            {@const SelectedIconComponent = getLucideIcon(selectedIconName)}
+            {@const selectedTitle = selectedMetadata?.title || selectedChat?.title || 'Chat'}
+            
+            <div class="detail-header">
+                <div class="detail-icon-wrapper">
+                    <div 
+                        class="detail-icon-circle" 
+                        style={selectedGradientColors ? `background: linear-gradient(135deg, ${selectedGradientColors.start}, ${selectedGradientColors.end})` : 'background: #cccccc'}
+                    >
+                        <div class="detail-icon">
+                            <SelectedIconComponent size={20} color="white" />
+                        </div>
+                    </div>
+                </div>
+                <div class="detail-info">
+                    <h3>{selectedTitle}</h3>
+                    <p>{selectedAppMonth || getMonthYear(usageEntries[0]?.created_at || 0)}</p>
+                </div>
             </div>
-        </div>
+        {/if}
         
+        {#if isLoadingDetails}
+            <div class="loading-state">
+                <div class="loading-spinner"></div>
+                <span>{$text('settings.usage.loading.text')}</span>
+            </div>
+        {:else}
         <div class="detail-entries">
-            {#each selectedChatEntries as entry}
+            {#each usageEntries as entry}
+                {@const appName = entry.app_id ? (() => {
+                    try {
+                        return $text(`apps.${entry.app_id}.text`);
+                    } catch {
+                        return entry.app_id;
+                    }
+                })() : null}
+                {@const skillName = entry.skill_id && entry.app_id ? (() => {
+                    try {
+                        return $text(`apps.${entry.app_id}.skills.${entry.skill_id}.text`);
+                    } catch {
+                        return entry.skill_id;
+                    }
+                })() : null}
+                {@const displayName = appName && skillName ? `${appName} - ${skillName}` : appName || entry.type || $text('settings.usage.unknown_activity.text')}
+                {@const entryIcon = getEntryIcon(entry)}
+                
                 <div class="detail-entry">
                     <div class="entry-time">{formatRelativeTime(entry.created_at)}</div>
                     <div class="entry-content">
-                        <div class="entry-icon icon icon_ai"></div>
+                        <div class="entry-icon icon icon_{entryIcon}"></div>
                         <div class="entry-info">
-                            <div class="entry-label">{$text('settings.usage.activity_ai.text')}</div>
-                            <div class="entry-sublabel">{$text('settings.usage.activity_ask.text')}</div>
+                            <div class="entry-label">{displayName}</div>
+                            {#if entry.app_id && entry.skill_id}
+                                <div class="entry-sublabel">{skillName || entry.skill_id}</div>
+                            {/if}
                         </div>
-                        <div class="entry-credits">{formatCredits(entry.credits)}</div>
+                        <div class="entry-credits">
+                            <span class="credits-amount">{formatCredits(entry.credits || 0)}</span>
+                            <Icon name="coins" type="default" size="16px" className="credits-icon-img" />
+                        </div>
                     </div>
                 </div>
-            {/each}
+                {/each}
         </div>
+        {/if}
         
         <div class="detail-export">
             <button class="export-button" onclick={exportToCSV}>
@@ -559,79 +1133,388 @@ Usage Settings - View usage statistics and export usage data
     </div>
 {:else}
     <!-- Main usage view grouped by time -->
-    {@const processedEntries = Object.entries(processedUsage)}
-    {#if processedEntries.length === 0 && usageEntries.length > 0}
-        <div class="empty-state">
-            <div class="empty-icon"></div>
-            <h4>{$text('settings.usage.no_usage_title.text')}</h4>
-            <p>No entries match the current filter. Try switching tabs.</p>
-        </div>
-    {:else}
-        {#each processedEntries as [timePeriod, { entries, total }]}
-        <div class="time-group">
-            <div class="time-header">
-                <h4 class="time-title">{timePeriod}</h4>
-                <div class="time-total">
-                    <span class="credits-amount">{formatCredits(total)}</span>
-                    <div class="credits-icon"></div>
-                </div>
-            </div>
+    {#if activeTab === 'api' && selectedApiKeyHash}
+        <!-- Detail view for selected API key -->
+        <div class="usage-detail-view">
+            <button 
+                class="back-button"
+                onclick={() => {
+                    selectedApiKeyHash = null;
+                    selectedApiKeyMonth = null;
+                }}
+            >
+                <div class="clickable-icon icon_back"></div>
+                <span>{$text('settings.usage.back.text')}</span>
+            </button>
             
-            {#each entries as entry}
-                {#if activeTab === 'chats' && entry.chat_id}
-                    <!-- Chat entry with chat_id - make it clickable to view chat details -->
-                    <button
-                        type="button"
-                        class="usage-item clickable"
-                        onclick={() => {
-                            selectedChatId = entry.chat_id!;
-                        }}
-                        aria-label={$text('settings.usage.view_chat_details.text')}
-                    >
-                        <div class="item-icon icon icon_{getEntryIcon(entry)}"></div>
-                        <div class="item-content">
-                            <div class="item-title">
-                                {entry.chat_id ? `Chat: ${entry.chat_id.substring(0, 8)}...` : getEntryDisplayName(entry)}
+            {#if selectedApiKeyHash && selectedApiKeyMonth}
+                {@const labelKey = `${selectedApiKeyHash}:${selectedApiKeyMonth}`}
+                {@const apiKeyLabel = apiKeyLabels.get(labelKey) || { title: $text('settings.usage.api_key_details.text'), subtitle: '' }}
+                
+                <div class="detail-header">
+                    <div class="detail-icon-wrapper">
+                        <Icon 
+                            name="code"
+                            type="default"
+                            size="40px"
+                        />
+                    </div>
+                    <div class="detail-info">
+                        <h3>{apiKeyLabel.title}</h3>
+                        {#if apiKeyLabel.subtitle}
+                            <p>{apiKeyLabel.subtitle}</p>
+                        {:else}
+                            <p>{$text('settings.usage.api_key_details.text')}</p>
+                        {/if}
+                    </div>
+                </div>
+            {/if}
+            
+            {#if isLoadingDetails}
+                <div class="loading-state">
+                    <div class="loading-spinner"></div>
+                    <span>{$text('settings.usage.loading.text')}</span>
+                </div>
+            {:else}
+            <div class="detail-entries">
+                {#each usageEntries as entry}
+                    {@const appName = entry.app_id ? (() => {
+                        try {
+                            return $text(`apps.${entry.app_id}.text`);
+                        } catch {
+                            return entry.app_id;
+                        }
+                    })() : null}
+                    {@const skillName = entry.skill_id && entry.app_id ? (() => {
+                        try {
+                            return $text(`apps.${entry.app_id}.skills.${entry.skill_id}.text`);
+                        } catch {
+                            return entry.skill_id;
+                        }
+                    })() : null}
+                    {@const displayName = appName && skillName ? `${appName} - ${skillName}` : appName || entry.type || $text('settings.usage.unknown_activity.text')}
+                    {@const entryIcon = getEntryIcon(entry)}
+                    
+                    <div class="detail-entry">
+                        <div class="entry-time">{formatRelativeTime(entry.created_at)}</div>
+                        <div class="entry-content">
+                            <div class="entry-icon icon icon_{entryIcon}"></div>
+                            <div class="entry-info">
+                                <div class="entry-label">{displayName}</div>
+                                {#if entry.skill_id}
+                                    <div class="entry-sublabel">{skillName || entry.skill_id}</div>
+                                {/if}
+                            </div>
+                            <div class="entry-credits">
+                                <span class="credits-amount">{formatCredits(entry.credits || 0)}</span>
+                                <Icon name="coins" type="default" size="16px" className="credits-icon-img" />
                             </div>
                         </div>
-                        <div class="item-credits">{formatCredits(entry.credits || 0)}</div>
-                    </button>
-                {:else}
+                    </div>
+                {/each}
+            </div>
+            {/if}
+        </div>
+    {:else if activeTab === 'apps' && selectedAppId && selectedAppMonth}
+        <!-- Detail view for selected app -->
+        <div class="usage-detail-view">
+            <button 
+                class="back-button"
+                onclick={() => {
+                    selectedAppId = null;
+                    selectedAppMonth = null;
+                }}
+            >
+                <div class="clickable-icon icon_back"></div>
+                <span>{$text('settings.usage.back.text')}</span>
+            </button>
+            
+            {#if selectedAppId}
+                {@const appName = getAppName(selectedAppId)}
+                {@const appIconName = getAppIconName(selectedAppId)}
+                
+                <div class="detail-header">
+                    <div class="detail-icon-wrapper">
+                        <Icon 
+                            name={appIconName}
+                            type="app"
+                            size="40px"
+                        />
+                    </div>
+                    <div class="detail-info">
+                        <h3>{appName}</h3>
+                        <p>{selectedAppMonth}</p>
+                    </div>
+                </div>
+            {/if}
+            
+            {#if isLoadingDetails}
+                <div class="loading-state">
+                    <div class="loading-spinner"></div>
+                    <span>{$text('settings.usage.loading.text')}</span>
+                </div>
+            {:else}
+            <div class="detail-entries">
+                {#each usageEntries as entry}
+                    {@const skillName = entry.skill_id && entry.app_id ? (() => {
+                        try {
+                            return $text(`apps.${entry.app_id}.skills.${entry.skill_id}.text`);
+                        } catch {
+                            return entry.skill_id;
+                        }
+                    })() : null}
+                    {@const displayName = skillName || entry.type || $text('settings.usage.unknown_activity.text')}
+                    {@const entryIcon = getEntryIcon(entry)}
+                    
+                    <div class="detail-entry">
+                        <div class="entry-time">{formatRelativeTime(entry.created_at)}</div>
+                        <div class="entry-content">
+                            <div class="entry-icon icon icon_{entryIcon}"></div>
+                            <div class="entry-info">
+                                <div class="entry-label">{displayName}</div>
+                                {#if entry.skill_id}
+                                    <div class="entry-sublabel">{skillName || entry.skill_id}</div>
+                                {/if}
+                            </div>
+                            <div class="entry-credits">
+                                <span class="credits-amount">{formatCredits(entry.credits || 0)}</span>
+                                <Icon name="coins" type="default" size="16px" className="credits-icon-img" />
+                            </div>
+                        </div>
+                    </div>
+                {/each}
+            </div>
+            {/if}
+        </div>
+    {:else if activeTab === 'chats'}
+        <!-- Chat view: Show chats grouped by month with total credits -->
+        {#if isLoadingSummaries}
+            <div class="loading-state">
+                <div class="loading-spinner"></div>
+                <span>{$text('settings.usage.loading.text')}</span>
+            </div>
+        {:else if !hasChatSummaries}
+            <div class="empty-state">
+                <div class="empty-icon"></div>
+                <h4>{$text('settings.usage.no_usage_title.text')}</h4>
+                <p>No chat usage found. Try switching tabs.</p>
+            </div>
+        {:else}
+            {#each Array.from(chatsByMonth.entries()) as [month, summaries]}
+                {@const monthTotal = summaries.reduce((sum, s) => sum + s.totalCredits, 0)}
+                <div class="time-group">
+                    <div class="time-header">
+                        <h4 class="time-title">{month}</h4>
+                        <div class="time-total">
+                            <span class="credits-amount">{formatCredits(monthTotal)}</span>
+                            <Icon name="coins" type="default" size="16px" className="credits-icon-img" />
+                        </div>
+                    </div>
+                    
+                    {#each summaries as summary}
+                        {@const chat = summary.chat}
+                        {@const metadata = summary.metadata}
+                        {@const category = metadata?.category || null}
+                        {@const iconName = metadata?.icon || (category ? getFallbackIconForCategory(category) : 'help-circle')}
+                        {@const gradientColors = category ? getCategoryGradientColors(category) : null}
+                        {@const IconComponent = getLucideIcon(iconName)}
+                        {@const title = metadata?.title || chat?.title || 'Chat'}
+                        
+                        <button
+                            type="button"
+                            class="chat-usage-item clickable"
+                            onclick={async () => {
+                                selectedChatId = summary.chat_id;
+                                // Fetch details for this chat and month
+                                await fetchUsageDetails('chats', summary.chat_id, summary.month);
+                            }}
+                            aria-label={$text('settings.usage.view_chat_details.text')}
+                        >
+                            <div class="chat-usage-icon-wrapper">
+                                <div 
+                                    class="chat-usage-icon-circle" 
+                                    style={gradientColors ? `background: linear-gradient(135deg, ${gradientColors.start}, ${gradientColors.end})` : 'background: #cccccc'}
+                                >
+                                    <div class="chat-usage-icon">
+                                        <IconComponent size={16} color="white" />
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="chat-usage-content">
+                                <div class="chat-usage-title">{title}</div>
+                            </div>
+                            <div class="chat-usage-credits">
+                                <span class="credits-amount">{formatCredits(summary.totalCredits)}</span>
+                                <Icon name="coins" type="default" size="16px" className="credits-icon-img" />
+                            </div>
+                        </button>
+                    {/each}
+                </div>
+            {/each}
+        {/if}
+    {:else if activeTab === 'apps'}
+        <!-- Apps view: Show apps grouped by month with total credits -->
+        {#if appsByMonth.size === 0}
+            <div class="empty-state">
+                <div class="empty-icon"></div>
+                <h4>{$text('settings.usage.no_usage_title.text')}</h4>
+                <p>No app usage found. Try switching tabs.</p>
+            </div>
+        {:else}
+            {#each Array.from(appsByMonth.entries()) as [month, summaries]}
+                {@const monthTotal = summaries.reduce((sum, s) => sum + s.totalCredits, 0)}
+                <div class="time-group">
+                    <div class="time-header">
+                        <h4 class="time-title">{month}</h4>
+                        <div class="time-total">
+                            <span class="credits-amount">{formatCredits(monthTotal)}</span>
+                            <Icon name="coins" type="default" size="16px" className="credits-icon-img" />
+                        </div>
+                    </div>
+                    
+                    {#each summaries as summary}
+                        {@const appName = getAppName(summary.app_id)}
+                        {@const appIconName = getAppIconName(summary.app_id)}
+                        
+                        <button
+                            type="button"
+                            class="app-usage-item clickable"
+                            onclick={async () => {
+                                selectedAppId = summary.app_id;
+                                selectedAppMonth = summary.month;
+                                // Fetch details for this app and month
+                                await fetchUsageDetails('apps', summary.app_id, summary.month);
+                            }}
+                            aria-label={$text('settings.usage.view_app_details.text')}
+                        >
+                            <div class="app-usage-icon-wrapper">
+                                <Icon 
+                                    name={appIconName}
+                                    type="app"
+                                    size="28px"
+                                />
+                            </div>
+                            <div class="app-usage-content">
+                                <div class="app-usage-title">{appName}</div>
+                            </div>
+                            <div class="app-usage-credits">
+                                <span class="credits-amount">{formatCredits(summary.totalCredits)}</span>
+                                <Icon name="coins" type="default" size="16px" className="credits-icon-img" />
+                            </div>
+                        </button>
+                    {/each}
+                </div>
+            {/each}
+        {/if}
+    {:else if activeTab === 'api'}
+        <!-- API keys view: Show API keys grouped by month with total credits -->
+        {#if isLoadingApiKeys || isLoadingSummaries}
+            <div class="loading-state">
+                <div class="loading-spinner"></div>
+                <span>{$text('settings.usage.loading.text')}</span>
+            </div>
+        {:else if apiKeysByMonth.size === 0}
+            <div class="empty-state">
+                <div class="empty-icon"></div>
+                <h4>{$text('settings.usage.no_usage_title.text')}</h4>
+                <p>No API key usage found. Try switching tabs.</p>
+            </div>
+        {:else}
+            {#each Array.from(apiKeysByMonth.entries()) as [month, summaries]}
+                {@const monthTotal = summaries.reduce((sum, s) => sum + s.totalCredits, 0)}
+                <div class="time-group">
+                    <div class="time-header">
+                        <h4 class="time-title">{month}</h4>
+                        <div class="time-total">
+                            <span class="credits-amount">{formatCredits(monthTotal)}</span>
+                            <Icon name="coins" type="default" size="16px" className="credits-icon-img" />
+                        </div>
+                    </div>
+                    
+                    {#each summaries as summary}
+                        {@const labelKey = `${summary.api_key_hash}:${summary.month}`}
+                        {@const apiKeyLabel = apiKeyLabels.get(labelKey) || { title: $text('settings.usage.api_key_details.text'), subtitle: '' }}
+                        
+                        <button
+                            type="button"
+                            class="api-key-usage-item clickable"
+                            onclick={async () => {
+                                selectedApiKeyHash = summary.api_key_hash;
+                                selectedApiKeyMonth = summary.month;
+                                // Fetch details for this API key and month
+                                await fetchUsageDetails('api', summary.api_key_hash, summary.month);
+                            }}
+                            aria-label={$text('settings.usage.view_api_key_details.text')}
+                        >
+                            <div class="api-key-usage-icon-wrapper">
+                                <Icon 
+                                    name="code"
+                                    type="default"
+                                    size="28px"
+                                />
+                            </div>
+                            <div class="api-key-usage-content">
+                                <div class="api-key-usage-title">{apiKeyLabel.title}</div>
+                                {#if apiKeyLabel.subtitle}
+                                    <div class="api-key-usage-prefix">{apiKeyLabel.subtitle}</div>
+                                {/if}
+                            </div>
+                            <div class="api-key-usage-credits">
+                                <span class="credits-amount">{formatCredits(summary.totalCredits)}</span>
+                                <Icon name="coins" type="default" size="16px" className="credits-icon-img" />
+                            </div>
+                        </button>
+                    {/each}
+                </div>
+            {/each}
+        {/if}
+    {:else}
+        <!-- Non-chat/app/api view: Show entries grouped by time -->
+        {@const processedEntries = Object.entries(processedUsage)}
+        {#if processedEntries.length === 0 && usageEntries.length > 0}
+            <div class="empty-state">
+                <div class="empty-icon"></div>
+                <h4>{$text('settings.usage.no_usage_title.text')}</h4>
+                <p>No entries match the current filter. Try switching tabs.</p>
+            </div>
+        {:else}
+            {#each processedEntries as [timePeriod, { entries, total }]}
+            <div class="time-group">
+                <div class="time-header">
+                    <h4 class="time-title">{timePeriod}</h4>
+                    <div class="time-total">
+                        <span class="credits-amount">{formatCredits(total)}</span>
+                        <Icon name="coins" type="default" size="16px" className="credits-icon-img" />
+                    </div>
+                </div>
+                
+                {#each entries as entry}
                     <!-- Non-chat entry or entry without chat_id -->
                     <div class="usage-item">
                         <div class="item-icon icon icon_{getEntryIcon(entry)}"></div>
                         <div class="item-content">
                             <div class="item-title">{getEntryDisplayName(entry)}</div>
                         </div>
-                        <div class="item-credits">{formatCredits(entry.credits || 0)}</div>
+                        <div class="item-credits">
+                            <span class="credits-amount">{formatCredits(entry.credits || 0)}</span>
+                            <Icon name="coins" type="default" size="16px" className="credits-icon-img" />
+                        </div>
                     </div>
-                {/if}
+                {/each}
+            </div>
             {/each}
-        </div>
-        {/each}
+        {/if}
     {/if}
     
-    <!-- Pagination controls -->
-    {#if totalPages > 1}
-        <div class="pagination">
+    <!-- Show more months button -->
+    {#if hasMoreMonths && !isLoadingSummaries}
+        <div class="show-more-container">
             <button
-                class="pagination-button"
-                onclick={previousPage}
-                disabled={currentPage === 1}
-                aria-label={$text('settings.usage.previous_page.text')}
+                class="show-more-button"
+                onclick={showMoreMonths}
+                aria-label={$text('settings.usage.show_more.text')}
             >
-                <div class="clickable-icon icon_back"></div>
-            </button>
-            <span class="pagination-info">
-                {$text('settings.usage.page_info.text').replace('{current}', currentPage.toString()).replace('{total}', totalPages.toString())}
-            </span>
-            <button
-                class="pagination-button"
-                onclick={nextPage}
-                disabled={currentPage === totalPages}
-                aria-label={$text('settings.usage.next_page.text')}
-            >
-                <div class="clickable-icon icon_back" style="transform: rotate(180deg);"></div>
+                {$text('settings.usage.show_more.text')}
             </button>
         </div>
     {/if}
@@ -824,6 +1707,13 @@ Usage Settings - View usage statistics and export usage data
         opacity: 0.6;
     }
 
+    .credits-icon-img {
+        width: 16px;
+        height: 16px;
+        opacity: 0.6;
+        flex-shrink: 0;
+    }
+
     .usage-item {
         display: flex;
         align-items: center;
@@ -845,16 +1735,6 @@ Usage Settings - View usage statistics and export usage data
 
     .usage-item.clickable {
         cursor: pointer;
-    }
-
-    button.usage-item {
-        border: 1px solid var(--color-grey-20);
-        background: var(--color-grey-10);
-    }
-
-    button.usage-item:hover {
-        background: var(--color-grey-15);
-        border-color: var(--color-grey-30);
     }
 
     .item-icon {
@@ -882,6 +1762,196 @@ Usage Settings - View usage statistics and export usage data
         font-size: 14px;
         font-weight: 600;
         flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+    }
+
+    /* Chat usage item styles (matching Chat.svelte) */
+    .chat-usage-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 16px;
+        margin-bottom: 8px;
+        background: var(--color-grey-10);
+        border-radius: 12px;
+        border: 1px solid var(--color-grey-20);
+        transition: all 0.2s ease;
+        width: 100%;
+        text-align: left;
+        cursor: pointer;
+    }
+
+    .chat-usage-item:hover {
+        background: var(--color-grey-15);
+        border-color: var(--color-grey-30);
+    }
+
+    .chat-usage-icon-wrapper {
+        flex: 0 0 28px;
+        position: relative;
+        height: 28px;
+    }
+
+    .chat-usage-icon-circle {
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.1);
+        border: 2px solid var(--color-background);
+        transition: all 0.2s ease;
+    }
+
+    .chat-usage-icon {
+        width: 16px;
+        height: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .chat-usage-content {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .chat-usage-title {
+        color: var(--color-grey-100);
+        font-size: 14px;
+        font-weight: 500;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .chat-usage-credits {
+        color: var(--color-grey-80);
+        font-size: 14px;
+        font-weight: 600;
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+    }
+
+    /* App usage item styles (similar to chat usage) */
+    .app-usage-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 16px;
+        margin-bottom: 8px;
+        background: var(--color-grey-10);
+        border-radius: 12px;
+        border: 1px solid var(--color-grey-20);
+        transition: all 0.2s ease;
+        width: 100%;
+        text-align: left;
+        cursor: pointer;
+    }
+
+    .app-usage-item:hover {
+        background: var(--color-grey-15);
+        border-color: var(--color-grey-30);
+    }
+
+    .app-usage-icon-wrapper {
+        flex: 0 0 28px;
+        position: relative;
+        height: 28px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .app-usage-content {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .app-usage-title {
+        color: var(--color-grey-100);
+        font-size: 14px;
+        font-weight: 500;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .app-usage-credits {
+        color: var(--color-grey-80);
+        font-size: 14px;
+        font-weight: 600;
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+    }
+
+    /* API key usage item styles (similar to app usage) */
+    .api-key-usage-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 16px;
+        margin-bottom: 8px;
+        background: var(--color-grey-10);
+        border-radius: 12px;
+        border: 1px solid var(--color-grey-20);
+        transition: all 0.2s ease;
+        width: 100%;
+        text-align: left;
+        cursor: pointer;
+    }
+
+    .api-key-usage-item:hover {
+        background: var(--color-grey-15);
+        border-color: var(--color-grey-30);
+    }
+
+    .api-key-usage-icon-wrapper {
+        flex: 0 0 28px;
+        position: relative;
+        height: 28px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .api-key-usage-content {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .api-key-usage-title {
+        color: var(--color-grey-100);
+        font-size: 14px;
+        font-weight: 500;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .api-key-usage-prefix {
+        color: var(--color-grey-60);
+        font-size: 12px;
+        font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+        margin-top: 2px;
+    }
+
+    .api-key-usage-credits {
+        color: var(--color-grey-80);
+        font-size: 14px;
+        font-weight: 600;
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        gap: 4px;
     }
 
     .usage-detail-view {
@@ -914,11 +1984,27 @@ Usage Settings - View usage statistics and export usage data
         border-bottom: 1px solid var(--color-grey-20);
     }
 
-    .detail-icon {
+    .detail-icon-wrapper {
+        flex: 0 0 40px;
+        position: relative;
+        height: 40px;
+    }
+
+    .detail-icon-circle {
         width: 40px;
         height: 40px;
         border-radius: 50%;
-        background: var(--color-primary);
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.1);
+        border: 2px solid var(--color-background);
+    }
+
+    .detail-icon {
+        width: 20px;
+        height: 20px;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -987,6 +2073,9 @@ Usage Settings - View usage statistics and export usage data
         color: var(--color-grey-80);
         font-size: 14px;
         font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 4px;
     }
 
     .detail-export {
@@ -1032,5 +2121,33 @@ Usage Settings - View usage statistics and export usage data
         color: var(--color-grey-80);
         font-size: 14px;
         font-weight: 500;
+    }
+
+    .show-more-container {
+        display: flex;
+        justify-content: center;
+        padding: 20px 10px;
+        margin-top: 24px;
+        border-top: 1px solid var(--color-grey-20);
+    }
+
+    .show-more-button {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 12px 24px;
+        background: var(--color-grey-10);
+        border: 1px solid var(--color-grey-30);
+        border-radius: 8px;
+        color: var(--color-grey-80);
+        font-size: 14px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .show-more-button:hover {
+        background: var(--color-grey-15);
+        border-color: var(--color-grey-40);
     }
 </style>

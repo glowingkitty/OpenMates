@@ -6,6 +6,7 @@
 import logging
 import asyncio
 from typing import Dict, Any, Optional, List
+from datetime import datetime
 
 from backend.core.api.app.utils.encryption import EncryptionService
 
@@ -180,6 +181,22 @@ class UsageMethods:
             if success and response_data and response_data.get("id"):
                 entry_id = response_data["id"]
                 logger.info(f"{log_prefix} Successfully created usage entry with ID: {entry_id}")
+                
+                # Update monthly summaries incrementally (fire-and-forget, non-blocking)
+                # This ensures summaries are always up-to-date for fast queries
+                try:
+                    await self._update_monthly_summaries(
+                        user_id_hash=user_id_hash,
+                        timestamp=timestamp,
+                        credits_charged=credits_charged,
+                        chat_id=normalized_chat_id,
+                        app_id=app_id,
+                        api_key_hash=api_key_hash
+                    )
+                except Exception as e_summary:
+                    # Log error but don't fail usage entry creation
+                    logger.error(f"{log_prefix} Error updating monthly summaries: {e_summary}", exc_info=True)
+                
                 return entry_id
             else:
                 logger.error(f"{log_prefix} Failed to create usage entry. Response: {response_data}")
@@ -188,6 +205,170 @@ class UsageMethods:
         except Exception as e:
             logger.error(f"{log_prefix} Error creating usage entry: {e}", exc_info=True)
             return None
+    
+    async def _update_monthly_summaries(
+        self,
+        user_id_hash: str,
+        timestamp: int,
+        credits_charged: int,
+        chat_id: Optional[str],
+        app_id: str,
+        api_key_hash: Optional[str]
+    ):
+        """
+        Update monthly summaries incrementally when a usage entry is created.
+        This method updates or creates summary records for chats, apps, and API keys.
+        
+        Args:
+            user_id_hash: Hashed user identifier
+            timestamp: Unix timestamp in seconds
+            credits_charged: Number of credits charged
+            chat_id: Optional chat ID (for chat summaries)
+            app_id: App identifier (for app summaries)
+            api_key_hash: Optional API key hash (for API key summaries)
+        """
+        log_prefix = f"DirectusService (usage summaries):"
+        
+        try:
+            # Convert timestamp to year_month format (YYYY-MM)
+            dt = datetime.fromtimestamp(timestamp)
+            year_month = dt.strftime("%Y-%m")
+            
+            # Update chat summary if chat_id is provided
+            if chat_id:
+                await self._update_summary(
+                    collection="usage_monthly_chat_summaries",
+                    user_id_hash=user_id_hash,
+                    identifier_key="chat_id",
+                    identifier_value=chat_id,
+                    year_month=year_month,
+                    credits_charged=credits_charged,
+                    log_prefix=log_prefix,
+                    summary_type="chat"
+                )
+            
+            # Update app summary (always, since app_id is required)
+            await self._update_summary(
+                collection="usage_monthly_app_summaries",
+                user_id_hash=user_id_hash,
+                identifier_key="app_id",
+                identifier_value=app_id,
+                year_month=year_month,
+                credits_charged=credits_charged,
+                log_prefix=log_prefix,
+                summary_type="app"
+            )
+            
+            # Update API key summary if api_key_hash is provided
+            if api_key_hash:
+                await self._update_summary(
+                    collection="usage_monthly_api_key_summaries",
+                    user_id_hash=user_id_hash,
+                    identifier_key="api_key_hash",
+                    identifier_value=api_key_hash,
+                    year_month=year_month,
+                    credits_charged=credits_charged,
+                    log_prefix=log_prefix,
+                    summary_type="api_key"
+                )
+            
+        except Exception as e:
+            logger.error(f"{log_prefix} Error updating monthly summaries: {e}", exc_info=True)
+            # Don't raise - this is a non-critical operation
+    
+    async def _update_summary(
+        self,
+        collection: str,
+        user_id_hash: str,
+        identifier_key: str,
+        identifier_value: str,
+        year_month: str,
+        credits_charged: int,
+        log_prefix: str,
+        summary_type: Optional[str] = None  # Optional summary type for cache invalidation
+    ):
+        """
+        Update or create a monthly summary record.
+        
+        Args:
+            collection: Name of the summary collection
+            user_id_hash: Hashed user identifier
+            identifier_key: Key name for the identifier (e.g., "chat_id", "app_id", "api_key_hash")
+            identifier_value: Value of the identifier
+            year_month: Month identifier in format "YYYY-MM"
+            credits_charged: Number of credits to add
+            log_prefix: Logging prefix
+        """
+        try:
+            # Try to find existing summary
+            params = {
+                "filter": {
+                    "user_id_hash": {"_eq": user_id_hash},
+                    identifier_key: {"_eq": identifier_value},
+                    "year_month": {"_eq": year_month}
+                },
+                "fields": "id,total_credits,entry_count",
+                "limit": 1
+            }
+            
+            existing_summaries = await self.sdk.get_items(collection, params=params, no_cache=True)
+            
+            if existing_summaries and len(existing_summaries) > 0:
+                # Update existing summary
+                summary = existing_summaries[0]
+                summary_id = summary.get("id")
+                current_credits = summary.get("total_credits", 0)
+                current_count = summary.get("entry_count", 0)
+                
+                update_data = {
+                    "total_credits": current_credits + credits_charged,
+                    "entry_count": current_count + 1,
+                    "updated_at": int(datetime.now().timestamp())
+                }
+                
+                await self.sdk.update_item(collection, summary_id, update_data)
+                logger.debug(f"{log_prefix} Updated {collection} summary {summary_id} (+{credits_charged} credits, +1 entry)")
+                
+                # Invalidate cache for this summary type (last 3 months)
+                # This ensures cache is updated when summaries change
+                if summary_type:
+                    for months in [1, 2, 3]:
+                        cache_key = f"usage_summaries:{user_id_hash}:{summary_type}:{months}"
+                        await self.sdk.cache.delete(cache_key)
+                        logger.debug(f"{log_prefix} Invalidated cache: {cache_key}")
+            else:
+                # Create new summary
+                current_timestamp = int(datetime.now().timestamp())
+                
+                create_data = {
+                    "user_id_hash": user_id_hash,
+                    identifier_key: identifier_value,
+                    "year_month": year_month,
+                    "total_credits": credits_charged,
+                    "entry_count": 1,
+                    "is_archived": False,
+                    "archive_s3_key": None,
+                    "created_at": current_timestamp,
+                    "updated_at": current_timestamp
+                }
+                
+                success, result = await self.sdk.create_item(collection, create_data)
+                if success and result:
+                    logger.debug(f"{log_prefix} Created new {collection} summary for {identifier_key}={identifier_value}, month={year_month}")
+                    
+                    # Invalidate cache for this summary type (last 3 months)
+                    # This ensures cache is updated when new summaries are created
+                    if summary_type:
+                        for months in [1, 2, 3]:
+                            cache_key = f"usage_summaries:{user_id_hash}:{summary_type}:{months}"
+                            await self.sdk.cache.delete(cache_key)
+                            logger.debug(f"{log_prefix} Invalidated cache: {cache_key}")
+                else:
+                    logger.warning(f"{log_prefix} Failed to create {collection} summary: {result}")
+                    
+        except Exception as e:
+            logger.error(f"{log_prefix} Error updating {collection} summary: {e}", exc_info=True)
+            # Don't raise - this is a non-critical operation
 
     async def get_user_usage_entries(
         self,
@@ -356,3 +537,270 @@ class UsageMethods:
         except Exception as e:
             logger.error(f"{log_prefix} Error fetching usage entries: {e}", exc_info=True)
             return []
+    
+    async def get_monthly_summaries(
+        self,
+        user_id_hash: str,
+        summary_type: str,  # "chat", "app", or "api_key"
+        months: int = 3
+    ) -> List[Dict[str, Any]]:
+        """
+        Fetch monthly usage summaries for a user.
+        Uses cache for the last 3 months to ensure max performance and reliable data.
+        
+        Args:
+            user_id_hash: Hashed user identifier
+            summary_type: Type of summary ("chat", "app", or "api_key")
+            months: Number of months to fetch (default: 3)
+            
+        Returns:
+            List of summary records grouped by month
+        """
+        log_prefix = f"DirectusService (usage summaries):"
+        logger.info(f"{log_prefix} Fetching {summary_type} summaries for user '{user_id_hash}', last {months} months")
+        
+        try:
+            collection_name = f"usage_monthly_{summary_type}_summaries"
+            
+            # Calculate list of year_month strings for the requested months
+            from datetime import datetime, timedelta
+            year_months = []
+            for i in range(months):
+                month_date = datetime.now() - timedelta(days=i * 30)
+                year_month = month_date.strftime("%Y-%m")
+                year_months.append(year_month)
+            
+            # Check cache first (for last 3 months)
+            cache_key = f"usage_summaries:{user_id_hash}:{summary_type}:{months}"
+            if months <= 3:
+                cached_summaries = await self.sdk.cache.get(cache_key)
+                if cached_summaries:
+                    logger.debug(f"{log_prefix} Cache HIT for {summary_type} summaries")
+                    return cached_summaries
+            
+            # Query summaries using _in operator with list of year_month strings
+            params = {
+                "filter": {
+                    "user_id_hash": {"_eq": user_id_hash},
+                    "year_month": {"_in": year_months}
+                },
+                "fields": "*",
+                "sort": ["-year_month"],  # Newest first
+                "limit": -1
+            }
+            
+            summaries = await self.sdk.get_items(collection_name, params=params, no_cache=True)
+            
+            # Cache the last 3 months for future requests
+            if months <= 3 and summaries:
+                # Cache for 5 minutes to balance freshness and performance
+                # Update cache when summaries are updated in _update_summary
+                await self.sdk.cache.set(cache_key, summaries, ttl=300)
+                logger.debug(f"{log_prefix} Cached {len(summaries)} {summary_type} summaries")
+            
+            logger.info(f"{log_prefix} Found {len(summaries)} {summary_type} summaries for user '{user_id_hash}'")
+            return summaries
+            
+        except Exception as e:
+            logger.error(f"{log_prefix} Error fetching {summary_type} summaries: {e}", exc_info=True)
+            return []
+    
+    async def get_usage_entries_for_summary(
+        self,
+        user_id_hash: str,
+        user_vault_key_id: str,
+        summary_type: str,  # "chat", "app", or "api_key"
+        identifier: str,  # chat_id, app_id, or api_key_hash
+        year_month: str  # "YYYY-MM"
+    ) -> List[Dict[str, Any]]:
+        """
+        Fetch usage entries for a specific summary (chat/app/api_key) in a specific month.
+        Checks if archived and loads from appropriate source.
+        
+        Args:
+            user_id_hash: Hashed user identifier
+            user_vault_key_id: User's vault key ID for decryption
+            summary_type: Type of summary ("chat", "app", or "api_key")
+            identifier: Identifier value (chat_id, app_id, or api_key_hash)
+            year_month: Month identifier in format "YYYY-MM"
+            
+        Returns:
+            List of decrypted usage entries
+        """
+        log_prefix = f"DirectusService (usage details):"
+        logger.info(f"{log_prefix} Fetching {summary_type} usage entries for '{identifier}', month '{year_month}'")
+        
+        try:
+            collection_name = f"usage_monthly_{summary_type}_summaries"
+            identifier_key = {
+                "chat": "chat_id",
+                "app": "app_id",
+                "api_key": "api_key_hash"
+            }[summary_type]
+            
+            # Find summary record to check if archived
+            params = {
+                "filter": {
+                    "user_id_hash": {"_eq": user_id_hash},
+                    identifier_key: {"_eq": identifier},
+                    "year_month": {"_eq": year_month}
+                },
+                "fields": "id,is_archived,archive_s3_key",
+                "limit": 1
+            }
+            
+            summaries = await self.sdk.get_items(collection_name, params=params, no_cache=True)
+            
+            if not summaries:
+                logger.warning(f"{log_prefix} No summary found for {summary_type} '{identifier}', month '{year_month}'")
+                return []
+            
+            summary = summaries[0]
+            is_archived = summary.get("is_archived", False)
+            
+            if is_archived:
+                # Load from archive (this will be handled by the API endpoint using archive service)
+                logger.info(f"{log_prefix} Summary is archived, will load from S3")
+                return []  # Return empty, API endpoint will handle archive retrieval
+            else:
+                # Load from Directus usage collection
+                # Parse year_month to get timestamp range
+                year, month = map(int, year_month.split("-"))
+                start_date = datetime(year, month, 1)
+                if month == 12:
+                    end_date = datetime(year + 1, 1, 1)
+                else:
+                    end_date = datetime(year, month + 1, 1)
+                
+                start_timestamp = int(start_date.timestamp())
+                end_timestamp = int(end_date.timestamp())
+                
+                # Build filter based on summary type
+                filter_dict = {
+                    "user_id_hash": {"_eq": user_id_hash},
+                    "created_at": {
+                        "_gte": start_timestamp,
+                        "_lt": end_timestamp
+                    }
+                }
+                
+                if summary_type == "chat":
+                    filter_dict["chat_id"] = {"_eq": identifier}
+                elif summary_type == "app":
+                    filter_dict["app_id"] = {"_eq": identifier}
+                elif summary_type == "api_key":
+                    filter_dict["api_key_hash"] = {"_eq": identifier}
+                
+                params = {
+                    "filter": filter_dict,
+                    "fields": "*",
+                    "sort": ["-created_at"],
+                    "limit": -1
+                }
+                
+                entries = await self.sdk.get_items("usage", params=params, no_cache=True)
+                
+                # Decrypt entries (same logic as get_user_usage_entries)
+                # For now, return raw entries - API endpoint will handle decryption
+                # Actually, we should decrypt here for consistency
+                return await self._decrypt_usage_entries(entries, user_vault_key_id)
+                
+        except Exception as e:
+            logger.error(f"{log_prefix} Error fetching usage entries for summary: {e}", exc_info=True)
+            return []
+    
+    async def _decrypt_usage_entries(
+        self,
+        entries: List[Dict[str, Any]],
+        user_vault_key_id: str
+    ) -> List[Dict[str, Any]]:
+        """
+        Decrypt usage entries (helper method).
+        Similar to get_user_usage_entries but for already-fetched entries.
+        """
+        log_prefix = f"DirectusService (usage):"
+        
+        async def process_entry(entry: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+            try:
+                processed_entry = {
+                    "id": entry.get("id"),
+                    "type": entry.get("type"),
+                    "source": entry.get("source", "chat"),
+                    "created_at": entry.get("created_at"),
+                    "updated_at": entry.get("updated_at"),
+                    "app_id": entry.get("app_id"),
+                    "skill_id": entry.get("skill_id"),
+                    "chat_id": entry.get("chat_id"),
+                    "message_id": entry.get("message_id"),
+                    "api_key_hash": entry.get("api_key_hash"),
+                    "device_hash": entry.get("device_hash"),
+                }
+                
+                decrypt_tasks = {}
+                
+                encrypted_model_used = entry.get("encrypted_model_used")
+                if encrypted_model_used:
+                    decrypt_tasks["model_used"] = self.encryption_service.decrypt_with_user_key(
+                        encrypted_model_used, user_vault_key_id
+                    )
+                
+                encrypted_credits = entry.get("encrypted_credits_costs_total")
+                if encrypted_credits:
+                    decrypt_tasks["credits"] = self.encryption_service.decrypt_with_user_key(
+                        encrypted_credits, user_vault_key_id
+                    )
+                
+                encrypted_input_tokens = entry.get("encrypted_input_tokens")
+                if encrypted_input_tokens:
+                    decrypt_tasks["input_tokens"] = self.encryption_service.decrypt_with_user_key(
+                        encrypted_input_tokens, user_vault_key_id
+                    )
+                
+                encrypted_output_tokens = entry.get("encrypted_output_tokens")
+                if encrypted_output_tokens:
+                    decrypt_tasks["output_tokens"] = self.encryption_service.decrypt_with_user_key(
+                        encrypted_output_tokens, user_vault_key_id
+                    )
+                
+                if decrypt_tasks:
+                    results = await asyncio.gather(*decrypt_tasks.values(), return_exceptions=True)
+                    
+                    for i, (field_name, result) in enumerate(zip(decrypt_tasks.keys(), results)):
+                        if isinstance(result, Exception):
+                            logger.warning(f"{log_prefix} Failed to decrypt {field_name}: {result}")
+                            continue
+                        
+                        if result:
+                            if field_name == "credits":
+                                try:
+                                    processed_entry["credits"] = int(result)
+                                except ValueError:
+                                    processed_entry["credits"] = 0
+                            elif field_name in ["input_tokens", "output_tokens"]:
+                                try:
+                                    processed_entry[field_name] = int(result) if result else None
+                                except ValueError:
+                                    processed_entry[field_name] = None
+                            else:
+                                processed_entry[field_name] = result
+                
+                if "credits" not in processed_entry:
+                    processed_entry["credits"] = 0
+                
+                return processed_entry
+                
+            except Exception as e:
+                logger.error(f"{log_prefix} Error decrypting entry: {e}", exc_info=True)
+                return None
+        
+        processing_results = await asyncio.gather(
+            *[process_entry(entry) for entry in entries],
+            return_exceptions=True
+        )
+        
+        processed_entries = [
+            result for result in processing_results
+            if result is not None and not isinstance(result, Exception)
+        ]
+        
+        return processed_entries

@@ -688,6 +688,29 @@ page_info:
   cs: Stránka {current} z {total}
   sv: Sida {current} av {total}
   verified_by_human: []
+show_more:
+  context: Show more months button
+  en: Show more
+  de: Mehr anzeigen
+  zh: 显示更多
+  es: Mostrar más
+  fr: Afficher plus
+  pt: Mostrar mais
+  ru: Показать больше
+  ja: もっと表示
+  ko: 더 보기
+  it: Mostra altro
+  tr: Daha fazla göster
+  vi: Hiển thị thêm
+  id: Tampilkan lebih banyak
+  pl: Pokaż więcej
+  nl: Meer weergeven
+  ar: عرض المزيد
+  hi: और दिखाएं
+  th: แสดงเพิ่มเติม
+  cs: Zobrazit více
+  sv: Visa mer
+  verified_by_human: []
 view_chat_details:
   context: View chat details button aria label
   en: View chat details

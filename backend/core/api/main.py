@@ -844,6 +844,9 @@ def create_app() -> FastAPI:
     app.include_router(creators.router)  # Creators router - requires authentication, include in schema
     # Keep apps_api router in docs - it uses API key authentication for external API access
     app.include_router(apps_api.router)  # Include apps API router for external API access with API keys
+    # Include usage API router in docs - supports both session and API key auth
+    from backend.core.api.app.routes import usage_api
+    app.include_router(usage_api.router)  # Include usage API router for external API access with API keys
 
     # Redirect /health to /v1/health for backward compatibility
     @app.get("/health", include_in_schema=False)

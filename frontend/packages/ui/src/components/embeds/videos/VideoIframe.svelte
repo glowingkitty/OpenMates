@@ -1,17 +1,27 @@
 <!--
   frontend/packages/ui/src/components/embeds/videos/VideoIframe.svelte
   
-  Standalone video iframe component that can exist independently of fullscreen view.
-  This allows the iframe to persist when fullscreen closes (e.g., in PiP mode).
+  Standalone video iframe component that lives in ActiveChat.
   
-  The iframe is managed by the video PiP store and can be moved between containers
-  without being destroyed or reloaded.
+  Architecture:
+  - This component is wrapped by .video-iframe-fullscreen-container in ActiveChat
+  - The parent container handles positioning (centered vs top-right for PiP)
+  - This component handles the 16:9 aspect ratio and visual styling
+  - Using position: absolute (in parent) ensures PiP moves with ActiveChat when settings open
+  
+  This component:
+  1. Contains ONLY the iframe and an overlay (no thumbnail/play button - those are in VideoEmbedFullscreen)
+  2. Auto-plays the video when mounted (user already clicked play in VideoEmbedFullscreen)
+  3. Uses CSS classes for styling differences between fullscreen and PiP mode
+  4. The overlay is activated in PiP mode to catch clicks and restore fullscreen
+  
+  The iframe is NEVER destroyed or reloaded during PiP transitions - only CSS changes.
+  This ensures smooth, iOS-like picture-in-picture behavior.
 -->
 
 <script lang="ts">
-  import { onDestroy } from 'svelte';
-  import { get } from 'svelte/store';
-  import { videoPipStore } from '../../../stores/videoPipStore';
+  import { onDestroy, onMount } from 'svelte';
+  import { videoIframeStore } from '../../../stores/videoIframeStore';
   
   /**
    * Props for video iframe
@@ -21,138 +31,186 @@
     videoId: string;
     /** Video title */
     title: string;
-    /** Embed URL for the iframe */
+    /** Embed URL for the iframe (video will auto-play) */
     embedUrl: string;
-    /** Whether this iframe is in PiP mode */
-    isPip?: boolean;
-    /** Optional: Existing iframe element (for restoration from PiP) */
-    existingIframeElement?: HTMLIFrameElement | null;
-    /** Optional: Existing iframe wrapper element (for restoration from PiP) */
-    existingIframeWrapper?: HTMLDivElement | null;
+    /** Whether the iframe is in PiP mode (controlled by parent via store) */
+    isPipMode?: boolean;
+    /** Callback when overlay is clicked in PiP mode (to restore fullscreen) */
+    onPipOverlayClick?: () => void;
   }
   
   let {
     videoId,
     title,
     embedUrl,
-    isPip = false,
-    existingIframeElement,
-    existingIframeWrapper
+    isPipMode = false,
+    onPipOverlayClick
   }: Props = $props();
   
   // Reference to the iframe element
-  // If restoring from PiP, reuse existing iframe
-  let iframeElement: HTMLIFrameElement | null = $state(existingIframeElement || null);
+  let iframeElement: HTMLIFrameElement | null = $state(null);
   
-  // Reference to the iframe wrapper
-  // If restoring from PiP, reuse existing wrapper
-  let iframeWrapperElement: HTMLDivElement | null = $state(existingIframeWrapper || null);
+  // Reference to the iframe wrapper element
+  let iframeWrapperElement: HTMLDivElement | null = $state(null);
   
-  // If existing elements are provided (restoration from PiP), use them
+  // Debug: Log when component renders and when props change
   $effect(() => {
-    if (existingIframeWrapper && !iframeWrapperElement) {
-      iframeWrapperElement = existingIframeWrapper;
-      console.debug('[VideoIframe] Reusing existing iframe wrapper from PiP');
-    }
-    if (existingIframeElement && !iframeElement) {
-      iframeElement = existingIframeElement;
-      console.debug('[VideoIframe] Reusing existing iframe element from PiP');
+    console.debug('[VideoIframe] Component state:', {
+      videoId,
+      embedUrl,
+      isPipMode,
+      hasIframe: !!iframeElement,
+      hasWrapper: !!iframeWrapperElement
+    });
+  });
+  
+  // Update store with iframe references when they become available
+  // This allows other components to verify the iframe hasn't been recreated
+  $effect(() => {
+    if (iframeElement && iframeWrapperElement) {
+      videoIframeStore.updateIframeRefs(iframeElement, iframeWrapperElement);
+      console.debug('[VideoIframe] Updated store with iframe references');
     }
   });
   
-  // Register this iframe with the PiP store when it mounts
-  $effect(() => {
-    if (iframeElement && iframeWrapperElement && !isPip) {
-      // Store iframe reference for potential PiP mode
-      // The store will use this when entering PiP
-      console.debug('[VideoIframe] Iframe mounted, ready for PiP');
-    }
-  });
-  
-  // Cleanup on destroy - but only if not in PiP mode or moved to PiP
-  onDestroy(() => {
-    // Check if iframe wrapper has been moved to PiP container
-    if (iframeWrapperElement && iframeWrapperElement.parentNode) {
-      const parent = iframeWrapperElement.parentNode as HTMLElement;
-      if (parent.classList.contains('video-pip-container')) {
-        console.debug('[VideoIframe] Skipping cleanup - iframe wrapper has been moved to PiP container');
-        return;
-      }
-    }
+  // Handle click on PiP overlay to restore fullscreen
+  function handleOverlayClick(event: MouseEvent | KeyboardEvent) {
+    event.preventDefault();
+    event.stopPropagation();
     
-    // Check PiP store
-    try {
-      const pipState = get(videoPipStore);
-      if (pipState.isActive && pipState.iframeElement === iframeElement) {
-        console.debug('[VideoIframe] Skipping cleanup - iframe is in PiP mode (store check)');
-        return;
-      }
-    } catch (e) {
-      // Store not available, continue
-    }
+    console.debug('[VideoIframe] PiP overlay clicked, requesting fullscreen restore');
     
-    // Only cleanup if not in PiP mode
-    if (!isPip && iframeElement) {
-      console.debug('[VideoIframe] Cleaning up iframe');
-      iframeElement.src = '';
-      iframeElement.remove();
+    // Call the provided callback to restore fullscreen
+    if (onPipOverlayClick) {
+      onPipOverlayClick();
     } else {
-      console.debug('[VideoIframe] Skipping cleanup - iframe is in PiP mode');
+      // Fallback: dispatch custom event for ActiveChat to handle
+      const customEvent = new CustomEvent('videopip-restore-fullscreen', {
+        detail: { videoId, title, embedUrl },
+        bubbles: true
+      });
+      document.dispatchEvent(customEvent);
     }
-  });
-  
-  // Expose iframe references for PiP store
-  // These will be accessed by VideoEmbedFullscreen when entering PiP
-  export function getIframeRefs() {
-    return {
-      iframeElement,
-      iframeWrapperElement
-    };
   }
+  
+  // Cleanup on destroy - only clear refs, don't manipulate iframe
+  onDestroy(() => {
+    console.debug('[VideoIframe] Component destroying, clearing refs');
+    // Don't clear the iframe src - let it stay for potential restoration
+    // Just clear our references
+    iframeElement = null;
+    iframeWrapperElement = null;
+  });
 </script>
 
-{#if existingIframeWrapper}
-  <!-- Reuse existing wrapper from PiP restoration -->
-  <!-- The wrapper is already in the DOM at the correct location -->
-  <!-- We don't render anything here - the wrapper already exists -->
-  <!-- The $effect above will set our references -->
-{:else}
-  <!-- Create new wrapper and iframe -->
-  <div class="video-iframe-wrapper" bind:this={iframeWrapperElement}>
-    <iframe
-      bind:this={iframeElement}
-      src={embedUrl}
-      title={title}
-      class="video-iframe"
-      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-      allowfullscreen
-      referrerpolicy="strict-origin-when-cross-origin"
-      loading="eager"
-      frameborder="0"
-    ></iframe>
-  </div>
-{/if}
+<!-- 
+  The wrapper div contains the iframe and overlay.
+  CSS classes control the position/size for fullscreen vs PiP mode.
+  The isPipMode class triggers the CSS transition to top-right corner.
+-->
+<div 
+  class="video-iframe-wrapper"
+  class:pip-mode={isPipMode}
+  bind:this={iframeWrapperElement}
+>
+  <!-- 
+    The iframe element - loads and plays the video.
+    CRITICAL: This iframe is never destroyed or recreated during PiP transitions.
+    Only the wrapper's CSS changes to animate position/size.
+  -->
+  <iframe
+    bind:this={iframeElement}
+    src={embedUrl}
+    title={title}
+    class="video-iframe"
+    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+    allowfullscreen
+    referrerpolicy="strict-origin-when-cross-origin"
+    loading="eager"
+    frameborder="0"
+  ></iframe>
+  
+  <!-- 
+    Invisible overlay that covers the iframe in PiP mode.
+    When clicked, it restores the fullscreen view.
+    Only active (pointer-events: auto) in PiP mode.
+  -->
+  <div 
+    class="pip-overlay"
+    class:active={isPipMode}
+    onclick={handleOverlayClick}
+    onkeydown={(e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        handleOverlayClick(e);
+      }
+    }}
+    role="button"
+    tabindex={isPipMode ? 0 : -1}
+    aria-label="Click to restore fullscreen video"
+    title={isPipMode ? "Click to restore fullscreen" : ""}
+  ></div>
+</div>
 
 <style>
+  /*
+   * Video iframe wrapper - contains the iframe and overlay.
+   * 
+   * The parent container (.video-iframe-fullscreen-container in ActiveChat)
+   * handles the positioning for fullscreen vs PiP mode.
+   * 
+   * This wrapper just maintains the 16:9 aspect ratio and styles.
+   */
   .video-iframe-wrapper {
-    width: 100%;
-    max-width: 780px; /* Match fullscreen max width */
+    /* Relative positioning - parent container handles absolute positioning */
     position: relative;
-    padding-bottom: 56.25%; /* 16:9 aspect ratio */
+    width: 100%;
+    
+    /* 16:9 aspect ratio using padding-bottom trick */
+    padding-bottom: 56.25%;
     height: 0;
+    
+    /* Visual styling */
     border-radius: 16px;
     overflow: hidden;
     background-color: var(--color-grey-15);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    
+    /* Smooth transition for visual properties */
+    transition: 
+      border-radius 0.5s cubic-bezier(0.4, 0, 0.2, 1),
+      box-shadow 0.5s cubic-bezier(0.4, 0, 0.2, 1),
+      transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+    
+    /* Ensure wrapper is always visible */
+    display: block;
+    visibility: visible;
   }
   
-  /* When in PiP mode, override styles for smaller container */
-  :global(.video-pip-container) .video-iframe-wrapper {
-    max-width: 100%;
-    border-radius: 0;
-    box-shadow: none;
+  /*
+   * PiP mode styles - different aspect ratio and visual adjustments.
+   * Position is handled by parent container, this just handles the content sizing.
+   */
+  .video-iframe-wrapper.pip-mode {
+    /* In PiP mode, use fixed height instead of aspect ratio padding */
+    /* because parent container controls the size */
+    padding-bottom: 0;
+    height: 180px;
+    
+    /* PiP visual style */
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
   }
   
+  /* Hover effect for PiP mode */
+  .video-iframe-wrapper.pip-mode:hover {
+    transform: scale(1.05);
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.4);
+  }
+  
+  /*
+   * The iframe element - fills the wrapper and plays the video.
+   */
   .video-iframe {
     position: absolute;
     top: 0;
@@ -160,5 +218,45 @@
     width: 100%;
     height: 100%;
     border: none;
+    display: block;
+    visibility: visible;
+  }
+  
+  /*
+   * PiP overlay - invisible div that covers the iframe in PiP mode.
+   * Catches clicks to restore fullscreen view.
+   * 
+   * Inactive by default (pointer-events: none).
+   * Active when .active class is added (PiP mode).
+   */
+  .pip-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: transparent;
+    z-index: 100; /* Above iframe */
+    cursor: default;
+    
+    /* Inactive by default - clicks pass through to iframe */
+    pointer-events: none;
+    opacity: 0;
+  }
+  
+  /*
+   * Active overlay - catches clicks in PiP mode.
+   */
+  .pip-overlay.active {
+    pointer-events: auto;
+    cursor: pointer;
+    opacity: 1;
+  }
+  
+  /* Responsive adjustments for small screens */
+  @media (max-width: 480px) {
+    .video-iframe-wrapper.pip-mode {
+      height: 135px;
+    }
   }
 </style>

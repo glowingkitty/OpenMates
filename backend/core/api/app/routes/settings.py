@@ -1,4 +1,5 @@
 from fastapi import APIRouter, UploadFile, File, HTTPException, Depends, Cookie, Request
+from fastapi.responses import StreamingResponse
 import logging
 import time
 from typing import Optional
@@ -7,7 +8,7 @@ from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.models.user import User
-from backend.core.api.app.routes.auth_routes.auth_dependencies import get_directus_service, get_cache_service, get_compliance_service, get_current_user 
+from backend.core.api.app.routes.auth_routes.auth_dependencies import get_directus_service, get_cache_service, get_compliance_service, get_current_user, get_encryption_service, get_current_user_or_api_key 
 import os
 import random
 import string
@@ -1012,5 +1013,376 @@ async def get_usage(
     except Exception as e:
         logger.error(f"Error fetching usage data for user {current_user.id}: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to fetch usage data")
+
+
+# --- Endpoint for fetching usage summaries (fast) ---
+# Note: This endpoint is also re-exported in usage_api.py for OpenAPI documentation
+@router.get("/usage/summaries")
+@limiter.limit("30/minute")
+async def get_usage_summaries(
+    request: Request,
+    type: str,  # "chats", "apps", or "api_keys"
+    months: int = 3,
+    current_user: User = Depends(get_current_user_or_api_key),  # Supports both session and API key auth
+    directus_service: DirectusService = Depends(get_directus_service),
+    cache_service: CacheService = Depends(get_cache_service)
+):
+    """
+    Fetch usage summaries for the last N months.
+    Fast endpoint - only queries summary tables.
+    """
+    try:
+        # Validate type parameter
+        if type not in ["chats", "apps", "api_keys"]:
+            raise HTTPException(status_code=400, detail="Invalid type. Must be 'chats', 'apps', or 'api_keys'")
+        
+        # Map plural to singular for collection name
+        summary_type_map = {
+            "chats": "chat",
+            "apps": "app",
+            "api_keys": "api_key"
+        }
+        summary_type = summary_type_map[type]
+        
+        logger.info(f"Fetching {type} usage summaries for user {current_user.id}, last {months} months")
+        
+        # Hash user ID
+        user_id_hash = hashlib.sha256(current_user.id.encode()).hexdigest()
+        
+        # Fetch summaries
+        summaries = await directus_service.usage.get_monthly_summaries(
+            user_id_hash=user_id_hash,
+            summary_type=summary_type,
+            months=months
+        )
+        
+        # For API key summaries, enrich with encrypted API key data (name and prefix)
+        # Client will decrypt these fields using the master key
+        if type == "api_keys" and summaries:
+            # Collect all unique API key hashes from summaries
+            api_key_hashes = list(set(
+                summary.get("api_key_hash")
+                for summary in summaries
+                if summary.get("api_key_hash")
+            ))
+            
+            if api_key_hashes:
+                # Fetch API key records by hashes (only for current user's keys)
+                # We need to filter by user_id to ensure security
+                api_keys_params = {
+                    "filter": {
+                        "user_id": {"_eq": current_user.id},
+                        "key_hash": {"_in": api_key_hashes}
+                    },
+                    "fields": "key_hash,encrypted_name,encrypted_key_prefix",
+                    "limit": -1
+                }
+                
+                try:
+                    api_keys_data = await directus_service.get_items("api_keys", params=api_keys_params, no_cache=True)
+                    
+                    # Create a map of api_key_hash -> API key data
+                    api_keys_map = {
+                        key.get("key_hash"): {
+                            "encrypted_name": key.get("encrypted_name", ""),
+                            "encrypted_key_prefix": key.get("encrypted_key_prefix", "")
+                        }
+                        for key in api_keys_data
+                        if key.get("key_hash")
+                    }
+                    
+                    # Enrich each summary with API key data
+                    for summary in summaries:
+                        api_key_hash = summary.get("api_key_hash")
+                        if api_key_hash and api_key_hash in api_keys_map:
+                            summary["encrypted_name"] = api_keys_map[api_key_hash]["encrypted_name"]
+                            summary["encrypted_key_prefix"] = api_keys_map[api_key_hash]["encrypted_key_prefix"]
+                        else:
+                            # If API key not found (might be deleted), set empty strings
+                            summary["encrypted_name"] = ""
+                            summary["encrypted_key_prefix"] = ""
+                    
+                    logger.debug(f"Enriched {len(summaries)} API key summaries with encrypted name/prefix data")
+                except Exception as e:
+                    logger.warning(f"Failed to fetch API key data for summaries: {e}", exc_info=True)
+                    # Continue without enrichment - summaries will still work, just without names
+        
+        logger.info(f"Successfully fetched {len(summaries)} {type} summaries for user {current_user.id}")
+        
+        return {
+            "summaries": summaries,
+            "type": type,
+            "months": months,
+            "count": len(summaries)
+        }
+        
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        logger.error(f"Error fetching usage summaries for user {current_user.id}: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to fetch usage summaries")
+
+
+# --- Endpoint for fetching usage details (lazy loading) ---
+# Note: This endpoint is also re-exported in usage_api.py for OpenAPI documentation
+@router.get("/usage/details")
+@limiter.limit("30/minute")
+async def get_usage_details(
+    request: Request,
+    type: str,  # "chat", "app", or "api_key"
+    identifier: str,  # chat_id, app_id, or api_key_hash
+    year_month: str,  # "YYYY-MM"
+    current_user: User = Depends(get_current_user_or_api_key),  # Supports both session and API key auth
+    directus_service: DirectusService = Depends(get_directus_service),
+    cache_service: CacheService = Depends(get_cache_service),
+    encryption_service: EncryptionService = Depends(get_encryption_service)
+):
+    """
+    Fetch detailed usage entries for a specific chat/app/api_key in a month.
+    Checks if archived, loads from S3 if needed, caches result.
+    """
+    try:
+        # Validate type parameter
+        if type not in ["chat", "app", "api_key"]:
+            raise HTTPException(status_code=400, detail="Invalid type. Must be 'chat', 'app', or 'api_key'")
+        
+        # Validate year_month format
+        try:
+            year, month = map(int, year_month.split("-"))
+            datetime(year, month, 1)  # Validate it's a valid date
+        except:
+            raise HTTPException(status_code=400, detail="Invalid year_month format. Must be 'YYYY-MM'")
+        
+        logger.info(f"Fetching {type} usage details for user {current_user.id}, identifier '{identifier}', month '{year_month}'")
+        
+        # Get user's vault_key_id
+        user_vault_key_id = await cache_service.get_user_vault_key_id(current_user.id)
+        if not user_vault_key_id:
+            user_profile_result = await directus_service.get_user_profile(current_user.id)
+            if not user_profile_result or not user_profile_result[0]:
+                raise HTTPException(status_code=404, detail="User profile not found")
+            user_profile = user_profile_result[1]
+            user_vault_key_id = user_profile.get("vault_key_id")
+            if not user_vault_key_id:
+                raise HTTPException(status_code=500, detail="User encryption key not found")
+            await cache_service.update_user(current_user.id, {"vault_key_id": user_vault_key_id})
+        
+        # Hash user ID
+        user_id_hash = hashlib.sha256(current_user.id.encode()).hexdigest()
+        
+        # Check cache first (for archived data)
+        cache_key = f"usage_archive:{user_id_hash}:{year_month}"
+        cached_entries = await cache_service.get(cache_key)
+        
+        if cached_entries:
+            logger.info(f"Cache HIT for usage archive: {cache_key}")
+            # Filter cached entries by identifier
+            filtered_entries = []
+            identifier_key = {
+                "chat": "chat_id",
+                "app": "app_id",
+                "api_key": "api_key_hash"
+            }[type]
+            
+            for entry in cached_entries:
+                if entry.get(identifier_key) == identifier:
+                    filtered_entries.append(entry)
+            
+            return {
+                "entries": filtered_entries,
+                "type": type,
+                "identifier": identifier,
+                "year_month": year_month,
+                "count": len(filtered_entries),
+                "from_cache": True
+            }
+        
+        # Fetch from Directus or S3
+        entries = await directus_service.usage.get_usage_entries_for_summary(
+            user_id_hash=user_id_hash,
+            user_vault_key_id=user_vault_key_id,
+            summary_type=type,
+            identifier=identifier,
+            year_month=year_month
+        )
+        
+        # If entries is empty, might be archived - check summary and load from S3
+        if not entries:
+            # Check if summary exists and is archived
+            from backend.core.api.app.services.usage_archive_service import UsageArchiveService
+            # Get S3 service from app state
+            s3_service = request.app.state.s3_service
+            if not s3_service:
+                logger.error("S3 service not available")
+                raise HTTPException(status_code=503, detail="Archive service unavailable")
+            
+            archive_service = UsageArchiveService(
+                s3_service=s3_service,
+                encryption_service=encryption_service,
+                directus_service=directus_service
+            )
+            
+            # Try to load from archive
+            identifier_key = {
+                "chat": "chat_id",
+                "app": "app_id",
+                "api_key": "api_key_hash"
+            }[type]
+            
+            filters = {identifier_key: identifier}
+            archived_entries = await archive_service.retrieve_archived_usage(
+                user_id_hash=user_id_hash,
+                year_month=year_month,
+                user_vault_key_id=user_vault_key_id,
+                filters=filters
+            )
+            
+            if archived_entries:
+                # Cache the full archive (all entries for the month) for future requests
+                # First, get all entries for the month (without filters)
+                all_archived_entries = await archive_service.retrieve_archived_usage(
+                    user_id_hash=user_id_hash,
+                    year_month=year_month,
+                    user_vault_key_id=user_vault_key_id,
+                    filters=None
+                )
+                
+                # Cache for 1 hour (3600 seconds)
+                await cache_service.set(cache_key, all_archived_entries, ttl=3600)
+                logger.info(f"Cached usage archive: {cache_key}")
+                
+                entries = archived_entries
+        
+        logger.info(f"Successfully fetched {len(entries)} usage entries for {type} '{identifier}', month '{year_month}'")
+        
+        return {
+            "entries": entries,
+            "type": type,
+            "identifier": identifier,
+            "year_month": year_month,
+            "count": len(entries),
+            "from_cache": False
+        }
+        
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        logger.error(f"Error fetching usage details for user {current_user.id}: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to fetch usage details")
+
+
+# --- Endpoint for exporting usage data as CSV ---
+@router.get("/usage/export")
+@limiter.limit("10/minute")  # Lower limit for export to prevent abuse
+async def export_usage_csv(
+    request: Request,
+    months: int = 3,
+    current_user: User = Depends(get_current_user_or_api_key),
+    directus_service: DirectusService = Depends(get_directus_service),
+    encryption_service: EncryptionService = Depends(get_encryption_service)
+):
+    """
+    Export ALL usage entries for the last N months as CSV.
+    Includes all types: chats, apps, and API keys.
+    """
+    try:
+        # Hash user ID
+        user_id_hash = hashlib.sha256(current_user.id.encode()).hexdigest()
+        
+        # Get user vault key for decryption
+        user_vault_key_id = current_user.vault_key_id
+        if not user_vault_key_id:
+            raise HTTPException(status_code=500, detail="User vault key not found")
+        
+        logger.info(f"Exporting ALL usage data for user {current_user.id}, last {months} months")
+        
+        # Calculate date range
+        from datetime import timedelta
+        start_date = datetime.now() - timedelta(days=months * 30)
+        start_timestamp = int(start_date.timestamp())
+        
+        # Fetch ALL usage entries for the time period (no type filtering)
+        params = {
+            "filter": {
+                "user_id_hash": {"_eq": user_id_hash},
+                "created_at": {"_gte": start_timestamp}
+            },
+            "fields": "*",
+            "sort": ["-created_at"],
+            "limit": -1  # Get all entries
+        }
+        
+        entries = await directus_service.get_items("usage", params=params, no_cache=True)
+        
+        if not entries:
+            raise HTTPException(status_code=404, detail="No usage entries found for the specified period")
+        
+        # Decrypt entries using the usage service (already initialized on directus_service)
+        decrypted_entries = await directus_service.usage._decrypt_usage_entries(entries, user_vault_key_id)
+        
+        # Generate CSV content
+        import io
+        import csv
+        
+        output = io.StringIO()
+        writer = csv.writer(output)
+        
+        # Write header
+        headers = [
+            'Date',
+            'Time',
+            'Type',
+            'Source',
+            'App',
+            'Skill',
+            'Credits',
+            'Input Tokens',
+            'Output Tokens',
+            'Model',
+            'Chat ID',
+            'Message ID',
+            'API Key Hash'
+        ]
+        writer.writerow(headers)
+        
+        # Write rows
+        for entry in decrypted_entries:
+            created_at = entry.get("created_at", 0)
+            date_obj = datetime.fromtimestamp(created_at)
+            
+            row = [
+                date_obj.strftime("%Y-%m-%d"),
+                date_obj.strftime("%H:%M:%S"),
+                entry.get("type", ""),
+                entry.get("source", ""),
+                entry.get("app_id", ""),
+                entry.get("skill_id", ""),
+                entry.get("credits", 0),
+                entry.get("input_tokens", ""),
+                entry.get("output_tokens", ""),
+                entry.get("model_used", ""),
+                entry.get("chat_id", ""),
+                entry.get("message_id", ""),
+                entry.get("api_key_hash", "")[:16] + "..." if entry.get("api_key_hash") else ""  # Truncate hash for privacy
+            ]
+            writer.writerow(row)
+        
+        # Prepare response
+        output.seek(0)
+        filename = f"usage-export-{datetime.now().strftime('%Y-%m-%d')}.csv"
+        
+        return StreamingResponse(
+            iter([output.getvalue()]),
+            media_type="text/csv",
+            headers={
+                "Content-Disposition": f"attachment; filename={filename}"
+            }
+        )
+        
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        logger.error(f"Error exporting usage data for user {current_user.id}: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to export usage data")
 
 

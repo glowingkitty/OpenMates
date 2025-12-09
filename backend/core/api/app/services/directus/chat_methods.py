@@ -116,7 +116,21 @@ class ChatMethods:
     async def get_chat_metadata(self, chat_id: str) -> Optional[Dict[str, Any]]:
         """
         Fetches metadata for a specific chat from Directus, excluding content.
+        
+        Args:
+            chat_id: The chat ID (must be a valid UUID format for Directus queries)
+            
+        Returns:
+            Chat metadata dict if found, None otherwise
         """
+        # Validate chat_id is a UUID format before querying Directus
+        # Non-UUID chat IDs (like "demo-welcome") are not stored in Directus
+        import re
+        uuid_pattern = re.compile(r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$', re.IGNORECASE)
+        if not uuid_pattern.match(chat_id):
+            logger.debug(f"Skipping Directus query for non-UUID chat_id: {chat_id} (likely a demo/placeholder chat)")
+            return None
+        
         logger.info(f"Fetching chat metadata for chat_id: {chat_id}")
         params = {
             'filter[id][_eq]': chat_id,

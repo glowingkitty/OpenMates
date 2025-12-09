@@ -83,6 +83,14 @@ BUCKETS = {
         'max_size': 500 * 1024 * 1024,  # 500MB
         'access': 'private',
         'lifecycle_policy': 365,  # 1 year auto-delete (in days)
+    },
+    'usage_archives': {
+        'name': 'openmates-usage-archives',
+        'dev_name': 'dev-openmates-usage-archives',
+        'allowed_types': ['application/gzip', 'application/json'],
+        'max_size': 500 * 1024 * 1024,  # 500MB per archive
+        'access': 'private',
+        'lifecycle_policy': 2555,  # 7 years auto-delete (in days)
     }
 }
 
