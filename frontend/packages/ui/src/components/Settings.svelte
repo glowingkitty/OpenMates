@@ -45,6 +45,7 @@ changes to the documentation (to keep the documentation up to date).
     import { userProfile, updateProfile } from '../stores/userProfile';
     import { settingsDeepLink } from '../stores/settingsDeepLinkStore';
     import { webSocketService } from '../services/websocketService';
+    import { notificationStore } from '../stores/notificationStore'; // Import notification store for payment notifications
     
     // Import modular components
     import SettingsFooter from './settings/SettingsFooter.svelte';
@@ -75,6 +76,7 @@ changes to the documentation (to keep the documentation up to date).
     import SettingsBuyCredits from './settings/billing/SettingsBuyCredits.svelte';
     import SettingsBuyCreditsPayment from './settings/billing/SettingsBuyCreditsPayment.svelte';
     import SettingsBuyCreditsConfirmation from './settings/billing/SettingsBuyCreditsConfirmation.svelte';
+    import SettingsRedeemGiftCard from './settings/billing/SettingsRedeemGiftCard.svelte';
     import SettingsAutoTopUp from './settings/billing/SettingsAutoTopUp.svelte';
     import SettingsLowBalanceAutotopup from './settings/billing/autotopup/SettingsLowBalanceAutotopup.svelte';
     import SettingsMonthlyAutotopup from './settings/billing/autotopup/SettingsMonthlyAutotopup.svelte';
@@ -134,6 +136,7 @@ changes to the documentation (to keep the documentation up to date).
         'billing/buy-credits': SettingsBuyCredits,
         'billing/buy-credits/payment': SettingsBuyCreditsPayment,
         'billing/buy-credits/confirmation': SettingsBuyCreditsConfirmation,
+        'billing/redeem-giftcard': SettingsRedeemGiftCard,
         'billing/auto-topup': SettingsAutoTopUp,
         'billing/auto-topup/low-balance': SettingsLowBalanceAutotopup,
         'billing/auto-topup/monthly': SettingsMonthlyAutotopup,
@@ -758,13 +761,43 @@ changes to the documentation (to keep the documentation up to date).
             }
         };
 
+        // Listen for payment completion notifications via WebSocket
+        // This handles cases where payment completes after user has moved on from payment screen
+        const handlePaymentCompleted = (payload: { order_id: string, credits_purchased: number, current_credits: number }) => {
+            console.debug('[Settings] Received payment_completed notification via WebSocket:', payload);
+            // Show success notification popup (using Notification.svelte component)
+            notificationStore.success(
+                `Payment completed! ${payload.credits_purchased.toLocaleString()} credits have been added to your account.`,
+                5000
+            );
+            // Update credits in user profile if available
+            if (payload.current_credits !== undefined) {
+                updateProfile({ credits: payload.current_credits });
+            }
+        };
+
+        // Listen for payment failure notifications via WebSocket
+        // This handles cases where payment fails minutes after user has moved on from payment screen
+        const handlePaymentFailed = (payload: { order_id: string, message: string }) => {
+            console.debug('[Settings] Received payment_failed notification via WebSocket:', payload);
+            // Show error notification popup (using Notification.svelte component)
+            notificationStore.error(
+                payload.message || 'Payment failed. Please try again or use a different payment method.',
+                10000 // Show for 10 seconds since this is important
+            );
+        };
+
         webSocketService.on('user_credits_updated', handleCreditUpdate);
+        webSocketService.on('payment_completed', handlePaymentCompleted);
+        webSocketService.on('payment_failed', handlePaymentFailed);
         
         return () => {
             window.removeEventListener('resize', handleResize);
             document.removeEventListener('click', handleClickOutside);
             window.removeEventListener('language-changed', languageChangeHandler);
             webSocketService.off('user_credits_updated', handleCreditUpdate);
+            webSocketService.off('payment_completed', handlePaymentCompleted);
+            webSocketService.off('payment_failed', handlePaymentFailed);
         };
     });
 
@@ -860,10 +893,26 @@ changes to the documentation (to keep the documentation up to date).
         }
     });
 
-    // Handle deep link requests from other components (only for authenticated users)
+    // Handle deep link requests from other components
+    // NOTE: Non-authenticated users can access app_store and interface settings
     $effect(() => {
-        if ($settingsDeepLink && $authStore.isAuthenticated) {
+        if ($settingsDeepLink) {
             const settingsPath = $settingsDeepLink;
+            
+            // For non-authenticated users, only allow app_store and interface settings
+            if (!$authStore.isAuthenticated) {
+                const allowedPaths = ['app_store', 'interface', 'interface/language'];
+                const isAllowedPath = allowedPaths.includes(settingsPath) || 
+                                     settingsPath.startsWith('app_store/') ||
+                                     settingsPath.startsWith('interface/');
+                
+                if (!isAllowedPath) {
+                    // Clear the deep link if path is not allowed for non-authenticated users
+                    console.debug('[Settings] Clearing deep link - path not allowed for non-authenticated users:', settingsPath);
+                    settingsDeepLink.set(null);
+                    return;
+                }
+            }
 
             // Reset the deep link store immediately to prevent multiple triggers
             settingsDeepLink.set(null);
@@ -914,9 +963,6 @@ changes to the documentation (to keep the documentation up to date).
                     }
                 });
             }, 300);
-        } else if ($settingsDeepLink && !$authStore.isAuthenticated) {
-            // Clear the deep link if user is not authenticated (can't navigate to settings while not logged in)
-            settingsDeepLink.set(null);
         }
     });
 

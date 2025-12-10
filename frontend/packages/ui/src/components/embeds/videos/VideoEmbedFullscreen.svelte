@@ -334,6 +334,15 @@
       <!-- Action buttons - moves down when video is playing to avoid collision -->
       {#if url}
         <div class="button-container" class:video-playing={isVideoPlaying}>
+          <!-- Tip Creator button - positioned left to the play on YouTube button -->
+          <button
+            class="tip-creator-button"
+            onclick={handleTipCreator}
+            type="button"
+            aria-label="Tip Creator"
+          >
+            <span class="clickable-icon icon_volunteering"></span>
+          </button>
           <a 
             href={url}
             target="_blank"
@@ -350,17 +359,9 @@
               type="button"
               aria-label="Enter picture-in-picture mode"
             >
-              <span class="pip-icon"></span>
-              <span class="pip-text">PiP</span>
+              <span class="clickable-icon icon_pip"></span>
             </button>
           {/if}
-          <button
-            class="tip-creator-button"
-            onclick={handleTipCreator}
-            type="button"
-          >
-            {$text('embeds.tip_creator.text') || 'Tip Creator'}
-          </button>
         </div>
       {/if}
     </div>
@@ -516,24 +517,20 @@
     filter: none;
   }
   
-  /* Tip creator button - styled similarly to Open on YouTube button */
+  /* Tip creator button - rounded button with icon only */
   .tip-creator-button {
     background-color: var(--color-button-secondary, var(--color-grey-20));
-    padding: 6px 25px;
+    padding: 0;
     border-radius: 20px;
     border: none;
     filter: drop-shadow(0px 4px 4px rgba(0, 0, 0, 0.25));
     cursor: pointer;
     transition: all 0.15s ease-in-out;
-    min-width: 112px;
+    width: 41px;
     height: 41px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    color: var(--color-font-button, var(--color-grey-100));
-    font-family: var(--button-font-family);
-    font-size: var(--button-font-size);
-    font-weight: var(--button-font-weight);
   }
   
   .tip-creator-button:hover {
@@ -547,25 +544,20 @@
     filter: none;
   }
   
-  /* Picture-in-Picture button - styled similarly to other buttons */
+  /* Picture-in-Picture button - rounded button with icon only */
   .pip-button {
     background-color: var(--color-button-secondary, var(--color-grey-20));
-    padding: 6px 25px;
+    padding: 0;
     border-radius: 20px;
     border: none;
     filter: drop-shadow(0px 4px 4px rgba(0, 0, 0, 0.25));
     cursor: pointer;
     transition: all 0.15s ease-in-out;
-    min-width: 112px;
+    width: 41px;
     height: 41px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 8px;
-    color: var(--color-font-button, var(--color-grey-100));
-    font-family: var(--button-font-family);
-    font-size: var(--button-font-size);
-    font-weight: var(--button-font-weight);
   }
   
   .pip-button:hover {
@@ -579,40 +571,10 @@
     filter: none;
   }
   
-  /* PiP icon - using a simple picture-in-picture icon style */
-  .pip-icon {
+  /* Icon sizing within buttons */
+  .tip-creator-button .clickable-icon,
+  .pip-button .clickable-icon {
     width: 20px;
     height: 20px;
-    display: block;
-    position: relative;
-  }
-  
-  .pip-icon::before,
-  .pip-icon::after {
-    content: '';
-    position: absolute;
-    border: 2px solid currentColor;
-    border-radius: 2px;
-  }
-  
-  .pip-icon::before {
-    /* Main video frame */
-    width: 16px;
-    height: 12px;
-    top: 0;
-    left: 0;
-  }
-  
-  .pip-icon::after {
-    /* Small PiP frame */
-    width: 8px;
-    height: 6px;
-    bottom: 0;
-    right: 0;
-    border-width: 1.5px;
-  }
-  
-  .pip-text {
-    font-size: var(--button-font-size);
   }
 </style>

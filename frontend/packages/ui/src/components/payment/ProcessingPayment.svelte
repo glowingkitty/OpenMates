@@ -9,10 +9,12 @@
     // Props using Svelte 5 runes
     let { 
         state = 'processing',
-        isGift = false
+        isGift = false,
+        showDelayedMessage = false
     }: {
         state?: 'processing' | 'success';
         isGift?: boolean;
+        showDelayedMessage?: boolean;
     } = $props();
     
     function handleSecurePaymentInfoClick() {
@@ -24,7 +26,11 @@
     <div class="payment-processing" in:fade={{ duration: 300 }}>
         <div class="center-container">
             <span class="clickable-icon icon_billing large-icon"></span>
-            <p class="processing-text color-grey-60">{@html $text('signup.processing_payment.text')}</p>
+            {#if showDelayedMessage}
+                <p class="processing-text color-grey-60">{@html $text('signup.payment_processing_delayed.text')}</p>
+            {:else}
+                <p class="processing-text color-grey-60">{@html $text('signup.processing_payment.text')}</p>
+            {/if}
         </div>
         
         <div class="bottom-container">

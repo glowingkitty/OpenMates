@@ -33,40 +33,32 @@ Buy Credits Confirmation - Success screen after purchase
     }
 </script>
 
-<div class="confirmation-container">
-    <!-- Success Icon and Message -->
-    <div class="success-section">
-        <div class="success-icon-wrapper">
-            <div class="success-icon"></div>
-        </div>
-        <h2 class="success-title">{$text('settings.billing.purchase_successful.text')}</h2>
-        <p class="success-subtitle">{$text('settings.billing.credits_added.text')}</p>
+<!-- Success Icon and Message -->
+<div class="success-section">
+    <div class="success-icon-wrapper">
+        <div class="success-icon"></div>
     </div>
+    <h2 class="success-title">{$text('settings.billing.purchase_successful.text')}</h2>
+    <p class="success-subtitle">{$text('settings.billing.credits_added.text')}</p>
+</div>
 
-    <!-- Updated Balance Display -->
-    <div class="balance-info">
-        <div class="balance-display">
-            <span class="coin-icon"></span>
-            <span class="balance-amount">{formatCredits(currentCredits)}</span>
-            <span class="balance-label">{$text('settings.billing.credits.text')}</span>
-        </div>
-    </div>
-
-    <!-- Action Button -->
-    <div class="action-section">
-        <button class="done-button" onclick={goBackToBilling}>
-            {$text('settings.billing.done.text')}
-        </button>
+<!-- Updated Balance Display -->
+<div class="balance-info">
+    <div class="balance-display">
+        <span class="coin-icon"></span>
+        <span class="balance-amount">{formatCredits(currentCredits)}</span>
+        <span class="balance-label">{$text('settings.billing.credits.text')}</span>
     </div>
 </div>
 
+<!-- Action Button -->
+<div class="action-section">
+    <button class="done-button" onclick={goBackToBilling}>
+        {$text('settings.billing.done.text')}
+    </button>
+</div>
+
 <style>
-    .confirmation-container {
-        padding: 20px 10px;
-        display: flex;
-        flex-direction: column;
-        gap: 24px;
-    }
 
     /* Success Section */
     .success-section {

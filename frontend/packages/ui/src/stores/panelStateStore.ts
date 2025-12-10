@@ -124,15 +124,20 @@ const intendedActivityHistoryOpen = derived(
     }
 );
 
-// Determine the *intended* state of Settings (simpler logic)
+// Determine the *intended* state of Settings
+// NOTE: Non-authenticated users can access app_store and interface settings
+// This allows them to browse apps and change language during signup
 const intendedSettingsOpen = derived(
     [authStore, isInSignupProcess, isLoggingOut, _isSettingsOpen],
      ([$authStore, $isInSignupProcess, $isLoggingOut, $isSettingsOpen]) => {
-        if (!$authStore.isAuthenticated || $isLoggingOut) {
-             console.debug('[PanelState] Intended Settings Closed: Not Authenticated or Logging out');
-            return false; // Close settings if not authenticated or logging out
+        // Allow settings to open for non-authenticated users (they can access app_store and interface)
+        // Only block during logout
+        if ($isLoggingOut) {
+             console.debug('[PanelState] Intended Settings Closed: Logging out');
+            return false; // Close settings if logging out
         }
         // Otherwise, respect the current state (_isSettingsOpen) set by actions
+        // This allows non-authenticated users to open settings for app_store/interface
         return $isSettingsOpen;
     }
 );

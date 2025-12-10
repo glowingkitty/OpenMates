@@ -474,7 +474,32 @@ async def _async_process_invoice_and_send_email(
 
         logger.info(f"Successfully sent purchase confirmation email with invoice attached.")
 
-        # 13. Process Income Transaction in Invoice Ninja
+        # 13. Notify user via WebSocket that payment is completed (credits updated and invoice sent)
+        # This notification is sent after both credits are updated (in webhook) and invoice is sent (here)
+        try:
+            # Get current credits from cache to include in notification
+            current_credits = user_profile.get('credits', 0)
+            
+            # Publish payment_completed event to user_updates channel
+            # The websocket listener will pick this up and broadcast it to the client
+            await cache_service.publish_event(
+                channel=f"user_updates::{user_id}",
+                event_data={
+                    "event_for_client": "payment_completed",
+                    "user_id_uuid": user_id,
+                    "payload": {
+                        "order_id": order_id,
+                        "credits_purchased": credits_purchased,
+                        "current_credits": current_credits
+                    }
+                }
+            )
+            logger.info(f"Published 'payment_completed' event for user {user_id}, order {order_id}.")
+        except Exception as notification_err:
+            logger.error(f"Failed to publish 'payment_completed' event for user {user_id}: {notification_err}", exc_info=True)
+            # Don't fail the task if notification fails - invoice was sent successfully
+
+        # 14. Process Income Transaction in Invoice Ninja
         logger.info(f"Processing income transaction in Invoice Ninja for Order ID: {order_id}")
         try:
             # Access InvoiceNinjaService via the base task property

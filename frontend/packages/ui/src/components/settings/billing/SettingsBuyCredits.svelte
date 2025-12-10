@@ -8,12 +8,10 @@ Buy Credits - Credit tier selection
     import { pricingTiers } from '../../../config/pricing';
     import SettingsItem from '../../SettingsItem.svelte';
     import { selectedTierStore } from './SettingsBuyCreditsPayment.svelte';
-    import GiftCardRedeem from './GiftCardRedeem.svelte';
 
     const dispatch = createEventDispatcher();
 
     let selectedCurrency = $state('EUR');
-    let showGiftCardInput = $state(false);
 
     // Format credits with dots as thousand separators
     function formatCredits(credits: number): string {
@@ -50,63 +48,16 @@ Buy Credits - Credit tier selection
             title: `${formatCredits(tier.credits)} ${$text('settings.billing.credits.text')}`
         });
     }
-
-    // Handle gift card redemption success
-    function handleGiftCardRedeemed() {
-        // Navigate to confirmation screen
-        dispatch('openSettings', {
-            settingsPath: 'billing/buy-credits/confirmation',
-            direction: 'forward',
-            icon: 'check',
-            title: $text('settings.billing.purchase_successful.text')
-        });
-    }
-
-    // Cancel gift card input and return to credit selection
-    function cancelGiftCard() {
-        showGiftCardInput = false;
-    }
 </script>
 
-<div class="buy-credits-container">
-    {#if showGiftCardInput}
-        <!-- Gift Card Redemption Form -->
-        <GiftCardRedeem
-            on:redeemed={handleGiftCardRedeemed}
-            on:cancel={cancelGiftCard}
-        />
-    {:else}
-        <!-- "I have a gift card" Button -->
-        <SettingsItem
-            type="submenu"
-            icon="subsetting_icon subsetting_icon_coins"
-            title={$text('settings.billing.gift_card.have_code.text')}
-            onClick={() => showGiftCardInput = true}
-        />
-        
-        <!-- Credit Tier Selection as Menu Items -->
-        {#each pricingTiers as tier}
-            <SettingsItem
-                type="submenu"
-                icon="subsetting_icon subsetting_icon_coins"
-                title={formatCredits(tier.credits)}
-                subtitle={formatCurrency(getTierPrice(tier), selectedCurrency)}
-                onClick={() => selectCreditTier(tier)}
-            />
-        {/each}
-    {/if}
-</div>
-
-<style>
-    .buy-credits-container {
-        padding: 0 10px;
-    }
-
-    /* Responsive Styles */
-    @media (max-width: 480px) {
-        .buy-credits-container {
-            padding: 0 5px;
-        }
-    }
-</style>
+<!-- Credit Tier Selection as Menu Items -->
+{#each pricingTiers as tier}
+    <SettingsItem
+        type="submenu"
+        icon="subsetting_icon subsetting_icon_coins"
+        title={formatCredits(tier.credits)}
+        subtitle={formatCurrency(getTierPrice(tier), selectedCurrency)}
+        onClick={() => selectCreditTier(tier)}
+    />
+{/each}
 
