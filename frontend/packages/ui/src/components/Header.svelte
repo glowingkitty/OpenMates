@@ -122,7 +122,7 @@
     });
 
     // Derive button text based on viewport size
-    let loginButtonText = $derived(isMobile ? $text('signup.sign_up.text') : `${$text('signup.sign_up.text')} / ${$text('header.login.text')}`);
+    let loginButtonText = $derived(isMobile ? $text('signup.sign_up.text') : `${$text('login.login.text')} / ${$text('signup.sign_up.text')}`);
 
     // Update menu toggle logic to consider the logging out state as well
     const toggleMenu = () => {
