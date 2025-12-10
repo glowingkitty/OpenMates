@@ -76,6 +76,7 @@ Billing Settings - Credit purchases, subscription management, and auto top-up co
         // Map path to icon name
         const iconMap: Record<string, string> = {
             'buy-credits': 'coins',
+            'redeem-giftcard': 'coins',
             'auto-topup': 'reload',
             'invoices': 'document'
         };
@@ -94,46 +95,50 @@ Billing Settings - Credit purchases, subscription management, and auto top-up co
     });
 </script>
 
-<!-- Main Billing Menu (Settings.svelte handles all navigation) -->
-<div class="billing-container">
-    <!-- Current Balance Display -->
-    <div class="balance-info">
-        <div class="balance-display">
-            <span class="coin-icon"></span>
-            <span class="balance-amount">{formatCredits(currentCredits)}</span>
-            <span class="balance-label">{$text('settings.billing.credits.text')}</span>
-        </div>
+<!-- Current Balance Display -->
+<div class="balance-info">
+    <div class="balance-display">
+        <span class="coin-icon"></span>
+        <span class="balance-amount">{formatCredits(currentCredits)}</span>
+        <span class="balance-label">{$text('settings.billing.credits.text')}</span>
     </div>
-
-    <!-- Buy Credits Menu Item -->
-    <SettingsItem
-        type="submenu"
-        icon="subsetting_icon subsetting_icon_coins"
-        title={$text('settings.billing.buy_credits.text')}
-        onClick={() => navigateToSubview('buy-credits')}
-    />
-
-    <!-- Auto Top-up Menu Item -->
-    <SettingsItem
-        type="submenu"
-        icon="subsetting_icon subsetting_icon_reload"
-        title={$text('settings.billing.auto_topup.text')}
-        onClick={() => navigateToSubview('auto-topup')}
-    />
-
-    <!-- Invoices Menu Item -->
-    <SettingsItem
-        type="submenu"
-        icon="subsetting_icon subsetting_icon_document"
-        title={$text('settings.billing.invoices.text')}
-        onClick={() => navigateToSubview('invoices')}
-    />
-
-    {#if errorMessage}
-        <div class="error-message">{errorMessage}</div>
-    {/if}
 </div>
 
+<!-- Buy Credits Menu Item -->
+<SettingsItem
+    type="submenu"
+    icon="subsetting_icon subsetting_icon_coins"
+    title={$text('settings.billing.buy_credits.text')}
+    onClick={() => navigateToSubview('buy-credits')}
+/>
+
+<!-- Redeem Giftcard Menu Item -->
+<SettingsItem
+    type="submenu"
+    icon="subsetting_icon subsetting_icon_coins"
+    title={$text('settings.billing.gift_card.redeem.text')}
+    onClick={() => navigateToSubview('redeem-giftcard')}
+/>
+
+<!-- Auto Top-up Menu Item -->
+<SettingsItem
+    type="submenu"
+    icon="subsetting_icon subsetting_icon_reload"
+    title={$text('settings.billing.auto_topup.text')}
+    onClick={() => navigateToSubview('auto-topup')}
+/>
+
+<!-- Invoices Menu Item -->
+<SettingsItem
+    type="submenu"
+    icon="subsetting_icon subsetting_icon_document"
+    title={$text('settings.billing.invoices.text')}
+    onClick={() => navigateToSubview('invoices')}
+/>
+
+{#if errorMessage}
+    <div class="error-message">{errorMessage}</div>
+{/if}
 <!-- TODO: Create separate components for sub-views:
      - SettingsBillingBuyCredits.svelte
      - SettingsBillingAutoTopup.svelte  
@@ -148,12 +153,6 @@ Billing Settings - Credit purchases, subscription management, and auto top-up co
 -->
 
 <style>
-    /* Main Container */
-    .billing-container {
-        width: 100%;
-        padding: 0 10px;
-    }
-
     /* Balance Info Section */
     .balance-info {
         padding: 10px;
@@ -222,10 +221,6 @@ Billing Settings - Credit purchases, subscription management, and auto top-up co
         .coin-icon {
             width: 24px;
             height: 24px;
-        }
-
-        .billing-container {
-            padding: 0 5px;
         }
     }
 </style>

@@ -34,7 +34,7 @@
     } from '@repo/ui';
     import { notificationStore, getKeyFromStorage, text, LANGUAGE_CODES } from '@repo/ui';
     import { checkAndClearMasterKeyOnLoad } from '@repo/ui';
-    import { onMount } from 'svelte';
+    import { onMount, onDestroy } from 'svelte';
     import { locale, waitLocale, _, isLoading } from 'svelte-i18n';
     import { browser } from '$app/environment';
     import { i18nLoaded } from '@repo/ui';
@@ -434,6 +434,42 @@
 		webSocketService.addEventListener('authError', handleWebSocketAuthError as EventListener);
 		console.debug('[+page.svelte] Registered WebSocket auth error listener');
 		
+		// Listen for payment completion notifications via WebSocket
+		// This handles cases where payment completes after user has moved on from signup flow
+		const handlePaymentCompleted = (payload: { order_id: string, credits_purchased: number, current_credits: number }) => {
+			console.debug('[+page.svelte] Received payment_completed notification via WebSocket:', payload);
+			// Show success notification popup (using Notification.svelte component)
+			notificationStore.success(
+				`Payment completed! ${payload.credits_purchased.toLocaleString()} credits have been added to your account.`,
+				5000
+			);
+			// Update credits in user profile if available
+			if (payload.current_credits !== undefined) {
+				// Import updateProfile dynamically (non-blocking)
+				import('@repo/ui').then(({ updateProfile }) => {
+					updateProfile({ credits: payload.current_credits });
+				}).catch(error => {
+					console.warn('[+page.svelte] Failed to import updateProfile:', error);
+				});
+			}
+		};
+		
+		// Listen for payment failure notifications via WebSocket
+		// This handles cases where payment fails minutes after user has moved on from signup flow
+		const handlePaymentFailed = (payload: { order_id: string, message: string }) => {
+			console.debug('[+page.svelte] Received payment_failed notification via WebSocket:', payload);
+			// Show error notification popup (using Notification.svelte component)
+			notificationStore.error(
+				payload.message || 'Payment failed. Please try again or use a different payment method.',
+				10000 // Show for 10 seconds since this is important
+			);
+		};
+		
+		// Register WebSocket listeners for payment notifications
+		webSocketService.on('payment_completed', handlePaymentCompleted);
+		webSocketService.on('payment_failed', handlePaymentFailed);
+		console.debug('[+page.svelte] Registered WebSocket payment notification listeners');
+		
 		// CRITICAL: Setup cleanup for shared chats on session close (non-authenticated users only)
 		// Shared chats are stored in IndexedDB but should be deleted when the session ends
 		// This ensures shared chats don't persist long-term for non-authenticated users
@@ -731,6 +767,10 @@
                  console.warn(`[+page.svelte] Invalid settings deep link hash: ${window.location.hash}`);
                  settingsDeepLink.set('main'); // Default to main on invalid hash
             }
+            
+            // Clear the hash after processing to keep URL clean
+            // (similar to how signup and chat deep links are cleared)
+            window.history.replaceState({}, '', window.location.pathname + window.location.search);
         } else if (window.location.hash.startsWith('#chat_id=') || window.location.hash.startsWith('#chat-id=')) {
             // Handle chat deep linking from URL
             // Support both #chat_id= and #chat-id= formats
@@ -757,7 +797,7 @@
 
     /**
      * Handle hash changes after page load
-     * Allows navigation by pasting URLs with chat_id or signup hash
+     * Allows navigation by pasting URLs with chat_id, signup hash, or settings hash
      */
     function handleHashChange() {
         console.debug('[+page.svelte] Hash changed:', window.location.hash);
@@ -778,6 +818,31 @@
             loginInterfaceOpen.set(true);
             
             // Clear the hash after processing to keep URL clean
+            window.history.replaceState({}, '', window.location.pathname + window.location.search);
+        } else if (window.location.hash.startsWith('#settings')) {
+            // Handle settings deep linking - open settings menu and navigate to specific page
+            console.debug(`[+page.svelte] Hash changed to settings deep link: ${window.location.hash}`);
+            
+            panelState.openSettings();
+            const settingsPath = window.location.hash.substring('#settings'.length);
+            if (settingsPath.startsWith('/')) {
+                // Handle paths like #settings/appstore -> app_store
+                let path = settingsPath.substring(1); // Remove leading slash
+                // Map common aliases to actual settings paths
+                if (path === 'appstore') {
+                    path = 'app_store';
+                }
+                settingsDeepLink.set(path);
+            } else if (settingsPath === '') {
+                 settingsDeepLink.set('main'); // Default to main settings if just #settings
+            } else {
+                 // Handle invalid settings path?
+                 console.warn(`[+page.svelte] Invalid settings deep link hash: ${window.location.hash}`);
+                 settingsDeepLink.set('main'); // Default to main on invalid hash
+            }
+            
+            // Clear the hash after processing to keep URL clean
+            // (similar to how signup and chat deep links are cleared)
             window.history.replaceState({}, '', window.location.pathname + window.location.search);
         } else if (window.location.hash.startsWith('#chat_id=') || window.location.hash.startsWith('#chat-id=')) {
             // Support both #chat_id= and #chat-id= formats

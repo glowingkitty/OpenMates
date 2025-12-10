@@ -289,14 +289,21 @@ async def create_payment_order(
             logger.error(f"Order response from {payment_service.provider_name} missing 'id' for user {current_user.id}.")
             raise HTTPException(status_code=502, detail="Failed to get order ID from payment provider.")
 
-        await cache_service.set_order(
+        # Cache the order - CRITICAL: Check if cache write succeeded
+        # If cache write fails, webhook processing will fail because order won't be found
+        cache_success = await cache_service.set_order(
             order_id=order_id,
             user_id=current_user.id,
             credits_amount=order_data.credits_amount,
             status="created",
-            ttl=300, # 5 minutes TTL
+            ttl=3600, # 1 hour TTL (increased from 5 minutes to handle webhook delays/retries)
             email_encryption_key=order_data.email_encryption_key  # Store the email encryption key
         )
+        
+        if not cache_success:
+            logger.error(f"CRITICAL: Failed to cache order {order_id} for user {current_user.id}. Webhook processing will fail!")
+            # Don't fail the request - payment was created successfully
+            # But log the error so we can investigate cache issues
 
         response_data = {
             "provider": payment_service.provider_name,
@@ -378,6 +385,9 @@ async def payment_webhook(
                 webhook_order_id = event_payload.get("data", {}).get("object", {}).get("id")
             elif event_type == "checkout.session.completed":
                 # If using Checkout Sessions, the PaymentIntent ID is linked
+                webhook_order_id = event_payload.get("data", {}).get("object", {}).get("payment_intent")
+            elif event_type == "checkout.session.async_payment_failed":
+                # For async payment failures, get PaymentIntent ID from checkout session
                 webhook_order_id = event_payload.get("data", {}).get("object", {}).get("payment_intent")
 
         if not webhook_order_id:
@@ -514,9 +524,44 @@ async def payment_webhook(
                 await cache_service.update_order_status(webhook_order_id, final_order_status)
 
         elif (provider_name == "revolut" and event_type == "ORDER_CANCELLED") or \
-             (provider_name == "stripe" and event_type == "payment_intent.payment_failed"):
+             (provider_name == "stripe" and event_type == "payment_intent.payment_failed") or \
+             (provider_name == "stripe" and event_type == "checkout.session.async_payment_failed"):
             logger.warning(f"Payment for order {webhook_order_id} failed or was cancelled.")
             await cache_service.update_order_status(webhook_order_id, "failed")
+            
+            # Get user_id from cached order data to send notification
+            cached_order_data = await cache_service.get_order(webhook_order_id)
+            if cached_order_data:
+                user_id = cached_order_data.get("user_id")
+                if user_id:
+                    # Send payment_failed notification via websocket
+                    try:
+                        # Publish payment_failed event to user_updates channel
+                        await cache_service.publish_event(
+                            channel=f"user_updates::{user_id}",
+                            event_data={
+                                "event_for_client": "payment_failed",
+                                "user_id_uuid": user_id,
+                                "payload": {
+                                    "order_id": webhook_order_id,
+                                    "message": "Payment failed. Please try again or use a different payment method."
+                                }
+                            }
+                        )
+                        
+                        # Also directly broadcast to the user via WebSocket manager for immediate update
+                        await manager.broadcast_to_user_specific_event(
+                            user_id=user_id,
+                            event_name="payment_failed",
+                            payload={
+                                "order_id": webhook_order_id,
+                                "message": "Payment failed. Please try again or use a different payment method."
+                            }
+                        )
+                        
+                        logger.info(f"Published and broadcasted 'payment_failed' event for user {user_id}, order {webhook_order_id}.")
+                    except Exception as pub_exc:
+                        logger.error(f"Failed to publish 'payment_failed' event for user {user_id}: {pub_exc}", exc_info=True)
         
         # Handle subscription events
         elif provider_name == "stripe" and event_type == "invoice.payment_succeeded":

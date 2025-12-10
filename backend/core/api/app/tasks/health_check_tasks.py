@@ -35,6 +35,41 @@ HEALTH_CHECK_INTERVAL_WITH_ENDPOINT = 60  # 1 minute for providers with /health 
 HEALTH_CHECK_INTERVAL_WITHOUT_ENDPOINT = 300  # 5 minutes for providers without /health endpoint
 
 
+def _is_credential_error(error_message: Optional[str]) -> bool:
+    """
+    Check if an error message indicates a credential/authentication issue.
+    
+    Args:
+        error_message: The error message to check
+    
+    Returns:
+        True if this appears to be a credential/authentication error, False otherwise
+    """
+    if not error_message:
+        return False
+    
+    error_lower = error_message.lower()
+    
+    # AWS credential error indicators
+    credential_indicators = [
+        'unrecognizedclientexception',
+        'invalidclienttokenid',
+        'invalidaccesskeyid',
+        'signaturedoesnotmatch',
+        'invalid security token',
+        'security token included in the request is invalid',
+        'authentication/credential error',
+        'credentials are invalid',
+        'credentials are expired',
+        'credentials have been deactivated',
+        'invalid credentials',
+        'access denied',
+        'invalidsecurity'
+    ]
+    
+    return any(indicator in error_lower for indicator in credential_indicators)
+
+
 def _sanitize_error_message(error_message: Optional[str]) -> Optional[str]:
     """
     Sanitize error messages for public health endpoint.
@@ -51,6 +86,10 @@ def _sanitize_error_message(error_message: Optional[str]) -> Optional[str]:
         return None
     
     error_lower = error_message.lower()
+    
+    # Check for credential errors first
+    if _is_credential_error(error_message):
+        return "credential_error"
     
     # Check for timeout
     if "timeout" in error_lower:
@@ -487,7 +526,19 @@ async def _check_provider_health(provider_id: str, health_endpoint: Optional[str
         status = "unhealthy"
         last_error_raw = error
         last_error = _sanitize_error_message(last_error_raw)
-        logger.error(f"Health check: Provider '{provider_id}' is unhealthy. Error: {last_error_raw}")
+        
+        # Log with additional context for credential errors
+        if _is_credential_error(last_error_raw):
+            logger.error(
+                f"Health check: Provider '{provider_id}' is unhealthy due to credential/authentication error. "
+                f"Error: {last_error_raw}"
+            )
+            logger.warning(
+                f"Health check: Provider '{provider_id}' requires valid credentials to be configured. "
+                f"Please verify the credentials in the secrets manager. Health checks will continue to fail until this is resolved."
+            )
+        else:
+            logger.error(f"Health check: Provider '{provider_id}' is unhealthy. Error: {last_error_raw}")
     
     # Get existing health data to preserve response_times_ms
     cache_key = f"{HEALTH_CHECK_CACHE_KEY_PREFIX}{provider_id}"
@@ -1049,6 +1100,7 @@ async def _check_aws_bedrock_health(secrets_manager: SecretsManager) -> Dict[str
 
             try:
                 import boto3
+                from botocore.exceptions import ClientError
 
                 # Create Bedrock client
                 bedrock_client = boto3.client(
@@ -1065,17 +1117,79 @@ async def _check_aws_bedrock_health(secrets_manager: SecretsManager) -> Dict[str
                 last_error = None
                 logger.info(f"Health check: AWS Bedrock is healthy ({response_time_ms:.1f}ms)")
 
+            except ClientError as e:
+                # Handle AWS-specific errors (including credential errors)
+                response_time_ms = (time.time() - start_time) * 1000
+                status = "unhealthy"
+                error_code = e.response.get('Error', {}).get('Code', 'Unknown')
+                error_message = e.response.get('Error', {}).get('Message', str(e))
+                error_str = f"{error_code}: {error_message}"
+                last_error = _sanitize_error_message(error_str)
+                
+                # Check for credential errors using both error code and message
+                credential_error_codes = [
+                    'UnrecognizedClientException',
+                    'InvalidUserID.NotFound',
+                    'InvalidClientTokenId',
+                    'SignatureDoesNotMatch',
+                    'InvalidAccessKeyId',
+                    'AccessDenied',
+                    'InvalidSecurity',
+                    'TokenRefreshRequired'
+                ]
+                
+                is_cred_error = error_code in credential_error_codes or _is_credential_error(error_str)
+                
+                if is_cred_error:
+                    logger.error(
+                        f"Health check: AWS Bedrock credential/authentication error ({error_code}): {error_message}",
+                        exc_info=True
+                    )
+                    logger.warning(
+                        "Health check: AWS Bedrock credentials appear to be invalid or deactivated. "
+                        "Please verify the AWS credentials (access_key_id, secret_access_key) in the secrets manager. "
+                        "Health checks will continue to fail until valid credentials are configured."
+                    )
+                else:
+                    logger.error(f"Health check: AWS Bedrock API error ({error_code}): {error_message}", exc_info=True)
             except Exception as e:
                 response_time_ms = (time.time() - start_time) * 1000
                 status = "unhealthy"
-                last_error = _sanitize_error_message(str(e))
-                logger.error(f"Health check: AWS Bedrock error: {e}")
+                error_str = str(e)
+                last_error = _sanitize_error_message(error_str)
+                
+                # Detect and log credential errors with additional context
+                if _is_credential_error(error_str):
+                    logger.error(
+                        f"Health check: AWS Bedrock error (credential/authentication issue): {e}",
+                        exc_info=True
+                    )
+                    logger.warning(
+                        "Health check: AWS Bedrock credentials appear to be invalid or deactivated. "
+                        "Please verify the AWS credentials (access_key_id, secret_access_key) in the secrets manager. "
+                        "Health checks will continue to fail until valid credentials are configured."
+                    )
+                else:
+                    logger.error(f"Health check: AWS Bedrock error: {e}", exc_info=True)
 
     except Exception as e:
         status = "unhealthy"
-        last_error = _sanitize_error_message(str(e))
+        error_str = str(e)
+        last_error = _sanitize_error_message(error_str)
         response_time_ms = None
-        logger.error(f"Health check: Error checking AWS Bedrock: {e}", exc_info=True)
+        
+        # Detect and log credential errors with additional context
+        if _is_credential_error(error_str):
+            logger.error(
+                f"Health check: Error checking AWS Bedrock (credential/authentication issue): {e}",
+                exc_info=True
+            )
+            logger.warning(
+                "Health check: AWS Bedrock credentials appear to be invalid or deactivated. "
+                "Please verify the AWS credentials in the secrets manager."
+            )
+        else:
+            logger.error(f"Health check: Error checking AWS Bedrock: {e}", exc_info=True)
 
     # Store result in cache
     health_data = {

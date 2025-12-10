@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { onMount, createEventDispatcher } from 'svelte';
+    import { onMount, onDestroy, createEventDispatcher } from 'svelte';
     import { fade } from 'svelte/transition';
     import { getWebsiteUrl, routes } from '../config/links';
     import { apiEndpoints, getApiEndpoint } from '../config/api';
@@ -7,6 +7,8 @@
     import { get } from 'svelte/store';
     import { loadStripe } from '@stripe/stripe-js';
     import * as cryptoService from '../services/cryptoService'; // Import cryptoService for email decryption
+    import { webSocketService } from '../services/websocketService'; // Import WebSocket service for payment completion notifications
+    import { notificationStore } from '../stores/notificationStore'; // Import notification store
 
     import LimitedRefundConsent from './payment/LimitedRefundConsent.svelte';
     import PaymentForm from './payment/PaymentForm.svelte';
@@ -50,6 +52,9 @@
     let isPollingStopped = $state(false);
     let userEmail: string | null = $state(null);
     let isInitializing = $state(false);
+    let paymentConfirmationTimeoutId: any = $state(null);
+    let isWaitingForConfirmation = $state(false);
+    let showDelayedMessage = $state(false);
 
     // State for Payment Element completeness
     let isPaymentElementComplete: boolean = $state(false);
@@ -59,10 +64,10 @@
         darkmode = !!profile.darkmode;
     });
 
-    function getUserEmail() {
+    async function getUserEmail() {
         try {
             // Get email from encrypted storage (always decrypt on demand)
-            const email = cryptoService.getEmailDecryptedWithMasterKey();
+            const email: string | null = await cryptoService.getEmailDecryptedWithMasterKey();
             userEmail = email || null;
         } catch (err) {
             console.error('Error getting decrypted email:', err);
@@ -187,12 +192,35 @@
         
         paymentElement.mount('#payment-element');
 
+        // Log available payment methods for debugging Apple Pay
+        paymentElement.on('ready', (event: any) => {
+            console.log('[Payment] Payment Element ready. Available payment methods:', event);
+            // Check if Apple Pay is available
+            if (event && event.availablePaymentMethods) {
+                const applePayAvailable = event.availablePaymentMethods.some(
+                    (method: any) => method.type === 'apple_pay' || method.type === 'pay'
+                );
+                console.log('[Payment] Apple Pay available:', applePayAvailable);
+                if (!applePayAvailable) {
+                    console.warn('[Payment] Apple Pay is not available. This could be due to:');
+                    console.warn('  - Domain not verified in Stripe Dashboard');
+                    console.warn('  - Apple Pay not enabled in Stripe Dashboard');
+                    console.warn('  - Browser/device not supporting Apple Pay');
+                    console.warn('  - Not using HTTPS');
+                }
+            }
+        });
+
         paymentElement.on('change', (event: any) => {
             isPaymentElementComplete = event.complete; // Track overall completeness
             if (event.error) {
                 validationErrors = event.error.message;
             } else {
                 validationErrors = null;
+            }
+            // Log payment method changes for debugging
+            if (event.value && event.value.type) {
+                console.log('[Payment] Payment method changed:', event.value.type);
             }
         });
     }
@@ -235,11 +263,114 @@
             });
         } else if (paymentIntent && paymentIntent.status === 'processing') {
             paymentState = 'processing';
+            isWaitingForConfirmation = true;
             dispatch('paymentStateChange', { state: paymentState }); // Dispatch state change
+            
+            // Start 10-second timeout for payment confirmation from server
+            // If no confirmation received, show delayed message and proceed as if successful
+            paymentConfirmationTimeoutId = setTimeout(() => {
+                if (isWaitingForConfirmation) {
+                    console.log('[Payment] Payment confirmation timeout after 10 seconds - showing delayed message and proceeding');
+                    showDelayedMessage = true;
+                    
+                    // Show delayed message briefly, then proceed as if payment was successful
+                    // This allows user to continue while payment processes in background
+                    setTimeout(() => {
+                        if (isWaitingForConfirmation) {
+                            console.log('[Payment] Proceeding to success state after timeout');
+                            paymentState = 'success';
+                            isWaitingForConfirmation = false; // Keep listening for websocket event
+                            dispatch('paymentStateChange', { 
+                                state: paymentState,
+                                payment_intent_id: paymentIntent.id,
+                                isDelayed: true // Flag to indicate this was a delayed confirmation
+                            });
+                        }
+                    }, 2000); // Show delayed message for 2 seconds before proceeding
+                }
+            }, 10000); // 10 seconds
         } else {
             errorMessage = 'An unexpected error occurred. Please try again.';
             isLoading = false;
         }
+    }
+
+    // Handle payment completion notification from server
+    // This is called when the webhook processes the payment and invoice is sent
+    function handlePaymentCompleted(payload: { order_id: string, credits_purchased: number, current_credits: number }) {
+        console.log('[Payment] Received payment_completed notification from server:', payload);
+        
+        // Clear the timeout since we received confirmation
+        if (paymentConfirmationTimeoutId) {
+            clearTimeout(paymentConfirmationTimeoutId);
+            paymentConfirmationTimeoutId = null;
+        }
+        
+        // If we were waiting for confirmation (delayed payment), show notification
+        // For fast payments, this won't be called as payment already succeeded
+        if (isWaitingForConfirmation || showDelayedMessage) {
+            isWaitingForConfirmation = false;
+            showDelayedMessage = false;
+            
+            // Update credits in user profile
+            if (payload.current_credits !== undefined) {
+                updateProfile({ credits: payload.current_credits });
+            }
+            
+            // Show success notification popup (using Notification.svelte component)
+            notificationStore.success(
+                `Payment completed! ${payload.credits_purchased.toLocaleString()} credits have been added to your account.`,
+                5000
+            );
+            
+            // If payment state is still processing, update to success
+            // (This handles the case where timeout occurred and we're waiting for webhook)
+            if (paymentState === 'processing') {
+                paymentState = 'success';
+                dispatch('paymentStateChange', { 
+                    state: paymentState,
+                    payment_intent_id: lastOrderId // Use order_id as payment_intent_id for compatibility
+                });
+            }
+        } else {
+            // Fast payment case - just update credits silently (no notification needed)
+            // Credits were already updated via user_credits_updated event
+            console.log('[Payment] Payment already completed, credits updated via user_credits_updated event');
+        }
+    }
+
+    // Handle payment failure notification from server
+    // This is called when the webhook receives a payment failure (can happen minutes after payment attempt)
+    function handlePaymentFailed(payload: { order_id: string, message: string }) {
+        console.log('[Payment] Received payment_failed notification from server:', payload);
+        
+        // Clear the timeout since we received failure notification
+        if (paymentConfirmationTimeoutId) {
+            clearTimeout(paymentConfirmationTimeoutId);
+            paymentConfirmationTimeoutId = null;
+        }
+        
+        // Reset waiting state
+        isWaitingForConfirmation = false;
+        showDelayedMessage = false;
+        
+        // Show error notification popup (using Notification.svelte component)
+        // This notification will appear even if user has already moved on to other parts of the app
+        notificationStore.error(
+            payload.message || 'Payment failed. Please try again or use a different payment method.',
+            10000 // Show for 10 seconds since this is important
+        );
+        
+        // Update payment state to failure
+        paymentState = 'idle'; // Reset to idle so user can try again
+        errorMessage = payload.message || 'Payment failed. Please try again.';
+        isLoading = false;
+        
+        // Dispatch state change to parent component
+        dispatch('paymentStateChange', { 
+            state: 'failure',
+            error: payload.message
+        });
     }
 
     onMount(() => {
@@ -248,12 +379,27 @@
             fetchConfigAndInitialize();
         }
         
+        // Listen for payment_completed websocket event
+        // This is sent after webhook processes payment and invoice is sent
+        webSocketService.on('payment_completed', handlePaymentCompleted);
+        
+        // Listen for payment_failed websocket event
+        // This is sent when webhook receives payment failure (can happen minutes after payment attempt)
+        webSocketService.on('payment_failed', handlePaymentFailed);
+        
         return () => {
             if (userProfileUnsubscribe) {
                 userProfileUnsubscribe();
             }
             // Clean up Stripe elements on component destroy
             if (paymentElement) paymentElement.destroy();
+            // Clean up timeout
+            if (paymentConfirmationTimeoutId) {
+                clearTimeout(paymentConfirmationTimeoutId);
+            }
+            // Remove websocket listeners
+            webSocketService.off('payment_completed', handlePaymentCompleted);
+            webSocketService.off('payment_failed', handlePaymentFailed);
         };
     });
 
@@ -264,6 +410,7 @@
         <ProcessingPayment
             state={paymentState}
             {isGift}
+            {showDelayedMessage}
         />
     {:else}
         <div class="payment-form-overlay-wrapper">

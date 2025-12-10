@@ -374,6 +374,14 @@ div.clickable-icon {
   -webkit-mask-image: url('@openmates/ui/static/icons/settings.svg');
   mask-image: url('@openmates/ui/static/icons/settings.svg');
 }
+.clickable-icon.icon_volunteering {
+  -webkit-mask-image: url('@openmates/ui/static/icons/volunteering.svg');
+  mask-image: url('@openmates/ui/static/icons/volunteering.svg');
+}
+.clickable-icon.icon_pip {
+  -webkit-mask-image: url('@openmates/ui/static/icons/pip.svg');
+  mask-image: url('@openmates/ui/static/icons/pip.svg');
+}
 .clickable-icon.icon_secret {
   -webkit-mask-image: url('@openmates/ui/static/icons/secret.svg');
   mask-image: url('@openmates/ui/static/icons/secret.svg');

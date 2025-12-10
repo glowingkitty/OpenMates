@@ -41,6 +41,7 @@
     import { panelState } from '../../stores/panelStateStore'; // Added panelState import
     import { webSocketService } from '../../services/websocketService'; // Import WebSocket service
     import { chatSyncService } from '../../services/chatSyncService'; // Import chat sync service for updating last_opened
+    import { notificationStore } from '../../stores/notificationStore'; // Import notification store for payment failure notifications
 
     // Dynamic imports for step contents
     import ConfirmEmailTopContent from './steps/confirmemail/ConfirmEmailTopContent.svelte';
@@ -215,11 +216,26 @@
             }
         };
         
+        // Listen for payment failure notifications via WebSocket
+        // This handles cases where payment fails minutes after the user has moved on
+        // Shows notification even if Payment component is unmounted
+        const handlePaymentFailed = (payload: { order_id: string, message: string }) => {
+            console.debug(`[Signup] Received payment_failed notification via WebSocket:`, payload);
+            // Show error notification popup (using Notification.svelte component)
+            // This ensures user is notified even if they've moved on from payment step
+            notificationStore.error(
+                payload.message || 'Payment failed. Please try again or use a different payment method.',
+                10000 // Show for 10 seconds since this is important
+            );
+        };
+        
         webSocketService.on('user_credits_updated', handleCreditUpdate);
+        webSocketService.on('payment_failed', handlePaymentFailed);
         
         // Return cleanup function
         return () => {
             webSocketService.off('user_credits_updated', handleCreditUpdate);
+            webSocketService.off('payment_failed', handlePaymentFailed);
         };
     });
     

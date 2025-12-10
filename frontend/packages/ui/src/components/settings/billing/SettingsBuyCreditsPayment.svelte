@@ -42,17 +42,28 @@ Buy Credits Payment - Payment form wrapper that determines which tier to show
     });
 
     // Handle payment completion
-    function handlePaymentComplete(event: CustomEvent) {
-        // Navigate to confirmation screen
-        dispatch('openSettings', {
-            settingsPath: 'billing/buy-credits/confirmation',
-            direction: 'forward',
-            icon: 'check',
-            title: $text('settings.billing.purchase_successful.text')
-        });
+    // This is called when payment state changes (processing -> success)
+    // For fast payments: called immediately when payment succeeds
+    // For slow payments: called after 10-second timeout when we proceed as if successful
+    function handlePaymentComplete(event: CustomEvent<{ state: string, payment_intent_id?: string, isDelayed?: boolean }>) {
+        const paymentState = event.detail?.state;
+        
+        // Only navigate to confirmation screen on success state
+        // This handles both immediate success and delayed success (after timeout)
+        if (paymentState === 'success') {
+            // Navigate to confirmation screen
+            dispatch('openSettings', {
+                settingsPath: 'billing/buy-credits/confirmation',
+                direction: 'forward',
+                icon: 'check',
+                title: $text('settings.billing.purchase_successful.text')
+            });
 
-        // Credits will be updated via WebSocket 'user_credits_updated' event
-        // No need to reload the page
+            // Credits will be updated via WebSocket 'user_credits_updated' or 'payment_completed' event
+            // If payment was delayed, notification will be shown when webhook processes payment
+            // No need to reload the page
+        }
+        // For 'processing' or 'failure' states, don't navigate - let Payment component handle UI
     }
 </script>
 
@@ -69,7 +80,7 @@ Buy Credits Payment - Payment form wrapper that determines which tier to show
 
 <style>
     .payment-container {
-        width: 100%;
+        width: 90%;
         padding: 0 10px;
     }
 

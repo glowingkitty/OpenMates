@@ -5243,6 +5243,29 @@ processing_payment:
   cs: Zpracovávání platby...
   sv: Bearbetar betalning...
   verified_by_human: []
+payment_processing_delayed:
+  context: Message shown when payment processing takes longer than usual (after 10 seconds)
+  en: Your payment processing is taking longer than usual. We'll let you know once the payment was completed.
+  de: Die Bearbeitung Ihrer Zahlung dauert länger als üblich. Wir informieren Sie, sobald die Zahlung abgeschlossen wurde.
+  zh: 您的支付处理时间比平时更长。支付完成后我们会通知您。
+  es: El procesamiento de su pago está tardando más de lo habitual. Le avisaremos una vez que se complete el pago.
+  fr: Le traitement de votre paiement prend plus de temps que d'habitude. Nous vous informerons une fois le paiement terminé.
+  pt: O processamento do seu pagamento está demorando mais que o normal. Avisaremos quando o pagamento for concluído.
+  ru: Обработка вашего платежа занимает больше времени, чем обычно. Мы сообщим вам, как только платеж будет завершен.
+  ja: お支払いの処理に通常より時間がかかっています。お支払いが完了次第、お知らせいたします。
+  ko: 결제 처리에 평소보다 시간이 더 걸리고 있습니다. 결제가 완료되면 알려드리겠습니다.
+  it: L'elaborazione del pagamento sta richiedendo più tempo del solito. Ti avviseremo una volta completato il pagamento.
+  tr: Ödeme işleminiz normalden daha uzun sürüyor. Ödeme tamamlandığında size bildireceğiz.
+  vi: Việc xử lý thanh toán của bạn đang mất nhiều thời gian hơn bình thường. Chúng tôi sẽ thông báo cho bạn khi thanh toán hoàn tất.
+  id: Pemrosesan pembayaran Anda memakan waktu lebih lama dari biasanya. Kami akan memberi tahu Anda setelah pembayaran selesai.
+  pl: Przetwarzanie płatności trwa dłużej niż zwykle. Powiadomimy Cię, gdy płatność zostanie zakończona.
+  nl: De verwerking van uw betaling duurt langer dan normaal. We laten u weten zodra de betaling is voltooid.
+  ar: معالجة الدفع الخاص بك تستغرق وقتًا أطول من المعتاد. سنخبرك بمجرد اكتمال الدفع.
+  hi: 'आपका भुगतान प्रसंस्करण सामान्य से अधिक समय ले रहा है। भुगतान पूरा होने पर हम आपको सूचित करेंगे।'
+  th: การประมวลผลการชำระเงินของคุณใช้เวลานานกว่าปกติ เราจะแจ้งให้คุณทราบเมื่อการชำระเงินเสร็จสมบูรณ์
+  cs: Zpracování vaší platby trvá déle než obvykle. Dáme vám vědět, jakmile bude platba dokončena.
+  sv: Bearbetningen av din betalning tar längre tid än vanligt. Vi meddelar dig när betalningen är klar.
+  verified_by_human: []
 payment_failed:
   context: Error message shown when payment fails
   en: Payment failed

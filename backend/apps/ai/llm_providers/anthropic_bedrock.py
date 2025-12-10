@@ -20,6 +20,54 @@ from .anthropic_shared import (
 logger = logging.getLogger(__name__)
 
 
+def _is_aws_credential_error(client_error: ClientError) -> bool:
+    """
+    Check if a ClientError is related to AWS credentials/authentication.
+    
+    Args:
+        client_error: The ClientError exception to check
+    
+    Returns:
+        True if this is a credential/authentication error, False otherwise
+    """
+    error_code = client_error.response.get('Error', {}).get('Code', '')
+    credential_error_codes = [
+        'UnrecognizedClientException',
+        'InvalidUserID.NotFound',
+        'InvalidClientTokenId',
+        'SignatureDoesNotMatch',
+        'InvalidAccessKeyId',
+        'AccessDenied',
+        'InvalidSecurity',
+        'TokenRefreshRequired'
+    ]
+    return error_code in credential_error_codes
+
+
+def _format_aws_error_message(client_error: ClientError, log_prefix: str) -> str:
+    """
+    Format a clear error message for AWS errors, with special handling for credential issues.
+    
+    Args:
+        client_error: The ClientError exception
+        log_prefix: Log prefix for context
+    
+    Returns:
+        Formatted error message string
+    """
+    error_code = client_error.response.get('Error', {}).get('Code', 'Unknown')
+    error_message = client_error.response.get('Error', {}).get('Message', str(client_error))
+    
+    if _is_aws_credential_error(client_error):
+        return (
+            f"AWS Bedrock authentication/credential error: {error_code} - {error_message}. "
+            f"This indicates the AWS credentials (access key ID, secret access key, or security token) "
+            f"are invalid, expired, or have been deactivated. Please verify the credentials in the secrets manager."
+        )
+    else:
+        return f"AWS Bedrock API error ({error_code}): {error_message}"
+
+
 async def invoke_bedrock_api(
     task_id: str,
     model_id: str,
@@ -161,9 +209,21 @@ async def _process_bedrock_non_stream_response(
         return unified_resp
         
     except ClientError as e_api:
-        err_msg = f"AWS Bedrock error calling API: {e_api}"
-        logger.error(f"{log_prefix} {err_msg}", exc_info=True)
-        return UnifiedAnthropicResponse(task_id=task_id, model_id=model_id, success=False, error_message=str(e_api))
+        # Detect credential errors and provide clear logging
+        if _is_aws_credential_error(e_api):
+            err_msg = _format_aws_error_message(e_api, log_prefix)
+            logger.error(f"{log_prefix} {err_msg}", exc_info=True)
+            # Log a clear warning about credential issues
+            logger.warning(
+                f"{log_prefix} AWS credentials appear to be invalid or deactivated. "
+                f"Health checks will continue to fail until valid credentials are configured. "
+                f"Error code: {e_api.response.get('Error', {}).get('Code', 'Unknown')}"
+            )
+        else:
+            err_msg = _format_aws_error_message(e_api, log_prefix)
+            logger.error(f"{log_prefix} {err_msg}", exc_info=True)
+        
+        return UnifiedAnthropicResponse(task_id=task_id, model_id=model_id, success=False, error_message=err_msg)
     except Exception as e:
         logger.error(f"{log_prefix} Failed to parse AWS Bedrock non-streamed response: {e}", exc_info=True)
         return UnifiedAnthropicResponse(task_id=task_id, model_id=model_id, success=False, error_message=str(e))
@@ -275,9 +335,21 @@ async def _iterate_bedrock_stream_response(
         logger.info(f"{log_prefix} Stream finished.")
 
     except ClientError as e:
-        err_msg = f"AWS Bedrock error during streaming: {e}"
-        logger.error(f"{log_prefix} {err_msg}", exc_info=True)
-        raise IOError(f"AWS Bedrock Error: {e}") from e
+        # Detect credential errors and provide clear logging
+        if _is_aws_credential_error(e):
+            err_msg = _format_aws_error_message(e, log_prefix)
+            logger.error(f"{log_prefix} {err_msg}", exc_info=True)
+            # Log a clear warning about credential issues
+            logger.warning(
+                f"{log_prefix} AWS credentials appear to be invalid or deactivated during streaming. "
+                f"Health checks will continue to fail until valid credentials are configured. "
+                f"Error code: {e.response.get('Error', {}).get('Code', 'Unknown')}"
+            )
+            raise IOError(err_msg) from e
+        else:
+            err_msg = _format_aws_error_message(e, log_prefix)
+            logger.error(f"{log_prefix} {err_msg}", exc_info=True)
+            raise IOError(f"AWS Bedrock Error: {err_msg}") from e
     except Exception as e_stream:
         err_msg = f"Unexpected error during AWS Bedrock streaming: {e_stream}"
         logger.error(f"{log_prefix} {err_msg}", exc_info=True)
