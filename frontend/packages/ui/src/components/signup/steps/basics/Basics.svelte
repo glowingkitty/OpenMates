@@ -566,162 +566,158 @@
     });
 </script>
 
-<div class="content-area">
-    <h1><mark>{@html $text('signup.sign_up.text')}</mark></h1>
-    <h2>{@html $text('login.to_chat_to_your.text')}<br><mark>{@html $text('login.digital_team_mates.text')}</mark></h2>
-    
-    <div class="form-container">
-        {#if !isValidated && $requireInviteCode}
-            <form>
-                <div class="input-group">
-                    {#if isRateLimited}
-                        <div class="rate-limit-message" transition:fade>
-                            {$text('signup.too_many_requests.text')}
-                        </div>
-                    {:else}
-                        <div class="input-wrapper">
-                            <span class="clickable-icon icon_secret"></span>
-                            <input 
-                                bind:this={inviteCodeInput}
-                                type="text" 
-                                bind:value={inviteCode}
-                                oninput={handleInviteCodeInput}
-                                onpaste={handlePaste}
-                                placeholder={$text('signup.enter_personal_invite_code.text')}
-                                maxlength="14"
-                                disabled={isLoading}
-                            />
-                            {#if showWarning}
-                                <InputWarning 
-                                    message={$text('signup.code_is_invalid.text')}
-                                    target={inviteCodeInput}
-                                />
-                            {/if}
-                        </div>
-                    {/if}
-                    {#if isLoading}
-                        <div class="loading-message-container" transition:fade>
-                            <div class="loading-message">
-                                {$text('signup.checking_code.text')}
-                            </div>
-                        </div>
-                    {/if}
-                </div>
-            </form>
+<h1><mark>{@html $text('signup.sign_up.text')}</mark></h1>
+<h2>{@html $text('login.to_chat_to_your.text')}<br><mark>{@html $text('login.digital_team_mates.text')}</mark></h2>
 
-        {:else}
-            <form onsubmit={handleSubmit}>
-                <div class="input-group">
-                    <div class="input-wrapper">
-                        <span class="clickable-icon icon_mail"></span>
-                        <input 
-                            bind:this={emailInput}
-                            type="email" 
-                            bind:value={email}
-                            placeholder={$text('login.email_placeholder.text')}
-                            required
-                            autocomplete="email"
-                            class:error={!!emailError || emailAlreadyInUse}
-                            oninput={(e) => {
-                                checkSignupActivityAndManageTimer();
-                                // Auto-fill username based on email if username is empty
-                                if (!username && email.includes('@')) {
-                                    const emailParts = email.split('@');
-                                    username = emailParts[0];
-                                }
-                            }} />
-                        {#if showEmailWarning && emailError}
-                            <InputWarning
-                                message={emailError}
-                                target={emailInput}
-                            />
-                        {/if}
-                        {#if emailAlreadyInUse}
-                            <InputWarning 
-                                message={$text('signup.email_address_already_in_use.text')}
-                                target={emailInput}
-                            />
-                        {/if}
+<div class="form-container">
+    {#if !isValidated && $requireInviteCode}
+        <form>
+            <div class="input-group">
+                {#if isRateLimited}
+                    <div class="rate-limit-message" transition:fade>
+                        {$text('signup.too_many_requests.text')}
                     </div>
-                </div>
-
-                <div class="input-group">
+                {:else}
                     <div class="input-wrapper">
-                        <span class="clickable-icon icon_user"></span>
+                        <span class="clickable-icon icon_secret"></span>
                         <input 
-                            bind:this={usernameInput}
+                            bind:this={inviteCodeInput}
                             type="text" 
-                            bind:value={username}
-                            placeholder={$text('signup.enter_username.text')}
-                            required
-                            autocomplete="username"
-                            class:error={!!usernameError}
-                            oninput={checkSignupActivityAndManageTimer} />
-                        {#if showUsernameWarning && usernameError}
-                            <InputWarning
-                                message={usernameError}
-                                target={usernameInput}
+                            bind:value={inviteCode}
+                            oninput={handleInviteCodeInput}
+                            onpaste={handlePaste}
+                            placeholder={$text('signup.enter_personal_invite_code.text')}
+                            maxlength="14"
+                            disabled={isLoading}
+                        />
+                        {#if showWarning}
+                            <InputWarning 
+                                message={$text('signup.code_is_invalid.text')}
+                                target={inviteCodeInput}
                             />
                         {/if}
                     </div>
-                </div>
+                {/if}
+                {#if isLoading}
+                    <div class="loading-message-container" transition:fade>
+                        <div class="loading-message">
+                            {$text('signup.checking_code.text')}
+                        </div>
+                    </div>
+                {/if}
+            </div>
+        </form>
 
-                <div class="agreement-row">
-                    <Toggle 
-                        id="stayLoggedIn" 
-                        name="stayLoggedIn" 
-                        bind:checked={stayLoggedIn} 
-                        ariaLabel={$text('login.stay_logged_in.text')} 
-                    />
-                    <label for="stayLoggedIn" class="agreement-text">{@html $text('login.stay_logged_in.text')}</label>
+    {:else}
+        <form onsubmit={handleSubmit}>
+            <div class="input-group">
+                <div class="input-wrapper">
+                    <span class="clickable-icon icon_mail"></span>
+                    <input 
+                        bind:this={emailInput}
+                        type="email" 
+                        bind:value={email}
+                        placeholder={$text('login.email_placeholder.text')}
+                        required
+                        autocomplete="email"
+                        class:error={!!emailError || emailAlreadyInUse}
+                        oninput={(e) => {
+                            checkSignupActivityAndManageTimer();
+                            // Auto-fill username based on email if username is empty
+                            if (!username && email.includes('@')) {
+                                const emailParts = email.split('@');
+                                username = emailParts[0];
+                            }
+                        }} />
+                    {#if showEmailWarning && emailError}
+                        <InputWarning
+                            message={emailError}
+                            target={emailInput}
+                        />
+                    {/if}
+                    {#if emailAlreadyInUse}
+                        <InputWarning 
+                            message={$text('signup.email_address_already_in_use.text')}
+                            target={emailInput}
+                        />
+                    {/if}
                 </div>
+            </div>
 
-                <div class="agreement-row">
-                    <Toggle bind:checked={termsAgreed} id="terms-agreed-toggle" />
-                    <label for="terms-agreed-toggle" class="agreement-text">
-                        {$text('signup.agree_to.text')} 
-                        <a href={getWebsiteUrl(externalLinks.legal.terms)} target="_blank" rel="noopener noreferrer">
-                            <mark>{@html $text('signup.terms_of_service.text')}</mark>
-                        </a>
-                    </label>
+            <div class="input-group">
+                <div class="input-wrapper">
+                    <span class="clickable-icon icon_user"></span>
+                    <input 
+                        bind:this={usernameInput}
+                        type="text" 
+                        bind:value={username}
+                        placeholder={$text('signup.enter_username.text')}
+                        required
+                        autocomplete="username"
+                        class:error={!!usernameError}
+                        oninput={checkSignupActivityAndManageTimer} />
+                    {#if showUsernameWarning && usernameError}
+                        <InputWarning
+                            message={usernameError}
+                            target={usernameInput}
+                        />
+                    {/if}
                 </div>
+            </div>
 
-                <div class="agreement-row">
-                    <Toggle bind:checked={privacyAgreed} id="privacy-agreed-toggle" />
-                    <label for="privacy-agreed-toggle" class="agreement-text">
-                        {$text('signup.agree_to.text')} 
-                        <a href={getWebsiteUrl(externalLinks.legal.privacyPolicy)} target="_blank" rel="noopener noreferrer">
-                            <mark>{@html $text('signup.privacy_policy.text')}</mark>
-                        </a>
-                    </label>
-                </div>
-            </form>
-        {/if}
-    </div>
-    <div class="bottom-positioned">
-        {#if !isValidated && $requireInviteCode}
-            <WaitingList showPersonalInviteMessage={true} />
-        {:else}
-            {#if isRateLimited}
-                <div class="rate-limit-message" transition:fade>
-                    {$text('signup.too_many_requests.text')}
-                </div>
-            {:else}
-                <div class="action-button-container">
-                    <button 
-                        class="action-button signup-button" 
-                        class:loading={isLoading}
-                        disabled={!isFormValid || isLoading}
-                        onclick={handleSubmit}
-                        transition:fade
-                    >
-                        {isLoading ? $text('login.loading.text') : $text('signup.create_new_account.text')}
-                    </button>
-                </div>
-            {/if}
-        {/if}
-    </div>
+            <div class="agreement-row">
+                <Toggle 
+                    id="stayLoggedIn" 
+                    name="stayLoggedIn" 
+                    bind:checked={stayLoggedIn} 
+                    ariaLabel={$text('login.stay_logged_in.text')} 
+                />
+                <label for="stayLoggedIn" class="agreement-text">{@html $text('login.stay_logged_in.text')}</label>
+            </div>
+
+            <div class="agreement-row">
+                <Toggle bind:checked={termsAgreed} id="terms-agreed-toggle" />
+                <label for="terms-agreed-toggle" class="agreement-text">
+                    {$text('signup.agree_to.text')} 
+                    <a href={getWebsiteUrl(externalLinks.legal.terms)} target="_blank" rel="noopener noreferrer">
+                        <mark>{@html $text('signup.terms_of_service.text')}</mark>
+                    </a>
+                </label>
+            </div>
+
+            <div class="agreement-row">
+                <Toggle bind:checked={privacyAgreed} id="privacy-agreed-toggle" />
+                <label for="privacy-agreed-toggle" class="agreement-text">
+                    {$text('signup.agree_to.text')} 
+                    <a href={getWebsiteUrl(externalLinks.legal.privacyPolicy)} target="_blank" rel="noopener noreferrer">
+                        <mark>{@html $text('signup.privacy_policy.text')}</mark>
+                    </a>
+                </label>
+            </div>
+        </form>
+    {/if}
 </div>
+{#if !isValidated && $requireInviteCode}
+    <WaitingList showPersonalInviteMessage={true} />
+{:else}
+    {#if isRateLimited}
+        <div class="rate-limit-message" transition:fade>
+            {$text('signup.too_many_requests.text')}
+        </div>
+    {:else}
+        <div class="action-button-container">
+            <button 
+                class="action-button signup-button" 
+                class:loading={isLoading}
+                disabled={!isFormValid || isLoading}
+                onclick={handleSubmit}
+                transition:fade
+            >
+                {isLoading ? $text('login.loading.text') : $text('signup.create_new_account.text')}
+            </button>
+        </div>
+    {/if}
+{/if}
 
 <style>
     .action-button.loading {

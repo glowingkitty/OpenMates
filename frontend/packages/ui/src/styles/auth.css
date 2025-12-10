@@ -204,20 +204,36 @@
 }
 
 /* Make nav-area sticky on mobile to keep Demo button visible */
+/* Ensure consistent positioning for both login and signup */
 @media (max-width: 600px) {
     .nav-area {
         position: sticky; /* Change from absolute to sticky on mobile */
         top: 0;
+        left: 0; /* Ensure left alignment is consistent */
+        right: 0; /* Ensure right alignment is consistent */
         background-color: transparent; /* Remove background color on mobile */
         z-index: 10;
         padding: 10px;
         margin: -10px -10px 0 -10px; /* Offset padding to maintain full width */
         margin-top: 0; /* Ensure it sticks to the very top */
+        width: 100%; /* Ensure full width */
+        box-sizing: border-box; /* Include padding in width calculation */
     }
 }
 
 .content-area {
-    padding-top: 20px;
+    padding-top: 40px;
+}
+
+/* Reduce h1 and h2 margins on mobile for better space utilization */
+.content-area h1 {
+    margin-top: 0;
+    margin-bottom: 0.5rem;
+}
+
+.content-area h2 {
+    margin-top: 0;
+    margin-bottom: 1rem;
 }
 
 /* Adjust content-area for mobile to accommodate sticky nav */
@@ -229,6 +245,17 @@
         flex-direction: column;
         min-height: 0; /* Allow shrinking */
         width: 100%;
+    }
+    
+    /* Further reduce margins on mobile for h1 and h2 */
+    .content-area h1 {
+        margin-top: 0;
+        margin-bottom: 0.25rem;
+    }
+    
+    .content-area h2 {
+        margin-top: 0;
+        margin-bottom: 0.5rem;
     }
 }
 
@@ -421,11 +448,9 @@ form.hidden {
 }
 
 .signup-content {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
+    position: relative; /* Changed from absolute to relative so nav-area is positioned relative to login-box */
+    width: 100%;
+    min-height: 100%;
     display: flex;
     flex-direction: column;
     transition: opacity 0.2s ease-in-out;

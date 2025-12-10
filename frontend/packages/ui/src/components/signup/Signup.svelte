@@ -80,23 +80,36 @@
 
     // Props using Svelte 5 runes mode with callback props
     let {
-        onswitchToLogin = () => {}
+        onswitchToLogin = () => {},
+        // Expose state for SignupNav in parent component
+        selectedAppName = $bindable(null),
+        is_admin = $bindable(false),
+        isInviteCodeValidated = $bindable(false),
+        showSkip = $bindable(false),
+        // Callbacks from parent - these should be bindable so we can update them to call internal handlers
+        // For now, we'll make them bindable and update them in $effect
+        onSignupNavBack = $bindable(() => {}),
+        onSignupNavStep = $bindable((event: { step: string }) => {}),
+        onSignupNavSkip = $bindable(() => {}),
+        onSignupNavLogout = $bindable(async () => {})
     }: {
-        onswitchToLogin?: () => void
+        onswitchToLogin?: () => void,
+        selectedAppName?: string | null,
+        is_admin?: boolean,
+        isInviteCodeValidated?: boolean,
+        showSkip?: boolean,
+        onSignupNavBack?: () => void,
+        onSignupNavStep?: (event: { step: string }) => void,
+        onSignupNavSkip?: () => void,
+        onSignupNavLogout?: () => void
     } = $props();
 
     // Initialize step from store using Svelte 5 runes
     let currentStep = $state(STEP_ALPHA_DISCLAIMER);
     let direction = $state<'forward' | 'backward'>('forward');
-    let isInviteCodeValidated = $state(false);
-    let is_admin = $state(false); // Add this to track admin status
-    // let previousStep = 1; // Removed, will pass previous value directly
-    
+    // isInviteCodeValidated, is_admin, selectedAppName, and showSkip are now bindable props
     // Reference to signup-content element for scrolling
     let signupContentElement: HTMLDivElement;
-
-    // Lift form state up using Svelte 5 runes
-    let selectedAppName = $state<string | null>(null);
     let selectedCreditsAmount = $state(21000); // Default credits amount
     let selectedPrice = $state(20); // Default price
     let selectedCurrency = $state('EUR'); // Default currency
@@ -166,6 +179,10 @@
 
     onMount(() => {
         isInSignupProcess.set(true);
+        
+        // Set up the callbacks passed from Login to call internal handlers
+        // We'll update the callbacks in Login to call our internal handlers
+        // This is done via $effect after functions are defined
         
         // Check if signup step is already set (e.g., from page reload or auth check)
         // If not set, start with alpha disclaimer as the first step
@@ -248,6 +265,87 @@
     // Removed reactive block for previousStep handling
 
     let isSwitchingToLogin = $state(false);
+
+    /**
+     * Close the login/signup interface and return to demo web app
+     * This is called when user clicks back button during alpha disclaimer or basics step
+     */
+    // Set up callbacks to call internal handlers when invoked
+    // We'll use onMount to set up the callbacks after all functions are defined
+    // Store original callbacks to avoid infinite loops
+    let originalCallbacksSet = $state(false);
+    
+    onMount(() => {
+        if (!originalCallbacksSet) {
+            // Store original callbacks
+            const originalBack = onSignupNavBack;
+            const originalStep = onSignupNavStep;
+            const originalSkip = onSignupNavSkip;
+            const originalLogout = onSignupNavLogout;
+            
+            // Update bindable callbacks to call both original and internal handlers
+            onSignupNavBack = () => {
+                originalBack();
+                handleCloseToDemo();
+            };
+            onSignupNavStep = (event: { step: string }) => {
+                originalStep(event);
+                handleStepFromNav(event);
+            };
+            onSignupNavSkip = () => {
+                originalSkip();
+                handleSkip();
+            };
+            onSignupNavLogout = async () => {
+                await originalLogout();
+                await handleLogout();
+            };
+            
+            originalCallbacksSet = true;
+        }
+    });
+
+    async function handleCloseToDemo() {
+        console.log('[Signup] handleCloseToDemo called - closing interface and returning to demo');
+
+        // CRITICAL: Reset signup process state FIRST to ensure Login component switches to login view
+        // This prevents the signup view from remaining visible after closing
+        isInSignupProcess.set(false);
+        console.log('[Signup] Reset isInSignupProcess to false');
+
+        // Clear the signup store data when closing to demo
+        console.log('[Signup] Clearing signup data...');
+        clearSignupData();
+        console.log('[Signup] Signup data cleared');
+
+        // SECURITY: Clear incomplete signup data from IndexedDB when closing to demo
+        // This ensures username doesn't persist if user interrupts signup
+        // Only do this if we're past the alpha disclaimer step (i.e., actual signup data may exist)
+        if (currentStep !== STEP_ALPHA_DISCLAIMER) {
+            console.log('[Signup] Clearing incomplete signup data from IndexedDB...');
+            try {
+                await clearIncompleteSignupData();
+                console.log('[Signup] Incomplete signup data cleared');
+            } catch (error) {
+                console.error('[Signup] Error clearing incomplete signup data:', error);
+            }
+        } else {
+            console.log('[Signup] Skipping IndexedDB clear (on alpha disclaimer step, no data entered yet)');
+        }
+
+        // Reset signup step to alpha disclaimer for next time
+        currentSignupStep.set(STEP_ALPHA_DISCLAIMER);
+
+        // Close the login interface and load demo chat
+        // This dispatches a global event that ActiveChat.svelte listens to
+        window.dispatchEvent(new CustomEvent('closeLoginInterface'));
+
+        // Small delay to ensure the interface closes before loading chat
+        setTimeout(() => {
+            // Dispatch event to load demo chat (ActiveChat will handle this)
+            window.dispatchEvent(new CustomEvent('loadDemoChat'));
+        }, 100);
+    }
 
     async function handleSwitchToLogin() {
         // Prevent multiple simultaneous calls
@@ -429,6 +527,21 @@
 
     function handleSelectedApp(event: CustomEvent<{ appName: string }>) {
         selectedAppName = event.detail.appName;
+    }
+
+    // Wrapper function to convert SignupNav event format to CustomEvent format
+    function handleStepFromNav(event: { step: string }) {
+        // Handle internally
+        const customEvent = {
+            detail: {
+                step: event.step,
+                credits_amount: undefined,
+                price: undefined,
+                currency: undefined,
+                isGift: undefined
+            }
+        } as CustomEvent<{step: string, credits_amount?: number, price?: number, currency?: string, isGift?: boolean}>;
+        handleStep(customEvent);
     }
 
     async function goToStep(step: string) {
@@ -776,8 +889,10 @@
     }
 
     // Update showSkip logic to show for specific steps using Svelte 5 runes
-    let showSkip = $derived(currentStep === STEP_TFA_APP_REMINDER ||
-                  currentStep === STEP_CREDITS);
+    // Update the bindable showSkip prop
+    $effect(() => {
+        showSkip = currentStep === STEP_TFA_APP_REMINDER || currentStep === STEP_CREDITS;
+    });
 
     // Show expanded header on credits and payment steps using Svelte 5 runes
     let showExpandedHeader = $derived(currentStep === STEP_CREDITS || currentStep === STEP_PAYMENT);
@@ -793,20 +908,6 @@
 </script>
 
 <div class="signup-content visible" bind:this={signupContentElement} in:fade={{ duration: 400 }}>
-    {#if showUIControls}
-        <div transition:fade={fadeParams}>
-            <SignupNav
-                onback={handleSwitchToLogin}
-                onstep={(e) => handleStep({ detail: e })}
-                onskip={handleSkip}
-                onlogout={handleLogout}
-                {showSkip}
-                {currentStep}
-                {selectedAppName}
-                showAdminButton={is_admin && currentStep === STEP_BASICS && isInviteCodeValidated}
-            />
-        </div>
-    {/if}
 
     <div>
         {#if currentStep === STEP_ALPHA_DISCLAIMER}

@@ -970,44 +970,32 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         let isNewMessageInStream = false;
 
         if (!targetMessage) {
-            // Create new message if first chunk or no AI message yet, or last message was user's
-            if (chunk.sequence === 1 || currentMessages.length === 0 || (currentMessages.length > 0 && currentMessages[currentMessages.length - 1].role === 'user')) {
-                // CRITICAL: Store AI response as markdown string, not Tiptap JSON
-                // Tiptap JSON is only for UI rendering, never stored in database
-                const newAiMessage: ChatMessageModel = {
-                    message_id: chunk.message_id,
-                    chat_id: chunk.chat_id, // Ensure this is correct
-                    user_message_id: chunk.user_message_id,
-                    role: 'assistant',
-                    category: currentTypingStatus?.chatId === chunk.chat_id ? currentTypingStatus.category : undefined,
-                    content: chunk.full_content_so_far || '', // Store as markdown string, not Tiptap JSON
-                    status: 'streaming',
-                    created_at: Math.floor(Date.now() / 1000),
-                    // Required encrypted fields (will be populated by encryptMessageFields)
-                    encrypted_content: '', // Will be set by encryption
-                    // encrypted_sender_name not needed for assistant messages
-                    encrypted_category: undefined
-                };
-                currentMessages = [...currentMessages, newAiMessage];
-                messageToSave = newAiMessage;
-                isNewMessageInStream = true;
-                console.log(
-                    `[ActiveChat] 🆕 NEW MESSAGE CREATED | ` +
-                    `seq: ${chunk.sequence} | ` +
-                    `message_id: ${chunk.message_id} | ` +
-                    `content_length: ${newAiMessage.content.length} chars`
-                );
-                console.debug('[ActiveChat] Created new AI message for streaming:', newAiMessage);
-            } else {
-                console.warn(
-                    `[ActiveChat] ⚠️ CHUNK IGNORED (invalid state) | ` +
-                    `seq: ${chunk.sequence} | ` +
-                    `message_id: ${chunk.message_id} | ` +
-                    `current_messages_count: ${currentMessages.length} | ` +
-                    `last_message_role: ${currentMessages[currentMessages.length - 1]?.role}`
-                );
-                return;
-            }
+            // Create a streaming AI message even if sequence is not 1 to avoid dropping chunks
+            const fallbackCategory = currentTypingStatus?.chatId === chunk.chat_id ? currentTypingStatus.category : undefined;
+            const newAiMessage: ChatMessageModel = {
+                message_id: chunk.message_id,
+                chat_id: chunk.chat_id, // Ensure this is correct
+                user_message_id: chunk.user_message_id,
+                role: 'assistant',
+                category: chunk.category || fallbackCategory,
+                content: chunk.full_content_so_far || '', // Store as markdown string, not Tiptap JSON
+                status: 'streaming',
+                created_at: Math.floor(Date.now() / 1000),
+                // Required encrypted fields (will be populated by encryptMessageFields)
+                encrypted_content: '', // Will be set by encryption
+                // encrypted_sender_name not needed for assistant messages
+                encrypted_category: undefined
+            };
+            currentMessages = [...currentMessages, newAiMessage];
+            messageToSave = newAiMessage;
+            isNewMessageInStream = true;
+            console.log(
+                `[ActiveChat] 🆕 NEW MESSAGE CREATED | ` +
+                `seq: ${chunk.sequence} | ` +
+                `message_id: ${chunk.message_id} | ` +
+                `content_length: ${newAiMessage.content.length} chars`
+            );
+            console.debug('[ActiveChat] Created new AI message for streaming:', newAiMessage);
         } else {
             // Update existing message
             const previousLength = targetMessage.content?.length || 0;

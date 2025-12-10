@@ -9,60 +9,58 @@
     }
 </script>
 
-<div class="content-area">
-    <h1><mark>{@html $text('signup.version_title.text')}</mark></h1>
-    
-    <div class="disclaimer-items">
-        <div class="disclaimer-item">
-            <div class="clickable-icon icon_project"></div>
-            <div class="disclaimer-text">
-                <p>{@html $text('signup.is_alpha_disclaimer.text')}</p>
-            </div>
+<h1><mark>{@html $text('signup.version_title.text')}</mark></h1>
+
+<div class="disclaimer-items">
+    <div class="disclaimer-item">
+        <div class="clickable-icon icon_project"></div>
+        <div class="disclaimer-text">
+            <p>{@html $text('signup.is_alpha_disclaimer.text')}</p>
         </div>
-        
-        <div class="disclaimer-item">
-            <div class="clickable-icon icon_thumbsup"></div>
-            <div class="disclaimer-text">
-                <p>{@html $text('signup.decent_stable.text')}</p>
-            </div>
-        </div>
-        
-        <div class="disclaimer-item">
-            <div class="clickable-icon icon_task"></div>
-            <div class="disclaimer-text">
-                <p>{@html $text('signup.not_all_core_features_implemented.text')}</p>
-            </div>
-        </div>
-        
-        <div class="disclaimer-item">
-            <div class="clickable-icon icon_bug"></div>
-            <div class="disclaimer-text">
-                <p>{@html $text('signup.expect_bugs_and_missing_features.text')}</p>
-            </div>
-        </div>
-        
-        <a href="https://github.com/glowingkitty/OpenMates" target="_blank" rel="noopener noreferrer" class="disclaimer-item clickable">
-            <div class="clickable-icon icon_github"></div>
-            <div class="disclaimer-text">
-                <p class="link-title">{@html $text('signup.view_on_github.text')}</p>
-                <p class="subtext">{@html $text('signup.view_on_github_description.text')}</p>
-            </div>
-        </a>
-        
-        <a href="https://instagram.com/openmates_official" target="_blank" rel="noopener noreferrer" class="disclaimer-item clickable">
-            <div class="clickable-icon icon_instagram"></div>
-            <div class="disclaimer-text">
-                <p class="link-title">{@html $text('signup.view_on_instagram.text')}</p>
-                <p class="subtext">{@html $text('signup.view_on_instagram_description.text')}</p>
-            </div>
-        </a>
     </div>
-    <button
-        onclick={handleContinue}
-    >
-        {@html $text('signup.continue_with_alpha.text', { values: { version: $text('signup.version_title.text') } })}
-    </button>
+    
+    <div class="disclaimer-item">
+        <div class="clickable-icon icon_thumbsup"></div>
+        <div class="disclaimer-text">
+            <p>{@html $text('signup.decent_stable.text')}</p>
+        </div>
+    </div>
+    
+    <div class="disclaimer-item">
+        <div class="clickable-icon icon_task"></div>
+        <div class="disclaimer-text">
+            <p>{@html $text('signup.not_all_core_features_implemented.text')}</p>
+        </div>
+    </div>
+    
+    <div class="disclaimer-item">
+        <div class="clickable-icon icon_bug"></div>
+        <div class="disclaimer-text">
+            <p>{@html $text('signup.expect_bugs_and_missing_features.text')}</p>
+        </div>
+    </div>
+    
+    <a href="https://github.com/glowingkitty/OpenMates" target="_blank" rel="noopener noreferrer" class="disclaimer-item clickable">
+        <div class="clickable-icon icon_github"></div>
+        <div class="disclaimer-text">
+            <p class="link-title">{@html $text('signup.view_on_github.text')}</p>
+            <p class="subtext">{@html $text('signup.view_on_github_description.text')}</p>
+        </div>
+    </a>
+    
+    <a href="https://instagram.com/openmates_official" target="_blank" rel="noopener noreferrer" class="disclaimer-item clickable">
+        <div class="clickable-icon icon_instagram"></div>
+        <div class="disclaimer-text">
+            <p class="link-title">{@html $text('signup.view_on_instagram.text')}</p>
+            <p class="subtext">{@html $text('signup.view_on_instagram_description.text')}</p>
+        </div>
+    </a>
 </div>
+<button
+    onclick={handleContinue}
+>
+    {@html $text('signup.continue_with_alpha.text', { values: { version: $text('signup.version_title.text') } })}
+</button>
 
 <style>
     .disclaimer-items {

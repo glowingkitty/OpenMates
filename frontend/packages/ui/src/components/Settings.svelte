@@ -1026,7 +1026,7 @@ changes to the documentation (to keep the documentation up to date).
             <!-- Show profile picture when user is logged in -->
             {#if !$authStore.isAuthenticated}
                 <div class="profile-picture language-icon-container">
-                    <div class="clickable-icon" class:icon_language={!isMenuVisible} class:icon_user={isMenuVisible}></div>
+                    <div class="clickable-icon" class:icon_settings={!isMenuVisible} class:icon_user={isMenuVisible}></div>
                 </div>
             {:else}
                 <div

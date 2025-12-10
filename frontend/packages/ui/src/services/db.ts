@@ -1365,6 +1365,43 @@ class ChatDatabase {
     }
 
     /**
+     * Get only the last message for a chat (efficient for sidebar display)
+     * This avoids decrypting all messages when we only need the last one
+     */
+    async getLastMessageForChat(chat_id: string, transaction?: IDBTransaction): Promise<Message | null> {
+        await this.init();
+        return new Promise(async (resolve, reject) => {
+            const currentTransaction = transaction || await this.getTransaction(this.MESSAGES_STORE_NAME, 'readonly');
+            const store = currentTransaction.objectStore(this.MESSAGES_STORE_NAME);
+            const index = store.index('chat_id_created_at');
+            // Use openCursor with 'prev' direction to get the last message (highest created_at)
+            const request = index.openCursor(IDBKeyRange.bound([chat_id, -Infinity], [chat_id, Infinity]), 'prev');
+
+            request.onsuccess = async () => {
+                const cursor = request.result;
+                if (cursor) {
+                    // Found the last message - decrypt and return it
+                    const encryptedMessage = cursor.value;
+                    try {
+                        const decryptedMessage = await this.decryptMessageFields(encryptedMessage, chat_id);
+                        resolve(decryptedMessage);
+                    } catch (error) {
+                        console.error(`[ChatDatabase] Error decrypting last message for chat ${chat_id}:`, error);
+                        resolve(null);
+                    }
+                } else {
+                    // No messages found
+                    resolve(null);
+                }
+            };
+            request.onerror = () => {
+                console.error(`[ChatDatabase] Error getting last message for chat ${chat_id}:`, request.error);
+                reject(request.error);
+            };
+        });
+    }
+
+    /**
      * Determines if a new message should update an existing message based on status priority
      * Status priority: 'sending' < 'delivered' < 'synced'
      */
