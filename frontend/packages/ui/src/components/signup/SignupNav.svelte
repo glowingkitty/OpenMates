@@ -96,8 +96,9 @@
     }
 
     function getNavText(step: string) {
-        if (step === STEP_ALPHA_DISCLAIMER) return $_('login.login_button.text');
-        if (step === STEP_BASICS) return $_('login.login_button.text');
+        // Show "Demo" for first two steps since we now have Login/Signup tabs at the top
+        if (step === STEP_ALPHA_DISCLAIMER) return $_('login.demo.text');
+        if (step === STEP_BASICS) return $_('login.demo.text');
         if (step === STEP_CONFIRM_EMAIL) return $_('signup.sign_up.text');
         if (step === STEP_SECURE_ACCOUNT) return $_('signup.sign_up.text');
         if (step === STEP_PASSWORD) return $_('signup.secure_your_account.text');
@@ -175,6 +176,23 @@ let skipButtonText = $derived(
         z-index: 1;
         display: flex;
         justify-content: space-between;
+    }
+    
+    /* Ensure consistent positioning on mobile - match global nav-area styles */
+    @media (max-width: 600px) {
+        .nav-area {
+            position: sticky; /* Match global nav-area mobile style */
+            top: 0;
+            left: 0; /* Ensure left alignment is consistent */
+            right: 0; /* Ensure right alignment is consistent */
+            background-color: transparent;
+            z-index: 10;
+            padding: 10px;
+            margin: -10px -10px 0 -10px; /* Offset padding to maintain full width */
+            margin-top: 0; /* Ensure it sticks to the very top */
+            width: 100%; /* Ensure full width */
+            box-sizing: border-box; /* Include padding in width calculation */
+        }
     }
 
     .nav-button {

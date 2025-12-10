@@ -11,6 +11,7 @@
   import { extractUrlFromJsonEmbedBlock } from '../enter_message/services/urlMetadataService';
   import { LOCAL_CHAT_LIST_CHANGED_EVENT } from '../../services/drafts/draftConstants';
   import { chatMetadataCache, type DecryptedChatMetadata } from '../../services/chatMetadataCache';
+  import { chatListCache } from '../../services/chatListCache'; // Global cache for last messages
   import ChatContextMenu from './ChatContextMenu.svelte';
   import { copyChatToClipboard } from '../../services/chatExportService';
   import { downloadChatAsZip } from '../../services/zipExportService';
@@ -80,12 +81,9 @@
   
   onMount(() => {
     unsubscribeTypingStore = aiTypingStore.subscribe(value => {
-      console.debug(`[Chat] aiTypingStore changed:`, {
-        chatId: value.chatId,
-        aiMessageId: value.aiMessageId,
-        isTyping: value.isTyping,
-        thisChatId: chat.chat_id
-      });
+      // Update the typing store value (needed for reactive updates)
+      // Don't log - this fires for every chat component on every store change
+      // Only log in exceptional cases if needed for debugging
       typingStoreValue = value;
     });
   });
@@ -391,7 +389,7 @@
         chatIcon = null;
       }
       
-      console.debug(`[Chat] Public chat loaded - title: ${currentChat.title}, category: ${chatCategory}, icon: ${chatIcon}, messages: ${demoMessages.length}, hasDraft: ${!!draftTextContent}`);
+      // Public chat loaded (no log needed - this is normal operation when component mounts or updates)
       
       // No cached metadata for public chats (they don't use encryption)
       cachedMetadata = null;
@@ -474,22 +472,55 @@
         draftTextContent = '';
       }
       
-      // CRITICAL: Handle database deletion gracefully (e.g., during logout)
-      // If database is being deleted, skip message loading to prevent errors
-      let messages: Message[] = [];
-      try {
-        messages = await chatDB.getMessagesForChat(currentChat.chat_id);
-      } catch (error: any) {
-        // If database is being deleted or unavailable, use empty messages
-        if (error?.message?.includes('being deleted') || error?.message?.includes('cannot be initialized')) {
-          console.debug(`[Chat] Database is being deleted, skipping message load for ${currentChat.chat_id}`);
-          messages = [];
+      // CRITICAL OPTIMIZATION: Only fetch/decrypt last message if we actually need it
+      // We only need it if there's NO draft (draft takes precedence in display)
+      // For chats with drafts, we skip fetching the last message entirely
+      // For chats without drafts, we check cache first, then only fetch if needed
+      
+      if (draftTextContent) {
+        // Has draft - don't need last message (draft takes precedence)
+        lastMessage = null;
+      } else {
+        // No draft - check cache first, only fetch if in cache or if we suspect special status
+        let cachedLastMessage = chatListCache.getLastMessage(currentChat.chat_id);
+        
+        if (cachedLastMessage !== undefined) {
+          // Cache hit - use cached message (might be null if no messages)
+          lastMessage = cachedLastMessage;
         } else {
-          // Re-throw other errors
-          throw error;
+          // Cache miss - check if we might have a special status that requires fetching
+          // Special statuses (sending, processing, etc.) are transient and should be rare
+          // For most chats, we don't need to fetch (delivered/synced messages aren't shown anyway)
+          // Only fetch if this chat is actively being used (typing, or it's the active chat)
+          const mightHaveSpecialStatus = 
+            typingStoreValue?.chatId === currentChat.chat_id ||
+            currentChat.chat_id === activeChatId;
+          
+          if (mightHaveSpecialStatus) {
+            // Might have special status - fetch and cache
+            let lastMessageFromDB: Message | null = null;
+            try {
+              lastMessageFromDB = await chatDB.getLastMessageForChat(currentChat.chat_id);
+              // Cache the result (even if null)
+              chatListCache.setLastMessage(currentChat.chat_id, lastMessageFromDB);
+            } catch (error: any) {
+              // If database is being deleted or unavailable, use null
+              if (error?.message?.includes('being deleted') || error?.message?.includes('cannot be initialized')) {
+                console.debug(`[Chat] Database is being deleted, skipping last message load for ${currentChat.chat_id}`);
+                chatListCache.setLastMessage(currentChat.chat_id, null); // Cache null to avoid retrying
+              } else {
+                // Re-throw other errors
+                throw error;
+              }
+            }
+            lastMessage = lastMessageFromDB;
+          } else {
+            // No draft, no special status likely - skip fetching
+            // For delivered/synced messages, we don't show them anyway (displayLabel/displayText stay empty)
+            lastMessage = null;
+          }
         }
       }
-      lastMessage = messages && messages.length > 0 ? messages[messages.length - 1] : null;
       
       // CRITICAL: Use cached metadata for category/icon to avoid repeated decryption
       // The chatMetadataCache already decrypts and caches category/icon, so use it!
@@ -503,7 +534,7 @@
         // Use cached category from metadata cache (preferred path for performance)
         chatCategory = cachedMetadata.category;
         chatIcon = cachedMetadata.icon || null;
-        console.debug(`[Chat] Using cached metadata - category: ${chatCategory}, hasIcon: ${!!chatIcon}`);
+        // Using cached metadata (no log needed for normal operation)
       } else {
         // Fallback: Decrypt chat data on-demand if cache miss
         const decryptedChatData = await decryptChatData(currentChat);

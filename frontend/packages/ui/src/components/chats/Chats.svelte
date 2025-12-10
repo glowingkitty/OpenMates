@@ -18,6 +18,7 @@
 	import { locale as svelteLocaleStore } from 'svelte-i18n'; // For date formatting in getLocalizedGroupTitle
 	import { get } from 'svelte/store'; // For reading svelteLocaleStore value
 	import { chatMetadataCache } from '../../services/chatMetadataCache'; // For cache invalidation
+	import { chatListCache } from '../../services/chatListCache'; // Global cache for chat list
 	import { phasedSyncState } from '../../stores/phasedSyncStateStore'; // For tracking sync state across component lifecycle
 	import { activeChatStore } from '../../stores/activeChatStore'; // For persisting active chat across component lifecycle
 	import { userProfile } from '../../stores/userProfile'; // For hidden_demo_chats
@@ -27,6 +28,10 @@
 	import { notificationStore } from '../../stores/notificationStore'; // For notifications
 
 	const dispatch = createEventDispatcher();
+
+// --- Debounce timer for updateChatListFromDB calls ---
+let updateChatListDebounceTimer: NodeJS.Timeout | null = null;
+const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 
 	// --- Component State ---
 	let allChatsFromDB: ChatType[] = $state([]); // Holds all chats fetched from chatDB
@@ -56,7 +61,7 @@
 		// Reference the locale store to make the derived recalculate when language changes
 		// This triggers reactivity whenever the user changes the language
 		const currentLocale = $svelteLocaleStore;
-		console.debug('[Chats] Recalculating public chats for locale:', currentLocale);
+		// Don't log every recalculation - only log when locale actually changes (handled elsewhere if needed)
 		
 		// Get hidden IDs for authenticated users (shared between demo and legal chats)
 		const hiddenIds = $authStore.isAuthenticated ? ($userProfile.hidden_demo_chats || []) : [];
@@ -234,7 +239,8 @@
 	const handleSyncComplete = async (event: CustomEvent<{ serverChatOrder: string[] }>) => { // Added async
 	 console.debug('[Chats] Sync complete event received.');
 	 currentServerSortOrder = event.detail.serverChatOrder;
-	 await updateChatListFromDB();
+	 chatListCache.markDirty();
+	 await updateChatListFromDB(true);
 	 
 	 syncing = false;
 	 syncComplete = true;
@@ -261,39 +267,59 @@
 		// Invalidate cache for the updated chat to ensure fresh metadata
 		chatMetadataCache.invalidateChat(event.detail.chat_id);
 		
-		// CRITICAL: If a draft was deleted and we have the updated chat object, update it directly in the array
-		// This ensures immediate sorting update without waiting for IndexedDB read
-		if (event.detail.type === 'draft_deleted' && event.detail.chat) {
-			const updatedChat = event.detail.chat;
-			const chatIndex = allChatsFromDB.findIndex(c => c.chat_id === updatedChat.chat_id);
-			if (chatIndex !== -1) {
-				// Update the chat object directly in the array with the cleared draft state
-				allChatsFromDB[chatIndex] = updatedChat;
-				// Force reactivity by creating a new array reference
-				allChatsFromDB = [...allChatsFromDB];
-				console.debug('[Chats] Draft deleted - updated chat object directly in array to trigger immediate re-sorting');
-			} else {
-				// Chat not in array yet, refresh from DB
-				await updateChatListFromDB();
-			}
-		} else {
-			// For other update types, refresh from DB as usual
-			await updateChatListFromDB();
+		// Invalidate last message cache if a new message was added
+		if (event.detail.newMessage || event.detail.type === 'message_added') {
+			chatListCache.invalidateLastMessage(event.detail.chat_id);
 		}
 		
-		// If the updated chat is the currently selected one, re-dispatch to update main view
-		if (selectedChatId === event.detail.chat_id) {
-			const updatedChat = allChatsFromDB.find(c => c.chat_id === event.detail.chat_id); // Corrected variable name
-			if (updatedChat) {
-				dispatch('chatSelected', { chat: updatedChat });
-			}
+	// If a draft was deleted and we have the updated chat object, patch directly
+	if (event.detail.type === 'draft_deleted' && event.detail.chat) {
+		const updatedChat = event.detail.chat;
+		const chatIndex = allChatsFromDB.findIndex(c => c.chat_id === updatedChat.chat_id);
+		if (chatIndex !== -1) {
+			allChatsFromDB[chatIndex] = updatedChat;
+			allChatsFromDB = [...allChatsFromDB];
 		}
-	};
+		chatListCache.upsertChat(updatedChat);
+		// Update local state from cache
+		const cached = chatListCache.getCache(false);
+		if (cached) {
+			allChatsFromDB = cached;
+		}
+	} else if (event.detail.chat) {
+		// If we have the updated chat payload, patch cache and list without full reload
+		chatListCache.upsertChat(event.detail.chat);
+		const cached = chatListCache.getCache(false);
+		if (cached) {
+			allChatsFromDB = cached;
+		}
+	} else {
+		// Fallback: mark cache dirty and refresh from DB
+		chatListCache.markDirty();
+		await updateChatListFromDB();
+	}
+	
+	// If the updated chat is the currently selected one, re-dispatch to update main view
+	if (selectedChatId === event.detail.chat_id) {
+		const updatedChat = allChatsFromDB.find(c => c.chat_id === event.detail.chat_id); // Corrected variable name
+		if (updatedChat) {
+			dispatch('chatSelected', { chat: updatedChat });
+		}
+	}
+};
 
 	const handleChatDeletedEvent = async (event: CustomEvent<{ chat_id: string }>) => {
 		console.debug(`[Chats] Chat deleted event received for chat_id: ${event.detail.chat_id}`);
 		const chatWasSelected = selectedChatId === event.detail.chat_id;
-		await updateChatListFromDB(); // Refresh list from DB
+		chatListCache.removeChat(event.detail.chat_id);
+		const cached = chatListCache.getCache(false);
+		if (cached) {
+			allChatsFromDB = cached;
+		} else {
+			allChatsFromDB = allChatsFromDB.filter(c => c.chat_id !== event.detail.chat_id);
+			chatListCache.markDirty();
+			await updateChatListFromDB();
+		}
 		if (chatWasSelected) {
 			selectedChatId = null; // Deselect if the deleted chat was active
 			
@@ -329,7 +355,8 @@
 		// Queue the chat for selection and update the list
 		// The Phase 1 handler has already saved data to IndexedDB
 		_chatIdToSelectAfterUpdate = targetChatId;
-		await updateChatListFromDB();
+		chatListCache.markDirty();
+		await updateChatListFromDB(true);
 	};
 
 	/**
@@ -340,7 +367,8 @@
 		console.debug(`[Chats] Phase 2 complete - Last 20 chats ready: ${event.detail.chat_count} chats.`);
 		
 		// Update the chat list to show the recent chats
-		await updateChatListFromDB();
+		chatListCache.markDirty();
+		await updateChatListFromDB(true);
 		
 		// Expand display limit to show recent chats
 		if (!allChatsDisplayed && displayLimit < 20) {
@@ -356,7 +384,8 @@
 		console.info(`[Chats] Phase 3 complete - Last 100 chats ready: ${event.detail.chat_count} chats.`);
 		
 		// Update the chat list to show all chats
-		await updateChatListFromDB();
+		chatListCache.markDirty();
+		await updateChatListFromDB(true);
 		
 		// CRITICAL: Always expand display limit to show all chats after Phase 3
 		// Don't check allChatsDisplayed - ensure it's always set
@@ -386,7 +415,8 @@
 		phasedSyncState.markSyncCompleted();
 		
 		// Final update of the chat list
-		await updateChatListFromDB();
+		chatListCache.markDirty();
+		await updateChatListFromDB(true);
 		
 		syncing = false;
 		syncComplete = true;
@@ -616,6 +646,8 @@
 				_chatIdToSelectAfterUpdate = null;
 				currentServerSortOrder = [];
 				activeChatStore.clearActiveChat();
+				// Clear global cache on logout to prevent stale data
+				chatListCache.clear();
 				// Force UI update by triggering reactivity
 				allChatsFromDB = [];
 				
@@ -723,13 +755,13 @@
 			const action = customEvent.detail;
 			console.debug('[Chats] Bulk action received from context menu:', action);
 			
-			// Call the appropriate bulk handler
+			// Call the appropriate bulk handler (functions defined later in file)
 			if (action === 'download') {
-				handleBulkDownload();
+				handleBulkDownload().catch(err => console.error('[Chats] Error in bulk download:', err));
 			} else if (action === 'copy') {
-				handleBulkCopy();
+				handleBulkCopy().catch(err => console.error('[Chats] Error in bulk copy:', err));
 			} else if (action === 'delete') {
-				handleBulkDelete();
+				handleBulkDelete().catch(err => console.error('[Chats] Error in bulk delete:', err));
 			}
 		};
 		window.addEventListener('chatContextMenuBulkAction', handleContextMenuBulkAction);
@@ -766,6 +798,15 @@
 		* CRITICAL: Only loads chats if user is authenticated.
 		*/
 	async function initializeAndLoadDataFromDB() {
+		// CRITICAL: Check global cache first to avoid unnecessary DB reads on remount
+		// This cache persists across component instances (when sidebar closes/opens)
+		const cached = chatListCache.getCache(false);
+		if (cached) {
+			console.debug("[Chats] Using cached chats on initialize, skipping DB read");
+			allChatsFromDB = cached;
+			return;
+		}
+		
 		// CRITICAL: For non-authenticated users, load shared chats from IndexedDB
 		// For authenticated users, load all chats normally
 		if (!$authStore.isAuthenticated) {
@@ -958,131 +999,169 @@
   * This function is the main source for populating `allChatsFromDB`.
   * It also handles re-selection logic after updates.
   */
- async function updateChatListFromDB() { // Corrected function name
-  console.debug("[Chats] Updating chat list from DB...");
-  
-  // CRITICAL: For non-authenticated users, only load shared chats (tracked in sessionStorage)
-  // For authenticated users, load all chats normally
-  if (!$authStore.isAuthenticated) {
-   console.debug("[Chats] User not authenticated - loading only shared chats from IndexedDB");
-   
-   try {
-    // Check if database is being deleted (e.g., during logout)
-    try {
-     await chatDB.init();
-    } catch (initError: any) {
-     if (initError?.message?.includes('being deleted') || initError?.message?.includes('cannot be initialized')) {
-      console.debug("[Chats] Database unavailable, skipping shared chat load");
-      allChatsFromDB = [];
-      return;
-     }
-     throw initError;
-    }
-    
-    // Get shared chat IDs from sessionStorage
-    const sharedChatIds = JSON.parse(sessionStorage.getItem('shared_chats') || '[]');
-    
-    if (sharedChatIds.length > 0) {
-     // Load only the shared chats from IndexedDB
-     const sharedChats: ChatType[] = [];
-     for (const chatId of sharedChatIds) {
-      try {
-       const chat = await chatDB.getChat(chatId);
-       if (chat) {
-        sharedChats.push(chat);
-       }
-      } catch (error) {
-       console.warn(`[Chats] Error loading shared chat ${chatId}:`, error);
-      }
-     }
-     allChatsFromDB = sharedChats;
-     console.debug(`[Chats] Loaded ${sharedChats.length} shared chat(s) from IndexedDB`);
-    } else {
-     allChatsFromDB = [];
-    }
-   } catch (error) {
-    console.error("[Chats] Error loading shared chats from DB:", error);
-    allChatsFromDB = [];
-   }
-   return; // Exit early - shared chats are now in allChatsFromDB, will be included in allChats derived
-  }
-  
-  const previouslySelectedChatId = selectedChatId;
-  try {
-   // CRITICAL: Check if database is being deleted (e.g., during logout)
-   // If so, skip database access and keep only demo/legal chats
-   // This prevents errors during logout
-   try {
-    // Ensure DB is initialized before attempting to read
-    await chatDB.init();
-   } catch (initError: any) {
-    // If database is being deleted or unavailable, skip database access
-    if (initError?.message?.includes('being deleted') || initError?.message?.includes('cannot be initialized')) {
-     console.debug("[Chats] Database is being deleted, skipping database access - keeping only demo/legal chats");
-     // Clear user chats from state (keep only demo/legal chats which are already in visiblePublicChats)
-     allChatsFromDB = [];
-     // Don't try to re-select chats if database is unavailable
-     return;
-    }
-    // Re-throw other errors
-    throw initError;
-   }
-   console.debug("[Chats] chatDB.init() complete, fetching chats...");
-   
-   // CRITICAL: Double-check auth state after DB init (auth might have changed during init)
-   if (!$authStore.isAuthenticated) {
-    console.debug("[Chats] User became unauthenticated during DB init - clearing user chats");
-    allChatsFromDB = [];
-    selectedChatId = null;
-    return;
-   }
-   
-   const chatsFromDb = await chatDB.getAllChats(); // Renamed for clarity inside function
-   console.debug(`[Chats] chatDB.getAllChats() returned ${chatsFromDb.length} chats`);
-   
-   allChatsFromDB = chatsFromDb; // This assignment triggers reactive updates for sorted/grouped lists - Corrected variable
-   console.debug(`[Chats] Updated internal chat list. Count: ${allChatsFromDB.length}`); // Corrected variable
-   
-   // Debug: Log first few chat IDs if available
-   if (allChatsFromDB.length > 0) {
-       const chatIds = allChatsFromDB.slice(0, 3).map(c => c.chat_id).join(', ');
-       console.debug(`[Chats] First chat IDs: ${chatIds}${allChatsFromDB.length > 3 ? '...' : ''}`);
-   }
-   
-   await tick(); // Allow Svelte to process DOM updates from reactive changes
+async function updateChatListFromDB(force = false) { // Corrected function name
+	// Debounce rapid calls to prevent multiple simultaneous DB reads
+	if (updateChatListDebounceTimer) {
+		clearTimeout(updateChatListDebounceTimer);
+	}
+	
+	return new Promise<void>((resolve) => {
+		updateChatListDebounceTimer = setTimeout(async () => {
+			updateChatListDebounceTimer = null;
+			await updateChatListFromDBInternal(force);
+			resolve();
+		}, UPDATE_DEBOUNCE_MS);
+	});
+}
 
-   // Attempt to re-select a chat if one was queued for selection
-   if (_chatIdToSelectAfterUpdate) {
-    const chatToSelect = flattenedNavigableChats.find(c => c.chat_id === _chatIdToSelectAfterUpdate); // Corrected variable
-    if (chatToSelect) {
-    	console.debug(`[Chats] Selecting chat after list update: ${_chatIdToSelectAfterUpdate}`);
-    	await handleChatClick(chatToSelect, false); // System-initiated selection, don't close menu
-    } else {
-    	console.warn(`[Chats] Chat ID ${_chatIdToSelectAfterUpdate} not found for selection after list update.`);
-    }
-    _chatIdToSelectAfterUpdate = null; // Clear the queued selection ID
-   }
-   // If no specific chat was queued, try to maintain previous selection
-   else if (previouslySelectedChatId) {
-    const stillExists = flattenedNavigableChats.some(c => c.chat_id === previouslySelectedChatId); // Corrected variable
-    if (stillExists) {
-    	selectedChatId = previouslySelectedChatId; // Reselect if it still exists
-    } else {
-    	selectedChatId = null; // Deselect if it no longer exists
-    	dispatch('chatDeselected');
-    }
-   }
-   // Optional: Select the first chat if nothing is selected and the list is not empty
-   // else if (!selectedChatId && flattenedNavigableChats.length > 0) { // Corrected variable
-   // await handleChatClick(flattenedNavigableChats[0]);
-   // }
+async function updateChatListFromDBInternal(force = false) {
+	const cacheStats = chatListCache.getStats();
+	console.debug("[Chats] Updating chat list from DB...", { force, cacheStats, inProgress: chatListCache.isUpdateInProgress() });
 
-  } catch (error) {
-   console.error("[Chats] Error updating chat list from DB:", error);
-   allChatsFromDB = []; // Reset chats on error - Corrected variable
-   selectedChatId = null;
-  }
- }
+	// Prevent concurrent DB reads
+	if (chatListCache.isUpdateInProgress()) {
+		console.debug("[Chats] DB read already in progress, skipping duplicate call");
+		return;
+	}
+
+	// Serve from global cache when possible (unless forced or dirty)
+	if (!force) {
+		const cached = chatListCache.getCache(false);
+		if (cached) {
+			console.debug("[Chats] Using cached chats, skipping DB read");
+			allChatsFromDB = cached;
+			return;
+		}
+	}
+
+	chatListCache.setUpdateInProgress(true);
+	try {
+		// CRITICAL: For non-authenticated users, only load shared chats (tracked in sessionStorage)
+		// For authenticated users, load all chats normally
+		if (!$authStore.isAuthenticated) {
+			console.debug("[Chats] User not authenticated - loading only shared chats from IndexedDB");
+			
+			try {
+				// Check if database is being deleted (e.g., during logout)
+				try {
+					await chatDB.init();
+				} catch (initError: any) {
+					if (initError?.message?.includes('being deleted') || initError?.message?.includes('cannot be initialized')) {
+						console.debug("[Chats] Database unavailable, skipping shared chat load");
+						allChatsFromDB = [];
+						return;
+					}
+					throw initError;
+				}
+				
+				// Get shared chat IDs from sessionStorage
+				const sharedChatIds = JSON.parse(sessionStorage.getItem('shared_chats') || '[]');
+				
+				if (sharedChatIds.length > 0) {
+					// Load only the shared chats from IndexedDB
+					const sharedChats: ChatType[] = [];
+					for (const chatId of sharedChatIds) {
+						try {
+							const chat = await chatDB.getChat(chatId);
+							if (chat) {
+								sharedChats.push(chat);
+							}
+						} catch (error) {
+							console.warn(`[Chats] Error loading shared chat ${chatId}:`, error);
+						}
+					}
+				allChatsFromDB = sharedChats;
+				chatListCache.setCache(sharedChats);
+				console.debug(`[Chats] Loaded ${sharedChats.length} shared chat(s) from IndexedDB`);
+			} else {
+				allChatsFromDB = [];
+				chatListCache.setCache([]);
+			}
+			} catch (error) {
+				console.error("[Chats] Error loading shared chats from DB:", error);
+				allChatsFromDB = [];
+			}
+			return; // Exit early - shared chats are now in allChatsFromDB, will be included in allChats derived
+		}
+		
+		const previouslySelectedChatId = selectedChatId;
+		// CRITICAL: Check if database is being deleted (e.g., during logout)
+		// If so, skip database access and keep only demo/legal chats
+		// This prevents errors during logout
+		try {
+			// Ensure DB is initialized before attempting to read
+			await chatDB.init();
+		} catch (initError: any) {
+			// If database is being deleted or unavailable, skip database access
+			if (initError?.message?.includes('being deleted') || initError?.message?.includes('cannot be initialized')) {
+				console.debug("[Chats] Database is being deleted, skipping database access - keeping only demo/legal chats");
+				// Clear user chats from state (keep only demo/legal chats which are already in visiblePublicChats)
+				allChatsFromDB = [];
+				// Don't try to re-select chats if database is unavailable
+				return;
+			}
+			// Re-throw other errors
+			throw initError;
+		}
+		console.debug("[Chats] chatDB.init() complete, fetching chats...");
+		
+		// CRITICAL: Double-check auth state after DB init (auth might have changed during init)
+		if (!$authStore.isAuthenticated) {
+			console.debug("[Chats] User became unauthenticated during DB init - clearing user chats");
+			allChatsFromDB = [];
+			selectedChatId = null;
+			return;
+		}
+		
+		const chatsFromDb = await chatDB.getAllChats(); // Renamed for clarity inside function
+		console.debug(`[Chats] chatDB.getAllChats() returned ${chatsFromDb.length} chats`);
+		
+		allChatsFromDB = chatsFromDb; // This assignment triggers reactive updates for sorted/grouped lists - Corrected variable
+		chatListCache.setCache(chatsFromDb); // Update global cache
+		console.debug(`[Chats] Updated internal chat list. Count: ${allChatsFromDB.length}`); // Corrected variable
+		
+		// Debug: Log first few chat IDs if available
+		if (allChatsFromDB.length > 0) {
+				const chatIds = allChatsFromDB.slice(0, 3).map(c => c.chat_id).join(', ');
+				console.debug(`[Chats] First chat IDs: ${chatIds}${allChatsFromDB.length > 3 ? '...' : ''}`);
+		}
+		
+		await tick(); // Allow Svelte to process DOM updates from reactive changes
+
+		// Attempt to re-select a chat if one was queued for selection
+		if (_chatIdToSelectAfterUpdate) {
+			const chatToSelect = flattenedNavigableChats.find(c => c.chat_id === _chatIdToSelectAfterUpdate); // Corrected variable
+			if (chatToSelect) {
+				console.debug(`[Chats] Selecting chat after list update: ${_chatIdToSelectAfterUpdate}`);
+				await handleChatClick(chatToSelect, false); // System-initiated selection, don't close menu
+			} else {
+				console.warn(`[Chats] Chat ID ${_chatIdToSelectAfterUpdate} not found for selection after list update.`);
+			}
+			_chatIdToSelectAfterUpdate = null; // Clear the queued selection ID
+		}
+		// If no specific chat was queued, try to maintain previous selection
+		else if (previouslySelectedChatId) {
+			const stillExists = flattenedNavigableChats.some(c => c.chat_id === previouslySelectedChatId); // Corrected variable
+			if (stillExists) {
+				selectedChatId = previouslySelectedChatId; // Reselect if it still exists
+			} else {
+				selectedChatId = null; // Deselect if it no longer exists
+				dispatch('chatDeselected');
+			}
+		}
+		// Optional: Select the first chat if nothing is selected and the list is not empty
+		// else if (!selectedChatId && flattenedNavigableChats.length > 0) { // Corrected variable
+		// await handleChatClick(flattenedNavigableChats[0]);
+		// }
+
+	} catch (error) {
+		console.error("[Chats] Error updating chat list from DB:", error);
+		allChatsFromDB = []; // Reset chats on error - Corrected variable
+		selectedChatId = null;
+	} finally {
+		chatListCache.setUpdateInProgress(false);
+	}
+}
 
  /** Handles keydown events on chat items for accessibility (Enter/Space to select). */
     function handleKeyDown(event: KeyboardEvent, chat: ChatType) {

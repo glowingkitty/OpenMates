@@ -10,6 +10,7 @@
     import { MOBILE_BREAKPOINT } from '../styles/constants';
     import { tick } from 'svelte';
     import Signup from './signup/Signup.svelte';
+    import SignupNav from './signup/SignupNav.svelte';
     import VerifyDevice2FA from './VerifyDevice2FA.svelte'; // Import VerifyDevice2FA component
     import { userProfile } from '../stores/userProfile';
     // Import new login method components
@@ -1673,6 +1674,55 @@
 
     // Derive the main view from the signup process state. This is more robust against race conditions using $derived (Svelte 5 runes mode)
     let currentView = $derived($isInSignupProcess ? 'signup' : 'login');
+    
+    // Determine if tabs should be visible
+    // Tabs should only be visible on login screen or during alpha disclaimer and basics steps
+    // Once user reaches confirm email step, tabs should be hidden
+    let showTabs = $derived(
+        currentView === 'login' || 
+        (currentView === 'signup' && ($currentSignupStep === STEP_ALPHA_DISCLAIMER || $currentSignupStep === STEP_BASICS))
+    );
+    
+    // State for SignupNav (exposed from Signup component via bindable props)
+    let signupSelectedAppName = $state<string | null>(null);
+    let signupIsAdmin = $state(false);
+    let signupIsInviteCodeValidated = $state(false);
+    let signupShowSkip = $state(false);
+    
+    // Store references to Signup component's internal handlers
+    // These will be set up to call Signup's handlers when invoked
+    let signupCloseToDemo: (() => Promise<void>) | null = null;
+    let signupStepFromNav: ((event: { step: string }) => void) | null = null;
+    let signupSkip: (() => void) | null = null;
+    let signupLogout: (() => Promise<void>) | null = null;
+    
+    // Handlers for SignupNav - these call the callbacks passed to Signup
+    // Signup will update these callbacks (via bindable) to call its internal handlers
+    async function handleSignupNavBack() {
+        // Call the callback - Signup has updated it to call handleCloseToDemo
+        onSignupNavBack();
+    }
+    
+    function handleSignupNavStep(event: { step: string }) {
+        // Call the callback - Signup has updated it to call handleStepFromNav
+        onSignupNavStep(event);
+    }
+    
+    function handleSignupNavSkip() {
+        // Call the callback - Signup has updated it to call handleSkip
+        onSignupNavSkip();
+    }
+    
+    async function handleSignupNavLogout() {
+        // Call the callback - Signup has updated it to call handleLogout
+        await onSignupNavLogout();
+    }
+    
+    // Callbacks passed to Signup - Signup will update these (via bindable) to call its internal handlers
+    let onSignupNavBack = $state<() => void>(() => {});
+    let onSignupNavStep = $state<(event: { step: string }) => void>(() => {});
+    let onSignupNavSkip = $state<() => void>(() => {});
+    let onSignupNavLogout = $state<() => Promise<void>>(async () => {});
 
     // Ensure form is shown when login view becomes visible (fixes issue when login interface is opened manually)
     // This handles the case where the Login component is shown/hidden without remounting
@@ -1805,6 +1855,7 @@
                         <button 
                             class="nav-button"
                             onclick={() => {
+                                console.log('[Login] Demo back button clicked - closing login interface and returning to demo');
                                 // Clear email encryption key and salt when interrupting login to go back to demo
                                 // This ensures sensitive data is removed if user abandons login attempt
                                 cryptoService.clearAllEmailData();
@@ -1814,6 +1865,11 @@
                                 console.debug('[Login] Cleared all sessionStorage drafts when returning to demo');
                                 // Dispatch event to close login interface and show demo
                                 window.dispatchEvent(new CustomEvent('closeLoginInterface'));
+                                // Also dispatch loadDemoChat event to ensure demo chat is loaded
+                                // Small delay to ensure the interface closes before loading chat
+                                setTimeout(() => {
+                                    window.dispatchEvent(new CustomEvent('loadDemoChat'));
+                                }, 100);
                             }}
                             aria-label={$text('login.demo.text')}
                         >
@@ -1821,6 +1877,20 @@
                             {$text('login.demo.text')}
                         </button>
                     </div>
+                {/if}
+                
+                <!-- SignupNav - show when in signup process, positioned inside login-box -->
+                {#if $isInSignupProcess && !$authStore.isAuthenticated}
+                    <SignupNav
+                        onback={handleSignupNavBack}
+                        onstep={handleSignupNavStep}
+                        onskip={handleSignupNavSkip}
+                        onlogout={handleSignupNavLogout}
+                        showSkip={signupShowSkip}
+                        currentStep={$currentSignupStep}
+                        selectedAppName={signupSelectedAppName}
+                        showAdminButton={signupIsAdmin && $currentSignupStep === STEP_BASICS && signupIsInviteCodeValidated}
+                    />
                 {/if}
                 {#if isPolicyViolationLockout || isAccountDeleted}
                     <div class="content-area" in:fade={{ duration: 400 }}>
@@ -1835,6 +1905,26 @@
                     </div>
                 {:else if currentView === 'login'}
                     <div class="content-area" in:fade={{ duration: 400 }}>
+                        <!-- Login/Signup tabs - only show on login screen -->
+                        {#if showTabs}
+                            <div class="login-tabs">
+                                <button 
+                                    class="tab-button active"
+                                    onclick={() => {
+                                        // Already on login view, no action needed
+                                    }}
+                                >
+                                    {$text('login.login.text')}
+                                </button>
+                                <button 
+                                    class="tab-button"
+                                    onclick={switchToSignup}
+                                >
+                                    {$text('signup.sign_up.text')}
+                                </button>
+                            </div>
+                        {/if}
+                        
                         <h1><mark>{@html $text('login.login.text')}</mark></h1>
                         <h2>{@html $text('login.to_chat_to_your.text')}<br><mark>{@html $text('login.digital_team_mates.text')}</mark></h2>
 
@@ -1898,6 +1988,9 @@
                                                 bind:isLoading
                                                 bind:loginFailedWarning
                                                 bind:stayLoggedIn
+                                                isPasskeyLoading={isPasskeyLoading}
+                                                onPasskeyClick={startPasskeyLogin}
+                                                onCancelPasskey={cancelPasskeyLogin}
                                                 on:lookupSuccess={(e) => {
                                                     availableLoginMethods = e.detail.availableLoginMethods;
                                                     preferredLoginMethod = e.detail.preferredLoginMethod;
@@ -2063,46 +2156,39 @@
                             {/if} <!-- End standard login form / rate limit / loading block -->
                         </div> <!-- End form-container -->
 
-                        <!-- Show login options only when EmailLookup is visible -->
-                        {#if showForm && !$isCheckingAuth && !showVerifyDeviceView && currentLoginStep === 'email'}
-                            <div class="bottom-positioned">
-                                {#if isPasskeyLoading}
-                                    <!-- Show email login option when passkey is loading -->
-                                    <button 
-                                        class="text-button" 
-                                        onclick={cancelPasskeyLogin}
-                                    >
-                                        <span class="clickable-icon icon_mail"></span>
-                                        {$text('login.login_with_email.text')}
-                                    </button>
-                                {:else}
-                                    <!-- Passkey login option - triggers loading screen -->
-                                    <button 
-                                        class="text-button" 
-                                        onclick={startPasskeyLogin}
-                                    >
-                                        <span class="clickable-icon icon_passkey"></span>
-                                        {$text('login.login_with_passkey.text')}
-                                    </button>
-                                {/if}
-                                
-                                <!-- Phone login option (commented out - not yet implemented) -->
-                                <!-- <button class="text-button" onclick={() => {}}>
-                                    <span class="clickable-icon icon_phone"></span>
-                                    {$text('login.login_with_phone.text')}
-                                </button> -->
-                                
-                                <!-- Create account option -->
-                                <button class="text-button" onclick={switchToSignup}>
-                                    <span class="clickable-icon icon_user"></span>
-                                    {$text('login.create_account.text')}
+                    </div> <!-- End content-area for login view -->
+                {:else} <!-- Handles currentView !== 'login' -->
+                    <div class="content-area" in:fade={{ duration: 200 }}>
+                        <!-- Login/Signup tabs - only show during alpha disclaimer and basics steps -->
+                        {#if showTabs}
+                            <div class="login-tabs">
+                                <button 
+                                    class="tab-button"
+                                    onclick={switchToLogin}
+                                >
+                                    {$text('login.login.text')}
+                                </button>
+                                <button 
+                                    class="tab-button active"
+                                    onclick={() => {
+                                        // Already on signup view, no action needed
+                                    }}
+                                >
+                                    {$text('signup.sign_up.text')}
                                 </button>
                             </div>
                         {/if}
-                    </div> <!-- End content-area for login view -->
-                {:else} <!-- Handles currentView !== 'login' -->
-                    <div in:fade={{ duration: 200 }}>
-                        <Signup onswitchToLogin={switchToLogin} />
+                        <Signup 
+                            onswitchToLogin={switchToLogin}
+                            bind:selectedAppName={signupSelectedAppName}
+                            bind:is_admin={signupIsAdmin}
+                            bind:isInviteCodeValidated={signupIsInviteCodeValidated}
+                            bind:showSkip={signupShowSkip}
+                            bind:onSignupNavBack
+                            bind:onSignupNavStep
+                            bind:onSignupNavSkip
+                            bind:onSignupNavLogout
+                        />
                         <!-- Removed stray </button> here -->
                     </div>
                 {/if} <!-- This closes the main #if / :else if / :else block -->
@@ -2126,36 +2212,6 @@
         background-color: var(--color-error-light);
         border-radius: 8px;
         margin: 24px 0;
-    }
-    
-    .bottom-positioned {
-        margin-top: 40px;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        width: 100%;
-        gap: 8px;
-    }
-    
-    .text-button {
-        all: unset;
-        font-size: 16px;
-        font-weight: 500;
-        cursor: pointer;
-        padding: 8px 16px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 8px;
-        background: var(--color-primary);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
-    }
-    
-    .text-button .clickable-icon {
-        margin-right: 0;
     }
     
     /* Passkey loading screen */
@@ -2263,6 +2319,37 @@
     .retry-button:active {
         background-color: var(--color-button-primary-pressed);
         transform: scale(0.98);
+    }
+
+    /* Login/Signup tabs */
+    .login-tabs {
+        display: flex;
+        gap: 0;
+        margin-bottom: 24px;
+        border-bottom: 1px solid var(--color-grey-30);
+    }
+
+    .tab-button {
+        all: unset;
+        flex: 1;
+        padding: 12px 16px;
+        text-align: center;
+        font-size: 16px;
+        font-weight: 500;
+        color: var(--color-grey-60);
+        cursor: pointer;
+        border-bottom: 2px solid transparent;
+        transition: all 0.2s ease;
+    }
+
+    .tab-button:hover {
+        color: var(--color-text);
+        background-color: var(--color-hover-background);
+    }
+
+    .tab-button.active {
+        color: var(--color-primary);
+        border-bottom-color: var(--color-primary);
     }
 
 </style>

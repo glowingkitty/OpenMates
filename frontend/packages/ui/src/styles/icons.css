@@ -146,6 +146,13 @@
   }
 }
 
+.subsetting_icon_settings {
+  &::after {
+    -webkit-mask-image: url('@openmates/ui/static/icons/settings.svg');
+    mask-image: url('@openmates/ui/static/icons/settings.svg');
+  }
+}
+
 .subsetting_icon_security {
   &::after {
     -webkit-mask-image: url('@openmates/ui/static/icons/lock.svg');
@@ -363,6 +370,10 @@ div.clickable-icon {
   mask-image: url('@openmates/ui/static/icons/language.svg');
 }
 
+.clickable-icon.icon_settings {
+  -webkit-mask-image: url('@openmates/ui/static/icons/settings.svg');
+  mask-image: url('@openmates/ui/static/icons/settings.svg');
+}
 .clickable-icon.icon_secret {
   -webkit-mask-image: url('@openmates/ui/static/icons/secret.svg');
   mask-image: url('@openmates/ui/static/icons/secret.svg');

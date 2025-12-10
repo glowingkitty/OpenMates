@@ -20,12 +20,18 @@
         email = $bindable(''),
         isLoading = $bindable(false),
         loginFailedWarning = $bindable(false),
-        stayLoggedIn = $bindable(false)
+        stayLoggedIn = $bindable(false),
+        isPasskeyLoading = false,
+        onPasskeyClick = () => {},
+        onCancelPasskey = () => {}
     }: {
         email?: string;
         isLoading?: boolean;
         loginFailedWarning?: boolean;
         stayLoggedIn?: boolean;
+        isPasskeyLoading?: boolean;
+        onPasskeyClick?: () => void;
+        onCancelPasskey?: () => void;
     } = $props();
     
     // State for showing passkey button (updated after lookup)
@@ -297,7 +303,7 @@
         </div>
     {:else}
         <form onsubmit={handleEmailLookup}>
-            <!-- Stay logged in toggle - above email field -->
+            <!-- Stay logged in toggle - first element -->
             <div class="input-group toggle-group">
                 <Toggle
                     id="stayLoggedIn"
@@ -309,6 +315,33 @@
                 <label for="stayLoggedIn" class="agreement-text">{@html $text('login.stay_logged_in.text')}</label>
             </div>
 
+            <!-- Passkey login button - second element -->
+            {#if isPasskeyLoading}
+                <button 
+                    type="button"
+                    class="passkey-button" 
+                    onclick={onCancelPasskey}
+                >
+                    <span class="clickable-icon icon_mail"></span>
+                    {$text('login.login_with_email.text')}
+                </button>
+            {:else}
+                <button 
+                    type="button"
+                    class="passkey-button" 
+                    onclick={onPasskeyClick}
+                >
+                    <span class="clickable-icon icon_passkey"></span>
+                    {$text('login.login_with_passkey.text')}
+                </button>
+            {/if}
+
+            <!-- Or separator - third element -->
+            <div class="divider">
+                <span>{$text('login.or.text')}</span>
+            </div>
+
+            <!-- Email field - fourth element -->
             <div class="input-group">
                 <div class="input-wrapper">
                     <span class="clickable-icon icon_mail"></span>
@@ -341,6 +374,7 @@
                 </div>
             </div>
 
+            <!-- Continue button - fifth element -->
             <button
                 type="submit"
                 class="login-button"
@@ -352,10 +386,6 @@
                     {$text('signup.continue.text')}
                 {/if}
             </button>
-            
-            <div class="divider">
-                <span>{$text('login.or.text')}</span>
-            </div>
         </form>
     {/if}
 </div>
@@ -429,5 +459,27 @@
     
     .divider::after {
         margin-left: 12px;
+    }
+
+    .passkey-button {
+        all: unset;
+        width: 100%;
+        font-size: 16px;
+        font-weight: 500;
+        cursor: pointer;
+        padding: 8px 16px;
+        margin: 16px 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        background: var(--color-primary);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+
+    .passkey-button .clickable-icon {
+        margin-right: 0;
     }
 </style>

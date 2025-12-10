@@ -106,20 +106,23 @@
     });
 
     // Add mobile breakpoint check
-    let isMobile = false;
+    let isMobile = $state(false);
 
     onMount(() => {
         const checkMobile = () => {
             isMobile = window.innerWidth < 730;
         };
-        
+
         checkMobile();
         window.addEventListener('resize', checkMobile);
-        
+
         return () => {
             window.removeEventListener('resize', checkMobile);
         };
     });
+
+    // Derive button text based on viewport size
+    let loginButtonText = $derived(isMobile ? $text('signup.sign_up.text') : `${$text('signup.sign_up.text')} / ${$text('header.login.text')}`);
 
     // Update menu toggle logic to consider the logging out state as well
     const toggleMenu = () => {
@@ -249,20 +252,20 @@
                 <!-- Login button for non-authenticated users in webapp context -->
                 <!-- Opens login interface which also provides signup option -->
                 <!-- Always render to maintain header height, but hide visually when not needed -->
-                <div 
+                <div
                     class="right-section"
                     class:hidden={context !== 'webapp' || $authStore.isAuthenticated || $loginInterfaceOpen}
                 >
-                    <button 
+                    <button
                         class="login-signup-button"
                         onclick={(e) => {
                             e.preventDefault();
                             // Dispatch event to open login interface
                             window.dispatchEvent(new CustomEvent('openLoginInterface'));
                         }}
-                        aria-label={$text('header.login.text')}
+                        aria-label={loginButtonText}
                     >
-                        {$text('header.login.text')}
+                        {loginButtonText}
                     </button>
                 </div>
             </nav>
