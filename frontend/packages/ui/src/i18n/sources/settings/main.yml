@@ -251,6 +251,236 @@ incognito:
   cs: ''
   sv: ''
   verified_by_human: []
+incognito_explainer_description:
+  context: Description of what incognito mode does
+  en: 'Incognito mode applies only to new chats you create. New chats created while incognito mode is active are not synced across devices, not stored on the server, and not cached. These chats exist only in your current browser session. Existing chats remain unchanged.'
+  de: 'Der Inkognito-Modus gilt nur für neue Chats, die Sie erstellen. Neue Chats, die erstellt werden, während der Inkognito-Modus aktiv ist, werden nicht zwischen Geräten synchronisiert, nicht auf dem Server gespeichert und nicht zwischengespeichert. Diese Chats existieren nur in Ihrer aktuellen Browsersitzung. Bestehende Chats bleiben unverändert.'
+  zh: '隐身模式仅适用于您创建的新聊天。在隐身模式激活时创建的新聊天不会跨设备同步，不会存储在服务器上，也不会被缓存。这些聊天仅存在于您当前的浏览器会话中。现有聊天保持不变。'
+  es: 'El modo incógnito se aplica solo a los nuevos chats que cree. Los nuevos chats creados mientras el modo incógnito está activo no se sincronizan entre dispositivos, no se almacenan en el servidor y no se almacenan en caché. Estos chats solo existen en su sesión actual del navegador. Los chats existentes permanecen sin cambios.'
+  fr: "Le mode incognito s'applique uniquement aux nouveaux chats que vous créez. Les nouveaux chats créés lorsque le mode incognito est actif ne sont pas synchronisés entre les appareils, ne sont pas stockés sur le serveur et ne sont pas mis en cache. Ces chats n'existent que dans votre session de navigateur actuelle. Les chats existants restent inchangés."
+  pt: ''
+  ru: ''
+  ja: 'シークレットモードは、作成する新しいチャットにのみ適用されます。シークレットモードがアクティブな間に作成された新しいチャットは、デバイス間で同期されず、サーバーに保存されず、キャッシュされません。これらのチャットは、現在のブラウザセッションにのみ存在します。既存のチャットは変更されません。'
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+incognito_explainer_feature_device_specific:
+  context: Feature explaining device-specific nature
+  en: 'Device-specific: Only applies to this browser tab'
+  de: 'Gerätespezifisch: Gilt nur für diesen Browser-Tab'
+  zh: 设备特定：仅适用于此浏览器标签页
+  es: 'Específico del dispositivo: Solo se aplica a esta pestaña del navegador'
+  fr: "Spécifique à l'appareil : Ne s'applique qu'à cet onglet du navigateur"
+  pt: ''
+  ru: ''
+  ja: デバイス固有：このブラウザタブにのみ適用されます
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+incognito_explainer_feature_not_stored:
+  context: Feature explaining chats are not stored
+  en: 'Not stored: Chats are not saved to the server'
+  de: 'Nicht gespeichert: Chats werden nicht auf dem Server gespeichert'
+  zh: 不存储：聊天不会保存到服务器
+  es: 'No almacenado: Los chats no se guardan en el servidor'
+  fr: 'Non stocké : Les chats ne sont pas enregistrés sur le serveur'
+  pt: ''
+  ru: ''
+  ja: 保存されない：チャットはサーバーに保存されません
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+incognito_explainer_feature_session_only:
+  context: Feature explaining chats are session-only
+  en: 'Session-only: Chats disappear when you close the tab'
+  de: 'Nur Sitzung: Chats verschwinden, wenn Sie den Tab schließen'
+  zh: 仅会话：关闭标签页时聊天会消失
+  es: 'Solo sesión: Los chats desaparecen cuando cierra la pestaña'
+  fr: "Session uniquement : Les chats disparaissent lorsque vous fermez l'onglet"
+  pt: ''
+  ru: ''
+  ja: セッションのみ：タブを閉じるとチャットが消えます
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+incognito_explainer_feature_no_recovery:
+  context: Feature warning about no recovery
+  en: 'No recovery: Deleted incognito chats cannot be recovered'
+  de: 'Keine Wiederherstellung: Gelöschte Inkognito-Chats können nicht wiederhergestellt werden'
+  zh: '无法恢复：已删除的隐身聊天无法恢复'
+  es: 'Sin recuperación: Los chats incógnitos eliminados no se pueden recuperar'
+  fr: "Aucune récupération : Les chats incognito supprimés ne peuvent pas être récupérés"
+  pt: ''
+  ru: ''
+  ja: 回復不可：削除されたシークレットチャットは回復できません
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+incognito_explainer_warning_title:
+  context: Title for the warning section about third-party providers
+  en: Important Privacy Notice
+  de: Wichtiger Datenschutzhinweis
+  zh: 重要隐私提示
+  es: Aviso importante de privacidad
+  fr: Avis important sur la confidentialité
+  pt: ''
+  ru: ''
+  ja: 重要なプライバシー通知
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+incognito_explainer_warning_providers:
+  context: Warning that chats are still sent to third-party AI providers
+  en: 'Even in incognito mode, your chats are still sent to the selected third-party AI providers to process your requests. While these providers cannot directly see which user sent the request, your messages are still processed by their systems.'
+  de: 'Auch im Inkognito-Modus werden Ihre Chats weiterhin an die ausgewählten Drittanbieter-KI-Anbieter gesendet, um Ihre Anfragen zu verarbeiten. Obwohl diese Anbieter nicht direkt sehen können, welcher Benutzer die Anfrage gesendet hat, werden Ihre Nachrichten dennoch von ihren Systemen verarbeitet.'
+  zh: '即使在隐身模式下，您的聊天仍会发送给选定的第三方AI提供商以处理您的请求。虽然这些提供商无法直接看到是哪个用户发送的请求，但您的消息仍会由他们的系统处理。'
+  es: 'Incluso en modo incógnito, sus chats se envían a los proveedores de IA de terceros seleccionados para procesar sus solicitudes. Aunque estos proveedores no pueden ver directamente qué usuario envió la solicitud, sus mensajes siguen siendo procesados por sus sistemas.'
+  fr: "Même en mode incognito, vos chats sont toujours envoyés aux fournisseurs d'IA tiers sélectionnés pour traiter vos demandes. Bien que ces fournisseurs ne puissent pas voir directement quel utilisateur a envoyé la demande, vos messages sont toujours traités par leurs systèmes."
+  pt: ''
+  ru: ''
+  ja: 'シークレットモードでも、チャットは選択したサードパーティのAIプロバイダーに送信され、リクエストを処理します。これらのプロバイダーはどのユーザーがリクエストを送信したかを直接確認することはできませんが、メッセージは引き続きこれらのシステムによって処理されます。'
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+incognito_explainer_warning_personal_info:
+  context: Warning to not include personal information in incognito chats
+  en: 'It is strongly recommended to not include any personal information, sensitive data, or confidential details in incognito chats.'
+  de: 'Es wird dringend empfohlen, keine persönlichen Informationen, sensiblen Daten oder vertraulichen Details in Inkognito-Chats einzufügen.'
+  zh: '强烈建议不要在隐身聊天中包含任何个人信息、敏感数据或机密详情。'
+  es: 'Se recomienda encarecidamente no incluir información personal, datos sensibles o detalles confidenciales en los chats incógnitos.'
+  fr: "Il est fortement recommandé de ne pas inclure d'informations personnelles, de données sensibles ou de détails confidentiels dans les chats incognito."
+  pt: ''
+  ru: ''
+  ja: 'シークレットチャットには、個人情報、機密データ、または機密の詳細を含めないことを強くお勧めします。'
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+incognito_mode_applies_to_new_chats_only:
+  context: Banner message shown for non-incognito chats when incognito mode is active
+  en: Incognito Mode applies to new chats only. Not this chat.
+  de: Inkognito-Modus gilt nur für neue Chats. Nicht für diesen Chat.
+  zh: 隐身模式仅适用于新聊天。不适用于此聊天。
+  es: El modo incógnito se aplica solo a chats nuevos. No a este chat.
+  fr: Le mode incognito s'applique uniquement aux nouveaux chats. Pas à ce chat.
+  pt: ''
+  ru: ''
+  ja: シークレットモードは新しいチャットにのみ適用されます。このチャットには適用されません。
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+incognito_explainer_understood:
+  context: Button text to close the explainer
+  en: Got it
+  de: Verstanden
+  zh: 知道了
+  es: Entendido
+  fr: Compris
+  pt: ''
+  ru: ''
+  ja: 了解しました
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
 guest:
   context: Guest mode toggle
   en: Guest
@@ -2033,4 +2263,234 @@ your_account_got_deleted:
   th: ''
   cs: ''
   sv: ''
+  verified_by_human: []
+app_embeds.no_embeds:
+  context: Message when no embeds are found for an app
+  en: No embeds found for this app.
+  de: Keine Einbettungen für diese App gefunden.
+  zh: 未找到此应用的嵌入内容。
+  es: No se encontraron incrustaciones para esta aplicación.
+  fr: Aucune intégration trouvée pour cette application.
+  pt: Nenhuma incorporação encontrada para este aplicativo.
+  ru: Встраивания для этого приложения не найдены.
+  ja: このアプリの埋め込みが見つかりません。
+  ko: 이 앱에 대한 임베드가 없습니다.
+  it: Nessuna incorporazione trovata per questa app.
+  tr: Bu uygulama için gömme bulunamadı.
+  vi: Không tìm thấy nội dung nhúng cho ứng dụng này.
+  id: Tidak ada embed yang ditemukan untuk aplikasi ini.
+  pl: Nie znaleziono osadzeń dla tej aplikacji.
+  nl: Geen inbeddingen gevonden voor deze app.
+  ar: لم يتم العثور على محتوى مضمن لهذا التطبيق.
+  hi: इस ऐप के लिए कोई एम्बेड नहीं मिला।
+  th: ไม่พบการฝังสำหรับแอปนี้
+  cs: Pro tuto aplikaci nebyly nalezeny žádné vložené prvky.
+  sv: Inga inbäddningar hittades för denna app.
+  verified_by_human: []
+app_embeds.loading:
+  context: Loading message while fetching embeds
+  en: Loading embeds...
+  de: Einbettungen werden geladen...
+  zh: 正在加载嵌入内容...
+  es: Cargando incrustaciones...
+  fr: Chargement des intégrations...
+  pt: Carregando incorporações...
+  ru: Загрузка встраиваний...
+  ja: 埋め込みを読み込み中...
+  ko: 임베드 로드 중...
+  it: Caricamento incorporazioni...
+  tr: Gömme yükleniyor...
+  vi: Đang tải nội dung nhúng...
+  id: Memuat embed...
+  pl: Ładowanie osadzeń...
+  nl: Inbeddingen laden...
+  ar: جاري تحميل المحتوى المضمن...
+  hi: एम्बेड लोड हो रहे हैं...
+  th: กำลังโหลดการฝัง...
+  cs: Načítání vložených prvků...
+  sv: Läser in inbäddningar...
+  verified_by_human: []
+app_settings_memories.no_settings:
+  context: Message when no settings and memories have been synced for an app
+  en: No settings or memories synced yet. They will appear here once available.
+  de: Noch keine Einstellungen oder Erinnerungen synchronisiert. Sie werden hier angezeigt, wenn verfügbar.
+  zh: 尚未同步任何设置或记忆。可用后会在此显示。
+  es: Aún no hay configuración ni recuerdos sincronizados. Aparecerán aquí una vez disponibles.
+  fr: Aucun paramètre ou souvenir encore synchronisé. Ils apparaîtront ici une fois disponibles.
+  pt: Nenhuma configuração ou memória sincronizada ainda. Eles aparecerão aqui assim que disponíveis.
+  ru: Настройки и воспоминания еще не синхронизированы. Они появятся здесь после доступности.
+  ja: 設定とメモリはまだ同期されていません。利用可能になると表示されます。
+  ko: 아직 동기화된 설정 또는 메모리가 없습니다. 이용 가능할 때 여기에 표시됩니다.
+  it: Nessuna impostazione o ricordo sincronizzato ancora. Appariranno qui una volta disponibili.
+  tr: Henüz hiçbir ayar veya anı senkronize edilmedi. Mevcut olduğunda burada görünecekler.
+  vi: Chưa có cài đặt hoặc ký ức nào được đồng bộ hóa. Chúng sẽ xuất hiện ở đây khi có sẵn.
+  id: Belum ada pengaturan atau memori yang disinkronkan. Mereka akan muncul di sini setelah tersedia.
+  pl: Brak jeszcze zsynchronizowanych ustawień ani wspomnień. Pojawią się tutaj, gdy tylko będą dostępne.
+  nl: Nog geen instellingen of herinneringen gesynchroniseerd. Ze verschijnen hier zodra deze beschikbaar zijn.
+  ar: لم يتم مزامنة أي إعدادات أو ذكريات حتى الآن. ستظهر هنا بمجرد توفرها.
+  hi: अभी तक कोई सेटिंग्स या यादें सिंक नहीं की गई हैं। वे यहां उपलब्ध हो जाने के बाद दिखाई देंगे।
+  th: ยังไม่มีการตั้งค่าหรือความทรงจำที่ซิงค์แล้ว พวกเขาจะปรากฏที่นี่เมื่อมีให้บริการ
+  cs: Zatím nejsou synchronizovány žádné nastavení ani paměti. Zobrazí se zde, jakmile budou dostupná.
+  sv: Inga inställningar eller minnen ännu inte synkroniserade. De visas här när de är tillgängliga.
+  verified_by_human: []
+app_settings_memories.add_entry:
+  context: Button text to add a new entry
+  en: Add Entry
+  de: Eintrag hinzufügen
+  zh: 添加条目
+  es: Agregar entrada
+  fr: Ajouter une entrée
+  pt: Adicionar entrada
+  ru: Добавить запись
+  ja: エントリを追加
+  ko: 항목 추가
+  it: Aggiungi voce
+  tr: Giriş ekle
+  vi: Thêm mục
+  id: Tambah entri
+  pl: Dodaj wpis
+  nl: Item toevoegen
+  ar: إضافة إدخال
+  hi: प्रविष्टि जोड़ें
+  th: เพิ่มรายการ
+  cs: Přidat položku
+  sv: Lägg till post
+  verified_by_human: []
+app_settings_memories.loading:
+  context: Loading message while fetching settings and memories
+  en: Loading settings and memories...
+  de: Einstellungen und Erinnerungen werden geladen...
+  zh: 正在加载设置和记忆...
+  es: Cargando configuración y recuerdos...
+  fr: Chargement des paramètres et souvenirs...
+  pt: Carregando configurações e memórias...
+  ru: Загрузка настроек и воспоминаний...
+  ja: 設定とメモリを読み込み中...
+  ko: 설정 및 메모리 로드 중...
+  it: Caricamento impostazioni e ricordi...
+  tr: Ayarlar ve anılar yükleniyor...
+  vi: Đang tải cài đặt và ký ức...
+  id: Memuat pengaturan dan memori...
+  pl: Ładowanie ustawień i wspomnień...
+  nl: Instellingen en herinneringen laden...
+  ar: جاري تحميل الإعدادات والذكريات...
+  hi: सेटिंग्स और यादें लोड हो रही हैं...
+  th: กำลังโหลดการตั้งค่าและความทรงจำ...
+  cs: Načítání nastavení a paměti...
+  sv: Läser in inställningar och minnen...
+  verified_by_human: []
+app_settings_memories.item_key:
+  context: Label for item key input field
+  en: Item Key
+  de: Eintragsschlüssel
+  zh: 条目键
+  es: Clave del elemento
+  fr: Clé de l'élément
+  pt: Chave do item
+  ru: Ключ элемента
+  ja: アイテムキー
+  ko: 항목 키
+  it: Chiave elemento
+  tr: Öğe anahtarı
+  vi: Khóa mục
+  id: Kunci item
+  pl: Klucz elementu
+  nl: Item sleutel
+  ar: مفتاح العنصر
+  hi: आइटम कुंजी
+  th: คีย์รายการ
+  cs: Klíč položky
+  sv: Objektnyckel
+  verified_by_human: []
+app_settings_memories.settings_group:
+  context: Label for settings group input field
+  en: Settings Group
+  de: Einstellungsgruppe
+  zh: 设置组
+  es: Grupo de configuración
+  fr: Groupe de paramètres
+  pt: Grupo de configurações
+  ru: Группа настроек
+  ja: 設定グループ
+  ko: 설정 그룹
+  it: Gruppo impostazioni
+  tr: Ayarlar grubu
+  vi: Nhóm cài đặt
+  id: Grup pengaturan
+  pl: Grupa ustawień
+  nl: Instellingen groep
+  ar: مجموعة الإعدادات
+  hi: सेटिंग्स समूह
+  th: กลุ่มการตั้งค่า
+  cs: Skupina nastavení
+  sv: Inställningsgrupp
+  verified_by_human: []
+app_settings_memories.item_value:
+  context: Label for item value input field
+  en: Item Value
+  de: Eintragswert
+  zh: 条目值
+  es: Valor del elemento
+  fr: Valeur de l'élément
+  pt: Valor do item
+  ru: Значение элемента
+  ja: アイテム値
+  ko: 항목 값
+  it: Valore elemento
+  tr: Öğe değeri
+  vi: Giá trị mục
+  id: Nilai item
+  pl: Wartość elementu
+  nl: Item waarde
+  ar: قيمة العنصر
+  hi: आइटम मान
+  th: ค่ารายการ
+  cs: Hodnota položky
+  sv: Objektvärde
+  verified_by_human: []
+app_settings_memories.cancel:
+  context: Cancel button text
+  en: Cancel
+  de: Abbrechen
+  zh: 取消
+  es: Cancelar
+  fr: Annuler
+  pt: Cancelar
+  ru: Отмена
+  ja: キャンセル
+  ko: 취소
+  it: Annulla
+  tr: İptal
+  vi: Hủy
+  id: Batal
+  pl: Anuluj
+  nl: Annuleren
+  ar: إلغاء
+  hi: रद्द करें
+  th: ยกเลิก
+  cs: Zrušit
+  sv: Avbryt
+  verified_by_human: []
+app_settings_memories.creating:
+  context: Button text while creating entry
+  en: Creating...
+  de: Wird erstellt...
+  zh: 创建中...
+  es: Creando...
+  fr: Création en cours...
+  pt: Criando...
+  ru: Создание...
+  ja: 作成中...
+  ko: 생성 중...
+  it: Creazione...
+  tr: Oluşturuluyor...
+  vi: Đang tạo...
+  id: Membuat...
+  pl: Tworzenie...
+  nl: Aanmaken...
+  ar: جاري الإنشاء...
+  hi: बनाया जा रहा है...
+  th: กำลังสร้าง...
+  cs: Vytváření...
+  sv: Skapar...
   verified_by_human: []

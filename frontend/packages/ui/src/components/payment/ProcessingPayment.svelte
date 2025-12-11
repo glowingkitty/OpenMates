@@ -10,10 +10,12 @@
     let { 
         state = 'processing',
         isGift = false,
+        isGiftCard = false,
         showDelayedMessage = false
     }: {
         state?: 'processing' | 'success';
         isGift?: boolean;
+        isGiftCard?: boolean;
         showDelayedMessage?: boolean;
     } = $props();
     
@@ -54,9 +56,11 @@
             {/if}
         </div>
         
-        <div class="bottom-container">
-            <p class="loading-text color-grey-60">{@html $text('login.loading.text')}</p>
-        </div>
+        {#if !isGift && !isGiftCard}
+            <div class="bottom-container">
+                <p class="loading-text color-grey-60">{@html $text('login.loading.text')}</p>
+            </div>
+        {/if}
     </div>
 {/if}
 

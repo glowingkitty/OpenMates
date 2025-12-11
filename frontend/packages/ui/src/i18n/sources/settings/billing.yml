@@ -343,6 +343,29 @@ low_balance_topup:
   cs: Automatické Dobití při Nízkém Zůstatku
   sv: Automatisk Påfyllning vid Lågt Saldo
   verified_by_human: []
+low_balance.text:
+  context: Low balance menu item title
+  en: On Low Balance
+  de: Bei niedrigem Guthaben
+  zh: 低余额时
+  es: En Saldo Bajo
+  fr: En cas de solde faible
+  pt: Em Saldo Baixo
+  ru: При низком балансе
+  ja: 残高不足時
+  ko: 낮은 잔액 시
+  it: Con Saldo Basso
+  tr: Düşük Bakiyede
+  vi: Khi số dư thấp
+  id: Saat Saldo Rendah
+  pl: Przy Niskim Saldzie
+  nl: Bij Laag Saldo
+  ar: عند انخفاض الرصيد
+  hi: कम शेष राशि पर
+  th: เมื่อยอดคงเหลือต่ำ
+  cs: Při Nízkém Zůstatku
+  sv: Vid Lågt Saldo
+  verified_by_human: []
 low_balance_description:
   context: Low balance auto top-up description
   en: Automatically purchase credits when your balance falls below a threshold.
@@ -503,6 +526,75 @@ auto_topup:
   th: เติมเงินอัตโนมัติ
   cs: Automatické Dobití
   sv: Automatisk Påfyllning
+  verified_by_human: []
+auto_topup.text:
+  context: Auto top-up menu item text
+  en: Auto Top-Up
+  de: Auto-Aufladen
+  zh: 自动充值
+  es: Recarga Automática
+  fr: Rechargement Automatique
+  pt: Recarga Automática
+  ru: Автопополнение
+  ja: 自動チャージ
+  ko: 자동 충전
+  it: Ricarica Automatica
+  tr: Otomatik Yükleme
+  vi: Tự động nạp tiền
+  id: Isi Ulang Otomatis
+  pl: Auto-Doładowanie
+  nl: Automatisch Opwaarderen
+  ar: إعادة الشحن التلقائي
+  hi: स्वचालित टॉप-अप
+  th: เติมเงินอัตโนมัติ
+  cs: Automatické Dobití
+  sv: Automatisk Påfyllning
+  verified_by_human: []
+auto_topup.low_balance.text:
+  context: Low balance auto top-up submenu text
+  en: On Low Balance
+  de: Bei niedrigem Guthaben
+  zh: 低余额时
+  es: En Saldo Bajo
+  fr: En cas de solde faible
+  pt: Em Saldo Baixo
+  ru: При низком балансе
+  ja: 残高不足時
+  ko: 낮은 잔액 시
+  it: Con Saldo Basso
+  tr: Düşük Bakiyede
+  vi: Khi số dư thấp
+  id: Saat Saldo Rendah
+  pl: Przy Niskim Saldzie
+  nl: Bij Laag Saldo
+  ar: عند انخفاض الرصيد
+  hi: कम शेष राशि पर
+  th: เมื่อยอดคงเหลือต่ำ
+  cs: Při Nízkém Zůstatku
+  sv: Vid Lågt Saldo
+  verified_by_human: []
+auto_topup.monthly.text:
+  context: Monthly subscription submenu text
+  en: Monthly
+  de: Monatlich
+  zh: 月度
+  es: Mensual
+  fr: Mensuel
+  pt: Mensal
+  ru: Ежемесячно
+  ja: 月次
+  ko: 월간
+  it: Mensile
+  tr: Aylık
+  vi: Hàng tháng
+  id: Bulanan
+  pl: Miesięcznie
+  nl: Maandelijks
+  ar: شهرياً
+  hi: मासिक
+  th: รายเดือน
+  cs: Měsíčně
+  sv: Månadsvis
   verified_by_human: []
 auto_topup_description:
   context: Auto top-up menu item description

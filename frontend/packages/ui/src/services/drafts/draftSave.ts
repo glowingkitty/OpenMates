@@ -247,6 +247,37 @@ export const saveDraftDebounced = debounce(async (chatIdFromMessageInput?: strin
     const isAuthenticated = get(authStore).isAuthenticated;
     const currentState = get(draftEditorUIState);
     let currentChatIdForOperation = currentState.currentChatId;
+    
+    // CRITICAL: Don't save drafts for incognito chats
+    // Check if the current chat is an incognito chat
+    if (currentChatIdForOperation) {
+        const { incognitoChatService } = await import('../incognitoChatService');
+        try {
+            const incognitoChat = await incognitoChatService.getChat(currentChatIdForOperation);
+            if (incognitoChat?.is_incognito) {
+                console.debug(`[DraftService] Skipping draft save for incognito chat ${currentChatIdForOperation} - drafts are not saved for incognito chats`);
+                return; // Don't save drafts for incognito chats
+            }
+        } catch (error) {
+            // Not an incognito chat, continue normally
+        }
+    }
+    
+    // Also check if incognito mode is enabled and we're about to create a new chat
+    // In that case, don't create the chat from draft - incognito chats are created on message send, not draft save
+    const { incognitoMode } = await import('../../stores/incognitoModeStore');
+    const isIncognitoEnabled = incognitoMode.get();
+    if (isIncognitoEnabled && !currentChatIdForOperation) {
+        console.debug(`[DraftService] Incognito mode enabled but no chat ID yet - will create incognito chat on message send, not on draft save`);
+        // Don't create chat from draft in incognito mode - chat will be created when message is sent
+        // Just update the draft state to track the content, but don't persist it
+        draftEditorUIState.update(s => ({
+            ...s,
+            hasUnsavedChanges: false, // Mark as "saved" in memory, but not persisted
+            lastSavedContentMarkdown: contentMarkdown // Store for comparison
+        }));
+        return;
+    }
 
     // CRITICAL: Handle non-authenticated users with sessionStorage
     // For non-authenticated users, save drafts to sessionStorage as cleartext
@@ -514,9 +545,12 @@ export const saveDraftDebounced = debounce(async (chatIdFromMessageInput?: strin
     if (!currentChatIdForOperation) {
         console.info(`[DraftService] Creating new chat for draft. currentChatIdForOperation is falsy: ${currentChatIdForOperation}`);
         try {
+            // CRITICAL: Don't create incognito chats from drafts
+            // Incognito chats are created when the first message is sent, not when drafts are saved
+            // Create regular chat in IndexedDB
             console.debug(`[DraftService] About to call createNewChatWithCurrentUserDraft with encryptedMarkdown length: ${encryptedMarkdown?.length}, encryptedPreview length: ${encryptedPreview?.length}`);
-            // Create a new chat and its initial draft locally
             const newChat = await chatDB.createNewChatWithCurrentUserDraft(encryptedMarkdown, encryptedPreview);
+            
             console.debug(`[DraftService] createNewChatWithCurrentUserDraft returned:`, {
                 chatId: newChat.chat_id,
                 draftVersion: newChat.draft_v,
@@ -541,20 +575,38 @@ export const saveDraftDebounced = debounce(async (chatIdFromMessageInput?: strin
             return;
         }
     } else {
-        // Check if chat exists in database before deciding whether to create or update
+        // Check if chat exists in database or incognito service before deciding whether to create or update
         let existingChat: Chat | null = null;
+        let isIncognitoChat = false;
+        
+        // First check if it's an incognito chat
+        const { incognitoChatService } = await import('../incognitoChatService');
         try {
-            existingChat = await chatDB.getChat(currentChatIdForOperation);
+            existingChat = await incognitoChatService.getChat(currentChatIdForOperation);
+            if (existingChat) {
+                isIncognitoChat = true;
+            }
         } catch (error) {
-            console.error(`[DraftService] Error during database lookup for chat ${currentChatIdForOperation}:`, error);
-            draftEditorUIState.update(s => ({ ...s, hasUnsavedChanges: true }));
-            return;
+            // Not an incognito chat or error - continue to check IndexedDB
+        }
+        
+        // If not found in incognito service, check IndexedDB
+        if (!existingChat) {
+            try {
+                existingChat = await chatDB.getChat(currentChatIdForOperation);
+            } catch (error) {
+                console.error(`[DraftService] Error during database lookup for chat ${currentChatIdForOperation}:`, error);
+                draftEditorUIState.update(s => ({ ...s, hasUnsavedChanges: true }));
+                return;
+            }
         }
         
         if (!existingChat) {
             // Chat doesn't exist in local database - create a new one
+            // CRITICAL: Don't create incognito chats from drafts - they're created on message send
             console.info(`[DraftService] Chat ${currentChatIdForOperation} not found in local DB. Creating new chat with draft.`);
             try {
+                // Create regular chat in IndexedDB (incognito chats are created on message send, not draft save)
                 const newChat = await chatDB.createNewChatWithCurrentUserDraft(encryptedMarkdown, encryptedPreview);
                 currentChatIdForOperation = newChat.chat_id; // Update to use the new chat ID
                 userDraft = newChat;
@@ -574,6 +626,19 @@ export const saveDraftDebounced = debounce(async (chatIdFromMessageInput?: strin
             }
         } else {
             // Chat exists - update it normally
+            // CRITICAL: Don't save drafts for incognito chats
+            if (isIncognitoChat) {
+                console.debug(`[DraftService] Skipping draft update for incognito chat ${currentChatIdForOperation} - drafts are not saved for incognito chats`);
+                // Just update the draft state in memory, but don't persist
+                draftEditorUIState.update(s => ({
+                    ...s,
+                    hasUnsavedChanges: false,
+                    lastSavedContentMarkdown: contentMarkdown
+                }));
+                return;
+            }
+            
+            // Update regular chat draft in IndexedDB
             console.info(`[DraftService] Updating existing draft for chat ${currentChatIdForOperation}`);
             versionBeforeSave = existingChat.draft_v || 0;
             userDraft = await chatDB.saveCurrentUserChatDraft(currentChatIdForOperation, encryptedMarkdown, encryptedPreview);

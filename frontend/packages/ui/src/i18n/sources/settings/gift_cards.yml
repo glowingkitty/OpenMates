@@ -1,0 +1,483 @@
+gift_cards:
+  context: Gift cards settings menu item
+  en: Gift Cards
+  de: Geschenkkarten
+  zh: 礼品卡
+  es: Tarjetas de Regalo
+  fr: Cartes Cadeaux
+  pt: Cartões Presente
+  ru: Подарочные Карты
+  ja: ギフトカード
+  ko: 기프트 카드
+  it: Buoni Regalo
+  tr: Hediye Kartları
+  vi: Thẻ Quà Tặng
+  id: Kartu Hadiah
+  pl: Karty Podarunkowe
+  nl: Cadeaukaarten
+  ar: بطاقات الهدايا
+  hi: उपहार कार्ड
+  th: บัตรของขวัญ
+  cs: Dárkové Karty
+  sv: Presentkort
+  verified_by_human: []
+redeem:
+  context: Redeem gift card menu item
+  en: Redeem
+  de: Einlösen
+  zh: 兑换
+  es: Canjear
+  fr: Échanger
+  pt: Resgatar
+  ru: Обменять
+  ja: 引き換える
+  ko: 사용
+  it: Riscatta
+  tr: Kullan
+  vi: Đổi
+  id: Tukar
+  pl: Zrealizuj
+  nl: Inwisselen
+  ar: استبدال
+  hi: रिडीम
+  th: แลก
+  cs: Vyměnit
+  sv: Lösa in
+  verified_by_human: []
+redeemed:
+  context: View redeemed gift cards menu item
+  en: Used
+  de: Verwendet
+  zh: 已使用
+  es: Usadas
+  fr: Utilisées
+  pt: Usados
+  ru: Использованные
+  ja: 使用済み
+  ko: 사용됨
+  it: Usati
+  tr: Kullanılan
+  vi: Đã dùng
+  id: Digunakan
+  pl: Użyte
+  nl: Gebruikt
+  ar: مستخدمة
+  hi: उपयोग किए गए
+  th: ใช้แล้ว
+  cs: Použité
+  sv: Använda
+  verified_by_human: []
+buy:
+  context: Buy gift card menu item
+  en: Buy
+  de: Kaufen
+  zh: 购买
+  es: Comprar
+  fr: Acheter
+  pt: Comprar
+  ru: Купить
+  ja: 購入
+  ko: 구매
+  it: Acquista
+  tr: Satın Al
+  vi: Mua
+  id: Beli
+  pl: Kup
+  nl: Kopen
+  ar: شراء
+  hi: खरीदें
+  th: ซื้อ
+  cs: Koupit
+  sv: Köpa
+  verified_by_human: []
+buy.payment:
+  context: Payment page title for buying gift cards
+  en: Payment
+  de: Zahlung
+  zh: 支付
+  es: Pago
+  fr: Paiement
+  pt: Pagamento
+  ru: Платеж
+  ja: 支払い
+  ko: 결제
+  it: Pagamento
+  tr: Ödeme
+  vi: Thanh toán
+  id: Pembayaran
+  pl: Płatność
+  nl: Betaling
+  ar: الدفع
+  hi: भुगतान
+  th: การชำระเงิน
+  cs: Platba
+  sv: Betalning
+  verified_by_human: []
+buy.confirmation:
+  context: Confirmation page title after purchasing gift card
+  en: Gift Card Purchase Confirmation
+  de: Geschenkkarten-Kaufbestätigung
+  zh: 礼品卡购买确认
+  es: Confirmación de Compra de Tarjeta de Regalo
+  fr: Confirmation d'Achat de Carte Cadeau
+  pt: Confirmação de Compra de Cartão Presente
+  ru: Подтверждение Покупки Подарочной Карты
+  ja: ギフトカード購入確認
+  ko: 기프트 카드 구매 확인
+  it: Conferma Acquisto Buono Regalo
+  tr: Hediye Kartı Satın Alma Onayı
+  vi: Xác Nhận Mua Thẻ Quà Tặng
+  id: Konfirmasi Pembelian Kartu Hadiah
+  pl: Potwierdzenie Zakupu Karty Podarunkowej
+  nl: Bevestiging Cadeaukaart Aankoop
+  ar: تأكيد شراء بطاقة الهدية
+  hi: उपहार कार्ड खरीद पुष्टिकरण
+  th: ยืนยันการซื้อบัตรของขวัญ
+  cs: Potvrzení Nákupu Dárkové Karty
+  sv: Bekräftelse av Presentkortsköp
+  verified_by_human: []
+credits:
+  context: Credits label for gift cards
+  en: credits
+  de: Credits
+  zh: 积分
+  es: créditos
+  fr: crédits
+  pt: créditos
+  ru: кредиты
+  ja: クレジット
+  ko: 크레딧
+  it: crediti
+  tr: krediler
+  vi: tín dụng
+  id: kredit
+  pl: kredyty
+  nl: credits
+  ar: اعتمادات
+  hi: क्रेडिट
+  th: เครดิต
+  cs: kredity
+  sv: krediter
+  verified_by_human: []
+code:
+  context: Gift card code label
+  en: Gift Card Code
+  de: Geschenkkarten-Code
+  zh: 礼品卡代码
+  es: Código de Tarjeta de Regalo
+  fr: Code de la Carte Cadeau
+  pt: Código do Cartão Presente
+  ru: Код Подарочной Карты
+  ja: ギフトカードコード
+  ko: 기프트 카드 코드
+  it: Codice Buono Regalo
+  tr: Hediye Kartı Kodu
+  vi: Mã Thẻ Quà Tặng
+  id: Kode Kartu Hadiah
+  pl: Kod Karty Podarunkowej
+  nl: Cadeaukaartcode
+  ar: رمز بطاقة الهدية
+  hi: उपहार कार्ड कोड
+  th: รหัสบัตรของขวัญ
+  cs: Kód Dárkové Karty
+  sv: Presentkortskod
+  verified_by_human: []
+copy:
+  context: Copy gift card code button
+  en: Copy code
+  de: Code kopieren
+  zh: 复制代码
+  es: Copiar código
+  fr: Copier le code
+  pt: Copiar código
+  ru: Копировать код
+  ja: コードをコピー
+  ko: 코드 복사
+  it: Copia codice
+  tr: Kodu kopyala
+  vi: Sao chép mã
+  id: Salin kode
+  pl: Skopiuj kod
+  nl: Code kopiëren
+  ar: نسخ الرمز
+  hi: कोड कॉपी करें
+  th: คัดลอกรหัส
+  cs: Kopírovat kód
+  sv: Kopiera kod
+  verified_by_human: []
+code_copied:
+  context: Message when gift card code is copied
+  en: Gift card code copied to clipboard
+  de: Geschenkkarten-Code in die Zwischenablage kopiert
+  zh: 礼品卡代码已复制到剪贴板
+  es: Código de tarjeta de regalo copiado al portapapeles
+  fr: Code de la carte cadeau copié dans le presse-papiers
+  pt: Código do cartão presente copiado para a área de transferência
+  ru: Код подарочной карты скопирован в буфер обмена
+  ja: ギフトカードコードがクリップボードにコピーされました
+  ko: 기프트 카드 코드가 클립보드에 복사되었습니다
+  it: Codice buono regalo copiato negli appunti
+  tr: Hediye kartı kodu panoya kopyalandı
+  vi: Mã thẻ quà tặng đã được sao chép vào clipboard
+  id: Kode kartu hadiah disalin ke clipboard
+  pl: Kod karty podarunkowej skopiowany do schowka
+  nl: Cadeaukaartcode gekopieerd naar klembord
+  ar: تم نسخ رمز بطاقة الهدية إلى الحافظة
+  hi: उपहार कार्ड कोड क्लिपबोर्ड पर कॉपी किया गया
+  th: คัดลอกรหัสบัตรของขวัญไปยังคลิปบอร์ดแล้ว
+  cs: Kód dárkové karty zkopírován do schránky
+  sv: Presentkortskod kopierad till urklipp
+  verified_by_human: []
+download:
+  context: Download gift card code button
+  en: Download Gift Card Code
+  de: Geschenkkarten-Code herunterladen
+  zh: 下载礼品卡代码
+  es: Descargar Código de Tarjeta de Regalo
+  fr: Télécharger le Code de la Carte Cadeau
+  pt: Baixar Código do Cartão Presente
+  ru: Скачать Код Подарочной Карты
+  ja: ギフトカードコードをダウンロード
+  ko: 기프트 카드 코드 다운로드
+  it: Scarica Codice Buono Regalo
+  tr: Hediye Kartı Kodunu İndir
+  vi: Tải Mã Thẻ Quà Tặng
+  id: Unduh Kode Kartu Hadiah
+  pl: Pobierz Kod Karty Podarunkowej
+  nl: Cadeaukaartcode Downloaden
+  ar: تنزيل رمز بطاقة الهدية
+  hi: उपहार कार्ड कोड डाउनलोड करें
+  th: ดาวน์โหลดรหัสบัตรของขวัญ
+  cs: Stáhnout Kód Dárkové Karty
+  sv: Ladda ner Presentkortskod
+  verified_by_human: []
+done:
+  context: Done button after viewing gift card
+  en: Done
+  de: Fertig
+  zh: 完成
+  es: Hecho
+  fr: Terminé
+  pt: Concluído
+  ru: Готово
+  ja: 完了
+  ko: 완료
+  it: Fatto
+  tr: Tamamlandı
+  vi: Hoàn tất
+  id: Selesai
+  pl: Gotowe
+  nl: Klaar
+  ar: تم
+  hi: पूर्ण
+  th: เสร็จสิ้น
+  cs: Hotovo
+  sv: Klar
+  verified_by_human: []
+purchase_successful:
+  context: Success message after purchasing gift card
+  en: Gift Card Purchased Successfully
+  de: Geschenkkarte erfolgreich gekauft
+  zh: 礼品卡购买成功
+  es: Tarjeta de Regalo Comprada Exitosamente
+  fr: Carte Cadeau Achetée avec Succès
+  pt: Cartão Presente Comprado com Sucesso
+  ru: Подарочная Карта Успешно Куплена
+  ja: ギフトカードの購入に成功しました
+  ko: 기프트 카드 구매 성공
+  it: Buono Regalo Acquistato con Successo
+  tr: Hediye Kartı Başarıyla Satın Alındı
+  vi: Mua Thẻ Quà Tặng Thành Công
+  id: Kartu Hadiah Berhasil Dibeli
+  pl: Karta Podarunkowa Została Pomyślnie Zakupiona
+  nl: Cadeaukaart Succesvol Gekocht
+  ar: تم شراء بطاقة الهدية بنجاح
+  hi: उपहार कार्ड सफलतापूर्वक खरीदा गया
+  th: ซื้อบัตรของขวัญสำเร็จแล้ว
+  cs: Dárková Karta Úspěšně Zakoupena
+  sv: Presentkort Köpt Framgångsrikt
+  verified_by_human: []
+purchase_successful_subtitle:
+  context: Subtitle after purchasing gift card
+  en: Your gift card code is ready
+  de: Ihr Geschenkkarten-Code ist bereit
+  zh: 您的礼品卡代码已准备就绪
+  es: Tu código de tarjeta de regalo está listo
+  fr: Votre code de carte cadeau est prêt
+  pt: Seu código de cartão presente está pronto
+  ru: Код вашей подарочной карты готов
+  ja: ギフトカードコードの準備ができました
+  ko: 기프트 카드 코드가 준비되었습니다
+  it: Il tuo codice buono regalo è pronto
+  tr: Hediye kartı kodunuz hazır
+  vi: Mã thẻ quà tặng của bạn đã sẵn sàng
+  id: Kode kartu hadiah Anda siap
+  pl: Twój kod karty podarunkowej jest gotowy
+  nl: Uw cadeaukaartcode is klaar
+  ar: رمز بطاقة الهدية الخاصة بك جاهز
+  hi: आपका उपहार कार्ड कोड तैयार है
+  th: รหัสบัตรของขวัญของคุณพร้อมแล้ว
+  cs: Váš kód dárkové karty je připraven
+  sv: Din presentkortskod är redo
+  verified_by_human: []
+processing:
+  context: Processing message while waiting for gift card
+  en: Processing your gift card...
+  de: Geschenkkarte wird verarbeitet...
+  zh: 正在处理您的礼品卡...
+  es: Procesando tu tarjeta de regalo...
+  fr: Traitement de votre carte cadeau...
+  pt: Processando seu cartão presente...
+  ru: Обработка вашей подарочной карты...
+  ja: ギフトカードを処理中...
+  ko: 기프트 카드 처리 중...
+  it: Elaborazione del tuo buono regalo...
+  tr: Hediye kartınız işleniyor...
+  vi: Đang xử lý thẻ quà tặng của bạn...
+  id: Memproses kartu hadiah Anda...
+  pl: Przetwarzanie Twojej karty podarunkowej...
+  nl: Uw cadeaukaart wordt verwerkt...
+  ar: معالجة بطاقة الهدية الخاصة بك...
+  hi: आपका उपहार कार्ड प्रसंस्करण...
+  th: กำลังประมวลผลบัตรของขวัญของคุณ...
+  cs: Zpracování vaší dárkové karty...
+  sv: Bearbetar ditt presentkort...
+  verified_by_human: []
+buy_info:
+  context: Information text about buying gift cards
+  en: Purchase a gift card to give credits to someone else. The recipient can redeem the code to add credits to their account.
+  de: Kaufen Sie eine Geschenkkarte, um jemand anderem Credits zu schenken. Der Empfänger kann den Code einlösen, um Credits zu seinem Konto hinzuzufügen.
+  zh: 购买礼品卡以向他人赠送积分。收件人可以兑换代码以将积分添加到他们的账户。
+  es: Compra una tarjeta de regalo para dar créditos a otra persona. El destinatario puede canjear el código para agregar créditos a su cuenta.
+  fr: Achetez une carte cadeau pour donner des crédits à quelqu'un d'autre. Le destinataire peut échanger le code pour ajouter des crédits à son compte.
+  pt: Compre um cartão presente para dar créditos a outra pessoa. O destinatário pode resgatar o código para adicionar créditos à sua conta.
+  ru: Купите подарочную карту, чтобы подарить кредиты кому-то другому. Получатель может обменять код, чтобы добавить кредиты на свой аккаунт.
+  ja: ギフトカードを購入して、他の人にクレジットを贈ります。受取人はコードを引き換えて、アカウントにクレジットを追加できます。
+  ko: 기프트 카드를 구매하여 다른 사람에게 크레딧을 선물하세요. 수신자는 코드를 사용하여 계정에 크레딧을 추가할 수 있습니다.
+  it: Acquista un buono regalo per dare crediti a qualcun altro. Il destinatario può riscattare il codice per aggiungere crediti al proprio account.
+  tr: Başka birine kredi vermek için hediye kartı satın alın. Alıcı, hesabına kredi eklemek için kodu kullanabilir.
+  vi: Mua thẻ quà tặng để tặng tín dụng cho người khác. Người nhận có thể đổi mã để thêm tín dụng vào tài khoản của họ.
+  id: Beli kartu hadiah untuk memberikan kredit kepada orang lain. Penerima dapat menukar kode untuk menambahkan kredit ke akun mereka.
+  pl: Kup kartę podarunkową, aby podarować komuś kredyty. Odbiorca może zrealizować kod, aby dodać kredyty do swojego konta.
+  nl: Koop een cadeaukaart om credits aan iemand anders te geven. De ontvanger kan de code inwisselen om credits aan zijn account toe te voegen.
+  ar: اشترِ بطاقة هدية لإعطاء اعتمادات لشخص آخر. يمكن للمستلم استبدال الرمز لإضافة اعتمادات إلى حسابه.
+  hi: किसी और को क्रेडिट देने के लिए उपहार कार्ड खरीदें। प्राप्तकर्ता अपने खाते में क्रेडिट जोड़ने के लिए कोड रिडीम कर सकता है।
+  th: ซื้อบัตรของขวัญเพื่อมอบเครดิตให้ผู้อื่น ผู้รับสามารถแลกรหัสเพื่อเพิ่มเครดิตเข้าบัญชีของตน
+  cs: Kupte si dárkovou kartu, abyste někomu jinému darovali kredity. Příjemce může vyměnit kód a přidat kredity na svůj účet.
+  sv: Köp ett presentkort för att ge krediter till någon annan. Mottagaren kan lösa in koden för att lägga till krediter på sitt konto.
+  verified_by_human: []
+buy_processing:
+  context: Message while waiting for gift card code after payment
+  en: Payment successful! Your gift card code will be available shortly.
+  de: Zahlung erfolgreich! Ihr Geschenkkarten-Code wird in Kürze verfügbar sein.
+  zh: 支付成功！您的礼品卡代码将很快可用。
+  es: ¡Pago exitoso! Tu código de tarjeta de regalo estará disponible en breve.
+  fr: Paiement réussi ! Votre code de carte cadeau sera disponible sous peu.
+  pt: Pagamento bem-sucedido! Seu código de cartão presente estará disponível em breve.
+  ru: Платеж успешен! Код вашей подарочной карты будет доступен в ближайшее время.
+  ja: 支払い成功！ギフトカードコードはすぐに利用可能になります。
+  ko: 결제 성공! 기프트 카드 코드가 곧 제공됩니다.
+  it: Pagamento riuscito! Il tuo codice buono regalo sarà disponibile a breve.
+  tr: Ödeme başarılı! Hediye kartı kodunuz yakında hazır olacak.
+  vi: Thanh toán thành công! Mã thẻ quà tặng của bạn sẽ sớm có sẵn.
+  id: Pembayaran berhasil! Kode kartu hadiah Anda akan segera tersedia.
+  pl: Płatność zakończona sukcesem! Twój kod karty podarunkowej będzie wkrótce dostępny.
+  nl: Betaling geslaagd! Uw cadeaukaartcode zal binnenkort beschikbaar zijn.
+  ar: نجحت الدفعة! سيكون رمز بطاقة الهدية الخاصة بك متاحًا قريبًا.
+  hi: भुगतान सफल! आपका उपहार कार्ड कोड जल्द ही उपलब्ध होगा।
+  th: การชำระเงินสำเร็จ! รหัสบัตรของขวัญของคุณจะพร้อมใช้งานในไม่ช้า
+  cs: Platba úspěšná! Váš kód dárkové karty bude brzy k dispozici.
+  sv: Betalning lyckades! Din presentkortskod kommer snart att vara tillgänglig.
+  verified_by_human: []
+redeemed_empty:
+  context: Message when user has no redeemed gift cards
+  en: You haven't redeemed any gift cards yet.
+  de: Sie haben noch keine Geschenkkarten eingelöst.
+  zh: 您还没有兑换任何礼品卡。
+  es: Aún no has canjeado ninguna tarjeta de regalo.
+  fr: Vous n'avez pas encore échangé de carte cadeau.
+  pt: Você ainda não resgatou nenhum cartão presente.
+  ru: Вы еще не обменяли ни одной подарочной карты.
+  ja: まだギフトカードを引き換えていません。
+  ko: 아직 기프트 카드를 사용하지 않았습니다.
+  it: Non hai ancora riscattato nessun buono regalo.
+  tr: Henüz hiç hediye kartı kullanmadınız.
+  vi: Bạn chưa đổi thẻ quà tặng nào.
+  id: Anda belum menukar kartu hadiah apa pun.
+  pl: Nie zrealizowałeś jeszcze żadnej karty podarunkowej.
+  nl: U heeft nog geen cadeaukaarten ingewisseld.
+  ar: لم تستبدل أي بطاقة هدية بعد.
+  hi: आपने अभी तक कोई उपहार कार्ड रिडीम नहीं किया है।
+  th: คุณยังไม่ได้แลกบัตรของขวัญใดๆ
+  cs: Ještě jste nevyměnili žádnou dárkovou kartu.
+  sv: Du har inte löst in några presentkort ännu.
+  verified_by_human: []
+loading:
+  context: Loading message while fetching gift cards
+  en: Loading...
+  de: Laden...
+  zh: 加载中...
+  es: Cargando...
+  fr: Chargement...
+  pt: Carregando...
+  ru: Загрузка...
+  ja: 読み込み中...
+  ko: 로딩 중...
+  it: Caricamento...
+  tr: Yükleniyor...
+  vi: Đang tải...
+  id: Memuat...
+  pl: Ładowanie...
+  nl: Laden...
+  ar: جاري التحميل...
+  hi: लोड हो रहा है...
+  th: กำลังโหลด...
+  cs: Načítání...
+  sv: Laddar...
+  verified_by_human: []
+retry:
+  context: Retry button text
+  en: Retry
+  de: Wiederholen
+  zh: 重试
+  es: Reintentar
+  fr: Réessayer
+  pt: Tentar Novamente
+  ru: Повторить
+  ja: 再試行
+  ko: 다시 시도
+  it: Riprova
+  tr: Yeniden Dene
+  vi: Thử lại
+  id: Coba Lagi
+  pl: Spróbuj Ponownie
+  nl: Opnieuw Proberen
+  ar: إعادة المحاولة
+  hi: पुनः प्रयास करें
+  th: ลองอีกครั้ง
+  cs: Zkusit Znovu
+  sv: Försök Igen
+  verified_by_human: []
+error_fetch_failed:
+  context: Error message when fetching gift cards fails
+  en: Failed to load gift cards. Please try again.
+  de: Geschenkkarten konnten nicht geladen werden. Bitte versuchen Sie es erneut.
+  zh: 加载礼品卡失败。请重试。
+  es: No se pudieron cargar las tarjetas de regalo. Por favor, inténtalo de nuevo.
+  fr: Échec du chargement des cartes cadeaux. Veuillez réessayer.
+  pt: Falha ao carregar cartões presente. Por favor, tente novamente.
+  ru: Не удалось загрузить подарочные карты. Пожалуйста, попробуйте снова.
+  ja: ギフトカードの読み込みに失敗しました。もう一度お試しください。
+  ko: 기프트 카드를 불러오지 못했습니다. 다시 시도해 주세요.
+  it: Impossibile caricare i buoni regalo. Riprova.
+  tr: Hediye kartları yüklenemedi. Lütfen tekrar deneyin.
+  vi: Không thể tải thẻ quà tặng. Vui lòng thử lại.
+  id: Gagal memuat kartu hadiah. Silakan coba lagi.
+  pl: Nie udało się załadować kart podarunkowych. Spróbuj ponownie.
+  nl: Kan cadeaukaarten niet laden. Probeer het opnieuw.
+  ar: فشل تحميل بطاقات الهدية. يرجى المحاولة مرة أخرى.
+  hi: उपहार कार्ड लोड करने में विफल। कृपया पुनः प्रयास करें।
+  th: โหลดบัตรของขวัญไม่สำเร็จ กรุณาลองอีกครั้ง
+  cs: Nepodařilo se načíst dárkové karty. Zkuste to prosím znovu.
+  sv: Kunde inte ladda presentkort. Försök igen.
+  verified_by_human: []

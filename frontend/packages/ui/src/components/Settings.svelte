@@ -46,6 +46,7 @@ changes to the documentation (to keep the documentation up to date).
     import { settingsDeepLink } from '../stores/settingsDeepLinkStore';
     import { webSocketService } from '../services/websocketService';
     import { notificationStore } from '../stores/notificationStore'; // Import notification store for payment notifications
+    import { incognitoMode } from '../stores/incognitoModeStore'; // Import incognito mode store
     
     // Import modular components
     import SettingsFooter from './settings/SettingsFooter.svelte';
@@ -69,6 +70,7 @@ changes to the documentation (to keep the documentation up to date).
     import SettingsServer from './settings/SettingsServer.svelte';
     import SettingsItem from './SettingsItem.svelte';
     import SettingsLanguage from './settings/interface/SettingsLanguage.svelte';
+    import SettingsIncognitoInfo from './settings/incognito/SettingsIncognitoInfo.svelte';
     import SettingsSoftwareUpdate from './settings/server/SettingsSoftwareUpdate.svelte';
     import { appSkillsStore } from '../stores/appSkillsStore';
     
@@ -81,6 +83,14 @@ changes to the documentation (to keep the documentation up to date).
     import SettingsLowBalanceAutotopup from './settings/billing/autotopup/SettingsLowBalanceAutotopup.svelte';
     import SettingsMonthlyAutotopup from './settings/billing/autotopup/SettingsMonthlyAutotopup.svelte';
     import SettingsInvoices from './settings/billing/SettingsInvoices.svelte';
+    
+    // Import gift cards components
+    import SettingsGiftCards from './settings/giftcards/SettingsGiftCards.svelte';
+    import SettingsGiftCardsRedeem from './settings/giftcards/SettingsGiftCardsRedeem.svelte';
+    import SettingsGiftCardsRedeemed from './settings/giftcards/SettingsGiftCardsRedeemed.svelte';
+    import SettingsGiftCardsBuy from './settings/giftcards/SettingsGiftCardsBuy.svelte';
+    import SettingsGiftCardsBuyPayment from './settings/giftcards/SettingsGiftCardsBuyPayment.svelte';
+    import SettingsGiftCardsPurchaseConfirmation from './settings/giftcards/SettingsGiftCardsPurchaseConfirmation.svelte';
     
     // Import share settings component
     import SettingsShare from './settings/share/SettingsShare.svelte';
@@ -103,7 +113,8 @@ changes to the documentation (to keep the documentation up to date).
     // State for toggles and menu visibility
     let isMenuVisible = $state(false);
     let isTeamEnabled = $state(true);
-    let isIncognitoEnabled = $state(false);
+    // Use incognito mode store instead of local state
+    let isIncognitoEnabled = $derived($incognitoMode);
     let isGuestEnabled = $state(false);
     let isOfflineEnabled = $state(false);
     let showSubmenuInfo = $state(false); // New variable to control submenu info visibility
@@ -141,6 +152,12 @@ changes to the documentation (to keep the documentation up to date).
         'billing/auto-topup/low-balance': SettingsLowBalanceAutotopup,
         'billing/auto-topup/monthly': SettingsMonthlyAutotopup,
         'billing/invoices': SettingsInvoices,
+        'gift_cards': SettingsGiftCards,
+        'gift_cards/redeem': SettingsGiftCardsRedeem,
+        'gift_cards/redeemed': SettingsGiftCardsRedeemed,
+        'gift_cards/buy': SettingsGiftCardsBuy,
+        'gift_cards/buy/payment': SettingsGiftCardsBuyPayment,
+        'gift_cards/buy/confirmation': SettingsGiftCardsPurchaseConfirmation,
         'app_store': SettingsAppStore,
         'app_store/all': SettingsAllApps,
         // 'mates': SettingsMates,
@@ -152,6 +169,7 @@ changes to the documentation (to keep the documentation up to date).
         'interface': SettingsInterface,
         // 'server': SettingsServer,
         'interface/language': SettingsLanguage,
+        'incognito/info': SettingsIncognitoInfo,
         'account': SettingsAccount,
         'account/security': SettingsSecurity,
         'account/security/passkeys': SettingsPasskeys,
@@ -697,7 +715,8 @@ changes to the documentation (to keep the documentation up to date).
                 teamEnabled.set(isTeamEnabled);
                 break;
             case 'incognito':
-                isIncognitoEnabled = !isIncognitoEnabled;
+                // Store handles the toggle and deletion of incognito chats
+                incognitoMode.toggle();
                 break;
             case 'guest':
                 isGuestEnabled = !isGuestEnabled;

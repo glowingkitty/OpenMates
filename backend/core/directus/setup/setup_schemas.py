@@ -276,7 +276,11 @@ def create_relation(token, collection_name, field_name, relation_config):
         return False
 
 def create_or_update_field(token, collection_name, field_name, field_config, is_system_collection):
-    """Creates a new field or updates an existing one (only for system collections)."""
+    """
+    Creates a new field or updates an existing one (only for system collections).
+    For custom collections, only creates missing fields - does not update existing ones
+    to preserve user changes.
+    """
     field_exists_flag = field_exists(token, collection_name, field_name)
     
     # Normalize the field type for Directus
@@ -339,11 +343,14 @@ def create_or_update_field(token, collection_name, field_name, field_config, is_
             except Exception as e:
                 print(f"Exception while updating field {field_name}: {str(e)}")
         else:
-            # This case (field exists in a newly created non-system collection) shouldn't happen
-            # for non-primary fields, but we log it just in case.
-            print(f"Warning: Field {collection_name}.{field_name} already exists in a newly created collection. Skipping.")
+            # For existing custom collections, if field exists, we skip updating it
+            # to preserve any user changes. This is expected behavior.
+            # Note: This else block only executes when field exists and it's NOT a system collection
+            print(f"Field {collection_name}.{field_name} already exists in custom collection. Skipping update to preserve user changes.")
         
         # Return True if it's a relation field, so it gets added to relations_to_create
+        # Note: For existing fields in custom collections, we still check if relation exists
+        # and add it if missing (handled in create_relation function)
         return is_relation
 
     else:
@@ -381,7 +388,14 @@ def create_or_update_field(token, collection_name, field_name, field_config, is_
 
 def create_collection(token, schema_file):
     """
-    Create collection from schema file, or update fields/relations for existing system collections.
+    Create collection from schema file, or update fields/relations for existing collections.
+    
+    Behavior:
+    - For new collections: Creates the collection and all fields/relations
+    - For system collections (directus_*): Updates existing fields and adds missing ones
+    - For existing custom collections: Only adds missing fields (does not update existing ones
+      to preserve user changes)
+    
     Returns a tuple: (success: bool, newly_created: bool)
     """
     try:
@@ -407,9 +421,9 @@ def create_collection(token, schema_file):
         else:
             # For non-system collections, create if they don't exist
             if exists:
-                print(f"Custom collection {collection_name} already exists. Skipping creation and field processing.")
-                # We skip processing fields for existing custom collections to avoid overwriting user changes.
-                return True, False # Successful (nothing to do), not newly created
+                print(f"Custom collection {collection_name} already exists. Will check for missing fields and add them.")
+                # We will process fields to add missing ones, but won't update existing fields
+                # to avoid overwriting user changes.
             else:
                 print(f"Creating new custom collection: {collection_name}")
                 create_new = True
@@ -471,10 +485,20 @@ def create_collection(token, schema_file):
         # Process fields if:
         # 1. The collection is newly created (create_new is True)
         # 2. The collection is a system collection (is_system_collection is True)
-        should_process_fields = create_new or is_system_collection
+        # 3. The collection already exists (to add missing fields)
+        # For existing custom collections, we only add missing fields (won't update existing ones)
+        should_process_fields = create_new or is_system_collection or exists
 
         if should_process_fields:
-            print(f"Processing fields and relations for {collection_name} (Newly created: {create_new}, System: {is_system_collection})")
+            # Determine processing mode for logging
+            if create_new:
+                mode = "newly created"
+            elif is_system_collection:
+                mode = "system collection (updating existing fields)"
+            else:
+                mode = "existing custom collection (adding missing fields only)"
+            
+            print(f"Processing fields and relations for {collection_name} ({mode})")
             relations_to_create = []
             
             if collection.get('fields'):
@@ -484,6 +508,8 @@ def create_collection(token, schema_file):
                         continue
                     
                     # Create or update the field, and check if it's a relation
+                    # For existing custom collections, create_or_update_field will only create
+                    # missing fields, not update existing ones (to preserve user changes)
                     is_relation = create_or_update_field(
                         token, collection_name, field_name, field_config, is_system_collection
                     )

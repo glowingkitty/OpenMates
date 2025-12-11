@@ -43,6 +43,8 @@
     import { videoIframeStore, type VideoIframeState } from '../stores/videoIframeStore'; // For standalone VideoIframe component with CSS-based PiP
     import { DEMO_CHATS, LEGAL_CHATS, getDemoMessages, isPublicChat, translateDemoChat } from '../demo_chats'; // Import demo chat utilities
     import { convertDemoChatToChat } from '../demo_chats/convertToChat'; // Import conversion function
+    import { incognitoChatService } from '../services/incognitoChatService'; // Import incognito chat service
+    import { incognitoMode } from '../stores/incognitoModeStore'; // Import incognito mode store
     import { isDesktop } from '../utils/platform'; // Import desktop detection for conditional auto-focus
     import { waitLocale, locale } from 'svelte-i18n'; // Import waitLocale and locale for waiting for translations to load
     import { get } from 'svelte/store'; // Import get to read store values
@@ -1039,19 +1041,54 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             console.warn(`[ActiveChat] ⚠️ chatHistoryRef is null, cannot update UI (seq: ${chunk.sequence})`);
         }
 
-        // Save to IndexedDB
+        // Save to IndexedDB or incognito service
         if (messageToSave) {
             try {
                 const saveStartTime = performance.now();
-                // Check if this message already exists to prevent duplicates
-                const existingMessage = await chatDB.getMessage(messageToSave.message_id);
-                if (existingMessage && !isNewMessageInStream) {
+                
+                // Check if this is an incognito chat
+                const { incognitoChatService } = await import('../services/incognitoChatService');
+                let isIncognitoChat = false;
+                try {
+                    const incognitoChat = await incognitoChatService.getChat(messageToSave.chat_id);
+                    if (incognitoChat) {
+                        isIncognitoChat = true;
+                    }
+                } catch (error) {
+                    // Not an incognito chat
+                }
+                
+                if (isIncognitoChat) {
+                    // Save to incognito service
+                    const existingMessages = await incognitoChatService.getMessagesForChat(messageToSave.chat_id);
+                    const existingMessage = existingMessages.find(m => m.message_id === messageToSave.message_id);
+                    if (existingMessage && !isNewMessageInStream) {
+                        // Update existing message
+                        const messageIndex = existingMessages.findIndex(m => m.message_id === messageToSave.message_id);
+                        existingMessages[messageIndex] = messageToSave;
+                    } else {
+                        // Add new message
+                        existingMessages.push(messageToSave);
+                    }
+                    await incognitoChatService.storeMessages(messageToSave.chat_id, existingMessages);
+                    const saveDuration = performance.now() - saveStartTime;
                     console.log(
-                        `[ActiveChat] 💾 DB SAVE SKIPPED (duplicate) | ` +
+                        `[ActiveChat] ✅ INCOGNITO SAVE COMPLETE | ` +
                         `seq: ${chunk.sequence} | ` +
-                        `message_id: ${messageToSave.message_id}`
+                        `message_id: ${messageToSave.message_id} | ` +
+                        `duration: ${saveDuration.toFixed(2)}ms`
                     );
                 } else {
+                    // Save to IndexedDB
+                    // Check if this message already exists to prevent duplicates
+                    const existingMessage = await chatDB.getMessage(messageToSave.message_id);
+                    if (existingMessage && !isNewMessageInStream) {
+                        console.log(
+                            `[ActiveChat] 💾 DB SAVE SKIPPED (duplicate) | ` +
+                            `seq: ${chunk.sequence} | ` +
+                            `message_id: ${messageToSave.message_id}`
+                        );
+                    } else {
                     console.log(
                         `[ActiveChat] 💾 DB SAVE START | ` +
                         `seq: ${chunk.sequence} | ` +
@@ -1067,6 +1104,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         `message_id: ${messageToSave.message_id} | ` +
                         `duration: ${saveDuration.toFixed(2)}ms`
                     );
+                    }
                 }
             } catch (error) {
                 console.error(
@@ -1097,31 +1135,70 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     currentMessages = [...currentMessages]; // Ensure reactivity for UI
                 }
 
-                // Save status update to DB
+                // Save status update to DB or incognito service
                 try {
-                    console.debug('[ActiveChat] Updating final AI message status in DB:', updatedFinalMessage);
-                    // Only save if the status actually changed to prevent unnecessary saves
-                    const existingMessage = await chatDB.getMessage(updatedFinalMessage.message_id);
-                    if (!existingMessage || existingMessage.status !== 'synced') {
-                        await chatDB.saveMessage(updatedFinalMessage);
+                    console.debug('[ActiveChat] Updating final AI message status:', updatedFinalMessage);
+                    
+                    // Check if this is an incognito chat
+                    const { incognitoChatService } = await import('../services/incognitoChatService');
+                    let isIncognitoChat = false;
+                    try {
+                        const incognitoChat = await incognitoChatService.getChat(updatedFinalMessage.chat_id);
+                        if (incognitoChat) {
+                            isIncognitoChat = true;
+                        }
+                    } catch (error) {
+                        // Not an incognito chat
+                    }
+                    
+                    if (isIncognitoChat) {
+                        // Save to incognito service
+                        const existingMessages = await incognitoChatService.getMessagesForChat(updatedFinalMessage.chat_id);
+                        const existingMessage = existingMessages.find(m => m.message_id === updatedFinalMessage.message_id);
+                        if (!existingMessage || existingMessage.status !== 'synced') {
+                            // Update or add the message
+                            if (existingMessage) {
+                                // Update existing message
+                                const messageIndex = existingMessages.findIndex(m => m.message_id === updatedFinalMessage.message_id);
+                                existingMessages[messageIndex] = updatedFinalMessage;
+                            } else {
+                                // Add new message
+                                existingMessages.push(updatedFinalMessage);
+                            }
+                            await incognitoChatService.storeMessages(updatedFinalMessage.chat_id, existingMessages);
+                        } else {
+                            console.debug('[ActiveChat] Incognito message already has synced status, skipping save');
+                        }
                     } else {
-                        console.debug('[ActiveChat] Message already has synced status, skipping save');
+                        // Save to IndexedDB
+                        // Only save if the status actually changed to prevent unnecessary saves
+                        const existingMessage = await chatDB.getMessage(updatedFinalMessage.message_id);
+                        if (!existingMessage || existingMessage.status !== 'synced') {
+                            await chatDB.saveMessage(updatedFinalMessage);
+                        } else {
+                            console.debug('[ActiveChat] Message already has synced status, skipping save');
+                        }
                     }
                 } catch (error) {
-                    console.error('[ActiveChat] Error updating final AI message status to DB:', error);
+                    console.error('[ActiveChat] Error updating final AI message status:', error);
                 }
                 
                 // CRITICAL: Send encrypted AI response back to server for Directus storage (zero-knowledge architecture)
+                // Skip for incognito chats (they're not stored on the server)
                 // This uses a separate event type 'ai_response_completed' to avoid triggering AI processing
-                try {
-                    console.debug('[ActiveChat] Sending completed AI response to server for encrypted Directus storage:', {
-                        messageId: updatedFinalMessage.message_id,
-                        chatId: updatedFinalMessage.chat_id,
-                        contentLength: updatedFinalMessage.content?.length || 0
-                    });
-                    await chatSyncService.sendCompletedAIResponse(updatedFinalMessage);
-                } catch (error) {
-                    console.error('[ActiveChat] Error sending completed AI response to server:', error);
+                if (!currentChat?.is_incognito) {
+                    try {
+                        console.debug('[ActiveChat] Sending completed AI response to server for encrypted Directus storage:', {
+                            messageId: updatedFinalMessage.message_id,
+                            chatId: updatedFinalMessage.chat_id,
+                            contentLength: updatedFinalMessage.content?.length || 0
+                        });
+                        await chatSyncService.sendCompletedAIResponse(updatedFinalMessage);
+                    } catch (error) {
+                        console.error('[ActiveChat] Error sending completed AI response to server:', error);
+                    }
+                } else {
+                    console.debug('[ActiveChat] Skipping server storage for incognito chat - not persisted on server');
                 }
                 
                 if (chatHistoryRef) {
@@ -1645,13 +1722,24 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             console.debug('[ActiveChat] Video in PiP mode - keeping video playing during chat switch');
         }
         
-        // For public chats (demo/legal), skip database access - use the chat object directly
+        // For public chats (demo/legal) and incognito chats, skip database access - use the chat object directly
         // This is critical during logout when database is being deleted
         let freshChat: Chat | null = null;
         if (isPublicChat(chat.chat_id)) {
             // Public chats don't need database access - use the provided chat object
             freshChat = chat;
             console.debug(`[ActiveChat] Loading public chat ${chat.chat_id} - skipping database access`);
+        } else if (chat.is_incognito) {
+            // Incognito chats are stored in sessionStorage, not IndexedDB
+            // Try to get fresh data from incognitoChatService, but use provided chat as fallback
+            try {
+                const incognitoChat = await incognitoChatService.getChat(chat.chat_id);
+                freshChat = incognitoChat || chat;
+                console.debug(`[ActiveChat] Loading incognito chat ${chat.chat_id} - using incognitoChatService`);
+            } catch (error) {
+                console.debug(`[ActiveChat] Error loading incognito chat ${chat.chat_id}, using provided chat object:`, error);
+                freshChat = chat;
+            }
         } else if (!$authStore.isAuthenticated) {
             // CRITICAL: For non-authenticated users, check if this is a sessionStorage-only chat
             // (new chat with draft that doesn't exist in database yet)
@@ -1732,6 +1820,15 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 // If getDemoMessages returns empty, log a warning
                 if (newMessages.length === 0) {
                     console.warn(`[ActiveChat] WARNING: No messages found for ${currentChat.chat_id}. Available public chats:`, [...DEMO_CHATS, ...LEGAL_CHATS].map(c => c.chat_id));
+                }
+            } else if (currentChat.is_incognito) {
+                // Incognito chats - load messages from incognitoChatService (sessionStorage)
+                try {
+                    newMessages = await incognitoChatService.getMessagesForChat(currentChat.chat_id);
+                    console.debug(`[ActiveChat] Loaded ${newMessages.length} messages from incognitoChatService for ${currentChat.chat_id}`);
+                } catch (error) {
+                    console.error(`[ActiveChat] Error loading incognito chat messages for ${currentChat.chat_id}:`, error);
+                    newMessages = [];
                 }
             } else if (!$authStore.isAuthenticated) {
                 // CRITICAL: For non-authenticated users, check if this is a sessionStorage-only chat
@@ -2314,6 +2411,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         };
         window.addEventListener('userLoggingOut', handleLogoutEvent);
         
+        // Listen for triggerNewChat event (from incognito info screen)
+        const handleTriggerNewChat = () => {
+            console.debug('[ActiveChat] triggerNewChat event received - creating new chat');
+            handleNewChatClick();
+        };
+        window.addEventListener('triggerNewChat', handleTriggerNewChat);
+        
         // Add language change listener to reload public chats (demo + legal) when language changes
         const handleLanguageChange = async () => {
             try {
@@ -2645,6 +2749,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             if (handleLogoutEvent) {
                 window.removeEventListener('userLoggingOut', handleLogoutEvent as EventListener);
             }
+            window.removeEventListener('triggerNewChat', handleTriggerNewChat as EventListener);
         };
     });
 
@@ -2689,6 +2794,16 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         >
             <!-- Main content wrapper that will handle the fullscreen layout -->
             <div class="chat-wrapper" class:fullscreen={isFullscreen}>
+                <!-- Incognito mode banner - shows for incognito chats or new chats when incognito mode is active -->
+                {#if currentChat?.is_incognito || (showWelcome && $incognitoMode)}
+                    <div class="incognito-banner">
+                        <div class="incognito-banner-icon">
+                            <div class="icon settings_size subsetting_icon subsetting_icon_incognito"></div>
+                        </div>
+                        <span class="incognito-banner-text">{$text('settings.incognito.text')}</span>
+                    </div>
+                {/if}
+                
                 <!-- Left side container for chat history and buttons -->
                 <div class="chat-side">
                     <div class="top-buttons">
@@ -2794,6 +2909,18 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                 messageInputContent={liveInputText}
                                 onSuggestionClick={handleSuggestionClick}
                             />
+                        {/if}
+
+                        <!-- Banner for non-incognito chats when incognito mode is active -->
+                        {#if $incognitoMode && currentChat && !currentChat.is_incognito && !showWelcome}
+                            <div class="incognito-mode-applies-banner" transition:fade={{ duration: 200 }}>
+                                <div class="incognito-mode-applies-icon">
+                                    <div class="icon settings_size subsetting_icon subsetting_icon_incognito"></div>
+                                </div>
+                                <span class="incognito-mode-applies-text">
+                                    {$text('settings.incognito_mode_applies_to_new_chats_only.text', { default: 'Incognito Mode applies to new chats only. Not this chat.' })}
+                                </span>
+                            </div>
                         {/if}
 
                         <!-- Follow-up suggestions when input is focused -->
@@ -3224,6 +3351,69 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
     .active-chat-container.dimmed {
         opacity: 0.3;
+    }
+
+    /* Incognito mode banner - full width, 20px height at top of chat */
+    .incognito-banner {
+        width: 100%;
+        height: 20px;
+        background-color: var(--color-grey-30);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        padding: 0 12px;
+        flex-shrink: 0;
+    }
+
+    .incognito-banner-icon {
+        width: 16px;
+        height: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+
+    .incognito-banner-text {
+        font-size: 12px;
+        font-weight: 500;
+        color: var(--color-grey-70);
+        white-space: nowrap;
+    }
+
+    /* Banner for non-incognito chats when incognito mode is active */
+    .incognito-mode-applies-banner {
+        width: 100%;
+        min-height: 40px;
+        background-color: var(--color-grey-15);
+        border: 1px solid var(--color-grey-30);
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: flex-start;
+        gap: 10px;
+        padding: 10px 14px;
+        margin-bottom: 12px;
+        flex-shrink: 0;
+    }
+
+    .incognito-mode-applies-icon {
+        width: 20px;
+        height: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        opacity: 0.7;
+    }
+
+    .incognito-mode-applies-text {
+        font-size: 13px;
+        font-weight: 400;
+        color: var(--color-grey-70);
+        line-height: 1.4;
+        flex: 1;
     }
 
     .chat-wrapper {

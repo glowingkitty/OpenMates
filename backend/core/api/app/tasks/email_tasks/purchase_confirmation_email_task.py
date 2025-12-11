@@ -40,7 +40,8 @@ def process_invoice_and_send_email(
     sender_country: str,
     sender_email: str,
     sender_vat: str,
-    email_encryption_key: Optional[str] = None  # Add email encryption key parameter
+    email_encryption_key: Optional[str] = None,  # Add email encryption key parameter
+    is_gift_card: bool = False  # Flag to indicate if this is a gift card purchase
 ) -> bool:
     """
     Celery task to generate invoice, upload to S3, save to Directus, and send email.
@@ -53,7 +54,7 @@ def process_invoice_and_send_email(
                 self, order_id, user_id, credits_purchased,
                 sender_addressline1, sender_addressline2, sender_addressline3,
                 sender_country, sender_email, sender_vat,
-                email_encryption_key
+                email_encryption_key, is_gift_card
             )
         )
         logger.info(f"Invoice processing task completed for Order ID: {order_id}, User ID: {user_id}. Success: {result}")
@@ -75,7 +76,8 @@ async def _async_process_invoice_and_send_email(
     sender_country: str,
     sender_email: str,
     sender_vat: str,
-    email_encryption_key: Optional[str] = None  # Add email encryption key parameter
+    email_encryption_key: Optional[str] = None,  # Add email encryption key parameter
+    is_gift_card: bool = False  # Flag to indicate if this is a gift card purchase
 ) -> bool:
     """
     Async implementation for invoice processing.
@@ -249,7 +251,8 @@ async def _async_process_invoice_and_send_email(
             "sender_addressline3": sender_addressline3,
             "sender_country": sender_country,
             "sender_email": sender_email,
-            "sender_vat": sender_vat
+            "sender_vat": sender_vat,
+            "is_gift_card": is_gift_card  # Flag to indicate if this is a gift card purchase
         }
 
         # Add billing address if available (cleaning up None values) - only for future business/teams functionality
@@ -539,7 +542,8 @@ async def _async_process_invoice_and_send_email(
                 payment_processor=task.payment_service.provider_name, # Use the active payment provider name
                 card_brand_lower=card_brand_lower,
                 custom_invoice_number=invoice_number, # Pass generated invoice number
-                custom_pdf_data=pdf_bytes_en # Pass the English PDF bytes
+                custom_pdf_data=pdf_bytes_en, # Pass the English PDF bytes
+                is_gift_card=is_gift_card  # Pass gift card flag
             )
 
         except Exception as ninja_err:

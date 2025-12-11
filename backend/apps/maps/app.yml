@@ -9,7 +9,7 @@ settings_and_memories:
     name_translation_key: maps.favorite_places.text
     description_translation_key: maps.favorite_places.description.text
     type: list
-    stage: planning
+    stage: development
     schema:
       type: object
       properties:
@@ -39,7 +39,7 @@ skills:
   - id: search
     name_translation_key: maps.search.text
     description_translation_key: maps.search.description.text
-    stage: development
+    stage: production
     class_path: |
       backend.apps.maps.skills.search_skill.SearchSkill
     providers:

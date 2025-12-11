@@ -3,6 +3,7 @@ from pydantic import BaseModel
 import logging
 import os
 import yaml
+import time
 from typing import Dict, Any, Optional, List
 from pathlib import Path
 
@@ -19,8 +20,10 @@ from backend.core.api.app.services.compliance import ComplianceService
 from backend.core.api.app.services.s3.service import S3UploadService
 from backend.core.api.app.services.s3.config import get_bucket_name
 from backend.core.api.app.services.limiter import limiter
+from backend.core.api.app.services.payment_tier_service import PaymentTierService
 from fastapi.responses import StreamingResponse
 import hashlib
+from datetime import datetime, timezone
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/v1/payments", tags=["Payments"])
@@ -45,6 +48,17 @@ def get_encryption_service(request: Request) -> EncryptionService:
 
 def get_s3_service(request: Request) -> S3UploadService:
     return request.app.state.s3_service
+
+def get_payment_tier_service(request: Request) -> PaymentTierService:
+    """Get PaymentTierService instance."""
+    cache_service = get_cache_service(request)
+    directus_service = get_directus_service(request)
+    encryption_service = get_encryption_service(request)
+    return PaymentTierService(
+        cache_service=cache_service,
+        directus_service=directus_service,
+        encryption_service=encryption_service
+    )
 
 def is_production() -> bool:
     return os.getenv("SERVER_ENVIRONMENT", "development") == "production"
@@ -117,6 +131,34 @@ class GetSubscriptionResponse(BaseModel):
 class CancelSubscriptionResponse(BaseModel):
     subscription_id: str
     status: str
+
+class BuyGiftCardRequest(BaseModel):
+    credits_amount: int
+    currency: str
+    email_encryption_key: Optional[str] = None
+
+class BuyGiftCardResponse(BaseModel):
+    provider: str
+    order_token: Optional[str] = None  # For Revolut
+    client_secret: Optional[str] = None  # For Stripe
+    order_id: str
+
+class RedeemedGiftCardResponse(BaseModel):
+    gift_card_code: str
+    credits_value: int
+    redeemed_at: str
+
+class RedeemedGiftCardsListResponse(BaseModel):
+    redeemed_cards: List[RedeemedGiftCardResponse]
+
+class PurchasedGiftCardResponse(BaseModel):
+    gift_card_code: str
+    credits_value: int
+    purchased_at: str
+    redeemed: bool  # True if the card has been redeemed (shouldn't happen, but check anyway)
+
+class PurchasedGiftCardsListResponse(BaseModel):
+    purchased_cards: List[PurchasedGiftCardResponse]
     cancel_at_period_end: bool
 
 PRICING_CONFIG_PATH = Path("/shared/config/pricing.yml")
@@ -240,7 +282,8 @@ async def create_payment_order(
     current_user: User = Depends(get_current_user),
     payment_service: PaymentService = Depends(get_payment_service),
     encryption_service: EncryptionService = Depends(get_encryption_service),
-    cache_service: CacheService = Depends(get_cache_service)
+    cache_service: CacheService = Depends(get_cache_service),
+    tier_service: PaymentTierService = Depends(get_payment_tier_service)
 ):
     logger.info(f"Received request to create payment order for user {current_user.id} - Provider: {payment_service.provider_name}, Currency: {order_data.currency}, Credits: {order_data.credits_amount}")
 
@@ -248,6 +291,26 @@ async def create_payment_order(
     if calculated_amount is None:
         logger.error(f"Could not determine price for {order_data.credits_amount} credits in {order_data.currency} for user {current_user.id}.")
         raise HTTPException(status_code=400, detail=f"Invalid credit amount or currency combination.")
+    
+    # Check tier limits before creating order
+    # This efficiently checks limits using cached values without querying invoices
+    is_allowed, error_message, current_tier, current_spending = await tier_service.check_tier_limit(
+        user_id=current_user.id,
+        purchase_amount=calculated_amount,
+        currency=order_data.currency
+    )
+    
+    if not is_allowed:
+        logger.warning(
+            f"Tier limit check failed for user {current_user.id}: {error_message}"
+        )
+        raise HTTPException(status_code=403, detail=error_message)
+    
+    logger.info(
+        f"Tier limit check passed for user {current_user.id}: "
+        f"tier={current_tier}, current_spending={current_spending:.2f}€, "
+        f"purchase={calculated_amount:.2f} {order_data.currency.upper()}"
+    )
     
     try:
         if not current_user.encrypted_email_address:
@@ -297,7 +360,8 @@ async def create_payment_order(
             credits_amount=order_data.credits_amount,
             status="created",
             ttl=3600, # 1 hour TTL (increased from 5 minutes to handle webhook delays/retries)
-            email_encryption_key=order_data.email_encryption_key  # Store the email encryption key
+            email_encryption_key=order_data.email_encryption_key,  # Store the email encryption key
+            currency=order_data.currency  # Store currency for tier system updates
         )
         
         if not cache_success:
@@ -331,7 +395,8 @@ async def payment_webhook(
     directus_service: DirectusService = Depends(get_directus_service),
     cache_service: CacheService = Depends(get_cache_service),
     encryption_service: EncryptionService = Depends(get_encryption_service),
-    secrets_manager: SecretsManager = Depends(get_secrets_manager)
+    secrets_manager: SecretsManager = Depends(get_secrets_manager),
+    tier_service: PaymentTierService = Depends(get_payment_tier_service)
 ):
     payload_bytes = await request.body()
     
@@ -407,6 +472,8 @@ async def payment_webhook(
 
             user_id = cached_order_data.get("user_id")
             credits_purchased = cached_order_data.get("credits_amount")
+            # Extract is_gift_card flag from cached order data
+            is_gift_card = cached_order_data.get("is_gift_card", False)
 
             if not user_id or credits_purchased is None:
                 logger.error(f"Missing user_id or credits_amount in cached data for order {webhook_order_id}.")
@@ -414,62 +481,217 @@ async def payment_webhook(
                 return {"status": "cache_data_invalid"}
 
             user_cache_data = await cache_service.get_user_by_id(user_id)
+            
+            # Check if this order has already been processed
+            order_status = cached_order_data.get("status")
+            if order_status == "completed":
+                logger.info(f"Order {webhook_order_id} already completed. Skipping duplicate webhook.")
+                return {"status": "already_completed"}
+            
+            # Check if payment is in progress, but allow processing if it's for the same order (retry scenario)
+            # or if the flag has been set for more than 5 minutes (stale flag)
             if user_cache_data and user_cache_data.get("payment_in_progress"):
-                logger.warning(f"User {user_id} already has a payment in progress. Skipping webhook.")
-                return {"status": "skipped_payment_in_progress"}
+                payment_in_progress_timestamp = user_cache_data.get("payment_in_progress_timestamp")
+                current_time = int(time.time())
+                pending_order_id = user_cache_data.get("pending_order_id")
+                
+                # If timestamp exists and is older than 5 minutes, clear the stale flag
+                if payment_in_progress_timestamp and (current_time - payment_in_progress_timestamp) > 300:
+                    logger.warning(
+                        f"Payment in progress flag is stale (>5 minutes old) for user {user_id}. "
+                        f"Clearing flag and processing webhook. pending_order_id was: {pending_order_id}"
+                    )
+                    user_cache_data["payment_in_progress"] = False
+                    user_cache_data.pop("payment_in_progress_timestamp", None)
+                    user_cache_data.pop("pending_order_id", None)
+                # If pending_order_id is None/empty, this indicates an inconsistent state:
+                # payment_in_progress is True but no order ID was stored (likely from a failed previous attempt)
+                # In this case, clear the stale flag and allow processing
+                elif not pending_order_id:
+                    logger.warning(
+                        f"Payment in progress flag set but pending_order_id is None for user {user_id}. "
+                        f"This indicates a stale/incomplete state from a previous failed webhook attempt. "
+                        f"Clearing flag and processing webhook for {webhook_order_id}."
+                    )
+                    user_cache_data["payment_in_progress"] = False
+                    user_cache_data.pop("payment_in_progress_timestamp", None)
+                    # Allow processing to continue
+                # Check if there's a pending order for this user that matches this webhook order
+                elif pending_order_id == webhook_order_id:
+                    logger.info(f"Payment in progress flag set, and this webhook is for the same order {webhook_order_id}. Processing as retry.")
+                else:
+                    # pending_order_id exists and is different - this is a concurrent payment attempt
+                    logger.warning(f"User {user_id} already has a payment in progress for a different order ({pending_order_id}). Skipping webhook for {webhook_order_id}.")
+                    return {"status": "skipped_payment_in_progress"}
 
             if user_cache_data is None:
                 user_cache_data = {}
             
+            # Set payment in progress flag with timestamp
             user_cache_data["payment_in_progress"] = True
+            user_cache_data["payment_in_progress_timestamp"] = int(time.time())
+            user_cache_data["pending_order_id"] = webhook_order_id
             await cache_service.set_user(user_cache_data, user_id=user_id)
 
             directus_update_success = False
             new_total_credits_calculated = 0
+            gift_card_code = None
 
             try:
-                current_credits = user_cache_data.get('credits')
-                if current_credits is None:
-                    raise Exception("Credits field missing from cache")
+                if is_gift_card:
+                    # For gift card purchases, create the gift card instead of updating user credits
+                    logger.info(f"Processing gift card purchase for user {user_id}, credits: {credits_purchased}")
+                    
+                    # Generate a unique gift card code
+                    gift_card_code = generate_gift_card_code()
+                    
+                    # Generate purchaser user ID hash for tracking
+                    import hashlib
+                    purchaser_user_id_hash = hashlib.sha256(user_id.encode()).hexdigest()
+                    
+                    # Create the gift card in Directus
+                    created_gift_card = await directus_service.create_gift_card(
+                        code=gift_card_code,
+                        credits_value=credits_purchased,
+                        purchaser_user_id_hash=purchaser_user_id_hash
+                    )
+                    
+                    if created_gift_card:
+                        logger.info(f"Successfully created gift card {gift_card_code} for user {user_id}.")
+                        directus_update_success = True
+                    else:
+                        logger.error(f"Failed to create gift card for user {user_id}.")
+                        raise Exception("Failed to create gift card in Directus")
+                else:
+                    # Regular purchase: update user credits
+                    current_credits = user_cache_data.get('credits')
+                    if current_credits is None:
+                        raise Exception("Credits field missing from cache")
 
-                vault_key_id = user_cache_data.get("vault_key_id")
-                if not vault_key_id:
-                    raise Exception("Vault key ID missing from cache")
+                    vault_key_id = user_cache_data.get("vault_key_id")
+                    if not vault_key_id:
+                        raise Exception("Vault key ID missing from cache")
 
-                new_total_credits_calculated = current_credits + credits_purchased
-                new_encrypted_credits, _ = await encryption_service.encrypt_with_user_key(str(new_total_credits_calculated), vault_key_id)
+                    new_total_credits_calculated = current_credits + credits_purchased
+                    new_encrypted_credits, _ = await encryption_service.encrypt_with_user_key(str(new_total_credits_calculated), vault_key_id)
 
-                update_payload = {"encrypted_credit_balance": new_encrypted_credits, "last_opened": "/chat/new"}
-                directus_update_success = await directus_service.update_user(user_id, update_payload)
+                    update_payload = {"encrypted_credit_balance": new_encrypted_credits, "last_opened": "/chat/new"}
+                    directus_update_success = await directus_service.update_user(user_id, update_payload)
+                    
+                    # Update tier system: monthly spending counter and tier progression
+                    # Calculate order amount from credits_amount using pricing (more efficient than API call)
+                    if not is_gift_card:
+                        try:
+                            # Get currency from cached order or default to eur
+                            # We stored credits_amount, so we can calculate the price
+                            order_currency = cached_order_data.get("currency", "eur")
+                            
+                            # Calculate amount from credits using pricing function
+                            # This matches what was used when creating the order
+                            # get_price_for_credits returns amount in smallest currency unit (cents for EUR/USD)
+                            calculated_amount_cents = get_price_for_credits(credits_purchased, order_currency)
+                            
+                            if calculated_amount_cents is not None:
+                                # Convert from cents to decimal amount
+                                if order_currency.lower() in ['eur', 'usd', 'gbp']:
+                                    calculated_amount_decimal = float(calculated_amount_cents) / 100.0
+                                else:
+                                    # JPY and others use the amount directly
+                                    calculated_amount_decimal = float(calculated_amount_cents)
+                                
+                                # Update monthly spending counter
+                                await tier_service.update_monthly_spending(
+                                    user_id=user_id,
+                                    purchase_amount_eur=tier_service.convert_to_eur(
+                                        calculated_amount_decimal, order_currency
+                                    ),
+                                    vault_key_id=vault_key_id
+                                )
+                                
+                                # Update tier progression (check if new month, increment counter, upgrade tier)
+                                payment_datetime = datetime.now(timezone.utc)
+                                await tier_service.handle_successful_payment(
+                                    user_id=user_id,
+                                    payment_date=payment_datetime
+                                )
+                                
+                                logger.info(
+                                    f"Updated tier system for user {user_id}: "
+                                    f"spending={calculated_amount_decimal:.2f} {order_currency.upper()}, "
+                                    f"payment_date={payment_datetime.isoformat()}"
+                                )
+                            else:
+                                logger.warning(
+                                    f"Could not calculate amount for credits {credits_purchased} "
+                                    f"in currency {order_currency} for tier update"
+                                )
+                        except Exception as tier_exc:
+                            # Don't fail the payment if tier update fails, but log it
+                            logger.error(
+                                f"Error updating tier system for user {user_id}, order {webhook_order_id}: {str(tier_exc)}",
+                                exc_info=True
+                            )
 
                 if directus_update_success:
-                    logger.info(f"Successfully updated Directus credits for user {user_id}.")
+                    if is_gift_card:
+                        logger.info(f"Successfully created gift card {gift_card_code} for user {user_id}.")
+                        
+                        # Broadcast gift card created event
+                        try:
+                            await cache_service.publish_event(
+                                channel=f"user_updates::{user_id}",
+                                event_data={
+                                    "event_for_client": "gift_card_created",
+                                    "user_id_uuid": user_id,
+                                    "payload": {
+                                        "order_id": webhook_order_id,
+                                        "gift_card_code": gift_card_code,
+                                        "credits_value": credits_purchased
+                                    }
+                                }
+                            )
+                            
+                            await manager.broadcast_to_user_specific_event(
+                                user_id=user_id,
+                                event_name="gift_card_created",
+                                payload={
+                                    "order_id": webhook_order_id,
+                                    "gift_card_code": gift_card_code,
+                                    "credits_value": credits_purchased
+                                }
+                            )
+                            
+                            logger.info(f"Published and broadcasted 'gift_card_created' event for user {user_id}.")
+                        except Exception as pub_exc:
+                            logger.error(f"Failed to publish 'gift_card_created' event for user {user_id}: {pub_exc}", exc_info=True)
+                    else:
+                        logger.info(f"Successfully updated Directus credits for user {user_id}.")
 
-                    # Publish an event to notify websockets about the credit update
-                    try:
-                        # First, publish to user_updates channel for the WebSocket listener
-                        await cache_service.publish_event(
-                            channel=f"user_updates::{user_id}",
-                            event_data={
-                                "event_for_client": "user_credits_updated",
-                                "user_id_uuid": user_id,
-                                "payload": {"credits": new_total_credits_calculated}
-                            }
-                        )
-                        
-                        # Also directly broadcast to the user via WebSocket manager for immediate update
-                        
-                        await manager.broadcast_to_user_specific_event(
-                            user_id=user_id,
-                            event_name="user_credits_updated",
-                            payload={"credits": new_total_credits_calculated}
-                        )
-                        
-                        logger.info(f"Published and broadcasted 'user_credits_updated' event for user {user_id}.")
-                    except Exception as pub_exc:
-                        logger.error(f"Failed to publish 'user_credits_updated' event for user {user_id}: {pub_exc}", exc_info=True)
+                        # Publish an event to notify websockets about the credit update
+                        try:
+                            # First, publish to user_updates channel for the WebSocket listener
+                            await cache_service.publish_event(
+                                channel=f"user_updates::{user_id}",
+                                event_data={
+                                    "event_for_client": "user_credits_updated",
+                                    "user_id_uuid": user_id,
+                                    "payload": {"credits": new_total_credits_calculated}
+                                }
+                            )
+                            
+                            # Also directly broadcast to the user via WebSocket manager for immediate update
+                            
+                            await manager.broadcast_to_user_specific_event(
+                                user_id=user_id,
+                                event_name="user_credits_updated",
+                                payload={"credits": new_total_credits_calculated}
+                            )
+                            
+                            logger.info(f"Published and broadcasted 'user_credits_updated' event for user {user_id}.")
+                        except Exception as pub_exc:
+                            logger.error(f"Failed to publish 'user_credits_updated' event for user {user_id}: {pub_exc}", exc_info=True)
 
-                    # Dispatch invoice task
+                    # Dispatch invoice task for both regular purchases and gift cards
                     # Fetch sender details for invoice via SecretsManager
                     invoice_sender_path = f"kv/data/providers/invoice_sender"
 
@@ -495,30 +717,45 @@ async def payment_webhook(
                         "sender_country": sender_country,
                         "sender_email": sender_email if sender_email else "support@openmates.org",
                         "sender_vat": sender_vat,
-                        "email_encryption_key": email_encryption_key  # Pass the email encryption key to the task
+                        "email_encryption_key": email_encryption_key,  # Pass the email encryption key to the task
+                        "is_gift_card": is_gift_card  # Pass gift card flag to invoice task
                     }
                     app.send_task(
                         name='app.tasks.email_tasks.purchase_confirmation_email_task.process_invoice_and_send_email',
                         kwargs=task_payload,
                         queue='email'
                     )
-                    logger.info(f"Dispatched invoice processing task for user {user_id}, order {webhook_order_id} to queue 'email'.")
+                    logger.info(f"Dispatched invoice processing task for user {user_id}, order {webhook_order_id} to queue 'email' (is_gift_card={is_gift_card}).")
                 else:
-                    logger.error(f"Failed to update Directus credits for user {user_id}.")
+                    if is_gift_card:
+                        logger.error(f"Failed to create gift card for user {user_id}.")
+                    else:
+                        logger.error(f"Failed to update Directus credits for user {user_id}.")
 
             except Exception as processing_err:
                 logger.error(f"Error during payment processing for user {user_id}: {processing_err}", exc_info=True)
                 await cache_service.update_order_status(webhook_order_id, "failed_processing_error")
             finally:
                 final_cache_data = await cache_service.get_user_by_id(user_id) or {}
+                # Clear payment in progress flag and related metadata
                 final_cache_data["payment_in_progress"] = False
+                final_cache_data.pop("payment_in_progress_timestamp", None)
+                # Only clear pending_order_id if this is the order that was being processed
+                if final_cache_data.get("pending_order_id") == webhook_order_id:
+                    final_cache_data.pop("pending_order_id", None)
+                
                 final_order_status = "unknown"
                 if directus_update_success:
-                    final_cache_data["credits"] = new_total_credits_calculated
+                    if not is_gift_card:
+                        # Only update credits in cache for regular purchases
+                        final_cache_data["credits"] = new_total_credits_calculated
                     final_cache_data["last_opened"] = "/chat/new"
                     final_order_status = "completed"
                 else:
-                    final_order_status = "failed_directus_update"
+                    if is_gift_card:
+                        final_order_status = "failed_gift_card_creation"
+                    else:
+                        final_order_status = "failed_directus_update"
                 
                 await cache_service.set_user(final_cache_data, user_id=user_id)
                 await cache_service.update_order_status(webhook_order_id, final_order_status)
@@ -701,6 +938,149 @@ async def payment_webhook(
                     
                     await directus_service.update_user(user_id, update_payload)
                     logger.info(f"Updated subscription status to {new_status} for user {user_id}")
+        
+        # Handle chargeback/dispute events (Stripe only)
+        elif provider_name == "stripe" and event_type in ["charge.dispute.created", "charge.dispute.updated"]:
+            # Handle chargeback/dispute
+            dispute_data = event_payload.get("data", {}).get("object", {})
+            charge_id = dispute_data.get("charge")
+            dispute_id = dispute_data.get("id")
+            dispute_status = dispute_data.get("status")
+            dispute_created = dispute_data.get("created")
+            
+            logger.warning(
+                f"Chargeback/dispute event received: {event_type}, "
+                f"dispute_id={dispute_id}, charge_id={charge_id}, status={dispute_status}"
+            )
+            
+            if not charge_id:
+                logger.error(f"Dispute {dispute_id} missing charge_id")
+                return {"status": "dispute_missing_charge_id"}
+            
+            # Get PaymentIntent from charge to find order_id
+            try:
+                # Use payment_service provider to retrieve charge
+                # The provider should be a StripeService instance with initialized API key
+                if provider_name != "stripe":
+                    logger.error(f"Chargeback handling only supported for Stripe, got {provider_name}")
+                    return {"status": "unsupported_provider"}
+                
+                # Import stripe here to avoid circular imports
+                # The StripeService sets stripe.api_key globally during initialization
+                import stripe as stripe_lib
+                
+                # Retrieve the charge to get the payment_intent_id
+                charge = stripe_lib.Charge.retrieve(charge_id)
+                
+                # payment_intent can be a string ID or None
+                payment_intent_id = charge.payment_intent
+                
+                if not payment_intent_id:
+                    logger.error(f"Charge {charge_id} missing payment_intent_id")
+                    return {"status": "charge_missing_payment_intent"}
+                
+                # If payment_intent is an expanded object, extract the ID
+                if isinstance(payment_intent_id, dict):
+                    payment_intent_id = payment_intent_id.get("id")
+                
+                if not payment_intent_id:
+                    logger.error(f"Could not extract payment_intent_id from charge {charge_id}")
+                    return {"status": "charge_missing_payment_intent"}
+                
+                # Find invoice by order_id (payment_intent_id) and update chargeback status
+                # First, try to get order from cache to find user_id
+                cached_order_data = await cache_service.get_order(payment_intent_id)
+                
+                # Convert dispute created timestamp to datetime
+                dispute_datetime = datetime.fromtimestamp(dispute_created, tz=timezone.utc)
+                dispute_iso = dispute_datetime.isoformat()
+                
+                # Query invoices collection by order_id to find and update the invoice
+                invoice_params = {
+                    "filter[order_id][_eq]": payment_intent_id,
+                    "limit": 1
+                }
+                invoices = await directus_service.get_items("invoices", invoice_params)
+                
+                if invoices and len(invoices) > 0:
+                    invoice = invoices[0]
+                    invoice_id = invoice.get("id")
+                    
+                    if invoice_id:
+                        # Update invoice with chargeback information
+                        invoice_update_payload = {
+                            "has_chargeback": True,
+                            "chargeback_date": dispute_iso
+                        }
+                        update_success = await directus_service.update_item(
+                            "invoices",
+                            invoice_id,
+                            invoice_update_payload
+                        )
+                        
+                        if update_success:
+                            logger.info(
+                                f"Updated invoice {invoice_id} with chargeback status: "
+                                f"has_chargeback=True, chargeback_date={dispute_iso}"
+                            )
+                        else:
+                            logger.error(
+                                f"Failed to update invoice {invoice_id} with chargeback status"
+                            )
+                    else:
+                        logger.warning(f"Invoice found but missing ID for order {payment_intent_id}")
+                else:
+                    logger.warning(
+                        f"No invoice found for order_id {payment_intent_id}. "
+                        f"Chargeback may have occurred before invoice was created."
+                    )
+                
+                # Handle user tier reset if we have user_id
+                if cached_order_data:
+                    user_id = cached_order_data.get("user_id")
+                    if user_id:
+                        # Handle chargeback in tier service (resets months counter, downgrades tier)
+                        await tier_service.handle_chargeback(
+                            user_id=user_id,
+                            invoice_order_id=payment_intent_id,
+                            chargeback_date=dispute_datetime
+                        )
+                        
+                        logger.info(
+                            f"Processed chargeback for user {user_id}, order {payment_intent_id}, "
+                            f"dispute_id={dispute_id}"
+                        )
+                    else:
+                        logger.warning(f"Cached order {payment_intent_id} missing user_id")
+                else:
+                    # If order not in cache, try to find user from invoice user_id_hash
+                    # This is a fallback for cases where cache has expired
+                    if invoices and len(invoices) > 0:
+                        invoice = invoices[0]
+                        user_id_hash = invoice.get("user_id_hash")
+                        
+                        if user_id_hash:
+                            logger.info(
+                                f"Order {payment_intent_id} not in cache, but invoice found. "
+                                f"User tier reset skipped (would need user_id to decrypt user_id_hash). "
+                                f"Invoice chargeback status updated."
+                            )
+                        else:
+                            logger.warning(
+                                f"Order {payment_intent_id} not found in cache and invoice missing user_id_hash. "
+                                f"Cannot process user tier reset."
+                            )
+                    else:
+                        logger.warning(
+                            f"Order {payment_intent_id} not found in cache and no invoice found. "
+                            f"Cannot process chargeback for user tier."
+                        )
+                    
+            except Exception as dispute_exc:
+                logger.error(
+                    f"Error processing chargeback/dispute {dispute_id}: {str(dispute_exc)}",
+                    exc_info=True
+                )
         
         else:
             logger.info(f"Ignoring webhook event type: {event_type} from {provider_name}")
@@ -1245,13 +1625,33 @@ async def redeem_gift_card(
         user_cache_data["credits"] = new_total_credits
         await cache_service.set_user(user_cache_data, user_id=user_id)
         
-        # 9. Redeem (delete) the gift card from Directus and cache
+        # 9. Record redemption in redeemed_gift_cards before deleting
+        # Get user_id_hash for recording redemption
+        user_id_hash = hashlib.sha256(user_id.encode()).hexdigest()
+        gift_card_id = gift_card.get('id')
+        vault_key_id = user_cache_data.get("vault_key_id")
+        
+        if vault_key_id:
+            record_success = await directus_service.record_gift_card_redemption(
+                gift_card_code=code,
+                gift_card_id=gift_card_id,
+                user_id_hash=user_id_hash,
+                credits_value=credits_value,
+                encryption_service=encryption_service,
+                vault_key_id=vault_key_id
+            )
+            if not record_success:
+                logger.warning(f"Failed to record gift card redemption for code {code}, but continuing with deletion")
+        else:
+            logger.warning(f"Vault key ID missing, cannot encrypt gift card code for redemption record")
+        
+        # 10. Redeem (delete) the gift card from Directus and cache
         redeem_success = await directus_service.redeem_gift_card(code, user_id)
         if not redeem_success:
             logger.error(f"Failed to delete gift card {code} after redemption. Credits were added but gift card may still exist.")
             # Don't fail the request - credits were already added
         
-        # 10. Log gift card redemption for compliance
+        # 11. Log gift card redemption for compliance
         ComplianceService.log_financial_transaction(
             user_id=user_id,
             transaction_type="gift_card_redemption",
@@ -1265,7 +1665,7 @@ async def redeem_gift_card(
             }
         )
         
-        # 11. Broadcast credit update via WebSocket
+        # 12. Broadcast credit update via WebSocket
         try:
             await manager.broadcast_to_user(
                 user_id=user_id,
@@ -1293,6 +1693,236 @@ async def redeem_gift_card(
     except Exception as e:
         logger.error(f"Error redeeming gift card {code} for user {user_id}: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail="An error occurred while redeeming the gift card")
+
+def generate_gift_card_code() -> str:
+    """
+    Generate a unique gift card code in the format XXXX-XXXX-XXXX using alphanumeric characters.
+    Uses uppercase letters and digits, excluding ambiguous characters (0, O, I, 1).
+    
+    Returns:
+        A unique gift card code string
+    """
+    import random
+    import string
+    
+    # Use alphanumeric characters, excluding ambiguous ones (0, O, I, 1)
+    # This makes codes easier to read and type
+    charset = string.ascii_uppercase.replace('O', '').replace('I', '') + string.digits.replace('0', '').replace('1', '')
+    
+    # Generate 3 groups of 4 random characters
+    part1 = ''.join(random.choices(charset, k=4))
+    part2 = ''.join(random.choices(charset, k=4))
+    part3 = ''.join(random.choices(charset, k=4))
+    
+    # Format as XXXX-XXXX-XXXX
+    gift_card_code = f"{part1}-{part2}-{part3}"
+    return gift_card_code
+
+@router.post("/buy-gift-card", response_model=BuyGiftCardResponse)
+@limiter.limit("10/minute")  # Sensitive - prevent abuse
+async def buy_gift_card(
+    request: Request,
+    gift_card_request: BuyGiftCardRequest,
+    current_user: User = Depends(get_current_user),
+    payment_service: PaymentService = Depends(get_payment_service),
+    directus_service: DirectusService = Depends(get_directus_service),
+    cache_service: CacheService = Depends(get_cache_service),
+    encryption_service: EncryptionService = Depends(get_encryption_service)
+):
+    """
+    Purchase a gift card for the specified credit amount.
+    Creates a payment order, and upon successful payment, creates a gift card with a unique code.
+    """
+    user_id = current_user.id
+    logger.info(f"User {user_id} requesting to buy gift card: {gift_card_request.credits_amount} credits in {gift_card_request.currency}")
+    
+    # Validate credits amount matches a pricing tier
+    calculated_amount = get_price_for_credits(gift_card_request.credits_amount, gift_card_request.currency)
+    if calculated_amount is None:
+        logger.error(f"Invalid credit amount or currency: {gift_card_request.credits_amount} credits in {gift_card_request.currency}")
+        raise HTTPException(status_code=400, detail="Invalid credit amount or currency combination")
+    
+    try:
+        # Create payment order (same flow as regular credit purchase)
+        if not current_user.encrypted_email_address:
+            logger.error(f"Missing encrypted_email_address for user {user_id}")
+            raise HTTPException(status_code=500, detail="User email information unavailable.")
+        
+        if not gift_card_request.email_encryption_key:
+            logger.error(f"Missing email_encryption_key in request for user {user_id}")
+            raise HTTPException(status_code=400, detail="Email encryption key is required")
+        
+        try:
+            decrypted_email = await encryption_service.decrypt_with_email_key(
+                current_user.encrypted_email_address,
+                gift_card_request.email_encryption_key
+            )
+            
+            if not decrypted_email:
+                logger.error(f"Failed to decrypt email with provided key for user {user_id}")
+                raise HTTPException(status_code=400, detail="Invalid email encryption key")
+        except Exception as e:
+            logger.error(f"Error decrypting email for user {user_id}: {str(e)}")
+            raise HTTPException(status_code=500, detail="Failed to decrypt user email")
+        
+        # Create payment order
+        order_response = await payment_service.create_order(
+            amount=calculated_amount,
+            currency=gift_card_request.currency,
+            email=decrypted_email,
+            credits_amount=gift_card_request.credits_amount
+        )
+        
+        if not order_response:
+            logger.error(f"Failed to create order with {payment_service.provider_name} for user {user_id}.")
+            raise HTTPException(status_code=502, detail="Failed to initiate payment with provider.")
+        
+        order_id = order_response.get("id")
+        if not order_id:
+            logger.error(f"Order response from {payment_service.provider_name} missing 'id' for user {user_id}.")
+            raise HTTPException(status_code=502, detail="Failed to get order ID from payment provider.")
+        
+        # Cache the order with a flag indicating it's a gift card purchase
+        cache_success = await cache_service.set_order(
+            order_id=order_id,
+            user_id=user_id,
+            credits_amount=gift_card_request.credits_amount,
+            status="created",
+            ttl=3600,
+            email_encryption_key=gift_card_request.email_encryption_key,
+            is_gift_card=True,  # Flag to indicate this is a gift card purchase
+            currency=gift_card_request.currency  # Store currency for invoice processing
+        )
+        
+        if not cache_success:
+            logger.error(f"CRITICAL: Failed to cache gift card order {order_id} for user {user_id}.")
+        
+        # For now, we'll create the gift card after payment is confirmed via webhook
+        # But we need to return the order info so the frontend can proceed with payment
+        # The gift card will be created in the webhook handler when payment succeeds
+        
+        logger.info(f"Created payment order {order_id} for gift card purchase by user {user_id}")
+        
+        # Return order info in the same format as create-order endpoint
+        # The gift card code will be provided via WebSocket after payment confirmation
+        response_data = {
+            "provider": payment_service.provider_name,
+            "order_id": order_id,
+            "order_token": order_response.get("token"),  # For Revolut
+            "client_secret": order_response.get("client_secret")  # For Stripe
+        }
+        
+        return BuyGiftCardResponse(**response_data)
+        
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        logger.error(f"Error buying gift card for user {user_id}: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail="An error occurred while processing your gift card purchase")
+
+@router.get("/redeemed-gift-cards", response_model=RedeemedGiftCardsListResponse)
+@limiter.limit("30/minute")  # Less sensitive read operation
+async def get_redeemed_gift_cards(
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    directus_service: DirectusService = Depends(get_directus_service),
+    cache_service: CacheService = Depends(get_cache_service),
+    encryption_service: EncryptionService = Depends(get_encryption_service)
+):
+    """
+    Get all gift cards redeemed by the current user.
+    Gift card codes are decrypted using the user's vault key.
+    """
+    user_id = current_user.id
+    user_id_hash = hashlib.sha256(user_id.encode()).hexdigest()
+    
+    try:
+        # Get user's vault key ID from cache
+        user_cache_data = await cache_service.get_user_by_id(user_id)
+        if not user_cache_data:
+            logger.error(f"User {user_id} not found in cache")
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        vault_key_id = user_cache_data.get("vault_key_id")
+        if not vault_key_id:
+            logger.error(f"Vault key ID missing for user {user_id}")
+            raise HTTPException(status_code=500, detail="User encryption key not found")
+        
+        redeemed_cards = await directus_service.get_user_redeemed_gift_cards(
+            user_id_hash=user_id_hash,
+            encryption_service=encryption_service,
+            vault_key_id=vault_key_id
+        )
+        
+        # Format the response
+        formatted_cards = []
+        for card in redeemed_cards:
+            redeemed_at = card.get('redeemed_at')
+            # Convert timestamp to ISO format string if it's a number
+            if isinstance(redeemed_at, (int, float)):
+                from datetime import datetime
+                redeemed_at_str = datetime.fromtimestamp(redeemed_at).isoformat()
+            else:
+                redeemed_at_str = str(redeemed_at) if redeemed_at else ""
+            
+            # Use decrypted code (fallback to empty string if decryption failed)
+            gift_card_code = card.get('gift_card_code', '') or ''
+            
+            formatted_cards.append(RedeemedGiftCardResponse(
+                gift_card_code=gift_card_code,
+                credits_value=card.get('credits_value', 0),
+                redeemed_at=redeemed_at_str
+            ))
+        
+        return RedeemedGiftCardsListResponse(redeemed_cards=formatted_cards)
+        
+    except Exception as e:
+        logger.error(f"Error fetching redeemed gift cards for user {user_id}: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail="An error occurred while fetching redeemed gift cards")
+
+@router.get("/purchased-gift-cards", response_model=PurchasedGiftCardsListResponse)
+@limiter.limit("30/minute")  # Less sensitive read operation
+async def get_purchased_gift_cards(
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    directus_service: DirectusService = Depends(get_directus_service)
+):
+    """
+    Get all gift cards purchased by the current user (that haven't been redeemed yet).
+    """
+    user_id = current_user.id
+    user_id_hash = hashlib.sha256(user_id.encode()).hexdigest()
+    
+    try:
+        purchased_cards = await directus_service.get_user_purchased_gift_cards(user_id_hash)
+        
+        # Format the response
+        formatted_cards = []
+        for card in purchased_cards:
+            purchased_at = card.get('purchased_at')
+            # Convert timestamp to ISO format string if it's a number
+            if isinstance(purchased_at, (int, float)):
+                from datetime import datetime
+                purchased_at_str = datetime.fromtimestamp(purchased_at).isoformat()
+            else:
+                purchased_at_str = str(purchased_at) if purchased_at else ""
+            
+            # Check if card has been redeemed (shouldn't happen, but check anyway)
+            # A redeemed card would be deleted, so if it exists, it's not redeemed
+            redeemed = False
+            
+            formatted_cards.append(PurchasedGiftCardResponse(
+                gift_card_code=card.get('code', ''),
+                credits_value=card.get('credits_value', 0),
+                purchased_at=purchased_at_str,
+                redeemed=redeemed
+            ))
+        
+        return PurchasedGiftCardsListResponse(purchased_cards=formatted_cards)
+        
+    except Exception as e:
+        logger.error(f"Error fetching purchased gift cards for user {user_id}: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail="An error occurred while fetching purchased gift cards")
 
 @router.get("/invoices", response_model=InvoicesListResponse)
 @limiter.limit("30/minute")  # Less sensitive read operation

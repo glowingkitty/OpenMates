@@ -76,7 +76,6 @@ Billing Settings - Credit purchases, subscription management, and auto top-up co
         // Map path to icon name
         const iconMap: Record<string, string> = {
             'buy-credits': 'coins',
-            'redeem-giftcard': 'coins',
             'auto-topup': 'reload',
             'invoices': 'document'
         };
@@ -110,14 +109,6 @@ Billing Settings - Credit purchases, subscription management, and auto top-up co
     icon="subsetting_icon subsetting_icon_coins"
     title={$text('settings.billing.buy_credits.text')}
     onClick={() => navigateToSubview('buy-credits')}
-/>
-
-<!-- Redeem Giftcard Menu Item -->
-<SettingsItem
-    type="submenu"
-    icon="subsetting_icon subsetting_icon_coins"
-    title={$text('settings.billing.gift_card.redeem.text')}
-    onClick={() => navigateToSubview('redeem-giftcard')}
 />
 
 <!-- Auto Top-up Menu Item -->

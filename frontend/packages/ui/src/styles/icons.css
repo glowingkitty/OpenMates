@@ -848,6 +848,27 @@ div.clickable-icon {
   }
 }
 
+.icon.gift_cards {
+  background: var(--color-primary);
+  &::before {
+      background-image: url('@openmates/ui/static/icons/gift.svg');
+  }
+}
+
+.icon.focus {
+  background: var(--color-primary);
+  &::before {
+      background-image: url('@openmates/ui/static/icons/insight.svg');
+  }
+}
+
+.icon.embed {
+  background: var(--color-primary);
+  &::before {
+      background-image: url('@openmates/ui/static/icons/embed.svg');
+  }
+}
+
 .icon.legal {
   background: var(--color-primary);
 

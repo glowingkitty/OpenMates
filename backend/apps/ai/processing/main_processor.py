@@ -434,6 +434,7 @@ async def _charge_skill_credits(
         usage_details = {
             "chat_id": request_data.chat_id,  # Always available in AskSkillRequest
             "message_id": request_data.message_id,  # Always available in AskSkillRequest
+            "is_incognito": getattr(request_data, 'is_incognito', False),  # Include incognito flag for billing
             "units_processed": units_processed
         }
         

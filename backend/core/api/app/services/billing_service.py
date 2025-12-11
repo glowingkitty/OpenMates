@@ -166,13 +166,23 @@ class BillingService:
             
             # Extract chat_id and message_id from usage_details if available
             # These are important for linking usage entries to chat sessions
+            # CRITICAL: For incognito chats, use "incognito" as chat_id for aggregation
             chat_id = None
             message_id = None
+            is_incognito = False
             if usage_details:
+                # Check if this is an incognito chat
+                is_incognito = usage_details.get("is_incognito", False)
+                
                 # Only use chat_id and message_id if they are non-empty strings
                 chat_id_val = usage_details.get("chat_id")
                 if chat_id_val and isinstance(chat_id_val, str) and chat_id_val.strip():
-                    chat_id = chat_id_val.strip()
+                    if is_incognito:
+                        # For incognito chats, use "incognito" as chat_id for aggregation
+                        chat_id = "incognito"
+                        logger.debug(f"Using 'incognito' as chat_id for incognito chat usage tracking")
+                    else:
+                        chat_id = chat_id_val.strip()
                 
                 message_id_val = usage_details.get("message_id")
                 if message_id_val and isinstance(message_id_val, str) and message_id_val.strip():

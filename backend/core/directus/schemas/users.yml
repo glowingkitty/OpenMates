@@ -200,3 +200,41 @@ directus_users:
     encrypted_top_recommended_apps:
       type: text
       note: "[Encrypted] Array of top 5 recommended app IDs for this user, encrypted using user's master key. Aggregated client-side from recent chat recommendations. Format: ['app1', 'app2', ...]. Must be TEXT not JSON since it's encrypted."
+
+    # Payment tier system fields
+    payment_tier:
+      type: integer
+      note: "Current payment tier (0-4). Tier 0: No card payments allowed (SEPA only, after 2 chargebacks), Tier 1: 75€/month (new users or after 1 chargeback), Tier 2: 150€/month (3 months without chargeback), Tier 3: 300€/month (6 months without chargeback), Tier 4: 500€/month (12 months without chargeback)"
+      default: 1
+
+    chargeback_count:
+      type: integer
+      note: "Total number of chargebacks/disputes this user has had (used for graduated penalty system: 1 chargeback → Tier 1, 2+ chargebacks → Tier 0)"
+      default: 0
+
+    consecutive_months_without_chargeback:
+      type: integer
+      note: "Number of consecutive months with successful payments and no chargebacks (used for tier progression)"
+      default: 0
+
+    last_chargeback_date:
+      type: string
+      length: 256
+      nullable: true
+      note: "ISO timestamp of the last chargeback (resets consecutive_months_without_chargeback counter)"
+
+    encrypted_current_month_spending_eur:
+      type: string
+      length: 512
+      note: "Encrypted total EUR spent in current calendar month (for tier limit checking). Reset at start of each month."
+
+    current_month_start_timestamp:
+      type: integer
+      note: "Unix timestamp (seconds) of the start of the current month (for resetting monthly spending counter)"
+      default: 0
+
+    last_successful_payment_date:
+      type: string
+      length: 256
+      nullable: true
+      note: "ISO timestamp of last successful payment (for tracking months with payments to increment consecutive_months_without_chargeback)"

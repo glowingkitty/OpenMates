@@ -10,7 +10,7 @@ skills:
   - id: search
     name_translation_key: news.search.text
     description_translation_key: news.search.description.text
-    stage: development
+    stage: production
     class_path: |
       backend.apps.news.skills.search_skill.SearchSkill
     providers:

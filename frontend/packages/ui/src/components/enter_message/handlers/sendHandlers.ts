@@ -261,6 +261,10 @@ export async function handleSend(
             isTemporaryChat
         });
         
+        // Check if incognito mode is enabled
+        const { incognitoMode } = await import('../../../stores/incognitoModeStore');
+        const isIncognitoEnabled = incognitoMode.get();
+        
         if (isNewChatCreation) {
             const now = Math.floor(Date.now() / 1000);
             const newChatData: import('../../../types/chat').Chat = {
@@ -276,26 +280,36 @@ export async function handleSend(
                 created_at: now,
                 updated_at: now,
                 processing_metadata: false, // Show chat immediately in sidebar (no longer hidden)
-                waiting_for_metadata: true, // Mark as waiting for metadata (title, icon, category) from server
+                waiting_for_metadata: !isIncognitoEnabled, // Incognito chats don't get metadata from server
+                is_incognito: isIncognitoEnabled
             };
-            console.debug(`[handleSend] Creating new chat with waiting_for_metadata=true (visible immediately):`, {
+            console.debug(`[handleSend] Creating new ${isIncognitoEnabled ? 'incognito' : 'regular'} chat with waiting_for_metadata=${newChatData.waiting_for_metadata}:`, {
                 chatId: chatIdToUse,
                 waiting_for_metadata: newChatData.waiting_for_metadata
             });
-            await chatDB.addChat(newChatData); // Save new chat metadata
-            await chatDB.saveMessage(messagePayload); // Save the first message separately
             
-            // Fetch the chat again to ensure we have the consistent DB version for chatToUpdate
-            // This also ensures chatToUpdate has the correct messages_v (which is 1)
-            chatToUpdate = await chatDB.getChat(chatIdToUse); 
-            if (!chatToUpdate) {
-                 console.error(`[handleSend] CRITICAL: Newly created chat ${chatIdToUse} not found in DB immediately after addChat and saveMessage.`);
-                 vibrateMessageField();
-                 return;
+            if (isIncognitoEnabled) {
+                // Create incognito chat in sessionStorage
+                const { incognitoChatService } = await import('../../../services/incognitoChatService');
+                await incognitoChatService.storeChat(newChatData);
+                await incognitoChatService.addMessage(chatIdToUse, messagePayload);
+                chatToUpdate = newChatData;
+                console.info(`[handleSend] Created new incognito chat ${chatIdToUse} and saved its first message.`);
+            } else {
+                // Create regular chat in IndexedDB
+                await chatDB.addChat(newChatData); // Save new chat metadata
+                await chatDB.saveMessage(messagePayload); // Save the first message separately
+                
+                // Fetch the chat again to ensure we have the consistent DB version for chatToUpdate
+                // This also ensures chatToUpdate has the correct messages_v (which is 1)
+                chatToUpdate = await chatDB.getChat(chatIdToUse); 
+                if (!chatToUpdate) {
+                     console.error(`[handleSend] CRITICAL: Newly created chat ${chatIdToUse} not found in DB immediately after addChat and saveMessage.`);
+                     vibrateMessageField();
+                     return;
+                }
+                console.info(`[handleSend] Created new local chat ${chatIdToUse} and saved its first message (messages_v should be 1).`);
             }
-            // No need to update messages_v again here as it's set to 1 during newChatData creation
-
-            console.info(`[handleSend] Created new local chat ${chatIdToUse} and saved its first message (messages_v should be 1).`);
             
             // Dispatch event to update chat list immediately
             window.dispatchEvent(new CustomEvent('localChatListChanged', { 
@@ -303,30 +317,60 @@ export async function handleSend(
             }));
         } else {
             // Existing chat: Save the new message and update chat metadata
-            await chatDB.saveMessage(messagePayload);
-            const existingChat = await chatDB.getChat(chatIdToUse);
-            if (existingChat) {
+            // Check if it's an incognito chat
+            const { incognitoChatService } = await import('../../../services/incognitoChatService');
+            let isIncognitoChat = false;
+            let existingChat: import('../../../types/chat').Chat | null = null;
+            
+            try {
+                existingChat = await incognitoChatService.getChat(chatIdToUse);
+                if (existingChat) {
+                    isIncognitoChat = true;
+                }
+            } catch (error) {
+                // Not an incognito chat, continue to check IndexedDB
+            }
+            
+            if (isIncognitoChat && existingChat) {
+                // Update incognito chat
+                await incognitoChatService.addMessage(chatIdToUse, messagePayload);
                 existingChat.messages_v = (existingChat.messages_v || 0) + 1;
                 existingChat.last_edited_overall_timestamp = messagePayload.created_at;
                 existingChat.updated_at = Math.floor(Date.now() / 1000);
-                
-                // Clear draft fields after message is sent (especially important for draft chats)
-                existingChat.encrypted_draft_md = null;
-                existingChat.encrypted_draft_preview = null;
-                existingChat.draft_v = 0;
-                
-                await chatDB.updateChat(existingChat);
+                await incognitoChatService.updateChat(chatIdToUse, {
+                    messages_v: existingChat.messages_v,
+                    last_edited_overall_timestamp: existingChat.last_edited_overall_timestamp,
+                    updated_at: existingChat.updated_at
+                });
                 chatToUpdate = existingChat;
-                
-                if (isUsingDraftChat) {
-                    console.info(`[handleSend] Updated existing draft chat ${chatIdToUse} with first message and cleared draft fields`);
-                } else {
-                    console.info(`[handleSend] Updated existing chat ${chatIdToUse} with new message and cleared draft fields`);
-                }
+                console.info(`[handleSend] Updated incognito chat ${chatIdToUse} with new message.`);
             } else {
-                console.error(`[handleSend] Existing chat ${chatIdToUse} not found when trying to add a message.`);
-                vibrateMessageField();
-                return; // Early exit if chat doesn't exist
+                // Update regular chat in IndexedDB
+                await chatDB.saveMessage(messagePayload);
+                existingChat = await chatDB.getChat(chatIdToUse);
+                if (existingChat) {
+                    existingChat.messages_v = (existingChat.messages_v || 0) + 1;
+                    existingChat.last_edited_overall_timestamp = messagePayload.created_at;
+                    existingChat.updated_at = Math.floor(Date.now() / 1000);
+                    
+                    // Clear draft fields after message is sent (especially important for draft chats)
+                    existingChat.encrypted_draft_md = null;
+                    existingChat.encrypted_draft_preview = null;
+                    existingChat.draft_v = 0;
+                    
+                    await chatDB.updateChat(existingChat);
+                    chatToUpdate = existingChat;
+                    
+                    if (isUsingDraftChat) {
+                        console.info(`[handleSend] Updated existing draft chat ${chatIdToUse} with first message and cleared draft fields`);
+                    } else {
+                        console.info(`[handleSend] Updated existing chat ${chatIdToUse} with new message and cleared draft fields`);
+                    }
+                } else {
+                    console.error(`[handleSend] Existing chat ${chatIdToUse} not found when trying to add a message.`);
+                    vibrateMessageField();
+                    return; // Early exit if chat doesn't exist
+                }
             }
         }
 

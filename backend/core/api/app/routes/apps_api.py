@@ -17,6 +17,7 @@ from backend.core.api.app.services.limiter import limiter
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.utils.encryption import EncryptionService
+from backend.core.api.app.utils.config_manager import ConfigManager
 from backend.shared.python_schemas.app_metadata_schemas import AppYAML, AppSkillDefinition
 from backend.shared.python_utils.billing_utils import calculate_total_credits, PricingConfig
 
@@ -59,15 +60,34 @@ class SkillResponse(BaseModel):
     credits_charged: Optional[int] = None
 
 
+class ProviderPricing(BaseModel):
+    """Pricing information for a provider"""
+    provider: str  # Provider ID (e.g., "brave", "firecrawl")
+    name: str  # Provider display name from provider YAML (e.g., "Brave Search")
+    description: str  # Provider description from provider YAML
+    pricing: Dict[str, Any]  # Pricing configuration for this provider
+
+
 class SkillMetadata(BaseModel):
     """Metadata for a skill including pricing information"""
     id: str
     name: str
     description: str
-    input_schema: Dict[str, Any]
-    output_schema: Dict[str, Any]
-    parameters_schema: Optional[Dict[str, Any]] = {}
-    pricing: Optional[Dict[str, Any]] = None  # Pricing configuration if available
+    providers: List[ProviderPricing] = []  # List of all providers with their pricing
+
+
+class FocusModeMetadata(BaseModel):
+    """Metadata for a focus mode"""
+    id: str
+    name: str
+    description: str
+
+
+class SettingsAndMemoryMetadata(BaseModel):
+    """Metadata for a settings/memory field"""
+    id: str
+    name: str
+    description: str
 
 
 class AppMetadata(BaseModel):
@@ -76,6 +96,8 @@ class AppMetadata(BaseModel):
     name: str
     description: str
     skills: List[SkillMetadata]
+    focus_modes: List[FocusModeMetadata] = []
+    settings_and_memories: List[SettingsAndMemoryMetadata] = []
 
 
 class AppsListResponse(BaseModel):
@@ -117,31 +139,249 @@ def get_translation_service(request: Request):
     return None
 
 
+def get_config_manager(request: Request) -> ConfigManager:
+    """Get config manager from app state"""
+    if hasattr(request.app.state, 'config_manager'):
+        return request.app.state.config_manager
+    # Fallback to singleton instance if not in app state
+    return ConfigManager()
+
+
 def resolve_translation(translation_service, translation_key: str, namespace: str, fallback: str = "") -> str:
     """
-    Resolve a translation key using the translation service.
-    Returns the translated text or fallback if translation service is not available.
+    Resolve a translation key to its translated string value.
+    
+    Args:
+        translation_service: TranslationService instance
+        translation_key: Translation key (e.g., "web.text" or "web.search.text")
+        namespace: Namespace prefix (e.g., "app_skills", "apps", "app_focus_modes", "app_settings_memories")
+        fallback: Fallback value if translation not found
+    
+    Returns:
+        Resolved translation string or fallback
     """
-    if not translation_service or not translation_key:
+    if not translation_service:
+        logger.debug(f"Translation service not available for key '{translation_key}', using fallback: '{fallback or translation_key}'")
+        return fallback or translation_key
+    
+    if not translation_key:
+        logger.debug(f"Translation key is empty, using fallback: '{fallback}'")
         return fallback
     
+    # Normalize translation key: ensure it has namespace prefix if needed
+    full_key = translation_key
+    if not full_key.startswith(f"{namespace}."):
+        full_key = f"{namespace}.{full_key}"
+    
     try:
-        translations = translation_service.get_translations(lang="en")  # Default to English for API
-        # Translation keys are typically in format "namespace.key"
-        # We need to navigate the nested structure
-        parts = translation_key.split(".")
+        # Get the full translation structure
+        translations = translation_service.get_translations(lang="en")
+        
+        if not translations:
+            logger.warning(f"No translations loaded for language 'en'")
+            return fallback or translation_key
+        
+        # Check if namespace exists
+        if namespace not in translations:
+            logger.debug(f"Namespace '{namespace}' not found in translations. Available namespaces: {list(translations.keys())}")
+            return fallback or translation_key
+        
+        # Navigate through nested keys: e.g., apps.web.text or app_skills.web.search.text
+        keys = full_key.split('.')
         value = translations
-        for part in parts:
-            if isinstance(value, dict):
-                value = value.get(part)
-                if value is None:
-                    return fallback
+        
+        # First navigate to the namespace
+        if namespace in value:
+            value = value[namespace]
+        else:
+            logger.debug(f"Namespace '{namespace}' not found in translations for key '{full_key}'")
+            return fallback or translation_key
+        
+        # Then navigate through the rest of the keys (skip namespace since we already navigated to it)
+        remaining_keys = keys[1:] if keys[0] == namespace else keys
+        for k in remaining_keys:
+            if isinstance(value, dict) and k in value:
+                value = value[k]
             else:
-                return fallback
-        return value if isinstance(value, str) else fallback
+                logger.debug(f"Translation key '{full_key}' not found at key '{k}'. Available keys at this level: {list(value.keys()) if isinstance(value, dict) else 'N/A'}")
+                return fallback or translation_key
+        
+        # Extract the text value
+        # Translation values can be either:
+        # 1. A string directly: "Web Search"
+        # 2. A dict with a "text" key: {"text": "Web Search"}
+        if isinstance(value, dict) and "text" in value:
+            result = value["text"]
+            logger.debug(f"Successfully resolved translation key '{full_key}' to: '{result}'")
+            return result
+        elif isinstance(value, str):
+            logger.debug(f"Successfully resolved translation key '{full_key}' to string: '{value}'")
+            return value
+        else:
+            logger.debug(f"Translation value for '{full_key}' is not a string or dict with 'text' key, got: {type(value)}, value: {value}")
+            return fallback or translation_key
     except Exception as e:
-        logger.warning(f"Failed to resolve translation for key '{translation_key}': {e}")
-        return fallback
+        logger.warning(f"Error resolving translation key '{full_key}': {e}", exc_info=True)
+        return fallback or translation_key
+
+
+def map_provider_name_to_id(provider_name: str, app_id: str) -> str:
+    """
+    Map provider name from app.yml to provider ID (provider YAML filename).
+    
+    Args:
+        provider_name: Provider name from app.yml (e.g., "Brave", "Google", "Firecrawl")
+        app_id: App ID for context (e.g., "maps" for Google Maps)
+        
+    Returns:
+        Provider ID (lowercase, matches provider YAML filename)
+    """
+    # Handle special cases
+    if provider_name == "Google" and app_id == "maps":
+        return "google_maps"
+    elif provider_name == "YouTube":
+        return "youtube"
+    elif provider_name == "Brave" or provider_name == "Brave Search":
+        return "brave"
+    # Most providers just need to be lowercased
+    return provider_name.lower().strip()
+
+
+async def fetch_provider_pricing(provider_id: str) -> Optional[Dict[str, Any]]:
+    """
+    Fetch provider-level pricing from internal API.
+    
+    Args:
+        provider_id: Provider ID (e.g., "brave", "firecrawl")
+        
+    Returns:
+        Provider pricing dict or None if not found
+    """
+    try:
+        headers = {"Content-Type": "application/json"}
+        if INTERNAL_API_SHARED_TOKEN:
+            headers["X-Internal-Service-Token"] = INTERNAL_API_SHARED_TOKEN
+        
+        endpoint = f"internal/config/provider_pricing/{provider_id}"
+        url = f"{INTERNAL_API_BASE_URL.rstrip('/')}/{endpoint.lstrip('/')}"
+        
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.get(url, headers=headers)
+            response.raise_for_status()
+            provider_pricing = response.json()
+        
+        if provider_pricing and isinstance(provider_pricing, dict):
+            # Convert provider pricing format to billing format if needed
+            # Provider pricing may have formats like:
+            # - per_request_credits: 10 (Brave)
+            # - per_unit: { credits: X } (already in correct format)
+            
+            if "per_request_credits" in provider_pricing:
+                # Convert per_request_credits to per_unit.credits format
+                credits_per_request = provider_pricing["per_request_credits"]
+                return {
+                    "per_unit": {
+                        "credits": credits_per_request
+                    }
+                }
+            elif "per_unit" in provider_pricing:
+                # Provider already uses per_unit format
+                return {"per_unit": provider_pricing["per_unit"]}
+            else:
+                # Return as-is if it's already in a valid format
+                return provider_pricing
+        else:
+            logger.warning(f"Could not retrieve valid provider pricing for '{provider_id}'. Response: {provider_pricing}")
+            return None
+    except httpx.HTTPStatusError as e:
+        if e.response.status_code == 404:
+            logger.debug(f"Provider pricing not found for '{provider_id}' (404)")
+            return None
+        logger.warning(f"HTTP error fetching provider pricing for '{provider_id}': {e.response.status_code}")
+        return None
+    except Exception as e:
+        logger.warning(f"Error fetching provider pricing for '{provider_id}': {e}")
+        return None
+
+
+async def get_skill_providers_with_pricing(
+    skill: AppSkillDefinition,
+    app_id: str,
+    config_manager: ConfigManager
+) -> List[ProviderPricing]:
+    """
+    Get all providers with their pricing, name, and description for a skill.
+    
+    Args:
+        skill: The skill definition
+        app_id: The app ID for provider name mapping
+        config_manager: ConfigManager instance to fetch provider metadata
+        
+    Returns:
+        List of ProviderPricing objects with name and description from provider YAML files
+    """
+    providers_list = []
+    
+    # First, check if skill has explicit pricing (not provider-specific)
+    if skill.pricing:
+        pricing_dict = {}
+        if skill.pricing.tokens:
+            pricing_dict['tokens'] = skill.pricing.tokens
+        if skill.pricing.per_unit:
+            pricing_dict['per_unit'] = skill.pricing.per_unit
+        if skill.pricing.per_minute:
+            pricing_dict['per_minute'] = skill.pricing.per_minute
+        if skill.pricing.fixed:
+            pricing_dict['fixed'] = skill.pricing.fixed
+        
+        if pricing_dict:
+            # Skill-level pricing applies to all providers or no specific provider
+            # We'll add it as a generic provider entry
+            providers_list.append(ProviderPricing(
+                provider="skill",
+                name="Skill-level pricing",
+                description="Pricing defined at the skill level",
+                pricing=pricing_dict
+            ))
+    
+    # Then, fetch pricing and metadata for each provider listed in the skill
+    if skill.providers:
+        for provider_name in skill.providers:
+            provider_id = map_provider_name_to_id(provider_name, app_id)
+            
+            # Get provider config to extract name and description
+            provider_config = config_manager.get_provider_config(provider_id)
+            provider_display_name = provider_name  # Fallback to provider_name from app.yml
+            provider_description = ""  # Default empty description
+            
+            if provider_config:
+                # Use name and description from provider YAML file if available
+                provider_display_name = provider_config.get("name", provider_name)
+                provider_description = provider_config.get("description", "")
+            else:
+                logger.debug(f"Provider config not found for '{provider_id}', using fallback name '{provider_name}'")
+            
+            # Fetch pricing for this provider
+            provider_pricing = await fetch_provider_pricing(provider_id)
+            
+            if provider_pricing:
+                providers_list.append(ProviderPricing(
+                    provider=provider_id,  # Use provider_id for consistency
+                    name=provider_display_name,
+                    description=provider_description,
+                    pricing=provider_pricing
+                ))
+            else:
+                # Still include provider even if pricing fetch failed
+                # This ensures all providers are listed with their metadata
+                providers_list.append(ProviderPricing(
+                    provider=provider_id,
+                    name=provider_display_name,
+                    description=provider_description,
+                    pricing={}
+                ))
+    
+    return providers_list
 
 
 async def call_app_skill(
@@ -487,6 +727,7 @@ async def list_apps(
     try:
         discovered_apps = get_discovered_apps(request)
         translation_service = get_translation_service(request)
+        config_manager = get_config_manager(request)
         
         if not discovered_apps:
             logger.info("No apps discovered, returning empty list")
@@ -532,48 +773,76 @@ async def list_apps(
                     fallback=""
                 )
                 
-                # Get input/output schemas from tool_schema if available
-                input_schema = {}
-                output_schema = {}
-                parameters_schema = {}
-                
-                if skill.tool_schema:
-                    # Extract input schema from tool_schema
-                    input_schema = skill.tool_schema.get('parameters', {}).get('properties', {})
-                    # Output schema is typically not in tool_schema, use empty dict
-                    output_schema = {}
-                    # Parameters schema could be the same as input schema for now
-                    parameters_schema = {}
-                
-                # Convert pricing to dict if available
-                pricing_dict = None
-                if skill.pricing:
-                    pricing_dict = {}
-                    if skill.pricing.tokens:
-                        pricing_dict['tokens'] = skill.pricing.tokens
-                    if skill.pricing.per_unit:
-                        pricing_dict['per_unit'] = skill.pricing.per_unit
-                    if skill.pricing.per_minute:
-                        pricing_dict['per_minute'] = skill.pricing.per_minute
-                    if skill.pricing.fixed:
-                        pricing_dict['fixed'] = skill.pricing.fixed
+                # Get all providers with their pricing, name, and description
+                providers = await get_skill_providers_with_pricing(skill, app_id, config_manager)
                 
                 skills.append(SkillMetadata(
                     id=skill.id,
                     name=skill_name,
                     description=skill_description,
-                    input_schema=input_schema,
-                    output_schema=output_schema,
-                    parameters_schema=parameters_schema,
-                    pricing=pricing_dict
+                    providers=providers
                 ))
             
-            if skills:  # Only include apps that have at least one skill
+            # Convert focus modes - filter by stage
+            focus_modes = []
+            for focus in app_metadata.focuses or []:
+                focus_stage = getattr(focus, 'stage', 'development').lower()
+                if focus_stage not in allowed_stages:
+                    continue
+                
+                focus_name = resolve_translation(
+                    translation_service,
+                    focus.name_translation_key,
+                    namespace="app_focus_modes",
+                    fallback=focus.id
+                )
+                focus_description = resolve_translation(
+                    translation_service,
+                    focus.description_translation_key,
+                    namespace="app_focus_modes",
+                    fallback=""
+                )
+                focus_modes.append(FocusModeMetadata(
+                    id=focus.id,
+                    name=focus_name,
+                    description=focus_description
+                ))
+            
+            # Convert settings_and_memories - filter by stage
+            settings_and_memories = []
+            if app_metadata.memory_fields:
+                for field in app_metadata.memory_fields:
+                    field_stage = getattr(field, 'stage', 'development').lower()
+                    if field_stage not in allowed_stages:
+                        continue
+                    
+                    field_name = resolve_translation(
+                        translation_service,
+                        field.name_translation_key,
+                        namespace="app_settings_memories",
+                        fallback=field.id
+                    )
+                    field_description = resolve_translation(
+                        translation_service,
+                        field.description_translation_key,
+                        namespace="app_settings_memories",
+                        fallback=""
+                    )
+                    settings_and_memories.append(SettingsAndMemoryMetadata(
+                        id=field.id,
+                        name=field_name,
+                        description=field_description
+                    ))
+            
+            # Include app if it has at least one skill, focus mode, or settings_and_memories
+            if skills or focus_modes or settings_and_memories:
                 apps.append(AppMetadata(
                     id=app_id,
                     name=app_name,
                     description=app_description,
-                    skills=skills
+                    skills=skills,
+                    focus_modes=focus_modes,
+                    settings_and_memories=settings_and_memories
                 ))
         
         return AppsListResponse(apps=apps)
@@ -633,6 +902,7 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                     allowed = ["production"] if server_env == "production" else ["development", "production"]
                     
                     trans_service = get_translation_service(request)
+                    config_mgr = get_config_manager(request)
                     
                     # Resolve app name and description
                     resolved_name = resolve_translation(
@@ -668,44 +938,74 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                             fallback=""
                         )
                         
-                        # Get input/output schemas from tool_schema if available
-                        input_schema = {}
-                        output_schema = {}
-                        parameters_schema = {}
-                        
-                        if skill.tool_schema:
-                            input_schema = skill.tool_schema.get('parameters', {}).get('properties', {})
-                            output_schema = {}
-                            parameters_schema = {}
-                        
-                        # Convert pricing to dict if available
-                        pricing_dict = None
-                        if skill.pricing:
-                            pricing_dict = {}
-                            if skill.pricing.tokens:
-                                pricing_dict['tokens'] = skill.pricing.tokens
-                            if skill.pricing.per_unit:
-                                pricing_dict['per_unit'] = skill.pricing.per_unit
-                            if skill.pricing.per_minute:
-                                pricing_dict['per_minute'] = skill.pricing.per_minute
-                            if skill.pricing.fixed:
-                                pricing_dict['fixed'] = skill.pricing.fixed
+                        # Get all providers with their pricing, name, and description
+                        providers = await get_skill_providers_with_pricing(skill, captured_app_id, config_mgr)
                         
                         skills.append(SkillMetadata(
                             id=skill.id,
                             name=skill_name,
                             description=skill_description,
-                            input_schema=input_schema,
-                            output_schema=output_schema,
-                            parameters_schema=parameters_schema,
-                            pricing=pricing_dict
+                            providers=providers
                         ))
+                    
+                    # Convert focus modes - filter by stage
+                    focus_modes = []
+                    for focus in captured_app_metadata.focuses or []:
+                        focus_stage = getattr(focus, 'stage', 'development').lower()
+                        if focus_stage not in allowed:
+                            continue
+                        
+                        focus_name = resolve_translation(
+                            trans_service,
+                            focus.name_translation_key,
+                            namespace="app_focus_modes",
+                            fallback=focus.id
+                        )
+                        focus_description = resolve_translation(
+                            trans_service,
+                            focus.description_translation_key,
+                            namespace="app_focus_modes",
+                            fallback=""
+                        )
+                        focus_modes.append(FocusModeMetadata(
+                            id=focus.id,
+                            name=focus_name,
+                            description=focus_description
+                        ))
+                    
+                    # Convert settings_and_memories - filter by stage
+                    settings_and_memories = []
+                    if captured_app_metadata.memory_fields:
+                        for field in captured_app_metadata.memory_fields:
+                            field_stage = getattr(field, 'stage', 'development').lower()
+                            if field_stage not in allowed:
+                                continue
+                            
+                            field_name = resolve_translation(
+                                trans_service,
+                                field.name_translation_key,
+                                namespace="app_settings_memories",
+                                fallback=field.id
+                            )
+                            field_description = resolve_translation(
+                                trans_service,
+                                field.description_translation_key,
+                                namespace="app_settings_memories",
+                                fallback=""
+                            )
+                            settings_and_memories.append(SettingsAndMemoryMetadata(
+                                id=field.id,
+                                name=field_name,
+                                description=field_description
+                            ))
                     
                     return AppMetadata(
                         id=captured_app_id,
                         name=resolved_name,
                         description=resolved_description,
-                        skills=skills
+                        skills=skills,
+                        focus_modes=focus_modes,
+                        settings_and_memories=settings_and_memories
                     )
                     
                 except Exception as e:
@@ -753,6 +1053,7 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                     """Get metadata for a specific skill including pricing information. Requires API key authentication."""
                     try:
                         trans_service = get_translation_service(request)
+                        config_mgr = get_config_manager(request)
                         
                         # Resolve skill name and description
                         resolved_name = resolve_translation(
@@ -768,37 +1069,14 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                             fallback=""
                         )
                         
-                        # Get input/output schemas from tool_schema if available
-                        input_schema = {}
-                        output_schema = {}
-                        parameters_schema = {}
-                        
-                        if captured_skill.tool_schema:
-                            input_schema = captured_skill.tool_schema.get('parameters', {}).get('properties', {})
-                            output_schema = {}
-                            parameters_schema = {}
-                        
-                        # Convert pricing to dict if available
-                        pricing_dict = None
-                        if captured_skill.pricing:
-                            pricing_dict = {}
-                            if captured_skill.pricing.tokens:
-                                pricing_dict['tokens'] = captured_skill.pricing.tokens
-                            if captured_skill.pricing.per_unit:
-                                pricing_dict['per_unit'] = captured_skill.pricing.per_unit
-                            if captured_skill.pricing.per_minute:
-                                pricing_dict['per_minute'] = captured_skill.pricing.per_minute
-                            if captured_skill.pricing.fixed:
-                                pricing_dict['fixed'] = captured_skill.pricing.fixed
+                        # Get all providers with their pricing, name, and description
+                        providers = await get_skill_providers_with_pricing(captured_skill, captured_app_id, config_mgr)
                         
                         return SkillMetadata(
                             id=captured_skill.id,
                             name=resolved_name,
                             description=resolved_description,
-                            input_schema=input_schema,
-                            output_schema=output_schema,
-                            parameters_schema=parameters_schema,
-                            pricing=pricing_dict
+                            providers=providers
                         )
                         
                     except Exception as e:

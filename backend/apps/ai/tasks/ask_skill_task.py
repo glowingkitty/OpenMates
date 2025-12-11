@@ -836,6 +836,7 @@ async def _async_process_ai_skill_ask_task(
                 secrets_manager=secrets_manager,
                 cache_service=cache_service_instance,
                 available_app_ids=available_app_ids,
+                is_incognito=getattr(request_data, 'is_incognito', False),  # Pass incognito flag
             )
 
         if postprocessing_result and cache_service_instance:

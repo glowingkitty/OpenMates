@@ -1245,15 +1245,23 @@
             <!-- Demo chats use plaintext title, regular chats use cached decrypted title -->
             <!-- CRITICAL: Never show "Untitled chat" - show "Processing..." status instead if title not ready -->
             <!-- Using {@html} to render HTML styling (e.g., OpenMates branding) -->
-            {#if chat.title || cachedMetadata?.title}
-              <span class="chat-title">{@html chat.title || cachedMetadata?.title}</span>
-            {:else if isWaitingForTitle}
-              <!-- Show "Processing..." as title when waiting for metadata -->
-              <span class="chat-title processing-title">{$text('enter_message.processing.text')}</span>
-            {:else}
-              <!-- Fallback: Only show "Untitled chat" if we're sure metadata is ready (shouldn't happen) -->
-              <span class="chat-title">{@html $text('chat.untitled_chat.text')}</span>
-            {/if}
+            <div class="chat-title-wrapper">
+              {#if chat.title || cachedMetadata?.title}
+                <span class="chat-title">{@html chat.title || cachedMetadata?.title}</span>
+              {:else if isWaitingForTitle}
+                <!-- Show "Processing..." as title when waiting for metadata -->
+                <span class="chat-title processing-title">{$text('enter_message.processing.text')}</span>
+              {:else}
+                <!-- Fallback: Only show "Untitled chat" if we're sure metadata is ready (shouldn't happen) -->
+                <span class="chat-title">{@html $text('chat.untitled_chat.text')}</span>
+              {/if}
+              {#if chat.is_incognito}
+                <span class="incognito-label">
+                  <span class="icon icon_incognito"></span>
+                  {$text('settings.incognito.text', { default: 'Incognito' })}
+                </span>
+              {/if}
+            </div>
             {#if typingIndicatorInTitleView}
               <span class="status-message">{typingIndicatorInTitleView}</span>
             {:else if displayLabel && !currentTypingMateInfo} 
@@ -1343,6 +1351,13 @@
   }
 
 
+  .chat-title-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
   .chat-title {
     font-size: 16px;
     font-weight: 500;
@@ -1410,6 +1425,23 @@
     font-size: 14px;
     font-weight: 500;
     border: 2px solid var(--color-background);
+  }
+
+  .incognito-label {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.75em;
+    color: var(--color-grey-60);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 500;
+  }
+
+  .incognito-label .icon {
+    width: 12px;
+    height: 12px;
+    opacity: 0.7;
   }
 
   /* Category circle styles */
