@@ -99,6 +99,8 @@ Usage Settings - View usage statistics and export usage data
     // API keys cache
     let apiKeys = $state<ApiKey[]>([]);
     let isLoadingApiKeys = $state(false);
+    // Track if we've attempted to load API keys (to prevent infinite retries on failure)
+    let hasAttemptedApiKeysLoad = $state(false);
     
     // Track if we've done initial load to prevent duplicate requests
     let hasInitialized = $state(false);
@@ -305,7 +307,8 @@ Usage Settings - View usage statistics and export usage data
         try {
             // Optionally load API keys as fallback (backend now provides encrypted data in summaries)
             // This is kept for backward compatibility if encrypted data is missing
-            if (type === 'api' && apiKeys.length === 0 && !isLoadingApiKeys) {
+            // Only attempt if we haven't attempted before (prevents infinite retry loops)
+            if (type === 'api' && !hasAttemptedApiKeysLoad && !isLoadingApiKeys) {
                 // Load in background, don't wait for it
                 loadApiKeys().catch(err => console.warn('[SettingsUsage] Failed to load API keys:', err));
             }
@@ -727,9 +730,18 @@ Usage Settings - View usage statistics and export usage data
 
     /**
      * Load API keys from the API endpoint
+     * Sets hasAttemptedApiKeysLoad to true after attempting to load (success or failure)
+     * to prevent infinite retry loops when there are no API keys or when the request fails
      */
     async function loadApiKeys() {
+        // Prevent multiple simultaneous loads
+        if (isLoadingApiKeys) {
+            return;
+        }
+        
         isLoadingApiKeys = true;
+        hasAttemptedApiKeysLoad = true; // Mark that we've attempted to load
+        
         try {
             const response = await fetch(getApiEndpoint('/v1/settings/api-keys'), {
                 method: 'GET',
@@ -741,6 +753,12 @@ Usage Settings - View usage statistics and export usage data
             });
 
             if (!response.ok) {
+                // Handle 429 (Too Many Requests) and other errors gracefully
+                if (response.status === 429) {
+                    console.warn('[SettingsUsage] Rate limited when loading API keys, will not retry automatically');
+                    apiKeys = [];
+                    return;
+                }
                 const errorData = await response.json().catch(() => ({}));
                 throw new Error(errorData.detail || 'Failed to load API keys');
             }
@@ -790,6 +808,7 @@ Usage Settings - View usage statistics and export usage data
             );
         } catch (err: any) {
             console.error('[SettingsUsage] Error loading API keys:', err);
+            // Set empty array on error - this is a valid state (user may have no API keys)
             apiKeys = [];
         } finally {
             isLoadingApiKeys = false;
@@ -905,8 +924,10 @@ Usage Settings - View usage statistics and export usage data
     });
 
     // Load API keys when API tab is active
+    // Only attempt to load if we haven't attempted before (prevents infinite retry loops)
+    // Empty array is a valid state (user may have no API keys), so we don't retry on empty
     $effect(() => {
-        if (activeTab === 'api' && apiKeys.length === 0 && !isLoadingApiKeys) {
+        if (activeTab === 'api' && !hasAttemptedApiKeysLoad && !isLoadingApiKeys) {
             loadApiKeys();
         }
     });

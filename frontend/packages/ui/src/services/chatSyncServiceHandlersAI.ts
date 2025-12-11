@@ -1026,14 +1026,17 @@ export async function handlePostProcessingCompletedImpl(
         }
 
         // Dispatch event to notify components (e.g., to update UI with new suggestions)
-        serviceInstance.dispatchEvent(new CustomEvent('postProcessingCompleted', {
+        const event = new CustomEvent('postProcessingCompleted', {
             detail: {
                 chatId: payload.chat_id,
                 taskId: payload.task_id,
                 followUpSuggestions: payload.follow_up_request_suggestions,
                 harmfulResponse: payload.harmful_response
             }
-        }));
+        });
+        console.info(`[ChatSyncService:AI] 🚀 Dispatching 'postProcessingCompleted' event for chat ${payload.chat_id} with ${payload.follow_up_request_suggestions?.length || 0} suggestions`);
+        serviceInstance.dispatchEvent(event);
+        console.debug(`[ChatSyncService:AI] ✅ Event dispatched successfully`);
 
     } catch (error) {
         console.error(`[ChatSyncService:AI] Error handling post-processing results for chat ${payload.chat_id}:`, error);

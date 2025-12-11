@@ -635,22 +635,74 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             currentFollowUpCount: followUpSuggestions.length
         });
 
-        // Update follow-up suggestions if this is the active chat
-        if (currentChat?.chat_id === chatId && newSuggestions && Array.isArray(newSuggestions)) {
-            followUpSuggestions = newSuggestions;
-            console.info('[ActiveChat] ✅ Updated followUpSuggestions:', $state.snapshot(followUpSuggestions));
-            
-            // Also reload currentChat from database to ensure it has the latest encrypted metadata
-            // This prevents a mismatch between the in-memory currentChat and the database state
+        // CRITICAL FIX: Always reload suggestions from database for the current chat
+        // This ensures we get the latest state even if there are timing issues or state mismatches
+        // The database is the source of truth after post-processing completes
+        const isCurrentChat = currentChat?.chat_id === chatId;
+        
+        // Always try to reload from database if it's the current chat, even if suggestions aren't in event
+        // This handles cases where the event arrives before database is updated
+        if (isCurrentChat) {
             try {
+                // Small delay to ensure database transaction has completed
+                // Post-processing handler saves to DB, but transaction might not be committed yet
+                await new Promise(resolve => setTimeout(resolve, 100));
+                
+                // Reload chat from database to get the latest encrypted suggestions
                 const freshChat = await chatDB.getChat(chatId);
                 if (freshChat) {
+                    // Update currentChat with latest metadata
                     currentChat = { ...currentChat, ...freshChat };
                     console.debug('[ActiveChat] Refreshed currentChat with latest metadata from database after post-processing');
+                    
+                    // Load follow-up suggestions from the database (source of truth)
+                    if (freshChat.encrypted_follow_up_request_suggestions) {
+                        const chatKey = chatDB.getOrGenerateChatKey(chatId);
+                        const { decryptArrayWithChatKey } = await import('../services/cryptoService');
+                        const decryptedSuggestions = await decryptArrayWithChatKey(
+                            freshChat.encrypted_follow_up_request_suggestions,
+                            chatKey
+                        );
+                        
+                        if (decryptedSuggestions && decryptedSuggestions.length > 0) {
+                            followUpSuggestions = decryptedSuggestions;
+                            console.info('[ActiveChat] ✅ Loaded follow-up suggestions from database after post-processing:', decryptedSuggestions.length);
+                        } else {
+                            // Fallback: use suggestions from event if database decryption fails
+                            if (newSuggestions && Array.isArray(newSuggestions) && newSuggestions.length > 0) {
+                                followUpSuggestions = newSuggestions;
+                                console.info('[ActiveChat] ✅ Fallback: Updated followUpSuggestions from event:', $state.snapshot(followUpSuggestions));
+                            } else {
+                                followUpSuggestions = [];
+                                console.debug('[ActiveChat] No follow-up suggestions found in database or event');
+                            }
+                        }
+                    } else if (newSuggestions && Array.isArray(newSuggestions) && newSuggestions.length > 0) {
+                        // Fallback: use suggestions from event if database doesn't have them yet
+                        followUpSuggestions = newSuggestions;
+                        console.info('[ActiveChat] ✅ Fallback: Updated followUpSuggestions from event (database not updated yet):', $state.snapshot(followUpSuggestions));
+                    } else {
+                        followUpSuggestions = [];
+                        console.debug('[ActiveChat] No follow-up suggestions found');
+                    }
+                } else {
+                    console.warn('[ActiveChat] Chat not found in database after post-processing:', chatId);
+                    // Fallback: use suggestions from event if chat not found
+                    if (newSuggestions && Array.isArray(newSuggestions) && newSuggestions.length > 0) {
+                        followUpSuggestions = newSuggestions;
+                        console.info('[ActiveChat] ✅ Fallback: Updated followUpSuggestions from event (chat not in DB):', $state.snapshot(followUpSuggestions));
+                    }
                 }
             } catch (error) {
-                console.error('[ActiveChat] Failed to refresh currentChat after post-processing:', error);
+                console.error('[ActiveChat] Failed to reload follow-up suggestions from database after post-processing:', error);
+                // Fallback: use suggestions from event if database reload fails
+                if (newSuggestions && Array.isArray(newSuggestions) && newSuggestions.length > 0) {
+                    followUpSuggestions = newSuggestions;
+                    console.info('[ActiveChat] ✅ Fallback: Updated followUpSuggestions from event (database error):', $state.snapshot(followUpSuggestions));
+                }
             }
+        } else {
+            console.debug('[ActiveChat] Post-processing completed for different chat, not updating suggestions');
         }
     }
 
@@ -2577,7 +2629,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         chatSyncService.addEventListener('aiTypingStarted', aiTypingStartedHandler);
         chatSyncService.addEventListener('aiTaskEnded', aiTaskEndedHandler);
         chatSyncService.addEventListener('chatDeleted', chatDeletedHandler);
-        chatSyncService.addEventListener('postProcessingCompleted', handlePostProcessingCompleted as EventListener);
+        const postProcessingHandler = handlePostProcessingCompleted as EventListener;
+        chatSyncService.addEventListener('postProcessingCompleted', postProcessingHandler);
+        console.debug('[ActiveChat] ✅ Registered postProcessingCompleted event listener');
         
         // Handle skill preview updates - add app cards to messages
         const handleSkillPreviewUpdate = async (event: CustomEvent) => {

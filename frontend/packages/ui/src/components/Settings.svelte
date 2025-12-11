@@ -221,6 +221,10 @@ changes to the documentation (to keep the documentation up to date).
                 for (const category of app.settings_and_memories) {
                     const categoryRoute = `app_store/${appId}/settings_memories/${category.id}`;
                     views[categoryRoute] = AppDetailsWrapper;
+                    
+                    // Add create entry route for each category
+                    const createRoute = `app_store/${appId}/settings_memories/${category.id}/create`;
+                    views[createRoute] = AppDetailsWrapper;
                 }
             }
         }
