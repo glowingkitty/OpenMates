@@ -26,6 +26,8 @@
 	import { convertDemoChatToChat } from '../../demo_chats/convertToChat'; // For converting demo chats to Chat type
 	import { getAllDraftChatIdsWithDrafts } from '../../services/drafts/sessionStorageDraftService'; // Import sessionStorage draft service
 	import { notificationStore } from '../../stores/notificationStore'; // For notifications
+	import { incognitoChatService } from '../../services/incognitoChatService'; // Import incognito chat service
+	import { incognitoMode } from '../../stores/incognitoModeStore'; // Import incognito mode store
 
 	const dispatch = createEventDispatcher();
 
@@ -94,11 +96,22 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 	// Combine public chats (demo + legal) with real chats from IndexedDB
 	// Also include sessionStorage-only chats for non-authenticated users (new chats with drafts)
 	// Also include shared chats for non-authenticated users (loaded from IndexedDB but marked for cleanup)
+	// Also include incognito chats (stored in sessionStorage, not IndexedDB)
 	// Filter out any duplicates (legal chats might be in IndexedDB if previously opened)
+	let incognitoChatsTrigger = $state(0); // Trigger for reactivity when incognito chats change
+	let incognitoChats: ChatType[] = $state([]); // Cache for incognito chats
+	
 	let allChats = $derived((() => {
 		const publicChatIds = new Set(visiblePublicChats.map(c => c.chat_id));
 		// Only include real chats from IndexedDB (exclude legal chats since they're already in visiblePublicChats)
 		const realChatsFromDB = allChatsFromDB.filter(chat => !isLegalChat(chat.chat_id));
+		
+		// Reference incognitoChatsTrigger to make this reactive to incognito chat changes
+		const _incognitoTrigger = incognitoChatsTrigger;
+		
+		// Load incognito chats (only if incognito mode is enabled)
+		// This is async, so we use the cached incognitoChats array which is updated via effect
+		const _incognitoChats = incognitoChats;
 		
 		// CRITICAL: For non-authenticated users, include sessionStorage-only chats (new chats with drafts)
 		// These are chats that have drafts in sessionStorage but don't exist in IndexedDB yet
@@ -112,7 +125,8 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 			// and chat IDs that are already in IndexedDB
 			const existingChatIds = new Set([
 				...visiblePublicChats.map(c => c.chat_id),
-				...realChatsFromDB.map(c => c.chat_id)
+				...realChatsFromDB.map(c => c.chat_id),
+				..._incognitoChats.map(c => c.chat_id) // Also exclude incognito chats
 			]);
 			
 			for (const chatId of sessionDraftChatIds) {
@@ -160,7 +174,7 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 			}
 		}
 		
-		return [...visiblePublicChats, ...realChatsFromDB, ...sessionStorageChats, ...sharedChats];
+		return [...visiblePublicChats, ...realChatsFromDB, ...sessionStorageChats, ...sharedChats, ..._incognitoChats];
 	})());
 
 	// Sort all chats (demo + real) using the utility function
@@ -228,6 +242,7 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 	let handleContextMenuUnselect: (event: Event) => void; // Handler for unselecting chat from context menu
 	let handleContextMenuSelect: (event: Event) => void; // Handler for selecting chat from context menu
 	let handleContextMenuBulkAction: (event: Event) => void; // Handler for bulk actions from context menu
+	let handleIncognitoChatsDeleted: () => void; // Handler for incognito chats deletion event
 
 	// --- chatSyncService Event Handlers ---
 
@@ -524,6 +539,37 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 
 	// --- Svelte Lifecycle Functions ---
 
+	// Load incognito chats when incognito mode is enabled
+	// Avoid using subscriptions or $effect to prevent infinite loops
+	let incognitoChatsLoading = $state(false);
+	
+	// Function to load incognito chats
+	async function loadIncognitoChats() {
+		if (incognitoChatsLoading) return;
+		
+		const isIncognitoEnabled = incognitoMode.get();
+		incognitoChatsLoading = true;
+		
+		try {
+			if (isIncognitoEnabled) {
+				await incognitoChatService.init();
+				const chats = await incognitoChatService.getAllChats();
+				incognitoChats = chats;
+				incognitoChatsTrigger++; // Trigger reactivity
+				console.debug('[Chats] Loaded incognito chats:', chats.length);
+			} else {
+				// Clear incognito chats when mode is disabled
+				incognitoChats = [];
+				incognitoChatsTrigger++;
+			}
+		} catch (error) {
+			console.error('[Chats] Error loading incognito chats:', error);
+			incognitoChats = [];
+		} finally {
+			incognitoChatsLoading = false;
+		}
+	}
+
 	onMount(async () => {
 		// CRITICAL: Check auth state FIRST before loading chats
 		// If user is not authenticated, clear any stale chat data immediately
@@ -766,6 +812,28 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 		};
 		window.addEventListener('chatContextMenuBulkAction', handleContextMenuBulkAction);
 
+		// Listen for incognito chats deletion event (when incognito mode is disabled)
+		handleIncognitoChatsDeleted = async () => {
+			console.debug('[Chats] Incognito chats deleted event received');
+			// Clear incognito chats from state
+			incognitoChats = [];
+			incognitoChatsTrigger++;
+			
+			// If the currently selected chat is an incognito chat, deselect it
+			// Check before clearing (since we just cleared the array)
+			const currentChat = allChats.find(c => c.chat_id === selectedChatId);
+			if (currentChat?.is_incognito) {
+				selectedChatId = null;
+				activeChatStore.clearActiveChat();
+				dispatch('chatDeselected');
+			}
+		};
+		window.addEventListener('incognitoChatsDeleted', handleIncognitoChatsDeleted);
+		
+		// Initial load of incognito chats (only if mode is enabled)
+		// Don't use subscription to avoid reactive loops - just check on mount
+		await loadIncognitoChats();
+
 		// Perform initial database load - loads and displays chats from IndexedDB immediately
 		await initializeAndLoadDataFromDB();
 		
@@ -877,6 +945,9 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 			window.removeEventListener('chatContextMenuSelect', handleContextMenuSelect);
 		}
 		window.removeEventListener('chatContextMenuBulkAction', handleContextMenuBulkAction);
+		if (handleIncognitoChatsDeleted) {
+			window.removeEventListener('incognitoChatsDeleted', handleIncognitoChatsDeleted);
+		}
 	});
 
 	// --- User Interaction Handlers ---
@@ -1313,7 +1384,7 @@ async function updateChatListFromDBInternal(force = false) {
 
     /**
      * Get chat data and messages for a chat ID
-     * Handles both public chats (demo/legal) and regular chats
+     * Handles public chats (demo/legal), regular chats, and incognito chats
      */
     async function getChatDataAndMessages(chatId: string): Promise<{ chat: ChatType | null; messages: Message[] }> {
         // Check if this is a public chat
@@ -1325,6 +1396,18 @@ async function updateChatListFromDBInternal(force = false) {
                 return { chat, messages };
             }
             return { chat: null, messages: [] };
+        }
+
+        // Check if this is an incognito chat
+        const incognitoChat = incognitoChats.find(c => c.chat_id === chatId);
+        if (incognitoChat) {
+            try {
+                const messages = await incognitoChatService.getMessagesForChat(chatId);
+                return { chat: incognitoChat, messages };
+            } catch (error) {
+                console.error(`[Chats] Error getting incognito chat data for ${chatId}:`, error);
+                return { chat: null, messages: [] };
+            }
         }
 
         // For regular chats, get from database
@@ -1592,8 +1675,19 @@ async function updateChatListFromDBInternal(force = false) {
             // Delete each chat
             for (const chatId of chatIdsToDelete) {
                 try {
+                    // Check if this is an incognito chat
+                    const isIncognitoChat = incognitoChats.find(c => c.chat_id === chatId);
+                    if (isIncognitoChat) {
+                        // Delete incognito chat from service
+                        await incognitoChatService.deleteChat(chatId);
+                        // Remove from local state
+                        incognitoChats = incognitoChats.filter(c => c.chat_id !== chatId);
+                        incognitoChatsTrigger++;
+                        chatSyncService.dispatchEvent(new CustomEvent('chatDeleted', { detail: { chat_id: chatId } }));
+                        deletedCount++;
+                    }
                     // Check if this is a public chat (demo/legal)
-                    if (isDemoChat(chatId) || isLegalChat(chatId)) {
+                    else if (isDemoChat(chatId) || isLegalChat(chatId)) {
                         if (!$authStore.isAuthenticated) {
                             errors.push(`${chatId}: Please sign up to customize your experience`);
                             continue;
@@ -1735,6 +1829,7 @@ async function updateChatListFromDBInternal(force = false) {
 									tabindex="0"
 									class="chat-item"
 									class:active={selectedChatId === chat.chat_id}
+									class:incognito={chat.is_incognito}
 									onclick={(event) => {
 										handleChatItemClick(chat, event);
 									}}
@@ -2041,6 +2136,16 @@ async function updateChatListFromDBInternal(force = false) {
 
     .chat-item.active {
         background-color: var(--color-grey-30);
+    }
+
+    /* Incognito chat styling */
+    .chat-item.incognito {
+        background-color: var(--color-grey-30); /* Darker background */
+        border-left: 3px solid var(--color-grey-50);
+    }
+
+    .chat-item.incognito.active {
+        background-color: var(--color-grey-35);
     }
 
     /* Improve focus visibility */

@@ -274,10 +274,28 @@ export async function handleAIBackgroundResponseCompletedImpl(
     console.info("[ChatSyncService:AI] Received 'ai_background_response_completed' for inactive chat:", payload);
     
     try {
-        // Get chat from DB to update messages_v
-        const chat = await chatDB.getChat(payload.chat_id);
+        // Get chat from DB or incognito service to update messages_v
+        let chat: Chat | null = null;
+        let isIncognitoChat = false;
+        
+        // First check if it's an incognito chat
+        const { incognitoChatService } = await import('./incognitoChatService');
+        try {
+            chat = await incognitoChatService.getChat(payload.chat_id);
+            if (chat) {
+                isIncognitoChat = true;
+            }
+        } catch (error) {
+            // Not an incognito chat, continue to check IndexedDB
+        }
+        
+        // If not found in incognito service, check IndexedDB
         if (!chat) {
-            console.error(`[ChatSyncService:AI] Chat ${payload.chat_id} not found in DB for background response`);
+            chat = await chatDB.getChat(payload.chat_id);
+        }
+        
+        if (!chat) {
+            console.error(`[ChatSyncService:AI] Chat ${payload.chat_id} not found in DB or incognito service for background response`);
             return;
         }
         
@@ -332,21 +350,37 @@ export async function handleAIBackgroundResponseCompletedImpl(
             encrypted_content: '', // Will be set by encryption
         };
         
-        // Save message to IndexedDB (encryption handled by chatDB)
-        // This will encrypt all fields including encrypted_category
-        await chatDB.saveMessage(aiMessage);
-        console.info(`[ChatSyncService:AI] Saved background AI response to DB for chat ${payload.chat_id} with category: ${category || 'none'}`);
-        
-        // Update chat metadata with new messages_v
-        const newMessagesV = (chat.messages_v || 0) + 1;
-        const newLastEdited = Math.floor(Date.now() / 1000);
-        const updatedChat: Chat = {
-            ...chat,
-            messages_v: newMessagesV,
-            last_edited_overall_timestamp: newLastEdited
-        };
-        await chatDB.updateChat(updatedChat);
-        console.info(`[ChatSyncService:AI] Updated chat ${payload.chat_id} metadata: messages_v=${newMessagesV}`);
+        // Save message to IndexedDB or incognito service
+        if (isIncognitoChat) {
+            // Save to incognito service (no encryption needed for incognito chats)
+            await incognitoChatService.addMessage(payload.chat_id, aiMessage);
+            const newMessagesV = (chat.messages_v || 0) + 1;
+            const newLastEdited = Math.floor(Date.now() / 1000);
+            await incognitoChatService.updateChat(payload.chat_id, {
+                messages_v: newMessagesV,
+                last_edited_overall_timestamp: newLastEdited
+            });
+            chat.messages_v = newMessagesV;
+            chat.last_edited_overall_timestamp = newLastEdited;
+            console.info(`[ChatSyncService:AI] Saved background AI response to incognito service for chat ${payload.chat_id}`);
+        } else {
+            // Save message to IndexedDB (encryption handled by chatDB)
+            // This will encrypt all fields including encrypted_category
+            await chatDB.saveMessage(aiMessage);
+            console.info(`[ChatSyncService:AI] Saved background AI response to DB for chat ${payload.chat_id} with category: ${category || 'none'}`);
+            
+            // Update chat metadata with new messages_v
+            const newMessagesV = (chat.messages_v || 0) + 1;
+            const newLastEdited = Math.floor(Date.now() / 1000);
+            const updatedChat: Chat = {
+                ...chat,
+                messages_v: newMessagesV,
+                last_edited_overall_timestamp: newLastEdited
+            };
+            await chatDB.updateChat(updatedChat);
+            chat = updatedChat;
+            console.info(`[ChatSyncService:AI] Updated chat ${payload.chat_id} metadata: messages_v=${newMessagesV}`);
+        }
         
         // Clear AI task tracking
         const taskInfo = (serviceInstance as any).activeAITasks.get(payload.chat_id);
@@ -381,16 +415,20 @@ export async function handleAIBackgroundResponseCompletedImpl(
         console.info(`[ChatSyncService:AI] Background AI response processing completed for chat ${payload.chat_id}`);
         
         // CRITICAL: Send encrypted AI response back to server for Directus storage (zero-knowledge architecture)
-        // This uses the existing sendCompletedAIResponse method
-        try {
-            console.debug('[ChatSyncService:AI] Sending completed background AI response to server for encrypted Directus storage:', {
-                messageId: aiMessage.message_id,
-                chatId: aiMessage.chat_id,
-                contentLength: aiMessage.content?.length || 0
-            });
-            await (serviceInstance as any).sendCompletedAIResponse(aiMessage);
-        } catch (error) {
-            console.error('[ChatSyncService:AI] Error sending completed background AI response to server:', error);
+        // Skip for incognito chats (they're not stored on the server)
+        if (!isIncognitoChat) {
+            try {
+                console.debug('[ChatSyncService:AI] Sending completed background AI response to server for encrypted Directus storage:', {
+                    messageId: aiMessage.message_id,
+                    chatId: aiMessage.chat_id,
+                    contentLength: aiMessage.content?.length || 0
+                });
+                await (serviceInstance as any).sendCompletedAIResponse(aiMessage);
+            } catch (error) {
+                console.error('[ChatSyncService:AI] Error sending completed background AI response to server:', error);
+            }
+        } else {
+            console.debug('[ChatSyncService:AI] Skipping server storage for incognito chat - not persisted on server');
         }
         
     } catch (error) {
@@ -412,10 +450,32 @@ export async function handleAITypingStartedImpl( // Changed to async
     // For FOLLOW-UPS (no icon_names): Only send encrypted user message
     
     try {
-        // Get the current chat
-        const chat = await chatDB.getChat(payload.chat_id);
+        // Get the current chat (check incognito service first)
+        let chat: Chat | null = null;
+        let isIncognitoChat = false;
+        
+        const { incognitoChatService } = await import('./incognitoChatService');
+        try {
+            chat = await incognitoChatService.getChat(payload.chat_id);
+            if (chat) {
+                isIncognitoChat = true;
+            }
+        } catch (error) {
+            // Not an incognito chat, continue to check IndexedDB
+        }
+        
+        if (!chat) {
+            chat = await chatDB.getChat(payload.chat_id);
+        }
+        
         if (!chat) {
             console.error(`[ChatSyncService:AI] Chat ${payload.chat_id} not found for processing`);
+            return;
+        }
+        
+        // Skip metadata processing for incognito chats (they don't go through post-processing)
+        if (isIncognitoChat) {
+            console.debug(`[ChatSyncService:AI] Skipping metadata processing for incognito chat ${payload.chat_id}`);
             return;
         }
         
@@ -966,14 +1026,17 @@ export async function handlePostProcessingCompletedImpl(
         }
 
         // Dispatch event to notify components (e.g., to update UI with new suggestions)
-        serviceInstance.dispatchEvent(new CustomEvent('postProcessingCompleted', {
+        const event = new CustomEvent('postProcessingCompleted', {
             detail: {
                 chatId: payload.chat_id,
                 taskId: payload.task_id,
                 followUpSuggestions: payload.follow_up_request_suggestions,
                 harmfulResponse: payload.harmful_response
             }
-        }));
+        });
+        console.info(`[ChatSyncService:AI] 🚀 Dispatching 'postProcessingCompleted' event for chat ${payload.chat_id} with ${payload.follow_up_request_suggestions?.length || 0} suggestions`);
+        serviceInstance.dispatchEvent(event);
+        console.debug(`[ChatSyncService:AI] ✅ Event dispatched successfully`);
 
     } catch (error) {
         console.error(`[ChatSyncService:AI] Error handling post-processing results for chat ${payload.chat_id}:`, error);

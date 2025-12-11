@@ -13,7 +13,6 @@
     import { appSkillsStore } from '../../stores/appSkillsStore';
     import { authStore } from '../../stores/authStore';
     import AppStoreCard from './AppStoreCard.svelte';
-    import AppSettingsMemoriesPanel from './appSettings/AppSettingsMemoriesPanel.svelte';
     import AppEmbedsPanel from './appSettings/AppEmbedsPanel.svelte';
     import SettingsItem from '../SettingsItem.svelte';
     import type { AppMetadata, SkillMetadata, FocusModeMetadata, MemoryFieldMetadata } from '../../types/apps';
@@ -157,6 +156,35 @@
             <p class="app-description">{appDescription}</p>
         </div>
         
+        <!-- Settings & Memories section - always show cards for each category -->
+        {#if memoryFields.length > 0}
+            <div class="section">
+                <SettingsItem
+                    type="heading"
+                    icon="settings"
+                    title={$text('settings.app_store.settings_memories.title.text')}
+                />
+                <div class="items-scroll-container">
+                    <div class="items-scroll">
+                        {#each memoryFields as category (category.id)}
+                            {@const categoryApp: AppMetadata = {
+                                id: appId,
+                                name_translation_key: category.name_translation_key,
+                                description_translation_key: category.description_translation_key,
+                                icon_image: app.icon_image,
+                                icon_colorgradient: app.icon_colorgradient,
+                                providers: [],
+                                skills: [],
+                                focus_modes: [],
+                                settings_and_memories: []
+                            }}
+                            <AppStoreCard app={categoryApp} onSelect={() => handleSettingsMemoriesCategorySelect(category.id)} />
+                        {/each}
+                    </div>
+                </div>
+            </div>
+        {/if}
+        
         <!-- Skills section - only show if skills exist -->
         {#if skills.length > 0}
             <div class="section">
@@ -222,41 +250,6 @@
                 </div>
             </div>
         {/if}
-
-        <!-- Settings & Memories section -->
-        {#if memoryFields.length > 0}
-            <div class="section">
-                <SettingsItem
-                    type="heading"
-                    icon="settings"
-                    title={$text('settings.app_store.settings_memories.title.text')}
-                />
-                {#if isAuthenticated}
-                    <div class="settings-memories-preview">
-                        <AppSettingsMemoriesPanel {appId} />
-                    </div>
-                {:else}
-                    <div class="items-scroll-container">
-                        <div class="items-scroll">
-                            {#each memoryFields as category (category.id)}
-                                {@const categoryApp: AppMetadata = {
-                                    id: appId,
-                                    name_translation_key: category.name_translation_key,
-                                    description_translation_key: category.description_translation_key,
-                                    icon_image: app.icon_image,
-                                    icon_colorgradient: app.icon_colorgradient,
-                                    providers: [],
-                                    skills: [],
-                                    focus_modes: [],
-                                    settings_and_memories: []
-                                }}
-                                <AppStoreCard app={categoryApp} onSelect={() => handleSettingsMemoriesCategorySelect(category.id)} />
-                            {/each}
-                        </div>
-                    </div>
-                {/if}
-            </div>
-        {/if}
     {/if}
 </div>
 
@@ -296,7 +289,6 @@
         margin-left: 0;
     }
 
-    .settings-memories-preview,
     .embeds-preview {
         margin-top: 0.5rem;
         padding: 1rem;

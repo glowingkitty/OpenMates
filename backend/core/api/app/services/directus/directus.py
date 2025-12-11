@@ -14,7 +14,15 @@ from backend.core.api.app.services.directus.auth_methods import (
 )
 from backend.core.api.app.services.directus.api_methods import _make_api_request, create_item # Import create_item
 from backend.core.api.app.services.directus.invite_methods import get_invite_code, get_all_invite_codes, consume_invite_code
-from backend.core.api.app.services.directus.gift_card_methods import get_gift_card_by_code, get_all_gift_cards, redeem_gift_card
+from backend.core.api.app.services.directus.gift_card_methods import (
+    get_gift_card_by_code, 
+    get_all_gift_cards, 
+    redeem_gift_card,
+    create_gift_card,
+    record_gift_card_redemption,
+    get_user_redeemed_gift_cards,
+    get_user_purchased_gift_cards
+)
 from backend.core.api.app.services.directus.chat_methods import ChatMethods # Import ChatMethods class
 # from backend.core.api.app.services.directus.app_memory_methods import AppMemoryMethods # Old import, replaced
 from backend.core.api.app.services.directus.app_settings_and_memories_methods import AppSettingsAndMemoriesMethods # New import
@@ -879,6 +887,10 @@ class DirectusService:
     get_gift_card_by_code = get_gift_card_by_code
     get_all_gift_cards = get_all_gift_cards
     redeem_gift_card = redeem_gift_card
+    create_gift_card = create_gift_card
+    record_gift_card_redemption = record_gift_card_redemption
+    get_user_redeemed_gift_cards = get_user_redeemed_gift_cards
+    get_user_purchased_gift_cards = get_user_purchased_gift_cards
     
     # User management methods
     create_user = create_user

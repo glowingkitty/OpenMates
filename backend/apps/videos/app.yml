@@ -9,7 +9,7 @@ settings_and_memories:
     name_translation_key: videos.to_watch_list.text
     description_translation_key: videos.to_watch_list.description.text
     type: list
-    stage: planning
+    stage: development
     schema:
       type: object
       properties:
@@ -53,7 +53,7 @@ skills:
   - id: get_transcript
     name_translation_key: videos.get_transcript.text
     description_translation_key: videos.get_transcript.description.text
-    stage: development
+    stage: production
     class_path: |
       backend.apps.videos.skills.transcript_skill.TranscriptSkill
     providers:
@@ -94,7 +94,7 @@ skills:
   - id: search
     name_translation_key: videos.search.text
     description_translation_key: videos.search.description.text
-    stage: development
+    stage: production
     class_path: |
       backend.apps.videos.skills.search_skill.SearchSkill
     providers:

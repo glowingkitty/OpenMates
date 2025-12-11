@@ -31,7 +31,8 @@ async def handle_postprocessing(
     secrets_manager: SecretsManager,
     cache_service: CacheService,
     available_app_ids: List[str],
-) -> PostProcessingResult:
+    is_incognito: bool = False,
+) -> Optional[PostProcessingResult]:
     """
     Generate post-processing suggestions using LLM.
 
@@ -54,6 +55,11 @@ async def handle_postprocessing(
     """
 
     logger.info(f"[Task ID: {task_id}] [PostProcessor] Starting post-processing")
+
+    # CRITICAL: Skip post-processing for incognito chats (no suggestions generated)
+    if is_incognito:
+        logger.info(f"[Task ID: {task_id}] [PostProcessor] Skipping post-processing for incognito chat - no suggestions will be generated")
+        return None
 
     # Get the post-processing tool definition from base_instructions
     postprocess_tool = base_instructions.get("postprocess_response_tool")

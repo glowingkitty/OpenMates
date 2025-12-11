@@ -1055,3 +1055,95 @@ category_not_found:
   cs: Kategorie nenalezena.
   sv: Kategori hittades inte.
   verified_by_human: []
+app_embeds.no_embeds:
+  context: Message when no embeds are found for an app
+  en: No embeds found for this app.
+  de: Keine Einbettungen für diese App gefunden.
+  zh: 未找到此应用的嵌入内容。
+  es: No se encontraron incrustaciones para esta aplicación.
+  fr: Aucune intégration trouvée pour cette application.
+  pt: Nenhuma incorporação encontrada para este aplicativo.
+  ru: Встраивания для этого приложения не найдены.
+  ja: このアプリの埋め込みが見つかりません。
+  ko: 이 앱에 대한 임베드가 없습니다.
+  it: Nessuna incorporazione trovata per questa app.
+  tr: Bu uygulama için gömme bulunamadı.
+  vi: Không tìm thấy nội dung nhúng cho ứng dụng này.
+  id: Tidak ada embed yang ditemukan untuk aplikasi ini.
+  pl: Nie znaleziono osadzeń dla tej aplikacji.
+  nl: Geen inbeddingen gevonden voor deze app.
+  ar: لم يتم العثور على محتوى مضمن لهذا التطبيق.
+  hi: इस ऐप के लिए कोई एम्बेड नहीं मिला।
+  th: ไม่พบการฝังสำหรับแอปนี้
+  cs: Pro tuto aplikaci nebyly nalezeny žádné vložené prvky.
+  sv: Inga inbäddningar hittades för denna app.
+  verified_by_human: []
+app_embeds.loading:
+  context: Loading message while fetching embeds
+  en: Loading embeds...
+  de: Einbettungen werden geladen...
+  zh: 正在加载嵌入内容...
+  es: Cargando incrustaciones...
+  fr: Chargement des intégrations...
+  pt: Carregando incorporações...
+  ru: Загрузка встраиваний...
+  ja: 埋め込みを読み込み中...
+  ko: 임베드 로드 중...
+  it: Caricamento incorporazioni...
+  tr: Gömme yükleniyor...
+  vi: Đang tải nội dung nhúng...
+  id: Memuat embed...
+  pl: Ładowanie osadzeń...
+  nl: Inbeddingen laden...
+  ar: جاري تحميل المحتوى المضمن...
+  hi: एम्बेड लोड हो रहे हैं...
+  th: กำลังโหลดการฝัง...
+  cs: Načítání vložených prvků...
+  sv: Läser in inbäddningar...
+  verified_by_human: []
+app_settings_memories.no_settings:
+  context: Message when no settings and memories have been synced for an app
+  en: No settings or memories synced yet. They will appear here once available.
+  de: Noch keine Einstellungen oder Erinnerungen synchronisiert. Sie werden hier angezeigt, wenn verfügbar.
+  zh: 尚未同步任何设置或记忆。可用后会在此显示。
+  es: Aún no hay configuración ni recuerdos sincronizados. Aparecerán aquí una vez disponibles.
+  fr: Aucun paramètre ou souvenir encore synchronisé. Ils apparaîtront ici une fois disponibles.
+  pt: Nenhuma configuração ou memória sincronizada ainda. Eles aparecerão aqui assim que disponíveis.
+  ru: Настройки и воспоминания еще не синхронизированы. Они появятся здесь после доступности.
+  ja: 設定とメモリはまだ同期されていません。利用可能になると表示されます。
+  ko: 아직 동기화된 설정 또는 메모리가 없습니다. 이용 가능할 때 여기에 표시됩니다.
+  it: Nessuna impostazione o ricordo sincronizzato ancora. Appariranno qui una volta disponibili.
+  tr: Henüz hiçbir ayar veya anı senkronize edilmedi. Mevcut olduğunda burada görünecekler.
+  vi: Chưa có cài đặt hoặc ký ức nào được đồng bộ hóa. Chúng sẽ xuất hiện ở đây khi có sẵn.
+  id: Belum ada pengaturan atau memori yang disinkronkan. Mereka akan muncul di sini setelah tersedia.
+  pl: Brak jeszcze zsynchronizowanych ustawień ani wspomnień. Pojawią się tutaj, gdy tylko będą dostępne.
+  nl: Nog geen instellingen of herinneringen gesynchroniseerd. Ze verschijnen hier zodra deze beschikbaar zijn.
+  ar: لم يتم مزامنة أي إعدادات أو ذكريات حتى الآن. ستظهر هنا بمجرد توفرها.
+  hi: अभी तक कोई सेटिंग्स या यादें सिंक नहीं की गई हैं। वे यहां उपलब्ध हो जाने के बाद दिखाई देंगे।
+  th: ยังไม่มีการตั้งค่าหรือความทรงจำที่ซิงค์แล้ว พวกเขาจะปรากฏที่นี่เมื่อมีให้บริการ
+  cs: Zatím nejsou synchronizovány žádné nastavení ani paměti. Zobrazí se zde, jakmile budou dostupná.
+  sv: Inga inställningar eller minnen ännu inte synkroniserade. De visas här när de är tillgängliga.
+  verified_by_human: []
+app_settings_memories.add_entry:
+  context: Button text to add a new entry
+  en: Add Entry
+  de: Eintrag hinzufügen
+  zh: 添加条目
+  es: Agregar entrada
+  fr: Ajouter une entrée
+  pt: Adicionar entrada
+  ru: Добавить запись
+  ja: エントリを追加
+  ko: 항목 추가
+  it: Aggiungi voce
+  tr: Giriş ekle
+  vi: Thêm mục
+  id: Tambah entri
+  pl: Dodaj wpis
+  nl: Item toevoegen
+  ar: إضافة إدخال
+  hi: प्रविष्टि जोड़ें
+  th: เพิ่มรายการ
+  cs: Přidat položku
+  sv: Lägg till post
+  verified_by_human: []

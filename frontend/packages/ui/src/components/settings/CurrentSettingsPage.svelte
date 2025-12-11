@@ -6,6 +6,7 @@
     import { userProfile } from '../../stores/userProfile';
     import { authStore } from '../../stores/authStore';
     import { webSocketService } from '../../services/websocketService';
+    import { incognitoMode } from '../../stores/incognitoModeStore'; // Import incognito mode store
     import SettingsItem from '../SettingsItem.svelte';
     import { createEventDispatcher, onMount, tick } from 'svelte';
     import type { SvelteComponent } from 'svelte';
@@ -70,6 +71,14 @@
     
     let isAuthenticated = $derived($authStore.isAuthenticated);
     let profileImageUrl = $derived($userProfile.profile_image_url);
+    
+    // Local state for incognito toggle that syncs with store
+    let incognitoToggleChecked = $state(false);
+    
+    // Sync local toggle state with store
+    $effect(() => {
+        incognitoToggleChecked = $incognitoMode;
+    });
     
     // Calculate the actual count of menu items for height adjustment using Svelte 5 runes
     $effect(() => {
@@ -325,33 +334,52 @@
                     </div>
                 </div>
             </div>
-            <!-- Quick Settings - Only show when not in signup process -->
-            {#if !isInSignupMode}
-                <!-- TODO: unhide again once features implemented -->
-                <!-- <SettingsItem 
+            
+            <!-- Incognito mode toggle - appears above Usage like language toggles -->
+            <!-- Only show for authenticated users -->
+            {#if isAuthenticated}
+                <SettingsItem 
                     type="quickaction" 
                     icon="subsetting_icon subsetting_icon_incognito"
                     title={$text('settings.incognito.text')}
                     hasToggle={true}
-                    bind:checked={isIncognitoEnabled}
-                    onClick={() => handleQuickSettingClick('incognito')}
+                    checked={incognitoToggleChecked}
+                    onClick={async () => {
+                        // Get current value from store to ensure we're toggling from the correct state
+                        const currentValue = $incognitoMode;
+                        const newValue = !currentValue;
+                        
+                        // CRITICAL: If mode is currently ON and we're turning it OFF, just toggle it off
+                        // Don't show the info screen when turning off
+                        if (currentValue && !newValue) {
+                            // Update local state immediately for responsive UI
+                            incognitoToggleChecked = newValue;
+                            
+                            // Update store (handles deletion of incognito chats when disabling)
+                            await incognitoMode.set(newValue);
+                            
+                            // Dispatch to parent for any additional handling
+                            handleQuickSettingClick('incognito');
+                            return; // Exit early - don't navigate to info screen
+                        }
+                        
+                        // If mode is currently OFF and we're turning it ON, show info screen first
+                        // The info screen will handle actually activating the mode when user confirms
+                        // Don't update the toggle state yet - let the info screen handle activation
+                        // This prevents the toggle from appearing "on" before the user confirms
+                        if (newValue) {
+                            // Navigate to incognito info submenu - user will confirm activation there
+                            showSettingsView('incognito/info', null);
+                        } else {
+                            // This shouldn't happen (we already handled turning off above), but just in case
+                            incognitoToggleChecked = newValue;
+                            await incognitoMode.set(newValue);
+                        }
+                        
+                        // Dispatch to parent for any additional handling
+                        handleQuickSettingClick('incognito');
+                    }}
                 />
-                <SettingsItem 
-                    type="quickaction" 
-                    icon="subsetting_icon subsetting_icon_guest"
-                    title={$text('settings.guest.text')}
-                    hasToggle={true}
-                    bind:checked={isGuestEnabled}
-                    onClick={() => handleQuickSettingClick('guest')}
-                />
-                <SettingsItem 
-                    type="quickaction" 
-                    icon="subsetting_icon subsetting_icon_offline"
-                    title={$text('settings.offline.text')}
-                    hasToggle={true}
-                    bind:checked={isOfflineEnabled}
-                    onClick={() => handleQuickSettingClick('offline')}
-                /> -->
             {/if}
 
             <!-- Regular Settings -->

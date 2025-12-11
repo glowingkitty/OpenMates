@@ -40,7 +40,8 @@ def process_invoice_and_send_email(
     sender_country: str,
     sender_email: str,
     sender_vat: str,
-    email_encryption_key: Optional[str] = None  # Add email encryption key parameter
+    email_encryption_key: Optional[str] = None,  # Add email encryption key parameter
+    is_gift_card: bool = False  # Flag to indicate if this is a gift card purchase
 ) -> bool:
     """
     Celery task to generate invoice, upload to S3, save to Directus, and send email.
@@ -53,7 +54,7 @@ def process_invoice_and_send_email(
                 self, order_id, user_id, credits_purchased,
                 sender_addressline1, sender_addressline2, sender_addressline3,
                 sender_country, sender_email, sender_vat,
-                email_encryption_key
+                email_encryption_key, is_gift_card
             )
         )
         logger.info(f"Invoice processing task completed for Order ID: {order_id}, User ID: {user_id}. Success: {result}")
@@ -75,7 +76,8 @@ async def _async_process_invoice_and_send_email(
     sender_country: str,
     sender_email: str,
     sender_vat: str,
-    email_encryption_key: Optional[str] = None  # Add email encryption key parameter
+    email_encryption_key: Optional[str] = None,  # Add email encryption key parameter
+    is_gift_card: bool = False  # Flag to indicate if this is a gift card purchase
 ) -> bool:
     """
     Async implementation for invoice processing.
@@ -249,7 +251,8 @@ async def _async_process_invoice_and_send_email(
             "sender_addressline3": sender_addressline3,
             "sender_country": sender_country,
             "sender_email": sender_email,
-            "sender_vat": sender_vat
+            "sender_vat": sender_vat,
+            "is_gift_card": is_gift_card  # Flag to indicate if this is a gift card purchase
         }
 
         # Add billing address if available (cleaning up None values) - only for future business/teams functionality
@@ -384,7 +387,8 @@ async def _async_process_invoice_and_send_email(
             "encrypted_s3_object_key": encrypted_s3_object_key, # Store encrypted S3 object key
             "encrypted_aes_key": encrypted_aes_key_vault, # Store the Vault-wrapped AES key
             "encrypted_filename": encrypted_filename, # Store encrypted filename for download
-            "aes_nonce": nonce_b64 # Store the base64 encoded nonce
+            "aes_nonce": nonce_b64, # Store the base64 encoded nonce
+            "is_gift_card": is_gift_card  # Store gift card flag for invoice display
         }
         logger.info(f"Prepared Directus payload for invoice")
 
@@ -475,29 +479,33 @@ async def _async_process_invoice_and_send_email(
         logger.info(f"Successfully sent purchase confirmation email with invoice attached.")
 
         # 13. Notify user via WebSocket that payment is completed (credits updated and invoice sent)
-        # This notification is sent after both credits are updated (in webhook) and invoice is sent (here)
-        try:
-            # Get current credits from cache to include in notification
-            current_credits = user_profile.get('credits', 0)
-            
-            # Publish payment_completed event to user_updates channel
-            # The websocket listener will pick this up and broadcast it to the client
-            await cache_service.publish_event(
-                channel=f"user_updates::{user_id}",
-                event_data={
-                    "event_for_client": "payment_completed",
-                    "user_id_uuid": user_id,
-                    "payload": {
-                        "order_id": order_id,
-                        "credits_purchased": credits_purchased,
-                        "current_credits": current_credits
+        # This notification is ONLY sent for regular credit purchases, NOT for gift card purchases
+        # Gift card purchases already have their own 'gift_card_created' event sent from the webhook handler
+        if not is_gift_card:
+            try:
+                # Get current credits from cache to include in notification
+                current_credits = user_profile.get('credits', 0)
+                
+                # Publish payment_completed event to user_updates channel
+                # The websocket listener will pick this up and broadcast it to the client
+                await cache_service.publish_event(
+                    channel=f"user_updates::{user_id}",
+                    event_data={
+                        "event_for_client": "payment_completed",
+                        "user_id_uuid": user_id,
+                        "payload": {
+                            "order_id": order_id,
+                            "credits_purchased": credits_purchased,
+                            "current_credits": current_credits
+                        }
                     }
-                }
-            )
-            logger.info(f"Published 'payment_completed' event for user {user_id}, order {order_id}.")
-        except Exception as notification_err:
-            logger.error(f"Failed to publish 'payment_completed' event for user {user_id}: {notification_err}", exc_info=True)
-            # Don't fail the task if notification fails - invoice was sent successfully
+                )
+                logger.info(f"Published 'payment_completed' event for user {user_id}, order {order_id} (regular credit purchase).")
+            except Exception as notification_err:
+                logger.error(f"Failed to publish 'payment_completed' event for user {user_id}: {notification_err}", exc_info=True)
+                # Don't fail the task if notification fails - invoice was sent successfully
+        else:
+            logger.info(f"Skipping 'payment_completed' event for gift card purchase (order {order_id}). Gift card notification already sent via webhook.")
 
         # 14. Process Income Transaction in Invoice Ninja
         logger.info(f"Processing income transaction in Invoice Ninja for Order ID: {order_id}")
@@ -539,7 +547,8 @@ async def _async_process_invoice_and_send_email(
                 payment_processor=task.payment_service.provider_name, # Use the active payment provider name
                 card_brand_lower=card_brand_lower,
                 custom_invoice_number=invoice_number, # Pass generated invoice number
-                custom_pdf_data=pdf_bytes_en # Pass the English PDF bytes
+                custom_pdf_data=pdf_bytes_en, # Pass the English PDF bytes
+                is_gift_card=is_gift_card  # Pass gift card flag
             )
 
         except Exception as ninja_err:

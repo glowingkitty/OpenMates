@@ -27,4 +27,15 @@ gift_cards:
       type: textfield
       nullable: true
       note: "Optional admin notes when creating the gift card (e.g., recipient, occasion, etc.)."
+      
+    purchaser_user_id_hash:
+      type: string
+      length: 512
+      nullable: true
+      note: "Hash of the user ID who purchased this gift card (null for manually created cards in Directus)."
+      
+    purchased_at:
+      type: datetime
+      nullable: true
+      note: "Timestamp when the gift card was purchased (null for manually created cards in Directus)."
 

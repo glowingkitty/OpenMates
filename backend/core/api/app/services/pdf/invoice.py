@@ -221,9 +221,13 @@ class InvoiceTemplateService(BasePDFTemplateService):
         ]
         
         # Format the credits text using the translation
-        credits_text = sanitize_html_for_reportlab(
-            self.t["invoices_and_credit_notes"]["credits_item"]["text"].replace("{amount}", formatted_credits)
-        )
+        # For gift cards, prefix with "Gift card - " to distinguish from regular credit purchases
+        base_credits_text = self.t["invoices_and_credit_notes"]["credits_item"]["text"].replace("{amount}", formatted_credits)
+        if invoice_data.get('is_gift_card', False):
+            # Prefix with "Gift card - " for gift card purchases
+            credits_text = sanitize_html_for_reportlab(f"Gift card - {base_credits_text}")
+        else:
+            credits_text = sanitize_html_for_reportlab(base_credits_text)
         
         # Get the appropriate currency symbol based on the currency
         currency_symbols = {

@@ -401,7 +401,8 @@ class InvoiceNinjaService:
         due_date: str, # Added
         payment_processor: str, # Added (replaces processor_type)
         custom_invoice_number: str, # Added
-        custom_pdf_data: Optional[bytes] = None # PDF data as bytes
+        custom_pdf_data: Optional[bytes] = None, # PDF data as bytes
+        is_gift_card: bool = False  # Flag to indicate if this is a gift card purchase
         ):
         """
         Handles the full workflow for processing an income transaction,
@@ -480,6 +481,12 @@ class InvoiceNinjaService:
         else:
             logger.error(f"Invalid credits_value '{credits_value}'. Cannot determine product key for invoice line item. Aborting.")
             return None
+        
+        # For gift cards, prefix the product name with "Gift card - "
+        if is_gift_card:
+            product_key = f"Gift card - {product_key}"
+            logger.info(f"Gift card purchase detected, product key prefixed: {product_key}")
+        
         logger.info(f"Selected product key for invoice line item (based on credits {credits_value}): {product_key}")
 
         # Prepare invoice items (using determined product key and provided price)

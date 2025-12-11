@@ -47,3 +47,19 @@ invoices:
       type: string
       length: 512
       note: "Encrypted filename of the invoice"
+
+    has_chargeback:
+      type: boolean
+      note: "Whether this invoice had a chargeback/dispute"
+      default: false
+
+    chargeback_date:
+      type: string
+      length: 256
+      nullable: true
+      note: "ISO timestamp when chargeback/dispute was created"
+
+    is_gift_card:
+      type: boolean
+      note: "Whether this invoice is for a gift card purchase (as opposed to a regular credit purchase)"
+      default: false

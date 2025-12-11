@@ -46,6 +46,7 @@ changes to the documentation (to keep the documentation up to date).
     import { settingsDeepLink } from '../stores/settingsDeepLinkStore';
     import { webSocketService } from '../services/websocketService';
     import { notificationStore } from '../stores/notificationStore'; // Import notification store for payment notifications
+    import { incognitoMode } from '../stores/incognitoModeStore'; // Import incognito mode store
     
     // Import modular components
     import SettingsFooter from './settings/SettingsFooter.svelte';
@@ -69,6 +70,7 @@ changes to the documentation (to keep the documentation up to date).
     import SettingsServer from './settings/SettingsServer.svelte';
     import SettingsItem from './SettingsItem.svelte';
     import SettingsLanguage from './settings/interface/SettingsLanguage.svelte';
+    import SettingsIncognitoInfo from './settings/incognito/SettingsIncognitoInfo.svelte';
     import SettingsSoftwareUpdate from './settings/server/SettingsSoftwareUpdate.svelte';
     import { appSkillsStore } from '../stores/appSkillsStore';
     
@@ -81,6 +83,14 @@ changes to the documentation (to keep the documentation up to date).
     import SettingsLowBalanceAutotopup from './settings/billing/autotopup/SettingsLowBalanceAutotopup.svelte';
     import SettingsMonthlyAutotopup from './settings/billing/autotopup/SettingsMonthlyAutotopup.svelte';
     import SettingsInvoices from './settings/billing/SettingsInvoices.svelte';
+    
+    // Import gift cards components
+    import SettingsGiftCards from './settings/giftcards/SettingsGiftCards.svelte';
+    import SettingsGiftCardsRedeem from './settings/giftcards/SettingsGiftCardsRedeem.svelte';
+    import SettingsGiftCardsRedeemed from './settings/giftcards/SettingsGiftCardsRedeemed.svelte';
+    import SettingsGiftCardsBuy from './settings/giftcards/SettingsGiftCardsBuy.svelte';
+    import SettingsGiftCardsBuyPayment from './settings/giftcards/SettingsGiftCardsBuyPayment.svelte';
+    import SettingsGiftCardsPurchaseConfirmation from './settings/giftcards/SettingsGiftCardsPurchaseConfirmation.svelte';
     
     // Import share settings component
     import SettingsShare from './settings/share/SettingsShare.svelte';
@@ -103,7 +113,8 @@ changes to the documentation (to keep the documentation up to date).
     // State for toggles and menu visibility
     let isMenuVisible = $state(false);
     let isTeamEnabled = $state(true);
-    let isIncognitoEnabled = $state(false);
+    // Use incognito mode store instead of local state
+    let isIncognitoEnabled = $derived($incognitoMode);
     let isGuestEnabled = $state(false);
     let isOfflineEnabled = $state(false);
     let showSubmenuInfo = $state(false); // New variable to control submenu info visibility
@@ -141,6 +152,12 @@ changes to the documentation (to keep the documentation up to date).
         'billing/auto-topup/low-balance': SettingsLowBalanceAutotopup,
         'billing/auto-topup/monthly': SettingsMonthlyAutotopup,
         'billing/invoices': SettingsInvoices,
+        'gift_cards': SettingsGiftCards,
+        'gift_cards/redeem': SettingsGiftCardsRedeem,
+        'gift_cards/redeemed': SettingsGiftCardsRedeemed,
+        'gift_cards/buy': SettingsGiftCardsBuy,
+        'gift_cards/buy/payment': SettingsGiftCardsBuyPayment,
+        'gift_cards/buy/confirmation': SettingsGiftCardsPurchaseConfirmation,
         'app_store': SettingsAppStore,
         'app_store/all': SettingsAllApps,
         // 'mates': SettingsMates,
@@ -152,6 +169,7 @@ changes to the documentation (to keep the documentation up to date).
         'interface': SettingsInterface,
         // 'server': SettingsServer,
         'interface/language': SettingsLanguage,
+        'incognito/info': SettingsIncognitoInfo,
         'account': SettingsAccount,
         'account/security': SettingsSecurity,
         'account/security/passkeys': SettingsPasskeys,
@@ -203,6 +221,10 @@ changes to the documentation (to keep the documentation up to date).
                 for (const category of app.settings_and_memories) {
                     const categoryRoute = `app_store/${appId}/settings_memories/${category.id}`;
                     views[categoryRoute] = AppDetailsWrapper;
+                    
+                    // Add create entry route for each category
+                    const createRoute = `app_store/${appId}/settings_memories/${category.id}/create`;
+                    views[createRoute] = AppDetailsWrapper;
                 }
             }
         }
@@ -327,6 +349,10 @@ changes to the documentation (to keep the documentation up to date).
         // Always start with "Settings"
         pathLabels.push($text('settings.settings.text'));
         
+        // Track if we've already added the app name for app_store routes
+        // This prevents duplicate app names when navigating to app_store/{appId}
+        let appNameAdded = false;
+        
         // Add each path segment's translated name (except the last one which is current view)
         for (let i = 0; i < navigationPath.length - 1; i++) {
             // Build the full path up to this segment
@@ -334,17 +360,54 @@ changes to the documentation (to keep the documentation up to date).
             const pathString = pathUpToSegment.join('/');
             
             // Handle app_store routes specially - use actual app/skill names from metadata
-            if (pathString.startsWith('app_store/') && pathString !== 'app_store' && pathString !== 'app_store/all') {
+            if (pathString === 'app_store') {
+                // This is the base app_store route - add "App Store" translation
+                const translationKey = 'settings.app_store.text';
+                pathLabels.push($text(translationKey));
+            } else if (pathString.startsWith('app_store/') && pathString !== 'app_store/all') {
                 const pathParts = pathString.replace('app_store/', '').split('/');
                 const appId = pathParts[0];
                 const app = appSkillsStore.getState().apps[appId];
                 
-                if (app) {
-                    // Use translated app name
+                if (app && !appNameAdded) {
+                    // Use translated app name (only add once to prevent duplicates)
                     const appName = app.name_translation_key ? $text(app.name_translation_key) : appId;
                     pathLabels.push(appName);
-                } else {
-                    // Fallback to translation key
+                    appNameAdded = true;
+                }
+                
+                // Handle nested routes (skill, focus, settings_memories)
+                // Only process if this segment contains the nested route info
+                if (pathParts.length === 3 && pathParts[1] === 'settings_memories') {
+                    // This is the category page segment
+                    const categoryId = pathParts[2];
+                    const category = app?.settings_and_memories?.find(c => c.id === categoryId);
+                    if (category && category.name_translation_key) {
+                        pathLabels.push($text(category.name_translation_key));
+                    }
+                } else if (pathParts.length === 4 && pathParts[1] === 'settings_memories' && pathParts[3] === 'create') {
+                    // This is the create page segment - add category name
+                    const categoryId = pathParts[2];
+                    const category = app?.settings_and_memories?.find(c => c.id === categoryId);
+                    if (category && category.name_translation_key) {
+                        pathLabels.push($text(category.name_translation_key));
+                    }
+                } else if (pathParts.length === 3 && pathParts[1] === 'skill') {
+                    const skillId = pathParts[2];
+                    const skill = app?.skills?.find(s => s.id === skillId);
+                    if (skill && skill.name_translation_key) {
+                        pathLabels.push($text(skill.name_translation_key));
+                    }
+                } else if (pathParts.length === 3 && pathParts[1] === 'focus') {
+                    const focusModeId = pathParts[2];
+                    const focusMode = app?.focus_modes?.find(f => f.id === focusModeId);
+                    if (focusMode && focusMode.name_translation_key) {
+                        pathLabels.push($text(focusMode.name_translation_key));
+                    }
+                }
+                
+                if (!app) {
+                    // Fallback to translation key if app not found
                     const translationKeyParts = pathUpToSegment.map(segment => segment.replace(/-/g, '_'));
                     const translationKey = `settings.${translationKeyParts.join('.')}.text`;
                     pathLabels.push($text(translationKey));
@@ -458,6 +521,12 @@ changes to the documentation (to keep the documentation up to date).
                     } else {
                         activeSubMenuTitleKey = `apps.${appId}.text`;
                     }
+                } else if (pathParts.length === 4 && pathParts[1] === 'settings_memories' && pathParts[3] === 'create') {
+                    // Settings/memories create entry route
+                    const categoryId = pathParts[2];
+                    const category = app.settings_and_memories?.find(c => c.id === categoryId);
+                    // Use "Add entry" translation for the create page
+                    activeSubMenuTitleKey = 'settings.app_settings_memories.add_entry.text';
                 } else {
                     // Regular app details route
                     activeSubMenuTitleKey = `apps.${appId}.text`;
@@ -532,11 +601,37 @@ changes to the documentation (to keep the documentation up to date).
         }
         
         if (navigationPath.length > 1) {
-            // If we're in a nested view, go back one level
-            const previousPath = navigationPath.slice(0, -1).join('/');
+            // Check if we're on a nested app_store route (skill, focus, settings_memories)
+            // If so, go back to the app details page (app_store/{appId}) instead of just removing the last segment
+            const currentPath = navigationPath.join('/');
+            let previousPath = '';
+            let previousPathSegments = [];
+            
+            if (currentPath.startsWith('app_store/') && currentPath !== 'app_store' && currentPath !== 'app_store/all') {
+                const pathParts = currentPath.replace('app_store/', '').split('/');
+                const appId = pathParts[0];
+                
+                // Check if this is a nested route (skill, focus, settings_memories)
+                if (pathParts.length >= 3 && (pathParts[1] === 'skill' || pathParts[1] === 'focus' || pathParts[1] === 'settings_memories')) {
+                    // This is a nested route - go back to app details page
+                    previousPath = `app_store/${appId}`;
+                    previousPathSegments = ['app_store', appId];
+                } else if (pathParts.length === 4 && pathParts[1] === 'settings_memories' && pathParts[3] === 'create') {
+                    // This is the create entry route - go back to the category page
+                    previousPath = `app_store/${appId}/settings_memories/${pathParts[2]}`;
+                    previousPathSegments = ['app_store', appId, 'settings_memories', pathParts[2]];
+                } else {
+                    // Regular app details page - go back one level normally
+                    previousPath = navigationPath.slice(0, -1).join('/');
+                    previousPathSegments = navigationPath.slice(0, -1);
+                }
+            } else {
+                // For non-app_store routes, go back one level normally
+                previousPath = navigationPath.slice(0, -1).join('/');
+                previousPathSegments = navigationPath.slice(0, -1);
+            }
             
             // Build the correct icon and title for the previous view
-            const previousPathSegments = navigationPath.slice(0, -1);
             // For nested paths, use the last segment as the icon (e.g., "security" for "account/security")
             // For top-level paths, use the first segment
             let icon = previousPathSegments.length > 1 
@@ -562,8 +657,38 @@ changes to the documentation (to keep the documentation up to date).
                         icon = appId;
                     }
                     
-                    // Use translated app name
-                    title = app.name_translation_key ? $text(app.name_translation_key) : appId;
+                    // Check if this is a nested route to get the correct title
+                    if (pathParts.length === 3 && pathParts[1] === 'skill') {
+                        // Settings memories category route - use category name
+                        const skillId = pathParts[2];
+                        const skill = app.skills?.find(s => s.id === skillId);
+                        if (skill && skill.name_translation_key) {
+                            title = $text(skill.name_translation_key);
+                        } else {
+                            title = app.name_translation_key ? $text(app.name_translation_key) : appId;
+                        }
+                    } else if (pathParts.length === 3 && pathParts[1] === 'focus') {
+                        // Focus mode route - use focus mode name
+                        const focusModeId = pathParts[2];
+                        const focusMode = app.focus_modes?.find(f => f.id === focusModeId);
+                        if (focusMode && focusMode.name_translation_key) {
+                            title = $text(focusMode.name_translation_key);
+                        } else {
+                            title = app.name_translation_key ? $text(app.name_translation_key) : appId;
+                        }
+                    } else if (pathParts.length === 3 && pathParts[1] === 'settings_memories') {
+                        // Settings memories category route - use category name
+                        const categoryId = pathParts[2];
+                        const category = app.settings_and_memories?.find(c => c.id === categoryId);
+                        if (category && category.name_translation_key) {
+                            title = $text(category.name_translation_key);
+                        } else {
+                            title = app.name_translation_key ? $text(app.name_translation_key) : appId;
+                        }
+                    } else {
+                        // Regular app details route - use app name
+                        title = app.name_translation_key ? $text(app.name_translation_key) : appId;
+                    }
                 } else {
                     icon = appId;
                     title = $text(`apps.${appId}.text`);
@@ -697,7 +822,8 @@ changes to the documentation (to keep the documentation up to date).
                 teamEnabled.set(isTeamEnabled);
                 break;
             case 'incognito':
-                isIncognitoEnabled = !isIncognitoEnabled;
+                // Store handles the toggle and deletion of incognito chats
+                incognitoMode.toggle();
                 break;
             case 'guest':
                 isGuestEnabled = !isGuestEnabled;

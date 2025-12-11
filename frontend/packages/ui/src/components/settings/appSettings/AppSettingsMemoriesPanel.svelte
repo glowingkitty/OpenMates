@@ -125,13 +125,13 @@
     {#if entriesLoading}
         <div class="loading">
             <div class="spinner"></div>
-            <p>{$text('settings.app_settings_memories.loading')}</p>
+            <p>{$text('settings.app_settings_memories.loading.text')}</p>
         </div>
     {:else if Object.keys(groupedEntries).length === 0}
         <div class="empty">
-            <p>{$text('settings.app_settings_memories.no_settings')}</p>
+            <p>{$text('settings.app_settings_memories.no_settings.text')}</p>
             <button class="add-entry-btn" onclick={() => (showCreateForm = true)}>
-                + {$text('settings.app_settings_memories.add_entry')}
+                + {$text('settings.app_settings_memories.add_entry.text')}
             </button>
         </div>
     {:else}
@@ -170,7 +170,7 @@
             {/each}
 
             <button class="add-entry-btn" onclick={() => (showCreateForm = true)}>
-                + {$text('settings.app_settings_memories.add_entry')}
+                + {$text('settings.app_settings_memories.add_entry.text')}
             </button>
         </div>
     {/if}
@@ -179,13 +179,13 @@
         <div class="modal-overlay" role="presentation" onclick={resetForm}>
             <div class="modal" role="dialog" tabindex={-1} onclick={(e) => e.stopPropagation()} onkeydown={(e) => e.key === 'Escape' && resetForm()}>
                 <div class="modal-header">
-                    <h3>{$text('settings.app_settings_memories.add_entry')}</h3>
+                    <h3>{$text('settings.app_settings_memories.add_entry.text')}</h3>
                     <button class="close-btn" onclick={resetForm}>✕</button>
                 </div>
 
                 <div class="form-group">
                     <label for="item-key">
-                        {$text('settings.app_settings_memories.item_key')}
+                        {$text('settings.app_settings_memories.item_key.text')}
                         <span class="required">*</span>
                     </label>
                     <input
@@ -200,7 +200,7 @@
 
                 <div class="form-group">
                     <label for="settings-group">
-                        {$text('settings.app_settings_memories.settings_group')}
+                        {$text('settings.app_settings_memories.settings_group.text')}
                     </label>
                     <input
                         id="settings-group"
@@ -214,7 +214,7 @@
 
                 <div class="form-group">
                     <label for="item-value">
-                        {$text('settings.app_settings_memories.item_value')}
+                        {$text('settings.app_settings_memories.item_value.text')}
                         <span class="required">*</span>
                     </label>
                     <textarea
@@ -233,14 +233,14 @@
 
                 <div class="modal-footer">
                     <button class="cancel-btn" onclick={resetForm} disabled={isCreating}>
-                        {$text('settings.app_settings_memories.cancel')}
+                        {$text('settings.app_settings_memories.cancel.text')}
                     </button>
                     <button
                         class="create-btn"
                         onclick={handleCreateEntry}
                         disabled={isCreating}
                     >
-                        {isCreating ? $text('settings.app_settings_memories.creating') : $text('settings.app_settings_memories.add_entry')}
+                        {isCreating ? $text('settings.app_settings_memories.creating.text') : $text('settings.app_settings_memories.add_entry.text')}
                     </button>
                 </div>
             </div>

@@ -685,7 +685,19 @@ async def call_preprocessing_llm(
                         return LLMPreprocessingCallResult(error_message=err_msg, raw_provider_response_summary=current_raw_provider_response_summary)
                     return LLMPreprocessingCallResult(arguments=tool_call.function_arguments_parsed, raw_provider_response_summary=current_raw_provider_response_summary)
             
-            err_msg_tool_not_found = f"Expected tool '{expected_tool_name}' not found in tool calls."
+            # Log detailed information about what tools were actually called
+            actual_tool_names = [tc.function_name for tc in response.tool_calls_made if hasattr(tc, "function_name")]
+            err_msg_tool_not_found = (
+                f"Expected tool '{expected_tool_name}' not found in tool calls. "
+                f"Actual tool calls made: {actual_tool_names}. "
+                f"This indicates the LLM called a different tool than expected, possibly due to previous tool calls in message history."
+            )
+            logger.error(
+                f"[{task_id}] Preprocessing LLM called wrong tool. "
+                f"Expected: '{expected_tool_name}'. "
+                f"Actual: {actual_tool_names}. "
+                f"This may be caused by previous tool calls in message history confusing the LLM."
+            )
             return LLMPreprocessingCallResult(error_message=err_msg_tool_not_found, raw_provider_response_summary=current_raw_provider_response_summary)
 
         elif not response.success:

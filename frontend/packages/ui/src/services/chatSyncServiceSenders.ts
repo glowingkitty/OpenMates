@@ -196,10 +196,29 @@ export async function sendNewMessageImpl(
     // CRITICAL: Determine if this is a NEW chat or FOLLOW-UP message
     // Check if chat has existing messages (messages_v > 1, since current message is #1 for new chats)
     // NOT just encrypted_title, because title generation might have been skipped/failed
-    const chat = await chatDB.getChat(message.chat_id);
+    // Also check if this is an incognito chat
+    let chat: Chat | null = null;
+    let isIncognitoChat = false;
+    
+    // First check if it's an incognito chat
+    const { incognitoChatService } = await import('./incognitoChatService');
+    try {
+        chat = await incognitoChatService.getChat(message.chat_id);
+        if (chat) {
+            isIncognitoChat = true;
+        }
+    } catch (error) {
+        // Not an incognito chat, continue to check IndexedDB
+    }
+    
+    // If not found in incognito service, check IndexedDB
+    if (!chat) {
+        chat = await chatDB.getChat(message.chat_id);
+    }
+    
     const chatHasMessages = (chat?.messages_v ?? 0) > 1; // > 1 because current message will be message #1
     
-    console.debug(`[ChatSyncService:Senders] Chat has existing messages: ${chatHasMessages} (messages_v: ${chat?.messages_v}) - ${chatHasMessages ? 'FOLLOW-UP' : 'NEW CHAT'}`);
+    console.debug(`[ChatSyncService:Senders] Chat has existing messages: ${chatHasMessages} (messages_v: ${chat?.messages_v}) - ${chatHasMessages ? 'FOLLOW-UP' : 'NEW CHAT'}, isIncognito: ${isIncognitoChat}`);
     
     // Extract embed references from message content
     // Embeds are referenced as JSON code blocks: ```json\n{"type": "app_skill_use", "embed_id": "..."}\n```
@@ -233,6 +252,17 @@ export async function sendNewMessageImpl(
         });
     }
     
+    // For incognito chats, load full message history (no server-side caching)
+    let messageHistory: Message[] = [];
+    if (isIncognitoChat) {
+        try {
+            messageHistory = await incognitoChatService.getMessagesForChat(message.chat_id);
+            console.debug(`[ChatSyncService:Senders] Loaded ${messageHistory.length} messages from incognito chat history`);
+        } catch (error) {
+            console.error(`[ChatSyncService:Senders] Error loading incognito chat message history:`, error);
+        }
+    }
+    
     // Phase 1 payload: ONLY fields needed for AI processing
     const payload: any = {
         chat_id: message.chat_id,
@@ -244,9 +274,22 @@ export async function sendNewMessageImpl(
             sender_name: message.sender_name, // Include for cache but not critical for AI
             chat_has_title: chatHasMessages // ZERO-KNOWLEDGE: Send true if chat has messages (follow-up), false if new
             // NO category or encrypted fields - those go to Phase 2
-            // NO message_history - server will request if cache is stale
-        }
+            // NO message_history - server will request if cache is stale (unless incognito)
+        },
+        is_incognito: isIncognitoChat // Flag for backend to skip persistence
     };
+    
+    // For incognito chats, include full message history (no server-side caching)
+    if (isIncognitoChat && messageHistory.length > 0) {
+        payload.message_history = messageHistory.map(msg => ({
+            message_id: msg.message_id,
+            role: msg.role,
+            content: typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content),
+            created_at: msg.created_at,
+            sender_name: msg.sender_name
+        }));
+        console.debug(`[ChatSyncService:Senders] Including full message history for incognito chat: ${messageHistory.length} messages`);
+    }
     
     // Include embeds if any were found in the message
     if (embeds.length > 0) {

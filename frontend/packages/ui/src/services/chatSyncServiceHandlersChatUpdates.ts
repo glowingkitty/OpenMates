@@ -372,11 +372,47 @@ export async function handleChatMessageReceivedImpl(
             incomingMessage.chat_id = payload.chat_id;
         }
         
-        // Use separate transactions for each operation to avoid InvalidStateError
-        await chatDB.saveMessage(incomingMessage);
+        // Check if this is an incognito chat
+        const { incognitoChatService } = await import('./incognitoChatService');
+        let chat: Chat | null = null;
+        let isIncognitoChat = false;
         
-        let chat = await chatDB.getChat(payload.chat_id);
-        if (chat) {
+        try {
+            chat = await incognitoChatService.getChat(payload.chat_id);
+            if (chat) {
+                isIncognitoChat = true;
+            }
+        } catch (error) {
+            // Not an incognito chat, continue to check IndexedDB
+        }
+        
+        if (!chat) {
+            chat = await chatDB.getChat(payload.chat_id);
+        }
+        
+        if (isIncognitoChat && chat) {
+            // Save to incognito service (no encryption needed)
+            await incognitoChatService.addMessage(payload.chat_id, incomingMessage);
+            chat.messages_v = payload.versions.messages_v;
+            chat.last_edited_overall_timestamp = payload.last_edited_overall_timestamp;
+            chat.updated_at = Math.floor(Date.now() / 1000);
+            await incognitoChatService.updateChat(payload.chat_id, {
+                messages_v: chat.messages_v,
+                last_edited_overall_timestamp: chat.last_edited_overall_timestamp,
+                updated_at: chat.updated_at
+            });
+            console.info(`[ChatSyncService:ChatUpdates] Updated incognito chat ${payload.chat_id} with messages_v: ${chat.messages_v}`);
+            serviceInstance.dispatchEvent(new CustomEvent('chatUpdated', { 
+                detail: { 
+                    chat_id: payload.chat_id, 
+                    newMessage: incomingMessage, 
+                    chat: chat 
+                } 
+            }));
+        } else if (chat) {
+            // Use separate transactions for each operation to avoid InvalidStateError
+            await chatDB.saveMessage(incomingMessage);
+            
             // CRITICAL: Only update specific fields, preserve all encrypted metadata
             // Create a minimal update object that only touches what we need to change
             const chatUpdate: Chat = {

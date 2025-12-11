@@ -447,7 +447,9 @@ function parseAppYaml(appId, filePath) {
                         (item.description_translation_key || '').trim(), 
                         'app_settings_memories.'
                     ),
-                    type: (item.type || 'single').trim()
+                    type: (item.type || 'single').trim(),
+                    // Include schema_definition if present (for dynamic form generation)
+                    schema_definition: item.schema || item.schema_definition || undefined
                 };
                 
                 if (memoryMetadata.id && memoryMetadata.name_translation_key && memoryMetadata.description_translation_key) {
@@ -611,7 +613,21 @@ function generateTypeScript(appsMetadata) {
                     lines.push(`                id: ${JSON.stringify(memory.id)},`);
                     lines.push(`                name_translation_key: ${JSON.stringify(memory.name_translation_key)},`);
                     lines.push(`                description_translation_key: ${JSON.stringify(memory.description_translation_key)},`);
-                    lines.push(`                type: ${JSON.stringify(memory.type)}`);
+                    // Include schema_definition if present (for dynamic form generation)
+                    if (memory.schema_definition) {
+                        lines.push(`                type: ${JSON.stringify(memory.type)},`);
+                        const schemaStr = JSON.stringify(memory.schema_definition, null, 16);
+                        // Indent each line of the schema to match the indentation level
+                        const indentedSchema = schemaStr.split('\n').map((line, index) => {
+                            if (index === 0) {
+                                return `                schema_definition: ${line}`;
+                            }
+                            return `                ${line}`;
+                        }).join('\n');
+                        lines.push(indentedSchema);
+                    } else {
+                        lines.push(`                type: ${JSON.stringify(memory.type)}`);
+                    }
                     lines.push(`            },`);
                 }
             }

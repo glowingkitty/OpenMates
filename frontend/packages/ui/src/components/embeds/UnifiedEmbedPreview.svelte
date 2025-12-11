@@ -152,7 +152,13 @@
   function handleKeydown(e: KeyboardEvent) {
     if ((e.key === 'Enter' || e.key === ' ') && status === 'finished') {
       e.preventDefault();
-      handleClick();
+      // Create a synthetic mouse event for handleClick
+      const syntheticEvent = new MouseEvent('click', {
+        bubbles: true,
+        cancelable: true,
+        view: window
+      });
+      handleClick(syntheticEvent);
     }
   }
   
@@ -184,10 +190,14 @@
   data-app-id={appId}
   data-skill-id={skillId}
   data-status={status}
-  role={status === 'finished' ? 'button' : undefined}
-  tabindex={status === 'finished' ? 0 : undefined}
-  onclick={status === 'finished' ? handleClick : undefined}
-  onkeydown={status === 'finished' ? handleKeydown : undefined}
+  {...(status === 'finished' ? {
+    role: 'button',
+    tabindex: 0,
+    onclick: handleClick,
+    onkeydown: handleKeydown
+  } : {
+    role: 'presentation'
+  })}
 >
   {#if useMobileLayout}
     <!-- Mobile Layout: Vertical card (150x290px) -->

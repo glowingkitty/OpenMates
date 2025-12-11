@@ -1,0 +1,50 @@
+favorite_places:
+  context: Settings/memory name for favorite places in Maps app
+  en: Favorite places
+  de: Lieblingsorte
+  zh: 收藏地点
+  es: Lugares favoritos
+  fr: Lieux favoris
+  pt: Lugares favoritos
+  ru: Избранные места
+  ja: お気に入りの場所
+  ko: 즐겨찾는 장소
+  it: Luoghi preferiti
+  tr: Favori yerler
+  vi: Địa điểm yêu thích
+  id: Tempat favorit
+  pl: Ulubione miejsca
+  nl: Favoriete plaatsen
+  ar: الأماكن المفضلة
+  hi: पसंदीदा स्थान
+  th: สถานที่โปรด
+  cs: Oblíbená místa
+  sv: Favoritplatser
+  verified_by_human:
+  - en
+  - de
+favorite_places.description:
+  context: Description for favorite places setting in Maps app
+  en: Your saved favorite places for quick access.
+  de: Deine gespeicherten Lieblingsorte für schnellen Zugriff.
+  zh: 您保存的收藏地点，方便快速访问。
+  es: Tus lugares favoritos guardados para acceso rápido.
+  fr: Vos lieux favoris enregistrés pour un accès rapide.
+  pt: Seus lugares favoritos salvos para acesso rápido.
+  ru: Ваши сохраненные избранные места для быстрого доступа.
+  ja: クイックアクセスのための保存されたお気に入りの場所。
+  ko: 빠른 액세스를 위한 저장된 즐겨찾는 장소.
+  it: I tuoi luoghi preferiti salvati per un accesso rapido.
+  tr: Hızlı erişim için kaydedilmiş favori yerleriniz.
+  vi: Các địa điểm yêu thích đã lưu của bạn để truy cập nhanh.
+  id: Tempat favorit yang disimpan untuk akses cepat.
+  pl: Twoje zapisane ulubione miejsca do szybkiego dostępu.
+  nl: Je opgeslagen favoriete plaatsen voor snelle toegang.
+  ar: الأماكن المفضلة المحفوظة للوصول السريع.
+  hi: त्वरित पहुंच के लिए आपके सहेजे गए पसंदीदा स्थान।
+  th: สถานที่โปรดที่บันทึกไว้สำหรับการเข้าถึงอย่างรวดเร็ว
+  cs: Vaše uložená oblíbená místa pro rychlý přístup.
+  sv: Dina sparade favoritplatser för snabb åtkomst.
+  verified_by_human:
+  - en
+  - de

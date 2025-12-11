@@ -115,6 +115,9 @@ export const apiEndpoints = {
         getSubscription:            '/v1/payments/subscription',                // Get user's subscription details
         cancelSubscription:         '/v1/payments/cancel-subscription',         // Cancel monthly subscription
         redeemGiftCard:             '/v1/payments/redeem-gift-card',           // Redeem a gift card code
+        buyGiftCard:                '/v1/payments/buy-gift-card',              // Purchase a gift card for someone else
+        getRedeemedGiftCards:       '/v1/payments/redeemed-gift-cards',        // Get user's redeemed gift cards
+        getPurchasedGiftCards:      '/v1/payments/purchased-gift-cards',       // Get user's purchased gift cards
         getInvoices:                '/v1/payments/invoices',                   // Get user's invoices
         downloadInvoice:            '/v1/payments/invoices/{id}/download',      // Download specific invoice PDF
         // Webhook endpoint is only called by payment providers, not the frontend

@@ -801,23 +801,50 @@ async def _async_process_ai_skill_ask_task(
                     break
 
         # Get chat summary and tags from preprocessing result (generated from full chat history)
-        chat_summary = preprocessing_result.chat_summary if preprocessing_result else ""
-        chat_tags = preprocessing_result.chat_tags if preprocessing_result else []
+        # CRITICAL: Check if preprocessing failed before accessing fields
+        # If preprocessing failed (can_proceed=False or error_message set), chat_summary will be None/empty
+        preprocessing_failed = (
+            not preprocessing_result 
+            or not preprocessing_result.can_proceed 
+            or preprocessing_result.error_message is not None
+        )
+        
+        chat_summary = preprocessing_result.chat_summary if preprocessing_result and not preprocessing_failed else None
+        chat_tags = preprocessing_result.chat_tags if preprocessing_result and not preprocessing_failed else []
 
         # CRITICAL: chat_summary is required for post-processing
         # If missing, log detailed information to understand why the preprocessing LLM didn't return it
-        if not chat_summary:
-            logger.error(
-                f"[Task ID: {task_id}] CRITICAL: Chat summary not available from preprocessing - cannot generate suggestions. "
-                f"This indicates the preprocessing LLM failed to return a required field. "
-                f"Preprocessing result available: {preprocessing_result is not None}. "
-                f"Preprocessing result keys: {list(preprocessing_result.model_dump().keys()) if preprocessing_result else 'N/A'}. "
-                f"Raw LLM response from preprocessing: {preprocessing_result.raw_llm_response if preprocessing_result else 'N/A'}. "
-                f"Chat ID: {request_data.chat_id}. "
-                f"Message ID: {request_data.message_id}. "
-                f"Message history length: {len(request_data.message_history) if request_data.message_history else 0}. "
-                f"This is a critical error that needs investigation - the preprocessing LLM should always return chat_summary."
-            )
+        if preprocessing_failed or not chat_summary:
+            # Determine the specific reason for failure
+            if preprocessing_failed:
+                failure_reason = (
+                    preprocessing_result.error_message 
+                    if preprocessing_result and preprocessing_result.error_message 
+                    else "Preprocessing failed (can_proceed=False)"
+                )
+                logger.error(
+                    f"[Task ID: {task_id}] CRITICAL: Preprocessing failed - cannot generate suggestions. "
+                    f"Failure reason: {failure_reason}. "
+                    f"Preprocessing result available: {preprocessing_result is not None}. "
+                    f"Can proceed: {preprocessing_result.can_proceed if preprocessing_result else 'N/A'}. "
+                    f"Raw LLM response from preprocessing: {preprocessing_result.raw_llm_response if preprocessing_result else 'N/A'}. "
+                    f"Chat ID: {request_data.chat_id}. "
+                    f"Message ID: {request_data.message_id}. "
+                    f"Message history length: {len(request_data.message_history) if request_data.message_history else 0}. "
+                    f"This indicates the preprocessing LLM call failed or returned an error."
+                )
+            else:
+                logger.error(
+                    f"[Task ID: {task_id}] CRITICAL: Chat summary not available from preprocessing - cannot generate suggestions. "
+                    f"This indicates the preprocessing LLM failed to return a required field. "
+                    f"Preprocessing result available: {preprocessing_result is not None}. "
+                    f"Preprocessing result keys: {list(preprocessing_result.model_dump().keys()) if preprocessing_result else 'N/A'}. "
+                    f"Raw LLM response from preprocessing: {preprocessing_result.raw_llm_response if preprocessing_result else 'N/A'}. "
+                    f"Chat ID: {request_data.chat_id}. "
+                    f"Message ID: {request_data.message_id}. "
+                    f"Message history length: {len(request_data.message_history) if request_data.message_history else 0}. "
+                    f"This is a critical error that needs investigation - the preprocessing LLM should always return chat_summary."
+                )
             # Skip post-processing but log the error for debugging
             postprocessing_result = None
         else:
@@ -836,6 +863,7 @@ async def _async_process_ai_skill_ask_task(
                 secrets_manager=secrets_manager,
                 cache_service=cache_service_instance,
                 available_app_ids=available_app_ids,
+                is_incognito=getattr(request_data, 'is_incognito', False),  # Pass incognito flag
             )
 
         if postprocessing_result and cache_service_instance:

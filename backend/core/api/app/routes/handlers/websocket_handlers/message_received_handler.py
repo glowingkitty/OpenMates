@@ -52,6 +52,8 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
         message_payload_from_client = payload.get("message")
         # Get encrypted chat key for server storage (zero-knowledge architecture)
         encrypted_chat_key_from_client = payload.get("encrypted_chat_key")
+        # Check if this is an incognito chat
+        is_incognito = payload.get("is_incognito", False)
 
         if not chat_id or not message_payload_from_client or not isinstance(message_payload_from_client, dict):
             logger.error(f"Invalid message payload structure from {user_id}/{device_fingerprint_hash}: {payload}")
@@ -62,51 +64,56 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             )
             return
 
-        # CRITICAL: Verify chat ownership before processing message
-        # This prevents authenticated users from sending messages to shared chats they don't own
-        # For now, shared chats are read-only for non-owners (group chat support will be added later)
-        try:
-            chat_metadata = await directus_service.chat.get_chat_metadata(chat_id)
-            if chat_metadata:
-                # Check if user owns this chat
-                is_owner = await directus_service.chat.check_chat_ownership(chat_id, user_id)
-                if not is_owner:
-                    logger.warning(
-                        f"User {user_id} attempted to send message to chat {chat_id} they don't own. "
-                        f"Rejecting message (read-only shared chat)."
-                    )
-                    await manager.send_personal_message(
-                        {
-                            "type": "error",
-                            "payload": {
-                                "message": "You cannot send messages to this shared chat. Shared chats are read-only for non-owners.",
-                                "chat_id": chat_id,
-                                "message_id": message_payload_from_client.get("message_id")
-                            }
-                        },
-                        user_id,
-                        device_fingerprint_hash
-                    )
-                    return
-            else:
-                # Chat doesn't exist - this might be a new chat creation, which is allowed
-                logger.debug(f"Chat {chat_id} not found in database - treating as new chat creation")
-        except Exception as e_ownership:
-            logger.error(f"Error checking chat ownership for chat {chat_id}, user {user_id}: {e_ownership}", exc_info=True)
-            # On error, reject the message for security (fail closed)
-            await manager.send_personal_message(
-                {
-                    "type": "error",
-                    "payload": {
-                        "message": "Unable to verify chat ownership. Please try again.",
-                        "chat_id": chat_id,
-                        "message_id": message_payload_from_client.get("message_id")
-                    }
-                },
-                user_id,
-                device_fingerprint_hash
-            )
-            return
+        # CRITICAL: For incognito chats, skip Directus operations (no persistence, no ownership checks)
+        # Incognito chats are not stored in Directus and should not be synced to other devices
+        if not is_incognito:
+            # CRITICAL: Verify chat ownership before processing message
+            # This prevents authenticated users from sending messages to shared chats they don't own
+            # For now, shared chats are read-only for non-owners (group chat support will be added later)
+            try:
+                chat_metadata = await directus_service.chat.get_chat_metadata(chat_id)
+                if chat_metadata:
+                    # Check if user owns this chat
+                    is_owner = await directus_service.chat.check_chat_ownership(chat_id, user_id)
+                    if not is_owner:
+                        logger.warning(
+                            f"User {user_id} attempted to send message to chat {chat_id} they don't own. "
+                            f"Rejecting message (read-only shared chat)."
+                        )
+                        await manager.send_personal_message(
+                            {
+                                "type": "error",
+                                "payload": {
+                                    "message": "You cannot send messages to this shared chat. Shared chats are read-only for non-owners.",
+                                    "chat_id": chat_id,
+                                    "message_id": message_payload_from_client.get("message_id")
+                                }
+                            },
+                            user_id,
+                            device_fingerprint_hash
+                        )
+                        return
+                else:
+                    # Chat doesn't exist - this might be a new chat creation, which is allowed
+                    logger.debug(f"Chat {chat_id} not found in database - treating as new chat creation")
+            except Exception as e_ownership:
+                logger.error(f"Error checking chat ownership for chat {chat_id}, user {user_id}: {e_ownership}", exc_info=True)
+                # On error, reject the message for security (fail closed)
+                await manager.send_personal_message(
+                    {
+                        "type": "error",
+                        "payload": {
+                            "message": "Unable to verify chat ownership. Please try again.",
+                            "chat_id": chat_id,
+                            "message_id": message_payload_from_client.get("message_id")
+                        }
+                    },
+                    user_id,
+                    device_fingerprint_hash
+                )
+                return
+        else:
+            logger.info(f"Processing incognito chat message {message_payload_from_client.get('message_id')} for chat {chat_id} - skipping Directus operations")
 
         message_id = message_payload_from_client.get("message_id")
         role = message_payload_from_client.get("role") 
@@ -128,8 +135,9 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
 
         # DELETE NEW CHAT SUGGESTION if user clicked one before sending this message
         # This ensures used suggestions are removed from the pool on both client and server
+        # Skip for incognito chats (they don't use suggestions)
         encrypted_suggestion_to_delete = payload.get("encrypted_suggestion_to_delete")
-        if encrypted_suggestion_to_delete:
+        if encrypted_suggestion_to_delete and not is_incognito:
             logger.info(f"User {user_id} clicked a new chat suggestion, deleting it from server storage")
             try:
                 # Hash user_id for database query
@@ -288,83 +296,95 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             )
             return
 
-        message_for_cache = MessageInCache(
-            id=message_id,
-            chat_id=chat_id,
-            role=role,
-            category=None, # Not needed for Phase 1 AI processing
-            sender_name=final_sender_name,
-            encrypted_content=encrypted_content_for_cache,  # Server-side encrypted
-            created_at=client_timestamp_unix,
-            status="sending"
-        )
-        # Save to cache first
-        # This also updates chat versions (messages_v, last_edited_overall_timestamp)
-        # and returns the new versions.
-        cache_save_start = time.time()
-        version_update_result = await cache_service.save_chat_message_and_update_versions(
-            user_id=user_id,
-            chat_id=chat_id,
-            message_data=message_for_cache
-        )
-        cache_save_time = time.time() - cache_save_start
-        logger.info(f"[PERF] Cache save took {cache_save_time:.3f}s for message {message_id}")
-
-        if not version_update_result:
-            logger.error(f"Failed to save message {message_id} to cache or update versions for chat {chat_id}. User: {user_id}")
-            await manager.send_personal_message(
-                {"type": "error", "payload": {"message": "Failed to process message due to cache error.", "chat_id": chat_id, "message_id": message_id}},
-                user_id, device_fingerprint_hash
+        # For incognito chats, skip cache operations (no server-side persistence)
+        # Still need to track versions for client confirmation, but don't persist to cache
+        if is_incognito:
+            # For incognito chats, use dummy version numbers (not persisted)
+            new_messages_v = 1  # Will be incremented by client
+            new_last_edited_overall_timestamp = client_timestamp_unix
+            logger.debug(f"Skipping cache save for incognito chat {chat_id} - no server-side persistence")
+        else:
+            message_for_cache = MessageInCache(
+                id=message_id,
+                chat_id=chat_id,
+                role=role,
+                category=None, # Not needed for Phase 1 AI processing
+                sender_name=final_sender_name,
+                encrypted_content=encrypted_content_for_cache,  # Server-side encrypted
+                created_at=client_timestamp_unix,
+                status="sending"
             )
-            return
+            # Save to cache first
+            # This also updates chat versions (messages_v, last_edited_overall_timestamp)
+            # and returns the new versions.
+            cache_save_start = time.time()
+            version_update_result = await cache_service.save_chat_message_and_update_versions(
+                user_id=user_id,
+                chat_id=chat_id,
+                message_data=message_for_cache
+            )
+            cache_save_time = time.time() - cache_save_start
+            logger.info(f"[PERF] Cache save took {cache_save_time:.3f}s for message {message_id}")
+
+            if not version_update_result:
+                logger.error(f"Failed to save message {message_id} to cache or update versions for chat {chat_id}. User: {user_id}")
+                await manager.send_personal_message(
+                    {"type": "error", "payload": {"message": "Failed to process message due to cache error.", "chat_id": chat_id, "message_id": message_id}},
+                    user_id, device_fingerprint_hash
+                )
+                return
+                
+            new_messages_v = version_update_result["messages_v"]
+            new_last_edited_overall_timestamp = version_update_result["last_edited_overall_timestamp"]
             
-        new_messages_v = version_update_result["messages_v"]
-        new_last_edited_overall_timestamp = version_update_result["last_edited_overall_timestamp"]
-        
-        logger.debug(f"Saved encrypted message {message_id} to cache for chat {chat_id} by user {user_id}. New messages_v: {new_messages_v}")
+            logger.debug(f"Saved encrypted message {message_id} to cache for chat {chat_id} by user {user_id}. New messages_v: {new_messages_v}")
 
         # DELETE DRAFT FROM CACHE when message is sent
         # This ensures draft is not restored on next login (zero-knowledge architecture)
         # The client will also send a delete_draft message, but we do it here preemptively
         # to avoid race conditions between message send and draft delete
-        try:
-            cache_delete_success = await cache_service.delete_user_draft_from_cache(
-                user_id=user_id,
-                chat_id=chat_id
-            )
-            if cache_delete_success:
-                logger.info(f"Successfully deleted draft from cache for chat {chat_id} after message {message_id} was sent")
-            else:
-                logger.debug(f"Draft cache key not found for chat {chat_id} (already deleted or never existed)")
-            
-            # Also delete the user-specific draft version from the general chat versions key
-            version_delete_success = await cache_service.delete_user_draft_version_from_chat_versions(
-                user_id=user_id,
-                chat_id=chat_id
-            )
-            if version_delete_success:
-                logger.debug(f"Successfully deleted user-specific draft version from chat versions for chat {chat_id}")
-            else:
-                logger.debug(f"Draft version not found in chat versions for chat {chat_id} (already deleted or never existed)")
-            
-            # Broadcast draft deletion to other devices so they clear their draft UI
-            # This ensures consistent state across all user devices
-            if cache_delete_success or version_delete_success:
-                try:
-                    await manager.broadcast_to_user(
-                        message={
-                            "type": "draft_deleted",
-                            "payload": {"chat_id": chat_id}
-                        },
-                        user_id=user_id,
-                        exclude_device_hash=device_fingerprint_hash
-                    )
-                    logger.debug(f"Broadcasted draft_deleted event for chat {chat_id} to other user devices")
-                except Exception as e_broadcast:
-                    logger.warning(f"Failed to broadcast draft_deleted for chat {chat_id}: {e_broadcast}")
-        except Exception as e_draft_delete:
-            logger.warning(f"Error deleting draft from cache for chat {chat_id} after message send: {e_draft_delete}")
-            # Non-critical error - draft will expire via TTL or be overwritten by client delete_draft message
+        # Skip for incognito chats (drafts are not saved for incognito chats)
+        if not is_incognito:
+            try:
+                cache_delete_success = await cache_service.delete_user_draft_from_cache(
+                    user_id=user_id,
+                    chat_id=chat_id
+                )
+                if cache_delete_success:
+                    logger.info(f"Successfully deleted draft from cache for chat {chat_id} after message {message_id} was sent")
+                else:
+                    logger.debug(f"Draft cache key not found for chat {chat_id} (already deleted or never existed)")
+                
+                # Also delete the user-specific draft version from the general chat versions key
+                version_delete_success = await cache_service.delete_user_draft_version_from_chat_versions(
+                    user_id=user_id,
+                    chat_id=chat_id
+                )
+                if version_delete_success:
+                    logger.debug(f"Successfully deleted user-specific draft version from chat versions for chat {chat_id}")
+                else:
+                    logger.debug(f"Draft version not found in chat versions for chat {chat_id} (already deleted or never existed)")
+                
+                # Broadcast draft deletion to other devices so they clear their draft UI
+                # This ensures consistent state across all user devices
+                if cache_delete_success or version_delete_success:
+                    try:
+                        await manager.broadcast_to_user(
+                            message={
+                                "type": "draft_deleted",
+                                "payload": {"chat_id": chat_id}
+                            },
+                            user_id=user_id,
+                            exclude_device_hash=device_fingerprint_hash
+                        )
+                        logger.debug(f"Broadcasted draft_deleted event for chat {chat_id} to other user devices")
+                    except Exception as e_broadcast:
+                        logger.warning(f"Failed to broadcast draft_deleted for chat {chat_id}: {e_broadcast}")
+            except Exception as e_draft_delete:
+                logger.warning(f"Error deleting draft from cache for chat {chat_id} after message send: {e_draft_delete}")
+                # Non-critical error - draft will expire via TTL or be overwritten by client delete_draft message
+        else:
+            logger.debug(f"Skipping draft deletion for incognito chat {chat_id} - drafts are not saved for incognito chats")
 
         # ENCRYPTED MESSAGE FOR AI PROCESSING
         # This handler receives cleartext messages from client for AI inference
@@ -562,48 +582,53 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             
             logger.info(f"Sent {len(extracted_code_embeds)} code embeds to client for message {message_id}")
 
-        # Fetch encrypted_chat_key for device sync if not provided by client
-        # This is critical for zero-knowledge architecture across multiple devices
-        encrypted_chat_key_for_broadcast = encrypted_chat_key_from_client
-        if not encrypted_chat_key_for_broadcast:
-            try:
-                # Try to get from cache first (faster)
-                chat_metadata_cache = await cache_service.get_chat_list_item_data(user_id, chat_id)
-                if chat_metadata_cache and hasattr(chat_metadata_cache, 'encrypted_chat_key'):
-                    encrypted_chat_key_for_broadcast = chat_metadata_cache.encrypted_chat_key
-                    logger.debug(f"Retrieved encrypted_chat_key from cache for chat {chat_id}")
-                
-                # Fallback to database if not in cache
-                if not encrypted_chat_key_for_broadcast:
-                    chat_metadata_db = await directus_service.chat.get_chat_metadata(chat_id)
-                    if chat_metadata_db and chat_metadata_db.get('encrypted_chat_key'):
-                        encrypted_chat_key_for_broadcast = chat_metadata_db['encrypted_chat_key']
-                        logger.debug(f"Retrieved encrypted_chat_key from database for chat {chat_id}")
-            except Exception as e:
-                logger.error(f"Failed to retrieve encrypted_chat_key for chat {chat_id}: {e}")
-        
-        # Broadcast the new message to other connected devices of the same user
-        broadcast_payload_content = {
-            "type": "new_chat_message", # A distinct type for other clients receiving a new message
-            "payload": {
-                "chat_id": chat_id,
-                "message_id": message_id,
-                "role": role,
-                "sender_name": final_sender_name,
-                "content": content_plain,
-                "created_at": client_timestamp_unix,
-                "messages_v": new_messages_v,
-                "last_edited_overall_timestamp": new_last_edited_overall_timestamp,
-                "encrypted_chat_key": encrypted_chat_key_for_broadcast  # Critical for device sync
-                # Add any other fields clients expect for a new message display
+        # CRITICAL: For incognito chats, DO NOT broadcast to other devices
+        # Incognito chats are device-specific and should not be synced
+        if not is_incognito:
+            # Fetch encrypted_chat_key for device sync if not provided by client
+            # This is critical for zero-knowledge architecture across multiple devices
+            encrypted_chat_key_for_broadcast = encrypted_chat_key_from_client
+            if not encrypted_chat_key_for_broadcast:
+                try:
+                    # Try to get from cache first (faster)
+                    chat_metadata_cache = await cache_service.get_chat_list_item_data(user_id, chat_id)
+                    if chat_metadata_cache and hasattr(chat_metadata_cache, 'encrypted_chat_key'):
+                        encrypted_chat_key_for_broadcast = chat_metadata_cache.encrypted_chat_key
+                        logger.debug(f"Retrieved encrypted_chat_key from cache for chat {chat_id}")
+                    
+                    # Fallback to database if not in cache
+                    if not encrypted_chat_key_for_broadcast:
+                        chat_metadata_db = await directus_service.chat.get_chat_metadata(chat_id)
+                        if chat_metadata_db and chat_metadata_db.get('encrypted_chat_key'):
+                            encrypted_chat_key_for_broadcast = chat_metadata_db['encrypted_chat_key']
+                            logger.debug(f"Retrieved encrypted_chat_key from database for chat {chat_id}")
+                except Exception as e:
+                    logger.error(f"Failed to retrieve encrypted_chat_key for chat {chat_id}: {e}")
+            
+            # Broadcast the new message to other connected devices of the same user
+            broadcast_payload_content = {
+                "type": "new_chat_message", # A distinct type for other clients receiving a new message
+                "payload": {
+                    "chat_id": chat_id,
+                    "message_id": message_id,
+                    "role": role,
+                    "sender_name": final_sender_name,
+                    "content": content_plain,
+                    "created_at": client_timestamp_unix,
+                    "messages_v": new_messages_v,
+                    "last_edited_overall_timestamp": new_last_edited_overall_timestamp,
+                    "encrypted_chat_key": encrypted_chat_key_for_broadcast  # Critical for device sync
+                    # Add any other fields clients expect for a new message display
+                }
             }
-        }
-        await manager.broadcast_to_user(
-            message=broadcast_payload_content,
-            user_id=user_id,
-            exclude_device_hash=device_fingerprint_hash # Exclude the sender's device
-        )
-        logger.debug(f"Broadcasted new_chat_message for {message_id} to other devices of user {user_id} (encrypted_chat_key included: {bool(encrypted_chat_key_for_broadcast)})")
+            await manager.broadcast_to_user(
+                message=broadcast_payload_content,
+                user_id=user_id,
+                exclude_device_hash=device_fingerprint_hash # Exclude the sender's device
+            )
+            logger.debug(f"Broadcasted new_chat_message for {message_id} to other devices of user {user_id} (encrypted_chat_key included: {bool(encrypted_chat_key_for_broadcast)})")
+        else:
+            logger.debug(f"Skipping broadcast for incognito chat {chat_id} - incognito chats are not synced to other devices")
 
         # --- BEGIN AI SKILL INVOCATION ---
         logger.debug(f"Preparing to invoke AI for chat {chat_id} after user message {message_id}")
@@ -611,10 +636,30 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
         message_history_for_ai: List[AIHistoryMessage] = []
         
         # Check if client provided chat history (for cache miss or stale cache scenarios)
+        # For incognito chats, client MUST provide full history (no server-side caching)
         client_provided_history = message_payload_from_client.get("message_history")
         
         history_start = time.time()
         try:
+            # For incognito chats, require client to provide full history
+            if is_incognito:
+                if not client_provided_history or not isinstance(client_provided_history, list):
+                    logger.warning(f"Incognito chat {chat_id} missing message_history - requesting from client")
+                    await manager.send_personal_message(
+                        {
+                            "type": "request_chat_history",
+                            "payload": {
+                                "chat_id": chat_id,
+                                "reason": "incognito_requires_history",
+                                "message": "Incognito chats require full message history with each request"
+                            }
+                        },
+                        user_id,
+                        device_fingerprint_hash
+                    )
+                    return  # Stop processing until client provides history
+                logger.info(f"Using client-provided history for incognito chat {chat_id}: {len(client_provided_history)} messages")
+            
             if client_provided_history and isinstance(client_provided_history, list):
                 # Client provided full history - use it directly and re-cache
                 logger.info(f"Client provided {len(client_provided_history)} messages for chat {chat_id}. Using client history and re-caching.")
@@ -689,6 +734,23 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                 
             else:
                 # No client history - try AI inference cache
+                # For incognito chats, skip cache (no server-side caching)
+                if is_incognito:
+                    logger.warning(f"Incognito chat {chat_id} missing message_history - cannot use cache")
+                    await manager.send_personal_message(
+                        {
+                            "type": "request_chat_history",
+                            "payload": {
+                                "chat_id": chat_id,
+                                "reason": "incognito_requires_history",
+                                "message": "Incognito chats require full message history with each request"
+                            }
+                        },
+                        user_id,
+                        device_fingerprint_hash
+                    )
+                    return  # Stop processing until client provides history
+                
                 # 1. Fetch message history for the chat FROM AI CACHE ONLY (vault-encrypted)
                 # AI cache contains encrypted_content (encrypted with encryption_key_user_server from Vault)
                 # Server decrypts for AI processing, maintaining security
@@ -924,6 +986,7 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             user_id_hash=hashlib.sha256(user_id.encode()).hexdigest(), # Pass the hashed user_id
             message_history=message_history_for_ai,
             chat_has_title=chat_has_title_from_client, # Pass the flag to preprocessing
+            is_incognito=is_incognito, # Pass the incognito flag
             mate_id=None, # Let preprocessor determine the mate unless a specific one is tied to the chat
             active_focus_id=active_focus_id_for_ai,
             user_preferences={}

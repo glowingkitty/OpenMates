@@ -343,6 +343,29 @@ low_balance_topup:
   cs: Automatické Dobití při Nízkém Zůstatku
   sv: Automatisk Påfyllning vid Lågt Saldo
   verified_by_human: []
+low_balance:
+  context: Low balance menu item title
+  en: On Low Balance
+  de: Bei niedrigem Guthaben
+  zh: 低余额时
+  es: En Saldo Bajo
+  fr: En cas de solde faible
+  pt: Em Saldo Baixo
+  ru: При низком балансе
+  ja: 残高不足時
+  ko: 낮은 잔액 시
+  it: Con Saldo Basso
+  tr: Düşük Bakiyede
+  vi: Khi số dư thấp
+  id: Saat Saldo Rendah
+  pl: Przy Niskim Saldzie
+  nl: Bij Laag Saldo
+  ar: عند انخفاض الرصيد
+  hi: कम शेष राशि पर
+  th: เมื่อยอดคงเหลือต่ำ
+  cs: Při Nízkém Zůstatku
+  sv: Vid Lågt Saldo
+  verified_by_human: []
 low_balance_description:
   context: Low balance auto top-up description
   en: Automatically purchase credits when your balance falls below a threshold.
@@ -503,6 +526,52 @@ auto_topup:
   th: เติมเงินอัตโนมัติ
   cs: Automatické Dobití
   sv: Automatisk Påfyllning
+  verified_by_human: []
+auto_topup.low_balance:
+  context: Low balance auto top-up submenu text
+  en: On Low Balance
+  de: Bei niedrigem Guthaben
+  zh: 低余额时
+  es: En Saldo Bajo
+  fr: En cas de solde faible
+  pt: Em Saldo Baixo
+  ru: При низком балансе
+  ja: 残高不足時
+  ko: 낮은 잔액 시
+  it: Con Saldo Basso
+  tr: Düşük Bakiyede
+  vi: Khi số dư thấp
+  id: Saat Saldo Rendah
+  pl: Przy Niskim Saldzie
+  nl: Bij Laag Saldo
+  ar: عند انخفاض الرصيد
+  hi: कम शेष राशि पर
+  th: เมื่อยอดคงเหลือต่ำ
+  cs: Při Nízkém Zůstatku
+  sv: Vid Lågt Saldo
+  verified_by_human: []
+auto_topup.monthly:
+  context: Monthly subscription submenu text
+  en: Monthly
+  de: Monatlich
+  zh: 月度
+  es: Mensual
+  fr: Mensuel
+  pt: Mensal
+  ru: Ежемесячно
+  ja: 月次
+  ko: 월간
+  it: Mensile
+  tr: Aylık
+  vi: Hàng tháng
+  id: Bulanan
+  pl: Miesięcznie
+  nl: Maandelijks
+  ar: شهرياً
+  hi: मासिक
+  th: รายเดือน
+  cs: Měsíčně
+  sv: Månadsvis
   verified_by_human: []
 auto_topup_description:
   context: Auto top-up menu item description
@@ -1400,4 +1469,27 @@ invoices.download_error:
   th: ไม่สามารถดาวน์โหลดใบแจ้งหนี้ได้ โปรดลองอีกครั้ง
   cs: Stažení faktury se nezdařilo. Zkuste to znovu.
   sv: Misslyckades med att ladda ner fakturan. Försök igen.
+  verified_by_human: []
+invoices_gift_card_badge:
+  context: Badge label for gift card invoices
+  en: Gift Card
+  de: Geschenkkarte
+  zh: 礼品卡
+  es: Tarjeta Regalo
+  fr: Carte Cadeau
+  pt: Cartão Presente
+  ru: Подарочная Карта
+  ja: ギフトカード
+  ko: 기프트 카드
+  it: Buono Regalo
+  tr: Hediye Kartı
+  vi: Thẻ quà tặng
+  id: Kartu Hadiah
+  pl: Karta Podarunkowa
+  nl: Cadeaukaart
+  ar: بطاقة هدية
+  hi: उपहार कार्ड
+  th: บัตรของขวัญ
+  cs: Dárkový Poukaz
+  sv: Presentkort
   verified_by_human: []

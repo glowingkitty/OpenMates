@@ -172,11 +172,6 @@ Buy Credits Confirmation - Success screen after purchase
 
     /* Responsive Styles */
     @media (max-width: 768px) {
-        .confirmation-container {
-            padding: 16px 5px;
-            gap: 20px;
-        }
-
         .balance-display {
             padding: 16px;
         }

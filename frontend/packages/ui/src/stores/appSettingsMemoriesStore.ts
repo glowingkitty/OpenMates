@@ -1,8 +1,6 @@
 import { writable, derived } from 'svelte/store';
 import { chatDB } from '../services/db';
-import { decryptWithMasterKey } from '../services/cryptoService';
-import { authStore } from './authStore';
-import { get } from 'svelte/store';
+import { decryptWithMasterKey, getKeyFromStorage } from '../services/cryptoService';
 
 interface AppSettingsMemoriesEntry {
     id: string;
@@ -50,11 +48,20 @@ function createAppSettingsMemoriesStore() {
 
     const { subscribe, update } = writable(initialState);
 
+    /**
+     * Decrypts app settings/memories entries using the master encryption key.
+     * Retrieves the master key from storage (IndexedDB or memory) and uses it to decrypt entries.
+     * 
+     * @param entries - Array of encrypted entries to decrypt
+     * @returns Map of decrypted entries keyed by entry ID
+     */
     async function decryptEntries(entries: AppSettingsMemoriesEntry[]): Promise<Map<string, DecryptedEntry>> {
         const decrypted = new Map<string, DecryptedEntry>();
-        const authState = get(authStore);
-
-        if (!authState.masterKey) {
+        
+        // Retrieve master key from storage (IndexedDB or memory based on stayLoggedIn preference)
+        const masterKey = await getKeyFromStorage();
+        
+        if (!masterKey) {
             console.error('[AppSettingsMemoriesStore] No master key available for decryption');
             return decrypted;
         }
@@ -66,7 +73,7 @@ function createAppSettingsMemoriesStore() {
                 try {
                     const decryptedItemJson = await decryptWithMasterKey(
                         entry.encrypted_item_json,
-                        authState.masterKey
+                        masterKey
                     );
                     itemValue = JSON.parse(decryptedItemJson);
                 } catch (itemError) {
@@ -206,10 +213,19 @@ function createAppSettingsMemoriesStore() {
             return result;
         },
 
+        /**
+         * Creates a new app settings/memories entry.
+         * Note: This currently only creates the entry in memory. Full implementation would require
+         * encrypting the entry and storing it in IndexedDB, then syncing to server.
+         * 
+         * @param appId - The app ID this entry belongs to
+         * @param entryData - The entry data including key, value, and settings group
+         */
         async createEntry(appId: string, entryData: { item_key: string; item_value: unknown; settings_group: string }) {
-            const authState = get(authStore);
+            // Retrieve master key from storage (IndexedDB or memory based on stayLoggedIn preference)
+            const masterKey = await getKeyFromStorage();
 
-            if (!authState.masterKey) {
+            if (!masterKey) {
                 throw new Error('No master key available for encryption');
             }
 

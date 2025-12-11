@@ -24,7 +24,8 @@
         requireConsent = true,
         compact = false,
         initialState = 'idle',
-        isGift = false
+        isGift = false,
+        isGiftCard = false
     }: {
         purchasePrice?: number;
         currency?: string;
@@ -33,6 +34,7 @@
         compact?: boolean;
         initialState?: 'idle' | 'processing' | 'success';
         isGift?: boolean;
+        isGiftCard?: boolean;
     } = $props();
 
     let hasConsentedToLimitedRefund = $state(false);
@@ -110,7 +112,12 @@
             // Get email encryption key for server to decrypt email
             const emailEncryptionKey = cryptoService.getEmailEncryptionKeyForApi();
             
-            const response = await fetch(getApiEndpoint(apiEndpoints.payments.createOrder), {
+            // Use buy-gift-card endpoint for gift card purchases, create-order for regular purchases
+            const endpoint = isGiftCard 
+                ? apiEndpoints.payments.buyGiftCard 
+                : apiEndpoints.payments.createOrder;
+            
+            const response = await fetch(getApiEndpoint(endpoint), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 credentials: 'include',
@@ -122,7 +129,14 @@
             });
             if (!response.ok) {
                 const errorData = await response.json().catch(() => ({}));
-                throw new Error(`Failed to create order: ${response.status} ${response.statusText}. ${errorData.detail || ''}`);
+                // Extract the detail message from the API response if available
+                // This provides user-friendly error messages (e.g., tier limit exceeded)
+                const errorDetail = errorData.detail || '';
+                if (errorDetail) {
+                    throw new Error(errorDetail);
+                } else {
+                    throw new Error(`Failed to create order: ${response.status} ${response.statusText}`);
+                }
             }
             const order = await response.json();
             if (order.provider === 'stripe') {
@@ -255,22 +269,54 @@
             }
             isLoading = false;
         } else if (paymentIntent && paymentIntent.status === 'succeeded') {
-            paymentState = 'success';
-            // Dispatch state change with payment_intent_id for subscription setup
-            dispatch('paymentStateChange', { 
-                state: paymentState, 
-                payment_intent_id: paymentIntent.id 
-            });
+            // For gift cards, keep in processing state until we receive gift_card_created event
+            // For regular purchases, immediately show success
+            if (isGiftCard) {
+                paymentState = 'processing';
+                isWaitingForConfirmation = true;
+                dispatch('paymentStateChange', { state: paymentState }); // Dispatch processing state
+                
+                // Start 20-second timeout for gift card creation from server
+                // If no gift card received, show delayed message and proceed as if successful
+                paymentConfirmationTimeoutId = setTimeout(() => {
+                    if (isWaitingForConfirmation) {
+                        console.log('[Payment] Gift card creation timeout after 20 seconds - showing delayed message and proceeding');
+                        showDelayedMessage = true;
+                        
+                        // Show delayed message briefly, then proceed as if payment was successful
+                        // This allows user to continue while gift card processes in background
+                        setTimeout(() => {
+                            if (isWaitingForConfirmation) {
+                                console.log('[Payment] Proceeding to success state after gift card timeout');
+                                paymentState = 'success';
+                                isWaitingForConfirmation = false; // Keep listening for websocket event
+                                dispatch('paymentStateChange', { 
+                                    state: paymentState,
+                                    payment_intent_id: paymentIntent.id,
+                                    isDelayed: true // Flag to indicate this was a delayed confirmation
+                                });
+                            }
+                        }, 2000); // Show delayed message for 2 seconds before proceeding
+                    }
+                }, 20000); // 20 seconds
+            } else {
+                paymentState = 'success';
+                // Dispatch state change with payment_intent_id for subscription setup
+                dispatch('paymentStateChange', { 
+                    state: paymentState, 
+                    payment_intent_id: paymentIntent.id 
+                });
+            }
         } else if (paymentIntent && paymentIntent.status === 'processing') {
             paymentState = 'processing';
             isWaitingForConfirmation = true;
             dispatch('paymentStateChange', { state: paymentState }); // Dispatch state change
             
-            // Start 10-second timeout for payment confirmation from server
+            // Start 20-second timeout for payment confirmation from server
             // If no confirmation received, show delayed message and proceed as if successful
             paymentConfirmationTimeoutId = setTimeout(() => {
                 if (isWaitingForConfirmation) {
-                    console.log('[Payment] Payment confirmation timeout after 10 seconds - showing delayed message and proceeding');
+                    console.log('[Payment] Payment confirmation timeout after 20 seconds - showing delayed message and proceeding');
                     showDelayedMessage = true;
                     
                     // Show delayed message briefly, then proceed as if payment was successful
@@ -288,7 +334,7 @@
                         }
                     }, 2000); // Show delayed message for 2 seconds before proceeding
                 }
-            }, 10000); // 10 seconds
+            }, 20000); // 20 seconds (same as regular credit purchases)
         } else {
             errorMessage = 'An unexpected error occurred. Please try again.';
             isLoading = false;
@@ -339,6 +385,54 @@
         }
     }
 
+    // Handle gift card created notification from server
+    // This is called when the webhook creates a gift card after payment
+    function handleGiftCardCreated(payload: { order_id: string, gift_card_code: string, credits_value: number }) {
+        console.log('[Payment] Received gift_card_created notification from server:', payload);
+        
+        // Clear the timeout since we received confirmation
+        if (paymentConfirmationTimeoutId) {
+            clearTimeout(paymentConfirmationTimeoutId);
+            paymentConfirmationTimeoutId = null;
+        }
+        
+        // If we were waiting for confirmation (delayed payment), proceed to success
+        if (isWaitingForConfirmation || showDelayedMessage) {
+            isWaitingForConfirmation = false;
+            showDelayedMessage = false;
+            
+            // Update payment state to success
+            if (paymentState === 'processing') {
+                paymentState = 'success';
+                dispatch('paymentStateChange', { 
+                    state: paymentState,
+                    payment_intent_id: lastOrderId,
+                    gift_card_code: payload.gift_card_code,
+                    credits_value: payload.credits_value
+                });
+            }
+        } else {
+            // Fast payment case - update state if still processing
+            if (paymentState === 'processing') {
+                paymentState = 'success';
+                dispatch('paymentStateChange', { 
+                    state: paymentState,
+                    payment_intent_id: lastOrderId,
+                    gift_card_code: payload.gift_card_code,
+                    credits_value: payload.credits_value
+                });
+            } else if (paymentState === 'success') {
+                // Already in success state, but dispatch again with gift card info
+                dispatch('paymentStateChange', { 
+                    state: paymentState,
+                    payment_intent_id: lastOrderId,
+                    gift_card_code: payload.gift_card_code,
+                    credits_value: payload.credits_value
+                });
+            }
+        }
+    }
+
     // Handle payment failure notification from server
     // This is called when the webhook receives a payment failure (can happen minutes after payment attempt)
     function handlePaymentFailed(payload: { order_id: string, message: string }) {
@@ -383,6 +477,12 @@
         // This is sent after webhook processes payment and invoice is sent
         webSocketService.on('payment_completed', handlePaymentCompleted);
         
+        // Listen for gift_card_created websocket event (for gift card purchases)
+        // This is sent after webhook creates a gift card after payment
+        if (isGiftCard) {
+            webSocketService.on('gift_card_created', handleGiftCardCreated);
+        }
+        
         // Listen for payment_failed websocket event
         // This is sent when webhook receives payment failure (can happen minutes after payment attempt)
         webSocketService.on('payment_failed', handlePaymentFailed);
@@ -399,6 +499,9 @@
             }
             // Remove websocket listeners
             webSocketService.off('payment_completed', handlePaymentCompleted);
+            if (isGiftCard) {
+                webSocketService.off('gift_card_created', handleGiftCardCreated);
+            }
             webSocketService.off('payment_failed', handlePaymentFailed);
         };
     });
@@ -410,6 +513,7 @@
         <ProcessingPayment
             state={paymentState}
             {isGift}
+            isGiftCard={isGiftCard}
             {showDelayedMessage}
         />
     {:else}
