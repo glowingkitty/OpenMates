@@ -114,6 +114,7 @@ class InvoiceResponse(BaseModel):
     amount: str
     credits_purchased: int
     filename: str
+    is_gift_card: bool = False  # Whether this invoice is for a gift card purchase
 
 class InvoicesListResponse(BaseModel):
     invoices: List[InvoiceResponse]
@@ -292,11 +293,21 @@ async def create_payment_order(
         logger.error(f"Could not determine price for {order_data.credits_amount} credits in {order_data.currency} for user {current_user.id}.")
         raise HTTPException(status_code=400, detail=f"Invalid credit amount or currency combination.")
     
+    # Convert calculated_amount (in cents/smallest unit) to actual currency amount for tier checking
+    # get_price_for_credits returns amount in smallest currency unit (cents for EUR/USD/GBP)
+    currency_lower = order_data.currency.lower()
+    if currency_lower in ['eur', 'usd', 'gbp']:
+        # Convert cents to currency units (divide by 100)
+        purchase_amount_for_tier = calculated_amount / 100.0
+    else:
+        # For currencies like JPY that don't use cents, use as-is
+        purchase_amount_for_tier = float(calculated_amount)
+    
     # Check tier limits before creating order
     # This efficiently checks limits using cached values without querying invoices
     is_allowed, error_message, current_tier, current_spending = await tier_service.check_tier_limit(
         user_id=current_user.id,
-        purchase_amount=calculated_amount,
+        purchase_amount=purchase_amount_for_tier,
         currency=order_data.currency
     )
     
@@ -309,7 +320,7 @@ async def create_payment_order(
     logger.info(
         f"Tier limit check passed for user {current_user.id}: "
         f"tier={current_tier}, current_spending={current_spending:.2f}€, "
-        f"purchase={calculated_amount:.2f} {order_data.currency.upper()}"
+        f"purchase={purchase_amount_for_tier:.2f} {order_data.currency.upper()}"
     )
     
     try:
@@ -538,6 +549,11 @@ async def payment_webhook(
             gift_card_code = None
 
             try:
+                # Get vault_key_id for tier system updates (needed for both gift cards and regular purchases)
+                vault_key_id = user_cache_data.get("vault_key_id")
+                if not vault_key_id:
+                    raise Exception("Vault key ID missing from cache")
+                
                 if is_gift_card:
                     # For gift card purchases, create the gift card instead of updating user credits
                     logger.info(f"Processing gift card purchase for user {user_id}, credits: {credits_purchased}")
@@ -568,69 +584,67 @@ async def payment_webhook(
                     if current_credits is None:
                         raise Exception("Credits field missing from cache")
 
-                    vault_key_id = user_cache_data.get("vault_key_id")
-                    if not vault_key_id:
-                        raise Exception("Vault key ID missing from cache")
-
                     new_total_credits_calculated = current_credits + credits_purchased
                     new_encrypted_credits, _ = await encryption_service.encrypt_with_user_key(str(new_total_credits_calculated), vault_key_id)
 
                     update_payload = {"encrypted_credit_balance": new_encrypted_credits, "last_opened": "/chat/new"}
                     directus_update_success = await directus_service.update_user(user_id, update_payload)
+                
+                # Update tier system: monthly spending counter and tier progression
+                # This applies to BOTH regular purchases AND gift card purchases
+                # (gift card purchases are still successful payments that should count toward tier progression)
+                try:
+                    # Get currency from cached order or default to eur
+                    # We stored credits_amount, so we can calculate the price
+                    order_currency = cached_order_data.get("currency", "eur")
                     
-                    # Update tier system: monthly spending counter and tier progression
-                    # Calculate order amount from credits_amount using pricing (more efficient than API call)
-                    if not is_gift_card:
-                        try:
-                            # Get currency from cached order or default to eur
-                            # We stored credits_amount, so we can calculate the price
-                            order_currency = cached_order_data.get("currency", "eur")
-                            
-                            # Calculate amount from credits using pricing function
-                            # This matches what was used when creating the order
-                            # get_price_for_credits returns amount in smallest currency unit (cents for EUR/USD)
-                            calculated_amount_cents = get_price_for_credits(credits_purchased, order_currency)
-                            
-                            if calculated_amount_cents is not None:
-                                # Convert from cents to decimal amount
-                                if order_currency.lower() in ['eur', 'usd', 'gbp']:
-                                    calculated_amount_decimal = float(calculated_amount_cents) / 100.0
-                                else:
-                                    # JPY and others use the amount directly
-                                    calculated_amount_decimal = float(calculated_amount_cents)
-                                
-                                # Update monthly spending counter
-                                await tier_service.update_monthly_spending(
-                                    user_id=user_id,
-                                    purchase_amount_eur=tier_service.convert_to_eur(
-                                        calculated_amount_decimal, order_currency
-                                    ),
-                                    vault_key_id=vault_key_id
-                                )
-                                
-                                # Update tier progression (check if new month, increment counter, upgrade tier)
-                                payment_datetime = datetime.now(timezone.utc)
-                                await tier_service.handle_successful_payment(
-                                    user_id=user_id,
-                                    payment_date=payment_datetime
-                                )
-                                
-                                logger.info(
-                                    f"Updated tier system for user {user_id}: "
-                                    f"spending={calculated_amount_decimal:.2f} {order_currency.upper()}, "
-                                    f"payment_date={payment_datetime.isoformat()}"
-                                )
-                            else:
-                                logger.warning(
-                                    f"Could not calculate amount for credits {credits_purchased} "
-                                    f"in currency {order_currency} for tier update"
-                                )
-                        except Exception as tier_exc:
-                            # Don't fail the payment if tier update fails, but log it
-                            logger.error(
-                                f"Error updating tier system for user {user_id}, order {webhook_order_id}: {str(tier_exc)}",
-                                exc_info=True
-                            )
+                    # Calculate amount from credits using pricing function
+                    # This matches what was used when creating the order
+                    # get_price_for_credits returns amount in smallest currency unit (cents for EUR/USD)
+                    calculated_amount_cents = get_price_for_credits(credits_purchased, order_currency)
+                    
+                    if calculated_amount_cents is not None:
+                        # Convert from cents to decimal amount
+                        if order_currency.lower() in ['eur', 'usd', 'gbp']:
+                            calculated_amount_decimal = float(calculated_amount_cents) / 100.0
+                        else:
+                            # JPY and others use the amount directly
+                            calculated_amount_decimal = float(calculated_amount_cents)
+                        
+                        # Update monthly spending counter
+                        await tier_service.update_monthly_spending(
+                            user_id=user_id,
+                            purchase_amount_eur=tier_service.convert_to_eur(
+                                calculated_amount_decimal, order_currency
+                            ),
+                            vault_key_id=vault_key_id
+                        )
+                        
+                        # Update tier progression (check if new month, increment counter, upgrade tier)
+                        # This also updates last_successful_payment_date
+                        payment_datetime = datetime.now(timezone.utc)
+                        await tier_service.handle_successful_payment(
+                            user_id=user_id,
+                            payment_date=payment_datetime
+                        )
+                        
+                        purchase_type = "gift card" if is_gift_card else "credit"
+                        logger.info(
+                            f"Updated tier system for user {user_id} ({purchase_type} purchase): "
+                            f"spending={calculated_amount_decimal:.2f} {order_currency.upper()}, "
+                            f"payment_date={payment_datetime.isoformat()}"
+                        )
+                    else:
+                        logger.warning(
+                            f"Could not calculate amount for credits {credits_purchased} "
+                            f"in currency {order_currency} for tier update"
+                        )
+                except Exception as tier_exc:
+                    # Don't fail the payment if tier update fails, but log it
+                    logger.error(
+                        f"Error updating tier system for user {user_id}, order {webhook_order_id}: {str(tier_exc)}",
+                        exc_info=True
+                    )
 
                 if directus_update_success:
                     if is_gift_card:
@@ -2060,12 +2074,16 @@ async def get_invoices(
                     )
                     filename = f"Invoice_{date_str_filename}.pdf"
 
+                # Get is_gift_card flag (defaults to False if not set for backward compatibility)
+                is_gift_card = invoice.get("is_gift_card", False)
+                
                 processed_invoices.append(InvoiceResponse(
                     id=invoice["id"],
                     date=formatted_date,
                     amount=amount,
                     credits_purchased=int(credits_purchased),
-                    filename=filename
+                    filename=filename,
+                    is_gift_card=is_gift_card
                 ))
 
             except Exception as e:

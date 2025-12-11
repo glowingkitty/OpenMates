@@ -92,17 +92,6 @@ class ChatListCache {
 	}
 
 	/**
-	 * Clear the entire cache (e.g., on logout)
-	 */
-	clear(): void {
-		this.cachedChats = [];
-		this.cacheReady = false;
-		this.cacheDirty = false;
-		this.cachedChatsTimestamp = 0;
-		console.debug('[ChatListCache] Cache cleared');
-	}
-
-	/**
 	 * Check if an update is in progress (prevents concurrent DB reads)
 	 */
 	isUpdateInProgress(): boolean {

@@ -16,6 +16,7 @@ Invoices Settings - View and download past invoices
         amount: string;
         credits_purchased: number;
         filename: string;
+        is_gift_card?: boolean;  // Whether this invoice is for a gift card purchase
     }
 
     let isLoading = $state(false);
@@ -224,8 +225,15 @@ Invoices Settings - View and download past invoices
             {#each monthInvoices as invoice}
                 <div class="invoice-item">
                     <div class="invoice-info">
-                        <div class="invoice-date">
-                            {formatDate(invoice.date)}
+                        <div class="invoice-header">
+                            <div class="invoice-date">
+                                {formatDate(invoice.date)}
+                            </div>
+                            {#if invoice.is_gift_card}
+                                <span class="gift-card-badge">
+                                    {$text('settings.billing.invoices_gift_card_badge.text')}
+                                </span>
+                            {/if}
                         </div>
                         <div class="invoice-details">
                             <span class="invoice-amount">{formatAmount(invoice.amount)}</span>
@@ -365,10 +373,30 @@ Invoices Settings - View and download past invoices
         flex: 1;
     }
 
+    .invoice-header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+    }
+
     .invoice-date {
         color: var(--color-grey-100);
         font-size: 15px;
         font-weight: 500;
+    }
+
+    .gift-card-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 4px 10px;
+        background: var(--color-accent);
+        color: white;
+        border-radius: 12px;
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
     }
 
     .invoice-details {

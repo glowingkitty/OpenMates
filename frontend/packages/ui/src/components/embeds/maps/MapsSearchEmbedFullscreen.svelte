@@ -65,9 +65,9 @@
     typeof window !== 'undefined' && window.innerWidth <= 500
   );
   
-  // Map state
-  let mapContainer: HTMLDivElement;
-  let map: Map | null = null;
+  // Map state - use $state for reactivity
+  let mapContainer = $state<HTMLDivElement | null>(null);
+  let map = $state<Map | null>(null);
   let markers: Marker[] = [];
   let L: any; // Leaflet instance
   let customIcon: any = null;
@@ -200,7 +200,7 @@
       const centerLng = (Math.min(...lngs) + Math.max(...lngs)) / 2;
       
       // Initialize map
-      map = L.map(mapContainer, {
+      map = L.map(mapContainer!, {
         center: [centerLat, centerLng],
         zoom: 13,
         zoomControl: true,
@@ -305,8 +305,8 @@
                 class:selected={selectedPlaceIndex === index}
                 role="button" 
                 tabindex="0" 
-                on:click={() => handleSelectPlace(place, index)}
-                on:keydown={(e) => e.key === 'Enter' && handleSelectPlace(place, index)}
+                onclick={() => handleSelectPlace(place, index)}
+                onkeydown={(e) => e.key === 'Enter' && handleSelectPlace(place, index)}
               >
                 <div class="place-header">
                   <h3 class="place-name">{place.displayName || 'Unknown Place'}</h3>
@@ -329,8 +329,16 @@
                 {/if}
                 <button 
                   class="open-place-button"
-                  on:click|stopPropagation={() => handleOpenPlace(place)}
-                  on:keydown={(e) => e.key === 'Enter' && handleOpenPlace(place)}
+                  onclick={(e) => {
+                    e.stopPropagation();
+                    handleOpenPlace(place);
+                  }}
+                  onkeydown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.stopPropagation();
+                      handleOpenPlace(place);
+                    }
+                  }}
                 >
                   Open in Google Maps
                 </button>

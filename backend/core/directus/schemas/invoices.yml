@@ -58,3 +58,8 @@ invoices:
       length: 256
       nullable: true
       note: "ISO timestamp when chargeback/dispute was created"
+
+    is_gift_card:
+      type: boolean
+      note: "Whether this invoice is for a gift card purchase (as opposed to a regular credit purchase)"
+      default: false

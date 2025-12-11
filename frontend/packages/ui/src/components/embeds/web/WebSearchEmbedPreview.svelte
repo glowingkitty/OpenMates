@@ -273,16 +273,6 @@
     font-size: 12px;
   }
   
-  /* Future: Preview images row placeholder (48px height) */
-  .preview-images-row {
-    height: 48px;
-    margin-top: 8px;
-    display: flex;
-    gap: 4px;
-    overflow: hidden;
-    border-radius: 8px;
-  }
-  
   /* ===========================================
      Skill Icon Styling (skill-specific)
      =========================================== */

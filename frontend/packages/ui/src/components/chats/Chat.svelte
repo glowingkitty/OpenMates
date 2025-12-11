@@ -1125,8 +1125,6 @@
   class:active={isActive}
   role="button"
   tabindex="0"
-  onclick={() => { /* Dispatch an event or call a function to handle chat selection */ }}
-  onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { /* Dispatch selection event */ } }}
   oncontextmenu={handleContextMenu}
   ontouchstart={handleTouchStart}
   ontouchmove={handleTouchMove}

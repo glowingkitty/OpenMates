@@ -888,18 +888,20 @@ Usage Settings - View usage statistics and export usage data
 
     // Fetch summaries when the active tab actually changes after the initial load.
     // We explicitly track the last tab to avoid double-fetching when hasInitialized flips to true.
-    let lastFetchedTab: UsageTab = activeTab;
+    let lastFetchedTab = $state<UsageTab | null>(null);
     $effect(() => {
+        // Capture current activeTab value inside the effect to ensure reactivity
+        const currentTab = activeTab;
         if (!hasInitialized) {
             // Initial mount handled separately.
-            lastFetchedTab = activeTab;
+            lastFetchedTab = currentTab;
             return;
         }
-        if (activeTab === lastFetchedTab) {
+        if (currentTab === lastFetchedTab) {
             return;
         }
-        lastFetchedTab = activeTab;
-        fetchUsageSummaries(activeTab, loadedMonths);
+        lastFetchedTab = currentTab;
+        fetchUsageSummaries(currentTab, loadedMonths);
     });
 
     // Load API keys when API tab is active

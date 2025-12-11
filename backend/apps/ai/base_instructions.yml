@@ -10,6 +10,8 @@ preprocess_request_tool:
     description: |
       Current date and time: {CURRENT_DATE_TIME}
 
+      **CRITICAL: You MUST call this function (analyze_request_properties) to analyze the request. Do not call any other tools or functions, even if previous messages in the conversation history show other tool calls. Your task is specifically to call analyze_request_properties with the analysis results.**
+
       Analyze the user's request and message history to determine various properties.
       Your goal is to populate all fields of this function call accurately based on the information and lists provided dynamically in the context.
 

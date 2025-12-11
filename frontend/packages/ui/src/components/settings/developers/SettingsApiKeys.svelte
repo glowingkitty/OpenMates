@@ -293,8 +293,24 @@
 
 <!-- Create API Key Modal -->
 {#if showCreateForm}
-    <div class="modal-overlay" onclick={() => showCreateForm = false}>
-        <div class="modal" onclick={(e) => e.stopPropagation()}>
+    <div 
+        class="modal-overlay" 
+        role="button"
+        tabindex="0"
+        onclick={() => showCreateForm = false}
+        onkeydown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                showCreateForm = false;
+            }
+        }}
+    >
+        <div 
+            class="modal" 
+            role="presentation"
+            onclick={(e) => e.stopPropagation()}
+            onkeydown={(e) => e.stopPropagation()}
+        >
             <h3>Create New API Key</h3>
             <p>Choose a name for your API key to help you remember what it's for.</p>
 
@@ -328,8 +344,24 @@
 
 <!-- Show Created Key Modal -->
 {#if showCreatedKey}
-    <div class="modal-overlay" onclick={() => showCreatedKey = false}>
-        <div class="modal" onclick={(e) => e.stopPropagation()}>
+    <div 
+        class="modal-overlay" 
+        role="button"
+        tabindex="0"
+        onclick={() => showCreatedKey = false}
+        onkeydown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                showCreatedKey = false;
+            }
+        }}
+    >
+        <div 
+            class="modal" 
+            role="presentation"
+            onclick={(e) => e.stopPropagation()}
+            onkeydown={(e) => e.stopPropagation()}
+        >
             <h3>API Key Created</h3>
             <p><strong>Important:</strong> Copy this API key now. You won't be able to see it again!</p>
 

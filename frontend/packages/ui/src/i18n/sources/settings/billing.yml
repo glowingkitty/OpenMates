@@ -343,7 +343,7 @@ low_balance_topup:
   cs: Automatické Dobití při Nízkém Zůstatku
   sv: Automatisk Påfyllning vid Lågt Saldo
   verified_by_human: []
-low_balance.text:
+low_balance:
   context: Low balance menu item title
   en: On Low Balance
   de: Bei niedrigem Guthaben
@@ -527,30 +527,7 @@ auto_topup:
   cs: Automatické Dobití
   sv: Automatisk Påfyllning
   verified_by_human: []
-auto_topup.text:
-  context: Auto top-up menu item text
-  en: Auto Top-Up
-  de: Auto-Aufladen
-  zh: 自动充值
-  es: Recarga Automática
-  fr: Rechargement Automatique
-  pt: Recarga Automática
-  ru: Автопополнение
-  ja: 自動チャージ
-  ko: 자동 충전
-  it: Ricarica Automatica
-  tr: Otomatik Yükleme
-  vi: Tự động nạp tiền
-  id: Isi Ulang Otomatis
-  pl: Auto-Doładowanie
-  nl: Automatisch Opwaarderen
-  ar: إعادة الشحن التلقائي
-  hi: स्वचालित टॉप-अप
-  th: เติมเงินอัตโนมัติ
-  cs: Automatické Dobití
-  sv: Automatisk Påfyllning
-  verified_by_human: []
-auto_topup.low_balance.text:
+auto_topup.low_balance:
   context: Low balance auto top-up submenu text
   en: On Low Balance
   de: Bei niedrigem Guthaben
@@ -573,7 +550,7 @@ auto_topup.low_balance.text:
   cs: Při Nízkém Zůstatku
   sv: Vid Lågt Saldo
   verified_by_human: []
-auto_topup.monthly.text:
+auto_topup.monthly:
   context: Monthly subscription submenu text
   en: Monthly
   de: Monatlich
@@ -1492,4 +1469,27 @@ invoices.download_error:
   th: ไม่สามารถดาวน์โหลดใบแจ้งหนี้ได้ โปรดลองอีกครั้ง
   cs: Stažení faktury se nezdařilo. Zkuste to znovu.
   sv: Misslyckades med att ladda ner fakturan. Försök igen.
+  verified_by_human: []
+invoices_gift_card_badge:
+  context: Badge label for gift card invoices
+  en: Gift Card
+  de: Geschenkkarte
+  zh: 礼品卡
+  es: Tarjeta Regalo
+  fr: Carte Cadeau
+  pt: Cartão Presente
+  ru: Подарочная Карта
+  ja: ギフトカード
+  ko: 기프트 카드
+  it: Buono Regalo
+  tr: Hediye Kartı
+  vi: Thẻ quà tặng
+  id: Kartu Hadiah
+  pl: Karta Podarunkowa
+  nl: Cadeaukaart
+  ar: بطاقة هدية
+  hi: उपहार कार्ड
+  th: บัตรของขวัญ
+  cs: Dárkový Poukaz
+  sv: Presentkort
   verified_by_human: []

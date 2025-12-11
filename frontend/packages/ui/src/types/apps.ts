@@ -92,6 +92,18 @@ export interface MemoryFieldMetadata {
     name_translation_key: string; // Translation key for memory field name
     description_translation_key: string; // Translation key for memory field description
     type: string;
+    schema_definition?: {
+        type?: string;
+        properties?: Record<string, {
+            type?: string;
+            description?: string;
+            enum?: string[];
+            default?: unknown;
+            minimum?: number;
+            maximum?: number;
+        }>;
+        required?: string[];
+    }; // Optional JSON schema for form field generation
 }
 
 /**

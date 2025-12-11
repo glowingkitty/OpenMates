@@ -1,6 +1,5 @@
 <script lang="ts">
     import { text } from '@repo/ui';
-    import InputWarning from '../common/InputWarning.svelte';
     import { getWebsiteUrl, routes } from '../../config/links';
     import { fade } from 'svelte/transition';
     import { createEventDispatcher, onMount } from 'svelte';
@@ -70,6 +69,18 @@
 
 <div class="payment-form" in:fade={{ duration: 300 }}>
     <form onsubmit={handleSubmit}>
+        {#if paymentError}
+            <div class="error-message" role="alert">
+                {paymentError}
+            </div>
+        {/if}
+        
+        {#if validationErrors}
+            <div class="error-message" role="alert">
+                {validationErrors}
+            </div>
+        {/if}
+        
         <button
             type="submit"
             class="buy-button"
@@ -134,6 +145,17 @@
         text-align: center;
         margin-top: 10px;
         margin-bottom: 10px;
+    }
+
+    .error-message {
+        background-color: var(--color-error-bg, #fee);
+        color: var(--color-error-text, #c00);
+        padding: 12px 16px;
+        border-radius: 8px;
+        margin-bottom: 16px;
+        font-size: 14px;
+        line-height: 1.5;
+        border: 1px solid var(--color-error-border, #fcc);
     }
 
 </style>

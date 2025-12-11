@@ -129,7 +129,14 @@
             });
             if (!response.ok) {
                 const errorData = await response.json().catch(() => ({}));
-                throw new Error(`Failed to create order: ${response.status} ${response.statusText}. ${errorData.detail || ''}`);
+                // Extract the detail message from the API response if available
+                // This provides user-friendly error messages (e.g., tier limit exceeded)
+                const errorDetail = errorData.detail || '';
+                if (errorDetail) {
+                    throw new Error(errorDetail);
+                } else {
+                    throw new Error(`Failed to create order: ${response.status} ${response.statusText}`);
+                }
             }
             const order = await response.json();
             if (order.provider === 'stripe') {
