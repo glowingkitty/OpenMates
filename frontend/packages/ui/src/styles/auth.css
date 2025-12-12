@@ -24,7 +24,8 @@
 
 /* Enable scrolling on mobile devices - only apply column layout below 600px */
 /* Above 600px, use row layout to show icons on left/right */
-@media (max-width: 599px) {
+/* Standardized breakpoint: 600px (mobile/tablet boundary) */
+@media (max-width: 600px) {
     .login-container {
         flex-direction: column;
         overflow: visible; /* Let parent handle scrolling */
@@ -44,20 +45,17 @@
     display: flex;
     justify-content: center;
     align-items: center;
-    padding: 2rem;
     z-index: 1;
     min-height: 100%;
-    padding: 1rem;
 }
 
 /* Adjust login-content for mobile scrolling - only apply below 600px */
 /* Above 600px, the 600-730px media query will handle the width */
-@media (max-width: 599px) {
+/* Standardized breakpoint: 600px (mobile/tablet boundary) */
+@media (max-width: 600px) {
     .login-content {
         align-items: flex-start; /* Change from center to flex-start on mobile */
         min-height: auto; /* Remove fixed min-height on mobile */
-        padding: 0;
-        padding-top: 0; /* Remove top padding since container has it */
         position: relative;
         z-index: 2; /* Ensure content is above background icons (increased from 1) */
         width: 100%; /* Make login-content 100% width on mobile */
@@ -76,7 +74,8 @@
 
 /* Make login-box more flexible on mobile to prevent cutoff - only apply below 600px */
 /* Above 600px, the 600-730px media query will handle the width */
-@media (max-width: 599px) {
+/* Standardized breakpoint: 600px (mobile/tablet boundary) */
+@media (max-width: 600px) {
     .login-box {
         min-height: auto; /* Remove fixed min-height on mobile */
         max-height: none; /* Remove max-height constraint to allow full content */
@@ -165,7 +164,8 @@
     cursor: not-allowed;
 }
 
-@media (max-width: 599px) {
+/* Standardized breakpoint: 600px (mobile/tablet boundary) */
+@media (max-width: 600px) {
     .login-button, .signup-button {
         width: 100%;
         max-width: 350px;
@@ -467,16 +467,22 @@ form.hidden {
     pointer-events: none;
 }
 
+/**
+ * Status wrapper - progress indicator at bottom of signup flow
+ * Uses absolute positioning relative to .signup-content
+ * On mobile (< 600px), uses fixed positioning for better visibility
+ * On tablet/desktop (>= 600px), uses absolute positioning
+ */
 .status-wrapper {
     position: absolute;
     bottom: 0px;
     left: 0px;
     right: 0px;
+    z-index: 10; /* Ensure it's above content but below modals */
 }
 
-/* Make status-wrapper fixed at bottom of viewport on mobile for visibility */
-/* Only apply on very small screens (< 600px) - desktop uses absolute positioning */
-@media (max-width: 599px) {
+/* Mobile: Fixed positioning for better visibility when content scrolls */
+@media (max-width: 600px) {
     .status-wrapper {
         position: fixed;
         bottom: 0px;
@@ -497,7 +503,7 @@ form.hidden {
     }
 }
 
-/* Ensure desktop (>= 600px) uses absolute positioning */
+/* Tablet and Desktop: Absolute positioning relative to signup-content */
 @media (min-width: 600px) {
     .status-wrapper {
         position: absolute;
@@ -509,6 +515,7 @@ form.hidden {
         padding: 0;
         max-height: none;
         overflow: visible;
+        z-index: 10; /* Consistent z-index across breakpoints */
     }
     
     .status-bar {
@@ -542,7 +549,8 @@ form.hidden {
 }
 
 /* Fix height and scrolling on mobile when content exceeds container height */
-@media (max-width: 599px) {
+/* Standardized breakpoint: 600px (mobile/tablet boundary) */
+@media (max-width: 600px) {
     /* On mobile, use fixed heights for steps with bottom content (like confirm-email) */
     /* Steps without bottom content (like secure-account) use expanded class with more height */
     .top-content-wrapper {
@@ -592,10 +600,11 @@ form.hidden {
         height: 100%;
     }
     
-    /* Content should fill slide */
+    /* Content should fill slide but allow scrolling if needed */
+    /* Changed from fixed 100% height to allow content to determine height */
     .top-content .content {
-        height: 100%;
-        min-height: 100%;
+        height: auto;
+        min-height: 100%; /* Ensure minimum height to fill container */
     }
     
     .top-content-wrapper.expanded .top-content {
@@ -684,13 +693,15 @@ form.hidden {
     }
 }
 
-/* On desktop (above 730px), make top-content-wrapper height fit content */
+/* Desktop (above 730px): Make top-content-wrapper height fit content */
 /* This prevents bottom-content-wrapper from being pushed too far down */
-@media (min-width: 731px) {
+/* Standardized breakpoint: 730px (tablet/desktop boundary) */
+@media (min-width: 730px) {
     /* Make top-content-wrapper height auto to fit content, but allow expansion up to max-height */
+    /* Ensure minimum height for non-expanded steps so absolute positioned children work */
     .top-content-wrapper {
         height: auto;
-        min-height: auto;
+        min-height: 300px; /* Minimum height to ensure content is visible */
         max-height: 535px; /* Keep max-height for secure-account step which needs full height */
     }
     
@@ -744,10 +755,16 @@ form.hidden {
         height: auto;
     }
     
-    /* Remove fixed heights from content elements */
+    /* Content elements should use auto height to fit their content */
+    /* But ensure they can fill the container when needed */
     .top-content .content {
         height: auto;
-        min-height: auto;
+        min-height: 100%; /* Ensure content fills container when wrapper has min-height */
+    }
+
+    /* For non-expanded steps, ensure content can grow to fill available space */
+    .top-content-wrapper:not(.expanded) .top-content .content {
+        min-height: 300px; /* Match wrapper min-height for consistency */
     }
 }
 

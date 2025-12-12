@@ -20,25 +20,36 @@
 </div>
 
 <style>
+    /**
+     * Content container - uses flexbox for responsive layout
+     * Changed from absolute positioning to relative for better compatibility
+     * across all viewport sizes, especially desktop where parent has height: auto
+     */
     .content {
-        position: absolute;
-        top: 0;
-        bottom: 0;
-        left: 0;
-        right: 0;
+        position: relative;
+        width: 100%;
+        min-height: 100%;
         display: flex;
         flex-direction: column;
         align-items: center;
+        justify-content: space-between;
         padding: 20px;
         text-align: center;
+        box-sizing: border-box;
     }
 
+    /**
+     * Main content area - centered vertically when there's space
+     * Uses auto margin to center when content is smaller than container
+     */
     .main-content {
-        margin: auto 0;
+        flex: 1;
         display: flex;
         flex-direction: column;
         align-items: center;
+        justify-content: center;
         gap: 16px;
+        min-height: 0; /* Allow shrinking in flex container */
     }
 
     .icon-container {
@@ -67,11 +78,35 @@
         height: 75px;
     }
 
+    /**
+     * Text button - positioned at bottom
+     * On mobile, use relative positioning to stay in document flow
+     * On desktop, can use absolute if needed but relative works better
+     */
     .text-button {
-        position: absolute;
-        bottom: 20px;
-        left: 0;
-        right: 0;
+        position: relative;
+        margin-top: auto;
+        padding-top: 20px;
+        width: 100%;
+    }
+
+    /**
+     * Mobile adjustments - ensure content fits within scrollable container
+     */
+    @media (max-width: 600px) {
+        .content {
+            min-height: auto;
+            padding: 16px;
+        }
+
+        .main-content {
+            flex: 0 1 auto; /* Don't grow, allow shrinking */
+        }
+
+        .text-button {
+            margin-top: 16px;
+            padding-top: 16px;
+        }
     }
     
 </style>
