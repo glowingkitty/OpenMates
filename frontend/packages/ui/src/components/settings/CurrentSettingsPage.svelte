@@ -82,8 +82,11 @@
     
     // Calculate the actual count of menu items for height adjustment using Svelte 5 runes
     $effect(() => {
-        // Count all settings items plus logout
-        const settingsCount = Object.keys(settingsViews).length + 1;
+        // Count only top-level settings items (exclude nested routes like app_store/web, billing/buy-credits, etc.)
+        // This matches what's actually displayed in the main menu (filtered by isTopLevelView)
+        const topLevelSettingsCount = Object.keys(settingsViews).filter(key => isTopLevelView(key)).length;
+        // Add 1 for logout button (only shown for authenticated users, but we count it for consistent height)
+        const settingsCount = topLevelSettingsCount + 1;
         // Quick settings are currently commented out (TODO), so don't reduce height in signup mode
         // This ensures consistent height and prevents content cutoff
         const quickSettingsCount = 3; // Keep consistent height regardless of signup mode
