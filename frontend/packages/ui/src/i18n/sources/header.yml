@@ -24,9 +24,9 @@ toggle_menu:
 login_signup:
   context: Button text for login/signup button in header (kept for backwards compatibility)
   en: Login / Signup
-  de: Anmelden / Registrieren
+  de: Einloggen / Registrieren
   zh: 登录 / 注册
-  es: Iniciar sesión / Registrarse
+  es: Entrar / Registrarse
   fr: Connexion / Inscription
   pt: Entrar / Cadastrar
   ru: Вход / Регистрация
@@ -47,9 +47,9 @@ login_signup:
 login:
   context: Button text for sign in button in header (opens interface with both login and signup options)
   en: Sign In
-  de: Anmelden
+  de: Einloggen
   zh: 登录
-  es: Iniciar sesión
+  es: Entrar
   fr: Se connecter
   pt: Entrar
   ru: Войти

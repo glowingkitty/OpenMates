@@ -1,9 +1,9 @@
 login:
   context: Login page title
   en: Login
-  de: Anmelden
+  de: Einloggen
   zh: 登录
-  es: Iniciar sesión
+  es: Entrar
   fr: Se connecter
   pt: Entrar
   ru: Войти
@@ -506,9 +506,9 @@ enter_backup_code:
 login_with_another_account:
   context: Button text for logging in with another account
   en: Login with another account
-  de: Mit einem anderen Konto anmelden
+  de: Mit einem anderen Konto einloggen
   zh: 使用其他帐户登录
-  es: Iniciar sesión con otra cuenta
+  es: Entrar con otra cuenta
   fr: Se connecter avec un autre compte
   pt: Entrar com outra conta
   ru: Войти с другим аккаунтом
@@ -529,9 +529,9 @@ login_with_another_account:
 login_with_backup_code:
   context: Button text for logging in with a backup code
   en: Login with backup code
-  de: Mit Backup-Code anmelden
+  de: Mit Backup-Code einloggen
   zh: 使用备用代码登录
-  es: Iniciar sesión con código de respaldo
+  es: Entrar con código de respaldo
   fr: Se connecter avec le code de sauvegarde
   pt: Entrar com código de backup
   ru: Войти с резервным кодом
@@ -552,9 +552,9 @@ login_with_backup_code:
 login_with_recovery_key:
   context: Button text for logging in with a recovery key
   en: Login with recovery key
-  de: Mit Wiederherstellungsschlüssel anmelden
+  de: Mit Wiederherstellungsschlüssel einloggen
   zh: 使用恢复密钥登录
-  es: Iniciar sesión con clave de recuperación
+  es: Entrar con clave de recuperación
   fr: Se connecter avec la clé de récupération
   pt: Entrar com chave de recuperação
   ru: Войти с ключом восстановления
@@ -575,9 +575,9 @@ login_with_recovery_key:
 login_with_tfa_app:
   context: Button text for logging in with a 2FA app
   en: Login with 2FA app
-  de: Mit 2FA-App anmelden
+  de: Mit 2FA-App einloggen
   zh: 使用双重身份验证应用登录
-  es: Iniciar sesión con aplicación 2FA
+  es: Entrar con aplicación 2FA
   fr: Se connecter avec l'application 2FA
   pt: Entrar com aplicativo 2FA
   ru: Войти с приложением 2FA
@@ -598,9 +598,9 @@ login_with_tfa_app:
 login_with_password_and_tfa:
   context: Button text for logging in with password and 2FA
   en: Login with password & 2FA app
-  de: Mit Passwort & 2FA-App anmelden
+  de: Mit Passwort & 2FA-App einloggen
   zh: 使用密码和双重身份验证应用登录
-  es: Iniciar sesión con contraseña y aplicación 2FA
+  es: Entrar con contraseña y aplicación 2FA
   fr: Se connecter avec mot de passe et application 2FA
   pt: Entrar com senha e aplicativo 2FA
   ru: Войти с паролем и приложением 2FA
@@ -621,9 +621,9 @@ login_with_password_and_tfa:
 login_with_passkey:
   context: Button text for logging in with a passkey
   en: Login with passkey
-  de: Mit Passkey anmelden
+  de: Mit Passkey einloggen
   zh: 使用通行密钥登录
-  es: Iniciar sesión con passkey
+  es: Entrar con passkey
   fr: Se connecter avec une clé d'accès
   pt: Entrar com chave de acesso
   ru: Войти с помощью ключа доступа
@@ -667,7 +667,7 @@ or:
 logging_in_with_passkey:
   context: Loading message shown when passkey login is in progress
   en: Logging in with passkey...
-  de: Mit Passkey anmelden...
+  de: Mit Passkey einloggen...
   zh: 正在使用通行密钥登录...
   es: Iniciando sesión con passkey...
   fr: Connexion avec la clé d'accès...
@@ -690,9 +690,9 @@ logging_in_with_passkey:
 login_with_email:
   context: Button text to switch from passkey login to email login
   en: Login with E-mail address
-  de: Mit E-Mail-Adresse anmelden
+  de: Mit E-Mail-Adresse einloggen
   zh: 使用电子邮件地址登录
-  es: Iniciar sesión con dirección de correo electrónico
+  es: Entrar con dirección de correo electrónico
   fr: Se connecter avec l'adresse e-mail
   pt: Entrar com endereço de e-mail
   ru: Войти с адресом электронной почты
@@ -862,9 +862,9 @@ retry:
 login_with_security_key:
   context: Button text for logging in with a security key
   en: Login with security key
-  de: Mit Sicherheitsschlüssel anmelden
+  de: Mit Sicherheitsschlüssel einloggen
   zh: 使用安全密钥登录
-  es: Iniciar sesión con llave de seguridad
+  es: Entrar con llave de seguridad
   fr: Se connecter avec la clé de sécurité
   pt: Entrar com chave de segurança
   ru: Войти с ключом безопасности
@@ -908,7 +908,7 @@ backup_code_is_single_use:
 logging_in_with_security_key:
   context: Text shown while logging in with a security key
   en: Logging in with security key...
-  de: Mit Sicherheitsschlüssel anmelden...
+  de: Mit Sicherheitsschlüssel einloggen...
   zh: 正在使用安全密钥登录...
   es: Iniciando sesión con llave de seguridad...
   fr: Connexion avec la clé de sécurité...
@@ -1034,9 +1034,9 @@ use_for_emergencies_only:
 login_button:
   context: Button text for logging in
   en: Login
-  de: Anmelden
+  de: Einloggen
   zh: 登录
-  es: Iniciar sesión
+  es: Entrar
   fr: Se connecter
   pt: Entrar
   ru: Войти

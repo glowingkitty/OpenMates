@@ -31,6 +31,7 @@
 
     // Props using Svelte 5 runes mode with callback props
     let {
+        mode = 'signup', // 'login' | 'signup' - determines which navigation to show
         showSkip = false,
         currentStep = STEP_BASICS,
         selectedAppName = null,
@@ -39,8 +40,10 @@
         onback = () => {},
         onstep = (event: { step: string }) => {},
         onskip = () => {},
-        onlogout = () => {}
+        onlogout = () => {},
+        onDemoClick = () => {} // Handler for login mode "Demo" button
     }: {
+        mode?: 'login' | 'signup',
         showSkip?: boolean,
         currentStep?: string,
         selectedAppName?: string | null,
@@ -49,10 +52,24 @@
         onback?: () => void,
         onstep?: (event: { step: string }) => void,
         onskip?: () => void,
-        onlogout?: () => void
+        onlogout?: () => void,
+        onDemoClick?: () => void
     } = $props();
 
+    /**
+     * Handle back button click - behavior differs based on mode
+     * Login mode: calls onDemoClick to return to demo
+     * Signup mode: handles step navigation based on current step
+     */
     function handleBackClick() {
+        // Login mode: always call demo click handler
+        if (mode === 'login') {
+            console.log('[SignupNav] Login mode - calling onDemoClick');
+            onDemoClick();
+            return;
+        }
+        
+        // Signup mode: handle step-based navigation
         console.log('[SignupNav] handleBackClick called, currentStep:', currentStep);
         if (currentStep === STEP_BASICS || currentStep === STEP_ALPHA_DISCLAIMER) {
             console.log('[SignupNav] Calling onback()');
@@ -95,7 +112,18 @@
         window.open(docsUrl, '_blank');
     }
 
+    /**
+     * Get navigation text based on mode and step
+     * Login mode: always returns "Demo"
+     * Signup mode: returns step-specific text
+     */
     function getNavText(step: string) {
+        // Login mode: always show "Demo"
+        if (mode === 'login') {
+            return $_('login.demo.text');
+        }
+        
+        // Signup mode: show step-specific text
         // Show "Demo" for first two steps since we now have Login/Signup tabs at the top
         if (step === STEP_ALPHA_DISCLAIMER) return $_('login.demo.text');
         if (step === STEP_BASICS) return $_('login.demo.text');
@@ -127,7 +155,8 @@ let skipButtonText = $derived(
 );
 
     // Determine if the skip/next button should be shown using Svelte 5 runes
-    // Show if:
+    // Login mode: never show skip button
+    // Signup mode: Show if:
     // - One Time Codes step AND TFA is already enabled OR
     // - TFA App Reminder step AND (no app selected OR app selected and saved) OR
     // - Settings step AND consent_privacy_and_apps_default_settings is true OR
@@ -135,22 +164,24 @@ let skipButtonText = $derived(
     // - Credits step AND gift check is done AND NO gift is available OR
     // - showSkip prop is true AND it's not one of the special steps
     let showActualSkipButton = $derived(
-        (currentStep === STEP_ONE_TIME_CODES && $userProfile.tfa_enabled) ||
-        (currentStep === STEP_TFA_APP_REMINDER && (!selectedAppName || selectedAppName.trim() === '' || isAppSaved)) ||
-        (currentStep === STEP_SETTINGS && $userProfile.consent_privacy_and_apps_default_settings) ||
-        (currentStep === STEP_MATE_SETTINGS && $userProfile.consent_mates_default_settings) ||
-        // (currentStep === STEP_CREDITS && !$isLoadingGiftCheck && !$hasGiftForSignup) || // Show skip/demo only if NO gift available # TODO implement this later
-        (showSkip && ![STEP_ONE_TIME_CODES, STEP_TFA_APP_REMINDER, STEP_SETTINGS, STEP_MATE_SETTINGS, STEP_CREDITS].includes(currentStep))
+        mode === 'login' ? false : (
+            (currentStep === STEP_ONE_TIME_CODES && $userProfile.tfa_enabled) ||
+            (currentStep === STEP_TFA_APP_REMINDER && (!selectedAppName || selectedAppName.trim() === '' || isAppSaved)) ||
+            (currentStep === STEP_SETTINGS && $userProfile.consent_privacy_and_apps_default_settings) ||
+            (currentStep === STEP_MATE_SETTINGS && $userProfile.consent_mates_default_settings) ||
+            // (currentStep === STEP_CREDITS && !$isLoadingGiftCheck && !$hasGiftForSignup) || // Show skip/demo only if NO gift available # TODO implement this later
+            (showSkip && ![STEP_ONE_TIME_CODES, STEP_TFA_APP_REMINDER, STEP_SETTINGS, STEP_MATE_SETTINGS, STEP_CREDITS].includes(currentStep))
+        )
     );
 </script>
 
 <div class="nav-area">
-    <button class="nav-button" onclick={handleBackClick}>
+    <button class="nav-button" onclick={handleBackClick} aria-label={mode === 'login' ? $_('login.demo.text') : getNavText(currentStep)}>
         <div class="clickable-icon icon_back"></div>
         {getNavText(currentStep)}
     </button>
     
-    {#if showAdminButton}
+    {#if mode === 'signup' && showAdminButton}
         <button class="admin-button" onclick={openSelfHostedDocs}>
             <div class="clickable-icon icon_server admin-icon"></div>
             <span class="admin-text">{$_('signup.server_admin.text')}</span>
@@ -168,7 +199,6 @@ let skipButtonText = $derived(
 
 <style>
     .nav-area {
-        position: absolute;
         top: 0;
         left: 0;
         right: 0;
@@ -181,7 +211,6 @@ let skipButtonText = $derived(
     /* Ensure consistent positioning on mobile - match global nav-area styles */
     @media (max-width: 600px) {
         .nav-area {
-            position: sticky; /* Match global nav-area mobile style */
             top: 0;
             left: 0; /* Ensure left alignment is consistent */
             right: 0; /* Ensure right alignment is consistent */

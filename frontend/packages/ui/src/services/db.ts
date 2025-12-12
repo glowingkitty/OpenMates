@@ -507,10 +507,21 @@ class ChatDatabase {
             // Get chat key from encrypted_chat_key
             let chatKey = this.getChatKey(chat.chat_id);
             if (!chatKey && chat.encrypted_chat_key) {
-                // CRITICAL FIX: await decryptChatKeyWithMasterKey since it's async
-                chatKey = await decryptChatKeyWithMasterKey(chat.encrypted_chat_key);
-                if (chatKey) {
+                // Try both normal and hidden chat decryption paths
+                // This allows detection of hidden chats without a database flag
+                const { hiddenChatService } = await import('./hiddenChatService');
+                const result = await hiddenChatService.tryDecryptChatKey(chat.encrypted_chat_key);
+                
+                if (result.chatKey) {
+                    chatKey = result.chatKey;
                     this.setChatKey(chat.chat_id, chatKey);
+                    // Mark chat as hidden if it was decrypted via hidden path
+                    if (result.isHidden) {
+                        (decryptedChat as any).is_hidden = true;
+                    }
+                } else {
+                    // Both decryption paths failed - could be corrupted or locked hidden chat
+                    console.debug(`[ChatDatabase] Failed to decrypt chat key for chat ${chat.chat_id} (both normal and hidden paths failed)`);
                 }
             }
             

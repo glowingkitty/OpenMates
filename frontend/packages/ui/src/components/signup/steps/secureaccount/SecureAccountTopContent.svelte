@@ -482,7 +482,7 @@
 
 <style>
     .content {
-        padding: 24px;
+        /* padding: 24px; */
         height: 100%;
         display: flex;
         flex-direction: column;
@@ -494,7 +494,8 @@
         align-items: center;
         justify-content: center;
         gap: 16px;
-        margin-bottom: 30px;
+        margin-bottom: 20px;
+        margin-top: 20px;
     }
     
     .options-container {

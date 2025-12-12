@@ -74,8 +74,6 @@
     import AutoTopUpTopContent from './steps/autotopup/AutoTopUpTopContent.svelte';
     import AutoTopUpBottomContent from './steps/autotopup/AutoTopUpBottomContent.svelte';
 
-    import SignupStatusbar from './SignupStatusbar.svelte';
-
     // Import API utilities
     import { getApiUrl, apiEndpoints } from '../../config/api';
 
@@ -1092,12 +1090,6 @@
             </div>
         {/if}
     </div>
-
-    {#if showUIControls}
-        <div class="status-wrapper" class:hidden={currentStep === STEP_BASICS || currentStep === STEP_ALPHA_DISCLAIMER} transition:fade={fadeParams}>
-            <SignupStatusbar currentStepName={currentStep} stepSequenceOverride={stepSequence} />
-        </div>
-    {/if}
 
     {#if showUIControls}
         <!-- NOTE: temporary hidden both because of response design issues regardings its position and also because docs don't exist yet. -->

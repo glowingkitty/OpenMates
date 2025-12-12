@@ -271,6 +271,9 @@ export class ChatSynchronizationService extends EventTarget {
     public async sendUpdateDraft(chat_id: string, draft_content: string | null, draft_preview?: string | null) {
         await senders.sendUpdateDraftImpl(this, chat_id, draft_content, draft_preview);
     }
+    public async sendUpdateEncryptedChatKey(chat_id: string, encrypted_chat_key: string) {
+        await senders.sendUpdateChatKeyImpl(this, chat_id, encrypted_chat_key);
+    }
     public async sendDeleteDraft(chat_id: string) {
         await senders.sendDeleteDraftImpl(this, chat_id);
     }

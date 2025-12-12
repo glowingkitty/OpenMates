@@ -1527,97 +1527,97 @@ password_descriptor:
   context: passwords as option descriptor
   en: 'Most familiar.
 
-    Extra authentication needed.
+    Extra authentication via 2FA OTP app needed for better security.
 
     '
   de: 'Am vertrautesten.
 
-    Zusätzliche Authentifizierung erforderlich.
+    Zusätzliche Authentifizierung über 2FA OTP-App erforderlich für bessere Sicherheit.
 
     '
   zh: '最熟悉的方式。
 
-    需要额外身份验证。
+    需要通过2FA OTP应用程序进行额外身份验证以提高安全性。
 
     '
   es: 'Lo más familiar.
 
-    Se necesita autenticación adicional.
+    Se necesita autenticación adicional mediante aplicación 2FA OTP para mayor seguridad.
 
     '
   fr: 'Le plus familier.
 
-    Authentification supplémentaire requise.
+    Authentification supplémentaire via l''application 2FA OTP nécessaire pour une meilleure sécurité.
 
     '
   pt: 'Mais familiar.
 
-    Autenticação extra necessária.
+    Autenticação extra via aplicativo 2FA OTP necessária para melhor segurança.
 
     '
   ru: 'Самый знакомый способ.
 
-    Требуется дополнительная аутентификация.
+    Требуется дополнительная аутентификация через приложение 2FA OTP для повышения безопасности.
 
     '
   ja: '最も一般的です。
 
-    追加の認証が必要です。
+    セキュリティ向上のため、2FA OTPアプリによる追加認証が必要です。
 
     '
   ko: '가장 익숙한 방식입니다.
 
-    추가 인증이 필요합니다.
+    더 나은 보안을 위해 2FA OTP 앱을 통한 추가 인증이 필요합니다.
 
     '
   it: 'Più familiare.
 
-    Autenticazione aggiuntiva necessaria.
+    Autenticazione aggiuntiva tramite app 2FA OTP necessaria per una migliore sicurezza.
 
     '
   tr: 'En tanıdık.
 
-    Ek kimlik doğrulama gerekli.
+    Daha iyi güvenlik için 2FA OTP uygulaması aracılığıyla ek kimlik doğrulama gerekli.
 
     '
   vi: 'Quen thuộc nhất.
 
-    Cần xác thực bổ sung.
+    Cần xác thực bổ sung qua ứng dụng 2FA OTP để bảo mật tốt hơn.
 
     '
   id: 'Paling familiar.
 
-    Autentikasi tambahan diperlukan.
+    Autentikasi tambahan melalui aplikasi 2FA OTP diperlukan untuk keamanan yang lebih baik.
 
     '
   pl: 'Najbardziej znane.
 
-    Wymagane dodatkowe uwierzytelnienie.
+    Wymagane dodatkowe uwierzytelnienie przez aplikację 2FA OTP dla lepszego bezpieczeństwa.
 
     '
   nl: 'Meest bekend.
 
-    Extra authenticatie nodig.
+    Extra authenticatie via 2FA OTP-app nodig voor betere beveiliging.
 
     '
   ar: 'الأكثر شيوعًا.
 
-    مطلوب مصادقة إضافية.
+    مطلوب مصادقة إضافية عبر تطبيق 2FA OTP لأمان أفضل.
 
     '
   hi: 'सबसे परिचित।
 
-    अतिरिक्त प्रमाणीकरण आवश्यक।
+    बेहतर सुरक्षा के लिए 2FA OTP ऐप के माध्यम से अतिरिक्त प्रमाणीकरण आवश्यक है।
 
     '
   th: 'คุ้นเคยที่สุด
 
-    ต้องมีการยืนยันตัวตนเพิ่มเติม
+    ต้องมีการยืนยันตัวตนเพิ่มเติมผ่านแอป 2FA OTP เพื่อความปลอดภัยที่ดีขึ้น
 
     '
   cs: 'Nejznámější.
 
-    Je vyžadováno dodatečné ověření.
+    Pro lepší zabezpečení je vyžadováno dodatečné ověření prostřednictvím aplikace 2FA OTP.
 
     '
   sv: ''

@@ -868,6 +868,63 @@ export async function sendStoreEmbedImpl(
 }
 
 /**
+ * Send encrypted_chat_key update to server for chat metadata sync
+ * Used for hiding/unhiding chats by updating the encryption wrapper
+ * 
+ * @param serviceInstance ChatSynchronizationService instance
+ * @param chat_id Chat ID to update
+ * @param encrypted_chat_key New encrypted chat key (encrypted with combined secret for hidden chats)
+ */
+export async function sendUpdateChatKeyImpl(
+    serviceInstance: ChatSynchronizationService,
+    chat_id: string,
+    encrypted_chat_key: string
+): Promise<void> {
+    if (!serviceInstance.webSocketConnected_FOR_SENDERS_ONLY) {
+        console.warn('[ChatSyncService:Senders] Cannot send encrypted_chat_key update - WebSocket not connected');
+        return;
+    }
+
+    try {
+        // Get current chat to preserve version info
+        const chat = await chatDB.getChat(chat_id);
+        if (!chat) {
+            console.error(`[ChatSyncService:Senders] Chat ${chat_id} not found for encrypted_chat_key update`);
+            return;
+        }
+
+        // Create payload for encrypted_chat_metadata handler
+        // This handler accepts encrypted_chat_key and updates it in Directus
+        // message_id is optional - we omit it since we're only updating metadata
+        const payload: any = {
+            chat_id,
+            encrypted_chat_key,
+            // Include version info to preserve chat state
+            versions: {
+                messages_v: chat.messages_v || 0,
+                title_v: chat.title_v || 0,
+                last_edited_overall_timestamp: chat.last_edited_overall_timestamp || Math.floor(Date.now() / 1000)
+            }
+        };
+
+        console.debug(`[ChatSyncService:Senders] Sending encrypted_chat_key update for chat ${chat_id}`, {
+            hasEncryptedChatKey: !!encrypted_chat_key,
+            encryptedChatKeyLength: encrypted_chat_key?.length || 0,
+            messagesV: payload.versions.messages_v,
+            titleV: payload.versions.title_v
+        });
+
+        // Send via encrypted_chat_metadata handler (backend supports updating just encrypted_chat_key)
+        await webSocketService.sendMessage('encrypted_chat_metadata', payload);
+        
+        console.info(`[ChatSyncService:Senders] Successfully sent encrypted_chat_key update for chat ${chat_id}`);
+    } catch (error) {
+        console.error(`[ChatSyncService:Senders] Error sending encrypted_chat_key update for chat ${chat_id}:`, error);
+        throw error;
+    }
+}
+
+/**
  * Request embed data from server via WebSocket
  * Server will respond with send_embed_data event containing the embed content
  */

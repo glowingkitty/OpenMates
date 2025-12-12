@@ -1805,51 +1805,38 @@
             <AppIconGrid iconGrid={leftIconGrid} shifted="columns" size={DESKTOP_ICON_SIZE}/>
         {/if}
         <div class="login-content">
-            {#if showMobileGrid && gridsReady}
-                <div class="mobile-grid-fixed">
-                    <AppIconGrid iconGrid={mobileIconGrid} shifted="columns" shifting="10px" gridGap="2px" size={MOBILE_ICON_SIZE} />
-                </div>
-            {/if}
-            
-            <div class="login-box" in:scale={{ duration: 300, delay: 150 }}>
-                <!-- Demo back button - only show when not in signup process and login interface was opened manually -->
-                <!-- Uses the same navigation style as SignupNav.svelte -->
-                {#if !$isInSignupProcess && !$authStore.isAuthenticated}
-                    <div class="nav-area">
-                        <button 
-                            class="nav-button"
-                            onclick={() => {
-                                console.log('[Login] Demo back button clicked - closing login interface and returning to demo');
-                                // Clear email encryption key and salt when interrupting login to go back to demo
-                                // This ensures sensitive data is removed if user abandons login attempt
-                                cryptoService.clearAllEmailData();
-                                // CRITICAL: Clear all sessionStorage drafts when returning to demo mode
-                                // This ensures drafts don't persist if user interrupts login/signup
-                                clearAllSessionStorageDrafts();
-                                console.debug('[Login] Cleared all sessionStorage drafts when returning to demo');
-                                // Dispatch event to close login interface and show demo
-                                window.dispatchEvent(new CustomEvent('closeLoginInterface'));
-                                // Also dispatch loadDemoChat event to ensure demo chat is loaded
-                                // Small delay to ensure the interface closes before loading chat
-                                setTimeout(() => {
-                                    window.dispatchEvent(new CustomEvent('loadDemoChat'));
-                                }, 100);
-                            }}
-                            aria-label={$text('login.demo.text')}
-                        >
-                            <div class="clickable-icon icon_back"></div>
-                            {$text('login.demo.text')}
-                        </button>
+                {#if showMobileGrid && gridsReady}
+                    <div class="mobile-grid-fixed">
+                        <AppIconGrid iconGrid={mobileIconGrid} shifted="columns" shifting="10px" gridGap="2px" size={MOBILE_ICON_SIZE} />
                     </div>
                 {/if}
                 
-                <!-- SignupNav - show when in signup process, positioned inside login-box -->
-                {#if $isInSignupProcess && !$authStore.isAuthenticated}
+                <div class="login-box" in:scale={{ duration: 300, delay: 150 }}>
+                <!-- SignupNav - handles both login and signup navigation -->
+                {#if !$authStore.isAuthenticated}
                     <SignupNav
+                        mode={$isInSignupProcess ? 'signup' : 'login'}
                         onback={handleSignupNavBack}
                         onstep={handleSignupNavStep}
                         onskip={handleSignupNavSkip}
                         onlogout={handleSignupNavLogout}
+                        onDemoClick={() => {
+                            console.log('[Login] Demo back button clicked - closing login interface and returning to demo');
+                            // Clear email encryption key and salt when interrupting login to go back to demo
+                            // This ensures sensitive data is removed if user abandons login attempt
+                            cryptoService.clearAllEmailData();
+                            // CRITICAL: Clear all sessionStorage drafts when returning to demo mode
+                            // This ensures drafts don't persist if user interrupts login/signup
+                            clearAllSessionStorageDrafts();
+                            console.debug('[Login] Cleared all sessionStorage drafts when returning to demo');
+                            // Dispatch event to close login interface and show demo
+                            window.dispatchEvent(new CustomEvent('closeLoginInterface'));
+                            // Also dispatch loadDemoChat event to ensure demo chat is loaded
+                            // Small delay to ensure the interface closes before loading chat
+                            setTimeout(() => {
+                                window.dispatchEvent(new CustomEvent('loadDemoChat'));
+                            }, 100);
+                        }}
                         showSkip={signupShowSkip}
                         currentStep={$currentSignupStep}
                         selectedAppName={signupSelectedAppName}
@@ -2157,7 +2144,7 @@
                     </div>
                 {/if} <!-- This closes the main #if / :else if / :else block -->
             </div> <!-- End login-box -->
-        </div>
+        </div> <!-- End login-content -->
 
         {#if showDesktopGrids && gridsReady}
             <AppIconGrid iconGrid={rightIconGrid} shifted="columns" size={DESKTOP_ICON_SIZE}/>
@@ -2207,36 +2194,7 @@
         text-align: center;
     }
 
-    /* Navigation area for demo button - matches SignupNav.svelte styling */
-    .nav-area {
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        height: 48px;
-        z-index: 1;
-        display: flex;
-        justify-content: space-between;
-    }
-
-    .nav-button {
-        all: unset;
-        position: relative;
-        font-size: 14px;
-        color: var(--color-grey-60);
-        background: none;
-        border: none;
-        cursor: pointer;
-        padding: 0;
-        display: flex;
-        align-items: center;
-        gap: 4px;
-    }
-
-    .nav-button:hover {
-        background: none;
-        cursor: pointer;
-    }
+    /* Navigation area styles moved to SignupNav.svelte to avoid duplication */
 
     /* Connection error styles */
     .connection-error {
@@ -2285,35 +2243,46 @@
         transform: scale(0.98);
     }
 
-    /* Login/Signup tabs */
+    /* Login/Signup tabs - Modern segmented control design */
     .login-tabs {
         display: flex;
-        gap: 0;
-        margin-bottom: 24px;
-        border-bottom: 1px solid var(--color-grey-30);
+        gap: 8px;
+        margin-bottom: 32px;
+        padding: 4px;
+        background-color: var(--color-grey-0);
+        border-radius: 12px;
+        position: relative;
     }
 
     .tab-button {
         all: unset;
         flex: 1;
-        padding: 12px 16px;
+        padding: 12px 20px;
         text-align: center;
         font-size: 16px;
         font-weight: 500;
-        color: var(--color-grey-60);
+        color: var(--color-grey-70);
         cursor: pointer;
-        border-bottom: 2px solid transparent;
-        transition: all 0.2s ease;
+        border-radius: 8px;
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        position: relative;
+        z-index: 1;
     }
 
-    .tab-button:hover {
+    .tab-button:hover:not(.active) {
         color: var(--color-text);
-        background-color: var(--color-hover-background);
+        background-color: var(--color-grey-20);
     }
 
     .tab-button.active {
-        color: var(--color-primary);
-        border-bottom-color: var(--color-primary);
+        color: var(--color-font-button);
+        background: var(--color-primary);
+        box-shadow: 0 2px 8px rgba(72, 107, 205, 0.25);
+        font-weight: 600;
+    }
+
+    .tab-button:active:not(.active) {
+        transform: scale(0.98);
     }
 
 </style>
