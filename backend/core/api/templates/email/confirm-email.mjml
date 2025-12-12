@@ -1,9 +1,8 @@
 <mjml>
   <mj-head>
     <mj-title>{{ t.email.confirm_your_email_address.text }}</mj-title>
-    <mj-font name="Lexend Deca" href="https://fonts.googleapis.com/css2?family=Lexend+Deca:wght@400;700&display=swap" />
     <mj-attributes>
-      <mj-all font-family="'Lexend Deca', Arial, Helvetica, sans-serif" font-size="16px" align="center" font-weight="bold" line-height="1.3"/>
+      <mj-all font-family="Arial, Helvetica, sans-serif" font-size="16px" align="center" font-weight="bold" line-height="1.3"/>
       {% if darkmode %}
       <mj-text color="#e6e6e6" />
       {% else %}
@@ -22,7 +21,7 @@
     <mj-wrapper css-class="content-box" padding="20px" padding-bottom="0">
       <mj-section padding-bottom="10px">
         <mj-column>
-          <mj-image width="50px" height="50px" src="icons/mail.png" align="center" />
+          <mj-image width="50px" height="50px" src="icons/mail.png" align="center" alt="Email icon" />
           <mj-text font-size="30px">
             <mark>{{ t.email.confirm_your_email_address.text }}</mark>
           </mj-text>
@@ -40,7 +39,7 @@
       <mj-section css-class="code-container" padding="0" background-color="#171717" border-radius="24px">
         <mj-group css-class="code-container-inner">
           <mj-column width="30%" vertical-align="middle" css-class="code-icon">
-            <mj-image width="28px" height="28px" src="icons/2fa_small.png" align="left" padding-left="15px" />
+            <mj-image width="28px" height="28px" src="icons/2fa_small.png" align="left" padding-left="15px" alt="Verification code icon" />
           </mj-column>
           <mj-column width="70%" vertical-align="middle" css-class="code-text">
             <mj-text font-size="25px" font-weight="regular" align="center" padding-right="70px">
@@ -53,7 +52,7 @@
       <mj-section css-class="code-container" padding="0" background-color="#ffffff" border-radius="24px">
         <mj-group css-class="code-container-inner">
           <mj-column width="30%" vertical-align="middle" css-class="code-icon">
-            <mj-image width="28px" height="28px" src="icons/2fa_small.png" align="left" padding-left="15px" />
+            <mj-image width="28px" height="28px" src="icons/2fa_small.png" align="left" padding-left="15px" alt="Verification code icon" />
           </mj-column>
           <mj-column width="70%" vertical-align="middle" css-class="code-text">
             <mj-text font-size="25px" font-weight="regular" align="center" padding-right="70px">
