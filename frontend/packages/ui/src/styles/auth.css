@@ -5,13 +5,21 @@
     height: 100%;
     position: relative;
     background-color: var(--color-grey-20);
-    display: flex;
     justify-content: center;
     align-items: center;
-    overflow: hidden;
-    position: relative;
+    overflow: visible; /* Let parent handle scrolling, allow content to overflow naturally */
     max-width: 100%;
     min-height: 100%;
+    /* Remove max-height constraint - let content determine natural height */
+}
+
+/* When viewport height is short, align content to top to prevent cutoff */
+@media (max-height: 700px) {
+    .login-container {
+        align-items: flex-start; /* Align to top when viewport is short */
+        padding-top: 20px; /* Add some top padding */
+        padding-bottom: 20px; /* Add bottom padding for scrollable content */
+    }
 }
 
 /* Enable scrolling on mobile devices - only apply column layout below 600px */
@@ -19,9 +27,7 @@
 @media (max-width: 599px) {
     .login-container {
         flex-direction: column;
-        overflow-y: auto;
-        overflow-x: hidden;
-        -webkit-overflow-scrolling: touch;
+        overflow: visible; /* Let parent handle scrolling */
         align-items: flex-start; /* Change from center to flex-start on mobile */
         padding-top: 10px;
         padding-bottom: 20px;
