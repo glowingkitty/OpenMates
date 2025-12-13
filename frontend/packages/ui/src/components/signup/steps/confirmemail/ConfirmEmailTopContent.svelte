@@ -90,23 +90,5 @@
         width: 100%;
     }
 
-    /**
-     * Mobile adjustments - ensure content fits within scrollable container
-     */
-    @media (max-width: 600px) {
-        .content {
-            min-height: auto;
-            padding: 16px;
-        }
-
-        .main-content {
-            flex: 0 1 auto; /* Don't grow, allow shrinking */
-        }
-
-        .text-button {
-            margin-top: 16px;
-            padding-top: 16px;
-        }
-    }
     
 </style>

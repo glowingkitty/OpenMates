@@ -1115,17 +1115,6 @@
         transition: height 0.6s cubic-bezier(0.22, 1, 0.36, 1);
     }
     
-    .top-content-wrapper.expanded {
-        height: 640px;
-        max-height: calc(100vh - 265px);
-    }
-
-    @media (max-height: 680px) {
-        .top-content-wrapper.expanded {
-            max-height: 88vh;
-        }
-    }
-    
     /* Add a class for hiding elements with transition */
     .hidden {
         opacity: 0;

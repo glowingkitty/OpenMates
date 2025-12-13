@@ -61,10 +61,10 @@
 /* } */
 
 .login-content {
-    flex: 1;
-    display: flex;
-    justify-content: center;
-    align-items: center;
+    /* flex: 1; */
+    /* display: flex; */
+    /* justify-content: center;
+    align-items: center; */
     z-index: 1;
     min-height: 100%;
 }
@@ -411,8 +411,7 @@ form.hidden {
 /* Maintain overflow:hidden for content, but use a wrapper for the shadow */
 .top-content-wrapper {
     width: 100%;
-    height: 50vh;
-    max-height: 350px;
+    height: 380px;
     position: relative;
     /* No overflow:hidden here to allow shadow to be visible */
 }
@@ -431,6 +430,7 @@ form.hidden {
 
 .bottom-content-wrapper {
     width: 100%;
+    height: 200px;
     overflow: visible;
     position: relative;
 }
@@ -451,9 +451,10 @@ form.hidden {
 
 /**
  * Status wrapper - progress indicator at bottom of signup flow
- * Uses absolute positioning relative to .login-wrapper (in ActiveChat.svelte)
- * On mobile (< 600px), uses fixed positioning for better visibility
- * On tablet/desktop (>= 600px), uses absolute positioning
+ * Now positioned as a child of .active-chat-container (in ActiveChat.svelte)
+ * Uses absolute positioning relative to .active-chat-container
+ * Includes gradient background to indicate scrollability (fades from transparent to background color)
+ * Gradient indicates user can scroll further down while still showing current signup step
  */
 .status-wrapper {
     position: absolute;
@@ -461,48 +462,18 @@ form.hidden {
     left: 0px;
     right: 0px;
     z-index: 10; /* Ensure it's above content but below modals */
+    /* Gradient background: fades from transparent at top to background color at bottom */
+    /* This indicates to users that they can scroll further down */
+    background: linear-gradient(to top, var(--color-grey-20) 0%, var(--color-grey-20) 60%, transparent 100%);
+    padding-top: 40px; /* Add padding at top to create space for gradient fade */
+    padding-bottom: 15px; /* Maintain bottom padding for status bar */
+    pointer-events: none; /* Allow clicks to pass through gradient area */
 }
 
-/* Mobile: Fixed positioning for better visibility when content scrolls */
-/* @media (max-width: 600px) { */
-/*     .status-wrapper { */
-/*         position: fixed; */
-/*         bottom: 0px; */
-/*         left: 0px; */
-/*         right: 0px; */
-/*         z-index: 100; */
-/*         background-color: var(--color-grey-20); */
-/*         padding-bottom: 0px; */
-/*         padding-top: 0px; */
-/*         max-height: 40px; */
-/*         overflow: hidden; */
-/*         transform: none; /* Remove any transform that might push it down */
-/*     } */
-/*     .status-bar { */
-/*         padding: 5px 0 5px 0; */
-/*         margin: 0; */
-/*     } */
-/* } */
-
-/* Tablet and Desktop: Absolute positioning relative to login-wrapper */
-/* @media (min-width: 600px) { */
-/*     .status-wrapper { */
-/*         position: absolute; */
-/*         bottom: 0px; */
-/*         left: 0px; */
-/*         right: 0px; */
-/*         transform: none; */
-/*         background-color: transparent; */
-/*         padding: 0; */
-/*         max-height: none; */
-/*         overflow: visible; */
-/*         z-index: 10; /* Consistent z-index across breakpoints */
-/*     } */ 
-/* */
-/* .status-bar { */
-/*         padding: 22px 0 0 0; */
-/*     } */
-/* } */
+/* Status bar content should be clickable */
+.status-wrapper :global(.status-bar) {
+    pointer-events: auto; /* Re-enable pointer events for the status bar itself */
+}
 
 .status-wrapper,
 .help-wrapper {
@@ -529,155 +500,25 @@ form.hidden {
     bottom: 0;
 }
 
-/* Fix height and scrolling on mobile when content exceeds container height */
-/* Standardized breakpoint: 600px (mobile/tablet boundary) */
-@media (max-width: 600px) {
-    /* On mobile, use fixed heights for steps with bottom content (like confirm-email) */
-    /* Steps without bottom content (like secure-account) use expanded class with more height */
-    .top-content-wrapper {
-        height: 300px;
-        min-height: 300px;
-    }
-    
-    /* For expanded wrapper (steps without bottom content), use full height */
-    .top-content-wrapper.expanded {
-        height: 640px;
-        max-height: calc(100vh - 265px);
-    }
-    
-    /* Top content must fill the wrapper */
-    .top-content {
-        height: 100%;
-        overflow-y: auto;
-        -webkit-overflow-scrolling: touch;
-    }
-    
-    /* For expanded steps, ensure top-content fills wrapper and allows scrolling */
-    .top-content-wrapper.expanded .top-content {
-        height: 100%;
-        overflow-y: auto;
-        -webkit-overflow-scrolling: touch;
-    }
-    
-    /* Content slider must fill top-content */
-    .top-content .content-slider {
-        height: 100%;
-    }
-    
-    /* Slide must fill content-slider and allow scrolling */
-    .top-content .content-slider .slide {
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        height: 100%;
-        -webkit-overflow-scrolling: touch;
-    }
-    
-    /* For expanded steps, slide should fill content-slider */
-    .top-content-wrapper.expanded .top-content .content-slider .slide {
-        position: relative;
-        height: 100%;
-    }
-    
-    /* Content should fill slide but allow scrolling if needed */
-    /* Changed from fixed 100% height to allow content to determine height */
-    .top-content .content {
-        height: auto;
-        min-height: 100%; /* Ensure minimum height to fill container */
-    }
-    
-    .top-content-wrapper.expanded .top-content {
-        height: 100%;
-        overflow-y: auto; /* Allow scrolling if content exceeds */
-        overflow-x: hidden;
-    }
-    
-    .top-content-wrapper.expanded .top-content .content-slider {
-        height: 100%;
-    }
-    
-    .top-content-wrapper.expanded .top-content .content-slider .slide {
-        position: relative;
-        height: 100%;
-        top: auto;
-        bottom: auto;
-        left: auto;
-        right: auto;
-    }
-    
-    .top-content-wrapper.expanded .top-content .content {
-        height: auto;
-        min-height: auto;
-    }
-    
-    /* Change additional-options-text from absolute to relative on mobile */
-    .top-content .additional-options-text {
-        position: relative;
-        bottom: auto;
-        left: auto;
-        right: auto;
-        margin-top: 20px;
-        padding-bottom: 0;
-    }
-}
-
-/* For larger mobile/tablet (600px-730px), use fixed heights with scrolling */
-@media (min-width: 600px) and (max-width: 730px) {
-    /* Top content wrapper needs a defined height */
-    .top-content-wrapper {
-        height: 300px;
-        min-height: 300px;
-    }
-    
-    /* Expanded wrapper needs full height */
-    .top-content-wrapper.expanded {
-        height: 640px;
-        max-height: calc(100vh - 265px);
-    }
-    
-    /* Top content must fill the wrapper */
-    .top-content {
-        height: 100%;
-        overflow-y: auto;
-        -webkit-overflow-scrolling: touch;
-    }
-    
-    /* For expanded steps, ensure top-content fills wrapper */
-    .top-content-wrapper.expanded .top-content {
-        height: 100%;
-        overflow-y: auto;
-        -webkit-overflow-scrolling: touch;
-    }
-    
-    /* Content slider must fill top-content */
-    .top-content .content-slider {
-        height: 100%;
-    }
-    
-    /* Slide must fill content-slider and allow scrolling */
-    .top-content .content-slider .slide {
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        height: 100%;
-        -webkit-overflow-scrolling: touch;
-    }
-    
-    /* For expanded steps, slide should fill content-slider */
-    .top-content-wrapper.expanded .top-content .content-slider .slide {
-        position: relative;
-        height: 100%;
-    }
+.top-content-wrapper.expanded {
+    height: 600px;
 }
 
 
 .bottom-content-wrapper {
     position: relative;
     overflow: visible;
+    /* Add transitions for smooth height and opacity changes */
+    transition: height 0.6s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* When reduced class is applied, set height and opacity to 0 for seamless transitions */
+/* This allows steps with only top content to smoothly transition from steps with both top and bottom content */
+.bottom-content-wrapper.reduced {
+    height: 0;
+    opacity: 0;
+    pointer-events: none; /* Prevent interaction when hidden */
+    overflow: hidden; /* Hide overflow when height is 0 */
 }
 
 /* Add specific styles for bottom content */
@@ -712,4 +553,5 @@ form.hidden {
     font-size: 24px;
     color: var(--color-grey-100);
     margin: 0;
+    text-align: left;
 }

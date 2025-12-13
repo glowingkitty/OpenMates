@@ -1316,6 +1316,29 @@ click_on_an_option:
   cs: Klikněte na možnost
   sv: ''
   verified_by_human: []
+how_to_login:
+  context: Question asking how the user wants to login
+  en: How do you want to login?
+  de: Wie möchten Sie sich anmelden?
+  zh: 您想如何登录？
+  es: ¿Cómo quieres iniciar sesión?
+  fr: Comment voulez-vous vous connecter ?
+  pt: Como você quer fazer login?
+  ru: Как вы хотите войти?
+  ja: どのようにログインしますか？
+  ko: 어떻게 로그인하시겠습니까?
+  it: Come vuoi accedere?
+  tr: Nasıl giriş yapmak istersiniz?
+  vi: Bạn muốn đăng nhập như thế nào?
+  id: Bagaimana Anda ingin masuk?
+  pl: Jak chcesz się zalogować?
+  nl: Hoe wil je inloggen?
+  ar: كيف تريد تسجيل الدخول؟
+  hi: आप कैसे लॉगिन करना चाहते हैं?
+  th: คุณต้องการเข้าสู่ระบบอย่างไร?
+  cs: Jak se chcete přihlásit?
+  sv: ''
+  verified_by_human: []
 password:
   context: password
   en: Password

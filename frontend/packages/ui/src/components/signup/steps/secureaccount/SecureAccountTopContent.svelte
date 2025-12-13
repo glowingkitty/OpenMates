@@ -430,7 +430,7 @@
     </div>
 
     <div class="options-container">
-        <p class="instruction-text">{@html $text('signup.click_on_an_option.text')}</p>
+        <p class="instruction-text">{@html $text('signup.how_to_login.text')}</p>
         
         <!-- Passkey Option -->
         <div class="option-wrapper">
@@ -482,7 +482,7 @@
 
 <style>
     .content {
-        /* padding: 24px; */
+        padding: 24px;
         height: 100%;
         display: flex;
         flex-direction: column;

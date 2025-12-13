@@ -2876,18 +2876,19 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     bind:clientWidth={containerWidth}
 >
     {#if !showChat}
+        <!-- Signup status bar - only show during signup process, not on basics or alpha disclaimer steps -->
+        <!-- Moved to be a child of active-chat-container for better positioning with gradient -->
+        {#if $isInSignupProcess && $currentSignupStep !== STEP_BASICS && $currentSignupStep !== STEP_ALPHA_DISCLAIMER}
+            <div class="status-wrapper" transition:fade={fadeParams}>
+                <SignupStatusbar currentStepName={$currentSignupStep} stepSequenceOverride={stepSequence} />
+            </div>
+        {/if}
+        
         <div 
             class="login-wrapper" 
             in:fly={loginTransitionProps} 
             out:fade={{ duration: 200 }}
         >
-            <!-- Signup status bar - only show during signup process, not on basics or alpha disclaimer steps -->
-            {#if $isInSignupProcess && $currentSignupStep !== STEP_BASICS && $currentSignupStep !== STEP_ALPHA_DISCLAIMER}
-                <div class="status-wrapper" transition:fade={fadeParams}>
-                    <SignupStatusbar currentStepName={$currentSignupStep} stepSequenceOverride={stepSequence} />
-                </div>
-            {/if}
-            
             <Login on:loginSuccess={handleLoginSuccess} on:logout={handleLogout} />
         </div>
     {:else}
@@ -3629,15 +3630,26 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         right: 0;
         bottom: 0;
         display: flex;
-        flex-direction: column; /* Column layout to stack status-wrapper and Login */
+        flex-direction: column; /* Column layout for Login component */
         align-items: stretch;
         justify-content: stretch;
         height: 100%;
         overflow-y: auto; /* Enable vertical scrolling when content exceeds viewport */
         overflow-x: hidden; /* Prevent horizontal scrolling */
         -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
-        max-height: 100vh; /* Constrain to viewport height */
-        max-height: 100dvh; /* Use dynamic viewport height for mobile browsers */
+        max-height: 830px;
+    }
+
+    /* Center login-wrapper vertically in active-chat-container on screens with height over 1000px */
+    @media (min-height: 1000px) {
+        .login-wrapper {
+            /* Center the wrapper itself vertically instead of filling from top to bottom */
+            top: 50%;
+            bottom: auto;
+            transform: translateY(-50%); /* Center vertically */
+            height: auto; /* Let height be determined by content and max-height */
+            justify-content: center; /* Center content vertically inside wrapper */
+        }
     }
 
 
