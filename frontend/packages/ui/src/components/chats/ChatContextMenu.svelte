@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { createEventDispatcher, onMount } from 'svelte';
+    import { createEventDispatcher, onMount, tick } from 'svelte';
     import { text } from '@repo/ui'; // Import text store for translations
     import type { Chat } from '../../types/chat';
     import { authStore } from '../../stores/authStore'; // Import authStore to check authentication
@@ -30,7 +30,7 @@
     }: Props = $props();
 
     const dispatch: {
-        (e: 'close' | 'delete' | 'download' | 'copy' | 'hide' | 'enterSelectMode' | 'unselect' | 'selectChat', detail: string): void;
+        (e: 'close' | 'delete' | 'download' | 'copy' | 'hide' | 'unhide' | 'enterSelectMode' | 'unselect' | 'selectChat', detail: string): void;
     } = createEventDispatcher();
     let menuElement = $state<HTMLDivElement>();
     let adjustedX = $state(x);
@@ -228,6 +228,10 @@
             if (deleteConfirmTimeout) {
                 clearTimeout(deleteConfirmTimeout);
             }
+            // Cleanup: remove menu from body if it's still there
+            if (menuElement && menuElement.parentNode === document.body) {
+                document.body.removeChild(menuElement);
+            }
         };
     });
 
@@ -237,6 +241,23 @@
             if (deleteConfirmTimeout) {
                 clearTimeout(deleteConfirmTimeout);
             }
+        }
+    });
+
+    // Render menu at body level to avoid stacking context issues
+    // Move the menu element to document.body when shown to escape any parent stacking contexts
+    $effect(() => {
+        if (show && menuElement) {
+            // Wait for element to be rendered in DOM first, then move to body
+            tick().then(() => {
+                if (menuElement && menuElement.parentNode && menuElement.parentNode !== document.body) {
+                    // Move to body to escape stacking context
+                    document.body.appendChild(menuElement);
+                }
+            });
+        } else if (!show && menuElement && menuElement.parentNode === document.body) {
+            // Cleanup: remove from body when hidden
+            document.body.removeChild(menuElement);
         }
     });
 </script>
@@ -328,7 +349,7 @@
                 </button>
             {/if}
 
-            {#if chat && !chat.is_incognito && !chat.is_hidden && !isPublicChat(chat.chat_id)}
+            {#if chat && !chat.is_incognito && !(chat as any).is_hidden && !isPublicChat(chat.chat_id)}
                 <button
                     class="menu-item hide"
                     class:disabled={!$authStore.isAuthenticated}
@@ -344,7 +365,7 @@
                 </button>
             {/if}
 
-            {#if chat && chat.is_hidden}
+            {#if chat && (chat as any).is_hidden}
                 <button
                     class="menu-item unhide"
                     class:disabled={!$authStore.isAuthenticated}
@@ -382,7 +403,8 @@
         border-radius: 12px;
         padding: 8px;
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-        z-index: 10000;
+        z-index: 99999; /* Very high z-index to ensure it's above everything */
+        isolation: isolate; /* Create new stacking context */
         opacity: 0;
         pointer-events: none;
         transition: opacity 0.2s ease-in-out;

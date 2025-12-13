@@ -31,31 +31,20 @@ function createHiddenChatStore() {
     let lockoutCheckInterval: ReturnType<typeof setInterval> | null = null;
 
     /**
-     * Initialize store - check if hidden chats are already unlocked
+     * Initialize store - ensure hidden chats are locked on page reload
+     * For security, hidden chats must be explicitly unlocked by entering the passcode
+     * after each page reload. The combined secret is stored in volatile memory only
+     * and does not survive page reloads.
      */
     function init() {
         if (!browser) {
             return;
         }
 
-        // Check if we have a stored code and auto-unlock
-        if (hiddenChatService.hasStoredCode() && !hiddenChatService.isUnlocked()) {
-            const storedCode = hiddenChatService.getStoredCode();
-            if (storedCode) {
-                // Auto-unlock with stored code
-                unlockHiddenChats(storedCode).catch(error => {
-                    console.error('[HiddenChatStore] Auto-unlock failed:', error);
-                });
-            }
-        } else if (hiddenChatService.isUnlocked()) {
-            // Already unlocked (e.g., from previous session)
-            update(state => ({
-                ...state,
-                isUnlocked: true,
-                lastActivityTime: Date.now()
-            }));
-            startAutoLockTimer();
-        }
+        // CRITICAL: Always start in locked state on page reload for security
+        // The combined secret is stored in volatile memory only and is automatically cleared on page reload
+        // User must explicitly unlock by entering the passcode after each page reload
+        // Note: The code may still be in sessionStorage for convenience, but we don't auto-unlock with it
 
         // Start lockout check interval
         startLockoutCheckInterval();
@@ -82,6 +71,12 @@ function createHiddenChatStore() {
                     lastActivityTime: Date.now()
                 }));
                 startAutoLockTimer();
+                
+                // Dispatch event to notify UI components (e.g., SettingsUsage)
+                if (browser) {
+                    window.dispatchEvent(new CustomEvent('hiddenChatsUnlocked'));
+                }
+                
                 return result;
             } else {
                 // Update lockout state
@@ -97,15 +92,21 @@ function createHiddenChatStore() {
 
     /**
      * Lock hidden chats manually
+     * Clears combined secret and all decrypted chat keys from memory
      */
-    function lockHiddenChats(): void {
-        hiddenChatService.lockHiddenChats();
+    async function lockHiddenChats(): Promise<void> {
+        await hiddenChatService.lockHiddenChats();
         update(state => ({
             ...state,
             isUnlocked: false,
             lastActivityTime: null
         }));
         stopAutoLockTimer();
+        
+        // Dispatch event to notify UI to refresh chat list (hidden chats will disappear)
+        if (browser) {
+            window.dispatchEvent(new CustomEvent('hiddenChatsLocked'));
+        }
     }
 
     /**

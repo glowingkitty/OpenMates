@@ -46,10 +46,18 @@ Master Key + 4-6 digit code → Argon2(master_key || code, salt) → combined_se
   - Not persisted in localStorage (sessionStorage for code only, not decrypted data)
 
 - **Code derivation**:
-  - Combined secret: `Argon2(master_key || code, salt)`
-  - Salt: Device-specific, derived from `user_id + device_hash`, stored in sessionStorage
-  - KDF: Argon2 (matching login flow strength)
-  - Scope: One code unlocks all hidden chats (per-user, not per-chat)
+  - Combined secret: `PBKDF2(master_key || code, salt)` (Note: Architecture doc mentions Argon2, but implementation uses PBKDF2 for consistency with login flow)
+  - Salt: User-specific, reuses `user_email_salt` from localStorage/sessionStorage (same across devices)
+  - **CRITICAL**: Salt must be the same across all devices for the same user to enable cross-device decryption
+  - The email salt is perfect for this: already user-specific, stored securely, and available after login
+  - KDF: PBKDF2 with 100,000 iterations (matching login flow strength)
+  - Scope: **Each chat can be encrypted with a different code**
+    - When hiding a chat, the user enters a code (or uses the currently unlocked code)
+    - The chat key is encrypted with `combined_secret = PBKDF2(master_key || code, salt)`
+    - When unlocking, the user enters a code, and the system tries to decrypt all chats that failed normal decryption
+    - Only chats encrypted with the entered code will decrypt and be shown
+    - If no chats decrypt, the system shows "No hidden chats unlocked" (code may be wrong or no chats use that code)
+    - This allows power users to have different sets of hidden chats visible with different codes
 
 ## Sync Considerations
 
@@ -81,7 +89,7 @@ Master Key + 4-6 digit code → Argon2(master_key || code, salt) → combined_se
 - ✅ **Metadata privacy**: Chat titles protected by combined_secret (not separate from content)
 - ✅ **Information hiding**: Always-visible menu doesn't leak hidden chat existence; decryption failure is indistinguishable from corruption
 - ✅ **Key isolation**: Hidden and visible chats use different decryption paths (master_key vs. master_key + code)
-- ✅ **Device independence**: Each device derives combined_secret independently; code not stored persistently
+- ✅ **Cross-device compatibility**: Same user on different devices generates the same salt (user_id only), enabling hidden chats to be decrypted across devices with the same code
 - ✅ **Inactivity protection**: Auto-lock removes decrypted secrets from memory after N minutes
 
 ## Implementation Notes

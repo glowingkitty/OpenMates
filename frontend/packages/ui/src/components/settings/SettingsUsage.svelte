@@ -104,6 +104,9 @@ Usage Settings - View usage statistics and export usage data
     
     // Track if we've done initial load to prevent duplicate requests
     let hasInitialized = $state(false);
+    
+    // Track if hidden chats are unlocked (reactive state)
+    let hiddenChatsUnlocked = $state(false);
 
     // Format credits with dots as thousand separators
     function formatCredits(credits: number): string {
@@ -451,6 +454,41 @@ Usage Settings - View usage statistics and export usage data
         console.log('Updated chatsByMonth:', chatsByMonth.size, 'months, entries:', Array.from(chatsByMonth.entries()));
     }
     
+    // Check if hidden chats are unlocked
+    async function checkHiddenChatsUnlocked() {
+        try {
+            const { hiddenChatService } = await import('../../services/hiddenChatService');
+            hiddenChatsUnlocked = hiddenChatService.isUnlocked();
+        } catch {
+            hiddenChatsUnlocked = false;
+        }
+    }
+    
+    // Handle hidden chats locked/unlocked events
+    async function handleHiddenChatsLocked() {
+        hiddenChatsUnlocked = false;
+        // Clear chat metadata cache when hidden chats are locked
+        // This ensures hidden chat details are hidden immediately
+        chatMetadataMap.clear();
+        // Re-process existing summaries to update display (hide details for hidden chats)
+        if (activeTab === 'chats' && chatsByMonth.size > 0) {
+            // Re-load summaries to refresh metadata with new unlock status
+            await fetchUsageSummaries('chats', loadedMonths);
+        }
+    }
+    
+    async function handleHiddenChatsUnlocked() {
+        hiddenChatsUnlocked = true;
+        // Clear chat metadata cache when hidden chats are unlocked
+        // This ensures hidden chat details become visible immediately
+        chatMetadataMap.clear();
+        // Re-process existing summaries to update display (show details for now-unlocked hidden chats)
+        if (activeTab === 'chats' && chatsByMonth.size > 0) {
+            // Re-load summaries to refresh metadata with new unlock status
+            await fetchUsageSummaries('chats', loadedMonths);
+        }
+    }
+    
     // Update app summaries from API response
     function updateAppSummariesFromAPI(summaries: any[]) {
         const groupedByMonth = new Map<string, AppUsageSummary[]>();
@@ -676,11 +714,30 @@ Usage Settings - View usage statistics and export usage data
     /**
      * Load chat metadata for a chat_id
      * Fetches from IndexedDB and decrypts metadata
+     * Note: For hidden chats, metadata can only be decrypted when hidden chats are unlocked
      */
     async function loadChatMetadata(chatId: string): Promise<{ chat: Chat | null; metadata: DecryptedChatMetadata | null }> {
-        // Check cache first
-        if (chatMetadataMap.has(chatId)) {
-            return chatMetadataMap.get(chatId)!;
+        // Check cache first, but invalidate if unlock status changed
+        // (We check unlock status on each load to handle dynamic unlock/lock)
+        const cached = chatMetadataMap.get(chatId);
+        if (cached) {
+            // If chat is hidden and unlock status changed, invalidate cache
+            const chat = cached.chat;
+            if (chat && ((chat as any).is_hidden_candidate || (chat as any).is_hidden)) {
+                // Re-check unlock status - if it changed, reload
+                const wasUnlocked = hiddenChatsUnlocked;
+                await checkHiddenChatsUnlocked();
+                if (wasUnlocked !== hiddenChatsUnlocked) {
+                    // Unlock status changed, clear cache for this chat and reload
+                    chatMetadataMap.delete(chatId);
+                } else {
+                    // Unlock status unchanged, return cached (but check if we can show details)
+                    return cached;
+                }
+            } else {
+                // Not a hidden chat, return cached
+                return cached;
+            }
         }
 
         // For non-UUID chat IDs (like "demo-welcome"), return null immediately
@@ -702,7 +759,29 @@ Usage Settings - View usage statistics and export usage data
                 return result;
             }
 
-            // Get decrypted metadata
+            // For hidden chats, ensure they're decrypted if hidden chats are unlocked
+            // This is necessary because getChat() doesn't automatically decrypt hidden chats
+            // We need to decrypt the chat key so metadata can be decrypted
+            if (chat.encrypted_chat_key) {
+                const { hiddenChatService } = await import('../../services/hiddenChatService');
+                
+                // Use tryDecryptChatKey which handles both normal and hidden chat decryption
+                const decryptResult = await hiddenChatService.tryDecryptChatKey(chat.encrypted_chat_key);
+                
+                if (decryptResult.chatKey) {
+                    // Cache the decrypted key so metadata can be decrypted
+                    chatDB.setChatKey(chatId, decryptResult.chatKey);
+                    // Mark chat flags for UI filtering
+                    (chat as any).is_hidden = decryptResult.isHidden;
+                    (chat as any).is_hidden_candidate = decryptResult.isHiddenCandidate;
+                } else {
+                    // Both decryption paths failed - mark as hidden candidate
+                    (chat as any).is_hidden_candidate = true;
+                    (chat as any).is_hidden = false;
+                }
+            }
+
+            // Get decrypted metadata (now that chat key is cached if available)
             const metadata = await chatMetadataCache.getDecryptedMetadata(chat);
             const result = { chat, metadata };
             chatMetadataMap.set(chatId, result);
@@ -976,6 +1055,18 @@ Usage Settings - View usage statistics and export usage data
         fetchUsageSummaries(activeTab, loadedMonths).then(() => {
             hasInitialized = true;
         });
+        
+        // Check hidden chats unlock status on mount
+        checkHiddenChatsUnlocked();
+        
+        // Listen to hidden chats lock/unlock events for efficient updates
+        window.addEventListener('hiddenChatsLocked', handleHiddenChatsLocked);
+        window.addEventListener('hiddenChatsUnlocked', handleHiddenChatsUnlocked);
+        
+        return () => {
+            window.removeEventListener('hiddenChatsLocked', handleHiddenChatsLocked);
+            window.removeEventListener('hiddenChatsUnlocked', handleHiddenChatsUnlocked);
+        };
     });
 </script>
 
@@ -1079,11 +1170,13 @@ Usage Settings - View usage statistics and export usage data
             {@const selectedChatMetadata = chatMetadataMap.get(selectedChatId)}
             {@const selectedChat = selectedChatMetadata?.chat}
             {@const selectedMetadata = selectedChatMetadata?.metadata}
-            {@const selectedCategory = selectedMetadata?.category || null}
-            {@const selectedIconName = selectedMetadata?.icon || (selectedCategory ? getFallbackIconForCategory(selectedCategory) : 'help-circle')}
-            {@const selectedGradientColors = selectedCategory ? getCategoryGradientColors(selectedCategory) : null}
+            {@const selectedIsHiddenChat = selectedChat ? ((selectedChat as any).is_hidden_candidate || (selectedChat as any).is_hidden) : false}
+            {@const selectedCanShowDetails = !selectedIsHiddenChat || (selectedIsHiddenChat && hiddenChatsUnlocked)}
+            {@const selectedCategory = selectedCanShowDetails ? (selectedMetadata?.category || null) : null}
+            {@const selectedIconName = selectedCanShowDetails ? (selectedMetadata?.icon || (selectedCategory ? getFallbackIconForCategory(selectedCategory) : 'help-circle')) : 'help-circle'}
+            {@const selectedGradientColors = selectedCanShowDetails && selectedCategory ? getCategoryGradientColors(selectedCategory) : null}
             {@const SelectedIconComponent = getLucideIcon(selectedIconName)}
-            {@const selectedTitle = selectedMetadata?.title || selectedChat?.title || 'Chat'}
+            {@const selectedTitle = selectedCanShowDetails ? (selectedMetadata?.title || selectedChat?.title || 'Chat') : 'Chat'}
             
             <div class="detail-header">
                 <div class="detail-icon-wrapper">
@@ -1337,11 +1430,13 @@ Usage Settings - View usage statistics and export usage data
                     {#each summaries as summary}
                         {@const chat = summary.chat}
                         {@const metadata = summary.metadata}
-                        {@const category = metadata?.category || null}
-                        {@const iconName = metadata?.icon || (category ? getFallbackIconForCategory(category) : 'help-circle')}
-                        {@const gradientColors = category ? getCategoryGradientColors(category) : null}
+                        {@const isHiddenChat = chat ? ((chat as any).is_hidden_candidate || (chat as any).is_hidden) : false}
+                        {@const canShowDetails = !isHiddenChat || (isHiddenChat && hiddenChatsUnlocked)}
+                        {@const category = canShowDetails ? (metadata?.category || null) : null}
+                        {@const iconName = canShowDetails ? (metadata?.icon || (category ? getFallbackIconForCategory(category) : 'help-circle')) : 'help-circle'}
+                        {@const gradientColors = canShowDetails && category ? getCategoryGradientColors(category) : null}
                         {@const IconComponent = getLucideIcon(iconName)}
-                        {@const title = metadata?.title || chat?.title || 'Chat'}
+                        {@const title = canShowDetails ? (metadata?.title || chat?.title || 'Chat') : 'Chat'}
                         
                         <button
                             type="button"

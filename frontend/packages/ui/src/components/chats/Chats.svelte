@@ -60,7 +60,7 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 	let showHiddenChatUnlock = $state(false); // Show unlock modal
 	let isFirstTimeUnlock = $state(false); // True if setting code for first time
 	let chatIdToHideAfterUnlock: string | null = $state(null); // Chat ID to hide after unlock
-	let hiddenChatState = $derived(hiddenChatStore.get()); // Get hidden chat state
+	let hiddenChatState = $derived($hiddenChatStore); // Reactive hidden chat state
 	
 	// Scroll-to-top overscroll state for hidden chats unlock
 	let showOverscrollUnlock = $state(false); // Show unlock interface when overscrolling at top
@@ -202,14 +202,14 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 	// CRITICAL CHANGE: Show all chats immediately, even those waiting for metadata
 	// Chats with waiting_for_metadata will display with status indicators (Sending/Processing)
 	// instead of being hidden from the sidebar
-	// Filter out hidden chats from main list (they'll be shown separately when unlocked)
+	// Filter out hidden chats from main list.
+	// Hidden chats are identified by decryption failure (no DB flag). Locked hidden chats are marked as `is_hidden_candidate`.
 	let sortedAllChatsFiltered = $derived((() => {
 		const sorted = sortedAllChats;
-		// If hidden chats are unlocked, filter out hidden chats from main list
-		if (hiddenChatState.isUnlocked) {
-			return sorted.filter(chat => !(chat as any).is_hidden);
+		if (!$authStore.isAuthenticated) {
+			return sorted;
 		}
-		return sorted;
+		return sorted.filter(chat => !(chat as any).is_hidden && !(chat as any).is_hidden_candidate);
 	})());
 
 	// CRITICAL FIX: Order group keys so "today" appears before "previous_30_days"
@@ -309,6 +309,7 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 	let handleShowOverscrollUnlockForHide: (event: Event) => void; // Handler for show overscroll unlock for hiding chat
 	let handleHiddenChatsAutoLocked: () => void; // Handler for hidden chats auto-locked event
 	let handleChatHidden: (event: Event) => void; // Handler for chat hidden event
+	let handleChatUnhidden: (event: Event) => void; // Handler for chat unhidden event
 
 	// --- chatSyncService Event Handlers ---
 
@@ -570,36 +571,34 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 			sessionStorageDraftUpdateTrigger++;
 			console.debug('[Chats] Triggered reactivity update for sessionStorage drafts, trigger:', sessionStorageDraftUpdateTrigger);
 		} else {
-			// If a draft was deleted, fetch the updated chat from DB and update it directly in the array
-			// This ensures immediate sorting update without waiting for full list refresh
-			if (customEvent.detail?.draftDeleted && customEvent.detail?.chat_id) {
+			// For authenticated users, prefer an incremental update to avoid a full DB read on every draft save.
+			// This also fixes "new draft chat not shown" when the chat list is served from cache.
+			const chatId = customEvent.detail?.chat_id;
+			if (chatId) {
 				try {
-					const updatedChat = await chatDB.getChat(customEvent.detail.chat_id);
+					const updatedChat = await chatDB.getChat(chatId);
 					if (updatedChat) {
 						const chatIndex = allChatsFromDB.findIndex(c => c.chat_id === updatedChat.chat_id);
 						if (chatIndex !== -1) {
-							// Update the chat object directly in the array with the cleared draft state
 							allChatsFromDB[chatIndex] = updatedChat;
-							// Force reactivity by creating a new array reference
-							allChatsFromDB = [...allChatsFromDB];
-							console.debug('[Chats] Draft deleted - updated chat object directly in array to trigger immediate re-sorting');
 						} else {
-							// Chat not in array yet, refresh from DB
-							await updateChatListFromDB();
+							allChatsFromDB = [...allChatsFromDB, updatedChat];
 						}
-					} else {
-						// Chat not found, refresh from DB
-						await updateChatListFromDB();
+						// Force reactivity for derived sorting/grouping
+						allChatsFromDB = [...allChatsFromDB];
+						// Keep global cache in sync so subsequent refreshes don't "miss" the new chat
+						chatListCache.upsertChat(updatedChat);
+						console.debug('[Chats] Updated chat list incrementally from local draft change:', { chatId });
+						return;
 					}
 				} catch (error) {
-					console.error('[Chats] Error fetching updated chat after draft deletion:', error);
-					// Fallback to full refresh
-					await updateChatListFromDB();
+					console.error('[Chats] Error fetching updated chat after local draft change:', error);
 				}
-			} else {
-				// For other updates, refresh from DB as usual
-				await updateChatListFromDB();
 			}
+
+			// Fallback: full refresh (force to bypass global cache)
+			chatListCache.markDirty();
+			await updateChatListFromDB(true);
 		}
 	};
 
@@ -929,19 +928,66 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 		// Listen for hidden chats auto-locked event
 		handleHiddenChatsAutoLocked = () => {
 			notificationStore.info($text('chats.hidden_chats.auto_locked.text'));
-			// Refresh chat list to hide hidden chats
-			updateChatListFromDB();
+			// Refresh chat list so hidden chats re-lock and disappear from unlocked list
+			chatListCache.markDirty();
+			updateChatListFromDB(true);
 		};
 		window.addEventListener('hiddenChatsAutoLocked', handleHiddenChatsAutoLocked);
+
+		// Listen for hidden chats manually locked event
+		const handleHiddenChatsLocked = async () => {
+			// Refresh chat list so hidden chats disappear from unlocked list
+			chatListCache.markDirty();
+			await updateChatListFromDB(true);
+		};
+		window.addEventListener('hiddenChatsLocked', handleHiddenChatsLocked);
 
 		// Listen for chat hidden event
 		handleChatHidden = async (event: Event) => {
 			const customEvent = event as CustomEvent<{ chat_id: string }>;
 			console.debug('[Chats] Chat hidden event received:', customEvent.detail.chat_id);
 			// Refresh chat list to update visibility
-			await updateChatListFromDB();
+			chatListCache.markDirty();
+			await updateChatListFromDB(true);
 		};
 		window.addEventListener('chatHidden', handleChatHidden);
+		
+		// Listen for chat unhidden event (when a hidden chat is unhidden)
+		handleChatUnhidden = async (event: Event) => {
+			const customEvent = event as CustomEvent<{ chat_id: string }>;
+			const chatId = customEvent.detail.chat_id;
+			console.debug('[Chats] Chat unhidden event received:', chatId);
+			
+			// Mark cache as dirty to force reload
+			chatListCache.markDirty();
+			
+			// Also clear the specific chat from any in-memory caches to ensure fresh load
+			// Find and remove the chat from allChatsFromDB if it exists (it will be reloaded)
+			const chatIndex = allChatsFromDB.findIndex(c => c.chat_id === chatId);
+			if (chatIndex >= 0) {
+				// Remove the old chat object (it has stale is_hidden flags)
+				allChatsFromDB = allChatsFromDB.filter(c => c.chat_id !== chatId);
+			}
+			
+			// Force refresh from DB - this will reload the chat with correct flags
+			await updateChatListFromDB(true);
+			
+			// Reset overscroll unlock state to ensure it can be triggered again
+			// This allows the user to scroll up to open hidden chats section after unhiding
+			showOverscrollUnlock = false;
+			overscrollUnlockCode = '';
+			overscrollUnlockError = '';
+			
+			// Reset scroll position to top to allow overscroll detection
+			// Use requestAnimationFrame to ensure DOM is updated first
+			requestAnimationFrame(() => {
+				if (activityHistoryElement) {
+					activityHistoryElement.scrollTop = 0;
+					currentScrollTop = 0;
+				}
+			});
+		};
+		window.addEventListener('chatUnhidden', handleChatUnhidden);
 		
 		// Initial load of incognito chats (only if mode is enabled)
 		// Don't use subscription to avoid reactive loops - just check on mount
@@ -1074,6 +1120,9 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 		}
 		if (handleChatHidden) {
 			window.removeEventListener('chatHidden', handleChatHidden);
+			if (handleChatUnhidden) {
+				window.removeEventListener('chatUnhidden', handleChatUnhidden);
+			}
 		}
 	});
 
@@ -1140,13 +1189,18 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 		// This ensures tab reload opens the correct chat even if the component unmounts during the update
 		// IndexedDB update happens for all users (authenticated and non-authenticated) for tab reload persistence
 		// Server sync (via WebSocket) only happens for authenticated users (handled by sendSetActiveChatImpl)
-		try {
-			const { chatSyncService } = await import('../../services/chatSyncService');
-			await chatSyncService.sendSetActiveChat(chat.chat_id);
-			console.debug('[Chats] ✅ Updated last_opened in IndexedDB for chat:', chat.chat_id);
-		} catch (error) {
-			console.error('[Chats] Error updating last_opened in IndexedDB:', error);
-			// Don't fail the whole operation if IndexedDB update fails, continue to update UI
+		// SECURITY: Don't store hidden chats as last_opened - they require passcode after page reload
+		if (!(chat as any).is_hidden) {
+			try {
+				const { chatSyncService } = await import('../../services/chatSyncService');
+				await chatSyncService.sendSetActiveChat(chat.chat_id);
+				console.debug('[Chats] ✅ Updated last_opened in IndexedDB for chat:', chat.chat_id);
+			} catch (error) {
+				console.error('[Chats] Error updating last_opened in IndexedDB:', error);
+				// Don't fail the whole operation if IndexedDB update fails, continue to update UI
+			}
+		} else {
+			console.debug('[Chats] Skipped storing hidden chat as last_opened:', chat.chat_id);
 		}
 
 		// Update the persistent store so the selection survives component unmount/remount
@@ -1646,10 +1700,9 @@ async function updateChatListFromDBInternal(force = false) {
                     overscrollUnlockError = '';
                     chatIdToHideViaOverscroll = null;
                     
-                    notificationStore.success($text('chats.hidden_chats.unlocked_and_hiding.text'));
-                    
                     // Refresh chat list to show hidden chats
-                    await updateChatListFromDB();
+                    chatListCache.markDirty();
+                    await updateChatListFromDB(true);
                 } else {
                     // Unlock failed - this shouldn't happen since we just encrypted a chat with this code
                     overscrollUnlockError = $text('chats.hidden_chats.unlock_error.text');
@@ -1665,19 +1718,9 @@ async function updateChatListFromDBInternal(force = false) {
                     overscrollUnlockCode = '';
                     overscrollUnlockError = '';
                     
-                    // Show success message with count of decrypted chats
-                    if (result.decryptedCount > 0) {
-                        notificationStore.success($text('chats.hidden_chats.unlocked.text', {
-                            default: `Unlocked ${result.decryptedCount} hidden chat${result.decryptedCount > 1 ? 's' : ''}`
-                        }));
-                    } else {
-                        notificationStore.info($text('chats.hidden_chats.no_hidden_chats_unlocked.text', {
-                            default: 'No hidden chats unlocked'
-                        }));
-                    }
-                    
                     // Refresh chat list to show hidden chats
-                    await updateChatListFromDB();
+                    chatListCache.markDirty();
+                    await updateChatListFromDB(true);
                 } else {
                     // Show appropriate error message
                     if (result.decryptedCount === 0) {
@@ -1721,7 +1764,8 @@ async function updateChatListFromDBInternal(force = false) {
         chatIdToHideAfterUnlock = null;
         
         // Refresh chat list to show hidden chats
-        await updateChatListFromDB();
+        chatListCache.markDirty();
+        await updateChatListFromDB(true);
     }
 
     /**
@@ -2172,25 +2216,6 @@ async function updateChatListFromDBInternal(force = false) {
 						{$text('chats.cancel.text')}
 					</button>
 				{:else}
-					<!-- Lock hidden chats button (only shown when unlocked) -->
-					{#if hiddenChatState.isUnlocked}
-						<button
-							class="top-button hidden-chats-button"
-							class:unlocked={true}
-							onclick={() => {
-								hiddenChatStore.lock();
-								notificationStore.success($text('chats.hidden_chats.locked.text'));
-								updateChatListFromDB();
-							}}
-							use:tooltip
-							data-tooltip={$text('chats.hidden_chats.lock.text')}
-						>
-							<div class="clickable-icon icon_lock"></div>
-							<span class="hidden-chats-label">
-								{$text('chats.hidden_chats.lock.text')}
-							</span>
-						</button>
-					{/if}
 					<button
 						class="clickable-icon icon_close top-button right"
 						aria-label={$text('activity.close.text')}
@@ -2292,57 +2317,62 @@ async function updateChatListFromDBInternal(force = false) {
 					</div>
 				</div>
 			{/if}
-			<!-- Hidden chats section (shown when unlocked) -->
+			<!-- Hidden chats section (shown when unlocked) - reusing overscroll-unlock-container styling -->
 			{#if hiddenChatState.isUnlocked && hiddenChats.length > 0}
-				<div class="hidden-chats-section">
-					<h2 class="hidden-chats-title">{$text('chats.hidden_chats.title.text')}</h2>
-					<div class="chat-groups">
-						{#each orderedGroupedHiddenChats as [groupKey, groupItems] (groupKey)}
-							{#if groupItems.length > 0}
-								<div class="chat-group">
-									<h2 class="group-title">{getLocalizedGroupTitle(groupKey, $text)}</h2>
-									{#each groupItems as chat (chat.chat_id)}
-										<div
-											role="button"
-											tabindex="0"
-											class="chat-item hidden-chat-item"
-											class:active={selectedChatId === chat.chat_id}
-											onclick={(event) => {
-												handleChatItemClick(chat, event);
-												hiddenChatStore.recordActivity();
-											}}
-											onkeydown={(e) => {
-												if (e.key === 'Enter' || e.key === ' ') {
-													e.preventDefault();
-													// Create a synthetic mouse event for keyboard navigation
-													const syntheticEvent = new MouseEvent('click', {
-														bubbles: true,
-														cancelable: true
-													});
-													handleChatItemClick(chat, syntheticEvent);
+				<div class="overscroll-unlock-container">
+					<div class="overscroll-unlock-content">
+						<p class="overscroll-unlock-label">
+							<span class="clickable-icon icon_hidden"></span>
+							<span>{$text('chats.hidden_chats.title.text')}:</span>
+						</p>
+						<div class="chat-groups">
+							{#each orderedGroupedHiddenChats as [groupKey, groupItems] (groupKey)}
+								{#if groupItems.length > 0}
+									<div class="chat-group">
+										<h2 class="group-title">{getLocalizedGroupTitle(groupKey, $text)}</h2>
+										{#each groupItems as chat (chat.chat_id)}
+											<div
+												role="button"
+												tabindex="0"
+												class="chat-item hidden-chat-item"
+												class:active={selectedChatId === chat.chat_id}
+												onclick={(event) => {
+													handleChatItemClick(chat, event);
 													hiddenChatStore.recordActivity();
-												}
-											}}
-										>
-											<ChatComponent
-												{chat}
-												activeChatId={selectedChatId}
-												{selectMode}
-												{selectedChatIds}
-											/>
-										</div>
-									{/each}
-								</div>
-							{/if}
-						{/each}
-					</div>
-					<div class="hidden-chats-lock-container">
+												}}
+												onkeydown={(e) => {
+													if (e.key === 'Enter' || e.key === ' ') {
+														e.preventDefault();
+														// Create a synthetic mouse event for keyboard navigation
+														const syntheticEvent = new MouseEvent('click', {
+															bubbles: true,
+															cancelable: true
+														});
+														handleChatItemClick(chat, syntheticEvent);
+														hiddenChatStore.recordActivity();
+													}
+												}}
+											>
+												<ChatComponent
+													{chat}
+													activeChatId={selectedChatId}
+													{selectMode}
+													{selectedChatIds}
+												/>
+											</div>
+										{/each}
+									</div>
+								{/if}
+							{/each}
+						</div>
+						<!-- Single lock button at the bottom -->
 						<button
-							class="hidden-chats-lock-button"
+							type="button"
+							class="overscroll-unlock-button"
 							onclick={() => {
 								hiddenChatStore.lock();
-								notificationStore.success($text('chats.hidden_chats.locked.text'));
-								updateChatListFromDB();
+								chatListCache.markDirty();
+								updateChatListFromDB(true);
 							}}
 						>
 							<div class="clickable-icon icon_lock"></div>
@@ -2718,91 +2748,9 @@ async function updateChatListFromDBInternal(force = false) {
         outline-offset: 1px;
     }
 
-    /* Hidden chats button */
-    .hidden-chats-button {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        padding: 8px 12px;
-        border: 1px solid var(--color-grey-40);
-        background-color: var(--color-grey-20);
-        color: var(--color-text);
-        border-radius: 6px;
-        cursor: pointer;
-        font-size: 0.9em;
-        transition: background-color 0.2s ease;
-        margin-right: 8px;
-    }
-
-    .hidden-chats-button:hover {
-        background-color: var(--color-grey-25);
-    }
-
-    .hidden-chats-button.unlocked {
-        background-color: var(--color-primary);
-        color: white;
-        border-color: var(--color-primary);
-    }
-
-    .hidden-chats-button.unlocked:hover {
-        opacity: 0.9;
-    }
-
-    .hidden-chats-label {
-        font-size: 0.9em;
-    }
-
-    /* Hidden chats section */
-    .hidden-chats-section {
-        margin-bottom: 24px;
-        padding-bottom: 16px;
-        border-bottom: 2px solid var(--color-grey-30);
-    }
-
-    .hidden-chats-title {
-        font-size: 0.85em;
-        color: var(--color-grey-60);
-        margin: 0 0 12px 8px;
-        padding: 0;
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-    }
-
+    /* Hidden chat items */
     .hidden-chat-item {
         opacity: 0.9;
-    }
-
-    .hidden-chats-lock-container {
-        display: flex;
-        justify-content: center;
-        padding: 16px 8px;
-        margin-top: 8px;
-        border-top: 1px solid var(--color-grey-30);
-    }
-
-    .hidden-chats-lock-button {
-        all: unset;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        padding: 10px 16px;
-        background-color: var(--color-grey-20);
-        color: var(--color-text);
-        border: 1px solid var(--color-grey-30);
-        border-radius: 8px;
-        cursor: pointer;
-        font-size: 0.9em;
-        transition: background-color 0.2s ease;
-    }
-
-    .hidden-chats-lock-button:hover {
-        background-color: var(--color-grey-25);
-    }
-
-    .hidden-chats-lock-button .clickable-icon {
-        width: 18px;
-        height: 18px;
     }
 
     /* Overscroll unlock interface */
@@ -2864,6 +2812,14 @@ async function updateChatListFromDBInternal(force = false) {
 
     .overscroll-unlock-button {
         width: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+    }
+    
+    .overscroll-unlock-button .clickable-icon {
+        flex-shrink: 0;
     }
 
 

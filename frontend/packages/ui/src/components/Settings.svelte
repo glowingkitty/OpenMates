@@ -1625,8 +1625,12 @@ changes to the documentation (to keep the documentation up to date).
     .settings-content-wrapper :global(.login-container) {
         display: flex;
         flex-direction: column;
+        justify-content: center;
+    }
+
+    .settings-content-wrapper :global(.login-container > .icon-grid) {
+        display: none;
     }
 
 
 </style>
-

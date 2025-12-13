@@ -13,6 +13,33 @@
     /* Remove max-height constraint - let content determine natural height */
 }
 
+/* Desktop: keep login box perfectly centered even with side icon grids */
+@media (min-width: 601px) {
+    .login-container {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+        align-items: center;
+    }
+
+    .login-container > .login-content {
+        grid-column: 2;
+    }
+
+    .login-container > .icon-grid {
+        width: max-content;
+        justify-self: center;
+        margin: 0;
+    }
+
+    .login-container > .icon-grid:first-child {
+        justify-self: start;
+    }
+
+    .login-container > .icon-grid:last-child {
+        justify-self: end;
+    }
+}
+
 /* Enable scrolling on mobile devices - only apply column layout below 600px */
 /* Above 600px, use row layout to show icons on left/right */
 /* Standardized breakpoint: 600px (mobile/tablet boundary) */

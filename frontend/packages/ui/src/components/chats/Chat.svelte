@@ -875,6 +875,9 @@
       case 'hide':
         handleHideChat();
         break;
+      case 'unhide':
+        handleUnhideChat();
+        break;
       case 'delete':
         handleDeleteChat();
         break;
@@ -1063,9 +1066,9 @@
       const { hiddenChatStore } = await import('../../stores/hiddenChatStore');
       const { hiddenChatService } = await import('../../services/hiddenChatService');
       
+      // If hidden chats are locked, prompt for passcode first
       if (!hiddenChatService.isUnlocked()) {
-        // Prompt user to unlock hidden chats first
-        // Dispatch event to show overscroll unlock interface instead of modal
+        // Dispatch event to show overscroll unlock interface for hiding
         window.dispatchEvent(new CustomEvent('showOverscrollUnlockForHide', { 
           detail: { chatId: chatIdToHide } 
         }));
@@ -1073,6 +1076,7 @@
         return;
       }
       
+      // Hidden chats are already unlocked - we can use the current combined secret
       // Get the current chat key (decrypted with master key)
       // First try: Check cache (fast path for chats that have been accessed)
       let chatKey = chatDB.getChatKey(chatIdToHide);
@@ -1112,7 +1116,7 @@
         return;
       }
       
-      // Re-encrypt chat key with combined secret
+      // Re-encrypt chat key with combined secret (using the already-unlocked combined secret)
       const encryptedChatKey = await hiddenChatService.encryptChatKeyWithCombinedSecret(chatKey);
       if (!encryptedChatKey) {
         console.error('[Chat] Failed to encrypt chat key with combined secret');
@@ -1124,25 +1128,65 @@
       const updatedChat = {
         ...chat,
         encrypted_chat_key: encryptedChatKey,
-        is_hidden: true // Mark as hidden locally for immediate UI update
+        // Don't set is_hidden flag - it will be determined by decryption success/failure
       };
       
       await chatDB.updateChat(updatedChat);
+      // Ensure sidebar chat list refreshes (it may be served from cache)
+      chatListCache.markDirty();
       
       // Sync to server (the encrypted_chat_key will be synced)
-      const { chatSyncService } = await import('../../services/chatSyncService');
       await chatSyncService.sendUpdateEncryptedChatKey(chatIdToHide, encryptedChatKey);
       
       console.debug('[Chat] Chat hidden successfully:', chatIdToHide);
       notificationStore.success('Chat hidden successfully');
       showContextMenu = false;
       
-      // Dispatch event to update UI (chat will disappear from main list)
-      chatSyncService.dispatchEvent(new CustomEvent('chatHidden', { detail: { chat_id: chatIdToHide } }));
+      // Dispatch event to update UI (chat will disappear from main list and move to hidden section)
+      // Chats.svelte listens on `window` and will refresh the chat list
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('chatHidden', { detail: { chat_id: chatIdToHide } }));
+      }
       
     } catch (error) {
       console.error('[Chat] Error hiding chat:', chatIdToHide, error);
       notificationStore.error('Failed to hide chat. Please try again.');
+    }
+  }
+
+  async function handleUnhideChat() {
+    if (!chat) return;
+    
+    const chatIdToUnhide = chat.chat_id;
+    
+    try {
+      const { hiddenChatService } = await import('../../services/hiddenChatService');
+      
+      // Hidden chats must be unlocked to unhide them
+      if (!hiddenChatService.isUnlocked()) {
+        notificationStore.error('Please unlock hidden chats first to unhide this chat.');
+        showContextMenu = false;
+        return;
+      }
+      
+      // Unhide the chat (re-encrypt with master key)
+      const success = await hiddenChatService.unhideChat(chatIdToUnhide);
+      
+      if (success) {
+        console.debug('[Chat] Chat unhidden successfully:', chatIdToUnhide);
+        // Mark chat list cache as dirty to force refresh
+        chatListCache.markDirty();
+        // Dispatch event to refresh chat list (chat will move from hidden section to regular list)
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('chatUnhidden', { detail: { chat_id: chatIdToUnhide } }));
+        }
+        showContextMenu = false;
+      } else {
+        notificationStore.error('Failed to unhide chat.');
+      }
+    } catch (error) {
+      console.error('[Chat] Error unhiding chat:', error);
+      notificationStore.error('Failed to unhide chat.');
     }
   }
 
@@ -1427,6 +1471,7 @@
     on:download={handleContextMenuAction}
     on:copy={handleContextMenuAction}
     on:hide={handleContextMenuAction}
+    on:unhide={handleContextMenuAction}
     on:delete={handleContextMenuAction}
     on:enterSelectMode={handleContextMenuAction}
     on:unselect={handleContextMenuAction}

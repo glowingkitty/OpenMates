@@ -28,7 +28,7 @@
     let confirmCodeInput = $state<HTMLInputElement>();
 
     // Get lockout state from store
-    let lockoutState = $derived(hiddenChatStore.get());
+    let lockoutState = $derived($hiddenChatStore);
 
     // Validate code format (4-6 digits)
     function isValidCode(c: string): boolean {
@@ -579,7 +579,6 @@
         }
     }
 </style>
-
 
 
 

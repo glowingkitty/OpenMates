@@ -954,7 +954,9 @@ export async function decryptChatKeyWithMasterKey(encryptedChatKeyWithIV: string
 
     return new Uint8Array(decrypted);
   } catch (error) {
-    console.error('Failed to decrypt chat key:', error);
+    // Decryption failure is expected for hidden chats (they use a different key)
+    // Only log at debug level to avoid noise in console
+    console.debug('Failed to decrypt chat key with master key (may be a hidden chat):', error);
     return null;
   }
 }

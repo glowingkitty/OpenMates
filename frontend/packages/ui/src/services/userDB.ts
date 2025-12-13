@@ -62,6 +62,10 @@ class UserDatabaseService {
                 localLastOpened = lastOpenedRequest.result || '';
                 
                 // Only store essential fields
+                // Store user ID (required for hidden chat salt generation and other features)
+                if (userData.id) {
+                    store.put(userData.id, 'id');
+                }
                 store.put(userData.username || '', 'username');
                 store.put(!!userData.is_admin, 'is_admin');  // Convert to boolean
                  store.put(userData.profile_image_url || null, 'profile_image_url');
@@ -402,6 +406,7 @@ class UserDatabaseService {
             const transaction = this.db!.transaction([this.STORE_NAME], 'readonly');
             const store = transaction.objectStore(this.STORE_NAME);
             
+            const id = store.get('id');
             const username = store.get('username');
             const is_admin = store.get('is_admin');
             const profile_image_url = store.get('profile_image_url');
@@ -420,6 +425,7 @@ class UserDatabaseService {
                 last_sync_timestamp: 0
             };
 
+            id.onsuccess = () => userData.id = id.result || undefined;
             username.onsuccess = () => userData.username = username.result || '';
             is_admin.onsuccess = () => userData.is_admin = !!is_admin.result;
             profile_image_url.onsuccess = () => userData.profile_image_url = profile_image_url.result;
