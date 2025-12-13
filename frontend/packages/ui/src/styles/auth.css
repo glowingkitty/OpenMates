@@ -125,13 +125,6 @@
     justify-content: center;
 }
 
-/* Reduce form container margins on mobile for better space utilization */
-@media (max-width: 600px) {
-    .form-container {
-        margin: 20px 0px 10px 0px; /* Reduce top margin */
-        flex: 0 1 auto; /* Don't grow, allow shrinking */
-    }
-}
 
 .input-group {
     margin-bottom: 10px;

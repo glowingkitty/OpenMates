@@ -131,6 +131,8 @@ async def login(
             # This makes the frontend show the 2FA input, regardless of whether account exists
             # If no 2FA code is provided, return the 2FA required response
             # Check for both None and empty string to handle edge cases
+            # CRITICAL: Return tfa_enabled=False in anti-enumeration response so frontend knows
+            # 2FA is not actually configured and can redirect to signup if needed
             if not login_data.tfa_code or login_data.tfa_code.strip() == "":
                 logger.info("Authentication failed - returning tfa_required=True to prevent email enumeration")
                 minimal_user_info = UserResponse(
@@ -140,7 +142,7 @@ async def login(
                     profile_image_url=None, # Optional field
                     tfa_app_name=None, # No specific app name (generic 2FA setup)
                     last_opened=None, # Don't reveal last_opened for non-existent accounts
-                    tfa_enabled=True # Pretend 2FA is enabled to show the input field
+                    tfa_enabled=False # Return False so frontend knows 2FA is not actually configured
                 )
                 response = LoginResponse(
                     success=True,
@@ -148,7 +150,7 @@ async def login(
                     tfa_required=True,
                     user=minimal_user_info
                 )
-                logger.debug(f"Returning LoginResponse: success={response.success}, tfa_required={response.tfa_required}, message={response.message}")
+                logger.debug(f"Returning LoginResponse: success={response.success}, tfa_required={response.tfa_required}, tfa_enabled={response.user.tfa_enabled}, message={response.message}")
                 return response
             
             # If 2FA code was provided but authentication failed, return generic error
@@ -1434,16 +1436,25 @@ async def lookup_user(
             )
         
         # Get tfa_enabled status from cached profile or compute it
-        tfa_enabled = True  # Default to True for security (anti-enumeration)
+        # CRITICAL: For existing users, compute actual tfa_enabled based on encrypted_tfa_secret existence
+        # Only default to True for non-existent users (anti-enumeration)
+        tfa_enabled = True  # Default to True for security (anti-enumeration for non-existent users)
         if user_id:
+            # CRITICAL: Always verify encrypted_tfa_secret exists, even if cached profile says tfa_enabled=True
+            # This prevents stale cache data from causing 2FA to be required when it's not actually set up
+            encrypted_tfa_secret_exists = bool(user_data.get("encrypted_tfa_secret"))
+            
             # Try to get from cached profile first (should be available now after caching above)
             current_cached_profile = await cache_service.get_user_by_id(user_id)
             if current_cached_profile and "tfa_enabled" in current_cached_profile:
-                tfa_enabled = current_cached_profile.get("tfa_enabled", True)
-                logger.info(f"Using cached tfa_enabled for user {user_id}: {tfa_enabled}")
+                cached_tfa_enabled = current_cached_profile.get("tfa_enabled", False)
+                # Use cached value only if encrypted_tfa_secret actually exists
+                # This prevents stale cache from requiring 2FA when it's not set up
+                tfa_enabled = cached_tfa_enabled if encrypted_tfa_secret_exists else False
+                logger.info(f"Using cached tfa_enabled for user {user_id}: {tfa_enabled} (verified: encrypted_tfa_secret exists={encrypted_tfa_secret_exists})")
             else:
                 # Fallback: compute based on encrypted_tfa_secret existence from user_data
-                tfa_enabled = bool(user_data.get("encrypted_tfa_secret"))
+                tfa_enabled = encrypted_tfa_secret_exists
                 logger.info(f"Computed tfa_enabled for user {user_id} based on encrypted_tfa_secret: {tfa_enabled}")
 
         # Return the response with available login methods, tfa_app_name, user_email_salt, tfa_enabled, and stay_logged_in
