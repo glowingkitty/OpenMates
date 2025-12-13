@@ -265,8 +265,8 @@
             // Step 7: Wrap the master key for server storage
             const { wrapped: encryptedMasterKey, iv: keyIv } = await cryptoService.encryptKey(masterKey, wrappingKey);
             
-            // Step 8: Save master key to IndexedDB
-            await cryptoService.saveKeyToSession(masterKey);
+            // Step 8: Save master key (respect "stay logged in" choice)
+            await cryptoService.saveKeyToSession(masterKey, storeData.stayLoggedIn);
             
             // Step 9: Generate lookup hash from PRF signature (for authentication)
             const lookupHash = await cryptoService.hashKeyFromPRF(prfSignature, emailSalt);
@@ -430,7 +430,7 @@
     </div>
 
     <div class="options-container">
-        <p class="instruction-text">{@html $text('signup.click_on_an_option.text')}</p>
+        <p class="instruction-text">{@html $text('signup.how_to_login.text')}</p>
         
         <!-- Passkey Option -->
         <div class="option-wrapper">
@@ -494,7 +494,8 @@
         align-items: center;
         justify-content: center;
         gap: 16px;
-        margin-bottom: 30px;
+        margin-bottom: 20px;
+        margin-top: 20px;
     }
     
     .options-container {

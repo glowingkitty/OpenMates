@@ -290,6 +290,12 @@ div.clickable-icon {
   mask-image: url('@openmates/ui/static/icons/back.svg');
 }
 
+.clickable-icon.icon_close_up {
+  -webkit-mask-image: url('@openmates/ui/static/icons/back.svg');
+  mask-image: url('@openmates/ui/static/icons/back.svg');
+  transform: rotate(90deg); /* Rotate 45 degrees to point up */
+}
+
 .clickable-icon.icon_search {
   -webkit-mask-image: url('@openmates/ui/static/icons/search.svg');
   mask-image: url('@openmates/ui/static/icons/search.svg');
@@ -435,6 +441,11 @@ div.clickable-icon {
 .clickable-icon.icon_hidden {
   -webkit-mask-image: url('@openmates/ui/static/icons/hidden.svg');
   mask-image: url('@openmates/ui/static/icons/hidden.svg');
+}
+
+.clickable-icon.icon_unhide {
+  -webkit-mask-image: url('@openmates/ui/static/icons/visible.svg');
+  mask-image: url('@openmates/ui/static/icons/visible.svg');
 }
 
 .clickable-icon.icon_visible {

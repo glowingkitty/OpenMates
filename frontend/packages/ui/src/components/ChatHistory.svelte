@@ -636,24 +636,6 @@
     min-height: 100%;
   }
 
-  /* Make sure the container can be scrolled */
-  .chat-history-container::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
-  }
-
-  .chat-history-container::-webkit-scrollbar-track {
-    background: rgba(0, 0, 0, 0.1);
-    border-radius: 4px;
-  }
-
-  .chat-history-container::-webkit-scrollbar-thumb {
-    background-color: var(--color-grey-40);
-    border-radius: 4px;
-  }
-  .chat-history-container::-webkit-scrollbar-thumb:hover {
-    background-color: var(--color-grey-50);
-  }
 
   .message-wrapper {
     margin: 5px 0;

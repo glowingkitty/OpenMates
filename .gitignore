@@ -215,3 +215,12 @@ backend/core/api/logs/*.log.*
 # Test results (JSON files for manual inspection)
 test_results/
 *.test_results.json
+
+# Domain security configuration files
+restricted_domains.txt
+**/restricted_domains.txt
+allowed_domain.txt
+**/allowed_domain.txt
+suspicious_patterns.txt
+**/suspicious_patterns.txt
+scripts/encrypt_domain_security.py

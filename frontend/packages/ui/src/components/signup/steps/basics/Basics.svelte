@@ -407,12 +407,15 @@
                     if (emailInput && !isTouchDevice) {
                         emailInput.focus();
                     }
-                } else if (data.error_code === 'DOMAIN_NOT_ALLOWED') {
+                } else if (data.error_code === 'DOMAIN_NOT_SUPPORTED' || data.error_code === 'DOMAIN_NOT_ALLOWED') {
+                    // Domain is blocked - show error immediately and prevent code from being sent
+                    // Backend returns translation key in data.message, use $text() to load translated version
                     showEmailWarning = true;
-                    emailError = $text('signup.domain_not_allowed.text');
+                    emailError = data.message ? $text(data.message) : $text('signup.domain_not_allowed.text');
                     if (emailInput && !isTouchDevice) {
                         emailInput.focus();
                     }
+                    console.warn('Domain blocked during signup:', data.message);
                 } else {
                     showWarning = true;
                     console.error('Error requesting verification code:', data.message);

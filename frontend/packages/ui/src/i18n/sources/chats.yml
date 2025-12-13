@@ -211,6 +211,630 @@ context_menu.unselect:
   sv: Avmarkera
   verified_by_human: []
 
+context_menu.hide:
+  context: Menu option to hide a chat (make it a hidden chat)
+  en: Hide
+  de: Verstecken
+  zh: 隐藏
+  es: Ocultar
+  fr: Masquer
+  pt: Ocultar
+  ru: Скрыть
+  ja: 非表示
+  ko: 숨기기
+  it: Nascondi
+  tr: Gizle
+  vi: Ẩn
+  id: Sembunyikan
+  pl: Ukryj
+  nl: Verbergen
+  ar: إخفاء
+  hi: छुपाएं
+  th: ซ่อน
+  cs: Skrýt
+  sv: Dölj
+  verified_by_human: []
+
+hidden_chats.unlock:
+  context: Button to unlock hidden chats
+  en: Unlock hidden chats
+  de: Versteckte Chats entsperren
+  zh: 解锁隐藏聊天
+  es: Desbloquear chats ocultos
+  fr: Déverrouiller les chats masqués
+  pt: Desbloquear chats ocultos
+  ru: Разблокировать скрытые чаты
+  ja: 非表示チャットを解除
+  ko: 숨겨진 채팅 잠금 해제
+  it: Sblocca chat nascosti
+  tr: Gizli sohbetleri aç
+  vi: Mở khóa cuộc trò chuyện ẩn
+  id: Buka kunci chat tersembunyi
+  pl: Odblokuj ukryte czaty
+  nl: Verborgen chats ontgrendelen
+  ar: إلغاء قفل الدردشات المخفية
+  hi: छुपी हुई चैट अनलॉक करें
+  th: ปลดล็อกแชทที่ซ่อนอยู่
+  cs: Odemknout skryté chaty
+  sv: Lås upp dolda chattar
+  verified_by_human: []
+
+hidden_chats.lock:
+  context: Button to lock hidden chats
+  en: Lock hidden chats
+  de: Versteckte Chats sperren
+  zh: 锁定隐藏聊天
+  es: Bloquear chats ocultos
+  fr: Verrouiller les chats masqués
+  pt: Bloquear chats ocultos
+  ru: Заблокировать скрытые чаты
+  ja: 非表示チャットをロック
+  ko: 숨겨진 채팅 잠금
+  it: Blocca chat nascosti
+  tr: Gizli sohbetleri kilitle
+  vi: Khóa cuộc trò chuyện ẩn
+  id: Kunci chat tersembunyi
+  pl: Zablokuj ukryte czaty
+  nl: Verborgen chats vergrendelen
+  ar: قفل الدردشات المخفية
+  hi: छुपी हुई चैट लॉक करें
+  th: ล็อกแชทที่ซ่อนอยู่
+  cs: Zamknout skryté chaty
+  sv: Lås dolda chattar
+  verified_by_human: []
+
+hidden_chats.title:
+  context: Title for hidden chats section
+  en: Hidden Chats
+  de: Versteckte Chats
+  zh: 隐藏聊天
+  es: Chats ocultos
+  fr: Chats masqués
+  pt: Chats ocultos
+  ru: Скрытые чаты
+  ja: 非表示チャット
+  ko: 숨겨진 채팅
+  it: Chat nascosti
+  tr: Gizli sohbetler
+  vi: Cuộc trò chuyện ẩn
+  id: Chat tersembunyi
+  pl: Ukryte czaty
+  nl: Verborgen chats
+  ar: الدردشات المخفية
+  hi: छुपी हुई चैट
+  th: แชทที่ซ่อนอยู่
+  cs: Skryté chaty
+  sv: Dolda chattar
+  verified_by_human: []
+
+hidden_chats.unlock_title:
+  context: Title for unlock hidden chats modal
+  en: Unlock Hidden Chats
+  de: Versteckte Chats entsperren
+  zh: 解锁隐藏聊天
+  es: Desbloquear chats ocultos
+  fr: Déverrouiller les chats masqués
+  pt: Desbloquear chats ocultos
+  ru: Разблокировать скрытые чаты
+  ja: 非表示チャットを解除
+  ko: 숨겨진 채팅 잠금 해제
+  it: Sblocca chat nascosti
+  tr: Gizli sohbetleri aç
+  vi: Mở khóa cuộc trò chuyện ẩn
+  id: Buka kunci chat tersembunyi
+  pl: Odblokuj ukryte czaty
+  nl: Verborgen chats ontgrendelen
+  ar: إلغاء قفل الدردشات المخفية
+  hi: छुपी हुई चैट अनलॉक करें
+  th: ปลดล็อกแชทที่ซ่อนอยู่
+  cs: Odemknout skryté chaty
+  sv: Lås upp dolda chattar
+  verified_by_human: []
+
+hidden_chats.set_code_title:
+  context: Title for set hidden chat code modal
+  en: Set Hidden Chat Code
+  de: Code für versteckte Chats festlegen
+  zh: 设置隐藏聊天密码
+  es: Establecer código de chat oculto
+  fr: Définir le code des chats masqués
+  pt: Definir código de chat oculto
+  ru: Установить код скрытых чатов
+  ja: 非表示チャットコードを設定
+  ko: 숨겨진 채팅 코드 설정
+  it: Imposta codice chat nascosti
+  tr: Gizli sohbet kodu ayarla
+  vi: Đặt mã cuộc trò chuyện ẩn
+  id: Atur kode chat tersembunyi
+  pl: Ustaw kod ukrytych czatów
+  nl: Code voor verborgen chats instellen
+  ar: تعيين رمز الدردشات المخفية
+  hi: छुपी हुई चैट कोड सेट करें
+  th: ตั้งค่ารหัสแชทที่ซ่อนอยู่
+  cs: Nastavit kód skrytých chatů
+  sv: Ange kod för dolda chattar
+  verified_by_human: []
+
+hidden_chats.unlock_description:
+  context: Description for unlock hidden chats modal
+  en: Enter your 4-6 digit code to unlock hidden chats.
+  de: Geben Sie Ihren 4-6-stelligen Code ein, um versteckte Chats zu entsperren.
+  zh: 输入您的 4-6 位数字密码以解锁隐藏聊天。
+  es: Ingrese su código de 4-6 dígitos para desbloquear chats ocultos.
+  fr: Entrez votre code à 4-6 chiffres pour déverrouiller les chats masqués.
+  pt: Digite seu código de 4-6 dígitos para desbloquear chats ocultos.
+  ru: Введите ваш 4-6-значный код для разблокировки скрытых чатов.
+  ja: 4-6桁のコードを入力して、非表示チャットを解除します。
+  ko: 4-6자리 코드를 입력하여 숨겨진 채팅을 잠금 해제하세요.
+  it: Inserisci il tuo codice a 4-6 cifre per sbloccare i chat nascosti.
+  tr: Gizli sohbetleri açmak için 4-6 haneli kodunuzu girin.
+  vi: Nhập mã 4-6 chữ số của bạn để mở khóa cuộc trò chuyện ẩn.
+  id: Masukkan kode 4-6 digit Anda untuk membuka kunci chat tersembunyi.
+  pl: Wprowadź swój 4-6-cyfrowy kod, aby odblokować ukryte czaty.
+  nl: Voer uw 4-6-cijferige code in om verborgen chats te ontgrendelen.
+  ar: أدخل رمزك المكون من 4-6 أرقام لإلغاء قفل الدردشات المخفية.
+  hi: छुपी हुई चैट अनलॉक करने के लिए अपना 4-6 अंकों का कोड दर्ज करें।
+  th: ป้อนรหัส 4-6 หลักของคุณเพื่อปลดล็อกแชทที่ซ่อนอยู่
+  cs: Zadejte svůj 4-6místný kód pro odemknutí skrytých chatů.
+  sv: Ange din 4-6-siffriga kod för att låsa upp dolda chattar.
+  verified_by_human: []
+
+hidden_chats.set_code_description:
+  context: Description for set hidden chat code modal
+  en: Enter a 4-6 digit code to protect your hidden chats. This code is separate from your login password.
+  de: Geben Sie einen 4-6-stelligen Code ein, um Ihre versteckten Chats zu schützen. Dieser Code ist getrennt von Ihrem Anmeldekennwort.
+  zh: 输入 4-6 位数字密码以保护您的隐藏聊天。此密码与您的登录密码分开。
+  es: Ingrese un código de 4-6 dígitos para proteger sus chats ocultos. Este código es independiente de su contraseña de inicio de sesión.
+  fr: Entrez un code à 4-6 chiffres pour protéger vos chats masqués. Ce code est séparé de votre mot de passe de connexion.
+  pt: Digite um código de 4-6 dígitos para proteger seus chats ocultos. Este código é separado da sua senha de login.
+  ru: Введите 4-6-значный код для защиты ваших скрытых чатов. Этот код отделен от вашего пароля для входа.
+  ja: 非表示チャットを保護するために、4-6桁のコードを入力してください。このコードはログインパスワードとは別です。
+  ko: 숨겨진 채팅을 보호하기 위해 4-6자리 코드를 입력하세요. 이 코드는 로그인 비밀번호와 별개입니다.
+  it: Inserisci un codice a 4-6 cifre per proteggere i tuoi chat nascosti. Questo codice è separato dalla tua password di accesso.
+  tr: Gizli sohbetlerinizi korumak için 4-6 haneli bir kod girin. Bu kod, giriş şifrenizden ayrıdır.
+  vi: Nhập mã 4-6 chữ số để bảo vệ cuộc trò chuyện ẩn của bạn. Mã này tách biệt với mật khẩu đăng nhập của bạn.
+  id: Masukkan kode 4-6 digit untuk melindungi chat tersembunyi Anda. Kode ini terpisah dari kata sandi login Anda.
+  pl: Wprowadź kod 4-6-cyfrowy, aby chronić ukryte czaty. Ten kod jest oddzielony od hasła logowania.
+  nl: Voer een 4-6-cijferige code in om uw verborgen chats te beschermen. Deze code is gescheiden van uw aanmeldwachtwoord.
+  ar: أدخل رمزًا مكونًا من 4-6 أرقام لحماية الدردشات المخفية الخاصة بك. هذا الرمز منفصل عن كلمة مرور تسجيل الدخول الخاصة بك.
+  hi: अपनी छुपी हुई चैट की सुरक्षा के लिए 4-6 अंकों का कोड दर्ज करें। यह कोड आपके लॉगिन पासवर्ड से अलग है।
+  th: ป้อนรหัส 4-6 หลักเพื่อปกป้องแชทที่ซ่อนอยู่ของคุณ รหัสนี้แยกจากรหัสผ่านการเข้าสู่ระบบของคุณ
+  cs: Zadejte 4-6místný kód pro ochranu vašich skrytých chatů. Tento kód je oddělený od vašeho přihlašovacího hesla.
+  sv: Ange en 4-6-siffrig kod för att skydda dina dolda chattar. Denna kod är separat från ditt inloggningslösenord.
+  verified_by_human: []
+
+hidden_chats.code_label:
+  context: Label for code input field
+  en: Code
+  de: Code
+  zh: 密码
+  es: Código
+  fr: Code
+  pt: Código
+  ru: Код
+  ja: コード
+  ko: 코드
+  it: Codice
+  tr: Kod
+  vi: Mã
+  id: Kode
+  pl: Kod
+  nl: Code
+  ar: الرمز
+  hi: कोड
+  th: รหัส
+  cs: Kód
+  sv: Kod
+  verified_by_human: []
+
+hidden_chats.confirm_code_label:
+  context: Label for confirm code input field
+  en: Confirm Code
+  de: Code bestätigen
+  zh: 确认密码
+  es: Confirmar código
+  fr: Confirmer le code
+  pt: Confirmar código
+  ru: Подтвердить код
+  ja: コードを確認
+  ko: 코드 확인
+  it: Conferma codice
+  tr: Kodu onayla
+  vi: Xác nhận mã
+  id: Konfirmasi kode
+  pl: Potwierdź kod
+  nl: Code bevestigen
+  ar: تأكيد الرمز
+  hi: कोड की पुष्टि करें
+  th: ยืนยันรหัส
+  cs: Potvrdit kód
+  sv: Bekräfta kod
+  verified_by_human: []
+
+hidden_chats.unlock_and_hide_button:
+  context: Button to unlock hidden chats and hide the selected chat
+  en: "Unlock & Hide chat"
+  de: "Entsperren & Chat verstecken"
+  zh: "解锁并隐藏聊天"
+  es: "Desbloquear y ocultar chat"
+  fr: "Déverrouiller et masquer le chat"
+  pt: "Desbloquear e ocultar chat"
+  ru: "Разблокировать и скрыть чат"
+  ja: "解除してチャットを非表示"
+  ko: "잠금 해제 및 채팅 숨기기"
+  it: "Sblocca e nascondi chat"
+  tr: "Aç ve sohbeti gizle"
+  vi: "Mở khóa và ẩn cuộc trò chuyện"
+  id: "Buka kunci dan sembunyikan obrolan"
+  pl: "Odblokuj i ukryj czat"
+  nl: "Ontgrendelen en chat verbergen"
+  ar: "إلغاء القفل وإخفاء الدردشة"
+  hi: "अनलॉक करें और चैट छुपाएं"
+  th: "ปลดล็อกและซ่อนแชท"
+  cs: "Odemknout a skrýt chat"
+  sv: "Lås upp och dölj chatt"
+  verified_by_human: []
+
+hidden_chats.unlocked_and_hiding:
+  context: Success message when hidden chats are unlocked and a chat is being hidden
+  en: "Hidden chats unlocked. Chat is being hidden..."
+  de: "Versteckte Chats entsperrt. Chat wird versteckt..."
+  zh: "隐藏聊天已解锁。正在隐藏聊天..."
+  es: "Chats ocultos desbloqueados. El chat se está ocultando..."
+  fr: "Chats masqués déverrouillés. Le chat est en cours de masquage..."
+  pt: "Chats ocultos desbloqueados. O chat está sendo ocultado..."
+  ru: "Скрытые чаты разблокированы. Чат скрывается..."
+  ja: "非表示チャットが解除されました。チャットを非表示にしています..."
+  ko: "숨겨진 채팅이 잠금 해제되었습니다. 채팅을 숨기는 중..."
+  it: "Chat nascoste sbloccate. Il chat viene nascosto..."
+  tr: "Gizli sohbetler açıldı. Sohbet gizleniyor..."
+  vi: "Cuộc trò chuyện ẩn đã được mở khóa. Đang ẩn cuộc trò chuyện..."
+  id: "Chat tersembunyi dibuka. Chat sedang disembunyikan..."
+  pl: "Ukryte czaty odblokowane. Czat jest ukrywany..."
+  nl: "Verborgen chats ontgrendeld. Chat wordt verborgen..."
+  ar: "تم إلغاء قفل الدردشات المخفية. يتم إخفاء الدردشة..."
+  hi: "छुपी हुई चैट अनलॉक हो गई। चैट छुपाई जा रही है..."
+  th: "ปลดล็อกแชทที่ซ่อนอยู่แล้ว กำลังซ่อนแชท..."
+  cs: "Skryté chaty odemčeny. Chat se skrývá..."
+  sv: "Dolda chattar upplåsta. Chatt döljs..."
+  verified_by_human: []
+
+hidden_chats.unlock_button:
+  context: Button to unlock hidden chats
+  en: Unlock
+  de: Entsperren
+  zh: 解锁
+  es: Desbloquear
+  fr: Déverrouiller
+  pt: Desbloquear
+  ru: Разблокировать
+  ja: 解除
+  ko: 잠금 해제
+  it: Sblocca
+  tr: Aç
+  vi: Mở khóa
+  id: Buka kunci
+  pl: Odblokuj
+  nl: Ontgrendelen
+  ar: إلغاء القفل
+  hi: अनलॉक करें
+  th: ปลดล็อก
+  cs: Odemknout
+  sv: Lås upp
+  verified_by_human: []
+
+hidden_chats.set_code_button:
+  context: Button to set hidden chat code
+  en: Set Code
+  de: Code festlegen
+  zh: 设置密码
+  es: Establecer código
+  fr: Définir le code
+  pt: Definir código
+  ru: Установить код
+  ja: コードを設定
+  ko: 코드 설정
+  it: Imposta codice
+  tr: Kodu ayarla
+  vi: Đặt mã
+  id: Atur kode
+  pl: Ustaw kod
+  nl: Code instellen
+  ar: تعيين الرمز
+  hi: कोड सेट करें
+  th: ตั้งค่ารหัส
+  cs: Nastavit kód
+  sv: Ange kod
+  verified_by_human: []
+
+hidden_chats.cancel:
+  context: Button to cancel unlock/set code
+  en: Cancel
+  de: Abbrechen
+  zh: 取消
+  es: Cancelar
+  fr: Annuler
+  pt: Cancelar
+  ru: Отмена
+  ja: キャンセル
+  ko: 취소
+  it: Annulla
+  tr: İptal
+  vi: Hủy
+  id: Batal
+  pl: Anuluj
+  nl: Annuleren
+  ar: إلغاء
+  hi: रद्द करें
+  th: ยกเลิก
+  cs: Zrušit
+  sv: Avbryt
+  verified_by_human: []
+
+hidden_chats.incorrect_code:
+  context: Error message for incorrect code
+  en: Incorrect code. Please try again.
+  de: Falscher Code. Bitte versuchen Sie es erneut.
+  zh: 密码错误。请重试。
+  es: Código incorrecto. Por favor, inténtelo de nuevo.
+  fr: Code incorrect. Veuillez réessayer.
+  pt: Código incorreto. Por favor, tente novamente.
+  ru: Неверный код. Пожалуйста, попробуйте снова.
+  ja: コードが正しくありません。もう一度お試しください。
+  ko: 잘못된 코드입니다. 다시 시도해 주세요.
+  it: Codice errato. Riprova.
+  tr: Yanlış kod. Lütfen tekrar deneyin.
+  vi: Mã không đúng. Vui lòng thử lại.
+  id: Kode salah. Silakan coba lagi.
+  pl: Nieprawidłowy kod. Spróbuj ponownie.
+  nl: Onjuiste code. Probeer het opnieuw.
+  ar: رمز غير صحيح. يرجى المحاولة مرة أخرى.
+  hi: गलत कोड। कृपया पुनः प्रयास करें।
+  th: รหัสไม่ถูกต้อง กรุณาลองอีกครั้ง
+  cs: Nesprávný kód. Zkuste to znovu.
+  sv: Felaktig kod. Försök igen.
+  verified_by_human: []
+
+hidden_chats.invalid_code_format:
+  context: Error message for invalid code format
+  en: Please enter a 4-6 digit code
+  de: Bitte geben Sie einen 4-6-stelligen Code ein
+  zh: 请输入 4-6 位数字密码
+  es: Por favor, ingrese un código de 4-6 dígitos
+  fr: Veuillez entrer un code à 4-6 chiffres
+  pt: Por favor, digite um código de 4-6 dígitos
+  ru: Пожалуйста, введите 4-6-значный код
+  ja: 4-6桁のコードを入力してください
+  ko: 4-6자리 코드를 입력하세요
+  it: Inserisci un codice a 4-6 cifre
+  tr: Lütfen 4-6 haneli bir kod girin
+  vi: Vui lòng nhập mã 4-6 chữ số
+  id: Silakan masukkan kode 4-6 digit
+  pl: Wprowadź kod 4-6-cyfrowy
+  nl: Voer een 4-6-cijferige code in
+  ar: يرجى إدخال رمز مكون من 4-6 أرقام
+  hi: कृपया 4-6 अंकों का कोड दर्ज करें
+  th: กรุณาป้อนรหัส 4-6 หลัก
+  cs: Zadejte 4-6místný kód
+  sv: Ange en 4-6-siffrig kod
+  verified_by_human: []
+
+hidden_chats.codes_dont_match:
+  context: Error message when codes don't match
+  en: Codes do not match
+  de: Codes stimmen nicht überein
+  zh: 密码不匹配
+  es: Los códigos no coinciden
+  fr: Les codes ne correspondent pas
+  pt: Os códigos não coincidem
+  ru: Коды не совпадают
+  ja: コードが一致しません
+  ko: 코드가 일치하지 않습니다
+  it: I codici non corrispondono
+  tr: Kodlar eşleşmiyor
+  vi: Mã không khớp
+  id: Kode tidak cocok
+  pl: Kody nie pasują
+  nl: Codes komen niet overeen
+  ar: الرموز غير متطابقة
+  hi: कोड मेल नहीं खाते
+  th: รหัสไม่ตรงกัน
+  cs: Kódy se neshodují
+  sv: Koderna matchar inte
+  verified_by_human: []
+
+hidden_chats.lockout_message:
+  context: Message shown when locked out due to too many failed attempts
+  en: Too many failed attempts. Please wait {seconds} seconds.
+  de: Zu viele fehlgeschlagene Versuche. Bitte warten Sie {seconds} Sekunden.
+  zh: 失败次数过多。请等待 {seconds} 秒。
+  es: Demasiados intentos fallidos. Por favor, espere {seconds} segundos.
+  fr: Trop de tentatives échouées. Veuillez attendre {seconds} secondes.
+  pt: Muitas tentativas falhadas. Por favor, aguarde {seconds} segundos.
+  ru: Слишком много неудачных попыток. Пожалуйста, подождите {seconds} секунд.
+  ja: 失敗回数が多すぎます。{seconds}秒待ってください。
+  ko: 실패한 시도가 너무 많습니다. {seconds}초 기다려 주세요.
+  it: Troppi tentativi falliti. Attendere {seconds} secondi.
+  tr: Çok fazla başarısız deneme. Lütfen {seconds} saniye bekleyin.
+  vi: Quá nhiều lần thử không thành công. Vui lòng đợi {seconds} giây.
+  id: Terlalu banyak percobaan gagal. Harap tunggu {seconds} detik.
+  pl: Zbyt wiele nieudanych prób. Proszę poczekać {seconds} sekund.
+  nl: Te veel mislukte pogingen. Wacht {seconds} seconden.
+  ar: محاولات فاشلة كثيرة جدًا. يرجى الانتظار {seconds} ثانية.
+  hi: बहुत अधिक असफल प्रयास। कृपया {seconds} सेकंड प्रतीक्षा करें।
+  th: พยายามล้มเหลวมากเกินไป กรุณารอ {seconds} วินาที
+  cs: Příliš mnoho neúspěšných pokusů. Počkejte {seconds} sekund.
+  sv: För många misslyckade försök. Vänta {seconds} sekunder.
+  verified_by_human: []
+
+hidden_chats.unlock_error:
+  context: Generic error message for unlock failures
+  en: An error occurred. Please try again.
+  de: Ein Fehler ist aufgetreten. Bitte versuchen Sie es erneut.
+  zh: 发生错误。请重试。
+  es: Ocurrió un error. Por favor, inténtelo de nuevo.
+  fr: Une erreur s'est produite. Veuillez réessayer.
+  pt: Ocorreu um erro. Por favor, tente novamente.
+  ru: Произошла ошибка. Пожалуйста, попробуйте снова.
+  ja: エラーが発生しました。もう一度お試しください。
+  ko: 오류가 발생했습니다. 다시 시도해 주세요.
+  it: Si è verificato un errore. Riprova.
+  tr: Bir hata oluştu. Lütfen tekrar deneyin.
+  vi: Đã xảy ra lỗi. Vui lòng thử lại.
+  id: Terjadi kesalahan. Silakan coba lagi.
+  pl: Wystąpił błąd. Spróbuj ponownie.
+  nl: Er is een fout opgetreden. Probeer het opnieuw.
+  ar: حدث خطأ. يرجى المحاولة مرة أخرى.
+  hi: एक त्रुटि हुई। कृपया पुनः प्रयास करें।
+  th: เกิดข้อผิดพลาด กรุณาลองอีกครั้ง
+  cs: Došlo k chybě. Zkuste to znovu.
+  sv: Ett fel uppstod. Försök igen.
+  verified_by_human: []
+
+hidden_chats.unlocked:
+  context: Success message when hidden chats are unlocked
+  en: Hidden chats unlocked
+  de: Versteckte Chats entsperrt
+  zh: 隐藏聊天已解锁
+  es: Chats ocultos desbloqueados
+  fr: Chats masqués déverrouillés
+  pt: Chats ocultos desbloqueados
+  ru: Скрытые чаты разблокированы
+  ja: 非表示チャットが解除されました
+  ko: 숨겨진 채팅이 잠금 해제되었습니다
+  it: Chat nascosti sbloccati
+  tr: Gizli sohbetler açıldı
+  vi: Cuộc trò chuyện ẩn đã được mở khóa
+  id: Chat tersembunyi dibuka
+  pl: Ukryte czaty odblokowane
+  nl: Verborgen chats ontgrendeld
+  ar: تم إلغاء قفل الدردشات المخفية
+  hi: छुपी हुई चैट अनलॉक हो गई
+  th: ปลดล็อกแชทที่ซ่อนอยู่แล้ว
+  cs: Skryté chaty odemčeny
+  sv: Dolda chattar upplåsta
+  verified_by_human: []
+
+hidden_chats.locked:
+  context: Success message when hidden chats are locked
+  en: Hidden chats locked
+  de: Versteckte Chats gesperrt
+  zh: 隐藏聊天已锁定
+  es: Chats ocultos bloqueados
+  fr: Chats masqués verrouillés
+  pt: Chats ocultos bloqueados
+  ru: Скрытые чаты заблокированы
+  ja: 非表示チャットがロックされました
+  ko: 숨겨진 채팅이 잠금되었습니다
+  it: Chat nascosti bloccati
+  tr: Gizli sohbetler kilitlendi
+  vi: Cuộc trò chuyện ẩn đã được khóa
+  id: Chat tersembunyi dikunci
+  pl: Ukryte czaty zablokowane
+  nl: Verborgen chats vergrendeld
+  ar: تم قفل الدردشات المخفية
+  hi: छुपी हुई चैट लॉक हो गई
+  th: ล็อกแชทที่ซ่อนอยู่แล้ว
+  cs: Skryté chaty zamčeny
+  sv: Dolda chattar låsta
+  verified_by_human: []
+
+hidden_chats.show_hidden_chats:
+  context: Label shown when user overscrolls at top to unlock hidden chats
+  en: "Show hidden chats:"
+  de: "Versteckte Chats anzeigen:"
+  zh: "显示隐藏聊天："
+  es: "Mostrar chats ocultos:"
+  fr: "Afficher les chats masqués :"
+  pt: "Mostrar chats ocultos:"
+  ru: "Показать скрытые чаты:"
+  ja: "非表示チャットを表示:"
+  ko: "숨겨진 채팅 표시:"
+  it: "Mostra chat nascoste:"
+  tr: "Gizli sohbetleri göster:"
+  vi: "Hiển thị cuộc trò chuyện ẩn:"
+  id: "Tampilkan chat tersembunyi:"
+  pl: "Pokaż ukryte czaty:"
+  nl: "Verborgen chats weergeven:"
+  ar: "إظهار الدردشات المخفية:"
+  hi: "छुपी हुई चैट दिखाएं:"
+  th: "แสดงแชทที่ซ่อนอยู่:"
+  cs: "Zobrazit skryté chaty:"
+  sv: "Visa dolda chattar:"
+  verified_by_human: []
+
+hidden_chats.login_required:
+  context: Informative message shown to non-authenticated users when they try to access hidden chats
+  en: "Login to hide chats & see your hidden chats here"
+  de: "Anmelden, um Chats zu verstecken und Ihre versteckten Chats hier zu sehen"
+  zh: "登录以隐藏聊天并在此处查看您的隐藏聊天"
+  es: "Inicia sesión para ocultar chats y ver tus chats ocultos aquí"
+  fr: "Connectez-vous pour masquer les chats et voir vos chats masqués ici"
+  pt: "Faça login para ocultar chats e ver seus chats ocultos aqui"
+  ru: "Войдите, чтобы скрывать чаты и видеть свои скрытые чаты здесь"
+  ja: "ログインしてチャットを非表示にし、ここで非表示のチャットを表示"
+  ko: "로그인하여 채팅을 숨기고 여기에서 숨겨진 채팅 보기"
+  it: "Accedi per nascondere le chat e vedere le tue chat nascoste qui"
+  tr: "Giriş yaparak sohbetleri gizleyin ve gizli sohbetlerinizi burada görün"
+  vi: "Đăng nhập để ẩn cuộc trò chuyện và xem cuộc trò chuyện ẩn của bạn ở đây"
+  id: "Masuk untuk menyembunyikan obrolan dan melihat obrolan tersembunyi Anda di sini"
+  pl: "Zaloguj się, aby ukryć czaty i zobaczyć swoje ukryte czaty tutaj"
+  nl: "Log in om chats te verbergen en uw verborgen chats hier te bekijken"
+  ar: "قم بتسجيل الدخول لإخفاء الدردشات ومشاهدة الدردشات المخفية هنا"
+  hi: "चैट छुपाने और अपनी छुपी हुई चैट यहाँ देखने के लिए लॉगिन करें"
+  th: "เข้าสู่ระบบเพื่อซ่อนแชทและดูแชทที่ซ่อนอยู่ของคุณที่นี่"
+  cs: "Přihlaste se, abyste mohli skrýt chaty a zobrazit zde své skryté chaty"
+  sv: "Logga in för att dölja chattar och se dina dolda chattar här"
+  verified_by_human: []
+
+hidden_chats.code_placeholder:
+  context: Placeholder text for the hidden chat code input field
+  en: Enter your passcode
+  de: Geben Sie Ihren Passcode ein
+  zh: 输入您的密码
+  es: Ingrese su código de acceso
+  fr: Entrez votre code d'accès
+  pt: Digite seu código de acesso
+  ru: Введите ваш код доступа
+  ja: パスコードを入力してください
+  ko: 비밀번호를 입력하세요
+  it: Inserisci il tuo codice di accesso
+  tr: Parolanızı girin
+  vi: Nhập mã truy cập của bạn
+  id: Masukkan kode akses Anda
+  pl: Wprowadź swój kod dostępu
+  nl: Voer uw toegangscode in
+  ar: أدخل رمز المرور الخاص بك
+  hi: अपना पासकोड दर्ज करें
+  th: ป้อนรหัสผ่านของคุณ
+  cs: Zadejte svůj přístupový kód
+  sv: Ange din lösenkod
+  verified_by_human: []
+
+hidden_chats.auto_locked:
+  context: Message shown when hidden chats auto-lock due to inactivity
+  en: Hidden chats locked due to inactivity
+  de: Versteckte Chats aufgrund von Inaktivität gesperrt
+  zh: 由于不活动，隐藏聊天已锁定
+  es: Chats ocultos bloqueados por inactividad
+  fr: Chats masqués verrouillés en raison de l'inactivité
+  pt: Chats ocultos bloqueados por inatividade
+  ru: Скрытые чаты заблокированы из-за неактивности
+  ja: 非アクティブのため、非表示チャットがロックされました
+  ko: 비활성으로 인해 숨겨진 채팅이 잠금되었습니다
+  it: Chat nascosti bloccati per inattività
+  tr: Gizli sohbetler hareketsizlik nedeniyle kilitlendi
+  vi: Cuộc trò chuyện ẩn đã được khóa do không hoạt động
+  id: Chat tersembunyi dikunci karena tidak aktif
+  pl: Ukryte czaty zablokowane z powodu braku aktywności
+  nl: Verborgen chats vergrendeld vanwege inactiviteit
+  ar: تم قفل الدردشات المخفية بسبب عدم النشاط
+  hi: निष्क्रियता के कारण छुपी हुई चैट लॉक हो गई
+  th: แชทที่ซ่อนอยู่ถูกล็อกเนื่องจากไม่มีการใช้งาน
+  cs: Skryté chaty zamčeny kvůli nečinnosti
+  sv: Dolda chattar låsta på grund av inaktivitet
+  verified_by_human: []
+
 select_all:
   context: Button to select all chats
   en: Select all

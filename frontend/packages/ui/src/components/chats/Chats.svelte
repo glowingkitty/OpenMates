@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount, onDestroy, createEventDispatcher, tick } from 'svelte';
-	import { _ } from 'svelte-i18n';
+	import { text } from '@repo/ui'; // Import text store for translations
 	import ChatComponent from './Chat.svelte'; // Renamed to avoid conflict with Chat type
 	import { panelState } from '../../stores/panelStateStore';
 	import { authStore } from '../../stores/authStore';
@@ -28,6 +28,9 @@
 	import { notificationStore } from '../../stores/notificationStore'; // For notifications
 	import { incognitoChatService } from '../../services/incognitoChatService'; // Import incognito chat service
 	import { incognitoMode } from '../../stores/incognitoModeStore'; // Import incognito mode store
+	import { hiddenChatStore } from '../../stores/hiddenChatStore'; // Import hidden chat store
+	import { hiddenChatService } from '../../services/hiddenChatService'; // Import hidden chat service
+	import HiddenChatUnlock from './HiddenChatUnlock.svelte'; // Import hidden chat unlock component
 
 	const dispatch = createEventDispatcher();
 
@@ -52,6 +55,22 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 	let selectMode = $state(false); // Whether we're in multi-select mode
 	let selectedChatIds = $state<Set<string>>(new Set()); // Set of selected chat IDs
 	let lastSelectedChatId: string | null = $state(null); // Track last selected chat for range selection
+
+	// Hidden Chats State
+	let showHiddenChatUnlock = $state(false); // Show unlock modal
+	let isFirstTimeUnlock = $state(false); // True if setting code for first time
+	let chatIdToHideAfterUnlock: string | null = $state(null); // Chat ID to hide after unlock
+	let hiddenChatState = $derived($hiddenChatStore); // Reactive hidden chat state
+	
+	// Scroll-to-top overscroll state for hidden chats unlock
+	let showOverscrollUnlock = $state(false); // Show unlock interface when overscrolling at top
+	let overscrollUnlockCode = $state(''); // Code input for overscroll unlock
+	let overscrollUnlockError = $state(''); // Error message for overscroll unlock
+	let overscrollUnlockLoading = $state(false); // Loading state for overscroll unlock
+	let overscrollUnlockInput: HTMLInputElement | null = $state(null); // Reference to input element
+	let activityHistoryElement: HTMLDivElement | null = $state(null); // Reference to scrollable container
+	let currentScrollTop = $state(0); // Track current scroll position for reactivity
+	let chatIdToHideViaOverscroll: string | null = $state(null); // Chat ID to hide via overscroll unlock
 
 	// --- Reactive Computations for Display ---
 
@@ -183,7 +202,50 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 	// CRITICAL CHANGE: Show all chats immediately, even those waiting for metadata
 	// Chats with waiting_for_metadata will display with status indicators (Sending/Processing)
 	// instead of being hidden from the sidebar
-	let sortedAllChatsFiltered = $derived(sortedAllChats);
+	// Filter out hidden chats from main list.
+	// Hidden chats are identified by decryption failure (no DB flag). Locked hidden chats are marked as `is_hidden_candidate`.
+	let sortedAllChatsFiltered = $derived((() => {
+		const sorted = sortedAllChats;
+		if (!$authStore.isAuthenticated) {
+			return sorted;
+		}
+		return sorted.filter(chat => !(chat as any).is_hidden && !(chat as any).is_hidden_candidate);
+	})());
+
+	// CRITICAL FIX: Order group keys so "today" appears before "previous_30_days"
+	// Define the order of group keys (most recent first)
+	const GROUP_ORDER = ['today', 'yesterday', 'previous_7_days', 'previous_30_days'];
+
+	// Separate list for hidden chats (only shown when unlocked)
+	let hiddenChats = $derived((() => {
+		if (!hiddenChatState.isUnlocked) {
+			return [];
+		}
+		return sortedAllChats.filter(chat => (chat as any).is_hidden);
+	})());
+
+	// Group hidden chats for display
+	let groupedHiddenChats = $derived(groupChats(hiddenChats));
+	let orderedGroupedHiddenChats = $derived((() => {
+		const groups = groupedHiddenChats;
+		const orderedEntries: [string, ChatType[]][] = [];
+		
+		// First, add groups in the defined order
+		for (const groupKey of GROUP_ORDER) {
+			if (groups[groupKey] && groups[groupKey].length > 0) {
+				orderedEntries.push([groupKey, groups[groupKey]]);
+			}
+		}
+		
+		// Then, add any remaining groups
+		for (const [groupKey, groupItems] of Object.entries(groups)) {
+			if (!GROUP_ORDER.includes(groupKey) && groupItems.length > 0) {
+				orderedEntries.push([groupKey, groupItems]);
+			}
+		}
+		
+		return orderedEntries;
+	})());
 
 	// Apply display limit for phased loading. This list is used for rendering groups using Svelte 5 runes
 	let chatsForDisplay = $derived(sortedAllChatsFiltered.slice(0, displayLimit));
@@ -191,10 +253,6 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 	// Group the chats intended for display using Svelte 5 runes
 	// The `$_` (translation function) is passed to `getLocalizedGroupTitle` when it's called in the template
 	let groupedChatsForDisplay = $derived(groupChats(chatsForDisplay));
-	
-	// CRITICAL FIX: Order group keys so "today" appears before "previous_30_days"
-	// Define the order of group keys (most recent first)
-	const GROUP_ORDER = ['today', 'yesterday', 'previous_7_days', 'previous_30_days'];
 	
 	// Get ordered group entries for display
 	let orderedGroupedChats = $derived((() => {
@@ -222,6 +280,10 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 	// This ensures navigation can cycle through all available chats, even if not all are rendered yet.
 	let flattenedNavigableChats = $derived(sortedAllChatsFiltered);
 	
+	// CRITICAL FIX: Order group keys so "today" appears before "previous_30_days"
+	// Define the order of group keys (most recent first) - MOVED UP to avoid use-before-declaration
+	// Note: GROUP_ORDER is now defined above, before its first use
+	
 	// Locale for date formatting, updated reactively
 	let currentLocale = get(svelteLocaleStore);
 	svelteLocaleStore.subscribe(newLocale => {
@@ -243,6 +305,11 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 	let handleContextMenuSelect: (event: Event) => void; // Handler for selecting chat from context menu
 	let handleContextMenuBulkAction: (event: Event) => void; // Handler for bulk actions from context menu
 	let handleIncognitoChatsDeleted: () => void; // Handler for incognito chats deletion event
+	let handleShowHiddenChatUnlock: (event: Event) => void; // Handler for show hidden chat unlock modal
+	let handleShowOverscrollUnlockForHide: (event: Event) => void; // Handler for show overscroll unlock for hiding chat
+	let handleHiddenChatsAutoLocked: () => void; // Handler for hidden chats auto-locked event
+	let handleChatHidden: (event: Event) => void; // Handler for chat hidden event
+	let handleChatUnhidden: (event: Event) => void; // Handler for chat unhidden event
 
 	// --- chatSyncService Event Handlers ---
 
@@ -504,36 +571,34 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 			sessionStorageDraftUpdateTrigger++;
 			console.debug('[Chats] Triggered reactivity update for sessionStorage drafts, trigger:', sessionStorageDraftUpdateTrigger);
 		} else {
-			// If a draft was deleted, fetch the updated chat from DB and update it directly in the array
-			// This ensures immediate sorting update without waiting for full list refresh
-			if (customEvent.detail?.draftDeleted && customEvent.detail?.chat_id) {
+			// For authenticated users, prefer an incremental update to avoid a full DB read on every draft save.
+			// This also fixes "new draft chat not shown" when the chat list is served from cache.
+			const chatId = customEvent.detail?.chat_id;
+			if (chatId) {
 				try {
-					const updatedChat = await chatDB.getChat(customEvent.detail.chat_id);
+					const updatedChat = await chatDB.getChat(chatId);
 					if (updatedChat) {
 						const chatIndex = allChatsFromDB.findIndex(c => c.chat_id === updatedChat.chat_id);
 						if (chatIndex !== -1) {
-							// Update the chat object directly in the array with the cleared draft state
 							allChatsFromDB[chatIndex] = updatedChat;
-							// Force reactivity by creating a new array reference
-							allChatsFromDB = [...allChatsFromDB];
-							console.debug('[Chats] Draft deleted - updated chat object directly in array to trigger immediate re-sorting');
 						} else {
-							// Chat not in array yet, refresh from DB
-							await updateChatListFromDB();
+							allChatsFromDB = [...allChatsFromDB, updatedChat];
 						}
-					} else {
-						// Chat not found, refresh from DB
-						await updateChatListFromDB();
+						// Force reactivity for derived sorting/grouping
+						allChatsFromDB = [...allChatsFromDB];
+						// Keep global cache in sync so subsequent refreshes don't "miss" the new chat
+						chatListCache.upsertChat(updatedChat);
+						console.debug('[Chats] Updated chat list incrementally from local draft change:', { chatId });
+						return;
 					}
 				} catch (error) {
-					console.error('[Chats] Error fetching updated chat after draft deletion:', error);
-					// Fallback to full refresh
-					await updateChatListFromDB();
+					console.error('[Chats] Error fetching updated chat after local draft change:', error);
 				}
-			} else {
-				// For other updates, refresh from DB as usual
-				await updateChatListFromDB();
 			}
+
+			// Fallback: full refresh (force to bypass global cache)
+			chatListCache.markDirty();
+			await updateChatListFromDB(true);
 		}
 	};
 
@@ -829,6 +894,124 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 			}
 		};
 		window.addEventListener('incognitoChatsDeleted', handleIncognitoChatsDeleted);
+
+		// Listen for show hidden chat unlock modal event
+		handleShowHiddenChatUnlock = (event: Event) => {
+			const customEvent = event as CustomEvent<{ chatId?: string }>;
+			const chatId = customEvent.detail.chatId || null;
+			chatIdToHideAfterUnlock = chatId;
+			
+			// Always show unlock interface (no need to check if code was set)
+			// The unlock will try to decrypt and show what works
+			isFirstTimeUnlock = false; // Not used anymore, but keep for backward compatibility
+			showHiddenChatUnlock = true;
+		};
+		window.addEventListener('showHiddenChatUnlock', handleShowHiddenChatUnlock);
+
+		// Listen for show overscroll unlock interface for hiding a chat
+		handleShowOverscrollUnlockForHide = (event: Event) => {
+			const customEvent = event as CustomEvent<{ chatId: string }>;
+			chatIdToHideViaOverscroll = customEvent.detail.chatId;
+			
+			showOverscrollUnlock = true;
+			// Scroll to top to show the unlock interface
+			if (activityHistoryElement) {
+				activityHistoryElement.scrollTop = 0;
+			}
+			// Focus input after a brief delay
+			setTimeout(() => {
+				overscrollUnlockInput?.focus();
+			}, 100);
+		};
+		window.addEventListener('showOverscrollUnlockForHide', handleShowOverscrollUnlockForHide);
+
+		// Listen for hidden chats auto-locked event
+		handleHiddenChatsAutoLocked = () => {
+			notificationStore.info($text('chats.hidden_chats.auto_locked.text'));
+			// Refresh chat list so hidden chats re-lock and disappear from unlocked list
+			chatListCache.markDirty();
+			updateChatListFromDB(true);
+		};
+		window.addEventListener('hiddenChatsAutoLocked', handleHiddenChatsAutoLocked);
+
+		// Listen for hidden chats manually locked event
+		const handleHiddenChatsLocked = async () => {
+			// Refresh chat list so hidden chats disappear from unlocked list
+			chatListCache.markDirty();
+			await updateChatListFromDB(true);
+		};
+		window.addEventListener('hiddenChatsLocked', handleHiddenChatsLocked);
+
+		// Listen for chat hidden event
+		handleChatHidden = async (event: Event) => {
+			const customEvent = event as CustomEvent<{ chat_id: string }>;
+			console.debug('[Chats] Chat hidden event received:', customEvent.detail.chat_id);
+			// Refresh chat list to update visibility
+			chatListCache.markDirty();
+			await updateChatListFromDB(true);
+		};
+		window.addEventListener('chatHidden', handleChatHidden);
+		
+		// Listen for chat unhidden event (when a hidden chat is unhidden)
+		handleChatUnhidden = async (event: Event) => {
+			const customEvent = event as CustomEvent<{ chat_id: string }>;
+			const chatId = customEvent.detail.chat_id;
+			console.debug('[Chats] Chat unhidden event received:', chatId);
+			
+			// Mark cache as dirty to force reload
+			chatListCache.markDirty();
+			
+			// Also clear the specific chat from any in-memory caches to ensure fresh load
+			// Find and remove the chat from allChatsFromDB if it exists (it will be reloaded)
+			const chatIndex = allChatsFromDB.findIndex(c => c.chat_id === chatId);
+			if (chatIndex >= 0) {
+				// Remove the old chat object (it has stale is_hidden flags)
+				allChatsFromDB = allChatsFromDB.filter(c => c.chat_id !== chatId);
+			}
+			
+			// Force refresh from DB - this will reload the chat with correct flags
+			await updateChatListFromDB(true);
+			
+			// Reset overscroll unlock state to ensure it can be triggered again
+			// This allows the user to scroll up to open hidden chats section after unhiding
+			showOverscrollUnlock = false;
+			overscrollUnlockCode = '';
+			overscrollUnlockError = '';
+			chatIdToHideViaOverscroll = null;
+			
+			// CRITICAL: Reset scroll position to top to allow user to scroll up to see hidden chats section
+			// The hidden chats section is at the top of the scrollable area, so we need to ensure
+			// the scroll position is reset after the chat list updates
+			// Use setTimeout with multiple requestAnimationFrame calls to ensure DOM is fully updated
+			// This is necessary because the chat list update might change the scroll container's content height
+			setTimeout(() => {
+				requestAnimationFrame(() => {
+					requestAnimationFrame(() => {
+						if (activityHistoryElement) {
+							// Force scroll to top using multiple methods for maximum compatibility
+							activityHistoryElement.scrollTop = 0;
+							currentScrollTop = 0;
+							// Also try scrollTo for better compatibility
+							activityHistoryElement.scrollTo({ top: 0, behavior: 'auto' });
+							// Force a reflow to ensure scroll position is applied
+							void activityHistoryElement.offsetHeight;
+							
+							// Double-check that scroll position is actually at 0
+							// If not, try again after a brief delay
+							if (activityHistoryElement.scrollTop !== 0) {
+								setTimeout(() => {
+									if (activityHistoryElement) {
+										activityHistoryElement.scrollTop = 0;
+										currentScrollTop = 0;
+									}
+								}, 50);
+							}
+						}
+					});
+				});
+			}, 150); // Delay to ensure chat list update and DOM reflow completes
+		};
+		window.addEventListener('chatUnhidden', handleChatUnhidden);
 		
 		// Initial load of incognito chats (only if mode is enabled)
 		// Don't use subscription to avoid reactive loops - just check on mount
@@ -948,6 +1131,23 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 		if (handleIncognitoChatsDeleted) {
 			window.removeEventListener('incognitoChatsDeleted', handleIncognitoChatsDeleted);
 		}
+
+		// Clean up hidden chats event listeners
+        if (handleShowHiddenChatUnlock) {
+			window.removeEventListener('showHiddenChatUnlock', handleShowHiddenChatUnlock);
+		}
+		if (handleShowOverscrollUnlockForHide) {
+			window.removeEventListener('showOverscrollUnlockForHide', handleShowOverscrollUnlockForHide);
+		}
+		if (handleHiddenChatsAutoLocked) {
+			window.removeEventListener('hiddenChatsAutoLocked', handleHiddenChatsAutoLocked);
+		}
+		if (handleChatHidden) {
+			window.removeEventListener('chatHidden', handleChatHidden);
+			if (handleChatUnhidden) {
+				window.removeEventListener('chatUnhidden', handleChatUnhidden);
+			}
+		}
 	});
 
 	// --- User Interaction Handlers ---
@@ -1013,13 +1213,18 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 		// This ensures tab reload opens the correct chat even if the component unmounts during the update
 		// IndexedDB update happens for all users (authenticated and non-authenticated) for tab reload persistence
 		// Server sync (via WebSocket) only happens for authenticated users (handled by sendSetActiveChatImpl)
-		try {
-			const { chatSyncService } = await import('../../services/chatSyncService');
-			await chatSyncService.sendSetActiveChat(chat.chat_id);
-			console.debug('[Chats] ✅ Updated last_opened in IndexedDB for chat:', chat.chat_id);
-		} catch (error) {
-			console.error('[Chats] Error updating last_opened in IndexedDB:', error);
-			// Don't fail the whole operation if IndexedDB update fails, continue to update UI
+		// SECURITY: Don't store hidden chats as last_opened - they require passcode after page reload
+		if (!(chat as any).is_hidden) {
+			try {
+				const { chatSyncService } = await import('../../services/chatSyncService');
+				await chatSyncService.sendSetActiveChat(chat.chat_id);
+				console.debug('[Chats] ✅ Updated last_opened in IndexedDB for chat:', chat.chat_id);
+			} catch (error) {
+				console.error('[Chats] Error updating last_opened in IndexedDB:', error);
+				// Don't fail the whole operation if IndexedDB update fails, continue to update UI
+			}
+		} else {
+			console.debug('[Chats] Skipped storing hidden chat as last_opened:', chat.chat_id);
 		}
 
 		// Update the persistent store so the selection survives component unmount/remount
@@ -1345,6 +1550,298 @@ async function updateChatListFromDBInternal(force = false) {
             // Update lastSelectedChatId for potential future range selection
             lastSelectedChatId = chat.chat_id;
         }
+    }
+
+    /**
+     * Handle scroll event to detect overscroll at top
+     * Shows unlock interface when user scrolls to top and tries to scroll further
+     * Closes unlock interface when user scrolls down
+     */
+    function handleScroll(event: Event) {
+        if (!activityHistoryElement) return;
+        
+        // Update reactive scroll position
+        const newScrollTop = activityHistoryElement.scrollTop;
+        currentScrollTop = newScrollTop;
+        
+        // CRITICAL: Always close unlock interface when scrolling down (scrollTop > 0)
+        // This ensures the interface closes immediately when user scrolls away from top
+        if (newScrollTop > 0 && showOverscrollUnlock) {
+            showOverscrollUnlock = false;
+            overscrollUnlockCode = '';
+            overscrollUnlockError = '';
+        }
+        
+        // CRITICAL: Ensure scroll can reach 0 when hidden chats are unlocked
+        // Sometimes scroll position can get stuck slightly above 0, preventing access to hidden chats section
+        // If user is trying to scroll to top and we're very close (within 2px), force it to 0
+        if (newScrollTop > 0 && newScrollTop <= 2 && hiddenChatState.isUnlocked) {
+            // User is trying to scroll to top - ensure we can reach exactly 0
+            requestAnimationFrame(() => {
+                if (activityHistoryElement && activityHistoryElement.scrollTop <= 2) {
+                    activityHistoryElement.scrollTop = 0;
+                    currentScrollTop = 0;
+                }
+            });
+        }
+    }
+    
+    // Reactive effect to close unlock interface when scrolling down
+    // This provides a more reliable way to detect scroll changes
+    $effect(() => {
+        if (currentScrollTop > 0 && showOverscrollUnlock) {
+            showOverscrollUnlock = false;
+            overscrollUnlockCode = '';
+            overscrollUnlockError = '';
+        }
+    });
+    
+    /**
+     * Handle wheel event to detect overscroll at top (more reliable than scroll event)
+     */
+    function handleWheel(event: WheelEvent) {
+        if (!activityHistoryElement) return;
+        
+        const scrollTop = activityHistoryElement.scrollTop;
+        currentScrollTop = scrollTop; // Update reactive scroll position
+        
+        // If at top and scrolling up (negative deltaY), show unlock interface
+        // Allow overscroll even if scrollTop is slightly above 0 (within 5px tolerance)
+        // This handles edge cases where scroll position might not be exactly 0
+        if (scrollTop <= 5 && event.deltaY < 0 && !hiddenChatState.isUnlocked) {
+            if (!showOverscrollUnlock) {
+                // Ensure we're at the very top
+                if (scrollTop > 0) {
+                    activityHistoryElement.scrollTop = 0;
+                    currentScrollTop = 0;
+                }
+                showOverscrollUnlock = true;
+                event.preventDefault(); // Prevent default scroll behavior
+                setTimeout(() => {
+                    overscrollUnlockInput?.focus();
+                }, 100);
+            }
+        }
+        
+        // CRITICAL: Also allow scrolling to top when hidden chats are already unlocked
+        // This ensures users can scroll up to see the hidden chats section after unhiding
+        // If user is trying to scroll up and we're near the top, ensure we can reach scrollTop = 0
+        if (scrollTop <= 10 && event.deltaY < 0 && hiddenChatState.isUnlocked) {
+            // Allow normal scrolling to top - don't prevent default
+            // Just ensure scroll position can reach 0
+            if (scrollTop > 0) {
+                // Smoothly scroll to top
+                activityHistoryElement.scrollTo({ top: 0, behavior: 'smooth' });
+            }
+        }
+        // Note: Closing on scroll down is handled by the reactive effect
+    }
+    
+    /**
+     * Handle touch events for mobile overscroll detection
+     */
+    let touchStartY = 0;
+    function handleTouchStart(event: TouchEvent) {
+        touchStartY = event.touches[0].clientY;
+    }
+    
+    function handleTouchMove(event: TouchEvent) {
+        if (!activityHistoryElement) return;
+        
+        const scrollTop = activityHistoryElement.scrollTop;
+        currentScrollTop = scrollTop; // Update reactive scroll position
+        
+        const touchY = event.touches[0].clientY;
+        const deltaY = touchY - touchStartY;
+        
+        // If at top and pulling down (positive deltaY), show unlock interface
+        // Allow overscroll even if scrollTop is slightly above 0 (within 5px tolerance)
+        // This handles edge cases where scroll position might not be exactly 0
+        if (scrollTop <= 5 && deltaY > 0 && !hiddenChatState.isUnlocked) {
+            if (!showOverscrollUnlock) {
+                // Ensure we're at the very top
+                if (scrollTop > 0) {
+                    activityHistoryElement.scrollTop = 0;
+                    currentScrollTop = 0;
+                }
+                showOverscrollUnlock = true;
+                setTimeout(() => {
+                    overscrollUnlockInput?.focus();
+                }, 100);
+            }
+        }
+        
+        // CRITICAL: Also allow scrolling to top when hidden chats are already unlocked
+        // This ensures users can scroll up to see the hidden chats section after unhiding
+        // If user is trying to scroll up and we're near the top, ensure we can reach scrollTop = 0
+        if (scrollTop <= 10 && deltaY > 0 && hiddenChatState.isUnlocked) {
+            // Allow normal scrolling to top
+            // Just ensure scroll position can reach 0
+            if (scrollTop > 0) {
+                // Smoothly scroll to top
+                activityHistoryElement.scrollTo({ top: 0, behavior: 'smooth' });
+            }
+        }
+        // Note: Closing on scroll down is handled by the reactive effect
+    }
+    
+    /**
+     * Handle code input for overscroll unlock
+     */
+    function handleOverscrollCodeInput(event: Event) {
+        const target = event.target as HTMLInputElement;
+        let value = target.value.replace(/[^0-9]/g, ''); // Only allow digits
+        value = value.slice(0, 6); // Max 6 digits
+        overscrollUnlockCode = value;
+        overscrollUnlockError = ''; // Clear error on input
+    }
+    
+    /**
+     * Handle overscroll unlock submission
+     */
+    async function handleOverscrollUnlock(event: Event) {
+        event.preventDefault();
+        
+        if (overscrollUnlockLoading || overscrollUnlockCode.length < 4) return;
+        
+        overscrollUnlockLoading = true;
+        overscrollUnlockError = '';
+        
+        try {
+            // If we're hiding a chat, we need to encrypt it first, then unlock
+            // This ensures unlock succeeds even if no existing chats are encrypted with this code
+            if (chatIdToHideViaOverscroll) {
+                const chatId = chatIdToHideViaOverscroll;
+                
+                // First, encrypt the chat with the code
+                // Import services
+                const { hiddenChatService } = await import('../../services/hiddenChatService');
+                const { chatDB } = await import('../../services/db');
+                
+                // Get the chat to hide
+                const chatToHide = await chatDB.getChat(chatId);
+                if (!chatToHide) {
+                    overscrollUnlockError = $text('chats.hidden_chats.unlock_error.text');
+                    overscrollUnlockLoading = false;
+                    return;
+                }
+                
+                // Get the chat key (decrypt from encrypted_chat_key if needed)
+                let chatKey = chatDB.getChatKey(chatId);
+                if (!chatKey && chatToHide.encrypted_chat_key) {
+                    const { decryptChatKeyWithMasterKey } = await import('../../services/cryptoService');
+                    try {
+                        chatKey = await decryptChatKeyWithMasterKey(chatToHide.encrypted_chat_key);
+                    } catch (error) {
+                        console.error('[Chats] Error decrypting chat key for hiding:', error);
+                        overscrollUnlockError = $text('chats.hidden_chats.unlock_error.text');
+                        overscrollUnlockLoading = false;
+                        return;
+                    }
+                }
+                
+                if (!chatKey) {
+                    overscrollUnlockError = $text('chats.hidden_chats.unlock_error.text');
+                    overscrollUnlockLoading = false;
+                    return;
+                }
+                
+                // Encrypt chat key with the code (this doesn't unlock, just encrypts)
+                const encryptedChatKey = await hiddenChatService.encryptChatKeyWithCode(chatKey, overscrollUnlockCode);
+                if (!encryptedChatKey) {
+                    overscrollUnlockError = $text('chats.hidden_chats.unlock_error.text');
+                    overscrollUnlockLoading = false;
+                    return;
+                }
+                
+                // Update chat in database
+                const updatedChat = {
+                    ...chatToHide,
+                    encrypted_chat_key: encryptedChatKey,
+                    is_hidden: true
+                };
+                await chatDB.updateChat(updatedChat);
+                
+                // Sync to server
+                const { chatSyncService } = await import('../../services/chatSyncService');
+                await chatSyncService.sendUpdateEncryptedChatKey(chatId, encryptedChatKey);
+                
+                // Now unlock with the code, passing the encrypted chat key we just created
+                // This allows unlock to verify the chat can be decrypted even if getAllChats() hasn't picked it up yet
+                const result = await hiddenChatStore.unlock(overscrollUnlockCode, encryptedChatKey);
+                
+                if (result.success) {
+                    showOverscrollUnlock = false;
+                    overscrollUnlockCode = '';
+                    overscrollUnlockError = '';
+                    chatIdToHideViaOverscroll = null;
+                    
+                    // Refresh chat list to show hidden chats
+                    chatListCache.markDirty();
+                    await updateChatListFromDB(true);
+                } else {
+                    // Unlock failed - this shouldn't happen since we just encrypted a chat with this code
+                    overscrollUnlockError = $text('chats.hidden_chats.unlock_error.text');
+                    overscrollUnlockCode = '';
+                    overscrollUnlockInput?.focus();
+                }
+            } else {
+                // Normal unlock flow (not hiding a chat)
+                const result = await hiddenChatStore.unlock(overscrollUnlockCode);
+                
+                if (result.success) {
+                    showOverscrollUnlock = false;
+                    overscrollUnlockCode = '';
+                    overscrollUnlockError = '';
+                    
+                    // Refresh chat list to show hidden chats
+                    chatListCache.markDirty();
+                    await updateChatListFromDB(true);
+                } else {
+                    // Show appropriate error message
+                    if (result.decryptedCount === 0) {
+                        overscrollUnlockError = $text('chats.hidden_chats.no_hidden_chats_unlocked.text', {
+                            default: 'No hidden chats unlocked. The code may be incorrect or no chats are encrypted with this code.'
+                        });
+                    } else {
+                        overscrollUnlockError = $text('chats.hidden_chats.incorrect_code.text');
+                    }
+                    overscrollUnlockCode = ''; // Clear code on error
+                    overscrollUnlockInput?.focus();
+                }
+            }
+        } catch (error) {
+            console.error('[Chats] Error unlocking hidden chats:', error);
+            overscrollUnlockError = $text('chats.hidden_chats.unlock_error.text');
+            overscrollUnlockCode = '';
+        } finally {
+            overscrollUnlockLoading = false;
+        }
+    }
+
+    /**
+     * Handle unlock modal close
+     */
+    function handleUnlockModalClose() {
+        showHiddenChatUnlock = false;
+        isFirstTimeUnlock = false;
+        chatIdToHideAfterUnlock = null;
+    }
+
+    /**
+     * Handle unlock success
+     * Note: The unlock result and chat hiding is handled in HiddenChatUnlock component,
+     * this is called after successful unlock
+     */
+    async function handleUnlockSuccess() {
+        showHiddenChatUnlock = false;
+        
+        // Clear the chat ID to hide (it was already handled in HiddenChatUnlock component)
+        chatIdToHideAfterUnlock = null;
+        
+        // Refresh chat list to show hidden chats
+        chatListCache.markDirty();
+        await updateChatListFromDB(true);
     }
 
     /**
@@ -1771,7 +2268,7 @@ async function updateChatListFromDBInternal(force = false) {
 							console.debug('[Chats] Selected all chats:', selectedChatIds.size);
 						}}
 					>
-						{$_('chats.select_all.text', { default: 'Select all' })}
+						{$text('chats.select_all.text')}
 					</button>
 					<button
 						class="select-mode-button"
@@ -1781,7 +2278,7 @@ async function updateChatListFromDBInternal(force = false) {
 							console.debug('[Chats] Unselected all chats');
 						}}
 					>
-						{$_('chats.unselect_all.text', { default: 'Unselect all' })}
+						{$text('chats.unselect_all.text')}
 					</button>
 					<button
 						class="select-mode-button cancel"
@@ -1792,12 +2289,12 @@ async function updateChatListFromDBInternal(force = false) {
 							console.debug('[Chats] Exited select mode and cleared selection');
 						}}
 					>
-						{$_('chats.cancel.text', { default: 'Cancel' })}
+						{$text('chats.cancel.text')}
 					</button>
 				{:else}
 					<button
 						class="clickable-icon icon_close top-button right"
-						aria-label={$_('activity.close.text')}
+						aria-label={$text('activity.close.text')}
 						onclick={handleClose}
 						use:tooltip
 					></button>
@@ -1806,23 +2303,175 @@ async function updateChatListFromDBInternal(force = false) {
 		</div>
 		
 		<!-- Scrollable content area -->
-		<div class="activity-history">
+		<div 
+			class="activity-history"
+			bind:this={activityHistoryElement}
+			onscroll={handleScroll}
+			onwheel={handleWheel}
+			ontouchstart={handleTouchStart}
+			ontouchmove={handleTouchMove}
+		>
 			{#if syncing}
-			<div class="syncing-indicator">{$_('activity.syncing.text', { default: 'Syncing...' })}</div>
+			<div class="syncing-indicator">{$text('activity.syncing.text')}</div>
 		{:else if syncComplete}
-			<div class="sync-complete-indicator">{$_('activity.sync_complete.text', { default: 'Sync complete' })}</div>
+			<div class="sync-complete-indicator">{$text('activity.sync_complete.text')}</div>
 		{/if}
 		
 		{#if !allChats || allChats.length === 0}
-			<div class="no-chats-indicator">{$_('activity.no_chats.text', { default: 'No chats yet.' })}</div>
+			<div class="no-chats-indicator">{$text('activity.no_chats.text')}</div>
 		{:else}
+			<!-- Overscroll unlock interface (shown when user overscrolls at top) -->
+			{#if showOverscrollUnlock && !hiddenChatState.isUnlocked}
+				<div class="overscroll-unlock-container">
+					<div class="overscroll-unlock-content">
+						{#if $authStore.isAuthenticated}
+							<p class="overscroll-unlock-label">
+								<span class="clickable-icon icon_hidden"></span>
+								<span>{$text('chats.hidden_chats.show_hidden_chats.text')}</span>
+							</p>
+							<form onsubmit={handleOverscrollUnlock}>
+								<div class="overscroll-unlock-input-wrapper">
+									<input
+										bind:this={overscrollUnlockInput}
+										type="password"
+										inputmode="numeric"
+										pattern="[0-9]*"
+										autocomplete="one-time-code"
+										class="overscroll-unlock-input"
+										class:error={!!overscrollUnlockError}
+										bind:value={overscrollUnlockCode}
+										oninput={handleOverscrollCodeInput}
+										placeholder={$text('chats.hidden_chats.code_placeholder.text')}
+										maxlength="6"
+										disabled={overscrollUnlockLoading}
+										style="font-family: monospace; letter-spacing: 0.1em;"
+									/>
+									{#if overscrollUnlockError}
+										<div class="overscroll-unlock-error">{overscrollUnlockError}</div>
+									{/if}
+								</div>
+							<button
+								type="submit"
+								class="overscroll-unlock-button"
+								disabled={overscrollUnlockLoading || overscrollUnlockCode.length < 4}
+							>
+								{#if overscrollUnlockLoading}
+									<span class="loading-spinner"></span>
+								{:else if chatIdToHideViaOverscroll}
+									{$text('chats.hidden_chats.unlock_and_hide_button.text')}
+								{:else}
+									{$text('chats.hidden_chats.unlock_button.text')}
+								{/if}
+							</button>
+							</form>
+							<button
+								type="button"
+								class="clickable-icon icon_close_up overscroll-unlock-close"
+								onclick={() => {
+									showOverscrollUnlock = false;
+									overscrollUnlockCode = '';
+									overscrollUnlockError = '';
+									chatIdToHideViaOverscroll = null;
+								}}
+								aria-label={$text('activity.close.text')}
+							></button>
+						{:else}
+							<p class="overscroll-unlock-info">
+								<span class="clickable-icon icon_hidden"></span>
+								<span>{$text('chats.hidden_chats.login_required.text')}</span>
+							</p>
+							<button
+								type="button"
+								class="clickable-icon icon_close_up overscroll-unlock-close"
+								onclick={() => {
+									showOverscrollUnlock = false;
+									chatIdToHideViaOverscroll = null;
+								}}
+								aria-label={$text('activity.close.text')}
+							></button>
+						{/if}
+					</div>
+				</div>
+			{/if}
+			<!-- Hidden chats section (shown when unlocked) - reusing overscroll-unlock-container styling -->
+			{#if hiddenChatState.isUnlocked}
+				<div class="overscroll-unlock-container">
+					<div class="overscroll-unlock-content">
+						<p class="overscroll-unlock-label">
+							<span class="clickable-icon icon_hidden"></span>
+							<span>{$text('chats.hidden_chats.title.text')}:</span>
+						</p>
+						{#if hiddenChats.length > 0}
+							<div class="chat-groups">
+								{#each orderedGroupedHiddenChats as [groupKey, groupItems] (groupKey)}
+									{#if groupItems.length > 0}
+										<div class="chat-group">
+											<h2 class="group-title">{getLocalizedGroupTitle(groupKey, $text)}</h2>
+											{#each groupItems as chat (chat.chat_id)}
+												<div
+													role="button"
+													tabindex="0"
+													class="chat-item hidden-chat-item"
+													class:active={selectedChatId === chat.chat_id}
+													onclick={(event) => {
+														handleChatItemClick(chat, event);
+														hiddenChatStore.recordActivity();
+													}}
+													onkeydown={(e) => {
+														if (e.key === 'Enter' || e.key === ' ') {
+															e.preventDefault();
+															// Create a synthetic mouse event for keyboard navigation
+															const syntheticEvent = new MouseEvent('click', {
+																bubbles: true,
+																cancelable: true
+															});
+															handleChatItemClick(chat, syntheticEvent);
+															hiddenChatStore.recordActivity();
+														}
+													}}
+												>
+													<ChatComponent
+														{chat}
+														activeChatId={selectedChatId}
+														{selectMode}
+														{selectedChatIds}
+													/>
+												</div>
+											{/each}
+										</div>
+									{/if}
+								{/each}
+							</div>
+						{:else}
+							<!-- Show "No hidden chats" message when section is unlocked but empty -->
+							<div class="no-hidden-chats-message">
+								<p>{$text('chats.hidden_chats.no_hidden_chats.text', { default: 'No hidden chats' })}</p>
+							</div>
+						{/if}
+						<!-- Single lock button at the bottom -->
+						<button
+							type="button"
+							class="overscroll-unlock-button"
+							onclick={() => {
+								hiddenChatStore.lock();
+								chatListCache.markDirty();
+								updateChatListFromDB(true);
+							}}
+						>
+							<div class="clickable-icon icon_lock"></div>
+							<span>{$text('chats.hidden_chats.lock.text')}</span>
+						</button>
+					</div>
+				</div>
+			{/if}
+			
 			<!-- DEBUG: Rendering {allChats.length} chats (demo + real), display limit: {displayLimit}, grouped chats: {Object.keys(groupedChatsForDisplay).length} groups -->
 			<div class="chat-groups">
 				{#each orderedGroupedChats as [groupKey, groupItems] (groupKey)}
 					{#if groupItems.length > 0}
 						<div class="chat-group">
 							<!-- Pass the translation function `$_` to the utility -->
-							<h2 class="group-title">{getLocalizedGroupTitle(groupKey, $_)}</h2>
+							<h2 class="group-title">{getLocalizedGroupTitle(groupKey, $text)}</h2>
 							{#each groupItems as chat (chat.chat_id)}
 								<div
 									role="button"
@@ -1943,8 +2592,8 @@ async function updateChatListFromDBInternal(force = false) {
 								console.debug('[Chats] User clicked "Load all chats".');
 							}}
 						>
-							{$_('chats.loadMore.button', { default: 'Load all chats' })}
-							({allChats.length - chatsForDisplay.length} {$_('chats.loadMore.more', { default: 'more'})})
+							{$text('chats.loadMore.button.text')}
+							({allChats.length - chatsForDisplay.length} {$text('chats.loadMore.more.text')})
 						</button>
 					</div>
 				{/if}
@@ -2064,7 +2713,7 @@ async function updateChatListFromDBInternal(force = false) {
         flex-direction: column;
         gap: 20px; /* Slightly reduced gap */
         position: relative;
-        padding: 0 8px 16px 8px; /* Add horizontal padding */
+        padding: 16px 8px 16px 8px; /* Add horizontal padding */
     }
 
     .chat-group {
@@ -2181,4 +2830,130 @@ async function updateChatListFromDBInternal(force = false) {
         outline: 2px solid var(--color-primary-focus);
         outline-offset: 1px;
     }
+
+    /* Hidden chat items */
+    .hidden-chat-item {
+        opacity: 0.9;
+    }
+
+    /* Overscroll unlock interface */
+    .overscroll-unlock-container {
+        padding: 20px;
+        background: var(--color-grey-10);
+        border-bottom: 1px solid var(--color-grey-30);
+        animation: slideDown 0.3s ease-out;
+    }
+
+    @keyframes slideDown {
+        from {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .overscroll-unlock-content {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        max-width: 400px;
+        margin: 0 auto;
+    }
+    
+    .no-hidden-chats-message {
+        padding: 24px 16px;
+        text-align: center;
+        color: var(--color-grey-60);
+    }
+    
+    .no-hidden-chats-message p {
+        margin: 0;
+        font-size: 14px;
+    }
+
+    .overscroll-unlock-label,
+    .overscroll-unlock-info {
+        margin: 0;
+        color: var(--color-grey-70);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .overscroll-unlock-label .clickable-icon,
+    .overscroll-unlock-info .clickable-icon {
+        flex-shrink: 0;
+    }
+
+    .overscroll-unlock-input-wrapper {
+        display: flex;
+        flex-direction: column;
+        padding-bottom: 10px;
+    }
+
+    .overscroll-unlock-input {
+        width: auto;
+    }
+
+    .overscroll-unlock-error {
+        color: var(--color-error);
+        font-size: 0.85em;
+        margin-top: 4px;
+    }
+
+    .overscroll-unlock-button {
+        width: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+    }
+    
+    .overscroll-unlock-button .clickable-icon {
+        flex-shrink: 0;
+    }
+
+
+    .overscroll-unlock-button:disabled {
+        background-color: var(--color-grey-40);
+        cursor: not-allowed;
+        opacity: 0.6;
+    }
+
+    .loading-spinner {
+        width: 16px;
+        height: 16px;
+        border: 2px solid var(--color-grey-30);
+        border-top-color: var(--color-button-text);
+        border-radius: 50%;
+        animation: spin 0.6s linear infinite;
+    }
+
+    @keyframes spin {
+        to {
+            transform: rotate(360deg);
+        }
+    }
+
+    .overscroll-unlock-close {
+        margin: 8px auto 0;
+        transition: transform 0.2s ease, opacity 0.2s ease, scale 0.2s ease;
+    }
+
+    .overscroll-unlock-close:hover {
+        transform: scale(1.1), rotate(90deg);
+        opacity: 0.8;
+    }
 </style>
+
+<!-- Hidden chat unlock modal -->
+<HiddenChatUnlock
+    show={showHiddenChatUnlock}
+    isFirstTime={isFirstTimeUnlock}
+    chatIdToHide={chatIdToHideAfterUnlock}
+    onClose={handleUnlockModalClose}
+    onUnlock={handleUnlockSuccess}
+/>

@@ -36,7 +36,7 @@
       <mj-section padding-top="5px" padding-bottom="15px"> <!-- Reduced top padding -->
         <mj-column>
           <!-- Warning Icon -->
-          <mj-image src="icons/warning.png" width="23px" height="23px" padding="0" padding-bottom="5px" align="center" />
+          <mj-image src="icons/warning.png" width="23px" height="23px" padding="0" padding-bottom="5px" align="center" css-class="email-icon-23" />
           <!-- Security Alert Text -->
           <mj-text align="center" color="#8D8D8D" font-size="16px" padding="0">
             {{ t.email.security_alert.text }}
@@ -47,7 +47,7 @@
       <mj-section padding-bottom="10px">
         <mj-column>
           <!-- Laptop Icon -->
-          <mj-image width="50px" height="50px" src="icons/2fa.png" align="center" /> 
+          <mj-image width="50px" height="50px" src="icons/2fa.png" align="center" css-class="email-icon-50" /> 
           <!-- Heading -->
           <mj-text font-size="30px" color="#3b82f6"> <!-- Blue color like image -->
             <mark>{{ t.email.backup_code_was_used.text }}</mark>
@@ -64,7 +64,7 @@
       <mj-section css-class="code-container-large" padding="0 20px 10px 20px" background-color="#171717" border-radius="24px">
           <mj-group css-class="code-container-inner" width="100%">
               <mj-column width="25%" vertical-align="middle" css-class="code-icon">
-                <mj-image width="28px" height="28px" src="icons/2fa_small.png" align="left" padding-left="0px" />
+                <mj-image width="28px" height="28px" src="icons/2fa_small.png" align="left" padding-left="0px" css-class="email-icon-28" />
               </mj-column>
               <mj-column width="75%" vertical-align="middle" css-class="code-text">
                 <mj-text font-size="22px" font-weight="regular" align="center" padding-right="40px">
@@ -77,7 +77,7 @@
       <mj-section css-class="code-container-large" padding="0 20px 10px 20px" background-color="#ffffff" border-radius="24px">
           <mj-group css-class="code-container-inner" width="100%">
               <mj-column width="25%" vertical-align="middle" css-class="code-icon">
-                <mj-image width="28px" height="28px" src="icons/2fa_small.png" align="left" padding-left="0px" />
+                <mj-image width="28px" height="28px" src="icons/2fa_small.png" align="left" padding-left="0px" css-class="email-icon-28" />
               </mj-column>
               <mj-column width="75%" vertical-align="middle" css-class="code-text">
                 <mj-text font-size="22px" font-weight="regular" align="center" padding-right="40px">

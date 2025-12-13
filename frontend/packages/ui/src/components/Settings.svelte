@@ -1594,37 +1594,7 @@ changes to the documentation (to keep the documentation up to date).
         flex: 1;
         overflow-y: auto;
         padding-bottom: 16px;
-        scrollbar-width: thin;
-        scrollbar-color: rgba(128, 128, 128, 0.2) transparent;
-        transition: scrollbar-color 0.2s ease;
         position: relative; /* Ensure positioned context for absolutely positioned children */
-    }
-    
-    .settings-content-wrapper:hover {
-        scrollbar-color: rgba(128, 128, 128, 0.5) transparent;
-    }
-    
-    .settings-content-wrapper::-webkit-scrollbar {
-        width: 8px;
-    }
-    
-    .settings-content-wrapper::-webkit-scrollbar-track {
-        background: transparent;
-    }
-    
-    .settings-content-wrapper::-webkit-scrollbar-thumb {
-        background-color: rgba(128, 128, 128, 0.2);
-        border-radius: 4px;
-        border: 2px solid var(--color-grey-20);
-        transition: background-color 0.2s ease;
-    }
-    
-    .settings-content-wrapper:hover::-webkit-scrollbar-thumb {
-        background-color: rgba(128, 128, 128, 0.5);
-    }
-    
-    .settings-content-wrapper::-webkit-scrollbar-thumb:hover {
-        background-color: rgba(128, 128, 128, 0.7);
     }
 
     .nav-button:hover {
@@ -1655,8 +1625,12 @@ changes to the documentation (to keep the documentation up to date).
     .settings-content-wrapper :global(.login-container) {
         display: flex;
         flex-direction: column;
+        justify-content: center;
+    }
+
+    .settings-content-wrapper :global(.login-container > .icon-grid) {
+        display: none;
     }
 
 
 </style>
-

@@ -26,18 +26,25 @@
                             activeElement?.getAttribute('contenteditable') === 'true' ||
                             activeElement?.classList.contains('ProseMirror');
 
-      // Log all keydown events for debugging
-      console.debug('[KeyboardShortcuts] keydown event:', {
-        key: event.key,
-        code: event.code,
-        shiftKey: event.shiftKey,
-        ctrlKey: event.ctrlKey,
-        metaKey: event.metaKey,
-        isInputFocused,
-        activeElement: document.activeElement?.tagName,
-        activeClass: document.activeElement?.className,
-        contenteditable: document.activeElement?.getAttribute('contenteditable')
-      });
+      // Log keydown events for debugging (but skip password/code inputs to avoid logging sensitive data)
+      const isPasswordInput = activeElement?.getAttribute('type') === 'password' || 
+                             activeElement?.getAttribute('inputmode') === 'numeric' ||
+                             activeElement?.classList.contains('overscroll-unlock-input') ||
+                             activeElement?.classList.contains('hidden-chat-unlock-input');
+      
+      if (!isPasswordInput) {
+        console.debug('[KeyboardShortcuts] keydown event:', {
+          key: event.key,
+          code: event.code,
+          shiftKey: event.shiftKey,
+          ctrlKey: event.ctrlKey,
+          metaKey: event.metaKey,
+          isInputFocused,
+          activeElement: document.activeElement?.tagName,
+          activeClass: document.activeElement?.className,
+          contenteditable: document.activeElement?.getAttribute('contenteditable')
+        });
+      }
 
       // IMPORTANT: Handle Shift+Enter FIRST before the blanket Enter ignore
       // This is a special case that should focus the input field

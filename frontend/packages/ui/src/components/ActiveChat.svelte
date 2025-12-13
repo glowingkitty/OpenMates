@@ -28,7 +28,28 @@
     import WebReadEmbedFullscreen from './embeds/web/WebReadEmbedFullscreen.svelte';
     import WebsiteEmbedFullscreen from './embeds/web/WebsiteEmbedFullscreen.svelte';
     import { userProfile, loadUserProfileFromDB } from '../stores/userProfile';
-    import { isInSignupProcess, currentSignupStep, getStepFromPath, isLoggingOut, isSignupPath } from '../stores/signupState';
+    import { 
+        isInSignupProcess, 
+        currentSignupStep, 
+        getStepFromPath, 
+        isLoggingOut, 
+        isSignupPath,
+        STEP_ALPHA_DISCLAIMER,
+        STEP_BASICS,
+        STEP_CONFIRM_EMAIL,
+        STEP_SECURE_ACCOUNT,
+        STEP_PASSWORD,
+        STEP_ONE_TIME_CODES,
+        STEP_BACKUP_CODES,
+        STEP_RECOVERY_KEY,
+        STEP_TFA_APP_REMINDER,
+        STEP_CREDITS,
+        STEP_PAYMENT,
+        STEP_AUTO_TOP_UP,
+        STEP_COMPLETION
+    } from '../stores/signupState';
+    import { signupStore } from '../stores/signupStore';
+    import SignupStatusbar from './signup/SignupStatusbar.svelte';
     import { userDB } from '../services/userDB';
     import { initializeApp } from '../app';
     import { aiTypingStore, type AITypingStatus } from '../stores/aiTypingStore'; // Import the new store
@@ -50,6 +71,28 @@
     import { get } from 'svelte/store'; // Import get to read store values
     
     const dispatch = createEventDispatcher();
+    
+    // Step sequences for signup status bar (must match Signup.svelte)
+    const fullStepSequence = [
+        STEP_ALPHA_DISCLAIMER, STEP_BASICS, STEP_CONFIRM_EMAIL, STEP_SECURE_ACCOUNT, STEP_PASSWORD,
+        STEP_ONE_TIME_CODES, STEP_TFA_APP_REMINDER, STEP_BACKUP_CODES, STEP_RECOVERY_KEY,
+        STEP_CREDITS, STEP_PAYMENT, STEP_AUTO_TOP_UP, STEP_COMPLETION
+    ];
+
+    const passkeyStepSequence = [
+        STEP_ALPHA_DISCLAIMER, STEP_BASICS, STEP_CONFIRM_EMAIL, STEP_SECURE_ACCOUNT, STEP_RECOVERY_KEY,
+        STEP_CREDITS, STEP_PAYMENT, STEP_AUTO_TOP_UP, STEP_COMPLETION
+    ];
+
+    // Derive step sequence based on login method (same logic as Signup.svelte)
+    let stepSequence = $derived(
+        $signupStore.loginMethod === 'passkey' ? passkeyStepSequence : fullStepSequence
+    );
+
+    // Fade transition parameters for status bar
+    const fadeParams = {
+        duration: 600
+    };
     
     // Get username from the store using Svelte 5 $derived
     // Use empty string for non-authenticated users - translation will handle "Hey there!" vs "Hey {username}!"
@@ -712,8 +755,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     }
 
     // Subscribe to store values
-    // Add class when menu is open AND in mobile view using Svelte 5 $derived
-    let isDimmed = $derived(($panelState && $panelState.isSettingsOpen) && $isMobileView);
+    // Add class when menu is open AND in mobile view AND chat is visible (not in login/signup mode)
+    // The dimmed effect should only apply when the main chat is visible, not during signup/login
+    let isDimmed = $derived(($panelState && $panelState.isSettingsOpen) && $isMobileView && showChat);
 
     // Add transition for the login wrapper
     let loginTransitionProps = {
@@ -2833,6 +2877,14 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     bind:clientWidth={containerWidth}
 >
     {#if !showChat}
+        <!-- Signup status bar - only show during signup process, not on basics or alpha disclaimer steps -->
+        <!-- Moved to be a child of active-chat-container for better positioning with gradient -->
+        {#if $isInSignupProcess && $currentSignupStep !== STEP_BASICS && $currentSignupStep !== STEP_ALPHA_DISCLAIMER}
+            <div class="status-wrapper" transition:fade={fadeParams}>
+                <SignupStatusbar currentStepName={$currentSignupStep} stepSequenceOverride={stepSequence} />
+            </div>
+        {/if}
+        
         <div 
             class="login-wrapper" 
             in:fly={loginTransitionProps} 
@@ -3256,15 +3308,15 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     }
 
     /* On mobile during login/signup, extend container to bottom and remove bottom border-radius */
-    @media (max-width: 600px) {
-        .active-chat-container.login-mode {
-            border-bottom-left-radius: 0;
-            border-bottom-right-radius: 0;
-            /* Ensure it extends to the bottom of the viewport */
-            min-height: 100vh;
-            min-height: 100dvh;
-        }
-    }
+    /* @media (max-width: 600px) { */
+    /*         .active-chat-container.login-mode { */
+    /*             border-bottom-left-radius: 0; */
+    /*             border-bottom-right-radius: 0; */
+    /*             /* Ensure it extends to the bottom of the viewport */
+    /*             min-height: 100vh; */
+    /*             min-height: 100dvh; */
+    /*         } */
+    /*     } */
 
     .content-container {
         display: flex;
@@ -3573,30 +3625,34 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     }
 
     .login-wrapper {
-        position: absolute;
+        position: absolute; /* Absolute to fill container */
         top: 0;
         left: 0;
         right: 0;
         bottom: 0;
         display: flex;
+        flex-direction: column; /* Column layout for Login component */
         align-items: stretch;
         justify-content: stretch;
         height: 100%;
-        overflow: hidden;
+        overflow-y: auto; /* Enable vertical scrolling when content exceeds viewport */
+        overflow-x: hidden; /* Prevent horizontal scrolling */
+        -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+        max-height: 830px;
     }
 
-    /* Enable scrolling on mobile devices to prevent content cutoff */
-    @media (max-width: 730px) {
+    /* Center login-wrapper vertically in active-chat-container on screens with height over 1000px */
+    @media (min-height: 1000px) {
         .login-wrapper {
-            overflow-y: auto;
-            overflow-x: hidden;
-            -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
-            height: 100%; /* Keep height 100% but allow scrolling when content exceeds */
-            min-height: 100vh;
-            min-height: 100dvh; /* Ensure it extends to bottom of viewport */
-            align-items: flex-start; /* Align content to top instead of center */
+            /* Center the wrapper itself vertically instead of filling from top to bottom */
+            top: 50%;
+            bottom: auto;
+            transform: translateY(-50%); /* Center vertically */
+            height: auto; /* Let height be determined by content and max-height */
+            justify-content: center; /* Center content vertically inside wrapper */
         }
     }
+
 
     /* Add scaling transition for the active-chat-container when a new chat is created */
     .active-chat-container {

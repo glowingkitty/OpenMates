@@ -504,14 +504,40 @@ class ChatDatabase {
 
         // Handle decryption of new encrypted fields with chat-specific key
         if (chat.encrypted_chat_key) {
-            // Get chat key from encrypted_chat_key
-            let chatKey = this.getChatKey(chat.chat_id);
-            if (!chatKey && chat.encrypted_chat_key) {
-                // CRITICAL FIX: await decryptChatKeyWithMasterKey since it's async
-                chatKey = await decryptChatKeyWithMasterKey(chat.encrypted_chat_key);
-                if (chatKey) {
-                    this.setChatKey(chat.chat_id, chatKey);
+            // CRITICAL: Always clear is_hidden flags first to ensure fresh state
+            // This prevents chats encrypted with a different code from showing up when unlocked with a new code
+            (decryptedChat as any).is_hidden = false;
+            (decryptedChat as any).is_hidden_candidate = false;
+            
+            // Always check the decryption path to determine if chat is hidden, even if we have a cached key
+            // This ensures hidden chats are properly identified and filtered
+            const { hiddenChatService } = await import('./hiddenChatService');
+            const result = await hiddenChatService.tryDecryptChatKey(chat.encrypted_chat_key);
+
+            // If normal decryption fails, mark as a hidden candidate for UI filtering.
+            // This keeps locked hidden chats out of the main list without a DB flag.
+            if (result.isHiddenCandidate) {
+                (decryptedChat as any).is_hidden_candidate = true;
+            }
+            
+            if (result.chatKey) {
+                // Cache the key (update cache even if it was already cached)
+                this.setChatKey(chat.chat_id, result.chatKey);
+                // Mark chat as hidden ONLY if it was decrypted via the hidden path (i.e., unlocked with current code)
+                // This ensures only chats that can be decrypted with the current code show up in hidden section
+                if (result.isHidden) {
+                    (decryptedChat as any).is_hidden = true;
+                } else {
+                    // Explicitly mark as not hidden if decrypted via normal path
+                    (decryptedChat as any).is_hidden = false;
                 }
+            } else {
+                // Both decryption paths failed - could be corrupted or a locked hidden chat
+                // OR a hidden chat encrypted with a different code (can't decrypt with current code)
+                console.debug(`[ChatDatabase] Failed to decrypt chat key for chat ${chat.chat_id} (both normal and hidden paths failed)`);
+                // Clear any cached key since decryption failed
+                this.clearChatKey(chat.chat_id);
+                // is_hidden is already false from the initial clear above
             }
             
             // Note: We don't decrypt icon and category here because they should be decrypted
@@ -733,30 +759,44 @@ class ChatDatabase {
             const store = currentTransaction.objectStore(this.CHATS_STORE_NAME);
             const index = store.index('last_edited_overall_timestamp');
             const request = index.openCursor(null, 'prev');
-            const chats: Chat[] = [];
+            const rawChats: any[] = []; // Collect raw chat data synchronously
          
-            request.onsuccess = async () => {
+            request.onsuccess = () => {
                 const cursor = request.result;
                 if (cursor) {
-                    // Ensure messages property is not on the chat object returned
+                    // Collect raw chat data synchronously (transaction must stay active)
                     const chatData = { ...cursor.value };
                     delete (chatData as any).messages;
-                    const decryptedChat = await this.decryptChatFromStorage(chatData);
-                    chats.push(decryptedChat);
+                    rawChats.push(chatData);
                     cursor.continue();
                 } else {
-                    console.debug(`[ChatDatabase] Retrieved ${chats.length} chats from database`);
-                    resolve(chats);
+                    // All cursors processed, now decrypt all chats after transaction completes
+                    // This ensures the transaction doesn't finish while we're still using the cursor
+                    currentTransaction.oncomplete = async () => {
+                        // Decrypt all chats after transaction completes
+                        const decryptedChats: Chat[] = [];
+                        for (const rawChat of rawChats) {
+                            try {
+                                const decryptedChat = await this.decryptChatFromStorage(rawChat);
+                                decryptedChats.push(decryptedChat);
+                            } catch (error) {
+                                console.error(`[ChatDatabase] Error decrypting chat ${rawChat.chat_id}:`, error);
+                                // Still include the chat even if decryption fails (with encrypted data)
+                                decryptedChats.push(rawChat as Chat);
+                            }
+                        }
+                        console.debug(`[ChatDatabase] Retrieved ${decryptedChats.length} chats from database`);
+                        resolve(decryptedChats);
+                    };
                 }
             };
             request.onerror = () => {
                 console.error("[ChatDatabase] Error getting chats:", request.error);
                 reject(request.error);
             };
-            if (!transaction) { 
-                 currentTransaction.oncomplete = () => {
-                     console.debug(`[ChatDatabase] getAllChats transaction completed`);
-                 };
+            // Note: oncomplete handler is set inside request.onsuccess to handle decryption
+            // Only set error handler if we're not using an external transaction
+            if (!transaction) {
                 currentTransaction.onerror = () => {
                     console.error(`[ChatDatabase] getAllChats transaction failed:`, currentTransaction.error);
                     reject(currentTransaction.error);
@@ -2092,8 +2132,9 @@ class ChatDatabase {
 
     /**
      * Clear chat key from cache
+     * Public method for clearing hidden chat keys when locked
      */
-    private clearChatKey(chatId: string): void {
+    public clearChatKey(chatId: string): void {
         this.chatKeys.delete(chatId);
     }
 

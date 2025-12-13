@@ -129,6 +129,9 @@ class GetSubscriptionResponse(BaseModel):
     next_billing_date: Optional[str] = None
     cancel_at_period_end: bool
 
+class HasPaymentMethodResponse(BaseModel):
+    has_payment_method: bool
+
 class CancelSubscriptionResponse(BaseModel):
     subscription_id: str
     status: str
@@ -1480,6 +1483,23 @@ async def get_subscription(
     except Exception as e:
         logger.error(f"Error fetching subscription for user {current_user.id}: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error")
+
+@router.get("/has-payment-method", response_model=HasPaymentMethodResponse)
+@limiter.limit("30/minute")  # Less sensitive read operation
+async def has_payment_method(
+    request: Request,
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Check if the user has a saved payment method.
+    Returns true if encrypted_payment_method_id exists in the user's profile.
+    """
+    logger.debug(f"Checking payment method for user {current_user.id}")
+    
+    # Check if user has encrypted_payment_method_id
+    has_payment_method = current_user.encrypted_payment_method_id is not None and current_user.encrypted_payment_method_id != ""
+    
+    return HasPaymentMethodResponse(has_payment_method=has_payment_method)
 
 @router.post("/cancel-subscription", response_model=CancelSubscriptionResponse)
 @limiter.limit("5/minute")  # Sensitive operation - prevent abuse

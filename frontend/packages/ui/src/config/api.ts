@@ -111,6 +111,7 @@ export const apiEndpoints = {
         createOrder:                '/v1/payments/create-order',                // Create a payment order
         orderStatus:                '/v1/payments/order-status',                // Get the status of a specific order (POST request)
         savePaymentMethod:          '/v1/payments/save-payment-method',         // Save payment method from successful payment
+        hasPaymentMethod:            '/v1/payments/has-payment-method',         // Check if user has a saved payment method
         createSubscription:         '/v1/payments/create-subscription',         // Create monthly auto top-up subscription
         getSubscription:            '/v1/payments/subscription',                // Get user's subscription details
         cancelSubscription:         '/v1/payments/cancel-subscription',         // Cancel monthly subscription

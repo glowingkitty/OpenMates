@@ -5,104 +5,113 @@
     height: 100%;
     position: relative;
     background-color: var(--color-grey-20);
-    display: flex;
     justify-content: center;
-    align-items: center;
-    overflow: hidden;
-    position: relative;
+    align-items: flex-start; /* Align to top when viewport is short */
+    overflow: visible; /* Let parent handle scrolling, allow content to overflow naturally */
     max-width: 100%;
     min-height: 100%;
+    /* Remove max-height constraint - let content determine natural height */
+}
+
+/* Desktop: keep login box perfectly centered even with side icon grids */
+@media (min-width: 601px) {
+    .login-container {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+        align-items: center;
+    }
+
+    .login-container > .login-content {
+        grid-column: 2;
+    }
+
+    .login-container > .icon-grid {
+        width: max-content;
+        justify-self: center;
+        margin: 0;
+    }
+
+    .login-container > .icon-grid:first-child {
+        justify-self: end;
+    }
+
+    .login-container > .icon-grid:last-child {
+        justify-self: start;
+    }
 }
 
 /* Enable scrolling on mobile devices - only apply column layout below 600px */
 /* Above 600px, use row layout to show icons on left/right */
-@media (max-width: 599px) {
-    .login-container {
-        flex-direction: column;
-        overflow-y: auto;
-        overflow-x: hidden;
-        -webkit-overflow-scrolling: touch;
-        align-items: flex-start; /* Change from center to flex-start on mobile */
-        padding-top: 10px;
-        padding-bottom: 20px;
-        height: auto; /* Change from 100% to auto to allow content to determine height */
-        min-height: 100%; /* Use min-height instead to ensure it fills viewport but can grow */
-        position: relative; /* Make it a positioning context */
-        z-index: 1; /* Ensure login content is above background icons but below nav */
-        background-color: transparent; /* Make background transparent on mobile so app icons show through */
-    }
-}
+/* Standardized breakpoint: 600px (mobile/tablet boundary) */
+/* @media (max-width: 600px) { */
+/*     .login-container { */
+/*         flex-direction: column; */
+/*         overflow: visible; /* Let parent handle scrolling */
+/*         align-items: stretch; /* Stretch to full width to allow login-content to fill width */
+/*         justify-content: flex-start; /* Start from top, allow content to flow naturally */
+/*         padding-top: 0; /* Remove top padding since login-content handles its own spacing */
+/*         padding-bottom: 0; /* Remove bottom padding since login-content handles its own spacing */
+/*         height: auto; /* Allow container to grow with content */
+/*         min-height: 100vh; /* Ensure minimum viewport height */
+/*         min-height: 100dvh; /* Use dynamic viewport height for mobile browsers */
+/*         position: relative; /* Make it a positioning context */
+/*         z-index: 1; /* Ensure login content is above background icons but below nav */
+/*         background-color: transparent; /* Make background transparent on mobile so app icons show through */
+/*     } */
+/* } */
 
 .login-content {
-    flex: 1;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    padding: 2rem;
+    /* flex: 1; */
+    /* display: flex; */
+    /* justify-content: center;
+    align-items: center; */
     z-index: 1;
     min-height: 100%;
-    padding: 1rem;
 }
 
 /* Adjust login-content for mobile scrolling - only apply below 600px */
 /* Above 600px, the 600-730px media query will handle the width */
-@media (max-width: 599px) {
+/* Standardized breakpoint: 600px (mobile/tablet boundary) */
+@media (max-width: 600px) {
     .login-content {
-        align-items: flex-start; /* Change from center to flex-start on mobile */
-        min-height: auto; /* Remove fixed min-height on mobile */
-        padding: 0;
-        padding-top: 0; /* Remove top padding since container has it */
+        flex-direction: column; /* Stack mobile grid and login-box vertically */
+        align-items: center; /* Center items horizontally */
+        justify-content: flex-start; /* Start from top, allow scrolling if needed */
+        min-height: 100vh; /* Fill viewport height */
+        min-height: 100dvh; /* Use dynamic viewport height for mobile browsers */
         position: relative;
         z-index: 2; /* Ensure content is above background icons (increased from 1) */
         width: 100%; /* Make login-content 100% width on mobile */
+        padding: 20px; /* Add padding to ensure login-box doesn't touch edges */
+        padding-top: 10px; /* Less padding at top for mobile grid */
+        box-sizing: border-box; /* Include padding in width calculation */
+        overflow-y: auto; /* Allow scrolling if content exceeds viewport */
+        overflow-x: hidden; /* Prevent horizontal scrolling */
+        -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
     }
 }
 
 .login-box {
     width: 440px;
     min-width: 300px;
-    min-height: min(740px, 80vh);
-    min-height: min(740px, 80dvh);
     text-align: center;
     box-sizing: border-box;
     position: relative;
+    margin-top: 20px;
+    margin-bottom: 20px;
 }
 
-/* Make login-box more flexible on mobile to prevent cutoff - only apply below 600px */
-/* Above 600px, the 600-730px media query will handle the width */
-@media (max-width: 599px) {
+/* Ensure login-box is properly sized and centered on mobile */
+/* Standardized breakpoint: 600px (mobile/tablet boundary) */
+@media (max-width: 600px) {
     .login-box {
-        min-height: auto; /* Remove fixed min-height on mobile */
-        max-height: none; /* Remove max-height constraint to allow full content */
-        height: auto; /* Let content determine height */
-        display: flex;
-        flex-direction: column;
-        padding: 10px;
-        padding-bottom: 30px; /* Extra space for bottom elements */
-        width: 100%; /* Full width on mobile */
-        max-width: 100%;
-        background-color: transparent; /* Remove background color on mobile */
-        margin-bottom: 30px; /* Add margin at bottom so elements aren't too close to viewport end */
+        width: 100%; /* Use full width of parent content area (parent already has 20px padding) */
+        max-width: 100%; /* Don't subtract padding again - parent login-content already handles padding */
+        min-width: 300px; /* Maintain minimum width */
+        min-height: auto; /* Let content determine height on mobile */
+        margin: 20px auto 0 auto; /* Add top margin to space from mobile grid, center horizontally */
+        flex-shrink: 0; /* Prevent login-box from shrinking */
     }
-}
-
-@media (max-height: 600px) {
-    .login-box {
-        height: auto; /* Change from 100vh to auto to allow content to determine height */
-        min-height: auto;
-    }
-}
-
-@media (max-width: 349px) {
-    .login-box {
-        min-width: unset;
-    }
-}
-
-@media (max-width: 730px), (max-height: 820px) {
-    /* .login-box {
-        min-height: calc(var(--chat-container-min-height-mobile) - 50px);
-    } */
 }
 
 
@@ -116,13 +125,6 @@
     justify-content: center;
 }
 
-/* Reduce form container margins on mobile for better space utilization */
-@media (max-width: 600px) {
-    .form-container {
-        margin: 20px 0px 10px 0px; /* Reduce top margin */
-        flex: 0 1 auto; /* Don't grow, allow shrinking */
-    }
-}
 
 .input-group {
     margin-bottom: 10px;
@@ -159,7 +161,8 @@
     cursor: not-allowed;
 }
 
-@media (max-width: 599px) {
+/* Standardized breakpoint: 600px (mobile/tablet boundary) */
+@media (max-width: 600px) {
     .login-button, .signup-button {
         width: 100%;
         max-width: 350px;
@@ -195,7 +198,6 @@
 }
 
 .nav-area {
-    position: absolute;
     top: 0;
     left: 0;
     right: 0;
@@ -203,27 +205,6 @@
     z-index: 1;
 }
 
-/* Make nav-area sticky on mobile to keep Demo button visible */
-/* Ensure consistent positioning for both login and signup */
-@media (max-width: 600px) {
-    .nav-area {
-        position: sticky; /* Change from absolute to sticky on mobile */
-        top: 0;
-        left: 0; /* Ensure left alignment is consistent */
-        right: 0; /* Ensure right alignment is consistent */
-        background-color: transparent; /* Remove background color on mobile */
-        z-index: 10;
-        padding: 10px;
-        margin: -10px -10px 0 -10px; /* Offset padding to maintain full width */
-        margin-top: 0; /* Ensure it sticks to the very top */
-        width: 100%; /* Ensure full width */
-        box-sizing: border-box; /* Include padding in width calculation */
-    }
-}
-
-.content-area {
-    padding-top: 40px;
-}
 
 /* Reduce h1 and h2 margins on mobile for better space utilization */
 .content-area h1 {
@@ -231,15 +212,14 @@
     margin-bottom: 0.5rem;
 }
 
-.content-area h2 {
+/* .content-area h2 {
     margin-top: 0;
     margin-bottom: 1rem;
-}
+} */
 
 /* Adjust content-area for mobile to accommodate sticky nav */
 @media (max-width: 600px) {
     .content-area {
-        padding-top: 60px; /* Extra space for sticky nav-area */
         flex: 0 1 auto; /* Don't grow, allow shrinking */
         display: flex;
         flex-direction: column;
@@ -421,10 +401,8 @@ form.hidden {
 
 /* Maintain overflow:hidden for content, but use a wrapper for the shadow */
 .top-content-wrapper {
-    margin-top: 50px;
     width: 100%;
-    height: 50vh;
-    max-height: 350px;
+    height: 380px;
     position: relative;
     /* No overflow:hidden here to allow shadow to be visible */
 }
@@ -443,6 +421,7 @@ form.hidden {
 
 .bottom-content-wrapper {
     width: 100%;
+    height: 260px;
     overflow: visible;
     position: relative;
 }
@@ -461,53 +440,30 @@ form.hidden {
     pointer-events: none;
 }
 
+/**
+ * Status wrapper - progress indicator at bottom of signup flow
+ * Now positioned as a child of .active-chat-container (in ActiveChat.svelte)
+ * Uses absolute positioning relative to .active-chat-container
+ * Includes gradient background to indicate scrollability (fades from transparent to background color)
+ * Gradient indicates user can scroll further down while still showing current signup step
+ */
 .status-wrapper {
     position: absolute;
     bottom: 0px;
     left: 0px;
     right: 0px;
+    z-index: 10; /* Ensure it's above content but below modals */
+    /* Gradient background: fades from transparent at top to background color at bottom */
+    /* This indicates to users that they can scroll further down */
+    background: linear-gradient(to top, var(--color-grey-20) 0%, var(--color-grey-20) 60%, transparent 100%);
+    padding-top: 40px; /* Add padding at top to create space for gradient fade */
+    padding-bottom: 15px; /* Maintain bottom padding for status bar */
+    pointer-events: none; /* Allow clicks to pass through gradient area */
 }
 
-/* Make status-wrapper fixed at bottom of viewport on mobile for visibility */
-/* Only apply on very small screens (< 600px) - desktop uses absolute positioning */
-@media (max-width: 599px) {
-    .status-wrapper {
-        position: fixed;
-        bottom: 0px;
-        left: 0px;
-        right: 0px;
-        z-index: 100;
-        background-color: var(--color-grey-20);
-        padding-bottom: 0px;
-        padding-top: 0px;
-        max-height: 40px;
-        overflow: hidden;
-        transform: none; /* Remove any transform that might push it down */
-    }
-    
-    .status-bar {
-        padding: 5px 0 5px 0;
-        margin: 0;
-    }
-}
-
-/* Ensure desktop (>= 600px) uses absolute positioning */
-@media (min-width: 600px) {
-    .status-wrapper {
-        position: absolute;
-        bottom: 0px;
-        left: 0px;
-        right: 0px;
-        transform: none;
-        background-color: transparent;
-        padding: 0;
-        max-height: none;
-        overflow: visible;
-    }
-    
-    .status-bar {
-        padding: 22px 0 0 0;
-    }
+/* Status bar content should be clickable */
+.status-wrapper :global(.status-bar) {
+    pointer-events: auto; /* Re-enable pointer events for the status bar itself */
 }
 
 .status-wrapper,
@@ -535,224 +491,31 @@ form.hidden {
     bottom: 0;
 }
 
-/* Fix height and scrolling on mobile when content exceeds container height */
-@media (max-width: 599px) {
-    /* On mobile, use fixed heights for steps with bottom content (like confirm-email) */
-    /* Steps without bottom content (like secure-account) use expanded class with more height */
-    .top-content-wrapper {
-        height: 300px;
-        min-height: 300px;
-    }
-    
-    /* For expanded wrapper (steps without bottom content), use full height */
-    .top-content-wrapper.expanded {
-        height: 640px;
-        max-height: calc(100vh - 265px);
-    }
-    
-    /* Top content must fill the wrapper */
-    .top-content {
-        height: 100%;
-        overflow-y: auto;
-        -webkit-overflow-scrolling: touch;
-    }
-    
-    /* For expanded steps, ensure top-content fills wrapper and allows scrolling */
-    .top-content-wrapper.expanded .top-content {
-        height: 100%;
-        overflow-y: auto;
-        -webkit-overflow-scrolling: touch;
-    }
-    
-    /* Content slider must fill top-content */
-    .top-content .content-slider {
-        height: 100%;
-    }
-    
-    /* Slide must fill content-slider and allow scrolling */
-    .top-content .content-slider .slide {
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        height: 100%;
-        -webkit-overflow-scrolling: touch;
-    }
-    
-    /* For expanded steps, slide should fill content-slider */
-    .top-content-wrapper.expanded .top-content .content-slider .slide {
-        position: relative;
-        height: 100%;
-    }
-    
-    /* Content should fill slide */
-    .top-content .content {
-        height: 100%;
-        min-height: 100%;
-    }
-    
-    .top-content-wrapper.expanded .top-content {
-        height: 100%;
-        overflow-y: auto; /* Allow scrolling if content exceeds */
-        overflow-x: hidden;
-    }
-    
-    .top-content-wrapper.expanded .top-content .content-slider {
-        height: 100%;
-    }
-    
-    .top-content-wrapper.expanded .top-content .content-slider .slide {
-        position: relative;
-        height: 100%;
-        top: auto;
-        bottom: auto;
-        left: auto;
-        right: auto;
-    }
-    
-    .top-content-wrapper.expanded .top-content .content {
-        height: auto;
-        min-height: auto;
-    }
-    
-    /* Change additional-options-text from absolute to relative on mobile */
-    .top-content .additional-options-text {
-        position: relative;
-        bottom: auto;
-        left: auto;
-        right: auto;
-        margin-top: 20px;
-        padding-bottom: 0;
-    }
+.top-content-wrapper.expanded {
+    height: 600px;
 }
 
-/* For larger mobile/tablet (600px-730px), use fixed heights with scrolling */
-@media (min-width: 600px) and (max-width: 730px) {
-    /* Top content wrapper needs a defined height */
-    .top-content-wrapper {
-        height: 300px;
-        min-height: 300px;
-    }
-    
-    /* Expanded wrapper needs full height */
-    .top-content-wrapper.expanded {
-        height: 640px;
-        max-height: calc(100vh - 265px);
-    }
-    
-    /* Top content must fill the wrapper */
-    .top-content {
-        height: 100%;
-        overflow-y: auto;
-        -webkit-overflow-scrolling: touch;
-    }
-    
-    /* For expanded steps, ensure top-content fills wrapper */
-    .top-content-wrapper.expanded .top-content {
-        height: 100%;
-        overflow-y: auto;
-        -webkit-overflow-scrolling: touch;
-    }
-    
-    /* Content slider must fill top-content */
-    .top-content .content-slider {
-        height: 100%;
-    }
-    
-    /* Slide must fill content-slider and allow scrolling */
-    .top-content .content-slider .slide {
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        height: 100%;
-        -webkit-overflow-scrolling: touch;
-    }
-    
-    /* For expanded steps, slide should fill content-slider */
-    .top-content-wrapper.expanded .top-content .content-slider .slide {
-        position: relative;
-        height: 100%;
-    }
-}
-
-/* On desktop (above 730px), make top-content-wrapper height fit content */
-/* This prevents bottom-content-wrapper from being pushed too far down */
-@media (min-width: 731px) {
-    /* Make top-content-wrapper height auto to fit content, but allow expansion up to max-height */
-    .top-content-wrapper {
-        height: auto;
-        min-height: auto;
-        max-height: 535px; /* Keep max-height for secure-account step which needs full height */
-    }
-    
-    /* For expanded wrapper, use the full height defined in Signup.svelte (640px or calc(100vh - 265px)) */
-    .top-content-wrapper.expanded {
-        height: 640px;
-        max-height: calc(100vh - 265px);
-    }
-    
-    /* Top content should fill the wrapper height for expanded steps */
-    .top-content-wrapper.expanded .top-content {
-        height: 100%;
-        overflow-y: auto; /* Allow scrolling if content exceeds */
-        overflow-x: hidden;
-    }
-    
-    /* Content slider should fill top-content for expanded steps */
-    .top-content-wrapper.expanded .top-content .content-slider {
-        height: 100%;
-    }
-    
-    /* Slide should fill content-slider for expanded steps */
-    .top-content-wrapper.expanded .top-content .content-slider .slide {
-        position: relative;
-        height: 100%;
-        top: auto;
-        bottom: auto;
-        left: auto;
-        right: auto;
-    }
-    
-    /* For non-expanded steps, keep auto height */
-    .top-content-wrapper:not(.expanded) .top-content {
-        height: auto;
-        min-height: auto;
-    }
-    
-    /* Content slider should also be auto height for non-expanded */
-    .top-content-wrapper:not(.expanded) .top-content .content-slider {
-        height: auto;
-    }
-    
-    /* Make slides position relative on desktop so wrapper doesn't collapse */
-    /* This allows the wrapper to size based on content */
-    .top-content-wrapper:not(.expanded) .top-content .content-slider .slide {
-        position: relative;
-        top: auto;
-        bottom: auto;
-        left: auto;
-        right: auto;
-        height: auto;
-    }
-    
-    /* Remove fixed heights from content elements */
-    .top-content .content {
-        height: auto;
-        min-height: auto;
-    }
-}
 
 .bottom-content-wrapper {
     position: relative;
     overflow: visible;
+    /* Add transitions for smooth height and opacity changes */
+    transition: height 0.6s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* When reduced class is applied, set height and opacity to 0 for seamless transitions */
+/* This allows steps with only top content to smoothly transition from steps with both top and bottom content */
+.bottom-content-wrapper.reduced {
+    height: 0;
+    opacity: 0;
+    pointer-events: none; /* Prevent interaction when hidden */
+    overflow: hidden; /* Hide overflow when height is 0 */
 }
 
 /* Add specific styles for bottom content */
 .bottom-content-wrapper .content-slider {
-    min-height: 150px; /* Adjust based on your content */
+    /* min-height: 150px; Adjust based on your content */
+    min-height: 10px; /* Adjust based on your content */
 }
 
 .bottom-content-wrapper .slide {
@@ -765,44 +528,21 @@ form.hidden {
     display: flex;
     justify-content: center;
     width: 100%;
+    flex-shrink: 0; /* Prevent grid from shrinking */
+}
+
+/* Add spacing for mobile grid on mobile devices */
+/* Standardized breakpoint: 600px (mobile/tablet boundary) */
+@media (max-width: 600px) {
+    .mobile-grid-fixed {
+        margin-bottom: -25px; /* Add spacing below mobile grid */
+        margin-top: -25px; /* Add spacing above mobile grid */
+    }
 }
 
 .signup-menu-title {
     font-size: 24px;
     color: var(--color-grey-100);
     margin: 0;
-}
-
-/* Mobile-specific styles for grid, status, and title */
-@media (max-width: 730px) {
-    .mobile-grid-fixed {
-        position: absolute;
-        top: -15px; /* Negative top value to make icons partially visible */
-        left: 0;
-        right: 0;
-        z-index: 0; /* Changed from -1 to 0 to ensure icons are visible above background */
-        pointer-events: none; /* Prevent icons from blocking interactions */
-        opacity: 0.6; /* Slightly reduce opacity so they're visible but don't compete with content */
-    }
-
-    /* Removed transform: translateY(30px) - now handled by fixed positioning on mobile */
-
-    .signup-menu-title {
-        font-size: 18px;
-    }
-}
-
-/* Additional mobile optimizations for signup flow */
-@media (max-width: 730px) {
-    /* Ensure signup content is scrollable */
-    .signup-content {
-        position: relative; /* Change from absolute to relative on mobile */
-        min-height: 100%;
-        overflow-y: visible; /* Remove overflow-y on mobile - let parent handle scrolling */
-    }
-    
-    /* Ensure step-layout doesn't cut off bottom content */
-    .step-layout {
-        padding-bottom: 80px; /* Add padding to prevent progress bar cutoff */
-    }
+    text-align: left;
 }

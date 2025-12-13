@@ -263,8 +263,8 @@
             // Step 7: Wrap the master key for server storage
             const { wrapped: encryptedMasterKey, iv: keyIv } = await cryptoService.encryptKey(masterKey, wrappingKey);
             
-            // Step 8: Save master key to IndexedDB
-            await cryptoService.saveKeyToSession(masterKey);
+            // Step 8: Save master key (respect "stay logged in" choice)
+            await cryptoService.saveKeyToSession(masterKey, storeData.stayLoggedIn);
             
             // Step 9: Generate lookup hash from PRF signature (for authentication)
             const lookupHash = await cryptoService.hashKeyFromPRF(prfSignature, emailSalt);
@@ -438,4 +438,3 @@
         line-height: 1.5;
     }
 </style>
-

@@ -74,8 +74,6 @@
     import AutoTopUpTopContent from './steps/autotopup/AutoTopUpTopContent.svelte';
     import AutoTopUpBottomContent from './steps/autotopup/AutoTopUpBottomContent.svelte';
 
-    import SignupStatusbar from './SignupStatusbar.svelte';
-
     // Import API utilities
     import { getApiUrl, apiEndpoints } from '../../config/api';
 
@@ -913,13 +911,13 @@
     // Show expanded header on credits and payment steps using Svelte 5 runes
     let showExpandedHeader = $derived(currentStep === STEP_CREDITS || currentStep === STEP_PAYMENT);
 
-    // For credits step, payment step, auto top-up step, secure account step, one-time codes step, and backup codes step, use expanded height for the top content wrapper
+    // For payment step, auto top-up step, secure account step, and backup codes step, use expanded height for the top content wrapper
     // For recovery key step, only expand if the creation UI is not active using Svelte 5 runes
-    let isExpandedTopContent = $derived(currentStep === STEP_CREDITS ||
-                             currentStep === STEP_PAYMENT ||
+    // Credits step uses regular size for both top and bottom containers
+    // One-time codes step uses regular size to allow bottom content to be visible
+    let isExpandedTopContent = $derived(currentStep === STEP_PAYMENT ||
                              currentStep === STEP_AUTO_TOP_UP ||
                              currentStep === STEP_SECURE_ACCOUNT ||
-                             currentStep === STEP_ONE_TIME_CODES ||
                              (currentStep === STEP_RECOVERY_KEY && !$isRecoveryKeyCreationActive));
 </script>
 
@@ -1094,12 +1092,6 @@
     </div>
 
     {#if showUIControls}
-        <div class="status-wrapper" class:hidden={currentStep === STEP_BASICS || currentStep === STEP_ALPHA_DISCLAIMER} transition:fade={fadeParams}>
-            <SignupStatusbar currentStepName={currentStep} stepSequenceOverride={stepSequence} />
-        </div>
-    {/if}
-
-    {#if showUIControls}
         <!-- NOTE: temporary hidden both because of response design issues regardings its position and also because docs don't exist yet. -->
         <!-- <div class="help-wrapper" transition:fade={fadeParams}>
             <a href={helpLink} 
@@ -1121,17 +1113,6 @@
     /* Add these styles to your existing CSS */
     .top-content-wrapper {
         transition: height 0.6s cubic-bezier(0.22, 1, 0.36, 1);
-    }
-    
-    .top-content-wrapper.expanded {
-        height: 640px;
-        max-height: calc(100vh - 265px);
-    }
-
-    @media (max-height: 680px) {
-        .top-content-wrapper.expanded {
-            max-height: 88vh;
-        }
     }
     
     /* Add a class for hiding elements with transition */

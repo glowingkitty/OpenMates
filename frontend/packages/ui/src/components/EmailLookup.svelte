@@ -467,7 +467,7 @@
         font-size: 16px;
         font-weight: 500;
         cursor: pointer;
-        padding: 8px 16px;
+        padding: 8px 0px;
         margin: 16px 0;
         display: flex;
         align-items: center;

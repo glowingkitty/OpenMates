@@ -670,6 +670,17 @@
 					console.debug('[+page.svelte] [TAB RELOAD] Checking if last opened chat is already in IndexedDB:', lastOpenedChatId);
 					const lastChat = await chatDB.getChat(lastOpenedChatId);
 					if (lastChat) {
+						// SECURITY: Don't load hidden chats on page reload - they require passcode to unlock
+						// Check if chat is a hidden candidate (can't decrypt with master key)
+						if ((lastChat as any).is_hidden_candidate || (lastChat as any).is_hidden) {
+							console.debug('[+page.svelte] [TAB RELOAD] Last opened chat is hidden, skipping load (requires passcode)');
+							// Clear last_opened to prevent trying to load it again
+							await userDB.updateUserData({ last_opened: '/chat/new' });
+							activeChatStore.clearActiveChat();
+							phasedSyncState.markSyncCompleted();
+							return;
+						}
+						
 						console.debug('[+page.svelte] ✅ INSTANT LOAD: Last opened chat found in IndexedDB (tab reload), loading immediately');
 						activeChatStore.setActiveChat(lastOpenedChatId);
 						activeChat.loadChat(lastChat);

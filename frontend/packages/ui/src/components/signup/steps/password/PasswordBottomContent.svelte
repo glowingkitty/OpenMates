@@ -76,9 +76,9 @@
             // Wrap the master key for server storage
             const { wrapped: encryptedMasterKey, iv: keyIv } = await cryptoService.encryptKey(masterKey, wrappingKey);
 
-            // Save master key to IndexedDB as extractable for session use
+            // Save master key (respect "stay logged in" choice)
             // Extractable keys allow wrapping for recovery keys while still using Web Crypto API
-            await cryptoService.saveKeyToSession(masterKey);
+            await cryptoService.saveKeyToSession(masterKey, storeData.stayLoggedIn);
             
             // Convert salt to base64 for storage
             let saltBinary = '';

@@ -339,24 +339,33 @@
                         return;
                     }
                     
-                    // Update local tfa_required state if server indicates it's needed
-                    tfaRequiredState = true;
-                    // Show TFA-specific error message only for TFA field
-                    // SECURITY: Don't show error when message is "2FA required" - this prevents email enumeration
-                    // The backend returns "2FA required" for failed authentication to prevent revealing account existence
-                    if (data.message === 'login.code_wrong.text') {
-                        tfaErrorMessage = $text('login.code_wrong.text');
-                        errorMessage = null;
-                    } else if (data.message === '2FA required') {
-                        // Don't show error message - just show the 2FA input field
-                        // This is used for security (preventing email enumeration)
-                        tfaErrorMessage = null;
-                        errorMessage = null;
+                    // CRITICAL: Only show 2FA input if 2FA is actually configured (tfa_enabled === true)
+                    // If tfa_enabled is false, don't show 2FA input even if tfa_required is true
+                    // (tfa_required=True with tfa_enabled=False is only for anti-enumeration)
+                    if (isTfaConfigured) {
+                        // Update local tfa_required state if server indicates it's needed AND 2FA is configured
+                        tfaRequiredState = true;
+                        // Show TFA-specific error message only for TFA field
+                        // SECURITY: Don't show error when message is "2FA required" - this prevents email enumeration
+                        // The backend returns "2FA required" for failed authentication to prevent revealing account existence
+                        if (data.message === 'login.code_wrong.text') {
+                            tfaErrorMessage = $text('login.code_wrong.text');
+                            errorMessage = null;
+                        } else if (data.message === '2FA required') {
+                            // Don't show error message - just show the 2FA input field
+                            // This is used for security (preventing email enumeration)
+                            tfaErrorMessage = null;
+                            errorMessage = null;
+                        }
                     } else {
-                        tfaErrorMessage = data.message || $text('login.code_wrong.text');
-                        errorMessage = null;
+                        // 2FA is not configured (tfa_enabled === false) - don't show 2FA input
+                        // Even if tfa_required is true (anti-enumeration), we know 2FA isn't set up
+                        console.debug('[PasswordAndTfaOtp] 2FA required but not configured - not showing 2FA input');
+                        tfaRequiredState = false;
+                        tfaErrorMessage = null;
                     }
                 } else {
+                    // tfa_required is false - handle regular error messages
                     // Show password/email error for password field
                     if (data.message === 'login.email_or_password_wrong.text') {
                         errorMessage = $text('login.email_or_password_wrong.text');

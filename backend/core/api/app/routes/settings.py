@@ -18,7 +18,6 @@ from backend.core.api.app.services.compliance import ComplianceService
 from backend.core.api.app.services.limiter import limiter
 from backend.core.api.app.utils.device_fingerprint import generate_device_fingerprint_hash, _extract_client_ip # Updated imports
 from backend.core.api.app.schemas.settings import LanguageUpdateRequest, DarkModeUpdateRequest, AutoTopUpLowBalanceRequest # Import request/response models
-import pyotp  # For 2FA TOTP verification
 import hashlib  # For API key hashing and user ID hashing
 import secrets  # For secure API key generation
 from datetime import datetime, timezone
@@ -394,7 +393,7 @@ async def update_low_balance_auto_topup(
 ):
     """
     Updates the user's low balance auto top-up settings.
-    Requires 2FA verification for security.
+    No 2FA verification required - users can modify their own settings.
     """
     user_id = current_user.id
     logger.info(f"Updating low balance auto top-up settings for user {user_id}")
@@ -406,65 +405,8 @@ async def update_low_balance_auto_topup(
     if request_data.currency.lower() not in ['eur', 'usd', 'jpy']:
         raise HTTPException(status_code=400, detail="Invalid currency. Must be EUR, USD, or JPY")
 
-    # Get encryption service from app state
-    encryption_service: EncryptionService = request.app.state.encryption_service
-    if not encryption_service:
-        logger.error("Encryption service not available in app state")
-        raise HTTPException(status_code=503, detail="Service unavailable")
-
     try:
-        # STEP 1: Verify 2FA TOTP code
-        # CACHE-FIRST: Try to get TFA data from dedicated TFA cache first
-        tfa_cache_key = f"user_tfa_data:{user_id}"
-        cached_tfa_data = await cache_service.get(tfa_cache_key)
-
-        encrypted_secret = None
-        vault_key_id = None
-
-        if cached_tfa_data:
-            encrypted_secret = cached_tfa_data.get("encrypted_tfa_secret")
-            vault_key_id = cached_tfa_data.get("vault_key_id")
-
-        # If not in TFA cache, get from user cache
-        if not encrypted_secret or not vault_key_id:
-            user_cache = await cache_service.get_user_by_id(user_id)
-            if user_cache:
-                encrypted_secret = user_cache.get("encrypted_tfa_secret")
-                vault_key_id = user_cache.get("vault_key_id")
-
-        # If still not found, fetch from Directus
-        if not encrypted_secret or not vault_key_id:
-            user_directus = await directus_service.get_user(user_id)
-            if user_directus:
-                encrypted_secret = user_directus.get("encrypted_tfa_secret")
-                vault_key_id = user_directus.get("vault_key_id")
-
-        # Check if 2FA is enabled
-        if not encrypted_secret or not vault_key_id:
-            raise HTTPException(
-                status_code=400,
-                detail="2FA is not enabled. Please enable 2FA before configuring auto top-up settings"
-            )
-
-        # Decrypt the 2FA secret
-        try:
-            tfa_secret = await encryption_service.decrypt_with_user_key(
-                ciphertext=encrypted_secret,
-                key_id=vault_key_id
-            )
-        except Exception as e:
-            logger.error(f"Failed to decrypt TFA secret for user {user_id}: {str(e)}")
-            raise HTTPException(status_code=500, detail="Failed to verify 2FA")
-
-        # Verify the TOTP code
-        totp = pyotp.TOTP(tfa_secret)
-        if not totp.verify(request_data.totp_code, valid_window=1):
-            logger.warning(f"Invalid 2FA code provided by user {user_id} for auto top-up settings")
-            raise HTTPException(status_code=401, detail="Invalid 2FA code")
-
-        logger.info(f"2FA verification successful for user {user_id}")
-
-        # STEP 2: Update settings with cache-first pattern
+        # Update settings with cache-first pattern
         update_data = {
             "auto_topup_low_balance_enabled": request_data.enabled,
             "auto_topup_low_balance_threshold": request_data.threshold,

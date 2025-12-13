@@ -36,7 +36,7 @@
       <mj-section padding-top="5px" padding-bottom="15px"> <!-- Reduced top padding -->
         <mj-column>
           <!-- Warning Icon -->
-          <mj-image src="icons/warning.png" width="23px" height="23px" padding="0" padding-bottom="5px" align="center" />
+          <mj-image src="icons/warning.png" width="23px" height="23px" padding="0" padding-bottom="5px" align="center" css-class="email-icon-23" />
           <!-- Security Alert Text -->
           <mj-text align="center" color="#8D8D8D" font-size="16px" padding="0">
             {{ t.email.security_alert.text }}
@@ -47,7 +47,7 @@
       <mj-section padding-bottom="10px">
         <mj-column>
           <!-- Laptop Icon -->
-          <mj-image width="50px" height="50px" src="icons/laptop.png" align="center" /> 
+          <mj-image width="50px" height="50px" src="icons/laptop.png" align="center" css-class="email-icon-50" /> 
           <!-- Heading -->
           <mj-text font-size="30px" color="#3b82f6"> <!-- Blue color like image -->
             <mark>{{ t.email.login_from_new_device.text }}</mark>

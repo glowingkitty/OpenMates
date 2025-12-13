@@ -1,7 +1,9 @@
 <script lang="ts">
-    import { createEventDispatcher, onMount } from 'svelte';
+    import { createEventDispatcher, onMount, tick } from 'svelte';
     import { text } from '@repo/ui'; // Import text store for translations
     import type { Chat } from '../../types/chat';
+    import { authStore } from '../../stores/authStore'; // Import authStore to check authentication
+    import { isDemoChat, isLegalChat, isPublicChat } from '../../demo_chats'; // Import chat type checks
 
     // Props using Svelte 5 $props()
     interface Props {
@@ -28,51 +30,104 @@
     }: Props = $props();
 
     const dispatch: {
-        (e: 'close' | 'delete' | 'download' | 'copy' | 'enterSelectMode' | 'unselect' | 'selectChat', detail: string): void;
+        (e: 'close' | 'delete' | 'download' | 'copy' | 'hide' | 'unhide' | 'enterSelectMode' | 'unselect' | 'selectChat', detail: string): void;
     } = createEventDispatcher();
     let menuElement = $state<HTMLDivElement>();
     let adjustedX = $state(x);
     let adjustedY = $state(y);
+    let showBelow = $state(false); // Track whether menu should appear below clicked point
     let deleteConfirmMode = $state(false);
     let deleteConfirmTimeout: number | undefined;
     
     // Check if the current chat is selected
     let isChatSelected = $derived(chat ? selectedChatIds.has(chat.chat_id) : false);
 
+    // Calculate initial position using estimated dimensions to prevent visual jump
+    function calculatePosition(menuWidth: number, menuHeight: number) {
+        const viewportWidth = window.innerWidth;
+        const viewportHeight = window.innerHeight;
+        const padding = 10; // Minimum distance from viewport edges
+        const arrowHeight = 8; // Height of the arrow
+
+        let newX = x;
+        let newY = y;
+        let shouldShowBelow = false;
+
+        // Adjust X if it goes off the right edge
+        if (newX + menuWidth/2 > viewportWidth - padding) {
+            newX = viewportWidth - menuWidth/2 - padding;
+        }
+        // Adjust X if it goes off the left edge
+        if (newX - menuWidth/2 < padding) {
+            newX = menuWidth/2 + padding;
+        }
+
+        // Check if there's enough space above the clicked point
+        // Menu appears above by default (transform: translate(-50%, -100%))
+        // So we need to check if y - menuHeight - arrowHeight >= padding
+        const spaceAbove = y - menuHeight - arrowHeight;
+        
+        if (spaceAbove < padding) {
+            // Not enough space above, show below instead
+            shouldShowBelow = true;
+            // Check if there's enough space below
+            const spaceBelow = viewportHeight - y - menuHeight - arrowHeight;
+            if (spaceBelow < padding) {
+                // Not enough space below either, position at viewport edge
+                if (spaceAbove > spaceBelow) {
+                    // More space above, show above but adjust Y
+                    shouldShowBelow = false;
+                    newY = menuHeight + arrowHeight + padding;
+                } else {
+                    // More space below, show below but adjust Y
+                    shouldShowBelow = true;
+                    newY = viewportHeight - menuHeight - arrowHeight - padding;
+                }
+            }
+        } else {
+            // Enough space above, check if we should still show below for better UX
+            // (e.g., if clicked point is very high on screen)
+            const spaceBelow = viewportHeight - y - menuHeight - arrowHeight;
+            // Only show below if there's significantly more space below
+            if (spaceBelow > spaceAbove + 50) {
+                shouldShowBelow = true;
+            }
+        }
+
+        return { newX, newY, shouldShowBelow };
+    }
+
     // Adjust positioning to prevent cutoff
     $effect(() => {
         if (show) {
-            // Use a more reliable positioning approach
-            const viewportWidth = window.innerWidth;
-            const menuWidth = 150; // Estimated menu width
-            const menuHeight = 100; // Estimated menu height
+            // First, calculate with estimated dimensions to prevent visual jump
+            const estimatedWidth = 150;
+            const estimatedHeight = 100;
+            const initial = calculatePosition(estimatedWidth, estimatedHeight);
+            adjustedX = initial.newX;
+            adjustedY = initial.newY;
+            showBelow = initial.shouldShowBelow;
 
-            let newX = x;
-            let newY = y;
-
-            // Adjust X if it goes off the right edge
-            if (newX + menuWidth/2 > viewportWidth) {
-                newX = viewportWidth - menuWidth/2 - 10;
-            }
-            // Adjust X if it goes off the left edge
-            if (newX - menuWidth/2 < 10) {
-                newX = menuWidth/2 + 10;
-            }
-
-            // Adjust Y if it goes off the bottom edge (menu appears above cursor)
-            if (newY - menuHeight < 10) {
-                newY = newY + 20; // Show below cursor instead
-            }
-            // Adjust Y if it goes off the top edge
-            if (newY < 10) {
-                newY = 10;
-            }
-
-            adjustedX = newX;
-            adjustedY = newY;
+            // Then refine with actual dimensions after render
+            requestAnimationFrame(() => {
+                if (!menuElement) return;
+                
+                const menuRect = menuElement.getBoundingClientRect();
+                const actualWidth = menuRect.width || estimatedWidth;
+                const actualHeight = menuRect.height || estimatedHeight;
+                
+                // Only recalculate if dimensions differ significantly
+                if (Math.abs(actualWidth - estimatedWidth) > 20 || Math.abs(actualHeight - estimatedHeight) > 20) {
+                    const refined = calculatePosition(actualWidth, actualHeight);
+                    adjustedX = refined.newX;
+                    adjustedY = refined.newY;
+                    showBelow = refined.shouldShowBelow;
+                }
+            });
         } else {
             adjustedX = x;
             adjustedY = y;
+            showBelow = false;
         }
     });
 
@@ -173,6 +228,10 @@
             if (deleteConfirmTimeout) {
                 clearTimeout(deleteConfirmTimeout);
             }
+            // Cleanup: remove menu from body if it's still there
+            if (menuElement && menuElement.parentNode === document.body) {
+                document.body.removeChild(menuElement);
+            }
         };
     });
 
@@ -184,11 +243,28 @@
             }
         }
     });
+
+    // Render menu at body level to avoid stacking context issues
+    // Move the menu element to document.body when shown to escape any parent stacking contexts
+    $effect(() => {
+        if (show && menuElement) {
+            // Wait for element to be rendered in DOM first, then move to body
+            tick().then(() => {
+                if (menuElement && menuElement.parentNode && menuElement.parentNode !== document.body) {
+                    // Move to body to escape stacking context
+                    document.body.appendChild(menuElement);
+                }
+            });
+        } else if (!show && menuElement && menuElement.parentNode === document.body) {
+            // Cleanup: remove from body when hidden
+            document.body.removeChild(menuElement);
+        }
+    });
 </script>
 
 {#if show}
     <div
-        class="menu-container {show ? 'show' : ''}"
+        class="menu-container {show ? 'show' : ''} {showBelow ? 'below' : 'above'}"
         style="--menu-x: {adjustedX}px; --menu-y: {adjustedY}px;"
         bind:this={menuElement}
     >
@@ -273,7 +349,39 @@
                 </button>
             {/if}
 
-            {#if !hideDelete}
+            {#if chat && !chat.is_incognito && !(chat as any).is_hidden && !isPublicChat(chat.chat_id)}
+                <button
+                    class="menu-item hide"
+                    class:disabled={!$authStore.isAuthenticated}
+                    disabled={!$authStore.isAuthenticated}
+                    onclick={(event) => {
+                        if ($authStore.isAuthenticated) {
+                            handleButtonClick('hide', event);
+                        }
+                    }}
+                >
+                    <div class="clickable-icon icon_hidden"></div>
+                    {$text('chats.context_menu.hide.text', { default: 'Hide' })}
+                </button>
+            {/if}
+
+            {#if chat && (chat as any).is_hidden}
+                <button
+                    class="menu-item unhide"
+                    class:disabled={!$authStore.isAuthenticated}
+                    disabled={!$authStore.isAuthenticated}
+                    onclick={(event) => {
+                        if ($authStore.isAuthenticated) {
+                            handleButtonClick('unhide', event);
+                        }
+                    }}
+                >
+                    <div class="clickable-icon icon_unhide"></div>
+                    {$text('chats.context_menu.unhide.text', { default: 'Unhide' })}
+                </button>
+            {/if}
+
+            {#if !hideDelete && !(chat && (isDemoChat(chat.chat_id) || isLegalChat(chat.chat_id)) && !$authStore.isAuthenticated)}
                 <button
                     class="menu-item delete"
                     onclick={(event) => handleButtonClick('delete', event)}
@@ -291,16 +399,26 @@
         position: fixed;
         left: var(--menu-x);
         top: var(--menu-y);
-        transform: translate(-50%, -100%);
         background: var(--color-grey-blue);
         border-radius: 12px;
         padding: 8px;
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-        z-index: 10000;
+        z-index: 99999; /* Very high z-index to ensure it's above everything */
+        isolation: isolate; /* Create new stacking context */
         opacity: 0;
         pointer-events: none;
         transition: opacity 0.2s ease-in-out;
         min-width: 120px;
+    }
+
+    /* Position menu above clicked point (default) */
+    .menu-container.above {
+        transform: translate(-50%, -100%);
+    }
+
+    /* Position menu below clicked point */
+    .menu-container.below {
+        transform: translate(-50%, 0);
     }
 
     .menu-container.show {
@@ -308,8 +426,8 @@
         pointer-events: all;
     }
 
-    /* Add a small arrow at the bottom */
-    .menu-container::after {
+    /* Arrow pointing down (when menu is above clicked point) */
+    .menu-container.above::after {
         content: '';
         position: absolute;
         bottom: -8px;
@@ -318,6 +436,18 @@
         border-left: 8px solid transparent;
         border-right: 8px solid transparent;
         border-top: 8px solid var(--color-grey-blue);
+    }
+
+    /* Arrow pointing up (when menu is below clicked point) */
+    .menu-container.below::after {
+        content: '';
+        position: absolute;
+        top: -8px;
+        left: 50%;
+        transform: translateX(-50%);
+        border-left: 8px solid transparent;
+        border-right: 8px solid transparent;
+        border-bottom: 8px solid var(--color-grey-blue);
     }
 
     .menu-item {
@@ -373,5 +503,26 @@
 
     .menu-item.unselect .clickable-icon {
         background: var(--color-grey-60);
+    }
+
+    /* Hide and unhide buttons use default text and icon colors for better visibility */
+
+    .menu-item.disabled {
+        opacity: 0.5;
+        cursor: not-allowed !important;
+        pointer-events: none;
+    }
+
+    .menu-item.disabled:hover {
+        background-color: transparent;
+    }
+
+    .menu-item.disabled:active {
+        transform: none;
+    }
+
+    .menu-item.hide.disabled,
+    .menu-item.unhide.disabled {
+        cursor: not-allowed !important;
     }
 </style>

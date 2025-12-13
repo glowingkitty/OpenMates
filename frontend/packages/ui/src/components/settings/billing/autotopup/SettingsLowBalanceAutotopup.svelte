@@ -8,17 +8,18 @@ Low Balance Auto Top-Up Settings - Configure automatic credit purchases when bal
     import { apiEndpoints, getApiEndpoint } from '../../../../config/api';
     import { userProfile } from '../../../../stores/userProfile';
     import { pricingTiers } from '../../../../config/pricing';
+    import Toggle from '../../../Toggle.svelte';
 
     let isLoading = $state(false);
     let errorMessage: string | null = $state(null);
 
     // Low balance auto top-up state
     let lowBalanceEnabled = $state(false);
-    let lowBalanceThreshold = $state(1000);
+    // Default threshold to 200 credits if not set
+    let lowBalanceThreshold = $state(200);
     let lowBalanceAmount = $state(10000);
     let lowBalanceCurrency = $state('EUR');
     let hasPaymentMethod = $state(false);
-    let totpCode = $state('');  // 2FA TOTP code
 
     // Format credits with dots as thousand separators
     function formatCredits(credits: number): string {
@@ -45,35 +46,34 @@ Low Balance Auto Top-Up Settings - Configure automatic credit purchases when bal
     // Load user profile data
     userProfile.subscribe(profile => {
         lowBalanceEnabled = profile.auto_topup_low_balance_enabled || false;
-        lowBalanceThreshold = profile.auto_topup_low_balance_threshold || 1000;
+        // Use 200 as default if threshold is not set or is 0
+        lowBalanceThreshold = profile.auto_topup_low_balance_threshold || 200;
         lowBalanceAmount = profile.auto_topup_low_balance_amount || 10000;
         lowBalanceCurrency = profile.auto_topup_low_balance_currency?.toUpperCase() || 'EUR';
     });
 
-    // Fetch payment method status
+    // Fetch payment method status using the new endpoint
     async function checkPaymentMethod() {
         try {
-            const response = await fetch(getApiEndpoint(apiEndpoints.payments.getSubscription), {
+            const response = await fetch(getApiEndpoint(apiEndpoints.payments.hasPaymentMethod), {
                 credentials: 'include'
             });
 
             if (response.ok) {
                 const data = await response.json();
                 hasPaymentMethod = data.has_payment_method || false;
+            } else {
+                // If endpoint fails, assume no payment method
+                hasPaymentMethod = false;
             }
         } catch (error) {
             console.error('Error checking payment method:', error);
+            hasPaymentMethod = false;
         }
     }
 
     // Save low balance settings
     async function saveLowBalanceSettings() {
-        // Validate 2FA code is provided
-        if (!totpCode || totpCode.length !== 6) {
-            errorMessage = 'Please enter a valid 6-digit 2FA code';
-            return;
-        }
-
         isLoading = true;
         errorMessage = null;
 
@@ -86,8 +86,7 @@ Low Balance Auto Top-Up Settings - Configure automatic credit purchases when bal
                     enabled: lowBalanceEnabled,
                     threshold: lowBalanceThreshold,
                     amount: lowBalanceAmount,
-                    currency: lowBalanceCurrency.toLowerCase(),
-                    totp_code: totpCode
+                    currency: lowBalanceCurrency.toLowerCase()
                 })
             });
 
@@ -96,8 +95,16 @@ Low Balance Auto Top-Up Settings - Configure automatic credit purchases when bal
                 throw new Error(errorData.detail || 'Failed to save settings');
             }
 
+            // Update user profile store with new settings
+            userProfile.update(profile => ({
+                ...profile,
+                auto_topup_low_balance_enabled: lowBalanceEnabled,
+                auto_topup_low_balance_threshold: lowBalanceThreshold,
+                auto_topup_low_balance_amount: lowBalanceAmount,
+                auto_topup_low_balance_currency: lowBalanceCurrency.toLowerCase()
+            }));
+
             alert('Low balance auto top-up settings saved successfully');
-            totpCode = '';  // Clear 2FA code
         } catch (error) {
             console.error('Error saving low balance settings:', error);
             errorMessage = error instanceof Error ? error.message : 'Failed to save settings. Please try again.';
@@ -116,14 +123,12 @@ Low Balance Auto Top-Up Settings - Configure automatic credit purchases when bal
     <div class="toggle-section">
         <div class="toggle-header">
             <span class="toggle-label">{$text('settings.billing.enable_low_balance.text')}</span>
-            <button
-                class="toggle {lowBalanceEnabled ? 'active' : ''}"
-                onclick={() => lowBalanceEnabled = !lowBalanceEnabled}
+            <Toggle 
+                bind:checked={lowBalanceEnabled} 
                 disabled={isLoading}
-                aria-label={lowBalanceEnabled ? 'Disable' : 'Enable'}
-            >
-                <div class="toggle-slider"></div>
-            </button>
+                id="low-balance-toggle"
+                ariaLabel={lowBalanceEnabled ? 'Disable low balance auto top-up' : 'Enable low balance auto top-up'}
+            />
         </div>
         <p class="help-text">
             {$text('settings.billing.low_balance_help.text')}
@@ -135,6 +140,7 @@ Low Balance Auto Top-Up Settings - Configure automatic credit purchases when bal
         <div class="form-group">
             <label for="threshold">{$text('settings.billing.threshold.text')}</label>
             <select id="threshold" bind:value={lowBalanceThreshold} disabled={isLoading}>
+                <option value={200}>200 credits</option>
                 <option value={500}>500 credits</option>
                 <option value={1000}>1,000 credits</option>
                 <option value={2000}>2,000 credits</option>
@@ -173,30 +179,8 @@ Low Balance Auto Top-Up Settings - Configure automatic credit purchases when bal
                 <span>Payment method saved</span>
             {:else}
                 <div class="warning-icon-small"></div>
-                <span>No payment method saved. Please make a purchase first.</span>
+                <span>No payment method saved. Please make a purchase first to save your payment method.</span>
             {/if}
-        </div>
-
-        <!-- Security Notice -->
-        <div class="security-notice">
-            <div class="info-icon"></div>
-            <p>For security, 2FA verification is required to enable or modify auto top-up settings.</p>
-        </div>
-
-        <!-- 2FA Code Input -->
-        <div class="form-group">
-            <label for="totp">{$text('settings.billing.2fa_code.text')}</label>
-            <input
-                type="text"
-                id="totp"
-                bind:value={totpCode}
-                placeholder="Enter 6-digit code"
-                maxlength="6"
-                pattern="[0-9]{6}"
-                disabled={isLoading}
-                class="totp-input"
-            />
-            <p class="help-text">Enter the 6-digit code from your authenticator app</p>
         </div>
     {/if}
 
@@ -222,7 +206,7 @@ Low Balance Auto Top-Up Settings - Configure automatic credit purchases when bal
         gap: 16px;
     }
 
-    /* Toggle Switch */
+    /* Toggle Section */
     .toggle-section {
         display: flex;
         flex-direction: column;
@@ -243,42 +227,7 @@ Low Balance Auto Top-Up Settings - Configure automatic credit purchases when bal
         color: var(--color-grey-100);
         font-size: 15px;
         font-weight: 500;
-    }
-
-    .toggle {
-        position: relative;
-        width: 52px;
-        height: 28px;
-        background: var(--color-grey-30);
-        border-radius: 14px;
-        border: none;
-        cursor: pointer;
-        transition: background 0.3s ease;
-        flex-shrink: 0;
-    }
-
-    .toggle:disabled {
-        opacity: 0.5;
-        cursor: not-allowed;
-    }
-
-    .toggle.active {
-        background: var(--color-primary);
-    }
-
-    .toggle-slider {
-        position: absolute;
-        width: 24px;
-        height: 24px;
-        background: white;
-        border-radius: 50%;
-        top: 2px;
-        left: 2px;
-        transition: transform 0.3s ease;
-    }
-
-    .toggle.active .toggle-slider {
-        transform: translateX(24px);
+        flex: 1;
     }
 
     /* Form Elements */
@@ -315,35 +264,6 @@ Low Balance Auto Top-Up Settings - Configure automatic credit purchases when bal
         cursor: not-allowed;
     }
 
-    .form-group input.totp-input {
-        background: var(--color-grey-10);
-        border: 1px solid var(--color-grey-30);
-        border-radius: 8px;
-        color: var(--color-grey-100);
-        padding: 12px;
-        font-size: 16px;
-        font-family: monospace;
-        letter-spacing: 0.3em;
-        text-align: center;
-        transition: border-color 0.2s ease;
-    }
-
-    .form-group input.totp-input:focus {
-        outline: none;
-        border-color: var(--color-primary);
-    }
-
-    .form-group input.totp-input:disabled {
-        opacity: 0.5;
-        cursor: not-allowed;
-    }
-
-    .form-group input.totp-input::placeholder {
-        letter-spacing: normal;
-        font-family: 'Lexend Deca', system-ui, sans-serif;
-        color: var(--color-grey-50);
-    }
-
     .help-text {
         color: var(--color-grey-60);
         font-size: 12px;
@@ -359,6 +279,7 @@ Low Balance Auto Top-Up Settings - Configure automatic credit purchases when bal
         mask-image: url('@openmates/ui/static/icons/check.svg');
         mask-size: contain;
         mask-repeat: no-repeat;
+        flex-shrink: 0;
     }
 
     .warning-icon-small {
@@ -366,15 +287,6 @@ Low Balance Auto Top-Up Settings - Configure automatic credit purchases when bal
         height: 16px;
         background-color: #FFA500;
         mask-image: url('@openmates/ui/static/icons/warning.svg');
-        mask-size: contain;
-        mask-repeat: no-repeat;
-    }
-
-    .info-icon {
-        width: 20px;
-        height: 20px;
-        background-color: var(--color-primary);
-        mask-image: url('@openmates/ui/static/icons/question.svg');
         mask-size: contain;
         mask-repeat: no-repeat;
         flex-shrink: 0;
@@ -400,22 +312,6 @@ Low Balance Auto Top-Up Settings - Configure automatic credit purchases when bal
         background: rgba(255, 165, 0, 0.1);
         color: #FFA500;
         border: 1px solid rgba(255, 165, 0, 0.3);
-    }
-
-    .security-notice {
-        display: flex;
-        gap: 12px;
-        padding: 12px;
-        background: var(--color-grey-10);
-        border-radius: 8px;
-        border: 1px solid var(--color-grey-30);
-    }
-
-    .security-notice p {
-        color: var(--color-grey-60);
-        font-size: 13px;
-        margin: 0;
-        line-height: 1.4;
     }
 
     /* Save Button */
@@ -457,4 +353,3 @@ Low Balance Auto Top-Up Settings - Configure automatic credit purchases when bal
         }
     }
 </style>
-

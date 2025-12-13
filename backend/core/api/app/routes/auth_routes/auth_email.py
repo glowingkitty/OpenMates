@@ -31,6 +31,7 @@ async def request_confirm_email_code(
     email_request: RequestEmailCodeRequest,
     directus_service: DirectusService = Depends(get_directus_service),
     cache_service: CacheService = Depends(get_cache_service),
+    encryption_service: EncryptionService = Depends(get_encryption_service),
 ):
     """
     Generate and send a 6-digit confirmation code to the provided email.
@@ -98,6 +99,72 @@ async def request_confirm_email_code(
                     error_code="DOMAIN_NOT_ALLOWED"
                 )
             logger.info(f"Email domain check passed: {email_parts[1]}")
+        
+        # Check domain security policies (validates domain compliance)
+        # Resilience: Always validate, even if service is missing from app state
+        # Try to use security service from app state (loaded at startup), otherwise create new instance
+        domain_security_service = None
+        if hasattr(request.app.state, 'domain_security_service'):
+            domain_security_service = request.app.state.domain_security_service
+        else:
+            # Fallback: create new instance if not in app state
+            from backend.core.api.app.services.domain_security import DomainSecurityService
+            domain_security_service = DomainSecurityService()
+            
+            # Load security configuration if not already loaded
+            if not domain_security_service.config_loaded:
+                try:
+                    domain_security_service.load_security_config()
+                except SystemExit:
+                    # If configuration cannot be loaded, restrict all signups for security
+                    logger.critical("Domain security configuration cannot be loaded - restricting all signups")
+                    return RequestEmailCodeResponse(
+                        success=False,
+                        message="Domain not supported",
+                        error_code="DOMAIN_NOT_SUPPORTED"
+                    )
+                except Exception as e:
+                    logger.error(f"Error loading domain security configuration: {e} - restricting signup for security")
+                    return RequestEmailCodeResponse(
+                        success=False,
+                        message="Domain not supported",
+                        error_code="DOMAIN_NOT_SUPPORTED"
+                    )
+        
+        # Resilience: Double-check service is properly initialized
+        if not domain_security_service or not domain_security_service.config_loaded:
+            logger.critical("Domain security service not properly initialized - restricting signup")
+            return RequestEmailCodeResponse(
+                success=False,
+                message="Domain not supported",
+                error_code="DOMAIN_NOT_SUPPORTED"
+            )
+        
+        # Validate email domain against security policies
+        is_allowed, error_message = domain_security_service.validate_email_domain(email_request.email)
+        if not is_allowed:
+            logger.warning(f"Email domain restricted: {email_request.email} - {error_message}")
+            return RequestEmailCodeResponse(
+                success=False,
+                message=error_message or "Domain not supported",
+                error_code="DOMAIN_NOT_SUPPORTED"
+            )
+        
+        # Resilience: Additional validation check (redundant but makes removal harder)
+        # Extract domain and check again directly - but use the same validation method
+        # to ensure consistency
+        email_parts = email_request.email.split('@')
+        if len(email_parts) == 2:
+            check_domain = email_parts[1].lower().strip()
+            # Use validate_email_domain for consistency (not is_domain_restricted directly)
+            is_allowed_redundant, error_redundant = domain_security_service.validate_email_domain(email_request.email)
+            if not is_allowed_redundant:
+                logger.warning(f"Email domain restricted (redundant check): {email_request.email} - {error_redundant}")
+                return RequestEmailCodeResponse(
+                    success=False,
+                    message=error_redundant or "Domain not supported",
+                    error_code="DOMAIN_NOT_SUPPORTED"
+                )
         
         # Check if email is already registered
         logger.info(f"Checking if email is already registered...")
@@ -214,6 +281,10 @@ async def check_confirm_email_code(
                 )
         else:
             logger.info(f"Invite code not required, skipping validation")
+
+        # Note: Domain validation should have already happened in request_confirm_email_code
+        # We don't validate here again to avoid blocking users who already received a code
+        # If domain validation failed, the code would not have been sent in the first place
 
         # Get the code from cache
         cache_key = f"email_verification:{email}"
