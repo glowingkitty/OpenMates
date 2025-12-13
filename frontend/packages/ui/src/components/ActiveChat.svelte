@@ -755,8 +755,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     }
 
     // Subscribe to store values
-    // Add class when menu is open AND in mobile view using Svelte 5 $derived
-    let isDimmed = $derived(($panelState && $panelState.isSettingsOpen) && $isMobileView);
+    // Add class when menu is open AND in mobile view AND chat is visible (not in login/signup mode)
+    // The dimmed effect should only apply when the main chat is visible, not during signup/login
+    let isDimmed = $derived(($panelState && $panelState.isSettingsOpen) && $isMobileView && showChat);
 
     // Add transition for the login wrapper
     let loginTransitionProps = {

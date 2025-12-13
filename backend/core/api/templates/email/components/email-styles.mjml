@@ -58,6 +58,45 @@
       background-color: #212121 !important;
   }
 
+  /* Preserve image aspect ratio to prevent stretching in email clients */
+  /* Use CSS classes to override height while maintaining width constraint */
+  /* This prevents stretching while ensuring images don't scale too large */
+  
+  .email-icon-50 img {
+    max-width: 50px !important;
+    width: 50px !important;
+    height: auto !important;
+    max-height: 50px !important;
+  }
+  
+  .email-icon-28 img {
+    max-width: 28px !important;
+    width: 28px !important;
+    height: auto !important;
+    max-height: 28px !important;
+  }
+  
+  .email-icon-23 img {
+    max-width: 23px !important;
+    width: 23px !important;
+    height: auto !important;
+    max-height: 23px !important;
+  }
+  
+  .email-icon-60 img {
+    max-width: 60px !important;
+    width: 60px !important;
+    height: auto !important;
+    max-height: 60px !important;
+  }
+  
+  /* Fallback for images without specific classes */
+  img {
+    max-width: 60px !important;
+    max-height: 60px !important;
+    height: auto !important;
+  }
+
   /* Improved email client compatibility for responsive layout */
   @media screen and (max-width:480px) {
     .code-container table,

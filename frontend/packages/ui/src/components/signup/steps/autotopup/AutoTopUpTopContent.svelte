@@ -183,7 +183,6 @@ Auto Top-Up Top Content - Success message and auto top-up setup all in one full-
 
                 <!-- Finish Button -->
                 <button
-                    class="finish-button"
                     onclick={handleFinish}
                     disabled={isProcessing}
                 >
@@ -211,7 +210,7 @@ Auto Top-Up Top Content - Success message and auto top-up setup all in one full-
         top: 0;
         left: 0;
         right: 0;
-        height: 130px;
+        height: 80px;
         padding: 0 24px;
         display: flex;
         align-items: flex-end;
@@ -224,13 +223,13 @@ Auto Top-Up Top Content - Success message and auto top-up setup all in one full-
         flex-direction: column;
         align-items: center;
         text-align: center;
-        padding-bottom: 20px;
-        gap: 12px;
+        padding-bottom: 8px;
+        gap: 6px;
     }
 
     .success-icon {
-        width: 48px;
-        height: 48px;
+        width: 36px;
+        height: 36px;
         background-color: #58BC00;
         mask-image: url('@openmates/ui/static/icons/check.svg');
         mask-size: contain;
@@ -250,7 +249,7 @@ Auto Top-Up Top Content - Success message and auto top-up setup all in one full-
     
     .bottom-container {
         position: absolute;
-        top: 130px;
+        top: 80px;
         left: 0;
         right: 0;
         bottom: 0;
@@ -261,10 +260,10 @@ Auto Top-Up Top Content - Success message and auto top-up setup all in one full-
 
     @media (max-width: 600px) {
         .top-container {
-            height: 60px;
+            height: 45px;
         }
         .bottom-container {
-            top: 60px;
+            top: 45px;
         }
     }
     
@@ -274,9 +273,9 @@ Auto Top-Up Top Content - Success message and auto top-up setup all in one full-
         justify-content: flex-start;
         align-items: center;
         height: 100%; /* Fill available space */
-        padding: 25px 0;
+        padding: 10px 0;
         box-sizing: border-box;
-        gap: 24px;
+        gap: 10px;
     }
     
     .primary-text {
@@ -285,7 +284,7 @@ Auto Top-Up Top Content - Success message and auto top-up setup all in one full-
         align-items: center;
         justify-content: center;
         color: white;
-        font-size: 20px;
+        font-size: 18px;
         font-weight: 500;
     }
 
@@ -294,10 +293,10 @@ Auto Top-Up Top Content - Success message and auto top-up setup all in one full-
         max-width: 400px;
         background: rgba(255, 255, 255, 0.05);
         border-radius: 12px;
-        padding: 20px;
+        padding: 10px;
         display: flex;
         flex-direction: column;
-        gap: 12px;
+        gap: 8px;
     }
 
     .summary-item {
@@ -308,7 +307,7 @@ Auto Top-Up Top Content - Success message and auto top-up setup all in one full-
 
     .label {
         color: var(--color-grey-60);
-        font-size: 14px;
+        font-size: 16px;
     }
 
     .value {
@@ -322,8 +321,8 @@ Auto Top-Up Top Content - Success message and auto top-up setup all in one full-
 
     :global(.coin-icon-inline) {
         display: inline-flex;
-        width: 20px;
-        height: 20px;
+        width: 18px;
+        height: 18px;
         background-image: url('@openmates/ui/static/icons/coins.svg');
         background-size: contain;
         background-repeat: no-repeat;
@@ -336,29 +335,29 @@ Auto Top-Up Top Content - Success message and auto top-up setup all in one full-
         max-width: 500px;
         display: flex;
         flex-direction: column;
-        gap: 24px;
+        gap: 10px;
     }
 
     .intro-text {
         color: var(--color-grey-60);
-        font-size: 14px;
+        font-size: 16px;
         text-align: center;
-        line-height: 1.5;
+        line-height: 1.3;
     }
 
     .toggle-option {
         background: rgba(255, 255, 255, 0.05);
         border-radius: 12px;
-        padding: 20px;
+        padding: 10px;
         display: flex;
         flex-direction: column;
-        gap: 12px;
+        gap: 6px;
     }
 
     .confirmation-row {
         display: flex;
         align-items: center;
-        gap: 12px;
+        gap: 10px;
         cursor: pointer;
     }
 
@@ -375,54 +374,30 @@ Auto Top-Up Top Content - Success message and auto top-up setup all in one full-
 
     .option-description {
         color: var(--color-grey-70);
-        font-size: 14px;
-        line-height: 1.5;
-        padding-left: 44px;
+        font-size: 16px;
+        line-height: 1.3;
+        padding-left: 36px;
         display: flex;
         flex-direction: column;
-        gap: 4px;
+        gap: 2px;
     }
 
     .bonus-badge {
         background: var(--color-primary);
         color: white;
-        padding: 4px 8px;
+        padding: 3px 6px;
         border-radius: 4px;
-        font-size: 12px;
+        font-size: 16px;
         font-weight: 600;
         display: inline-block;
-        margin-top: 4px;
+        margin-top: 1px;
         align-self: flex-start;
     }
 
     .help-text {
         color: var(--color-grey-50);
-        font-size: 14px;
-        text-align: center;
-        margin-top: 8px;
-    }
-
-    .finish-button {
-        width: 100%;
-        padding: 14px 24px;
-        border-radius: 8px;
         font-size: 16px;
-        font-weight: 500;
-        cursor: pointer;
-        transition: all 0.2s ease;
-        border: none;
-        background: #58BC00;
-        color: white;
-        margin-top: auto;
-    }
-
-    .finish-button:hover:not(:disabled) {
-        background: #6BD100;
-        transform: translateY(-1px);
-    }
-
-    .finish-button:disabled {
-        background: rgba(88, 188, 0, 0.5);
-        cursor: not-allowed;
+        text-align: center;
+        margin-top: 2px;
     }
 </style>

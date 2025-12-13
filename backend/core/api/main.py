@@ -502,6 +502,43 @@ async def lifespan(app: FastAPI):
         await app.state.encryption_service.ensure_keys_exist()
         logger.info("Encryption service initialized successfully.")
         
+        # Validate hosting domain against security policies (prevents self-hosting on restricted domains)
+        logger.info("Validating hosting domain against security policies...")
+        try:
+            from backend.core.api.app.services.domain_security import DomainSecurityService
+            # Note: encryption_service parameter kept for compatibility but not used
+            # Fernet decryption uses key derivation from codebase constants
+            domain_security_service = DomainSecurityService()
+            
+            # Load security configuration
+            try:
+                domain_security_service.load_security_config()
+                logger.info("Domain security configuration loaded successfully")
+            except SystemExit as e:
+                logger.critical(f"CRITICAL: Cannot load domain security configuration: {e}")
+                raise SystemExit("Server files missing")
+            except Exception as e:
+                logger.critical(f"CRITICAL: Error loading domain security configuration: {e}")
+                raise SystemExit("Server files missing")
+            
+            # Validate hosting domain
+            is_allowed, error_message = domain_security_service.validate_hosting_domain()
+            if not is_allowed:
+                logger.critical(f"CRITICAL: Server cannot start on restricted domain: {error_message}")
+                raise SystemExit("Domain not supported")
+            
+            logger.info("Hosting domain validation passed")
+            
+            # Store security service in app state for use in auth endpoints
+            app.state.domain_security_service = domain_security_service
+            
+        except SystemExit:
+            # Re-raise SystemExit to prevent server startup
+            raise
+        except Exception as e:
+            logger.critical(f"CRITICAL: Domain validation failed: {e}")
+            raise SystemExit("Domain not supported")
+        
         # Initialize metrics (depends on directus service)
         logger.info("Initializing metrics...")
         await app.state.metrics_service.initialize_metrics(app.state.directus_service)

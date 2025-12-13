@@ -1265,26 +1265,28 @@ async def passkey_registration_complete(
             
             # Cache the user using the same logic as password signup
             user_data_to_cache = {
-                "user_id": user_id,
-                "username": complete_request.username,  # Use username from request - it's guaranteed to be present during signup
-                "is_admin": is_admin,
-                "credits": user_profile.get("credits", 0),
-                "profile_image_url": user_profile.get("profile_image_url"),
-                "tfa_app_name": user_profile.get("tfa_app_name"),
-                "tfa_enabled": user_profile.get("tfa_enabled", False),
-                "last_opened": user_profile.get("last_opened"),
-                "vault_key_id": user_profile.get("vault_key_id"),
-                "consent_privacy_and_apps_default_settings": user_profile.get("consent_privacy_and_apps_default_settings"),
-                "consent_mates_default_settings": user_profile.get("consent_mates_default_settings"),
-                "language": complete_request.language,
-                "darkmode": complete_request.darkmode,
-                "gifted_credits_for_signup": user_profile.get("gifted_credits_for_signup"),
-                "encrypted_email_address": user_profile.get("encrypted_email_address"),
-                "invoice_counter": user_profile.get("invoice_counter", 0),
-                "lookup_hashes": user_profile.get("lookup_hashes", []),
-                "account_id": user_data.get("account_id"),  # From the original user_data
-                "user_email_salt": complete_request.user_email_salt  # Include the salt
-            }
+                    "user_id": user_id,
+                    "username": complete_request.username,  # Use username from request - it's guaranteed to be present during signup
+                    "is_admin": is_admin,
+                    "credits": user_profile.get("credits", 0),
+                    "profile_image_url": user_profile.get("profile_image_url"),
+                    "tfa_app_name": user_profile.get("tfa_app_name"),
+                    "tfa_enabled": user_profile.get("tfa_enabled", False),
+                    "last_opened": user_profile.get("last_opened"),
+                    "vault_key_id": user_profile.get("vault_key_id"),
+                    "consent_privacy_and_apps_default_settings": user_profile.get("consent_privacy_and_apps_default_settings"),
+                    "consent_mates_default_settings": user_profile.get("consent_mates_default_settings"),
+                    "language": complete_request.language,
+                    "darkmode": complete_request.darkmode,
+                    "gifted_credits_for_signup": user_profile.get("gifted_credits_for_signup"),
+                    "encrypted_email_address": user_profile.get("encrypted_email_address"),
+                    # Required for passwordless passkey login (client decrypts with unwrapped master key)
+                    "encrypted_email_with_master_key": complete_request.encrypted_email_with_master_key,
+                    "invoice_counter": user_profile.get("invoice_counter", 0),
+                    "lookup_hashes": user_profile.get("lookup_hashes", []),
+                    "account_id": user_data.get("account_id"),  # From the original user_data
+                    "user_email_salt": complete_request.user_email_salt  # Include the salt
+                }
             
             # Remove gifted_credits_for_signup if it's None or 0 before caching
             if not user_data_to_cache.get("gifted_credits_for_signup"):
@@ -1837,6 +1839,31 @@ async def passkey_assertion_verify(
                     user_profile["id"] = user_id
                 # Update cache to ensure user_id is persisted
                 await cache_service.set_user(user_profile, user_id=user_id)
+
+        # IMPORTANT (passkey login): cache_service user objects are often a reduced projection and may
+        # not include `encrypted_email_with_master_key`. For passwordless passkey login, we must have
+        # the email encrypted with the same master key that is wrapped for the passkey.
+        if not user_profile.get("encrypted_email_with_master_key"):
+            logger.warning(
+                f"encrypted_email_with_master_key missing from cached user object for user {user_id[:6]}...; "
+                "fetching full profile from Directus"
+            )
+            profile_success, full_profile, _ = await directus_service.get_user_profile(user_id)
+            if profile_success and full_profile:
+                # Merge required encrypted fields into the cached user object and persist back to cache_service
+                user_profile["encrypted_email_with_master_key"] = full_profile.get("encrypted_email_with_master_key")
+                # Keep these in sync as well (harmless if already present)
+                user_profile["encrypted_email_address"] = full_profile.get("encrypted_email_address")
+                user_profile["hashed_email"] = full_profile.get("hashed_email")
+                user_profile["user_email_salt"] = full_profile.get("user_email_salt")
+
+                if "user_id" not in user_profile:
+                    user_profile["user_id"] = user_id
+                if "id" not in user_profile:
+                    user_profile["id"] = user_id
+                await cache_service.set_user(user_profile, user_id=user_id)
+            else:
+                logger.error(f"Failed to fetch full profile for user {user_id} to obtain encrypted_email_with_master_key")
         
         # Start cache warming for passkey login (similar to /lookup endpoint for password login)
         # This ensures user data is ready when the frontend loads the main interface
@@ -1906,6 +1933,23 @@ async def passkey_assertion_verify(
         # Get encrypted email with master key (for passwordless login)
         # This allows client to decrypt email using master key derived from PRF signature
         encrypted_email_with_master_key = user_profile.get("encrypted_email_with_master_key")
+        if not encrypted_email_with_master_key:
+            logger.error(
+                f"encrypted_email_with_master_key not available for user {user_id}. "
+                "Cannot complete passwordless passkey login."
+            )
+            return PasskeyAssertionVerifyResponse(
+                success=False,
+                message="Passkey login is not fully set up for this account (missing encrypted email). Please re-register your passkey or contact support.",
+                user_id=None,
+                hashed_email=None,
+                encrypted_email=None,
+                encrypted_master_key=None,
+                key_iv=None,
+                salt=None,
+                user_email_salt=None,
+                auth_session=None
+            )
         
         # For passkey login, authentication happens in two steps:
         # 1. Verify passkey assertion (this step) - returns encrypted data
@@ -1974,7 +2018,8 @@ async def passkey_assertion_verify(
                 message="Passkey verified. Please complete authentication.",
                 user_id=user_id,
                 hashed_email=hashed_email,
-                encrypted_email=encrypted_email_with_master_key or user_profile.get("encrypted_email_address"),
+                # Must be encrypted with master key for passwordless passkey login
+                encrypted_email=encrypted_email_with_master_key,
                 encrypted_master_key=encryption_key_data.get("encrypted_key"),
                 key_iv=encryption_key_data.get("key_iv"),
                 salt=encryption_key_data.get("salt"),
@@ -2024,7 +2069,8 @@ async def passkey_assertion_verify(
             message="Passkey authentication successful",
             user_id=user_id,
             hashed_email=hashed_email,
-            encrypted_email=encrypted_email_with_master_key or user_profile.get("encrypted_email_address"),
+            # Must be encrypted with master key for passwordless passkey login
+            encrypted_email=encrypted_email_with_master_key,
             encrypted_master_key=encryption_key_data.get("encrypted_key"),
             key_iv=encryption_key_data.get("key_iv"),
             salt=encryption_key_data.get("salt"),
@@ -2255,4 +2301,3 @@ async def delete_passkey(
             success=False,
             message=f"Failed to delete passkey: {str(e)}"
         )
-

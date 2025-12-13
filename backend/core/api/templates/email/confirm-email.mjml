@@ -21,7 +21,7 @@
     <mj-wrapper css-class="content-box" padding="20px" padding-bottom="0">
       <mj-section padding-bottom="10px">
         <mj-column>
-          <mj-image width="50px" height="50px" src="icons/mail.png" align="center" alt="Email icon" />
+          <mj-image width="50px" height="50px" src="icons/mail.png" align="center" alt="Email icon" css-class="email-icon-50" />
           <mj-text font-size="30px">
             <mark>{{ t.email.confirm_your_email_address.text }}</mark>
           </mj-text>
@@ -39,7 +39,7 @@
       <mj-section css-class="code-container" padding="0" background-color="#171717" border-radius="24px">
         <mj-group css-class="code-container-inner">
           <mj-column width="30%" vertical-align="middle" css-class="code-icon">
-            <mj-image width="28px" height="28px" src="icons/2fa_small.png" align="left" padding-left="15px" alt="Verification code icon" />
+            <mj-image width="28px" height="28px" src="icons/2fa_small.png" align="left" padding-left="15px" alt="Verification code icon" css-class="email-icon-28" />
           </mj-column>
           <mj-column width="70%" vertical-align="middle" css-class="code-text">
             <mj-text font-size="25px" font-weight="regular" align="center" padding-right="70px">
@@ -52,7 +52,7 @@
       <mj-section css-class="code-container" padding="0" background-color="#ffffff" border-radius="24px">
         <mj-group css-class="code-container-inner">
           <mj-column width="30%" vertical-align="middle" css-class="code-icon">
-            <mj-image width="28px" height="28px" src="icons/2fa_small.png" align="left" padding-left="15px" alt="Verification code icon" />
+            <mj-image width="28px" height="28px" src="icons/2fa_small.png" align="left" padding-left="15px" alt="Verification code icon" css-class="email-icon-28" />
           </mj-column>
           <mj-column width="70%" vertical-align="middle" css-class="code-text">
             <mj-text font-size="25px" font-weight="regular" align="center" padding-right="70px">

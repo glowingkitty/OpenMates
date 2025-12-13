@@ -21,7 +21,7 @@
     <mj-wrapper css-class="content-box" padding="20px" padding-bottom="0">
       <mj-section>
         <mj-column>
-          <mj-image width="50px" height="50px" src="icons/user.png" align="center" />
+          <mj-image width="50px" height="50px" src="icons/user.png" align="center" css-class="email-icon-50" />
           <mj-text font-size="30px">
             <mark>{{ t.email.signup_milestone.text }}</mark>
           </mj-text>

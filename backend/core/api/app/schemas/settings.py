@@ -26,16 +26,14 @@ class AutoTopUpLowBalanceRequest(BaseModel):
     threshold: int
     amount: int
     currency: str
-    totp_code: str  # 2FA TOTP code for verification
 
     class Config:
         json_schema_extra = {
             "example": {
                 "enabled": True,
-                "threshold": 1000,
+                "threshold": 200,
                 "amount": 10000,
-                "currency": "eur",
-                "totp_code": "123456"
+                "currency": "eur"
             }
         }
 

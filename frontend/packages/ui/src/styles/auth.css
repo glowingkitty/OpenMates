@@ -94,8 +94,6 @@
 .login-box {
     width: 440px;
     min-width: 300px;
-    min-height: min(740px, 80vh);
-    min-height: min(740px, 80dvh);
     text-align: center;
     box-sizing: border-box;
     position: relative;
@@ -430,7 +428,7 @@ form.hidden {
 
 .bottom-content-wrapper {
     width: 100%;
-    height: 200px;
+    height: 260px;
     overflow: visible;
     position: relative;
 }
