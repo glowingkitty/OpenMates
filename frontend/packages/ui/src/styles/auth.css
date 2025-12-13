@@ -32,11 +32,11 @@
     }
 
     .login-container > .icon-grid:first-child {
-        justify-self: start;
+        justify-self: end;
     }
 
     .login-container > .icon-grid:last-child {
-        justify-self: end;
+        justify-self: start;
     }
 }
 
