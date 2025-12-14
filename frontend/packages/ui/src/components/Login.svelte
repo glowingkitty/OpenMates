@@ -846,13 +846,18 @@
             }
             
             // Step 18: Dispatch login success
+            // CRITICAL: Check if user is in signup flow based on last_opened
+            // This ensures signup state is preserved after login
+            // Note: userData is already declared above, so we reuse it
+            const inSignupFlow = userData?.last_opened ? isSignupPath(userData.last_opened) : false;
+            
             email = '';
             isPasskeyLoading = false;
             isLoading = false;
             dispatch('loginSuccess', {
-                user: verifyData.auth_session?.user,
+                user: userData,
                 isMobile,
-                inSignupFlow: false
+                inSignupFlow: inSignupFlow
             });
             
         } catch (error: any) {
@@ -1302,13 +1307,17 @@
             }
             
             // Dispatch login success
+            // CRITICAL: Check if user is in signup flow based on last_opened
+            // This ensures signup state is preserved after login
+            const inSignupFlow = userData?.last_opened ? isSignupPath(userData.last_opened) : false;
+            
             email = '';
             isPasskeyLoading = false;
             isLoading = false;
             dispatch('loginSuccess', {
-                user: verifyData.auth_session?.user,
+                user: userData,
                 isMobile,
-                inSignupFlow: false
+                inSignupFlow: inSignupFlow
             });
             
         } catch (error: any) {
@@ -1813,7 +1822,8 @@
                 
                 <div class="login-box" in:scale={{ duration: 300, delay: 150 }}>
                 <!-- SignupNav - handles both login and signup navigation -->
-                {#if !$authStore.isAuthenticated}
+                <!-- Show SignupNav when NOT authenticated OR when in signup process (even if authenticated) -->
+                {#if !$authStore.isAuthenticated || $isInSignupProcess}
                     <SignupNav
                         mode={$isInSignupProcess ? 'signup' : 'login'}
                         onback={handleSignupNavBack}

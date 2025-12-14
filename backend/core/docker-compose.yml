@@ -39,6 +39,8 @@ services:
       - vault-setup-data:/vault-data
       # Added: Mount backend config directory to /config in container
       - ../../backend/config:/config
+      # Added: Mount .cursor directory for debug logging
+      - ../../.cursor:/app/.cursor
     networks:
       - openmates
     depends_on:

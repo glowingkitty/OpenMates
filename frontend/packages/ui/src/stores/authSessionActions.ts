@@ -216,8 +216,20 @@ export async function checkAuth(deviceSignals?: Record<string, string | null>, f
                 }
             } else {
                 // Only clear signup state if it wasn't set from hash
+                // CRITICAL: Don't clear signup state if user is currently in signup process
+                // This prevents clearing signup state if checkAuth runs before user profile loads
                 if (!signupStateFromHash) {
-                    isInSignupProcess.set(false);
+                    // Check if signup state is already set (e.g., from login() function)
+                    // If it is, preserve it - user profile might load asynchronously
+                    const currentInSignup = get(isInSignupProcess);
+                    if (!currentInSignup) {
+                        // Signup state is not set - safe to clear
+                        isInSignupProcess.set(false);
+                    } else {
+                        // Signup state is already set - preserve it
+                        // This handles the case where login() set it but checkAuth() runs before profile loads
+                        console.debug("[AuthSessionActions] Preserving existing signup state (user profile may load asynchronously)");
+                    }
                 }
             }
 

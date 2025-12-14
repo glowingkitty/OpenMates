@@ -352,16 +352,19 @@
             paymentConfirmationTimeoutId = null;
         }
         
+        // ALWAYS update credits when current_credits is provided, regardless of payment state
+        // This ensures credits are updated even if WebSocket wasn't connected during signup
+        // or if user_credits_updated event was missed
+        if (payload.current_credits !== undefined) {
+            console.log(`[Payment] Updating credits to ${payload.current_credits} from payment_completed event`);
+            updateProfile({ credits: payload.current_credits });
+        }
+        
         // If we were waiting for confirmation (delayed payment), show notification
         // For fast payments, this won't be called as payment already succeeded
         if (isWaitingForConfirmation || showDelayedMessage) {
             isWaitingForConfirmation = false;
             showDelayedMessage = false;
-            
-            // Update credits in user profile
-            if (payload.current_credits !== undefined) {
-                updateProfile({ credits: payload.current_credits });
-            }
             
             // Show success notification popup (using Notification.svelte component)
             notificationStore.success(
@@ -379,9 +382,8 @@
                 });
             }
         } else {
-            // Fast payment case - just update credits silently (no notification needed)
-            // Credits were already updated via user_credits_updated event
-            console.log('[Payment] Payment already completed, credits updated via user_credits_updated event');
+            // Fast payment case - credits already updated above, just log
+            console.log('[Payment] Payment already completed, credits updated from payment_completed event');
         }
     }
 

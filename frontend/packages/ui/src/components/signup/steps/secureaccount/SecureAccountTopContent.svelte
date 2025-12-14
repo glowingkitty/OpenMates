@@ -15,7 +15,8 @@
     import { getApiEndpoint, apiEndpoints } from '../../../../config/api';
     import * as cryptoService from '../../../../services/cryptoService';
     import { generateDeviceName } from '../../../../utils/deviceName';
-    import { checkAuth } from '../../../../stores/authStore';
+    import { checkAuth, authStore } from '../../../../stores/authStore';
+    import { userProfile } from '../../../../stores/userProfile';
     
     const dispatch = createEventDispatcher();
     
@@ -52,6 +53,56 @@
             bytes[i] = binary.charCodeAt(i);
         }
         return bytes.buffer;
+    }
+    
+    /**
+     * Poll to verify user is authenticated and user data is loaded.
+     * Retries with exponential backoff until auth state is confirmed or max attempts reached.
+     * @param maxAttempts Maximum number of polling attempts
+     * @param maxTimeoutMs Maximum total time to wait in milliseconds
+     * @returns true if user is authenticated and data is loaded, false otherwise
+     */
+    async function pollAuthState(maxAttempts: number = 5, maxTimeoutMs: number = 2000): Promise<boolean> {
+        const startTime = Date.now();
+        const delayBetweenAttempts = Math.min(200, maxTimeoutMs / maxAttempts); // Adaptive delay
+        
+        for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+            // Check if we've exceeded max timeout
+            if (Date.now() - startTime > maxTimeoutMs) {
+                console.warn(`[SecureAccountTopContent] Auth state polling timeout after ${maxTimeoutMs}ms`);
+                return false;
+            }
+            
+            try {
+                // Force auth check to ensure we get fresh data
+                const authSuccess = await checkAuth(undefined, true);
+                
+                if (authSuccess) {
+                    // Verify user data is actually loaded (check if username exists)
+                    const currentAuth = get(authStore);
+                    const currentProfile = get(userProfile);
+                    
+                    if (currentAuth.isAuthenticated && currentProfile.username) {
+                        console.debug(`[SecureAccountTopContent] Auth state confirmed after ${attempt} attempt(s)`);
+                        return true;
+                    }
+                }
+                
+                // If not authenticated yet, wait before next attempt (except on last attempt)
+                if (attempt < maxAttempts) {
+                    await new Promise(resolve => setTimeout(resolve, delayBetweenAttempts));
+                }
+            } catch (error) {
+                console.warn(`[SecureAccountTopContent] Error checking auth state (attempt ${attempt}/${maxAttempts}):`, error);
+                // Wait before retrying (except on last attempt)
+                if (attempt < maxAttempts) {
+                    await new Promise(resolve => setTimeout(resolve, delayBetweenAttempts));
+                }
+            }
+        }
+        
+        console.warn(`[SecureAccountTopContent] Auth state not confirmed after ${maxAttempts} attempts`);
+        return false;
     }
     
     /**
@@ -384,13 +435,21 @@
             // CRITICAL: Update authentication state after account creation
             // This ensures that when we move to the next step, last_opened will be updated
             // both client-side and server-side (via WebSocket)
+            // Poll to verify user is authenticated and data is loaded rather than using delays
             console.debug('[SecureAccountTopContent] Updating auth state after passkey account creation...');
             try {
-                await checkAuth();
-                console.debug('[SecureAccountTopContent] Auth state updated successfully');
+                // Poll to verify authentication and user data is loaded
+                const authSuccess = await pollAuthState(5, 2000); // 5 attempts, 2 seconds total
+                if (authSuccess) {
+                    console.debug('[SecureAccountTopContent] Auth state updated successfully');
+                } else {
+                    console.warn('[SecureAccountTopContent] Auth state not confirmed after polling - user data may not be fully loaded');
+                    // Still continue - user data will be loaded on next checkAuth call or page reload
+                }
             } catch (error) {
                 console.warn('[SecureAccountTopContent] Failed to update auth state:', error);
                 // Continue even if checkAuth fails - the step change will still work
+                // User data will be loaded on next checkAuth call or page reload
             }
 
             // Continue to next step (skip to recovery key for passkeys)

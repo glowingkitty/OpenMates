@@ -1247,7 +1247,9 @@ async def save_payment_method(
         if customer_id:
             update_payload["stripe_customer_id"] = customer_id
         
-        # Save to Directus
+        # CACHE-FIRST STRATEGY: update_user() updates cache FIRST, then Directus
+        # This ensures get_current_user will return the updated payment method immediately
+        # The update_user method handles cache updates internally following the cache-first pattern
         update_success = await directus_service.update_user(
             current_user.id,
             update_payload
@@ -1255,6 +1257,16 @@ async def save_payment_method(
         
         if not update_success:
             raise HTTPException(status_code=500, detail="Failed to save payment method")
+        
+        # CRITICAL: After updating user cache, also update cache_service's user cache
+        # This ensures get_user_by_token -> get_user_by_id returns the updated payment method
+        # The cache_service.update_user method updates the user_id-based cache
+        try:
+            await cache_service.update_user(current_user.id, update_payload)
+            logger.debug(f"Updated cache_service user cache for user {current_user.id} with payment method")
+        except Exception as cache_update_error:
+            logger.warning(f"Failed to update cache_service user cache for user {current_user.id}: {cache_update_error}")
+            # Don't fail the request - directus_service.update_user already updated its cache
         
         logger.info(f"Successfully saved payment method for user {current_user.id}" + 
                    (f" with customer {customer_id}" if customer_id else " (customer creation failed)"))

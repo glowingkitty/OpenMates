@@ -175,6 +175,19 @@
         const { user, inSignupFlow } = event.detail;
         console.debug("Login success, in signup flow:", inSignupFlow);
         
+        // CRITICAL: Set signup state BEFORE updating auth state
+        // This ensures signup state is preserved and login interface stays open
+        if (inSignupFlow && user?.last_opened) {
+            const { currentSignupStep, isInSignupProcess, getStepFromPath } = await import('../stores/signupState');
+            const step = getStepFromPath(user.last_opened);
+            currentSignupStep.set(step);
+            isInSignupProcess.set(true);
+            // Ensure login interface is open to show signup flow
+            const { loginInterfaceOpen } = await import('../stores/uiStateStore');
+            loginInterfaceOpen.set(true);
+            console.debug('[ActiveChat] Set signup state after login:', step);
+        }
+        
         // Update the authentication state after successful login
         const { setAuthenticatedState } = await import('../stores/authSessionActions');
         setAuthenticatedState();
@@ -283,12 +296,19 @@
             }
         } else {
             // Close login interface when user successfully logs in
-            if ($loginInterfaceOpen) {
+            // CRITICAL: Do NOT close if user is in signup process - they need to complete signup
+            if ($loginInterfaceOpen && !$isInSignupProcess) {
                 loginInterfaceOpen.set(false);
                 // Only open chats panel on desktop (not mobile) when closing login interface after successful login
                 // On mobile, let the user manually open the panel if they want to see the chat list
                 if (!$panelState.isActivityHistoryOpen && !$isMobileView) {
                     panelState.toggleChats();
+                }
+            } else if ($isInSignupProcess) {
+                // User is in signup process - ensure login interface stays open
+                console.debug('[ActiveChat] User is in signup process - keeping login interface open');
+                if (!$loginInterfaceOpen) {
+                    loginInterfaceOpen.set(true);
                 }
             }
             
@@ -2242,6 +2262,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         // Listen for event to close login interface (e.g., from Demo button)
         const handleCloseLoginInterface = async () => {
             console.debug("[ActiveChat] Closing login interface, showing demo chat");
+            
+            // CRITICAL: Do NOT close login interface if user is in signup process
+            // They need to complete signup, so the interface must stay open
+            if ($isInSignupProcess) {
+                console.debug("[ActiveChat] User is in signup process - preventing login interface from closing");
+                return;
+            }
             
             // CRITICAL FIX: Clear pending draft from sessionStorage when user leaves login process
             // This ensures the draft doesn't get restored if user clicks "Demo" to go back

@@ -889,14 +889,24 @@ changes to the documentation (to keep the documentation up to date).
 
         // Listen for payment completion notifications via WebSocket
         // This handles cases where payment completes after user has moved on from payment screen
+        // NOTE: Only register payment handlers if NOT in signup mode, as Payment.svelte already handles them during signup
+        // This prevents duplicate handler registrations during signup flow
         const handlePaymentCompleted = (payload: { order_id: string, credits_purchased: number, current_credits: number }) => {
             console.debug('[Settings] Received payment_completed notification via WebSocket:', payload);
-            // Show success notification popup (using Notification.svelte component)
-            notificationStore.success(
-                `Payment completed! ${payload.credits_purchased.toLocaleString()} credits have been added to your account.`,
-                5000
-            );
-            // Update credits in user profile if available
+            
+            // CRITICAL: Suppress notifications during signup - Payment.svelte already handles them
+            // Only show notification if user is not in signup process
+            if (!$isInSignupProcess) {
+                // Show success notification popup (using Notification.svelte component)
+                notificationStore.success(
+                    `Payment completed! ${payload.credits_purchased.toLocaleString()} credits have been added to your account.`,
+                    5000
+                );
+            } else {
+                console.debug('[Settings] Suppressing payment_completed notification during signup');
+            }
+            
+            // Always update credits in user profile if available (even during signup)
             if (payload.current_credits !== undefined) {
                 updateProfile({ credits: payload.current_credits });
             }
@@ -914,16 +924,27 @@ changes to the documentation (to keep the documentation up to date).
         };
 
         webSocketService.on('user_credits_updated', handleCreditUpdate);
-        webSocketService.on('payment_completed', handlePaymentCompleted);
-        webSocketService.on('payment_failed', handlePaymentFailed);
+        
+        // Only register payment handlers if NOT in signup mode
+        // During signup, Payment.svelte component already handles these events
+        // This prevents duplicate handler registrations that cause warnings
+        // Store the signup state at registration time for proper cleanup
+        const wasInSignupProcess = $isInSignupProcess;
+        if (!wasInSignupProcess) {
+            webSocketService.on('payment_completed', handlePaymentCompleted);
+            webSocketService.on('payment_failed', handlePaymentFailed);
+        }
         
         return () => {
             window.removeEventListener('resize', handleResize);
             document.removeEventListener('click', handleClickOutside);
             window.removeEventListener('language-changed', languageChangeHandler);
             webSocketService.off('user_credits_updated', handleCreditUpdate);
-            webSocketService.off('payment_completed', handlePaymentCompleted);
-            webSocketService.off('payment_failed', handlePaymentFailed);
+            // Only unregister payment handlers if they were registered
+            if (!wasInSignupProcess) {
+                webSocketService.off('payment_completed', handlePaymentCompleted);
+                webSocketService.off('payment_failed', handlePaymentFailed);
+            }
         };
     });
 

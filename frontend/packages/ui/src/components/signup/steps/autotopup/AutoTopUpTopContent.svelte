@@ -15,12 +15,16 @@ Auto Top-Up Top Content - Success message and auto top-up setup all in one full-
         purchasedCredits = 0,
         purchasedPrice = 0,
         currency = 'eur',
+        paymentMethodSaved = true,
+        paymentMethodSaveError = null,
         oncomplete,
         'onactivate-subscription': onactivateSubscription
     }: {
         purchasedCredits?: number;
         purchasedPrice?: number;
         currency?: string;
+        paymentMethodSaved?: boolean;
+        paymentMethodSaveError?: string | null;
         oncomplete?: (event: CustomEvent) => void;
         'onactivate-subscription'?: (event: CustomEvent) => void;
     } = $props();
@@ -84,7 +88,8 @@ Auto Top-Up Top Content - Success message and auto top-up setup all in one full-
         isProcessing = true;
 
         try {
-            if (monthlyEnabled) {
+            // Only activate subscription if payment method was saved successfully
+            if (monthlyEnabled && paymentMethodSaved) {
                 if (onactivateSubscription) {
                     onactivateSubscription(new CustomEvent('activate-subscription', {
                         detail: {
@@ -94,14 +99,23 @@ Auto Top-Up Top Content - Success message and auto top-up setup all in one full-
                             currency: currency
                         }
                     }));
+                    // Wait for subscription activation to complete
+                    // The parent component will handle completion
+                    return;
                 }
+            } else if (monthlyEnabled && !paymentMethodSaved) {
+                // Payment method wasn't saved - can't activate subscription
+                console.error('Cannot activate subscription: Payment method was not saved');
+                isProcessing = false;
+                return;
             }
 
+            // If no subscription activation needed, complete signup
             if (oncomplete) {
                 oncomplete(new CustomEvent('complete', {
                     detail: {
                         lowBalanceEnabled: lowBalanceEnabled,
-                        monthlyEnabled: monthlyEnabled
+                        monthlyEnabled: false // Set to false if payment method wasn't saved
                     }
                 }));
             }
@@ -161,12 +175,20 @@ Auto Top-Up Top Content - Success message and auto top-up setup all in one full-
                 <!-- Monthly Auto Top-Up Toggle -->
                 <div class="toggle-option">
                     <div class="confirmation-row">
-                        <Toggle bind:checked={monthlyEnabled} id="monthly-toggle" disabled={isProcessing} />
+                        <Toggle 
+                            bind:checked={monthlyEnabled} 
+                            id="monthly-toggle" 
+                            disabled={isProcessing || !paymentMethodSaved} 
+                        />
                         <label for="monthly-toggle" class="confirmation-text">
                             {$text('settings.billing.monthly.text')}
                         </label>
                     </div>
-                    {#if monthlyEnabled}
+                    {#if !paymentMethodSaved}
+                        <div class="error-message">
+                            Payment method could not be saved. Monthly auto top-up is not available. You can set this up later in settings.
+                        </div>
+                    {:else if monthlyEnabled}
                         <div class="option-description">
                             {formatCredits(totalCredits)} credits for {formatPrice(monthlyPrice, currency)}.
                             {#if bonusCredits > 0}
@@ -400,5 +422,16 @@ Auto Top-Up Top Content - Success message and auto top-up setup all in one full-
         font-size: 16px;
         text-align: center;
         margin-top: 2px;
+    }
+
+    .error-message {
+        background-color: rgba(255, 0, 0, 0.1);
+        color: var(--color-error-text, #ff6b6b);
+        padding: 8px 12px;
+        border-radius: 8px;
+        font-size: 14px;
+        line-height: 1.4;
+        margin-top: 6px;
+        border: 1px solid rgba(255, 0, 0, 0.2);
     }
 </style>

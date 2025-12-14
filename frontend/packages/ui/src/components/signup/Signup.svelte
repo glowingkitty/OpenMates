@@ -733,6 +733,10 @@
         goToStep(STEP_COMPLETION);
     }
 
+    // Track payment method save status
+    let paymentMethodSaved = $state(false);
+    let paymentMethodSaveError = $state<string | null>(null);
+
     // Handle payment state changes
     async function handlePaymentStateChange(event) {
         paymentState = event.detail.state;
@@ -745,10 +749,16 @@
         } else if (paymentState === 'success') { // Add success handling
             console.debug("Payment successful, saving payment method...");
             
+            // Reset payment method save status
+            paymentMethodSaved = false;
+            paymentMethodSaveError = null;
+            
             // Save payment_intent_id for later subscription creation
             paymentIntentId = event.detail.payment_intent_id;
             
             // Save payment method ID to backend for subscription use
+            // CRITICAL: Wait for this to complete successfully before proceeding
+            // Subscription creation requires the payment method to be saved
             try {
                 const response = await fetch(getApiUrl() + apiEndpoints.payments.savePaymentMethod, {
                     method: 'POST',
@@ -763,14 +773,40 @@
                 });
                 
                 if (response.ok) {
-                    console.debug("Payment method saved successfully");
+                    const result = await response.json();
+                    console.debug("Payment method saved successfully:", result);
+                    
+                    // CRITICAL: Verify payment method is available before marking as saved
+                    // Poll the has-payment-method endpoint to ensure cache is updated
+                    // Increased attempts and timeout to account for cache propagation delay
+                    const isAvailable = await pollPaymentMethodAvailability(15, 5000); // 15 attempts, 5 seconds total
+                    if (isAvailable) {
+                        paymentMethodSaved = true;
+                        console.debug("Payment method confirmed available in backend cache");
+                    } else {
+                        console.warn("Payment method saved but not yet available in cache - subscription creation may fail");
+                        // Still mark as saved, but subscription creation will retry verification
+                        paymentMethodSaved = true;
+                    }
                 } else {
-                    console.warn("Failed to save payment method:", await response.text());
-                    // Continue anyway - they can still finish signup
+                    const errorText = await response.text();
+                    console.error("Failed to save payment method:", errorText);
+                    paymentMethodSaveError = errorText || "Failed to save payment method";
+                    // Don't continue to auto top-up if payment method save failed
+                    // User can still finish signup, but subscription won't be available
+                    notificationStore.error(
+                        "Payment method could not be saved. You can set up auto top-up later in settings.",
+                        10000
+                    );
                 }
             } catch (error) {
                 console.error("Error saving payment method:", error);
-                // Continue anyway - they can still finish signup
+                paymentMethodSaveError = error instanceof Error ? error.message : "Unknown error saving payment method";
+                // Don't continue to auto top-up if payment method save failed
+                notificationStore.error(
+                    "Payment method could not be saved. You can set up auto top-up later in settings.",
+                    10000
+                );
             }
             
             // Credits will be updated via WebSocket 'user_credits_updated' event from backend
@@ -785,6 +821,7 @@
             }
             
             // After payment success, go to auto top-up step
+            // Only proceed if payment method was saved successfully (or if user wants to skip)
             setTimeout(() => {
                 goToStep(STEP_AUTO_TOP_UP);
             }, 500); // Short delay for smooth transition
@@ -822,12 +859,87 @@
         console.debug("Transitioning to chat now.");
     }
 
+    /**
+     * Poll the has-payment-method endpoint to verify payment method is available in backend cache.
+     * Retries with exponential backoff until payment method is confirmed available or max attempts reached.
+     * @param maxAttempts Maximum number of polling attempts
+     * @param maxTimeoutMs Maximum total time to wait in milliseconds
+     * @returns true if payment method is available, false otherwise
+     */
+    async function pollPaymentMethodAvailability(maxAttempts: number = 10, maxTimeoutMs: number = 5000): Promise<boolean> {
+        const startTime = Date.now();
+        const delayBetweenAttempts = Math.min(200, maxTimeoutMs / maxAttempts); // Adaptive delay
+        
+        for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+            // Check if we've exceeded max timeout
+            if (Date.now() - startTime > maxTimeoutMs) {
+                console.warn(`[Signup] Payment method polling timeout after ${maxTimeoutMs}ms`);
+                return false;
+            }
+            
+            try {
+                const response = await fetch(getApiUrl() + apiEndpoints.payments.hasPaymentMethod, {
+                    method: 'GET',
+                    credentials: 'include'
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.has_payment_method === true) {
+                        console.debug(`[Signup] Payment method confirmed available after ${attempt} attempt(s)`);
+                        return true;
+                    }
+                }
+                
+                // If not available yet, wait before next attempt (except on last attempt)
+                if (attempt < maxAttempts) {
+                    await new Promise(resolve => setTimeout(resolve, delayBetweenAttempts));
+                }
+            } catch (error) {
+                console.warn(`[Signup] Error checking payment method availability (attempt ${attempt}/${maxAttempts}):`, error);
+                // Wait before retrying (except on last attempt)
+                if (attempt < maxAttempts) {
+                    await new Promise(resolve => setTimeout(resolve, delayBetweenAttempts));
+                }
+            }
+        }
+        
+        console.warn(`[Signup] Payment method not available after ${maxAttempts} attempts`);
+        return false;
+    }
+
     // Handle subscription activation
     async function handleActivateSubscription(event) {
         const { credits, bonusCredits, price, currency } = event.detail;
         console.debug("Activating subscription:", { credits, bonusCredits, price, currency });
 
+        // Check if payment method was saved successfully
+        if (!paymentMethodSaved) {
+            console.error("Cannot create subscription: Payment method was not saved successfully");
+            notificationStore.error(
+                "Cannot activate auto top-up: Payment method was not saved. Please try again or set up auto top-up later in settings.",
+                10000
+            );
+            // Don't complete signup - let user try again or skip
+            return;
+        }
+
         try {
+            // CRITICAL: Verify payment method is available before attempting subscription creation
+            // Poll the endpoint to ensure cache is updated and payment method is accessible
+            // Increased attempts and timeout to account for cache propagation delay
+            console.debug("[Signup] Verifying payment method availability before creating subscription...");
+            const isAvailable = await pollPaymentMethodAvailability(20, 8000); // 20 attempts, 8 seconds total
+            
+            if (!isAvailable) {
+                console.error("[Signup] Payment method not available after polling - subscription creation will likely fail");
+                notificationStore.error(
+                    "Payment method is not yet available. Please wait a moment and try again, or set up auto top-up later in settings.",
+                    10000
+                );
+                return;
+            }
+            
             // Call backend API to create subscription
             const response = await fetch(getApiUrl() + apiEndpoints.payments.createSubscription, {
                 method: 'POST',
@@ -845,16 +957,34 @@
             if (response.ok) {
                 const subscriptionData = await response.json();
                 console.debug("Subscription created successfully:", subscriptionData);
+                // Show success notification
+                notificationStore.success(
+                    "Auto top-up activated successfully!",
+                    5000
+                );
             } else {
-                console.error("Failed to create subscription:", await response.text());
-                // Continue anyway - they can set up subscription later in settings
+                const errorText = await response.text();
+                console.error("Failed to create subscription:", errorText);
+                // Show error notification
+                notificationStore.error(
+                    `Failed to activate auto top-up: ${errorText || "Unknown error"}. You can set up auto top-up later in settings.`,
+                    10000
+                );
+                // Don't complete signup - let user know what happened
+                return;
             }
         } catch (error) {
             console.error("Error creating subscription:", error);
-            // Continue anyway - they can set up subscription later in settings
+            const errorMessage = error instanceof Error ? error.message : "Unknown error";
+            notificationStore.error(
+                `Error activating auto top-up: ${errorMessage}. You can set up auto top-up later in settings.`,
+                10000
+            );
+            // Don't complete signup - let user know what happened
+            return;
         }
 
-        // Complete signup
+        // Complete signup only if subscription was created successfully
         await handleAutoTopUpComplete({ detail: {} });
     }
 
@@ -993,6 +1123,8 @@
                                             purchasedCredits={selectedCreditsAmount}
                                             purchasedPrice={selectedPrice}
                                             currency={selectedCurrency}
+                                            paymentMethodSaved={paymentMethodSaved}
+                                            paymentMethodSaveError={paymentMethodSaveError}
                                             oncomplete={handleAutoTopUpComplete}
                                             onactivate-subscription={handleActivateSubscription}
                                         />

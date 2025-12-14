@@ -99,7 +99,11 @@ export async function login(
                     const step = getStepFromPath(data.user.last_opened);
                     currentSignupStep.set(step);
                     isInSignupProcess.set(true);
-                    console.debug("Set signup step to:", step);
+                    // CRITICAL: Open login interface to show signup flow after login
+                    // This ensures the signup flow is visible immediately after login
+                    const { loginInterfaceOpen } = await import('../stores/uiStateStore');
+                    loginInterfaceOpen.set(true);
+                    console.debug("Set signup step to:", step, "and opened login interface");
                 } else {
                     isInSignupProcess.set(false);
                 }

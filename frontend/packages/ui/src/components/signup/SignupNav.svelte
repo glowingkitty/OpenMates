@@ -4,6 +4,9 @@
     import { getWebsiteUrl, routes } from '../../config/links';
     // Import current step store and gift check stores
     import { currentSignupStep, isLoadingGiftCheck, hasGiftForSignup } from '../../stores/signupState';
+    // Import signupStore to check loginMethod for passkey flow
+    import { signupStore } from '../../stores/signupStore';
+    import { get } from 'svelte/store';
 
     // Step name constants - must match those in Signup.svelte
     const STEP_ALPHA_DISCLAIMER = 'alpha_disclaimer';
@@ -23,11 +26,24 @@
     const STEP_AUTO_TOP_UP = 'auto_top_up';
     const STEP_COMPLETION = 'completion';
 
-    const stepSequence = [
+    // Full step sequence for password signup flow
+    const fullStepSequence = [
         STEP_ALPHA_DISCLAIMER, STEP_BASICS, STEP_CONFIRM_EMAIL, STEP_SECURE_ACCOUNT, STEP_PASSWORD,
-        STEP_ONE_TIME_CODES, STEP_TFA_APP_REMINDER, STEP_BACKUP_CODES, STEP_RECOVERY_KEY, // STEP_PROFILE_PICTURE,
+        STEP_ONE_TIME_CODES, STEP_TFA_APP_REMINDER, STEP_BACKUP_CODES, STEP_RECOVERY_KEY,
         STEP_CREDITS, STEP_PAYMENT, STEP_AUTO_TOP_UP, STEP_COMPLETION
     ];
+
+    // Passkey step sequence (skips password, one_time_codes, tfa_app_reminder, backup_codes)
+    const passkeyStepSequence = [
+        STEP_ALPHA_DISCLAIMER, STEP_BASICS, STEP_CONFIRM_EMAIL, STEP_SECURE_ACCOUNT, STEP_RECOVERY_KEY,
+        STEP_CREDITS, STEP_PAYMENT, STEP_AUTO_TOP_UP, STEP_COMPLETION
+    ];
+
+    // Dynamic step sequence based on login method (matches Signup.svelte logic)
+    // Use $signupStore to reactively access the store value (Svelte 5 reactive store syntax)
+    let stepSequence = $derived(
+        $signupStore.loginMethod === 'passkey' ? passkeyStepSequence : fullStepSequence
+    );
 
     // Props using Svelte 5 runes mode with callback props
     let {
@@ -75,6 +91,11 @@
             console.log('[SignupNav] Calling onback()');
             onback();
         } else if (currentStep === STEP_ONE_TIME_CODES) {
+            onlogout();
+        } else if (currentStep === STEP_RECOVERY_KEY && $signupStore.loginMethod === 'passkey') {
+            // CRITICAL: For passkey signup, recovery_key step should trigger logout (not go back to backup_codes)
+            // Passkey signup doesn't have backup_codes step, so going back from recovery_key should logout
+            console.log('[SignupNav] Passkey signup - triggering logout from recovery_key step');
             onlogout();
         } else if (currentStep === STEP_SECURE_ACCOUNT) {
             // Special case: Go back from Secure Account to Basics (skipping confirm email)
@@ -133,7 +154,13 @@
         if (step === STEP_ONE_TIME_CODES) return $_('settings.logout.text');
         if (step === STEP_TFA_APP_REMINDER) return $_('signup.connect_2fa_app.text');
         if (step === STEP_BACKUP_CODES) return $_('signup.2fa_app_reminder.text');
-        if (step === STEP_RECOVERY_KEY) return $_('signup.backup_codes.text');
+        // CRITICAL: For passkey signup, recovery_key step should show "Logout" (triggers logout)
+        // For password signup, it should show "Backup codes" (goes back to backup_codes step)
+        if (step === STEP_RECOVERY_KEY) {
+            return $signupStore.loginMethod === 'passkey' 
+                ? $_('settings.logout.text') 
+                : $_('signup.backup_codes.text');
+        }
         // if (step === STEP_PROFILE_PICTURE) return $_('settings.logout.text'); // Removed
         if (step === STEP_SETTINGS) return $_('signup.upload_profile_picture.text');
         if (step === STEP_MATE_SETTINGS) return $_('signup.settings.text');
