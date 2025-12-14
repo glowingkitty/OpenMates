@@ -3650,6 +3650,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             transform: translateY(-50%); /* Center vertically */
             height: auto; /* Let height be determined by content and max-height */
             justify-content: center; /* Center content vertically inside wrapper */
+            overflow-y: visible; /* Allow content to overflow naturally */
+            overflow-x: visible;
         }
     }
 
