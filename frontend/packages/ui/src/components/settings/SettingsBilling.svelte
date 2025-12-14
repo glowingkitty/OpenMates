@@ -23,7 +23,8 @@ Billing Settings - Credit purchases, subscription management, and auto top-up co
 
     // Low balance auto top-up state
     let lowBalanceEnabled = $state(false);
-    let lowBalanceThreshold = $state(1000);
+    // Fixed threshold: always 100 credits (cannot be changed to simplify setup)
+    const lowBalanceThreshold = 100;
 
     // Format credits with dots as thousand separators
     function formatCredits(credits: number): string {
@@ -36,7 +37,7 @@ Billing Settings - Credit purchases, subscription management, and auto top-up co
 
         // Load low balance settings from profile
         lowBalanceEnabled = profile.auto_topup_low_balance_enabled || false;
-        lowBalanceThreshold = profile.auto_topup_low_balance_threshold || 1000;
+        // Threshold is fixed at 100 credits and cannot be changed
     });
 
     // Fetch subscription details

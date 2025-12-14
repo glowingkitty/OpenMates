@@ -15,8 +15,8 @@ Low Balance Auto Top-Up Settings - Configure automatic credit purchases when bal
 
     // Low balance auto top-up state
     let lowBalanceEnabled = $state(false);
-    // Default threshold to 200 credits if not set
-    let lowBalanceThreshold = $state(200);
+    // Fixed threshold: always 100 credits (cannot be changed to simplify setup)
+    const lowBalanceThreshold = 100;
     let lowBalanceAmount = $state(10000);
     let lowBalanceCurrency = $state('EUR');
     let hasPaymentMethod = $state(false);
@@ -46,8 +46,7 @@ Low Balance Auto Top-Up Settings - Configure automatic credit purchases when bal
     // Load user profile data
     userProfile.subscribe(profile => {
         lowBalanceEnabled = profile.auto_topup_low_balance_enabled || false;
-        // Use 200 as default if threshold is not set or is 0
-        lowBalanceThreshold = profile.auto_topup_low_balance_threshold || 200;
+        // Threshold is fixed at 100 credits and cannot be changed
         lowBalanceAmount = profile.auto_topup_low_balance_amount || 10000;
         lowBalanceCurrency = profile.auto_topup_low_balance_currency?.toUpperCase() || 'EUR';
     });
@@ -96,10 +95,11 @@ Low Balance Auto Top-Up Settings - Configure automatic credit purchases when bal
             }
 
             // Update user profile store with new settings
+            // Threshold is always 100 credits (fixed, cannot be changed)
             userProfile.update(profile => ({
                 ...profile,
                 auto_topup_low_balance_enabled: lowBalanceEnabled,
-                auto_topup_low_balance_threshold: lowBalanceThreshold,
+                auto_topup_low_balance_threshold: 100, // Always 100 credits
                 auto_topup_low_balance_amount: lowBalanceAmount,
                 auto_topup_low_balance_currency: lowBalanceCurrency.toLowerCase()
             }));
@@ -136,17 +136,13 @@ Low Balance Auto Top-Up Settings - Configure automatic credit purchases when bal
     </div>
 
     {#if lowBalanceEnabled}
-        <!-- Threshold Selection -->
+        <!-- Threshold Display (Fixed at 100 credits) -->
         <div class="form-group">
             <label for="threshold">{$text('settings.billing.threshold.text')}</label>
-            <select id="threshold" bind:value={lowBalanceThreshold} disabled={isLoading}>
-                <option value={200}>200 credits</option>
-                <option value={500}>500 credits</option>
-                <option value={1000}>1,000 credits</option>
-                <option value={2000}>2,000 credits</option>
-                <option value={5000}>5,000 credits</option>
-            </select>
-            <p class="help-text">Auto top-up triggers when balance falls to or below this amount</p>
+            <div class="fixed-value-display">
+                {formatCredits(lowBalanceThreshold)} {$text('settings.billing.credits.text')}
+            </div>
+            <p class="help-text">Auto top-up triggers when balance falls to or below {formatCredits(lowBalanceThreshold)} credits (fixed value)</p>
         </div>
 
         <!-- Amount Selection -->
@@ -262,6 +258,16 @@ Low Balance Auto Top-Up Settings - Configure automatic credit purchases when bal
     .form-group select:disabled {
         opacity: 0.5;
         cursor: not-allowed;
+    }
+
+    .fixed-value-display {
+        background: var(--color-grey-10);
+        border: 1px solid var(--color-grey-30);
+        border-radius: 8px;
+        color: var(--color-grey-100);
+        padding: 10px 12px;
+        font-size: 14px;
+        font-weight: 500;
     }
 
     .help-text {

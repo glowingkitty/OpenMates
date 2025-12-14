@@ -199,6 +199,29 @@ async def handle_encrypted_chat_metadata(
         )
 
         logger.info(f"Confirmed encrypted metadata storage for chat {chat_id}")
+        
+        # CRITICAL: Broadcast encrypted_chat_metadata update to other devices
+        # This ensures that when a chat is hidden/unhidden on one device, other devices receive the update
+        # and can properly identify the chat as hidden/visible based on the new encrypted_chat_key
+        # Broadcast if encrypted_chat_key was provided (even if it's the only field being updated)
+        if encrypted_chat_key:
+            broadcast_payload = {
+                "type": "encrypted_chat_metadata",
+                "payload": {
+                    "chat_id": chat_id,
+                    "encrypted_chat_key": encrypted_chat_key,
+                    "versions": versions if versions else {}
+                }
+            }
+            try:
+                await manager.broadcast_to_user(
+                    message=broadcast_payload,
+                    user_id=user_id,
+                    exclude_device_hash=device_fingerprint_hash  # Exclude the sender's device
+                )
+                logger.info(f"Broadcasted encrypted_chat_metadata update for chat {chat_id} to other devices of user {user_id}")
+            except Exception as broadcast_error:
+                logger.error(f"Error broadcasting encrypted_chat_metadata update for chat {chat_id}: {broadcast_error}", exc_info=True)
 
     except Exception as e:
         logger.error(f"Error handling encrypted chat metadata from {user_id}/{device_fingerprint_hash}: {e}", exc_info=True)

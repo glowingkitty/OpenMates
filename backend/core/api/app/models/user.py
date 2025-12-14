@@ -36,7 +36,7 @@ class User(BaseModel):
     
     # Low balance auto top-up fields
     auto_topup_low_balance_enabled: bool = False # Enable automatic one-time top-up when balance low
-    auto_topup_low_balance_threshold: Optional[int] = None # Credit threshold that triggers auto top-up
+    auto_topup_low_balance_threshold: Optional[int] = None # Credit threshold that triggers auto top-up (fixed at 100 credits, cannot be changed to simplify setup)
     auto_topup_low_balance_amount: Optional[int] = None # Credits to purchase when threshold crossed
     auto_topup_low_balance_currency: Optional[str] = None # Currency for auto top-up purchases
     encrypted_auto_topup_last_triggered: Optional[str] = None # Encrypted timestamp of last auto top-up

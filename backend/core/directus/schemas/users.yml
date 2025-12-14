@@ -177,7 +177,7 @@ directus_users:
 
     auto_topup_low_balance_threshold:
       type: integer
-      note: "Credit threshold that triggers auto top-up (e.g., 1000 credits)"
+      note: "Credit threshold that triggers auto top-up (fixed at 100 credits, cannot be changed to simplify setup)"
 
     auto_topup_low_balance_amount:
       type: integer

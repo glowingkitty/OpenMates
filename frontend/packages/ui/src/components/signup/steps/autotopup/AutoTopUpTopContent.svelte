@@ -52,7 +52,8 @@ Auto Top-Up Top Content - Success message and auto top-up setup all in one full-
     
     const lowBalanceAmount = purchasedCredits;
     const lowBalancePrice = purchasedPrice;
-    const lowBalanceThreshold = 200;
+    // Fixed threshold: always 100 credits (cannot be changed to simplify setup)
+    const lowBalanceThreshold = 100;
 
     // Format currency symbol
     function getCurrencySymbol(curr: string): string {

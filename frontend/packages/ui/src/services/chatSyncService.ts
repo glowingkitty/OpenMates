@@ -150,6 +150,8 @@ export class ChatSynchronizationService extends EventTarget {
         webSocketService.on('chat_message_added', (payload) => chatUpdateHandlers.handleChatMessageReceivedImpl(this, payload as ChatMessageReceivedPayload)); 
         webSocketService.on('chat_message_confirmed', (payload) => chatUpdateHandlers.handleChatMessageConfirmedImpl(this, payload as ChatMessageConfirmedPayload)); 
         webSocketService.on('chat_deleted', (payload) => chatUpdateHandlers.handleChatDeletedImpl(this, payload as ChatDeletedPayload));
+        // Handle encrypted_chat_metadata updates (e.g., when chat is hidden/unhidden on another device)
+        webSocketService.on('encrypted_chat_metadata', (payload) => chatUpdateHandlers.handleEncryptedChatMetadataImpl(this, payload as { chat_id: string; encrypted_chat_key?: string; versions?: { messages_v?: number; title_v?: number; draft_v?: number } }));
         // Note: chat_metadata_for_encryption handler removed - using ai_typing_started for dual-phase architecture
         webSocketService.on('offline_sync_complete', (payload) => coreSyncHandlers.handleOfflineSyncCompleteImpl(this, payload as OfflineSyncCompletePayload));
         webSocketService.on('chat_content_batch_response', (payload) => coreSyncHandlers.handleChatContentBatchResponseImpl(this, payload as ChatContentBatchResponsePayload));

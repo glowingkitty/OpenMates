@@ -61,7 +61,8 @@ Auto Top-Up Bottom Content - Two separate toggles for low balance and monthly au
     // Low balance settings - use purchased credits as default amount
     const lowBalanceAmount = purchasedCredits;
     const lowBalancePrice = purchasedPrice;
-    const lowBalanceThreshold = 200; // Default threshold from Figma design
+    // Fixed threshold: always 100 credits (cannot be changed to simplify setup)
+    const lowBalanceThreshold = 100;
 
     // Format currency symbol
     function getCurrencySymbol(curr: string): string {

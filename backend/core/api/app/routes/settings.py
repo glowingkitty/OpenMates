@@ -394,22 +394,29 @@ async def update_low_balance_auto_topup(
     """
     Updates the user's low balance auto top-up settings.
     No 2FA verification required - users can modify their own settings.
+    
+    Note: Threshold is fixed at 100 credits and cannot be changed (to simplify setup).
+    Any threshold value sent in the request will be ignored and set to 100.
     """
     user_id = current_user.id
     logger.info(f"Updating low balance auto top-up settings for user {user_id}")
 
     # Validate input
-    if request_data.threshold < 0 or request_data.amount < 0:
-        raise HTTPException(status_code=400, detail="Threshold and amount must be positive")
+    if request_data.amount < 0:
+        raise HTTPException(status_code=400, detail="Amount must be positive")
 
     if request_data.currency.lower() not in ['eur', 'usd', 'jpy']:
         raise HTTPException(status_code=400, detail="Invalid currency. Must be EUR, USD, or JPY")
 
     try:
+        # Fixed threshold: always 100 credits (cannot be changed to simplify setup)
+        FIXED_THRESHOLD = 100
+        
         # Update settings with cache-first pattern
+        # Threshold is always set to 100, regardless of what's sent in the request
         update_data = {
             "auto_topup_low_balance_enabled": request_data.enabled,
-            "auto_topup_low_balance_threshold": request_data.threshold,
+            "auto_topup_low_balance_threshold": FIXED_THRESHOLD,
             "auto_topup_low_balance_amount": request_data.amount,
             "auto_topup_low_balance_currency": request_data.currency.lower()
         }
