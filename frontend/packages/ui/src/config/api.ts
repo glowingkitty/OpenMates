@@ -121,6 +121,7 @@ export const apiEndpoints = {
         getPurchasedGiftCards:      '/v1/payments/purchased-gift-cards',       // Get user's purchased gift cards
         getInvoices:                '/v1/payments/invoices',                   // Get user's invoices
         downloadInvoice:            '/v1/payments/invoices/{id}/download',      // Download specific invoice PDF
+        requestRefund:               '/v1/payments/refund',                       // Request refund for unused credits
         // Webhook endpoint is only called by payment providers, not the frontend
     },
     apps: {

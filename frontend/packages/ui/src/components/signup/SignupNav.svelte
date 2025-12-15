@@ -27,16 +27,17 @@
     const STEP_COMPLETION = 'completion';
 
     // Full step sequence for password signup flow
+    // Note: STEP_COMPLETION is not included as it's not a visible step - users go directly to the app after auto top-up
     const fullStepSequence = [
         STEP_ALPHA_DISCLAIMER, STEP_BASICS, STEP_CONFIRM_EMAIL, STEP_SECURE_ACCOUNT, STEP_PASSWORD,
         STEP_ONE_TIME_CODES, STEP_TFA_APP_REMINDER, STEP_BACKUP_CODES, STEP_RECOVERY_KEY,
-        STEP_CREDITS, STEP_PAYMENT, STEP_AUTO_TOP_UP, STEP_COMPLETION
+        STEP_CREDITS, STEP_PAYMENT, STEP_AUTO_TOP_UP
     ];
 
     // Passkey step sequence (skips password, one_time_codes, tfa_app_reminder, backup_codes)
     const passkeyStepSequence = [
         STEP_ALPHA_DISCLAIMER, STEP_BASICS, STEP_CONFIRM_EMAIL, STEP_SECURE_ACCOUNT, STEP_RECOVERY_KEY,
-        STEP_CREDITS, STEP_PAYMENT, STEP_AUTO_TOP_UP, STEP_COMPLETION
+        STEP_CREDITS, STEP_PAYMENT, STEP_AUTO_TOP_UP
     ];
 
     // Dynamic step sequence based on login method (matches Signup.svelte logic)
@@ -96,6 +97,10 @@
             // CRITICAL: For passkey signup, recovery_key step should trigger logout (not go back to backup_codes)
             // Passkey signup doesn't have backup_codes step, so going back from recovery_key should logout
             console.log('[SignupNav] Passkey signup - triggering logout from recovery_key step');
+            onlogout();
+        } else if (currentStep === STEP_AUTO_TOP_UP) {
+            // Auto top-up step should trigger logout when back button is clicked
+            console.log('[SignupNav] Auto top-up step - triggering logout');
             onlogout();
         } else if (currentStep === STEP_SECURE_ACCOUNT) {
             // Special case: Go back from Secure Account to Basics (skipping confirm email)
@@ -167,6 +172,7 @@
         // Credits step: show previous step text (recovery_key for both passkey and password flows)
         if (step === STEP_CREDITS) return $_('signup.recovery_key.text');
         if (step === STEP_PAYMENT) return $_('signup.select_credits.text');
+        if (step === STEP_AUTO_TOP_UP) return $_('settings.logout.text');
         return $_('signup.sign_up.text');
     }
 

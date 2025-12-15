@@ -1,0 +1,70 @@
+credit_notes:
+  type: collection
+  fields:
+    id:
+      type: uuid
+      primary: true
+      
+    invoice_id:
+      type: uuid
+      note: "Reference to the original invoice that was refunded"
+      
+    order_id:
+      type: string
+      length: 255
+      note: "The order ID from the payment provider (same as the original invoice)"
+
+    user_id_hash:
+      type: string
+      length: 512
+      note: "Hash of the user ID who received the refund"
+      
+    date:
+      type: datetime
+      note: "Date when the credit note was issued"
+      
+    credit_note_number:
+      type: string
+      length: 255
+      note: "Credit note number (format: CN-{invoice_number})"
+      
+    referenced_invoice_number:
+      type: string
+      length: 255
+      note: "The invoice number that this credit note references"
+      
+    encrypted_refund_amount:
+      type: string
+      length: 512
+      note: "Encrypted refund amount in cents (same currency as original invoice)"
+      
+    encrypted_unused_credits:
+      type: string
+      length: 512
+      note: "Encrypted number of unused credits that were refunded"
+      
+    encrypted_s3_object_key:
+      type: string
+      length: 512
+      note: "Encrypted S3 object key for the credit note PDF"
+
+    encrypted_aes_key:
+      type: string
+      length: 512
+      note: "Encrypted AES key for the credit note PDF"
+
+    aes_nonce:
+      type: string
+      length: 512
+      note: "Nonce used for AES encryption"
+      
+    encrypted_filename:
+      type: string
+      length: 512
+      note: "Encrypted filename of the credit note PDF"
+      
+    currency:
+      type: string
+      length: 10
+      note: "Currency code (lowercase, e.g., 'eur', 'usd', 'gbp')"
+

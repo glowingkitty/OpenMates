@@ -400,6 +400,18 @@ async def _async_process_invoice_and_send_email(
             # Consider cleanup? Maybe delete S3 object? For now, just raise.
             raise Exception("Failed to create Directus invoice record")
         logger.info(f"Created Directus invoice record for invoice {invoice_number}")
+        
+        # Extract invoice UUID from created item for deep link
+        invoice_uuid = None
+        if isinstance(created_item, dict):
+            invoice_uuid = created_item.get('id')
+        elif hasattr(created_item, 'id'):
+            invoice_uuid = created_item.id
+        
+        if not invoice_uuid:
+            logger.warning(f"Could not extract invoice UUID from created_item for invoice {invoice_number}. Deep link will not be generated.")
+        else:
+            logger.info(f"Extracted invoice UUID: {invoice_uuid} for invoice {invoice_number}")
 
         # 10b. Update the invoice counter in Directus and Cache
         try:
@@ -439,9 +451,39 @@ async def _async_process_invoice_and_send_email(
             # Continue with email sending even if counter update fails, but log the error
 
         # 11. Prepare Email Context
+        # Generate refund deep link URL if invoice UUID is available
+        refund_deep_link_url = None
+        if invoice_uuid:
+            try:
+                # Load shared URLs configuration to get webapp URL
+                from backend.core.api.app.services.email.config_loader import load_shared_urls
+                shared_urls = load_shared_urls()
+                
+                # Determine environment (development or production)
+                # Check if we're in development mode (common patterns: localhost, dev, test)
+                is_dev = os.getenv("ENVIRONMENT", "production").lower() in ("development", "dev", "test") or \
+                         "localhost" in os.getenv("WEBAPP_URL", "").lower()
+                env_name = "development" if is_dev else "production"
+                
+                # Get webapp URL from shared config
+                webapp_url = shared_urls.get('urls', {}).get('base', {}).get('webapp', {}).get(env_name)
+                
+                # Fallback to environment variable or default
+                if not webapp_url:
+                    webapp_url = os.getenv("WEBAPP_URL", "https://openmates.org" if not is_dev else "http://localhost:5174")
+                
+                # Generate deep link URL: {webapp_url}#settings/billing/invoices/{invoice_uuid}/refund
+                refund_deep_link_url = f"{webapp_url}#settings/billing/invoices/{invoice_uuid}/refund"
+                logger.info(f"Generated refund deep link URL for invoice {invoice_number}: {refund_deep_link_url[:50]}...")
+            except Exception as url_err:
+                logger.error(f"Failed to generate refund deep link URL for invoice {invoice_number}: {url_err}", exc_info=True)
+                # Continue without deep link - email will still be sent
+        
         email_context = {
             "darkmode": user_darkmode,
-            "invoice_id": invoice_number  # Use invoice_id instead of account_id for email template
+            "invoice_id": invoice_number,  # Use invoice_id instead of account_id for email template
+            "refund_deep_link_url": refund_deep_link_url,  # Deep link URL for refund button (for variable processor)
+            "refund_link": refund_deep_link_url  # Set refund_link directly to ensure it's used in email template
         }
         logger.info(f"Prepared email context for invoice")
 

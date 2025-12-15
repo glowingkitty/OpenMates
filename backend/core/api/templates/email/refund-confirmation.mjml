@@ -1,6 +1,6 @@
 <mjml>
   <mj-head>
-    <mj-title>{{ t.email.purchase_confirmation.text }}</mj-title>
+    <mj-title>{{ t.email.refund_confirmation.text }}</mj-title>
     <mj-attributes>
       <mj-all font-family="Arial, Helvetica, sans-serif" font-size="16px" align="center" font-weight="bold" line-height="1.3" />
       {% if darkmode %}
@@ -22,21 +22,25 @@
         <mj-column>
           <mj-image width="50px" height="50px" src="icons/coins.png" align="center" css-class="email-icon-50" />
           <mj-text font-size="30px">
-            <mark>{{ t.email.purchase_confirmation.text }}</mark>
+            <mark>{{ t.email.refund_confirmation.text }}</mark>
           </mj-text>
           <mj-text font-size="22px" padding-bottom="50px">
-            {{ t.email.thanks_for_purchase.text }}
+            {{ t.email.refund_processed.text }}
           </mj-text>
-          <mj-text padding-bottom="80px">
-            {{ t.email.invoice_pdf_attached.text }}
+          <mj-text padding-bottom="20px">
+            {{ t.email.credit_note_pdf_attached.text }}
           </mj-text>
-          {% if darkmode %}
-          <mj-text font-size="14px" color="#808080">
-          {% else %}
-          <mj-text font-size="14px" color="#808080">
+          {% if refund_amount %}
+          <mj-text font-size="18px" padding-bottom="30px">
+            {{ t.email.refund_amount.text }}: <strong>{{ currency }} {{ "%.2f"|format(refund_amount) }}</strong>
+          </mj-text>
           {% endif %}
-            {{ t.email.click_here_for_refund.text }}
-            {{ t.email.withdrawal_waiver_notice.text }}
+          {% if darkmode %}
+          <mj-text font-size="14px" color="#808080" padding-top="20px">
+          {% else %}
+          <mj-text font-size="14px" color="#808080" padding-top="20px">
+          {% endif %}
+            {{ t.email.refund_processing_time.text }}
           </mj-text>
         </mj-column>
       </mj-section>
@@ -46,3 +50,4 @@
     <mj-include path="./components/footer.mjml" />
   </mj-body>
 </mjml>
+

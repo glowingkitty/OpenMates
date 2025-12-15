@@ -73,15 +73,16 @@
     const dispatch = createEventDispatcher();
     
     // Step sequences for signup status bar (must match Signup.svelte)
+    // Note: STEP_COMPLETION is not included as it's not a visible step - users go directly to the app after auto top-up
     const fullStepSequence = [
         STEP_ALPHA_DISCLAIMER, STEP_BASICS, STEP_CONFIRM_EMAIL, STEP_SECURE_ACCOUNT, STEP_PASSWORD,
         STEP_ONE_TIME_CODES, STEP_TFA_APP_REMINDER, STEP_BACKUP_CODES, STEP_RECOVERY_KEY,
-        STEP_CREDITS, STEP_PAYMENT, STEP_AUTO_TOP_UP, STEP_COMPLETION
+        STEP_CREDITS, STEP_PAYMENT, STEP_AUTO_TOP_UP
     ];
 
     const passkeyStepSequence = [
         STEP_ALPHA_DISCLAIMER, STEP_BASICS, STEP_CONFIRM_EMAIL, STEP_SECURE_ACCOUNT, STEP_RECOVERY_KEY,
-        STEP_CREDITS, STEP_PAYMENT, STEP_AUTO_TOP_UP, STEP_COMPLETION
+        STEP_CREDITS, STEP_PAYMENT, STEP_AUTO_TOP_UP
     ];
 
     // Derive step sequence based on login method (same logic as Signup.svelte)

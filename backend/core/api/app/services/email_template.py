@@ -318,7 +318,7 @@ class EmailTemplateService:
             # These are essential account-related emails that users can't unsubscribe from
             transactional_templates = {
                 'confirm-email', 'new-device-login', 'backup-code-was-used', 
-                'recovery-key-was-used', 'purchase-confirmation', 'signup_milestone'
+                'recovery-key-was-used', 'purchase-confirmation', 'refund-confirmation', 'signup_milestone'
             }
             is_transactional = template in transactional_templates
             

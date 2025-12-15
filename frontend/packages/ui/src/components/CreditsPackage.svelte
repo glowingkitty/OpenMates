@@ -203,17 +203,6 @@
         font-weight: 500;
         z-index: 2;
     }
-
-    @media (max-width: 600px) {
-        .credits-package {
-            height: 75px;
-        }
-
-        .credits-amount {
-            bottom: 30px;
-            font-size: 16px;
-        }
-    }
     
     .recommended-badge {
         position: absolute;

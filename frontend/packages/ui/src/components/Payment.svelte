@@ -46,6 +46,7 @@
     let paymentElement: any = $state(null);
     let clientSecret: string | null = $state(null);
     let lastOrderId: string | null = $state(null);
+    let paymentIntentId: string | null = $state(null); // Store actual payment_intent_id for delayed payments
     let isLoading = $state(false);
     let isButtonCooldown = $state(false);
     let errorMessage: string | null = $state(null);
@@ -269,6 +270,9 @@
             }
             isLoading = false;
         } else if (paymentIntent && paymentIntent.status === 'succeeded') {
+            // Store payment_intent_id for later use (e.g., when webhook completes)
+            paymentIntentId = paymentIntent.id;
+            
             // For gift cards, keep in processing state until we receive gift_card_created event
             // For regular purchases, immediately show success
             if (isGiftCard) {
@@ -292,7 +296,7 @@
                                 isWaitingForConfirmation = false; // Keep listening for websocket event
                                 dispatch('paymentStateChange', { 
                                     state: paymentState,
-                                    payment_intent_id: paymentIntent.id,
+                                    payment_intent_id: paymentIntentId, // Use stored payment_intent_id
                                     isDelayed: true // Flag to indicate this was a delayed confirmation
                                 });
                             }
@@ -304,10 +308,13 @@
                 // Dispatch state change with payment_intent_id for subscription setup
                 dispatch('paymentStateChange', { 
                     state: paymentState, 
-                    payment_intent_id: paymentIntent.id 
+                    payment_intent_id: paymentIntentId // Use stored payment_intent_id
                 });
             }
         } else if (paymentIntent && paymentIntent.status === 'processing') {
+            // Store payment_intent_id for later use (e.g., when webhook completes)
+            paymentIntentId = paymentIntent.id;
+            
             paymentState = 'processing';
             isWaitingForConfirmation = true;
             dispatch('paymentStateChange', { state: paymentState }); // Dispatch state change
@@ -328,7 +335,7 @@
                             isWaitingForConfirmation = false; // Keep listening for websocket event
                             dispatch('paymentStateChange', { 
                                 state: paymentState,
-                                payment_intent_id: paymentIntent.id,
+                                payment_intent_id: paymentIntentId, // Use stored payment_intent_id
                                 isDelayed: true // Flag to indicate this was a delayed confirmation
                             });
                         }
@@ -376,9 +383,13 @@
             // (This handles the case where timeout occurred and we're waiting for webhook)
             if (paymentState === 'processing') {
                 paymentState = 'success';
+                // Use stored payment_intent_id if available, otherwise fall back to lastOrderId
+                // For Stripe, order_id is the payment_intent_id, so lastOrderId should work
+                // But prefer paymentIntentId if we have it (from immediate success case)
+                const intentId = paymentIntentId || lastOrderId;
                 dispatch('paymentStateChange', { 
                     state: paymentState,
-                    payment_intent_id: lastOrderId // Use order_id as payment_intent_id for compatibility
+                    payment_intent_id: intentId
                 });
             }
         } else {
@@ -406,9 +417,11 @@
             // Update payment state to success
             if (paymentState === 'processing') {
                 paymentState = 'success';
+                // Use stored payment_intent_id if available, otherwise fall back to lastOrderId
+                const intentId = paymentIntentId || lastOrderId;
                 dispatch('paymentStateChange', { 
                     state: paymentState,
-                    payment_intent_id: lastOrderId,
+                    payment_intent_id: intentId,
                     gift_card_code: payload.gift_card_code,
                     credits_value: payload.credits_value
                 });
@@ -417,17 +430,21 @@
             // Fast payment case - update state if still processing
             if (paymentState === 'processing') {
                 paymentState = 'success';
+                // Use stored payment_intent_id if available, otherwise fall back to lastOrderId
+                const intentId = paymentIntentId || lastOrderId;
                 dispatch('paymentStateChange', { 
                     state: paymentState,
-                    payment_intent_id: lastOrderId,
+                    payment_intent_id: intentId,
                     gift_card_code: payload.gift_card_code,
                     credits_value: payload.credits_value
                 });
             } else if (paymentState === 'success') {
                 // Already in success state, but dispatch again with gift card info
+                // Use stored payment_intent_id if available, otherwise fall back to lastOrderId
+                const intentId = paymentIntentId || lastOrderId;
                 dispatch('paymentStateChange', { 
                     state: paymentState,
-                    payment_intent_id: lastOrderId,
+                    payment_intent_id: intentId,
                     gift_card_code: payload.gift_card_code,
                     credits_value: payload.credits_value
                 });

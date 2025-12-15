@@ -42,6 +42,7 @@
     import { webSocketService } from '../../services/websocketService'; // Import WebSocket service
     import { chatSyncService } from '../../services/chatSyncService'; // Import chat sync service for updating last_opened
     import { notificationStore } from '../../stores/notificationStore'; // Import notification store for payment failure notifications
+    import { pricingTiers } from '../../config/pricing'; // Import pricing tiers to get price for purchased credits
 
     // Dynamic imports for step contents
     import ConfirmEmailTopContent from './steps/confirmemail/ConfirmEmailTopContent.svelte';
@@ -71,8 +72,6 @@
     import PaymentBottomContent from './steps/payment/PaymentBottomContent.svelte';
     import RecoveryKeyTopContent from './steps/recoverykey/RecoveryKeyTopContent.svelte';
     import RecoveryKeyBottomContent from './steps/recoverykey/RecoveryKeyBottomContent.svelte';
-    import AutoTopUpTopContent from './steps/autotopup/AutoTopUpTopContent.svelte';
-    import AutoTopUpBottomContent from './steps/autotopup/AutoTopUpBottomContent.svelte';
 
     // Import API utilities
     import { getApiUrl, apiEndpoints } from '../../config/api';
@@ -122,15 +121,16 @@
         easing: cubicInOut
     };
 
+    // Note: STEP_COMPLETION is not included as it's not a visible step - users go directly to the app after auto top-up
     const fullStepSequence = [
         STEP_ALPHA_DISCLAIMER, STEP_BASICS, STEP_CONFIRM_EMAIL, STEP_SECURE_ACCOUNT, STEP_PASSWORD,
         STEP_ONE_TIME_CODES, STEP_TFA_APP_REMINDER, STEP_BACKUP_CODES, STEP_RECOVERY_KEY, // STEP_PROFILE_PICTURE,
-        STEP_CREDITS, STEP_PAYMENT, STEP_AUTO_TOP_UP, STEP_COMPLETION
+        STEP_CREDITS, STEP_PAYMENT, STEP_AUTO_TOP_UP
     ];
 
     const passkeyStepSequence = [
         STEP_ALPHA_DISCLAIMER, STEP_BASICS, STEP_CONFIRM_EMAIL, STEP_SECURE_ACCOUNT, STEP_RECOVERY_KEY,
-        STEP_CREDITS, STEP_PAYMENT, STEP_AUTO_TOP_UP, STEP_COMPLETION
+        STEP_CREDITS, STEP_PAYMENT, STEP_AUTO_TOP_UP
     ];
 
     let stepSequence = $derived(
@@ -214,6 +214,33 @@
             }
         };
         
+        // Listen for payment completion to get actual purchased credits
+        // CRITICAL: This ensures we use the actual purchased credits (e.g., 1000) instead of default (21000)
+        const handlePaymentCompleted = (payload: { order_id: string, credits_purchased: number, current_credits: number }) => {
+            console.debug(`[Signup] Received payment_completed notification via WebSocket:`, payload);
+            
+            // Update selectedCreditsAmount with actual purchased credits from server
+            // This ensures AutoTopUp component gets the correct value (e.g., 1000, not 21000)
+            if (payload.credits_purchased && typeof payload.credits_purchased === 'number') {
+                selectedCreditsAmount = payload.credits_purchased;
+                console.debug(`[Signup] Updated selectedCreditsAmount from payment_completed: ${selectedCreditsAmount}`);
+                
+                // Also update selectedPrice based on the actual purchased credits
+                // Find the tier to get the correct price
+                const tier = pricingTiers.find(t => t.credits === selectedCreditsAmount);
+                if (tier) {
+                    const currencyKey = selectedCurrency.toLowerCase() as 'eur' | 'usd' | 'jpy';
+                    selectedPrice = tier.price[currencyKey] || tier.price.eur;
+                    console.debug(`[Signup] Updated selectedPrice from tier: ${selectedPrice} ${selectedCurrency}`);
+                }
+            }
+            
+            // Update credits in profile
+            if (payload.current_credits !== undefined) {
+                updateProfile({ credits: payload.current_credits });
+            }
+        };
+        
         // Listen for payment failure notifications via WebSocket
         // This handles cases where payment fails minutes after the user has moved on
         // Shows notification even if Payment component is unmounted
@@ -228,11 +255,20 @@
         };
         
         webSocketService.on('user_credits_updated', handleCreditUpdate);
+        webSocketService.on('payment_completed', handlePaymentCompleted);
         webSocketService.on('payment_failed', handlePaymentFailed);
+        
+        // CRITICAL: If we're on AUTO_TOP_UP step after page reload, check if payment method exists
+        // This ensures paymentMethodSaved state is correctly set even after reload
+        if (currentStep === STEP_AUTO_TOP_UP) {
+            console.debug('[Signup] On AUTO_TOP_UP step after reload, checking payment method status...');
+            checkPaymentMethodOnReload();
+        }
         
         // Return cleanup function
         return () => {
             webSocketService.off('user_credits_updated', handleCreditUpdate);
+            webSocketService.off('payment_completed', handlePaymentCompleted);
             webSocketService.off('payment_failed', handlePaymentFailed);
         };
     });
@@ -741,6 +777,14 @@
     async function handlePaymentStateChange(event) {
         paymentState = event.detail.state;
         
+        // CRITICAL: Update selectedCreditsAmount and selectedPrice from payment event if provided
+        // This ensures we use the actual purchased credits, not the default 21000
+        if (event.detail.credits_purchased !== undefined) {
+            selectedCreditsAmount = event.detail.credits_purchased;
+            console.debug(`[Signup] Updated selectedCreditsAmount from payment event: ${selectedCreditsAmount}`);
+        }
+        // Note: price is not included in payment event, but we can get it from pricing tiers if needed
+        
         // If payment failed, reset to idle state after a short delay
         if (paymentState === 'failure') {
             setTimeout(() => {
@@ -748,6 +792,7 @@
             }, 500);
         } else if (paymentState === 'success') { // Add success handling
             console.debug("Payment successful, saving payment method...");
+            console.debug(`[Signup] Using selectedCreditsAmount: ${selectedCreditsAmount}, selectedPrice: ${selectedPrice}`);
             
             // Reset payment method save status
             paymentMethodSaved = false;
@@ -755,6 +800,23 @@
             
             // Save payment_intent_id for later subscription creation
             paymentIntentId = event.detail.payment_intent_id;
+            
+            // CRITICAL: Validate payment_intent_id is present
+            if (!paymentIntentId) {
+                console.error("[Signup] Payment succeeded but payment_intent_id is missing from event:", event.detail);
+                paymentMethodSaveError = "Payment succeeded but payment method ID is missing. Please contact support.";
+                notificationStore.error(
+                    "Payment succeeded but payment method could not be saved. Please contact support or set up auto top-up later in settings.",
+                    10000
+                );
+                // Still proceed to auto top-up step - user can skip subscription setup
+                setTimeout(() => {
+                    goToStep(STEP_AUTO_TOP_UP);
+                }, 500);
+                return;
+            }
+            
+            console.debug(`[Signup] Calling save-payment-method endpoint with payment_intent_id: ${paymentIntentId}`);
             
             // Save payment method ID to backend for subscription use
             // CRITICAL: Wait for this to complete successfully before proceeding
@@ -771,6 +833,8 @@
                         payment_intent_id: paymentIntentId
                     })
                 });
+                
+                console.debug(`[Signup] save-payment-method response status: ${response.status}`);
                 
                 if (response.ok) {
                     const result = await response.json();
@@ -832,7 +896,8 @@
     async function handleAutoTopUpComplete(event) {
         console.debug("Auto top-up step completed, finishing signup...");
         // Complete signup and load main app
-        // Update last_opened to signal completion of signup flow
+        // CRITICAL: Update last_opened to '/chat/new' to signal completion of signup flow
+        // This ensures signup doesn't reopen on page reload or login
         updateProfile({ last_opened: '/chat/new' });
 
         // Ensure authentication state is properly updated
@@ -844,6 +909,20 @@
             console.debug("Ensuring WebSocket connection is established after signup completion...");
             await webSocketService.connect();
             console.debug("WebSocket connection confirmed after signup completion");
+            
+            // CRITICAL: Update server-side last_opened via WebSocket to ensure it's synced
+            // This ensures signup doesn't reopen on login from another device or after server restart
+            if ($authStore.isAuthenticated) {
+                try {
+                    // Send '/chat/new' to server to update last_opened
+                    // Note: We pass '/chat/new' directly (not null) so server updates last_opened
+                    await chatSyncService.sendSetActiveChat('/chat/new');
+                    console.debug("[Signup] Sent set_active_chat to server with '/chat/new' to complete signup");
+                } catch (error) {
+                    console.warn("[Signup] Failed to update last_opened on server after signup completion:", error);
+                    // Continue - client-side update is sufficient, server update will happen when WS reconnects
+                }
+            }
         } catch (error) {
             console.warn("Failed to establish WebSocket connection after signup:", error);
             // Continue with signup completion even if WebSocket fails
@@ -857,6 +936,42 @@
         }
 
         console.debug("Transitioning to chat now.");
+    }
+
+    /**
+     * Check payment method status on page reload.
+     * This is called when the user is on AUTO_TOP_UP step after a page reload.
+     * Updates paymentMethodSaved state based on backend response.
+     */
+    async function checkPaymentMethodOnReload() {
+        try {
+            console.debug('[Signup] Checking payment method status from backend...');
+            const response = await fetch(getApiUrl() + apiEndpoints.payments.hasPaymentMethod, {
+                method: 'GET',
+                credentials: 'include'
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                paymentMethodSaved = data.has_payment_method === true;
+                console.debug(`[Signup] Payment method status from backend: ${paymentMethodSaved}`);
+                
+                if (!paymentMethodSaved) {
+                    paymentMethodSaveError = 'No payment method found. Please complete payment first.';
+                    console.warn('[Signup] No payment method found on reload - user may need to complete payment');
+                } else {
+                    paymentMethodSaveError = null;
+                }
+            } else {
+                console.warn('[Signup] Failed to check payment method status:', response.status);
+                paymentMethodSaved = false;
+                paymentMethodSaveError = 'Failed to check payment method status';
+            }
+        } catch (error) {
+            console.error('[Signup] Error checking payment method status on reload:', error);
+            paymentMethodSaved = false;
+            paymentMethodSaveError = error instanceof Error ? error.message : 'Unknown error checking payment method';
+        }
     }
 
     /**
@@ -913,78 +1028,82 @@
         const { credits, bonusCredits, price, currency } = event.detail;
         console.debug("Activating subscription:", { credits, bonusCredits, price, currency });
 
+        // Track whether subscription was successfully activated
+        let subscriptionActivated = false;
+
         // Check if payment method was saved successfully
         if (!paymentMethodSaved) {
             console.error("Cannot create subscription: Payment method was not saved successfully");
             notificationStore.error(
-                "Cannot activate auto top-up: Payment method was not saved. Please try again or set up auto top-up later in settings.",
+                "Cannot activate auto top-up: Payment method was not saved. You can set up auto top-up later in settings.",
                 10000
             );
-            // Don't complete signup - let user try again or skip
-            return;
-        }
+            // Still complete signup - user has finished the signup flow
+            // They can set up auto top-up later in settings
+        } else {
+            try {
+                // CRITICAL: Verify payment method is available before attempting subscription creation
+                // Poll the endpoint to ensure cache is updated and payment method is accessible
+                // Increased attempts and timeout to account for cache propagation delay
+                console.debug("[Signup] Verifying payment method availability before creating subscription...");
+                const isAvailable = await pollPaymentMethodAvailability(20, 8000); // 20 attempts, 8 seconds total
+                
+                if (!isAvailable) {
+                    console.error("[Signup] Payment method not available after polling - subscription creation will likely fail");
+                    notificationStore.error(
+                        "Payment method is not yet available. You can set up auto top-up later in settings.",
+                        10000
+                    );
+                    // Still complete signup - user has finished the signup flow
+                } else {
+                    // Call backend API to create subscription
+                    const response = await fetch(getApiUrl() + apiEndpoints.payments.createSubscription, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Origin': window.location.origin
+                        },
+                        credentials: 'include',
+                        body: JSON.stringify({
+                            credits_amount: credits,
+                            currency: currency.toLowerCase()
+                        })
+                    });
 
-        try {
-            // CRITICAL: Verify payment method is available before attempting subscription creation
-            // Poll the endpoint to ensure cache is updated and payment method is accessible
-            // Increased attempts and timeout to account for cache propagation delay
-            console.debug("[Signup] Verifying payment method availability before creating subscription...");
-            const isAvailable = await pollPaymentMethodAvailability(20, 8000); // 20 attempts, 8 seconds total
-            
-            if (!isAvailable) {
-                console.error("[Signup] Payment method not available after polling - subscription creation will likely fail");
+                    if (response.ok) {
+                        const subscriptionData = await response.json();
+                        console.debug("Subscription created successfully:", subscriptionData);
+                        subscriptionActivated = true;
+                        // Show success notification
+                        notificationStore.success(
+                            "Auto top-up activated successfully!",
+                            5000
+                        );
+                    } else {
+                        const errorText = await response.text();
+                        console.error("Failed to create subscription:", errorText);
+                        // Show error notification
+                        notificationStore.error(
+                            `Failed to activate auto top-up: ${errorText || "Unknown error"}. You can set up auto top-up later in settings.`,
+                            10000
+                        );
+                        // Still complete signup - user has finished the signup flow
+                    }
+                }
+            } catch (error) {
+                console.error("Error creating subscription:", error);
+                const errorMessage = error instanceof Error ? error.message : "Unknown error";
                 notificationStore.error(
-                    "Payment method is not yet available. Please wait a moment and try again, or set up auto top-up later in settings.",
+                    `Error activating auto top-up: ${errorMessage}. You can set up auto top-up later in settings.`,
                     10000
                 );
-                return;
+                // Still complete signup - user has finished the signup flow
             }
-            
-            // Call backend API to create subscription
-            const response = await fetch(getApiUrl() + apiEndpoints.payments.createSubscription, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Origin': window.location.origin
-                },
-                credentials: 'include',
-                body: JSON.stringify({
-                    credits_amount: credits,
-                    currency: currency.toLowerCase()
-                })
-            });
-
-            if (response.ok) {
-                const subscriptionData = await response.json();
-                console.debug("Subscription created successfully:", subscriptionData);
-                // Show success notification
-                notificationStore.success(
-                    "Auto top-up activated successfully!",
-                    5000
-                );
-            } else {
-                const errorText = await response.text();
-                console.error("Failed to create subscription:", errorText);
-                // Show error notification
-                notificationStore.error(
-                    `Failed to activate auto top-up: ${errorText || "Unknown error"}. You can set up auto top-up later in settings.`,
-                    10000
-                );
-                // Don't complete signup - let user know what happened
-                return;
-            }
-        } catch (error) {
-            console.error("Error creating subscription:", error);
-            const errorMessage = error instanceof Error ? error.message : "Unknown error";
-            notificationStore.error(
-                `Error activating auto top-up: ${errorMessage}. You can set up auto top-up later in settings.`,
-                10000
-            );
-            // Don't complete signup - let user know what happened
-            return;
         }
 
-        // Complete signup only if subscription was created successfully
+        // CRITICAL: Always complete signup and update last_opened to '/chat/new' when finish button is pressed
+        // This ensures signup doesn't reopen on page reload or login, even if subscription activation failed
+        // User has completed the signup flow and can set up auto top-up later in settings if needed
         await handleAutoTopUpComplete({ detail: {} });
     }
 
@@ -1066,7 +1185,7 @@
         {:else}
             <div class="step-layout">
                 <!-- Top content wrapper -->
-                <div class="top-content-wrapper" class:expanded={isExpandedTopContent}>
+                <div class="top-content-wrapper" class:expanded={isExpandedTopContent} class:payment-step={currentStep === STEP_PAYMENT}>
                     <div class="top-content">
                         <ExpandableHeader 
                             visible={showExpandedHeader} 
@@ -1119,14 +1238,21 @@
                                             on:paymentStateChange={handlePaymentStateChange}
                                         />
                                     {:else if currentStep === STEP_AUTO_TOP_UP}
-                                        <AutoTopUpTopContent
+                                        <PaymentTopContent
+                                            credits_amount={selectedCreditsAmount}
+                                            price={selectedPrice}
+                                            currency={selectedCurrency}
+                                            showSuccess={true}
                                             purchasedCredits={selectedCreditsAmount}
                                             purchasedPrice={selectedPrice}
-                                            currency={selectedCurrency}
                                             paymentMethodSaved={paymentMethodSaved}
                                             paymentMethodSaveError={paymentMethodSaveError}
                                             oncomplete={handleAutoTopUpComplete}
                                             onactivate-subscription={handleActivateSubscription}
+                                            on:paymentMethodStatusUpdate={(event) => {
+                                                paymentMethodSaved = event.detail.saved;
+                                                paymentMethodSaveError = event.detail.error;
+                                            }}
                                         />
                                     {/if}
                                 </div>
@@ -1207,10 +1333,16 @@
                                                 on:selectedApp={handleSelectedApp}
                                             />
                                         {:else if currentStep === STEP_PAYMENT}
+                                            <PaymentBottomContent />
+                                        {:else if currentStep === STEP_AUTO_TOP_UP}
                                             <PaymentBottomContent
-                                                on:step={handleStep}
-                                                on:uploading={handleImageUploading}
-                                                on:selectedApp={handleSelectedApp}
+                                                purchasedCredits={selectedCreditsAmount}
+                                                purchasedPrice={selectedPrice}
+                                                currency={selectedCurrency}
+                                                paymentMethodSaved={paymentMethodSaved}
+                                                paymentMethodSaveError={paymentMethodSaveError}
+                                                oncomplete={handleAutoTopUpComplete}
+                                                onactivate-subscription={handleActivateSubscription}
                                             />
                                         {/if}
                                     {/if}

@@ -4439,7 +4439,7 @@ limited_refund:
   verified_by_human: []
 i_agree_to_limited_refund:
   context: toggle text for agreeing to limited refund
-  en: I agree that I can request a refund only for unused credits within 14 days after purchase. I also consent to the immediate execution of the digital services provided by OpenMates, acknowledging that my right of withdrawal expires once the credits are used.
+  en: I agree that I can request a refund only for unused credits within 14 days after purchase. I also consent to the immediate execution of the digital services provided by OpenMates, acknowledging that my right of withdrawal expires once the credits are used. Purchased gift cards are excluded and cannot be refunded once they have been used.
   de: Ich stimme zu, dass ich eine Rückerstattung nur für ungenutzte Credits innerhalb von 14 Tagen nach dem Kauf anfordern kann. Ich stimme auch der sofortigen Ausführung der von OpenMates bereitgestellten digitalen Dienste zu und erkenne an, dass mein Widerrufsrecht erlischt, sobald die Credits verwendet werden.
   zh: 我同意我只能在购买后14天内申请未使用点数的退款。我也同意立即执行OpenMates提供的数字服务，并承认一旦点数被使用，我的撤回权即失效。
   es: Acepto que solo puedo solicitar un reembolso por créditos no utilizados dentro de los 14 días posteriores a la compra. También consiento la ejecución inmediata de los servicios digitales proporcionados por OpenMates, reconociendo que mi derecho de desistimiento expira una vez que se utilizan los créditos.

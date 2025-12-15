@@ -746,6 +746,144 @@ click_here_for_refund:
   cs: ''
   sv: ''
   verified_by_human: []
+refund_confirmation:
+  context: Email subject & header for refund confirmation
+  en: Refund confirmation (Credit Note {credit_note_id})
+  de: Rückerstattungsbestätigung (Gutschrift {credit_note_id})
+  zh: 退款确认（贷记单 {credit_note_id}）
+  es: Confirmación de reembolso (Nota de crédito {credit_note_id})
+  fr: Confirmation de remboursement (Note de crédit {credit_note_id})
+  pt: ''
+  ru: ''
+  ja: 返金確認（クレジットノート {credit_note_id}）
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+refund_processed:
+  context: Email subheader for refund confirmation
+  en: Your refund has been processed successfully!
+  de: Deine Rückerstattung wurde erfolgreich bearbeitet!
+  zh: 您的退款已成功处理！
+  es: ¡Tu reembolso ha sido procesado exitosamente!
+  fr: Votre remboursement a été traité avec succès !
+  pt: ''
+  ru: ''
+  ja: 返金が正常に処理されました！
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+credit_note_pdf_attached:
+  context: Email body for refund confirmation
+  en: You can find the credit note PDF attached to this e-mail, as well as in your Billing settings on OpenMates.
+  de: Die Gutschrifts-PDF ist dieser E-Mail angehängt und auch in deinen Abrechnungseinstellungen bei OpenMates zu finden.
+  zh: 贷记单 PDF 已附在此电子邮件中，您也可以在 OpenMates 的账单设置中找到它。
+  es: Puedes encontrar el PDF de la nota de crédito adjunto a este correo electrónico, así como en tu configuración de Facturación en OpenMates.
+  fr: Vous trouverez la note de crédit PDF en pièce jointe à cet e-mail, ainsi que dans vos paramètres de facturation sur OpenMates.
+  pt: ''
+  ru: ''
+  ja: クレジットノートのPDFはこのメールに添付されており、OpenMatesの請求設定でも確認できます。
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+refund_amount:
+  context: Refund amount label in email
+  en: Refund amount
+  de: Rückerstattungsbetrag
+  zh: 退款金额
+  es: Monto del reembolso
+  fr: Montant du remboursement
+  pt: ''
+  ru: ''
+  ja: 返金額
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+refund_processing_time:
+  context: Information about refund processing time
+  en: The refund will be credited back to your original payment method within 5-10 business days.
+  de: Die Rückerstattung wird innerhalb von 5-10 Werktagen auf deine ursprüngliche Zahlungsmethode zurückerstattet.
+  zh: 退款将在5-10个工作日内退回到您的原始付款方式。
+  es: El reembolso se acreditará a tu método de pago original en un plazo de 5 a 10 días hábiles.
+  fr: Le remboursement sera crédité sur votre méthode de paiement d'origine dans un délai de 5 à 10 jours ouvrables.
+  pt: ''
+  ru: ''
+  ja: 返金は5〜10営業日以内に元の支払い方法に返金されます。
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+withdrawal_waiver_notice:
+  context: Legal notice about withdrawal waiver in purchase confirmation email
+  en: 'You have expressly requested that we begin providing the digital service before the withdrawal period ends. You acknowledge that your right of withdrawal expires once you start using the service. Purchased gift cards are excluded and cannot be refunded once they have been used.'
+  de: 'Sie haben ausdrücklich verlangt, dass wir mit der Bereitstellung des digitalen Dienstes beginnen, bevor die Widerrufsfrist endet. Sie erkennen an, dass Ihr Widerrufsrecht erlischt, sobald Sie mit der Nutzung des Dienstes beginnen. Gekaufte Geschenkkarten sind ausgeschlossen und können nach Verwendung nicht erstattet werden.'
+  zh: '您已明确要求我们在撤回期结束之前开始提供数字服务。您承认一旦开始使用该服务，您的撤回权即告失效。购买的礼品卡被排除在外，使用后无法退款。'
+  es: 'Ha solicitado expresamente que comencemos a prestar el servicio digital antes de que finalice el período de desistimiento. Reconoce que su derecho de desistimiento expira una vez que comience a utilizar el servicio. Las tarjetas de regalo compradas están excluidas y no pueden reembolsarse una vez utilizadas.'
+  fr: 'Vous avez expressément demandé que nous commencions à fournir le service numérique avant la fin de la période de rétractation. Vous reconnaissez que votre droit de rétractation expire une fois que vous commencez à utiliser le service. Les cartes cadeaux achetées sont exclues et ne peuvent pas être remboursées une fois utilisées.'
+  pt: ''
+  ru: ''
+  ja: 'お客様は、撤回期間が終了する前にデジタルサービスの提供を開始するよう明示的に要求されました。サービスの使用を開始すると撤回権が失効することを承認されます。購入したギフトカードは除外され、使用後は返金できません。'
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
 signup_milestone:
   context: Email subject & header for signup milestone notification
   en: User Signup Milestone Reached

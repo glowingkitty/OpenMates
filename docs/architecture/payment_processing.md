@@ -19,22 +19,55 @@ Users need to setup 2FA OTP app (if they signup via password) or passkey during 
 
 ### Limited refund policy
 
-Clearly explain to user that unused credits can be refunded within 30 days. But used credits are not refundable (since we are charged for API usage of AI models and other APIs)
+Clearly explain to user that unused credits can be refunded within 14 days. But used credits are not refundable (since we are charged for API usage of AI models and other APIs). Purchased gift cards are excluded and cannot be refunded once they have been used.
+
+**EU/German Consumer Law Compliance:**
+- Users must explicitly consent to immediate execution of digital services via unchecked checkbox at checkout
+- Consent is logged with timestamp and hashed IP address for compliance
+- Purchase confirmation email includes withdrawal waiver notice (durable medium requirement)
+- Invoice PDF includes withdrawal waiver notice
+- Once credits are used, withdrawal right expires (legally protected)
+- Gift cards cannot be refunded once redeemed
 
 ### Tier system
 
-Limit potential fees by chargebacks by limiting the amount of credits that can be purchased per month, until user is more trusted.
+Limit potential fees by chargebacks by limiting the amount that can be purchased per month via card payment, until user is more trusted. Limits are based on consecutive months without chargebacks.
 
-| | Tier 1 | Tier 2 | Tier 3 |
-| --- | --- | --- | --- |
-| Max credits purchases per month | 3 | 5 | unlimited |
-| Max purchases per month (via card) | 50€ | 100€ | unlimited |
+The tier system uses efficient O(1) checking by caching tier data on the user record, avoiding expensive invoice queries on every purchase.
 
-**Tier 1:** New users
+| Tier | Monthly Limit (EUR) | Requirement |
+| --- | --- | --- |
+| Tier 0 | No card payments | 2+ chargebacks (SEPA transfer only) |
+| Tier 1 | 75€ | New users (default) or after 1 chargeback |
+| Tier 2 | 150€ | 3 consecutive months without chargeback |
+| Tier 3 | 300€ | 6 consecutive months without chargeback |
+| Tier 4 | 500€ | 12 consecutive months without chargeback |
 
-**Tier 2:** Users with credit purchases in 3 separate months (doesn't need to be consecutive)
+**Tier Progression:**
+- Users start at Tier 1 (75€/month limit)
+- After 3 consecutive months with successful payments and no chargebacks → Tier 2 (150€/month)
+- After 6 consecutive months without chargeback → Tier 3 (300€/month)
+- After 12 consecutive months without chargeback → Tier 4 (500€/month)
+- Users with 1 chargeback: Maximum tier is Tier 1 (cannot progress beyond)
+- Users with 2+ chargebacks: Tier 0 (no card payments, SEPA only)
 
-**Tier 3:** Users with credit purchases in 6 separate months (doesn't need to be consecutive)
+**Chargeback Penalty System (Graduated):**
+- **First chargeback**: Reset to Tier 1 (75€/month limit), reset consecutive months counter to 0
+- **Second chargeback**: Reset to Tier 0 (no card payments allowed, SEPA transfer only)
+- Chargeback count is tracked and prevents tier progression beyond Tier 1
+
+**Tier Reset:**
+- First chargeback: Resets to Tier 1, resets consecutive months counter to 0
+- Second chargeback: Resets to Tier 0 (no card payments), resets consecutive months counter to 0
+- Monthly spending counter resets automatically at the start of each calendar month
+
+**Implementation Details:**
+- Tier limits are checked before creating payment orders (fast cached lookup)
+- Tier 0 users are blocked from card payments with clear error message directing to SEPA
+- Monthly spending is tracked in encrypted field on user record
+- Currency conversion: USD and JPY purchases are converted to EUR for limit checking
+- Purchase count limits removed: only total monthly spending value is limited
+- SEPA transfers are not subject to tier limits (for legitimate power users, including Tier 0 users)
 
 ### SEPA transfer / Sofortüberweisung
 

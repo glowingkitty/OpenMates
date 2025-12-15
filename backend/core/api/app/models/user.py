@@ -14,6 +14,7 @@ class User(BaseModel):
     # Consent fields (store timestamp as string)
     consent_privacy_and_apps_default_settings: Optional[str] = None
     consent_mates_default_settings: Optional[str] = None
+    consent_withdrawal_waiver_timestamp: Optional[str] = None # Timestamp of withdrawal waiver consent (for EU/German consumer law compliance)
     language: Optional[str] = 'en' # User's preferred language, default 'en'
     darkmode: bool = False # User's dark mode preference, default false
     gifted_credits_for_signup: Optional[int] = None # Gifted credits from signup invite

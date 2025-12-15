@@ -846,7 +846,18 @@
         if (window.location.hash.startsWith('#settings')) {
             panelState.openSettings();
             const settingsPath = window.location.hash.substring('#settings'.length);
-            if (settingsPath.startsWith('/')) {
+            
+            // Check if this is a refund deep link (e.g., #settings/billing/invoices/{invoice_id}/refund)
+            // For refund deep links, we navigate to billing/invoices but keep the hash for SettingsInvoices to process
+            const refundMatch = settingsPath.match(/^\/billing\/invoices\/[^\/]+\/refund$/);
+            
+            if (refundMatch) {
+                // This is a refund deep link - navigate to billing/invoices
+                // SettingsInvoices will handle the refund processing
+                console.debug(`[+page.svelte] Refund deep link detected: ${window.location.hash}`);
+                settingsDeepLink.set('billing/invoices');
+                // Don't clear the hash - SettingsInvoices needs it to process the refund
+            } else if (settingsPath.startsWith('/')) {
                 // Handle paths like #settings/appstore -> app_store
                 let path = settingsPath.substring(1); // Remove leading slash
                 // Map common aliases to actual settings paths
@@ -854,17 +865,23 @@
                     path = 'app_store';
                 }
                 settingsDeepLink.set(path);
+                
+                // Clear the hash after processing to keep URL clean
+                // (similar to how signup and chat deep links are cleared)
+                window.history.replaceState({}, '', window.location.pathname + window.location.search);
             } else if (settingsPath === '') {
                  settingsDeepLink.set('main'); // Default to main settings if just #settings
+                 
+                 // Clear the hash after processing
+                 window.history.replaceState({}, '', window.location.pathname + window.location.search);
             } else {
                  // Handle invalid settings path?
                  console.warn(`[+page.svelte] Invalid settings deep link hash: ${window.location.hash}`);
                  settingsDeepLink.set('main'); // Default to main on invalid hash
+                 
+                 // Clear the hash after processing
+                 window.history.replaceState({}, '', window.location.pathname + window.location.search);
             }
-            
-            // Clear the hash after processing to keep URL clean
-            // (similar to how signup and chat deep links are cleared)
-            window.history.replaceState({}, '', window.location.pathname + window.location.search);
         } else if (window.location.hash.startsWith('#chat_id=') || window.location.hash.startsWith('#chat-id=')) {
             // Handle chat deep linking from URL
             // Support both #chat_id= and #chat-id= formats
@@ -932,7 +949,18 @@
             
             panelState.openSettings();
             const settingsPath = window.location.hash.substring('#settings'.length);
-            if (settingsPath.startsWith('/')) {
+            
+            // Check if this is a refund deep link (e.g., #settings/billing/invoices/{invoice_id}/refund)
+            // For refund deep links, we navigate to billing/invoices but keep the hash for SettingsInvoices to process
+            const refundMatch = settingsPath.match(/^\/billing\/invoices\/[^\/]+\/refund$/);
+            
+            if (refundMatch) {
+                // This is a refund deep link - navigate to billing/invoices
+                // SettingsInvoices will handle the refund processing
+                console.debug(`[+page.svelte] Refund deep link detected: ${window.location.hash}`);
+                settingsDeepLink.set('billing/invoices');
+                // Don't clear the hash - SettingsInvoices needs it to process the refund
+            } else if (settingsPath.startsWith('/')) {
                 // Handle paths like #settings/appstore -> app_store
                 let path = settingsPath.substring(1); // Remove leading slash
                 // Map common aliases to actual settings paths
@@ -940,17 +968,23 @@
                     path = 'app_store';
                 }
                 settingsDeepLink.set(path);
+                
+                // Clear the hash after processing to keep URL clean
+                // (similar to how signup and chat deep links are cleared)
+                window.history.replaceState({}, '', window.location.pathname + window.location.search);
             } else if (settingsPath === '') {
                  settingsDeepLink.set('main'); // Default to main settings if just #settings
+                 
+                 // Clear the hash after processing
+                 window.history.replaceState({}, '', window.location.pathname + window.location.search);
             } else {
                  // Handle invalid settings path?
                  console.warn(`[+page.svelte] Invalid settings deep link hash: ${window.location.hash}`);
                  settingsDeepLink.set('main'); // Default to main on invalid hash
+                 
+                 // Clear the hash after processing
+                 window.history.replaceState({}, '', window.location.pathname + window.location.search);
             }
-            
-            // Clear the hash after processing to keep URL clean
-            // (similar to how signup and chat deep links are cleared)
-            window.history.replaceState({}, '', window.location.pathname + window.location.search);
         } else if (window.location.hash.startsWith('#chat_id=') || window.location.hash.startsWith('#chat-id=')) {
             // Support both #chat_id= and #chat-id= formats
             const chatId = window.location.hash.startsWith('#chat_id=') 

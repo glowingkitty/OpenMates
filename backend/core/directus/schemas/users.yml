@@ -238,3 +238,9 @@ directus_users:
       length: 256
       nullable: true
       note: "ISO timestamp of last successful payment (for tracking months with payments to increment consecutive_months_without_chargeback)"
+
+    consent_withdrawal_waiver_timestamp:
+      type: string
+      length: 256
+      nullable: true
+      note: "ISO timestamp of when the user consented to the withdrawal waiver (agreed to immediate execution of digital services, acknowledging that withdrawal right expires once credits are used). Required for EU/German consumer law compliance."

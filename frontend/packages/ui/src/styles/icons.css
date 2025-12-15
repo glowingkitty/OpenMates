@@ -181,6 +181,13 @@
   }
 }
 
+.subsetting_icon_document {
+  &::after {
+    -webkit-mask-image: url('@openmates/ui/static/icons/pdf.svg');
+    mask-image: url('@openmates/ui/static/icons/pdf.svg');
+  }
+}
+
 .subsetting_icon_calendar {
   &::after {
     -webkit-mask-image: url('@openmates/ui/static/icons/calendar.svg');
@@ -856,6 +863,13 @@ div.clickable-icon {
 
   &::before {
       background-image: url('@openmates/ui/static/icons/billing.svg');
+  }
+}
+
+.icon.refund {
+  background: var(--color-primary);
+  &::before {
+      background-image: url('@openmates/ui/static/icons/reload.svg');
   }
 }
 

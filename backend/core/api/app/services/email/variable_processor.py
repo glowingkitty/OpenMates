@@ -20,9 +20,17 @@ def process_template_variables(context: Dict[Any, Any]) -> Dict[Any, Any]:
     support_email = processed_context.get('contact_email', 'support@openmates.org')
     
     # Set defaults for required variables if not provided
-    if 'refund_link' not in processed_context or not processed_context['refund_link']:
+    # CRITICAL: Prioritize refund_deep_link_url over default mailto link
+    # The purchase confirmation email generates a deep link URL that should be used instead of mailto
+    # Check if refund_deep_link_url is available first (from purchase confirmation email)
+    if 'refund_deep_link_url' in processed_context and processed_context.get('refund_deep_link_url'):
+        # Use the deep link URL as refund_link
+        processed_context['refund_link'] = processed_context['refund_deep_link_url']
+        logger.debug(f"Using refund_deep_link_url as refund_link: {processed_context['refund_link'][:50]}...")
+    elif 'refund_link' not in processed_context or not processed_context.get('refund_link'):
+        # Fallback to mailto link only if deep link is not available and refund_link is not set
         processed_context['refund_link'] = f"mailto:{support_email}?subject=Refund%20Request"
-        logger.debug(f"Using default refund_link: {processed_context['refund_link']}")
+        logger.debug(f"Using default mailto refund_link: {processed_context['refund_link']}")
         
     if 'mailto_link_report_email' not in processed_context or not processed_context['mailto_link_report_email']:
         processed_context['mailto_link_report_email'] = f"mailto:{support_email}?subject=Suspicious%20Email%20Report"

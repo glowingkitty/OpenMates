@@ -4,6 +4,7 @@ import logging
 import os
 import yaml
 import time
+import re
 from typing import Dict, Any, Optional, List
 from pathlib import Path
 
@@ -17,13 +18,15 @@ from backend.core.api.app.routes.auth_routes.auth_dependencies import get_curren
 from backend.core.api.app.tasks.celery_config import app # Import the Celery app
 from backend.core.api.app.routes.websockets import manager
 from backend.core.api.app.services.compliance import ComplianceService
+from backend.core.api.app.utils.device_fingerprint import _extract_client_ip
+from backend.core.api.app.routes.auth_routes.auth_dependencies import get_compliance_service
 from backend.core.api.app.services.s3.service import S3UploadService
 from backend.core.api.app.services.s3.config import get_bucket_name
 from backend.core.api.app.services.limiter import limiter
 from backend.core.api.app.services.payment_tier_service import PaymentTierService
 from fastapi.responses import StreamingResponse
 import hashlib
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/v1/payments", tags=["Payments"])
@@ -115,6 +118,8 @@ class InvoiceResponse(BaseModel):
     credits_purchased: int
     filename: str
     is_gift_card: bool = False  # Whether this invoice is for a gift card purchase
+    refunded_at: Optional[str] = None  # ISO timestamp when refund was processed (null if not refunded)
+    refund_status: Optional[str] = None  # Status of refund: 'none', 'pending', 'completed', 'failed'
 
 class InvoicesListResponse(BaseModel):
     invoices: List[InvoiceResponse]
@@ -164,6 +169,16 @@ class PurchasedGiftCardResponse(BaseModel):
 class PurchasedGiftCardsListResponse(BaseModel):
     purchased_cards: List[PurchasedGiftCardResponse]
     cancel_at_period_end: bool
+
+class RefundRequest(BaseModel):
+    invoice_id: str
+
+class RefundResponse(BaseModel):
+    success: bool
+    message: str
+    refund_amount: Optional[float] = None
+    unused_credits: Optional[int] = None
+    total_credits: Optional[int] = None
 
 PRICING_CONFIG_PATH = Path("/shared/config/pricing.yml")
 PRICING_TIERS = []
@@ -287,6 +302,7 @@ async def create_payment_order(
     payment_service: PaymentService = Depends(get_payment_service),
     encryption_service: EncryptionService = Depends(get_encryption_service),
     cache_service: CacheService = Depends(get_cache_service),
+    directus_service: DirectusService = Depends(get_directus_service),
     tier_service: PaymentTierService = Depends(get_payment_tier_service)
 ):
     logger.info(f"Received request to create payment order for user {current_user.id} - Provider: {payment_service.provider_name}, Currency: {order_data.currency}, Credits: {order_data.credits_amount}")
@@ -350,12 +366,35 @@ async def create_payment_order(
             logger.error(f"Error decrypting email for user {current_user.id}: {str(e)}")
             raise HTTPException(status_code=500, detail="Failed to decrypt user email")
 
+        # CRITICAL: Get or create Stripe customer before creating PaymentIntent
+        # Stripe requires a customer when using setup_future_usage to save payment methods
+        # Check if user already has a Stripe customer ID
+        stripe_customer_id = current_user.stripe_customer_id if hasattr(current_user, 'stripe_customer_id') else None
+        
         order_response = await payment_service.create_order(
             amount=calculated_amount,
             currency=order_data.currency,
             email=decrypted_email,
-            credits_amount=order_data.credits_amount
+            credits_amount=order_data.credits_amount,
+            customer_id=stripe_customer_id  # Pass existing customer ID if available
         )
+        
+        # If a new customer was created, save it to the user profile
+        # The create_order method will return the customer_id in the response if it was created
+        # We need to check if we got a new customer ID and save it
+        if order_response and order_response.get('customer_id') and not stripe_customer_id:
+            new_customer_id = order_response.get('customer_id')
+            logger.info(f"New Stripe customer {new_customer_id} created for user {current_user.id}, saving to profile")
+            # Save customer ID to user profile (cache-first strategy)
+            await directus_service.update_user(
+                current_user.id,
+                {"stripe_customer_id": new_customer_id}
+            )
+            # Also update cache
+            try:
+                await cache_service.update_user(current_user.id, {"stripe_customer_id": new_customer_id})
+            except Exception as cache_error:
+                logger.warning(f"Failed to update cache with customer ID: {cache_error}")
 
         if not order_response:
             logger.error(f"Failed to create order with {payment_service.provider_name} for user {current_user.id}.")
@@ -650,6 +689,52 @@ async def payment_webhook(
                     )
 
                 if directus_update_success:
+                    # Log withdrawal waiver consent for EU/German consumer law compliance
+                    # This consent is given when user checks the checkbox during checkout
+                    # We log it here when payment completes to ensure we have a record
+                    try:
+                        # Extract client IP from request for compliance logging
+                        client_ip = _extract_client_ip(request.headers, request.client.host if request.client else None)
+                        
+                        # Get current timestamp for consent record
+                        consent_timestamp = datetime.now(timezone.utc).isoformat()
+                        
+                        # Log consent to compliance service (IP will be hashed internally)
+                        ComplianceService.log_consent(
+                            user_id=user_id,
+                            ip_address=client_ip,
+                            consent_type="withdrawal_waiver",
+                            action="granted",
+                            version=consent_timestamp,  # Use timestamp as version identifier
+                            details={
+                                "order_id": webhook_order_id,
+                                "is_gift_card": is_gift_card,
+                                "credits_purchased": credits_purchased
+                            }
+                        )
+                        
+                        # Update user record with consent timestamp
+                        # This is stored in Directus for compliance records
+                        consent_update_payload = {
+                            "consent_withdrawal_waiver_timestamp": consent_timestamp
+                        }
+                        consent_update_success = await directus_service.update_user(user_id, consent_update_payload)
+                        
+                        if consent_update_success:
+                            logger.info(f"Recorded withdrawal waiver consent for user {user_id}, order {webhook_order_id}")
+                        else:
+                            logger.warning(f"Failed to update consent_withdrawal_waiver_timestamp for user {user_id}, but payment was successful")
+                            
+                        # Also update cache with consent timestamp
+                        user_cache_data["consent_withdrawal_waiver_timestamp"] = consent_timestamp
+                        await cache_service.set_user(user_cache_data, user_id=user_id)
+                    except Exception as consent_err:
+                        # Don't fail the payment if consent logging fails, but log the error
+                        logger.error(
+                            f"Error logging withdrawal waiver consent for user {user_id}, order {webhook_order_id}: {str(consent_err)}",
+                            exc_info=True
+                        )
+                    
                     if is_gift_card:
                         logger.info(f"Successfully created gift card {gift_card_code} for user {user_id}.")
                         
@@ -944,7 +1029,7 @@ async def payment_webhook(
                 user_data = await directus_service.get_user_by_subscription_id(subscription_id)
                 if user_data:
                     user_id = user_data.get("id")
-                    from datetime import datetime
+                    # datetime is already imported at the top of the file
                     next_billing_date = datetime.fromtimestamp(current_period_end).isoformat() if current_period_end else None
                     
                     update_payload = {
@@ -1190,7 +1275,7 @@ async def save_payment_method(
     The payment_method ID is encrypted with the user's vault key.
     The customer_id is stored in cleartext (not sensitive).
     """
-    logger.info(f"Saving payment method for user {current_user.id}")
+    logger.info(f"Saving payment method for user {current_user.id}, payment_intent_id: {request_data.payment_intent_id}")
     
     try:
         # Get payment method ID from the successful PaymentIntent
@@ -1215,22 +1300,28 @@ async def save_payment_method(
             logger.warning(f"Email not found in cache for user {current_user.id}, using placeholder")
             email = f"user-{current_user.id}@openmates.local"
         
-        # Create customer and attach payment method immediately
-        # This must be done right away to avoid Stripe's restriction on reusing
-        # payment methods that were used without being attached to a customer
-        customer_result = await payment_service.provider.create_customer(
+        # Get or create customer for payment method
+        # CRITICAL: Payment method may already be attached to a customer if PaymentIntent was created with customer + setup_future_usage
+        # In that case, we should use the existing customer instead of creating a new one
+        existing_customer_id = current_user.stripe_customer_id if hasattr(current_user, 'stripe_customer_id') else None
+        
+        customer_result = await payment_service.provider.get_or_create_customer_for_payment_method(
             email=email,
-            payment_method_id=payment_method_id
+            payment_method_id=payment_method_id,
+            existing_customer_id=existing_customer_id
         )
         
         if not customer_result:
-            logger.error(f"Failed to create customer for user {current_user.id}. Payment method may not be reusable for subscriptions.")
+            logger.error(f"Failed to get or create customer for user {current_user.id}. Payment method may not be reusable for subscriptions.")
             # Still save the payment method - we'll handle subscription creation differently
             # (e.g., using SetupIntent to collect a new payment method)
             customer_id = None
         else:
             customer_id = customer_result['customer_id']
-            logger.info(f"Created Stripe customer {customer_id} for user {current_user.id}")
+            if existing_customer_id and customer_id == existing_customer_id:
+                logger.info(f"Using existing Stripe customer {customer_id} for user {current_user.id}")
+            else:
+                logger.info(f"Got/created Stripe customer {customer_id} for user {current_user.id}")
         
         # Encrypt payment_method_id with user's vault key
         vault_key_id = current_user.vault_key_id
@@ -1368,15 +1459,29 @@ async def create_subscription(
             logger.info(f"Using existing Stripe customer {customer_id} for user {current_user.id}")
         
         # Find the Stripe price ID for this tier
-        product_name = f"{subscription_data.credits_amount:,}".replace(",", ".") + " credits"
+        # CRITICAL: Must use recurring=True to get recurring prices for subscriptions
+        # One-time prices will cause Stripe to reject the subscription creation
+        # CRITICAL: Subscription products are named with total credits (base + bonus) and "(monthly auto top-up)" suffix
+        # This matches the naming convention used in stripe_product_sync.py
+        # stripe_product_sync creates products with name: "{total_credits} credits (monthly auto top-up)"
+        total_credits = subscription_data.credits_amount + tier_info['bonus_credits']
+        product_name = f"{total_credits:,}".replace(",", ".") + " credits (monthly auto top-up)"
         price_id = await payment_service.provider._find_price_for_product(
             product_name,
-            subscription_data.currency
+            subscription_data.currency,
+            recurring=True  # Subscriptions require recurring prices
         )
         
         if not price_id:
-            logger.error(f"No Stripe price found for {subscription_data.credits_amount} credits in {subscription_data.currency}")
-            raise HTTPException(status_code=500, detail="Subscription product not configured")
+            logger.error(
+                f"No Stripe recurring price found for subscription product '{product_name}' "
+                f"(base: {subscription_data.credits_amount}, total: {total_credits} credits) in {subscription_data.currency}. "
+                f"Make sure subscription products are synced to Stripe using the stripe_product_sync service."
+            )
+            raise HTTPException(
+                status_code=500, 
+                detail=f"Subscription product not configured for {subscription_data.credits_amount} credits in {subscription_data.currency}. Please contact support."
+            )
         
         # Create subscription
         subscription_result = await payment_service.provider.create_subscription(
@@ -1506,11 +1611,12 @@ async def has_payment_method(
     Check if the user has a saved payment method.
     Returns true if encrypted_payment_method_id exists in the user's profile.
     """
-    logger.debug(f"Checking payment method for user {current_user.id}")
+    logger.info(f"Checking payment method for user {current_user.id}")
     
     # Check if user has encrypted_payment_method_id
     has_payment_method = current_user.encrypted_payment_method_id is not None and current_user.encrypted_payment_method_id != ""
     
+    logger.info(f"Payment method check result for user {current_user.id}: {has_payment_method}")
     return HasPaymentMethodResponse(has_payment_method=has_payment_method)
 
 @router.post("/cancel-subscription", response_model=CancelSubscriptionResponse)
@@ -2109,13 +2215,19 @@ async def get_invoices(
                 # Get is_gift_card flag (defaults to False if not set for backward compatibility)
                 is_gift_card = invoice.get("is_gift_card", False)
                 
+                # Get refund information (if available)
+                refunded_at = invoice.get("refunded_at")
+                refund_status = invoice.get("refund_status", "none")
+                
                 processed_invoices.append(InvoiceResponse(
                     id=invoice["id"],
                     date=formatted_date,
                     amount=amount,
                     credits_purchased=int(credits_purchased),
                     filename=filename,
-                    is_gift_card=is_gift_card
+                    is_gift_card=is_gift_card,
+                    refunded_at=refunded_at,
+                    refund_status=refund_status
                 ))
 
             except Exception as e:
@@ -2329,4 +2441,508 @@ async def download_invoice(
         raise e
     except Exception as e:
         logger.error(f"Error downloading invoice {invoice_id} for user {current_user.id}: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@router.post("/refund", response_model=RefundResponse)
+@limiter.limit("5/minute")  # Sensitive endpoint - prevent abuse
+async def request_refund(
+    request: Request,
+    refund_request: RefundRequest,
+    current_user: User = Depends(get_current_user),
+    payment_service: PaymentService = Depends(get_payment_service),
+    directus_service: DirectusService = Depends(get_directus_service),
+    encryption_service: EncryptionService = Depends(get_encryption_service),
+    cache_service: CacheService = Depends(get_cache_service),
+    compliance_service: ComplianceService = Depends(get_compliance_service)
+):
+    """
+    Request a refund for unused credits from an invoice.
+    Only eligible within 14 days of purchase and for unused credits.
+    Gift cards cannot be refunded once they have been used.
+    """
+    user_id = current_user.id
+    invoice_id = refund_request.invoice_id
+    client_ip = _extract_client_ip(request.headers, request.client.host if request.client else None)
+    
+    logger.info(f"Refund request for invoice {invoice_id} by user {user_id}")
+    
+    try:
+        # Create user ID hash for lookup
+        user_id_hash = hashlib.sha256(user_id.encode()).hexdigest()
+        
+        # Get invoice by ID and verify ownership
+        invoice_data = await directus_service.get_items(
+            collection="invoices",
+            params={
+                "filter": {
+                    "id": {"_eq": invoice_id},
+                    "user_id_hash": {"_eq": user_id_hash}
+                }
+            }
+        )
+        
+        if not invoice_data or len(invoice_data) == 0:
+            logger.warning(f"Invoice {invoice_id} not found for user {user_id}")
+            ComplianceService.log_refund_request(
+                user_id=user_id,
+                ip_address=client_ip,
+                invoice_id=invoice_id,
+                order_id="unknown",
+                status="rejected",
+                reason="Invoice not found"
+            )
+            raise HTTPException(status_code=404, detail="Invoice not found")
+        
+        invoice = invoice_data[0]
+        vault_key_id = current_user.vault_key_id
+        if not vault_key_id:
+            logger.error(f"Vault key ID missing for user {user_id}")
+            raise HTTPException(status_code=500, detail="User encryption key not found")
+        
+        # Decrypt invoice data
+        order_id = invoice.get("order_id")
+        if not order_id:
+            logger.error(f"Invoice {invoice_id} missing order_id")
+            ComplianceService.log_refund_request(
+                user_id=user_id,
+                ip_address=client_ip,
+                invoice_id=invoice_id,
+                order_id="unknown",
+                status="rejected",
+                reason="Invoice missing order_id"
+            )
+            raise HTTPException(status_code=400, detail="Invoice missing order information")
+        
+        # Check if already refunded
+        refund_status = invoice.get("refund_status", "none")
+        if refund_status in ["completed", "pending"]:
+            logger.warning(f"Invoice {invoice_id} already has refund status: {refund_status}")
+            ComplianceService.log_refund_request(
+                user_id=user_id,
+                ip_address=client_ip,
+                invoice_id=invoice_id,
+                order_id=order_id,
+                status="rejected",
+                reason=f"Already refunded (status: {refund_status})"
+            )
+            raise HTTPException(status_code=400, detail=f"Invoice already refunded (status: {refund_status})")
+        
+        # Decrypt invoice amount and credits
+        encrypted_amount = invoice.get("encrypted_amount")
+        encrypted_credits = invoice.get("encrypted_credits_purchased")
+        
+        if not encrypted_amount or not encrypted_credits:
+            logger.error(f"Invoice {invoice_id} missing encrypted fields")
+            ComplianceService.log_refund_request(
+                user_id=user_id,
+                ip_address=client_ip,
+                invoice_id=invoice_id,
+                order_id=order_id,
+                status="rejected",
+                reason="Invoice missing encrypted data"
+            )
+            raise HTTPException(status_code=500, detail="Failed to decrypt invoice data")
+        
+        total_amount_cents = int(await encryption_service.decrypt_with_user_key(encrypted_amount, vault_key_id))
+        total_credits = int(await encryption_service.decrypt_with_user_key(encrypted_credits, vault_key_id))
+        
+        # Check 14-day window
+        invoice_date = invoice.get("date")
+        if not invoice_date:
+            logger.error(f"Invoice {invoice_id} missing date")
+            ComplianceService.log_refund_request(
+                user_id=user_id,
+                ip_address=client_ip,
+                invoice_id=invoice_id,
+                order_id=order_id,
+                status="rejected",
+                reason="Invoice missing date"
+            )
+            raise HTTPException(status_code=400, detail="Invoice missing date information")
+        
+        # Parse invoice date
+        from datetime import datetime
+        try:
+            if isinstance(invoice_date, str):
+                date_str = invoice_date.replace('Z', '+00:00')
+                parsed_date = datetime.fromisoformat(date_str)
+            elif hasattr(invoice_date, 'isoformat'):
+                parsed_date = invoice_date
+            else:
+                date_str = str(invoice_date)
+                parsed_date = datetime.fromisoformat(date_str.replace('Z', '+00:00'))
+        except Exception as e:
+            logger.error(f"Failed to parse invoice date: {invoice_date}, error: {e}")
+            ComplianceService.log_refund_request(
+                user_id=user_id,
+                ip_address=client_ip,
+                invoice_id=invoice_id,
+                order_id=order_id,
+                status="rejected",
+                reason="Invalid invoice date"
+            )
+            raise HTTPException(status_code=400, detail="Invalid invoice date")
+        
+        # Check if within 14 days
+        now = datetime.now(timezone.utc)
+        if parsed_date.tzinfo is None:
+            parsed_date = parsed_date.replace(tzinfo=timezone.utc)
+        
+        days_since_purchase = (now - parsed_date).days
+        if days_since_purchase > 14:
+            logger.warning(f"Invoice {invoice_id} is {days_since_purchase} days old, exceeds 14-day refund window")
+            ComplianceService.log_refund_request(
+                user_id=user_id,
+                ip_address=client_ip,
+                invoice_id=invoice_id,
+                order_id=order_id,
+                status="rejected",
+                reason=f"Exceeds 14-day window ({days_since_purchase} days)"
+            )
+            raise HTTPException(
+                status_code=400,
+                detail=f"Refund request exceeds 14-day window. Purchase was {days_since_purchase} days ago."
+            )
+        
+        # Check if gift card purchase
+        is_gift_card = invoice.get("is_gift_card", False)
+        if is_gift_card:
+            # For gift cards, check if the gift card still exists (unused)
+            # Gift cards are deleted when redeemed, so if it doesn't exist, it was used
+            # We need to find the gift card code from the order/invoice
+            # For now, we'll check by looking up gift cards by purchaser_user_id_hash and purchased_at
+            purchaser_user_id_hash = hashlib.sha256(user_id.encode()).hexdigest()
+            
+            # Try to find gift card by purchaser and purchase date (within 1 hour window)
+            gift_card_params = {
+                "filter": {
+                    "purchaser_user_id_hash": {"_eq": purchaser_user_id_hash},
+                    "purchased_at": {
+                        "_gte": (parsed_date.replace(tzinfo=None).isoformat() if parsed_date.tzinfo else parsed_date.isoformat()),
+                        "_lte": ((parsed_date.replace(tzinfo=None) + timedelta(hours=1)).isoformat() if parsed_date.tzinfo else (parsed_date + timedelta(hours=1)).isoformat())
+                    }
+                }
+            }
+            
+            gift_cards = await directus_service.get_items("gift_cards", gift_card_params)
+            
+            if not gift_cards or len(gift_cards) == 0:
+                # Gift card was redeemed (deleted), cannot refund
+                logger.warning(f"Gift card for invoice {invoice_id} was already redeemed, cannot refund")
+                ComplianceService.log_refund_request(
+                    user_id=user_id,
+                    ip_address=client_ip,
+                    invoice_id=invoice_id,
+                    order_id=order_id,
+                    status="rejected",
+                    reason="Gift card already redeemed",
+                    details={"is_gift_card": True}
+                )
+                raise HTTPException(
+                    status_code=400,
+                    detail="Purchased gift cards cannot be refunded once they have been used. This gift card has already been redeemed."
+                )
+        
+        # Calculate unused credits by checking usage entries after invoice date
+        # Get all usage entries for this user after the invoice date
+        usage_entries = await directus_service.usage.get_user_usage_entries(
+            user_id_hash=user_id_hash,
+            user_vault_key_id=vault_key_id,
+            limit=10000,  # Get all entries (we'll filter by date)
+            offset=0
+        )
+        
+        # Filter usage entries created after invoice date and sum credits
+        invoice_timestamp = int(parsed_date.timestamp())
+        used_credits = 0
+        
+        for entry in usage_entries:
+            entry_created_at = entry.get("created_at", 0)
+            if entry_created_at >= invoice_timestamp:
+                # This usage entry was created after the invoice purchase
+                # Credits are already decrypted by get_user_usage_entries
+                credits = entry.get("credits", 0)
+                if credits:
+                    try:
+                        # Credits might be a string (from decryption) or number
+                        credits_int = int(float(str(credits)))
+                        used_credits += credits_int
+                    except (ValueError, TypeError):
+                        logger.warning(f"Invalid credits value in usage entry {entry.get('id')}: {credits}")
+                        # Skip invalid entries
+        
+        unused_credits = max(0, total_credits - used_credits)
+        
+        if unused_credits == 0:
+            logger.warning(f"Invoice {invoice_id} has no unused credits (used: {used_credits}, total: {total_credits})")
+            ComplianceService.log_refund_request(
+                user_id=user_id,
+                ip_address=client_ip,
+                invoice_id=invoice_id,
+                order_id=order_id,
+                unused_credits=0,
+                total_credits=total_credits,
+                status="rejected",
+                reason="No unused credits"
+            )
+            raise HTTPException(
+                status_code=400,
+                detail="All credits from this purchase have been used. Only unused credits can be refunded."
+            )
+        
+        # Calculate refund amount (proportional to unused credits)
+        # Get currency from order or default to EUR
+        order_data = await cache_service.get_order(order_id)
+        currency = order_data.get("currency", "eur") if order_data else "eur"
+        
+        # Calculate unit price per credit
+        unit_price_per_credit = total_amount_cents / total_credits if total_credits > 0 else 0
+        refund_amount_cents = int(unused_credits * unit_price_per_credit)
+        
+        # Log refund request
+        ComplianceService.log_refund_request(
+            user_id=user_id,
+            ip_address=client_ip,
+            invoice_id=invoice_id,
+            order_id=order_id,
+            refund_amount=refund_amount_cents,
+            currency=currency,
+            unused_credits=unused_credits,
+            total_credits=total_credits,
+            status="requested",
+            details={"is_gift_card": is_gift_card, "used_credits": used_credits}
+        )
+        
+        # Process refund via payment provider
+        refund_result = await payment_service.refund_payment(order_id, refund_amount_cents)
+        
+        if not refund_result:
+            logger.error(f"Failed to process refund for invoice {invoice_id}, order {order_id}")
+            
+            # Update invoice with failed status
+            await directus_service.update_item(
+                "invoices",
+                invoice_id,
+                {"refund_status": "failed"}
+            )
+            
+            ComplianceService.log_refund_request(
+                user_id=user_id,
+                ip_address=client_ip,
+                invoice_id=invoice_id,
+                order_id=order_id,
+                refund_amount=refund_amount_cents,
+                currency=currency,
+                unused_credits=unused_credits,
+                total_credits=total_credits,
+                status="failed",
+                reason="Payment provider refund failed"
+            )
+            
+            raise HTTPException(status_code=500, detail="Failed to process refund with payment provider")
+        
+        # Update invoice with refund information
+        refund_timestamp = datetime.now(timezone.utc).isoformat()
+        
+        # Encrypt refund data
+        encrypted_refunded_credits, _ = await encryption_service.encrypt_with_user_key(
+            str(unused_credits),
+            vault_key_id
+        )
+        encrypted_refund_amount, _ = await encryption_service.encrypt_with_user_key(
+            str(refund_amount_cents),
+            vault_key_id
+        )
+        
+        invoice_update = {
+            "refunded_at": refund_timestamp,
+            "encrypted_refunded_credits": encrypted_refunded_credits,
+            "encrypted_refund_amount": encrypted_refund_amount,
+            "refund_status": "completed"
+        }
+        
+        update_success = await directus_service.update_item("invoices", invoice_id, invoice_update)
+        
+        if not update_success:
+            logger.error(f"Failed to update invoice {invoice_id} with refund information")
+            # Don't fail the request - refund was processed, just logging failed
+        
+
+        # Deduct refunded credits from user account
+        # Get current user credits from cache
+        user_cache_data = await cache_service.get_user_by_id(user_id)
+        if not user_cache_data:
+            logger.error(f"User {user_id} not found in cache when processing refund")
+            # Don't fail - refund was already processed, just log the error
+        else:
+            current_credits = user_cache_data.get('credits', 0)
+            if not isinstance(current_credits, int):
+                logger.warning(f"User credits for {user_id} were not an integer: {current_credits}. Converting to 0.")
+                current_credits = 0
+            
+            # Calculate new credit balance (deduct unused credits that were refunded)
+            new_total_credits = max(0, current_credits - unused_credits)
+            
+            # Encrypt new credit balance for Directus
+            vault_key_id = user_cache_data.get("vault_key_id")
+            if vault_key_id:
+                encrypted_new_credits_tuple = await encryption_service.encrypt_with_user_key(
+                    plaintext=str(new_total_credits),
+                    key_id=vault_key_id
+                )
+                encrypted_new_credits = encrypted_new_credits_tuple[0]
+                
+                # Update Directus with new credit balance
+                update_credits_success = await directus_service.update_user(
+                    user_id,
+                    {"encrypted_credit_balance": encrypted_new_credits}
+                )
+                
+                if not update_credits_success:
+                    logger.error(f"Failed to update user {user_id} credits in Directus after refund")
+                    # Don't fail - refund was already processed, just log the error
+                else:
+                    # Update cache with new credit balance
+                    user_cache_data["credits"] = new_total_credits
+                    await cache_service.set_user(user_cache_data, user_id=user_id)
+                    
+                    # Broadcast credit update via WebSocket
+                    try:
+                        await manager.broadcast_to_user(
+                            user_id=user_id,
+                            message={
+                                "type": "user_credits_updated",
+                                "payload": {"credits": new_total_credits}
+                            }
+                        )
+                        logger.info(f"Broadcasted credit update to user {user_id}: {new_total_credits} credits")
+                    except Exception as ws_error:
+                        logger.error(f"Failed to broadcast credit update via WebSocket: {ws_error}")
+                        # Don't fail - credit update was successful, just WebSocket broadcast failed
+            else:
+                logger.error(f"Vault key ID missing for user {user_id} when processing refund")
+        
+        # Log successful refund
+        ComplianceService.log_refund_request(
+            user_id=user_id,
+            ip_address=client_ip,
+            invoice_id=invoice_id,
+            order_id=order_id,
+            refund_amount=refund_amount_cents,
+            currency=currency,
+            unused_credits=unused_credits,
+            total_credits=total_credits,
+            status="completed"
+        )
+        
+        # Convert refund amount from cents to decimal for response
+        if currency.lower() in ['eur', 'usd', 'gbp']:
+            refund_amount_decimal = refund_amount_cents / 100.0
+        else:
+            refund_amount_decimal = float(refund_amount_cents)
+        
+        logger.info(
+            f"Successfully processed refund for invoice {invoice_id}: "
+            f"{unused_credits}/{total_credits} credits, {refund_amount_decimal:.2f} {currency.upper()}"
+        )
+        
+        # Generate and send credit note PDF via email and upload to Invoice Ninja
+        # This is done asynchronously via Celery task
+        try:
+            # Get sender details from secrets manager (same as invoice generation)
+            secrets_manager = get_secrets_manager(request)
+            invoice_sender_path = "kv/data/providers/invoice_sender"
+            sender_addressline1 = await secrets_manager.get_secret(secret_path=invoice_sender_path, secret_key="addressline1")
+            sender_addressline2 = await secrets_manager.get_secret(secret_path=invoice_sender_path, secret_key="addressline2")
+            sender_addressline3 = await secrets_manager.get_secret(secret_path=invoice_sender_path, secret_key="addressline3")
+            sender_country = await secrets_manager.get_secret(secret_path=invoice_sender_path, secret_key="country")
+            sender_email = await secrets_manager.get_secret(secret_path=invoice_sender_path, secret_key="email")
+            sender_vat = await secrets_manager.get_secret(secret_path=invoice_sender_path, secret_key="vat")
+            
+            # Get invoice number from invoice record by decrypting the encrypted_filename
+            # The invoice number is stored in the encrypted_filename field
+            referenced_invoice_number = None
+            encrypted_filename = invoice.get("encrypted_filename")
+            if encrypted_filename and vault_key_id:
+                try:
+                    decrypted_filename, _ = await encryption_service.decrypt_with_user_key(encrypted_filename, vault_key_id)
+                    if decrypted_filename:
+                        # Extract invoice number from filename (format: openmates_invoice_{date}_{invoice_number}.pdf)
+                        # Example: openmates_invoice_2025_01_15_475D6855-004.pdf
+                        # We want: 475D6855-004
+                        match = re.search(r'openmates_invoice_\d{4}_\d{2}_\d{2}_(.+?)\.pdf', decrypted_filename)
+                        if match:
+                            referenced_invoice_number = match.group(1)
+                        else:
+                            # Fallback: try to extract from any pattern
+                            # Remove prefix and suffix
+                            referenced_invoice_number = decrypted_filename.replace("openmates_invoice_", "").replace(".pdf", "")
+                            # Remove date part (format: YYYY_MM_DD_)
+                            referenced_invoice_number = re.sub(r'^\d{4}_\d{2}_\d{2}_', '', referenced_invoice_number)
+                except Exception as decrypt_err:
+                    logger.warning(f"Failed to decrypt invoice filename to get invoice number: {decrypt_err}")
+            
+            # Fallback: construct invoice number from account_id if decryption failed
+            if not referenced_invoice_number:
+                user_profile = await cache_service.get_user_by_id(user_id)
+                account_id = user_profile.get("account_id")
+                if account_id:
+                    # Use a generic format since we don't have the original counter
+                    referenced_invoice_number = f"{account_id}-REF"
+                else:
+                    referenced_invoice_number = f"INV-{invoice_id[:8]}"
+            
+            logger.info(f"Using referenced invoice number: {referenced_invoice_number} for credit note")
+            
+            # Get email encryption key if available (from user's session or request)
+            email_encryption_key = None  # Will be passed if available from client
+            
+            # Dispatch credit note processing task
+            task_payload = {
+                "invoice_id": invoice_id,
+                "user_id": user_id,
+                "order_id": order_id,
+                "refund_amount_cents": refund_amount_cents,
+                "unused_credits": unused_credits,
+                "total_credits": total_credits,
+                "currency": currency,
+                "referenced_invoice_number": referenced_invoice_number,
+                "sender_addressline1": sender_addressline1,
+                "sender_addressline2": sender_addressline2,
+                "sender_addressline3": sender_addressline3,
+                "sender_country": sender_country,
+                "sender_email": sender_email if sender_email else "support@openmates.org",
+                "sender_vat": sender_vat,
+                "email_encryption_key": email_encryption_key
+            }
+            app.send_task(
+                name='app.tasks.email_tasks.credit_note_email_task.process_credit_note_and_send_email',
+                kwargs=task_payload,
+                queue='email'
+            )
+            logger.info(f"Dispatched credit note processing task for invoice {invoice_id}, order {order_id} to queue 'email'.")
+        except Exception as credit_note_err:
+            # Don't fail the refund if credit note generation fails - refund was already processed
+            logger.error(f"Failed to dispatch credit note processing task for invoice {invoice_id}: {credit_note_err}", exc_info=True)
+        
+        return RefundResponse(
+            success=True,
+            message=f"Refund processed successfully. {unused_credits} unused credits refunded.",
+            refund_amount=refund_amount_decimal,
+            unused_credits=unused_credits,
+            total_credits=total_credits
+        )
+        
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        logger.error(f"Error processing refund for invoice {invoice_id}, user {user_id}: {str(e)}", exc_info=True)
+        ComplianceService.log_refund_request(
+            user_id=user_id,
+            ip_address=client_ip,
+            invoice_id=invoice_id,
+            order_id="unknown",
+            status="failed",
+            reason=f"Internal error: {str(e)}"
+        )
         raise HTTPException(status_code=500, detail="Internal server error")

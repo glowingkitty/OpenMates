@@ -4,6 +4,7 @@ from datetime import datetime
 from typing import Optional, Dict, Any, Union
 import ipaddress
 from datetime import datetime # Ensure datetime is imported
+from backend.core.api.app.utils.device_fingerprint import hash_ip_address, _extract_client_ip
 
 # Configure a special logger for compliance events
 compliance_logger = logging.getLogger("compliance")
@@ -201,24 +202,24 @@ class ComplianceService:
     def log_consent(
         user_id: str,
         ip_address: str,
-        consent_type: str,  # privacy_policy, terms, marketing, etc.
+        consent_type: str,  # privacy_policy, terms, marketing, withdrawal_waiver, etc.
         action: str,  # granted, withdrawn, updated
         version: str,  # version of the policy/terms
         details: Optional[Dict[str, Any]] = None
     ):
-        """Log consent-related events for GDPR compliance"""
-        # Validate IP address
-        try:
-            ipaddress.ip_address(ip_address)
-        except ValueError:
-            ip_address = "0.0.0.0"
+        """
+        Log consent-related events for GDPR compliance.
+        IP addresses are hashed before storage for privacy.
+        """
+        # Hash IP address for privacy (we don't store full IPs)
+        hashed_ip = hash_ip_address(ip_address)
             
         # Create log entry
         log_data = {
             "timestamp": datetime.utcnow().isoformat(),
             "event_type": "consent",
             "user_id": user_id,
-            "ip_address": ip_address,
+            "ip_address_hash": hashed_ip,  # Store hashed IP, not full IP
             "consent_type": consent_type,
             "action": action,
             "version": version
@@ -419,6 +420,84 @@ class ComplianceService:
         currency_str = f" {currency}" if currency else ""
         api_logger.info(
             f"FINANCIAL TRANSACTION: User {user_id} - {transaction_type}{amount_str}{currency_str} - {status}"
+        )
+
+    @staticmethod
+    def log_refund_request(
+        user_id: str,
+        ip_address: str,
+        invoice_id: str,
+        order_id: str,
+        refund_amount: Optional[Union[int, float]] = None,
+        currency: Optional[str] = None,
+        unused_credits: Optional[int] = None,
+        total_credits: Optional[int] = None,
+        status: str = "requested",  # requested, approved, rejected, completed, failed
+        reason: Optional[str] = None,
+        details: Optional[Dict[str, Any]] = None
+    ):
+        """
+        Log refund requests for compliance and audit purposes.
+        IP addresses are hashed before storage for privacy.
+        
+        Args:
+            user_id: ID of the user requesting the refund
+            ip_address: Client IP address (will be hashed)
+            invoice_id: ID of the invoice being refunded
+            order_id: Order ID from payment provider
+            refund_amount: Amount to be refunded (in cents or currency units)
+            currency: Currency code if this is a monetary refund
+            unused_credits: Number of unused credits being refunded
+            total_credits: Total credits from the original purchase
+            status: Status of the refund request (requested, approved, rejected, completed, failed)
+            reason: Reason for rejection if status is rejected
+            details: Additional context about the refund (is_gift_card, etc.)
+        """
+        # Hash IP address for privacy (we don't store full IPs)
+        hashed_ip = hash_ip_address(ip_address)
+        
+        # Create log entry
+        log_data = {
+            "timestamp": datetime.utcnow().isoformat(),
+            "event_type": "refund_request",
+            "user_id": user_id,
+            "ip_address_hash": hashed_ip,  # Store hashed IP, not full IP
+            "invoice_id": invoice_id,
+            "order_id": order_id,
+            "status": status
+        }
+        
+        # Add optional fields if provided
+        if refund_amount is not None:
+            log_data["refund_amount"] = refund_amount
+            
+        if currency:
+            log_data["currency"] = currency
+            
+        if unused_credits is not None:
+            log_data["unused_credits"] = unused_credits
+            
+        if total_credits is not None:
+            log_data["total_credits"] = total_credits
+            
+        if reason:
+            log_data["reason"] = reason
+        
+        if details:
+            # Sanitize details to remove sensitive information
+            sanitized_details = {k: v for k, v in details.items() 
+                              if k not in ['password', 'token', 'secret', 'payment_method_id', 'card_number']}
+            log_data["details"] = sanitized_details
+            
+        # Log to compliance logger - pass log_data directly to preserve structured data
+        compliance_logger.info(log_data)
+        
+        # Also log to regular API logger for operational visibility
+        amount_str = f" {refund_amount}" if refund_amount is not None else ""
+        currency_str = f" {currency}" if currency else ""
+        credits_str = f" ({unused_credits}/{total_credits} credits)" if unused_credits is not None and total_credits is not None else ""
+        api_logger.info(
+            f"REFUND REQUEST: User {user_id} - Invoice {invoice_id}{amount_str}{currency_str}{credits_str} - {status}"
         )
 
 # TODO: Implement S3 archive functionality for compliance logs

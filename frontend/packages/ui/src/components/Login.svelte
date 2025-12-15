@@ -4,7 +4,7 @@
     import AppIconGrid from './AppIconGrid.svelte';
     import { createEventDispatcher } from 'svelte';
     import { authStore, isCheckingAuth, needsDeviceVerification, login, checkAuth } from '../stores/authStore'; // Import login and checkAuth functions
-    import { currentSignupStep, isInSignupProcess, STEP_ALPHA_DISCLAIMER, STEP_BASICS, getStepFromPath, STEP_ONE_TIME_CODES, isSignupPath } from '../stores/signupState';
+    import { currentSignupStep, isInSignupProcess, STEP_ALPHA_DISCLAIMER, STEP_BASICS, getStepFromPath, STEP_ONE_TIME_CODES, isSignupPath, STEP_PAYMENT } from '../stores/signupState';
     import { clearIncompleteSignupData } from '../stores/signupStore';
     import { onMount, onDestroy } from 'svelte';
     import { MOBILE_BREAKPOINT } from '../styles/constants';
@@ -1820,7 +1820,7 @@
                     </div>
                 {/if}
                 
-                <div class="login-box" in:scale={{ duration: 300, delay: 150 }}>
+                <div class="login-box" class:payment-step={$currentSignupStep === STEP_PAYMENT} in:scale={{ duration: 300, delay: 150 }}>
                 <!-- SignupNav - handles both login and signup navigation -->
                 <!-- Show SignupNav when NOT authenticated OR when in signup process (even if authenticated) -->
                 {#if !$authStore.isAuthenticated || $isInSignupProcess}

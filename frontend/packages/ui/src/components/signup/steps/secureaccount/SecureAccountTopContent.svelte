@@ -524,6 +524,8 @@
         <button
             class="option-button"
             class:selected={selectedOption === 'password'}
+            class:loading={isRegisteringPasskey}
+            disabled={isRegisteringPasskey}
             onclick={() => selectOption('password')}
         >
             <div class="option-header">

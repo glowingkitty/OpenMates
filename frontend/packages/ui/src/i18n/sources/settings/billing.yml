@@ -1240,6 +1240,144 @@ invoices_download_error:
   cs: Stáhnout fakturu se nezdařilo. Zkuste to znovu.
   sv: Misslyckades med att ladda ner faktura. Försök igen.
   verified_by_human: []
+invoices_refund:
+  context: Button text for requesting refund
+  en: Refund
+  de: Rückerstattung
+  zh: 退款
+  es: Reembolso
+  fr: Remboursement
+  pt: Reembolso
+  ru: Возврат
+  ja: 返金
+  ko: 환불
+  it: Rimborso
+  tr: İade
+  vi: Hoàn tiền
+  id: Pengembalian dana
+  pl: Zwrot
+  nl: Terugbetaling
+  ar: استرداد
+  hi: धनवापसी
+  th: การคืนเงิน
+  cs: Náhrada
+  sv: Återbetalning
+  verified_by_human: []
+invoices_refund_tooltip:
+  context: Tooltip for refund button
+  en: Request refund for unused credits (within 14 days)
+  de: Rückerstattung für ungenutzte Credits anfordern (innerhalb von 14 Tagen)
+  zh: 申请未使用点数退款（14天内）
+  es: Solicitar reembolso por créditos no utilizados (dentro de 14 días)
+  fr: Demander un remboursement pour les crédits non utilisés (dans les 14 jours)
+  pt: Solicitar reembolso de créditos não utilizados (dentro de 14 dias)
+  ru: Запросить возврат за неиспользованные кредиты (в течение 14 дней)
+  ja: 未使用クレジットの返金をリクエスト（14日以内）
+  ko: 미사용 크레딧 환불 요청 (14일 이내)
+  it: Richiedi rimborso per crediti non utilizzati (entro 14 giorni)
+  tr: Kullanılmayan krediler için iade talep et (14 gün içinde)
+  vi: Yêu cầu hoàn tiền cho các tín dụng chưa sử dụng (trong vòng 14 ngày)
+  id: Minta pengembalian dana untuk kredit yang tidak digunakan (dalam 14 hari)
+  pl: Żądaj zwrotu za niewykorzystane kredyty (w ciągu 14 dni)
+  nl: Vraag terugbetaling aan voor ongebruikte credits (binnen 14 dagen)
+  ar: طلب استرداد للاعتمادات غير المستخدمة (خلال 14 يومًا)
+  hi: अप्रयुक्त क्रेडिट के लिए धनवापसी का अनुरोध करें (14 दिनों के भीतर)
+  th: ขอคืนเงินสำหรับเครดิตที่ยังไม่ได้ใช้ (ภายใน 14 วัน)
+  cs: Požádat o náhradu za nevyužité kredity (do 14 dnů)
+  sv: Begär återbetalning för oanvända krediter (inom 14 dagar)
+  verified_by_human: []
+invoices_refund_processing:
+  context: Message shown while processing refund
+  en: Processing refund request...
+  de: Rückerstattungsanfrage wird bearbeitet...
+  zh: 正在处理退款请求...
+  es: Procesando solicitud de reembolso...
+  fr: Traitement de la demande de remboursement...
+  pt: Processando solicitação de reembolso...
+  ru: Обработка запроса на возврат...
+  ja: 返金リクエストを処理中...
+  ko: 환불 요청 처리 중...
+  it: Elaborazione della richiesta di rimborso...
+  tr: İade talebi işleniyor...
+  vi: Đang xử lý yêu cầu hoàn tiền...
+  id: Memproses permintaan pengembalian dana...
+  pl: Przetwarzanie żądania zwrotu...
+  nl: Terugbetalingsverzoek verwerken...
+  ar: معالجة طلب الاسترداد...
+  hi: धनवापसी अनुरोध संसाधित किया जा रहा है...
+  th: กำลังประมวลผลคำขอคืนเงิน...
+  cs: Zpracování žádosti o náhradu...
+  sv: Bearbetar återbetalningsbegäran...
+  verified_by_human: []
+invoices_refund_success:
+  context: Success message after refund is processed
+  en: Refund processed successfully
+  de: Rückerstattung erfolgreich bearbeitet
+  zh: 退款处理成功
+  es: Reembolso procesado con éxito
+  fr: Remboursement traité avec succès
+  pt: Reembolso processado com sucesso
+  ru: Возврат успешно обработан
+  ja: 返金が正常に処理されました
+  ko: 환불이 성공적으로 처리되었습니다
+  it: Rimborso elaborato con successo
+  tr: İade başarıyla işlendi
+  vi: Hoàn tiền được xử lý thành công
+  id: Pengembalian dana berhasil diproses
+  pl: Zwrot został pomyślnie przetworzony
+  nl: Terugbetaling succesvol verwerkt
+  ar: تم معالجة الاسترداد بنجاح
+  hi: धनवापसी सफलतापूर्वक संसाधित की गई
+  th: การคืนเงินได้รับการประมวลผลสำเร็จ
+  cs: Náhrada byla úspěšně zpracována
+  sv: Återbetalningen bearbetades framgångsrikt
+  verified_by_human: []
+invoices_refund_error:
+  context: Error message after refund fails
+  en: Failed to process refund. Please try again.
+  de: Rückerstattung konnte nicht bearbeitet werden. Bitte versuchen Sie es erneut.
+  zh: 退款处理失败。请重试。
+  es: No se pudo procesar el reembolso. Por favor, inténtalo de nuevo.
+  fr: Échec du traitement du remboursement. Veuillez réessayer.
+  pt: Falha ao processar o reembolso. Tente novamente.
+  ru: Не удалось обработать возврат. Попробуйте снова.
+  ja: 返金の処理に失敗しました。もう一度お試しください。
+  ko: 환불 처리에 실패했습니다. 다시 시도해주세요.
+  it: Elaborazione del rimborso non riuscita. Riprova.
+  tr: İade işleme başarısız oldu. Lütfen tekrar deneyin.
+  vi: Không thể xử lý hoàn tiền. Vui lòng thử lại.
+  id: Gagal memproses pengembalian dana. Silakan coba lagi.
+  pl: Nie udało się przetworzyć zwrotu. Spróbuj ponownie.
+  nl: Terugbetaling verwerken mislukt. Probeer opnieuw.
+  ar: فشل معالجة الاسترداد. يرجى المحاولة مرة أخرى.
+  hi: धनवापसी संसाधित करने में विफल। कृपया पुनः प्रयास करें।
+  th: ไม่สามารถประมวลผลการคืนเงินได้ โปรดลองอีกครั้ง
+  cs: Zpracování náhrady se nezdařilo. Zkuste to znovu.
+  sv: Bearbetning av återbetalning misslyckades. Försök igen.
+  verified_by_human: []
+invoices_refunded_on:
+  context: Text shown when invoice has been refunded, followed by the refund date
+  en: Refunded on
+  de: Rückerstattet am
+  zh: 退款日期
+  es: Reembolsado el
+  fr: Remboursé le
+  pt: Reembolsado em
+  ru: Возврат осуществлен
+  ja: 返金日
+  ko: 환불일
+  it: Rimborsato il
+  tr: İade tarihi
+  vi: Đã hoàn tiền vào
+  id: Dikembalikan pada
+  pl: Zwrócone dnia
+  nl: Terugbetaald op
+  ar: تم الاسترداد في
+  hi: धनवापसी की तारीख
+  th: คืนเงินเมื่อ
+  cs: Vráceno dne
+  sv: Återbetalad den
+  verified_by_human: []
 invoices.description:
   context: Invoices page description
   en: View and download your payment invoices
@@ -1492,4 +1630,190 @@ invoices_gift_card_badge:
   th: บัตรของขวัญ
   cs: Dárkový Poukaz
   sv: Presentkort
+  verified_by_human: []
+
+invoices_refund_not_eligible:
+  context: Message when invoice is not eligible for refund
+  en: This invoice is not eligible for refund
+  de: Diese Rechnung ist nicht für eine Rückerstattung berechtigt
+  zh: 此发票不符合退款条件
+  es: Esta factura no es elegible para reembolso
+  fr: Cette facture n'est pas éligible au remboursement
+  pt: Esta fatura não é elegível para reembolso
+  ru: Этот счет не подлежит возврату
+  ja: この請求書は返金の対象外です
+  ko: 이 청구서는 환불 대상이 아닙니다
+  it: Questa fattura non è idonea al rimborso
+  tr: Bu fatura iade için uygun değil
+  vi: Hóa đơn này không đủ điều kiện để hoàn tiền
+  id: Faktur ini tidak memenuhi syarat untuk pengembalian dana
+  pl: Ta faktura nie kwalifikuje się do zwrotu
+  nl: Deze factuur komt niet in aanmerking voor terugbetaling
+  ar: هذه الفاتورة غير مؤهلة للاسترداد
+  hi: यह चालान धनवापसी के लिए पात्र नहीं है
+  th: ใบแจ้งหนี้นี้ไม่สามารถคืนเงินได้
+  cs: Tato faktura není způsobilá k náhradě
+  sv: Denna faktura är inte berättigad till återbetalning
+  verified_by_human: []
+
+invoices_refund_not_found:
+  context: Message when invoice is not found for refund
+  en: Invoice not found
+  de: Rechnung nicht gefunden
+  zh: 未找到发票
+  es: Factura no encontrada
+  fr: Facture introuvable
+  pt: Fatura não encontrada
+  ru: Счет не найден
+  ja: 請求書が見つかりません
+  ko: 청구서를 찾을 수 없습니다
+  it: Fattura non trovata
+  tr: Fatura bulunamadı
+  vi: Không tìm thấy hóa đơn
+  id: Faktur tidak ditemukan
+  pl: Nie znaleziono faktury
+  nl: Factuur niet gevonden
+  ar: لم يتم العثور على الفاتورة
+  hi: चालान नहीं मिला
+  th: ไม่พบใบแจ้งหนี้
+  cs: Faktura nebyla nalezena
+  sv: Fakturan hittades inte
+  verified_by_human: []
+auto_topup_intro:
+  context: Introductory text for auto top-up setup
+  en: Want to save time?<br><strong>Consider activating auto top-up:</strong>
+  de: Zeit sparen?<br><strong>Erwägen Sie die Aktivierung des Auto-Aufladens:</strong>
+  zh: 想节省时间？<br><strong>考虑激活自动充值：</strong>
+  es: ¿Quieres ahorrar tiempo?<br><strong>Considera activar la recarga automática:</strong>
+  fr: Vous voulez gagner du temps ?<br><strong>Envisagez d'activer le rechargement automatique :</strong>
+  pt: Quer economizar tempo?<br><strong>Considere ativar o recarregamento automático:</strong>
+  ru: Хотите сэкономить время?<br><strong>Рассмотрите возможность активации автопополнения:</strong>
+  ja: 時間を節約したいですか？<br><strong>自動チャージの有効化を検討してください：</strong>
+  ko: 시간을 절약하고 싶으신가요?<br><strong>자동 충전 활성화를 고려해보세요:</strong>
+  it: Vuoi risparmiare tempo?<br><strong>Considera di attivare la ricarica automatica:</strong>
+  tr: Zaman kazanmak ister misiniz?<br><strong>Otomatik yüklemeyi etkinleştirmeyi düşünün:</strong>
+  vi: Muốn tiết kiệm thời gian?<br><strong>Hãy cân nhắc kích hoạt tự động nạp tiền:</strong>
+  id: Ingin menghemat waktu?<br><strong>Pertimbangkan untuk mengaktifkan isi ulang otomatis:</strong>
+  pl: Chcesz zaoszczędzić czas?<br><strong>Rozważ aktywację auto-doładowania:</strong>
+  nl: Tijd besparen?<br><strong>Overweeg automatisch opwaarderen te activeren:</strong>
+  ar: تريد توفير الوقت؟<br><strong>فكر في تفعيل إعادة الشحن التلقائي:</strong>
+  hi: समय बचाना चाहते हैं?<br><strong>स्वचालित टॉप-अप सक्रिय करने पर विचार करें:</strong>
+  th: ต้องการประหยัดเวลา?<br><strong>พิจารณาเปิดใช้งานการเติมเงินอัตโนมัติ:</strong>
+  cs: Chcete ušetřit čas?<br><strong>Zvažte aktivaci automatického dobíjení:</strong>
+  sv: Vill du spara tid?<br><strong>Överväg att aktivera automatisk påfyllning:</strong>
+  verified_by_human: []
+auto_topup_low_balance_description:
+  context: Description text for low balance auto top-up option
+  en: "Once credits below {lowbalancethreshold}:<br>{credits} credits for {price}."
+  de: "Sobald Credits unter {lowbalancethreshold}:<br>{credits} Credits für {price}."
+  zh: "一旦积分低于 {lowbalancethreshold}：<br>{credits} 积分，价格为 {price}。"
+  es: "Una vez que los créditos estén por debajo de {lowbalancethreshold}:<br>{credits} créditos por {price}."
+  fr: "Une fois que les crédits sont en dessous de {lowbalancethreshold} :<br>{credits} crédits pour {price}."
+  pt: "Quando os créditos estiverem abaixo de {lowbalancethreshold}:<br>{credits} créditos por {price}."
+  ru: "Как только кредиты ниже {lowbalancethreshold}:<br>{credits} кредитов за {price}."
+  ja: "クレジットが {lowbalancethreshold} を下回ったら：<br>{price} で {credits} クレジット。"
+  ko: "크레딧이 {lowbalancethreshold} 미만이 되면:<br>{price}에 {credits} 크레딧."
+  it: "Quando i crediti scendono sotto {lowbalancethreshold}:<br>{credits} crediti per {price}."
+  tr: "Krediler {lowbalancethreshold} altına düştüğünde:<br>{price} için {credits} kredi."
+  vi: "Khi tín dụng dưới {lowbalancethreshold}:<br>{credits} tín dụng với giá {price}."
+  id: "Setelah kredit di bawah {lowbalancethreshold}:<br>{credits} kredit seharga {price}."
+  pl: "Gdy kredyty spadną poniżej {lowbalancethreshold}:<br>{credits} kredytów za {price}."
+  nl: "Zodra credits onder {lowbalancethreshold}:<br>{credits} credits voor {price}."
+  ar: "بمجرد أن تنخفض الاعتمادات عن {lowbalancethreshold}:<br>{credits} اعتمادات مقابل {price}."
+  hi: "एक बार क्रेडिट {lowbalancethreshold} से नीचे:<br>{price} में {credits} क्रेडिट।"
+  th: "เมื่อเครดิตต่ำกว่า {lowbalancethreshold}:<br>{credits} เครดิตในราคา {price}"
+  cs: "Jakmile kredity klesnou pod {lowbalancethreshold}:<br>{credits} kreditů za {price}."
+  sv: "När krediter understiger {lowbalancethreshold}:<br>{credits} krediter för {price}."
+  verified_by_human: []
+auto_topup_monthly_description:
+  context: Description text for monthly auto top-up option
+  en: "{credits} credits for {price}"
+  de: "{credits} Credits für {price}"
+  zh: "{credits} 积分，价格为 {price}"
+  es: "{credits} créditos por {price}"
+  fr: "{credits} crédits pour {price}"
+  pt: "{credits} créditos por {price}"
+  ru: "{credits} кредитов за {price}"
+  ja: "{price} で {credits} クレジット"
+  ko: "{price}에 {credits} 크레딧"
+  it: "{credits} crediti per {price}"
+  tr: "{price} için {credits} kredi"
+  vi: "{credits} tín dụng với giá {price}"
+  id: "{credits} kredit seharga {price}"
+  pl: "{credits} kredytów za {price}"
+  nl: "{credits} credits voor {price}"
+  ar: "{credits} اعتمادات مقابل {price}"
+  hi: "{price} में {credits} क्रेडिट"
+  th: "{credits} เครดิตในราคา {price}"
+  cs: "{credits} kreditů za {price}"
+  sv: "{credits} krediter för {price}"
+  verified_by_human: []
+auto_topup_bonus_credits:
+  context: Bonus credits text for monthly auto top-up
+  en: Incl. {bonuscredits} free credits!
+  de: Inkl. {bonuscredits} kostenlose Credits!
+  zh: 包含 {bonuscredits} 免费积分！
+  es: ¡Incl. {bonuscredits} créditos gratis!
+  fr: Incl. {bonuscredits} crédits gratuits !
+  pt: Incl. {bonuscredits} créditos grátis!
+  ru: Включая {bonuscredits} бесплатных кредитов!
+  ja: "{bonuscredits} の無料クレジットを含む！"
+  ko: "{bonuscredits} 무료 크레딧 포함!"
+  it: Incl. {bonuscredits} crediti gratuiti!
+  tr: "{bonuscredits} ücretsiz kredi dahil!"
+  vi: Bao gồm {bonuscredits} tín dụng miễn phí!
+  id: Termasuk {bonuscredits} kredit gratis!
+  pl: W tym {bonuscredits} darmowych kredytów!
+  nl: Incl. {bonuscredits} gratis credits!
+  ar: يشمل {bonuscredits} اعتمادات مجانية!
+  hi: "{bonuscredits} मुफ्त क्रेडिट शामिल!"
+  th: รวม {bonuscredits} เครดิตฟรี!
+  cs: Včetně {bonuscredits} bezplatných kreditů!
+  sv: Inkl. {bonuscredits} gratis krediter!
+  verified_by_human: []
+auto_topup_payment_method_error:
+  context: Error message when payment method could not be saved
+  en: Payment method could not be saved. Monthly auto top-up is not available. You can set this up later in settings.
+  de: Zahlungsmethode konnte nicht gespeichert werden. Monatliches Auto-Aufladen ist nicht verfügbar. Sie können dies später in den Einstellungen einrichten.
+  zh: 无法保存付款方式。月度自动充值不可用。您稍后可以在设置中设置。
+  es: No se pudo guardar el método de pago. La recarga automática mensual no está disponible. Puedes configurarlo más tarde en la configuración.
+  fr: La méthode de paiement n'a pas pu être enregistrée. Le rechargement automatique mensuel n'est pas disponible. Vous pouvez le configurer plus tard dans les paramètres.
+  pt: O método de pagamento não pôde ser salvo. O recarregamento automático mensal não está disponível. Você pode configurar isso mais tarde nas configurações.
+  ru: Способ оплаты не удалось сохранить. Ежемесячное автопополнение недоступно. Вы можете настроить это позже в настройках.
+  ja: 支払い方法を保存できませんでした。月次自動チャージは利用できません。後で設定で設定できます。
+  ko: 결제 수단을 저장할 수 없습니다. 월간 자동 충전을 사용할 수 없습니다. 나중에 설정에서 설정할 수 있습니다.
+  it: Il metodo di pagamento non è stato salvato. La ricarica automatica mensile non è disponibile. Puoi configurarlo più tardi nelle impostazioni.
+  tr: Ödeme yöntemi kaydedilemedi. Aylık otomatik yükleme kullanılamıyor. Bunu daha sonra ayarlardan yapılandırabilirsiniz.
+  vi: Không thể lưu phương thức thanh toán. Tự động nạp tiền hàng tháng không khả dụng. Bạn có thể thiết lập điều này sau trong cài đặt.
+  id: Metode pembayaran tidak dapat disimpan. Isi ulang otomatis bulanan tidak tersedia. Anda dapat mengatur ini nanti di pengaturan.
+  pl: Nie można zapisać metody płatności. Miesięczne auto-doładowanie nie jest dostępne. Możesz to skonfigurować później w ustawieniach.
+  nl: Betaalmethode kon niet worden opgeslagen. Maandelijks automatisch opwaarderen is niet beschikbaar. U kunt dit later instellen in de instellingen.
+  ar: تعذر حفظ طريقة الدفع. إعادة الشحن التلقائي الشهرية غير متاحة. يمكنك إعداد هذا لاحقًا في الإعدادات.
+  hi: भुगतान विधि सहेजी नहीं जा सकी। मासिक स्वचालित टॉप-अप उपलब्ध नहीं है। आप इसे बाद में सेटिंग्स में सेट कर सकते हैं।
+  th: ไม่สามารถบันทึกวิธีการชำระเงินได้ การเติมเงินอัตโนมัติรายเดือนไม่พร้อมใช้งาน คุณสามารถตั้งค่านี้ได้ภายหลังในการตั้งค่า
+  cs: Platební metodu se nepodařilo uložit. Měsíční automatické dobíjení není k dispozici. Můžete to nastavit později v nastavení.
+  sv: Betalningsmetoden kunde inte sparas. Månadsvis automatisk påfyllning är inte tillgänglig. Du kan ställa in detta senare i inställningarna.
+  verified_by_human: []
+auto_topup_settings_help:
+  context: Help text about changing auto top-up settings
+  en: In Settings/Billing you can change the Auto top-up settings at any time.
+  de: In Einstellungen/Abrechnung können Sie die Auto-Aufladen-Einstellungen jederzeit ändern.
+  zh: 在设置/账单中，您可以随时更改自动充值设置。
+  es: En Configuración/Facturación puedes cambiar la configuración de recarga automática en cualquier momento.
+  fr: Dans Paramètres/Facturation, vous pouvez modifier les paramètres de rechargement automatique à tout moment.
+  pt: Em Configurações/Cobrança você pode alterar as configurações de recarga automática a qualquer momento.
+  ru: В Настройках/Биллинг вы можете изменить настройки автопополнения в любое время.
+  ja: 設定/請求で、自動チャージの設定をいつでも変更できます。
+  ko: 설정/청구에서 자동 충전 설정을 언제든지 변경할 수 있습니다.
+  it: In Impostazioni/Fatturazione puoi modificare le impostazioni di ricarica automatica in qualsiasi momento.
+  tr: Ayarlar/Faturalama'da Otomatik yükleme ayarlarını istediğiniz zaman değiştirebilirsiniz.
+  vi: Trong Cài đặt/Thanh toán, bạn có thể thay đổi cài đặt tự động nạp tiền bất cứ lúc nào.
+  id: Di Pengaturan/Penagihan Anda dapat mengubah pengaturan isi ulang otomatis kapan saja.
+  pl: W Ustawieniach/Rozliczenia możesz zmienić ustawienia auto-doładowania w dowolnym momencie.
+  nl: In Instellingen/Facturering kunt u de instellingen voor automatisch opwaarderen op elk moment wijzigen.
+  ar: في الإعدادات/الفوترة يمكنك تغيير إعدادات إعادة الشحن التلقائي في أي وقت.
+  hi: सेटिंग्स/बिलिंग में आप किसी भी समय स्वचालित टॉप-अप सेटिंग्स बदल सकते हैं।
+  th: ในการตั้งค่า/การเรียกเก็บเงิน คุณสามารถเปลี่ยนการตั้งค่าการเติมเงินอัตโนมัติได้ตลอดเวลา
+  cs: V Nastavení/Fakturace můžete kdykoli změnit nastavení automatického dobíjení.
+  sv: I Inställningar/Fakturering kan du ändra inställningarna för automatisk påfyllning när som helst.
   verified_by_human: []
