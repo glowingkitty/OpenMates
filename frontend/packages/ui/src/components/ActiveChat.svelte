@@ -204,6 +204,31 @@
             console.error('[ActiveChat] Error migrating sessionStorage drafts to IndexedDB:', error);
             // Don't block login if migration fails - drafts will be lost but user can continue
         }
+        
+        // CRITICAL: Check for pending deep link after successful login
+        // This handles cases where user opened a deep link (e.g., settings) while not authenticated
+        // The deep link was stored in sessionStorage and should be processed now
+        try {
+            const pendingDeepLink = sessionStorage.getItem('pendingDeepLink');
+            if (pendingDeepLink) {
+                console.debug(`[ActiveChat] Found pending deep link after login: ${pendingDeepLink}`);
+                // Remove the pending deep link from sessionStorage
+                sessionStorage.removeItem('pendingDeepLink');
+                
+                // Process the deep link by dispatching a custom event that +page.svelte can listen to
+                // This ensures the deep link is processed after auth state is fully updated
+                // Use a small delay to ensure auth state propagation is complete
+                setTimeout(() => {
+                    console.debug(`[ActiveChat] Processing pending deep link: ${pendingDeepLink}`);
+                    window.dispatchEvent(new CustomEvent('processPendingDeepLink', {
+                        detail: { hash: pendingDeepLink }
+                    }));
+                }, 100);
+            }
+        } catch (error) {
+            console.warn('[ActiveChat] Error checking for pending deep link:', error);
+            // Don't block login if deep link processing fails
+        }
     }
 
     // Modify handleLogout to track signup state and reset signup step

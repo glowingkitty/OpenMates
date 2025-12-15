@@ -330,8 +330,8 @@ Invoices Settings - View and download past invoices
                     }
                     
                     // Clear the refund deep link from URL after processing
-                    // Replace with just the invoices path
-                    window.history.replaceState({}, '', window.location.pathname + '#settings/billing/invoices');
+                    // Remove hash completely to keep URL clean (as per deep link processing requirements)
+                    window.history.replaceState({}, '', window.location.pathname + window.location.search);
                 } else {
                     console.warn(`[SettingsInvoices] Invoice ${refundInvoiceId} not found in invoices list`);
                     notificationStore.error(
@@ -340,7 +340,8 @@ Invoices Settings - View and download past invoices
                     );
                     
                     // Clear the refund deep link from URL even if invoice not found
-                    window.history.replaceState({}, '', window.location.pathname + '#settings/billing/invoices');
+                    // Remove hash completely to keep URL clean (as per deep link processing requirements)
+                    window.history.replaceState({}, '', window.location.pathname + window.location.search);
                 }
             }
         }
