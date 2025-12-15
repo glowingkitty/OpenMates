@@ -236,23 +236,24 @@ changes to the documentation (to keep the documentation up to date).
     let allSettingsViews = $derived(buildSettingsViews());
 
     // Reactive settingsViews that filters out server options for non-admins
-    // For non-authenticated users, show interface settings (and nested language settings) and app store
-    // This allows them to explore available features like apps
-    // Shared settings (including share chat) are only available for authenticated users
+    // For non-authenticated users, show interface settings (and nested language settings), app store, and share chat
+    // This allows them to explore available features like apps and share demo chats
+    // Share chat (shared/share) is available for non-authenticated users to share demo chats
     let settingsViews = $derived.by(() => {
         const isAuthenticated = $authStore.isAuthenticated;
         return Object.entries(allSettingsViews).reduce((filtered, [key, component]) => {
-            // For non-authenticated users, include interface settings (top-level and nested) 
-            // and app store (including app details)
+            // For non-authenticated users, include interface settings (top-level and nested), 
+            // app store (including app details), and share chat (for sharing demo chats)
             // App store is read-only for non-authenticated users (browse only, no modifications)
             if (!isAuthenticated) {
                 if (key === 'interface' || key === 'interface/language' || 
-                    key === 'app_store' || key.startsWith('app_store/')) {
+                    key === 'app_store' || key.startsWith('app_store/') ||
+                    key === 'shared/share') {
                     filtered[key] = component;
                 }
             } else {
                 // For authenticated users, include all non-server settings, or include server settings if user is admin
-                // Shared settings (including nested share chat) are only for authenticated users
+                // Shared settings (including nested share chat) are available for authenticated users
                 if (!key.startsWith('server') || $userProfile.is_admin) {
                     filtered[key] = component;
                 }
@@ -358,6 +359,12 @@ changes to the documentation (to keep the documentation up to date).
             // Build the full path up to this segment
             const pathUpToSegment = navigationPath.slice(0, i + 1);
             const pathString = pathUpToSegment.join('/');
+            
+            // For non-authenticated users accessing 'shared/share', skip the 'shared' segment
+            // This makes the breadcrumb show just "Settings" instead of "Settings / Shared"
+            if (!$authStore.isAuthenticated && pathString === 'shared') {
+                continue; // Skip the 'shared' segment for non-authenticated users
+            }
             
             // Handle app_store routes specially - use actual app/skill names from metadata
             if (pathString === 'app_store') {
@@ -604,6 +611,27 @@ changes to the documentation (to keep the documentation up to date).
             // Check if we're on a nested app_store route (skill, focus, settings_memories)
             // If so, go back to the app details page (app_store/{appId}) instead of just removing the last segment
             const currentPath = navigationPath.join('/');
+            
+            // Special handling for non-authenticated users on 'shared/share' - go directly to main
+            if (!$authStore.isAuthenticated && currentPath === 'shared/share') {
+                direction = 'backward';
+                activeSettingsView = 'main';
+                showSubmenuInfo = false;
+                navButtonLeft = false;
+                navigationPath = [];
+                breadcrumbLabel = $text('settings.settings.text');
+                currentHelpLink = baseHelpLink;
+                
+                if (profileContainer) {
+                    profileContainer.classList.remove('submenu-active');
+                }
+                
+                if (settingsContentElement) {
+                    settingsContentElement.scrollTop = 0;
+                }
+                return;
+            }
+            
             let previousPath = '';
             let previousPathSegments = [];
             
@@ -889,14 +917,24 @@ changes to the documentation (to keep the documentation up to date).
 
         // Listen for payment completion notifications via WebSocket
         // This handles cases where payment completes after user has moved on from payment screen
+        // NOTE: Only register payment handlers if NOT in signup mode, as Payment.svelte already handles them during signup
+        // This prevents duplicate handler registrations during signup flow
         const handlePaymentCompleted = (payload: { order_id: string, credits_purchased: number, current_credits: number }) => {
             console.debug('[Settings] Received payment_completed notification via WebSocket:', payload);
-            // Show success notification popup (using Notification.svelte component)
-            notificationStore.success(
-                `Payment completed! ${payload.credits_purchased.toLocaleString()} credits have been added to your account.`,
-                5000
-            );
-            // Update credits in user profile if available
+            
+            // CRITICAL: Suppress notifications during signup - Payment.svelte already handles them
+            // Only show notification if user is not in signup process
+            if (!$isInSignupProcess) {
+                // Show success notification popup (using Notification.svelte component)
+                notificationStore.success(
+                    `Payment completed! ${payload.credits_purchased.toLocaleString()} credits have been added to your account.`,
+                    5000
+                );
+            } else {
+                console.debug('[Settings] Suppressing payment_completed notification during signup');
+            }
+            
+            // Always update credits in user profile if available (even during signup)
             if (payload.current_credits !== undefined) {
                 updateProfile({ credits: payload.current_credits });
             }
@@ -914,16 +952,27 @@ changes to the documentation (to keep the documentation up to date).
         };
 
         webSocketService.on('user_credits_updated', handleCreditUpdate);
-        webSocketService.on('payment_completed', handlePaymentCompleted);
-        webSocketService.on('payment_failed', handlePaymentFailed);
+        
+        // Only register payment handlers if NOT in signup mode
+        // During signup, Payment.svelte component already handles these events
+        // This prevents duplicate handler registrations that cause warnings
+        // Store the signup state at registration time for proper cleanup
+        const wasInSignupProcess = $isInSignupProcess;
+        if (!wasInSignupProcess) {
+            webSocketService.on('payment_completed', handlePaymentCompleted);
+            webSocketService.on('payment_failed', handlePaymentFailed);
+        }
         
         return () => {
             window.removeEventListener('resize', handleResize);
             document.removeEventListener('click', handleClickOutside);
             window.removeEventListener('language-changed', languageChangeHandler);
             webSocketService.off('user_credits_updated', handleCreditUpdate);
-            webSocketService.off('payment_completed', handlePaymentCompleted);
-            webSocketService.off('payment_failed', handlePaymentFailed);
+            // Only unregister payment handlers if they were registered
+            if (!wasInSignupProcess) {
+                webSocketService.off('payment_completed', handlePaymentCompleted);
+                webSocketService.off('payment_failed', handlePaymentFailed);
+            }
         };
     });
 
@@ -1025,12 +1074,14 @@ changes to the documentation (to keep the documentation up to date).
         if ($settingsDeepLink) {
             const settingsPath = $settingsDeepLink;
             
-            // For non-authenticated users, only allow app_store and interface settings
+            // For non-authenticated users, only allow app_store, interface, and share settings
+            // Share settings are allowed so users can share demo chats
             if (!$authStore.isAuthenticated) {
-                const allowedPaths = ['app_store', 'interface', 'interface/language'];
+                const allowedPaths = ['app_store', 'interface', 'interface/language', 'shared/share'];
                 const isAllowedPath = allowedPaths.includes(settingsPath) || 
                                      settingsPath.startsWith('app_store/') ||
-                                     settingsPath.startsWith('interface/');
+                                     settingsPath.startsWith('interface/') ||
+                                     settingsPath.startsWith('shared/share');
                 
                 if (!isAllowedPath) {
                     // Clear the deep link if path is not allowed for non-authenticated users

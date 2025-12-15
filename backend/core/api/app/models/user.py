@@ -14,6 +14,7 @@ class User(BaseModel):
     # Consent fields (store timestamp as string)
     consent_privacy_and_apps_default_settings: Optional[str] = None
     consent_mates_default_settings: Optional[str] = None
+    consent_withdrawal_waiver_timestamp: Optional[str] = None # Timestamp of withdrawal waiver consent (for EU/German consumer law compliance)
     language: Optional[str] = 'en' # User's preferred language, default 'en'
     darkmode: bool = False # User's dark mode preference, default false
     gifted_credits_for_signup: Optional[int] = None # Gifted credits from signup invite
@@ -36,7 +37,7 @@ class User(BaseModel):
     
     # Low balance auto top-up fields
     auto_topup_low_balance_enabled: bool = False # Enable automatic one-time top-up when balance low
-    auto_topup_low_balance_threshold: Optional[int] = None # Credit threshold that triggers auto top-up
+    auto_topup_low_balance_threshold: Optional[int] = None # Credit threshold that triggers auto top-up (fixed at 100 credits, cannot be changed to simplify setup)
     auto_topup_low_balance_amount: Optional[int] = None # Credits to purchase when threshold crossed
     auto_topup_low_balance_currency: Optional[str] = None # Currency for auto top-up purchases
     encrypted_auto_topup_last_triggered: Optional[str] = None # Encrypted timestamp of last auto top-up

@@ -97,8 +97,13 @@
     text-align: center;
     box-sizing: border-box;
     position: relative;
-    margin-top: 20px;
-    margin-bottom: 20px;
+    margin-top: 50px;
+    margin-bottom: 55px;
+}
+
+/* Payment step specific styling - increased margin-top for better visibility */
+.login-box.payment-step {
+    margin-top: 150px;
 }
 
 /* Ensure login-box is properly sized and centered on mobile */
@@ -109,7 +114,7 @@
         max-width: 100%; /* Don't subtract padding again - parent login-content already handles padding */
         min-width: 300px; /* Maintain minimum width */
         min-height: auto; /* Let content determine height on mobile */
-        margin: 20px auto 0 auto; /* Add top margin to space from mobile grid, center horizontally */
+        margin: 20px auto 0 auto !important; /* Add top margin to space from mobile grid, center horizontally */
         flex-shrink: 0; /* Prevent login-box from shrinking */
     }
 }
@@ -493,6 +498,11 @@ form.hidden {
 
 .top-content-wrapper.expanded {
     height: 600px;
+}
+
+/* Payment step specific styling - increased height for better visibility of payment form */
+.top-content-wrapper.expanded.payment-step {
+    height: 700px;
 }
 
 

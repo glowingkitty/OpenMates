@@ -18,7 +18,8 @@ Auto Top-Up Settings - Submenu for low balance and monthly auto top-up options
 
     // Low balance settings from user profile
     let lowBalanceEnabled = $state(false);
-    let lowBalanceThreshold = $state(1000);
+    // Fixed threshold: always 100 credits (cannot be changed to simplify setup)
+    const lowBalanceThreshold = 100;
 
     // Format credits with dots as thousand separators
     function formatCredits(credits: number): string {
@@ -28,7 +29,7 @@ Auto Top-Up Settings - Submenu for low balance and monthly auto top-up options
     // Load user profile data
     userProfile.subscribe(profile => {
         lowBalanceEnabled = profile.auto_topup_low_balance_enabled || false;
-        lowBalanceThreshold = profile.auto_topup_low_balance_threshold || 1000;
+        // Threshold is fixed at 100 credits and cannot be changed
     });
 
     // Fetch subscription details
@@ -73,37 +74,22 @@ Auto Top-Up Settings - Submenu for low balance and monthly auto top-up options
     });
 </script>
 
-<div class="auto-topup-container">
-    <!-- On Low Balance Menu Item -->
-    <SettingsItem
-        icon="subsetting_icon subsetting_icon_low_balance"
-        title={$text('settings.billing.on_low_balance.text')}
-        subtitle={lowBalanceEnabled 
-            ? `${$text('settings.enabled.text')} - ${$text('settings.billing.threshold.text')}: ${formatCredits(lowBalanceThreshold)}`
-            : $text('settings.disabled.text')}
-        onClick={() => navigateToSubview('low-balance')}
-    />
+<!-- On Low Balance Menu Item -->
+<SettingsItem
+    icon="subsetting_icon subsetting_icon_low_balance"
+    title={$text('settings.billing.on_low_balance.text')}
+    subtitle={lowBalanceEnabled 
+        ? `${$text('settings.enabled.text')} - ${$text('settings.billing.threshold.text')}: ${formatCredits(lowBalanceThreshold)}`
+        : $text('settings.disabled.text')}
+    onClick={() => navigateToSubview('low-balance')}
+/>
 
-    <!-- Monthly Subscription Menu Item -->
-    <SettingsItem
-        icon="subsetting_icon subsetting_icon_calendar"
-        title={$text('settings.billing.monthly.text')}
-        subtitle={hasActiveSubscription && subscriptionDetails
-            ? `${$text('settings.active.text')} - ${formatCredits(subscriptionDetails.credits || 0)} ${$text('settings.billing.credits.text')}/month`
-            : $text('settings.billing.no_subscription.text')}
-        onClick={() => navigateToSubview('monthly')}
-    />
-</div>
-
-<style>
-    .auto-topup-container {
-        padding: 0 10px;
-    }
-
-    @media (max-width: 480px) {
-        .auto-topup-container {
-            padding: 0 5px;
-        }
-    }
-</style>
-
+<!-- Monthly Subscription Menu Item -->
+<SettingsItem
+    icon="subsetting_icon subsetting_icon_calendar"
+    title={$text('settings.billing.monthly.text')}
+    subtitle={hasActiveSubscription && subscriptionDetails
+        ? `${$text('settings.active.text')} - ${formatCredits(subscriptionDetails.credits || 0)} ${$text('settings.billing.credits.text')}/month`
+        : $text('settings.billing.no_subscription.text')}
+    onClick={() => navigateToSubview('monthly')}
+/>

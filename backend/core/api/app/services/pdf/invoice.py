@@ -383,6 +383,18 @@ class InvoiceTemplateService(BasePDFTemplateService):
         ]))
         elements.append(vat_disclaimer_table)
         
+        # Add withdrawal waiver notice (required for EU/German consumer law compliance)
+        elements.append(Spacer(1, 10))
+        withdrawal_waiver_text = sanitize_html_for_reportlab(self.t['invoices_and_credit_notes']['withdrawal_waiver_notice']['text'])
+        withdrawal_waiver_table = Table([[Spacer(self.left_indent, 0),
+                                     Paragraph(withdrawal_waiver_text, self.styles['Normal'])]],
+                                     colWidths=[self.left_indent, doc.width-self.left_indent])
+        withdrawal_waiver_table.setStyle(TableStyle([
+            ('LEFTPADDING', (0, 0), (-1, -1), 0),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+        ]))
+        elements.append(withdrawal_waiver_table)
+        
         # Add larger spacer before questions helper
         elements.append(Spacer(1, 40))
         

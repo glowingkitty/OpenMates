@@ -514,7 +514,7 @@ step_4_top_content_svelte:
         height: var(--qr-code-size);
         position: absolute;
         top: 50%;
-        transform: translateY(-20px);
+        transform: translateY(-28px);
         z-index: 1;
         display: flex;
         justify-content: center;

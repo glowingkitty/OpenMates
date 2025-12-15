@@ -17,11 +17,14 @@ Invoices Settings - View and download past invoices
         credits_purchased: number;
         filename: string;
         is_gift_card?: boolean;  // Whether this invoice is for a gift card purchase
+        refunded_at?: string | null;  // ISO timestamp when refund was processed (null if not refunded)
+        refund_status?: string | null;  // Status of refund: 'none', 'pending', 'completed', 'failed'
     }
 
     let isLoading = $state(false);
     let errorMessage: string | null = $state(null);
     let invoices: Invoice[] = $state([]);
+    let refundingInvoiceId: string | null = $state(null);  // Track which invoice is being refunded
 
     // Format date for display
     function formatDate(dateStr: string): string {
@@ -147,6 +150,117 @@ Invoices Settings - View and download past invoices
         }
     }
 
+    // Check if invoice is eligible for refund
+    // Eligible if: within 14 days, not a gift card purchase (or gift card not used), and not already refunded
+    function isInvoiceEligibleForRefund(invoice: Invoice): boolean {
+        try {
+            // Don't show refund button if already refunded
+            if (isInvoiceRefunded(invoice)) {
+                return false;
+            }
+            
+            // Check if gift card purchase - gift cards cannot be refunded once used
+            // (backend will check if gift card still exists)
+            if (invoice.is_gift_card) {
+                // Still show button - backend will check if gift card was used
+                return true;
+            }
+            
+            // Check if within 14 days
+            const invoiceDate = new Date(invoice.date);
+            const now = new Date();
+            const daysSincePurchase = Math.floor((now.getTime() - invoiceDate.getTime()) / (1000 * 60 * 60 * 24));
+            
+            return daysSincePurchase <= 14;
+        } catch (error) {
+            console.error('Error checking refund eligibility:', error);
+            return false;
+        }
+    }
+
+    // Request refund for invoice
+    async function requestRefund(invoice: Invoice) {
+        // Prevent multiple refund requests for the same invoice
+        if (refundingInvoiceId === invoice.id) {
+            return;
+        }
+        
+        // Don't allow refund if already refunded
+        if (isInvoiceRefunded(invoice)) {
+            return;
+        }
+        
+        refundingInvoiceId = invoice.id;
+        
+        try {
+            notificationStore.info($text('settings.billing.invoices_refund_processing.text'));
+
+            const response = await fetch(getApiEndpoint(apiEndpoints.payments.requestRefund), {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({
+                    invoice_id: invoice.id
+                })
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                const errorMessage = data.detail || data.message || $text('settings.billing.invoices_refund_error.text');
+                throw new Error(errorMessage);
+            }
+
+            if (data.success) {
+                notificationStore.success(
+                    data.message || $text('settings.billing.invoices_refund_success.text')
+                );
+                
+                // Update credits if provided in response
+                if (data.unused_credits !== undefined && data.total_credits !== undefined) {
+                    // The backend will broadcast the credit update via WebSocket
+                    // Settings.svelte already listens for 'user_credits_updated' events
+                    console.log(`Refund processed: ${data.unused_credits} credits refunded`);
+                }
+                
+                // Refresh invoices to update UI
+                await fetchInvoices();
+            } else {
+                throw new Error(data.message || $text('settings.billing.invoices_refund_error.text'));
+            }
+        } catch (error) {
+            console.error('Error requesting refund:', error);
+            const errorMessage = error instanceof Error ? error.message : $text('settings.billing.invoices_refund_error.text');
+            notificationStore.error(errorMessage);
+        } finally {
+            refundingInvoiceId = null;
+        }
+    }
+    
+    // Check if invoice is refunded
+    function isInvoiceRefunded(invoice: Invoice): boolean {
+        return invoice.refund_status === 'completed' || invoice.refunded_at !== null;
+    }
+    
+    // Format refund date for display
+    function formatRefundDate(refundedAt: string | null | undefined): string {
+        if (!refundedAt) {
+            return '';
+        }
+        try {
+            const date = new Date(refundedAt);
+            return date.toLocaleDateString(undefined, {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        } catch {
+            return refundedAt;
+        }
+    }
+
     // Download invoice
     async function downloadInvoice(invoice: Invoice) {
         try {
@@ -181,6 +295,57 @@ Invoices Settings - View and download past invoices
             notificationStore.error($text('settings.billing.invoices_download_error.text'));
         }
     }
+
+    // Handle deep link refund - format: #settings/billing/invoices/{invoice_id}/refund
+    // Check URL for refund deep link when component mounts or when invoices are loaded
+    $effect(() => {
+        // Only process refund deep link if invoices are loaded
+        if (invoices.length > 0 && !isLoading) {
+            // Check for refund deep link in URL hash (e.g., #settings/billing/invoices/{invoice_id}/refund)
+            const hash = window.location.hash;
+            const refundMatch = hash.match(/^#settings\/billing\/invoices\/([^\/]+)\/refund$/);
+            
+            if (refundMatch) {
+                const refundInvoiceId = refundMatch[1];
+                console.debug(`[SettingsInvoices] Deep link refund detected for invoice: ${refundInvoiceId}`);
+                
+                // Find the invoice with matching ID
+                const invoiceToRefund = invoices.find(inv => inv.id === refundInvoiceId);
+                
+                if (invoiceToRefund) {
+                    // Check if invoice is eligible for refund
+                    if (isInvoiceEligibleForRefund(invoiceToRefund)) {
+                        console.debug(`[SettingsInvoices] Invoice ${refundInvoiceId} is eligible for refund, triggering refund...`);
+                        
+                        // Small delay to ensure UI is ready
+                        setTimeout(() => {
+                            requestRefund(invoiceToRefund);
+                        }, 500);
+                    } else {
+                        console.warn(`[SettingsInvoices] Invoice ${refundInvoiceId} is not eligible for refund`);
+                        notificationStore.info(
+                            $text('settings.billing.invoices_refund_not_eligible.text'),
+                            5000
+                        );
+                    }
+                    
+                    // Clear the refund deep link from URL after processing
+                    // Remove hash completely to keep URL clean (as per deep link processing requirements)
+                    window.history.replaceState({}, '', window.location.pathname + window.location.search);
+                } else {
+                    console.warn(`[SettingsInvoices] Invoice ${refundInvoiceId} not found in invoices list`);
+                    notificationStore.error(
+                        $text('settings.billing.invoices_refund_not_found.text'),
+                        5000
+                    );
+                    
+                    // Clear the refund deep link from URL even if invoice not found
+                    // Remove hash completely to keep URL clean (as per deep link processing requirements)
+                    window.history.replaceState({}, '', window.location.pathname + window.location.search);
+                }
+            }
+        }
+    });
 
     onMount(() => {
         fetchInvoices();
@@ -252,6 +417,29 @@ Invoices Settings - View and download past invoices
                             <div class="download-icon"></div>
                             <span>{$text('settings.billing.invoices_download.text')}</span>
                         </button>
+                        {#if isInvoiceRefunded(invoice)}
+                            <div class="refunded-state">
+                                <span class="refunded-text">
+                                    {$text('settings.billing.invoices_refunded_on.text')} {formatRefundDate(invoice.refunded_at)}
+                                </span>
+                            </div>
+                        {:else if isInvoiceEligibleForRefund(invoice)}
+                            <button
+                                class="refund-button"
+                                class:disabled={refundingInvoiceId === invoice.id}
+                                disabled={refundingInvoiceId === invoice.id}
+                                onclick={() => requestRefund(invoice)}
+                                title={$text('settings.billing.invoices_refund_tooltip.text')}
+                            >
+                                {#if refundingInvoiceId === invoice.id}
+                                    <div class="loading-spinner-small"></div>
+                                    <span>{$text('settings.billing.invoices_refund_processing.text')}</span>
+                                {:else}
+                                    <div class="refund-icon"></div>
+                                    <span>{$text('settings.billing.invoices_refund.text')}</span>
+                                {/if}
+                            </button>
+                        {/if}
                     </div>
                 </div>
             {/each}
@@ -351,8 +539,9 @@ Invoices Settings - View and download past invoices
 
     .invoice-item {
         display: flex;
-        align-items: center;
-        justify-content: space-between;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
         padding: 16px;
         margin-bottom: 8px;
         background: var(--color-grey-10);
@@ -419,6 +608,8 @@ Invoices Settings - View and download past invoices
     .invoice-actions {
         display: flex;
         align-items: center;
+        gap: 8px;
+        width: 100%;
     }
 
     .download-button {
@@ -450,25 +641,84 @@ Invoices Settings - View and download past invoices
         filter: invert(1);
     }
 
+    .refund-button {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 16px;
+        background: var(--color-grey-20);
+        color: var(--color-grey-100);
+        border: 1px solid var(--color-grey-30);
+        border-radius: 8px;
+        font-size: 13px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .refund-button:hover:not(:disabled) {
+        background: var(--color-grey-30);
+        border-color: var(--color-grey-40);
+        transform: translateY(-1px);
+    }
+    
+    .refund-button:disabled,
+    .refund-button.disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        pointer-events: none;
+    }
+    
+    .refund-button:disabled:hover,
+    .refund-button.disabled:hover {
+        background: var(--color-grey-20);
+        border-color: var(--color-grey-30);
+        transform: none;
+    }
+
+    .refund-icon {
+        width: 16px;
+        height: 16px;
+        background-image: url('@openmates/ui/static/icons/reload.svg');
+        background-size: contain;
+        background-repeat: no-repeat;
+        filter: invert(1);
+        transform: rotate(180deg); /* Rotate to make it look like a return/refund arrow */
+    }
+    
+    .refunded-state {
+        display: flex;
+        align-items: center;
+        padding: 8px 16px;
+        color: var(--color-grey-60);
+        font-size: 13px;
+    }
+    
+    .refunded-text {
+        color: var(--color-grey-60);
+        font-style: italic;
+    }
+    
+    .loading-spinner-small {
+        width: 14px;
+        height: 14px;
+        border: 2px solid var(--color-grey-30);
+        border-top: 2px solid var(--color-grey-100);
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+
     /* Responsive Styles */
     @media (max-width: 768px) {
-        .invoice-item {
-            flex-direction: column;
-            align-items: flex-start;
-            gap: 12px;
-        }
-
         .invoice-actions {
-            width: 100%;
-        }
-
-        .download-button {
-            width: 100%;
-            justify-content: center;
-        }
-
-        .invoice-details {
             flex-wrap: wrap;
+        }
+
+        .download-button,
+        .refund-button {
+            flex: 1;
+            min-width: 120px;
+            justify-content: center;
         }
     }
 

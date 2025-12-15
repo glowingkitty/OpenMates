@@ -90,12 +90,16 @@
     max-height: 60px !important;
   }
   
-  /* Fallback for images without specific classes */
-  img {
-    max-width: 60px !important;
-    max-height: 60px !important;
+  /* Map images - allow larger sizes for location maps */
+  .email-map img {
+    max-width: 300px !important;
+    width: 300px !important;
     height: auto !important;
+    max-height: 300px !important;
   }
+  
+  /* Note: We don't use a general img fallback to avoid constraining large content images */
+  /* All icons should use specific CSS classes (email-icon-50, email-icon-28, etc.) */
 
   /* Improved email client compatibility for responsive layout */
   @media screen and (max-width:480px) {

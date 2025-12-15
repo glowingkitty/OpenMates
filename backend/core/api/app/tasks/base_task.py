@@ -11,6 +11,7 @@ from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.services.s3.service import S3UploadService
 from backend.core.api.app.services.pdf.invoice import InvoiceTemplateService
+from backend.core.api.app.services.pdf.credit_note import CreditNoteTemplateService
 from backend.core.api.app.services.email_template import EmailTemplateService
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 from backend.core.api.app.services.translations import TranslationService
@@ -26,6 +27,7 @@ class BaseServiceTask(Task):
     _encryption_service: Optional[EncryptionService] = None
     _s3_service: Optional[S3UploadService] = None
     _invoice_template_service: Optional[InvoiceTemplateService] = None
+    _credit_note_template_service: Optional[CreditNoteTemplateService] = None
     _email_template_service: Optional[EmailTemplateService] = None
     _secrets_manager: Optional[SecretsManager] = None
     _translation_service: Optional[TranslationService] = None
@@ -94,6 +96,13 @@ class BaseServiceTask(Task):
         else:
              logger.debug(f"InvoiceTemplateService already initialized for task {self.request.id}")
 
+        if self._credit_note_template_service is None:
+            logger.debug(f"Initializing CreditNoteTemplateService for task {self.request.id}")
+            self._credit_note_template_service = CreditNoteTemplateService(secrets_manager=self._secrets_manager) # Pass SecretsManager
+            logger.debug(f"CreditNoteTemplateService initialized for task {self.request.id}")
+        else:
+             logger.debug(f"CreditNoteTemplateService already initialized for task {self.request.id}")
+
         if self._email_template_service is None:
             logger.debug(f"Initializing EmailTemplateService for task {self.request.id}")
             self._email_template_service = EmailTemplateService(secrets_manager=self._secrets_manager) # Pass SecretsManager
@@ -159,6 +168,14 @@ class BaseServiceTask(Task):
             logger.error(f"InvoiceTemplateService accessed before initialization in task {self.request.id}")
             raise RuntimeError("InvoiceTemplateService not initialized. Call initialize_services first.")
         return self._invoice_template_service
+
+    @property
+    def credit_note_template_service(self) -> CreditNoteTemplateService:
+        if self._credit_note_template_service is None:
+             # Log error before raising
+            logger.error(f"CreditNoteTemplateService accessed before initialization in task {self.request.id}")
+            raise RuntimeError("CreditNoteTemplateService not initialized. Call initialize_services first.")
+        return self._credit_note_template_service
 
     @property
     def email_template_service(self) -> EmailTemplateService:

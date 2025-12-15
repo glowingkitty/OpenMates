@@ -18,11 +18,18 @@ class PaymentService:
     async def initialize(self, is_production: bool):
         await self.provider.initialize(is_production)
 
-    async def create_order(self, amount: int, currency: str, email: str, credits_amount: int) -> Optional[Dict[str, Any]]:
+    async def create_order(self, amount: int, currency: str, email: str, credits_amount: int, customer_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
         """
         Delegates order creation to the active payment provider.
+        
+        Args:
+            amount: Amount in smallest currency unit
+            currency: Currency code
+            email: Customer email
+            credits_amount: Number of credits
+            customer_id: Optional existing customer ID (for Stripe)
         """
-        return await self.provider.create_order(amount, currency, email, credits_amount)
+        return await self.provider.create_order(amount, currency, email, credits_amount, customer_id)
 
     async def get_order(self, order_id: str) -> Optional[Dict[str, Any]]:
         """
@@ -43,6 +50,23 @@ class PaymentService:
             # Stripe's verify_and_parse_webhook returns the event object or None
             return await self.provider.verify_and_parse_webhook(payload, sig_header)
         return None
+
+    async def refund_payment(self, payment_intent_id: str, amount: Optional[int] = None) -> Optional[Dict[str, Any]]:
+        """
+        Delegates refund processing to the active payment provider.
+        
+        Args:
+            payment_intent_id: The payment intent/order ID
+            amount: Optional amount to refund in cents. If None, refunds the full amount.
+            
+        Returns:
+            A dictionary containing refund details, or None if an error occurred.
+        """
+        if hasattr(self.provider, 'refund_payment'):
+            return await self.provider.refund_payment(payment_intent_id, amount)
+        else:
+            logger.error(f"Refund not supported for provider {self.provider_name}")
+            return None
 
     async def close(self):
         await self.provider.close()

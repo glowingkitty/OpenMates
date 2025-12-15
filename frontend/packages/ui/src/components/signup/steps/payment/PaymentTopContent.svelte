@@ -35,8 +35,10 @@ step_10_top_content_svelte:
 
 <script lang="ts">
     import { text } from '@repo/ui';
-    import { createEventDispatcher } from 'svelte';
+    import { createEventDispatcher, onMount } from 'svelte';
     import Payment from '../../../../components/Payment.svelte';
+    import AutoTopUp from '../../../../components/payment/AutoTopUp.svelte';
+    import { apiEndpoints, getApiUrl } from '../../../../config/api';
     
     const dispatch = createEventDispatcher();
     
@@ -45,16 +47,95 @@ step_10_top_content_svelte:
         credits_amount = 21000,
         price = 20,
         currency = 'EUR',
-        isGift = false
+        isGift = false,
+        showSuccess = false, // When true, shows success message instead of payment form
+        // Auto top-up props (used when showSuccess is true)
+        purchasedCredits = null,
+        purchasedPrice = null,
+        paymentMethodSaved = true,
+        paymentMethodSaveError = null,
+        oncomplete,
+        'onactivate-subscription': onactivateSubscription
     }: {
         credits_amount?: number,
         price?: number,
         currency?: string,
-        isGift?: boolean
+        isGift?: boolean,
+        showSuccess?: boolean,
+        purchasedCredits?: number | null,
+        purchasedPrice?: number | null,
+        paymentMethodSaved?: boolean,
+        paymentMethodSaveError?: string | null,
+        oncomplete?: (event: CustomEvent) => void,
+        'onactivate-subscription'?: (event: CustomEvent) => void
     } = $props();
     
     // Track if payment form is visible
     let isPaymentFormVisible = false;
+    
+    // Local state for payment method status (used as fallback if prop is not set correctly)
+    let localPaymentMethodSaved = $state(paymentMethodSaved);
+    let localPaymentMethodSaveError = $state<string | null>(paymentMethodSaveError);
+    
+    // Update local state when props change
+    $effect(() => {
+        localPaymentMethodSaved = paymentMethodSaved;
+        localPaymentMethodSaveError = paymentMethodSaveError;
+    });
+    
+    // Check payment method on mount if showSuccess is true and paymentMethodSaved is false
+    // This is a fallback check in case the parent component didn't check on reload
+    onMount(async () => {
+        if (showSuccess && !paymentMethodSaved) {
+            console.debug('[PaymentTopContent] showSuccess=true but paymentMethodSaved=false, checking backend...');
+            try {
+                const response = await fetch(getApiUrl() + apiEndpoints.payments.hasPaymentMethod, {
+                    method: 'GET',
+                    credentials: 'include'
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    const hasPaymentMethod = data.has_payment_method === true;
+                    console.debug(`[PaymentTopContent] Payment method status from backend: ${hasPaymentMethod}`);
+                    
+                    if (hasPaymentMethod) {
+                        // Update local state and dispatch event to parent
+                        localPaymentMethodSaved = true;
+                        localPaymentMethodSaveError = null;
+                        // Dispatch event to parent to update its state
+                        dispatch('paymentMethodStatusUpdate', { 
+                            saved: true, 
+                            error: null 
+                        });
+                    } else {
+                        localPaymentMethodSaved = false;
+                        localPaymentMethodSaveError = 'No payment method found. Please complete payment first.';
+                        dispatch('paymentMethodStatusUpdate', { 
+                            saved: false, 
+                            error: localPaymentMethodSaveError 
+                        });
+                    }
+                } else {
+                    console.warn('[PaymentTopContent] Failed to check payment method status:', response.status);
+                    localPaymentMethodSaved = false;
+                    localPaymentMethodSaveError = 'Failed to check payment method status';
+                    dispatch('paymentMethodStatusUpdate', { 
+                        saved: false, 
+                        error: localPaymentMethodSaveError 
+                    });
+                }
+            } catch (error) {
+                console.error('[PaymentTopContent] Error checking payment method status:', error);
+                localPaymentMethodSaved = false;
+                localPaymentMethodSaveError = error instanceof Error ? error.message : 'Unknown error checking payment method';
+                dispatch('paymentMethodStatusUpdate', { 
+                    saved: false, 
+                    error: localPaymentMethodSaveError 
+                });
+            }
+        }
+    });
     
     // Format number with thousand separators
     function formatNumber(num: number): string {
@@ -86,32 +167,62 @@ step_10_top_content_svelte:
 </script>
 
 <div class="container">
-    <div class="top-container">
-        <div class="header-content">
-            <div class="primary-text">
-                {@html $text('signup.amount_currency.text')
-                    .replace('{currency}', '<span class="coin-icon-inline"></span>')
-                    .replace('{amount}', formatNumber(credits_amount))}
+    {#if showSuccess}
+        <!-- Success message for auto top-up step -->
+        <div class="top-container success-container">
+            <div class="header-content">
+                <div class="success-icon"></div>
+                <div class="primary-text">
+                    {@html $text('signup.purchase_successful.text')}
+                </div>
             </div>
         </div>
-    </div>
+        
+        <!-- Auto top-up content below success message -->
+        <div class="bottom-container">
+            <div class="main-content">
+                <div class="separated-block">
+                    <AutoTopUp
+                        purchasedCredits={purchasedCredits || 0}
+                        purchasedPrice={purchasedPrice || 0}
+                        currency={currency.toLowerCase()}
+                        paymentMethodSaved={localPaymentMethodSaved}
+                        paymentMethodSaveError={localPaymentMethodSaveError}
+                        {oncomplete}
+                        onactivate-subscription={onactivateSubscription}
+                    />
+                </div>
+            </div>
+        </div>
+    {:else}
+        <!-- Payment form for payment step -->
+        <div class="top-container">
+            <div class="header-content">
+                <div class="primary-text">
+                    {@html $text('signup.amount_currency.text')
+                        .replace('{currency}', '<span class="coin-icon-inline"></span>')
+                        .replace('{amount}', formatNumber(credits_amount))}
+                </div>
+            </div>
+        </div>
 
-    <div class="bottom-container">
-        <div class="main-content">
-            <div class="separated-block">
-                <Payment 
-                    {credits_amount} 
-                    purchasePrice={price} 
-                    {currency}
-                    initialState={isGift ? 'success' : 'idle'}
-                    {isGift}
-                    on:consentGiven={handleConsent}
-                    on:openRefundInfo={handleOpenRefundInfo}
-                    on:paymentStateChange={handlePaymentStateChange}
-                />
+        <div class="bottom-container">
+            <div class="main-content">
+                <div class="separated-block">
+                    <Payment 
+                        {credits_amount} 
+                        purchasePrice={price} 
+                        {currency}
+                        initialState={isGift ? 'success' : 'idle'}
+                        {isGift}
+                        on:consentGiven={handleConsent}
+                        on:openRefundInfo={handleOpenRefundInfo}
+                        on:paymentStateChange={handlePaymentStateChange}
+                    />
+                </div>
             </div>
         </div>
-    </div>
+    {/if}
 </div>
 
 <style>
@@ -135,11 +246,48 @@ step_10_top_content_svelte:
         z-index: 2;
     }
     
+    /* Success container with purple background */
+    .success-container {
+        background: var(--color-primary);
+        border-radius: 16px 16px 0 0;
+        height: 100px;
+        align-items: flex-end;
+        padding-bottom: 0;
+    }
+    
     .header-content {
         display: flex;
         flex-direction: column;
         text-align: center;
         padding-bottom: 20px;
+        align-items: center;
+        gap: 6px;
+    }
+    
+    /* For success container, display icon and text horizontally */
+    .success-container .header-content {
+        flex-direction: row;
+        gap: 12px;
+    }
+    
+    .success-icon {
+        width: 36px;
+        height: 36px;
+        background-color: #58BC00;
+        mask-image: url('@openmates/ui/static/icons/check.svg');
+        mask-size: contain;
+        mask-repeat: no-repeat;
+        mask-position: center;
+        animation: scaleIn 0.3s ease-out;
+    }
+    
+    @keyframes scaleIn {
+        from {
+            transform: scale(0);
+        }
+        to {
+            transform: scale(1);
+        }
     }
     
     .primary-text {
@@ -148,6 +296,8 @@ step_10_top_content_svelte:
         align-items: center;
         justify-content: center;
         color: white;
+        font-size: 18px;
+        font-weight: 500;
     }
 
     .bottom-container {
@@ -165,8 +315,12 @@ step_10_top_content_svelte:
         .top-container {
             height: 60px;
         }
+        .success-container {
+            height: 60px;
+        }
         .bottom-container {
             top: 80px;
+            padding: 0 5px;
         }
     }
     
@@ -209,6 +363,17 @@ step_10_top_content_svelte:
         .separated-block :global(.bottom-container) {
             position: relative;
             bottom: unset;
+        }
+    }
+    
+    /* Adjust bottom-container position for success view */
+    .success-container ~ .bottom-container {
+        top: 120px;
+    }
+    
+    @media (max-width: 600px) {
+        .success-container ~ .bottom-container {
+            top: 75px;
         }
     }
 </style>

@@ -256,6 +256,7 @@
             role="dialog" 
             tabindex={-1}
             onclick={(e) => e.stopPropagation()}
+            onkeydown={(e) => e.stopPropagation()}
         >
             <div class="modal-header">
                 <h3>

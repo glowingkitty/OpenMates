@@ -531,6 +531,29 @@ vat_disclaimer:
   cs: ''
   sv: ''
   verified_by_human: []
+withdrawal_waiver_notice:
+  context: Legal notice about withdrawal waiver in invoice PDF (required for EU/German consumer law compliance)
+  en: 'You have expressly requested that we begin providing the digital service before the withdrawal period ends. You acknowledge that your right of withdrawal expires once you start using the service. Purchased gift cards are excluded and cannot be refunded once they have been used.'
+  de: 'Sie haben ausdrücklich verlangt, dass wir mit der Bereitstellung des digitalen Dienstes beginnen, bevor die Widerrufsfrist endet. Sie erkennen an, dass Ihr Widerrufsrecht erlischt, sobald Sie mit der Nutzung des Dienstes beginnen. Gekaufte Geschenkkarten sind ausgeschlossen und können nach Verwendung nicht erstattet werden.'
+  zh: '您已明确要求我们在撤回期结束之前开始提供数字服务。您承认一旦开始使用该服务，您的撤回权即告失效。购买的礼品卡被排除在外，使用后无法退款。'
+  es: 'Ha solicitado expresamente que comencemos a prestar el servicio digital antes de que finalice el período de desistimiento. Reconoce que su derecho de desistimiento expira una vez que comience a utilizar el servicio. Las tarjetas de regalo compradas están excluidas y no pueden reembolsarse una vez utilizadas.'
+  fr: 'Vous avez expressément demandé que nous commencions à fournir le service numérique avant la fin de la période de rétractation. Vous reconnaissez que votre droit de rétractation expire une fois que vous commencez à utiliser le service. Les cartes cadeaux achetées sont exclues et ne peuvent pas être remboursées une fois utilisées.'
+  pt: ''
+  ru: ''
+  ja: 'お客様は、撤回期間が終了する前にデジタルサービスの提供を開始するよう明示的に要求されました。サービスの使用を開始すると撤回権が失効することを承認されます。購入したギフトカードは除外され、使用後は返金できません。'
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
 if_you_have_questions:
   context: first line in questions helper
   en: 'If you have any questions:'

@@ -63,3 +63,28 @@ invoices:
       type: boolean
       note: "Whether this invoice is for a gift card purchase (as opposed to a regular credit purchase)"
       default: false
+
+    refunded_at:
+      type: string
+      length: 256
+      nullable: true
+      note: "ISO timestamp when refund was processed (null if not refunded)"
+    
+    encrypted_refunded_credits:
+      type: string
+      length: 512
+      nullable: true
+      note: "Encrypted number of credits that were refunded"
+    
+    encrypted_refund_amount:
+      type: string
+      length: 512
+      nullable: true
+      note: "Encrypted refund amount in cents (same currency as invoice)"
+    
+    refund_status:
+      type: string
+      length: 50
+      nullable: true
+      note: "Status of refund: 'none' (no refund), 'pending' (refund requested but not processed), 'completed' (refund processed), 'failed' (refund failed)"
+      default: "none"

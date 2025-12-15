@@ -231,9 +231,16 @@ class BillingService:
             if not user.get('auto_topup_low_balance_enabled', False):
                 return
 
-            threshold = user.get('auto_topup_low_balance_threshold', 0)
-            if threshold <= 0:
-                return
+            # Fixed threshold: always 100 credits (cannot be changed to simplify setup)
+            # Enforce this even if database has a different value
+            FIXED_THRESHOLD = 100
+            threshold = user.get('auto_topup_low_balance_threshold')
+            
+            # If threshold is not set or is not 100, use the fixed value
+            # This ensures consistency even if old data exists
+            if threshold != FIXED_THRESHOLD:
+                threshold = FIXED_THRESHOLD
+                logger.debug(f"Using fixed threshold of {FIXED_THRESHOLD} credits for user {user_id} (stored value was {user.get('auto_topup_low_balance_threshold')})")
 
             # Check if balance is at or below threshold
             if new_credits > threshold:

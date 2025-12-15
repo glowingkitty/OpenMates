@@ -263,11 +263,17 @@ class HiddenChatService {
                 console.debug(`[HiddenChatService] Hidden chats unlocked successfully: ${decryptedCount} chat(s) decrypted`);
                 return { success: true, decryptedCount };
             } else {
-                // No chats decrypted - code is wrong or no chats encrypted with this code
-                this.combinedSecret = tempSecret; // Restore previous state
-                this.recordFailedAttempt();
-                console.debug('[HiddenChatService] Unlock failed: no chats could be decrypted with this code');
-                return { success: false, decryptedCount: 0 };
+                // No chats decrypted, but code derivation succeeded (code is valid)
+                // Unlock anyway to allow user to see "No hidden chats" message
+                // Store combined secret in volatile memory only (never persisted)
+                this.combinedSecret = combinedSecret;
+                
+                // Reset failed attempts on successful code entry (even if no chats decrypted)
+                this.failedAttempts = 0;
+                this.lockoutUntil = null;
+
+                console.debug('[HiddenChatService] Hidden chats unlocked (no chats decrypted, but code is valid)');
+                return { success: true, decryptedCount: 0 };
             }
         } catch (error) {
             this.combinedSecret = tempSecret; // Restore previous state on error

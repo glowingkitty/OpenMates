@@ -6,7 +6,7 @@ Hidden chats allow users to protect sensitive conversations with a 4-6 digit cod
 
 ## User Experience
 
-- **Always-visible menu**: "Show hidden chats" indicator appears at the top of the chat list regardless of whether hidden chats exist (prevents external observation of hidden chat existence)
+- **Always-visible menu**: "Show hidden chats" clickable text appears at the top of the chat list regardless of whether hidden chats exist (prevents external observation of hidden chat existence).
 - **Code protection**: User sets a 4-6 digit code on first hide or when accessing the hidden chats menu
 - **Separate section**: Hidden chats display in a scrollable area above the main chat list after entering the correct code
 - **Lock/Unlock controls**: "Unlock hidden chats" button unlocks for this session; "Lock hidden chats" button immediately clears from memory and DOM

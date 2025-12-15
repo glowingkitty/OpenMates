@@ -34,14 +34,47 @@
     } from '@repo/ui';
     import { notificationStore, getKeyFromStorage, text, LANGUAGE_CODES } from '@repo/ui';
     import { checkAndClearMasterKeyOnLoad } from '@repo/ui';
-    import { onMount, onDestroy } from 'svelte';
+    import { onMount, onDestroy, untrack } from 'svelte';
     import { locale, waitLocale, _, isLoading } from 'svelte-i18n';
+    import { get } from 'svelte/store';
     import { browser } from '$app/environment';
     import { i18nLoaded } from '@repo/ui';
 
     // --- State ---
     let isInitialLoad = $state(true);
     let activeChat = $state<ActiveChat | null>(null); // Fixed: Use $state for Svelte 5
+    
+    // CRITICAL: Reactive effect to watch for signup state changes
+    // This handles cases where user profile loads asynchronously after initialize() completes
+    // or when user logs in and signup state needs to be detected
+    // Must be at top level (not inside onMount) for Svelte 5
+    // Use untrack to prevent infinite loops when setting loginInterfaceOpen
+    $effect(() => {
+        // Only check if user is authenticated and has a last_opened path
+        if ($authStore.isAuthenticated && $userProfile.last_opened && isSignupPath($userProfile.last_opened)) {
+            // Use untrack to read current state without creating a dependency
+            // This prevents infinite loops when we set loginInterfaceOpen or isInSignupProcess
+            untrack(() => {
+                const currentLoginOpen = $loginInterfaceOpen;
+                const currentInSignup = $isInSignupProcess;
+                
+                // Ensure signup state is set
+                if (!currentInSignup) {
+                    const step = getStepFromPath($userProfile.last_opened);
+                    currentSignupStep.set(step);
+                    isInSignupProcess.set(true);
+                    console.debug(`[+page.svelte] [$effect] Set signup step to: ${step} from last_opened: ${$userProfile.last_opened}`);
+                }
+                
+                // Ensure login interface is open to show signup flow
+                // Only set if not already open to prevent infinite loops
+                if (!currentLoginOpen) {
+                    loginInterfaceOpen.set(true);
+                    console.debug('[+page.svelte] [$effect] Opened login interface to show signup flow');
+                }
+            });
+        }
+    });
 
     // SEO data from translations - use $text() for offline-first PWA compatibility
     // Uses metadata.webapp keys from translations (en.json, de.json, etc.)
@@ -247,6 +280,114 @@
 	// Login overlay feature was removed as incomplete implementation
 
 	// --- Lifecycle ---
+	// Define handlers outside onMount so they're accessible for cleanup
+	let handleWebSocketAuthError: (() => Promise<void>) | null = null;
+	let handlePaymentCompleted: ((payload: { order_id: string, credits_purchased: number, current_credits: number }) => void) | null = null;
+	let handlePaymentFailed: ((payload: { order_id: string, message: string }) => void) | null = null;
+	let wasInSignupProcessAtMount = false;
+	
+	/**
+	 * Check if a settings deep link requires authentication
+	 * Some settings (like app_store, interface) are public and don't require authentication
+	 * Others (like billing, account, security) require authentication
+	 * @param settingsPath The settings path (e.g., '/billing/invoices/.../refund' or '/app_store')
+	 * @returns true if authentication is required, false otherwise
+	 */
+	function requiresAuthentication(settingsPath: string): boolean {
+		// Public settings that don't require authentication
+		const publicSettings = [
+			'app_store',
+			'appstore', // Alias
+			'interface',
+			'main' // Main settings page
+		];
+		
+		// Check if path starts with any public setting
+		const normalizedPath = settingsPath.startsWith('/') ? settingsPath.substring(1) : settingsPath;
+		const firstSegment = normalizedPath.split('/')[0];
+		
+		// Map aliases
+		const mappedPath = firstSegment === 'appstore' ? 'app_store' : firstSegment;
+		
+		// If it's a public setting, no authentication required
+		if (publicSettings.includes(mappedPath) || normalizedPath === '') {
+			return false;
+		}
+		
+		// All other settings require authentication (billing, account, security, etc.)
+		return true;
+	}
+	
+	/**
+	 * Process settings deep link - extracted to reusable function
+	 * Handles navigation to settings pages based on hash
+	 * @param hash The hash string (e.g., '#settings/billing/invoices/.../refund')
+	 */
+	function processSettingsDeepLink(hash: string) {
+		console.debug(`[+page.svelte] Processing settings deep link: ${hash}`);
+		
+		panelState.openSettings();
+		const settingsPath = hash.substring('#settings'.length);
+		
+		// Check if this is a refund deep link (e.g., #settings/billing/invoices/{invoice_id}/refund)
+		// For refund deep links, we navigate to billing/invoices but keep the hash for SettingsInvoices to process
+		const refundMatch = settingsPath.match(/^\/billing\/invoices\/[^\/]+\/refund$/);
+		
+		if (refundMatch) {
+			// This is a refund deep link - navigate to billing/invoices
+			// SettingsInvoices will handle the refund processing
+			console.debug(`[+page.svelte] Refund deep link detected: ${hash}`);
+			settingsDeepLink.set('billing/invoices');
+			// Don't clear the hash - SettingsInvoices needs it to process the refund
+			// But we'll clear it after SettingsInvoices processes it
+		} else if (settingsPath.startsWith('/')) {
+			// Handle paths like #settings/appstore -> app_store
+			let path = settingsPath.substring(1); // Remove leading slash
+			// Map common aliases to actual settings paths
+			if (path === 'appstore') {
+				path = 'app_store';
+			}
+			settingsDeepLink.set(path);
+			
+			// Clear the hash after processing to keep URL clean
+			// (similar to how signup and chat deep links are cleared)
+			window.history.replaceState({}, '', window.location.pathname + window.location.search);
+		} else if (settingsPath === '') {
+			 settingsDeepLink.set('main'); // Default to main settings if just #settings
+			 
+			 // Clear the hash after processing
+			 window.history.replaceState({}, '', window.location.pathname + window.location.search);
+		} else {
+			 // Handle invalid settings path?
+			 console.warn(`[+page.svelte] Invalid settings deep link hash: ${hash}`);
+			 settingsDeepLink.set('main'); // Default to main on invalid hash
+			 
+			 // Clear the hash after processing
+			 window.history.replaceState({}, '', window.location.pathname + window.location.search);
+		}
+	}
+	
+	/**
+	 * Handle pending deep link processing after successful login
+	 * This handles cases where user opened a deep link while not authenticated
+	 */
+	function handlePendingDeepLink(event: CustomEvent<{ hash: string }>) {
+		const hash = event.detail.hash;
+		console.debug(`[+page.svelte] Processing pending deep link: ${hash}`);
+		
+		if (hash.startsWith('#settings')) {
+			// Process settings deep link now that user is authenticated
+			processSettingsDeepLink(hash);
+		} else if (hash.startsWith('#chat_id=') || hash.startsWith('#chat-id=')) {
+			// Process chat deep link
+			const chatId = hash.startsWith('#chat_id=') 
+				? hash.substring(9) // Remove '#chat_id=' prefix
+				: hash.substring(9); // Remove '#chat-id=' prefix
+			handleChatDeepLink(chatId);
+		}
+		// Note: signup deep links don't require authentication, so they're handled immediately
+	}
+	
 	onMount(async () => {
 		console.debug('[+page.svelte] onMount started');
 		
@@ -410,7 +551,7 @@
 		
 		// Listen for WebSocket auth errors and trigger logout
 		// This handles cases where the session expires and WebSocket connection is rejected with 403
-		const handleWebSocketAuthError = async () => {
+		handleWebSocketAuthError = async () => {
 			console.info('[+page.svelte] WebSocket auth error detected - session expired or invalid token. Logging out user.');
 			
 			// Import checkAuth dynamically to avoid circular dependencies
@@ -436,14 +577,22 @@
 		
 		// Listen for payment completion notifications via WebSocket
 		// This handles cases where payment completes after user has moved on from signup flow
-		const handlePaymentCompleted = (payload: { order_id: string, credits_purchased: number, current_credits: number }) => {
+		handlePaymentCompleted = (payload: { order_id: string, credits_purchased: number, current_credits: number }) => {
 			console.debug('[+page.svelte] Received payment_completed notification via WebSocket:', payload);
-			// Show success notification popup (using Notification.svelte component)
-			notificationStore.success(
-				`Payment completed! ${payload.credits_purchased.toLocaleString()} credits have been added to your account.`,
-				5000
-			);
-			// Update credits in user profile if available
+			
+			// CRITICAL: Suppress notifications during signup - Payment.svelte already handles them
+			// Only show notification if user is not in signup process
+			if (!get(isInSignupProcess)) {
+				// Show success notification popup (using Notification.svelte component)
+				notificationStore.success(
+					`Payment completed! ${payload.credits_purchased.toLocaleString()} credits have been added to your account.`,
+					5000
+				);
+			} else {
+				console.debug('[+page.svelte] Suppressing payment_completed notification during signup');
+			}
+			
+			// Always update credits in user profile if available (even during signup)
 			if (payload.current_credits !== undefined) {
 				// Import updateProfile dynamically (non-blocking)
 				import('@repo/ui').then(({ updateProfile }) => {
@@ -456,7 +605,7 @@
 		
 		// Listen for payment failure notifications via WebSocket
 		// This handles cases where payment fails minutes after user has moved on from signup flow
-		const handlePaymentFailed = (payload: { order_id: string, message: string }) => {
+		handlePaymentFailed = (payload: { order_id: string, message: string }) => {
 			console.debug('[+page.svelte] Received payment_failed notification via WebSocket:', payload);
 			// Show error notification popup (using Notification.svelte component)
 			notificationStore.error(
@@ -466,9 +615,18 @@
 		};
 		
 		// Register WebSocket listeners for payment notifications
-		webSocketService.on('payment_completed', handlePaymentCompleted);
-		webSocketService.on('payment_failed', handlePaymentFailed);
-		console.debug('[+page.svelte] Registered WebSocket payment notification listeners');
+		// NOTE: Only register payment handlers if NOT in signup mode, as Payment.svelte already handles them during signup
+		// This prevents duplicate handler registrations during signup flow
+		// Store the signup state at registration time for proper cleanup
+		wasInSignupProcessAtMount = get(isInSignupProcess);
+		
+		if (!wasInSignupProcessAtMount) {
+			webSocketService.on('payment_completed', handlePaymentCompleted);
+			webSocketService.on('payment_failed', handlePaymentFailed);
+			console.debug('[+page.svelte] Registered WebSocket payment notification listeners');
+		} else {
+			console.debug('[+page.svelte] Skipping payment handler registration during signup');
+		}
 		
 		// CRITICAL: Setup cleanup for shared chats on session close (non-authenticated users only)
 		// Shared chats are stored in IndexedDB but should be deleted when the session ends
@@ -567,6 +725,33 @@
 			isInSignupProcess.set(true);
 			loginInterfaceOpen.set(true);
 			console.debug(`[+page.svelte] Re-applied signup state: step=${step}, isInSignupProcess=true, loginInterfaceOpen=true`);
+		}
+		
+		// CRITICAL: Check if user is in signup flow AFTER initialize() completes
+		// This ensures login interface opens on page reload or login for users who haven't completed signup
+		// checkAuth() should have already set this, but we verify and ensure login interface is open
+		// This handles both page reload and login scenarios
+		// Note: The $effect at top level will also handle this reactively, but we check immediately here too
+		if ($authStore.isAuthenticated && $userProfile.last_opened && isSignupPath($userProfile.last_opened)) {
+			console.debug('[+page.svelte] User is in signup flow after initialize() - ensuring login interface is open', {
+				last_opened: $userProfile.last_opened,
+				isInSignupProcess: $isInSignupProcess,
+				loginInterfaceOpen: $loginInterfaceOpen
+			});
+			
+			// Ensure signup state is set
+			if (!$isInSignupProcess) {
+				const step = getStepFromPath($userProfile.last_opened);
+				currentSignupStep.set(step);
+				isInSignupProcess.set(true);
+				console.debug(`[+page.svelte] Set signup step to: ${step} from last_opened: ${$userProfile.last_opened}`);
+			}
+			
+			// Ensure login interface is open to show signup flow
+			if (!$loginInterfaceOpen) {
+				loginInterfaceOpen.set(true);
+				console.debug('[+page.svelte] Opened login interface to show signup flow');
+			}
 		}
 		
 		// Fetch most used apps on app load (non-blocking, cached for 1 hour)
@@ -761,27 +946,26 @@
         
         // Handle other deep links (settings, chat, etc.)
         if (window.location.hash.startsWith('#settings')) {
-            panelState.openSettings();
             const settingsPath = window.location.hash.substring('#settings'.length);
-            if (settingsPath.startsWith('/')) {
-                // Handle paths like #settings/appstore -> app_store
-                let path = settingsPath.substring(1); // Remove leading slash
-                // Map common aliases to actual settings paths
-                if (path === 'appstore') {
-                    path = 'app_store';
-                }
-                settingsDeepLink.set(path);
-            } else if (settingsPath === '') {
-                 settingsDeepLink.set('main'); // Default to main settings if just #settings
-            } else {
-                 // Handle invalid settings path?
-                 console.warn(`[+page.svelte] Invalid settings deep link hash: ${window.location.hash}`);
-                 settingsDeepLink.set('main'); // Default to main on invalid hash
-            }
             
-            // Clear the hash after processing to keep URL clean
-            // (similar to how signup and chat deep links are cleared)
-            window.history.replaceState({}, '', window.location.pathname + window.location.search);
+            // CRITICAL: Check if this settings deep link requires authentication
+            // Some settings (app_store, interface) are public and don't require authentication
+            // Others (billing, account, security) require authentication
+            const needsAuth = requiresAuthentication(settingsPath);
+            
+            if (needsAuth && !$authStore.isAuthenticated) {
+                // This settings deep link requires authentication and user is not authenticated
+                console.debug(`[+page.svelte] User not authenticated - storing settings deep link for after login: ${window.location.hash}`);
+                // Store the deep link in sessionStorage to process after login
+                sessionStorage.setItem('pendingDeepLink', window.location.hash);
+                // Open login interface to prompt user to log in
+                loginInterfaceOpen.set(true);
+                // Clear the hash immediately to keep URL clean (we'll restore it after login)
+                window.history.replaceState({}, '', window.location.pathname + window.location.search);
+            } else {
+                // Either doesn't require auth, or user is authenticated - process the deep link immediately
+                processSettingsDeepLink(window.location.hash);
+            }
         } else if (window.location.hash.startsWith('#chat_id=') || window.location.hash.startsWith('#chat-id=')) {
             // Handle chat deep linking from URL
             // Support both #chat_id= and #chat-id= formats
@@ -803,7 +987,26 @@
         // Listen for hash changes (e.g., user pastes a new URL with different chat_id)
         window.addEventListener('hashchange', handleHashChange);
         
+        // Listen for pending deep link processing after successful login
+        // This handles cases where user opened a deep link while not authenticated
+        window.addEventListener('processPendingDeepLink', handlePendingDeepLink as EventListener);
+        
         console.debug('[+page.svelte] onMount finished');
+    });
+    
+    // Cleanup function for onDestroy
+    onDestroy(() => {
+        if (handleWebSocketAuthError) {
+            webSocketService.removeEventListener('authError', handleWebSocketAuthError as EventListener);
+        }
+        // Only unregister payment handlers if they were registered
+        if (!wasInSignupProcessAtMount && handlePaymentCompleted && handlePaymentFailed) {
+            webSocketService.off('payment_completed', handlePaymentCompleted);
+            webSocketService.off('payment_failed', handlePaymentFailed);
+        }
+        // Remove pending deep link event listener
+        window.removeEventListener('processPendingDeepLink', handlePendingDeepLink as EventListener);
+        // Note: hashchange, visibilitychange, pagehide, and beforeunload handlers are cleaned up automatically on page unload
     });
 
     /**
@@ -834,27 +1037,26 @@
             // Handle settings deep linking - open settings menu and navigate to specific page
             console.debug(`[+page.svelte] Hash changed to settings deep link: ${window.location.hash}`);
             
-            panelState.openSettings();
             const settingsPath = window.location.hash.substring('#settings'.length);
-            if (settingsPath.startsWith('/')) {
-                // Handle paths like #settings/appstore -> app_store
-                let path = settingsPath.substring(1); // Remove leading slash
-                // Map common aliases to actual settings paths
-                if (path === 'appstore') {
-                    path = 'app_store';
-                }
-                settingsDeepLink.set(path);
-            } else if (settingsPath === '') {
-                 settingsDeepLink.set('main'); // Default to main settings if just #settings
-            } else {
-                 // Handle invalid settings path?
-                 console.warn(`[+page.svelte] Invalid settings deep link hash: ${window.location.hash}`);
-                 settingsDeepLink.set('main'); // Default to main on invalid hash
-            }
             
-            // Clear the hash after processing to keep URL clean
-            // (similar to how signup and chat deep links are cleared)
-            window.history.replaceState({}, '', window.location.pathname + window.location.search);
+            // CRITICAL: Check if this settings deep link requires authentication
+            // Some settings (app_store, interface) are public and don't require authentication
+            // Others (billing, account, security) require authentication
+            const needsAuth = requiresAuthentication(settingsPath);
+            
+            if (needsAuth && !$authStore.isAuthenticated) {
+                // This settings deep link requires authentication and user is not authenticated
+                console.debug(`[+page.svelte] User not authenticated - storing settings deep link for after login: ${window.location.hash}`);
+                // Store the deep link in sessionStorage to process after login
+                sessionStorage.setItem('pendingDeepLink', window.location.hash);
+                // Open login interface to prompt user to log in
+                loginInterfaceOpen.set(true);
+                // Clear the hash immediately to keep URL clean (we'll restore it after login)
+                window.history.replaceState({}, '', window.location.pathname + window.location.search);
+            } else {
+                // Either doesn't require auth, or user is authenticated - process the deep link immediately
+                processSettingsDeepLink(window.location.hash);
+            }
         } else if (window.location.hash.startsWith('#chat_id=') || window.location.hash.startsWith('#chat-id=')) {
             // Support both #chat_id= and #chat-id= formats
             const chatId = window.location.hash.startsWith('#chat_id=') 

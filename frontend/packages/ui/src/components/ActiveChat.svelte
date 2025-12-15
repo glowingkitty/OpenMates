@@ -61,6 +61,7 @@
     import { websocketStatus } from '../stores/websocketStatusStore'; // Import WebSocket status for connection checks
     import { activeChatStore } from '../stores/activeChatStore'; // For clearing persistent active chat selection
     import { settingsDeepLink } from '../stores/settingsDeepLinkStore'; // For opening settings to specific page (share)
+    import { settingsMenuVisible } from '../components/Settings.svelte'; // Import settingsMenuVisible store to control Settings visibility
     import { videoIframeStore, type VideoIframeState } from '../stores/videoIframeStore'; // For standalone VideoIframe component with CSS-based PiP
     import { DEMO_CHATS, LEGAL_CHATS, getDemoMessages, isPublicChat, translateDemoChat } from '../demo_chats'; // Import demo chat utilities
     import { convertDemoChatToChat } from '../demo_chats/convertToChat'; // Import conversion function
@@ -73,15 +74,16 @@
     const dispatch = createEventDispatcher();
     
     // Step sequences for signup status bar (must match Signup.svelte)
+    // Note: STEP_COMPLETION is not included as it's not a visible step - users go directly to the app after auto top-up
     const fullStepSequence = [
         STEP_ALPHA_DISCLAIMER, STEP_BASICS, STEP_CONFIRM_EMAIL, STEP_SECURE_ACCOUNT, STEP_PASSWORD,
         STEP_ONE_TIME_CODES, STEP_TFA_APP_REMINDER, STEP_BACKUP_CODES, STEP_RECOVERY_KEY,
-        STEP_CREDITS, STEP_PAYMENT, STEP_AUTO_TOP_UP, STEP_COMPLETION
+        STEP_CREDITS, STEP_PAYMENT, STEP_AUTO_TOP_UP
     ];
 
     const passkeyStepSequence = [
         STEP_ALPHA_DISCLAIMER, STEP_BASICS, STEP_CONFIRM_EMAIL, STEP_SECURE_ACCOUNT, STEP_RECOVERY_KEY,
-        STEP_CREDITS, STEP_PAYMENT, STEP_AUTO_TOP_UP, STEP_COMPLETION
+        STEP_CREDITS, STEP_PAYMENT, STEP_AUTO_TOP_UP
     ];
 
     // Derive step sequence based on login method (same logic as Signup.svelte)
@@ -175,6 +177,19 @@
         const { user, inSignupFlow } = event.detail;
         console.debug("Login success, in signup flow:", inSignupFlow);
         
+        // CRITICAL: Set signup state BEFORE updating auth state
+        // This ensures signup state is preserved and login interface stays open
+        if (inSignupFlow && user?.last_opened) {
+            const { currentSignupStep, isInSignupProcess, getStepFromPath } = await import('../stores/signupState');
+            const step = getStepFromPath(user.last_opened);
+            currentSignupStep.set(step);
+            isInSignupProcess.set(true);
+            // Ensure login interface is open to show signup flow
+            const { loginInterfaceOpen } = await import('../stores/uiStateStore');
+            loginInterfaceOpen.set(true);
+            console.debug('[ActiveChat] Set signup state after login:', step);
+        }
+        
         // Update the authentication state after successful login
         const { setAuthenticatedState } = await import('../stores/authSessionActions');
         setAuthenticatedState();
@@ -189,6 +204,31 @@
         } catch (error) {
             console.error('[ActiveChat] Error migrating sessionStorage drafts to IndexedDB:', error);
             // Don't block login if migration fails - drafts will be lost but user can continue
+        }
+        
+        // CRITICAL: Check for pending deep link after successful login
+        // This handles cases where user opened a deep link (e.g., settings) while not authenticated
+        // The deep link was stored in sessionStorage and should be processed now
+        try {
+            const pendingDeepLink = sessionStorage.getItem('pendingDeepLink');
+            if (pendingDeepLink) {
+                console.debug(`[ActiveChat] Found pending deep link after login: ${pendingDeepLink}`);
+                // Remove the pending deep link from sessionStorage
+                sessionStorage.removeItem('pendingDeepLink');
+                
+                // Process the deep link by dispatching a custom event that +page.svelte can listen to
+                // This ensures the deep link is processed after auth state is fully updated
+                // Use a small delay to ensure auth state propagation is complete
+                setTimeout(() => {
+                    console.debug(`[ActiveChat] Processing pending deep link: ${pendingDeepLink}`);
+                    window.dispatchEvent(new CustomEvent('processPendingDeepLink', {
+                        detail: { hash: pendingDeepLink }
+                    }));
+                }, 100);
+            }
+        } catch (error) {
+            console.warn('[ActiveChat] Error checking for pending deep link:', error);
+            // Don't block login if deep link processing fails
         }
     }
 
@@ -283,12 +323,19 @@
             }
         } else {
             // Close login interface when user successfully logs in
-            if ($loginInterfaceOpen) {
+            // CRITICAL: Do NOT close if user is in signup process - they need to complete signup
+            if ($loginInterfaceOpen && !$isInSignupProcess) {
                 loginInterfaceOpen.set(false);
                 // Only open chats panel on desktop (not mobile) when closing login interface after successful login
                 // On mobile, let the user manually open the panel if they want to see the chat list
                 if (!$panelState.isActivityHistoryOpen && !$isMobileView) {
                     panelState.toggleChats();
+                }
+            } else if ($isInSignupProcess) {
+                // User is in signup process - ensure login interface stays open
+                console.debug('[ActiveChat] User is in signup process - keeping login interface open');
+                if (!$loginInterfaceOpen) {
+                    loginInterfaceOpen.set(true);
                 }
             }
             
@@ -1564,7 +1611,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
      * This allows users to share the current chat with various options
      * like password protection and time limits.
      */
-    function handleShareChat() {
+    async function handleShareChat() {
         console.debug("[ActiveChat] Share chat button clicked, opening share settings");
         
         // Ensure the current chat ID is set in the activeChatStore
@@ -1576,9 +1623,26 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             console.warn("[ActiveChat] No current chat available to share");
         }
         
+        // CRITICAL: Set settingsMenuVisible to true FIRST
+        // Settings.svelte watches settingsMenuVisible store and will sync isMenuVisible
+        // The deep link effect in Settings.svelte will also ensure the menu is open
+        // This must be set before the deep link to ensure proper sequencing
+        settingsMenuVisible.set(true);
+        
+        // CRITICAL: Also open via panelState for consistency
+        // This ensures the panel state is properly tracked
+        panelState.openSettings();
+        
+        // CRITICAL: Wait for store update to propagate and DOM to update
+        // This ensures the Settings component's effect has time to sync isMenuVisible
+        // and the menu is actually visible in the DOM before setting the deep link
+        await tick();
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
         // Navigate to the share settings submenu
-        // The settingsDeepLink store triggers the Settings component to open
-        // and navigate to the specified path
+        // The settingsDeepLink store triggers the Settings component to:
+        // 1. Open the menu if not already open (line 1103 in Settings.svelte)
+        // 2. Navigate to the specified path after a brief delay (line 1117)
         // Use 'shared/share' to navigate to the share submenu under Shared
         settingsDeepLink.set('shared/share');
     }
@@ -2242,6 +2306,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         // Listen for event to close login interface (e.g., from Demo button)
         const handleCloseLoginInterface = async () => {
             console.debug("[ActiveChat] Closing login interface, showing demo chat");
+            
+            // CRITICAL: Do NOT close login interface if user is in signup process
+            // They need to complete signup, so the interface must stay open
+            if ($isInSignupProcess) {
+                console.debug("[ActiveChat] User is in signup process - preventing login interface from closing");
+                return;
+            }
             
             // CRITICAL FIX: Clear pending draft from sessionStorage when user leaves login process
             // This ensures the draft doesn't get restored if user clicks "Demo" to go back
@@ -3650,6 +3721,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             transform: translateY(-50%); /* Center vertically */
             height: auto; /* Let height be determined by content and max-height */
             justify-content: center; /* Center content vertically inside wrapper */
+            overflow-y: visible; /* Allow content to overflow naturally */
+            overflow-x: visible;
         }
     }
 

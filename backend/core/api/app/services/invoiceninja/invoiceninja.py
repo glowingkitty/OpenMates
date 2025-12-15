@@ -598,6 +598,133 @@ class InvoiceNinjaService:
         # --- Success ---
         logger.info(f"Process Completed for {processor_type.upper()} Order: {external_order_id}")
 
+    def process_refund_transaction(
+        self,
+        user_hash: str,
+        external_order_id: str,
+        invoice_id: str,
+        customer_firstname: str,
+        customer_lastname: str,
+        customer_account_id: str,
+        customer_country_code: str,
+        refund_amount_value: float,
+        currency_code: str,
+        refund_date: str,
+        payment_processor: str,
+        custom_credit_note_number: str,
+        custom_pdf_data: Optional[bytes] = None,
+        referenced_invoice_number: str = None
+    ):
+        """
+        Handles the full workflow for processing a refund transaction.
+        Uploads credit note PDF to the original invoice in Invoice Ninja.
+        """
+        processor_type = payment_processor
+
+        logger.info("=" * 40)
+        logger.info(f"Starting Refund Process for {processor_type.upper()} Order: {external_order_id} (User Hash: {user_hash})")
+
+        # Find the original invoice in Invoice Ninja by external_order_id
+        # We need to search for the invoice that matches this order_id
+        logger.info(f"Searching for invoice with external_order_id: {external_order_id}")
+        
+        # Find or Create Client (same as income transaction)
+        ninja_client_id = self.find_client_by_hash(user_hash)
+        country_id = countries.get_country_id(customer_country_code)
+        if not ninja_client_id:
+            client_details = {
+                "first_name": f"Account ID: {customer_account_id}",
+                "last_name": "",
+                "email": "",
+                "country_id": country_id,
+                "custom_value1": user_hash,
+                "custom_value2": external_order_id
+            }
+            logger.info(f"Client not found by hash '{user_hash}'. Creating new client...")
+            ninja_client_id = self.create_client(user_hash, external_order_id, client_details)
+
+        if not ninja_client_id:
+            logger.critical("Could not find or create client. Aborting.")
+            return None
+        else:
+            logger.info(f"Using Client ID: {ninja_client_id}")
+
+        # Search for the invoice by external_order_id (stored in custom_value2)
+        # Invoice Ninja API: GET /invoices?client_id={client_id}&custom_value2={external_order_id}
+        search_params = {
+            "client_id": ninja_client_id,
+            "custom_value2": external_order_id
+        }
+        
+        invoice_search_result = self.make_api_request('GET', '/invoices', params=search_params)
+        
+        ninja_invoice_id = None
+        if invoice_search_result and 'data' in invoice_search_result:
+            invoices = invoice_search_result['data']
+            if invoices and len(invoices) > 0:
+                # Get the first matching invoice (should be unique by order_id)
+                ninja_invoice_id = invoices[0].get('id')
+                logger.info(f"Found invoice in Invoice Ninja: ID={ninja_invoice_id}")
+            else:
+                logger.warning(f"No invoice found in Invoice Ninja for order_id: {external_order_id}")
+        else:
+            logger.warning(f"Failed to search for invoice in Invoice Ninja for order_id: {external_order_id}")
+
+        # If we found the invoice, upload the credit note PDF to it
+        if ninja_invoice_id and custom_pdf_data:
+            pdf_filename = f"{external_order_id}_credit_note_{custom_credit_note_number}.pdf"
+            logger.info(f"Attempting to upload credit note PDF '{pdf_filename}' to Invoice ID: {ninja_invoice_id}...")
+            pdf_upload_success = self.upload_invoice_document(ninja_invoice_id, custom_pdf_data, pdf_filename)
+            if not pdf_upload_success:
+                logger.warning("Failed to upload credit note PDF document to Invoice Ninja.")
+            else:
+                logger.info("Credit note PDF document uploaded successfully to Invoice Ninja.")
+        else:
+            if not ninja_invoice_id:
+                logger.warning(f"Cannot upload credit note PDF: Invoice not found in Invoice Ninja for order_id: {external_order_id}")
+            if not custom_pdf_data:
+                logger.info("No credit note PDF data provided, skipping upload to Invoice Ninja.")
+
+        # Create a bank transaction for the refund (DEBIT - we pay money back)
+        # Determine Processor Specific IDs
+        target_processor_bank_id: Optional[str] = None
+        target_bank_integration_id: Optional[str] = None
+
+        if processor_type.lower() == 'revolut':
+            target_processor_bank_id = self._revolut_bank_account_id
+            target_bank_integration_id = self._revolut_bank_integration_id
+        elif processor_type.lower() == 'stripe':
+            target_processor_bank_id = self._stripe_bank_account_id
+            target_bank_integration_id = self._stripe_bank_integration_id
+        else:
+            logger.warning(f"Unknown processor type '{processor_type}'. Cannot determine bank/integration IDs.")
+
+        # Create bank transaction for refund (DEBIT)
+        if target_processor_bank_id and target_bank_integration_id:
+            # Use the referenced invoice number if available, otherwise use credit note number
+            invoice_number_for_transaction = referenced_invoice_number if referenced_invoice_number else custom_credit_note_number
+            
+            logger.info(f"Creating bank transaction for refund: Amount: {refund_amount_value}, Date: {refund_date}")
+            ninja_bank_transaction_id = self.create_bank_transaction(
+                processor_bank_account_id=target_processor_bank_id,
+                bank_integration_id=target_bank_integration_id,
+                amount=refund_amount_value,
+                date_str=refund_date,
+                invoice_number=invoice_number_for_transaction,
+                external_order_id=external_order_id,
+                base_type="DEBIT",  # DEBIT -> we pay money back
+                currency_code=currency_code
+            )
+            if not ninja_bank_transaction_id:
+                logger.warning("Failed to create bank transaction record for refund.")
+            else:
+                logger.info(f"Bank transaction created for refund: ID={ninja_bank_transaction_id}")
+        else:
+            logger.warning(f"Cannot create bank transaction: Bank account/integration IDs not found for processor '{processor_type}'")
+
+        # --- Success ---
+        logger.info(f"Refund Process Completed for {processor_type.upper()} Order: {external_order_id}")
+
     async def close(self):
         """
         Performs any necessary cleanup for the Invoice Ninja service.

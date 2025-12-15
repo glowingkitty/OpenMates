@@ -22,6 +22,8 @@
     import { authStore } from '../../../stores/authStore';
     import { generateShareKeyBlob, type ShareDuration } from '../../../services/shareEncryption';
     import { shareMetadataQueue } from '../../../services/shareMetadataQueue';
+    import { isDemoChat, isPublicChat } from '../../../demo_chats/convertToChat';
+    import { userDB } from '../../../services/userDB';
     
     // Event dispatcher for navigation and settings events
     const dispatch = createEventDispatcher();
@@ -54,7 +56,26 @@
     
     // Get the current chat ID from the active chat store
     // The store directly contains the chat ID string (or null), not an object
-    let currentChatId = $derived($activeChatStore || '');
+    // Use $state to track the chat ID and update it reactively from the store
+    let currentChatId = $state<string | null>(null);
+    
+    // Update currentChatId when activeChatStore changes
+    $effect(() => {
+        const storeValue = $activeChatStore;
+        if (storeValue && storeValue.trim() !== '') {
+            currentChatId = storeValue;
+            console.debug('[SettingsShare] currentChatId updated from store:', currentChatId);
+        } else {
+            currentChatId = null;
+        }
+    });
+    
+    // Chat ownership and type detection
+    let currentChat = $state<any>(null);
+    let isDemoChatType = $derived(currentChatId ? isDemoChat(currentChatId) : false);
+    let isPublicChatType = $derived(currentChatId ? isPublicChat(currentChatId) : false);
+    let isOwnedByUser = $state(true); // Default to true, will be checked asynchronously
+    let isSharedChatNotOwned = $derived(!isOwnedByUser && !isPublicChatType && $authStore.isAuthenticated);
     
     // ===============================
     // Duration Options
@@ -77,8 +98,12 @@
     ];
     
     // Two-step flow state: configure options first, then generate link
-    // For non-authenticated users, skip configuration and go straight to link generation
-    let isConfigurationStep = $derived($authStore.isAuthenticated ? true : false);
+    // For non-authenticated users, demo chats, and shared chats user doesn't own,
+    // skip configuration and go straight to link generation
+    // CRITICAL: Check isPublicChat() directly to ensure demo chats are detected correctly
+    let isConfigurationStep = $derived(
+        currentChatId && $authStore.isAuthenticated && !isPublicChat(currentChatId) && isOwnedByUser ? true : false
+    );
     
     // ===============================
     // Link Generation
@@ -88,7 +113,9 @@
      * Generate the share link with encrypted key blob
      * This is done entirely offline - no server request needed
      * Moves from configuration step to link generation step
-     * For non-authenticated users, uses default settings (no password, no expiration)
+     * For public chats (demo and legal): generates simple link format {domain}/#chat-id={chat id}
+     * For shared chats user doesn't own: reconstructs original share link
+     * For owned chats: uses configured settings (password, expiration)
      */
     async function generateLink() {
         if (!currentChatId) {
@@ -96,19 +123,62 @@
             return;
         }
         
-        // For non-authenticated users, use default settings (no password, no expiration)
-        const usePassword = $authStore.isAuthenticated ? isPasswordProtected : false;
-        const usePasswordValue = usePassword ? password : undefined;
-        const useDuration = $authStore.isAuthenticated ? selectedDuration : 0;
-        
-        // Validate password if protection is enabled (only for authenticated users)
-        if (usePassword && (!password || password.length === 0 || password.length > 10)) {
-            console.warn('[SettingsShare] Invalid password for protected share');
-            return;
-        }
-        
         try {
             console.debug('[SettingsShare] Generating share link for chat:', currentChatId);
+            
+            // For public chats (demo and legal): generate simple link format
+            // Check directly using isPublicChat() to include both demo and legal chats
+            if (isPublicChat(currentChatId)) {
+                const baseUrl = window.location.origin;
+                generatedLink = `${baseUrl}/#chat-id=${currentChatId}`;
+                isLinkGenerated = true;
+                isConfigurationStep = false;
+                generateQRCode(generatedLink);
+                console.debug('[SettingsShare] Public chat (demo/legal) share link generated:', generatedLink);
+                return;
+            }
+            
+            // For shared chats user doesn't own: reconstruct original share link
+            // Use default settings (no password, no expiration) since we don't have original settings
+            // Check ownership directly (not using derived value since it might not be updated yet)
+            if ($authStore.isAuthenticated && !isPublicChatType && !isOwnedByUser) {
+                try {
+                    // Get the chat encryption key from cache (it was stored when user accessed the shared chat)
+                    const chatEncryptionKey = await getChatEncryptionKey();
+                    
+                    // Create encrypted blob with default settings (no password, no expiration)
+                    // This reconstructs the share link, though it may differ from original if original had password/expiration
+                    const encryptedBlob = await generateShareKeyBlob(
+                        currentChatId,
+                        chatEncryptionKey,
+                        0, // No expiration
+                        undefined // No password
+                    );
+                    
+                    const baseUrl = window.location.origin;
+                    generatedLink = `${baseUrl}/share/chat/${currentChatId}#key=${encryptedBlob}`;
+                    isLinkGenerated = true;
+                    isConfigurationStep = false;
+                    generateQRCode(generatedLink);
+                    console.debug('[SettingsShare] Shared chat (not owned) share link generated:', generatedLink);
+                    return;
+                } catch (error) {
+                    console.error('[SettingsShare] Error generating share link for shared chat:', error);
+                    // If we can't get the key, we can't generate the link
+                    return;
+                }
+            }
+            
+            // For owned chats: use configured settings
+            const usePassword = isPasswordProtected;
+            const usePasswordValue = usePassword ? password : undefined;
+            const useDuration = selectedDuration;
+            
+            // Validate password if protection is enabled
+            if (usePassword && (!password || password.length === 0 || password.length > 10)) {
+                console.warn('[SettingsShare] Invalid password for protected share');
+                return;
+            }
             
             // Get the actual chat encryption key from IndexedDB
             const chatEncryptionKey = await getChatEncryptionKey();
@@ -129,19 +199,21 @@
             isLinkGenerated = true;
             
             // Move to link generation step (show link and QR code)
-            // For non-authenticated users, this is already false, but set it anyway
             isConfigurationStep = false;
             
             // Generate QR code
             generateQRCode(generatedLink);
             
-            // Mark chat as shared in IndexedDB
-            await markChatAsShared(currentChatId);
-            
-            // Queue OG metadata update to server (retry if offline)
-            // Only for authenticated users (non-auth users can't update OG metadata)
-            if ($authStore.isAuthenticated) {
-                await queueOGMetadataUpdate();
+            // Mark chat as shared in IndexedDB (only for owned chats)
+            // Don't mark shared chats as shared since user doesn't own them
+            if (isOwnedByUser && !isPublicChatType) {
+                await markChatAsShared(currentChatId);
+                
+                // Queue OG metadata update to server (retry if offline)
+                // Only update OG metadata for chats the user owns
+                if ($authStore.isAuthenticated) {
+                    await queueOGMetadataUpdate();
+                }
             }
             
             console.debug('[SettingsShare] Share link generated successfully');
@@ -151,13 +223,144 @@
     }
     
     /**
-     * Auto-generate link on mount for non-authenticated users
+     * Check chat ownership asynchronously
+     * Compares chat's user_id with current user's user_id
+     */
+    async function checkChatOwnership() {
+        // CRITICAL: Check if it's a public chat directly (not using derived value)
+        // This ensures we don't try to load demo/legal chats from the database
+        const isPublic = currentChatId ? isPublicChat(currentChatId) : false;
+        
+        if (!currentChatId || !$authStore.isAuthenticated || isPublic) {
+            // For non-authenticated users or public chats, assume owned (or not applicable)
+            isOwnedByUser = true;
+            console.debug('[SettingsShare] Skipping ownership check for public chat or non-authenticated user:', {
+                currentChatId,
+                isAuthenticated: $authStore.isAuthenticated,
+                isPublic
+            });
+            return;
+        }
+        
+        try {
+            // Get current chat from database
+            const { chatDB } = await import('../../../services/db');
+            const chat = await chatDB.getChat(currentChatId);
+            
+            if (!chat) {
+                // Chat not found, assume owned (fail open for UX)
+                isOwnedByUser = true;
+                return;
+            }
+            
+            currentChat = chat;
+            
+            // If chat has no user_id, assume it's owned (backwards compatibility)
+            if (!chat.user_id) {
+                isOwnedByUser = true;
+                return;
+            }
+            
+            // Get current user ID
+            const profile = await userDB.getUserProfile();
+            const currentUserId = (profile as any)?.user_id;
+            
+            if (!currentUserId) {
+                // Can't determine ownership, default to owned (fail open for UX)
+                isOwnedByUser = true;
+                return;
+            }
+            
+            // Compare chat's user_id with current user's user_id
+            isOwnedByUser = chat.user_id === currentUserId;
+            console.debug(`[SettingsShare] Chat ownership check: ${isOwnedByUser} for chat ${currentChatId} (chat.user_id: ${chat.user_id}, currentUserId: ${currentUserId})`);
+        } catch (error) {
+            console.error('[SettingsShare] Error checking chat ownership:', error);
+            // On error, assume owned (fail open for UX)
+            isOwnedByUser = true;
+        }
+    }
+    
+    /**
+     * Auto-generate link on mount for:
+     * - Non-authenticated users (public chats)
+     * - Public chats (demo and legal, for authenticated users too)
+     * - Shared chats user doesn't own
      * They skip the configuration step and go straight to link/QR code
      */
+    // Function to check and generate link if needed
+    async function checkAndGenerateLink() {
+        const chatId = currentChatId;
+        if (!chatId) {
+            console.debug('[SettingsShare] checkAndGenerateLink: No chatId available');
+            return;
+        }
+        
+        if (isLinkGenerated) {
+            console.debug('[SettingsShare] checkAndGenerateLink: Link already generated');
+            return;
+        }
+        
+        // Check if it's a demo chat or public chat directly (more reliable than derived value)
+        const isDemo = isDemoChat(chatId);
+        const isPublic = isPublicChat(chatId);
+        const isAuth = $authStore.isAuthenticated;
+        
+        console.debug('[SettingsShare] checkAndGenerateLink - chatId:', chatId, 'isDemo:', isDemo, 'isPublic:', isPublic, 'isAuth:', isAuth, 'isLinkGenerated:', isLinkGenerated);
+        
+        // Auto-generate link for demo chats, public chats, or non-authenticated users
+        if (isDemo || isPublic || !isAuth) {
+            console.debug('[SettingsShare] Auto-generating link for demo/public/non-auth chat:', chatId);
+            try {
+                await generateLink();
+            } catch (error) {
+                console.error('[SettingsShare] Error auto-generating link:', error);
+            }
+        } else if (isAuth && !isPublic) {
+            // For authenticated users with non-public chats, check ownership first
+            try {
+                await checkChatOwnership();
+                if (!isOwnedByUser && !isLinkGenerated && chatId) {
+                    console.debug('[SettingsShare] Auto-generating link for shared chat (not owned):', chatId);
+                    await generateLink();
+                }
+            } catch (error) {
+                console.error('[SettingsShare] Error checking ownership or generating link:', error);
+            }
+        }
+    }
+    
+    // Effect to watch for chatId changes
     $effect(() => {
-        if (!$authStore.isAuthenticated && currentChatId && !isLinkGenerated) {
-            // Auto-generate link with default settings (no password, no expiration)
-            generateLink();
+        // Track dependencies to ensure reactivity
+        const chatId = currentChatId;
+        const isAuth = $authStore.isAuthenticated;
+        const storeValue = $activeChatStore;
+        
+        console.debug('[SettingsShare] Effect triggered - chatId:', chatId, 'storeValue:', storeValue, 'isAuth:', isAuth, 'isLinkGenerated:', isLinkGenerated);
+        
+        if (chatId && !isLinkGenerated) {
+            // Use setTimeout to ensure the component is fully mounted and store is updated
+            setTimeout(() => {
+                checkAndGenerateLink();
+            }, 150);
+        }
+    });
+    
+    // Also check on mount in case the chatId is already set
+    onMount(() => {
+        console.debug('[SettingsShare] onMount - currentChatId:', currentChatId, 'activeChatStore:', $activeChatStore);
+        // Ensure currentChatId is synced from store on mount
+        const storeValue = $activeChatStore;
+        if (storeValue && storeValue.trim() !== '' && storeValue !== currentChatId) {
+            currentChatId = storeValue;
+            console.debug('[SettingsShare] Synced currentChatId from store on mount:', currentChatId);
+        }
+        
+        if (currentChatId && !isLinkGenerated) {
+            setTimeout(() => {
+                checkAndGenerateLink();
+            }, 250);
         }
     });
     
@@ -538,13 +741,15 @@
                 <p class="qr-code-instruction">{$text('settings.share.scan_qr_code.text')}</p>
             </div>
             
-            <!-- Back to Configuration Button -->
-            <button
-                class="back-to-config-button"
-                onclick={backToConfiguration}
-            >
-                {$text('settings.share.change_settings.text')}
-            </button>
+            <!-- Back to Configuration Button (only shown for owned chats) -->
+            {#if isOwnedByUser && !isPublicChatType}
+                <button
+                    class="back-to-config-button"
+                    onclick={backToConfiguration}
+                >
+                    {$text('settings.share.change_settings.text')}
+                </button>
+            {/if}
         </div>
     {/if}
     {/if}

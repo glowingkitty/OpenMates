@@ -55,6 +55,28 @@ def is_private_ip(ip_address_str: str) -> bool:
     except ValueError:
         return False
 
+def hash_ip_address(ip_address: str) -> str:
+    """
+    Hash an IP address using SHA-256 for privacy-focused compliance logging.
+    This ensures we don't store full IP addresses in compliance logs.
+    
+    Args:
+        ip_address: The IP address to hash
+        
+    Returns:
+        SHA-256 hash of the IP address (hexdigest), or "unknown" if IP is invalid
+    """
+    if not ip_address or ip_address.lower() == "unknown" or not _is_valid_ip_format(ip_address):
+        return "unknown"
+    
+    try:
+        # Hash the IP address using SHA-256
+        hashed_ip = hashlib.sha256(ip_address.encode('utf-8')).hexdigest()
+        return hashed_ip
+    except Exception as e:
+        logger.error(f"Error hashing IP address '{ip_address}': {e}", exc_info=True)
+        return "unknown"
+
 @lru_cache(maxsize=1024)
 def get_geo_data_from_ip(ip_address: str) -> Dict[str, Any]:
     """

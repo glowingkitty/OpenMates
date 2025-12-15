@@ -42,7 +42,7 @@ The **low balance trigger-based auto top-up** is NOT currently implemented. This
 
 **What's Missing:**
 - No background monitoring of user credit balances
-- No threshold configuration (e.g., "top up when below 1,000 credits")
+- No threshold configuration (threshold is fixed at 100 credits to simplify setup)
 - No one-time payment trigger system
 - No low balance detection logic
 - No automatic one-time charge creation
@@ -50,7 +50,7 @@ The **low balance trigger-based auto top-up** is NOT currently implemented. This
 **What Would Be Needed:**
 1. Database fields for low balance settings:
    - `auto_topup_low_balance_enabled` (boolean)
-   - `auto_topup_low_balance_threshold` (integer - credits)
+   - `auto_topup_low_balance_threshold` (integer - credits, **fixed at 100 credits**, cannot be changed to simplify setup)
    - `auto_topup_low_balance_amount` (integer - credits to add)
    - `auto_topup_low_balance_last_triggered` (timestamp - prevent multiple triggers)
 
@@ -67,7 +67,7 @@ The **low balance trigger-based auto top-up** is NOT currently implemented. This
 
 4. Settings UI (not part of signup):
    - Enable/disable low balance auto top-up
-   - Configure threshold amount
+   - Threshold is fixed at 100 credits (cannot be changed to simplify setup)
    - Configure top-up amount
    - Requires 2FA to enable/modify
 
@@ -94,7 +94,7 @@ The optimal approach is to integrate low balance checking directly into the exis
 Add fields to [users.yml](../../backend/core/directus/schemas/users.yml):
 
 - `auto_topup_low_balance_enabled` (boolean) - Enable/disable feature
-- `auto_topup_low_balance_threshold` (integer) - Credit threshold that triggers auto top-up
+- `auto_topup_low_balance_threshold` (integer) - Credit threshold that triggers auto top-up (**fixed at 100 credits**, cannot be changed to simplify setup)
 - `auto_topup_low_balance_amount` (integer) - Credits to purchase when triggered
 - `auto_topup_low_balance_currency` (string, 3) - Currency for purchases
 - `encrypted_auto_topup_last_triggered` (string, 512) - Encrypted timestamp to prevent rapid retriggering
@@ -136,7 +136,7 @@ No changes needed - auto top-up payments flow through the same webhook handler a
 
 Create settings interface to:
 - Enable/disable low balance auto top-up
-- Set threshold (dropdown with common values: 500, 1000, 2000, 5000)
+- Threshold is fixed at 100 credits (cannot be changed to simplify setup)
 - Set top-up amount (must match available pricing tiers)
 - Requires 2FA confirmation to enable
 
@@ -467,10 +467,11 @@ Defines subscription endpoints:
 ### Auto Top-Up on Low Balance
 
 **Separate Feature:**
-- Triggers one-time payment when balance falls below threshold
+- Triggers one-time payment when balance falls below threshold (fixed at 100 credits)
 - Independent from monthly subscription
 - Uses saved payment method
-- Configurable threshold and amount
+- Threshold is fixed at 100 credits (cannot be changed to simplify setup)
+- Configurable top-up amount
 - Requires additional webhook handling for one-time charges
 
 ## Testing Considerations
