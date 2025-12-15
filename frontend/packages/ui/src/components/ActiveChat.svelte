@@ -61,6 +61,7 @@
     import { websocketStatus } from '../stores/websocketStatusStore'; // Import WebSocket status for connection checks
     import { activeChatStore } from '../stores/activeChatStore'; // For clearing persistent active chat selection
     import { settingsDeepLink } from '../stores/settingsDeepLinkStore'; // For opening settings to specific page (share)
+    import { settingsMenuVisible } from '../components/Settings.svelte'; // Import settingsMenuVisible store to control Settings visibility
     import { videoIframeStore, type VideoIframeState } from '../stores/videoIframeStore'; // For standalone VideoIframe component with CSS-based PiP
     import { DEMO_CHATS, LEGAL_CHATS, getDemoMessages, isPublicChat, translateDemoChat } from '../demo_chats'; // Import demo chat utilities
     import { convertDemoChatToChat } from '../demo_chats/convertToChat'; // Import conversion function
@@ -1610,7 +1611,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
      * This allows users to share the current chat with various options
      * like password protection and time limits.
      */
-    function handleShareChat() {
+    async function handleShareChat() {
         console.debug("[ActiveChat] Share chat button clicked, opening share settings");
         
         // Ensure the current chat ID is set in the activeChatStore
@@ -1622,9 +1623,26 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             console.warn("[ActiveChat] No current chat available to share");
         }
         
+        // CRITICAL: Set settingsMenuVisible to true FIRST
+        // Settings.svelte watches settingsMenuVisible store and will sync isMenuVisible
+        // The deep link effect in Settings.svelte will also ensure the menu is open
+        // This must be set before the deep link to ensure proper sequencing
+        settingsMenuVisible.set(true);
+        
+        // CRITICAL: Also open via panelState for consistency
+        // This ensures the panel state is properly tracked
+        panelState.openSettings();
+        
+        // CRITICAL: Wait for store update to propagate and DOM to update
+        // This ensures the Settings component's effect has time to sync isMenuVisible
+        // and the menu is actually visible in the DOM before setting the deep link
+        await tick();
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
         // Navigate to the share settings submenu
-        // The settingsDeepLink store triggers the Settings component to open
-        // and navigate to the specified path
+        // The settingsDeepLink store triggers the Settings component to:
+        // 1. Open the menu if not already open (line 1103 in Settings.svelte)
+        // 2. Navigate to the specified path after a brief delay (line 1117)
         // Use 'shared/share' to navigate to the share submenu under Shared
         settingsDeepLink.set('shared/share');
     }
