@@ -1498,10 +1498,21 @@ async def create_subscription(
             raise HTTPException(status_code=500, detail="Failed to create subscription")
         
         # Save subscription details to Directus
-        from datetime import datetime
-        next_billing_date = datetime.fromtimestamp(
-            subscription_result['current_period_end']
-        ).isoformat()
+        from datetime import datetime, timedelta
+        
+        # CRITICAL: Handle case where current_period_end might not be available immediately
+        # (e.g., for incomplete subscriptions requiring payment confirmation)
+        current_period_end = subscription_result.get('current_period_end')
+        if current_period_end:
+            next_billing_date = datetime.fromtimestamp(current_period_end).isoformat()
+        else:
+            # Fallback: Calculate next billing date as 1 month from now
+            # This is a safe default for monthly subscriptions
+            logger.warning(
+                f"current_period_end not available for subscription {subscription_result.get('subscription_id')}, "
+                f"using calculated date (1 month from now) as fallback"
+            )
+            next_billing_date = (datetime.now(timezone.utc) + timedelta(days=30)).isoformat()
         
         update_payload = {
             "stripe_subscription_id": subscription_result['subscription_id'],

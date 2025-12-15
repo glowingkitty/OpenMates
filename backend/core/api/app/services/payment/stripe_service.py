@@ -604,11 +604,29 @@ class StripeService:
             
             logger.info(f"Stripe subscription created: {subscription.id} for customer: {customer_id}")
             
+            # CRITICAL: When using payment_behavior='default_incomplete', some fields may not be immediately available
+            # Use getattr with safe defaults to handle incomplete subscriptions
+            # If current_period_end is missing, retrieve the subscription again to get full details
+            current_period_end = getattr(subscription, 'current_period_end', None)
+            
+            if current_period_end is None:
+                # Subscription might be incomplete - retrieve it again to get full details
+                logger.debug(f"current_period_end not available on initial subscription object, retrieving full subscription details...")
+                try:
+                    full_subscription = stripe.Subscription.retrieve(subscription.id)
+                    current_period_end = getattr(full_subscription, 'current_period_end', None)
+                    if current_period_end:
+                        logger.debug(f"Retrieved current_period_end from full subscription: {current_period_end}")
+                    else:
+                        logger.warning(f"current_period_end still not available after retrieving full subscription for {subscription.id}")
+                except Exception as retrieve_error:
+                    logger.warning(f"Failed to retrieve full subscription details: {retrieve_error}")
+            
             return {
                 "subscription_id": subscription.id,
                 "status": subscription.status,
-                "current_period_end": subscription.current_period_end,
-                "cancel_at_period_end": subscription.cancel_at_period_end,
+                "current_period_end": current_period_end,
+                "cancel_at_period_end": getattr(subscription, 'cancel_at_period_end', False),
                 "latest_invoice_id": subscription.latest_invoice if hasattr(subscription, 'latest_invoice') else None
             }
             
