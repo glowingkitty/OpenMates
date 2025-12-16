@@ -247,6 +247,23 @@ class BasePDFTemplateService:
         # If we can't find the exact match (shouldn't happen after validation)
         logger.info(f"Warning: No price found for {credits} credits in {currency}")
         return 0
+
+    def _get_webapp_url(self):
+        """Get the webapp URL based on environment"""
+        import os
+        # Determine environment (development or production)
+        is_dev = os.getenv("ENVIRONMENT", "production").lower() in ("development", "dev", "test") or \
+                 "localhost" in os.getenv("WEBAPP_URL", "").lower()
+        env_name = "development" if is_dev else "production"
+        
+        # Get webapp URL from shared config
+        webapp_url = self.shared_urls.get('base', {}).get('webapp', {}).get(env_name)
+        
+        # Fallback to environment variable or default
+        if not webapp_url:
+            webapp_url = os.getenv("WEBAPP_URL", "https://openmates.org" if not is_dev else "http://localhost:5174")
+        
+        return webapp_url
         
     def build_questions_helper_section(self, elements, doc):
         """Build questions helper section that's common between invoice and credit note"""

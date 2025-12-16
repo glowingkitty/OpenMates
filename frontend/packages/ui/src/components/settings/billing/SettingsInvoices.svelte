@@ -304,6 +304,53 @@ Invoices Settings - View and download past invoices
         }
     }
 
+    // Download credit note for refunded invoice
+    async function downloadCreditNote(invoice: Invoice) {
+        try {
+            notificationStore.info($text('settings.billing.invoices_downloading_credit_note.text'));
+
+            // Use invoice ID to download the associated credit note
+            // The backend endpoint will find the credit note by invoice_id
+            const downloadUrl = getApiEndpoint(
+                apiEndpoints.payments.downloadCreditNote.replace('{id}', invoice.id)
+            );
+
+            const response = await fetch(downloadUrl, {
+                credentials: 'include'
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to download credit note');
+            }
+
+            // Get filename from Content-Disposition header or use default
+            const contentDisposition = response.headers.get('Content-Disposition');
+            let filename = 'credit_note.pdf';
+            if (contentDisposition) {
+                const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+                if (filenameMatch && filenameMatch[1]) {
+                    filename = filenameMatch[1].replace(/['"]/g, '');
+                }
+            }
+
+            // Create blob and download
+            const blob = await response.blob();
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = filename;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+
+            notificationStore.success($text('settings.billing.invoices_download_credit_note_success.text'));
+        } catch (error) {
+            console.error('Error downloading credit note:', error);
+            notificationStore.error($text('settings.billing.invoices_download_credit_note_error.text'));
+        }
+    }
+
     // Handle deep link refund - format: #settings/billing/invoices/{invoice_id}/refund
     // Check URL for refund deep link when component mounts or when invoices are loaded
     $effect(() => {
@@ -417,36 +464,51 @@ Invoices Settings - View and download past invoices
                     </div>
 
                     <div class="invoice-actions">
-                        <button
-                            class="download-button"
-                            onclick={() => downloadInvoice(invoice)}
-                            title={$text('settings.billing.invoices_download_invoice.text')}
-                        >
-                            <div class="download-icon"></div>
-                            <span>{$text('settings.billing.invoices_download.text')}</span>
-                        </button>
                         {#if isInvoiceRefunded(invoice)}
-                            <div class="refunded-state">
-                                <span class="refunded-text">
-                                    {$text('settings.billing.invoices_refunded_on.text')} {formatRefundDate(invoice.refunded_at)}
-                                </span>
-                            </div>
-                        {:else if isInvoiceEligibleForRefund(invoice)}
+                            <!-- When refunded, show Download Invoice and Download Credit Note buttons -->
                             <button
-                                class="refund-button"
-                                class:disabled={refundingInvoiceId === invoice.id}
-                                disabled={refundingInvoiceId === invoice.id}
-                                onclick={() => requestRefund(invoice)}
-                                title={$text('settings.billing.invoices_refund_tooltip.text')}
+                                class="download-button"
+                                onclick={() => downloadInvoice(invoice)}
+                                title={$text('settings.billing.invoices_download_invoice.text')}
                             >
-                                {#if refundingInvoiceId === invoice.id}
-                                    <div class="loading-spinner-small"></div>
-                                    <span>{$text('settings.billing.invoices_refund_processing.text')}</span>
-                                {:else}
-                                    <div class="refund-icon"></div>
-                                    <span>{$text('settings.billing.invoices_refund.text')}</span>
-                                {/if}
+                                <div class="download-icon"></div>
+                                <span>{$text('settings.billing.invoices_download_invoice.text')}</span>
                             </button>
+                            <button
+                                class="download-button"
+                                onclick={() => downloadCreditNote(invoice)}
+                                title={$text('settings.billing.invoices_download_credit_note.text')}
+                            >
+                                <div class="download-icon"></div>
+                                <span>{$text('settings.billing.invoices_download_credit_note.text')}</span>
+                            </button>
+                        {:else}
+                            <!-- When not refunded, show Download and Refund buttons -->
+                            <button
+                                class="download-button"
+                                onclick={() => downloadInvoice(invoice)}
+                                title={$text('settings.billing.invoices_download_invoice.text')}
+                            >
+                                <div class="download-icon"></div>
+                                <span>{$text('settings.billing.invoices_download.text')}</span>
+                            </button>
+                            {#if isInvoiceEligibleForRefund(invoice)}
+                                <button
+                                    class="refund-button"
+                                    class:disabled={refundingInvoiceId === invoice.id}
+                                    disabled={refundingInvoiceId === invoice.id}
+                                    onclick={() => requestRefund(invoice)}
+                                    title={$text('settings.billing.invoices_refund_tooltip.text')}
+                                >
+                                    {#if refundingInvoiceId === invoice.id}
+                                        <div class="loading-spinner-small"></div>
+                                        <span>{$text('settings.billing.invoices_refund_processing.text')}</span>
+                                    {:else}
+                                        <div class="refund-icon"></div>
+                                        <span>{$text('settings.billing.invoices_refund.text')}</span>
+                                    {/if}
+                                </button>
+                            {/if}
                         {/if}
                     </div>
                 </div>
@@ -692,19 +754,6 @@ Invoices Settings - View and download past invoices
         background-repeat: no-repeat;
         filter: invert(1);
         transform: rotate(180deg); /* Rotate to make it look like a return/refund arrow */
-    }
-    
-    .refunded-state {
-        display: flex;
-        align-items: center;
-        padding: 8px 16px;
-        color: var(--color-grey-60);
-        font-size: 13px;
-    }
-    
-    .refunded-text {
-        color: var(--color-grey-60);
-        font-style: italic;
     }
     
     .loading-spinner-small {

@@ -173,11 +173,31 @@ class InvoiceTemplateService(BasePDFTemplateService):
         receiver_details_str = "<br/>".join(receiver_fields) if receiver_fields else ""
         receiver_details = Paragraph(receiver_details_str, self.styles['Normal']) if receiver_details_str else Paragraph("", self.styles['Normal'])
         
-        # NOTE: View usage section (QR code and link) is hidden until usage settings menu is implemented
-        # This will be re-enabled once the usage settings page is available at /settings/usage
-        # usage_title = Paragraph(f"<b>{self.t['invoices_and_credit_notes']['view_usage']['text']}:</b>", self.styles['Bold'])
-        # url = invoice_data.get('qr_code_url', '')
-        # ... (QR code generation code removed)
+        # Create usage section with link and QR code
+        usage_title = Paragraph(f"<b>{self.t['invoices_and_credit_notes']['view_usage']['text']}:</b>", self.styles['Bold'])
+        
+        # Get webapp URL from config and construct usage URL
+        webapp_url = self._get_webapp_url()
+        url = f"{webapp_url}/#settings/usage"
+        
+        # Format URL properly with line break while maintaining a single clickable link
+        # Find a good spot to split the URL - after the domain
+        split_index = url.find('/', 8)  # Find first '/' after http(s)://
+        if (split_index != -1):
+            formatted_url = f"<a href='{url}'>{url[:split_index+1]}<br/>{url[split_index+1:]}</a>"
+        else:
+            formatted_url = f"<a href='{url}'>{url}</a>"
+            
+        usage_url = Paragraph(formatted_url, self.styles['Normal'])
+        
+        # Generate QR code
+        qr_code = QrCodeWidget(url)
+        bounds = qr_code.getBounds()
+        width = bounds[2] - bounds[0]
+        height = bounds[3] - bounds[1]
+        # Modify the Drawing to start from the absolute left (x=0)
+        d = Drawing(70, 70, transform=[70./width, 0, 0, 70./height, 0, 0])
+        d.add(qr_code)
         
         # Create tables for each column
         sender_table = Table([[sender_title], [sender_details]])
@@ -196,11 +216,27 @@ class InvoiceTemplateService(BasePDFTemplateService):
             ('BOTTOMPADDING', (0, 0), (0, 0), 0),
         ]))
         
-        # Two-column layout (sender and receiver only, no usage section)
+        usage_table = Table([
+            [usage_title], 
+            [usage_url], 
+            [d]
+        ])
+        usage_table.setStyle(TableStyle([
+            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            # Set explicit zero padding for all cells, especially the QR code cell
+            ('LEFTPADDING', (0, 0), (-1, -1), 0),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+            ('BOTTOMPADDING', (0, 0), (0, 0), 0),
+            # Special negative padding for QR code to force left alignment
+            ('LEFTPADDING', (0, 2), (0, 2), -7),
+        ]))
+        
+        # Three-column layout (sender, receiver, and usage sections)
         # Add left indent to info table
         info_table_with_indent = Table([
-            [Spacer(self.left_indent, 0), sender_table, receiver_table]
-        ], colWidths=[self.left_indent, (doc.width-self.left_indent)/2, (doc.width-self.left_indent)/2])
+            [Spacer(self.left_indent, 0), sender_table, receiver_table, usage_table]
+        ], colWidths=[self.left_indent, (doc.width-self.left_indent)/3, (doc.width-self.left_indent)/3, (doc.width-self.left_indent)/3])
         
         info_table_with_indent.setStyle(TableStyle([
             ('VALIGN', (0, 0), (-1, -1), 'TOP'),

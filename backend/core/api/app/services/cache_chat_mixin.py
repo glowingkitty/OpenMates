@@ -261,6 +261,30 @@ class ChatCacheMixin:
             logger.error(f"CACHE_OP_ERROR: Error getting versions from {key}: {e}", exc_info=True)
             return None
 
+    async def delete_chat_versions(self, user_id: str, chat_id: str) -> bool:
+        """
+        Deletes the chat versions hash for a specific user and chat.
+        This removes the entire versions hash (messages_v, title_v, draft_v, etc.).
+        Returns True if the key was deleted or did not exist, False on error.
+        """
+        client = await self.client
+        if not client:
+            logger.error("CACHE_OP_ERROR: Redis client not available for delete_chat_versions.")
+            return False
+
+        key = self._get_chat_versions_key(user_id, chat_id)
+        try:
+            logger.debug(f"CACHE_OP: DELETE for key '{key}' (chat versions)")
+            deleted_count = await client.delete(key)
+            if deleted_count > 0:
+                logger.debug(f"CACHE_OP: Successfully deleted chat versions key '{key}'")
+            else:
+                logger.debug(f"CACHE_OP: Chat versions key '{key}' not found or already deleted")
+            return True
+        except Exception as e:
+            logger.error(f"CACHE_OP_ERROR: Error deleting chat versions key '{key}': {e}", exc_info=True)
+            return False
+
     async def increment_chat_component_version(self, user_id: str, chat_id: str, component: str, increment_by: int = 1) -> Optional[int]:
         """
         Increments a specific component version for a chat in the versions hash.
@@ -579,6 +603,30 @@ class ChatCacheMixin:
             return await client.expire(key, self.CHAT_LIST_ITEM_DATA_TTL)
         except Exception as e:
             logger.error(f"Error refreshing TTL for {key}: {e}")
+            return False
+
+    async def delete_chat_list_item_data(self, user_id: str, chat_id: str) -> bool:
+        """
+        Deletes the chat list item data hash for a specific user and chat.
+        This removes the entire list_item_data hash (title, unread_count, last_mate_category, etc.).
+        Returns True if the key was deleted or did not exist, False on error.
+        """
+        client = await self.client
+        if not client:
+            logger.error("CACHE_OP_ERROR: Redis client not available for delete_chat_list_item_data.")
+            return False
+
+        key = self._get_chat_list_item_data_key(user_id, chat_id)
+        try:
+            logger.debug(f"CACHE_OP: DELETE for key '{key}' (chat list item data)")
+            deleted_count = await client.delete(key)
+            if deleted_count > 0:
+                logger.debug(f"CACHE_OP: Successfully deleted chat list item data key '{key}'")
+            else:
+                logger.debug(f"CACHE_OP: Chat list item data key '{key}' not found or already deleted")
+            return True
+        except Exception as e:
+            logger.error(f"CACHE_OP_ERROR: Error deleting chat list item data key '{key}': {e}", exc_info=True)
             return False
 
     # Scroll position and read status methods

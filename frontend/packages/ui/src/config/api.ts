@@ -112,6 +112,9 @@ export const apiEndpoints = {
         orderStatus:                '/v1/payments/order-status',                // Get the status of a specific order (POST request)
         savePaymentMethod:          '/v1/payments/save-payment-method',         // Save payment method from successful payment
         hasPaymentMethod:            '/v1/payments/has-payment-method',         // Check if user has a saved payment method
+        listPaymentMethods:         '/v1/payments/payment-methods',             // List all saved payment methods for user
+        processPaymentWithSavedMethod: '/v1/payments/process-payment-with-saved-method', // Process payment with saved payment method
+        getUserAuthMethods:         '/v1/payments/user-auth-methods',             // Get user authentication methods (passkey/2FA)
         createSubscription:         '/v1/payments/create-subscription',         // Create monthly auto top-up subscription
         getSubscription:            '/v1/payments/subscription',                // Get user's subscription details
         cancelSubscription:         '/v1/payments/cancel-subscription',         // Cancel monthly subscription
@@ -121,6 +124,7 @@ export const apiEndpoints = {
         getPurchasedGiftCards:      '/v1/payments/purchased-gift-cards',       // Get user's purchased gift cards
         getInvoices:                '/v1/payments/invoices',                   // Get user's invoices
         downloadInvoice:            '/v1/payments/invoices/{id}/download',      // Download specific invoice PDF
+        downloadCreditNote:         '/v1/payments/invoices/{id}/credit-note/download', // Download credit note PDF for refunded invoice
         requestRefund:               '/v1/payments/refund',                       // Request refund for unused credits
         // Webhook endpoint is only called by payment providers, not the frontend
     },

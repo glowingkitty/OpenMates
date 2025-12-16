@@ -1048,33 +1048,24 @@
             // They can set up auto top-up later in settings
         } else {
             try {
-                // CRITICAL: Verify payment method is available before attempting subscription creation
-                // Poll the endpoint to ensure cache is updated and payment method is accessible
-                // Increased attempts and timeout to account for cache propagation delay
-                console.debug("[Signup] Verifying payment method availability before creating subscription...");
-                const isAvailable = await pollPaymentMethodAvailability(20, 8000); // 20 attempts, 8 seconds total
+                // CRITICAL: Payment method was already saved and confirmed earlier in the payment flow
+                // Proceed directly with subscription creation - if payment method isn't available,
+                // the backend will return an error that we can handle gracefully
+                console.debug("[Signup] Creating subscription with saved payment method...");
                 
-                if (!isAvailable) {
-                    console.error("[Signup] Payment method not available after polling - subscription creation will likely fail");
-                    notificationStore.error(
-                        "Payment method is not yet available. You can set up auto top-up later in settings.",
-                        10000
-                    );
-                    // Still complete signup - user has finished the signup flow
-                } else {
-                    // Call backend API to create subscription
-                    const response = await fetch(getApiUrl() + apiEndpoints.payments.createSubscription, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Origin': window.location.origin
-                        },
-                        credentials: 'include',
-                        body: JSON.stringify({
-                            credits_amount: credits,
-                            currency: currency.toLowerCase()
-                        })
-                    });
+                // Call backend API to create subscription
+                const response = await fetch(getApiUrl() + apiEndpoints.payments.createSubscription, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Origin': window.location.origin
+                    },
+                    credentials: 'include',
+                    body: JSON.stringify({
+                        credits_amount: credits,
+                        currency: currency.toLowerCase()
+                    })
+                });
 
                     if (response.ok) {
                         const subscriptionData = await response.json();
@@ -1165,7 +1156,6 @@
                         );
                         // Still complete signup - user has finished the signup flow
                     }
-                }
             } catch (error) {
                 console.error("Error creating subscription:", error);
                 const errorMessage = error instanceof Error ? error.message : "Unknown error";

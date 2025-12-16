@@ -1285,7 +1285,21 @@ async def passkey_registration_complete(
                     "invoice_counter": user_profile.get("invoice_counter", 0),
                     "lookup_hashes": user_profile.get("lookup_hashes", []),
                     "account_id": user_data.get("account_id"),  # From the original user_data
-                    "user_email_salt": complete_request.user_email_salt  # Include the salt
+                    "user_email_salt": complete_request.user_email_salt,  # Include the salt
+                    # Monthly subscription fields (cleartext fields, not sensitive)
+                    "stripe_customer_id": user_profile.get("stripe_customer_id"),
+                    "stripe_subscription_id": user_profile.get("stripe_subscription_id"),
+                    "subscription_status": user_profile.get("subscription_status"),
+                    "subscription_credits": user_profile.get("subscription_credits"),
+                    "subscription_currency": user_profile.get("subscription_currency"),
+                    "next_billing_date": user_profile.get("next_billing_date"),
+                    # Keep encrypted payment method ID encrypted
+                    "encrypted_payment_method_id": user_profile.get("encrypted_payment_method_id"),
+                    # Low balance auto top-up fields (cleartext configuration fields)
+                    "auto_topup_low_balance_enabled": user_profile.get("auto_topup_low_balance_enabled", False),
+                    "auto_topup_low_balance_threshold": user_profile.get("auto_topup_low_balance_threshold"),
+                    "auto_topup_low_balance_amount": user_profile.get("auto_topup_low_balance_amount"),
+                    "auto_topup_low_balance_currency": user_profile.get("auto_topup_low_balance_currency")
                 }
             
             # Remove gifted_credits_for_signup if it's None or 0 before caching

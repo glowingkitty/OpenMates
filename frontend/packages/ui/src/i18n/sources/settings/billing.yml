@@ -849,6 +849,236 @@ currency:
   cs: Ověřovací Kód 2FA
   sv: 2FA Autentiseringskod
   verified_by_human: []
+select_payment_method:
+  context: Heading for selecting a payment method
+  en: Select Payment Method
+  de: Zahlungsmethode auswählen
+  zh: 选择付款方式
+  es: Seleccionar Método de Pago
+  fr: Sélectionner le Mode de Paiement
+  pt: Selecionar Método de Pagamento
+  ru: Выберите Способ Оплаты
+  ja: 支払い方法を選択
+  ko: 결제 방법 선택
+  it: Seleziona Metodo di Pagamento
+  tr: Ödeme Yöntemi Seç
+  vi: Chọn Phương Thức Thanh Toán
+  id: Pilih Metode Pembayaran
+  pl: Wybierz Metodę Płatności
+  nl: Betaalmethode Selecteren
+  ar: اختر طريقة الدفع
+  hi: भुगतान विधि चुनें
+  th: เลือกวิธีการชำระเงิน
+  cs: Vybrat Platební Metodu
+  sv: Välj Betalningsmetod
+  verified_by_human: []
+add_payment_method:
+  context: Button to add a new payment method
+  en: Add Payment Method
+  de: Zahlungsmethode hinzufügen
+  zh: 添加付款方式
+  es: Agregar Método de Pago
+  fr: Ajouter un Mode de Paiement
+  pt: Adicionar Método de Pagamento
+  ru: Добавить Способ Оплаты
+  ja: 支払い方法を追加
+  ko: 결제 방법 추가
+  it: Aggiungi Metodo di Pagamento
+  tr: Ödeme Yöntemi Ekle
+  vi: Thêm Phương Thức Thanh Toán
+  id: Tambahkan Metode Pembayaran
+  pl: Dodaj Metodę Płatności
+  nl: Betaalmethode Toevoegen
+  ar: إضافة طريقة دفع
+  hi: भुगतान विधि जोड़ें
+  th: เพิ่มวิธีการชำระเงิน
+  cs: Přidat Platební Metodu
+  sv: Lägg till Betalningsmetod
+  verified_by_human: []
+buy_now:
+  context: Button to proceed with purchase using selected payment method
+  en: Buy Now
+  de: Jetzt kaufen
+  zh: 立即购买
+  es: Comprar Ahora
+  fr: Acheter Maintenant
+  pt: Comprar Agora
+  ru: Купить Сейчас
+  ja: 今すぐ購入
+  ko: 지금 구매
+  it: Acquista Ora
+  tr: Şimdi Satın Al
+  vi: Mua Ngay
+  id: Beli Sekarang
+  pl: Kup Teraz
+  nl: Nu Kopen
+  ar: اشتر الآن
+  hi: अभी खरीदें
+  th: ซื้อตอนนี้
+  cs: Koupit Nyní
+  sv: Köp Nu
+  verified_by_human: []
+processing:
+  context: Processing payment state
+  en: Processing...
+  de: Wird verarbeitet...
+  zh: 处理中...
+  es: Procesando...
+  fr: Traitement en cours...
+  pt: Processando...
+  ru: Обработка...
+  ja: 処理中...
+  ko: 처리 중...
+  it: Elaborazione...
+  tr: İşleniyor...
+  vi: Đang xử lý...
+  id: Memproses...
+  pl: Przetwarzanie...
+  nl: Verwerken...
+  ar: جاري المعالجة...
+  hi: प्रसंस्करण...
+  th: กำลังดำเนินการ...
+  cs: Zpracovávání...
+  sv: Bearbetar...
+  verified_by_human: []
+loading_payment_methods:
+  context: Loading payment methods state
+  en: Loading payment methods...
+  de: Zahlungsmethoden werden geladen...
+  zh: 正在加载付款方式...
+  es: Cargando métodos de pago...
+  fr: Chargement des modes de paiement...
+  pt: Carregando métodos de pagamento...
+  ru: Загрузка способов оплаты...
+  ja: 支払い方法を読み込み中...
+  ko: 결제 방법 로드 중...
+  it: Caricamento metodi di pagamento...
+  tr: Ödeme yöntemleri yükleniyor...
+  vi: Đang tải phương thức thanh toán...
+  id: Memuat metode pembayaran...
+  pl: Ładowanie metod płatności...
+  nl: Betaalmethoden laden...
+  ar: جاري تحميل طرق الدفع...
+  hi: भुगतान विधियां लोड हो रही हैं...
+  th: กำลังโหลดวิธีการชำระเงิน...
+  cs: Načítání platebních metod...
+  sv: Laddar betalningsmetoder...
+  verified_by_human: []
+payment_auth_title:
+  context: Title for payment authentication modal
+  en: Confirm Payment
+  de: Zahlung bestätigen
+  zh: 确认付款
+  es: Confirmar Pago
+  fr: Confirmer le Paiement
+  pt: Confirmar Pagamento
+  ru: Подтвердить Платеж
+  ja: 支払いを確認
+  ko: 결제 확인
+  it: Conferma Pagamento
+  tr: Ödemeyi Onayla
+  vi: Xác Nhận Thanh Toán
+  id: Konfirmasi Pembayaran
+  pl: Potwierdź Płatność
+  nl: Betaling Bevestigen
+  ar: تأكيد الدفع
+  hi: भुगतान की पुष्टि करें
+  th: ยืนยันการชำระเงิน
+  cs: Potvrdit Platbu
+  sv: Bekräfta Betalning
+  verified_by_human: []
+passkey_authenticating:
+  context: Passkey authentication in progress
+  en: Authenticating with passkey...
+  de: Authentifizierung mit Passkey...
+  zh: 使用通行密钥进行身份验证...
+  es: Autenticando con clave de acceso...
+  fr: Authentification avec clé d'accès...
+  pt: Autenticando com chave de acesso...
+  ru: Аутентификация с помощью ключа доступа...
+  ja: パスキーで認証中...
+  ko: 패스키로 인증 중...
+  it: Autenticazione con passkey...
+  tr: Passkey ile kimlik doğrulama...
+  vi: Đang xác thực bằng khóa truy cập...
+  id: Mengautentikasi dengan passkey...
+  pl: Uwierzytelnianie za pomocą klucza dostępu...
+  nl: Authenticeren met passkey...
+  ar: المصادقة باستخدام مفتاح المرور...
+  hi: पासकी के साथ प्रमाणीकरण...
+  th: กำลังยืนยันตัวตนด้วยพาสคีย์...
+  cs: Ověřování pomocí přístupového klíče...
+  sv: Autentiserar med passkey...
+  verified_by_human: []
+passkey_prompt:
+  context: Prompt to authenticate with passkey
+  en: Please authenticate with your passkey to confirm this payment.
+  de: Bitte authentifizieren Sie sich mit Ihrem Passkey, um diese Zahlung zu bestätigen.
+  zh: 请使用您的通行密钥进行身份验证以确认此付款。
+  es: Por favor, autentíquese con su clave de acceso para confirmar este pago.
+  fr: Veuillez vous authentifier avec votre clé d'accès pour confirmer ce paiement.
+  pt: Por favor, autentique-se com sua chave de acesso para confirmar este pagamento.
+  ru: Пожалуйста, пройдите аутентификацию с помощью вашего ключа доступа, чтобы подтвердить этот платеж.
+  ja: この支払いを確認するには、パスキーで認証してください。
+  ko: 이 결제를 확인하려면 패스키로 인증하세요.
+  it: Si prega di autenticarsi con la passkey per confermare questo pagamento.
+  tr: Bu ödemeyi onaylamak için lütfen passkey'inizle kimlik doğrulaması yapın.
+  vi: Vui lòng xác thực bằng khóa truy cập của bạn để xác nhận thanh toán này.
+  id: Silakan autentikasi dengan passkey Anda untuk mengonfirmasi pembayaran ini.
+  pl: Proszę uwierzytelnić się za pomocą klucza dostępu, aby potwierdzić tę płatność.
+  nl: Authenticeer met uw passkey om deze betaling te bevestigen.
+  ar: يرجى المصادقة باستخدام مفتاح المرور الخاص بك لتأكيد هذه الدفعة.
+  hi: कृपया इस भुगतान की पुष्टि करने के लिए अपने पासकी के साथ प्रमाणीकरण करें।
+  th: กรุณายืนยันตัวตนด้วยพาสคีย์ของคุณเพื่อยืนยันการชำระเงินนี้
+  cs: Pro potvrzení této platby se prosím ověřte pomocí přístupového klíče.
+  sv: Vänligen autentisera med din passkey för att bekräfta denna betalning.
+  verified_by_human: []
+authenticate_with_passkey:
+  context: Button to authenticate with passkey
+  en: Authenticate with Passkey
+  de: Mit Passkey authentifizieren
+  zh: 使用通行密钥进行身份验证
+  es: Autenticar con Clave de Acceso
+  fr: S'authentifier avec la Clé d'Accès
+  pt: Autenticar com Chave de Acesso
+  ru: Аутентифицироваться с помощью Ключа Доступа
+  ja: パスキーで認証
+  ko: 패스키로 인증
+  it: Autentica con Passkey
+  tr: Passkey ile Kimlik Doğrula
+  vi: Xác Thực bằng Khóa Truy Cập
+  id: Autentikasi dengan Passkey
+  pl: Uwierzytelnij za Pomocą Klucza Dostępu
+  nl: Authenticeren met Passkey
+  ar: المصادقة باستخدام مفتاح المرور
+  hi: पासकी के साथ प्रमाणीकरण करें
+  th: ยืนยันตัวตนด้วยพาสคีย์
+  cs: Ověřit pomocí Přístupového Klíče
+  sv: Autentisera med Passkey
+  verified_by_human: []
+enter_2fa_code:
+  context: Prompt to enter 2FA code
+  en: Please enter your 2FA code to confirm this payment.
+  de: Bitte geben Sie Ihren 2FA-Code ein, um diese Zahlung zu bestätigen.
+  zh: 请输入您的双因素身份验证代码以确认此付款。
+  es: Por favor, ingrese su código 2FA para confirmar este pago.
+  fr: Veuillez entrer votre code 2FA pour confirmer ce paiement.
+  pt: Por favor, insira seu código 2FA para confirmar este pagamento.
+  ru: Пожалуйста, введите ваш код 2FA, чтобы подтвердить этот платеж.
+  ja: この支払いを確認するには、2FAコードを入力してください。
+  ko: 이 결제를 확인하려면 2FA 코드를 입력하세요.
+  it: Inserisci il tuo codice 2FA per confermare questo pagamento.
+  tr: Bu ödemeyi onaylamak için lütfen 2FA kodunuzu girin.
+  vi: Vui lòng nhập mã 2FA của bạn để xác nhận thanh toán này.
+  id: Silakan masukkan kode 2FA Anda untuk mengonfirmasi pembayaran ini.
+  pl: Proszę wprowadzić kod 2FA, aby potwierdzić tę płatność.
+  nl: Voer uw 2FA-code in om deze betaling te bevestigen.
+  ar: يرجى إدخال رمز 2FA الخاص بك لتأكيد هذه الدفعة.
+  hi: कृपया इस भुगतान की पुष्टि करने के लिए अपना 2FA कोड दर्ज करें।
+  th: กรุณากรอกรหัส 2FA ของคุณเพื่อยืนยันการชำระเงินนี้
+  cs: Pro potvrzení této platby zadejte prosím svůj kód 2FA.
+  sv: Ange din 2FA-kod för att bekräfta denna betalning.
+  verified_by_human: []
 purchase_successful:
   context: Purchase confirmation page title
   en: Purchase Successful
@@ -1539,6 +1769,29 @@ invoices.download_invoice:
   cs: Stáhnout PDF faktury
   sv: Ladda ner faktura PDF
   verified_by_human: []
+invoices_download_invoice:
+  context: Download invoice button text
+  en: Download invoice
+  de: Rechnung herunterladen
+  zh: 下载发票
+  es: Descargar factura
+  fr: Télécharger la facture
+  pt: Baixar fatura
+  ru: Скачать счет
+  ja: 請求書をダウンロード
+  ko: 청구서 다운로드
+  it: Scarica fattura
+  tr: Faturayı indir
+  vi: Tải xuống hóa đơn
+  id: Unduh faktur
+  pl: Pobierz fakturę
+  nl: Factuur downloaden
+  ar: تحميل الفاتورة
+  hi: चालान डाउनलोड करें
+  th: ดาวน์โหลดใบแจ้งหนี้
+  cs: Stáhnout fakturu
+  sv: Ladda ner faktura
+  verified_by_human: []
 invoices.downloading:
   context: Message shown while downloading invoice
   en: Downloading invoice...
@@ -1630,6 +1883,98 @@ invoices_gift_card_badge:
   th: บัตรของขวัญ
   cs: Dárkový Poukaz
   sv: Presentkort
+  verified_by_human: []
+invoices_download_credit_note:
+  context: Button text for downloading credit note
+  en: Download Credit Note
+  de: Gutschrift herunterladen
+  zh: 下载贷记单
+  es: Descargar Nota de Crédito
+  fr: Télécharger la Note de Crédit
+  pt: Baixar Nota de Crédito
+  ru: Скачать Кредит-ноту
+  ja: クレジットノートをダウンロード
+  ko: 크레딧 노트 다운로드
+  it: Scarica Nota di Credito
+  tr: Kredi Notu İndir
+  vi: Tải xuống Ghi chú Tín dụng
+  id: Unduh Nota Kredit
+  pl: Pobierz Notę Kredytową
+  nl: Creditnota Downloaden
+  ar: تحميل ملاحظة الائتمان
+  hi: क्रेडिट नोट डाउनलोड करें
+  th: ดาวน์โหลดใบลดหนี้
+  cs: Stáhnout Dobropis
+  sv: Ladda ner Kreditnota
+  verified_by_human: []
+invoices_downloading_credit_note:
+  context: Message shown while downloading credit note
+  en: Downloading credit note...
+  de: Gutschrift wird heruntergeladen...
+  zh: 正在下载贷记单...
+  es: Descargando nota de crédito...
+  fr: Téléchargement de la note de crédit...
+  pt: Baixando nota de crédito...
+  ru: Загрузка кредит-ноты...
+  ja: クレジットノートをダウンロード中...
+  ko: 크레딧 노트 다운로드 중...
+  it: Scaricamento nota di credito...
+  tr: Kredi notu indiriliyor...
+  vi: Đang tải xuống ghi chú tín dụng...
+  id: Mengunduh nota kredit...
+  pl: Pobieranie noty kredytowej...
+  nl: Creditnota downloaden...
+  ar: تحميل ملاحظة الائتمان...
+  hi: क्रेडिट नोट डाउनलोड हो रहा है...
+  th: กำลังดาวน์โหลดใบลดหนี้...
+  cs: Stahování dobropisu...
+  sv: Laddar ner kreditnota...
+  verified_by_human: []
+invoices_download_credit_note_success:
+  context: Success message after downloading credit note
+  en: Credit note downloaded successfully
+  de: Gutschrift erfolgreich heruntergeladen
+  zh: 贷记单下载成功
+  es: Nota de crédito descargada exitosamente
+  fr: Note de crédit téléchargée avec succès
+  pt: Nota de crédito baixada com sucesso
+  ru: Кредит-нота успешно загружена
+  ja: クレジットノートが正常にダウンロードされました
+  ko: 크레딧 노트가 성공적으로 다운로드되었습니다
+  it: Nota di credito scaricata con successo
+  tr: Kredi notu başarıyla indirildi
+  vi: Ghi chú tín dụng được tải xuống thành công
+  id: Nota kredit berhasil diunduh
+  pl: Nota kredytowa została pobrana pomyślnie
+  nl: Creditnota succesvol gedownload
+  ar: تم تحميل ملاحظة الائتمان بنجاح
+  hi: क्रेडिट नोट सफलतापूर्वक डाउनलोड हुआ
+  th: ดาวน์โหลดใบลดหนี้สำเร็จแล้ว
+  cs: Dobropis byl úspěšně stažen
+  sv: Kreditnotan laddades ner framgångsrikt
+  verified_by_human: []
+invoices_download_credit_note_error:
+  context: Error message when downloading credit note fails
+  en: Failed to download credit note. Please try again.
+  de: Fehler beim Herunterladen der Gutschrift. Bitte versuchen Sie es erneut.
+  zh: 下载贷记单失败。请重试。
+  es: Error al descargar la nota de crédito. Por favor, inténtalo de nuevo.
+  fr: Échec du téléchargement de la note de crédit. Veuillez réessayer.
+  pt: Falha ao baixar a nota de crédito. Tente novamente.
+  ru: Не удалось загрузить кредит-ноту. Попробуйте снова.
+  ja: クレジットノートのダウンロードに失敗しました。もう一度お試しください。
+  ko: 크레딧 노트 다운로드에 실패했습니다. 다시 시도해주세요.
+  it: Impossibile scaricare la nota di credito. Riprova.
+  tr: Kredi notu indirilemedi. Lütfen tekrar deneyin.
+  vi: Không thể tải xuống ghi chú tín dụng. Vui lòng thử lại.
+  id: Gagal mengunduh nota kredit. Silakan coba lagi.
+  pl: Nie udało się pobrać noty kredytowej. Spróbuj ponownie.
+  nl: Creditnota downloaden mislukt. Probeer opnieuw.
+  ar: فشل تحميل ملاحظة الائتمان. يرجى المحاولة مرة أخرى.
+  hi: क्रेडिट नोट डाउनलोड करने में विफल। कृपया पुनः प्रयास करें।
+  th: ไม่สามารถดาวน์โหลดใบลดหนี้ได้ โปรดลองอีกครั้ง
+  cs: Stažení dobropisu se nezdařilo. Zkuste to znovu.
+  sv: Misslyckades med att ladda ner kreditnotan. Försök igen.
   verified_by_human: []
 
 invoices_refund_not_eligible:

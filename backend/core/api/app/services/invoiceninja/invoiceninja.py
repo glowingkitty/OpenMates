@@ -324,6 +324,32 @@ class InvoiceNinjaService:
         # Assuming invoices.upload_invoice_document is updated to accept bytes and filename
         return invoices.upload_invoice_document(self, invoice_id, pdf_data, filename)
 
+    def upload_credit_document(self, credit_id: str, pdf_data: bytes, filename: str) -> bool:
+        """
+        Uploads a custom PDF document to an existing credit note.
+        
+        Args:
+            credit_id: The ID of the credit note to upload the document to.
+            pdf_data: The PDF file content as bytes.
+            filename: The desired filename for the uploaded document.
+            
+        Returns:
+            True if successful, False otherwise.
+        """
+        logger.info(f"Attempting to upload document '{filename}' (from bytes) to credit note ID {credit_id}...")
+        
+        endpoint = f'/credits/{credit_id}/upload'
+        
+        # Use the same file upload mechanism as invoices
+        success = self._make_file_upload_request(endpoint, pdf_data, filename)
+        
+        if success:
+            logger.info(f"Successfully uploaded document to credit note ID {credit_id}.")
+        else:
+            logger.error(f"Failed to upload document to credit note ID {credit_id}.")
+        
+        return success
+
     # --- Payment Operations ---
     # Corrected signature to match payments.create_payment structure
     def create_payment(self,
@@ -598,6 +624,71 @@ class InvoiceNinjaService:
         # --- Success ---
         logger.info(f"Process Completed for {processor_type.upper()} Order: {external_order_id}")
 
+    def create_credit_note(
+        self,
+        client_id: str,
+        invoice_id: str,
+        credit_amount: float,
+        currency_code: str,
+        credit_date: str,
+        credit_number: str,
+        payment_processor: str,
+        external_order_id: str,
+        referenced_invoice_number: Optional[str] = None
+    ) -> Optional[str]:
+        """
+        Creates a credit note in Invoice Ninja for a refund.
+        
+        Args:
+            client_id: Invoice Ninja client ID
+            invoice_id: Invoice Ninja invoice ID that this credit note references
+            credit_amount: Amount of the credit note (positive value, will be negated)
+            currency_code: Currency code (e.g., 'eur', 'usd')
+            credit_date: Date of the credit note (ISO format: YYYY-MM-DD)
+            credit_number: Credit note number (e.g., 'CN-MRRUNHO-1')
+            payment_processor: Payment processor name (e.g., 'stripe', 'revolut')
+            external_order_id: External order ID from payment provider
+            referenced_invoice_number: Original invoice number for reference
+            
+        Returns:
+            Credit note ID if successful, None otherwise
+        """
+        try:
+            # Prepare credit note data
+            # Invoice Ninja expects credits to be negative amounts
+            # Note: Invoice Ninja uses currency_id as a numeric ID, but we'll try with currency code first
+            # If that doesn't work, we may need to look up the currency ID
+            credit_data = {
+                "client_id": client_id,
+                "number": credit_number,
+                "date": credit_date,
+                "amount": -abs(credit_amount),  # Negative amount for credit
+                "currency_id": currency_code.upper(),  # Try currency code (e.g., "EUR", "USD")
+                "status_id": "2",  # Status ID 2 = "Sent" (active credit note)
+                "custom_value1": payment_processor,  # Store payment processor
+                "custom_value2": external_order_id,  # Store external order ID
+                "private_notes": f"Credit note for refund. Referenced invoice: {referenced_invoice_number or 'N/A'}"
+            }
+            
+            # Create credit note via API
+            logger.info(f"Creating credit note in Invoice Ninja: {credit_number}, Amount: {credit_amount} {currency_code}")
+            response = self.make_api_request('POST', '/credits', data=credit_data)
+            
+            if response and 'data' in response:
+                credit_id = response['data'].get('id')
+                if credit_id:
+                    logger.info(f"Credit note created successfully in Invoice Ninja: ID={credit_id}")
+                    return credit_id
+                else:
+                    logger.error("Credit note creation response missing ID")
+            else:
+                logger.error(f"Failed to create credit note. Response: {response}")
+                
+        except Exception as e:
+            logger.error(f"Exception creating credit note in Invoice Ninja: {str(e)}", exc_info=True)
+        
+        return None
+
     def process_refund_transaction(
         self,
         user_hash: str,
@@ -670,18 +761,40 @@ class InvoiceNinjaService:
         else:
             logger.warning(f"Failed to search for invoice in Invoice Ninja for order_id: {external_order_id}")
 
-        # If we found the invoice, upload the credit note PDF to it
-        if ninja_invoice_id and custom_pdf_data:
+        # Create credit note in Invoice Ninja if we found the invoice
+        ninja_credit_id = None
+        if ninja_invoice_id:
+            logger.info(f"Creating credit note in Invoice Ninja for invoice ID: {ninja_invoice_id}")
+            ninja_credit_id = self.create_credit_note(
+                client_id=ninja_client_id,
+                invoice_id=ninja_invoice_id,
+                credit_amount=refund_amount_value,
+                currency_code=currency_code,
+                credit_date=refund_date,
+                credit_number=custom_credit_note_number,
+                payment_processor=payment_processor,
+                external_order_id=external_order_id,
+                referenced_invoice_number=referenced_invoice_number
+            )
+            if not ninja_credit_id:
+                logger.warning("Failed to create credit note in Invoice Ninja.")
+            else:
+                logger.info(f"Credit note created successfully in Invoice Ninja: ID={ninja_credit_id}")
+        else:
+            logger.warning(f"Cannot create credit note: Invoice not found in Invoice Ninja for order_id: {external_order_id}")
+
+        # Upload the credit note PDF to the credit note (not the invoice)
+        if ninja_credit_id and custom_pdf_data:
             pdf_filename = f"{external_order_id}_credit_note_{custom_credit_note_number}.pdf"
-            logger.info(f"Attempting to upload credit note PDF '{pdf_filename}' to Invoice ID: {ninja_invoice_id}...")
-            pdf_upload_success = self.upload_invoice_document(ninja_invoice_id, custom_pdf_data, pdf_filename)
+            logger.info(f"Attempting to upload credit note PDF '{pdf_filename}' to Credit Note ID: {ninja_credit_id}...")
+            pdf_upload_success = self.upload_credit_document(ninja_credit_id, custom_pdf_data, pdf_filename)
             if not pdf_upload_success:
                 logger.warning("Failed to upload credit note PDF document to Invoice Ninja.")
             else:
                 logger.info("Credit note PDF document uploaded successfully to Invoice Ninja.")
         else:
-            if not ninja_invoice_id:
-                logger.warning(f"Cannot upload credit note PDF: Invoice not found in Invoice Ninja for order_id: {external_order_id}")
+            if not ninja_credit_id:
+                logger.warning(f"Cannot upload credit note PDF: Credit note not created in Invoice Ninja for order_id: {external_order_id}")
             if not custom_pdf_data:
                 logger.info("No credit note PDF data provided, skipping upload to Invoice Ninja.")
 

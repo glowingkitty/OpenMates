@@ -1,6 +1,6 @@
 import stripe
 import logging
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 
 logger = logging.getLogger(__name__)
@@ -576,7 +576,8 @@ class StripeService:
         self, 
         customer_id: str, 
         price_id: str,
-        metadata: Optional[Dict[str, str]] = None
+        metadata: Optional[Dict[str, str]] = None,
+        default_payment_method: Optional[str] = None
     ) -> Optional[Dict[str, Any]]:
         """
         Creates a monthly subscription for a customer.
@@ -585,6 +586,8 @@ class StripeService:
             customer_id: Stripe customer ID
             price_id: Stripe price ID for the recurring charge
             metadata: Optional metadata to attach to the subscription
+            default_payment_method: Optional payment method ID to use for the subscription.
+                                   If not provided, Stripe will use the customer's default payment method.
             
         Returns:
             Dictionary with subscription details or None if error
@@ -594,23 +597,49 @@ class StripeService:
             return None
             
         try:
-            subscription = stripe.Subscription.create(
-                customer=customer_id,
-                items=[{"price": price_id}],
-                metadata=metadata or {},
-                payment_behavior='default_incomplete',
-                expand=['latest_invoice.payment_intent']
+            # CRITICAL: For monthly auto top-up subscriptions, we want to schedule the first charge for one month from now.
+            # The subscription should be created as 'active' but with the first billing cycle starting in one month.
+            # We use billing_cycle_anchor to set when the first invoice will be generated and charged.
+            from datetime import datetime, timedelta, timezone
+            
+            # Calculate billing cycle anchor: one month from now
+            # This ensures the subscription is active but won't charge until the first billing period starts
+            billing_cycle_anchor = int((datetime.now(timezone.utc) + timedelta(days=30)).timestamp())
+            
+            subscription_params = {
+                "customer": customer_id,
+                "items": [{"price": price_id}],
+                "metadata": metadata or {},
+                "billing_cycle_anchor": billing_cycle_anchor,  # First charge in one month
+                "proration_behavior": "none",  # Don't prorate the first period
+                "expand": ["latest_invoice"]
+            }
+            
+            # CRITICAL: If default_payment_method is provided, explicitly set it to ensure Stripe uses it
+            # This is essential for subscriptions to work properly with saved payment methods
+            if default_payment_method:
+                subscription_params["default_payment_method"] = default_payment_method
+                logger.debug(f"Using explicit payment method {default_payment_method} for subscription creation")
+            
+            subscription = stripe.Subscription.create(**subscription_params)
+            
+            logger.info(
+                f"Stripe subscription created: {subscription.id} for customer: {customer_id}, "
+                f"status: {subscription.status}, billing_cycle_anchor: {billing_cycle_anchor} "
+                f"(first charge scheduled for one month from now)"
             )
             
-            logger.info(f"Stripe subscription created: {subscription.id} for customer: {customer_id}")
+            # CRITICAL: With billing_cycle_anchor set, Stripe creates the subscription as 'active' but doesn't
+            # generate an invoice immediately. The first invoice will be generated at the billing_cycle_anchor date.
+            # No client_secret is needed since no immediate payment is required.
+            # The subscription will be active and ready, with the first charge scheduled for the billing_cycle_anchor date.
             
-            # CRITICAL: When using payment_behavior='default_incomplete', some fields may not be immediately available
-            # Use getattr with safe defaults to handle incomplete subscriptions
-            # If current_period_end is missing, retrieve the subscription again to get full details
+            # Get current_period_end - with billing_cycle_anchor, this should be set to the anchor date
             current_period_end = getattr(subscription, 'current_period_end', None)
             
             if current_period_end is None:
-                # Subscription might be incomplete - retrieve it again to get full details
+                # If current_period_end is not available, it should be the billing_cycle_anchor
+                # But let's retrieve the subscription to be sure
                 logger.debug(f"current_period_end not available on initial subscription object, retrieving full subscription details...")
                 try:
                     full_subscription = stripe.Subscription.retrieve(subscription.id)
@@ -618,16 +647,27 @@ class StripeService:
                     if current_period_end:
                         logger.debug(f"Retrieved current_period_end from full subscription: {current_period_end}")
                     else:
-                        logger.warning(f"current_period_end still not available after retrieving full subscription for {subscription.id}")
+                        # Fallback: use billing_cycle_anchor as current_period_end
+                        current_period_end = billing_cycle_anchor
+                        logger.debug(f"Using billing_cycle_anchor as current_period_end: {current_period_end}")
                 except Exception as retrieve_error:
                     logger.warning(f"Failed to retrieve full subscription details: {retrieve_error}")
+                    # Fallback: use billing_cycle_anchor
+                    current_period_end = billing_cycle_anchor
+            
+            logger.info(
+                f"Subscription {subscription.id} created successfully. Status: {subscription.status}, "
+                f"first billing date: {datetime.fromtimestamp(current_period_end, tz=timezone.utc).isoformat()}"
+            )
             
             return {
                 "subscription_id": subscription.id,
-                "status": subscription.status,
-                "current_period_end": current_period_end,
+                "status": subscription.status,  # Should be 'active' with billing_cycle_anchor
+                "current_period_end": current_period_end,  # First billing date (one month from now)
                 "cancel_at_period_end": getattr(subscription, 'cancel_at_period_end', False),
-                "latest_invoice_id": subscription.latest_invoice if hasattr(subscription, 'latest_invoice') else None
+                "latest_invoice_id": subscription.latest_invoice if hasattr(subscription, 'latest_invoice') else None,
+                "client_secret": None,  # No immediate payment required
+                "payment_intent_id": None  # No payment intent needed
             }
             
         except stripe.error.StripeError as e:
@@ -656,13 +696,20 @@ class StripeService:
             
             logger.info(f"Stripe subscription retrieved: {subscription.id}, status: {subscription.status}")
             
+            # CRITICAL: Incomplete subscriptions don't have current_period_end, cancel_at_period_end, etc.
+            # Use getattr with safe defaults to handle incomplete subscriptions gracefully
+            current_period_end = getattr(subscription, 'current_period_end', None)
+            cancel_at_period_end = getattr(subscription, 'cancel_at_period_end', False)
+            canceled_at = getattr(subscription, 'canceled_at', None)
+            metadata = getattr(subscription, 'metadata', {})
+            
             return {
                 "subscription_id": subscription.id,
                 "status": subscription.status,
-                "current_period_end": subscription.current_period_end,
-                "cancel_at_period_end": subscription.cancel_at_period_end,
-                "canceled_at": subscription.canceled_at if hasattr(subscription, 'canceled_at') else None,
-                "metadata": subscription.metadata
+                "current_period_end": current_period_end,  # None for incomplete subscriptions
+                "cancel_at_period_end": cancel_at_period_end,
+                "canceled_at": canceled_at,
+                "metadata": metadata
             }
             
         except stripe.error.InvalidRequestError as e:
@@ -744,6 +791,223 @@ class StripeService:
             return None
         except Exception as e:
             logger.error(f"Unexpected error retrieving payment method: {str(e)}", exc_info=True)
+            return None
+
+    async def list_payment_methods(self, customer_id: str) -> List[Dict[str, Any]]:
+        """
+        List all payment methods attached to a Stripe customer.
+        
+        Args:
+            customer_id: The Stripe customer ID
+            
+        Returns:
+            List of payment method dictionaries with card details, or empty list if error
+        """
+        if not self.api_key:
+            logger.error("Stripe API key not initialized.")
+            return []
+            
+        try:
+            # List all payment methods for the customer
+            payment_methods = stripe.PaymentMethod.list(
+                customer=customer_id,
+                type="card"
+            )
+            
+            # Format payment methods for frontend
+            formatted_methods = []
+            for pm in payment_methods.data:
+                card = pm.card if hasattr(pm, 'card') and pm.card else None
+                if card:
+                    formatted_methods.append({
+                        "id": pm.id,
+                        "type": pm.type,
+                        "card": {
+                            "brand": card.brand,
+                            "last4": card.last4,
+                            "exp_month": card.exp_month,
+                            "exp_year": card.exp_year
+                        },
+                        "created": pm.created
+                    })
+            
+            logger.info(f"Retrieved {len(formatted_methods)} payment methods for customer {customer_id}")
+            return formatted_methods
+                
+        except stripe.error.StripeError as e:
+            logger.error(f"Stripe API error listing payment methods: {e.user_message}", exc_info=True)
+            return []
+        except Exception as e:
+            logger.error(f"Unexpected error listing payment methods: {str(e)}", exc_info=True)
+            return []
+
+    async def create_order_with_payment_method(
+        self, 
+        amount: int, 
+        currency: str, 
+        email: str, 
+        credits_amount: int, 
+        customer_id: str,
+        payment_method_id: str
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Creates a Stripe PaymentIntent using a saved payment method.
+        
+        Args:
+            amount: Amount in the smallest currency unit (e.g., cents).
+            currency: 3-letter ISO currency code (e.g., "EUR").
+            email: Customer's email address.
+            credits_amount: Number of credits being purchased (for metadata).
+            customer_id: Stripe customer ID (required).
+            payment_method_id: The saved payment method ID to use.
+            
+        Returns:
+            A dictionary containing the PaymentIntent details, including 'id' and 'client_secret',
+            or None if an error occurred.
+        """
+        if not self.api_key:
+            logger.error("Stripe API key not initialized.")
+            return None
+
+        try:
+            # Verify payment method belongs to customer
+            try:
+                payment_method = stripe.PaymentMethod.retrieve(payment_method_id)
+                if payment_method.customer != customer_id:
+                    logger.error(f"Payment method {payment_method_id} does not belong to customer {customer_id}")
+                    return None
+            except stripe.error.StripeError as e:
+                logger.error(f"Error retrieving payment method {payment_method_id}: {e.user_message}")
+                return None
+            
+            # Try to find the product and price for this credit amount
+            product_name = f"{credits_amount:,}".replace(",", ".") + " credits"
+            price_id = await self._find_price_for_product(product_name, currency)
+            
+            if price_id:
+                # Use the pre-created product/price
+                logger.info(f"✅ Using pre-created Stripe product for {credits_amount} credits in {currency} (Price ID: {price_id})")
+                return await self._create_payment_intent_with_saved_method(
+                    price_id, email, credits_amount, customer_id, payment_method_id
+                )
+            else:
+                # Fallback to dynamic PaymentIntent if product not found
+                logger.warning(f"⚠️ Pre-created product not found for {credits_amount} credits in {currency}, falling back to dynamic PaymentIntent")
+                return await self._create_dynamic_payment_intent_with_method(
+                    amount, currency, email, credits_amount, customer_id, payment_method_id
+                )
+                
+        except Exception as e:
+            logger.error(f"Unexpected error creating PaymentIntent with saved method: {str(e)}", exc_info=True)
+            return None
+
+    async def _create_payment_intent_with_saved_method(
+        self, 
+        price_id: str, 
+        email: str, 
+        credits_amount: int, 
+        customer_id: str,
+        payment_method_id: str
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Create a PaymentIntent using a pre-created price and saved payment method.
+        """
+        try:
+            payment_intent = stripe.PaymentIntent.create(
+                amount=None,  # Amount comes from price
+                currency=None,  # Currency comes from price
+                customer=customer_id,
+                payment_method=payment_method_id,
+                payment_method_types=["card"],
+                confirmation_method="manual",
+                confirm=False,  # Don't confirm immediately - let frontend handle confirmation
+                return_url=None,  # No redirect needed
+                metadata={
+                    "credits_amount": str(credits_amount),
+                    "email": email,
+                    "order_type": "credit_purchase"
+                },
+                automatic_payment_methods={"enabled": False},  # Disable automatic payment methods when using saved method
+                payment_method_options={
+                    "card": {
+                        "capture_method": "automatic"
+                    }
+                }
+            )
+            
+            # Attach the price to the PaymentIntent
+            # Note: Stripe doesn't directly support attaching prices to PaymentIntents
+            # We need to set the amount from the price
+            price = stripe.Price.retrieve(price_id)
+            payment_intent = stripe.PaymentIntent.modify(
+                payment_intent.id,
+                amount=price.unit_amount,
+                currency=price.currency
+            )
+            
+            logger.info(f"Created PaymentIntent {payment_intent.id} with saved payment method {payment_method_id} for {credits_amount} credits")
+            
+            return {
+                "id": payment_intent.id,
+                "client_secret": payment_intent.client_secret,
+                "status": payment_intent.status
+            }
+            
+        except stripe.error.StripeError as e:
+            logger.error(f"Stripe API error creating PaymentIntent with saved method: {e.user_message}", exc_info=True)
+            return None
+        except Exception as e:
+            logger.error(f"Unexpected error creating PaymentIntent with saved method: {str(e)}", exc_info=True)
+            return None
+
+    async def _create_dynamic_payment_intent_with_method(
+        self,
+        amount: int,
+        currency: str,
+        email: str,
+        credits_amount: int,
+        customer_id: str,
+        payment_method_id: str
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Create a PaymentIntent dynamically with a saved payment method (fallback when product not found).
+        """
+        try:
+            payment_intent = stripe.PaymentIntent.create(
+                amount=amount,
+                currency=currency.lower(),
+                customer=customer_id,
+                payment_method=payment_method_id,
+                payment_method_types=["card"],
+                confirmation_method="manual",
+                confirm=False,  # Don't confirm immediately - let frontend handle confirmation
+                return_url=None,
+                metadata={
+                    "credits_amount": str(credits_amount),
+                    "email": email,
+                    "order_type": "credit_purchase"
+                },
+                automatic_payment_methods={"enabled": False},  # Disable automatic payment methods when using saved method
+                payment_method_options={
+                    "card": {
+                        "capture_method": "automatic"
+                    }
+                }
+            )
+            
+            logger.info(f"Created dynamic PaymentIntent {payment_intent.id} with saved payment method {payment_method_id} for {credits_amount} credits")
+            
+            return {
+                "id": payment_intent.id,
+                "client_secret": payment_intent.client_secret,
+                "status": payment_intent.status
+            }
+            
+        except stripe.error.StripeError as e:
+            logger.error(f"Stripe API error creating dynamic PaymentIntent with saved method: {e.user_message}", exc_info=True)
+            return None
+        except Exception as e:
+            logger.error(f"Unexpected error creating dynamic PaymentIntent with saved method: {str(e)}", exc_info=True)
             return None
 
     async def close(self):

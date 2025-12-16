@@ -244,7 +244,7 @@ async def _async_process_invoice_and_send_email(
             "credits": credits_purchased,
             "card_name": formatted_card_brand,
             "card_last4": card_last_four,
-            "qr_code_url": "https://openmates.org",
+            # qr_code_url will be set in PDF service using domain from config
             # Inject sender details from task payload
             "sender_addressline1": sender_addressline1,
             "sender_addressline2": sender_addressline2,

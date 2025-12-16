@@ -128,9 +128,15 @@ class CreditNoteTemplateService(BasePDFTemplateService):
         elements.append(credit_note_table)
         elements.append(Spacer(1, 24))
         
-        # Create sender details string using environment variables and translated country
-        translated_sender_country = self._get_translated_country_name(self.sender_country)
-        sender_details_str = f"{self.sender_addressline1}<br/>{self.sender_addressline2}<br/>{self.sender_addressline3}<br/>{translated_sender_country}<br/>{self.sender_email}<br/>{self.t['invoices_and_credit_notes']['vat']['text']}: {self.sender_vat}"
+        # Create sender details string, preferring values from credit_note_data with fallbacks
+        sender_addressline1 = credit_note_data.get('sender_addressline1', self.sender_addressline1)
+        sender_addressline2 = credit_note_data.get('sender_addressline2', self.sender_addressline2)
+        sender_addressline3 = credit_note_data.get('sender_addressline3', self.sender_addressline3)
+        sender_country_val = credit_note_data.get('sender_country', self.sender_country)
+        translated_sender_country = self._get_translated_country_name(sender_country_val)
+        sender_email_val = credit_note_data.get('sender_email', self.sender_email)
+        sender_vat_val = credit_note_data.get('sender_vat', self.sender_vat)
+        sender_details_str = f"{sender_addressline1}<br/>{sender_addressline2}<br/>{sender_addressline3}<br/>{translated_sender_country}<br/>{sender_email_val}<br/>{self.t['invoices_and_credit_notes']['vat']['text']}: {sender_vat_val}"
         
         # Create three-column layout without extra padding
         sender_title = Paragraph("<b>OpenMates</b>", self.styles['Bold'])
@@ -145,6 +151,10 @@ class CreditNoteTemplateService(BasePDFTemplateService):
         
         # Build receiver details with only non-empty fields
         receiver_fields = []
+        
+        # Show account ID instead of email for privacy and professionalism
+        if credit_note_data.get('receiver_account_id'):
+            receiver_fields.append(f"Account ID: {credit_note_data['receiver_account_id']}")
         
         # Add name if present
         if credit_note_data.get('receiver_name'):
@@ -176,8 +186,11 @@ class CreditNoteTemplateService(BasePDFTemplateService):
         
         usage_title = Paragraph(f"<b>{self.t['invoices_and_credit_notes']['view_usage']['text']}:</b>", self.styles['Bold'])
         
+        # Get webapp URL from config and construct usage URL
+        webapp_url = self._get_webapp_url()
+        url = f"{webapp_url}/#settings/usage"
+        
         # Format URL properly with line break while maintaining a single clickable link
-        url = credit_note_data['qr_code_url']
         # Find a good spot to split the URL - after the domain
         split_index = url.find('/', 8)  # Find first '/' after http(s)://
         if (split_index != -1):
@@ -188,7 +201,7 @@ class CreditNoteTemplateService(BasePDFTemplateService):
         usage_url = Paragraph(formatted_url, self.styles['Normal'])
         
         # Generate QR code
-        qr_code = QrCodeWidget(credit_note_data['qr_code_url'])
+        qr_code = QrCodeWidget(url)
         bounds = qr_code.getBounds()
         width = bounds[2] - bounds[0]
         height = bounds[3] - bounds[1]
