@@ -82,40 +82,9 @@
     console.debug('[VideoEmbedPreview] Stop requested (not applicable for videos)');
   }
   
-  // Handle right-click context menu - opens tip settings
-  async function handleContextMenu(event: MouseEvent) {
-    // Only handle right-click on finished videos
-    if (status !== 'finished' || !url || !videoId) {
-      return; // Let default context menu show for processing/error states
-    }
-    
-    // Prevent default browser context menu
-    event.preventDefault();
-    event.stopPropagation();
-    
-    try {
-      // Import tip store and settings navigation
-      const { tipStore } = await import('../../../stores/tipStore');
-      const { navigateToSettings } = await import('../../../stores/settingsNavigationStore');
-      const { panelState } = await import('../../../stores/panelStateStore');
-      
-      // Set tip data in store (videoUrl will be used to fetch channel ID)
-      tipStore.setTipData({
-        videoUrl: url,
-        contentType: 'video'
-      });
-      
-      // Navigate to tip settings
-      navigateToSettings('shared/tip', $text('settings.tip.tip_creator.text', { default: 'Tip Creator' }), 'tip', 'settings.tip.tip_creator.text');
-      
-      // Open settings panel if not already open
-      panelState.openSettings();
-      
-      console.debug('[VideoEmbedPreview] Opened tip settings from context menu for video:', videoId);
-    } catch (error) {
-      console.error('[VideoEmbedPreview] Error opening tip settings from context menu:', error);
-    }
-  }
+  // Note: Context menu handling is now done by UnifiedEmbedPreview
+  // This allows the embed context menu to work properly
+  // The tip creator functionality is available in the fullscreen view instead
 </script>
 
 <UnifiedEmbedPreview
@@ -137,10 +106,6 @@
     <div 
       class="video-details" 
       class:mobile={isMobileLayout}
-      oncontextmenu={handleContextMenu}
-      role="button"
-      tabindex="0"
-      aria-label="Right-click to tip creator"
     >
       {#if status === 'processing'}
         <!-- Processing state: show hostname only -->

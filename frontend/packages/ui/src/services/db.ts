@@ -523,8 +523,8 @@ class ChatDatabase {
             if (result.chatKey) {
                 // Cache the key (update cache even if it was already cached)
                 this.setChatKey(chat.chat_id, result.chatKey);
-                // Mark chat as hidden ONLY if it was decrypted via the hidden path (i.e., unlocked with current code)
-                // This ensures only chats that can be decrypted with the current code show up in hidden section
+                // Mark chat as hidden ONLY if it was decrypted via the hidden path (i.e., unlocked with current password)
+                // This ensures only chats that can be decrypted with the current password show up in hidden section
                 if (result.isHidden) {
                     (decryptedChat as any).is_hidden = true;
                 } else {
@@ -533,7 +533,7 @@ class ChatDatabase {
                 }
             } else {
                 // Both decryption paths failed - could be corrupted or a locked hidden chat
-                // OR a hidden chat encrypted with a different code (can't decrypt with current code)
+                // OR a hidden chat encrypted with a different password (can't decrypt with current password)
                 console.debug(`[ChatDatabase] Failed to decrypt chat key for chat ${chat.chat_id} (both normal and hidden paths failed)`);
                 // Clear any cached key since decryption failed
                 this.clearChatKey(chat.chat_id);

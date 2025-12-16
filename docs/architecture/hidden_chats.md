@@ -2,12 +2,12 @@
 
 ## Overview
 
-Hidden chats allow users to protect sensitive conversations with a 4-6 digit code. Hidden chats remain invisible in the main chat list but appear in a separate password-protected section. The feature uses code-derived encryption to maintain zero-knowledge architecture: the server never sees the code or can access hidden chat content without it.
+Hidden chats allow users to protect sensitive conversations with a password (4-30 characters). Hidden chats remain invisible in the main chat list but appear in a separate password-protected section. The feature uses password-derived encryption to maintain zero-knowledge architecture: the server never sees the password or can access hidden chat content without it.
 
 ## User Experience
 
 - **Always-visible menu**: "Show hidden chats" clickable text appears at the top of the chat list regardless of whether hidden chats exist (prevents external observation of hidden chat existence).
-- **Code protection**: User sets a 4-6 digit code on first hide or when accessing the hidden chats menu
+- **Password protection**: User sets a password (4-30 characters) on first hide or when accessing the hidden chats menu
 - **Separate section**: Hidden chats display in a scrollable area above the main chat list after entering the correct code
 - **Lock/Unlock controls**: "Unlock hidden chats" button unlocks for this session; "Lock hidden chats" button immediately clears from memory and DOM
 - **Auto-lock**: Hidden chats automatically lock after N minutes of inactivity (no interaction), clearing from memory and DOM
@@ -28,7 +28,7 @@ Login → Master Key → encryption_key_user_local → encryption_key_chat → C
 
 **Hidden Chats** (new):
 ```
-Master Key + 4-6 digit code → Argon2(master_key || code, salt) → combined_secret → encryption_key_chat → Chat Content
+Master Key + password (4-30 chars) → PBKDF2(master_key || password, salt) → combined_secret → encryption_key_chat → Chat Content
 ```
 
 ### Hidden Chat Detection & Memory Management
@@ -45,19 +45,19 @@ Master Key + 4-6 digit code → Argon2(master_key || code, salt) → combined_se
   - Cleared from memory immediately on manual lock or auto-lock
   - Not persisted in localStorage (sessionStorage for code only, not decrypted data)
 
-- **Code derivation**:
-  - Combined secret: `PBKDF2(master_key || code, salt)` (Note: Architecture doc mentions Argon2, but implementation uses PBKDF2 for consistency with login flow)
+- **Password derivation**:
+  - Combined secret: `PBKDF2(master_key || password, salt)`
   - Salt: User-specific, reuses `user_email_salt` from localStorage/sessionStorage (same across devices)
   - **CRITICAL**: Salt must be the same across all devices for the same user to enable cross-device decryption
   - The email salt is perfect for this: already user-specific, stored securely, and available after login
   - KDF: PBKDF2 with 100,000 iterations (matching login flow strength)
-  - Scope: **Each chat can be encrypted with a different code**
-    - When hiding a chat, the user enters a code (or uses the currently unlocked code)
-    - The chat key is encrypted with `combined_secret = PBKDF2(master_key || code, salt)`
-    - When unlocking, the user enters a code, and the system tries to decrypt all chats that failed normal decryption
-    - Only chats encrypted with the entered code will decrypt and be shown
-    - If no chats decrypt, the system shows "No hidden chats unlocked" (code may be wrong or no chats use that code)
-    - This allows power users to have different sets of hidden chats visible with different codes
+  - Scope: **Each chat can be encrypted with a different password**
+    - When hiding a chat, the user enters a password (or uses the currently unlocked password)
+    - The chat key is encrypted with `combined_secret = PBKDF2(master_key || password, salt)`
+    - When unlocking, the user enters a password, and the system tries to decrypt all chats that failed normal decryption
+    - Only chats encrypted with the entered password will decrypt and be shown
+    - If no chats decrypt, the system shows "No hidden chats unlocked" (password may be wrong or no chats use that password)
+    - This allows power users to have different sets of hidden chats visible with different passwords
 
 ## Sync Considerations
 
@@ -68,12 +68,12 @@ Master Key + 4-6 digit code → Argon2(master_key || code, salt) → combined_se
 - Chat with hidden key appears as decryption failure (treated same as corrupted chat until code entered)
 
 ### Multi-Device Flow
-1. User hides chat on Device A (sets code, derives combined_secret, encrypts chat_key with it)
+1. User hides chat on Device A (sets password, derives combined_secret, encrypts chat_key with it)
 2. Chat syncs to Device B during phase 1-3 sync (server doesn't know it's hidden)
 3. Device B receives encrypted chat with key encrypted via combined_secret
-4. Device B cannot decrypt chat content (decryption fails) until code entered
+4. Device B cannot decrypt chat content (decryption fails) until password entered
 5. Hidden chats appear in locked section with "Unlock hidden chats" button
-6. User enters code on Device B, derives combined_secret independently
+6. User enters password on Device B, derives combined_secret independently
 7. Hidden chat decryption succeeds, chat visible until manual or auto-lock
 
 ### Important: Chat Title Encryption
@@ -94,9 +94,9 @@ Master Key + 4-6 digit code → Argon2(master_key || code, salt) → combined_se
 
 ## Implementation Notes
 
-### Code Strength & Derivation
-- **4-6 digits**: Weak in isolation (1M combinations) but sufficient when combined with master_key via Argon2
-- **Master_key dependency**: Attack requires both knowing the 4-6 digit code AND having access to the master_key (requires compromised device or stolen local storage)
+### Password Strength & Derivation
+- **4-30 characters**: Provides stronger security than numeric codes, especially when combined with master_key via PBKDF2
+- **Master_key dependency**: Attack requires both knowing the password AND having access to the master_key (requires compromised device or stolen local storage)
 - **Client-side rate limiting**: 3 failed attempts → 30 second lockout to prevent brute force
 
 ### Lock/Unlock State Machine
@@ -119,9 +119,9 @@ Master Key + 4-6 digit code → Argon2(master_key || code, salt) → combined_se
 - Reset to locked state
 
 ### Storage Duration
-- **Code storage**: SessionStorage (lost on page close) or localStorage with explicit manual lock
+- **Password storage**: SessionStorage (lost on page close) or localStorage with explicit manual lock
 - **Decrypted secrets**: Volatile memory only (never persisted)
-- **Code entry**: Required per-session; optional 30-min idle timeout
+- **Password entry**: Required per-session; optional 30-min idle timeout
 
 ### Future Enhancements
 - Client-side brute-force detection and temporary account lockout

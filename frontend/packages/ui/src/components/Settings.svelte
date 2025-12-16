@@ -26,11 +26,7 @@ changes to the documentation (to keep the documentation up to date).
         update: () => {}
     } as any;
     
-    export const isMobileView: Writable<boolean> = browser ? writable(false) : {
-        subscribe: () => () => {},
-        set: () => {},
-        update: () => {}
-    } as any;
+    // Removed local isMobileView - using global isMobileView from uiStateStore instead
 </script>
 
 <script lang="ts">
@@ -47,6 +43,8 @@ changes to the documentation (to keep the documentation up to date).
     import { webSocketService } from '../services/websocketService';
     import { notificationStore } from '../stores/notificationStore'; // Import notification store for payment notifications
     import { incognitoMode } from '../stores/incognitoModeStore'; // Import incognito mode store
+    import { isMobileView } from '../stores/uiStateStore'; // Import global isMobileView store
+    import { panelState } from '../stores/panelStateStore'; // Import panelState to sync with isSettingsOpen
     
     // Import modular components
     import SettingsFooter from './settings/SettingsFooter.svelte';
@@ -120,6 +118,10 @@ changes to the documentation (to keep the documentation up to date).
     let showSubmenuInfo = $state(false); // New variable to control submenu info visibility
     let navButtonLeft = $state(false);
     let hideNavButton = $state(false); // New variable to control nav button visibility
+    
+    // Track viewport width for reactive dimmed class logic
+    // Settings menu becomes overlay at 1100px, so we need to track this
+    let viewportWidth = $state(typeof window !== 'undefined' ? window.innerWidth : 0);
 
     // Add reference to settings content element
     let settingsContentElement: HTMLElement | undefined = $state();
@@ -788,6 +790,14 @@ changes to the documentation (to keep the documentation up to date).
         isMenuVisible = !isMenuVisible;
         settingsMenuVisible.set(isMenuVisible);
         
+        // CRITICAL: Sync with panelState to prevent conflicts
+        // When user explicitly toggles menu, update panelState accordingly
+        if (isMenuVisible) {
+            panelState.openSettings();
+        } else {
+            panelState.closeSettings();
+        }
+        
         // Clear any existing timeout
         if (hideProfileTimeout) {
             clearTimeout(hideProfileTimeout);
@@ -862,10 +872,12 @@ changes to the documentation (to keep the documentation up to date).
         }
     }
 
-    // Handle window resize
+    // Handle window resize - update viewportWidth for reactive dimmed class logic
+    // Settings menu becomes overlay at 1100px, so we track viewport width
     function updateMobileState() {
-        const isMobile = window.innerWidth <= 1100;
-        isMobileView.set(isMobile);
+        if (typeof window !== 'undefined') {
+            viewportWidth = window.innerWidth;
+        }
     }
 
     // Click outside handler
@@ -885,6 +897,8 @@ changes to the documentation (to keep the documentation up to date).
     		if (!isClickInsideMenu && !isClickInsideProfile && !isClickInsideCloseButton) {
     			isMenuVisible = false;
     			settingsMenuVisible.set(false);
+    			// CRITICAL: Also close via panelState to keep state in sync
+    			panelState.closeSettings();
     			// Reset profile visibility so it shows again
     			hideOriginalProfile = false;
     			if (hideProfileTimeout) {
@@ -977,11 +991,19 @@ changes to the documentation (to keep the documentation up to date).
     });
 
     // Update DOM elements opacity and classes based on menu state
+    // CRITICAL: Settings menu becomes an overlay at 1100px (see CSS @media (max-width: 1100px))
+    // We need to dim the background when settings is an overlay, not just on mobile (< 730px)
+    // So we check if viewport <= 1100px (overlay mode) rather than just $isMobileView (< 730px)
+    // The effect reacts to both isMenuVisible and viewportWidth changes (reactive to resize)
     $effect(() => {
         if (typeof window !== 'undefined') {
             const activeChatContainer = document.querySelector('.active-chat-container');
             if (activeChatContainer) {
-                if (window.innerWidth <= 1100 && isMenuVisible) {
+                // Check if settings menu is in overlay mode (viewport <= 1100px)
+                // This matches the CSS breakpoint where settings becomes an overlay
+                // Use reactive viewportWidth so effect re-runs on resize
+                const isOverlayMode = viewportWidth <= 1100;
+                if (isOverlayMode && isMenuVisible) {
                     activeChatContainer.classList.add('dimmed');
                 } else {
                     activeChatContainer.classList.remove('dimmed');
@@ -1024,6 +1046,8 @@ changes to the documentation (to keep the documentation up to date).
                     // Close the settings menu visually
                  	isMenuVisible = false;
                  	settingsMenuVisible.set(false);
+                 	// CRITICAL: Also close via panelState to keep state in sync
+                 	panelState.closeSettings();
                  	// Reset profile visibility so it shows again
                  	hideOriginalProfile = false;
                  	if (hideProfileTimeout) {
@@ -1224,6 +1248,33 @@ changes to the documentation (to keep the documentation up to date).
     		}, 50);
     	}
     });
+
+    // CRITICAL: Sync isMenuVisible with panelState.isSettingsOpen
+    // This ensures that when panelState.openSettings() is called (e.g., from share button),
+    // the Settings component's isMenuVisible state is updated correctly
+    // This fixes the issue where the menu might not open when share button is clicked
+    // NOTE: We only sync FROM panelState TO local state, not the reverse
+    // The reverse sync (local -> panelState) is handled by toggleMenu() and other close handlers
+    $effect(() => {
+    	// If panelState says settings should be open but our local state says closed
+    	// This handles external opens (e.g., from share button)
+    	if ($panelState.isSettingsOpen && !isMenuVisible) {
+    		isMenuVisible = true;
+    		settingsMenuVisible.set(true); // Also update the store for consistency
+   
+    		// Add mobile overlay class when opening on mobile
+    		setTimeout(() => {
+    			const menuElement = document.querySelector('.settings-menu');
+    			if (menuElement && $isMobileView) {
+    				menuElement.classList.add('mobile-overlay');
+    			}
+    		}, 50);
+    	}
+    	// NOTE: We don't sync panelState -> local when closing, because:
+    	// 1. User-initiated closes (toggleMenu, click outside) already update panelState
+    	// 2. External closes via settingsMenuVisible store are handled by the other effect
+    	// 3. This prevents conflicts where panelState.closeSettings() would fight with user actions
+    });
 </script>
 
 {#if showSettingsIcon}
@@ -1365,6 +1416,8 @@ changes to the documentation (to keep the documentation up to date).
                 // Close settings menu when a legal chat is opened
                 isMenuVisible = false;
                 settingsMenuVisible.set(false);
+                // CRITICAL: Also close via panelState to keep state in sync
+                panelState.closeSettings();
                 // Reset profile visibility so it shows again
                 hideOriginalProfile = false;
                 if (hideProfileTimeout) {

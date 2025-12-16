@@ -355,30 +355,6 @@ hidden_chats.set_code_title:
   sv: Ange kod för dolda chattar
   verified_by_human: []
 
-hidden_chats.unlock_description:
-  context: Description for unlock hidden chats modal
-  en: Enter your 4-6 digit code to unlock hidden chats.
-  de: Geben Sie Ihren 4-6-stelligen Code ein, um versteckte Chats zu entsperren.
-  zh: 输入您的 4-6 位数字密码以解锁隐藏聊天。
-  es: Ingrese su código de 4-6 dígitos para desbloquear chats ocultos.
-  fr: Entrez votre code à 4-6 chiffres pour déverrouiller les chats masqués.
-  pt: Digite seu código de 4-6 dígitos para desbloquear chats ocultos.
-  ru: Введите ваш 4-6-значный код для разблокировки скрытых чатов.
-  ja: 4-6桁のコードを入力して、非表示チャットを解除します。
-  ko: 4-6자리 코드를 입력하여 숨겨진 채팅을 잠금 해제하세요.
-  it: Inserisci il tuo codice a 4-6 cifre per sbloccare i chat nascosti.
-  tr: Gizli sohbetleri açmak için 4-6 haneli kodunuzu girin.
-  vi: Nhập mã 4-6 chữ số của bạn để mở khóa cuộc trò chuyện ẩn.
-  id: Masukkan kode 4-6 digit Anda untuk membuka kunci chat tersembunyi.
-  pl: Wprowadź swój 4-6-cyfrowy kod, aby odblokować ukryte czaty.
-  nl: Voer uw 4-6-cijferige code in om verborgen chats te ontgrendelen.
-  ar: أدخل رمزك المكون من 4-6 أرقام لإلغاء قفل الدردشات المخفية.
-  hi: छुपी हुई चैट अनलॉक करने के लिए अपना 4-6 अंकों का कोड दर्ज करें।
-  th: ป้อนรหัส 4-6 หลักของคุณเพื่อปลดล็อกแชทที่ซ่อนอยู่
-  cs: Zadejte svůj 4-6místný kód pro odemknutí skrytých chatů.
-  sv: Ange din 4-6-siffriga kod för att låsa upp dolda chattar.
-  verified_by_human: []
-
 hidden_chats.set_code_description:
   context: Description for set hidden chat code modal
   en: Enter a 4-6 digit code to protect your hidden chats. This code is separate from your login password.
@@ -809,6 +785,270 @@ hidden_chats.code_placeholder:
   th: ป้อนรหัสผ่านของคุณ
   cs: Zadejte svůj přístupový kód
   sv: Ange din lösenkod
+  verified_by_human: []
+
+hidden_chats.set_password_title:
+  context: Title for set hidden chat password modal
+  en: Set Hidden Chat Password
+  de: Passwort für versteckte Chats festlegen
+  zh: 设置隐藏聊天密码
+  es: Establecer contraseña de chat oculto
+  fr: Définir le mot de passe des chats masqués
+  pt: Definir senha de chat oculto
+  ru: Установить пароль скрытых чатов
+  ja: 非表示チャットパスワードを設定
+  ko: 숨겨진 채팅 비밀번호 설정
+  it: Imposta password chat nascosti
+  tr: Gizli sohbet şifresi ayarla
+  vi: Đặt mật khẩu cuộc trò chuyện ẩn
+  id: Atur kata sandi chat tersembunyi
+  pl: Ustaw hasło ukrytych czatów
+  nl: Wachtwoord voor verborgen chats instellen
+  ar: تعيين كلمة مرور الدردشات المخفية
+  hi: छुपी हुई चैट पासवर्ड सेट करें
+  th: ตั้งค่ารหัสผ่านแชทที่ซ่อนอยู่
+  cs: Nastavit heslo skrytých chatů
+  sv: Ange lösenord för dolda chattar
+  verified_by_human: []
+
+hidden_chats.set_password_description:
+  context: Description for set hidden chat password modal
+  en: Enter a password to protect your hidden chats. This password is separate from your login password. Each unique password can be used to hide/show different chats.
+  de: Geben Sie ein Passwort ein, um Ihre versteckten Chats zu schützen. Dieses Passwort ist getrennt von Ihrem Anmeldekennwort. Jedes eindeutige Passwort kann verwendet werden, um verschiedene Chats zu verstecken/anzeigen.
+  zh: 输入密码以保护您的隐藏聊天。此密码与您的登录密码分开。每个唯一密码可用于隐藏/显示不同的聊天。
+  es: Ingrese una contraseña para proteger sus chats ocultos. Esta contraseña es independiente de su contraseña de inicio de sesión. Cada contraseña única se puede usar para ocultar/mostrar diferentes chats.
+  fr: Entrez un mot de passe pour protéger vos chats masqués. Ce mot de passe est séparé de votre mot de passe de connexion. Chaque mot de passe unique peut être utilisé pour masquer/afficher différents chats.
+  pt: Digite uma senha para proteger seus chats ocultos. Esta senha é separada da sua senha de login. Cada senha única pode ser usada para ocultar/mostrar diferentes chats.
+  ru: Введите пароль для защиты ваших скрытых чатов. Этот пароль отделен от вашего пароля для входа. Каждый уникальный пароль может использоваться для скрытия/показа разных чатов.
+  ja: パスワードを入力して、非表示チャットを保護します。このパスワードはログインパスワードとは別です。各一意のパスワードを使用して、異なるチャットを非表示/表示できます。
+  ko: 숨겨진 채팅을 보호하기 위해 비밀번호를 입력하세요. 이 비밀번호는 로그인 비밀번호와 별개입니다. 각 고유한 비밀번호를 사용하여 다른 채팅을 숨기거나 표시할 수 있습니다.
+  it: Inserisci una password per proteggere i tuoi chat nascosti. Questa password è separata dalla tua password di accesso. Ogni password univoca può essere utilizzata per nascondere/mostrare chat diversi.
+  tr: Gizli sohbetlerinizi korumak için bir şifre girin. Bu şifre, giriş şifrenizden ayrıdır. Her benzersiz şifre, farklı sohbetleri gizlemek/göstermek için kullanılabilir.
+  vi: Nhập mật khẩu để bảo vệ cuộc trò chuyện ẩn của bạn. Mật khẩu này tách biệt với mật khẩu đăng nhập của bạn. Mỗi mật khẩu duy nhất có thể được sử dụng để ẩn/hiển thị các cuộc trò chuyện khác nhau.
+  id: Masukkan kata sandi untuk melindungi chat tersembunyi Anda. Kata sandi ini terpisah dari kata sandi login Anda. Setiap kata sandi unik dapat digunakan untuk menyembunyikan/menampilkan chat yang berbeda.
+  pl: Wprowadź hasło, aby chronić ukryte czaty. To hasło jest oddzielone od hasła logowania. Każde unikalne hasło może być używane do ukrywania/wyświetlania różnych czatów.
+  nl: Voer een wachtwoord in om uw verborgen chats te beschermen. Dit wachtwoord is gescheiden van uw aanmeldwachtwoord. Elk uniek wachtwoord kan worden gebruikt om verschillende chats te verbergen/weergeven.
+  ar: أدخل كلمة مرور لحماية الدردشات المخفية الخاصة بك. هذه كلمة المرور منفصلة عن كلمة مرور تسجيل الدخول الخاصة بك. يمكن استخدام كل كلمة مرور فريدة لإخفاء/عرض دردشات مختلفة.
+  hi: अपनी छुपी हुई चैट की सुरक्षा के लिए एक पासवर्ड दर्ज करें। यह पासवर्ड आपके लॉगिन पासवर्ड से अलग है। प्रत्येक अद्वितीय पासवर्ड का उपयोग विभिन्न चैट को छुपाने/दिखाने के लिए किया जा सकता है।
+  th: ป้อนรหัสผ่านเพื่อปกป้องแชทที่ซ่อนอยู่ของคุณ รหัสผ่านนี้แยกจากรหัสผ่านการเข้าสู่ระบบของคุณ รหัสผ่านที่ไม่ซ้ำกันแต่ละรหัสสามารถใช้เพื่อซ่อน/แสดงแชทที่แตกต่างกัน
+  cs: Zadejte heslo pro ochranu vašich skrytých chatů. Toto heslo je oddělené od vašeho přihlašovacího hesla. Každé jedinečné heslo lze použít k skrytí/zobrazení různých chatů.
+  sv: Ange ett lösenord för att skydda dina dolda chattar. Detta lösenord är separat från ditt inloggningslösenord. Varje unikt lösenord kan användas för att dölja/visa olika chattar.
+  verified_by_human: []
+
+hidden_chats.password_label:
+  context: Label for password input field
+  en: Password
+  de: Passwort
+  zh: 密码
+  es: Contraseña
+  fr: Mot de passe
+  pt: Senha
+  ru: Пароль
+  ja: パスワード
+  ko: 비밀번호
+  it: Password
+  tr: Şifre
+  vi: Mật khẩu
+  id: Kata sandi
+  pl: Hasło
+  nl: Wachtwoord
+  ar: كلمة المرور
+  hi: पासवर्ड
+  th: รหัสผ่าน
+  cs: Heslo
+  sv: Lösenord
+  verified_by_human: []
+
+hidden_chats.confirm_password_label:
+  context: Label for confirm password input field
+  en: Confirm Password
+  de: Passwort bestätigen
+  zh: 确认密码
+  es: Confirmar contraseña
+  fr: Confirmer le mot de passe
+  pt: Confirmar senha
+  ru: Подтвердить пароль
+  ja: パスワードを確認
+  ko: 비밀번호 확인
+  it: Conferma password
+  tr: Şifreyi onayla
+  vi: Xác nhận mật khẩu
+  id: Konfirmasi kata sandi
+  pl: Potwierdź hasło
+  nl: Wachtwoord bevestigen
+  ar: تأكيد كلمة المرور
+  hi: पासवर्ड की पुष्टि करें
+  th: ยืนยันรหัสผ่าน
+  cs: Potvrdit heslo
+  sv: Bekräfta lösenord
+  verified_by_human: []
+
+hidden_chats.password_placeholder:
+  context: Placeholder text for the hidden chat password input field
+  en: Enter password
+  de: Passwort eingeben
+  zh: 输入密码
+  es: Ingrese contraseña
+  fr: Entrez le mot de passe
+  pt: Digite a senha
+  ru: Введите пароль
+  ja: パスワードを入力
+  ko: 비밀번호 입력
+  it: Inserisci password
+  tr: Şifre girin
+  vi: Nhập mật khẩu
+  id: Masukkan kata sandi
+  pl: Wprowadź hasło
+  nl: Voer wachtwoord in
+  ar: أدخل كلمة المرور
+  hi: पासवर्ड दर्ज करें
+  th: ป้อนรหัสผ่าน
+  cs: Zadejte heslo
+  sv: Ange lösenord
+  verified_by_human: []
+
+hidden_chats.password_info:
+  context: Informational text about unique passwords for different chats
+  en: Each unique password can be used to hide/show different chats.
+  de: Jedes eindeutige Passwort kann verwendet werden, um verschiedene Chats zu verstecken/anzeigen.
+  zh: 每个唯一密码可用于隐藏/显示不同的聊天。
+  es: Cada contraseña única se puede usar para ocultar/mostrar diferentes chats.
+  fr: Chaque mot de passe unique peut être utilisé pour masquer/afficher différents chats.
+  pt: Cada senha única pode ser usada para ocultar/mostrar diferentes chats.
+  ru: Каждый уникальный пароль может использоваться для скрытия/показа разных чатов.
+  ja: 各一意のパスワードを使用して、異なるチャットを非表示/表示できます。
+  ko: 각 고유한 비밀번호를 사용하여 다른 채팅을 숨기거나 표시할 수 있습니다.
+  it: Ogni password univoca può essere utilizzata per nascondere/mostrare chat diversi.
+  tr: Her benzersiz şifre, farklı sohbetleri gizlemek/göstermek için kullanılabilir.
+  vi: Mỗi mật khẩu duy nhất có thể được sử dụng để ẩn/hiển thị các cuộc trò chuyện khác nhau.
+  id: Setiap kata sandi unik dapat digunakan untuk menyembunyikan/menampilkan chat yang berbeda.
+  pl: Każde unikalne hasło może być używane do ukrywania/wyświetlania różnych czatów.
+  nl: Elk uniek wachtwoord kan worden gebruikt om verschillende chats te verbergen/weergeven.
+  ar: يمكن استخدام كل كلمة مرور فريدة لإخفاء/عرض دردشات مختلفة.
+  hi: प्रत्येक अद्वितीय पासवर्ड का उपयोग विभिन्न चैट को छुपाने/दिखाने के लिए किया जा सकता है।
+  th: รหัสผ่านที่ไม่ซ้ำกันแต่ละรหัสสามารถใช้เพื่อซ่อน/แสดงแชทที่แตกต่างกัน
+  cs: Každé jedinečné heslo lze použít k skrytí/zobrazení různých chatů.
+  sv: Varje unikt lösenord kan användas för att dölja/visa olika chattar.
+  verified_by_human: []
+
+hidden_chats.set_password_button:
+  context: Button to set hidden chat password
+  en: Set Password
+  de: Passwort festlegen
+  zh: 设置密码
+  es: Establecer contraseña
+  fr: Définir le mot de passe
+  pt: Definir senha
+  ru: Установить пароль
+  ja: パスワードを設定
+  ko: 비밀번호 설정
+  it: Imposta password
+  tr: Şifre ayarla
+  vi: Đặt mật khẩu
+  id: Atur kata sandi
+  pl: Ustaw hasło
+  nl: Wachtwoord instellen
+  ar: تعيين كلمة المرور
+  hi: पासवर्ड सेट करें
+  th: ตั้งค่ารหัสผ่าน
+  cs: Nastavit heslo
+  sv: Ange lösenord
+  verified_by_human: []
+
+hidden_chats.invalid_password_format:
+  context: Error message for invalid password format
+  en: Please enter a valid password
+  de: Bitte geben Sie ein gültiges Passwort ein
+  zh: 请输入有效的密码
+  es: Por favor, ingrese una contraseña válida
+  fr: Veuillez entrer un mot de passe valide
+  pt: Por favor, digite uma senha válida
+  ru: Пожалуйста, введите действительный пароль
+  ja: 有効なパスワードを入力してください
+  ko: 유효한 비밀번호를 입력하세요
+  it: Inserisci una password valida
+  tr: Lütfen geçerli bir şifre girin
+  vi: Vui lòng nhập mật khẩu hợp lệ
+  id: Silakan masukkan kata sandi yang valid
+  pl: Wprowadź prawidłowe hasło
+  nl: Voer een geldig wachtwoord in
+  ar: يرجى إدخال كلمة مرور صالحة
+  hi: कृपया एक वैध पासवर्ड दर्ज करें
+  th: กรุณาป้อนรหัสผ่านที่ถูกต้อง
+  cs: Zadejte platné heslo
+  sv: Ange ett giltigt lösenord
+  verified_by_human: []
+
+hidden_chats.passwords_dont_match:
+  context: Error message when passwords don't match
+  en: Passwords do not match
+  de: Passwörter stimmen nicht überein
+  zh: 密码不匹配
+  es: Las contraseñas no coinciden
+  fr: Les mots de passe ne correspondent pas
+  pt: As senhas não coincidem
+  ru: Пароли не совпадают
+  ja: パスワードが一致しません
+  ko: 비밀번호가 일치하지 않습니다
+  it: Le password non corrispondono
+  tr: Şifreler eşleşmiyor
+  vi: Mật khẩu không khớp
+  id: Kata sandi tidak cocok
+  pl: Hasła nie pasują
+  nl: Wachtwoorden komen niet overeen
+  ar: كلمات المرور غير متطابقة
+  hi: पासवर्ड मेल नहीं खाते
+  th: รหัสผ่านไม่ตรงกัน
+  cs: Hesla se neshodují
+  sv: Lösenorden matchar inte
+  verified_by_human: []
+
+hidden_chats.incorrect_password:
+  context: Error message for incorrect password
+  en: Incorrect password. Please try again.
+  de: Falsches Passwort. Bitte versuchen Sie es erneut.
+  zh: 密码错误。请重试。
+  es: Contraseña incorrecta. Por favor, inténtelo de nuevo.
+  fr: Mot de passe incorrect. Veuillez réessayer.
+  pt: Senha incorreta. Por favor, tente novamente.
+  ru: Неверный пароль. Пожалуйста, попробуйте снова.
+  ja: パスワードが正しくありません。もう一度お試しください。
+  ko: 잘못된 비밀번호입니다. 다시 시도해 주세요.
+  it: Password errata. Riprova.
+  tr: Yanlış şifre. Lütfen tekrar deneyin.
+  vi: Mật khẩu không đúng. Vui lòng thử lại.
+  id: Kata sandi salah. Silakan coba lagi.
+  pl: Nieprawidłowe hasło. Spróbuj ponownie.
+  nl: Onjuist wachtwoord. Probeer het opnieuw.
+  ar: كلمة مرور غير صحيحة. يرجى المحاولة مرة أخرى.
+  hi: गलत पासवर्ड। कृपया पुनः प्रयास करें।
+  th: รหัสผ่านไม่ถูกต้อง กรุณาลองอีกครั้ง
+  cs: Nesprávné heslo. Zkuste to znovu.
+  sv: Felaktigt lösenord. Försök igen.
+  verified_by_human: []
+
+hidden_chats.unlock_description:
+  context: Description for unlock hidden chats modal
+  en: Enter your password to unlock hidden chats. Each unique password can be used to hide/show different chats.
+  de: Geben Sie Ihr Passwort ein, um versteckte Chats zu entsperren. Jedes eindeutige Passwort kann verwendet werden, um verschiedene Chats zu verstecken/anzeigen.
+  zh: 输入您的密码以解锁隐藏聊天。每个唯一密码可用于隐藏/显示不同的聊天。
+  es: Ingrese su contraseña para desbloquear chats ocultos. Cada contraseña única se puede usar para ocultar/mostrar diferentes chats.
+  fr: Entrez votre mot de passe pour déverrouiller les chats masqués. Chaque mot de passe unique peut être utilisé pour masquer/afficher différents chats.
+  pt: Digite sua senha para desbloquear chats ocultos. Cada senha única pode ser usada para ocultar/mostrar diferentes chats.
+  ru: Введите ваш пароль для разблокировки скрытых чатов. Каждый уникальный пароль может использоваться для скрытия/показа разных чатов.
+  ja: パスワードを入力して、非表示チャットを解除します。各一意のパスワードを使用して、異なるチャットを非表示/表示できます。
+  ko: 비밀번호를 입력하여 숨겨진 채팅을 잠금 해제하세요. 각 고유한 비밀번호를 사용하여 다른 채팅을 숨기거나 표시할 수 있습니다.
+  it: Inserisci la tua password per sbloccare i chat nascosti. Ogni password univoca può essere utilizzata per nascondere/mostrare chat diversi.
+  tr: Gizli sohbetleri açmak için şifrenizi girin. Her benzersiz şifre, farklı sohbetleri gizlemek/göstermek için kullanılabilir.
+  vi: Nhập mật khẩu của bạn để mở khóa cuộc trò chuyện ẩn. Mỗi mật khẩu duy nhất có thể được sử dụng để ẩn/hiển thị các cuộc trò chuyện khác nhau.
+  id: Masukkan kata sandi Anda untuk membuka kunci chat tersembunyi. Setiap kata sandi unik dapat digunakan untuk menyembunyikan/menampilkan chat yang berbeda.
+  pl: Wprowadź swoje hasło, aby odblokować ukryte czaty. Każde unikalne hasło może być używane do ukrywania/wyświetlania różnych czatów.
+  nl: Voer uw wachtwoord in om verborgen chats te ontgrendelen. Elk uniek wachtwoord kan worden gebruikt om verschillende chats te verbergen/weergeven.
+  ar: أدخل كلمة المرور الخاصة بك لإلغاء قفل الدردشات المخفية. يمكن استخدام كل كلمة مرور فريدة لإخفاء/عرض دردشات مختلفة.
+  hi: छुपी हुई चैट अनलॉक करने के लिए अपना पासवर्ड दर्ज करें। प्रत्येक अद्वितीय पासवर्ड का उपयोग विभिन्न चैट को छुपाने/दिखाने के लिए किया जा सकता है।
+  th: ป้อนรหัสผ่านของคุณเพื่อปลดล็อกแชทที่ซ่อนอยู่ รหัสผ่านที่ไม่ซ้ำกันแต่ละรหัสสามารถใช้เพื่อซ่อน/แสดงแชทที่แตกต่างกัน
+  cs: Zadejte své heslo pro odemknutí skrytých chatů. Každé jedinečné heslo lze použít k skrytí/zobrazení různých chatů.
+  sv: Ange ditt lösenord för att låsa upp dolda chattar. Varje unikt lösenord kan användas för att dölja/visa olika chattar.
   verified_by_human: []
 
 hidden_chats.auto_locked:

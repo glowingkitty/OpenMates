@@ -1,15 +1,15 @@
 /**
  * Hidden Chat Service
  *
- * Manages encryption and decryption of hidden chats using a code-derived secret.
- * Hidden chats use a combined secret derived from master_key + 4-6 digit code via PBKDF2.
- * This maintains zero-knowledge architecture: server never sees the code or can access hidden chat content.
+ * Manages encryption and decryption of hidden chats using a password-derived secret.
+ * Hidden chats use a combined secret derived from master_key + password (4-30 characters) via PBKDF2.
+ * This maintains zero-knowledge architecture: server never sees the password or can access hidden chat content.
  *
  * Architecture:
  * - Combined secret: PBKDF2(master_key || code, salt)
  * - Salt: User-specific, reuses user_email_salt from localStorage/sessionStorage (same across devices)
  * - KDF: PBKDF2 with 100,000 iterations (matching login flow strength)
- * - Scope: Each chat can be encrypted with a different code (per-chat, not per-user)
+ * - Scope: Each chat can be encrypted with a different password (per-chat, not per-user)
  */
 
 import { getKeyFromStorage, getEmailSalt } from './cryptoService';
@@ -117,20 +117,20 @@ class HiddenChatService {
 
 
     /**
-     * Derive combined secret from master key + code
-     * Formula: PBKDF2(master_key || code, salt)
+     * Derive combined secret from master key + password
+     * Formula: PBKDF2(master_key || password, salt)
      * 
-     * @param code - 4-6 digit code entered by user
+     * @param password - Password (4-30 characters) entered by user
      * @returns Promise<Uint8Array | null> - Combined secret or null if derivation fails
      */
-    async deriveCombinedSecret(code: string): Promise<Uint8Array | null> {
+    async deriveCombinedSecret(password: string): Promise<Uint8Array | null> {
         if (!browser) {
             return null;
         }
 
-        // Validate code format (4-6 digits)
-        if (!/^\d{4,6}$/.test(code)) {
-            console.error('[HiddenChatService] Invalid code format:', code);
+        // Validate password format (4-30 characters)
+        if (password.length < 4 || password.length > 30) {
+            console.error('[HiddenChatService] Invalid password format: length must be 4-30 characters');
             return null;
         }
 
@@ -154,12 +154,12 @@ class HiddenChatService {
             // Get or create salt
             const salt = await this.getOrCreateSalt();
 
-            // Combine master_key || code
+            // Combine master_key || password
             const encoder = new TextEncoder();
-            const codeBytes = encoder.encode(code);
-            const combinedInput = new Uint8Array(masterKeyArray.length + codeBytes.length);
+            const passwordBytes = encoder.encode(password);
+            const combinedInput = new Uint8Array(masterKeyArray.length + passwordBytes.length);
             combinedInput.set(masterKeyArray);
-            combinedInput.set(codeBytes, masterKeyArray.length);
+            combinedInput.set(passwordBytes, masterKeyArray.length);
 
             // Derive combined secret using PBKDF2
             // Note: Architecture doc mentions Argon2, but codebase uses PBKDF2 for consistency
@@ -181,15 +181,15 @@ class HiddenChatService {
 
     /**
      * Unlock hidden chats by deriving and storing combined secret
-     * Tries to decrypt all chats that failed normal decryption with the entered code.
+     * Tries to decrypt all chats that failed normal decryption with the entered password.
      * If at least one chat decrypts successfully, unlock succeeds.
-     * If no chats decrypt, unlock fails (code is wrong or no chats encrypted with that code).
+     * If no chats decrypt, unlock fails (password is wrong or no chats encrypted with that password).
      * 
-     * @param code - 4-6 digit code entered by user
+     * @param password - Password (4-30 characters) entered by user
      * @returns Promise<{ success: boolean; decryptedCount: number }> - Success status and count of decrypted chats
      */
     async unlockHiddenChats(
-        code: string,
+        password: string,
         verifiedEncryptedChatKey?: string
     ): Promise<{ success: boolean; decryptedCount: number }> {
         if (!browser) {
@@ -201,7 +201,7 @@ class HiddenChatService {
             throw new Error('Too many failed attempts. Please wait before trying again.');
         }
 
-        const combinedSecret = await this.deriveCombinedSecret(code);
+        const combinedSecret = await this.deriveCombinedSecret(password);
         if (!combinedSecret) {
             this.recordFailedAttempt();
             return { success: false, decryptedCount: 0 };
@@ -213,7 +213,7 @@ class HiddenChatService {
         
         try {
             // Optional fast verification path: if caller provides an encrypted chat key
-            // (e.g., freshly encrypted during "hide chat"), verify that it can decrypt with this code.
+            // (e.g., freshly encrypted during "hide chat"), verify that it can decrypt with this password.
             // This avoids depending on IndexedDB reads being immediately consistent.
             let verifiedDecryptableCount = 0;
             if (verifiedEncryptedChatKey) {
@@ -243,7 +243,7 @@ class HiddenChatService {
                     // Try to decrypt with combined secret.
                     const decrypted = await this.decryptChatKeyWithCombinedSecret(chat.encrypted_chat_key);
                     if (decrypted) {
-                        // Successfully decrypted a hidden chat with this code
+                        // Successfully decrypted a hidden chat with this password
                         decryptedCount++;
                     }
                 }
@@ -263,16 +263,16 @@ class HiddenChatService {
                 console.debug(`[HiddenChatService] Hidden chats unlocked successfully: ${decryptedCount} chat(s) decrypted`);
                 return { success: true, decryptedCount };
             } else {
-                // No chats decrypted, but code derivation succeeded (code is valid)
+                // No chats decrypted, but password derivation succeeded (password is valid)
                 // Unlock anyway to allow user to see "No hidden chats" message
                 // Store combined secret in volatile memory only (never persisted)
                 this.combinedSecret = combinedSecret;
                 
-                // Reset failed attempts on successful code entry (even if no chats decrypted)
+                // Reset failed attempts on successful password entry (even if no chats decrypted)
                 this.failedAttempts = 0;
                 this.lockoutUntil = null;
 
-                console.debug('[HiddenChatService] Hidden chats unlocked (no chats decrypted, but code is valid)');
+                console.debug('[HiddenChatService] Hidden chats unlocked (no chats decrypted, but password is valid)');
                 return { success: true, decryptedCount: 0 };
             }
         } catch (error) {
@@ -284,18 +284,18 @@ class HiddenChatService {
     }
 
     /**
-     * Encrypt a chat key using a specific 4-6 digit code, without requiring the hidden chats
+     * Encrypt a chat key using a specific password (4-30 characters), without requiring the hidden chats
      * to already be unlocked.
      *
-     * Used when hiding a chat while currently locked: we can encrypt the chat key with the code,
-     * then proceed to unlock with the same code.
+     * Used when hiding a chat while currently locked: we can encrypt the chat key with the password,
+     * then proceed to unlock with the same password.
      */
-    async encryptChatKeyWithCode(chatKey: Uint8Array, code: string): Promise<string | null> {
+    async encryptChatKeyWithCode(chatKey: Uint8Array, password: string): Promise<string | null> {
         if (!browser) {
             return null;
         }
 
-        const derivedSecret = await this.deriveCombinedSecret(code);
+        const derivedSecret = await this.deriveCombinedSecret(password);
         if (!derivedSecret) {
             return null;
         }
@@ -498,18 +498,18 @@ class HiddenChatService {
     }
 
     /**
-     * Check if a stored code exists
-     * Always returns false - code is memory-only and never persisted for security
+     * Check if a stored password exists
+     * Always returns false - password is memory-only and never persisted for security
      */
-    hasStoredCode(): boolean {
+    hasStoredPassword(): boolean {
         return false;
     }
 
     /**
-     * Get stored code
-     * Always returns null - code is memory-only and never persisted for security
+     * Get stored password
+     * Always returns null - password is memory-only and never persisted for security
      */
-    getStoredCode(): string | null {
+    getStoredPassword(): string | null {
         return null;
     }
 

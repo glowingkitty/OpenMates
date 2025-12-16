@@ -8,6 +8,7 @@ Invoices Settings - View and download past invoices
     import { apiEndpoints, getApiEndpoint } from '../../../config/api';
     import SettingsItem from '../../SettingsItem.svelte';
     import { notificationStore } from '../../../stores/notificationStore';
+    import * as cryptoService from '../../../services/cryptoService';
 
     // Invoice interface
     interface Invoice {
@@ -195,12 +196,19 @@ Invoices Settings - View and download past invoices
         try {
             notificationStore.info($text('settings.billing.invoices_refund_processing.text'));
 
+            // Get email encryption key for server to decrypt email (same as invoice/purchase confirmation)
+            const emailEncryptionKey = cryptoService.getEmailEncryptionKeyForApi();
+            if (!emailEncryptionKey) {
+                throw new Error('Email encryption key not found. Please refresh the page and try again.');
+            }
+
             const response = await fetch(getApiEndpoint(apiEndpoints.payments.requestRefund), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 credentials: 'include',
                 body: JSON.stringify({
-                    invoice_id: invoice.id
+                    invoice_id: invoice.id,
+                    email_encryption_key: emailEncryptionKey
                 })
             });
 

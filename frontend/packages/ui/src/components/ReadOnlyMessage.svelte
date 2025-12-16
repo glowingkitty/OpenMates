@@ -91,12 +91,15 @@
                 const rect = embedContainer.getBoundingClientRect();
                 
                 // Dispatch the same event as left-click to show the context menu
+                // Pass the actual click coordinates for proper menu positioning
                 dispatch('message-embed-click', {
                     view: editor?.view,
                     node,
                     dom: embedContainer,
                     elementId,
-                    rect // Pass the rect for proper menu positioning
+                    rect, // Pass the rect for embed info
+                    x: event.clientX, // Actual click X coordinate
+                    y: event.clientY // Actual click Y coordinate
                 });
             }
         }
@@ -153,12 +156,15 @@
                     const rect = touchTarget.getBoundingClientRect();
                     
                     // Dispatch the same event as click to show the context menu
+                    // Pass the actual touch coordinates for proper menu positioning
                     dispatch('message-embed-click', {
                         view: editor.view,
                         node,
                         dom: touchTarget,
                         elementId,
-                        rect // Pass the rect for proper menu positioning
+                        rect, // Pass the rect for embed info
+                        x: touchStartX, // Actual touch X coordinate
+                        y: touchStartY // Actual touch Y coordinate
                     });
                     
                     // Vibrate to provide haptic feedback (if supported)
