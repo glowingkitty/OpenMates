@@ -26,15 +26,32 @@ Allows creating new subscriptions if user has a saved payment method
         return credits.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
     }
 
-    // Format currency
-    function formatCurrency(amount: number, currency: string): string {
+    /**
+     * Format currency amount for display.
+     * Handles both API prices (in cents) and pricing config prices (in main currency units).
+     * 
+     * @param amount - Price amount
+     * @param currency - Currency code (EUR, USD, JPY)
+     * @param isInCents - Whether the amount is in cents (true for API responses, false for pricing config). Defaults to true.
+     * @returns Formatted currency string (e.g., "€20.00" or "¥4000")
+     */
+    function formatCurrency(amount: number, currency: string, isInCents: boolean = true): string {
         const symbols: Record<string, string> = {
             'EUR': '€',
             'USD': '$',
             'JPY': '¥'
         };
         const symbol = symbols[currency.toUpperCase()] || '€';
-        return currency.toUpperCase() === 'JPY' ? `${symbol}${amount}` : `${symbol}${amount}`;
+        const currencyUpper = currency.toUpperCase();
+        
+        // JPY doesn't use decimal places - use amount as-is
+        if (currencyUpper === 'JPY') {
+            return `${symbol}${amount.toLocaleString('en-US')}`;
+        }
+        
+        // EUR/USD: convert from cents to main currency unit if needed, then format with 2 decimal places
+        const mainCurrencyAmount = isInCents ? amount / 100 : amount;
+        return `${symbol}${mainCurrencyAmount.toFixed(2)}`;
     }
 
     // Get available subscription tiers (tiers with bonus credits > 0)
@@ -248,7 +265,7 @@ Allows creating new subscriptions if user has a saved payment method
                                 {#if tier.monthly_auto_top_up_extra_credits > 0}
                                     (+ {formatCredits(tier.monthly_auto_top_up_extra_credits)} bonus)
                                 {/if}
-                                - {formatCurrency(getTierPrice(tier), selectedCurrency)}/month
+                                - {formatCurrency(getTierPrice(tier), selectedCurrency, false)}/month
                             </option>
                         {/each}
                     </select>

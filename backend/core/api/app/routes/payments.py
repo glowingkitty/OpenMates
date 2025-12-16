@@ -2947,7 +2947,7 @@ async def download_credit_note(
             pdf_stream,
             media_type="application/pdf",
             headers={
-                "Content-Disposition": f"attachment; filename={filename}"
+                "Content-Disposition": f'attachment; filename="{filename}"'
             }
         )
 
@@ -3386,7 +3386,8 @@ async def request_refund(
             encrypted_filename = invoice.get("encrypted_filename")
             if encrypted_filename and vault_key_id:
                 try:
-                    decrypted_filename, _ = await encryption_service.decrypt_with_user_key(encrypted_filename, vault_key_id)
+                    # decrypt_with_user_key returns a single Optional[str], not a tuple
+                    decrypted_filename = await encryption_service.decrypt_with_user_key(encrypted_filename, vault_key_id)
                     if decrypted_filename:
                         # Extract invoice number from filename (format: openmates_invoice_{date}_{invoice_number}.pdf)
                         # Example: openmates_invoice_2025_01_15_MRRUNHO-1.pdf
@@ -3417,17 +3418,29 @@ async def request_refund(
                 except Exception as decrypt_err:
                     logger.warning(f"Failed to decrypt invoice filename to get invoice number: {decrypt_err}")
             
-            # Fallback: try to get invoice number from Invoice Ninja if available
-            # This requires querying Invoice Ninja by order_id
-            if not referenced_invoice_number or referenced_invoice_number.endswith('-REF'):
-                logger.warning(f"Could not extract invoice number from filename. Attempting to get from Invoice Ninja...")
-                # Note: We could query Invoice Ninja here, but for now we'll log and use a better fallback
-                # The fallback should not use -REF suffix as that's not a valid invoice number
-            
-            # Final fallback: use invoice UUID prefix (not ideal, but better than -REF)
-            if not referenced_invoice_number or referenced_invoice_number.endswith('-REF'):
-                logger.error(f"Could not determine invoice number for credit note. Using invoice ID prefix as fallback.")
-                referenced_invoice_number = f"INV-{invoice_id[:8].upper()}"
+            # Fallback: try to get invoice number from encrypted_custom_invoice_number if available
+            if not referenced_invoice_number:
+                logger.warning(f"Could not extract invoice number from filename. Attempting to get from encrypted_custom_invoice_number field...")
+                encrypted_custom_invoice_number = invoice.get("encrypted_custom_invoice_number")
+                if encrypted_custom_invoice_number and vault_key_id:
+                    try:
+                        # decrypt_with_user_key returns a single Optional[str], not a tuple
+                        decrypted_invoice_number = await encryption_service.decrypt_with_user_key(
+                            encrypted_custom_invoice_number, vault_key_id
+                        )
+                        if decrypted_invoice_number:
+                            referenced_invoice_number = decrypted_invoice_number
+                            logger.info(f"Successfully retrieved invoice number from encrypted_custom_invoice_number: {referenced_invoice_number}")
+                    except Exception as decrypt_err:
+                        logger.warning(f"Failed to decrypt custom_invoice_number: {decrypt_err}")
+
+            # Final check: fail if we still don't have a valid invoice number
+            if not referenced_invoice_number:
+                logger.error(f"Could not determine invoice number for credit note. Cannot create credit note without valid invoice reference.")
+                raise HTTPException(
+                    status_code=500,
+                    detail="Failed to determine invoice number for credit note generation. Please contact support."
+                )
             
             logger.info(f"Using referenced invoice number: {referenced_invoice_number} for credit note")
             

@@ -383,6 +383,9 @@
                     is_private: false
                 });
                 console.debug('[SettingsShare] Marked chat as shared in IndexedDB:', chatId);
+                
+                // Dispatch event to notify other components (e.g., SettingsShared)
+                window.dispatchEvent(new CustomEvent('chatShared', { detail: { chat_id: chatId } }));
             } else {
                 console.warn('[SettingsShare] Chat not found for marking as shared:', chatId);
             }

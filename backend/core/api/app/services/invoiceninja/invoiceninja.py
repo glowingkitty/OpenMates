@@ -655,14 +655,14 @@ class InvoiceNinjaService:
         """
         try:
             # Prepare credit note data
-            # Invoice Ninja expects credits to be negative amounts
-            # Note: Invoice Ninja uses currency_id as a numeric ID, but we'll try with currency code first
-            # If that doesn't work, we may need to look up the currency ID
+            # Invoice Ninja expects credit notes to have POSITIVE amounts (not negative)
+            # The system internally handles these as credits to the customer account
+            # See: https://invoiceninja.github.io/en/credits/
             credit_data = {
                 "client_id": client_id,
                 "number": credit_number,
                 "date": credit_date,
-                "amount": -abs(credit_amount),  # Negative amount for credit
+                "amount": abs(credit_amount),  # Positive amount for credit (Invoice Ninja standard)
                 "currency_id": currency_code.upper(),  # Try currency code (e.g., "EUR", "USD")
                 "status_id": "2",  # Status ID 2 = "Sent" (active credit note)
                 "custom_value1": payment_processor,  # Store payment processor

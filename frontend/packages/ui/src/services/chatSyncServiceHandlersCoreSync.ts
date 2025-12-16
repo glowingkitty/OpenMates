@@ -96,6 +96,9 @@ export async function handleInitialSyncResponseImpl(
                 unread_count: serverChat.unread_count,
                 created_at: serverChat.created_at,
                 updated_at: serverChat.updated_at,
+                // Include sharing fields from server sync for cross-device consistency
+                is_shared: serverChat.is_shared !== undefined ? serverChat.is_shared : undefined,
+                is_private: serverChat.is_private !== undefined ? serverChat.is_private : undefined,
             };
             return chat;
         }));

@@ -255,6 +255,38 @@ async def handle_initial_sync(
                     current_chat_payload_dict["encrypted_category"] = encrypted_category
                     logger.debug(f"User {user_id}: Added encrypted_category for chat {server_chat_id}")
                 
+                # Add sharing fields (is_shared, is_private) from cache or DB
+                is_shared = None
+                is_private = None
+                if cached_list_item_data:
+                    # Pydantic model - access as attribute
+                    is_shared = getattr(cached_list_item_data, 'is_shared', None)
+                    is_private = getattr(cached_list_item_data, 'is_private', None)
+                if is_shared is None and db_list_item_data:
+                    # Dict - access with get()
+                    is_shared = db_list_item_data.get("is_shared")
+                    is_private = db_list_item_data.get("is_private")
+                
+                # If still no sharing fields, fetch from DB (cache might be stale/missing these fields)
+                if is_shared is None or is_private is None:
+                    logger.debug(f"User {user_id}: is_shared/is_private missing from cache for chat {server_chat_id}, fetching from DB...")
+                    if not db_list_item_data:
+                        db_list_item_data = await directus_service.chat.get_chat_list_item_data_from_db(server_chat_id)
+                    if db_list_item_data:
+                        if is_shared is None:
+                            is_shared = db_list_item_data.get("is_shared")
+                        if is_private is None:
+                            is_private = db_list_item_data.get("is_private")
+                
+                # Only include sharing fields if they have values (not None)
+                # This ensures we don't overwrite client-side values with None
+                if is_shared is not None:
+                    current_chat_payload_dict["is_shared"] = bool(is_shared)
+                    logger.debug(f"User {user_id}: Added is_shared={is_shared} for chat {server_chat_id}")
+                if is_private is not None:
+                    current_chat_payload_dict["is_private"] = bool(is_private)
+                    logger.debug(f"User {user_id}: Added is_private={is_private} for chat {server_chat_id}")
+                
                 fetch_messages = False
                 if current_chat_payload_dict["type"] == "new_chat":
                     fetch_messages = True

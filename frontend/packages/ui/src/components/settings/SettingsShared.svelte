@@ -32,7 +32,9 @@
     let ownedSharedChats = $state<Chat[]>([]);
     let sharedWithMeChats = $state<Chat[]>([]);
     let isLoading = $state(true);
-    let currentUserId = $derived(get(userProfile).user_id);
+    // Get current user ID from userDB (user_id is not in UserProfile interface but is in the DB)
+    let currentUserId = $state<string | null>(null);
+    
     let isAuthenticated = $derived(get(authStore).isAuthenticated);
     
     /**
@@ -53,13 +55,18 @@
             const allChats = await chatDB.getAllChats();
             console.debug('[SettingsShared] Loaded', allChats.length, 'chats from IndexedDB');
             
-            // Filter chats owned by current user that are shared (is_shared = true)
+            // Filter chats owned by current user that are shared
+            // A chat is "shared" if: is_shared === true AND is_private === false
+            // This ensures we only show chats that are actively shared (not unshared)
             ownedSharedChats = allChats.filter(chat => 
-                chat.user_id === currentUserId && chat.is_shared === true
+                chat.user_id === currentUserId && 
+                chat.is_shared === true && 
+                chat.is_private === false
             );
             
             // Filter chats owned by others (shared with me)
             // These are chats where the user is not the owner
+            // These are chats that the user has opened from share links
             sharedWithMeChats = allChats.filter(chat => 
                 chat.user_id && chat.user_id !== currentUserId
             );
@@ -127,6 +134,9 @@
             
             // Remove from owned shared chats list
             ownedSharedChats = ownedSharedChats.filter(chat => chat.chat_id !== chatId);
+            
+            // Dispatch event to notify other components
+            window.dispatchEvent(new CustomEvent('chatUnshared', { detail: { chat_id: chatId } }));
             
             console.debug('[SettingsShared] Chat unshared:', chatId);
         } catch (error) {
