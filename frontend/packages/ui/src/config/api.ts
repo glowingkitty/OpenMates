@@ -118,6 +118,7 @@ export const apiEndpoints = {
         createSubscription:         '/v1/payments/create-subscription',         // Create monthly auto top-up subscription
         getSubscription:            '/v1/payments/subscription',                // Get user's subscription details
         cancelSubscription:         '/v1/payments/cancel-subscription',         // Cancel monthly subscription
+        updateBillingDayPreference: '/v1/payments/update-billing-day-preference', // Update billing day preference
         redeemGiftCard:             '/v1/payments/redeem-gift-card',           // Redeem a gift card code
         buyGiftCard:                '/v1/payments/buy-gift-card',              // Purchase a gift card for someone else
         getRedeemedGiftCards:       '/v1/payments/redeemed-gift-cards',        // Get user's redeemed gift cards

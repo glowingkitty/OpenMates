@@ -253,6 +253,7 @@ async def _async_process_invoice_and_send_email(
             "sender_email": sender_email,
             "sender_vat": sender_vat,
             "is_gift_card": is_gift_card  # Flag to indicate if this is a gift card purchase
+            # Note: refund_link will be added after invoice is created and we have the UUID
         }
 
         # Add billing address if available (cleaning up None values) - only for future business/teams functionality
@@ -450,7 +451,7 @@ async def _async_process_invoice_and_send_email(
             logger.error(f"Exception occurred during invoice counter update process for user: {counter_update_err}", exc_info=True)
             # Continue with email sending even if counter update fails, but log the error
 
-        # 11. Prepare Email Context
+        # 11. Now that we have the invoice UUID, regenerate the PDFs with the refund link
         # Generate refund deep link URL if invoice UUID is available
         refund_deep_link_url = None
         if invoice_uuid:
@@ -458,27 +459,55 @@ async def _async_process_invoice_and_send_email(
                 # Load shared URLs configuration to get webapp URL
                 from backend.core.api.app.services.email.config_loader import load_shared_urls
                 shared_urls = load_shared_urls()
-                
+
                 # Determine environment (development or production)
                 # Check if we're in development mode (common patterns: localhost, dev, test)
                 is_dev = os.getenv("ENVIRONMENT", "production").lower() in ("development", "dev", "test") or \
                          "localhost" in os.getenv("WEBAPP_URL", "").lower()
                 env_name = "development" if is_dev else "production"
-                
+
                 # Get webapp URL from shared config
                 webapp_url = shared_urls.get('urls', {}).get('base', {}).get('webapp', {}).get(env_name)
-                
+
                 # Fallback to environment variable or default
                 if not webapp_url:
                     webapp_url = os.getenv("WEBAPP_URL", "https://openmates.org" if not is_dev else "http://localhost:5174")
-                
+
                 # Generate deep link URL: {webapp_url}#settings/billing/invoices/{invoice_uuid}/refund
                 refund_deep_link_url = f"{webapp_url}#settings/billing/invoices/{invoice_uuid}/refund"
                 logger.info(f"Generated refund deep link URL for invoice {invoice_number}: {refund_deep_link_url[:50]}...")
+
+                # Update invoice_data with the refund link
+                invoice_data['refund_link'] = refund_deep_link_url
+
+                # Regenerate the PDFs with the refund link
+                logger.info(f"Regenerating PDFs with refund link for invoice {invoice_number}")
+
+                # Regenerate English version
+                pdf_buffer_en = task.invoice_template_service.generate_invoice(
+                    invoice_data, lang='en', currency=currency_paid.lower()
+                )
+                pdf_bytes_en = pdf_buffer_en.getvalue()
+                pdf_buffer_en.close()
+                logger.info(f"Regenerated English PDF with refund link for invoice")
+
+                # Regenerate translated version if language is not English
+                if user_language != 'en':
+                    try:
+                        pdf_buffer_lang = task.invoice_template_service.generate_invoice(
+                            invoice_data, lang=user_language, currency=currency_paid.lower()
+                        )
+                        pdf_bytes_lang = pdf_buffer_lang.getvalue()
+                        pdf_buffer_lang.close()
+                        logger.info(f"Regenerated PDF with refund link for invoice in language {user_language}")
+                    except Exception as lang_pdf_err:
+                        logger.error(f"Failed to regenerate invoice PDF in language {user_language} with refund link: {lang_pdf_err}", exc_info=True)
+                        # Continue with the English version only
+
             except Exception as url_err:
                 logger.error(f"Failed to generate refund deep link URL for invoice {invoice_number}: {url_err}", exc_info=True)
-                # Continue without deep link - email will still be sent
-        
+                # Continue without deep link - email will still be sent with PDFs without refund link
+
         email_context = {
             "darkmode": user_darkmode,
             "invoice_id": invoice_number,  # Use invoice_id instead of account_id for email template

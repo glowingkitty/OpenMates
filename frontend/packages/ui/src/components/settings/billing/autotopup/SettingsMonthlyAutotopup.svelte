@@ -15,11 +15,13 @@ Allows creating new subscriptions if user has a saved payment method
     let subscriptionDetails: any = $state(null);
     let hasPaymentMethod = $state(false);
     let showCreateForm = $state(false);
-    
+
     // Create subscription form state
     let selectedTierCredits = $state<number | null>(null);
     let selectedCurrency = $state('EUR');
     let isCreating = $state(false);
+    let billingDayPreference = $state('anniversary'); // 'anniversary' or 'first_of_month'
+    let isUpdatingBillingDay = $state(false);
 
     // Format credits with dots as thousand separators
     function formatCredits(credits: number): string {
@@ -78,6 +80,8 @@ Allows creating new subscriptions if user has a saved payment method
                 const data = await response.json();
                 subscriptionDetails = data;
                 hasActiveSubscription = data.status === 'active';
+                // Set billing preference from API response
+                billingDayPreference = data.billing_day_preference || 'anniversary';
             } else if (response.status === 404) {
                 // No subscription found
                 hasActiveSubscription = false;
@@ -129,7 +133,8 @@ Allows creating new subscriptions if user has a saved payment method
                 credentials: 'include',
                 body: JSON.stringify({
                     credits_amount: selectedTierCredits,
-                    currency: selectedCurrency.toLowerCase()
+                    currency: selectedCurrency.toLowerCase(),
+                    billing_day_preference: billingDayPreference
                 })
             });
 
@@ -147,6 +152,42 @@ Allows creating new subscriptions if user has a saved payment method
             alert(error instanceof Error ? error.message : 'Failed to create subscription. Please try again.');
         } finally {
             isCreating = false;
+        }
+    }
+
+    // Update billing day preference
+    async function updateBillingDayPreference(newPreference: string) {
+        isUpdatingBillingDay = true;
+
+        try {
+            const response = await fetch(getApiEndpoint(apiEndpoints.payments.updateBillingDayPreference), {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({
+                    billing_day_preference: newPreference
+                })
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.detail || 'Failed to update billing day preference');
+            }
+
+            const result = await response.json();
+
+            // Update local state
+            billingDayPreference = newPreference;
+
+            // Refresh subscription details to get updated next billing date
+            await fetchSubscriptionDetails();
+
+            alert('Billing day preference updated successfully!');
+        } catch (error) {
+            console.error('Error updating billing day preference:', error);
+            alert(error instanceof Error ? error.message : 'Failed to update billing day preference. Please try again.');
+        } finally {
+            isUpdatingBillingDay = false;
         }
     }
 
@@ -238,7 +279,34 @@ Allows creating new subscriptions if user has a saved payment method
                     <span class="info-value">{new Date(subscriptionDetails.next_billing_date).toLocaleDateString()}</span>
                 </div>
             {/if}
+            <div class="info-row">
+                <span class="info-label">Billing day:</span>
+                <span class="info-value">
+                    {billingDayPreference === 'first_of_month' ? '1st of each month' : 'Monthly (anniversary)'}
+                </span>
+            </div>
         </div>
+
+        <!-- Billing day preference selector -->
+        <div class="billing-day-section">
+            <label for="billingDay" class="section-label">Change Billing Day</label>
+            <select
+                id="billingDay"
+                bind:value={billingDayPreference}
+                onchange={() => updateBillingDayPreference(billingDayPreference)}
+                disabled={isUpdatingBillingDay}
+                class="billing-day-select"
+            >
+                <option value="anniversary">Monthly (30 days from activation)</option>
+                <option value="first_of_month">1st of each month</option>
+            </select>
+            <p class="help-text-small">
+                {billingDayPreference === 'first_of_month'
+                    ? 'You will be charged on the 1st of each month'
+                    : 'You will be charged every 30 days from your subscription activation date'}
+            </p>
+        </div>
+
         <div class="button-group">
             <button class="danger-button" onclick={cancelSubscription} disabled={isLoading}>
                 {$text('settings.billing.cancel.text')}
@@ -286,6 +354,20 @@ Allows creating new subscriptions if user has a saved payment method
                         <option value="USD">USD ($)</option>
                         <option value="JPY">JPY (¥)</option>
                     </select>
+                </div>
+
+                <!-- Billing Day Preference -->
+                <div class="form-group">
+                    <label for="billingDayCreate">Billing Day</label>
+                    <select id="billingDayCreate" bind:value={billingDayPreference} disabled={isCreating}>
+                        <option value="anniversary">Monthly (30 days from now)</option>
+                        <option value="first_of_month">1st of each month</option>
+                    </select>
+                    <p class="help-text">
+                        {billingDayPreference === 'first_of_month'
+                            ? 'You will be charged on the 1st of each month'
+                            : 'You will be charged every 30 days starting from today'}
+                    </p>
                 </div>
 
                 <div class="button-group">
@@ -520,6 +602,51 @@ Allows creating new subscriptions if user has a saved payment method
         font-size: 12px;
         margin: 0;
         line-height: 1.4;
+    }
+
+    .help-text-small {
+        color: var(--color-grey-60);
+        font-size: 11px;
+        margin: 4px 0 0 0;
+        line-height: 1.3;
+    }
+
+    /* Billing Day Section */
+    .billing-day-section {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        padding: 12px;
+        background: var(--color-grey-10);
+        border-radius: 8px;
+        border: 1px solid var(--color-grey-20);
+    }
+
+    .section-label {
+        color: var(--color-grey-100);
+        font-size: 14px;
+        font-weight: 500;
+    }
+
+    .billing-day-select {
+        background: var(--color-grey-10);
+        border: 1px solid var(--color-grey-30);
+        border-radius: 8px;
+        color: var(--color-grey-100);
+        padding: 10px 12px;
+        font-size: 14px;
+        cursor: pointer;
+        transition: border-color 0.2s ease;
+    }
+
+    .billing-day-select:focus {
+        outline: none;
+        border-color: var(--color-primary);
+    }
+
+    .billing-day-select:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
     }
 
     /* Info Boxes */

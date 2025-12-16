@@ -1278,6 +1278,45 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     currentMessages = [...currentMessages]; // Ensure reactivity for UI
                 }
 
+                // CRITICAL FIX: Also update the corresponding user message status from 'sending' to 'synced'
+                // This prevents the infinite "Sending..." state when the AI responds (including error responses)
+                if (chunk.user_message_id) {
+                    const userMessageIndex = currentMessages.findIndex(m => m.message_id === chunk.user_message_id);
+                    if (userMessageIndex !== -1 && currentMessages[userMessageIndex].status === 'sending') {
+                        const updatedUserMessage = { ...currentMessages[userMessageIndex], status: 'synced' as const };
+                        currentMessages[userMessageIndex] = updatedUserMessage;
+                        currentMessages = [...currentMessages]; // Ensure reactivity for UI
+
+                        // Save updated user message status to DB
+                        try {
+                            const { incognitoChatService } = await import('../services/incognitoChatService');
+                            let isIncognitoChat = false;
+                            try {
+                                const incognitoChat = await incognitoChatService.getChat(updatedUserMessage.chat_id);
+                                if (incognitoChat) {
+                                    isIncognitoChat = true;
+                                }
+                            } catch (error) {
+                                // Not an incognito chat
+                            }
+
+                            if (isIncognitoChat) {
+                                const existingMessages = await incognitoChatService.getMessagesForChat(updatedUserMessage.chat_id);
+                                const messageIndex = existingMessages.findIndex(m => m.message_id === updatedUserMessage.message_id);
+                                if (messageIndex !== -1) {
+                                    existingMessages[messageIndex] = updatedUserMessage;
+                                    await incognitoChatService.storeMessages(updatedUserMessage.chat_id, existingMessages);
+                                }
+                            } else {
+                                await chatDB.saveMessage(updatedUserMessage);
+                            }
+                            console.debug('[ActiveChat] Updated user message status to synced:', updatedUserMessage.message_id);
+                        } catch (error) {
+                            console.error('[ActiveChat] Error updating user message status:', error);
+                        }
+                    }
+                }
+
                 // Save status update to DB or incognito service
                 try {
                     console.debug('[ActiveChat] Updating final AI message status:', updatedFinalMessage);

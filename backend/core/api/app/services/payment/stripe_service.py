@@ -573,38 +573,52 @@ class StripeService:
         return await self.get_or_create_customer_for_payment_method(email, payment_method_id)
     
     async def create_subscription(
-        self, 
-        customer_id: str, 
+        self,
+        customer_id: str,
         price_id: str,
         metadata: Optional[Dict[str, str]] = None,
-        default_payment_method: Optional[str] = None
+        default_payment_method: Optional[str] = None,
+        billing_day_preference: str = 'anniversary'
     ) -> Optional[Dict[str, Any]]:
         """
         Creates a monthly subscription for a customer.
-        
+
         Args:
             customer_id: Stripe customer ID
             price_id: Stripe price ID for the recurring charge
             metadata: Optional metadata to attach to the subscription
             default_payment_method: Optional payment method ID to use for the subscription.
                                    If not provided, Stripe will use the customer's default payment method.
-            
+            billing_day_preference: Billing day preference - 'anniversary' (default, 30 days from now) or 'first_of_month'
+
         Returns:
             Dictionary with subscription details or None if error
         """
         if not self.api_key:
             logger.error("Stripe API key not initialized.")
             return None
-            
+
         try:
-            # CRITICAL: For monthly auto top-up subscriptions, we want to schedule the first charge for one month from now.
-            # The subscription should be created as 'active' but with the first billing cycle starting in one month.
+            # CRITICAL: For monthly auto top-up subscriptions, we want to schedule the first charge based on billing preference.
+            # The subscription should be created as 'active' but with the first billing cycle starting at the chosen date.
             # We use billing_cycle_anchor to set when the first invoice will be generated and charged.
             from datetime import datetime, timedelta, timezone
-            
-            # Calculate billing cycle anchor: one month from now
-            # This ensures the subscription is active but won't charge until the first billing period starts
-            billing_cycle_anchor = int((datetime.now(timezone.utc) + timedelta(days=30)).timestamp())
+            import calendar
+
+            # Calculate billing cycle anchor based on preference
+            now = datetime.now(timezone.utc)
+
+            if billing_day_preference == 'first_of_month':
+                # Bill on the 1st of next month
+                year = now.year
+                month = now.month + 1
+                if month > 12:
+                    month = 1
+                    year += 1
+                billing_cycle_anchor = int(datetime(year, month, 1, tzinfo=timezone.utc).timestamp())
+            else:
+                # Anniversary billing: one month from now (default)
+                billing_cycle_anchor = int((now + timedelta(days=30)).timestamp())
             
             subscription_params = {
                 "customer": customer_id,
@@ -727,34 +741,32 @@ class StripeService:
     
     async def cancel_subscription(self, subscription_id: str) -> Optional[Dict[str, Any]]:
         """
-        Cancels a Stripe subscription at the end of the current period.
-        
+        Cancels a Stripe subscription immediately.
+        For auto top-up subscriptions, cancellation is immediate rather than at period end.
+
         Args:
             subscription_id: The Stripe subscription ID to cancel
-            
+
         Returns:
             Dictionary with cancellation details or None if error
         """
         if not self.api_key:
             logger.error("Stripe API key not initialized.")
             return None
-            
+
         try:
-            # Cancel at period end to allow user to use remaining time
-            subscription = stripe.Subscription.modify(
-                subscription_id,
-                cancel_at_period_end=True
-            )
-            
-            logger.info(f"Stripe subscription {subscription_id} scheduled for cancellation at period end")
-            
+            # Cancel immediately for auto top-up subscriptions
+            subscription = stripe.Subscription.cancel(subscription_id)
+
+            logger.info(f"Stripe subscription {subscription_id} cancelled immediately")
+
             return {
                 "subscription_id": subscription.id,
                 "status": subscription.status,
-                "cancel_at_period_end": subscription.cancel_at_period_end,
+                "cancel_at_period_end": False,
                 "canceled_at": subscription.canceled_at if hasattr(subscription, 'canceled_at') else None
             }
-            
+
         except stripe.error.StripeError as e:
             logger.error(f"Stripe API error canceling subscription: {e.user_message}", exc_info=True)
             return None
