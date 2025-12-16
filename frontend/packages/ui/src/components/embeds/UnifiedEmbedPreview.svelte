@@ -100,10 +100,122 @@
   // Reference to the preview element for transition calculations
   let previewElement = $state<HTMLElement | null>(null);
   
+  // Track if we're handling a context menu to prevent normal click from firing
+  let isContextMenuHandled = $state(false);
+  
+  // Touch event handlers for long-press detection (mobile support)
+  const LONG_PRESS_DURATION = 500; // milliseconds
+  const TOUCH_MOVE_THRESHOLD = 10; // pixels
+  
+  let touchTimer: ReturnType<typeof setTimeout> | null = null;
+  let touchStartX = 0;
+  let touchStartY = 0;
+  let touchTarget: HTMLElement | null = null;
+  
+  /**
+   * Handle touch start for long-press detection
+   * Starts a timer that will trigger context menu if touch is held long enough
+   */
+  function handleTouchStart(e: TouchEvent) {
+    // Only handle single touch
+    if (e.touches.length !== 1 || status !== 'finished') {
+      clearTouchTimer();
+      return;
+    }
+    
+    const touch = e.touches[0];
+    touchStartX = touch.clientX;
+    touchStartY = touch.clientY;
+    touchTarget = previewElement;
+    
+    // Start long-press timer
+    touchTimer = setTimeout(() => {
+      if (touchTarget && previewElement) {
+        console.debug('[UnifiedEmbedPreview] Long-press detected - triggering context menu');
+        
+        // Mark that we're handling a context menu
+        isContextMenuHandled = true;
+        
+        // Get container rect for menu positioning
+        const rect = previewElement.getBoundingClientRect();
+        
+        // Dispatch a custom event that ReadOnlyMessage can listen to
+        // This allows the context menu to be shown at the embed level
+        const contextMenuEvent = new CustomEvent('embed-context-menu', {
+          bubbles: true,
+          cancelable: true,
+          detail: {
+            embedId: id,
+            appId,
+            skillId,
+            rect: {
+              left: rect.left,
+              top: rect.top,
+              width: rect.width,
+              height: rect.height
+            },
+            x: touchStartX,
+            y: touchStartY
+          }
+        });
+        
+        previewElement.dispatchEvent(contextMenuEvent);
+        
+        // Vibrate to provide haptic feedback (if supported)
+        if (navigator.vibrate) {
+          navigator.vibrate(50);
+        }
+      }
+    }, LONG_PRESS_DURATION);
+  }
+  
+  /**
+   * Handle touch move - cancel long-press if finger moves too much
+   */
+  function handleTouchMove(e: TouchEvent) {
+    if (!touchTimer || e.touches.length !== 1) {
+      return;
+    }
+    
+    const touch = e.touches[0];
+    const deltaX = Math.abs(touch.clientX - touchStartX);
+    const deltaY = Math.abs(touch.clientY - touchStartY);
+    
+    // If finger moved too much, cancel the long-press
+    if (deltaX > TOUCH_MOVE_THRESHOLD || deltaY > TOUCH_MOVE_THRESHOLD) {
+      clearTouchTimer();
+    }
+  }
+  
+  /**
+   * Handle touch end - cancel long-press timer
+   */
+  function handleTouchEnd(e: TouchEvent) {
+    clearTouchTimer();
+  }
+  
+  /**
+   * Clear the touch timer
+   */
+  function clearTouchTimer() {
+    if (touchTimer) {
+      clearTimeout(touchTimer);
+      touchTimer = null;
+    }
+    touchTarget = null;
+  }
+  
   // Handle click to open fullscreen (only when finished)
   // Store preview element position for transition animation
   // CRITICAL: Stop event propagation to prevent ReadOnlyMessage from showing context menu
+  // BUT: Don't stop context menu events - let them bubble up for proper context menu handling
   function handleClick(e: MouseEvent) {
+    // If this was triggered after a context menu, don't handle it
+    if (isContextMenuHandled) {
+      isContextMenuHandled = false;
+      return;
+    }
+    
     console.debug('[UnifiedEmbedPreview] Click handler called:', { 
       status, 
       hasOnFullscreen: !!onFullscreen,
@@ -146,6 +258,28 @@
         hasOnFullscreen: !!onFullscreen 
       });
     }
+  }
+  
+  /**
+   * Handle right-click context menu
+   * Allow the event to bubble up to ReadOnlyMessage for proper context menu handling
+   * Only prevent default browser context menu
+   */
+  function handleContextMenu(e: MouseEvent) {
+    // Only handle context menu for finished embeds
+    if (status !== 'finished') {
+      return; // Let default behavior for processing/error states
+    }
+    
+    // Prevent default browser context menu
+    e.preventDefault();
+    
+    // Mark that we're handling a context menu to prevent normal click from firing
+    isContextMenuHandled = true;
+    
+    // Don't stop propagation - let it bubble up to ReadOnlyMessage
+    // ReadOnlyMessage will handle showing the context menu
+    console.debug('[UnifiedEmbedPreview] Context menu event (right-click) - allowing to bubble up');
   }
   
   // Handle keyboard navigation
@@ -194,7 +328,11 @@
     role: 'button',
     tabindex: 0,
     onclick: handleClick,
-    onkeydown: handleKeydown
+    onkeydown: handleKeydown,
+    oncontextmenu: handleContextMenu,
+    ontouchstart: handleTouchStart,
+    ontouchmove: handleTouchMove,
+    ontouchend: handleTouchEnd
   } : {
     role: 'presentation'
   })}
@@ -277,6 +415,15 @@
     transition: background-color 0.2s, transform 0.2s, box-shadow 0.2s;
     overflow: hidden;
     box-sizing: border-box;
+    /* Ensure context menu events bubble from child elements */
+    /* Child elements like images should not block context menu events */
+  }
+  
+  /* Ensure child elements (like images) don't block context menu events */
+  .unified-embed-preview * {
+    /* Allow context menu events to bubble up to the parent */
+    /* Images and other child elements should not prevent context menu */
+    pointer-events: auto;
   }
   
   /* Desktop layout: 300x200px */

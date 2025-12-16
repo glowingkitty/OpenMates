@@ -200,6 +200,9 @@ class ChatSyncData(BaseModel):
     encrypted_category: Optional[str] = None # Encrypted category name
     unread_count: Optional[int] = None
     messages: Optional[List[EncryptedMessageResponse]] = None # List of encrypted messages, typically for priority chat
+    # Sharing fields - synced from server to client for cross-device consistency
+    is_shared: Optional[bool] = None # Whether this chat has been shared (share link generated)
+    is_private: Optional[bool] = None # Whether this chat is private (not shared). Defaults to false (shareable) to enable offline sharing.
 
 class InitialSyncResponsePayloadSchema(BaseModel):
     """Structure of the 'initial_sync_response' payload."""

@@ -75,6 +75,9 @@
 
     // Import API utilities
     import { getApiUrl, apiEndpoints } from '../../config/api';
+    
+    // Import Stripe.js for payment confirmation
+    import { loadStripe } from '@stripe/stripe-js';
 
     // Props using Svelte 5 runes mode with callback props
     let {
@@ -152,6 +155,9 @@
     let paymentState = $state('idle');
     let paymentIntentId = $state(null);
     let selectedCredits = $state(0);
+    
+    // Stripe instance for subscription payment confirmation
+    let stripe: any = $state(null);
 
     // Reference for OneTimeCodesBottomContent instance using Svelte 5 runes
     let oneTimeCodesBottomContentRef = $state<OneTimeCodesBottomContent | null>(null);
@@ -1042,43 +1048,104 @@
             // They can set up auto top-up later in settings
         } else {
             try {
-                // CRITICAL: Verify payment method is available before attempting subscription creation
-                // Poll the endpoint to ensure cache is updated and payment method is accessible
-                // Increased attempts and timeout to account for cache propagation delay
-                console.debug("[Signup] Verifying payment method availability before creating subscription...");
-                const isAvailable = await pollPaymentMethodAvailability(20, 8000); // 20 attempts, 8 seconds total
+                // CRITICAL: Payment method was already saved and confirmed earlier in the payment flow
+                // Proceed directly with subscription creation - if payment method isn't available,
+                // the backend will return an error that we can handle gracefully
+                console.debug("[Signup] Creating subscription with saved payment method...");
                 
-                if (!isAvailable) {
-                    console.error("[Signup] Payment method not available after polling - subscription creation will likely fail");
-                    notificationStore.error(
-                        "Payment method is not yet available. You can set up auto top-up later in settings.",
-                        10000
-                    );
-                    // Still complete signup - user has finished the signup flow
-                } else {
-                    // Call backend API to create subscription
-                    const response = await fetch(getApiUrl() + apiEndpoints.payments.createSubscription, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Origin': window.location.origin
-                        },
-                        credentials: 'include',
-                        body: JSON.stringify({
-                            credits_amount: credits,
-                            currency: currency.toLowerCase()
-                        })
-                    });
+                // Call backend API to create subscription
+                const response = await fetch(getApiUrl() + apiEndpoints.payments.createSubscription, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Origin': window.location.origin
+                    },
+                    credentials: 'include',
+                    body: JSON.stringify({
+                        credits_amount: credits,
+                        currency: currency.toLowerCase()
+                    })
+                });
 
                     if (response.ok) {
                         const subscriptionData = await response.json();
                         console.debug("Subscription created successfully:", subscriptionData);
-                        subscriptionActivated = true;
-                        // Show success notification
-                        notificationStore.success(
-                            "Auto top-up activated successfully!",
-                            5000
-                        );
+                        
+                        // CRITICAL: If subscription status is 'incomplete' and client_secret is provided,
+                        // we need to confirm the payment to activate the subscription
+                        if (subscriptionData.status === 'incomplete' && subscriptionData.client_secret) {
+                            console.debug("[Signup] Subscription is incomplete, confirming payment with client_secret...");
+                            
+                            try {
+                                // Load Stripe.js if not already loaded
+                                if (!stripe) {
+                                    // Fetch payment config to get Stripe public key
+                                    const configResponse = await fetch(getApiUrl() + apiEndpoints.payments.config, {
+                                        credentials: 'include'
+                                    });
+                                    
+                                    if (!configResponse.ok) {
+                                        throw new Error('Failed to fetch payment config');
+                                    }
+                                    
+                                    const config = await configResponse.json();
+                                    if (config.provider !== 'stripe' || !config.public_key) {
+                                        throw new Error('Stripe is not configured or public key is missing');
+                                    }
+                                    
+                                    stripe = await loadStripe(config.public_key);
+                                    if (!stripe) {
+                                        throw new Error('Failed to load Stripe.js');
+                                    }
+                                }
+                                
+                                // Confirm the payment using the client_secret
+                                // For subscriptions, we use confirmPayment with the client_secret directly
+                                const { error, paymentIntent } = await stripe.confirmPayment({
+                                    clientSecret: subscriptionData.client_secret,
+                                    redirect: 'if_required'  // Only redirect if 3D Secure is required
+                                });
+                                
+                                if (error) {
+                                    console.error("[Signup] Payment confirmation failed:", error);
+                                    notificationStore.error(
+                                        `Payment confirmation failed: ${error.message}. The subscription was created but requires payment confirmation. You can complete it later in settings.`,
+                                        10000
+                                    );
+                                    // Subscription is created but not activated - user can complete it later
+                                } else {
+                                    console.debug("[Signup] Payment confirmed successfully:", paymentIntent);
+                                    subscriptionActivated = true;
+                                    notificationStore.success(
+                                        "Auto top-up activated successfully!",
+                                        5000
+                                    );
+                                }
+                            } catch (confirmError) {
+                                console.error("[Signup] Error confirming payment:", confirmError);
+                                const errorMessage = confirmError instanceof Error ? confirmError.message : "Unknown error";
+                                notificationStore.error(
+                                    `Payment confirmation error: ${errorMessage}. The subscription was created but requires payment confirmation. You can complete it later in settings.`,
+                                    10000
+                                );
+                                // Subscription is created but not activated - user can complete it later
+                            }
+                        } else if (subscriptionData.status === 'active') {
+                            // Subscription is already active (payment was automatically processed)
+                            subscriptionActivated = true;
+                            notificationStore.success(
+                                "Auto top-up activated successfully!",
+                                5000
+                            );
+                        } else {
+                            // Subscription created but status is unknown or unexpected
+                            console.warn("[Signup] Subscription created with unexpected status:", subscriptionData.status);
+                            notificationStore.success(
+                                "Subscription created. Please check your settings to verify activation.",
+                                5000
+                            );
+                            subscriptionActivated = true; // Assume success for now
+                        }
                     } else {
                         const errorText = await response.text();
                         console.error("Failed to create subscription:", errorText);
@@ -1089,7 +1156,6 @@
                         );
                         // Still complete signup - user has finished the signup flow
                     }
-                }
             } catch (error) {
                 console.error("Error creating subscription:", error);
                 const errorMessage = error instanceof Error ? error.message : "Unknown error";

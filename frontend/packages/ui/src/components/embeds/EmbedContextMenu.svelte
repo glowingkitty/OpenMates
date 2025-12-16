@@ -1,0 +1,374 @@
+<!--
+  frontend/packages/ui/src/components/embeds/EmbedContextMenu.svelte
+  
+  Context menu for embed previews (code, video, website, etc.)
+  Similar to ChatContextMenu but specifically for embeds.
+  
+  Shows:
+  - 'View' (opens fullscreen)
+  - 'Share' (opens share menu)
+  - All available actions from the embed (Copy, Download, etc.)
+  
+  Works on both mouse (right-click) and touch (long-press).
+-->
+
+<script lang="ts">
+  import { createEventDispatcher, onMount, tick } from 'svelte';
+  // @ts-ignore - @repo/ui module exists at runtime
+  import { text } from '@repo/ui';
+
+  /**
+   * Props interface for embed context menu
+   */
+  interface Props {
+    /** X position of the menu (in pixels) */
+    x?: number;
+    /** Y position of the menu (in pixels) */
+    y?: number;
+    /** Whether to show the menu */
+    show?: boolean;
+    /** Embed type to determine available actions */
+    embedType?: 'code' | 'video' | 'website' | 'pdf' | 'default';
+    /** Whether to show View action (opens fullscreen) */
+    showView?: boolean;
+    /** Whether to show Share action */
+    showShare?: boolean;
+    /** Whether to show Copy action */
+    showCopy?: boolean;
+    /** Whether to show Download action */
+    showDownload?: boolean;
+  }
+
+  let {
+    x = 0,
+    y = 0,
+    show = false,
+    embedType = 'default',
+    showView = true,
+    showShare = true,
+    showCopy = false,
+    showDownload = false
+  }: Props = $props();
+
+  const dispatch: {
+    (e: 'close' | 'view' | 'share' | 'copy' | 'download', detail?: any): void;
+  } = createEventDispatcher();
+
+  let menuElement = $state<HTMLDivElement>();
+  let adjustedX = $state(x);
+  let adjustedY = $state(y);
+  let showBelow = $state(false); // Track whether menu should appear below clicked point
+
+  /**
+   * Calculate menu position to prevent cutoff at viewport edges
+   */
+  function calculatePosition(menuWidth: number, menuHeight: number) {
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+    const padding = 10; // Minimum distance from viewport edges
+    const arrowHeight = 8; // Height of the arrow
+
+    let newX = x;
+    let newY = y;
+    let shouldShowBelow = false;
+
+    // Adjust X if it goes off the right edge
+    if (newX + menuWidth / 2 > viewportWidth - padding) {
+      newX = viewportWidth - menuWidth / 2 - padding;
+    }
+    // Adjust X if it goes off the left edge
+    if (newX - menuWidth / 2 < padding) {
+      newX = menuWidth / 2 + padding;
+    }
+
+    // Check if there's enough space above the clicked point
+    // Menu appears above by default (transform: translate(-50%, -100%))
+    const spaceAbove = y - menuHeight - arrowHeight;
+    
+    if (spaceAbove < padding) {
+      // Not enough space above, show below instead
+      shouldShowBelow = true;
+      // Check if there's enough space below
+      const spaceBelow = viewportHeight - y - menuHeight - arrowHeight;
+      if (spaceBelow < padding) {
+        // Not enough space below either, position at viewport edge
+        if (spaceAbove > spaceBelow) {
+          // More space above, show above but adjust Y
+          shouldShowBelow = false;
+          newY = menuHeight + arrowHeight + padding;
+        } else {
+          // More space below, show below but adjust Y
+          shouldShowBelow = true;
+          newY = viewportHeight - menuHeight - arrowHeight - padding;
+        }
+      }
+    } else {
+      // Enough space above, check if we should still show below for better UX
+      const spaceBelow = viewportHeight - y - menuHeight - arrowHeight;
+      // Only show below if there's significantly more space below
+      if (spaceBelow > spaceAbove + 50) {
+        shouldShowBelow = true;
+      }
+    }
+
+    return { newX, newY, shouldShowBelow };
+  }
+
+  // Adjust positioning to prevent cutoff
+  $effect(() => {
+    if (show) {
+      // First, calculate with estimated dimensions to prevent visual jump
+      const estimatedWidth = 150;
+      const estimatedHeight = 100;
+      const initial = calculatePosition(estimatedWidth, estimatedHeight);
+      adjustedX = initial.newX;
+      adjustedY = initial.newY;
+      showBelow = initial.shouldShowBelow;
+
+      // Then refine with actual dimensions after render
+      requestAnimationFrame(() => {
+        if (!menuElement) return;
+        
+        const menuRect = menuElement.getBoundingClientRect();
+        const actualWidth = menuRect.width || estimatedWidth;
+        const actualHeight = menuRect.height || estimatedHeight;
+        
+        // Only recalculate if dimensions differ significantly
+        if (Math.abs(actualWidth - estimatedWidth) > 20 || Math.abs(actualHeight - estimatedHeight) > 20) {
+          const refined = calculatePosition(actualWidth, actualHeight);
+          adjustedX = refined.newX;
+          adjustedY = refined.newY;
+          showBelow = refined.shouldShowBelow;
+        }
+      });
+    } else {
+      adjustedX = x;
+      adjustedY = y;
+      showBelow = false;
+    }
+  });
+
+  /**
+   * Handle clicking outside the menu
+   */
+  function handleClickOutside(event: MouseEvent | TouchEvent) {
+    if (menuElement && !menuElement.contains(event.target as Node)) {
+      dispatch('close');
+    }
+  }
+
+  /**
+   * Unified handler for both mouse and touch events
+   */
+  function handleMenuAction(action: Parameters<typeof dispatch>[0], event: MouseEvent | TouchEvent) {
+    event.stopPropagation();
+    event.preventDefault();
+
+    console.debug('[EmbedContextMenu] Menu action triggered:', action, 'Event type:', event.type);
+
+    dispatch(action);
+    dispatch('close');
+  }
+
+  /**
+   * Single event handler that works for all input types (iOS-compatible)
+   */
+  function handleButtonClick(action: Parameters<typeof dispatch>[0], event: Event) {
+    event.stopPropagation();
+    event.preventDefault();
+    
+    console.debug('[EmbedContextMenu] Button click handled:', action, 'Event type:', event.type);
+    
+    // Handle the action with appropriate delay for touch events
+    if (event.type === 'touchend') {
+      setTimeout(() => {
+        handleMenuAction(action, event as TouchEvent);
+      }, 10);
+    } else {
+      handleMenuAction(action, event as MouseEvent);
+    }
+  }
+
+  /**
+   * Add scroll handler to close menu on scroll
+   */
+  function handleScroll() {
+    if (show) {
+      dispatch('close');
+    }
+  }
+
+  // Add and remove event listeners
+  onMount(() => {
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('touchstart', handleClickOutside);
+    document.addEventListener('scroll', handleScroll, true);
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+      document.removeEventListener('scroll', handleScroll, true);
+      // Cleanup: remove menu from body if it's still there
+      if (menuElement && menuElement.parentNode === document.body) {
+        document.body.removeChild(menuElement);
+      }
+    };
+  });
+
+  // Render menu at body level to avoid stacking context issues
+  // Move the menu element to document.body when shown to escape any parent stacking contexts
+  $effect(() => {
+    if (show && menuElement) {
+      // Wait for element to be rendered in DOM first, then move to body
+      tick().then(() => {
+        if (menuElement && menuElement.parentNode && menuElement.parentNode !== document.body) {
+          // Move to body to escape stacking context
+          document.body.appendChild(menuElement);
+        }
+      });
+    } else if (!show && menuElement && menuElement.parentNode === document.body) {
+      // Cleanup: remove from body when hidden
+      document.body.removeChild(menuElement);
+    }
+  });
+</script>
+
+{#if show}
+  <div
+    class="menu-container {show ? 'show' : ''} {showBelow ? 'below' : 'above'}"
+    style="--menu-x: {adjustedX}px; --menu-y: {adjustedY}px;"
+    bind:this={menuElement}
+  >
+    <!-- View action - opens fullscreen -->
+    {#if showView}
+      <button
+        class="menu-item view"
+        onclick={(event) => handleButtonClick('view', event)}
+      >
+        <div class="clickable-icon icon_fullscreen"></div>
+        {$text('embeds.context_menu.view.text', { default: 'View' })}
+      </button>
+    {/if}
+
+    <!-- Share action - opens share menu -->
+    {#if showShare}
+      <button
+        class="menu-item share"
+        onclick={(event) => handleButtonClick('share', event)}
+      >
+        <div class="clickable-icon icon_share"></div>
+        {$text('embeds.context_menu.share.text', { default: 'Share' })}
+      </button>
+    {/if}
+
+    <!-- Copy action - copies embed content/URL -->
+    {#if showCopy}
+      <button
+        class="menu-item copy"
+        onclick={(event) => handleButtonClick('copy', event)}
+      >
+        <div class="clickable-icon icon_copy"></div>
+        {$text('embeds.context_menu.copy.text', { default: 'Copy' })}
+      </button>
+    {/if}
+
+    <!-- Download action - downloads embed content -->
+    {#if showDownload}
+      <button
+        class="menu-item download"
+        onclick={(event) => handleButtonClick('download', event)}
+      >
+        <div class="clickable-icon icon_download"></div>
+        {$text('embeds.context_menu.download.text', { default: 'Download' })}
+      </button>
+    {/if}
+  </div>
+{/if}
+
+<style>
+  .menu-container {
+    position: fixed;
+    left: var(--menu-x);
+    top: var(--menu-y);
+    background: var(--color-grey-blue);
+    border-radius: 12px;
+    padding: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    z-index: 99999; /* Very high z-index to ensure it's above everything */
+    isolation: isolate; /* Create new stacking context */
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease-in-out;
+    min-width: 120px;
+  }
+
+  /* Position menu above clicked point (default) */
+  .menu-container.above {
+    transform: translate(-50%, -100%);
+  }
+
+  /* Position menu below clicked point */
+  .menu-container.below {
+    transform: translate(-50%, 0);
+  }
+
+  .menu-container.show {
+    opacity: 1;
+    pointer-events: all;
+  }
+
+  /* Arrow pointing down (when menu is above clicked point) */
+  .menu-container.above::after {
+    content: '';
+    position: absolute;
+    bottom: -8px;
+    left: 50%;
+    transform: translateX(-50%);
+    border-left: 8px solid transparent;
+    border-right: 8px solid transparent;
+    border-top: 8px solid var(--color-grey-blue);
+  }
+
+  /* Arrow pointing up (when menu is below clicked point) */
+  .menu-container.below::after {
+    content: '';
+    position: absolute;
+    top: -8px;
+    left: 50%;
+    transform: translateX(-50%);
+    border-left: 8px solid transparent;
+    border-right: 8px solid transparent;
+    border-bottom: 8px solid var(--color-grey-blue);
+  }
+
+  .menu-item {
+    all: unset;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 16px;
+    border-radius: 25px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    width: 100%;
+    box-sizing: border-box;
+    /* iOS-specific touch improvements */
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+    /* Ensure proper touch target size for iOS */
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  .menu-item:hover {
+    background-color: var(--color-grey-20);
+  }
+
+  /* iOS touch feedback */
+  .menu-item:active {
+    background-color: var(--color-grey-20);
+    transform: scale(0.98);
+  }
+</style>

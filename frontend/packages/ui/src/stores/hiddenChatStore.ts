@@ -32,7 +32,7 @@ function createHiddenChatStore() {
 
     /**
      * Initialize store - ensure hidden chats are locked on page reload
-     * For security, hidden chats must be explicitly unlocked by entering the passcode
+     * For security, hidden chats must be explicitly unlocked by entering the password
      * after each page reload. The combined secret is stored in volatile memory only
      * and does not survive page reloads.
      */
@@ -43,25 +43,25 @@ function createHiddenChatStore() {
 
         // CRITICAL: Always start in locked state on page reload for security
         // The combined secret is stored in volatile memory only and is automatically cleared on page reload
-        // User must explicitly unlock by entering the passcode after each page reload
-        // Note: The code may still be in sessionStorage for convenience, but we don't auto-unlock with it
+        // User must explicitly unlock by entering the password after each page reload
+        // Note: The password may still be in sessionStorage for convenience, but we don't auto-unlock with it
 
         // Start lockout check interval
         startLockoutCheckInterval();
     }
 
     /**
-     * Unlock hidden chats with a code
-     * Tries to decrypt all hidden chats with the entered code.
+     * Unlock hidden chats with a password
+     * Tries to decrypt all hidden chats with the entered password.
      * Returns success status and count of decrypted chats.
      * 
-     * @param code - 4-6 digit code entered by user
-     * @param verifiedEncryptedChatKey - Optional: If provided, verify this encrypted chat key can be decrypted with the code
+     * @param password - Password (4-30 characters) entered by user
+     * @param verifiedEncryptedChatKey - Optional: If provided, verify this encrypted chat key can be decrypted with the password
      * @returns Promise<{ success: boolean; decryptedCount: number }> - Success status and count of decrypted chats
      */
-    async function unlockHiddenChats(code: string, verifiedEncryptedChatKey?: string): Promise<{ success: boolean; decryptedCount: number }> {
+    async function unlockHiddenChats(password: string, verifiedEncryptedChatKey?: string): Promise<{ success: boolean; decryptedCount: number }> {
         try {
-            const result = await hiddenChatService.unlockHiddenChats(code, verifiedEncryptedChatKey);
+            const result = await hiddenChatService.unlockHiddenChats(password, verifiedEncryptedChatKey);
             if (result.success) {
                 update(state => ({
                     ...state,
@@ -199,7 +199,7 @@ function createHiddenChatStore() {
         subscribe,
 
         /**
-         * Unlock hidden chats with a code
+         * Unlock hidden chats with a password
          */
         unlock: unlockHiddenChats,
 

@@ -1066,7 +1066,7 @@
       const { hiddenChatStore } = await import('../../stores/hiddenChatStore');
       const { hiddenChatService } = await import('../../services/hiddenChatService');
       
-      // If hidden chats are locked, prompt for passcode first
+      // If hidden chats are locked, prompt for password first
       if (!hiddenChatService.isUnlocked()) {
         // Dispatch event to show overscroll unlock interface for hiding
         window.dispatchEvent(new CustomEvent('showOverscrollUnlockForHide', { 

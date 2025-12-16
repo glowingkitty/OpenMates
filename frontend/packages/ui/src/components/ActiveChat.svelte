@@ -2314,6 +2314,24 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 return;
             }
             
+            // CRITICAL: Close settings menu if it's open to prevent grey overlay from persisting
+            // This ensures the dimmed class is removed from .active-chat-container on mobile
+            // The Settings component's effect will remove the dimmed class when settingsMenuVisible is set to false
+            settingsMenuVisible.set(false);
+            panelState.closeSettings();
+            
+            // CRITICAL: Explicitly remove dimmed class as a defensive measure
+            // This ensures the grey overlay is removed even if Settings component's effect hasn't run yet
+            if (typeof window !== 'undefined') {
+                const activeChatContainer = document.querySelector('.active-chat-container');
+                if (activeChatContainer) {
+                    activeChatContainer.classList.remove('dimmed');
+                    console.debug("[ActiveChat] Explicitly removed dimmed class from .active-chat-container");
+                }
+            }
+            
+            console.debug("[ActiveChat] Closed settings menu when closing login interface");
+            
             // CRITICAL FIX: Clear pending draft from sessionStorage when user leaves login process
             // This ensures the draft doesn't get restored if user clicks "Demo" to go back
             try {
@@ -2584,6 +2602,97 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             handleNewChatClick();
         };
         window.addEventListener('triggerNewChat', handleTriggerNewChat);
+        
+        // Listen for hiddenChatsLocked and hiddenChatsAutoLocked events - if current chat is hidden, close it and show new chat window
+        // This handler works for both manual lock and auto-lock (after inactivity)
+        const handleHiddenChatsLocked = async () => {
+            // Add a small delay to ensure the lock operation has completed
+            await tick();
+            
+            if (!currentChat) {
+                console.debug('[ActiveChat] Hidden chats locked but no current chat - no action needed');
+                return;
+            }
+            
+            const chatId = currentChat.chat_id;
+            
+            // Skip for public chats (demo/legal) and incognito chats - they can't be hidden
+            if (isPublicChat(chatId) || currentChat.is_incognito) {
+                console.debug('[ActiveChat] Hidden chats locked but current chat is public/incognito - no action needed');
+                return;
+            }
+            
+            // Check if current chat is marked as hidden (property might be set)
+            const chatIsHidden = (currentChat as any).is_hidden === true;
+            
+            // If chat is explicitly marked as hidden, close it immediately
+            if (chatIsHidden) {
+                console.debug('[ActiveChat] Hidden chats locked and current chat is marked as hidden - closing chat and showing new chat window', {
+                    chatId: chatId
+                });
+                await handleNewChatClick();
+                return;
+            }
+            
+            // Refresh chat from database to get updated state (is_hidden might be set during decryption)
+            if ($authStore.isAuthenticated && currentChat.encrypted_chat_key) {
+                try {
+                    const freshChat = await chatDB.getChat(chatId);
+                    if (freshChat && (freshChat as any).is_hidden === true) {
+                        console.debug('[ActiveChat] Hidden chats locked and fresh chat from DB is marked as hidden - closing chat and showing new chat window', {
+                            chatId: chatId
+                        });
+                        await handleNewChatClick();
+                        return;
+                    }
+                } catch (error) {
+                    console.debug('[ActiveChat] Error refreshing chat from DB to check hidden status:', error);
+                }
+            }
+            
+            // Also check if the chat has an encrypted_chat_key and verify if it can be decrypted with master key
+            // If it can't be decrypted with master key and hidden chats are locked, it's a hidden chat
+            if (currentChat.encrypted_chat_key && $authStore.isAuthenticated) {
+                try {
+                    const { hiddenChatService } = await import('../services/hiddenChatService');
+                    const { decryptChatKeyWithMasterKey } = await import('../services/cryptoService');
+                    
+                    // Verify hidden chats are actually locked (double-check)
+                    if (!hiddenChatService.isUnlocked()) {
+                        // Try to decrypt with master key - if it fails, it's a hidden chat
+                        try {
+                            const masterKeyDecrypt = await decryptChatKeyWithMasterKey(currentChat.encrypted_chat_key);
+                            if (!masterKeyDecrypt) {
+                                // Can't decrypt with master key and hidden chats are locked - this is a hidden chat
+                                console.debug('[ActiveChat] Hidden chats locked and current chat cannot be decrypted with master key - closing chat and showing new chat window', {
+                                    chatId: chatId
+                                });
+                                await handleNewChatClick();
+                                return;
+                            }
+                        } catch (decryptError) {
+                            // Decryption with master key failed - this is likely a hidden chat
+                            console.debug('[ActiveChat] Hidden chats locked and current chat decryption with master key failed - closing chat and showing new chat window', {
+                                chatId: chatId,
+                                error: decryptError
+                            });
+                            await handleNewChatClick();
+                            return;
+                        }
+                    }
+                } catch (error) {
+                    console.warn('[ActiveChat] Error checking if chat requires hidden key:', error);
+                }
+            }
+            
+            // If we get here, the chat is not hidden or can be decrypted with master key
+            console.debug('[ActiveChat] Hidden chats locked but current chat is not hidden - no action needed', {
+                chatId: chatId,
+                is_hidden: chatIsHidden
+            });
+        };
+        window.addEventListener('hiddenChatsLocked', handleHiddenChatsLocked);
+        window.addEventListener('hiddenChatsAutoLocked', handleHiddenChatsLocked);
         
         // Add language change listener to reload public chats (demo + legal) when language changes
         const handleLanguageChange = async () => {
@@ -2919,6 +3028,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 window.removeEventListener('userLoggingOut', handleLogoutEvent as EventListener);
             }
             window.removeEventListener('triggerNewChat', handleTriggerNewChat as EventListener);
+            window.removeEventListener('hiddenChatsLocked', handleHiddenChatsLocked as EventListener);
+            window.removeEventListener('hiddenChatsAutoLocked', handleHiddenChatsLocked as EventListener);
         };
     });
 

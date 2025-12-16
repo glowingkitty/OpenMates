@@ -101,6 +101,7 @@ class CreateSubscriptionResponse(BaseModel):
     subscription_id: str
     status: str
     next_billing_date: str
+    client_secret: Optional[str] = None  # Required when status is 'incomplete' for payment confirmation
 
 class RedeemGiftCardRequest(BaseModel):
     code: str
@@ -145,6 +146,7 @@ class BuyGiftCardRequest(BaseModel):
     credits_amount: int
     currency: str
     email_encryption_key: Optional[str] = None
+    payment_method_id: Optional[str] = None  # Optional saved payment method ID
 
 class BuyGiftCardResponse(BaseModel):
     provider: str
@@ -172,6 +174,7 @@ class PurchasedGiftCardsListResponse(BaseModel):
 
 class RefundRequest(BaseModel):
     invoice_id: str
+    email_encryption_key: Optional[str] = None  # Client-provided key for zero-knowledge email decryption
 
 class RefundResponse(BaseModel):
     success: bool
@@ -179,6 +182,33 @@ class RefundResponse(BaseModel):
     refund_amount: Optional[float] = None
     unused_credits: Optional[int] = None
     total_credits: Optional[int] = None
+
+class PaymentMethodCard(BaseModel):
+    brand: str
+    last4: str
+    exp_month: int
+    exp_year: int
+
+class PaymentMethodInfo(BaseModel):
+    id: str
+    type: str
+    card: PaymentMethodCard
+    created: int
+
+class ListPaymentMethodsResponse(BaseModel):
+    payment_methods: List[PaymentMethodInfo]
+
+class ProcessPaymentWithSavedMethodRequest(BaseModel):
+    payment_method_id: str
+    credits_amount: int
+    currency: str
+    email_encryption_key: Optional[str] = None
+
+class ProcessPaymentWithSavedMethodResponse(BaseModel):
+    success: bool
+    order_id: str
+    client_secret: Optional[str] = None
+    message: Optional[str] = None
 
 PRICING_CONFIG_PATH = Path("/shared/config/pricing.yml")
 PRICING_TIERS = []
@@ -379,22 +409,34 @@ async def create_payment_order(
             customer_id=stripe_customer_id  # Pass existing customer ID if available
         )
         
-        # If a new customer was created, save it to the user profile
-        # The create_order method will return the customer_id in the response if it was created
-        # We need to check if we got a new customer ID and save it
-        if order_response and order_response.get('customer_id') and not stripe_customer_id:
-            new_customer_id = order_response.get('customer_id')
-            logger.info(f"New Stripe customer {new_customer_id} created for user {current_user.id}, saving to profile")
-            # Save customer ID to user profile (cache-first strategy)
-            await directus_service.update_user(
-                current_user.id,
-                {"stripe_customer_id": new_customer_id}
-            )
-            # Also update cache
-            try:
-                await cache_service.update_user(current_user.id, {"stripe_customer_id": new_customer_id})
-            except Exception as cache_error:
-                logger.warning(f"Failed to update cache with customer ID: {cache_error}")
+        # CRITICAL: Always save the customer_id if user doesn't have one in their profile
+        # The create_order method always returns customer_id (either existing or newly created)
+        # If the user profile doesn't have stripe_customer_id, we must save it so future payments can use it
+        # This is essential for the payment method listing feature to work
+        if order_response and order_response.get('customer_id'):
+            returned_customer_id = order_response.get('customer_id')
+            
+            # Only save if user doesn't have one OR if it's different (shouldn't happen, but handle edge case)
+            if not stripe_customer_id or stripe_customer_id != returned_customer_id:
+                if not stripe_customer_id:
+                    logger.info(f"User {current_user.id} has no Stripe customer ID. Saving customer {returned_customer_id} from order response.")
+                else:
+                    logger.warning(f"User {current_user.id} has different customer ID ({stripe_customer_id}) than returned ({returned_customer_id}). Updating to returned ID.")
+                
+                # Save customer ID to user profile (cache-first strategy)
+                # This ensures the customer ID is persisted even if it was created in a previous session
+                await directus_service.update_user(
+                    current_user.id,
+                    {"stripe_customer_id": returned_customer_id}
+                )
+                # Also update cache
+                try:
+                    await cache_service.update_user(current_user.id, {"stripe_customer_id": returned_customer_id})
+                    logger.info(f"Successfully saved Stripe customer {returned_customer_id} to cache for user {current_user.id}")
+                except Exception as cache_error:
+                    logger.warning(f"Failed to update cache with customer ID: {cache_error}")
+            else:
+                logger.debug(f"User {current_user.id} already has correct Stripe customer ID: {stripe_customer_id}")
 
         if not order_response:
             logger.error(f"Failed to create order with {payment_service.provider_name} for user {current_user.id}.")
@@ -1484,6 +1526,8 @@ async def create_subscription(
             )
         
         # Create subscription
+        # CRITICAL: Pass the payment method ID explicitly to ensure Stripe uses it for the first invoice.
+        # Without this, the subscription may be created with status 'incomplete' without a client_secret.
         subscription_result = await payment_service.provider.create_subscription(
             customer_id=customer_id,
             price_id=price_id,
@@ -1491,7 +1535,8 @@ async def create_subscription(
                 "user_id": current_user.id,
                 "credits_amount": str(subscription_data.credits_amount),
                 "bonus_credits": str(tier_info['bonus_credits'])
-            }
+            },
+            default_payment_method=payment_method_id  # CRITICAL: Explicitly pass payment method
         )
         
         if not subscription_result:
@@ -1528,12 +1573,41 @@ async def create_subscription(
             # Subscription created but failed to save - log error but don't fail
             logger.error(f"Subscription {subscription_result['subscription_id']} created but failed to save to Directus for user {current_user.id}")
         
-        logger.info(f"Successfully created subscription {subscription_result['subscription_id']} for user {current_user.id}")
+        # CRITICAL: After updating user cache via directus_service, also update cache_service's user cache
+        # This ensures get_current_user -> get_user_by_id returns the updated subscription data
+        # The cache_service.update_user method updates the user_id-based cache
+        try:
+            await cache_service.update_user(current_user.id, update_payload)
+            logger.debug(f"Updated cache_service user cache for user {current_user.id} with subscription data")
+        except Exception as cache_update_error:
+            logger.warning(f"Failed to update cache_service user cache for user {current_user.id}: {cache_update_error}")
+            # Don't fail the request - directus_service.update_user already updated its cache
+        
+        # CRITICAL: Log subscription status and whether payment confirmation is required
+        subscription_status = subscription_result['status']
+        client_secret = subscription_result.get('client_secret')
+        
+        if subscription_status == 'incomplete' and client_secret:
+            logger.info(
+                f"Subscription {subscription_result['subscription_id']} created with status 'incomplete' for user {current_user.id}. "
+                f"Payment confirmation required using client_secret."
+            )
+        elif subscription_status == 'incomplete' and not client_secret:
+            logger.warning(
+                f"Subscription {subscription_result['subscription_id']} created with status 'incomplete' but no client_secret found "
+                f"for user {current_user.id}. Payment confirmation may fail."
+            )
+        else:
+            logger.info(
+                f"Successfully created subscription {subscription_result['subscription_id']} with status '{subscription_status}' "
+                f"for user {current_user.id}"
+            )
         
         return CreateSubscriptionResponse(
             subscription_id=subscription_result['subscription_id'],
             status=subscription_result['status'],
-            next_billing_date=next_billing_date
+            next_billing_date=next_billing_date,
+            client_secret=client_secret  # Required for payment confirmation when status is 'incomplete'
         )
         
     except HTTPException as e:
@@ -1630,13 +1704,210 @@ async def has_payment_method(
     logger.info(f"Payment method check result for user {current_user.id}: {has_payment_method}")
     return HasPaymentMethodResponse(has_payment_method=has_payment_method)
 
+@router.get("/payment-methods", response_model=ListPaymentMethodsResponse)
+@limiter.limit("30/minute")  # Less sensitive read operation
+async def list_payment_methods(
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    payment_service: PaymentService = Depends(get_payment_service),
+    encryption_service: EncryptionService = Depends(get_encryption_service)
+):
+    """
+    List all payment methods saved for the current user.
+    Returns list of payment methods from Stripe customer.
+    """
+    logger.info(f"Listing payment methods for user {current_user.id}")
+    
+    try:
+        # Check if user has a Stripe customer ID
+        if not current_user.stripe_customer_id:
+            logger.info(f"User {current_user.id} has no Stripe customer ID - returning empty list")
+            return ListPaymentMethodsResponse(payment_methods=[])
+        
+        # Check if payment provider is Stripe
+        if payment_service.provider_name != "stripe":
+            raise HTTPException(status_code=400, detail="Payment methods only supported with Stripe")
+        
+        # List payment methods from Stripe
+        payment_methods = await payment_service.provider.list_payment_methods(
+            current_user.stripe_customer_id
+        )
+        
+        logger.info(f"Found {len(payment_methods)} payment methods for user {current_user.id}")
+        return ListPaymentMethodsResponse(payment_methods=payment_methods)
+        
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        logger.error(f"Error listing payment methods for user {current_user.id}: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+class UserAuthMethodsResponse(BaseModel):
+    has_passkey: bool
+    has_2fa: bool
+
+@router.get("/user-auth-methods", response_model=UserAuthMethodsResponse)
+@limiter.limit("30/minute")  # Less sensitive read operation
+async def get_user_auth_methods(
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    directus_service: DirectusService = Depends(get_directus_service)
+):
+    """
+    Check what authentication methods are available for the user.
+    Returns whether user has passkey and/or 2FA configured.
+    """
+    logger.info(f"Checking authentication methods for user {current_user.id}")
+    
+    try:
+        # Check for passkeys
+        has_passkey = False
+        try:
+            passkeys = await directus_service.get_user_passkeys_by_user_id(current_user.id)
+            has_passkey = len(passkeys) > 0
+        except Exception as e:
+            logger.warning(f"Error checking passkeys for user {current_user.id}: {e}")
+        
+        # Check for 2FA - verify encrypted_tfa_secret exists
+        has_2fa = False
+        try:
+            user_fields = await directus_service.get_user_fields_direct(current_user.id, ["encrypted_tfa_secret"])
+            has_2fa = bool(user_fields and user_fields.get("encrypted_tfa_secret"))
+        except Exception as e:
+            logger.warning(f"Error checking 2FA for user {current_user.id}: {e}")
+        
+        logger.info(f"User {current_user.id} auth methods - passkey: {has_passkey}, 2FA: {has_2fa}")
+        return UserAuthMethodsResponse(has_passkey=has_passkey, has_2fa=has_2fa)
+        
+    except Exception as e:
+        logger.error(f"Error checking auth methods for user {current_user.id}: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@router.post("/process-payment-with-saved-method", response_model=ProcessPaymentWithSavedMethodResponse)
+@limiter.limit("5/minute")  # Sensitive operation - prevent abuse
+async def process_payment_with_saved_method(
+    request: Request,
+    payment_request: ProcessPaymentWithSavedMethodRequest,
+    current_user: User = Depends(get_current_user),
+    payment_service: PaymentService = Depends(get_payment_service),
+    encryption_service: EncryptionService = Depends(get_encryption_service),
+    cache_service: CacheService = Depends(get_cache_service),
+    directus_service: DirectusService = Depends(get_directus_service),
+    tier_service: PaymentTierService = Depends(get_payment_tier_service)
+):
+    """
+    Process a payment using a saved payment method.
+    Requires user to be authenticated (authentication should be done in frontend before calling this endpoint).
+    """
+    logger.info(f"Processing payment with saved method for user {current_user.id}")
+    
+    try:
+        # Check if user has a Stripe customer ID
+        if not current_user.stripe_customer_id:
+            raise HTTPException(status_code=400, detail="No Stripe customer found. Please add a payment method first.")
+        
+        # Verify payment method belongs to user's customer
+        if payment_service.provider_name != "stripe":
+            raise HTTPException(status_code=400, detail="Saved payment methods only supported with Stripe")
+        
+        # Verify payment method exists and belongs to customer
+        try:
+            # Import stripe here to avoid circular imports
+            import stripe as stripe_lib
+            payment_method = stripe_lib.PaymentMethod.retrieve(payment_request.payment_method_id)
+            if payment_method.customer != current_user.stripe_customer_id:
+                logger.warning(f"Payment method {payment_request.payment_method_id} does not belong to user {current_user.id}")
+                raise HTTPException(status_code=403, detail="Payment method does not belong to your account")
+        except stripe.error.StripeError as e:
+            logger.error(f"Error verifying payment method: {e.user_message}")
+            raise HTTPException(status_code=400, detail="Invalid payment method")
+        
+        # Calculate amount
+        calculated_amount = get_price_for_credits(payment_request.credits_amount, payment_request.currency)
+        if calculated_amount is None:
+            logger.error(f"Could not determine price for {payment_request.credits_amount} credits in {payment_request.currency}")
+            raise HTTPException(status_code=400, detail="Invalid credit amount or currency combination")
+        
+        # Check tier limits
+        currency_lower = payment_request.currency.lower()
+        if currency_lower in ['eur', 'usd', 'gbp']:
+            purchase_amount_for_tier = calculated_amount / 100.0
+        else:
+            purchase_amount_for_tier = float(calculated_amount)
+        
+        is_allowed, error_message, current_tier, current_spending = await tier_service.check_tier_limit(
+            user_id=current_user.id,
+            purchase_amount=purchase_amount_for_tier,
+            currency=payment_request.currency
+        )
+        
+        if not is_allowed:
+            logger.warning(f"Tier limit check failed for user {current_user.id}: {error_message}")
+            raise HTTPException(status_code=403, detail=error_message)
+        
+        # Get user email
+        if not current_user.encrypted_email_address:
+            logger.error(f"Missing encrypted_email_address for user {current_user.id}")
+            raise HTTPException(status_code=500, detail="User email information unavailable.")
+        
+        if not payment_request.email_encryption_key:
+            logger.error(f"Missing email_encryption_key in request for user {current_user.id}")
+            raise HTTPException(status_code=400, detail="Email encryption key is required")
+        
+        try:
+            decrypted_email = await encryption_service.decrypt_with_email_key(
+                current_user.encrypted_email_address,
+                payment_request.email_encryption_key
+            )
+            
+            if not decrypted_email:
+                logger.error(f"Failed to decrypt email with provided key for user {current_user.id}")
+                raise HTTPException(status_code=400, detail="Invalid email encryption key")
+        except Exception as e:
+            logger.error(f"Error decrypting email for user {current_user.id}: {str(e)}")
+            raise HTTPException(status_code=500, detail="Failed to decrypt user email")
+        
+        # Create PaymentIntent with saved payment method
+        order_result = await payment_service.provider.create_order_with_payment_method(
+            amount=calculated_amount,
+            currency=payment_request.currency,
+            email=decrypted_email,
+            credits_amount=payment_request.credits_amount,
+            customer_id=current_user.stripe_customer_id,
+            payment_method_id=payment_request.payment_method_id
+        )
+        
+        if not order_result:
+            logger.error(f"Failed to create PaymentIntent with saved payment method for user {current_user.id}")
+            raise HTTPException(status_code=500, detail="Failed to create payment order")
+        
+        # Generate order ID (use PaymentIntent ID)
+        order_id = order_result.get("id")
+        client_secret = order_result.get("client_secret")
+        
+        logger.info(f"Created PaymentIntent {order_id} with saved payment method for user {current_user.id}")
+        
+        return ProcessPaymentWithSavedMethodResponse(
+            success=True,
+            order_id=order_id,
+            client_secret=client_secret,
+            message="Payment order created successfully"
+        )
+        
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        logger.error(f"Error processing payment with saved method for user {current_user.id}: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
+
 @router.post("/cancel-subscription", response_model=CancelSubscriptionResponse)
 @limiter.limit("5/minute")  # Sensitive operation - prevent abuse
 async def cancel_subscription(
     request: Request,
     current_user: User = Depends(get_current_user),
     payment_service: PaymentService = Depends(get_payment_service),
-    directus_service: DirectusService = Depends(get_directus_service)
+    directus_service: DirectusService = Depends(get_directus_service),
+    cache_service: CacheService = Depends(get_cache_service)
 ):
     """
     Cancel the user's active subscription at the end of the current billing period.
@@ -1665,6 +1936,16 @@ async def cancel_subscription(
         }
         
         await directus_service.update_user(current_user.id, update_payload)
+        
+        # CRITICAL: After updating user cache via directus_service, also update cache_service's user cache
+        # This ensures get_current_user -> get_user_by_id returns the updated subscription status
+        # The cache_service.update_user method updates the user_id-based cache
+        try:
+            await cache_service.update_user(current_user.id, update_payload)
+            logger.debug(f"Updated cache_service user cache for user {current_user.id} with canceled subscription status")
+        except Exception as cache_update_error:
+            logger.warning(f"Failed to update cache_service user cache for user {current_user.id}: {cache_update_error}")
+            # Don't fail the request - directus_service.update_user already updated its cache
         
         logger.info(f"Successfully canceled subscription for user {current_user.id}")
         
@@ -1928,13 +2209,40 @@ async def buy_gift_card(
             logger.error(f"Error decrypting email for user {user_id}: {str(e)}")
             raise HTTPException(status_code=500, detail="Failed to decrypt user email")
         
-        # Create payment order
-        order_response = await payment_service.create_order(
-            amount=calculated_amount,
-            currency=gift_card_request.currency,
-            email=decrypted_email,
-            credits_amount=gift_card_request.credits_amount
-        )
+        # Create payment order - use saved payment method if provided
+        if gift_card_request.payment_method_id and current_user.stripe_customer_id:
+            # Use saved payment method
+            if payment_service.provider_name != "stripe":
+                raise HTTPException(status_code=400, detail="Saved payment methods only supported with Stripe")
+            
+            # Verify payment method belongs to customer
+            try:
+                import stripe as stripe_lib
+                payment_method = stripe_lib.PaymentMethod.retrieve(gift_card_request.payment_method_id)
+                if payment_method.customer != current_user.stripe_customer_id:
+                    logger.warning(f"Payment method {gift_card_request.payment_method_id} does not belong to user {user_id}")
+                    raise HTTPException(status_code=403, detail="Payment method does not belong to your account")
+            except stripe_lib.error.StripeError as e:
+                logger.error(f"Error verifying payment method: {e.user_message}")
+                raise HTTPException(status_code=400, detail="Invalid payment method")
+            
+            # Create order with saved payment method
+            order_response = await payment_service.provider.create_order_with_payment_method(
+                amount=calculated_amount,
+                currency=gift_card_request.currency,
+                email=decrypted_email,
+                credits_amount=gift_card_request.credits_amount,
+                customer_id=current_user.stripe_customer_id,
+                payment_method_id=gift_card_request.payment_method_id
+            )
+        else:
+            # Create regular payment order
+            order_response = await payment_service.create_order(
+                amount=calculated_amount,
+                currency=gift_card_request.currency,
+                email=decrypted_email,
+                credits_amount=gift_card_request.credits_amount
+            )
         
         if not order_response:
             logger.error(f"Failed to create order with {payment_service.provider_name} for user {user_id}.")
@@ -2454,6 +2762,201 @@ async def download_invoice(
         logger.error(f"Error downloading invoice {invoice_id} for user {current_user.id}: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error")
 
+@router.get("/invoices/{invoice_id}/credit-note/download")
+@limiter.limit("30/minute")  # Prevent abuse of credit note downloads
+async def download_credit_note(
+    request: Request,
+    invoice_id: str,
+    current_user: User = Depends(get_current_user),
+    directus_service: DirectusService = Depends(get_directus_service),
+    encryption_service: EncryptionService = Depends(get_encryption_service),
+    s3_service: S3UploadService = Depends(get_s3_service)
+):
+    """
+    Download the credit note PDF for a refunded invoice.
+    Returns the decrypted PDF file as a streaming response.
+    """
+    logger.info(f"Downloading credit note for invoice {invoice_id} for user {current_user.id}")
+
+    try:
+        # Create user ID hash for lookup
+        user_id_hash = hashlib.sha256(current_user.id.encode()).hexdigest()
+
+        # First, verify the invoice exists and belongs to the user
+        invoice_data = await directus_service.get_items(
+            collection="invoices",
+            params={
+                "filter": {
+                    "id": {"_eq": invoice_id},
+                    "user_id_hash": {"_eq": user_id_hash}
+                }
+            }
+        )
+
+        if not invoice_data or len(invoice_data) == 0:
+            logger.warning(f"Invoice {invoice_id} not found for user {current_user.id}")
+            raise HTTPException(status_code=404, detail="Invoice not found")
+
+        invoice = invoice_data[0]
+        
+        # Check if invoice is actually refunded
+        refund_status = invoice.get("refund_status", "none")
+        if refund_status != "completed" and invoice.get("refunded_at") is None:
+            logger.warning(f"Invoice {invoice_id} is not refunded, cannot download credit note")
+            raise HTTPException(status_code=400, detail="Invoice is not refunded")
+
+        # Get credit note by invoice_id
+        credit_note_data = await directus_service.get_items(
+            collection="credit_notes",
+            params={
+                "filter": {
+                    "invoice_id": {"_eq": invoice_id},
+                    "user_id_hash": {"_eq": user_id_hash}
+                }
+            }
+        )
+
+        if not credit_note_data or len(credit_note_data) == 0:
+            logger.warning(f"Credit note not found for invoice {invoice_id} and user {current_user.id}")
+            raise HTTPException(status_code=404, detail="Credit note not found")
+
+        credit_note = credit_note_data[0]
+        vault_key_id = current_user.vault_key_id
+        if not vault_key_id:
+            logger.error(f"Vault key ID missing for user {current_user.id}")
+            raise HTTPException(status_code=500, detail="User encryption key not found")
+
+        # Decrypt the S3 object key and AES key (required for download)
+        s3_object_key = await encryption_service.decrypt_with_user_key(
+            credit_note["encrypted_s3_object_key"],
+            vault_key_id
+        )
+
+        aes_key = await encryption_service.decrypt_with_user_key(
+            credit_note["encrypted_aes_key"],
+            vault_key_id
+        )
+
+        # Check if critical fields decrypted successfully
+        if not s3_object_key or not aes_key:
+            logger.error(f"Failed to decrypt credit note access data for invoice {invoice_id}")
+            raise HTTPException(status_code=500, detail="Failed to decrypt credit note data")
+
+        # Handle filename - decrypt from encrypted_filename field
+        filename = None
+        if "encrypted_filename" in credit_note and credit_note.get("encrypted_filename"):
+            filename = await encryption_service.decrypt_with_user_key(
+                credit_note["encrypted_filename"],
+                vault_key_id
+            )
+
+        # If filename is missing or decryption failed, generate from credit note number
+        if not filename:
+            credit_note_number = credit_note.get("credit_note_number", "CN-UNKNOWN")
+            # Get date from credit note to match credit note filename format
+            credit_note_date = credit_note.get("date")
+            date_str_filename = None
+            if credit_note_date:
+                try:
+                    parsed_date = datetime.fromisoformat(credit_note_date.replace('Z', '+00:00'))
+                    date_str_filename = parsed_date.strftime("%Y_%m_%d")
+                except Exception as date_parse_error:
+                    logger.warning(
+                        f"Failed to parse credit note date for invoice {invoice_id}: {credit_note_date}. "
+                        f"Error: {date_parse_error}. Using fallback."
+                    )
+            
+            if date_str_filename:
+                # Credit note filename format: openmates_credit_note_{date}_{CN-invoice_number}.pdf
+                # Example: openmates_credit_note_2025_12_16_CN-MRRUNHO-1.pdf
+                filename = f"openmates_credit_note_{date_str_filename}_{credit_note_number}.pdf"
+            else:
+                # Fallback if date parsing fails
+                filename = f"openmates_credit_note_{credit_note_number}.pdf"
+            
+            logger.info(
+                f"Credit note for invoice {invoice_id} missing or failed to decrypt filename. "
+                f"Generated filename from credit note number: {filename}."
+            )
+
+        aes_nonce = credit_note["aes_nonce"]
+
+        # Get the correct bucket name based on environment (dev vs production)
+        # Credit notes are stored in the same bucket as invoices
+        bucket_name = get_bucket_name('invoices', os.getenv('SERVER_ENVIRONMENT', 'development'))
+        logger.debug(f"Using bucket '{bucket_name}' for credit note download (environment: {os.getenv('SERVER_ENVIRONMENT', 'development')})")
+
+        # Download encrypted file from S3
+        try:
+            encrypted_pdf_data = await s3_service.get_file(
+                bucket_name=bucket_name,
+                object_key=s3_object_key
+            )
+        except HTTPException as e:
+            logger.error(
+                f"Failed to download credit note file from S3 for invoice {invoice_id}: "
+                f"bucket={bucket_name}, key={s3_object_key}, error={e.detail}"
+            )
+            raise HTTPException(
+                status_code=e.status_code,
+                detail=f"Failed to retrieve credit note file: {e.detail}"
+            )
+
+        # Check if file was found
+        if not encrypted_pdf_data:
+            logger.error(
+                f"Credit note file not found in S3 for invoice {invoice_id}: "
+                f"bucket={bucket_name}, key={s3_object_key}"
+            )
+            raise HTTPException(
+                status_code=404,
+                detail=f"Credit note file not found in storage"
+            )
+
+        # Decrypt the PDF content using AES
+        from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+        from cryptography.hazmat.backends import default_backend
+        import base64
+
+        # Decode the base64 encoded AES key and nonce
+        aes_key_bytes = base64.b64decode(aes_key)
+        nonce_bytes = base64.b64decode(aes_nonce)
+
+        # Create cipher and decrypt
+        cipher = Cipher(
+            algorithms.AES(aes_key_bytes),
+            modes.GCM(nonce_bytes),
+            backend=default_backend()
+        )
+        decryptor = cipher.decryptor()
+
+        # The encrypted data includes the GCM tag at the end
+        encrypted_content = encrypted_pdf_data[:-16]  # All but last 16 bytes
+        tag = encrypted_pdf_data[-16:]  # Last 16 bytes is the tag
+
+        decryptor.authenticate_additional_data(b"")
+        decrypted_pdf_content = decryptor.update(encrypted_content) + decryptor.finalize_with_tag(tag)
+
+        logger.info(f"Successfully decrypted credit note for invoice {invoice_id} for user {current_user.id}")
+
+        # Return the PDF as a streaming response
+        from io import BytesIO
+        pdf_stream = BytesIO(decrypted_pdf_content)
+
+        return StreamingResponse(
+            pdf_stream,
+            media_type="application/pdf",
+            headers={
+                "Content-Disposition": f'attachment; filename="{filename}"'
+            }
+        )
+
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        logger.error(f"Error downloading credit note for invoice {invoice_id} for user {current_user.id}: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
+
 @router.post("/refund", response_model=RefundResponse)
 @limiter.limit("5/minute")  # Sensitive endpoint - prevent abuse
 async def request_refund(
@@ -2476,6 +2979,11 @@ async def request_refund(
     client_ip = _extract_client_ip(request.headers, request.client.host if request.client else None)
     
     logger.info(f"Refund request for invoice {invoice_id} by user {user_id}")
+    
+    # Validate email encryption key (required for zero-knowledge email decryption in credit note task)
+    if not refund_request.email_encryption_key:
+        logger.error(f"Missing email_encryption_key in refund request for user {user_id}")
+        raise HTTPException(status_code=400, detail="Email encryption key is required")
     
     try:
         # Create user ID hash for lookup
@@ -2872,41 +3380,74 @@ async def request_refund(
             
             # Get invoice number from invoice record by decrypting the encrypted_filename
             # The invoice number is stored in the encrypted_filename field
+            # Format: openmates_invoice_{YYYY_MM_DD}_{invoice_number}.pdf
+            # Example: openmates_invoice_2025_01_15_MRRUNHO-1.pdf
             referenced_invoice_number = None
             encrypted_filename = invoice.get("encrypted_filename")
             if encrypted_filename and vault_key_id:
                 try:
-                    decrypted_filename, _ = await encryption_service.decrypt_with_user_key(encrypted_filename, vault_key_id)
+                    # decrypt_with_user_key returns a single Optional[str], not a tuple
+                    decrypted_filename = await encryption_service.decrypt_with_user_key(encrypted_filename, vault_key_id)
                     if decrypted_filename:
                         # Extract invoice number from filename (format: openmates_invoice_{date}_{invoice_number}.pdf)
-                        # Example: openmates_invoice_2025_01_15_475D6855-004.pdf
-                        # We want: 475D6855-004
-                        match = re.search(r'openmates_invoice_\d{4}_\d{2}_\d{2}_(.+?)\.pdf', decrypted_filename)
-                        if match:
-                            referenced_invoice_number = match.group(1)
-                        else:
-                            # Fallback: try to extract from any pattern
+                        # Example: openmates_invoice_2025_01_15_MRRUNHO-1.pdf
+                        # We want: MRRUNHO-1
+                        # Try multiple patterns to handle different filename formats
+                        patterns = [
+                            r'openmates_invoice_\d{4}_\d{2}_\d{2}_(.+?)\.pdf',  # Standard format with date
+                            r'openmates_invoice_(.+?)\.pdf',  # Format without date prefix
+                            r'invoice.*?_(.+?)\.pdf',  # Generic invoice pattern
+                        ]
+                        for pattern in patterns:
+                            match = re.search(pattern, decrypted_filename, re.IGNORECASE)
+                            if match:
+                                referenced_invoice_number = match.group(1)
+                                # Remove any date prefix that might have been captured
+                                referenced_invoice_number = re.sub(r'^\d{4}_\d{2}_\d{2}_', '', referenced_invoice_number)
+                                if referenced_invoice_number and referenced_invoice_number != 'unknown':
+                                    break
+                        
+                        # If still no match, try manual extraction
+                        if not referenced_invoice_number or referenced_invoice_number == 'unknown':
                             # Remove prefix and suffix
-                            referenced_invoice_number = decrypted_filename.replace("openmates_invoice_", "").replace(".pdf", "")
+                            temp = decrypted_filename.replace("openmates_invoice_", "").replace(".pdf", "")
                             # Remove date part (format: YYYY_MM_DD_)
-                            referenced_invoice_number = re.sub(r'^\d{4}_\d{2}_\d{2}_', '', referenced_invoice_number)
+                            temp = re.sub(r'^\d{4}_\d{2}_\d{2}_', '', temp)
+                            if temp and temp != 'unknown':
+                                referenced_invoice_number = temp
                 except Exception as decrypt_err:
                     logger.warning(f"Failed to decrypt invoice filename to get invoice number: {decrypt_err}")
             
-            # Fallback: construct invoice number from account_id if decryption failed
+            # Fallback: try to get invoice number from encrypted_custom_invoice_number if available
             if not referenced_invoice_number:
-                user_profile = await cache_service.get_user_by_id(user_id)
-                account_id = user_profile.get("account_id")
-                if account_id:
-                    # Use a generic format since we don't have the original counter
-                    referenced_invoice_number = f"{account_id}-REF"
-                else:
-                    referenced_invoice_number = f"INV-{invoice_id[:8]}"
+                logger.warning(f"Could not extract invoice number from filename. Attempting to get from encrypted_custom_invoice_number field...")
+                encrypted_custom_invoice_number = invoice.get("encrypted_custom_invoice_number")
+                if encrypted_custom_invoice_number and vault_key_id:
+                    try:
+                        # decrypt_with_user_key returns a single Optional[str], not a tuple
+                        decrypted_invoice_number = await encryption_service.decrypt_with_user_key(
+                            encrypted_custom_invoice_number, vault_key_id
+                        )
+                        if decrypted_invoice_number:
+                            referenced_invoice_number = decrypted_invoice_number
+                            logger.info(f"Successfully retrieved invoice number from encrypted_custom_invoice_number: {referenced_invoice_number}")
+                    except Exception as decrypt_err:
+                        logger.warning(f"Failed to decrypt custom_invoice_number: {decrypt_err}")
+
+            # Final check: fail if we still don't have a valid invoice number
+            if not referenced_invoice_number:
+                logger.error(f"Could not determine invoice number for credit note. Cannot create credit note without valid invoice reference.")
+                raise HTTPException(
+                    status_code=500,
+                    detail="Failed to determine invoice number for credit note generation. Please contact support."
+                )
             
             logger.info(f"Using referenced invoice number: {referenced_invoice_number} for credit note")
             
-            # Get email encryption key if available (from user's session or request)
-            email_encryption_key = None  # Will be passed if available from client
+            # Use client-provided email encryption key (same as invoice task)
+            # This is required for zero-knowledge email decryption in the credit note task
+            email_encryption_key = refund_request.email_encryption_key
+            logger.info(f"Using client-provided email encryption key for credit note task")
             
             # Dispatch credit note processing task
             task_payload = {

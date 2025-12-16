@@ -1,5 +1,5 @@
 # backend/core/api/app/routes/share.py
-# 
+#
 # REST API endpoints for share chat functionality
 # Handles public access to shared chats and OG metadata updates
 
@@ -15,6 +15,8 @@ from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.limiter import limiter
+from backend.core.api.app.routes.auth_routes.auth_dependencies import get_current_user
+from backend.core.api.app.models.user import User
 
 logger = logging.getLogger(__name__)
 
@@ -177,31 +179,166 @@ async def get_shared_chat(
         dummy_data.pop("is_dummy", None)
         return dummy_data
 
+@router.get("/chat/{chat_id}/og-metadata")
+@limiter.limit("60/minute")  # Higher limit since this is used for every share page load
+async def get_og_metadata(
+    request: Request,
+    chat_id: str,
+    directus_service: DirectusService = Depends(get_directus_service),
+    encryption_service: EncryptionService = Depends(get_encryption_service)
+) -> Dict[str, Any]:
+    """
+    Get OG metadata (title, description, image) for a shared chat.
+
+    This endpoint is called by the SvelteKit server route to generate OG tags.
+    It decrypts shared_encrypted_title and shared_encrypted_summary using the
+    shared vault key.
+
+    Returns:
+    - Real metadata if chat exists and is_private = false
+    - Fallback metadata if chat doesn't exist or is_private = true
+
+    Security:
+    - Rate limited
+    - Returns consistent fallback for non-existent/private chats
+    """
+    try:
+        # Fetch chat metadata
+        logger.debug(f"Fetching OG metadata for chat {chat_id}")
+        chat = await directus_service.chat.get_chat_metadata(chat_id)
+
+        if not chat:
+            # Chat doesn't exist - return fallback
+            logger.warning(f"Chat {chat_id} not found for OG metadata, returning fallback")
+            return {
+                "title": "Shared Chat - OpenMates",
+                "description": "View this shared conversation on OpenMates",
+                "image": "/og-images/default-chat.png",
+                "category": None
+            }
+
+        # Log what we received from Directus
+        logger.debug(f"Chat {chat_id} metadata retrieved: "
+                    f"is_private={chat.get('is_private')}, is_shared={chat.get('is_shared')}, "
+                    f"has_shared_encrypted_title={bool(chat.get('shared_encrypted_title'))}, "
+                    f"has_shared_encrypted_summary={bool(chat.get('shared_encrypted_summary'))}")
+
+        # Check if chat is private
+        is_private = chat.get("is_private", False)
+        if is_private:
+            # Chat is private - return fallback
+            logger.info(f"Chat {chat_id} is private, returning fallback OG metadata")
+            return {
+                "title": "Shared Chat - OpenMates",
+                "description": "View this shared conversation on OpenMates",
+                "image": "/og-images/default-chat.png",
+                "category": None
+            }
+
+        # Chat exists and is shared - decrypt metadata
+        shared_encrypted_title = chat.get("shared_encrypted_title")
+        shared_encrypted_summary = chat.get("shared_encrypted_summary")
+
+        # Log what we received to help debug OG tag issues
+        logger.debug(
+            f"OG metadata for chat {chat_id}: "
+            f"has_shared_encrypted_title={bool(shared_encrypted_title)}, "
+            f"has_shared_encrypted_summary={bool(shared_encrypted_summary)}, "
+            f"is_private={chat.get('is_private', False)}, "
+            f"is_shared={chat.get('is_shared', False)}"
+        )
+
+        title = "Shared Chat - OpenMates"  # Fallback
+        description = "View this shared conversation on OpenMates"  # Fallback
+
+        # Decrypt title if available
+        if shared_encrypted_title:
+            try:
+                title = await encryption_service.decrypt(
+                    shared_encrypted_title,
+                    key_name="shared-content-metadata"
+                )
+                logger.info(f"Decrypted title for chat {chat_id}: {title[:50]}...")
+            except Exception as e:
+                logger.warning(f"Failed to decrypt shared_encrypted_title for chat {chat_id}: {e}")
+        else:
+            logger.warning(f"No shared_encrypted_title found for chat {chat_id} - using fallback")
+
+        # Decrypt summary if available
+        if shared_encrypted_summary:
+            try:
+                description = await encryption_service.decrypt(
+                    shared_encrypted_summary,
+                    key_name="shared-content-metadata"
+                )
+                logger.info(f"Decrypted summary for chat {chat_id}: {description[:50]}...")
+            except Exception as e:
+                logger.warning(f"Failed to decrypt shared_encrypted_summary for chat {chat_id}: {e}")
+        else:
+            logger.warning(f"No shared_encrypted_summary found for chat {chat_id} - using fallback")
+
+        # Get category for OG image selection
+        encrypted_category = chat.get("encrypted_category")
+        category = None
+
+        # Note: We can't decrypt encrypted_category here because it's encrypted with
+        # the user's chat key, not the shared vault key. For now, we'll use the default image.
+        # In the future, we could add a shared_category field if needed.
+
+        # Determine OG image based on category (fallback to default for now)
+        og_image = "/og-images/default-chat.png"
+
+        return {
+            "title": title,
+            "description": description,
+            "image": og_image,
+            "category": category
+        }
+
+    except Exception as e:
+        logger.error(f"Error fetching OG metadata for chat {chat_id}: {e}", exc_info=True)
+        # On error, return fallback to prevent information leakage
+        return {
+            "title": "Shared Chat - OpenMates",
+            "description": "View this shared conversation on OpenMates",
+            "image": "/og-images/default-chat.png",
+            "category": None
+        }
+
 @router.post("/chat/metadata")
 @limiter.limit("30/minute")  # Prevent abuse of metadata updates
 async def update_share_metadata(
     request: Request,
     payload: ShareChatMetadataUpdate,
+    current_user: User = Depends(get_current_user),
     directus_service: DirectusService = Depends(get_directus_service),
     encryption_service: EncryptionService = Depends(get_encryption_service)
 ) -> Dict[str, Any]:
     """
     Update OG metadata for a shared chat.
-    
+
     This endpoint is called when a user shares a chat to update the
     shared_encrypted_title and shared_encrypted_summary fields.
-    
+
     The metadata is encrypted with the shared vault key (shared-content-metadata)
     so the server can decrypt it for OG tag generation without user context.
+
+    Requires authentication - user must own the chat.
     """
     try:
         chat_id = payload.chat_id
-        
-        # Verify chat exists and user has permission (should be owner)
-        # TODO: Add authentication check to ensure user owns the chat
+
+        # Verify chat exists
         chat = await directus_service.chat.get_chat_metadata(chat_id)
         if not chat:
             raise HTTPException(status_code=404, detail="Chat not found")
+
+        # Verify user owns the chat by comparing hashed user IDs
+        chat_hashed_user_id = chat.get("hashed_user_id")
+        current_user_hashed_id = hashlib.sha256(current_user.id.encode()).hexdigest()
+        if chat_hashed_user_id != current_user_hashed_id:
+            logger.warning(f"User {current_user.id} attempted to update metadata for chat {chat_id} owned by different user")
+            raise HTTPException(status_code=403, detail="You do not have permission to update this chat")
         
         # Encrypt metadata with shared vault key
         shared_vault_key = "shared-content-metadata"
@@ -230,8 +367,92 @@ async def update_share_metadata(
         
         # Update chat in database
         if updates:
-            await directus_service.update_item("chats", chat_id, updates)
+            # Log what we're about to update (but not the encrypted values for security)
+            logger.info(f"Updating chat {chat_id} with fields: {list(updates.keys())}")
+            logger.debug(f"Update values: is_shared={updates.get('is_shared')}, is_private={updates.get('is_private')}, "
+                        f"has_title={bool(updates.get('shared_encrypted_title'))}, "
+                        f"has_summary={bool(updates.get('shared_encrypted_summary'))}")
+            
+            # Request the updated fields in the response to verify they were saved
+            # Directus will return the updated item with these fields if the update succeeds
+            params = {
+                'fields': 'id,shared_encrypted_title,shared_encrypted_summary,is_shared,is_private'
+            }
+            updated_item = await directus_service.update_item("chats", chat_id, updates, params=params)
+            if updated_item is None:
+                logger.error(f"Failed to update chat {chat_id} - update_item returned None")
+                raise HTTPException(status_code=500, detail="Failed to update chat in database")
+            
+            # Log what Directus returned from the update
+            if isinstance(updated_item, dict):
+                logger.debug(f"Directus update response for chat {chat_id}: "
+                           f"has_shared_encrypted_title={bool(updated_item.get('shared_encrypted_title'))}, "
+                           f"has_shared_encrypted_summary={bool(updated_item.get('shared_encrypted_summary'))}, "
+                           f"is_shared={updated_item.get('is_shared')}, is_private={updated_item.get('is_private')}")
+            else:
+                logger.debug(f"Directus update response for chat {chat_id} is not a dict: {type(updated_item)}")
+            
             logger.info(f"Updated OG metadata and sharing status for chat {chat_id}")
+            
+            # Verify the update was successful by reading back the chat metadata
+            # This ensures the data is committed and visible before returning
+            # Use a small delay to allow Directus to commit the transaction
+            import asyncio
+            await asyncio.sleep(0.1)  # 100ms delay to ensure Directus has committed
+            
+            try:
+                # Force a fresh read by using no_cache=True (which get_chat_metadata already does)
+                # Try multiple times with increasing delays in case Directus needs time to commit
+                updated_chat = None
+                for attempt in range(3):
+                    if attempt > 0:
+                        await asyncio.sleep(0.2 * attempt)  # 200ms, 400ms delays
+                    updated_chat = await directus_service.chat.get_chat_metadata(chat_id)
+                    if updated_chat:
+                        has_title = bool(updated_chat.get("shared_encrypted_title"))
+                        has_summary = bool(updated_chat.get("shared_encrypted_summary"))
+                        # If we have the fields we expect, break early
+                        if (payload.title is None or has_title) and (payload.summary is None or has_summary):
+                            break
+                
+                if updated_chat:
+                    # Log what was actually stored to help debug OG tag issues
+                    has_title = bool(updated_chat.get("shared_encrypted_title"))
+                    has_summary = bool(updated_chat.get("shared_encrypted_summary"))
+                    is_shared = updated_chat.get("is_shared", False)
+                    is_private = updated_chat.get("is_private", True)
+                    
+                    # Log all fields to see what we got
+                    logger.info(
+                        f"Verified update for chat {chat_id} (attempt {attempt + 1}): "
+                        f"is_shared={is_shared}, is_private={is_private}, "
+                        f"has_title={has_title}, has_summary={has_summary}"
+                    )
+                    
+                    # Log the actual field values (truncated) to see if they're there but empty
+                    if updated_chat.get("shared_encrypted_title"):
+                        title_preview = str(updated_chat.get("shared_encrypted_title"))[:50]
+                        logger.debug(f"shared_encrypted_title value (first 50 chars): {title_preview}...")
+                    else:
+                        logger.warning(f"shared_encrypted_title is missing or empty for chat {chat_id}")
+                    
+                    if updated_chat.get("shared_encrypted_summary"):
+                        summary_preview = str(updated_chat.get("shared_encrypted_summary"))[:50]
+                        logger.debug(f"shared_encrypted_summary value (first 50 chars): {summary_preview}...")
+                    else:
+                        logger.warning(f"shared_encrypted_summary is missing or empty for chat {chat_id}")
+                    
+                    # If the expected fields are missing, log a warning
+                    if payload.title is not None and not has_title:
+                        logger.error(f"Title update FAILED for chat {chat_id} - field not found after update. "
+                                   f"Expected to set title, but field is missing.")
+                    if payload.summary is not None and not has_summary:
+                        logger.error(f"Summary update FAILED for chat {chat_id} - field not found after update. "
+                                   f"Expected to set summary, but field is missing.")
+                else:
+                    logger.error(f"Could not verify update for chat {chat_id} - chat not found after update")
+            except Exception as e:
+                logger.error(f"Error verifying update for chat {chat_id}: {e}", exc_info=True)
         
         return {"success": True, "chat_id": chat_id}
         
@@ -245,22 +466,31 @@ async def update_share_metadata(
 async def unshare_chat(
     payload: UnshareChatRequest,
     request: Request,
+    current_user: User = Depends(get_current_user),
     directus_service: DirectusService = Depends(get_directus_service)
 ) -> Dict[str, Any]:
     """
     Unshare a chat by setting is_private = true.
-    
+
     This also clears shared_encrypted_title and shared_encrypted_summary
     to remove OG metadata.
+
+    Requires authentication - user must own the chat.
     """
     try:
         chat_id = payload.chat_id
-        
-        # Verify chat exists and user has permission (should be owner)
-        # TODO: Add authentication check to ensure user owns the chat
+
+        # Verify chat exists
         chat = await directus_service.chat.get_chat_metadata(chat_id)
         if not chat:
             raise HTTPException(status_code=404, detail="Chat not found")
+
+        # Verify user owns the chat by comparing hashed user IDs
+        chat_hashed_user_id = chat.get("hashed_user_id")
+        current_user_hashed_id = hashlib.sha256(current_user.id.encode()).hexdigest()
+        if chat_hashed_user_id != current_user_hashed_id:
+            logger.warning(f"User {current_user.id} attempted to unshare chat {chat_id} owned by different user")
+            raise HTTPException(status_code=403, detail="You do not have permission to unshare this chat")
         
         # Set is_private = true, is_shared = false, and clear shared metadata
         updates = {
@@ -282,10 +512,11 @@ async def unshare_chat(
         raise HTTPException(status_code=500, detail="Failed to unshare chat")
 
 @router.get("/time")
+@limiter.limit("60/minute")  # Allow more requests since this is lightweight, but still prevent abuse
 async def get_server_time(request: Request) -> Dict[str, Any]:
     """
     Get current server time in Unix timestamp (seconds).
-    
+
     Used for expiration validation of share links.
     """
     return {

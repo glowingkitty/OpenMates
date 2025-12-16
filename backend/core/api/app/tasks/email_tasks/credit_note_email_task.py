@@ -116,15 +116,17 @@ async def _async_process_credit_note_and_send_email(
         logger.info(f"User profile details extracted for {user_id}")
 
         # 3. Decrypt email address
-        if email_encryption_key:
-            logger.info(f"Decrypting email using client-provided email encryption key for credit note task {invoice_id}")
-            decrypted_email = await task.encryption_service.decrypt_with_email_key(encrypted_email, email_encryption_key)
-        else:
-            logger.info(f"Decrypting email using Vault user key for credit note task {invoice_id}")
-            decrypted_email, _ = await task.encryption_service.decrypt_with_user_key(encrypted_email, vault_key_id)
-
+        # Credit note task requires email_encryption_key (same as invoice task)
+        # The encrypted_email is encrypted with the email encryption key, not the user key
+        if not email_encryption_key:
+            logger.error(f"Missing email_encryption_key for credit note task {invoice_id}. Cannot decrypt user email.")
+            raise Exception("Missing email encryption key")
+            
+        logger.info(f"Decrypting email using client-provided email encryption key for credit note task {invoice_id}")
+        decrypted_email = await task.encryption_service.decrypt_with_email_key(encrypted_email, email_encryption_key)
+            
         if not decrypted_email:
-            logger.error(f"Failed to decrypt email for credit note task {invoice_id}.")
+            logger.error(f"Failed to decrypt email with provided key for credit note task {invoice_id}.")
             raise Exception("Failed to decrypt user email")
 
         # 4. Get order details to extract payment method information
@@ -133,25 +135,44 @@ async def _async_process_credit_note_and_send_email(
             logger.warning(f"Could not fetch order details for {order_id}, using defaults for credit note")
             card_brand_lower = "unknown"
             card_last_four = "****"
+            formatted_card_brand = "Unknown"
         else:
-            # Extract card information
-            payment_method_details = payment_order_details.get('payment_method_details', {})
-            card_details = payment_method_details.get('card', {})
-            card_brand_lower = card_details.get('brand', 'unknown').lower()
-            card_last_four = card_details.get('last4', '****')
+            # Extract payment details using the same pattern as purchase confirmation task
+            payment_method_details = {}
+            # Accept both "COMPLETED" and "CAPTURED" as successful payment states
+            successful_payment = next(
+                (p for p in payment_order_details.get('payments', [])
+                 if p.get('state', '').upper() in ('COMPLETED', 'CAPTURED', 'SUCCEEDED')),
+                None
+            )
 
-        # Format card brand for display
-        card_brand_map = {
-            'visa': 'Visa',
-            'mastercard': 'MasterCard',
-            'amex': 'American Express',
-            'american_express': 'American Express',
-            'discover': 'Discover',
-            'jcb': 'JCB',
-            'diners': 'Diners Club',
-            'unionpay': 'UnionPay'
-        }
-        formatted_card_brand = card_brand_map.get(card_brand_lower, card_brand_lower.capitalize())
+            if successful_payment:
+                payment_method_details = successful_payment.get('payment_method', {})
+            else:
+                logger.warning(f"Could not find a COMPLETED/CAPTURED/SUCCEEDED payment in order {order_id} details. Credit note may lack payment info.")
+
+            # Extract card information from payment_method_details (same as invoice task)
+            card_brand = payment_method_details.get('card_brand')
+            card_last_four = payment_method_details.get('card_last_four')
+
+            # Format card brand name for display (same as invoice task)
+            formatted_card_brand = card_brand if card_brand else "Unknown"
+            if card_brand:
+                card_brand_lower = card_brand.lower()
+                if card_brand_lower == 'visa':
+                    formatted_card_brand = 'Visa'
+                elif card_brand_lower == 'mastercard':
+                    formatted_card_brand = 'MasterCard'
+                elif card_brand_lower == 'american_express':
+                    formatted_card_brand = 'American Express'
+                # Add more mappings if needed, otherwise keep original if not matched
+            else:
+                card_brand_lower = "unknown"
+                formatted_card_brand = "Unknown"
+            
+            # Ensure we have last4 digits
+            if not card_last_four:
+                card_last_four = "****"
 
         # 5. Generate credit note number (format: CN-{invoice_number})
         # Extract the invoice number part from referenced_invoice_number (format: {account_id}-{counter})
@@ -174,7 +195,7 @@ async def _async_process_credit_note_and_send_email(
             "total_credits": total_credits,
             "card_name": formatted_card_brand,
             "card_last4": card_last_four,
-            "qr_code_url": "https://openmates.org/settings/usage",
+            # qr_code_url will be set in PDF service using domain from config
             "manual_refund_amount": refund_amount_decimal,  # Use the actual refund amount
             # Inject sender details from task payload
             "sender_addressline1": sender_addressline1,
@@ -195,6 +216,8 @@ async def _async_process_credit_note_and_send_email(
         )
         pdf_bytes_en = pdf_buffer_en.getvalue()
         pdf_buffer_en.close()
+        # Credit note filename format: openmates_credit_note_{date}_{CN-invoice_number}.pdf
+        # Example: openmates_credit_note_2025_12_16_CN-MRRUNHO-1.pdf
         credit_note_filename_en = f"openmates_credit_note_{date_str_filename}_{credit_note_number}.pdf"
         logger.info(f"Generated English PDF for credit note")
 
@@ -214,6 +237,8 @@ async def _async_process_credit_note_and_send_email(
                 )
                 pdf_bytes_lang = pdf_buffer_lang.getvalue()
                 pdf_buffer_lang.close()
+                # Credit note filename format: openmates_{translated_credit_note}_{date}_{CN-invoice_number}.pdf
+                # Example (English): openmates_credit_note_2025_12_16_CN-MRRUNHO-1.pdf
                 credit_note_filename_lang = f"openmates_{credit_note_translation_lower}_{date_str_filename}_{credit_note_number}.pdf"
                 logger.info(f"Generated PDF ({credit_note_filename_lang}) for credit note in language {user_language}")
             except Exception as lang_pdf_err:

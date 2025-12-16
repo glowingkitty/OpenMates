@@ -1,63 +1,67 @@
-// backend/apps/web_app/src/routes/share/chat/[chatId]/+server.ts
-// 
+// frontend/apps/web_app/src/routes/share/chat/[chatId]/+server.ts
+//
 // SvelteKit server route for serving OG tags for shared chats
 // This route serves HTML with Open Graph meta tags for social media sharing
 
 import type { RequestHandler } from '@sveltejs/kit';
-import { redirect } from '@sveltejs/kit';
+import { env } from '$env/dynamic/private';
 
 /**
  * Server route handler for /share/chat/[chatId]
- * 
- * This route serves two purposes:
- * 1. When accessed without a key fragment: Serve HTML with OG tags for social media crawlers
- * 2. When accessed with a key fragment: Redirect to main app with chat_id in hash
- * 
+ *
+ * This route serves HTML with OG tags for social media crawlers.
  * The encryption key is in the URL fragment (#key=...), which is never sent to the server.
  * This ensures the server never sees the encryption key.
+ *
+ * Flow:
+ * 1. Fetch OG metadata from backend API (/v1/share/chat/{chatId}/og-metadata)
+ * 2. Generate HTML with proper OG tags using the fetched metadata
+ * 3. Client-side JavaScript redirects to main app if key fragment is present
  */
-export const GET: RequestHandler = async ({ params, url }) => {
+export const GET: RequestHandler = async ({ params, url, fetch }) => {
     const chatId = params.chatId;
-    
+
     if (!chatId) {
         return new Response('Invalid chat ID', { status: 400 });
     }
-    
-    // Check if URL has a key fragment (client-side only, not sent to server)
-    // If the URL has a fragment, redirect to main app
-    // Note: URL fragments are not available server-side, so we check the full URL
-    const fullUrl = url.toString();
-    if (fullUrl.includes('#key=')) {
-        // Client will handle the redirect, but we can also redirect here
-        // Extract the fragment and redirect to main app
-        const fragment = fullUrl.split('#')[1];
-        return redirect(302, `/#chat_id=${chatId}&${fragment}`);
+
+    // Fetch OG metadata from backend API
+    const backendUrl = env.BACKEND_URL || 'https://app.dev.openmates.org';
+    let ogTitle = 'Shared Chat - OpenMates';
+    let ogDescription = 'View this shared conversation on OpenMates';
+    let ogImage = '/og-images/default-chat.png';
+
+    try {
+        // Add cache-busting timestamp to ensure we get fresh data
+        const cacheBuster = Date.now();
+        const response = await fetch(`${backendUrl}/v1/share/chat/${chatId}/og-metadata?t=${cacheBuster}`, {
+            cache: 'no-store', // Prevent any caching of the API response
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            ogTitle = data.title || ogTitle;
+            ogDescription = data.description || ogDescription;
+            ogImage = data.image || ogImage;
+            
+            // Log what we received to help debug OG tag issues
+            console.log(`[OG Tags] Fetched metadata for chat ${chatId}:`, {
+                title: ogTitle.substring(0, 50),
+                description: ogDescription.substring(0, 50),
+                image: ogImage,
+                isFallback: ogTitle === 'Shared Chat - OpenMates' && ogDescription === 'View this shared conversation on OpenMates'
+            });
+        } else {
+            console.warn(`Failed to fetch OG metadata for chat ${chatId}: ${response.status}`);
+        }
+    } catch (error) {
+        console.error(`Error fetching OG metadata for chat ${chatId}:`, error);
+        // Use fallback values
     }
-    
-    // No key fragment - serve OG tags for social media crawlers
-    // TODO: Fetch chat metadata from backend API
-    // For now, return basic OG tags
-    // In production, this should:
-    // 1. Call backend API: GET /api/v1/share/chat/{chatId}
-    // 2. Decrypt shared_encrypted_title and shared_encrypted_summary using shared vault key
-    // 3. Select appropriate OG image based on chat category
-    // 4. Generate HTML with OG tags
-    
-    // Default OG tags (will be replaced with real data from backend)
-    const ogTitle = 'Shared Chat - OpenMates';
-    const ogDescription = 'View this shared conversation on OpenMates';
-    const ogImage = '/og-images/default-chat.png'; // Default OG image
+
     const siteUrl = url.origin;
     const shareUrl = `${siteUrl}/share/chat/${chatId}`;
-    
-    // TODO: Fetch real metadata from backend
-    // const response = await fetch(`${process.env.BACKEND_URL}/api/v1/share/chat/${chatId}`);
-    // const data = await response.json();
-    // if (data.shared_encrypted_title) {
-    //     // Decrypt using shared vault key
-    //     ogTitle = decrypt(data.shared_encrypted_title, 'shared-content-metadata');
-    // }
-    
+
     // Generate HTML with OG tags
     const html = `<!DOCTYPE html>
 <html lang="en">
@@ -65,27 +69,29 @@ export const GET: RequestHandler = async ({ params, url }) => {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>${ogTitle}</title>
-    
+    <meta name="description" content="${ogDescription}">
+
     <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website">
     <meta property="og:url" content="${shareUrl}">
     <meta property="og:title" content="${ogTitle}">
     <meta property="og:description" content="${ogDescription}">
     <meta property="og:image" content="${siteUrl}${ogImage}">
-    
+
     <!-- Twitter -->
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:url" content="${shareUrl}">
+    <meta property="twitter:domain" content="${url.hostname}">
+    <meta property="twitter:url" content="${shareUrl}">
     <meta name="twitter:title" content="${ogTitle}">
     <meta name="twitter:description" content="${ogDescription}">
     <meta name="twitter:image" content="${siteUrl}${ogImage}">
-    
-    <!-- Redirect to main app if JavaScript is enabled -->
+
+    <!-- Redirect to main app if JavaScript is enabled and key fragment exists -->
     <script>
         // If user has the full URL with key fragment, redirect to main app
         if (window.location.hash && window.location.hash.includes('key=')) {
             const fragment = window.location.hash.substring(1);
-            window.location.href = '/#chat_id=${chatId}&' + fragment;
+            window.location.href = '/#chat-id=${chatId}&' + fragment;
         }
     </script>
 </head>
@@ -95,10 +101,14 @@ export const GET: RequestHandler = async ({ params, url }) => {
     <p><a href="/">Open in OpenMates</a></p>
 </body>
 </html>`;
-    
+
     return new Response(html, {
         headers: {
             'Content-Type': 'text/html; charset=utf-8',
+            // Prevent caching of OG tags to ensure fresh metadata is always served
+            'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
+            'Pragma': 'no-cache',
+            'Expires': '0',
         },
     });
 };

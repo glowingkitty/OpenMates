@@ -2,7 +2,7 @@
   import type { SvelteComponent } from 'svelte';
   // Removed afterUpdate import for runes mode compatibility
   import ReadOnlyMessage from './ReadOnlyMessage.svelte';
-  import PressAndHoldMenu from './enter_message/in_message_previews/PressAndHoldMenu.svelte';
+  import EmbedContextMenu from './embeds/EmbedContextMenu.svelte';
   // Legacy embed nodes import removed - now using unified embed system
   import CodeFullscreen from './fullscreen_previews/CodeFullscreen.svelte';
   import type { MessageStatus, MessageRole } from '../types/chat';
@@ -91,8 +91,9 @@
   let showMenu = $state(false);
   let menuX = $state(0);
   let menuY = $state(0);
-  let menuType = $state<'default' | 'pdf' | 'web' | 'video-transcript' | 'video'>('default');
+  let menuType = $state<'default' | 'pdf' | 'web' | 'video-transcript' | 'video' | 'code'>('default');
   let selectedNode = $state<any>(null);
+  let embedType = $state<'code' | 'video' | 'website' | 'pdf' | 'default'>('default');
 
   // Add state for fullscreen using $state (Svelte 5 runes mode)
   let showFullscreen = $state(false);
@@ -105,17 +106,16 @@
 
   // Handle embed menu events (right-click context menu)
   function handleEmbedClick(event: CustomEvent) {
-    const { view, node, dom, rect } = event.detail;
-    console.debug('[ChatMessage] Embed right-clicked:', { view, node, dom, rect });
+    const { view, node, dom, rect, x, y } = event.detail;
+    console.debug('[ChatMessage] Embed right-clicked:', { view, node, dom, rect, x, y });
 
     if (!dom) return;
 
-    const container = dom.closest('.chat-message-text');
-    if (!container) return;
-
-    // Use the rect from the event for more accurate positioning
-    menuX = rect.left - container.getBoundingClientRect().left + (rect.width / 2);
-    menuY = rect.top - container.getBoundingClientRect().top;
+    // Use the actual click coordinates (x, y) for menu positioning
+    // This positions the menu at the actual clicked point, not the center of the embed
+    // Fallback to center if coordinates not provided (for backwards compatibility)
+    menuX = x !== undefined ? x : (rect.left + (rect.width / 2));
+    menuY = y !== undefined ? y : (rect.top + (rect.height / 2));
 
     selectedNode = node;
     
@@ -124,23 +124,32 @@
     const appId = dom.getAttribute('data-app-id');
     const skillId = dom.getAttribute('data-skill-id');
     
-    // Determine menu type based on embed type
+    // Determine menu type and embed type based on embed type
     if (node.type.name === 'embed') {
-      if (node.attrs.type === 'pdf') {
+      if (node.attrs.type === 'code') {
+        menuType = 'code';
+        embedType = 'code';
+      } else if (node.attrs.type === 'pdf') {
         menuType = 'pdf';
+        embedType = 'pdf';
       } else if (node.attrs.type === 'website' || node.attrs.type === 'website-group') {
         menuType = 'web';
+        embedType = 'website';
       } else if (node.attrs.type === 'videos-video') {
         // Video embed (YouTube, etc.)
         menuType = 'video';
+        embedType = 'video';
       } else if (node.attrs.type === 'app-skill-use' && appId === 'videos' && skillId === 'get_transcript') {
         // Video transcript embed
         menuType = 'video-transcript';
+        embedType = 'video';
       } else {
         menuType = 'default';
+        embedType = 'default';
       }
     } else {
       menuType = 'default';
+      embedType = 'default';
     }
 
     showMenu = true;
@@ -154,30 +163,61 @@
     // Actions are handled directly below
 
     // Handle fullscreen for supported node types
+    // Dispatch embedfullscreen event to open fullscreen (same as clicking the embed)
     if (action === 'view') {
-        if (selectedNode.type.name === 'embed' && selectedNode.attrs.type === 'code') {
-            try {
-                const response = await fetch(selectedNode.attrs.src);
-                const code = await response.text();
-                fullscreenData = {
-                    code,
-                    filename: selectedNode.attrs.filename,
-                    language: selectedNode.attrs.language,
-                    lineCount: code.split('\n').length
-                };
-                showFullscreen = true;
-                showMenu = false;
-                selectedNode = null;
-                return;
-            } catch (error) {
-                console.error('Error loading code content:', error);
-            }
+        // Get embed ID from node attributes
+        const embedId = selectedNode.attrs?.id || selectedNode.attrs?.contentRef?.replace('embed:', '');
+        
+        if (!embedId) {
+            console.warn('[ChatMessage] No embed ID found for view action');
+            showMenu = false;
+            selectedNode = null;
+            return;
         }
         
-        // Fallback to opening in new tab for other types
-        if (selectedNode.attrs?.src || selectedNode.attrs?.url) {
-            window.open(selectedNode.attrs.src || selectedNode.attrs.url, '_blank');
+        // Map embed type to the format expected by ActiveChat
+        // ActiveChat expects: 'code-code', 'videos-video', 'website', 'app-skill-use', etc.
+        let fullscreenEmbedType = selectedNode.attrs?.type || selectedNode.type.name;
+        
+        // Normalize embed type names to match what ActiveChat expects
+        if (fullscreenEmbedType === 'code') {
+            fullscreenEmbedType = 'code-code';
+        } else if (fullscreenEmbedType === 'videos-video') {
+            fullscreenEmbedType = 'videos-video'; // Already correct
+        } else if (fullscreenEmbedType === 'website' || fullscreenEmbedType === 'website-group') {
+            fullscreenEmbedType = 'website';
+        } else if (fullscreenEmbedType === 'app-skill-use') {
+            fullscreenEmbedType = 'app-skill-use'; // Already correct
         }
+        
+        // Dispatch embedfullscreen event to trigger fullscreen (ActiveChat will handle it)
+        // This is the same event that embeds dispatch when clicked
+        // Use document.dispatchEvent (not window) to match how renderers do it
+        const embedFullscreenEvent = new CustomEvent('embedfullscreen', {
+            bubbles: true,
+            cancelable: true,
+            detail: {
+                embedId,
+                embedType: fullscreenEmbedType,
+                attrs: selectedNode.attrs,
+                embedData: null, // Will be loaded by ActiveChat if needed
+                decodedContent: null // Will be loaded by ActiveChat if needed
+            }
+        });
+        
+        // Dispatch the event on document (same as renderers do)
+        document.dispatchEvent(embedFullscreenEvent);
+        
+        console.debug('[ChatMessage] Dispatched embedfullscreen event for view action:', {
+            embedId,
+            embedType: fullscreenEmbedType,
+            nodeType: selectedNode.type.name,
+            nodeAttrs: selectedNode.attrs
+        });
+        
+        showMenu = false;
+        selectedNode = null;
+        return;
     }
 
     // Handle actions for video transcript embeds
@@ -431,21 +471,25 @@
       </div>
 
       {#if showMenu}
-        <PressAndHoldMenu
+        {@const showCopyAction = menuType === 'code' || menuType === 'video' || menuType === 'video-transcript' || menuType === 'web'}
+        {@const showDownloadAction = menuType === 'code' || menuType === 'video-transcript' || menuType === 'pdf'}
+        <EmbedContextMenu
           x={menuX}
           y={menuY}
           show={showMenu}
-          type={menuType}
-          isYouTube={selectedNode?.attrs?.isYouTube || false}
-          hideDelete={true}
+          embedType={embedType}
+          showView={true}
+          showShare={true}
+          showCopy={showCopyAction}
+          showDownload={showDownloadAction}
           on:close={() => {
             showMenu = false;
             selectedNode = null;
           }}
           on:view={() => handleMenuAction('view')}
-          on:download={() => handleMenuAction('download')}
-          on:copy={() => handleMenuAction('copy')}
           on:share={() => handleMenuAction('share')}
+          on:copy={() => handleMenuAction('copy')}
+          on:download={() => handleMenuAction('download')}
         />
       {/if}
     </div>

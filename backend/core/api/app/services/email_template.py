@@ -275,11 +275,20 @@ class EmailTemplateService:
                         subject = self.translation_service.get_nested_translation(subject_key, lang, context)
                 elif template == "purchase-confirmation":
                     subject_key = "email.purchase_confirmation.text"
-                    if "account_id" in context:
+                    if "invoice_id" in context:
                         # Get the translation template
                         subject_template = self.translation_service.get_nested_translation(subject_key, lang, {})
-                        # Manually format the account_id into the subject
-                        subject = subject_template.format(account_id=context["account_id"])
+                        # Manually format the invoice_id into the subject
+                        subject = subject_template.format(invoice_id=context["invoice_id"])
+                    else:
+                        subject = self.translation_service.get_nested_translation(subject_key, lang, context)
+                elif template == "refund-confirmation":
+                    subject_key = "email.refund_confirmation.text"
+                    if "credit_note_id" in context:
+                        # Get the translation template
+                        subject_template = self.translation_service.get_nested_translation(subject_key, lang, {})
+                        # Manually format the credit_note_id into the subject
+                        subject = subject_template.format(credit_note_id=context["credit_note_id"])
                     else:
                         subject = self.translation_service.get_nested_translation(subject_key, lang, context)
                 elif template == "new-device-login":

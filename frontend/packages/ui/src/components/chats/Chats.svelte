@@ -1208,7 +1208,7 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 		// This ensures tab reload opens the correct chat even if the component unmounts during the update
 		// IndexedDB update happens for all users (authenticated and non-authenticated) for tab reload persistence
 		// Server sync (via WebSocket) only happens for authenticated users (handled by sendSetActiveChatImpl)
-		// SECURITY: Don't store hidden chats as last_opened - they require passcode after page reload
+		// SECURITY: Don't store hidden chats as last_opened - they require password after page reload
 		if (!(chat as any).is_hidden) {
 			try {
 				const { chatSyncService } = await import('../../services/chatSyncService');
@@ -1632,7 +1632,7 @@ async function updateChatListFromDBInternal(force = false) {
     async function handleInlineUnlock(event: Event) {
         event.preventDefault();
         
-        if (inlineUnlockLoading || inlineUnlockCode.length < 4) return;
+        if (inlineUnlockLoading || inlineUnlockCode.length < 4 || inlineUnlockCode.length > 30) return;
         
         inlineUnlockLoading = true;
         inlineUnlockError = '';
@@ -1681,7 +1681,7 @@ async function updateChatListFromDBInternal(force = false) {
                     return;
                 }
                 
-                // Encrypt chat key with the code (this doesn't unlock, just encrypts)
+                // Encrypt chat key with the password (this doesn't unlock, just encrypts)
                 const encryptedChatKey = await hiddenChatService.encryptChatKeyWithCode(chatKey, inlineUnlockCode);
                 if (!encryptedChatKey) {
                     inlineUnlockError = $text('chats.hidden_chats.unlock_error.text', {
@@ -1725,11 +1725,11 @@ async function updateChatListFromDBInternal(force = false) {
                 chatListCache.markDirty();
                 await updateChatListFromDB(true);
             } else {
-                // Incorrect code (some chats decrypted but not all, or other error)
-                inlineUnlockError = $text('chats.hidden_chats.incorrect_code.text', {
-                    default: 'Incorrect code. Please try again.'
+                // Incorrect password (some chats decrypted but not all, or other error)
+                inlineUnlockError = $text('chats.hidden_chats.incorrect_password.text', {
+                    default: 'Incorrect password. Please try again.'
                 });
-                inlineUnlockCode = ''; // Clear code on error
+                inlineUnlockCode = ''; // Clear password on error
                 inlineUnlockInput?.focus();
             }
         } catch (error) {
@@ -2270,28 +2270,30 @@ async function updateChatListFromDBInternal(force = false) {
 						</p>
 						{#if $authStore.isAuthenticated}
 							<!-- Authenticated users: show unlock form -->
+							<p class="overscroll-unlock-info" style="font-size: 12px; color: var(--color-grey-60); margin-bottom: 8px;">
+								{$text('chats.hidden_chats.password_info.text', { default: 'Each unique password can be used to hide/show different chats.' })}
+							</p>
 							<form onsubmit={handleInlineUnlock}>
 								<div class="overscroll-unlock-input-wrapper">
 									<input
 										bind:this={inlineUnlockInput}
 										type="password"
-										inputmode="numeric"
-										pattern="[0-9]*"
-										autocomplete="one-time-code"
+										autocomplete="off"
 										class="overscroll-unlock-input"
 										class:error={!!inlineUnlockError}
 										bind:value={inlineUnlockCode}
 										oninput={(e) => {
 											const target = e.target as HTMLInputElement;
-											let value = target.value.replace(/[^0-9]/g, ''); // Only allow digits
-											value = value.slice(0, 6); // Max 6 digits
+											let value = target.value;
+											if (value.length > 30) {
+												value = value.slice(0, 30); // Max 30 characters
+											}
 											inlineUnlockCode = value;
 											inlineUnlockError = ''; // Clear error on input
 										}}
-										placeholder={$text('chats.hidden_chats.code_placeholder.text', { default: 'Enter code' })}
-										maxlength="6"
+										placeholder={$text('chats.hidden_chats.password_placeholder.text', { default: 'Enter password (4-30 characters)' })}
+										maxlength="30"
 										disabled={inlineUnlockLoading}
-										style="font-family: monospace; letter-spacing: 0.1em;"
 									/>
 									{#if inlineUnlockError}
 										<div class="overscroll-unlock-error">{inlineUnlockError}</div>
@@ -2300,7 +2302,7 @@ async function updateChatListFromDBInternal(force = false) {
 								<button
 									type="submit"
 									class="overscroll-unlock-button"
-									disabled={inlineUnlockLoading || inlineUnlockCode.length < 4}
+									disabled={inlineUnlockLoading || inlineUnlockCode.length < 4 || inlineUnlockCode.length > 30}
 								>
 									{#if inlineUnlockLoading}
 										<span class="loading-spinner"></span>

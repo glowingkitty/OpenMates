@@ -20,40 +20,40 @@
         chatIdToHide = null
     }: Props = $props();
 
-    let code = $state('');
-    let confirmCode = $state(''); // For first-time setup
+    let password = $state('');
+    let confirmPassword = $state(''); // For first-time setup
     let errorMessage = $state('');
     let isLoading = $state(false);
-    let codeInput = $state<HTMLInputElement>();
-    let confirmCodeInput = $state<HTMLInputElement>();
+    let passwordInput = $state<HTMLInputElement>();
+    let confirmPasswordInput = $state<HTMLInputElement>();
 
     // Get lockout state from store
     let lockoutState = $derived($hiddenChatStore);
 
-    // Validate code format (4-6 digits)
-    function isValidCode(c: string): boolean {
-        return /^\d{4,6}$/.test(c);
+    // Validate password format (4-30 characters)
+    function isValidPassword(p: string): boolean {
+        return p.length >= 4 && p.length <= 30;
     }
 
-    // Handle code input (only allow digits, max 6)
-    function handleCodeInput(event: Event) {
+    // Handle password input (allow any characters, max 30)
+    function handlePasswordInput(event: Event) {
         const target = event.target as HTMLInputElement;
-        let value = target.value.replace(/\D/g, ''); // Remove non-digits
-        if (value.length > 6) {
-            value = value.slice(0, 6);
+        let value = target.value;
+        if (value.length > 30) {
+            value = value.slice(0, 30);
         }
-        code = value;
+        password = value;
         errorMessage = '';
     }
 
-    // Handle confirm code input (only allow digits, max 6)
-    function handleConfirmCodeInput(event: Event) {
+    // Handle confirm password input (allow any characters, max 30)
+    function handleConfirmPasswordInput(event: Event) {
         const target = event.target as HTMLInputElement;
-        let value = target.value.replace(/\D/g, ''); // Remove non-digits
-        if (value.length > 6) {
-            value = value.slice(0, 6);
+        let value = target.value;
+        if (value.length > 30) {
+            value = value.slice(0, 30);
         }
-        confirmCode = value;
+        confirmPassword = value;
         errorMessage = '';
     }
 
@@ -75,28 +75,28 @@
 
             // First-time setup: require confirmation
             if (isFirstTime) {
-                if (!isValidCode(code)) {
-                    errorMessage = $text('chats.hidden_chats.invalid_code_format.text', {
-                        default: 'Please enter a 4-6 digit code'
+                if (!isValidPassword(password)) {
+                    errorMessage = $text('chats.hidden_chats.invalid_password_format.text', {
+                        default: 'Please enter a password between 4 and 30 characters'
                     });
                     isLoading = false;
                     return;
                 }
 
-                if (code !== confirmCode) {
-                    errorMessage = $text('chats.hidden_chats.codes_dont_match.text', {
-                        default: 'Codes do not match'
+                if (password !== confirmPassword) {
+                    errorMessage = $text('chats.hidden_chats.passwords_dont_match.text', {
+                        default: 'Passwords do not match'
                     });
                     isLoading = false;
-                    confirmCode = '';
-                    confirmCodeInput?.focus();
+                    confirmPassword = '';
+                    confirmPasswordInput?.focus();
                     return;
                 }
             } else {
-                // Unlock: validate code format
-                if (!isValidCode(code)) {
-                    errorMessage = $text('chats.hidden_chats.invalid_code_format.text', {
-                        default: 'Please enter a 4-6 digit code'
+                // Unlock: validate password format
+                if (!isValidPassword(password)) {
+                    errorMessage = $text('chats.hidden_chats.invalid_password_format.text', {
+                        default: 'Please enter a password between 4 and 30 characters'
                     });
                     isLoading = false;
                     return;
@@ -146,8 +146,8 @@
                     return;
                 }
                 
-                // Encrypt chat key with the code (this doesn't unlock, just encrypts)
-                const encryptedChatKey = await hiddenChatService.encryptChatKeyWithCode(chatKey, code);
+                // Encrypt chat key with the password (this doesn't unlock, just encrypts)
+                const encryptedChatKey = await hiddenChatService.encryptChatKeyWithCode(chatKey, password);
                 if (!encryptedChatKey) {
                     errorMessage = $text('chats.hidden_chats.unlock_error.text', {
                         default: 'Error encrypting chat'
@@ -174,7 +174,7 @@
             
             // Attempt to unlock (after encrypting chat if needed)
             // If we encrypted a chat, pass the encrypted chat key so unlock can verify it even if getAllChats() hasn't picked it up yet
-            const result = await hiddenChatStore.unlock(code, encryptedChatKeyForVerification);
+            const result = await hiddenChatStore.unlock(password, encryptedChatKeyForVerification);
             
             if (result.success) {
                 // Show success notification
@@ -190,23 +190,23 @@
                 
                 onUnlock();
                 // Reset form
-                code = '';
-                confirmCode = '';
+                password = '';
+                confirmPassword = '';
                 onClose();
             } else {
                 // Show appropriate error message based on whether any chats were decrypted
                 if (result.decryptedCount === 0) {
                     errorMessage = $text('chats.hidden_chats.no_hidden_chats_unlocked.text', {
-                        default: 'No hidden chats unlocked. The code may be incorrect or no chats are encrypted with this code.'
+                        default: 'No hidden chats unlocked. The password may be incorrect or no chats are encrypted with this password.'
                     });
             } else {
-                errorMessage = $text('chats.hidden_chats.incorrect_code.text', {
-                    default: 'Incorrect code. Please try again.'
+                errorMessage = $text('chats.hidden_chats.incorrect_password.text', {
+                    default: 'Incorrect password. Please try again.'
                 });
                 }
-                code = '';
-                confirmCode = '';
-                codeInput?.focus();
+                password = '';
+                confirmPassword = '';
+                passwordInput?.focus();
             }
         } catch (error: any) {
             console.error('[HiddenChatUnlock] Error unlocking:', error);
@@ -220,18 +220,18 @@
 
     // Handle close
     function handleClose() {
-        code = '';
-        confirmCode = '';
+        password = '';
+        confirmPassword = '';
         errorMessage = '';
         onClose();
     }
 
     // Focus input when shown
     $effect(() => {
-        if (show && codeInput) {
+        if (show && passwordInput) {
             // Small delay to ensure input is visible
             setTimeout(() => {
-                codeInput?.focus();
+                passwordInput?.focus();
             }, 100);
         }
     });
@@ -261,7 +261,7 @@
             <div class="modal-header">
                 <h3>
                     {isFirstTime 
-                        ? $text('chats.hidden_chats.set_code_title.text', { default: 'Set Hidden Chat Code' })
+                        ? $text('chats.hidden_chats.set_password_title.text', { default: 'Set Hidden Chat Password' })
                         : $text('chats.hidden_chats.unlock_title.text', { default: 'Unlock Hidden Chats' })
                     }
                 </h3>
@@ -271,30 +271,28 @@
             <div class="modal-content">
                 <p class="description">
                     {isFirstTime
-                        ? $text('chats.hidden_chats.set_code_description.text', {
-                            default: 'Enter a 4-6 digit code to protect your hidden chats. This code is separate from your login password.'
+                        ? $text('chats.hidden_chats.set_password_description.text', {
+                            default: 'Enter a password (4-30 characters) to protect your hidden chats. This password is separate from your login password. Each unique password can be used to hide/show different chats.'
                         })
                         : $text('chats.hidden_chats.unlock_description.text', {
-                            default: 'Enter your 4-6 digit code to unlock hidden chats.'
+                            default: 'Enter your password (4-30 characters) to unlock hidden chats. Each unique password can be used to hide/show different chats.'
                         })
                     }
                 </p>
 
                 <form onsubmit={handleSubmit}>
                     <div class="input-group">
-                        <label for="code-input">
-                            {$text('chats.hidden_chats.code_label.text', { default: 'Code' })}
+                        <label for="password-input">
+                            {$text('chats.hidden_chats.password_label.text', { default: 'Password' })}
                         </label>
                         <input
-                            id="code-input"
-                            bind:this={codeInput}
-                            type="text"
-                            inputmode="numeric"
-                            pattern="[0-9]*"
-                            bind:value={code}
-                            oninput={handleCodeInput}
-                            placeholder="0000"
-                            maxlength="6"
+                            id="password-input"
+                            bind:this={passwordInput}
+                            type="password"
+                            bind:value={password}
+                            oninput={handlePasswordInput}
+                            placeholder={$text('chats.hidden_chats.password_placeholder.text', { default: 'Enter password' })}
+                            maxlength="30"
                             autocomplete="off"
                             class:error={!!errorMessage}
                             disabled={isLoading || lockoutState.isLockedOut}
@@ -303,19 +301,17 @@
 
                     {#if isFirstTime}
                         <div class="input-group">
-                            <label for="confirm-code-input">
-                                {$text('chats.hidden_chats.confirm_code_label.text', { default: 'Confirm Code' })}
+                            <label for="confirm-password-input">
+                                {$text('chats.hidden_chats.confirm_password_label.text', { default: 'Confirm Password' })}
                             </label>
                             <input
-                                id="confirm-code-input"
-                                bind:this={confirmCodeInput}
-                                type="text"
-                                inputmode="numeric"
-                                pattern="[0-9]*"
-                                bind:value={confirmCode}
-                                oninput={handleConfirmCodeInput}
-                                placeholder="0000"
-                                maxlength="6"
+                                id="confirm-password-input"
+                                bind:this={confirmPasswordInput}
+                                type="password"
+                                bind:value={confirmPassword}
+                                oninput={handleConfirmPasswordInput}
+                                placeholder={$text('chats.hidden_chats.password_placeholder.text', { default: 'Enter password' })}
+                                maxlength="30"
                                 autocomplete="off"
                                 class:error={!!errorMessage}
                                 disabled={isLoading || lockoutState.isLockedOut}
@@ -349,13 +345,13 @@
                         <button
                             type="submit"
                             class="button-primary"
-                            disabled={isLoading || !isValidCode(code) || (isFirstTime && code !== confirmCode) || lockoutState.isLockedOut}
+                            disabled={isLoading || !isValidPassword(password) || (isFirstTime && password !== confirmPassword) || lockoutState.isLockedOut}
                         >
                             {#if isLoading}
                                 <span class="loading-spinner"></span>
                             {:else}
                                 {isFirstTime
-                                    ? $text('chats.hidden_chats.set_code_button.text', { default: 'Set Code' })
+                                    ? $text('chats.hidden_chats.set_password_button.text', { default: 'Set Password' })
                                     : $text('chats.hidden_chats.unlock_button.text', { default: 'Unlock' })
                                 }
                             {/if}
@@ -480,9 +476,7 @@
         color: var(--color-text-primary);
         border: 2px solid transparent;
         transition: border-color 0.2s;
-        font-family: monospace;
-        letter-spacing: 0.1em;
-        text-align: center;
+        text-align: left;
     }
 
     .input-group input:focus {
