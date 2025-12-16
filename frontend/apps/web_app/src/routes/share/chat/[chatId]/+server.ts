@@ -32,13 +32,25 @@ export const GET: RequestHandler = async ({ params, url, fetch }) => {
     let ogImage = '/og-images/default-chat.png';
 
     try {
-        const response = await fetch(`${backendUrl}/v1/share/chat/${chatId}/og-metadata`);
+        // Add cache-busting timestamp to ensure we get fresh data
+        const cacheBuster = Date.now();
+        const response = await fetch(`${backendUrl}/v1/share/chat/${chatId}/og-metadata?t=${cacheBuster}`, {
+            cache: 'no-store', // Prevent any caching of the API response
+        });
 
         if (response.ok) {
             const data = await response.json();
             ogTitle = data.title || ogTitle;
             ogDescription = data.description || ogDescription;
             ogImage = data.image || ogImage;
+            
+            // Log what we received to help debug OG tag issues
+            console.log(`[OG Tags] Fetched metadata for chat ${chatId}:`, {
+                title: ogTitle.substring(0, 50),
+                description: ogDescription.substring(0, 50),
+                image: ogImage,
+                isFallback: ogTitle === 'Shared Chat - OpenMates' && ogDescription === 'View this shared conversation on OpenMates'
+            });
         } else {
             console.warn(`Failed to fetch OG metadata for chat ${chatId}: ${response.status}`);
         }
@@ -93,6 +105,10 @@ export const GET: RequestHandler = async ({ params, url, fetch }) => {
     return new Response(html, {
         headers: {
             'Content-Type': 'text/html; charset=utf-8',
+            // Prevent caching of OG tags to ensure fresh metadata is always served
+            'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
+            'Pragma': 'no-cache',
+            'Expires': '0',
         },
     });
 };

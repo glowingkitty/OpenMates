@@ -327,9 +327,17 @@ Invoices Settings - View and download past invoices
             const contentDisposition = response.headers.get('Content-Disposition');
             let filename = 'credit_note.pdf';
             if (contentDisposition) {
-                const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+                // Try multiple patterns to extract filename
+                // Pattern 1: filename="value" or filename='value' (quoted)
+                let filenameMatch = contentDisposition.match(/filename\s*=\s*["']([^"']+)["']/i);
                 if (filenameMatch && filenameMatch[1]) {
-                    filename = filenameMatch[1].replace(/['"]/g, '');
+                    filename = filenameMatch[1];
+                } else {
+                    // Pattern 2: filename=value (unquoted)
+                    filenameMatch = contentDisposition.match(/filename\s*=\s*([^;\s]+)/i);
+                    if (filenameMatch && filenameMatch[1]) {
+                        filename = filenameMatch[1];
+                    }
                 }
             }
 
