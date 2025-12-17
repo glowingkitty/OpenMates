@@ -94,16 +94,43 @@
     let embedContext = $state<any>(null);
     let isEmbedSharing = $derived(embedContext !== null);
 
-    // Check for embed context on mount and when window.__embedShareContext changes
+    // Check for embed context on mount, when window.__embedShareContext changes, 
+    // when settingsDeepLink is set to 'shared/share' (Share button clicked),
+    // and when component becomes active (activeSettingsView is 'share')
     $effect(() => {
         const windowEmbedContext = (window as any).__embedShareContext;
+        const deepLink = $settingsDeepLink;
+        const isActive = activeSettingsView === 'share';
+        
+        // Check for embed context when:
+        // 1. window.__embedShareContext exists (embed share button clicked)
+        // 2. settingsDeepLink is set to 'shared/share' (share settings opened)
+        // 3. Component becomes active (activeSettingsView is 'share')
         if (windowEmbedContext) {
+            // If we already have an embed context and it's different, reset share state
+            if (embedContext && embedContext.embed_id !== windowEmbedContext.embed_id) {
+                console.debug('[SettingsShare] New embed context detected, resetting share state. Old:', embedContext.embed_id, 'New:', windowEmbedContext.embed_id);
+                resetGeneratedState();
+            }
             embedContext = windowEmbedContext;
             console.debug('[SettingsShare] Embed sharing context detected:', embedContext);
             // Clear the global context to prevent reuse
             (window as any).__embedShareContext = null;
-        } else {
-            embedContext = null;
+        } else if (deepLink === 'shared/share' || isActive) {
+            // When share settings are opened or component becomes active, check again for embed context
+            // This handles timing issues where context might be set before component mounts
+            const contextCheck = (window as any).__embedShareContext;
+            if (contextCheck) {
+                // If we already have an embed context and it's different, reset share state
+                if (embedContext && embedContext.embed_id !== contextCheck.embed_id) {
+                    console.debug('[SettingsShare] New embed context detected via deep link, resetting share state. Old:', embedContext.embed_id, 'New:', contextCheck.embed_id);
+                    resetGeneratedState();
+                }
+                embedContext = contextCheck;
+                console.debug('[SettingsShare] Embed sharing context detected via deep link or active view:', embedContext);
+                // Clear the global context to prevent reuse
+                (window as any).__embedShareContext = null;
+            }
         }
     });
 
@@ -521,10 +548,23 @@
     // Also check on mount in case the chatId is already set
     // Only initialize if we don't already have a shared chat (to maintain stability)
     onMount(() => {
-        console.debug('[SettingsShare] onMount - currentChatId:', currentChatId, 'sharedChatId:', sharedChatId, 'activeChatStore:', $activeChatStore);
+        console.debug('[SettingsShare] onMount - currentChatId:', currentChatId, 'sharedChatId:', sharedChatId, 'activeChatStore:', $activeChatStore, 'embedContext:', embedContext);
+        
+        // Check for embed context on mount (with a small delay to ensure it's set)
+        // This handles cases where embed context is set just before component mounts
+        setTimeout(() => {
+            const windowEmbedContext = (window as any).__embedShareContext;
+            if (windowEmbedContext && !embedContext) {
+                embedContext = windowEmbedContext;
+                console.debug('[SettingsShare] Embed sharing context detected on mount:', embedContext);
+                // Clear the global context to prevent reuse
+                (window as any).__embedShareContext = null;
+            }
+        }, 100);
+        
         // Only sync from store on mount if we don't have a shared chat already
         // This maintains stability - if we already have a shared chat, don't change it
-        if (!sharedChatId && !isLinkGenerated) {
+        if (!sharedChatId && !isLinkGenerated && !embedContext) {
             const storeValue = $activeChatStore;
             if (storeValue && storeValue.trim() !== '' && storeValue !== currentChatId) {
                 currentChatId = storeValue;
@@ -532,7 +572,7 @@
             }
         }
         
-        if (currentChatId && !isLinkGenerated) {
+        if (currentChatId && !isLinkGenerated && !embedContext) {
             setTimeout(() => {
                 checkAndGenerateLink();
             }, 250);

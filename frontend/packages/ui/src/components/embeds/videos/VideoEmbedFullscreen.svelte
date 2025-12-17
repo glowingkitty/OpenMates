@@ -233,6 +233,7 @@
 
       // Import required modules
       const { navigateToSettings } = await import('../../../stores/settingsNavigationStore');
+      const { settingsDeepLink } = await import('../../../stores/settingsDeepLinkStore');
       const { panelState } = await import('../../../stores/panelStateStore');
 
       // Set embed context with embed_id for proper encrypted sharing
@@ -251,6 +252,9 @@
 
       // Navigate to share settings
       navigateToSettings('shared/share', $text('settings.share.share_video.text', { default: 'Share Video' }), 'share', 'settings.share.share_video.text');
+      
+      // Also set settingsDeepLink to ensure Settings component navigates properly
+      settingsDeepLink.set('shared/share');
 
       // Open settings panel
       panelState.openSettings();

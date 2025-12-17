@@ -3317,6 +3317,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             query={embedFullscreenData.decodedContent?.query || ''}
                             provider={embedFullscreenData.decodedContent?.provider || 'Brave'}
                             results={embedFullscreenData.decodedContent?.results || []}
+                            embedId={embedFullscreenData.embedId}
                             onClose={handleCloseEmbedFullscreen}
                         />
                     {:else if appId === 'news' && skillId === 'search'}
@@ -3325,6 +3326,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             query={embedFullscreenData.decodedContent?.query || ''}
                             provider={embedFullscreenData.decodedContent?.provider || 'Brave'}
                             results={embedFullscreenData.decodedContent?.results || []}
+                            embedId={embedFullscreenData.embedId}
                             onClose={handleCloseEmbedFullscreen}
                         />
                     {:else if appId === 'videos' && skillId === 'search'}
@@ -3333,6 +3335,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             query={embedFullscreenData.decodedContent?.query || ''}
                             provider={embedFullscreenData.decodedContent?.provider || 'Brave'}
                             results={embedFullscreenData.decodedContent?.results || []}
+                            embedId={embedFullscreenData.embedId}
                             onClose={handleCloseEmbedFullscreen}
                         />
                     {:else if appId === 'maps' && skillId === 'search'}
@@ -3341,6 +3344,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             query={embedFullscreenData.decodedContent?.query || ''}
                             provider={embedFullscreenData.decodedContent?.provider || 'Google'}
                             results={embedFullscreenData.decodedContent?.results || []}
+                            embedId={embedFullscreenData.embedId}
                             onClose={handleCloseEmbedFullscreen}
                         />
                     {:else if appId === 'videos' && skillId === 'get_transcript'}
@@ -3365,6 +3369,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         })()}
                         <VideoTranscriptEmbedFullscreen 
                             previewData={previewData}
+                            embedId={embedFullscreenData.embedId}
                             onClose={handleCloseEmbedFullscreen}
                         />
                     {:else if appId === 'web' && skillId === 'read'}
@@ -3402,6 +3407,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             snippets={embedFullscreenData.decodedContent?.snippets}
                             meta_url_favicon={embedFullscreenData.decodedContent?.meta_url_favicon}
                             thumbnail_original={embedFullscreenData.decodedContent?.thumbnail_original}
+                            embedId={embedFullscreenData.embedId}
                             onClose={handleCloseEmbedFullscreen}
                         />
                     {/if}
@@ -3430,6 +3436,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                 url={videoUrl}
                                 title={videoTitle}
                                 videoId={videoId}
+                                embedId={embedFullscreenData.embedId}
                                 restoreFromPip={restoreFromPip}
                                 onClose={handleCloseEmbedFullscreen}
                             />
