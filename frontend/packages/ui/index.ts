@@ -72,6 +72,7 @@ export {
     wrapEmbedKeyWithChatKey,
     unwrapEmbedKeyWithMasterKey,
     unwrapEmbedKeyWithChatKey,
+    unwrapEmbedKeyWithEmbedKey,
     encryptWithEmbedKey,
     decryptWithEmbedKey
 } from "./src/services/cryptoService"; // Export cryptographic utilities

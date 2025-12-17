@@ -38,6 +38,8 @@
     videoId?: string;
     /** Optional: Flag indicating this was opened from PiP (video already playing) */
     restoreFromPip?: boolean;
+    /** Optional: Embed ID for sharing (from embed:{embed_id} contentRef) */
+    embedId?: string;
   }
   
   let {
@@ -45,7 +47,8 @@
     title,
     onClose,
     videoId: propVideoId,
-    restoreFromPip = false
+    restoreFromPip = false,
+    embedId
   }: Props = $props();
   
   // Extract video ID and thumbnail for YouTube URLs
@@ -210,10 +213,54 @@
     }
   }
   
-  // Handle share - opens share menu (placeholder for now)
-  function handleShare() {
-    // TODO: Implement share functionality for video embeds
-    console.debug('[VideoEmbedFullscreen] Share action (not yet implemented)');
+  // Handle share - opens share settings menu for this specific video embed
+  async function handleShare() {
+    try {
+      console.debug('[VideoEmbedFullscreen] Opening share settings for video embed:', {
+        embedId,
+        url,
+        title: displayTitle,
+        videoId
+      });
+
+      // Check if we have embed_id for proper sharing
+      if (!embedId) {
+        console.warn('[VideoEmbedFullscreen] No embed_id available - cannot create encrypted share link');
+        const { notificationStore } = await import('../../../stores/notificationStore');
+        notificationStore.error('Unable to share this video embed. Missing embed ID.');
+        return;
+      }
+
+      // Import required modules
+      const { navigateToSettings } = await import('../../../stores/settingsNavigationStore');
+      const { panelState } = await import('../../../stores/panelStateStore');
+
+      // Set embed context with embed_id for proper encrypted sharing
+      const embedContext = {
+        type: 'video',
+        embed_id: embedId,
+        url: url,
+        title: displayTitle,
+        videoId: videoId,
+        embedUrl: embedUrl,
+        thumbnailUrl: thumbnailUrl
+      };
+
+      // Store embed context for SettingsShare
+      (window as any).__embedShareContext = embedContext;
+
+      // Navigate to share settings
+      navigateToSettings('shared/share', $text('settings.share.share_video.text', { default: 'Share Video' }), 'share', 'settings.share.share_video.text');
+
+      // Open settings panel
+      panelState.openSettings();
+
+      console.debug('[VideoEmbedFullscreen] Opened share settings for video embed');
+    } catch (error) {
+      console.error('[VideoEmbedFullscreen] Error opening share settings:', error);
+      const { notificationStore } = await import('../../../stores/notificationStore');
+      notificationStore.error('Failed to open share menu. Please try again.');
+    }
   }
   
   // Handle entering picture-in-picture mode

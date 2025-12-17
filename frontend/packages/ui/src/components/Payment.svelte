@@ -25,7 +25,8 @@
         compact = false,
         initialState = 'idle',
         isGift = false,
-        isGiftCard = false
+        isGiftCard = false,
+        disableWebSocketHandlers = false // When true, don't register WebSocket handlers (e.g., when used in Settings)
     }: {
         purchasePrice?: number;
         currency?: string;
@@ -35,6 +36,7 @@
         initialState?: 'idle' | 'processing' | 'success';
         isGift?: boolean;
         isGiftCard?: boolean;
+        disableWebSocketHandlers?: boolean;
     } = $props();
 
     let hasConsentedToLimitedRefund = $state(false);
@@ -240,9 +242,64 @@
         });
     }
 
+    /**
+     * Save payment method to backend after successful payment.
+     * This ensures the payment method is attached to the Stripe customer
+     * and available for future purchases and subscriptions.
+     * 
+     * @param intentId - The payment intent ID from the successful payment
+     */
+    async function savePaymentMethod(intentId: string) {
+        // Only save payment methods for regular credit purchases (not gift cards)
+        // Gift cards may have different requirements
+        if (isGiftCard) {
+            console.log('[Payment] Skipping payment method save for gift card purchase');
+            return;
+        }
+
+        try {
+            console.log(`[Payment] Saving payment method with payment_intent_id: ${intentId}`);
+            
+            const response = await fetch(getApiEndpoint(apiEndpoints.payments.savePaymentMethod), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                credentials: 'include',
+                body: JSON.stringify({
+                    payment_intent_id: intentId
+                })
+            });
+            
+            if (response.ok) {
+                const result = await response.json();
+                console.log('[Payment] Payment method saved successfully:', result);
+            } else {
+                const errorText = await response.text();
+                console.warn('[Payment] Failed to save payment method (non-critical):', errorText);
+                // Don't throw error - payment was successful, saving payment method is a convenience feature
+            }
+        } catch (error) {
+            console.warn('[Payment] Error saving payment method (non-critical):', error);
+            // Don't throw error - payment was successful, saving payment method is a convenience feature
+        }
+    }
+
     async function handleSubmit() {
         if (!stripe || !elements || !paymentElement) {
             return;
+        }
+
+        // CRITICAL: Ensure email is available before submitting payment
+        // Since we set email: 'never' in the payment element, we MUST provide it in confirmPayment
+        if (!userEmail) {
+            // Try to get email if not already loaded
+            await getUserEmail();
+            if (!userEmail) {
+                errorMessage = 'Email is required for payment. Please ensure your email is set in your account.';
+                isLoading = false;
+                return;
+            }
         }
 
         isLoading = true;
@@ -255,7 +312,7 @@
                 // return_url is removed to prevent redirection
                 payment_method_data: {
                     billing_details: {
-                        email: userEmail || undefined
+                        email: userEmail // Always provide email since we disabled it in the element
                     }
                 }
             },
@@ -272,6 +329,10 @@
         } else if (paymentIntent && paymentIntent.status === 'succeeded') {
             // Store payment_intent_id for later use (e.g., when webhook completes)
             paymentIntentId = paymentIntent.id;
+            
+            // Save payment method for future use (non-blocking)
+            // This ensures the payment method is available for future purchases
+            await savePaymentMethod(paymentIntentId);
             
             // For gift cards, keep in processing state until we receive gift_card_created event
             // For regular purchases, immediately show success
@@ -333,6 +394,12 @@
                             console.log('[Payment] Proceeding to success state after timeout');
                             paymentState = 'success';
                             isWaitingForConfirmation = false; // Keep listening for websocket event
+                            
+                            // Save payment method when payment is confirmed after timeout
+                            if (paymentIntentId) {
+                                savePaymentMethod(paymentIntentId);
+                            }
+                            
                             dispatch('paymentStateChange', { 
                                 state: paymentState,
                                 payment_intent_id: paymentIntentId, // Use stored payment_intent_id
@@ -386,7 +453,13 @@
                 // Use stored payment_intent_id if available, otherwise fall back to lastOrderId
                 // For Stripe, order_id is the payment_intent_id, so lastOrderId should work
                 // But prefer paymentIntentId if we have it (from immediate success case)
-                const intentId = paymentIntentId || lastOrderId;
+                const intentId = paymentIntentId || lastOrderId || payload.order_id;
+                
+                // Save payment method when payment is confirmed via webhook
+                if (intentId) {
+                    savePaymentMethod(intentId);
+                }
+                
                 dispatch('paymentStateChange', { 
                     state: paymentState,
                     payment_intent_id: intentId
@@ -492,19 +565,23 @@
             fetchConfigAndInitialize();
         }
         
-        // Listen for payment_completed websocket event
-        // This is sent after webhook processes payment and invoice is sent
-        webSocketService.on('payment_completed', handlePaymentCompleted);
-        
-        // Listen for gift_card_created websocket event (for gift card purchases)
-        // This is sent after webhook creates a gift card after payment
-        if (isGiftCard) {
-            webSocketService.on('gift_card_created', handleGiftCardCreated);
+        // Only register WebSocket handlers if not disabled (e.g., when used in Settings, Settings.svelte already handles these)
+        // This prevents duplicate handler registrations that cause warnings
+        if (!disableWebSocketHandlers) {
+            // Listen for payment_completed websocket event
+            // This is sent after webhook processes payment and invoice is sent
+            webSocketService.on('payment_completed', handlePaymentCompleted);
+            
+            // Listen for gift_card_created websocket event (for gift card purchases)
+            // This is sent after webhook creates a gift card after payment
+            if (isGiftCard) {
+                webSocketService.on('gift_card_created', handleGiftCardCreated);
+            }
+            
+            // Listen for payment_failed websocket event
+            // This is sent when webhook receives payment failure (can happen minutes after payment attempt)
+            webSocketService.on('payment_failed', handlePaymentFailed);
         }
-        
-        // Listen for payment_failed websocket event
-        // This is sent when webhook receives payment failure (can happen minutes after payment attempt)
-        webSocketService.on('payment_failed', handlePaymentFailed);
         
         return () => {
             if (userProfileUnsubscribe) {
@@ -516,12 +593,14 @@
             if (paymentConfirmationTimeoutId) {
                 clearTimeout(paymentConfirmationTimeoutId);
             }
-            // Remove websocket listeners
-            webSocketService.off('payment_completed', handlePaymentCompleted);
-            if (isGiftCard) {
-                webSocketService.off('gift_card_created', handleGiftCardCreated);
+            // Remove websocket listeners only if they were registered
+            if (!disableWebSocketHandlers) {
+                webSocketService.off('payment_completed', handlePaymentCompleted);
+                if (isGiftCard) {
+                    webSocketService.off('gift_card_created', handleGiftCardCreated);
+                }
+                webSocketService.off('payment_failed', handlePaymentFailed);
             }
-            webSocketService.off('payment_failed', handlePaymentFailed);
         };
     });
 

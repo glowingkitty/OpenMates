@@ -10,7 +10,6 @@
 
 import logging
 import os
-import time
 import asyncio
 from typing import Dict, Any, List, Optional, Tuple
 from urllib.parse import urlparse, parse_qs, quote_plus
@@ -25,6 +24,7 @@ from backend.core.api.app.services.creators.revenue_service import CreatorRevenu
 from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.services.cache import CacheService
+from backend.shared.python_utils.url_normalizer import sanitize_url_remove_fragment
 
 # YouTube transcript API imports
 try:
@@ -316,13 +316,14 @@ class TranscriptSkill(BaseSkill):
             logger.error(f"Error building Oxylabs proxy URL: {e}", exc_info=True)
             return None
     
-    async def _build_oxylabs_proxy_url_async(self, secrets_manager: SecretsManager) -> Optional[str]:
+    async def _build_oxylabs_proxy_url_async(self, secrets_manager: SecretsManager, session_suffix: Optional[str] = None) -> Optional[str]:
         """
         Build Oxylabs proxy URL from secrets manager (async version).
-        
+
         Args:
             secrets_manager: SecretsManager instance to get Oxylabs credentials
-            
+            session_suffix: Optional suffix to add to session ID for different IPs (e.g., "retry1", "retry2")
+
         Returns:
             Proxy URL string if credentials are available, None otherwise
         """
@@ -336,11 +337,11 @@ class TranscriptSkill(BaseSkill):
                 secret_path="kv/data/providers/oxylabs",
                 secret_key="proxy_password"
             )
-            
+
             if not ox_username or not ox_password:
                 logger.debug("Oxylabs credentials not found - proceeding without proxy")
                 return None
-            
+
             # Get optional proxy configuration
             ox_country = os.getenv("OX_COUNTRY", "").strip().upper()
             ox_city = os.getenv("OX_CITY", "").strip().lower()
@@ -349,35 +350,44 @@ class TranscriptSkill(BaseSkill):
             ox_sestime = os.getenv("OX_SESTIME", "").strip()
             ox_host = os.getenv("OX_HOST", "pr.oxylabs.io")
             ox_port = int(os.getenv("OX_PORT", "7777"))  # 7777 = datacenter, 8080 = residential
-            
+
             # Build proxy username with optional parameters
             parts = ["customer", ox_username]
-            
+
             if ox_country:
                 parts.append(f"cc-{ox_country}")
-            
+
             if ox_city:
                 parts.append(f"city-{ox_city}")
-            
+
             if ox_state:
                 parts.append(f"st-{ox_state}")
-            
+
+            # Generate unique session ID for each attempt to get different IP
             if ox_sessid:
-                parts.append(f"sessid-{ox_sessid}")
-            
+                # If session_suffix provided, append it to get different IP for retries
+                if session_suffix:
+                    unique_sessid = f"{ox_sessid}-{session_suffix}"
+                else:
+                    unique_sessid = ox_sessid
+                parts.append(f"sessid-{unique_sessid}")
+            elif session_suffix:
+                # If no base session ID but suffix provided, use just the suffix
+                parts.append(f"sessid-{session_suffix}")
+
             if ox_sestime:
                 parts.append(f"sesstime-{ox_sestime}")
-            
+
             # Assemble the username part Oxylabs expects
             ox_user = "-".join(parts)
-            
+
             # URL-encode credentials (password may contain special chars)
             auth = f"{quote_plus(ox_user)}:{quote_plus(ox_password)}"
             proxy_url = f"http://{auth}@{ox_host}:{ox_port}"
-            
-            logger.debug(f"Built Oxylabs proxy URL (host: {ox_host}, port: {ox_port})")
+
+            logger.debug(f"Built Oxylabs proxy URL (host: {ox_host}, port: {ox_port}, session_suffix: {session_suffix})")
             return proxy_url
-            
+
         except Exception as e:
             logger.warning(f"Error building Oxylabs proxy URL (will proceed without proxy): {e}", exc_info=True)
             return None
@@ -444,25 +454,24 @@ class TranscriptSkill(BaseSkill):
         self,
         video_id: str,
         url: str,
-        proxy_config: Optional[GenericProxyConfig],
+        secrets_manager: SecretsManager,
         languages: List[str] = None,
-        max_retries: int = 3,
-        base_delay: float = 2.0
+        max_retries: int = 3
     ) -> Dict[str, Any]:
         """
-        Fetch transcript for a video with exponential back-off retry logic.
-        
+        Fetch transcript for a video with retry logic using different IP addresses.
+
         This method runs the synchronous youtube-transcript-api calls in a thread pool
-        to avoid blocking the async event loop.
-        
+        to avoid blocking the async event loop. Each retry attempt uses a different
+        proxy session ID to get a different IP address, eliminating the need for delays.
+
         Args:
             video_id: YouTube video ID
             url: Original video URL
-            proxy_config: Optional proxy configuration for youtube-transcript-api
+            secrets_manager: SecretsManager instance to build proxy configs for each retry
             languages: List of language codes to try (default: ["en", "de", "es", "fr"])
             max_retries: Maximum number of retry attempts
-            base_delay: Base delay in seconds for exponential backoff
-            
+
         Returns:
             Dict with success status, transcript data, or error information
         """
@@ -475,21 +484,30 @@ class TranscriptSkill(BaseSkill):
                 "url": url,
                 "error": "youtube-transcript-api package not installed"
             }
-        
+
+        # Pre-build proxy configs for each retry attempt to get different IPs
+        proxy_configs = []
+        for attempt in range(max_retries):
+            session_suffix = f"retry{attempt}" if attempt > 0 else None
+            proxy_url = await self._build_oxylabs_proxy_url_async(secrets_manager, session_suffix)
+            proxy_config = self._make_proxy_config(proxy_url)
+            proxy_configs.append(proxy_config)
+
+            if proxy_url:
+                logger.debug(f"Built proxy config for attempt {attempt+1} with session suffix: {session_suffix}")
+
         # Run synchronous transcript fetching in thread pool to avoid blocking
         def _fetch_sync():
             """Synchronous transcript fetching function to run in thread pool."""
             for attempt in range(max_retries):
                 try:
-                    if attempt > 0:
-                        delay = base_delay * (2 ** (attempt - 1))
-                        logger.debug(f"Retry {attempt+1}/{max_retries} for video {video_id} – sleeping {delay:.1f}s")
-                        time.sleep(delay)
-                    
-                    # Create YouTubeTranscriptApi instance with proxy if available
+                    # Use pre-built proxy config for this attempt (different IP for each retry)
+                    proxy_config = proxy_configs[attempt]
                     if proxy_config:
+                        logger.debug(f"Attempt {attempt+1}/{max_retries}: Using proxy with different session ID (retry{attempt})")
                         ytt_api = YouTubeTranscriptApi(proxy_config=proxy_config)
                     else:
+                        logger.debug(f"Attempt {attempt+1}/{max_retries}: No proxy available, using direct connection")
                         ytt_api = YouTubeTranscriptApi()
                     
                     # Fetch transcript - API will pick the first available language
@@ -528,7 +546,8 @@ class TranscriptSkill(BaseSkill):
                         "language": fetched.language,
                     }
                 except Exception as exc:
-                    logger.warning(f"Transcript fetch attempt {attempt+1}/{max_retries} failed for {video_id}: {type(exc).__name__}: {exc}")
+                    proxy_info = f"(proxy session: retry{attempt})" if proxy_configs[attempt] else "(direct connection)"
+                    logger.warning(f"Transcript fetch attempt {attempt+1}/{max_retries} failed for {video_id} {proxy_info}: {type(exc).__name__}: {exc}")
                     if attempt == max_retries - 1:
                         return {
                             "success": False,
@@ -574,25 +593,24 @@ class TranscriptSkill(BaseSkill):
         req: Dict[str, Any],
         request_id: Any,
         secrets_manager: SecretsManager,
-        proxy_config: Optional[GenericProxyConfig],
         cache_service: Optional[Any] = None  # CacheService type, but avoid circular import
     ) -> Tuple[Any, List[Dict[str, Any]], Optional[str]]:
         """
         Process a single transcript request.
-        
+
         This method handles all the logic for processing one transcript request:
         - Parameter extraction and validation
         - Video ID extraction
-        - Transcript fetching
+        - Transcript fetching with different IPs on retry
         - Content sanitization
         - Result formatting
-        
+
         Args:
             req: Request dictionary with url and optional parameters
             request_id: The id of this request (for matching in response)
             secrets_manager: SecretsManager instance
-            proxy_config: Proxy configuration for YouTube API calls
-        
+            cache_service: Optional cache service for content sanitization
+
         Returns:
             Tuple of (request_id, results_list, error_string_or_none)
             - request_id: The id of the request (for grouping in response)
@@ -602,6 +620,19 @@ class TranscriptSkill(BaseSkill):
         video_url = req.get("url", "")
         if not video_url:
             return (request_id, [], f"Missing 'url' parameter")
+        
+        # Sanitize URL by removing fragment parameters (#{text}) as a security measure
+        # Fragments can contain malicious content and are not needed for video transcript fetching
+        sanitized_url = sanitize_url_remove_fragment(video_url)
+        if not sanitized_url:
+            return (request_id, [], f"Invalid URL: '{video_url}' - could not sanitize")
+        
+        # Log if fragment was removed (for debugging)
+        if '#' in video_url and '#' not in sanitized_url:
+            logger.debug(f"[{request_id}] Removed fragment from URL: '{video_url}' -> '{sanitized_url}'")
+        
+        # Use sanitized URL for processing
+        video_url = sanitized_url
         
         # Extract optional languages parameter
         languages = req.get("languages")
@@ -614,11 +645,11 @@ class TranscriptSkill(BaseSkill):
             if not video_id:
                 return (request_id, [], f"Invalid YouTube URL: '{video_url}' - could not extract video ID")
             
-            # Fetch transcript
+            # Fetch transcript with retry logic using different IPs
             result = await self._fetch_transcript(
                 video_id=video_id,
                 url=video_url,
-                proxy_config=proxy_config,
+                secrets_manager=secrets_manager,
                 languages=languages
             )
             
@@ -856,23 +887,9 @@ class TranscriptSkill(BaseSkill):
         if error:
             return TranscriptResponse(results=[], error=error)
         
-        # Build proxy config (skill-specific setup)
-        try:
-            # Build Oxylabs proxy URL (if credentials available)
-            proxy_url = await self._build_oxylabs_proxy_url_async(secrets_manager)
-            proxy_config = self._make_proxy_config(proxy_url)
-            
-            if proxy_url:
-                logger.debug("Oxylabs proxy will be used for transcript fetching")
-            else:
-                logger.debug("No Oxylabs proxy configured - transcript fetching will use direct connection")
-                
-        except Exception as e:
-            logger.error(f"Error initializing proxy: {e}", exc_info=True)
-            return TranscriptResponse(
-                results=[],
-                error=f"Configuration error: {str(e)}"
-            )
+        # Proxy configuration is now handled per-attempt in _fetch_transcript
+        # to ensure different IPs are used for each retry
+        logger.debug("Proxy configurations will be built per-retry to use different IPs")
         
         # Initialize cache service for content sanitization (shared across all requests)
         from backend.core.api.app.services.cache import CacheService
@@ -884,7 +901,6 @@ class TranscriptSkill(BaseSkill):
             process_single_request_func=self._process_single_transcript_request,
             logger=logger,
             secrets_manager=secrets_manager,
-            proxy_config=proxy_config,
             cache_service=cache_service
         )
         

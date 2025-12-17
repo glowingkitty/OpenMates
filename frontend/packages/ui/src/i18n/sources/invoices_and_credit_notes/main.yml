@@ -556,14 +556,14 @@ withdrawal_waiver_notice:
   verified_by_human: []
 click_here_for_refund:
   context: Refund instructions text in invoice PDF
-  en: 'Want a refund? Click here to request a refund for unused credits within 14 days after purchase: {refund_link}'
-  de: 'Möchtest du eine Rückerstattung? Klicke hier, um eine Rückerstattung für ungenutzte Credits innerhalb von 14 Tagen nach dem Kauf anzufordern: {refund_link}'
-  zh: '想要退款？点击这里在购买后14天内申请未使用点数的退款：{refund_link}'
-  es: '¿Quieres un reembolso? Haz clic aquí para solicitar un reembolso por créditos no utilizados dentro de los 14 días posteriores a la compra: {refund_link}'
-  fr: 'Vous souhaitez un remboursement ? Cliquez ici pour demander un remboursement des crédits non utilisés dans les 14 jours suivant l''achat : {refund_link}'
+  en: 'Want a refund? {click_here_link} to request a refund for unused credits within 14 days after purchase.'
+  de: 'Möchtest du eine Rückerstattung? {click_here_link}, um eine Rückerstattung für ungenutzte Credits innerhalb von 14 Tagen nach dem Kauf anzufordern.'
+  zh: '想要退款？{click_here_link}在购买后14天内申请未使用点数的退款。'
+  es: '¿Quieres un reembolso? {click_here_link} para solicitar un reembolso por créditos no utilizados dentro de los 14 días posteriores a la compra.'
+  fr: 'Vous souhaitez un remboursement ? {click_here_link} pour demander un remboursement des crédits non utilisés dans les 14 jours suivant l''achat.'
   pt: ''
   ru: ''
-  ja: '返金をご希望ですか？購入後14日以内の未使用クレジットの返金をリクエストするには、ここをクリックしてください：{refund_link}'
+  ja: '返金をご希望ですか？{click_here_link}購入後14日以内の未使用クレジットの返金をリクエストするには。'
   ko: ''
   it: ''
   tr: ''

@@ -701,38 +701,14 @@ invoice_pdf_attached:
   verified_by_human: []
 click_here_for_refund:
   context: Refund instructions text in email body
-  en: 'Want a refund?
-
-    <a href=''{refund_link}''>Click here to request a refund for unused credits within 14 days after purchase.</a>
-
-    '
-  de: 'Möchtest du eine Rückerstattung?
-
-    <a href=''{refund_link}''>Klicke hier, um eine Rückerstattung für ungenutzte Credits innerhalb von 14 Tagen nach dem Kauf anzufordern.</a>
-
-    '
-  zh: '想要退款？
-
-    <a href=''{refund_link}''>点击这里在购买后14天内申请未使用点数的退款。</a>
-
-    '
-  es: '¿Quieres un reembolso?
-
-    <a href=''{refund_link}''>Haz clic aquí para solicitar un reembolso por créditos no utilizados dentro de los 14 días posteriores a la compra.</a>
-
-    '
-  fr: 'Vous souhaitez un remboursement ?
-
-    <a href=''{refund_link}''>Cliquez ici pour demander un remboursement des crédits non utilisés dans les 14 jours suivant l''achat.</a>
-
-    '
+  en: 'Want a refund? <a href=''{refund_link}'' style=''color: #4867CD; text-decoration: underline;''>Click here</a> to request a refund for unused credits within 14 days after purchase.'
+  de: 'Möchtest du eine Rückerstattung? <a href=''{refund_link}'' style=''color: #4867CD; text-decoration: underline;''>Klicke hier</a>, um eine Rückerstattung für ungenutzte Credits innerhalb von 14 Tagen nach dem Kauf anzufordern.'
+  zh: '想要退款？<a href=''{refund_link}'' style=''color: #4867CD; text-decoration: underline;''>点击这里</a>在购买后14天内申请未使用点数的退款。'
+  es: '¿Quieres un reembolso? <a href=''{refund_link}'' style=''color: #4867CD; text-decoration: underline;''>Haz clic aquí</a> para solicitar un reembolso por créditos no utilizados dentro de los 14 días posteriores a la compra.'
+  fr: 'Vous souhaitez un remboursement ? <a href=''{refund_link}'' style=''color: #4867CD; text-decoration: underline;''>Cliquez ici</a> pour demander un remboursement des crédits non utilisés dans les 14 jours suivant l''achat.'
   pt: ''
   ru: ''
-  ja: '返金をご希望ですか？
-
-    <a href=''{refund_link}''>購入後14日以内の未使用クレジットの返金をリクエストするには、ここをクリックしてください。</a>
-
-    '
+  ja: '返金をご希望ですか？<a href=''{refund_link}'' style=''color: #4867CD; text-decoration: underline;''>ここをクリック</a>購入後14日以内の未使用クレジットの返金をリクエストするには。'
   ko: ''
   it: ''
   tr: ''

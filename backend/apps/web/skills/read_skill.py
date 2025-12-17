@@ -22,7 +22,7 @@ from backend.core.api.app.utils.secrets_manager import SecretsManager
 from backend.apps.ai.processing.skill_executor import sanitize_external_content, check_rate_limit, wait_for_rate_limit
 # RateLimitScheduledException is no longer caught here - it bubbles up to route handler
 from backend.core.api.app.services.cache import CacheService
-from backend.shared.python_utils.url_normalizer import extract_domain_from_url, normalize_url_for_content_id
+from backend.shared.python_utils.url_normalizer import extract_domain_from_url, normalize_url_for_content_id, sanitize_url_remove_fragment
 from backend.core.api.app.services.creators.revenue_service import CreatorRevenueService
 from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.utils.encryption import EncryptionService
@@ -299,6 +299,19 @@ class ReadSkill(BaseSkill):
         read_url = req.get("url")
         if not read_url:
             return (request_id, [], f"Missing 'url' parameter")
+        
+        # Sanitize URL by removing fragment parameters (#{text}) as a security measure
+        # Fragments can contain malicious content and are not needed for web scraping
+        sanitized_url = sanitize_url_remove_fragment(read_url)
+        if not sanitized_url:
+            return (request_id, [], f"Invalid URL: '{read_url}' - could not sanitize")
+        
+        # Log if fragment was removed (for debugging)
+        if '#' in read_url and '#' not in sanitized_url:
+            logger.debug(f"[{request_id}] Removed fragment from URL: '{read_url}' -> '{sanitized_url}'")
+        
+        # Use sanitized URL for processing
+        read_url = sanitized_url
         
         # Extract request-specific parameters (with defaults from schema)
         req_formats = req.get("formats", ["markdown"])

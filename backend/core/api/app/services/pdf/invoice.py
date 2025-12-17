@@ -22,6 +22,42 @@ class InvoiceTemplateService(BasePDFTemplateService):
     def get_translation_disclaimer(self):
         """Get the invoice translation disclaimer text"""
         return self.t["invoices_and_credit_notes"]["this_invoice_is_a_translation"]["text"]
+    
+    def _get_click_here_text_for_language(self, lang):
+        """
+        Get the language-specific "Click here" text for the refund link
+        
+        Args:
+            lang: Language code (e.g., 'en', 'de', 'fr')
+            
+        Returns:
+            Language-specific "Click here" text
+        """
+        # Map of language codes to their "Click here" translations
+        click_here_translations = {
+            'en': 'Click here',
+            'de': 'Klicke hier',
+            'zh': '点击这里',
+            'es': 'Haz clic aquí',
+            'fr': 'Cliquez ici',
+            'ja': 'ここをクリック',
+            'pt': 'Clique aqui',
+            'ru': 'Нажмите здесь',
+            'ko': '여기를 클릭하세요',
+            'it': 'Clicca qui',
+            'tr': 'Buraya tıklayın',
+            'vi': 'Nhấp vào đây',
+            'id': 'Klik di sini',
+            'pl': 'Kliknij tutaj',
+            'nl': 'Klik hier',
+            'ar': 'انقر هنا',
+            'hi': 'यहाँ क्लिक करें',
+            'th': 'คลิกที่นี่',
+            'cs': 'Klikněte zde',
+            'sv': 'Klicka här'
+        }
+        # Return the translation for the language, or default to English
+        return click_here_translations.get(lang, 'Click here')
         
     def generate_invoice(self, invoice_data, lang="en", currency="eur"):
         """Generate an invoice PDF with the specified language and currency"""
@@ -437,12 +473,19 @@ class InvoiceTemplateService(BasePDFTemplateService):
         if invoice_data.get('refund_link'):
             elements.append(Spacer(1, 10))
             refund_text = self.t['invoices_and_credit_notes']['click_here_for_refund']['text']
-            # Replace the placeholder with a blue clickable link
-            refund_link_html = f"<a href='{invoice_data['refund_link']}' color='#4867CD'>{invoice_data['refund_link']}</a>"
-            refund_text = refund_text.replace('{refund_link}', refund_link_html)
+            # Get the language-specific "Click here" text from translations
+            # We need to extract what text should be in the link based on the language
+            # For now, we'll use a simple approach: get "Click here" translation
+            # The placeholder {click_here_link} will be replaced with a colored link
+            # The link color matches the support email color (#4867CD)
+            click_here_text = self._get_click_here_text_for_language(self.current_lang)
+            refund_link_html = f"<a href='{invoice_data['refund_link']}' color='#4867CD'>{click_here_text}</a>"
+            # Replace the {click_here_link} placeholder with the colored link
+            refund_text = refund_text.replace('{click_here_link}', refund_link_html)
             refund_text = sanitize_html_for_reportlab(refund_text)
+            # Use Normal style (black text) - the link inside will be colored automatically
             refund_table = Table([[Spacer(self.left_indent, 0),
-                                 Paragraph(refund_text, self.styles['ColorLinks'])]],
+                                 Paragraph(refund_text, self.styles['Normal'])]],
                                  colWidths=[self.left_indent, doc.width-self.left_indent])
             refund_table.setStyle(TableStyle([
                 ('LEFTPADDING', (0, 0), (-1, -1), 0),

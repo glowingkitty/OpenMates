@@ -47,7 +47,8 @@ async function initializeRegistry(): Promise<void> {
           query: data.decodedContent?.query || '',
           provider: data.decodedContent?.provider || 'Brave',
           results: data.decodedContent?.results || [],
-          onClose: data.onClose
+          onClose: data.onClose,
+          embedId: data.embedId // Add embedId for sharing functionality
         }
       };
     }
@@ -61,7 +62,8 @@ async function initializeRegistry(): Promise<void> {
           query: data.decodedContent?.query || '',
           provider: data.decodedContent?.provider || 'Brave',
           results: data.decodedContent?.results || [],
-          onClose: data.onClose
+          onClose: data.onClose,
+          embedId: data.embedId // Add embedId for sharing functionality
         }
       };
     }
@@ -75,7 +77,8 @@ async function initializeRegistry(): Promise<void> {
           query: data.decodedContent?.query || '',
           provider: data.decodedContent?.provider || 'Brave',
           results: data.decodedContent?.results || [],
-          onClose: data.onClose
+          onClose: data.onClose,
+          embedId: data.embedId // Add embedId for sharing functionality
         }
       };
     }
@@ -89,7 +92,8 @@ async function initializeRegistry(): Promise<void> {
           query: data.decodedContent?.query || '',
           provider: data.decodedContent?.provider || 'Google',
           results: data.decodedContent?.results || [],
-          onClose: data.onClose
+          onClose: data.onClose,
+          embedId: data.embedId // Add embedId for sharing functionality
         }
       };
     }
@@ -102,11 +106,12 @@ async function initializeRegistry(): Promise<void> {
         props: {
           results: data.decodedContent?.results || [],
           status: data.embedData?.status || 'finished',
-          onClose: data.onClose
+          onClose: data.onClose,
+          embedId: data.embedId // Add embedId for sharing functionality
         }
       };
     }
-    
+
     // Web read
     if (appId === 'web' && skillId === 'read') {
       const { default: component } = await import('../components/embeds/web/WebReadEmbedFullscreen.svelte');
@@ -115,7 +120,8 @@ async function initializeRegistry(): Promise<void> {
         props: {
           results: data.decodedContent?.results || [],
           status: data.embedData?.status || 'finished',
-          onClose: data.onClose
+          onClose: data.onClose,
+          embedId: data.embedId // Add embedId for sharing functionality
         }
       };
     }
@@ -141,7 +147,8 @@ async function initializeRegistry(): Promise<void> {
         snippets: data.decodedContent?.snippets,
         meta_url_favicon: data.decodedContent?.meta_url_favicon,
         thumbnail_original: data.decodedContent?.thumbnail_original,
-        onClose: data.onClose
+        onClose: data.onClose,
+        embedId: data.embedId // Add embedId for sharing functionality
       }
     };
   });
@@ -159,7 +166,8 @@ async function initializeRegistry(): Promise<void> {
         language: data.decodedContent?.language || data.attrs?.language,
         filename: data.decodedContent?.filename || data.attrs?.filename,
         lineCount: data.decodedContent?.lineCount || data.attrs?.lineCount || 0,
-        onClose: data.onClose
+        onClose: data.onClose,
+        embedId: data.embedId // Add embedId for sharing functionality
       }
     };
   });
@@ -175,7 +183,8 @@ async function initializeRegistry(): Promise<void> {
       props: {
         url,
         title: data.decodedContent?.title || data.attrs?.title,
-        onClose: data.onClose
+        onClose: data.onClose,
+        embedId: data.embedId // Add embedId for sharing functionality
       }
     };
   });

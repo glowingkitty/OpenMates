@@ -428,6 +428,7 @@ Supports both saved payment methods and new payment form
             requireConsent={true}
             compact={false}
             isGiftCard={true}
+            disableWebSocketHandlers={true}
             on:paymentStateChange={handlePaymentComplete}
         />
     </div>

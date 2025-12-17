@@ -245,10 +245,14 @@ Supports both saved payment methods and new payment form
     }
 
     // Handle payment completion from Payment component (for new payment form)
-    function handlePaymentComplete(event: CustomEvent<{ state: string, payment_intent_id?: string, isDelayed?: boolean }>) {
+    async function handlePaymentComplete(event: CustomEvent<{ state: string, payment_intent_id?: string, isDelayed?: boolean }>) {
         const paymentState = event.detail?.state;
         
         if (paymentState === 'success') {
+            // Refresh payment methods after successful payment
+            // The payment method should now be saved and available for future purchases
+            await checkPaymentMethods();
+            
             dispatch('openSettings', {
                 settingsPath: 'billing/buy-credits/confirmation',
                 direction: 'forward',
@@ -321,6 +325,7 @@ Supports both saved payment methods and new payment form
             credits_amount={selectedCreditsAmount}
             requireConsent={true}
             compact={false}
+            disableWebSocketHandlers={true}
             on:paymentStateChange={handlePaymentComplete}
         />
     </div>

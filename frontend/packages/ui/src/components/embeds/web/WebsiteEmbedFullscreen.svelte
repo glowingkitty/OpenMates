@@ -13,7 +13,10 @@
 -->
 
 <script lang="ts">
+  import { get } from 'svelte/store';
   import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
+  // @ts-ignore - @repo/ui module exists at runtime
+  import { text } from '@repo/ui';
   
   /**
    * Props for website embed fullscreen
@@ -37,6 +40,8 @@
     thumbnail_original?: string;
     /** Close handler */
     onClose: () => void;
+    /** Optional: Embed ID for sharing (from embed:{embed_id} contentRef) */
+    embedId?: string;
   }
   
   let {
@@ -48,7 +53,8 @@
     snippets = [],
     meta_url_favicon,
     thumbnail_original,
-    onClose
+    onClose,
+    embedId
   }: Props = $props();
   
   // Get display values
@@ -72,9 +78,55 @@
     }
   }
   
-  // Handle share action (opens in new tab)
-  function handleShare() {
-    handleOpenInNewTab();
+  // Handle share - opens share settings menu for this specific website embed
+  async function handleShare() {
+    try {
+      console.debug('[WebsiteEmbedFullscreen] Opening share settings for website embed:', {
+        embedId,
+        url,
+        title: displayTitle,
+        description: displayDescription
+      });
+
+      // Check if we have embed_id for proper sharing
+      if (!embedId) {
+        console.warn('[WebsiteEmbedFullscreen] No embed_id available - cannot create encrypted share link');
+        const { notificationStore } = await import('../../../stores/notificationStore');
+        notificationStore.error('Unable to share this website embed. Missing embed ID.');
+        return;
+      }
+
+      // Import required modules
+      const { navigateToSettings } = await import('../../../stores/settingsNavigationStore');
+      const { panelState } = await import('../../../stores/panelStateStore');
+
+      // Set embed context with embed_id for proper encrypted sharing
+      const embedContext = {
+        type: 'website',
+        embed_id: embedId,
+        url: url,
+        title: displayTitle,
+        description: displayDescription,
+        favicon: faviconUrl,
+        image: imageUrl,
+        snippets: snippets
+      };
+
+      // Store embed context for SettingsShare
+      (window as any).__embedShareContext = embedContext;
+
+      // Navigate to share settings
+      navigateToSettings('shared/share', 'Share Website', 'share', 'settings.share.share_website.text');
+
+      // Open settings panel
+      panelState.openSettings();
+
+      console.debug('[WebsiteEmbedFullscreen] Opened share settings for website embed');
+    } catch (error) {
+      console.error('[WebsiteEmbedFullscreen] Error opening share settings:', error);
+      const { notificationStore } = await import('../../../stores/notificationStore');
+      notificationStore.error('Failed to open share menu. Please try again.');
+    }
   }
 </script>
 

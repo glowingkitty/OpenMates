@@ -8,6 +8,8 @@ import asyncio
 import logging
 from typing import List, Dict, Any, Optional
 
+from backend.shared.python_utils.url_normalizer import sanitize_url_remove_fragment
+
 logger = logging.getLogger(__name__)
 
 # URL validation timeout (seconds)
@@ -51,6 +53,9 @@ async def check_url_status(url: str, timeout: float = URL_VALIDATION_TIMEOUT) ->
     Uses HEAD request first (more efficient), falls back to GET if HEAD not supported.
     Includes User-Agent header to avoid bot detection/datacenter blocking.
     
+    **Security**: URL fragments (#{text}) are removed before validation as a security measure.
+    Fragments can contain malicious content and are not needed for URL validation.
+    
     **Monitoring for Datacenter Blocking:**
     If broken URLs are not being removed from assistant responses, this may indicate
     that providers are blocking requests from datacenter IPs. In such cases:
@@ -69,6 +74,21 @@ async def check_url_status(url: str, timeout: float = URL_VALIDATION_TIMEOUT) ->
     Returns:
         Dict with validation results
     """
+    # Sanitize URL by removing fragment parameters (#{text}) as a security measure
+    # Fragments can contain malicious content and are not needed for URL validation
+    sanitized_url = sanitize_url_remove_fragment(url)
+    if not sanitized_url:
+        logger.warning(f"Failed to sanitize URL for validation: '{url}'")
+        return {
+            'is_valid': False,
+            'status_code': None,
+            'error_type': 'invalid_url',
+            'is_temporary': False
+        }
+    
+    # Use sanitized URL for validation
+    url = sanitized_url
+    
     try:
         # Use a user agent to appear more like a browser and avoid datacenter detection
         # Some providers block requests that look like bots/scrapers

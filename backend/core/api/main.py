@@ -852,12 +852,15 @@ def create_app() -> FastAPI:
     app.state.allowed_origins = allowed_origins
 
     # Configure CORS with the allowed origins
+    # expose_headers is required to allow frontend to read response headers like Content-Disposition
+    # This is needed for file downloads (invoices, credit notes) where the filename is in the header
     app.add_middleware(
         CORSMiddleware,
         allow_origins=allowed_origins,
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
+        expose_headers=["Content-Disposition"],  # Expose Content-Disposition header for file downloads
     )
 
     # Add ProxyHeadersMiddleware to handle X-Forwarded-* headers

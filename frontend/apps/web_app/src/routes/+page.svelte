@@ -43,6 +43,8 @@
     // --- State ---
     let isInitialLoad = $state(true);
     let activeChat = $state<ActiveChat | null>(null); // Fixed: Use $state for Svelte 5
+    let isProcessingInitialHash = $state(false); // Track if we're processing initial hash load
+    let originalHashChatId: string | null = null; // Store original hash chat ID from URL (read before anything modifies it)
     
     // CRITICAL: Reactive effect to watch for signup state changes
     // This handles cases where user profile loads asynchronously after initialize() completes
@@ -97,6 +99,13 @@
     async function handleChatDeepLink(chatId: string) {
         console.debug(`[+page.svelte] Handling chat deep link for: ${chatId}`);
         
+        // CRITICAL: During initial hash load, always process (store might be initialized from hash but chat not loaded)
+        // After initial load, skip if chat is already active in store (prevents unnecessary processing)
+        if (!isProcessingInitialHash && $activeChatStore === chatId) {
+            console.debug(`[+page.svelte] Chat ${chatId} is already active (not initial load), skipping deep link processing`);
+            return;
+        }
+        
         // Update the activeChatStore so the Chats component highlights it when opened
         activeChatStore.setActiveChat(chatId);
         
@@ -125,9 +134,8 @@
                     window.dispatchEvent(globalChatSelectedEvent);
                     console.debug(`[+page.svelte] Dispatched globalChatSelected for deep-linked public chat:`, chatId);
                     
-                    // Clear the URL immediately after loading
-                    console.debug(`[+page.svelte] Clearing chat_id from URL after loading deep-linked public chat`);
-                    window.history.replaceState({}, '', window.location.pathname + window.location.search);
+                    // Keep the URL hash so users can share/bookmark the chat
+                    // The activeChatStore.setActiveChat() call above already updated the hash
                     return;
                 } else if (retries > 0) {
                     const delay = retries > 10 ? 50 : 100;
@@ -167,10 +175,8 @@
                         window.dispatchEvent(globalChatSelectedEvent);
                         console.debug(`[+page.svelte] Dispatched globalChatSelected for deep-linked chat:`, chat.chat_id);
                         
-                        // Clear the URL immediately after loading the chat
-                        // This prevents sharing chat history while still supporting deep linking
-                        console.debug(`[+page.svelte] Clearing chat_id from URL after loading deep-linked chat`);
-                        window.history.replaceState({}, '', window.location.pathname + window.location.search);
+                        // Keep the URL hash so users can share/bookmark the chat
+                        // The activeChatStore.setActiveChat() call above already updated the hash
                     } else {
                         // If activeChat isn't ready yet, wait a bit and retry
                         setTimeout(() => {
@@ -186,9 +192,8 @@
                                 window.dispatchEvent(globalChatSelectedEvent);
                                 console.debug(`[+page.svelte] Dispatched globalChatSelected for deep-linked chat (delayed):`, chat.chat_id);
                                 
-                                // Clear the URL after loading
-                                console.debug(`[+page.svelte] Clearing chat_id from URL after loading deep-linked chat (delayed)`);
-                                window.history.replaceState({}, '', window.location.pathname + window.location.search);
+                                // Keep the URL hash so users can share/bookmark the chat
+                                // The activeChatStore.setActiveChat() call above already updated the hash
                             } else {
                                 console.warn(`[+page.svelte] activeChat component not ready for deep link`);
                             }
@@ -198,12 +203,13 @@
                     console.warn(`[+page.svelte] Chat ${chatId} not found in IndexedDB after sync`);
                     // Chat doesn't exist for this user - clear the URL and store
                     activeChatStore.clearActiveChat();
-                    window.history.replaceState({}, '', window.location.pathname + window.location.search);
+                    // activeChatStore.clearActiveChat() already clears the hash, no need to manually clear
                 }
             } catch (error) {
                 console.error(`[+page.svelte] Error loading deep-linked chat:`, error);
-                // Clear URL on error
-                window.history.replaceState({}, '', window.location.pathname + window.location.search);
+                // Clear URL on error - chat doesn't exist or can't be loaded
+                activeChatStore.clearActiveChat();
+                // activeChatStore.clearActiveChat() already clears the hash, no need to manually clear
             }
             
             // Remove the listener after handling
@@ -219,6 +225,48 @@
     }
     
     /**
+     * Handler for sync completion - loads chat based on priority:
+     * 1. URL hash chat (if present)
+     * 2. Last opened chat (if no hash)
+     * 3. Default (demo-welcome for non-auth, new chat for auth)
+     * 
+     * This implements the "Auto-Open Logic" from sync.md Phase 1 requirements
+     * 
+     * IMPORTANT: This function is only called on login (when sync completes after authentication).
+     * On tab reload, we load from IndexedDB directly (see instant load logic below).
+     */
+    async function handleSyncCompleteAndLoadChat() {
+        console.debug('[+page.svelte] Sync event received, checking what chat to load...');
+        
+        // PRIORITY 1: URL hash chat has absolute priority
+        // Use originalHashChatId if available (stored at start of onMount), otherwise check current hash
+        // This prevents issues where welcome chat loading overwrote the hash
+        let hashChatIdToLoad: string | null = null;
+        if (typeof originalHashChatId !== 'undefined' && originalHashChatId !== null) {
+            // Use original hash (read before anything could modify it)
+            hashChatIdToLoad = originalHashChatId;
+            console.debug('[+page.svelte] Using ORIGINAL hash chat ID from start of onMount:', hashChatIdToLoad);
+        } else if (browser) {
+            // Fallback: check current hash (might have been modified)
+            hashChatIdToLoad = window.location.hash.startsWith('#chat-id=')
+                ? window.location.hash.substring('#chat-id='.length)
+                : window.location.hash.startsWith('#chat_id=')
+                ? window.location.hash.substring('#chat_id='.length)
+                : null;
+            console.debug('[+page.svelte] Using CURRENT hash chat ID (fallback):', hashChatIdToLoad);
+        }
+        
+        if (hashChatIdToLoad) {
+            console.debug('[+page.svelte] URL hash contains chat ID, loading hash chat (priority 1):', hashChatIdToLoad);
+            await handleChatDeepLink(hashChatIdToLoad);
+            return; // Don't load last opened chat or default
+        }
+        
+        // PRIORITY 2: Last opened chat (only if no hash)
+        await handleSyncCompleteAndLoadLastChat();
+    }
+    
+    /**
      * Handler for sync completion - automatically loads the last opened chat
      * This implements the "Auto-Open Logic" from sync.md Phase 1 requirements
      * 
@@ -229,50 +277,79 @@
      * Only loads if chat exists in IndexedDB but isn't currently displayed
      */
     async function handleSyncCompleteAndLoadLastChat() {
-        console.debug('[+page.svelte] Sync event received (login scenario), checking for last opened chat from server...');
+        console.debug('[+page.svelte] Loading last opened chat (no hash in URL)...');
         
         // On login, use server state (from userProfile which was synced from server)
         // This ensures new devices get the correct last opened chat from server
         const lastOpenedChatId = $userProfile.last_opened;
         
         if (!lastOpenedChatId) {
-            console.debug('[+page.svelte] No last opened chat in user profile (from server)');
-            return;
+            console.debug('[+page.svelte] No last opened chat in user profile (from server) - will load default chat');
+            // Don't return - continue to load default chat below
         }
         
-        // Skip if this chat is already loaded (active chat store matches)
-        if ($activeChatStore === lastOpenedChatId) {
-            console.debug('[+page.svelte] Last opened chat already loaded, skipping');
-            return;
-        }
-        
-        try {
-            // Ensure chatDB is initialized
-            await chatDB.init();
-            
-            // Try to load the last opened chat from IndexedDB
-            // This will succeed as soon as the chat data is saved during any sync phase
-            const lastChat = await chatDB.getChat(lastOpenedChatId);
-            
-            if (lastChat && activeChat) {
-                console.debug('[+page.svelte] ✅ Loading last opened chat from sync (login):', lastOpenedChatId);
-                
-                // Update the active chat store so the sidebar highlights it when opened
-                activeChatStore.setActiveChat(lastOpenedChatId);
-                
-                // Load the chat in the UI
-                activeChat.loadChat(lastChat);
-                
-                console.debug('[+page.svelte] ✅ Successfully loaded last opened chat from sync (login)');
-            } else if (!lastChat) {
-                console.debug('[+page.svelte] Last opened chat not yet in IndexedDB, will try again after next sync phase');
-            } else if (!activeChat) {
-                console.debug('[+page.svelte] ActiveChat component not ready yet, retrying...');
-                // Retry after a short delay if activeChat isn't ready
-                setTimeout(handleSyncCompleteAndLoadLastChat, 100);
+        // Try to load last opened chat if it exists
+        if (lastOpenedChatId) {
+            // Skip if this chat is already loaded (active chat store matches)
+            if ($activeChatStore === lastOpenedChatId) {
+                console.debug('[+page.svelte] Last opened chat already loaded, skipping');
+                return; // Already loaded, don't load default
             }
-        } catch (error) {
-            console.error('[+page.svelte] Error loading last opened chat:', error);
+            
+            try {
+                // Ensure chatDB is initialized
+                await chatDB.init();
+                
+                // Try to load the last opened chat from IndexedDB
+                // This will succeed as soon as the chat data is saved during any sync phase
+                const lastChat = await chatDB.getChat(lastOpenedChatId);
+                
+                if (lastChat && activeChat) {
+                    console.debug('[+page.svelte] ✅ Loading last opened chat from sync (login):', lastOpenedChatId);
+                    
+                    // Update the active chat store so the sidebar highlights it when opened
+                    activeChatStore.setActiveChat(lastOpenedChatId);
+                    
+                    // Load the chat in the UI
+                    activeChat.loadChat(lastChat);
+                    
+                    console.debug('[+page.svelte] ✅ Successfully loaded last opened chat from sync (login)');
+                    return; // Successfully loaded, don't load default
+                } else if (!lastChat) {
+                    console.debug('[+page.svelte] Last opened chat not yet in IndexedDB, will try again after next sync phase');
+                    // Don't return - will load default below
+                } else if (!activeChat) {
+                    console.debug('[+page.svelte] ActiveChat component not ready yet, retrying...');
+                    // Retry after a short delay if activeChat isn't ready
+                    setTimeout(handleSyncCompleteAndLoadLastChat, 100);
+                    return; // Will retry, don't load default yet
+                }
+            } catch (error) {
+                console.error('[+page.svelte] Error loading last opened chat:', error);
+                // Continue to load default chat on error
+            }
+        }
+        
+        // PRIORITY 3: Default chat (only if no last opened chat was loaded)
+        // For non-authenticated users: demo-welcome
+        // For authenticated users: new chat window
+        if (!$activeChatStore && activeChat) {
+            if (!$authStore.isAuthenticated) {
+                // Non-auth: load demo-welcome
+                console.debug('[+page.svelte] No last opened chat, loading demo-welcome (default for non-auth)');
+                const { DEMO_CHATS, convertDemoChatToChat, translateDemoChat } = await import('@repo/ui');
+                const welcomeDemo = DEMO_CHATS.find(chat => chat.chat_id === 'demo-welcome');
+                if (welcomeDemo) {
+                    const translatedWelcomeDemo = translateDemoChat(welcomeDemo);
+                    const welcomeChat = convertDemoChatToChat(translatedWelcomeDemo);
+                    activeChatStore.setActiveChat('demo-welcome');
+                    activeChat.loadChat(welcomeChat);
+                }
+            } else {
+                // Auth: show new chat window (clear active chat)
+                console.debug('[+page.svelte] No last opened chat, showing new chat window (default for auth)');
+                activeChatStore.clearActiveChat();
+            }
         }
     }
     
@@ -390,6 +467,16 @@
 	
 	onMount(async () => {
 		console.debug('[+page.svelte] onMount started');
+		
+		// CRITICAL: Read and store the ORIGINAL hash value BEFORE anything can modify it
+		// This ensures we can check for hash chat even if welcome chat loading overwrites the hash
+		const originalHash = browser ? window.location.hash : '';
+		originalHashChatId = originalHash.startsWith('#chat-id=') || originalHash.startsWith('#chat_id=')
+			? (originalHash.startsWith('#chat-id=') 
+				? originalHash.substring('#chat-id='.length)
+				: originalHash.substring('#chat_id='.length))
+			: null;
+		console.debug('[+page.svelte] [INIT] Original hash from URL:', originalHash, 'chatId:', originalHashChatId);
 		
 		// Handle ?lang= query parameter for language selection
 		if (browser) {
@@ -689,11 +776,12 @@
 		if (isAuth || !$phasedSyncState.initialSyncCompleted) {
 			console.debug('[+page.svelte] Registering sync event listeners...');
 			
-			// Register listener for sync completion to auto-open last chat (per sync.md Phase 1 requirements)
+			// Register listener for sync completion to auto-open chat based on priority
+			// Priority: hash chat > last opened chat > default
 			const handleSyncComplete = (async () => {
 				console.debug('[+page.svelte] Sync complete event received, marking as completed');
 				phasedSyncState.markSyncCompleted(); // Mark immediately on any sync complete event
-				await handleSyncCompleteAndLoadLastChat();
+				await handleSyncCompleteAndLoadChat();
 			}) as EventListener;
 			
 			// Register listeners for phased sync completion events only
@@ -725,6 +813,33 @@
 			isInSignupProcess.set(true);
 			loginInterfaceOpen.set(true);
 			console.debug(`[+page.svelte] Re-applied signup state: step=${step}, isInSignupProcess=true, loginInterfaceOpen=true`);
+		}
+		
+		// CRITICAL: Use ORIGINAL hash value (read at start of onMount) to detect hash chat
+		// This prevents welcome chat loading from overwriting the hash before we check it
+		// Priority: hash chat > last opened chat > default (demo-welcome for non-auth, new chat for auth)
+		let hasChatHash = false;
+		let hashChatId: string | null = originalHashChatId; // Use original hash, not current hash
+		
+		if (hashChatId) {
+			console.debug(`[+page.svelte] [DETECTED] Found chat deep link in ORIGINAL URL hash: ${hashChatId} - will load after chats are ready`);
+			
+			hasChatHash = true;
+			
+			// Check if it's a public chat (demo/legal) - these can be loaded immediately
+			const { getPublicChatById } = await import('@repo/ui');
+			const publicChat = getPublicChatById(hashChatId);
+			
+			if (publicChat) {
+				// Public chat - can load immediately (no sync needed)
+				console.debug(`[+page.svelte] [DETECTED] Hash chat is public chat, loading immediately: ${hashChatId}`);
+				isProcessingInitialHash = true;
+				await handleChatDeepLink(hashChatId);
+				isProcessingInitialHash = false;
+			} else {
+				// User chat - will be loaded after sync completes (see handleSyncCompleteAndLoadChat below)
+				console.debug(`[+page.svelte] [DETECTED] Hash chat is user chat, will load after sync: ${hashChatId}`);
+			}
 		}
 		
 		// CRITICAL: Check if user is in signup flow AFTER initialize() completes
@@ -766,10 +881,24 @@
 		// FIXED: Improved retry mechanism - loads welcome chat regardless of Chats.svelte mount state
 		// This ensures welcome chat loads on both large screens (when Chats mounts) and small screens (when Chats doesn't mount)
 		// On mobile, Chats.svelte doesn't mount when sidebar is closed, so this is the primary loading path
-		if (!isAuth) {
+		// CRITICAL: Only load welcome chat if:
+		// 1. No hash in URL (hash chat will be loaded after sync)
+		// 2. User is not authenticated (auth users get new chat window as default)
+		// 3. No last opened chat will be loaded (for tab reloads)
+		// Use originalHashChatId to check (read before anything could modify hash)
+		const shouldLoadWelcomeChat = !isAuth && !hasChatHash && !originalHashChatId;
+		
+		if (shouldLoadWelcomeChat) {
 			console.debug('[+page.svelte] [NON-AUTH] Starting welcome chat loading logic...');
 			// Retry mechanism to wait for activeChat component to bind
 			const loadWelcomeChat = async (retries = 20): Promise<void> => {
+				// CRITICAL: Check original hash (not current hash which might have been modified)
+				// If original hash exists, don't load welcome chat
+				if (originalHashChatId) {
+					console.debug('[+page.svelte] [NON-AUTH] Original hash detected, aborting welcome chat loading');
+					return;
+				}
+				
 				const sidebarOpen = $panelState.isActivityHistoryOpen;
 				const storeChatId = $activeChatStore;
 				
@@ -821,62 +950,72 @@
 			loadWelcomeChat().catch(error => {
 				console.error('[+page.svelte] [NON-AUTH] Error loading welcome chat:', error);
 			});
+		} else if (!isAuth && (hasChatHash || originalHashChatId)) {
+			console.debug('[+page.svelte] [NON-AUTH] Skipping welcome chat load - URL hash chat has priority');
 		}
 		
 		// INSTANT LOAD: Check if last opened chat is already in IndexedDB (non-blocking)
 		// This provides instant load on page reload without waiting for sync
 		// CRITICAL: On tab reload, load from IndexedDB (not server state) to prevent sudden chat switches
-		// On login, server state will be used (via handleSyncCompleteAndLoadLastChat)
-		if ($authStore.isAuthenticated && dbInitPromise) {
+		// On login, server state will be used (via handleSyncCompleteAndLoadChat)
+		// CRITICAL: URL hash chat has priority - skip last opened chat if hash is present
+		// Use originalHashChatId (read before anything could modify it)
+		if ($authStore.isAuthenticated && dbInitPromise && !hasChatHash && !originalHashChatId) {
+			// Only load last opened chat if we don't have a chat hash
 			dbInitPromise.then(async () => {
-				// Load last_opened from IndexedDB (local state) instead of server state
-				// This prevents the sudden switch when server sync completes after tab reload
-				const { userDB } = await import('@repo/ui');
-				const localProfile = await userDB.getUserProfile();
-				const lastOpenedChatId = localProfile?.last_opened;
-				
-				if (!lastOpenedChatId) {
-					console.debug('[+page.svelte] [TAB RELOAD] No last opened chat in IndexedDB, will wait for sync or use server state on login');
+				// Double-check original hash still applies (shouldn't change, but be safe)
+				if (originalHashChatId) {
+					console.debug('[+page.svelte] [TAB RELOAD] Original hash detected during instant load, aborting last opened chat load');
 					return;
 				}
-				
-				// Handle "new chat window" case
-				if (lastOpenedChatId === '/chat/new' || lastOpenedChatId === 'new') {
-					console.debug('[+page.svelte] [TAB RELOAD] Last opened was new chat window, clearing active chat');
-					// Clear active chat to show new chat window
-					// The ActiveChat component will show the new chat interface when no chat is selected
-					activeChatStore.clearActiveChat();
-					phasedSyncState.markSyncCompleted();
-					return;
-				}
-				
-				// Handle real chat ID
-				if (activeChat) {
-					console.debug('[+page.svelte] [TAB RELOAD] Checking if last opened chat is already in IndexedDB:', lastOpenedChatId);
-					const lastChat = await chatDB.getChat(lastOpenedChatId);
-					if (lastChat) {
-						// SECURITY: Don't load hidden chats on page reload - they require passcode to unlock
-						// Check if chat is a hidden candidate (can't decrypt with master key)
-						if ((lastChat as any).is_hidden_candidate || (lastChat as any).is_hidden) {
-							console.debug('[+page.svelte] [TAB RELOAD] Last opened chat is hidden, skipping load (requires passcode)');
-							// Clear last_opened to prevent trying to load it again
-							await userDB.updateUserData({ last_opened: '/chat/new' });
-							activeChatStore.clearActiveChat();
-							phasedSyncState.markSyncCompleted();
-							return;
-						}
-						
-						console.debug('[+page.svelte] ✅ INSTANT LOAD: Last opened chat found in IndexedDB (tab reload), loading immediately');
-						activeChatStore.setActiveChat(lastOpenedChatId);
-						activeChat.loadChat(lastChat);
-						// Mark sync as completed since we already have data
-						phasedSyncState.markSyncCompleted();
-						console.debug('[+page.svelte] ✅ Chat loaded instantly from IndexedDB cache (tab reload)');
-					} else {
-						console.debug('[+page.svelte] Last opened chat not in IndexedDB yet, will wait for sync');
+					// Load last_opened from IndexedDB (local state) instead of server state
+					// This prevents the sudden switch when server sync completes after tab reload
+					const { userDB } = await import('@repo/ui');
+					const localProfile = await userDB.getUserProfile();
+					const lastOpenedChatId = localProfile?.last_opened;
+					
+					if (!lastOpenedChatId) {
+						console.debug('[+page.svelte] [TAB RELOAD] No last opened chat in IndexedDB, will wait for sync or use server state on login');
+						return;
 					}
-				}
-			});
+					
+					// Handle "new chat window" case
+					if (lastOpenedChatId === '/chat/new' || lastOpenedChatId === 'new') {
+						console.debug('[+page.svelte] [TAB RELOAD] Last opened was new chat window, clearing active chat');
+						// Clear active chat to show new chat window
+						// The ActiveChat component will show the new chat interface when no chat is selected
+						activeChatStore.clearActiveChat();
+						phasedSyncState.markSyncCompleted();
+						return;
+					}
+					
+					// Handle real chat ID
+					if (activeChat) {
+						console.debug('[+page.svelte] [TAB RELOAD] Checking if last opened chat is already in IndexedDB:', lastOpenedChatId);
+						const lastChat = await chatDB.getChat(lastOpenedChatId);
+						if (lastChat) {
+							// SECURITY: Don't load hidden chats on page reload - they require passcode to unlock
+							// Check if chat is a hidden candidate (can't decrypt with master key)
+							if ((lastChat as any).is_hidden_candidate || (lastChat as any).is_hidden) {
+								console.debug('[+page.svelte] [TAB RELOAD] Last opened chat is hidden, skipping load (requires passcode)');
+								// Clear last_opened to prevent trying to load it again
+								await userDB.updateUserData({ last_opened: '/chat/new' });
+								activeChatStore.clearActiveChat();
+								phasedSyncState.markSyncCompleted();
+								return;
+							}
+							
+							console.debug('[+page.svelte] ✅ INSTANT LOAD: Last opened chat found in IndexedDB (tab reload), loading immediately');
+							activeChatStore.setActiveChat(lastOpenedChatId);
+							activeChat.loadChat(lastChat);
+							// Mark sync as completed since we already have data
+							phasedSyncState.markSyncCompleted();
+							console.debug('[+page.svelte] ✅ Chat loaded instantly from IndexedDB cache (tab reload)');
+						} else {
+							console.debug('[+page.svelte] Last opened chat not in IndexedDB yet, will wait for sync');
+						}
+					}
+				});
 		}
 
         // Check if we need to start phased sync manually
@@ -905,35 +1044,46 @@
             // If sync already completed but we're just mounting (e.g., after page reload),
             // check if we should load the last opened chat from IndexedDB (not server state)
             // This prevents sudden chat switches when already logged in
+            // CRITICAL: URL hash chat has priority over last opened chat
             if (activeChat) {
-                try {
-                    // Load from IndexedDB (local state) instead of server state
-                    const { userDB } = await import('@repo/ui');
-                    const localProfile = await userDB.getUserProfile();
-                    const lastOpenedChatId = localProfile?.last_opened;
-                    
-                    if (!lastOpenedChatId) {
-                        return;
+                // Check if original URL hash contains a chat ID (has priority)
+                // Use originalHashChatId (read before anything could modify it)
+                if (originalHashChatId) {
+                    console.debug('[+page.svelte] [TAB RELOAD] Original URL hash contains chat ID, loading hash chat (hash has priority):', originalHashChatId);
+                    // Load the hash chat instead of last opened chat
+                    isProcessingInitialHash = true;
+                    await handleChatDeepLink(originalHashChatId);
+                    isProcessingInitialHash = false;
+                } else {
+                    try {
+                        // Load from IndexedDB (local state) instead of server state
+                        const { userDB } = await import('@repo/ui');
+                        const localProfile = await userDB.getUserProfile();
+                        const lastOpenedChatId = localProfile?.last_opened;
+                        
+                        if (!lastOpenedChatId) {
+                            return;
+                        }
+                        
+                        // Handle "new chat window" case
+                        if (lastOpenedChatId === '/chat/new' || lastOpenedChatId === 'new') {
+                            console.debug('[+page.svelte] [TAB RELOAD] Last opened was new chat window, clearing active chat');
+                            // Clear active chat to show new chat window
+                            // The ActiveChat component will show the new chat interface when no chat is selected
+                            activeChatStore.clearActiveChat();
+                            return;
+                        }
+                        
+                        // Handle real chat ID
+                        const lastChat = await chatDB.getChat(lastOpenedChatId);
+                        if (lastChat) {
+                            console.debug('[+page.svelte] [TAB RELOAD] Sync already complete, loading last opened chat from IndexedDB:', lastOpenedChatId);
+                            activeChatStore.setActiveChat(lastOpenedChatId);
+                            activeChat.loadChat(lastChat);
+                        }
+                    } catch (error) {
+                        console.error('[+page.svelte] Error loading last opened chat from IndexedDB:', error);
                     }
-                    
-                    // Handle "new chat window" case
-                    if (lastOpenedChatId === '/chat/new' || lastOpenedChatId === 'new') {
-                        console.debug('[+page.svelte] [TAB RELOAD] Last opened was new chat window, clearing active chat');
-                        // Clear active chat to show new chat window
-                        // The ActiveChat component will show the new chat interface when no chat is selected
-                        activeChatStore.clearActiveChat();
-                        return;
-                    }
-                    
-                    // Handle real chat ID
-                    const lastChat = await chatDB.getChat(lastOpenedChatId);
-                    if (lastChat) {
-                        console.debug('[+page.svelte] [TAB RELOAD] Sync already complete, loading last opened chat from IndexedDB:', lastOpenedChatId);
-                        activeChatStore.setActiveChat(lastOpenedChatId);
-                        activeChat.loadChat(lastChat);
-                    }
-                } catch (error) {
-                    console.error('[+page.svelte] Error loading last opened chat from IndexedDB:', error);
                 }
             }
         }
@@ -967,15 +1117,26 @@
                 processSettingsDeepLink(window.location.hash);
             }
         } else if (window.location.hash.startsWith('#chat_id=') || window.location.hash.startsWith('#chat-id=')) {
-            // Handle chat deep linking from URL
+            // Handle chat deep linking from URL (fallback - should have been processed earlier)
             // Support both #chat_id= and #chat-id= formats
             const chatId = window.location.hash.startsWith('#chat_id=') 
                 ? window.location.hash.substring(9) // Remove '#chat_id=' prefix
                 : window.location.hash.substring(9); // Remove '#chat-id=' prefix
-            console.debug(`[+page.svelte] Found chat deep link in URL: ${chatId}`);
+            console.debug(`[+page.svelte] Found chat deep link in URL (fallback processing): ${chatId}`);
             
-            // Handle the deep link (supports both user chats and demo/legal chats)
-            handleChatDeepLink(chatId);
+            // Only process if not already processed earlier
+            if (!isProcessingInitialHash) {
+                // Mark as processing initial hash load
+                isProcessingInitialHash = true;
+                
+                // Handle the deep link (supports both user chats and demo/legal chats)
+                await handleChatDeepLink(chatId);
+                
+                // Reset flag after processing
+                isProcessingInitialHash = false;
+            } else {
+                console.debug(`[+page.svelte] Chat hash already processed earlier, skipping duplicate processing`);
+            }
         }
 
         // Remove initial load state after a small delay
@@ -1012,8 +1173,19 @@
     /**
      * Handle hash changes after page load
      * Allows navigation by pasting URLs with chat_id, signup hash, or settings hash
+     * 
+     * CRITICAL: Ignores programmatic hash updates to prevent infinite loops
      */
-    function handleHashChange() {
+    async function handleHashChange() {
+        // Import the check function
+        const { isProgrammaticHashUpdate } = await import('@repo/ui');
+        
+        // Ignore hash changes that we triggered programmatically (prevents infinite loops)
+        if (isProgrammaticHashUpdate()) {
+            console.debug('[+page.svelte] Ignoring programmatic hash update');
+            return;
+        }
+        
         console.debug('[+page.svelte] Hash changed:', window.location.hash);
         
         if (window.location.hash.startsWith('#signup/')) {
@@ -1059,10 +1231,17 @@
             }
         } else if (window.location.hash.startsWith('#chat_id=') || window.location.hash.startsWith('#chat-id=')) {
             // Support both #chat_id= and #chat-id= formats
-            const chatId = window.location.hash.startsWith('#chat_id=') 
+            const chatId = window.location.hash.startsWith('#chat_id=')
                 ? window.location.hash.substring(9) // Remove '#chat_id=' prefix
                 : window.location.hash.substring(9); // Remove '#chat-id=' prefix
-            handleChatDeepLink(chatId);
+            
+            // Mark as processing initial hash load (for hashchange handler)
+            isProcessingInitialHash = true;
+            
+            await handleChatDeepLink(chatId);
+            
+            // Reset flag after processing
+            isProcessingInitialHash = false;
         }
     }
 

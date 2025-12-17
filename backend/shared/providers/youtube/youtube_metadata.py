@@ -18,6 +18,7 @@ from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 
 from backend.core.api.app.utils.secrets_manager import SecretsManager
+from backend.shared.python_utils.url_normalizer import sanitize_url_remove_fragment
 
 logger = logging.getLogger(__name__)
 
@@ -70,6 +71,9 @@ def extract_youtube_id_from_url(url: str) -> Optional[str]:
     - https://youtu.be/VIDEO_ID
     - https://youtube.com/watch?v=VIDEO_ID
     
+    **Security**: URL fragments (#{text}) are removed before extraction as a security measure.
+    Fragments can contain malicious content and are not needed for video ID extraction.
+    
     Args:
         url: YouTube video URL
         
@@ -78,6 +82,16 @@ def extract_youtube_id_from_url(url: str) -> Optional[str]:
     """
     if not url:
         return None
+    
+    # Sanitize URL by removing fragment parameters (#{text}) as a security measure
+    # Fragments can contain malicious content and are not needed for video ID extraction
+    sanitized_url = sanitize_url_remove_fragment(url)
+    if not sanitized_url:
+        logger.warning(f"Failed to sanitize YouTube URL for ID extraction: '{url}'")
+        return None
+    
+    # Use sanitized URL for extraction
+    url = sanitized_url
     
     # Pattern for youtube.com/watch?v=VIDEO_ID and youtu.be/VIDEO_ID
     match = re.search(r'(?:youtube\.com/watch\?v=|youtu\.be/)([\w-]{11})', url)

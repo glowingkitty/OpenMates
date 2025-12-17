@@ -2885,11 +2885,19 @@ async def download_invoice(
         from io import BytesIO
         pdf_stream = BytesIO(decrypted_pdf_content)
 
+        # Use proper Content-Disposition header format for filename (same as credit notes)
+        # Format: attachment; filename="filename.pdf"; filename*=UTF-8''urlencoded-filename.pdf
+        # RFC 5987 requires the filename* value to be percent-encoded
+        # This ensures compatibility with all browsers and proper filename extraction
+        from urllib.parse import quote
+        filename_encoded = quote(filename, safe='')
+        content_disposition = f'attachment; filename="{filename}"; filename*=UTF-8\'\'{filename_encoded}'
+
         return StreamingResponse(
             pdf_stream,
             media_type="application/pdf",
             headers={
-                "Content-Disposition": f"attachment; filename={filename}"
+                "Content-Disposition": content_disposition
             }
         )
 
@@ -3080,11 +3088,19 @@ async def download_credit_note(
         from io import BytesIO
         pdf_stream = BytesIO(decrypted_pdf_content)
 
+        # Use proper Content-Disposition header format for filename
+        # Format: attachment; filename="filename.pdf"; filename*=UTF-8''urlencoded-filename.pdf
+        # RFC 5987 requires the filename* value to be percent-encoded
+        # This ensures compatibility with all browsers and proper filename extraction
+        from urllib.parse import quote
+        filename_encoded = quote(filename, safe='')
+        content_disposition = f'attachment; filename="{filename}"; filename*=UTF-8\'\'{filename_encoded}'
+        
         return StreamingResponse(
             pdf_stream,
             media_type="application/pdf",
             headers={
-                "Content-Disposition": f'attachment; filename="{filename}"'
+                "Content-Disposition": content_disposition
             }
         )
 

@@ -664,11 +664,15 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 		if (!$authStore.isAuthenticated) {
 			syncing = false;
 			console.debug('[Chats] Non-authenticated user - skipping sync indicator');
-			
+
 			// CRITICAL: For non-auth users, ensure the welcome demo chat is selected if no chat is active yet
 			// This handles the case where the sidebar mounts before +page.svelte sets the active chat
 			// FIXED: Dispatch chatSelected to ensure the chat actually loads (important for SEO and user experience)
-			if (!currentActiveChat && visiblePublicChats.length > 0) {
+			// CRITICAL: URL hash chat has priority - skip welcome chat if hash is present
+			const hasChatHash = typeof window !== 'undefined' && 
+				(window.location.hash.startsWith('#chat-id=') || window.location.hash.startsWith('#chat_id='));
+			
+			if (!currentActiveChat && visiblePublicChats.length > 0 && !hasChatHash) {
 				const welcomeChat = visiblePublicChats.find(chat => chat.chat_id === 'demo-welcome');
 				if (welcomeChat) {
 					console.debug('[Chats] Auto-selecting welcome demo chat for non-authenticated user');
@@ -679,6 +683,8 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 					dispatch('chatSelected', { chat: welcomeChat });
 					console.debug('[Chats] Dispatched chatSelected for welcome demo chat');
 				}
+			} else if (hasChatHash) {
+				console.debug('[Chats] Skipping welcome chat auto-selection - URL hash chat has priority');
 			}
 		}
 		
@@ -719,14 +725,18 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 			// Force a reactive update to ensure UI reflects the cleared state
 			// This is especially important if chats were already loaded before logout
 			console.debug('[Chats] User chats cleared immediately, demo chats will be shown');
-			
+
 			// CRITICAL: After clearing user chats, select the welcome demo chat
 			// This ensures the welcome chat is highlighted in the sidebar after logout
 			// Use tick() to ensure reactive updates have processed (visiblePublicChats should be updated)
+			// CRITICAL: URL hash chat has priority - skip welcome chat if hash is present
 			await tick();
 			
+			const hasChatHash = typeof window !== 'undefined' && 
+				(window.location.hash.startsWith('#chat-id=') || window.location.hash.startsWith('#chat_id='));
+
 			// Find and select the welcome demo chat
-			if (visiblePublicChats.length > 0) {
+			if (visiblePublicChats.length > 0 && !hasChatHash) {
 				const welcomeChat = visiblePublicChats.find(chat => chat.chat_id === 'demo-welcome');
 				if (welcomeChat) {
 					console.debug('[Chats] Auto-selecting welcome demo chat after logout');
@@ -739,6 +749,8 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 				} else {
 					console.warn('[Chats] Welcome demo chat not found in visiblePublicChats after logout');
 				}
+			} else if (hasChatHash) {
+				console.debug('[Chats] Skipping welcome chat auto-selection after logout - URL hash chat has priority');
 			} else {
 				console.warn('[Chats] No visible public chats available after logout');
 			}
@@ -763,12 +775,16 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 				chatListCache.clear();
 				// Force UI update by triggering reactivity
 				allChatsFromDB = [];
-				
+
 				// FALLBACK: Select welcome demo chat if not already selected
 				// This ensures the welcome chat is highlighted even if 'userLoggingOut' event doesn't fire
 				// Use tick() to ensure reactive updates have processed
+				// CRITICAL: URL hash chat has priority - skip welcome chat if hash is present
 				await tick();
-				if (!selectedChatId && visiblePublicChats.length > 0) {
+				const hasChatHash = typeof window !== 'undefined' && 
+					(window.location.hash.startsWith('#chat-id=') || window.location.hash.startsWith('#chat_id='));
+				
+				if (!selectedChatId && visiblePublicChats.length > 0 && !hasChatHash) {
 					const welcomeChat = visiblePublicChats.find(chat => chat.chat_id === 'demo-welcome');
 					if (welcomeChat) {
 						console.debug('[Chats] Auto-selecting welcome demo chat after auth state change (fallback)');
@@ -776,6 +792,8 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 						activeChatStore.setActiveChat('demo-welcome');
 						dispatch('chatSelected', { chat: welcomeChat });
 					}
+				} else if (hasChatHash) {
+					console.debug('[Chats] Skipping welcome chat auto-selection after auth state change - URL hash chat has priority');
 				}
 			} else if (authState.isAuthenticated && allChatsFromDB.length === 0) {
 				// OFFLINE-FIRST FIX: When auth becomes true (e.g., optimistic auth restored),

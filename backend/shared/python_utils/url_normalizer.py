@@ -61,6 +61,54 @@ def extract_domain_from_url(url: str) -> Optional[str]:
         return None
 
 
+def sanitize_url_remove_fragment(url: str) -> Optional[str]:
+    """
+    Sanitize URL by removing fragment parameters (#{text}) as a security measure.
+    
+    URL fragments (hash parameters) are client-side only and not sent to servers.
+    However, they can contain malicious content and are not needed for web scraping
+    or video transcript fetching. Removing them prevents potential security issues
+    and ensures clean URLs are passed to external APIs.
+    
+    This function preserves all other URL components (scheme, domain, path, query params)
+    and only removes the fragment portion.
+    
+    Args:
+        url: The URL to sanitize
+        
+    Returns:
+        Sanitized URL string without fragment, or None if URL is invalid
+        
+    Example:
+        >>> sanitize_url_remove_fragment("https://example.com/article?param=value#malicious-content")
+        'https://example.com/article?param=value'
+        >>> sanitize_url_remove_fragment("https://youtube.com/watch?v=123#section")
+        'https://youtube.com/watch?v=123'
+    """
+    try:
+        parsed = urlparse(url)
+        
+        if not parsed.netloc:
+            logger.warning(f"URL has no netloc (domain): {url}")
+            return None
+        
+        # Reconstruct URL without fragment (preserve everything else)
+        sanitized = urlunparse((
+            parsed.scheme,
+            parsed.netloc,
+            parsed.path,
+            parsed.params,
+            parsed.query,
+            ''  # fragment (removed for security)
+        ))
+        
+        return sanitized
+        
+    except Exception as e:
+        logger.error(f"Error sanitizing URL '{url}': {e}", exc_info=True)
+        return None
+
+
 def normalize_url_for_content_id(url: str) -> Optional[str]:
     """
     Normalize URL for content ID hashing (removes query params and fragments).
