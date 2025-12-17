@@ -43,7 +43,7 @@ export const GET: RequestHandler = async ({ params, url, fetch }) => {
             ogTitle = data.title || ogTitle;
             ogDescription = data.description || ogDescription;
             ogImage = data.image || ogImage;
-
+            
             // Log what we received to help debug OG tag issues
             console.log(`[OG Tags] Fetched metadata for embed ${embedId}:`, {
                 title: ogTitle.substring(0, 50),

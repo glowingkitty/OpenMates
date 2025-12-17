@@ -8,7 +8,7 @@
 import {
   encryptWithMasterKey,
   decryptWithMasterKey,
-  generateKey
+  generateEmbedKey
 } from './cryptoService';
 import { embedStore } from './embedStore';
 
@@ -86,7 +86,7 @@ export async function generateEmbedShareKeyBlob(
     }
 
     // Generate a random key for final encryption
-    const randomKey = generateKey();
+    const randomKey = generateEmbedKey();
 
     // Encrypt the data with the random key
     const encryptedData = await encryptWithMasterKey(

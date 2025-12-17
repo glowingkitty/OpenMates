@@ -125,7 +125,7 @@
             const serverTime = await getServerTime();
 
             // Decrypt the key blob using embed share encryption service
-            const { decryptEmbedShareKeyBlob } = await import('@repo/ui/src/services/embedShareEncryption');
+            const { decryptEmbedShareKeyBlob } = await import('@repo/ui');
             const result = await decryptEmbedShareKeyBlob(encryptedBlob, embedId, password);
 
             if (!result) {

@@ -976,15 +976,25 @@
 
         <!-- Share description -->
         <div class="share-description" transition:fade={{ duration: 200 }}>
-            <p>{$text('settings.share.share_description.text')}</p>
+            <p>
+                {#if isEmbedSharing}
+                    {$text('settings.share.share_embed_description.text')}
+                {:else}
+                    {$text('settings.share.share_description.text')}
+                {/if}
+            </p>
         </div>
-        <!-- Share Chat Button (shown FIRST - triggers link generation) -->
+        <!-- Share Button (shown FIRST - triggers link generation) -->
         <button
             class="share-chat-button primary-action"
             onclick={generateLink}
             disabled={!canGenerateLink}
         >
-            {$text('settings.share.share_chat.text')}
+            {#if isEmbedSharing}
+                {$text('settings.share.share_embed.text')}
+            {:else}
+                {$text('settings.share.share_chat.text')}
+            {/if}
         </button>
 
         <!-- Optional Share Settings Section -->
@@ -1015,7 +1025,13 @@
                         class="password-input"
                         class:invalid={password.length > 10}
                     />
-                    <p class="password-info">{$text('settings.share.password_required_info.text')}</p>
+                    <p class="password-info">
+                        {#if isEmbedSharing}
+                            {$text('settings.share.password_required_info_embed.text')}
+                        {:else}
+                            {$text('settings.share.password_required_info.text')}
+                        {/if}
+                    </p>
                 </div>
             {/if}
 
@@ -1043,13 +1059,25 @@
             <!-- Expire Time Info -->
             <div class="expire-time-info">
                 <div class="info-icon">⏱️</div>
-                <p>{$text('settings.share.expire_time_info.text')}</p>
+                <p>
+                    {#if isEmbedSharing}
+                        {$text('settings.share.expire_time_info_embed.text')}
+                    {:else}
+                        {$text('settings.share.expire_time_info.text')}
+                    {/if}
+                </p>
             </div>
 
             <!-- Encryption Info -->
             <div class="encryption-info">
                 <div class="info-icon">🔒</div>
-                <p>{$text('settings.share.encryption_info.text')}</p>
+                <p>
+                    {#if isEmbedSharing}
+                        {$text('settings.share.encryption_info_embed.text')}
+                    {:else}
+                        {$text('settings.share.encryption_info.text')}
+                    {/if}
+                </p>
             </div>
         </div>
     {:else}
