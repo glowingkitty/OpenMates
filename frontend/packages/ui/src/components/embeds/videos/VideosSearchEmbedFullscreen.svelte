@@ -48,13 +48,16 @@
     results?: VideoSearchResult[];
     /** Close handler */
     onClose: () => void;
+    /** Optional: Embed ID for sharing (from embed:{embed_id} contentRef) */
+    embedId?: string;
   }
   
   let {
     query,
     provider,
     results = [],
-    onClose
+    onClose,
+    embedId
   }: Props = $props();
   
   // Determine if mobile layout
@@ -64,6 +67,58 @@
   
   // Format the search query with provider name for title
   let displayTitle = $derived(`${query} via ${provider}`);
+  
+  // Handle share - opens share settings menu for this specific videos search embed
+  async function handleShare() {
+    try {
+      console.debug('[VideosSearchEmbedFullscreen] Opening share settings for videos search embed:', {
+        embedId,
+        query,
+        provider,
+        resultsCount: results.length
+      });
+
+      // Check if we have embed_id for proper sharing
+      if (!embedId) {
+        console.warn('[VideosSearchEmbedFullscreen] No embed_id available - cannot create encrypted share link');
+        const { notificationStore } = await import('../../../stores/notificationStore');
+        notificationStore.error('Unable to share this videos search embed. Missing embed ID.');
+        return;
+      }
+
+      // Import required modules
+      const { navigateToSettings } = await import('../../../stores/settingsNavigationStore');
+      const { settingsDeepLink } = await import('../../../stores/settingsDeepLinkStore');
+      const { panelState } = await import('../../../stores/panelStateStore');
+
+      // Set embed context with embed_id for proper encrypted sharing
+      const embedContext = {
+        type: 'videos_search',
+        embed_id: embedId,
+        query: query,
+        provider: provider,
+        results_count: results.length
+      };
+
+      // Store embed context for SettingsShare
+      (window as any).__embedShareContext = embedContext;
+
+      // Navigate to share settings
+      navigateToSettings('shared/share', 'Share Videos Search', 'share', 'settings.share.share_videos_search.text');
+      
+      // Also set settingsDeepLink to ensure Settings component navigates properly
+      settingsDeepLink.set('shared/share');
+
+      // Open settings panel
+      panelState.openSettings();
+
+      console.debug('[VideosSearchEmbedFullscreen] Opened share settings for videos search embed');
+    } catch (error) {
+      console.error('[VideosSearchEmbedFullscreen] Error opening share settings:', error);
+      const { notificationStore } = await import('../../../stores/notificationStore');
+      notificationStore.error('Failed to open share menu. Please try again.');
+    }
+  }
   
   // Handle opening search in provider
   function handleOpenInProvider() {
@@ -116,6 +171,7 @@
 </script>
 
 <UnifiedEmbedFullscreen
+  onShare={handleShare}
   appId="videos"
   skillId="search"
   title={displayTitle}

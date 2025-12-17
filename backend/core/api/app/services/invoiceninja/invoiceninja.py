@@ -371,6 +371,106 @@ class InvoiceNinjaService:
             transaction_reference=external_order_id
         )
 
+    def find_payment_by_invoice(self, invoice_id: str, client_id: Optional[str] = None) -> Optional[str]:
+        """
+        Finds a payment in Invoice Ninja by invoice ID.
+        
+        Args:
+            invoice_id: The hashed ID of the invoice to find the payment for.
+            client_id: Optional client ID to narrow the search.
+            
+        Returns:
+            The payment ID if found, None otherwise.
+        """
+        return payments.find_payment_by_invoice(self, invoice_id, client_id)
+
+    def find_payment_by_transaction_reference(self, transaction_reference: str, client_id: Optional[str] = None) -> Optional[str]:
+        """
+        Finds a payment in Invoice Ninja by transaction reference (external_order_id).
+        
+        Args:
+            transaction_reference: The external order ID (transaction reference) to search for.
+            client_id: Optional client ID to narrow the search.
+            
+        Returns:
+            The payment ID if found, None otherwise.
+        """
+        return payments.find_payment_by_transaction_reference(self, transaction_reference, client_id)
+
+    def find_payment_by_invoice_and_transaction_reference(self, invoice_id: str, transaction_reference: str, client_id: Optional[str] = None) -> Optional[str]:
+        """
+        Finds a payment in Invoice Ninja by both invoice ID and transaction reference.
+        
+        This is the most reliable way to find the specific payment created for an invoice.
+        
+        Args:
+            invoice_id: The hashed ID of the invoice.
+            transaction_reference: The external order ID (transaction reference) to search for.
+            client_id: Optional client ID to narrow the search.
+            
+        Returns:
+            The payment ID if found, None otherwise.
+        """
+        return payments.find_payment_by_invoice_and_transaction_reference(self, invoice_id, transaction_reference, client_id)
+
+    def refund_payment(self, payment_id: str, refund_amount: float, refund_date: str, invoice_id: str, email_receipt: bool = False) -> bool:
+        """
+        Refunds a payment in Invoice Ninja using the /payments/refund endpoint.
+        
+        This is the correct way to process refunds - it actually refunds the payment,
+        returning money to the client, rather than just modifying the payment record.
+        
+        Args:
+            payment_id: The hashed ID of the payment to refund.
+            refund_amount: The amount to refund (positive value).
+            refund_date: The refund date in "YYYY-MM-DD" format.
+            invoice_id: The hashed ID of the invoice the payment was applied to.
+            email_receipt: Whether to send an email notification to the client (default: False).
+            
+        Returns:
+            True if successful, False otherwise.
+        """
+        return payments.refund_payment(self, payment_id, refund_amount, refund_date, invoice_id, email_receipt)
+
+    def create_credit_payment(self,
+                              client_id: str,
+                              amount: float,
+                              payment_date_str: str,
+                              credit_id: str,
+                              invoice_id: Optional[str] = None,
+                              external_order_id: Optional[str] = None, # Mapped to transaction_reference
+                              payment_type: Optional[str] = None
+                              ) -> Optional[str]:
+        """
+        Creates a payment record for a credit note (refund).
+        
+        NOTE: This method is deprecated for refunds. Use refund_payment() instead to refund
+        the original payment. This method may still be used for other credit note scenarios.
+        
+        Args:
+            client_id: The Invoice Ninja client ID
+            amount: The refund amount (positive value, will be converted to negative)
+            payment_date_str: The payment date in "YYYY-MM-DD" format
+            credit_id: The Invoice Ninja credit note ID (for reference)
+            invoice_id: Optional Invoice Ninja invoice ID (not used if invoice is already paid)
+            external_order_id: Optional external order ID for transaction reference
+            payment_type: Optional payment type (Visa Card, MasterCard, American Express, Debit)
+            
+        Returns:
+            The payment ID if successful, None otherwise
+        """
+        # Call the actual implementation with correctly mapped arguments
+        return payments.create_credit_payment(
+            service_instance=self,
+            client_id=client_id,
+            amount=amount,
+            date=payment_date_str,
+            credit_id=credit_id,
+            invoice_id=invoice_id,
+            payment_type=payment_type,
+            transaction_reference=external_order_id
+        )
+
     # --- Bank Account Operations ---
     def create_bank_transaction(self, processor_bank_account_id: str, bank_integration_id: str, amount: float, date_str: str, invoice_number: str, external_order_id: str, base_type: str, currency_code: str) -> Optional[str]:
         """
@@ -639,6 +739,9 @@ class InvoiceNinjaService:
         """
         Creates a credit note in Invoice Ninja for a refund.
         
+        Invoice Ninja requires credit notes to have line items (similar to invoices) to calculate the total.
+        Without line items, the credit note will show 0 EUR and remain in draft status.
+        
         Args:
             client_id: Invoice Ninja client ID
             invoice_id: Invoice Ninja invoice ID that this credit note references
@@ -654,7 +757,21 @@ class InvoiceNinjaService:
             Credit note ID if successful, None otherwise
         """
         try:
-            # Prepare credit note data
+            # Invoice Ninja credit notes require line items to calculate the total amount
+            # Similar to invoices, we need to provide line_items with product_key, quantity, cost, etc.
+            # Create a generic refund line item for the credit note
+            credit_line_items = [
+                {
+                    "product_key": "Refund",  # Generic product key for refunds
+                    "quantity": 1,
+                    "cost": abs(credit_amount),  # Positive amount for credit note line item
+                    "line_total": abs(credit_amount),
+                    "tax_id": 3,  # Tax ID 3 = digital (same as invoices)
+                    "notes": f"Refund for invoice {referenced_invoice_number or invoice_id}"
+                }
+            ]
+            
+            # Prepare credit note data with line items
             # Invoice Ninja expects credit notes to have POSITIVE amounts (not negative)
             # The system internally handles these as credits to the customer account
             # See: https://invoiceninja.github.io/en/credits/
@@ -662,15 +779,15 @@ class InvoiceNinjaService:
                 "client_id": client_id,
                 "number": credit_number,
                 "date": credit_date,
-                "amount": abs(credit_amount),  # Positive amount for credit (Invoice Ninja standard)
-                "currency_id": currency_code.upper(),  # Try currency code (e.g., "EUR", "USD")
-                "status_id": "2",  # Status ID 2 = "Sent" (active credit note)
+                "line_items": credit_line_items,  # Add line items to calculate total
+                "currency_id": currency_code.upper(),  # Currency code (e.g., "EUR", "USD")
                 "custom_value1": payment_processor,  # Store payment processor
                 "custom_value2": external_order_id,  # Store external order ID
                 "private_notes": f"Credit note for refund. Referenced invoice: {referenced_invoice_number or 'N/A'}"
             }
             
             # Create credit note via API
+            # Credit notes are created in "Draft" status and must be marked as sent separately
             logger.info(f"Creating credit note in Invoice Ninja: {credit_number}, Amount: {credit_amount} {currency_code}")
             response = self.make_api_request('POST', '/credits', data=credit_data)
             
@@ -678,7 +795,24 @@ class InvoiceNinjaService:
                 credit_id = response['data'].get('id')
                 if credit_id:
                     logger.info(f"Credit note created successfully in Invoice Ninja: ID={credit_id}")
-                    return credit_id
+                    
+                    # Mark the credit note as sent using bulk endpoint
+                    # This is required - credits must be marked as sent before they can be used
+                    # Use POST /credits/bulk with action=mark_sent
+                    logger.info(f"Marking credit note {credit_id} as sent using bulk endpoint...")
+                    bulk_mark_sent_data = {
+                        "action": "mark_sent",
+                        "ids": [credit_id]
+                    }
+                    mark_sent_response = self.make_api_request('POST', '/credits/bulk', data=bulk_mark_sent_data)
+                    
+                    if mark_sent_response:
+                        logger.info(f"Credit note {credit_id} marked as sent successfully")
+                        return credit_id
+                    else:
+                        logger.warning(f"Credit note {credit_id} created but failed to mark as sent. Response: {mark_sent_response}")
+                        # Still return the credit_id even if marking as sent failed
+                        return credit_id
                 else:
                     logger.error("Credit note creation response missing ID")
             else:
@@ -797,6 +931,56 @@ class InvoiceNinjaService:
                 logger.warning(f"Cannot upload credit note PDF: Credit note not created in Invoice Ninja for order_id: {external_order_id}")
             if not custom_pdf_data:
                 logger.info("No credit note PDF data provided, skipping upload to Invoice Ninja.")
+
+        # --- Refund the Original Payment ---
+        # The correct approach in Invoice Ninja is to refund the original payment that was
+        # created during payment confirmation, rather than creating a new payment for the credit note.
+        # This modifies the original payment record to mark it as refunded.
+        # IMPORTANT: We must find the payment that was created for THIS specific invoice,
+        # not just any payment associated with the invoice. We use both invoice_id AND
+        # transaction_reference (external_order_id) to identify the correct payment.
+        if ninja_invoice_id:
+            logger.info(f"Searching for original payment for invoice ID: {ninja_invoice_id}, order ID: {external_order_id}")
+            
+            # CRITICAL: Use both invoice_id AND transaction_reference to find the specific payment
+            # This ensures we get the payment created during payment confirmation for this order,
+            # not an older payment that might also be associated with the invoice
+            original_payment_id = self.find_payment_by_invoice_and_transaction_reference(
+                ninja_invoice_id, 
+                external_order_id, 
+                ninja_client_id
+            )
+            
+            # If not found by both criteria, try transaction_reference alone (should be unique)
+            if not original_payment_id:
+                logger.info(f"Payment not found by invoice_id + transaction_reference, trying transaction_reference alone: {external_order_id}")
+                original_payment_id = self.find_payment_by_transaction_reference(external_order_id, ninja_client_id)
+            
+            # Last resort: try invoice_id alone (may return wrong payment if multiple exist)
+            if not original_payment_id:
+                logger.warning(f"Payment not found by transaction_reference: {external_order_id}, trying invoice_id alone (may return wrong payment)")
+                original_payment_id = self.find_payment_by_invoice(ninja_invoice_id, ninja_client_id)
+            
+            if original_payment_id:
+                logger.info(f"Found original payment: ID={original_payment_id}. Refunding payment...")
+                # Refund the payment - this actually returns money to the client
+                # The credit note is created separately for documentation purposes
+                refund_success = self.refund_payment(
+                    payment_id=original_payment_id,
+                    refund_amount=refund_amount_value,
+                    refund_date=refund_date,
+                    invoice_id=ninja_invoice_id,
+                    email_receipt=False  # We send our own refund confirmation email
+                )
+                
+                if refund_success:
+                    logger.info(f"Successfully refunded original payment: ID={original_payment_id}, Amount: {refund_amount_value}")
+                else:
+                    logger.error(f"Failed to refund original payment: ID={original_payment_id}")
+            else:
+                logger.warning(f"Could not find original payment for invoice ID: {ninja_invoice_id} or transaction reference: {external_order_id}. Cannot process refund.")
+        else:
+            logger.warning(f"Cannot refund payment: Invoice not found in Invoice Ninja for order_id: {external_order_id}")
 
         # Create a bank transaction for the refund (DEBIT - we pay money back)
         # Determine Processor Specific IDs

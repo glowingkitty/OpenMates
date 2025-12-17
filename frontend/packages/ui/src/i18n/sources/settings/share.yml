@@ -50,7 +50,7 @@ share_public:
   verified_by_human: []
 
 share_description:
-  context: Description text explaining what sharing does
+  context: Description text explaining what sharing does (for chats)
   en: Create a shareable link to this chat. Anyone with the link can view the conversation.
   de: Erstelle einen teilbaren Link zu diesem Chat. Jeder mit dem Link kann die Unterhaltung ansehen.
   zh: 创建此聊天的可分享链接。任何拥有链接的人都可以查看对话。
@@ -71,6 +71,30 @@ share_description:
   th: สร้างลิงก์ที่สามารถแชร์ได้ไปยังแชทนี้ ใครก็ตามที่มีลิงก์สามารถดูการสนทนาได้
   cs: Vytvořte sdílený odkaz na tento chat. Kdokoli s odkazem si může prohlédnout konverzaci.
   sv: Skapa en delbar länk till denna chatt. Alla med länken kan se konversationen.
+  verified_by_human: []
+
+share_embed_description:
+  context: Description text explaining what sharing does (for embeds)
+  en: Create a shareable link to this embed. Anyone with the link can view the content.
+  de: Erstelle einen teilbaren Link zu diesem Embed. Jeder mit dem Link kann den Inhalt ansehen.
+  zh: 创建此嵌入的可分享链接。任何拥有链接的人都可以查看内容。
+  es: Crea un enlace compartible a este embed. Cualquiera con el enlace puede ver el contenido.
+  fr: Créez un lien partageable vers cet embed. Toute personne disposant du lien peut voir le contenu.
+  pt: Crie um link compartilhável para este embed. Qualquer pessoa com o link pode ver o conteúdo.
+  ru: Создайте ссылку для обмена этим встраиванием. Любой, у кого есть ссылка, может просмотреть содержимое.
+  ja: この埋め込みへの共有可能なリンクを作成します。リンクを持っている人は誰でもコンテンツを閲覧できます。
+  ko: 이 임베드의 공유 가능한 링크를 만듭니다. 링크가 있는 사람은 누구나 콘텐츠를 볼 수 있습니다.
+  it: Crea un link condivisibile per questo embed. Chiunque abbia il link può visualizzare il contenuto.
+  tr: Bu embed için paylaşılabilir bir bağlantı oluşturun. Bağlantıya sahip herkes içeriği görüntüleyebilir.
+  vi: Tạo liên kết có thể chia sẻ đến embed này. Bất kỳ ai có liên kết đều có thể xem nội dung.
+  id: Buat tautan yang dapat dibagikan ke embed ini. Siapa pun dengan tautan dapat melihat konten.
+  pl: Utwórz link do udostępnienia tego embedu. Każdy z linkiem może zobaczyć treść.
+  nl: Maak een deelbare link naar deze embed. Iedereen met de link kan de inhoud bekijken.
+  ar: إنشاء رابط قابل للمشاركة لهذا التضمين. يمكن لأي شخص لديه الرابط عرض المحتوى.
+  hi: इस एम्बेड के लिए एक साझा करने योग्य लिंक बनाएं। लिंक वाला कोई भी व्यक्ति सामग्री देख सकता है।
+  th: สร้างลิงก์ที่สามารถแชร์ได้ไปยัง embed นี้ ใครก็ตามที่มีลิงก์สามารถดูเนื้อหาได้
+  cs: Vytvořte sdílený odkaz na tento embed. Kdokoli s odkazem si může prohlédnout obsah.
+  sv: Skapa en delbar länk till denna embed. Alla med länken kan se innehållet.
   verified_by_human: []
 
 password_protection:
@@ -386,7 +410,7 @@ share_embed:
   verified_by_human: []
 
 expire_time_info:
-  context: Info text explaining that expire time is only for URL access
+  context: Info text explaining that expire time is only for URL access (for chats)
   en: The expiration time applies only to the share URL. Once someone accesses the chat using the link, they can continue viewing it until you unshare it.
   de: Die Ablaufzeit gilt nur für die Freigabe-URL. Sobald jemand den Chat über den Link aufruft, kann er ihn weiterhin ansehen, bis du die Freigabe entfernst.
   zh: 过期时间仅适用于分享链接。一旦有人使用链接访问聊天，他们可以继续查看，直到您取消分享。
@@ -407,6 +431,30 @@ expire_time_info:
   th: เวลาหมดอายุใช้กับ URL การแชร์เท่านั้น เมื่อมีคนเข้าถึงแชทโดยใช้ลิงก์แล้ว พวกเขาสามารถดูต่อได้จนกว่าคุณจะหยุดแชร์
   cs: Doba platnosti se vztahuje pouze na URL pro sdílení. Jakmile někdo přistupuje k chatu pomocí odkazu, může ho nadále zobrazovat, dokud nesdílíte.
   sv: Utgångstiden gäller endast för delnings-URL:en. När någon har öppnat chatten med länken kan de fortsätta visa den tills du slutar dela den.
+  verified_by_human: []
+
+expire_time_info_embed:
+  context: Info text explaining that expire time is only for URL access (for embeds)
+  en: The expiration time applies only to the share URL. Once someone accesses the embed using the link, they can continue viewing it until you unshare it.
+  de: Die Ablaufzeit gilt nur für die Freigabe-URL. Sobald jemand das Embed über den Link aufruft, kann er es weiterhin ansehen, bis du die Freigabe entfernst.
+  zh: 过期时间仅适用于分享链接。一旦有人使用链接访问嵌入，他们可以继续查看，直到您取消分享。
+  es: El tiempo de expiración se aplica solo a la URL de compartir. Una vez que alguien accede al embed usando el enlace, puede continuar viéndolo hasta que lo dejes de compartir.
+  fr: Le temps d'expiration s'applique uniquement à l'URL de partage. Une fois que quelqu'un accède à l'embed en utilisant le lien, il peut continuer à le voir jusqu'à ce que vous arrêtiez de le partager.
+  pt: O tempo de expiração se aplica apenas ao link de compartilhamento. Depois que alguém acessa o embed usando o link, pode continuar visualizando até que você pare de compartilhar.
+  ru: Время истечения применяется только к ссылке для обмена. После того, как кто-то получит доступ к встраиванию по ссылке, он сможет продолжать просматривать его, пока вы не прекратите общий доступ.
+  ja: 有効期限は共有URLにのみ適用されます。誰かがリンクを使用して埋め込みにアクセスすると、共有を停止するまで引き続き閲覧できます。
+  ko: 만료 시간은 공유 URL에만 적용됩니다. 누군가 링크를 사용하여 임베드에 액세스하면 공유를 중지할 때까지 계속 볼 수 있습니다.
+  it: Il tempo di scadenza si applica solo all'URL di condivisione. Una volta che qualcuno accede all'embed usando il link, può continuare a visualizzarlo fino a quando non smetti di condividerlo.
+  tr: Son kullanma süresi yalnızca paylaşım URL'si için geçerlidir. Birisi bağlantıyı kullanarak embed'e eriştiğinde, paylaşımı durdurana kadar görüntülemeye devam edebilir.
+  vi: Thời gian hết hạn chỉ áp dụng cho URL chia sẻ. Sau khi ai đó truy cập embed bằng liên kết, họ có thể tiếp tục xem cho đến khi bạn ngừng chia sẻ.
+  id: Waktu kedaluwarsa hanya berlaku untuk URL berbagi. Setelah seseorang mengakses embed menggunakan tautan, mereka dapat terus melihatnya sampai Anda berhenti membagikannya.
+  pl: Czas wygaśnięcia dotyczy tylko linku udostępniania. Gdy ktoś uzyska dostęp do embedu za pomocą linku, może go nadal przeglądać, dopóki nie przestaniesz go udostępniać.
+  nl: De vervaltijd geldt alleen voor de deel-URL. Zodra iemand de embed opent met de link, kan hij deze blijven bekijken totdat je stopt met delen.
+  ar: ينطبق وقت انتهاء الصلاحية فقط على رابط المشاركة. بمجرد أن يصل شخص ما إلى التضمين باستخدام الرابط، يمكنه الاستمرار في عرضه حتى تتوقف عن مشاركته.
+  hi: समाप्ति समय केवल साझा URL पर लागू होता है। एक बार कोई लिंक का उपयोग करके एम्बेड तक पहुंच जाता है, तो वे आपके साझाकरण बंद करने तक इसे देखना जारी रख सकते हैं।
+  th: เวลาหมดอายุใช้กับ URL การแชร์เท่านั้น เมื่อมีคนเข้าถึง embed โดยใช้ลิงก์แล้ว พวกเขาสามารถดูต่อได้จนกว่าคุณจะหยุดแชร์
+  cs: Doba platnosti se vztahuje pouze na URL pro sdílení. Jakmile někdo přistupuje k embedu pomocí odkazu, může ho nadále zobrazovat, dokud nesdílíte.
+  sv: Utgångstiden gäller endast för delnings-URL:en. När någon har öppnat embeden med länken kan de fortsätta visa den tills du slutar dela den.
   verified_by_human: []
 
 change_settings:
@@ -795,7 +843,7 @@ link_will_expire_in:
   verified_by_human: []
 
 password_required_info:
-  context: Info text explaining that recipient will need the password
+  context: Info text explaining that recipient will need the password (for chats)
   en: Recipient will need this password to view the chat
   de: Der Empfänger benötigt dieses Passwort, um den Chat anzusehen
   zh: 接收者需要此密码才能查看聊天
@@ -818,8 +866,32 @@ password_required_info:
   sv: Mottagaren behöver detta lösenord för att visa chatten
   verified_by_human: []
 
+password_required_info_embed:
+  context: Info text explaining that recipient will need the password (for embeds)
+  en: Recipient will need this password to view the embed
+  de: Der Empfänger benötigt dieses Passwort, um das Embed anzusehen
+  zh: 接收者需要此密码才能查看嵌入
+  es: El destinatario necesitará esta contraseña para ver el embed
+  fr: Le destinataire aura besoin de ce mot de passe pour voir l'embed
+  pt: O destinatário precisará desta senha para ver o embed
+  ru: Получателю потребуется этот пароль для просмотра встраивания
+  ja: 受信者が埋め込みを閲覧するにはこのパスワードが必要です
+  ko: 수신자가 임베드를 보려면 이 비밀번호가 필요합니다
+  it: Il destinatario avrà bisogno di questa password per visualizzare l'embed
+  tr: Alıcının embed'i görüntülemek için bu parolaya ihtiyacı olacak
+  vi: Người nhận sẽ cần mật khẩu này để xem embed
+  id: Penerima akan memerlukan kata sandi ini untuk melihat embed
+  pl: Odbiorca będzie potrzebował tego hasła, aby zobaczyć embed
+  nl: De ontvanger heeft dit wachtwoord nodig om de embed te bekijken
+  ar: سيحتاج المستلم إلى كلمة المرور هذه لعرض التضمين
+  hi: प्राप्तकर्ता को एम्बेड देखने के लिए इस पासवर्ड की आवश्यकता होगी
+  th: ผู้รับจะต้องใช้รหัสผ่านนี้เพื่อดู embed
+  cs: Příjemce bude potřebovat toto heslo k zobrazení embedu
+  sv: Mottagaren behöver detta lösenord för att visa embeden
+  verified_by_human: []
+
 encryption_info:
-  context: Info text explaining that the chat remains encrypted
+  context: Info text explaining that the chat remains encrypted (for chats)
   en: Chat remains end-to-end encrypted. The encryption key is included in the link.
   de: Der Chat bleibt Ende-zu-Ende verschlüsselt. Der Verschlüsselungsschlüssel ist im Link enthalten.
   zh: 聊天保持端到端加密。加密密钥包含在链接中。
@@ -840,6 +912,30 @@ encryption_info:
   th: แชทยังคงเข้ารหัสแบบ end-to-end คีย์เข้ารหัสรวมอยู่ในลิงก์
   cs: Chat zůstává end-to-end šifrovaný. Šifrovací klíč je součástí odkazu.
   sv: Chatten förblir end-to-end-krypterad. Krypteringsnyckeln ingår i länken.
+  verified_by_human: []
+
+encryption_info_embed:
+  context: Info text explaining that the embed remains encrypted (for embeds)
+  en: Embed remains end-to-end encrypted. The encryption key is included in the link.
+  de: Das Embed bleibt Ende-zu-Ende verschlüsselt. Der Verschlüsselungsschlüssel ist im Link enthalten.
+  zh: 嵌入保持端到端加密。加密密钥包含在链接中。
+  es: El embed permanece cifrado de extremo a extremo. La clave de cifrado está incluida en el enlace.
+  fr: L'embed reste chiffré de bout en bout. La clé de chiffrement est incluse dans le lien.
+  pt: O embed permanece criptografado de ponta a ponta. A chave de criptografia está incluída no link.
+  ru: Встраивание остается зашифрованным из конца в конец. Ключ шифрования включен в ссылку.
+  ja: 埋め込みはエンドツーエンドで暗号化されたままです。暗号化キーはリンクに含まれています。
+  ko: 임베드는 종단간 암호화가 유지됩니다. 암호화 키가 링크에 포함되어 있습니다.
+  it: L'embed rimane crittografato end-to-end. La chiave di crittografia è inclusa nel link.
+  tr: Embed uçtan uca şifrelenmiş olarak kalır. Şifreleme anahtarı bağlantıya dahildir.
+  vi: Embed vẫn được mã hóa đầu cuối. Khóa mã hóa được bao gồm trong liên kết.
+  id: Embed tetap terenkripsi end-to-end. Kunci enkripsi disertakan dalam tautan.
+  pl: Embed pozostaje zaszyfrowany end-to-end. Klucz szyfrowania jest zawarty w linku.
+  nl: Embed blijft end-to-end versleuteld. De encryptiesleutel is opgenomen in de link.
+  ar: يظل التضمين مشفرًا من طرف إلى طرف. مفتاح التشفير مضمن في الرابط.
+  hi: एम्बेड एंड-टू-एंड एन्क्रिप्टेड रहता है। एन्क्रिप्शन कुंजी लिंक में शामिल है।
+  th: embed ยังคงเข้ารหัสแบบ end-to-end คีย์เข้ารหัสรวมอยู่ในลิงก์
+  cs: Embed zůstává end-to-end šifrovaný. Šifrovací klíč je součástí odkazu.
+  sv: Embeden förblir end-to-end-krypterad. Krypteringsnyckeln ingår i länken.
   verified_by_human: []
 
 

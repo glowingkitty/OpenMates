@@ -524,3 +524,280 @@ async def get_server_time(request: Request) -> Dict[str, Any]:
         "server_time": int(time.time())
     }
 
+# --- Embed Sharing Endpoints ---
+
+class ShareEmbedMetadataUpdate(BaseModel):
+    """Request model for updating OG metadata when sharing an embed"""
+    embed_id: str
+    title: Optional[str] = None
+    description: Optional[str] = None
+    is_shared: Optional[bool] = None
+
+def generate_dummy_encrypted_embed_data(embed_id: str) -> Dict[str, Any]:
+    """
+    Generate deterministic dummy encrypted data for an embed ID.
+    Prevents enumeration attacks by making non-existent embeds look like real ones.
+    """
+    # Use embed_id as seed for deterministic dummy data
+    seed = hashlib.sha256(embed_id.encode()).digest()
+
+    # Generate deterministic "encrypted" data
+    import base64
+    dummy_title = base64.b64encode(seed[:16]).decode('utf-8')
+    dummy_content = base64.b64encode(seed[16:48]).decode('utf-8')
+
+    return {
+        "embed_id": embed_id,
+        "encrypted_type": "app_skill_use",  # Generic type for dummy data
+        "encrypted_content": dummy_content,
+        "encrypted_text_preview": dummy_title,
+        "status": "finished",
+        "is_dummy": True  # Internal flag
+    }
+
+@router.get("/embed/{embed_id}")
+@limiter.limit("30/minute")  # Same rate limit as chat sharing
+async def get_shared_embed(
+    request: Request,
+    embed_id: str,
+    directus_service: DirectusService = Depends(get_directus_service)
+) -> Dict[str, Any]:
+    """
+    Get encrypted embed data for a shared embed.
+
+    Returns:
+    - Real encrypted embed data and child embeds if embed exists and is shared
+    - Dummy encrypted data if embed doesn't exist or is private
+
+    Security:
+    - Rate limited to prevent brute force attacks
+    - Returns consistent dummy data for non-existent embeds
+    - Only returns real data if share_mode is not 'private'
+    """
+    try:
+        # Fetch embed from database
+        embed = await directus_service.embed.get_embed_by_id(embed_id)
+
+        if not embed:
+            # Embed doesn't exist - return dummy data to prevent enumeration
+            logger.debug(f"Embed {embed_id} not found, returning dummy data")
+            dummy_data = generate_dummy_encrypted_embed_data(embed_id)
+            dummy_data.pop("is_dummy", None)
+            return {"embed": dummy_data, "child_embeds": [], "embed_keys": []}
+
+        # Check if embed is private (not shared)
+        share_mode = embed.get("share_mode", "private")
+        if share_mode == "private":
+            # Embed is private - return dummy data
+            logger.debug(f"Embed {embed_id} is private, returning dummy data")
+            dummy_data = generate_dummy_encrypted_embed_data(embed_id)
+            dummy_data.pop("is_dummy", None)
+            return {"embed": dummy_data, "child_embeds": [], "embed_keys": []}
+
+        # Embed exists and is shared - return real encrypted data
+        logger.debug(f"Returning real encrypted data for shared embed {embed_id}")
+
+        # Get child embeds if this is a composite embed (e.g., web search with website children)
+        child_embeds = []
+        embed_ids = embed.get("embed_ids")  # Array of child embed IDs
+        if embed_ids and isinstance(embed_ids, list):
+            for child_embed_id in embed_ids:
+                child_embed = await directus_service.embed.get_embed_by_id(child_embed_id)
+                if child_embed:
+                    child_embeds.append(child_embed)
+
+        # Get embed_keys for this embed and its children
+        # These contain wrapped keys that allow shared embed recipients to decrypt embeds
+        embed_keys = []
+
+        # Get keys for the main embed
+        main_embed_keys = await directus_service.embed.get_embed_keys_by_embed_id(embed_id)
+        if main_embed_keys:
+            embed_keys.extend(main_embed_keys)
+
+        # Get keys for child embeds
+        for child_embed in child_embeds:
+            child_embed_id = child_embed.get("embed_id")
+            if child_embed_id:
+                child_keys = await directus_service.embed.get_embed_keys_by_embed_id(child_embed_id)
+                if child_keys:
+                    embed_keys.extend(child_keys)
+
+        return {
+            "embed": embed,
+            "child_embeds": child_embeds,
+            "embed_keys": embed_keys
+        }
+
+    except Exception as e:
+        logger.error(f"Error fetching shared embed {embed_id}: {e}", exc_info=True)
+        # On error, return dummy data to prevent information leakage
+        dummy_data = generate_dummy_encrypted_embed_data(embed_id)
+        dummy_data.pop("is_dummy", None)
+        return {"embed": dummy_data, "child_embeds": [], "embed_keys": []}
+
+@router.get("/embed/{embed_id}/og-metadata")
+@limiter.limit("60/minute")
+async def get_embed_og_metadata(
+    request: Request,
+    embed_id: str,
+    directus_service: DirectusService = Depends(get_directus_service),
+    encryption_service: EncryptionService = Depends(get_encryption_service)
+) -> Dict[str, Any]:
+    """
+    Get OG metadata (title, description, image) for a shared embed.
+
+    This endpoint is called by the SvelteKit server route to generate OG tags.
+    It decrypts shared_encrypted_title and shared_encrypted_description using the
+    shared vault key.
+
+    Returns:
+    - Real metadata if embed exists and is shared
+    - Fallback metadata if embed doesn't exist or is private
+    """
+    try:
+        # Fetch embed from database
+        embed = await directus_service.embed.get_embed_by_id(embed_id)
+
+        if not embed:
+            logger.debug(f"Embed {embed_id} not found for OG metadata, using fallback")
+            return {
+                "title": "Shared Embed - OpenMates",
+                "description": "View this shared content on OpenMates",
+                "image": "/og-images/default-embed.png",
+                "type": "embed"
+            }
+
+        # Check if embed is shared
+        share_mode = embed.get("share_mode", "private")
+        if share_mode == "private":
+            logger.debug(f"Embed {embed_id} is private, using fallback metadata")
+            return {
+                "title": "Shared Embed - OpenMates",
+                "description": "View this shared content on OpenMates",
+                "image": "/og-images/default-embed.png",
+                "type": "embed"
+            }
+
+        # Decrypt metadata for OG tags
+        shared_encrypted_title = embed.get("shared_encrypted_title")
+        shared_encrypted_description = embed.get("shared_encrypted_description")
+        embed_type = embed.get("encrypted_type", "embed")  # This might be encrypted, but we'll use as fallback
+
+        title = "Shared Embed - OpenMates"  # Fallback
+        description = "View this shared content on OpenMates"  # Fallback
+
+        # Decrypt title if available
+        if shared_encrypted_title:
+            try:
+                title = await encryption_service.decrypt(
+                    shared_encrypted_title,
+                    key_name="shared-content-metadata"
+                )
+                logger.info(f"Decrypted title for embed {embed_id}: {title[:50]}...")
+            except Exception as e:
+                logger.warning(f"Failed to decrypt shared_encrypted_title for embed {embed_id}: {e}")
+
+        # Decrypt description if available
+        if shared_encrypted_description:
+            try:
+                description = await encryption_service.decrypt(
+                    shared_encrypted_description,
+                    key_name="shared-content-metadata"
+                )
+                logger.info(f"Decrypted description for embed {embed_id}: {description[:50]}...")
+            except Exception as e:
+                logger.warning(f"Failed to decrypt shared_encrypted_description for embed {embed_id}: {e}")
+
+        # Determine OG image based on embed type
+        og_image = "/og-images/default-embed.png"
+        if "video" in str(embed_type).lower():
+            og_image = "/og-images/video-embed.png"
+        elif "website" in str(embed_type).lower():
+            og_image = "/og-images/website-embed.png"
+        elif "transcript" in str(embed_type).lower():
+            og_image = "/og-images/transcript-embed.png"
+
+        return {
+            "title": title,
+            "description": description,
+            "image": og_image,
+            "type": embed_type
+        }
+
+    except Exception as e:
+        logger.error(f"Error fetching OG metadata for embed {embed_id}: {e}", exc_info=True)
+        # On error, return fallback
+        return {
+            "title": "Shared Embed - OpenMates",
+            "description": "View this shared content on OpenMates",
+            "image": "/og-images/default-embed.png",
+            "type": "embed"
+        }
+
+@router.post("/embed/metadata")
+@limiter.limit("30/minute")
+async def update_embed_share_metadata(
+    request: Request,
+    payload: ShareEmbedMetadataUpdate,
+    current_user: User = Depends(get_current_user),
+    directus_service: DirectusService = Depends(get_directus_service),
+    encryption_service: EncryptionService = Depends(get_encryption_service)
+) -> Dict[str, Any]:
+    """
+    Update OG metadata for a shared embed.
+
+    This endpoint is called when a user shares an embed to update the
+    shared_encrypted_title and shared_encrypted_description fields.
+
+    Requires authentication - user must own the embed.
+    """
+    try:
+        embed_id = payload.embed_id
+
+        # Verify embed exists
+        embed = await directus_service.embed.get_embed_by_id(embed_id)
+        if not embed:
+            raise HTTPException(status_code=404, detail="Embed not found")
+
+        # Verify user owns the embed by comparing hashed user IDs
+        embed_hashed_user_id = embed.get("hashed_user_id")
+        current_user_hashed_id = hashlib.sha256(current_user.id.encode()).hexdigest()
+        if embed_hashed_user_id != current_user_hashed_id:
+            logger.warning(f"User {current_user.id} attempted to update metadata for embed {embed_id} owned by different user")
+            raise HTTPException(status_code=403, detail="You do not have permission to update this embed")
+
+        # Encrypt metadata with shared vault key
+        shared_vault_key = "shared-content-metadata"
+
+        updates = {}
+        if payload.title is not None:
+            encrypted_title, _ = await encryption_service.encrypt(
+                payload.title,
+                key_name=shared_vault_key
+            )
+            updates["shared_encrypted_title"] = encrypted_title
+
+        if payload.description is not None:
+            encrypted_description, _ = await encryption_service.encrypt(
+                payload.description,
+                key_name=shared_vault_key
+            )
+            updates["shared_encrypted_description"] = encrypted_description
+
+        if payload.is_shared is not None:
+            updates["share_mode"] = "shared_with_user" if payload.is_shared else "private"
+
+        # Update the embed
+        await directus_service.update_item("embeds", embed_id, updates)
+
+        logger.info(f"Updated share metadata for embed {embed_id}: {list(updates.keys())}")
+
+        return {"success": True, "embed_id": embed_id, "updated_fields": list(updates.keys())}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error updating share metadata for embed {payload.embed_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to update embed metadata")
+

@@ -9,9 +9,10 @@
 -->
 <script lang="ts">
     import { text } from '@repo/ui';
-    import { createEventDispatcher, onMount } from 'svelte';
+    import { createEventDispatcher, onMount, onDestroy } from 'svelte';
     import SettingsItem from '../SettingsItem.svelte';
     import { chatDB } from '../../services/db';
+    import { userDB } from '../../services/userDB';
     import { userProfile } from '../../stores/userProfile';
     import { authStore } from '../../stores/authStore';
     import { activeChatStore } from '../../stores/activeChatStore';
@@ -36,6 +37,26 @@
     let currentUserId = $state<string | null>(null);
     
     let isAuthenticated = $derived(get(authStore).isAuthenticated);
+    
+    /**
+     * Load current user ID from userDB
+     * This is needed to filter chats by ownership
+     */
+    async function loadCurrentUserId() {
+        if (!isAuthenticated) {
+            currentUserId = null;
+            return;
+        }
+        
+        try {
+            const profile = await userDB.getUserProfile();
+            currentUserId = (profile as any)?.user_id || null;
+            console.debug('[SettingsShared] Loaded currentUserId:', currentUserId);
+        } catch (error) {
+            console.error('[SettingsShared] Error loading current user ID:', error);
+            currentUserId = null;
+        }
+    }
     
     /**
      * Load all chats and filter by ownership and shared status
@@ -162,15 +183,41 @@
         });
     }
     
-    // Load chats on mount
-    onMount(() => {
+    /**
+     * Handle chatShared event - reload shared chats when a chat is shared
+     */
+    function handleChatShared(event: CustomEvent) {
+        console.debug('[SettingsShared] Chat shared event received:', event.detail);
+        // Reload shared chats to include the newly shared chat
         loadSharedChats();
+    }
+    
+    // Load current user ID and chats on mount
+    onMount(async () => {
+        await loadCurrentUserId();
+        await loadSharedChats();
+        
+        // Listen for chatShared events to reload the list
+        window.addEventListener('chatShared', handleChatShared as EventListener);
+    });
+    
+    // Clean up event listener on destroy
+    onDestroy(() => {
+        window.removeEventListener('chatShared', handleChatShared as EventListener);
     });
     
     // Reload when authentication status changes
     $effect(() => {
-        if (isAuthenticated && currentUserId) {
-            loadSharedChats();
+        if (isAuthenticated) {
+            loadCurrentUserId().then(() => {
+                if (currentUserId) {
+                    loadSharedChats();
+                }
+            });
+        } else {
+            currentUserId = null;
+            ownedSharedChats = [];
+            sharedWithMeChats = [];
         }
     });
 </script>

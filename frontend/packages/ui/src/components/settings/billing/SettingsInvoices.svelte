@@ -3,12 +3,13 @@ Invoices Settings - View and download past invoices
 -->
 
 <script lang="ts">
-    import { onMount } from 'svelte';
+    import { onMount, onDestroy } from 'svelte';
     import { text } from '@repo/ui';
     import { apiEndpoints, getApiEndpoint } from '../../../config/api';
     import SettingsItem from '../../SettingsItem.svelte';
     import { notificationStore } from '../../../stores/notificationStore';
     import * as cryptoService from '../../../services/cryptoService';
+    import { webSocketService } from '../../../services/websocketService';
 
     // Invoice interface
     interface Invoice {
@@ -26,6 +27,8 @@ Invoices Settings - View and download past invoices
     let errorMessage: string | null = $state(null);
     let invoices: Invoice[] = $state([]);
     let refundingInvoiceId: string | null = $state(null);  // Track which invoice is being refunded
+    let creditNoteReadyInvoices = $state<Set<string>>(new Set());  // Track which invoices have credit note PDFs ready
+    let isInitialLoad = $state(true);  // Track if this is the initial page load
 
     // Format date for display
     function formatDate(dateStr: string): string {
@@ -137,6 +140,18 @@ Invoices Settings - View and download past invoices
             } else {
                 invoices = data.invoices;
                 console.log(`Loaded ${invoices.length} invoices`);
+                
+                // Only mark invoices as ready on initial load (not after refresh)
+                // Invoices that were already refunded before page load should have credit notes ready
+                // Newly refunded invoices will be marked ready via websocket event
+                if (isInitialLoad) {
+                    invoices.forEach(invoice => {
+                        if (isInvoiceRefunded(invoice)) {
+                            creditNoteReadyInvoices.add(invoice.id);
+                        }
+                    });
+                    isInitialLoad = false;
+                }
             }
         } catch (error) {
             console.error('Error fetching invoices:', error);
@@ -286,12 +301,49 @@ Invoices Settings - View and download past invoices
                 throw new Error('Failed to download invoice');
             }
 
+            // Get filename from Content-Disposition header - NO FALLBACK
+            // Fail if filename cannot be extracted so we know there's an issue
+            const contentDisposition = response.headers.get('Content-Disposition');
+            let filename: string | null = null;
+            
+            if (!contentDisposition) {
+                throw new Error('Content-Disposition header missing in invoice download response');
+            }
+            
+            // Try multiple patterns to extract filename
+            // Pattern 1: filename*=UTF-8''value (RFC 5987 format, preferred for UTF-8)
+            let filenameMatch = contentDisposition.match(/filename\*=UTF-8''([^;]+)/i);
+            if (filenameMatch && filenameMatch[1]) {
+                // Decode the filename (it may be URL-encoded)
+                try {
+                    filename = decodeURIComponent(filenameMatch[1]);
+                } catch (e) {
+                    filename = filenameMatch[1];
+                }
+            } else {
+                // Pattern 2: filename="value" or filename='value' (quoted)
+                filenameMatch = contentDisposition.match(/filename\s*=\s*["']([^"']+)["']/i);
+                if (filenameMatch && filenameMatch[1]) {
+                    filename = filenameMatch[1];
+                } else {
+                    // Pattern 3: filename=value (unquoted)
+                    filenameMatch = contentDisposition.match(/filename\s*=\s*([^;\s]+)/i);
+                    if (filenameMatch && filenameMatch[1]) {
+                        filename = filenameMatch[1];
+                    }
+                }
+            }
+            
+            if (!filename) {
+                throw new Error(`Failed to extract filename from Content-Disposition header: ${contentDisposition}`);
+            }
+
             // Create blob and download
             const blob = await response.blob();
             const url = URL.createObjectURL(blob);
             const link = document.createElement('a');
             link.href = url;
-            link.download = invoice.filename;
+            link.download = filename;
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
@@ -323,22 +375,41 @@ Invoices Settings - View and download past invoices
                 throw new Error('Failed to download credit note');
             }
 
-            // Get filename from Content-Disposition header or use default
+            // Get filename from Content-Disposition header - NO FALLBACK
+            // Fail if filename cannot be extracted so we know there's an issue
             const contentDisposition = response.headers.get('Content-Disposition');
-            let filename = 'credit_note.pdf';
-            if (contentDisposition) {
-                // Try multiple patterns to extract filename
-                // Pattern 1: filename="value" or filename='value' (quoted)
-                let filenameMatch = contentDisposition.match(/filename\s*=\s*["']([^"']+)["']/i);
+            let filename: string | null = null;
+            
+            if (!contentDisposition) {
+                throw new Error('Content-Disposition header missing in credit note download response');
+            }
+            
+            // Try multiple patterns to extract filename
+            // Pattern 1: filename*=UTF-8''value (RFC 5987 format, preferred for UTF-8)
+            let filenameMatch = contentDisposition.match(/filename\*=UTF-8''([^;]+)/i);
+            if (filenameMatch && filenameMatch[1]) {
+                // Decode the filename (it may be URL-encoded)
+                try {
+                    filename = decodeURIComponent(filenameMatch[1]);
+                } catch (e) {
+                    filename = filenameMatch[1];
+                }
+            } else {
+                // Pattern 2: filename="value" or filename='value' (quoted)
+                filenameMatch = contentDisposition.match(/filename\s*=\s*["']([^"']+)["']/i);
                 if (filenameMatch && filenameMatch[1]) {
                     filename = filenameMatch[1];
                 } else {
-                    // Pattern 2: filename=value (unquoted)
+                    // Pattern 3: filename=value (unquoted)
                     filenameMatch = contentDisposition.match(/filename\s*=\s*([^;\s]+)/i);
                     if (filenameMatch && filenameMatch[1]) {
                         filename = filenameMatch[1];
                     }
                 }
+            }
+            
+            if (!filename) {
+                throw new Error(`Failed to extract filename from Content-Disposition header: ${contentDisposition}`);
             }
 
             // Create blob and download
@@ -410,8 +481,22 @@ Invoices Settings - View and download past invoices
         }
     });
 
+    // Handle credit note ready websocket event
+    function handleCreditNoteReady(payload: { invoice_id: string }) {
+        console.log('Credit note PDF ready for invoice:', payload.invoice_id);
+        creditNoteReadyInvoices.add(payload.invoice_id);
+    }
+
     onMount(() => {
         fetchInvoices();
+        
+        // Listen for credit note ready events
+        webSocketService.on('credit_note_ready', handleCreditNoteReady);
+    });
+
+    onDestroy(() => {
+        // Clean up websocket listener
+        webSocketService.off('credit_note_ready', handleCreditNoteReady);
     });
 
     // Group invoices by month for display
@@ -482,14 +567,27 @@ Invoices Settings - View and download past invoices
                                 <div class="download-icon"></div>
                                 <span>{$text('settings.billing.invoices_download_invoice.text')}</span>
                             </button>
-                            <button
-                                class="download-button"
-                                onclick={() => downloadCreditNote(invoice)}
-                                title={$text('settings.billing.invoices_download_credit_note.text')}
-                            >
-                                <div class="download-icon"></div>
-                                <span>{$text('settings.billing.invoices_download_credit_note.text')}</span>
-                            </button>
+                            {#if creditNoteReadyInvoices.has(invoice.id)}
+                                <!-- Only show download button when credit note PDF is ready -->
+                                <button
+                                    class="download-button"
+                                    onclick={() => downloadCreditNote(invoice)}
+                                    title={$text('settings.billing.invoices_download_credit_note.text')}
+                                >
+                                    <div class="download-icon"></div>
+                                    <span>{$text('settings.billing.invoices_download_credit_note.text')}</span>
+                                </button>
+                            {:else}
+                                <!-- Show loading state while credit note PDF is being generated -->
+                                <button
+                                    class="download-button"
+                                    disabled
+                                    title={$text('settings.billing.invoices_credit_note_generating.text')}
+                                >
+                                    <div class="loading-spinner-small"></div>
+                                    <span>{$text('settings.billing.invoices_credit_note_generating.text')}</span>
+                                </button>
+                            {/if}
                         {:else}
                             <!-- When not refunded, show Download and Refund buttons -->
                             <button

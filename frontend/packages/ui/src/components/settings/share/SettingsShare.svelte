@@ -18,12 +18,32 @@
     import { fade, slide } from 'svelte/transition';
     import { cubicOut } from 'svelte/easing';
     import QRCodeSVG from 'qrcode-svg';
+    import Chat from '../../chats/Chat.svelte';
     import { activeChatStore } from '../../../stores/activeChatStore';
     import { authStore } from '../../../stores/authStore';
+    import { settingsDeepLink } from '../../../stores/settingsDeepLinkStore';
     import { generateShareKeyBlob, type ShareDuration } from '../../../services/shareEncryption';
     import { shareMetadataQueue } from '../../../services/shareMetadataQueue';
     import { isDemoChat, isPublicChat } from '../../../demo_chats/convertToChat';
     import { userDB } from '../../../services/userDB';
+    
+    /**
+     * Portal action to render element at body level
+     * This ensures the overlay escapes parent container constraints
+     */
+    function portal(node: HTMLElement) {
+        // Append to body
+        document.body.appendChild(node);
+        
+        // Return cleanup function
+        return {
+            destroy() {
+                if (node.parentNode) {
+                    node.parentNode.removeChild(node);
+                }
+            }
+        };
+    }
     
     // Event dispatcher for navigation and settings events
     const dispatch = createEventDispatcher();
@@ -38,40 +58,154 @@
     // ===============================
     // State Variables
     // ===============================
-    
+
     // Password protection state
     let isPasswordProtected = $state(false);
     let password = $state('');
-    
+
     // Time limit state - duration in seconds (0 = no expiration)
     let selectedDuration: ShareDuration = $state(0);
-    
+
     // Generated share link state
     let generatedLink = $state('');
     let isLinkGenerated = $state(false);
     let isCopied = $state(false);
-    
+
     // QR code SVG content
     let qrCodeSvg = $state('');
     
+    // QR code size state - calculated based on viewport
+    // Normal size: fits container, max 300px
+    let qrCodeSize = $state(180);
+    // Fullscreen size: large and easy to scan
+    let qrCodeFullscreenSize = $state(600);
+
+    // QR code fullscreen overlay state
+    let showQRFullscreen = $state(false);
+    
+    // Viewport dimensions for responsive QR code sizing
+    let viewportWidth = $state(0);
+    let viewportHeight = $state(0);
+    let smallerDimension = $derived(Math.min(viewportWidth, viewportHeight));
+    let isLandscape = $derived(viewportWidth > viewportHeight);
+    
+    // Embed sharing context detection
+    // Check if we're sharing an embed instead of a chat
+    let embedContext = $state<any>(null);
+    let isEmbedSharing = $derived(embedContext !== null);
+
+    // Check for embed context on mount, when window.__embedShareContext changes, 
+    // when settingsDeepLink is set to 'shared/share' (Share button clicked),
+    // and when component becomes active (activeSettingsView is 'share')
+    $effect(() => {
+        const windowEmbedContext = (window as any).__embedShareContext;
+        const deepLink = $settingsDeepLink;
+        const isActive = activeSettingsView === 'share';
+        
+        // Check for embed context when:
+        // 1. window.__embedShareContext exists (embed share button clicked)
+        // 2. settingsDeepLink is set to 'shared/share' (share settings opened)
+        // 3. Component becomes active (activeSettingsView is 'share')
+        if (windowEmbedContext) {
+            // If we already have an embed context and it's different, reset share state
+            if (embedContext && embedContext.embed_id !== windowEmbedContext.embed_id) {
+                console.debug('[SettingsShare] New embed context detected, resetting share state. Old:', embedContext.embed_id, 'New:', windowEmbedContext.embed_id);
+                resetGeneratedState();
+            }
+            embedContext = windowEmbedContext;
+            console.debug('[SettingsShare] Embed sharing context detected:', embedContext);
+            // Clear the global context to prevent reuse
+            (window as any).__embedShareContext = null;
+        } else if (deepLink === 'shared/share' || isActive) {
+            // When share settings are opened or component becomes active, check again for embed context
+            // This handles timing issues where context might be set before component mounts
+            const contextCheck = (window as any).__embedShareContext;
+            if (contextCheck) {
+                // If we already have an embed context and it's different, reset share state
+                if (embedContext && embedContext.embed_id !== contextCheck.embed_id) {
+                    console.debug('[SettingsShare] New embed context detected via deep link, resetting share state. Old:', embedContext.embed_id, 'New:', contextCheck.embed_id);
+                    resetGeneratedState();
+                }
+                embedContext = contextCheck;
+                console.debug('[SettingsShare] Embed sharing context detected via deep link or active view:', embedContext);
+                // Clear the global context to prevent reuse
+                (window as any).__embedShareContext = null;
+            }
+        }
+    });
+
     // Get the current chat ID from the active chat store
     // The store directly contains the chat ID string (or null), not an object
     // Use $state to track the chat ID and update it reactively from the store
     let currentChatId = $state<string | null>(null);
     
-    // Update currentChatId when activeChatStore changes
+    // Shared chat ID - the chat that is currently being shared
+    // This remains stable even when user switches to other chats
+    // Only updates when a new share link is generated
+    let sharedChatId = $state<string | null>(null);
+
+    // ONLY update currentChatId when Share button is explicitly clicked
+    // Watch settingsDeepLink for 'shared/share' - this is set when Share button is clicked
+    // This ensures the share view remains stable when user switches chats normally
     $effect(() => {
-        const storeValue = $activeChatStore;
-        if (storeValue && storeValue.trim() !== '') {
-            currentChatId = storeValue;
-            console.debug('[SettingsShare] currentChatId updated from store:', currentChatId);
-        } else {
-            currentChatId = null;
+        if (!isEmbedSharing) {
+            const deepLink = $settingsDeepLink;
+            
+            // Only react when settingsDeepLink is set to 'shared/share' (Share button clicked)
+            if (deepLink === 'shared/share') {
+                const storeValue = $activeChatStore;
+                const newChatId = storeValue && storeValue.trim() !== '' ? storeValue : null;
+                
+                // If we have a generated link for a different chat, reset everything
+                // This happens when user clicks Share on a different chat
+                if (isLinkGenerated && sharedChatId && newChatId && newChatId !== sharedChatId) {
+                    console.debug('[SettingsShare] Share button clicked for different chat, resetting share state. Old:', sharedChatId, 'New:', newChatId);
+                    // Reset the share state (this sets isLinkGenerated to false)
+                    resetGeneratedState();
+                    // Update currentChatId to the new chat
+                    currentChatId = newChatId;
+                } else if (!isLinkGenerated || !sharedChatId) {
+                    // Update currentChatId if no link is generated, or if we're starting fresh
+                    if (newChatId !== currentChatId) {
+                        currentChatId = newChatId;
+                        console.debug('[SettingsShare] Share button clicked, currentChatId updated:', currentChatId);
+                    }
+                }
+            }
+            // Do NOT react to activeChatStore changes unless Share button was clicked
+            // This keeps the share view stable when user switches chats
         }
     });
     
     // Chat ownership and type detection
     let currentChat = $state<any>(null);
+    
+    /**
+     * Load currentChat for display
+     * Uses sharedChatId if link is generated (to keep it stable), otherwise uses currentChatId
+     * This ensures the displayed chat remains unchanged when user switches chats
+     */
+    $effect(() => {
+        // Use sharedChatId if link is generated, otherwise use currentChatId
+        const chatId = isLinkGenerated ? sharedChatId : currentChatId;
+        if (!chatId || isEmbedSharing) {
+            currentChat = null;
+            return;
+        }
+        
+        // Load chat asynchronously
+        (async () => {
+            try {
+                const { chatDB } = await import('../../../services/db');
+                const chat = await chatDB.getChat(chatId);
+                currentChat = chat || null;
+                console.debug('[SettingsShare] Loaded currentChat:', chatId, chat ? 'found' : 'not found', 'isLinkGenerated:', isLinkGenerated);
+            } catch (error) {
+                console.error('[SettingsShare] Error loading currentChat:', error);
+                currentChat = null;
+            }
+        })();
+    });
     let isDemoChatType = $derived(currentChatId ? isDemoChat(currentChatId) : false);
     let isPublicChatType = $derived(currentChatId ? isPublicChat(currentChatId) : false);
     let isOwnedByUser = $state(true); // Default to true, will be checked asynchronously
@@ -98,11 +232,13 @@
     ];
     
     // Two-step flow state: configure options first, then generate link
+    // For embeds: allow configuration for password/expiration settings
     // For non-authenticated users, demo chats, and shared chats user doesn't own,
     // skip configuration and go straight to link generation
     // CRITICAL: Check isPublicChat() directly to ensure demo chats are detected correctly
     let isConfigurationStep = $derived(
-        currentChatId && $authStore.isAuthenticated && !isPublicChat(currentChatId) && isOwnedByUser ? true : false
+        isEmbedSharing ? true : // Allow configuration for embeds (password/expiration)
+        (currentChatId && $authStore.isAuthenticated && !isPublicChat(currentChatId) && isOwnedByUser ? true : false)
     );
     
     // ===============================
@@ -118,11 +254,62 @@
      * For owned chats: uses configured settings (password, expiration)
      */
     async function generateLink() {
+        // Handle embed sharing
+        if (isEmbedSharing) {
+            if (!embedContext || !embedContext.embed_id) {
+                console.warn('[SettingsShare] No embed context or embed_id available for sharing');
+                return;
+            }
+
+            try {
+                console.debug('[SettingsShare] Generating encrypted share link for embed:', embedContext.embed_id);
+
+                // Import embed share encryption service
+                const { generateEmbedShareKeyBlob } = await import('../../../services/embedShareEncryption');
+
+                // Use configured settings for embed sharing
+                const usePassword = isPasswordProtected;
+                const usePasswordValue = usePassword ? password : undefined;
+                const useDuration = selectedDuration;
+
+                // Validate password if protection is enabled
+                if (usePassword && (!password || password.length === 0 || password.length > 10)) {
+                    console.warn('[SettingsShare] Invalid password for protected embed share');
+                    return;
+                }
+
+                // Generate encrypted blob with embed's encryption key
+                const encryptedBlob = await generateEmbedShareKeyBlob(
+                    embedContext.embed_id,
+                    useDuration,
+                    usePasswordValue
+                );
+
+                // Construct encrypted embed share URL similar to chat sharing
+                const baseUrl = window.location.origin;
+                generatedLink = `${baseUrl}/share/embed/${embedContext.embed_id}#key=${encryptedBlob}`;
+                isLinkGenerated = true;
+                isConfigurationStep = false;
+                // Note: sharedChatId not set for embeds (embedContext is used instead)
+
+                // Generate QR code
+                generateQRCode(generatedLink);
+
+                // TODO: Queue OG metadata update for embed sharing (backend support needed)
+                console.debug('[SettingsShare] Encrypted embed share link generated:', generatedLink);
+                return;
+            } catch (error) {
+                console.error('[SettingsShare] Error generating encrypted embed share link:', error);
+                return;
+            }
+        }
+
+        // Handle chat sharing (existing logic)
         if (!currentChatId) {
             console.warn('[SettingsShare] No chat selected to share');
             return;
         }
-        
+
         try {
             console.debug('[SettingsShare] Generating share link for chat:', currentChatId);
             
@@ -133,6 +320,8 @@
                 generatedLink = `${baseUrl}/#chat-id=${currentChatId}`;
                 isLinkGenerated = true;
                 isConfigurationStep = false;
+                // Store the shared chat ID to keep it stable when user switches chats
+                sharedChatId = currentChatId;
                 generateQRCode(generatedLink);
                 console.debug('[SettingsShare] Public chat (demo/legal) share link generated:', generatedLink);
                 return;
@@ -159,6 +348,8 @@
                     generatedLink = `${baseUrl}/share/chat/${currentChatId}#key=${encryptedBlob}`;
                     isLinkGenerated = true;
                     isConfigurationStep = false;
+                    // Store the shared chat ID to keep it stable when user switches chats
+                    sharedChatId = currentChatId;
                     generateQRCode(generatedLink);
                     console.debug('[SettingsShare] Shared chat (not owned) share link generated:', generatedLink);
                     return;
@@ -200,6 +391,10 @@
             
             // Move to link generation step (show link and QR code)
             isConfigurationStep = false;
+            
+            // Store the shared chat ID to keep it stable when user switches chats
+            // This ensures the QR code and share link remain unchanged
+            sharedChatId = currentChatId;
             
             // Generate QR code
             generateQRCode(generatedLink);
@@ -331,6 +526,7 @@
     }
     
     // Effect to watch for chatId changes
+    // Only triggers if link is not generated - once link is generated, we keep it stable
     $effect(() => {
         // Track dependencies to ensure reactivity
         const chatId = currentChatId;
@@ -339,6 +535,8 @@
         
         console.debug('[SettingsShare] Effect triggered - chatId:', chatId, 'storeValue:', storeValue, 'isAuth:', isAuth, 'isLinkGenerated:', isLinkGenerated);
         
+        // Only auto-generate link if no link is already generated
+        // This prevents the share view from updating when user switches chats
         if (chatId && !isLinkGenerated) {
             // Use setTimeout to ensure the component is fully mounted and store is updated
             setTimeout(() => {
@@ -348,16 +546,33 @@
     });
     
     // Also check on mount in case the chatId is already set
+    // Only initialize if we don't already have a shared chat (to maintain stability)
     onMount(() => {
-        console.debug('[SettingsShare] onMount - currentChatId:', currentChatId, 'activeChatStore:', $activeChatStore);
-        // Ensure currentChatId is synced from store on mount
-        const storeValue = $activeChatStore;
-        if (storeValue && storeValue.trim() !== '' && storeValue !== currentChatId) {
-            currentChatId = storeValue;
-            console.debug('[SettingsShare] Synced currentChatId from store on mount:', currentChatId);
+        console.debug('[SettingsShare] onMount - currentChatId:', currentChatId, 'sharedChatId:', sharedChatId, 'activeChatStore:', $activeChatStore, 'embedContext:', embedContext);
+        
+        // Check for embed context on mount (with a small delay to ensure it's set)
+        // This handles cases where embed context is set just before component mounts
+        setTimeout(() => {
+            const windowEmbedContext = (window as any).__embedShareContext;
+            if (windowEmbedContext && !embedContext) {
+                embedContext = windowEmbedContext;
+                console.debug('[SettingsShare] Embed sharing context detected on mount:', embedContext);
+                // Clear the global context to prevent reuse
+                (window as any).__embedShareContext = null;
+            }
+        }, 100);
+        
+        // Only sync from store on mount if we don't have a shared chat already
+        // This maintains stability - if we already have a shared chat, don't change it
+        if (!sharedChatId && !isLinkGenerated && !embedContext) {
+            const storeValue = $activeChatStore;
+            if (storeValue && storeValue.trim() !== '' && storeValue !== currentChatId) {
+                currentChatId = storeValue;
+                console.debug('[SettingsShare] Synced currentChatId from store on mount:', currentChatId);
+            }
         }
         
-        if (currentChatId && !isLinkGenerated) {
+        if (currentChatId && !isLinkGenerated && !embedContext) {
             setTimeout(() => {
                 checkAndGenerateLink();
             }, 250);
@@ -546,20 +761,48 @@
     }
     
     /**
-     * Generate QR code SVG from the share link
+     * Calculate QR code size based on viewport
+     * Normal size: fits container, responsive but capped at reasonable max
+     * Fullscreen size: large and easy to scan, uses most of viewport
      */
-    function generateQRCode(link: string) {
+    function calculateQRSizes() {
+        // Normal QR code size: responsive to viewport but capped
+        // Use container width or viewport, whichever is smaller, with max 300px
+        const containerMax = 300;
+        const viewportBased = Math.min(viewportWidth * 0.4, viewportHeight * 0.3);
+        qrCodeSize = Math.max(180, Math.min(containerMax, Math.floor(viewportBased)));
+        
+        // Fullscreen QR code size: very large and easy to scan
+        // Use 90% of smaller viewport dimension, with higher cap for large screens
+        const fullscreenMax = 1200; // Increased max for very large screens
+        const fullscreenMin = 400;
+        const viewportBasedFullscreen = Math.min(viewportWidth, viewportHeight) * 0.9;
+        qrCodeFullscreenSize = Math.max(fullscreenMin, Math.min(fullscreenMax, Math.floor(viewportBasedFullscreen)));
+        
+        console.debug('[SettingsShare] Calculated QR sizes - normal:', qrCodeSize, 'fullscreen:', qrCodeFullscreenSize);
+    }
+    
+    /**
+     * Generate QR code SVG from the share link with specified size
+     * Creates a QR code with black squares on white background
+     * Uses fixed pixel dimensions for reliable rendering
+     */
+    function generateQRCode(link: string, size: number = qrCodeSize) {
         try {
+            console.debug('[SettingsShare] Generating QR code for link:', link, 'size:', size);
             const qr = new QRCodeSVG({
                 content: link,
                 padding: 4,
-                width: 180,
-                height: 180,
+                width: size,
+                height: size,
                 color: '#000000',
                 background: '#ffffff',
                 ecl: 'M' // Medium error correction level
             });
-            qrCodeSvg = qr.svg();
+            // Keep width and height attributes - QR codes need fixed pixel values to render correctly
+            const svgString = qr.svg();
+            qrCodeSvg = svgString;
+            console.debug('[SettingsShare] QR code generated successfully, SVG length:', svgString.length);
         } catch (error) {
             console.error('[SettingsShare] Error generating QR code:', error);
             qrCodeSvg = '';
@@ -575,12 +818,12 @@
      */
     async function copyLinkToClipboard() {
         if (!generatedLink) return;
-        
+
         try {
             await navigator.clipboard.writeText(generatedLink);
             isCopied = true;
             console.debug('[SettingsShare] Link copied to clipboard');
-            
+
             // Reset the copied state after 2 seconds
             setTimeout(() => {
                 isCopied = false;
@@ -589,6 +832,67 @@
             console.error('[SettingsShare] Error copying link to clipboard:', error);
         }
     }
+
+    /**
+     * Update viewport dimensions and recalculate QR code sizes
+     */
+    function updateViewportDimensions() {
+        viewportWidth = window.innerWidth;
+        viewportHeight = window.innerHeight;
+        calculateQRSizes();
+    }
+    
+    /**
+     * Show QR code in fullscreen overlay
+     * Regenerates QR code at fullscreen size for better scanning
+     */
+    function showQRCodeFullscreen() {
+        updateViewportDimensions();
+        // Regenerate QR code at fullscreen size
+        if (generatedLink) {
+            generateQRCode(generatedLink, qrCodeFullscreenSize);
+        }
+        showQRFullscreen = true;
+    }
+    
+    /**
+     * Close QR code fullscreen overlay
+     * Regenerates QR code at normal size
+     */
+    function closeQRCodeFullscreen() {
+        showQRFullscreen = false;
+        // Regenerate QR code at normal size when closing fullscreen
+        if (generatedLink) {
+            generateQRCode(generatedLink, qrCodeSize);
+        }
+    }
+    
+    /**
+     * Track viewport dimensions and recalculate QR sizes on resize
+     */
+    $effect(() => {
+        // Initialize viewport dimensions on mount
+        updateViewportDimensions();
+        
+        // Listen for window resize
+        const handleResize = () => {
+            const oldSize = qrCodeSize;
+            const oldFullscreenSize = qrCodeFullscreenSize;
+            updateViewportDimensions();
+            // Only regenerate if size actually changed
+            if (generatedLink && !showQRFullscreen && qrCodeSize !== oldSize) {
+                generateQRCode(generatedLink, qrCodeSize);
+            } else if (generatedLink && showQRFullscreen && qrCodeFullscreenSize !== oldFullscreenSize) {
+                generateQRCode(generatedLink, qrCodeFullscreenSize);
+            }
+        };
+        
+        window.addEventListener('resize', handleResize);
+        
+        return () => {
+            window.removeEventListener('resize', handleResize);
+        };
+    });
     
     // ===============================
     // Reset State
@@ -602,6 +906,7 @@
         generatedLink = '';
         qrCodeSvg = '';
         isCopied = false;
+        sharedChatId = null; // Clear shared chat ID when resetting
     }
     
     // Reset generated link when configuration changes (but only if we're in configuration step)
@@ -622,26 +927,80 @@
     // Password must be max 10 characters
     let isPasswordValid = $derived(!isPasswordProtected || (password.length > 0 && password.length <= 10));
     let canGenerateLink = $derived(currentChatId && isPasswordValid);
+    
+    // Display chat ID: use sharedChatId if link is generated (to keep it stable), otherwise use currentChatId
+    // This ensures the displayed chat and QR code remain unchanged when user switches chats
+    let displayChatId = $derived(isLinkGenerated ? sharedChatId : currentChatId);
 </script>
 
 <!-- No chat selected message -->
-{#if !currentChatId}
+{#if !displayChatId}
     <div class="no-chat-message" transition:fade={{ duration: 200 }}>
         <div class="icon settings_size shared"></div>
         <p>{$text('settings.share.no_chat_selected.text')}</p>
     </div>
 {:else}
-    <!-- Share description -->
-    <div class="share-description" transition:fade={{ duration: 200 }}>
-        <p>{$text('settings.share.share_description.text')}</p>
-    </div>
-    
     <!-- Two-Step Flow: Configuration Step -->
     {#if isConfigurationStep}
-        <!-- Share Options Section -->
+        <!-- Info Display - Show what is being shared (chat or embed) -->
+        <div class="chat-info-display" transition:fade={{ duration: 200 }}>
+            {#if isEmbedSharing && embedContext}
+                <!-- Embed Info Display -->
+                <div class="embed-preview">
+                    <div class="embed-preview-header">
+                        <span class="embed-preview-label">{$text('settings.share.sharing_embed.text', { default: 'Sharing:' })}</span>
+                    </div>
+                    <div class="embed-info">
+                        <div class="embed-title">{embedContext.title}</div>
+                        <div class="embed-type">{embedContext.type === 'video' ? 'Video' : embedContext.type === 'video-transcript' ? 'Video Transcript' : embedContext.type === 'website' ? 'Website' : embedContext.type}</div>
+                        {#if embedContext.url}
+                            <div class="embed-url">{embedContext.url}</div>
+                        {/if}
+                    </div>
+                </div>
+            {:else if currentChat && displayChatId}
+                <!-- Chat Info Display -->
+                <div class="chat-preview">
+                    <div class="chat-preview-header">
+                        <span class="chat-preview-label">{$text('settings.share.sharing_chat.text', { default: 'Sharing:' })}</span>
+                    </div>
+                    <Chat
+                        chat={currentChat}
+                        activeChatId={displayChatId}
+                        selectMode={false}
+                        selectedChatIds={new Set()}
+                    />
+                </div>
+            {/if}
+        </div>
+
+        <!-- Share description -->
+        <div class="share-description" transition:fade={{ duration: 200 }}>
+            <p>
+                {#if isEmbedSharing}
+                    {$text('settings.share.share_embed_description.text')}
+                {:else}
+                    {$text('settings.share.share_description.text')}
+                {/if}
+            </p>
+        </div>
+        <!-- Share Button (shown FIRST - triggers link generation) -->
+        <button
+            class="share-chat-button primary-action"
+            onclick={generateLink}
+            disabled={!canGenerateLink}
+        >
+            {#if isEmbedSharing}
+                {$text('settings.share.share_embed.text')}
+            {:else}
+                {$text('settings.share.share_chat.text')}
+            {/if}
+        </button>
+
+        <!-- Optional Share Settings Section -->
         <div class="share-options-section">
-            <h3 class="section-title">{$text('settings.share.share_options.text')}</h3>
-            
+            <h3 class="section-title">{$text('settings.share.optional_settings.text', { default: 'Optional Settings' })}</h3>
+
             <!-- Password Protection Toggle -->
             <div class="option-row">
                 <div class="option-label">
@@ -654,7 +1013,7 @@
                     ariaLabel="Toggle password protection"
                 />
             </div>
-            
+
             <!-- Password Input (shown when password protection is enabled) -->
             {#if isPasswordProtected}
                 <div class="password-input-container" transition:slide={{ duration: 200, easing: cubicOut }}>
@@ -666,10 +1025,16 @@
                         class="password-input"
                         class:invalid={password.length > 10}
                     />
-                    <p class="password-info">{$text('settings.share.password_required_info.text')}</p>
+                    <p class="password-info">
+                        {#if isEmbedSharing}
+                            {$text('settings.share.password_required_info_embed.text')}
+                        {:else}
+                            {$text('settings.share.password_required_info.text')}
+                        {/if}
+                    </p>
                 </div>
             {/if}
-            
+
             <!-- Time Limit Selection -->
             <div class="option-row">
                 <div class="option-label">
@@ -677,7 +1042,7 @@
                     <span>{$text('settings.share.time_limit.text')}</span>
                 </div>
             </div>
-            
+
             <!-- Duration Options -->
             <div class="duration-options">
                 {#each durationOptions as option}
@@ -690,31 +1055,66 @@
                     </button>
                 {/each}
             </div>
-            
+
             <!-- Expire Time Info -->
             <div class="expire-time-info">
                 <div class="info-icon">⏱️</div>
-                <p>{$text('settings.share.expire_time_info.text')}</p>
+                <p>
+                    {#if isEmbedSharing}
+                        {$text('settings.share.expire_time_info_embed.text')}
+                    {:else}
+                        {$text('settings.share.expire_time_info.text')}
+                    {/if}
+                </p>
             </div>
-            
+
             <!-- Encryption Info -->
             <div class="encryption-info">
                 <div class="info-icon">🔒</div>
-                <p>{$text('settings.share.encryption_info.text')}</p>
+                <p>
+                    {#if isEmbedSharing}
+                        {$text('settings.share.encryption_info_embed.text')}
+                    {:else}
+                        {$text('settings.share.encryption_info.text')}
+                    {/if}
+                </p>
             </div>
         </div>
-        
-        <!-- Share Chat Button (triggers link generation) -->
-        <button
-            class="share-chat-button"
-            onclick={generateLink}
-            disabled={!canGenerateLink}
-        >
-            {$text('settings.share.share_chat.text')}
-        </button>
     {:else}
     <!-- Two-Step Flow: Link Generation Step -->
     {#if isLinkGenerated}
+        <!-- Info Display - Show what the link is for (chat or embed) -->
+        <div class="chat-info-display link-step" transition:fade={{ duration: 200 }}>
+            {#if isEmbedSharing && embedContext}
+                <!-- Embed Info Display -->
+                <div class="embed-preview">
+                    <div class="embed-preview-header">
+                        <span class="embed-preview-label">{$text('settings.share.link_for_embed.text', { default: 'Link for:' })}</span>
+                    </div>
+                    <div class="embed-info">
+                        <div class="embed-title">{embedContext.title}</div>
+                        <div class="embed-type">{embedContext.type === 'video' ? 'Video' : embedContext.type === 'video-transcript' ? 'Video Transcript' : embedContext.type === 'website' ? 'Website' : embedContext.type}</div>
+                        {#if embedContext.url}
+                            <div class="embed-url">{embedContext.url}</div>
+                        {/if}
+                    </div>
+                </div>
+            {:else if currentChat && displayChatId}
+                <!-- Chat Info Display -->
+                <div class="chat-preview">
+                    <div class="chat-preview-header">
+                        <span class="chat-preview-label">{$text('settings.share.link_for_chat.text', { default: 'Link for:' })}</span>
+                    </div>
+                    <Chat
+                        chat={currentChat}
+                        activeChatId={displayChatId}
+                        selectMode={false}
+                        selectedChatIds={new Set()}
+                    />
+                </div>
+            {/if}
+        </div>
+
         <div class="generated-link-section" transition:slide={{ duration: 300, easing: cubicOut }}>
             <!-- Copy Link Button -->
             <button
@@ -725,25 +1125,32 @@
                 <div class="copy-icon" class:icon_check={isCopied} class:icon_copy={!isCopied}></div>
                 <span>{isCopied ? $text('settings.share.link_copied.text') : $text('settings.share.click_to_copy.text')}</span>
             </button>
-            
+
             <!-- Expiration Info (if time limit set) -->
             {#if selectedDuration > 0}
                 <p class="expiration-info">
                     {$text('settings.share.link_will_expire_in.text')} {$text(durationOptions.find(d => d.value === selectedDuration)?.labelKey || '')}
                 </p>
             {/if}
-            
+
             <!-- QR Code Section -->
             <div class="qr-code-section">
                 <h4 class="qr-code-title">{$text('settings.share.qr_code.text')}</h4>
-                <div class="qr-code-container">
+                <button
+                    class="qr-code-container clickable"
+                    onclick={showQRCodeFullscreen}
+                    aria-label="Show QR code fullscreen"
+                    title="Click to enlarge QR code"
+                >
                     {#if qrCodeSvg}
                         {@html qrCodeSvg}
+                    {:else}
+                        <div class="qr-code-placeholder">Generating QR code...</div>
                     {/if}
-                </div>
-                <p class="qr-code-instruction">{$text('settings.share.scan_qr_code.text')}</p>
+                </button>
+                <p class="qr-code-instruction">{$text('settings.share.click_to_enlarge_qr.text', { default: 'Click QR code to enlarge' })}</p>
             </div>
-            
+
             <!-- Back to Configuration Button (only shown for owned chats) -->
             {#if isOwnedByUser && !isPublicChatType}
                 <button
@@ -756,6 +1163,32 @@
         </div>
     {/if}
     {/if}
+{/if}
+
+<!-- QR Code Fullscreen Overlay - Simple white fullscreen with centered QR code -->
+{#if showQRFullscreen && qrCodeSvg}
+    <div
+        class="qr-fullscreen-overlay"
+        use:portal
+        role="dialog"
+        aria-modal="true"
+        aria-label="QR Code Fullscreen"
+        onclick={closeQRCodeFullscreen}
+        onkeydown={(e) => {
+            if (e.key === 'Escape') {
+                closeQRCodeFullscreen();
+            }
+        }}
+        tabindex="-1"
+        transition:fade={{ duration: 200 }}
+    >
+        <!-- Centered QR Code - Uses full viewport with 20px padding, maintaining aspect ratio -->
+        <div class="qr-large-container">
+            {#if qrCodeSvg}
+                {@html qrCodeSvg}
+            {/if}
+        </div>
+    </div>
 {/if}
 
 <style>
@@ -920,28 +1353,40 @@
         line-height: 1.4;
     }
     
+    /* Chat info display */
+    .chat-info-display {
+        margin-bottom: 16px;
+        padding: 16px;
+        background-color: var(--color-grey-5);
+        border-radius: 8px;
+        border: 1px solid var(--color-grey-20);
+    }
+
+    .chat-info-display.link-step {
+        margin-bottom: 8px;
+    }
+
+    .chat-preview {
+        width: 100%;
+    }
+
+    .chat-preview-header {
+        margin-bottom: 8px;
+    }
+
+    .chat-preview-label {
+        font-size: 12px;
+        color: var(--color-grey-60);
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
     /* Share chat button (configuration step) */
     .share-chat-button {
-        width: 100%;
-        padding: 14px 20px;
-        background-color: var(--color-primary);
-        color: white;
-        border: none;
-        border-radius: 10px;
-        font-size: 15px;
-        font-weight: 500;
-        cursor: pointer;
-        transition: all 0.2s ease;
-    }
-    
-    .share-chat-button:hover:not(:disabled) {
-        background-color: var(--color-primary-dark, #5a36b2);
-        transform: translateY(-1px);
-    }
-    
-    .share-chat-button:disabled {
-        opacity: 0.5;
-        cursor: not-allowed;
+        width: calc(100% - 40px);
+        margin: 20px 20px;
+        margin-bottom: 20px;
     }
     
     /* Expire time info */
@@ -1077,10 +1522,39 @@
         padding: 12px;
         border-radius: 8px;
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        border: none;
+        cursor: default;
+        width: auto;
+        display: inline-block;
+        height: auto;
     }
-    
+
+    .qr-code-container.clickable {
+        cursor: pointer;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .qr-code-container.clickable:hover {
+        transform: scale(1.02);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+
+    /* QR code SVG - uses fixed pixel dimensions from SVG attributes */
     .qr-code-container :global(svg) {
         display: block;
+        /* SVG has width/height attributes set during generation - don't override */
+        visibility: visible;
+        opacity: 1;
+    }
+
+    .qr-code-placeholder {
+        width: 180px;
+        height: 180px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--color-grey-60);
+        font-size: 12px;
     }
     
     .qr-code-instruction {
@@ -1088,6 +1562,93 @@
         color: var(--color-grey-60);
         margin: 16px 0 0 0;
         text-align: center;
+    }
+
+    /* QR Code Fullscreen Overlay - Simple white fullscreen */
+    /* Use very high z-index to ensure it appears above settings panel and all other UI elements */
+    .qr-fullscreen-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: white;
+        z-index: 9999;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+        box-sizing: border-box;
+        cursor: pointer;
+    }
+
+    /* QR code container - centered, uses full available space with 20px padding, maintains aspect ratio */
+    .qr-large-container {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+        height: 100%;
+        max-width: 100%;
+        max-height: 100%;
+        box-sizing: border-box;
+    }
+
+    /* Fullscreen QR code - uses fixed pixel dimensions from SVG (calculated based on viewport) */
+    .qr-large-container :global(svg) {
+        display: block;
+        /* SVG has width/height attributes set during generation at fullscreen size - don't override */
+        visibility: visible;
+        opacity: 1;
+    }
+
+    /* Embed Preview Styles */
+    .embed-preview {
+        padding: 12px;
+        background-color: var(--color-grey-10);
+        border-radius: 8px;
+        border: 1px solid var(--color-grey-20);
+    }
+
+    .embed-preview-header {
+        margin-bottom: 8px;
+    }
+
+    .embed-preview-label {
+        font-size: 12px;
+        font-weight: 500;
+        color: var(--color-grey-80);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .embed-info {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .embed-title {
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--color-grey-100);
+        line-height: 1.3;
+    }
+
+    .embed-type {
+        font-size: 12px;
+        font-weight: 500;
+        color: var(--color-button-primary);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .embed-url {
+        font-size: 12px;
+        color: var(--color-grey-70);
+        font-family: monospace;
+        word-break: break-all;
+        line-height: 1.3;
     }
 </style>
 

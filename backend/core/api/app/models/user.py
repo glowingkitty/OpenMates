@@ -34,6 +34,7 @@ class User(BaseModel):
     subscription_credits: Optional[int] = None # Base credit amount for monthly subscription
     subscription_currency: Optional[str] = None # Currency code (eur, usd, jpy)
     next_billing_date: Optional[str] = None # Next billing date (ISO 8601 format)
+    subscription_billing_day_preference: Optional[str] = None # Billing day preference: 'anniversary' (default, 30 days from activation) or 'first_of_month'
     
     # Low balance auto top-up fields
     auto_topup_low_balance_enabled: bool = False # Enable automatic one-time top-up when balance low

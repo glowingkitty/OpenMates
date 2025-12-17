@@ -704,7 +704,7 @@ export function clearEmailEncryptionKey(): void {
 /**
  * Stores the email encrypted with the master key
  * @param email - The plaintext email
- * @param useLocalStorage - Ignored (always uses sessionStorage)
+ * @param useLocalStorage - If true, stores in localStorage (for "Stay logged in"), otherwise sessionStorage
  * @returns Promise<boolean> - True if successful, false if master key not available
  */
 export async function saveEmailEncryptedWithMasterKey(email: string, useLocalStorage: boolean = false): Promise<boolean> {
@@ -714,8 +714,14 @@ export async function saveEmailEncryptedWithMasterKey(email: string, useLocalSto
   }
 
   if (typeof window !== 'undefined') {
-    // Always use sessionStorage for encrypted email
-    sessionStorage.setItem(EMAIL_ENCRYPTED_WITH_MASTER_KEY, encryptedEmail);
+    // Clear from the other storage type to avoid conflicts
+    if (useLocalStorage) {
+      sessionStorage.removeItem(EMAIL_ENCRYPTED_WITH_MASTER_KEY);
+      localStorage.setItem(EMAIL_ENCRYPTED_WITH_MASTER_KEY, encryptedEmail);
+    } else {
+      localStorage.removeItem(EMAIL_ENCRYPTED_WITH_MASTER_KEY);
+      sessionStorage.setItem(EMAIL_ENCRYPTED_WITH_MASTER_KEY, encryptedEmail);
+    }
   }
 
   return true;
@@ -723,11 +729,19 @@ export async function saveEmailEncryptedWithMasterKey(email: string, useLocalSto
 
 /**
  * Gets the plaintext email by decrypting it with the master key
+ * Checks both sessionStorage and localStorage to support "Stay logged in" functionality
  * @returns Promise<string | null> - Decrypted email or null if not found or decryption fails
  */
 export async function getEmailDecryptedWithMasterKey(): Promise<string | null> {
   if (typeof window !== 'undefined') {
-    const encryptedEmail = sessionStorage.getItem(EMAIL_ENCRYPTED_WITH_MASTER_KEY);
+    // Check sessionStorage first (for regular sessions)
+    let encryptedEmail = sessionStorage.getItem(EMAIL_ENCRYPTED_WITH_MASTER_KEY);
+    
+    // If not found in sessionStorage, check localStorage (for "Stay logged in" sessions)
+    if (!encryptedEmail) {
+      encryptedEmail = localStorage.getItem(EMAIL_ENCRYPTED_WITH_MASTER_KEY);
+    }
+    
     if (encryptedEmail) {
       return await decryptWithMasterKey(encryptedEmail);
     }
@@ -736,11 +750,12 @@ export async function getEmailDecryptedWithMasterKey(): Promise<string | null> {
 }
 
 /**
- * Clears the encrypted email from storage
+ * Clears the encrypted email from storage (both sessionStorage and localStorage)
  */
 export function clearEmailEncryptedWithMasterKey(): void {
   if (typeof window !== 'undefined') {
     sessionStorage.removeItem(EMAIL_ENCRYPTED_WITH_MASTER_KEY);
+    localStorage.removeItem(EMAIL_ENCRYPTED_WITH_MASTER_KEY);
   }
 }
 
@@ -1452,4 +1467,39 @@ export function checkPRFSupport(): boolean {
   // This function just checks if WebAuthn API is available
   // Actual PRF support is checked via getClientExtensionResults() after creation
   return true;
+}
+
+/**
+ * Unwraps a child embed key using a parent embed key (for shared embed access)
+ * @param wrappedEmbedKey - Base64 encoded wrapped embed key with IV
+ * @param parentEmbedKey - The parent embed-specific key to use for unwrapping
+ * @returns Promise<Uint8Array | null> - Unwrapped child embed key or null if unwrapping fails
+ */
+export async function unwrapEmbedKeyWithEmbedKey(wrappedEmbedKey: string, parentEmbedKey: Uint8Array): Promise<Uint8Array | null> {
+  try {
+    const parentEmbedKeyBuffer = new Uint8Array(parentEmbedKey);
+    const cryptoKey = await crypto.subtle.importKey(
+      'raw',
+      parentEmbedKeyBuffer,
+      { name: 'AES-GCM' },
+      false,
+      ['decrypt']
+    );
+
+    const combined = base64ToUint8Array(wrappedEmbedKey);
+    const iv = combined.slice(0, AES_IV_LENGTH);
+    const ciphertext = combined.slice(AES_IV_LENGTH);
+
+    const decrypted = await crypto.subtle.decrypt(
+      { name: 'AES-GCM', iv },
+      cryptoKey,
+      ciphertext
+    );
+
+    console.debug('[CryptoService] Successfully unwrapped child embed key with parent embed key, length:', decrypted.byteLength);
+    return new Uint8Array(decrypted);
+  } catch (error) {
+    console.warn('[CryptoService] Failed to unwrap child embed key with parent embed key:', error);
+    return null;
+  }
 }

@@ -31,13 +31,16 @@
     onClose: () => void;
     /** Optional embed ID for the video embed (used to open video fullscreen) */
     videoEmbedId?: string;
+    /** Optional: Embed ID for sharing (from embed:{embed_id} contentRef) */
+    embedId?: string;
   }
   
   let {
     results: resultsProp,
     previewData,
     onClose,
-    videoEmbedId
+    videoEmbedId,
+    embedId
   }: Props = $props();
   
   // Extract values from either previewData (skill preview context) or direct props (embed context)
@@ -302,10 +305,58 @@
     }
   }
   
-  // Handle share - opens share menu (placeholder for now)
-  function handleShare() {
-    // TODO: Implement share functionality for video transcript embeds
-    console.debug('[VideoTranscriptEmbedFullscreen] Share action (not yet implemented)');
+  // Handle share - opens share settings menu for this specific video transcript embed
+  async function handleShare() {
+    try {
+      console.debug('[VideoTranscriptEmbedFullscreen] Opening share settings for video transcript embed:', {
+        embedId,
+        videoUrl,
+        videoTitle,
+        transcriptLength: transcriptText.length
+      });
+
+      // Check if we have embed_id for proper sharing
+      if (!embedId) {
+        console.warn('[VideoTranscriptEmbedFullscreen] No embed_id available - cannot create encrypted share link');
+        const { notificationStore } = await import('../../../stores/notificationStore');
+        notificationStore.error('Unable to share this video transcript embed. Missing embed ID.');
+        return;
+      }
+
+      // Import required modules
+      const { navigateToSettings } = await import('../../../stores/settingsNavigationStore');
+      const { settingsDeepLink } = await import('../../../stores/settingsDeepLinkStore');
+      const { panelState } = await import('../../../stores/panelStateStore');
+
+      // Set embed context with embed_id for proper encrypted sharing
+      const embedContext = {
+        type: 'video-transcript',
+        embed_id: embedId,
+        url: videoUrl,
+        title: videoTitle,
+        transcript: transcriptText,
+        wordCount: totalWordCount,
+        metadata: firstResult?.metadata
+      };
+
+      // Store embed context for SettingsShare
+      (window as any).__embedShareContext = embedContext;
+
+      // Navigate to share settings
+      navigateToSettings('shared/share', $text('settings.share.share_transcript.text', { default: 'Share Video Transcript' }), 'share', 'settings.share.share_transcript.text');
+      
+      // Also set settingsDeepLink to ensure Settings component navigates properly
+      settingsDeepLink.set('shared/share');
+
+      // Open settings panel
+      panelState.openSettings();
+
+      console.debug('[VideoTranscriptEmbedFullscreen] Opened share settings for video transcript embed');
+    } catch (error) {
+      console.error('[VideoTranscriptEmbedFullscreen] Error opening share settings:', error);
+      const { notificationStore } = await import('../../../stores/notificationStore');
+      notificationStore.error('Failed to open share menu. Please try again.');
+    }
   }
   
   // Handle opening video on YouTube

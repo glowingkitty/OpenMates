@@ -289,6 +289,23 @@ async def _async_process_credit_note_and_send_email(
             raise Exception("Failed to upload encrypted credit note PDF to S3")
         logger.info(f"Uploaded encrypted credit note {s3_object_key} to S3. URL (for reference): {s3_url}")
 
+        # Publish websocket event to notify client that credit note PDF is ready for download
+        # This allows the frontend to show the download button only when the PDF is actually available
+        try:
+            await cache_service.publish_event(
+                channel=f"user_updates::{user_id}",
+                event_data={
+                    "event_for_client": "credit_note_ready",
+                    "user_id_uuid": user_id,
+                    "payload": {"invoice_id": invoice_id}
+                }
+            )
+            logger.info(f"Published 'credit_note_ready' websocket event for invoice {invoice_id}, user {user_id}")
+        except Exception as ws_pub_err:
+            # Don't fail the task if websocket event publishing fails
+            # The PDF is uploaded and available, just the notification failed
+            logger.warning(f"Failed to publish 'credit_note_ready' websocket event for invoice {invoice_id}: {ws_pub_err}")
+
         # 9. Prepare Directus Credit Note Record Data (with encryption)
         encrypted_refund_amount, _ = await task.encryption_service.encrypt_with_user_key(
             str(refund_amount_cents), vault_key_id

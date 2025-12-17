@@ -96,6 +96,7 @@ class SavePaymentMethodRequest(BaseModel):
 class CreateSubscriptionRequest(BaseModel):
     credits_amount: int
     currency: str
+    billing_day_preference: Optional[str] = 'anniversary'  # 'anniversary' or 'first_of_month'
 
 class CreateSubscriptionResponse(BaseModel):
     subscription_id: str
@@ -134,6 +135,7 @@ class GetSubscriptionResponse(BaseModel):
     price: int
     next_billing_date: Optional[str] = None
     cancel_at_period_end: bool
+    billing_day_preference: Optional[str] = None
 
 class HasPaymentMethodResponse(BaseModel):
     has_payment_method: bool
@@ -141,6 +143,13 @@ class HasPaymentMethodResponse(BaseModel):
 class CancelSubscriptionResponse(BaseModel):
     subscription_id: str
     status: str
+
+class UpdateBillingDayPreferenceRequest(BaseModel):
+    billing_day_preference: str  # 'anniversary' or 'first_of_month'
+
+class UpdateBillingDayPreferenceResponse(BaseModel):
+    billing_day_preference: str
+    next_billing_date: Optional[str] = None
 
 class BuyGiftCardRequest(BaseModel):
     credits_amount: int
@@ -1525,6 +1534,13 @@ async def create_subscription(
                 detail=f"Subscription product not configured for {subscription_data.credits_amount} credits in {subscription_data.currency}. Please contact support."
             )
         
+        # Get billing day preference from request, fallback to user's saved preference or default
+        billing_day_preference = subscription_data.billing_day_preference or current_user.subscription_billing_day_preference or 'anniversary'
+
+        # Validate billing preference
+        if billing_day_preference not in ['anniversary', 'first_of_month']:
+            raise HTTPException(status_code=400, detail="Invalid billing day preference. Must be 'anniversary' or 'first_of_month'")
+
         # Create subscription
         # CRITICAL: Pass the payment method ID explicitly to ensure Stripe uses it for the first invoice.
         # Without this, the subscription may be created with status 'incomplete' without a client_secret.
@@ -1536,7 +1552,8 @@ async def create_subscription(
                 "credits_amount": str(subscription_data.credits_amount),
                 "bonus_credits": str(tier_info['bonus_credits'])
             },
-            default_payment_method=payment_method_id  # CRITICAL: Explicitly pass payment method
+            default_payment_method=payment_method_id,  # CRITICAL: Explicitly pass payment method
+            billing_day_preference=billing_day_preference
         )
         
         if not subscription_result:
@@ -1564,7 +1581,8 @@ async def create_subscription(
             "subscription_status": subscription_result['status'],
             "subscription_credits": subscription_data.credits_amount,
             "subscription_currency": subscription_data.currency.lower(),
-            "next_billing_date": next_billing_date
+            "next_billing_date": next_billing_date,
+            "subscription_billing_day_preference": billing_day_preference  # Save the billing preference
         }
         
         update_success = await directus_service.update_user(current_user.id, update_payload)
@@ -1677,7 +1695,8 @@ async def get_subscription(
             currency=tier_info['currency'],
             price=tier_info['price'],
             next_billing_date=next_billing_date,
-            cancel_at_period_end=subscription_result.get('cancel_at_period_end', False)
+            cancel_at_period_end=subscription_result.get('cancel_at_period_end', False),
+            billing_day_preference=current_user.subscription_billing_day_preference or 'anniversary'
         )
         
     except HTTPException as e:
@@ -1910,55 +1929,173 @@ async def cancel_subscription(
     cache_service: CacheService = Depends(get_cache_service)
 ):
     """
-    Cancel the user's active subscription at the end of the current billing period.
+    Cancel the user's active subscription immediately.
+    For auto top-up subscriptions, cancellation is immediate rather than at period end.
     """
     logger.info(f"Canceling subscription for user {current_user.id}")
-    
+
     try:
         # Check if user has a subscription
         if not current_user.stripe_subscription_id:
             raise HTTPException(status_code=404, detail="No active subscription found")
-        
+
         # Cancel subscription with Stripe
         if payment_service.provider_name != "stripe":
             raise HTTPException(status_code=400, detail="Subscriptions only supported with Stripe")
-        
+
         cancel_result = await payment_service.provider.cancel_subscription(
             current_user.stripe_subscription_id
         )
-        
+
         if not cancel_result:
             raise HTTPException(status_code=500, detail="Failed to cancel subscription")
-        
-        # Update status in Directus
+
+        # Clear subscription data from user record since it's cancelled immediately
         update_payload = {
-            "subscription_status": cancel_result['status']
+            "subscription_status": None,
+            "stripe_subscription_id": None,
+            "subscription_credits": None,
+            "subscription_currency": None,
+            "subscription_billing_day_preference": None
         }
-        
+
         await directus_service.update_user(current_user.id, update_payload)
-        
+
         # CRITICAL: After updating user cache via directus_service, also update cache_service's user cache
         # This ensures get_current_user -> get_user_by_id returns the updated subscription status
         # The cache_service.update_user method updates the user_id-based cache
         try:
             await cache_service.update_user(current_user.id, update_payload)
-            logger.debug(f"Updated cache_service user cache for user {current_user.id} with canceled subscription status")
+            logger.debug(f"Updated cache_service user cache for user {current_user.id} with canceled subscription")
         except Exception as cache_update_error:
             logger.warning(f"Failed to update cache_service user cache for user {current_user.id}: {cache_update_error}")
             # Don't fail the request - directus_service.update_user already updated its cache
-        
+
         logger.info(f"Successfully canceled subscription for user {current_user.id}")
-        
+
         return CancelSubscriptionResponse(
             subscription_id=current_user.stripe_subscription_id,
             status=cancel_result['status'],
-            cancel_at_period_end=cancel_result.get('cancel_at_period_end', True)
+            cancel_at_period_end=False
         )
-        
+
     except HTTPException as e:
         raise e
     except Exception as e:
         logger.error(f"Error canceling subscription for user {current_user.id}: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@router.post("/update-billing-day-preference", response_model=UpdateBillingDayPreferenceResponse)
+@limiter.limit("10/minute")
+async def update_billing_day_preference(
+    request: Request,
+    preference_data: UpdateBillingDayPreferenceRequest,
+    current_user: User = Depends(get_current_user),
+    payment_service: PaymentService = Depends(get_payment_service),
+    directus_service: DirectusService = Depends(get_directus_service),
+    cache_service: CacheService = Depends(get_cache_service)
+):
+    """
+    Update the billing day preference for the user's subscription.
+    Options:
+    - 'anniversary': Bill on the same day each month (30 days from activation)
+    - 'first_of_month': Bill on the 1st of each month
+
+    If the user has an active subscription, this will update the billing cycle anchor.
+    """
+    logger.info(f"Updating billing day preference for user {current_user.id} to {preference_data.billing_day_preference}")
+
+    # Validate preference value
+    if preference_data.billing_day_preference not in ['anniversary', 'first_of_month']:
+        raise HTTPException(status_code=400, detail="Invalid billing day preference. Must be 'anniversary' or 'first_of_month'")
+
+    try:
+        # Update user preference in database
+        update_payload = {
+            "subscription_billing_day_preference": preference_data.billing_day_preference
+        }
+
+        # If user has an active subscription, update the billing cycle anchor
+        next_billing_date = None
+        if current_user.stripe_subscription_id and current_user.subscription_status == 'active':
+            if payment_service.provider_name != "stripe":
+                raise HTTPException(status_code=400, detail="Subscriptions only supported with Stripe")
+
+            # Get current subscription
+            subscription = await payment_service.provider.get_subscription(current_user.stripe_subscription_id)
+            if not subscription:
+                raise HTTPException(status_code=404, detail="Subscription not found")
+
+            # Calculate new billing cycle anchor based on preference
+            from datetime import datetime, timezone
+            import calendar
+
+            current_period_end = subscription.get('current_period_end')
+            if current_period_end:
+                current_end_date = datetime.fromtimestamp(current_period_end, tz=timezone.utc)
+
+                if preference_data.billing_day_preference == 'first_of_month':
+                    # Calculate next 1st of month after current period end
+                    year = current_end_date.year
+                    month = current_end_date.month + 1
+                    if month > 12:
+                        month = 1
+                        year += 1
+                    new_billing_date = datetime(year, month, 1, tzinfo=timezone.utc)
+                else:
+                    # Keep anniversary billing (already set in subscription)
+                    new_billing_date = current_end_date
+
+                # Update subscription billing cycle anchor in Stripe
+                import stripe
+                try:
+                    if preference_data.billing_day_preference == 'first_of_month':
+                        # Update to bill on 1st of month
+                        # Note: Stripe's billing_cycle_anchor can only be set on creation
+                        # For existing subscriptions, we use proration_behavior and trial_end
+                        # to shift the billing date
+                        updated_subscription = stripe.Subscription.modify(
+                            current_user.stripe_subscription_id,
+                            proration_behavior='none',
+                            billing_cycle_anchor='now',
+                            trial_end=int(new_billing_date.timestamp())
+                        )
+                        next_billing_date = new_billing_date.isoformat()
+
+                        # Update next_billing_date in database
+                        update_payload["next_billing_date"] = next_billing_date
+
+                        logger.info(f"Updated subscription {current_user.stripe_subscription_id} to bill on 1st of month. Next billing: {next_billing_date}")
+                    else:
+                        # Anniversary billing - keep existing cycle
+                        next_billing_date = current_end_date.isoformat()
+                        logger.info(f"Kept anniversary billing for subscription {current_user.stripe_subscription_id}")
+
+                except stripe.error.StripeError as e:
+                    logger.error(f"Stripe error updating billing cycle: {e.user_message}", exc_info=True)
+                    raise HTTPException(status_code=500, detail="Failed to update billing cycle with payment provider")
+
+        # Save preference to database
+        await directus_service.update_user(current_user.id, update_payload)
+
+        # Update cache
+        try:
+            await cache_service.update_user(current_user.id, update_payload)
+            logger.debug(f"Updated cache for user {current_user.id} with billing preference")
+        except Exception as cache_error:
+            logger.warning(f"Failed to update cache for user {current_user.id}: {cache_error}")
+
+        logger.info(f"Successfully updated billing day preference for user {current_user.id}")
+
+        return UpdateBillingDayPreferenceResponse(
+            billing_day_preference=preference_data.billing_day_preference,
+            next_billing_date=next_billing_date
+        )
+
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        logger.error(f"Error updating billing day preference for user {current_user.id}: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error")
 
 @router.post("/redeem-gift-card", response_model=RedeemGiftCardResponse)
@@ -2748,11 +2885,19 @@ async def download_invoice(
         from io import BytesIO
         pdf_stream = BytesIO(decrypted_pdf_content)
 
+        # Use proper Content-Disposition header format for filename (same as credit notes)
+        # Format: attachment; filename="filename.pdf"; filename*=UTF-8''urlencoded-filename.pdf
+        # RFC 5987 requires the filename* value to be percent-encoded
+        # This ensures compatibility with all browsers and proper filename extraction
+        from urllib.parse import quote
+        filename_encoded = quote(filename, safe='')
+        content_disposition = f'attachment; filename="{filename}"; filename*=UTF-8\'\'{filename_encoded}'
+
         return StreamingResponse(
             pdf_stream,
             media_type="application/pdf",
             headers={
-                "Content-Disposition": f"attachment; filename={filename}"
+                "Content-Disposition": content_disposition
             }
         )
 
@@ -2943,11 +3088,19 @@ async def download_credit_note(
         from io import BytesIO
         pdf_stream = BytesIO(decrypted_pdf_content)
 
+        # Use proper Content-Disposition header format for filename
+        # Format: attachment; filename="filename.pdf"; filename*=UTF-8''urlencoded-filename.pdf
+        # RFC 5987 requires the filename* value to be percent-encoded
+        # This ensures compatibility with all browsers and proper filename extraction
+        from urllib.parse import quote
+        filename_encoded = quote(filename, safe='')
+        content_disposition = f'attachment; filename="{filename}"; filename*=UTF-8\'\'{filename_encoded}'
+        
         return StreamingResponse(
             pdf_stream,
             media_type="application/pdf",
             headers={
-                "Content-Disposition": f'attachment; filename="{filename}"'
+                "Content-Disposition": content_disposition
             }
         )
 

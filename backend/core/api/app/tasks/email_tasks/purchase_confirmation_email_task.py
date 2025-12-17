@@ -253,6 +253,7 @@ async def _async_process_invoice_and_send_email(
             "sender_email": sender_email,
             "sender_vat": sender_vat,
             "is_gift_card": is_gift_card  # Flag to indicate if this is a gift card purchase
+            # Note: refund_link will be added after invoice is created and we have the UUID
         }
 
         # Add billing address if available (cleaning up None values) - only for future business/teams functionality
@@ -450,7 +451,7 @@ async def _async_process_invoice_and_send_email(
             logger.error(f"Exception occurred during invoice counter update process for user: {counter_update_err}", exc_info=True)
             # Continue with email sending even if counter update fails, but log the error
 
-        # 11. Prepare Email Context
+        # 11. Now that we have the invoice UUID, regenerate the PDFs with the refund link
         # Generate refund deep link URL if invoice UUID is available
         refund_deep_link_url = None
         if invoice_uuid:
@@ -458,27 +459,86 @@ async def _async_process_invoice_and_send_email(
                 # Load shared URLs configuration to get webapp URL
                 from backend.core.api.app.services.email.config_loader import load_shared_urls
                 shared_urls = load_shared_urls()
-                
+
                 # Determine environment (development or production)
                 # Check if we're in development mode (common patterns: localhost, dev, test)
                 is_dev = os.getenv("ENVIRONMENT", "production").lower() in ("development", "dev", "test") or \
                          "localhost" in os.getenv("WEBAPP_URL", "").lower()
                 env_name = "development" if is_dev else "production"
-                
+
                 # Get webapp URL from shared config
                 webapp_url = shared_urls.get('urls', {}).get('base', {}).get('webapp', {}).get(env_name)
-                
+
                 # Fallback to environment variable or default
                 if not webapp_url:
                     webapp_url = os.getenv("WEBAPP_URL", "https://openmates.org" if not is_dev else "http://localhost:5174")
-                
+
                 # Generate deep link URL: {webapp_url}#settings/billing/invoices/{invoice_uuid}/refund
                 refund_deep_link_url = f"{webapp_url}#settings/billing/invoices/{invoice_uuid}/refund"
                 logger.info(f"Generated refund deep link URL for invoice {invoice_number}: {refund_deep_link_url[:50]}...")
+
+                # Update invoice_data with the refund link
+                invoice_data['refund_link'] = refund_deep_link_url
+
+                # Regenerate the PDFs with the refund link
+                logger.info(f"Regenerating PDFs with refund link for invoice {invoice_number}")
+
+                # Regenerate English version
+                pdf_buffer_en = task.invoice_template_service.generate_invoice(
+                    invoice_data, lang='en', currency=currency_paid.lower()
+                )
+                pdf_bytes_en = pdf_buffer_en.getvalue()
+                pdf_buffer_en.close()
+                logger.info(f"Regenerated English PDF with refund link for invoice")
+
+                # Regenerate translated version if language is not English
+                if user_language != 'en':
+                    try:
+                        pdf_buffer_lang = task.invoice_template_service.generate_invoice(
+                            invoice_data, lang=user_language, currency=currency_paid.lower()
+                        )
+                        pdf_bytes_lang = pdf_buffer_lang.getvalue()
+                        pdf_buffer_lang.close()
+                        logger.info(f"Regenerated PDF with refund link for invoice in language {user_language}")
+                    except Exception as lang_pdf_err:
+                        logger.error(f"Failed to regenerate invoice PDF in language {user_language} with refund link: {lang_pdf_err}", exc_info=True)
+                        # Continue with the English version only
+
+                # CRITICAL: Re-encrypt and re-upload the regenerated PDF to S3 to ensure consistency
+                # The PDF sent via email must be the same as the one stored in S3 and downloaded by users
+                logger.info(f"Re-encrypting and re-uploading regenerated PDF to S3 to ensure consistency")
+                try:
+                    # Re-encrypt the regenerated PDF using the same AES key and nonce
+                    # This ensures the encryption keys stored in Directus remain valid
+                    aesgcm = AESGCM(aes_key)
+                    encrypted_pdf_payload_updated = aesgcm.encrypt(nonce, pdf_bytes_en, None)  # No associated data
+                    logger.debug(f"Re-encrypted regenerated PDF payload using AES-GCM")
+
+                    # Re-upload to S3 using the same s3_object_key (overwrites the old file)
+                    logger.info(f"Re-uploading encrypted invoice {s3_object_key} to S3 with updated PDF (with refund link)")
+                    upload_result_updated = await task.s3_service.upload_file(
+                        bucket_key='invoices',
+                        file_key=s3_object_key,  # Use the same key to overwrite
+                        content=encrypted_pdf_payload_updated,  # Upload the re-encrypted regenerated PDF
+                        content_type='application/octet-stream'
+                    )
+                    s3_url_updated = upload_result_updated.get('url')
+                    upload_success_updated = bool(s3_url_updated)
+                    if not upload_success_updated:
+                        logger.error(f"Failed to re-upload regenerated invoice PDF to S3 for invoice {invoice_number}. Upload result: {upload_result_updated}")
+                        # Don't fail the whole task, but log the error - email will still be sent with correct PDF
+                        logger.warning(f"Email will contain PDF with refund link, but S3 may have outdated version without refund link")
+                    else:
+                        logger.info(f"Successfully re-uploaded encrypted invoice {s3_object_key} to S3 with updated PDF (with refund link). URL (for reference): {s3_url_updated}")
+                except Exception as reupload_err:
+                    logger.error(f"Error re-encrypting/re-uploading regenerated PDF to S3 for invoice {invoice_number}: {reupload_err}", exc_info=True)
+                    # Don't fail the whole task, but log the error - email will still be sent with correct PDF
+                    logger.warning(f"Email will contain PDF with refund link, but S3 may have outdated version without refund link")
+
             except Exception as url_err:
                 logger.error(f"Failed to generate refund deep link URL for invoice {invoice_number}: {url_err}", exc_info=True)
-                # Continue without deep link - email will still be sent
-        
+                # Continue without deep link - email will still be sent with PDFs without refund link
+
         email_context = {
             "darkmode": user_darkmode,
             "invoice_id": invoice_number,  # Use invoice_id instead of account_id for email template

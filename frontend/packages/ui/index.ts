@@ -72,10 +72,17 @@ export {
     wrapEmbedKeyWithChatKey,
     unwrapEmbedKeyWithMasterKey,
     unwrapEmbedKeyWithChatKey,
+    unwrapEmbedKeyWithEmbedKey,
     encryptWithEmbedKey,
     decryptWithEmbedKey
 } from "./src/services/cryptoService"; // Export cryptographic utilities
 export { decryptShareKeyBlob } from "./src/services/shareEncryption"; // Export share encryption utilities
+export { 
+    generateEmbedShareKeyBlob, 
+    decryptEmbedShareKeyBlob, 
+    getEmbedKeyForSharing,
+    type ShareDuration 
+} from "./src/services/embedShareEncryption"; // Export embed share encryption utilities
 export { embedStore } from "./src/services/embedStore"; // Export embed store
 export { shareMetadataQueue } from "./src/services/shareMetadataQueue"; // Export share metadata queue service
 

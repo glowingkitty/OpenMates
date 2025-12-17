@@ -50,6 +50,8 @@
     previewData?: WebSearchSkillPreviewData;
     /** Close handler */
     onClose: () => void;
+    /** Optional: Embed ID for sharing (from embed:{embed_id} contentRef) */
+    embedId?: string;
   }
   
   let {
@@ -57,7 +59,8 @@
     provider: providerProp,
     results: resultsProp,
     previewData,
-    onClose
+    onClose,
+    embedId
   }: Props = $props();
   
   // Extract values from either previewData (skill preview context) or direct props (embed context)
@@ -120,6 +123,58 @@
       window.open(websiteData.url, '_blank', 'noopener,noreferrer');
     }
   }
+
+  // Handle share - opens share settings menu for this specific web search embed
+  async function handleShare() {
+    try {
+      console.debug('[WebSearchEmbedFullscreen] Opening share settings for web search embed:', {
+        embedId,
+        query,
+        provider,
+        resultsCount: results.length
+      });
+
+      // Check if we have embed_id for proper sharing
+      if (!embedId) {
+        console.warn('[WebSearchEmbedFullscreen] No embed_id available - cannot create encrypted share link');
+        const { notificationStore } = await import('../../../stores/notificationStore');
+        notificationStore.error('Unable to share this web search embed. Missing embed ID.');
+        return;
+      }
+
+      // Import required modules
+      const { navigateToSettings } = await import('../../../stores/settingsNavigationStore');
+      const { settingsDeepLink } = await import('../../../stores/settingsDeepLinkStore');
+      const { panelState } = await import('../../../stores/panelStateStore');
+
+      // Set embed context with embed_id for proper encrypted sharing
+      const embedContext = {
+        type: 'web_search',
+        embed_id: embedId,
+        query: query,
+        provider: provider,
+        results_count: results.length
+      };
+
+      // Store embed context for SettingsShare
+      (window as any).__embedShareContext = embedContext;
+
+      // Navigate to share settings
+      navigateToSettings('shared/share', 'Share Web Search', 'share', 'settings.share.share_web_search.text');
+      
+      // Also set settingsDeepLink to ensure Settings component navigates properly
+      settingsDeepLink.set('shared/share');
+
+      // Open settings panel
+      panelState.openSettings();
+
+      console.debug('[WebSearchEmbedFullscreen] Opened share settings for web search embed');
+    } catch (error) {
+      console.error('[WebSearchEmbedFullscreen] Error opening share settings:', error);
+      const { notificationStore } = await import('../../../stores/notificationStore');
+      notificationStore.error('Failed to open share menu. Please try again.');
+    }
+  }
 </script>
 
 <UnifiedEmbedFullscreen
@@ -129,6 +184,7 @@
   {onClose}
   onOpen={handleOpenInProvider}
   onCopy={handleCopyYAML}
+  onShare={handleShare}
 >
   {#snippet content()}
     {#if results.length === 0}
