@@ -21,6 +21,7 @@
     import Chat from '../../chats/Chat.svelte';
     import { activeChatStore } from '../../../stores/activeChatStore';
     import { authStore } from '../../../stores/authStore';
+    import { settingsDeepLink } from '../../../stores/settingsDeepLinkStore';
     import { generateShareKeyBlob, type ShareDuration } from '../../../services/shareEncryption';
     import { shareMetadataQueue } from '../../../services/shareMetadataQueue';
     import { isDemoChat, isPublicChat } from '../../../demo_chats/convertToChat';
@@ -72,6 +73,12 @@
 
     // QR code SVG content
     let qrCodeSvg = $state('');
+    
+    // QR code size state - calculated based on viewport
+    // Normal size: fits container, max 300px
+    let qrCodeSize = $state(180);
+    // Fullscreen size: large and easy to scan
+    let qrCodeFullscreenSize = $state(600);
 
     // QR code fullscreen overlay state
     let showQRFullscreen = $state(false);
@@ -104,17 +111,42 @@
     // The store directly contains the chat ID string (or null), not an object
     // Use $state to track the chat ID and update it reactively from the store
     let currentChatId = $state<string | null>(null);
+    
+    // Shared chat ID - the chat that is currently being shared
+    // This remains stable even when user switches to other chats
+    // Only updates when a new share link is generated
+    let sharedChatId = $state<string | null>(null);
 
-    // Update currentChatId when activeChatStore changes (only for chat sharing)
+    // ONLY update currentChatId when Share button is explicitly clicked
+    // Watch settingsDeepLink for 'shared/share' - this is set when Share button is clicked
+    // This ensures the share view remains stable when user switches chats normally
     $effect(() => {
         if (!isEmbedSharing) {
-            const storeValue = $activeChatStore;
-            if (storeValue && storeValue.trim() !== '') {
-                currentChatId = storeValue;
-                console.debug('[SettingsShare] currentChatId updated from store:', currentChatId);
-            } else {
-                currentChatId = null;
+            const deepLink = $settingsDeepLink;
+            
+            // Only react when settingsDeepLink is set to 'shared/share' (Share button clicked)
+            if (deepLink === 'shared/share') {
+                const storeValue = $activeChatStore;
+                const newChatId = storeValue && storeValue.trim() !== '' ? storeValue : null;
+                
+                // If we have a generated link for a different chat, reset everything
+                // This happens when user clicks Share on a different chat
+                if (isLinkGenerated && sharedChatId && newChatId && newChatId !== sharedChatId) {
+                    console.debug('[SettingsShare] Share button clicked for different chat, resetting share state. Old:', sharedChatId, 'New:', newChatId);
+                    // Reset the share state (this sets isLinkGenerated to false)
+                    resetGeneratedState();
+                    // Update currentChatId to the new chat
+                    currentChatId = newChatId;
+                } else if (!isLinkGenerated || !sharedChatId) {
+                    // Update currentChatId if no link is generated, or if we're starting fresh
+                    if (newChatId !== currentChatId) {
+                        currentChatId = newChatId;
+                        console.debug('[SettingsShare] Share button clicked, currentChatId updated:', currentChatId);
+                    }
+                }
             }
+            // Do NOT react to activeChatStore changes unless Share button was clicked
+            // This keeps the share view stable when user switches chats
         }
     });
     
@@ -122,11 +154,13 @@
     let currentChat = $state<any>(null);
     
     /**
-     * Load currentChat when currentChatId changes
-     * This ensures the chat object is available for display
+     * Load currentChat for display
+     * Uses sharedChatId if link is generated (to keep it stable), otherwise uses currentChatId
+     * This ensures the displayed chat remains unchanged when user switches chats
      */
     $effect(() => {
-        const chatId = currentChatId;
+        // Use sharedChatId if link is generated, otherwise use currentChatId
+        const chatId = isLinkGenerated ? sharedChatId : currentChatId;
         if (!chatId || isEmbedSharing) {
             currentChat = null;
             return;
@@ -138,7 +172,7 @@
                 const { chatDB } = await import('../../../services/db');
                 const chat = await chatDB.getChat(chatId);
                 currentChat = chat || null;
-                console.debug('[SettingsShare] Loaded currentChat:', chatId, chat ? 'found' : 'not found');
+                console.debug('[SettingsShare] Loaded currentChat:', chatId, chat ? 'found' : 'not found', 'isLinkGenerated:', isLinkGenerated);
             } catch (error) {
                 console.error('[SettingsShare] Error loading currentChat:', error);
                 currentChat = null;
@@ -229,6 +263,7 @@
                 generatedLink = `${baseUrl}/share/embed/${embedContext.embed_id}#key=${encryptedBlob}`;
                 isLinkGenerated = true;
                 isConfigurationStep = false;
+                // Note: sharedChatId not set for embeds (embedContext is used instead)
 
                 // Generate QR code
                 generateQRCode(generatedLink);
@@ -258,6 +293,8 @@
                 generatedLink = `${baseUrl}/#chat-id=${currentChatId}`;
                 isLinkGenerated = true;
                 isConfigurationStep = false;
+                // Store the shared chat ID to keep it stable when user switches chats
+                sharedChatId = currentChatId;
                 generateQRCode(generatedLink);
                 console.debug('[SettingsShare] Public chat (demo/legal) share link generated:', generatedLink);
                 return;
@@ -284,6 +321,8 @@
                     generatedLink = `${baseUrl}/share/chat/${currentChatId}#key=${encryptedBlob}`;
                     isLinkGenerated = true;
                     isConfigurationStep = false;
+                    // Store the shared chat ID to keep it stable when user switches chats
+                    sharedChatId = currentChatId;
                     generateQRCode(generatedLink);
                     console.debug('[SettingsShare] Shared chat (not owned) share link generated:', generatedLink);
                     return;
@@ -325,6 +364,10 @@
             
             // Move to link generation step (show link and QR code)
             isConfigurationStep = false;
+            
+            // Store the shared chat ID to keep it stable when user switches chats
+            // This ensures the QR code and share link remain unchanged
+            sharedChatId = currentChatId;
             
             // Generate QR code
             generateQRCode(generatedLink);
@@ -456,6 +499,7 @@
     }
     
     // Effect to watch for chatId changes
+    // Only triggers if link is not generated - once link is generated, we keep it stable
     $effect(() => {
         // Track dependencies to ensure reactivity
         const chatId = currentChatId;
@@ -464,6 +508,8 @@
         
         console.debug('[SettingsShare] Effect triggered - chatId:', chatId, 'storeValue:', storeValue, 'isAuth:', isAuth, 'isLinkGenerated:', isLinkGenerated);
         
+        // Only auto-generate link if no link is already generated
+        // This prevents the share view from updating when user switches chats
         if (chatId && !isLinkGenerated) {
             // Use setTimeout to ensure the component is fully mounted and store is updated
             setTimeout(() => {
@@ -473,13 +519,17 @@
     });
     
     // Also check on mount in case the chatId is already set
+    // Only initialize if we don't already have a shared chat (to maintain stability)
     onMount(() => {
-        console.debug('[SettingsShare] onMount - currentChatId:', currentChatId, 'activeChatStore:', $activeChatStore);
-        // Ensure currentChatId is synced from store on mount
-        const storeValue = $activeChatStore;
-        if (storeValue && storeValue.trim() !== '' && storeValue !== currentChatId) {
-            currentChatId = storeValue;
-            console.debug('[SettingsShare] Synced currentChatId from store on mount:', currentChatId);
+        console.debug('[SettingsShare] onMount - currentChatId:', currentChatId, 'sharedChatId:', sharedChatId, 'activeChatStore:', $activeChatStore);
+        // Only sync from store on mount if we don't have a shared chat already
+        // This maintains stability - if we already have a shared chat, don't change it
+        if (!sharedChatId && !isLinkGenerated) {
+            const storeValue = $activeChatStore;
+            if (storeValue && storeValue.trim() !== '' && storeValue !== currentChatId) {
+                currentChatId = storeValue;
+                console.debug('[SettingsShare] Synced currentChatId from store on mount:', currentChatId);
+            }
         }
         
         if (currentChatId && !isLinkGenerated) {
@@ -671,23 +721,45 @@
     }
     
     /**
-     * Generate QR code SVG from the share link
-     * Creates a QR code with black squares on white background
+     * Calculate QR code size based on viewport
+     * Normal size: fits container, responsive but capped at reasonable max
+     * Fullscreen size: large and easy to scan, uses most of viewport
      */
-    function generateQRCode(link: string) {
+    function calculateQRSizes() {
+        // Normal QR code size: responsive to viewport but capped
+        // Use container width or viewport, whichever is smaller, with max 300px
+        const containerMax = 300;
+        const viewportBased = Math.min(viewportWidth * 0.4, viewportHeight * 0.3);
+        qrCodeSize = Math.max(180, Math.min(containerMax, Math.floor(viewportBased)));
+        
+        // Fullscreen QR code size: very large and easy to scan
+        // Use 90% of smaller viewport dimension, with higher cap for large screens
+        const fullscreenMax = 1200; // Increased max for very large screens
+        const fullscreenMin = 400;
+        const viewportBasedFullscreen = Math.min(viewportWidth, viewportHeight) * 0.9;
+        qrCodeFullscreenSize = Math.max(fullscreenMin, Math.min(fullscreenMax, Math.floor(viewportBasedFullscreen)));
+        
+        console.debug('[SettingsShare] Calculated QR sizes - normal:', qrCodeSize, 'fullscreen:', qrCodeFullscreenSize);
+    }
+    
+    /**
+     * Generate QR code SVG from the share link with specified size
+     * Creates a QR code with black squares on white background
+     * Uses fixed pixel dimensions for reliable rendering
+     */
+    function generateQRCode(link: string, size: number = qrCodeSize) {
         try {
-            console.debug('[SettingsShare] Generating QR code for link:', link);
+            console.debug('[SettingsShare] Generating QR code for link:', link, 'size:', size);
             const qr = new QRCodeSVG({
                 content: link,
                 padding: 4,
-                width: 180,
-                height: 180,
+                width: size,
+                height: size,
                 color: '#000000',
                 background: '#ffffff',
                 ecl: 'M' // Medium error correction level
             });
-            // Get the SVG string - keep width/height attributes for proper rendering
-            // CSS will handle responsive sizing if needed
+            // Keep width and height attributes - QR codes need fixed pixel values to render correctly
             const svgString = qr.svg();
             qrCodeSvg = svgString;
             console.debug('[SettingsShare] QR code generated successfully, SVG length:', svgString.length);
@@ -722,46 +794,64 @@
     }
 
     /**
-     * Update viewport dimensions
+     * Update viewport dimensions and recalculate QR code sizes
      */
     function updateViewportDimensions() {
         viewportWidth = window.innerWidth;
         viewportHeight = window.innerHeight;
+        calculateQRSizes();
     }
     
     /**
      * Show QR code in fullscreen overlay
+     * Regenerates QR code at fullscreen size for better scanning
      */
     function showQRCodeFullscreen() {
         updateViewportDimensions();
+        // Regenerate QR code at fullscreen size
+        if (generatedLink) {
+            generateQRCode(generatedLink, qrCodeFullscreenSize);
+        }
         showQRFullscreen = true;
-    }
-
-    /**
-     * Close QR code fullscreen overlay
-     */
-    function closeQRCodeFullscreen() {
-        showQRFullscreen = false;
     }
     
     /**
-     * Track viewport dimensions when overlay is shown
+     * Close QR code fullscreen overlay
+     * Regenerates QR code at normal size
+     */
+    function closeQRCodeFullscreen() {
+        showQRFullscreen = false;
+        // Regenerate QR code at normal size when closing fullscreen
+        if (generatedLink) {
+            generateQRCode(generatedLink, qrCodeSize);
+        }
+    }
+    
+    /**
+     * Track viewport dimensions and recalculate QR sizes on resize
      */
     $effect(() => {
-        if (showQRFullscreen) {
+        // Initialize viewport dimensions on mount
+        updateViewportDimensions();
+        
+        // Listen for window resize
+        const handleResize = () => {
+            const oldSize = qrCodeSize;
+            const oldFullscreenSize = qrCodeFullscreenSize;
             updateViewportDimensions();
-            
-            // Listen for window resize
-            const handleResize = () => {
-                updateViewportDimensions();
-            };
-            
-            window.addEventListener('resize', handleResize);
-            
-            return () => {
-                window.removeEventListener('resize', handleResize);
-            };
-        }
+            // Only regenerate if size actually changed
+            if (generatedLink && !showQRFullscreen && qrCodeSize !== oldSize) {
+                generateQRCode(generatedLink, qrCodeSize);
+            } else if (generatedLink && showQRFullscreen && qrCodeFullscreenSize !== oldFullscreenSize) {
+                generateQRCode(generatedLink, qrCodeFullscreenSize);
+            }
+        };
+        
+        window.addEventListener('resize', handleResize);
+        
+        return () => {
+            window.removeEventListener('resize', handleResize);
+        };
     });
     
     // ===============================
@@ -776,6 +866,7 @@
         generatedLink = '';
         qrCodeSvg = '';
         isCopied = false;
+        sharedChatId = null; // Clear shared chat ID when resetting
     }
     
     // Reset generated link when configuration changes (but only if we're in configuration step)
@@ -796,10 +887,14 @@
     // Password must be max 10 characters
     let isPasswordValid = $derived(!isPasswordProtected || (password.length > 0 && password.length <= 10));
     let canGenerateLink = $derived(currentChatId && isPasswordValid);
+    
+    // Display chat ID: use sharedChatId if link is generated (to keep it stable), otherwise use currentChatId
+    // This ensures the displayed chat and QR code remain unchanged when user switches chats
+    let displayChatId = $derived(isLinkGenerated ? sharedChatId : currentChatId);
 </script>
 
 <!-- No chat selected message -->
-{#if !currentChatId}
+{#if !displayChatId}
     <div class="no-chat-message" transition:fade={{ duration: 200 }}>
         <div class="icon settings_size shared"></div>
         <p>{$text('settings.share.no_chat_selected.text')}</p>
@@ -823,7 +918,7 @@
                         {/if}
                     </div>
                 </div>
-            {:else if currentChat && currentChatId}
+            {:else if currentChat && displayChatId}
                 <!-- Chat Info Display -->
                 <div class="chat-preview">
                     <div class="chat-preview-header">
@@ -831,7 +926,7 @@
                     </div>
                     <Chat
                         chat={currentChat}
-                        activeChatId={currentChatId}
+                        activeChatId={displayChatId}
                         selectMode={false}
                         selectedChatIds={new Set()}
                     />
@@ -936,7 +1031,7 @@
                         {/if}
                     </div>
                 </div>
-            {:else if currentChat && currentChatId}
+            {:else if currentChat && displayChatId}
                 <!-- Chat Info Display -->
                 <div class="chat-preview">
                     <div class="chat-preview-header">
@@ -944,7 +1039,7 @@
                     </div>
                     <Chat
                         chat={currentChat}
-                        activeChatId={currentChatId}
+                        activeChatId={displayChatId}
                         selectMode={false}
                         selectedChatIds={new Set()}
                     />
@@ -1376,15 +1471,12 @@
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     }
 
+    /* QR code SVG - uses fixed pixel dimensions from SVG attributes */
     .qr-code-container :global(svg) {
-        display: block !important;
-        width: 180px !important;
-        height: 180px !important;
-        max-width: 180px;
-        max-height: 180px;
-        /* Ensure SVG is visible and renders correctly */
-        visibility: visible !important;
-        opacity: 1 !important;
+        display: block;
+        /* SVG has width/height attributes set during generation - don't override */
+        visibility: visible;
+        opacity: 1;
     }
 
     .qr-code-placeholder {
@@ -1434,10 +1526,12 @@
         box-sizing: border-box;
     }
 
+    /* Fullscreen QR code - uses fixed pixel dimensions from SVG (calculated based on viewport) */
     .qr-large-container :global(svg) {
-        width: min(90vw, 90vh) !important;
-        height: min(90vw, 90vh) !important;
         display: block;
+        /* SVG has width/height attributes set during generation at fullscreen size - don't override */
+        visibility: visible;
+        opacity: 1;
     }
 
     /* Embed Preview Styles */
