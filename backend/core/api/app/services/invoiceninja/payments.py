@@ -1,5 +1,6 @@
 # backend/core/api/app/services/invoiceninja/payments.py
 import logging
+import json
 from typing import Optional, Any
 
 # Note: This function is intended to be part of the InvoiceNinjaService class.
@@ -84,7 +85,7 @@ def find_payment_by_invoice(
     service_instance: Any,
     invoice_id: str,
     client_id: Optional[str] = None
-) -> Optional[str]:
+) -> Optional[dict[str, Any]]:
     """
     Finds a payment in Invoice Ninja by invoice ID.
     
@@ -97,14 +98,15 @@ def find_payment_by_invoice(
         client_id: Optional client ID to narrow the search.
         
     Returns:
-        The payment ID if found, None otherwise.
+        The payment object if found, None otherwise.
     """
     logger.info(f"Searching for payment by invoice ID: {invoice_id}")
     
     # Search for payments by invoice_id
     # Invoice Ninja API: GET /payments?invoice_id={invoice_id}
     search_params = {
-        "invoice_id": invoice_id
+        "invoice_id": invoice_id,
+        "include": "invoices"
     }
     
     # Optionally filter by client_id if provided
@@ -118,10 +120,11 @@ def find_payment_by_invoice(
         if payments and len(payments) > 0:
             # Get the first matching payment (should be the original payment)
             # Payments are typically returned in reverse chronological order
-            payment_id = payments[0].get('id')
+            payment = payments[0]
+            payment_id = payment.get('id')
             if payment_id:
                 logger.info(f"Found payment: ID={payment_id} for invoice ID: {invoice_id}")
-                return payment_id
+                return payment
             else:
                 logger.warning(f"Payment found but missing ID for invoice ID: {invoice_id}")
         else:
@@ -136,7 +139,7 @@ def find_payment_by_transaction_reference(
     service_instance: Any,
     transaction_reference: str,
     client_id: Optional[str] = None
-) -> Optional[str]:
+) -> Optional[dict[str, Any]]:
     """
     Finds a payment in Invoice Ninja by transaction reference (external_order_id).
     
@@ -149,14 +152,15 @@ def find_payment_by_transaction_reference(
         client_id: Optional client ID to narrow the search.
         
     Returns:
-        The payment ID if found, None otherwise.
+        The payment object if found, None otherwise.
     """
     logger.info(f"Searching for payment by transaction reference: {transaction_reference}")
     
     # Search for payments by transaction_reference
     # Invoice Ninja API: GET /payments?transaction_reference={transaction_reference}
     search_params = {
-        "transaction_reference": transaction_reference
+        "transaction_reference": transaction_reference,
+        "include": "invoices"
     }
     
     # Optionally filter by client_id if provided
@@ -169,10 +173,11 @@ def find_payment_by_transaction_reference(
         payments = response_data['data']
         if payments and len(payments) > 0:
             # Get the first matching payment
-            payment_id = payments[0].get('id')
+            payment = payments[0]
+            payment_id = payment.get('id')
             if payment_id:
                 logger.info(f"Found payment: ID={payment_id} for transaction reference: {transaction_reference}")
-                return payment_id
+                return payment
             else:
                 logger.warning(f"Payment found but missing ID for transaction reference: {transaction_reference}")
         else:
@@ -188,7 +193,7 @@ def find_payment_by_invoice_and_transaction_reference(
     invoice_id: str,
     transaction_reference: str,
     client_id: Optional[str] = None
-) -> Optional[str]:
+) -> Optional[dict[str, Any]]:
     """
     Finds a payment in Invoice Ninja by both invoice ID and transaction reference.
     
@@ -202,13 +207,14 @@ def find_payment_by_invoice_and_transaction_reference(
         client_id: Optional client ID to narrow the search.
         
     Returns:
-        The payment ID if found, None otherwise.
+        The payment object if found, None otherwise.
     """
     logger.info(f"Searching for payment by invoice ID: {invoice_id} and transaction reference: {transaction_reference}")
     
     # First, get all payments for the invoice
     search_params = {
-        "invoice_id": invoice_id
+        "invoice_id": invoice_id,
+        "include": "invoices"
     }
     
     if client_id:
@@ -226,7 +232,7 @@ def find_payment_by_invoice_and_transaction_reference(
                     payment_id = payment.get('id')
                     if payment_id:
                         logger.info(f"Found payment: ID={payment_id} matching both invoice ID: {invoice_id} and transaction reference: {transaction_reference}")
-                        return payment_id
+                        return payment
                     else:
                         logger.warning(f"Payment found but missing ID for invoice ID: {invoice_id} and transaction reference: {transaction_reference}")
             
@@ -245,6 +251,7 @@ def refund_payment(
     refund_amount: float,
     refund_date: str,
     invoice_id: str,
+    payment_invoice_id: Optional[str] = None,
     email_receipt: bool = False
 ) -> bool:
     """
@@ -262,12 +269,17 @@ def refund_payment(
         refund_amount: The amount to refund (positive value, e.g., 10.00).
         refund_date: The refund date in "YYYY-MM-DD" format.
         invoice_id: The hashed ID of the invoice the payment was applied to.
+        payment_invoice_id: Optional hashed ID of the payment-invoice link record.
         email_receipt: Whether to send an email notification to the client (default: False).
         
     Returns:
         True if successful, False otherwise.
     """
     logger.info(f"Attempting to refund payment ID: {payment_id}, Amount: {refund_amount}, Date: {refund_date}")
+    if payment_invoice_id:
+        logger.info(f"Using payment_invoice_id: {payment_invoice_id} for refund.")
+    else:
+        logger.warning(f"No payment_invoice_id provided for refund. Using empty string for 'id' field in invoices array (may fail).")
     
     # Invoice Ninja refund endpoint: POST /api/v1/payments/refund
     # The payment ID and invoice details go in the request body
@@ -275,7 +287,7 @@ def refund_payment(
     # {
     #   "id": "payment_id",
     #   "date": "2025-12-17",
-    #   "invoices": [{"amount": 2, "invoice_id": "invoice_id", "id": ""}]
+    #   "invoices": [{"amount": 2, "invoice_id": "invoice_id", "id": "payment_invoice_id"}]
     # }
     payload: dict[str, Any] = {
         "id": payment_id,
@@ -284,12 +296,12 @@ def refund_payment(
             {
                 "amount": refund_amount,
                 "invoice_id": invoice_id,
-                "id": ""  # Empty string as shown in the client request
+                "id": payment_invoice_id or ""  # Use link ID if provided, otherwise empty string
             }
         ]
     }
     
-    logger.debug(f"Refund payload: {payload}")
+    logger.debug(f"Refund payload: {json.dumps(payload, indent=2)}")
     
     # The endpoint is /payments/refund (not /payments/{id}/refund)
     # Add email_receipt query parameter if False (to prevent sending email)
