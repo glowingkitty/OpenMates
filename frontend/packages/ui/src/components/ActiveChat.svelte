@@ -60,6 +60,7 @@
     import { phasedSyncState } from '../stores/phasedSyncStateStore'; // Import phased sync state store
     import { websocketStatus } from '../stores/websocketStatusStore'; // Import WebSocket status for connection checks
     import { activeChatStore } from '../stores/activeChatStore'; // For clearing persistent active chat selection
+    import { activeEmbedStore } from '../stores/activeEmbedStore'; // For managing embed URL hash
     import { settingsDeepLink } from '../stores/settingsDeepLinkStore'; // For opening settings to specific page (share)
     import { settingsMenuVisible } from '../components/Settings.svelte'; // Import settingsMenuVisible store to control Settings visibility
     import { videoIframeStore, type VideoIframeState } from '../stores/videoIframeStore'; // For standalone VideoIframe component with CSS-based PiP
@@ -588,6 +589,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         await Promise.resolve();
         
         showEmbedFullscreen = true;
+        
+        // Update URL hash with embed ID for sharing/bookmarking
+        if (embedId) {
+            activeEmbedStore.setActiveEmbed(embedId);
+            console.debug('[ActiveChat] Updated URL hash with embed ID:', embedId);
+        }
+        
         console.debug('[ActiveChat] Opening embed fullscreen:', embedType, embedId, 'showEmbedFullscreen:', showEmbedFullscreen, 'embedFullscreenData:', !!embedFullscreenData);
     }
     
@@ -612,6 +620,17 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         
         showEmbedFullscreen = false;
         embedFullscreenData = null;
+        
+        // Clear embed URL hash when embed is closed
+        activeEmbedStore.clearActiveEmbed();
+        console.debug('[ActiveChat] Cleared embed from URL hash');
+        
+        // If there's an active chat, restore the chat URL hash
+        // This ensures that when closing an embed while viewing a chat, the chat URL is restored
+        if (currentChat && currentChat.chat_id) {
+            activeChatStore.setActiveChat(currentChat.chat_id);
+            console.debug('[ActiveChat] Restored chat URL hash after closing embed:', currentChat.chat_id);
+        }
     }
     
     // Reference to PiP container for moving iframe

@@ -850,12 +850,12 @@ export class EmbedStore {
   
   /**
    * Get raw embed entry from IndexedDB/cache WITHOUT decryption
-   * This is used internally to check for parent_embed_id without triggering decryption
+   * This is used internally to check for parent_embed_id and embed_ids without triggering decryption
    * (which would call getEmbedKey and cause infinite recursion)
    * @param contentRef - The embed reference key
-   * @returns The raw stored data (may be encrypted) with parent_embed_id if present
+   * @returns The raw stored data (may be encrypted) with parent_embed_id and embed_ids if present
    */
-  async getRawEntry(contentRef: string): Promise<{ parent_embed_id?: string } | null> {
+  async getRawEntry(contentRef: string): Promise<{ parent_embed_id?: string; embed_ids?: string[] } | null> {
     // Check memory cache first
     let entry = embedCache.get(contentRef);
     
@@ -876,11 +876,24 @@ export class EmbedStore {
       }
     }
     
-    if (!entry || !entry.data) {
+    if (!entry) {
       return null;
     }
     
-    // Try to parse the stored data to extract parent_embed_id
+    // For new format (separate fields), check embed_ids directly from entry
+    if (entry.embed_ids) {
+      return {
+        parent_embed_id: entry.parent_embed_id,
+        embed_ids: Array.isArray(entry.embed_ids) ? entry.embed_ids : undefined
+      };
+    }
+    
+    // For old format (data field), try to parse
+    if (!entry.data) {
+      return null;
+    }
+    
+    // Try to parse the stored data to extract parent_embed_id and embed_ids
     // This doesn't decrypt, just parses the JSON structure
     try {
       const storedData = entry.data;
@@ -888,10 +901,16 @@ export class EmbedStore {
         // Could be JSON or encrypted base64
         if (storedData.trim().startsWith('{')) {
           const parsed = JSON.parse(storedData);
-          return { parent_embed_id: parsed.parent_embed_id };
+          return {
+            parent_embed_id: parsed.parent_embed_id,
+            embed_ids: Array.isArray(parsed.embed_ids) ? parsed.embed_ids : undefined
+          };
         }
       } else if (typeof storedData === 'object') {
-        return { parent_embed_id: (storedData as any).parent_embed_id };
+        return {
+          parent_embed_id: (storedData as any).parent_embed_id,
+          embed_ids: Array.isArray((storedData as any).embed_ids) ? (storedData as any).embed_ids : undefined
+        };
       }
     } catch {
       // Parsing failed, data might be encrypted
@@ -912,7 +931,9 @@ export class EmbedStore {
     // Check cache first with the provided hashedChatId (or 'master' as default)
     const cacheKey = `${embedId}:${hashedChatId || 'master'}`;
     if (embedKeyCache.has(cacheKey)) {
-      return embedKeyCache.get(cacheKey)!;
+      const cachedKey = embedKeyCache.get(cacheKey)!;
+      console.debug('[EmbedStore] ✅ Found embed key in cache:', embedId, 'cacheKey:', cacheKey);
+      return cachedKey;
     }
     
     // Fallback: If hashedChatId was provided but cache lookup failed, try 'master' cache key
@@ -927,6 +948,11 @@ export class EmbedStore {
         return masterKey;
       }
     }
+    
+    // Debug: Log all cache keys to help diagnose cache misses
+    console.debug('[EmbedStore] Cache miss for:', embedId, 'cacheKey:', cacheKey, 'hashedChatId:', hashedChatId);
+    console.debug('[EmbedStore] Current cache keys:', Array.from(embedKeyCache.keys()).filter(k => k.startsWith(embedId + ':')));
+
 
     try {
       // Compute hashed_embed_id for lookup
@@ -988,6 +1014,65 @@ export class EmbedStore {
           }
         }
         console.warn('[EmbedStore] ❌ All chat key fallback attempts failed for:', embedId);
+      }
+
+      // Try key_type='embed' entries (child embeds wrapped with parent embed key)
+      // This is used for shared embeds where child embeds are wrapped with the parent embed key
+      const embedKeyEntries = keys.filter(k => k.key_type === 'embed');
+      if (embedKeyEntries.length > 0) {
+        console.debug('[EmbedStore] Found', embedKeyEntries.length, 'embed key entries (child embeds) for:', embedId);
+        
+        // For key_type='embed' entries, we need to find the parent embed key
+        // The parent_embed_id in embed_keys is a hashed_embed_id, so we need to find the parent
+        // by checking all cached embed keys and matching hashed_embed_id
+        const hashedEmbedId = await computeSHA256(embedId);
+        
+        // Try to find parent embed by checking cached embed keys
+        // We'll try all cached keys to see if any match the parent_embed_id from embed_keys entries
+        for (const embedKeyEntry of embedKeyEntries) {
+          if (embedKeyEntry.parent_embed_id) {
+            // parent_embed_id is a hashed_embed_id, so we need to find the actual embed_id
+            // by checking all cached embed keys
+            let parentKey: Uint8Array | null = null;
+            let parentEmbedId: string | null = null;
+            
+            // Try to find parent embed key by checking all cached keys
+            // This is a fallback - ideally the parent key should already be cached
+            for (const [cacheKey, cachedKey] of embedKeyCache.entries()) {
+              const [cachedEmbedId] = cacheKey.split(':');
+              if (cachedEmbedId) {
+                const cachedHashedEmbedId = await computeSHA256(cachedEmbedId);
+                if (cachedHashedEmbedId === embedKeyEntry.parent_embed_id) {
+                  parentKey = cachedKey;
+                  parentEmbedId = cachedEmbedId;
+                  console.debug('[EmbedStore] Found parent embed key in cache by matching hashed_embed_id:', parentEmbedId);
+                  break;
+                }
+              }
+            }
+            
+            // If we found a parent key, try to unwrap the child embed key
+            if (parentKey) {
+              try {
+                const { unwrapEmbedKeyWithEmbedKey } = await import('./cryptoService');
+                const childEmbedKey = await unwrapEmbedKeyWithEmbedKey(embedKeyEntry.encrypted_embed_key, parentKey);
+                if (childEmbedKey) {
+                  // Cache the unwrapped child embed key
+                  embedKeyCache.set(cacheKey, childEmbedKey);
+                  // Also cache with 'master' as fallback
+                  const masterCacheKey = `${embedId}:master`;
+                  embedKeyCache.set(masterCacheKey, childEmbedKey);
+                  console.debug('[EmbedStore] ✅ Unwrapped child embed key with parent embed key:', embedId, 'parent:', parentEmbedId);
+                  return childEmbedKey;
+                }
+              } catch (error) {
+                console.warn('[EmbedStore] Failed to unwrap child embed key with parent key:', error);
+              }
+            } else {
+              console.debug('[EmbedStore] Parent embed key not found in cache for child embed:', embedId, 'parent_embed_id (hashed):', embedKeyEntry.parent_embed_id?.substring(0, 16) + '...');
+            }
+          }
+        }
       }
 
       // No direct key found - check if this is a child embed (nested embed support)
@@ -1137,7 +1222,7 @@ export class EmbedStore {
   setEmbedKeyInCache(embedId: string, embedKey: Uint8Array, hashedChatId?: string): void {
     const cacheKey = `${embedId}:${hashedChatId || 'master'}`;
     embedKeyCache.set(cacheKey, embedKey);
-    console.debug('[EmbedStore] Set embed key in cache:', embedId);
+    console.debug('[EmbedStore] Set embed key in cache:', embedId, 'cacheKey:', cacheKey, 'hashedChatId:', hashedChatId || 'master');
   }
 
   /**

@@ -16,6 +16,7 @@
         panelState, // Import the new central panel state store
         settingsDeepLink,
         activeChatStore, // Import for deep linking
+        activeEmbedStore, // Import for embed deep linking
         phasedSyncState, // Import phased sync state store
         websocketStatus, // Import WebSocket status store
         userProfile, // Import user profile to access last_opened
@@ -223,6 +224,38 @@
             // (e.g., page reload with URL already set)
             setTimeout(handlePhasedSyncComplete, 1000);
         }
+    }
+    
+    /**
+     * Handle embed deep linking from URL
+     * Opens the embed in fullscreen mode when #embed-id={embedId} is in the URL
+     */
+    async function handleEmbedDeepLink(embedId: string) {
+        console.debug(`[+page.svelte] Handling embed deep link for: ${embedId}`);
+        
+        // Update the activeEmbedStore so the URL hash is set
+        activeEmbedStore.setActiveEmbed(embedId);
+        
+        // Wait a bit for ActiveChat component to be ready and register event listeners
+        // This ensures the embedfullscreen event listener is registered
+        await new Promise(resolve => setTimeout(resolve, 300));
+        
+        // Dispatch embedfullscreen event to open the embed in fullscreen
+        // This reuses the same system that opens embeds when clicking on embed previews
+        const embedFullscreenEvent = new CustomEvent('embedfullscreen', {
+            detail: {
+                embedId: embedId,
+                // Let handleEmbedFullscreen load and decode the embed content
+                embedData: null,
+                decodedContent: null,
+                embedType: 'app-skill-use', // Default type, will be determined by handleEmbedFullscreen
+                attrs: null
+            },
+            bubbles: true
+        });
+        
+        console.debug('[+page.svelte] Dispatching embedfullscreen event for deep-linked embed:', embedId);
+        document.dispatchEvent(embedFullscreenEvent);
     }
     
     /**
@@ -1146,6 +1179,20 @@
             } else {
                 console.debug(`[+page.svelte] Chat hash already processed earlier, skipping duplicate processing`);
             }
+        } else if (window.location.hash.startsWith('#embed-id=') || window.location.hash.startsWith('#embed_id=')) {
+            // Handle embed deep linking from URL
+            // Support both #embed-id= and #embed_id= formats
+            const embedId = window.location.hash.startsWith('#embed_id=')
+                ? window.location.hash.substring('#embed_id='.length)
+                : window.location.hash.substring('#embed-id='.length);
+            
+            // Handle cases where there might be additional query params (e.g., #embed-id=xxx&fullscreen=true)
+            const embedIdOnly = embedId.split('&')[0].split('?')[0];
+            
+            console.debug(`[+page.svelte] Found embed deep link in URL: ${embedIdOnly}`);
+            
+            // Handle the embed deep link (opens embed in fullscreen)
+            await handleEmbedDeepLink(embedIdOnly);
         }
 
         // Remove initial load state after a small delay
@@ -1257,6 +1304,20 @@
             
             // Reset flag after processing
             isProcessingInitialHash = false;
+        } else if (window.location.hash.startsWith('#embed-id=') || window.location.hash.startsWith('#embed_id=')) {
+            // Handle embed deep linking from URL hash change
+            // Support both #embed-id= and #embed_id= formats
+            const embedId = window.location.hash.startsWith('#embed_id=')
+                ? window.location.hash.substring('#embed_id='.length)
+                : window.location.hash.substring('#embed-id='.length);
+            
+            // Handle cases where there might be additional query params (e.g., #embed-id=xxx&fullscreen=true)
+            const embedIdOnly = embedId.split('&')[0].split('?')[0];
+            
+            console.debug(`[+page.svelte] Hash changed to embed deep link: ${embedIdOnly}`);
+            
+            // Handle the embed deep link (opens embed in fullscreen)
+            await handleEmbedDeepLink(embedIdOnly);
         }
     }
 
