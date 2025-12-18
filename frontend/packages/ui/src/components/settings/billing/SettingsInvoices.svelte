@@ -145,11 +145,16 @@ Invoices Settings - View and download past invoices
                 // Invoices that were already refunded before page load should have credit notes ready
                 // Newly refunded invoices will be marked ready via websocket event
                 if (isInitialLoad) {
-                    invoices.forEach(invoice => {
-                        if (isInvoiceRefunded(invoice)) {
-                            creditNoteReadyInvoices.add(invoice.id);
-                        }
-                    });
+                    // Collect all refunded invoice IDs first
+                    const refundedInvoiceIds = invoices
+                        .filter(invoice => isInvoiceRefunded(invoice))
+                        .map(invoice => invoice.id);
+                    
+                    // Create a new Set with all refunded invoice IDs to trigger reactivity
+                    // In Svelte 5, we must reassign the Set rather than mutating it
+                    if (refundedInvoiceIds.length > 0) {
+                        creditNoteReadyInvoices = new Set([...creditNoteReadyInvoices, ...refundedInvoiceIds]);
+                    }
                     isInitialLoad = false;
                 }
             }
@@ -482,9 +487,13 @@ Invoices Settings - View and download past invoices
     });
 
     // Handle credit note ready websocket event
+    // Note: In Svelte 5, we must reassign the Set to trigger reactivity
+    // Direct mutation (.add()) doesn't trigger reactivity updates
     function handleCreditNoteReady(payload: { invoice_id: string }) {
         console.log('Credit note PDF ready for invoice:', payload.invoice_id);
-        creditNoteReadyInvoices.add(payload.invoice_id);
+        // Create a new Set with the existing values plus the new invoice ID
+        // This reassignment triggers Svelte 5's reactivity system
+        creditNoteReadyInvoices = new Set([...creditNoteReadyInvoices, payload.invoice_id]);
     }
 
     onMount(() => {

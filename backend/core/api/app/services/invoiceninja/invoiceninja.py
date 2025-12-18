@@ -371,7 +371,7 @@ class InvoiceNinjaService:
             transaction_reference=external_order_id
         )
 
-    def find_payment_by_invoice(self, invoice_id: str, client_id: Optional[str] = None) -> Optional[str]:
+    def find_payment_by_invoice(self, invoice_id: str, client_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
         """
         Finds a payment in Invoice Ninja by invoice ID.
         
@@ -380,11 +380,11 @@ class InvoiceNinjaService:
             client_id: Optional client ID to narrow the search.
             
         Returns:
-            The payment ID if found, None otherwise.
+            The payment object if found, None otherwise.
         """
         return payments.find_payment_by_invoice(self, invoice_id, client_id)
 
-    def find_payment_by_transaction_reference(self, transaction_reference: str, client_id: Optional[str] = None) -> Optional[str]:
+    def find_payment_by_transaction_reference(self, transaction_reference: str, client_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
         """
         Finds a payment in Invoice Ninja by transaction reference (external_order_id).
         
@@ -393,11 +393,11 @@ class InvoiceNinjaService:
             client_id: Optional client ID to narrow the search.
             
         Returns:
-            The payment ID if found, None otherwise.
+            The payment object if found, None otherwise.
         """
         return payments.find_payment_by_transaction_reference(self, transaction_reference, client_id)
 
-    def find_payment_by_invoice_and_transaction_reference(self, invoice_id: str, transaction_reference: str, client_id: Optional[str] = None) -> Optional[str]:
+    def find_payment_by_invoice_and_transaction_reference(self, invoice_id: str, transaction_reference: str, client_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
         """
         Finds a payment in Invoice Ninja by both invoice ID and transaction reference.
         
@@ -409,11 +409,11 @@ class InvoiceNinjaService:
             client_id: Optional client ID to narrow the search.
             
         Returns:
-            The payment ID if found, None otherwise.
+            The payment object if found, None otherwise.
         """
         return payments.find_payment_by_invoice_and_transaction_reference(self, invoice_id, transaction_reference, client_id)
 
-    def refund_payment(self, payment_id: str, refund_amount: float, refund_date: str, invoice_id: str, email_receipt: bool = False) -> bool:
+    def refund_payment(self, payment_id: str, refund_amount: float, refund_date: str, invoice_id: str, payment_invoice_id: Optional[str] = None, email_receipt: bool = False) -> bool:
         """
         Refunds a payment in Invoice Ninja using the /payments/refund endpoint.
         
@@ -425,12 +425,13 @@ class InvoiceNinjaService:
             refund_amount: The amount to refund (positive value).
             refund_date: The refund date in "YYYY-MM-DD" format.
             invoice_id: The hashed ID of the invoice the payment was applied to.
+            payment_invoice_id: Optional hashed ID of the payment-invoice link record.
             email_receipt: Whether to send an email notification to the client (default: False).
             
         Returns:
             True if successful, False otherwise.
         """
-        return payments.refund_payment(self, payment_id, refund_amount, refund_date, invoice_id, email_receipt)
+        return payments.refund_payment(self, payment_id, refund_amount, refund_date, invoice_id, payment_invoice_id, email_receipt)
 
     def create_credit_payment(self,
                               client_id: str,
@@ -945,31 +946,63 @@ class InvoiceNinjaService:
             # CRITICAL: Use both invoice_id AND transaction_reference to find the specific payment
             # This ensures we get the payment created during payment confirmation for this order,
             # not an older payment that might also be associated with the invoice
-            original_payment_id = self.find_payment_by_invoice_and_transaction_reference(
+            payment_obj = self.find_payment_by_invoice_and_transaction_reference(
                 ninja_invoice_id, 
                 external_order_id, 
                 ninja_client_id
             )
             
             # If not found by both criteria, try transaction_reference alone (should be unique)
-            if not original_payment_id:
+            if not payment_obj:
                 logger.info(f"Payment not found by invoice_id + transaction_reference, trying transaction_reference alone: {external_order_id}")
-                original_payment_id = self.find_payment_by_transaction_reference(external_order_id, ninja_client_id)
+                payment_obj = self.find_payment_by_transaction_reference(external_order_id, ninja_client_id)
             
             # Last resort: try invoice_id alone (may return wrong payment if multiple exist)
-            if not original_payment_id:
+            if not payment_obj:
                 logger.warning(f"Payment not found by transaction_reference: {external_order_id}, trying invoice_id alone (may return wrong payment)")
-                original_payment_id = self.find_payment_by_invoice(ninja_invoice_id, ninja_client_id)
+                payment_obj = self.find_payment_by_invoice(ninja_invoice_id, ninja_client_id)
             
-            if original_payment_id:
+            if payment_obj:
+                original_payment_id = payment_obj.get('id')
                 logger.info(f"Found original payment: ID={original_payment_id}. Refunding payment...")
+                
+                # Extract the payment-invoice link ID from paymentables array
+                # In Invoice Ninja v5, the link between payments and invoices is stored in the "paymentables" array
+                # Each paymentable object has: id (the link ID), invoice_id (the invoice ID), amount, etc.
+                payment_invoice_id = None
+                actual_invoice_id = None  # The actual invoice ID from the payment object
+                paymentables = payment_obj.get('paymentables', [])
+                
+                logger.info(f"Payment {original_payment_id} has {len(paymentables)} paymentables.")
+                
+                # Get the first paymentable (there should typically be only one for a single invoice payment)
+                if paymentables and len(paymentables) > 0:
+                    first_paymentable = paymentables[0]
+                    actual_invoice_id = first_paymentable.get('invoice_id')
+                    payment_invoice_id = first_paymentable.get('id')
+                    logger.info(f"Found paymentable: invoice_id={actual_invoice_id}, link_id={payment_invoice_id}")
+                    
+                    # Verify the invoice ID matches what we expect
+                    if actual_invoice_id and str(actual_invoice_id) != str(ninja_invoice_id):
+                        logger.warning(f"Invoice ID mismatch: Expected {ninja_invoice_id}, but payment shows {actual_invoice_id}. Using invoice ID from payment object.")
+                        # Use the invoice ID from the payment object for the refund
+                        ninja_invoice_id = actual_invoice_id
+                else:
+                    logger.warning(f"Payment {original_payment_id} has no paymentables. Cannot extract link ID.")
+                
+                if not payment_invoice_id:
+                    logger.warning(f"Could not find payment-invoice link ID in payment {original_payment_id}")
+                    logger.warning(f"Payment has {len(paymentables)} paymentables and {len(payment_obj.get('invoices', []))} invoices")
+
                 # Refund the payment - this actually returns money to the client
                 # The credit note is created separately for documentation purposes
+                # Use the actual invoice ID from the payment object, not the one we found separately
                 refund_success = self.refund_payment(
                     payment_id=original_payment_id,
                     refund_amount=refund_amount_value,
                     refund_date=refund_date,
-                    invoice_id=ninja_invoice_id,
+                    invoice_id=ninja_invoice_id,  # Use the invoice ID from payment object if there was a mismatch
+                    payment_invoice_id=payment_invoice_id,
                     email_receipt=False  # We send our own refund confirmation email
                 )
                 

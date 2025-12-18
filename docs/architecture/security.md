@@ -919,15 +919,21 @@ For implementation details and complete flow, see [app_settings_and_memories.md]
 ### embed_key
 
 - AES key used for embed content encryption, generated client-side per embed
-- Multiple wrapped versions stored in `embed_keys` collection:
+- **Key Generation**:
+  - **Parent embeds**: Generate unique `embed_key` (random 256-bit key) - generated early when "processing" status is received to ensure availability for child embeds
+  - **Child embeds**: Use parent's `embed_key` (key inheritance) - no separate key generation
+- **Key Wrappers** (stored in `embed_keys` collection - **ONLY for parent embeds**):
   - `key_type="master"`: `AES(embed_key, master_key)` - for owner's cross-chat access
   - `key_type="chat"`: `AES(embed_key, chat_key)` - one per chat for shared chat access
 - Follows same pattern as `wrapped_master_key` with multiple login methods
 - Enables offline-first chat sharing: all wrapped keys pre-stored on server
-- **Nested Embeds**: Child embeds with `parent_embed_id` automatically use parent's `embed_key` (inherited key architecture)
-  - No separate `embed_keys` entries needed for children
-  - Single unwrap operation decrypts entire composite result set
-  - Reduces database entries and cryptographic operations by ~80% for multi-result app skills
+- **Nested Embeds (Key Inheritance)**: Child embeds with `parent_embed_id` automatically use parent's `embed_key`
+  - Child embeds are **encrypted with parent's key** (not their own key)
+  - Child embeds have **no `embed_keys` entries** (no key wrappers for children)
+  - Frontend uses `parent_embed_id` to look up parent's key for decryption
+  - When sharing a child embed, the parent's key is used in the share link
+  - **Benefit**: Single key unwrap operation decrypts entire composite result set
+  - **Benefit**: Reduces database entries and cryptographic operations by ~80% for multi-result app skills
 
 ### hashed_embed_id
 
