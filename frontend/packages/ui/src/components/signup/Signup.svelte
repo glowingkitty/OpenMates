@@ -43,6 +43,7 @@
     import { chatSyncService } from '../../services/chatSyncService'; // Import chat sync service for updating last_opened
     import { notificationStore } from '../../stores/notificationStore'; // Import notification store for payment failure notifications
     import { pricingTiers } from '../../config/pricing'; // Import pricing tiers to get price for purchased credits
+    import { phasedSyncState } from '../../stores/phasedSyncStateStore'; // Import phased sync state to mark sync completed after signup
 
     // Dynamic imports for step contents
     import ConfirmEmailTopContent from './steps/confirmemail/ConfirmEmailTopContent.svelte';
@@ -124,17 +125,35 @@
         easing: cubicInOut
     };
 
+    // Payment status - check if payment is enabled (self-hosted mode detection)
+    let paymentEnabled = $state(true); // Default to true, will be updated on mount
+    let serverEdition = $state<string | null>(null); // Server edition for display
+    
     // Note: STEP_COMPLETION is not included as it's not a visible step - users go directly to the app after auto top-up
-    const fullStepSequence = [
+    // Base step sequences (will be filtered based on payment status)
+    const fullStepSequenceBase = [
         STEP_ALPHA_DISCLAIMER, STEP_BASICS, STEP_CONFIRM_EMAIL, STEP_SECURE_ACCOUNT, STEP_PASSWORD,
         STEP_ONE_TIME_CODES, STEP_TFA_APP_REMINDER, STEP_BACKUP_CODES, STEP_RECOVERY_KEY, // STEP_PROFILE_PICTURE,
         STEP_CREDITS, STEP_PAYMENT, STEP_AUTO_TOP_UP
     ];
 
-    const passkeyStepSequence = [
+    const passkeyStepSequenceBase = [
         STEP_ALPHA_DISCLAIMER, STEP_BASICS, STEP_CONFIRM_EMAIL, STEP_SECURE_ACCOUNT, STEP_RECOVERY_KEY,
         STEP_CREDITS, STEP_PAYMENT, STEP_AUTO_TOP_UP
     ];
+    
+    // Filter out payment steps if payment is disabled (self-hosted mode)
+    const fullStepSequence = $derived(
+        paymentEnabled 
+            ? fullStepSequenceBase 
+            : fullStepSequenceBase.filter(step => ![STEP_CREDITS, STEP_PAYMENT, STEP_AUTO_TOP_UP].includes(step))
+    );
+    
+    const passkeyStepSequence = $derived(
+        paymentEnabled
+            ? passkeyStepSequenceBase
+            : passkeyStepSequenceBase.filter(step => ![STEP_CREDITS, STEP_PAYMENT, STEP_AUTO_TOP_UP].includes(step))
+    );
 
     let stepSequence = $derived(
         $signupStore.loginMethod === 'passkey' ? passkeyStepSequence : fullStepSequence
@@ -182,8 +201,26 @@
     
     // Update stores when component is mounted and destroyed
 
-    onMount(() => {
+    onMount(async () => {
         isInSignupProcess.set(true);
+        
+        // Check server status to determine if payment is enabled
+        try {
+            const { getApiEndpoint } = await import('../../config/api');
+            const response = await fetch(getApiEndpoint('/v1/settings/server-status'));
+            if (response.ok) {
+                const status = await response.json();
+                paymentEnabled = status.payment_enabled || false;
+                serverEdition = status.server_edition || null;
+                console.log(`[Signup] Payment enabled: ${paymentEnabled}, Server edition: ${serverEdition}`);
+            } else {
+                console.warn('[Signup] Failed to fetch server status, defaulting to payment enabled');
+                paymentEnabled = true; // Default to enabled if check fails
+            }
+        } catch (error) {
+            console.error('[Signup] Error checking server status:', error);
+            paymentEnabled = true; // Default to enabled if check fails
+        }
         
         // Set up the callbacks passed from Login to call internal handlers
         // We'll update the callbacks in Login to call our internal handlers
@@ -194,7 +231,13 @@
         // This ensures users see the disclaimer before proceeding with signup on new signups,
         // but preserves the step on page reload
         const existingStep = $currentSignupStep;
-        if (!existingStep || existingStep === STEP_ALPHA_DISCLAIMER) {
+        
+        // If payment is disabled and user is on a payment step, skip to completion
+        if (!paymentEnabled && [STEP_CREDITS, STEP_PAYMENT, STEP_AUTO_TOP_UP].includes(existingStep)) {
+            console.log(`[Signup] Payment disabled, skipping payment steps. Moving from ${existingStep} to completion.`);
+            currentSignupStep.set(STEP_COMPLETION);
+            currentStep = STEP_COMPLETION;
+        } else if (!existingStep || existingStep === STEP_ALPHA_DISCLAIMER) {
             // Only set to alpha disclaimer if no step is set or it's already at alpha disclaimer
             currentSignupStep.set(STEP_ALPHA_DISCLAIMER);
             currentStep = STEP_ALPHA_DISCLAIMER;
@@ -601,6 +644,11 @@
     }
 
     async function goToStep(step: string) {
+        // Skip payment steps if payment is disabled (self-hosted mode)
+        if (!paymentEnabled && [STEP_CREDITS, STEP_PAYMENT, STEP_AUTO_TOP_UP].includes(step)) {
+            console.log(`[Signup] Payment disabled, skipping step ${step} and going to completion`);
+            step = STEP_COMPLETION;
+        }
         const oldStep = currentStep; // Capture old step value
         
         const oldIndex = stepSequence.indexOf(oldStep);
@@ -936,6 +984,12 @@
 
         // Signal completion of signup process AFTER ensuring auth state is updated
         isInSignupProcess.set(false);
+
+        // CRITICAL: Mark sync as completed immediately after signup
+        // New users have no chats to sync, so sync completes instantly (or doesn't trigger sync events)
+        // This prevents the "Loading chats..." message from showing indefinitely
+        phasedSyncState.markSyncCompleted();
+        console.debug("[Signup] Marked phased sync as completed after signup (new user has no chats to sync)");
 
         if (window.innerWidth >= MOBILE_BREAKPOINT) {
             isMenuOpen.set(true);

@@ -462,7 +462,13 @@ async def login(
                     encrypted_key=user_profile.get("encrypted_key"),
                     key_iv=user_profile.get("key_iv"),
                     salt=user_profile.get("salt"),
-                    user_email_salt=user_profile.get("user_email_salt")
+                    user_email_salt=user_profile.get("user_email_salt"),
+                    # Low balance auto top-up fields
+                    # Use bool() to convert None to False, as .get() only uses default when key doesn't exist, not when value is None
+                    auto_topup_low_balance_enabled=bool(user_profile.get("auto_topup_low_balance_enabled", False)),
+                    auto_topup_low_balance_threshold=user_profile.get("auto_topup_low_balance_threshold"),
+                    auto_topup_low_balance_amount=user_profile.get("auto_topup_low_balance_amount"),
+                    auto_topup_low_balance_currency=user_profile.get("auto_topup_low_balance_currency")
                 ),
                 ws_token=refresh_token  # Return token for WebSocket auth (Safari iOS compatibility)
             )
@@ -637,7 +643,12 @@ async def login(
                         encrypted_key=user_profile.get("encrypted_key"), # Pass encrypted_key
                         key_iv=user_profile.get("key_iv"), # Pass key_iv for Web Crypto API
                         salt=user_profile.get("salt"), # Pass salt
-                        user_email_salt=user_profile.get("user_email_salt") # Pass user_email_salt
+                        user_email_salt=user_profile.get("user_email_salt"), # Pass user_email_salt
+                        # Low balance auto top-up fields
+                        auto_topup_low_balance_enabled=user_profile.get("auto_topup_low_balance_enabled", False),
+                        auto_topup_low_balance_threshold=user_profile.get("auto_topup_low_balance_threshold"),
+                        auto_topup_low_balance_amount=user_profile.get("auto_topup_low_balance_amount"),
+                        auto_topup_low_balance_currency=user_profile.get("auto_topup_low_balance_currency")
                     ),
                     ws_token=refresh_token  # Return token for WebSocket auth (Safari iOS compatibility)
                 )
@@ -904,7 +915,12 @@ async def login(
                         encrypted_key=user_profile.get("encrypted_key"), # Pass encrypted_key
                         key_iv=user_profile.get("key_iv"), # Pass key_iv for Web Crypto API
                         salt=user_profile.get("salt"), # Pass salt
-                        user_email_salt=user_profile.get("user_email_salt") # Pass user_email_salt
+                        user_email_salt=user_profile.get("user_email_salt"), # Pass user_email_salt
+                        # Low balance auto top-up fields
+                        auto_topup_low_balance_enabled=user_profile.get("auto_topup_low_balance_enabled", False),
+                        auto_topup_low_balance_threshold=user_profile.get("auto_topup_low_balance_threshold"),
+                        auto_topup_low_balance_amount=user_profile.get("auto_topup_low_balance_amount"),
+                        auto_topup_low_balance_currency=user_profile.get("auto_topup_low_balance_currency")
                     ),
                     ws_token=refresh_token  # Return token for WebSocket auth (Safari iOS compatibility)
                 )

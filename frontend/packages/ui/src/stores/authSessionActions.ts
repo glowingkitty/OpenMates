@@ -240,6 +240,21 @@ export async function checkAuth(deviceSignals?: Record<string, string | null>, f
             }));
 
             try {
+                // Log auto top-up fields from backend response - ERROR if missing
+                const hasAutoTopupFields = 'auto_topup_low_balance_enabled' in data.user;
+                if (!hasAutoTopupFields) {
+                    console.error('[AuthSessionActions] ERROR: Auto top-up fields missing from backend response (session check)!');
+                    console.error('[AuthSessionActions] Received user object keys:', Object.keys(data.user));
+                    console.error('[AuthSessionActions] Full user object:', data.user);
+                } else {
+                    console.debug('[AuthSessionActions] Auto top-up fields from backend (session check):', {
+                        enabled: data.user.auto_topup_low_balance_enabled,
+                        threshold: data.user.auto_topup_low_balance_threshold,
+                        amount: data.user.auto_topup_low_balance_amount,
+                        currency: data.user.auto_topup_low_balance_currency
+                    });
+                }
+                
                 await userDB.saveUserData(data.user);
                 const tfa_enabled = !!data.user.tfa_enabled;
                 const consent_privacy = !!data.user.consent_privacy_and_apps_default_settings;
@@ -263,7 +278,12 @@ export async function checkAuth(deviceSignals?: Record<string, string | null>, f
                     consent_privacy_and_apps_default_settings: consent_privacy,
                     consent_mates_default_settings: consent_mates,
                     language: userLanguage,
-                    darkmode: userDarkMode
+                    darkmode: userDarkMode,
+                    // Low balance auto top-up fields
+                    auto_topup_low_balance_enabled: data.user.auto_topup_low_balance_enabled ?? false,
+                    auto_topup_low_balance_threshold: data.user.auto_topup_low_balance_threshold,
+                    auto_topup_low_balance_amount: data.user.auto_topup_low_balance_amount,
+                    auto_topup_low_balance_currency: data.user.auto_topup_low_balance_currency
                 });
             } catch (dbError) {
                 console.error("Failed to save user data to database:", dbError);

@@ -113,6 +113,27 @@ class UserDatabaseService {
                  if (userData.random_explore_apps_timestamp !== undefined) {
                      store.put(userData.random_explore_apps_timestamp || 0, 'random_explore_apps_timestamp');
                  }
+                 // Save auto top-up fields - log error if missing from backend response
+                 if ('auto_topup_low_balance_enabled' in userData) {
+                     store.put(!!userData.auto_topup_low_balance_enabled, 'auto_topup_low_balance_enabled');
+                 } else {
+                     console.error('[UserDatabase] ERROR: auto_topup_low_balance_enabled missing from backend response! Available keys:', Object.keys(userData));
+                 }
+                 if ('auto_topup_low_balance_threshold' in userData) {
+                     store.put(userData.auto_topup_low_balance_threshold ?? null, 'auto_topup_low_balance_threshold');
+                 } else {
+                     console.error('[UserDatabase] ERROR: auto_topup_low_balance_threshold missing from backend response!');
+                 }
+                 if ('auto_topup_low_balance_amount' in userData) {
+                     store.put(userData.auto_topup_low_balance_amount ?? null, 'auto_topup_low_balance_amount');
+                 } else {
+                     console.error('[UserDatabase] ERROR: auto_topup_low_balance_amount missing from backend response!');
+                 }
+                 if ('auto_topup_low_balance_currency' in userData) {
+                     store.put(userData.auto_topup_low_balance_currency ?? null, 'auto_topup_low_balance_currency');
+                 } else {
+                     console.error('[UserDatabase] ERROR: auto_topup_low_balance_currency missing from backend response!');
+                 }
             };
             
             lastOpenedRequest.onerror = () => {
@@ -146,6 +167,27 @@ class UserDatabaseService {
                 }
                 if (userData.random_explore_apps_timestamp !== undefined) {
                     store.put(userData.random_explore_apps_timestamp || 0, 'random_explore_apps_timestamp');
+                }
+                // Save auto top-up fields - log error if missing from backend response
+                if ('auto_topup_low_balance_enabled' in userData) {
+                    store.put(!!userData.auto_topup_low_balance_enabled, 'auto_topup_low_balance_enabled');
+                } else {
+                    console.error('[UserDatabase] ERROR: auto_topup_low_balance_enabled missing from backend response (error path)! Available keys:', Object.keys(userData));
+                }
+                if ('auto_topup_low_balance_threshold' in userData) {
+                    store.put(userData.auto_topup_low_balance_threshold ?? null, 'auto_topup_low_balance_threshold');
+                } else {
+                    console.error('[UserDatabase] ERROR: auto_topup_low_balance_threshold missing from backend response (error path)!');
+                }
+                if ('auto_topup_low_balance_amount' in userData) {
+                    store.put(userData.auto_topup_low_balance_amount ?? null, 'auto_topup_low_balance_amount');
+                } else {
+                    console.error('[UserDatabase] ERROR: auto_topup_low_balance_amount missing from backend response (error path)!');
+                }
+                if ('auto_topup_low_balance_currency' in userData) {
+                    store.put(userData.auto_topup_low_balance_currency ?? null, 'auto_topup_low_balance_currency');
+                } else {
+                    console.error('[UserDatabase] ERROR: auto_topup_low_balance_currency missing from backend response (error path)!');
                 }
             };
 
@@ -211,6 +253,11 @@ class UserDatabaseService {
             const encryptedTopRecommendedAppsRequest = store.get('encrypted_top_recommended_apps'); // Get encrypted version
             const randomExploreAppsRequest = store.get('random_explore_apps'); // Get random explore apps
             const randomExploreAppsTimestampRequest = store.get('random_explore_apps_timestamp'); // Get timestamp
+            // Add requests for auto top-up fields
+            const autoTopupLowBalanceEnabledRequest = store.get('auto_topup_low_balance_enabled');
+            const autoTopupLowBalanceThresholdRequest = store.get('auto_topup_low_balance_threshold');
+            const autoTopupLowBalanceAmountRequest = store.get('auto_topup_low_balance_amount');
+            const autoTopupLowBalanceCurrencyRequest = store.get('auto_topup_low_balance_currency');
 
             usernameRequest.onsuccess = () => {
                 profile.username = usernameRequest.result || '';
@@ -292,6 +339,26 @@ class UserDatabaseService {
 
             randomExploreAppsTimestampRequest.onsuccess = () => { // Handle random explore apps timestamp retrieval
                 profile.random_explore_apps_timestamp = randomExploreAppsTimestampRequest.result || undefined;
+            };
+
+            // Handle auto top-up fields retrieval
+            autoTopupLowBalanceEnabledRequest.onsuccess = () => {
+                profile.auto_topup_low_balance_enabled = autoTopupLowBalanceEnabledRequest.result !== undefined 
+                    ? !!autoTopupLowBalanceEnabledRequest.result 
+                    : undefined;
+            };
+            autoTopupLowBalanceThresholdRequest.onsuccess = () => {
+                profile.auto_topup_low_balance_threshold = autoTopupLowBalanceThresholdRequest.result !== undefined 
+                    ? autoTopupLowBalanceThresholdRequest.result 
+                    : undefined;
+            };
+            autoTopupLowBalanceAmountRequest.onsuccess = () => {
+                profile.auto_topup_low_balance_amount = autoTopupLowBalanceAmountRequest.result !== undefined 
+                    ? autoTopupLowBalanceAmountRequest.result 
+                    : undefined;
+            };
+            autoTopupLowBalanceCurrencyRequest.onsuccess = () => {
+                profile.auto_topup_low_balance_currency = autoTopupLowBalanceCurrencyRequest.result || undefined;
             };
 
             transaction.oncomplete = () => {
@@ -505,6 +572,20 @@ class UserDatabaseService {
              
              if (partialData.last_opened !== undefined) {
                 store.put(partialData.last_opened, 'last_opened');
+             }
+             
+             // Handle auto top-up fields updates
+             if (partialData.auto_topup_low_balance_enabled !== undefined) {
+                 store.put(!!partialData.auto_topup_low_balance_enabled, 'auto_topup_low_balance_enabled');
+             }
+             if (partialData.auto_topup_low_balance_threshold !== undefined) {
+                 store.put(partialData.auto_topup_low_balance_threshold, 'auto_topup_low_balance_threshold');
+             }
+             if (partialData.auto_topup_low_balance_amount !== undefined) {
+                 store.put(partialData.auto_topup_low_balance_amount, 'auto_topup_low_balance_amount');
+             }
+             if (partialData.auto_topup_low_balance_currency !== undefined) {
+                 store.put(partialData.auto_topup_low_balance_currency, 'auto_topup_low_balance_currency');
              }
              
              transaction.oncomplete = () => {

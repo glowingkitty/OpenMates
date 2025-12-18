@@ -253,6 +253,18 @@
                         
                         // Update profile with user data if available
                         if (data.user) {
+                            // Log auto top-up fields from backend response - ERROR if missing
+                            const hasAutoTopupFields = 'auto_topup_low_balance_enabled' in data.user;
+                            if (!hasAutoTopupFields) {
+                                console.error('[PasswordAndTfaOtp] ERROR: Auto top-up fields missing from backend response (2FA not configured path)!');
+                                console.error('[PasswordAndTfaOtp] Received user object keys:', Object.keys(data.user));
+                                console.error('[PasswordAndTfaOtp] Full user object:', data.user);
+                            }
+                            
+                            // Save to IndexedDB first
+                            const { userDB } = await import('../services/userDB');
+                            await userDB.saveUserData(data.user);
+                            
                             const userProfileData = {
                                 username: data.user.username || '',
                                 profile_image_url: data.user.profile_image_url || null,
@@ -264,7 +276,12 @@
                                 consent_privacy_and_apps_default_settings: data.user.consent_privacy_and_apps_default_settings || false,
                                 consent_mates_default_settings: data.user.consent_mates_default_settings || false,
                                 language: data.user.language || 'en',
-                                darkmode: data.user.darkmode || false
+                                darkmode: data.user.darkmode || false,
+                                // Low balance auto top-up fields
+                                auto_topup_low_balance_enabled: data.user.auto_topup_low_balance_enabled ?? false,
+                                auto_topup_low_balance_threshold: data.user.auto_topup_low_balance_threshold,
+                                auto_topup_low_balance_amount: data.user.auto_topup_low_balance_amount,
+                                auto_topup_low_balance_currency: data.user.auto_topup_low_balance_currency
                             };
                             updateProfile(userProfileData);
                         }
@@ -315,6 +332,18 @@
                         console.debug('[PasswordAndTfaOtp] 2FA required but not configured - redirecting to signup flow');
                         // Update profile with user data if available
                         if (data.user) {
+                            // Log auto top-up fields from backend response - ERROR if missing
+                            const hasAutoTopupFields = 'auto_topup_low_balance_enabled' in data.user;
+                            if (!hasAutoTopupFields) {
+                                console.error('[PasswordAndTfaOtp] ERROR: Auto top-up fields missing from backend response (2FA required path 2)!');
+                                console.error('[PasswordAndTfaOtp] Received user object keys:', Object.keys(data.user));
+                                console.error('[PasswordAndTfaOtp] Full user object:', data.user);
+                            }
+                            
+                            // Save to IndexedDB first
+                            const { userDB } = await import('../services/userDB');
+                            await userDB.saveUserData(data.user);
+                            
                             const userProfileData = {
                                 username: data.user.username || '',
                                 profile_image_url: data.user.profile_image_url || null,
@@ -326,7 +355,12 @@
                                 consent_privacy_and_apps_default_settings: data.user.consent_privacy_and_apps_default_settings || false,
                                 consent_mates_default_settings: data.user.consent_mates_default_settings || false,
                                 language: data.user.language || 'en',
-                                darkmode: data.user.darkmode || false
+                                darkmode: data.user.darkmode || false,
+                                // Low balance auto top-up fields
+                                auto_topup_low_balance_enabled: data.user.auto_topup_low_balance_enabled ?? false,
+                                auto_topup_low_balance_threshold: data.user.auto_topup_low_balance_threshold,
+                                auto_topup_low_balance_amount: data.user.auto_topup_low_balance_amount,
+                                auto_topup_low_balance_currency: data.user.auto_topup_low_balance_currency
                             };
                             updateProfile(userProfileData);
                         }
@@ -455,6 +489,25 @@
                     
                     // Update user profile with received data
                     if (data.user) {
+                        // Log auto top-up fields from backend response - ERROR if missing
+                        const hasAutoTopupFields = 'auto_topup_low_balance_enabled' in data.user;
+                        if (!hasAutoTopupFields) {
+                            console.error('[PasswordAndTfaOtp] ERROR: Auto top-up fields missing from backend response (successful login)!');
+                            console.error('[PasswordAndTfaOtp] Received user object keys:', Object.keys(data.user));
+                            console.error('[PasswordAndTfaOtp] Full user object:', data.user);
+                        } else {
+                            console.debug('[PasswordAndTfaOtp] Auto top-up fields from backend (successful login):', {
+                                enabled: data.user.auto_topup_low_balance_enabled,
+                                threshold: data.user.auto_topup_low_balance_threshold,
+                                amount: data.user.auto_topup_low_balance_amount,
+                                currency: data.user.auto_topup_low_balance_currency
+                            });
+                        }
+                        
+                        // Save to IndexedDB first
+                        const { userDB } = await import('../services/userDB');
+                        await userDB.saveUserData(data.user);
+                        
                         const userProfileData = {
                             username: data.user.username || '',
                             profile_image_url: data.user.profile_image_url || null,
@@ -466,7 +519,12 @@
                             consent_privacy_and_apps_default_settings: data.user.consent_privacy_and_apps_default_settings || false,
                             consent_mates_default_settings: data.user.consent_mates_default_settings || false,
                             language: data.user.language || 'en',
-                            darkmode: data.user.darkmode || false
+                            darkmode: data.user.darkmode || false,
+                            // Low balance auto top-up fields
+                            auto_topup_low_balance_enabled: data.user.auto_topup_low_balance_enabled ?? false,
+                            auto_topup_low_balance_threshold: data.user.auto_topup_low_balance_threshold,
+                            auto_topup_low_balance_amount: data.user.auto_topup_low_balance_amount,
+                            auto_topup_low_balance_currency: data.user.auto_topup_low_balance_currency
                         };
                         
                         // Update the user profile store

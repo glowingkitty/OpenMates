@@ -237,13 +237,27 @@ changes to the documentation (to keep the documentation up to date).
     // Reactive settingsViews that includes dynamic app routes
     let allSettingsViews = $derived(buildSettingsViews());
 
-    // Reactive settingsViews that filters out server options for non-admins
+    // Payment status - check if payment is enabled (self-hosted mode detection)
+    let paymentEnabled = $state(true); // Default to true, will be updated on mount
+    let serverEdition = $state<string | null>(null); // Server edition for display
+    
+    // Reactive settingsViews that filters out server options for non-admins and payment routes when payment disabled
     // For non-authenticated users, show interface settings (and nested language settings), app store, and share chat
     // This allows them to explore available features like apps and share demo chats
     // Share chat (shared/share) is available for non-authenticated users to share demo chats
     let settingsViews = $derived.by(() => {
         const isAuthenticated = $authStore.isAuthenticated;
         return Object.entries(allSettingsViews).reduce((filtered, [key, component]) => {
+            // Filter out payment-related routes if payment is disabled (self-hosted mode)
+            if (!paymentEnabled) {
+                // Remove billing and gift card routes
+                if (key === 'billing' || key.startsWith('billing/') || 
+                    key === 'gift_cards' || key.startsWith('gift_cards/') ||
+                    key === 'shared/tip') { // Tips also require payment
+                    return filtered; // Skip this route
+                }
+            }
+            
             // For non-authenticated users, include interface settings (top-level and nested), 
             // app store (including app details), and share chat (for sharing demo chats)
             // App store is read-only for non-authenticated users (browse only, no modifications)
@@ -910,7 +924,24 @@ changes to the documentation (to keep the documentation up to date).
     }
 
     // Setup listeners
-    onMount(() => {
+    onMount(async () => {
+        // Check server status to determine if payment is enabled
+        try {
+            const { getApiEndpoint } = await import('../config/api');
+            const response = await fetch(getApiEndpoint('/v1/settings/server-status'));
+            if (response.ok) {
+                const status = await response.json();
+                paymentEnabled = status.payment_enabled || false;
+                serverEdition = status.server_edition || null;
+                console.log(`[Settings] Payment enabled: ${paymentEnabled}, Server edition: ${serverEdition}`);
+            } else {
+                console.warn('[Settings] Failed to fetch server status, defaulting to payment enabled');
+                paymentEnabled = true; // Default to enabled if check fails
+            }
+        } catch (error) {
+            console.error('[Settings] Error checking server status:', error);
+            paymentEnabled = true; // Default to enabled if check fails
+        }
         updateMobileState();
         window.addEventListener('resize', handleResize);
         document.addEventListener('click', handleClickOutside);

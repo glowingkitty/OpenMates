@@ -20,6 +20,9 @@
         context?: 'website' | 'webapp';
         isLoggedIn?: boolean;
     } = $props();
+    
+    // Server edition state - will be fetched on mount
+    let serverEdition = $state<string | null>(null);
 
     let headerDiv: HTMLElement;
 
@@ -199,6 +202,11 @@
                     >
                         <strong><mark>Open</mark><span style="color: var(--color-grey-100);">Mates</span></strong>
                     </a>
+                    {#if serverEdition === 'self_hosted'}
+                        <div class="server-edition">Self Hosting Edition</div>
+                    {:else if serverEdition === 'development'}
+                        <div class="server-edition">Development Server</div>
+                    {/if}
                 </div>
                   
                 {#if showNavLinks && (context !== 'webapp' || isLoggedIn)}

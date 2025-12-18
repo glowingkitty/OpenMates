@@ -825,6 +825,25 @@
             // Step 17: Update user profile
             const userData = verifyData.auth_session?.user;
             if (userData) {
+                // Log auto top-up fields from backend response - ERROR if missing
+                const hasAutoTopupFields = 'auto_topup_low_balance_enabled' in userData;
+                if (!hasAutoTopupFields) {
+                    console.error('[Login] ERROR: Auto top-up fields missing from backend response (passkey path 1)!');
+                    console.error('[Login] Received user object keys:', Object.keys(userData));
+                    console.error('[Login] Full user object:', userData);
+                } else {
+                    console.debug('[Login] Auto top-up fields from backend (passkey path 1):', {
+                        enabled: userData.auto_topup_low_balance_enabled,
+                        threshold: userData.auto_topup_low_balance_threshold,
+                        amount: userData.auto_topup_low_balance_amount,
+                        currency: userData.auto_topup_low_balance_currency
+                    });
+                }
+                
+                // Save to IndexedDB first
+                const { userDB } = await import('../services/userDB');
+                await userDB.saveUserData(userData);
+                
                 const { updateProfile } = await import('../stores/userProfile');
                 const userProfileData = {
                     username: userData.username || '',
@@ -837,7 +856,12 @@
                     consent_privacy_and_apps_default_settings: userData.consent_privacy_and_apps_default_settings || false,
                     consent_mates_default_settings: userData.consent_mates_default_settings || false,
                     language: userData.language || 'en',
-                    darkmode: userData.darkmode || false
+                    darkmode: userData.darkmode || false,
+                    // Low balance auto top-up fields
+                    auto_topup_low_balance_enabled: userData.auto_topup_low_balance_enabled ?? false,
+                    auto_topup_low_balance_threshold: userData.auto_topup_low_balance_threshold,
+                    auto_topup_low_balance_amount: userData.auto_topup_low_balance_amount,
+                    auto_topup_low_balance_currency: userData.auto_topup_low_balance_currency
                 };
                 updateProfile(userProfileData);
                 console.log('[Login] User profile updated:', { username: userProfileData.username, credits: userProfileData.credits });
@@ -1288,6 +1312,25 @@
             // Update user profile
             const userData = verifyData.auth_session?.user;
             if (userData) {
+                // Log auto top-up fields from backend response - ERROR if missing
+                const hasAutoTopupFields = 'auto_topup_low_balance_enabled' in userData;
+                if (!hasAutoTopupFields) {
+                    console.error('[Login] ERROR: Auto top-up fields missing from backend response (passkey path 2)!');
+                    console.error('[Login] Received user object keys:', Object.keys(userData));
+                    console.error('[Login] Full user object:', userData);
+                } else {
+                    console.debug('[Login] Auto top-up fields from backend (passkey path 2):', {
+                        enabled: userData.auto_topup_low_balance_enabled,
+                        threshold: userData.auto_topup_low_balance_threshold,
+                        amount: userData.auto_topup_low_balance_amount,
+                        currency: userData.auto_topup_low_balance_currency
+                    });
+                }
+                
+                // Save to IndexedDB first
+                const { userDB } = await import('../services/userDB');
+                await userDB.saveUserData(userData);
+                
                 const { updateProfile } = await import('../stores/userProfile');
                 const userProfileData = {
                     username: userData.username || '',
@@ -1300,7 +1343,12 @@
                     consent_privacy_and_apps_default_settings: userData.consent_privacy_and_apps_default_settings || false,
                     consent_mates_default_settings: userData.consent_mates_default_settings || false,
                     language: userData.language || 'en',
-                    darkmode: userData.darkmode || false
+                    darkmode: userData.darkmode || false,
+                    // Low balance auto top-up fields
+                    auto_topup_low_balance_enabled: userData.auto_topup_low_balance_enabled ?? false,
+                    auto_topup_low_balance_threshold: userData.auto_topup_low_balance_threshold,
+                    auto_topup_low_balance_amount: userData.auto_topup_low_balance_amount,
+                    auto_topup_low_balance_currency: userData.auto_topup_low_balance_currency
                 };
                 updateProfile(userProfileData);
                 console.log('[Login] User profile updated');

@@ -324,6 +324,15 @@
         
         // Try to load last opened chat if it exists
         if (lastOpenedChatId) {
+            // Handle "new chat window" case - this is not a real chat ID
+            if (lastOpenedChatId === '/chat/new' || lastOpenedChatId === 'new') {
+                console.debug('[+page.svelte] Last opened is new chat window, clearing active chat');
+                // Clear active chat to show new chat window
+                // The ActiveChat component will show the new chat interface when no chat is selected
+                activeChatStore.clearActiveChat();
+                return; // Don't load default chat
+            }
+            
             // Skip if this chat is already loaded (active chat store matches)
             if ($activeChatStore === lastOpenedChatId) {
                 console.debug('[+page.svelte] Last opened chat already loaded, skipping');
