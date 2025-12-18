@@ -166,6 +166,8 @@ async def get_shared_chat(
             "encrypted_title": chat.get("encrypted_title"),
             "encrypted_chat_summary": chat.get("encrypted_chat_summary"),
             "encrypted_follow_up_request_suggestions": chat.get("encrypted_follow_up_request_suggestions"),
+            "encrypted_icon": chat.get("encrypted_icon"),  # Icon name encrypted with chat key
+            "encrypted_category": chat.get("encrypted_category"),  # Category name encrypted with chat key
             "messages": messages or [],
             "embeds": embeds or [],
             "embed_keys": embed_keys or [],
