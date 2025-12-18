@@ -319,7 +319,8 @@ export async function handlePhase1LastChatImpl(
                         file_path: embed.file_path,
                         content_hash: embed.content_hash,
                         text_length_chars: embed.text_length_chars,
-                        share_mode: embed.share_mode || 'private',
+                        is_private: embed.is_private ?? false,
+                        is_shared: embed.is_shared ?? false,
                         createdAt: embed.createdAt || embed.created_at,
                         updatedAt: embed.updatedAt || embed.updated_at
                     }, (embed.encrypted_type ? 'app-skill-use' : embed.embed_type || 'app-skill-use') as any);

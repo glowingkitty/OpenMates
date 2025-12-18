@@ -310,7 +310,8 @@ class ChatDatabase {
                                     entry.file_path = parsedData.file_path;
                                     entry.content_hash = parsedData.content_hash;
                                     entry.text_length_chars = parsedData.text_length_chars;
-                                    entry.share_mode = parsedData.share_mode;
+                                    entry.is_private = parsedData.is_private ?? false;
+                                    entry.is_shared = parsedData.is_shared ?? false;
                                     
                                     // Keep data field for backward compatibility during transition
                                     // It will be removed in a future migration once all code paths use separate fields

@@ -94,7 +94,8 @@ export interface EmbedStoreEntry {
   file_path?: string; // For code/file embeds
   content_hash?: string; // SHA256 hash for deduplication
   text_length_chars?: number; // Character count for text-based embeds
-  share_mode?: 'private' | 'shared_with_user' | 'public'; // Sharing mode
+  is_private?: boolean; // Whether embed is private (not shared)
+  is_shared?: boolean; // Whether embed has been shared (share link generated)
   
   // For embeds stored via put() (encrypted with master key):
   // The encrypted_content field will contain master-key-encrypted JSON string

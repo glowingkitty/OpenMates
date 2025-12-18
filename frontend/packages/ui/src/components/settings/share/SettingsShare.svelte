@@ -479,7 +479,15 @@
                 // Generate QR code
                 generateQRCode(generatedLink);
 
-                // TODO: Queue OG metadata update for embed sharing (backend support needed)
+                // Mark embed as shared in IndexedDB and on server
+                // Only if user is authenticated (embeds must be owned by user to share)
+                if ($authStore.isAuthenticated) {
+                    await markEmbedAsShared(embedContext.embed_id);
+                    
+                    // Update server to mark embed as shared (set is_private=false, is_shared=true)
+                    await updateEmbedShareMetadata(embedContext.embed_id, true);
+                }
+                
                 console.debug('[SettingsShare] Encrypted embed share link generated:', generatedLink);
                 return;
             } catch (error) {
@@ -790,6 +798,106 @@
             }
         } catch (error) {
             console.error('[SettingsShare] Error marking chat as shared:', error);
+        }
+    }
+    
+    /**
+     * Mark embed as shared in IndexedDB
+     * Updates is_shared = true and is_private = false
+     */
+    async function markEmbedAsShared(embedId: string) {
+        if (!embedId) return;
+        
+        try {
+            const { embedStore } = await import('../../../services/embedStore');
+            const embed = await embedStore.get(`embed:${embedId}`);
+            
+            if (embed) {
+                // Update embed with is_shared = true and is_private = false
+                // We need to update the embed in IndexedDB via putEncrypted
+                // But we need to get the current encrypted data first
+                const contentRef = `embed:${embedId}`;
+                
+                // Get the raw entry to preserve encrypted fields
+                const { chatDB } = await import('../../../services/db');
+                const EMBEDS_STORE_NAME = 'embeds';
+                const transaction = await chatDB.getTransaction([EMBEDS_STORE_NAME], 'readonly');
+                const store = transaction.objectStore(EMBEDS_STORE_NAME);
+                
+                const entry = await new Promise<any>((resolve, reject) => {
+                    const request = store.get(contentRef);
+                    request.onsuccess = () => resolve(request.result);
+                    request.onerror = () => reject(request.error);
+                });
+                
+                if (entry) {
+                    // Update the entry with new sharing status
+                    entry.is_private = false;
+                    entry.is_shared = true;
+                    
+                    // Store updated entry back
+                    const writeTransaction = await chatDB.getTransaction([EMBEDS_STORE_NAME], 'readwrite');
+                    const writeStore = writeTransaction.objectStore(EMBEDS_STORE_NAME);
+                    await new Promise<void>((resolve, reject) => {
+                        const request = writeStore.put(entry);
+                        request.onsuccess = () => resolve();
+                        request.onerror = () => reject(request.error);
+                    });
+                    
+                    console.debug('[SettingsShare] Marked embed as shared in IndexedDB:', embedId);
+                    
+                    // Dispatch event to notify other components (e.g., SettingsShared)
+                    window.dispatchEvent(new CustomEvent('embedShared', { detail: { embed_id: embedId } }));
+                } else {
+                    console.warn('[SettingsShare] Embed not found in IndexedDB for marking as shared:', embedId);
+                }
+            } else {
+                console.warn('[SettingsShare] Embed not found for marking as shared:', embedId);
+            }
+        } catch (error) {
+            console.error('[SettingsShare] Error marking embed as shared:', error);
+        }
+    }
+    
+    /**
+     * Update embed share metadata on server
+     * Sets is_private and is_shared on the server
+     */
+    async function updateEmbedShareMetadata(embedId: string, isShared: boolean) {
+        if (!embedId || !$authStore.isAuthenticated) return;
+        
+        try {
+            const { getApiEndpoint } = await import('../../../config/api');
+            
+            const response = await fetch(getApiEndpoint('/v1/share/embed/metadata'), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'Origin': window.location.origin
+                },
+                body: JSON.stringify({
+                    embed_id: embedId,
+                    is_shared: isShared  // Mark embed as shared on server (sets is_private=false, is_shared=true)
+                }),
+                credentials: 'include' // Include cookies for authentication
+            });
+            
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({ detail: 'Unknown error' }));
+                console.warn('[SettingsShare] Failed to update embed share metadata:', errorData);
+                return;
+            }
+            
+            const data = await response.json();
+            if (data.success) {
+                console.debug('[SettingsShare] Successfully updated embed share metadata:', embedId);
+            } else {
+                console.warn('[SettingsShare] Embed share metadata update returned success=false:', data);
+            }
+        } catch (error) {
+            console.error('[SettingsShare] Error updating embed share metadata:', error);
+            // Don't block link generation if metadata update fails
         }
     }
     

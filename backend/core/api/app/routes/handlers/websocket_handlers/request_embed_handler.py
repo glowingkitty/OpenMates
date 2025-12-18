@@ -94,7 +94,8 @@ async def handle_request_embed(
                 "chat_id": cached.get("chat_id") or cached.get("hashed_chat_id"),
                 "message_id": cached.get("message_id") or cached.get("hashed_message_id"),
                 "user_id": user_id,
-                "share_mode": cached.get("share_mode", "private"),
+                "is_private": cached.get("is_private", False),
+                "is_shared": cached.get("is_shared", False),
                 "text_length_chars": cached.get("text_length_chars"),
                 # Provide fallback timestamps if missing from cache (prevents null values in IndexedDB)
                 "createdAt": cached.get("created_at") or int(datetime.now().timestamp()),

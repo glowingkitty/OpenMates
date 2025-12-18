@@ -1477,7 +1477,8 @@ export async function handleSendEmbedDataImpl(
                 file_path: embedData.file_path,
                 content_hash: embedData.content_hash,
                 text_length_chars: embedData.text_length_chars,
-                share_mode: embedData.share_mode,
+                is_private: embedData.is_private ?? false,
+                is_shared: embedData.is_shared ?? false,
                 createdAt: embedData.createdAt,
                 updatedAt: embedData.updatedAt
             };
@@ -1533,7 +1534,8 @@ export async function handleSendEmbedDataImpl(
                 file_path: embedData.file_path,
                 content_hash: embedData.content_hash,
                 text_length_chars: embedData.text_length_chars,
-                share_mode: embedData.share_mode,
+                is_private: embedData.is_private ?? false,
+                is_shared: embedData.is_shared ?? false,
                 createdAt: embedData.createdAt,
                 updatedAt: embedData.updatedAt
             };

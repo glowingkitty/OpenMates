@@ -398,7 +398,8 @@ export class EmbedStore {
       file_path: encryptedData.file_path,
       content_hash: encryptedData.content_hash,
       text_length_chars: encryptedData.text_length_chars,
-      share_mode: encryptedData.share_mode
+      is_private: encryptedData.is_private ?? false,
+      is_shared: encryptedData.is_shared ?? false
     };
 
     // Store in memory cache
@@ -443,7 +444,8 @@ export class EmbedStore {
       file_path: entry.file_path,
       content_hash: entry.content_hash,
       text_length_chars: entry.text_length_chars,
-      share_mode: entry.share_mode,
+      is_private: entry.is_private ?? false,
+      is_shared: entry.is_shared ?? false,
       createdAt: entry.createdAt,
       updatedAt: entry.updatedAt
     };
@@ -452,21 +454,43 @@ export class EmbedStore {
     if (entry.encrypted_content) {
       try {
         const embedId = entry.embed_id || contentRef.replace('embed:', '');
+        console.debug('[EmbedStore] Attempting to decrypt encrypted_content for:', embedId, {
+          hasHashedChatId: !!entry.hashed_chat_id,
+          encryptedContentLength: entry.encrypted_content?.length || 0,
+          encryptedContentPreview: entry.encrypted_content?.substring(0, 50) + '...'
+        });
+        
         const embedKey = await this.getEmbedKey(embedId, entry.hashed_chat_id);
         
         if (embedKey) {
-          const decryptedContent = await decryptWithEmbedKey(entry.encrypted_content, embedKey);
+          console.debug('[EmbedStore] Found embed key, attempting decryption:', {
+            embedId,
+            keyLength: embedKey.length,
+            encryptedContentLength: entry.encrypted_content.length
+          });
+          
+          // Clean the base64 string before decryption (remove whitespace, URL decode if needed)
+          let cleanedContent = entry.encrypted_content.trim();
+          try {
+            cleanedContent = decodeURIComponent(cleanedContent);
+          } catch {
+            // Not URL-encoded, use as-is
+          }
+          
+          const decryptedContent = await decryptWithEmbedKey(cleanedContent, embedKey);
           if (decryptedContent) {
             embed.content = decryptedContent;
             console.debug('[EmbedStore] ✅ Successfully decrypted embed content from separate fields:', embedId);
           } else {
-            console.warn('[EmbedStore] ❌ Failed to decrypt encrypted_content from separate fields');
+            console.warn('[EmbedStore] ❌ Failed to decrypt encrypted_content from separate fields - decryptWithEmbedKey returned null');
             embed._decryptionFailed = true;
             embed.status = 'error';
             embed.content = null;
           }
         } else {
-          console.warn('[EmbedStore] No embed key found for separate fields format:', embedId);
+          console.warn('[EmbedStore] No embed key found for separate fields format:', embedId, {
+            hashedChatId: entry.hashed_chat_id?.substring(0, 16) + '...'
+          });
           embed._decryptionFailed = true;
           embed.status = 'error';
           embed.content = null;

@@ -43,10 +43,15 @@ embeds:
     # This allows multiple wrapped versions (master key + per-chat keys) for offline sharing
     # See embed_keys.yml for the new schema
     
-    share_mode:
-      type: string
-      note: "[Indexed] Sharing mode: 'private' | 'shared_with_user' | 'public'. Default: 'private'"
-      default: "private"
+    is_private:
+      type: boolean
+      default: false
+      note: "Whether this embed is private (not shared). If true, the embed is not accessible via share links. Defaults to false (shareable) to enable offline sharing. When a user unshares an embed, this is set to true. The security model relies on: (1) Embed IDs are not easily guessable, (2) Encryption key in URL fragment is required to decrypt, (3) Server returns dummy data for non-existent embeds to prevent enumeration, (4) Rate limiting on share endpoints."
+    
+    is_shared:
+      type: boolean
+      default: false
+      note: "Whether this embed has been shared (share link generated). Set to true on client when share link is created, then synced to server. Used to track which embeds appear in the 'Shared' menu. When unsharing, both is_private and is_shared are updated."
     
     shared_with_users:
       type: json

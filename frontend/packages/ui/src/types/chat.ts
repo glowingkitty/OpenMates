@@ -196,7 +196,8 @@ export interface StoreEmbedPayload {
     file_path?: string;
     content_hash?: string;
     text_length_chars?: number; // Character count for text-based embeds (LLM compression decision)
-    share_mode: string;
+    is_private?: boolean;
+    is_shared?: boolean;
     shared_with_users?: string[];
     createdAt: number;
     updatedAt: number;
@@ -283,7 +284,8 @@ export interface SendEmbedDataPayload {
         chat_id: string; // PLAINTEXT chat_id (client will hash before sending to server)
         message_id: string; // PLAINTEXT message_id (client will hash before sending to server)
         user_id: string;
-        share_mode: string; // "private" | "shared_with_user" | "public"
+        is_private?: boolean; // Whether embed is private (not shared)
+        is_shared?: boolean; // Whether embed has been shared (share link generated)
         createdAt: number; // Unix timestamp
         updatedAt: number; // Unix timestamp
         text_preview?: string; // PLAINTEXT text preview (client will encrypt)

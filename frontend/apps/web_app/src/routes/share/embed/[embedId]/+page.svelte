@@ -82,9 +82,14 @@
             console.debug('[ShareEmbed] Received embed data from server:', {
                 embed_id: data.embed?.embed_id,
                 has_encrypted_content: !!data.embed?.encrypted_content,
+                encrypted_content_length: data.embed?.encrypted_content?.length || 0,
+                encrypted_content_preview: data.embed?.encrypted_content?.substring(0, 100) || 'none',
                 has_encrypted_type: !!data.embed?.encrypted_type,
+                encrypted_type_length: data.embed?.encrypted_type?.length || 0,
+                encrypted_type_preview: data.embed?.encrypted_type?.substring(0, 50) || 'none',
                 child_embed_count: data.child_embeds?.length || 0,
-                embed_keys_count: data.embed_keys?.length || 0
+                embed_keys_count: data.embed_keys?.length || 0,
+                all_embed_fields: Object.keys(data.embed || {})
             });
 
             return {
@@ -174,23 +179,132 @@
             // Set the embed encryption key in the database cache BEFORE storing embed
             // This allows the embed to be decrypted when stored
             // Pass hashed_chat_id if available so the cache key matches when retrieving
-            const { embedStore } = await import('@repo/ui');
+            const { embedStore, decryptWithEmbedKey } = await import('@repo/ui');
             embedStore.setEmbedKeyInCache(embedId, result.embedKey, fetchedEmbed.hashed_chat_id);
 
+            // CRITICAL: Decrypt the embed content immediately to verify it works
+            // This ensures the embed key is correct and the content is decryptable
+            // Just like shared chats, we decrypt first, then store
+            console.debug('[ShareEmbed] Decrypting embed content to verify...');
+            console.debug('[ShareEmbed] Embed key length:', result.embedKey.length);
+            console.debug('[ShareEmbed] Raw encrypted_content:', {
+                value: fetchedEmbed.encrypted_content,
+                length: fetchedEmbed.encrypted_content?.length || 0,
+                type: typeof fetchedEmbed.encrypted_content,
+                firstChars: fetchedEmbed.encrypted_content?.substring(0, 50)
+            });
+            
+            let decryptedContent: string | null = null;
+            let decryptedType: string | null = null;
+            
+            try {
+                if (fetchedEmbed.encrypted_content) {
+                    // Clean the base64 string - remove whitespace and URL decode if needed
+                    let cleanedContent = String(fetchedEmbed.encrypted_content).trim();
+                    // Try URL decoding in case it's URL-encoded
+                    try {
+                        cleanedContent = decodeURIComponent(cleanedContent);
+                    } catch {
+                        // Not URL-encoded, use as-is
+                    }
+                    
+                    console.debug('[ShareEmbed] Attempting decryption with embed key:', {
+                        cleanedContentLength: cleanedContent.length,
+                        cleanedContentPreview: cleanedContent.substring(0, 50),
+                        embedKeyLength: result.embedKey.length
+                    });
+                    
+                    // Validate base64 format before attempting decryption
+                    const base64Regex = /^[A-Za-z0-9+/]*={0,2}$/;
+                    if (!base64Regex.test(cleanedContent)) {
+                        console.error('[ShareEmbed] Invalid base64 format in encrypted_content:', cleanedContent.substring(0, 50));
+                        error = 'Invalid embed data format. The link may be corrupted.';
+                        isLoading = false;
+                        return;
+                    }
+                    
+                    decryptedContent = await decryptWithEmbedKey(cleanedContent, result.embedKey);
+                    if (!decryptedContent) {
+                        console.error('[ShareEmbed] Failed to decrypt encrypted_content with embed key');
+                        console.error('[ShareEmbed] Debug info:', {
+                            contentLength: cleanedContent.length,
+                            contentPreview: cleanedContent.substring(0, 100),
+                            keyLength: result.embedKey.length
+                        });
+                        error = 'Failed to decrypt embed content. The link may be invalid or corrupted.';
+                        isLoading = false;
+                        return;
+                    }
+                    console.debug('[ShareEmbed] ✅ Successfully decrypted embed content, length:', decryptedContent.length);
+                } else {
+                    console.error('[ShareEmbed] No encrypted_content field in embed data');
+                    error = 'Embed data is missing encrypted content. The embed may be corrupted.';
+                    isLoading = false;
+                    return;
+                }
+                
+                if (fetchedEmbed.encrypted_type) {
+                    // Clean the base64 string for type as well
+                    let cleanedType = String(fetchedEmbed.encrypted_type).trim();
+                    try {
+                        cleanedType = decodeURIComponent(cleanedType);
+                    } catch {
+                        // Not URL-encoded, use as-is
+                    }
+                    
+                    decryptedType = await decryptWithEmbedKey(cleanedType, result.embedKey);
+                    if (decryptedType) {
+                        console.debug('[ShareEmbed] ✅ Successfully decrypted embed type:', decryptedType);
+                    }
+                }
+            } catch (decryptError) {
+                console.error('[ShareEmbed] Error decrypting embed content:', decryptError);
+                console.error('[ShareEmbed] Error details:', {
+                    errorMessage: decryptError instanceof Error ? decryptError.message : String(decryptError),
+                    encryptedContentLength: fetchedEmbed.encrypted_content?.length || 0,
+                    embedKeyLength: result.embedKey.length
+                });
+                error = 'Failed to decrypt embed content. The link may be invalid or corrupted.';
+                isLoading = false;
+                return;
+            }
+
             // Store embed in IndexedDB
+            // Since we've already decrypted the content, we can store it as plaintext content
+            // The embedStore will handle re-encryption if needed, or we store it with the decrypted content
             console.debug('[ShareEmbed] Storing embed in IndexedDB...');
             // Note: embedStore doesn't require initialization - it's ready to use
 
             // Store main embed first
+            // Store with cleaned encrypted_content (we verified it decrypts correctly)
+            // The embed key is already in cache, so future decryption will work
             const contentRef = `embed:${embedId}`;
+            
+            // Clean the encrypted_content before storing (same cleaning as decryption)
+            let cleanedEncryptedContent = fetchedEmbed.encrypted_content?.trim() || '';
+            try {
+                cleanedEncryptedContent = decodeURIComponent(cleanedEncryptedContent);
+            } catch {
+                // Not URL-encoded, use as-is
+            }
+            
+            let cleanedEncryptedType = fetchedEmbed.encrypted_type?.trim() || '';
+            if (cleanedEncryptedType) {
+                try {
+                    cleanedEncryptedType = decodeURIComponent(cleanedEncryptedType);
+                } catch {
+                    // Not URL-encoded, use as-is
+                }
+            }
+            
             await embedStore.putEncrypted(contentRef, {
-                encrypted_content: fetchedEmbed.encrypted_content,
-                encrypted_type: fetchedEmbed.encrypted_type,
+                encrypted_content: cleanedEncryptedContent,
+                encrypted_type: cleanedEncryptedType || undefined,
                 embed_id: fetchedEmbed.embed_id || embedId,
                 status: fetchedEmbed.status || 'finished',
                 hashed_chat_id: fetchedEmbed.hashed_chat_id,
                 hashed_user_id: fetchedEmbed.hashed_user_id
-            }, (fetchedEmbed.encrypted_type ? 'app-skill-use' : fetchedEmbed.embed_type || 'app-skill-use') as any);
+            }, (decryptedType || (fetchedEmbed.encrypted_type ? 'app-skill-use' : fetchedEmbed.embed_type || 'app-skill-use')) as any, decryptedContent || undefined);
 
             // Process embed_keys if any - unwrap them with main embed key and store
             // This is for child embeds that have their keys wrapped with the parent embed key

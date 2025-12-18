@@ -39,7 +39,8 @@ async def handle_store_embed(
         "file_path": "...",
         "content_hash": "...",
         "text_length_chars": 123,
-        "share_mode": "...",
+        "is_private": false,
+        "is_shared": false,
         "createdAt": 1234567890,
         "updatedAt": 1234567890
     }

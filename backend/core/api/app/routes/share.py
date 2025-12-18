@@ -574,7 +574,7 @@ async def get_shared_embed(
     Security:
     - Rate limited to prevent brute force attacks
     - Returns consistent dummy data for non-existent embeds
-    - Only returns real data if share_mode is not 'private'
+    - Only returns real data if is_private is false
     """
     try:
         # Fetch embed from database
@@ -588,16 +588,25 @@ async def get_shared_embed(
             return {"embed": dummy_data, "child_embeds": [], "embed_keys": []}
 
         # Check if embed is private (not shared)
-        share_mode = embed.get("share_mode", "private")
-        if share_mode == "private":
-            # Embed is private - return dummy data
-            logger.debug(f"Embed {embed_id} is private, returning dummy data")
+        # Use is_private field (mirrors chat sharing structure)
+        # Default to False (shareable) if field doesn't exist (for backward compatibility)
+        is_private = embed.get("is_private", False)
+        if is_private:
+            # Embed is private (unshared) - return dummy data
+            logger.debug(f"Embed {embed_id} is private (unshared), returning dummy data")
             dummy_data = generate_dummy_encrypted_embed_data(embed_id)
             dummy_data.pop("is_dummy", None)
             return {"embed": dummy_data, "child_embeds": [], "embed_keys": []}
 
         # Embed exists and is shared - return real encrypted data
         logger.debug(f"Returning real encrypted data for shared embed {embed_id}")
+        
+        # Log the actual encrypted_content length to debug truncation issues
+        encrypted_content = embed.get("encrypted_content")
+        if encrypted_content:
+            logger.debug(f"Embed {embed_id} encrypted_content length: {len(encrypted_content)} chars, preview: {encrypted_content[:50]}...")
+        else:
+            logger.warning(f"Embed {embed_id} has no encrypted_content field or it's None/empty")
 
         # Get child embeds if this is a composite embed (e.g., web search with website children)
         child_embeds = []
@@ -670,10 +679,12 @@ async def get_embed_og_metadata(
                 "type": "embed"
             }
 
-        # Check if embed is shared
-        share_mode = embed.get("share_mode", "private")
-        if share_mode == "private":
-            logger.debug(f"Embed {embed_id} is private, using fallback metadata")
+        # Check if embed is private (not shared)
+        # Use is_private field (mirrors chat sharing structure)
+        # Default to False (shareable) if field doesn't exist (for backward compatibility)
+        is_private = embed.get("is_private", False)
+        if is_private:
+            logger.debug(f"Embed {embed_id} is private (unshared), using fallback metadata")
             return {
                 "title": "Shared Embed - OpenMates",
                 "description": "View this shared content on OpenMates",
@@ -787,8 +798,16 @@ async def update_embed_share_metadata(
             )
             updates["shared_encrypted_description"] = encrypted_description
 
+        # Update is_private and is_shared fields (mirrors chat sharing structure)
         if payload.is_shared is not None:
-            updates["share_mode"] = "shared_with_user" if payload.is_shared else "private"
+            # When sharing (is_shared=true), ensure is_private=false
+            # When unsharing (is_shared=false), set is_private=true
+            if payload.is_shared:
+                updates["is_private"] = False
+                updates["is_shared"] = True
+            else:
+                updates["is_private"] = True
+                updates["is_shared"] = False
 
         # Update the embed
         await directus_service.update_item("embeds", embed_id, updates)
