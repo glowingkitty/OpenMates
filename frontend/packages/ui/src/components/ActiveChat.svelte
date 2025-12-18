@@ -60,6 +60,7 @@
     import { phasedSyncState } from '../stores/phasedSyncStateStore'; // Import phased sync state store
     import { websocketStatus } from '../stores/websocketStatusStore'; // Import WebSocket status for connection checks
     import { activeChatStore } from '../stores/activeChatStore'; // For clearing persistent active chat selection
+    import { activeEmbedStore } from '../stores/activeEmbedStore'; // For managing embed URL hash
     import { settingsDeepLink } from '../stores/settingsDeepLinkStore'; // For opening settings to specific page (share)
     import { settingsMenuVisible } from '../components/Settings.svelte'; // Import settingsMenuVisible store to control Settings visibility
     import { videoIframeStore, type VideoIframeState } from '../stores/videoIframeStore'; // For standalone VideoIframe component with CSS-based PiP
@@ -291,7 +292,23 @@
             // CRITICAL: Backup handler for logout - ensures demo chat loads even if userLoggingOut event wasn't caught
             // This is especially important on mobile where event timing might be off
             // Only trigger if we have a current chat that's not a demo chat (user was logged in)
+            // CRITICAL: Don't clear shared chats - they're valid for non-auth users
             if (currentChat && !isPublicChat(currentChat.chat_id)) {
+                // Check if this is a shared chat (has chat key in cache or is in sessionStorage shared_chats)
+                // chatDB.getChatKey is synchronous, so we can check immediately
+                const chatKey = chatDB.getChatKey(currentChat.chat_id);
+                const sharedChatIds = typeof sessionStorage !== 'undefined' 
+                    ? JSON.parse(sessionStorage.getItem('shared_chats') || '[]')
+                    : [];
+                const isSharedChat = chatKey !== null || sharedChatIds.includes(currentChat.chat_id);
+                
+                if (isSharedChat) {
+                    // This is a shared chat - don't clear it, it's valid for non-auth users
+                    console.debug('[ActiveChat] Auth state changed to unauthenticated - keeping shared chat:', currentChat.chat_id);
+                    return; // Keep the shared chat loaded
+                }
+                
+                // Not a shared chat - proceed with clearing
                 console.debug('[ActiveChat] Auth state changed to unauthenticated - clearing user chat and loading demo chat (backup handler)');
                 
                 // Clear current chat state
@@ -304,7 +321,7 @@
                 // Clear the persistent store
                 activeChatStore.clearActiveChat();
                 
-                // Load demo welcome chat
+                // Load demo welcome chat (async operation)
                 (async () => {
                     try {
                         const welcomeDemo = DEMO_CHATS.find(chat => chat.chat_id === 'demo-welcome');
@@ -572,6 +589,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         await Promise.resolve();
         
         showEmbedFullscreen = true;
+        
+        // Update URL hash with embed ID for sharing/bookmarking
+        if (embedId) {
+            activeEmbedStore.setActiveEmbed(embedId);
+            console.debug('[ActiveChat] Updated URL hash with embed ID:', embedId);
+        }
+        
         console.debug('[ActiveChat] Opening embed fullscreen:', embedType, embedId, 'showEmbedFullscreen:', showEmbedFullscreen, 'embedFullscreenData:', !!embedFullscreenData);
     }
     
@@ -596,6 +620,17 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         
         showEmbedFullscreen = false;
         embedFullscreenData = null;
+        
+        // Clear embed URL hash when embed is closed
+        activeEmbedStore.clearActiveEmbed();
+        console.debug('[ActiveChat] Cleared embed from URL hash');
+        
+        // If there's an active chat, restore the chat URL hash
+        // This ensures that when closing an embed while viewing a chat, the chat URL is restored
+        if (currentChat && currentChat.chat_id) {
+            activeChatStore.setActiveChat(currentChat.chat_id);
+            console.debug('[ActiveChat] Restored chat URL hash after closing embed:', currentChat.chat_id);
+        }
     }
     
     // Reference to PiP container for moving iframe

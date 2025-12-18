@@ -407,27 +407,66 @@
     }
 
     // REGULAR CHAT HANDLING: Get draft content using cached metadata for performance
-    // CRITICAL: For non-authenticated users, check sessionStorage first for new chats
-    // (sessionStorage-only chats that don't exist in IndexedDB yet)
+    // CRITICAL: For non-authenticated users, check if this is a shared chat (has chat key) or sessionStorage-only chat
     if (!$authStore.isAuthenticated) {
-      // For non-authenticated users, check sessionStorage for drafts
+      // Check if this is a shared chat (has chat key in cache) or sessionStorage-only chat
+      const chatKey = chatDB.getChatKey(currentChat.chat_id);
       const sessionDraftPreview = getSessionStorageDraftPreview(currentChat.chat_id);
+      
       if (sessionDraftPreview) {
+        // SessionStorage-only chat (new chat with draft that doesn't exist in database yet)
         draftTextContent = sessionDraftPreview;
         console.debug('[Chat] Found sessionStorage draft preview for new chat:', {
           chatId: currentChat.chat_id,
           previewLength: sessionDraftPreview.length,
           preview: sessionDraftPreview.substring(0, 50)
         });
+        
+        // SessionStorage-only chats have no messages and no metadata
+        lastMessage = null;
+        cachedMetadata = null;
+        chatCategory = null;
+        chatIcon = null;
+      } else if (chatKey) {
+        // Shared chat - has chat key, can decrypt metadata
+        // Try to get decrypted metadata (for shared chats, this will decrypt title, category, icon)
+        cachedMetadata = await chatMetadataCache.getDecryptedMetadata(currentChat);
+        
+        if (cachedMetadata?.draftPreview) {
+          draftTextContent = cachedMetadata.draftPreview;
+        } else {
+          draftTextContent = '';
+        }
+        
+        // Load last message from IndexedDB for shared chats
+        try {
+          lastMessage = await chatDB.getLastMessageForChat(currentChat.chat_id);
+        } catch (error) {
+          console.debug(`[Chat] Error loading last message for shared chat ${currentChat.chat_id}:`, error);
+          lastMessage = null;
+        }
+        
+        // Use decrypted metadata for category and icon
+        if (cachedMetadata?.category) {
+          chatCategory = cachedMetadata.category;
+          chatIcon = cachedMetadata.icon || null;
+          console.debug(`[Chat] Using decrypted metadata for shared chat - category: ${chatCategory || 'NULL'}, hasIcon: ${!!chatIcon}`);
+        } else {
+          // Fallback: Decrypt on-demand if cache miss
+          const decryptedChatData = await decryptChatData(currentChat);
+          chatCategory = decryptedChatData.category || null;
+          chatIcon = decryptedChatData.icon || null;
+          console.debug(`[Chat] Decrypted metadata on-demand for shared chat - category: ${chatCategory || 'NULL'}, hasIcon: ${!!chatIcon}`);
+        }
       } else {
+        // No chat key and no sessionStorage draft - this shouldn't happen for non-auth users
+        // But handle gracefully
         draftTextContent = '';
+        lastMessage = null;
+        cachedMetadata = null;
+        chatCategory = null;
+        chatIcon = null;
       }
-      
-      // SessionStorage-only chats have no messages and no metadata
-      lastMessage = null;
-      cachedMetadata = null; // No cached metadata for sessionStorage-only chats
-      chatCategory = null;
-      chatIcon = null;
     } else {
       // Authenticated users: use IndexedDB drafts
       cachedMetadata = await chatMetadataCache.getDecryptedMetadata(currentChat);

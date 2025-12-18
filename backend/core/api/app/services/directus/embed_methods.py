@@ -19,7 +19,8 @@ EMBED_ALL_FIELDS = (
     "status,"
     "hashed_user_id,"
     # encryption_key_embed moved to embed_keys collection for wrapped key architecture
-    "share_mode,"
+    "is_private,"
+    "is_shared,"
     "shared_with_users,"
     "embed_ids,"
     "encrypted_content,"
@@ -339,6 +340,44 @@ class EmbedMethods:
             logger.error(f"Error fetching embed_keys by hashed_chat_id: {e}", exc_info=True)
             return []
 
+    async def get_embed_keys_by_embed_id(self, embed_id: str) -> List[Dict[str, Any]]:
+        """
+        Fetch all embed_keys entries for an embed by embed_id.
+        
+        This method hashes the embed_id and queries the embed_keys collection.
+        Returns all key types (both 'chat' and 'master') for the embed.
+        
+        This is used when sharing embeds to retrieve wrapped keys that allow
+        recipients to decrypt the embed content.
+        
+        Args:
+            embed_id: The unique embed identifier (UUID string)
+            
+        Returns:
+            List of embed_keys entries for the embed (both chat and master key entries)
+        """
+        # Hash the embed_id to get hashed_embed_id
+        hashed_embed_id = hashlib.sha256(embed_id.encode()).hexdigest()
+        logger.debug(f"Fetching embed_keys for embed_id: {embed_id} (hashed: {hashed_embed_id[:16]}...)")
+        
+        params = {
+            'filter[hashed_embed_id][_eq]': hashed_embed_id,
+            'fields': EMBED_KEY_ALL_FIELDS,
+            'limit': -1  # Get all keys for this embed
+        }
+        
+        try:
+            response = await self.directus_service.get_items('embed_keys', params=params, no_cache=True)
+            if response and isinstance(response, list):
+                logger.debug(f"Found {len(response)} embed_key entries for embed {embed_id}")
+                return response
+            else:
+                logger.debug(f"No embed_keys found for embed_id: {embed_id}")
+                return []
+        except Exception as e:
+            logger.error(f"Error fetching embed_keys by embed_id {embed_id}: {e}", exc_info=True)
+            return []
+
     async def create_embed_key(self, embed_key_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         """
         Create a new embed_key entry in Directus.
@@ -391,7 +430,7 @@ class EmbedMethods:
         
         This is called when a chat is deleted to clean up orphaned embeds.
         Only deletes embeds that:
-        1. Are not shared (share_mode != 'shared' or share_mode is null)
+        1. Are not shared (is_private is true or is_shared is false)
         2. Belong exclusively to this chat
         
         Args:
@@ -403,10 +442,11 @@ class EmbedMethods:
         logger.info(f"Attempting to delete all embeds for hashed_chat_id: {hashed_chat_id[:16]}... from Directus.")
         try:
             # Query for all embeds belonging to this chat that are not shared
+            # Only delete embeds that are private (is_private=true) or not shared (is_shared=false)
             params = {
                 'filter[hashed_chat_id][_eq]': hashed_chat_id,
-                'filter[_or][0][share_mode][_null]': 'true',  # share_mode is null
-                'filter[_or][1][share_mode][_eq]': 'private',  # share_mode is 'private'
+                'filter[_or][0][is_private][_eq]': True,  # is_private is true
+                'filter[_or][1][is_shared][_eq]': False,  # is_shared is false
                 'fields': 'id,embed_id',
                 'limit': -1  # Get all
             }

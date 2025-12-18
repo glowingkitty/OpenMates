@@ -174,6 +174,8 @@
                 updated_at: Math.floor(Date.now() / 1000),
                 encrypted_chat_summary: data.encrypted_chat_summary || null,
                 encrypted_follow_up_request_suggestions: data.encrypted_follow_up_request_suggestions || null,
+                encrypted_icon: data.encrypted_icon || null,  // Icon name encrypted with chat key
+                encrypted_category: data.encrypted_category || null,  // Category name encrypted with chat key
                 // user_id is intentionally not set - will be determined by ownership check in ActiveChat
                 // If chat is from another user, ownership check will fail and chat will be read-only
             };

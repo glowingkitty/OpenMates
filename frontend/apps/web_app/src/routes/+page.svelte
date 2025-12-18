@@ -16,6 +16,7 @@
         panelState, // Import the new central panel state store
         settingsDeepLink,
         activeChatStore, // Import for deep linking
+        activeEmbedStore, // Import for embed deep linking
         phasedSyncState, // Import phased sync state store
         websocketStatus, // Import WebSocket status store
         userProfile, // Import user profile to access last_opened
@@ -150,11 +151,10 @@
             return;
         }
         
-        // This is a user chat - wait for phased sync to complete
-        const handlePhasedSyncComplete = async () => {
-            console.debug(`[+page.svelte] Phased sync complete, attempting to load deep-linked chat: ${chatId}`);
-            
-            // Try to load the chat from IndexedDB
+        // This is a user chat - load from IndexedDB
+        // CRITICAL: For non-authenticated users, shared chats are already in IndexedDB, so load immediately
+        // For authenticated users, wait for sync to complete (chat might not be in IndexedDB yet)
+        const loadChatFromIndexedDB = async (retries = 20): Promise<void> => {
             try {
                 await chatDB.init(); // Ensure DB is initialized
                 const chat = await chatDB.getChat(chatId);
@@ -177,51 +177,85 @@
                         
                         // Keep the URL hash so users can share/bookmark the chat
                         // The activeChatStore.setActiveChat() call above already updated the hash
-                    } else {
+                        return; // Success - exit
+                    } else if (retries > 0) {
                         // If activeChat isn't ready yet, wait a bit and retry
-                        setTimeout(() => {
-                            if (activeChat) {
-                                activeChat.loadChat(chat);
-                                
-                                // Dispatch globalChatSelected event so Chats.svelte highlights the chat
-                                const globalChatSelectedEvent = new CustomEvent('globalChatSelected', {
-                                    detail: { chat },
-                                    bubbles: true,
-                                    composed: true
-                                });
-                                window.dispatchEvent(globalChatSelectedEvent);
-                                console.debug(`[+page.svelte] Dispatched globalChatSelected for deep-linked chat (delayed):`, chat.chat_id);
-                                
-                                // Keep the URL hash so users can share/bookmark the chat
-                                // The activeChatStore.setActiveChat() call above already updated the hash
-                            } else {
-                                console.warn(`[+page.svelte] activeChat component not ready for deep link`);
-                            }
-                        }, 500);
+                        const delay = retries > 10 ? 50 : 100;
+                        await new Promise(resolve => setTimeout(resolve, delay));
+                        return loadChatFromIndexedDB(retries - 1);
+                    } else {
+                        console.warn(`[+page.svelte] activeChat component not ready for deep link after retries`);
                     }
                 } else {
-                    console.warn(`[+page.svelte] Chat ${chatId} not found in IndexedDB after sync`);
-                    // Chat doesn't exist for this user - clear the URL and store
-                    activeChatStore.clearActiveChat();
-                    // activeChatStore.clearActiveChat() already clears the hash, no need to manually clear
+                    // Chat not found in IndexedDB
+                    if ($authStore.isAuthenticated) {
+                        // For authenticated users, wait for sync to complete
+                        console.debug(`[+page.svelte] Chat ${chatId} not found in IndexedDB, waiting for sync...`);
+                    } else {
+                        // For non-auth users, if chat is not in IndexedDB, it doesn't exist
+                        console.warn(`[+page.svelte] Chat ${chatId} not found in IndexedDB (non-auth user)`);
+                        activeChatStore.clearActiveChat();
+                    }
                 }
             } catch (error) {
                 console.error(`[+page.svelte] Error loading deep-linked chat:`, error);
                 // Clear URL on error - chat doesn't exist or can't be loaded
                 activeChatStore.clearActiveChat();
-                // activeChatStore.clearActiveChat() already clears the hash, no need to manually clear
             }
-            
-            // Remove the listener after handling
-            chatSyncService.removeEventListener('phasedSyncComplete', handlePhasedSyncComplete as EventListener);
         };
         
-        // Register listener for phased sync completion
-        chatSyncService.addEventListener('phasedSyncComplete', handlePhasedSyncComplete as EventListener);
+        // For non-authenticated users, try loading immediately (shared chats are already in IndexedDB)
+        if (!$authStore.isAuthenticated) {
+            console.debug(`[+page.svelte] Non-auth user - loading shared chat immediately from IndexedDB: ${chatId}`);
+            loadChatFromIndexedDB();
+        } else {
+            // For authenticated users, wait for sync to complete
+            const handlePhasedSyncComplete = async () => {
+                console.debug(`[+page.svelte] Phased sync complete, attempting to load deep-linked chat: ${chatId}`);
+                await loadChatFromIndexedDB();
+                // Remove the listener after handling
+                chatSyncService.removeEventListener('phasedSyncComplete', handlePhasedSyncComplete as EventListener);
+            };
+            
+            // Register listener for phased sync completion
+            chatSyncService.addEventListener('phasedSyncComplete', handlePhasedSyncComplete as EventListener);
+            
+            // Also try immediately in case sync already completed
+            // (e.g., page reload with URL already set)
+            setTimeout(handlePhasedSyncComplete, 1000);
+        }
+    }
+    
+    /**
+     * Handle embed deep linking from URL
+     * Opens the embed in fullscreen mode when #embed-id={embedId} is in the URL
+     */
+    async function handleEmbedDeepLink(embedId: string) {
+        console.debug(`[+page.svelte] Handling embed deep link for: ${embedId}`);
         
-        // Also try immediately in case sync already completed
-        // (e.g., page reload with URL already set)
-        setTimeout(handlePhasedSyncComplete, 1000);
+        // Update the activeEmbedStore so the URL hash is set
+        activeEmbedStore.setActiveEmbed(embedId);
+        
+        // Wait a bit for ActiveChat component to be ready and register event listeners
+        // This ensures the embedfullscreen event listener is registered
+        await new Promise(resolve => setTimeout(resolve, 300));
+        
+        // Dispatch embedfullscreen event to open the embed in fullscreen
+        // This reuses the same system that opens embeds when clicking on embed previews
+        const embedFullscreenEvent = new CustomEvent('embedfullscreen', {
+            detail: {
+                embedId: embedId,
+                // Let handleEmbedFullscreen load and decode the embed content
+                embedData: null,
+                decodedContent: null,
+                embedType: 'app-skill-use', // Default type, will be determined by handleEmbedFullscreen
+                attrs: null
+            },
+            bubbles: true
+        });
+        
+        console.debug('[+page.svelte] Dispatching embedfullscreen event for deep-linked embed:', embedId);
+        document.dispatchEvent(embedFullscreenEvent);
     }
     
     /**
@@ -718,6 +752,7 @@
 		// CRITICAL: Setup cleanup for shared chats on session close (non-authenticated users only)
 		// Shared chats are stored in IndexedDB but should be deleted when the session ends
 		// This ensures shared chats don't persist long-term for non-authenticated users
+		// IMPORTANT: Only delete on actual tab close, not during navigation
 		const cleanupSharedChats = async () => {
 			// Only cleanup if user is not authenticated
 			if (!$authStore.isAuthenticated) {
@@ -746,27 +781,28 @@
 			}
 		};
 		
-		// Use visibilitychange and pagehide events for better reliability
-		const handlePageUnload = () => {
-			// Use non-blocking approach - initiate cleanup (may not complete if page closes immediately)
-			cleanupSharedChats().catch((error) => {
-				// Ignore errors - cleanup will happen on next page load if needed
-				console.debug('[+page.svelte] Shared chat cleanup on unload incomplete (will be handled on next page load)');
-			});
-		};
-		
-		// Use visibilitychange to detect when page becomes hidden (more reliable than beforeunload)
-		document.addEventListener('visibilitychange', () => {
-			if (document.visibilityState === 'hidden') {
-				handlePageUnload();
+		// Use pagehide for better mobile browser support (fires on tab close, browser close, navigation)
+		// This is more reliable than beforeunload for detecting actual tab close
+		// The 'persisted' property tells us if the page is being cached (navigation) or unloaded (tab close)
+		window.addEventListener('pagehide', (event) => {
+			// Check if this is a navigation (persisted) or actual unload
+			// If persisted is true, the page is being cached (e.g., back/forward navigation, SPA navigation)
+			// If persisted is false, the page is being unloaded (tab close, browser close)
+			if (!event.persisted) {
+				// Page is being unloaded (not cached) - this is actual tab/browser close
+				// Use non-blocking approach - initiate cleanup (may not complete if page closes immediately)
+				cleanupSharedChats().catch((error) => {
+					// Ignore errors - cleanup will happen on next page load if needed
+					console.debug('[+page.svelte] Shared chat cleanup on unload incomplete (will be handled on next page load)');
+				});
+			} else {
+				console.debug('[+page.svelte] Page is being cached (navigation), not closing. Skipping cleanup.');
 			}
 		});
 		
-		// Use pagehide for better mobile browser support (fires on tab close, browser close, navigation)
-		window.addEventListener('pagehide', handlePageUnload);
-		
-		// Also use beforeunload as fallback for desktop browsers
-		window.addEventListener('beforeunload', handlePageUnload);
+		// Note: We primarily rely on pagehide.persisted for accurate detection
+		// Most modern browsers support this, so beforeunload is rarely needed
+		// If a browser doesn't support pagehide.persisted, cleanup will happen on next page load anyway
 		
 		console.debug('[+page.svelte] Registered shared chat cleanup handlers');
 
@@ -836,8 +872,14 @@
 				isProcessingInitialHash = true;
 				await handleChatDeepLink(hashChatId);
 				isProcessingInitialHash = false;
+			} else if (!isAuth) {
+				// For non-authenticated users, shared chats are already in IndexedDB, so load immediately
+				console.debug(`[+page.svelte] [DETECTED] Hash chat is shared chat (non-auth), loading immediately: ${hashChatId}`);
+				isProcessingInitialHash = true;
+				await handleChatDeepLink(hashChatId);
+				isProcessingInitialHash = false;
 			} else {
-				// User chat - will be loaded after sync completes (see handleSyncCompleteAndLoadChat below)
+				// User chat for authenticated users - will be loaded after sync completes
 				console.debug(`[+page.svelte] [DETECTED] Hash chat is user chat, will load after sync: ${hashChatId}`);
 			}
 		}
@@ -1137,6 +1179,20 @@
             } else {
                 console.debug(`[+page.svelte] Chat hash already processed earlier, skipping duplicate processing`);
             }
+        } else if (window.location.hash.startsWith('#embed-id=') || window.location.hash.startsWith('#embed_id=')) {
+            // Handle embed deep linking from URL
+            // Support both #embed-id= and #embed_id= formats
+            const embedId = window.location.hash.startsWith('#embed_id=')
+                ? window.location.hash.substring('#embed_id='.length)
+                : window.location.hash.substring('#embed-id='.length);
+            
+            // Handle cases where there might be additional query params (e.g., #embed-id=xxx&fullscreen=true)
+            const embedIdOnly = embedId.split('&')[0].split('?')[0];
+            
+            console.debug(`[+page.svelte] Found embed deep link in URL: ${embedIdOnly}`);
+            
+            // Handle the embed deep link (opens embed in fullscreen)
+            await handleEmbedDeepLink(embedIdOnly);
         }
 
         // Remove initial load state after a small delay
@@ -1231,9 +1287,15 @@
             }
         } else if (window.location.hash.startsWith('#chat_id=') || window.location.hash.startsWith('#chat-id=')) {
             // Support both #chat_id= and #chat-id= formats
+            // CRITICAL: This handles navigation from share page to main page with hash
             const chatId = window.location.hash.startsWith('#chat_id=')
-                ? window.location.hash.substring(9) // Remove '#chat_id=' prefix
-                : window.location.hash.substring(9); // Remove '#chat-id=' prefix
+                ? window.location.hash.substring('#chat_id='.length)
+                : window.location.hash.substring('#chat-id='.length);
+            
+            console.debug(`[+page.svelte] Hash changed to chat deep link: ${chatId}`);
+            
+            // Update originalHashChatId to reflect the new hash (important for sync completion handler)
+            originalHashChatId = chatId;
             
             // Mark as processing initial hash load (for hashchange handler)
             isProcessingInitialHash = true;
@@ -1242,6 +1304,20 @@
             
             // Reset flag after processing
             isProcessingInitialHash = false;
+        } else if (window.location.hash.startsWith('#embed-id=') || window.location.hash.startsWith('#embed_id=')) {
+            // Handle embed deep linking from URL hash change
+            // Support both #embed-id= and #embed_id= formats
+            const embedId = window.location.hash.startsWith('#embed_id=')
+                ? window.location.hash.substring('#embed_id='.length)
+                : window.location.hash.substring('#embed-id='.length);
+            
+            // Handle cases where there might be additional query params (e.g., #embed-id=xxx&fullscreen=true)
+            const embedIdOnly = embedId.split('&')[0].split('?')[0];
+            
+            console.debug(`[+page.svelte] Hash changed to embed deep link: ${embedIdOnly}`);
+            
+            // Handle the embed deep link (opens embed in fullscreen)
+            await handleEmbedDeepLink(embedIdOnly);
         }
     }
 

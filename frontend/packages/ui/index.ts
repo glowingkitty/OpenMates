@@ -45,6 +45,7 @@ export * from "./src/stores/panelStateStore"; // Export the new panel state stor
 export * from "./src/stores/uiStateStore"; // Also export the ui state store
 export * from "./src/stores/settingsDeepLinkStore"; // Export the settings deep link store
 export * from "./src/stores/activeChatStore"; // Export the active chat store for URL-based navigation
+export * from "./src/stores/activeEmbedStore"; // Export the active embed store for URL-based embed navigation
 export * from "./src/stores/phasedSyncStateStore"; // Export the phased sync state store
 export * from "./src/stores/websocketStatusStore"; // Export the WebSocket status store
 export * from "./src/stores/userProfile"; // Export the user profile store for accessing last_opened chat

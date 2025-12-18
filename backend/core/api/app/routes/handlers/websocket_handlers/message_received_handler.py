@@ -529,7 +529,8 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                                 "chat_id": chat_id,
                                 "message_id": message_id,
                                 "user_id": user_id,
-                                "share_mode": "private",
+                                "is_private": False,
+                                "is_shared": False,
                                 "createdAt": current_timestamp,
                                 "updatedAt": current_timestamp,
                                 "file_path": embed_data.get("filename"),  # filename maps to file_path

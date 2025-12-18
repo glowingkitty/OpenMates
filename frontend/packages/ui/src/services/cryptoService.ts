@@ -65,15 +65,33 @@ export function uint8ArrayToBase64(bytes: Uint8Array): string {
 
 /**
  * Converts Base64 string to Uint8Array
+ * Handles both standard base64 and URL-safe base64 (with - and _)
  */
 export function base64ToUint8Array(base64: string): Uint8Array {
-  const binary_string = window.atob(base64);
-  const len = binary_string.length;
-  const bytes = new Uint8Array(len);
-  for (let i = 0; i < len; i++) {
-    bytes[i] = binary_string.charCodeAt(i);
+  if (!base64 || typeof base64 !== 'string') {
+    throw new Error('Invalid base64 string: must be a non-empty string');
   }
-  return bytes;
+  
+  // Convert URL-safe base64 to standard base64 if needed
+  let standardBase64 = base64.replace(/-/g, '+').replace(/_/g, '/');
+  
+  // Add padding if needed (base64 strings must be multiple of 4)
+  const missingPadding = standardBase64.length % 4;
+  if (missingPadding) {
+    standardBase64 += '='.repeat(4 - missingPadding);
+  }
+  
+  try {
+    const binary_string = window.atob(standardBase64);
+    const len = binary_string.length;
+    const bytes = new Uint8Array(len);
+    for (let i = 0; i < len; i++) {
+      bytes[i] = binary_string.charCodeAt(i);
+    }
+    return bytes;
+  } catch (error) {
+    throw new Error(`Invalid base64 string: ${error instanceof Error ? error.message : String(error)}`);
+  }
 }
 
 /**

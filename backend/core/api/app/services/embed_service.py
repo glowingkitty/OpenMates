@@ -163,7 +163,8 @@ class EmbedService:
                 "hashed_task_id": hashed_task_id,
                 "status": "processing",
                 "hashed_user_id": user_id_hash,
-                "share_mode": "private",
+                "is_private": False,
+                "is_shared": False,
                 "embed_ids": None,  # Will be populated when skill completes (for composite)
                 "encrypted_content": encrypted_content,
                 "created_at": int(datetime.now().timestamp()),
@@ -185,7 +186,8 @@ class EmbedService:
                 user_id_hash=user_id_hash,
                 status="processing",
                 task_id=task_id,
-                share_mode="private",
+                is_private=False,
+                is_shared=False,
                 created_at=embed_data["created_at"],
                 updated_at=embed_data["updated_at"],
                 log_prefix=log_prefix
@@ -283,7 +285,8 @@ class EmbedService:
                 "hashed_task_id": hashed_task_id,
                 "status": "processing",
                 "hashed_user_id": user_id_hash,
-                "share_mode": "private",
+                "is_private": False,
+                "is_shared": False,
                 "embed_ids": None,  # Code embeds don't have child embeds
                 "encrypted_content": encrypted_content,
                 "created_at": int(datetime.now().timestamp()),
@@ -305,7 +308,8 @@ class EmbedService:
                 user_id_hash=user_id_hash,
                 status="processing",
                 task_id=task_id,
-                share_mode="private",
+                is_private=False,
+                is_shared=False,
                 created_at=embed_data["created_at"],
                 updated_at=embed_data["updated_at"],
                 log_prefix=log_prefix
@@ -438,7 +442,8 @@ class EmbedService:
                     user_id_hash=user_id_hash,
                     status=status,
                     task_id=cached_embed.get("hashed_task_id"),
-                    share_mode=cached_embed.get("share_mode", "private"),
+                    is_private=cached_embed.get("is_private", False),
+                    is_shared=cached_embed.get("is_shared", False),
                     created_at=cached_embed.get("created_at"),
                     updated_at=updated_embed_data["updated_at"],
                     log_prefix=log_prefix
@@ -965,7 +970,9 @@ class EmbedService:
                         "hashed_task_id": hashed_task_id,
                         "status": "finished",
                         "hashed_user_id": user_id_hash,
-                        "share_mode": "private",
+                        "is_private": False,
+                        "is_shared": False,
+                        "parent_embed_id": embed_id,  # CRITICAL: Set parent_embed_id for key inheritance
                         "text_length_chars": text_length_chars,
                         "created_at": created_at,
                         "updated_at": created_at
@@ -982,6 +989,7 @@ class EmbedService:
                     await self._cache_embed(child_embed_id, child_embed_data, chat_id, user_id_hash)
 
                     # SEND PLAINTEXT TOON TO CLIENT via WebSocket
+                    # CRITICAL: Pass parent_embed_id so child embeds can use parent's key (key inheritance - Option A)
                     await self.send_embed_data_to_client(
                         embed_id=child_embed_id,
                         embed_type=child_type,
@@ -995,6 +1003,7 @@ class EmbedService:
                         text_length_chars=text_length_chars,
                         created_at=created_at,
                         updated_at=created_at,
+                        parent_embed_id=embed_id,  # Set parent_embed_id so frontend can use parent key
                         log_prefix=log_prefix
                     )
 
@@ -1046,7 +1055,8 @@ class EmbedService:
                     "hashed_task_id": hashed_task_id,
                     "status": "finished",
                     "hashed_user_id": user_id_hash,
-                    "share_mode": "private",
+                    "is_private": False,
+                    "is_shared": False,
                     "embed_ids": child_embed_ids,  # JSON array
                     "encrypted_content": encrypted_parent_content,
                     "text_length_chars": parent_text_length_chars,
@@ -1136,7 +1146,8 @@ class EmbedService:
                     "hashed_task_id": hashed_task_id,
                     "status": "finished",
                     "hashed_user_id": user_id_hash,
-                    "share_mode": "private",
+                    "is_private": False,
+                    "is_shared": False,
                     "embed_ids": None,  # No child embeds
                     "encrypted_content": encrypted_content,
                     "text_length_chars": single_text_length_chars,
@@ -1269,7 +1280,8 @@ class EmbedService:
                 "hashed_task_id": hashed_task_id,
                 "status": "error",
                 "hashed_user_id": user_id_hash,
-                "share_mode": "private",
+                "is_private": False,
+                "is_shared": False,
                 "embed_ids": None,  # No child embeds
                 "encrypted_content": encrypted_content,
                 "text_length_chars": error_text_length_chars,
@@ -1327,7 +1339,8 @@ class EmbedService:
         file_path: Optional[str] = None,
         content_hash: Optional[str] = None,
         text_length_chars: Optional[int] = None,
-        share_mode: str = "private",
+        is_private: bool = False,
+        is_shared: bool = False,
         created_at: Optional[int] = None,
         updated_at: Optional[int] = None,
         log_prefix: str = "",
@@ -1359,7 +1372,8 @@ class EmbedService:
             file_path: For code/file embeds
             content_hash: SHA256 hash for deduplication
             text_length_chars: Character count for text-based embeds (auto-calculated if not provided)
-            share_mode: Sharing mode
+            is_private: Whether embed is private (not shared)
+            is_shared: Whether embed has been shared (share link generated)
             created_at: Unix timestamp
             updated_at: Unix timestamp
             log_prefix: Logging prefix
@@ -1411,7 +1425,8 @@ class EmbedService:
                     "chat_id": chat_id,  # PLAINTEXT (client will hash before sending back)
                     "message_id": message_id,  # PLAINTEXT (client will hash)
                     "user_id": user_id,
-                    "share_mode": share_mode,
+                    "is_private": is_private,
+                    "is_shared": is_shared,
                     "text_length_chars": text_length_chars,  # Character count for LLM compression decision
                     "createdAt": created_at or int(datetime.now().timestamp()),
                     "updatedAt": updated_at or int(datetime.now().timestamp())
@@ -1547,7 +1562,8 @@ class EmbedService:
                         "hashed_task_id": hashed_task_id,
                         "status": "finished",
                         "hashed_user_id": user_id_hash,
-                        "share_mode": "private",
+                        "is_private": False,
+                        "is_shared": False,
                         "created_at": int(datetime.now().timestamp()),
                         "updated_at": int(datetime.now().timestamp())
                     }
@@ -1608,7 +1624,8 @@ class EmbedService:
                     "hashed_task_id": hashed_task_id,
                     "status": "finished",
                     "hashed_user_id": user_id_hash,
-                    "share_mode": "private",
+                    "is_private": False,
+                    "is_shared": False,
                     "embed_ids": child_embed_ids,  # JSON array
                     "encrypted_content": encrypted_parent_content,
                     "created_at": int(datetime.now().timestamp()),
@@ -1668,7 +1685,8 @@ class EmbedService:
                     "hashed_task_id": hashed_task_id,
                     "status": "finished",
                     "hashed_user_id": user_id_hash,
-                    "share_mode": "private",
+                    "is_private": False,
+                    "is_shared": False,
                     "embed_ids": None,  # No child embeds
                     "encrypted_content": encrypted_content,
                     "created_at": int(datetime.now().timestamp()),
