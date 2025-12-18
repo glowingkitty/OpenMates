@@ -26,6 +26,18 @@
     import { shareMetadataQueue } from '../../../services/shareMetadataQueue';
     import { isDemoChat, isPublicChat } from '../../../demo_chats/convertToChat';
     import { userDB } from '../../../services/userDB';
+    import { embedStore } from '../../../services/embedStore';
+    import { decodeToonContent } from '../../../services/embedResolver';
+    
+    // Import embed preview components
+    import WebSearchEmbedPreview from '../../embeds/web/WebSearchEmbedPreview.svelte';
+    import NewsSearchEmbedPreview from '../../embeds/news/NewsSearchEmbedPreview.svelte';
+    import VideosSearchEmbedPreview from '../../embeds/videos/VideosSearchEmbedPreview.svelte';
+    import MapsSearchEmbedPreview from '../../embeds/maps/MapsSearchEmbedPreview.svelte';
+    import VideoTranscriptEmbedPreview from '../../embeds/videos/VideoTranscriptEmbedPreview.svelte';
+    import WebsiteEmbedPreview from '../../embeds/web/WebsiteEmbedPreview.svelte';
+    import VideoEmbedPreview from '../../embeds/videos/VideoEmbedPreview.svelte';
+    import CodeEmbedPreview from '../../embeds/code/CodeEmbedPreview.svelte';
     
     /**
      * Portal action to render element at body level
@@ -93,6 +105,176 @@
     // Check if we're sharing an embed instead of a chat
     let embedContext = $state<any>(null);
     let isEmbedSharing = $derived(embedContext !== null);
+    
+    // Embed preview state - for rendering the actual embed component
+    // Use a promise-based approach like AppEmbedsPanel to avoid infinite loops
+    let embedPreviewPromise = $state<Promise<{ component: any; props: any } | null> | null>(null);
+    
+    /**
+     * Load and render embed preview component
+     * Returns a promise that resolves to component and props, or null if not available
+     * This matches the pattern used in AppEmbedsPanel.svelte
+     */
+    async function loadEmbedPreview(): Promise<{ component: any; props: any } | null> {
+        if (!embedContext || !embedContext.embed_id) {
+            return;
+        }
+        
+        try {
+            const embedId = embedContext.embed_id;
+            console.debug('[SettingsShare] Loading embed preview for:', embedId);
+            
+            // Load embed from store
+            const contentRef = `embed:${embedId}`;
+            const embedData = await embedStore.get(contentRef);
+            
+            if (!embedData || !embedData.content) {
+                console.warn('[SettingsShare] No embed content available for preview');
+                return;
+            }
+            
+            // Decode the content
+            const decodedContent = await decodeToonContent(embedData.content);
+            if (!decodedContent) {
+                console.warn('[SettingsShare] Failed to decode embed content');
+                return;
+            }
+            
+            // Get app_id and skill_id from embed data or decoded content
+            const embedAppId = embedData.app_id || decodedContent.app_id || '';
+            const skillId = embedData.skill_id || decodedContent.skill_id || '';
+            const status = embedData.status || embedData.type || 'finished';
+            
+            console.debug('[SettingsShare] Rendering embed preview:', { embedId, appId: embedAppId, skillId, status });
+            
+            // Determine which component to use based on app_id and skill_id
+            // This matches the logic from AppEmbedsPanel and AppSkillUseRenderer
+            if (embedAppId === 'web' && skillId === 'search') {
+                return {
+                    component: WebSearchEmbedPreview,
+                    props: {
+                        id: embedId,
+                        query: decodedContent.query || '',
+                        provider: decodedContent.provider || 'Brave Search',
+                        status: status,
+                        results: decodedContent.results || [],
+                        isMobile: false,
+                        onFullscreen: () => {} // No-op for share preview
+                    }
+                };
+            } else if (embedAppId === 'news' && skillId === 'search') {
+                return {
+                    component: NewsSearchEmbedPreview,
+                    props: {
+                        id: embedId,
+                        query: decodedContent.query || '',
+                        provider: decodedContent.provider || 'Brave Search',
+                        status: status,
+                        results: decodedContent.results || [],
+                        isMobile: false,
+                        onFullscreen: () => {}
+                    }
+                };
+            } else if (embedAppId === 'videos' && skillId === 'search') {
+                return {
+                    component: VideosSearchEmbedPreview,
+                    props: {
+                        id: embedId,
+                        query: decodedContent.query || '',
+                        provider: decodedContent.provider || 'Brave Search',
+                        status: status,
+                        results: decodedContent.results || [],
+                        isMobile: false,
+                        onFullscreen: () => {}
+                    }
+                };
+            } else if (embedAppId === 'maps' && skillId === 'search') {
+                return {
+                    component: MapsSearchEmbedPreview,
+                    props: {
+                        id: embedId,
+                        query: decodedContent.query || '',
+                        provider: decodedContent.provider || 'Brave Search',
+                        status: status,
+                        results: decodedContent.results || [],
+                        isMobile: false,
+                        onFullscreen: () => {}
+                    }
+                };
+            } else if (embedAppId === 'videos' && (skillId === 'get_transcript' || skillId === 'get-transcript')) {
+                return {
+                    component: VideoTranscriptEmbedPreview,
+                    props: {
+                        id: embedId,
+                        results: decodedContent.results || [],
+                        status: status,
+                        isMobile: false,
+                        onFullscreen: () => {}
+                    }
+                };
+            } else if (embedData.type === 'website' || embedContext.type === 'website') {
+                // Website embed - use WebsiteEmbedPreview
+                return {
+                    component: WebsiteEmbedPreview,
+                    props: {
+                        id: embedId,
+                        url: decodedContent.url || embedContext.url || '',
+                        title: decodedContent.title || embedContext.title || '',
+                        description: decodedContent.description || '',
+                        image: decodedContent.image || '',
+                        isMobile: false,
+                        onFullscreen: () => {}
+                    }
+                };
+            } else if (embedData.type === 'video' || embedContext.type === 'video') {
+                // Video embed
+                return {
+                    component: VideoEmbedPreview,
+                    props: {
+                        id: embedId,
+                        url: decodedContent.url || embedContext.url || '',
+                        title: decodedContent.title || embedContext.title || '',
+                        description: decodedContent.description || '',
+                        image: decodedContent.image || '',
+                        isMobile: false,
+                        onFullscreen: () => {}
+                    }
+                };
+            } else if (embedData.type === 'code' || embedData.type === 'code-block') {
+                // Code embed
+                return {
+                    component: CodeEmbedPreview,
+                    props: {
+                        id: embedId,
+                        code: decodedContent.code || '',
+                        language: decodedContent.language || 'text',
+                        filename: decodedContent.filename,
+                        lineCount: decodedContent.lineCount || 0,
+                        isMobile: false,
+                        onFullscreen: () => {}
+                    }
+                };
+            } else {
+                console.warn('[SettingsShare] No preview component for embed type:', { appId: embedAppId, skillId, type: embedData.type });
+                // Return null if no component available
+                return null;
+            }
+        } catch (error) {
+            console.error('[SettingsShare] Error loading embed preview:', error);
+            return null;
+        }
+    }
+    
+    // Create a derived promise that loads the embed preview when embed context changes
+    // This avoids infinite loops by using a promise-based approach like AppEmbedsPanel
+    let embedPreviewData = $derived.by(() => {
+        if (isEmbedSharing && embedContext?.embed_id) {
+            // Return a promise that loads the embed preview
+            // The promise will be cached by Svelte's reactivity system
+            return loadEmbedPreview();
+        }
+        return null;
+    });
 
     // Check for embed context on mount, when window.__embedShareContext changes, 
     // when settingsDeepLink is set to 'shared/share' (Share button clicked),
@@ -291,6 +473,8 @@
                 isLinkGenerated = true;
                 isConfigurationStep = false;
                 // Note: sharedChatId not set for embeds (embedContext is used instead)
+                // Keep embedContext so it persists when showing the link/QR code
+                console.debug('[SettingsShare] Embed share link generated, isLinkGenerated:', isLinkGenerated, 'embedContext:', embedContext?.embed_id);
 
                 // Generate QR code
                 generateQRCode(generatedLink);
@@ -926,15 +1110,41 @@
     
     // Password must be max 10 characters
     let isPasswordValid = $derived(!isPasswordProtected || (password.length > 0 && password.length <= 10));
-    let canGenerateLink = $derived(currentChatId && isPasswordValid);
+    // Can generate link if we have either a chat ID or an embed context
+    let canGenerateLink = $derived((currentChatId || (isEmbedSharing && embedContext)) && isPasswordValid);
     
     // Display chat ID: use sharedChatId if link is generated (to keep it stable), otherwise use currentChatId
     // This ensures the displayed chat and QR code remain unchanged when user switches chats
     let displayChatId = $derived(isLinkGenerated ? sharedChatId : currentChatId);
+    
+    // Check if we have something to share (chat or embed)
+    // Show content if:
+    // 1. We have a chat ID (for chat sharing)
+    // 2. We have embed context and are sharing an embed (for embed sharing)
+    // 3. A link has already been generated (for both chats and embeds)
+    let hasShareableContent = $derived.by(() => {
+        const result = isLinkGenerated || // Link already generated - always show
+            displayChatId || // Chat ID available
+            (isEmbedSharing && embedContext && embedContext.embed_id); // Embed context available
+        
+        // Debug logging for embed sharing
+        if (isEmbedSharing) {
+            console.debug('[SettingsShare] hasShareableContent check:', {
+                isLinkGenerated,
+                displayChatId,
+                isEmbedSharing,
+                hasEmbedContext: !!embedContext,
+                embedId: embedContext?.embed_id,
+                result
+            });
+        }
+        
+        return result;
+    });
 </script>
 
-<!-- No chat selected message -->
-{#if !displayChatId}
+<!-- No chat/embed selected message -->
+{#if !hasShareableContent}
     <div class="no-chat-message" transition:fade={{ duration: 200 }}>
         <div class="icon settings_size shared"></div>
         <p>{$text('settings.share.no_chat_selected.text')}</p>
@@ -945,17 +1155,33 @@
         <!-- Info Display - Show what is being shared (chat or embed) -->
         <div class="chat-info-display" transition:fade={{ duration: 200 }}>
             {#if isEmbedSharing && embedContext}
-                <!-- Embed Info Display -->
+                <!-- Embed Preview Display -->
                 <div class="embed-preview">
                     <div class="embed-preview-header">
                         <span class="embed-preview-label">{$text('settings.share.sharing_embed.text', { default: 'Sharing:' })}</span>
                     </div>
-                    <div class="embed-info">
-                        <div class="embed-title">{embedContext.title}</div>
-                        <div class="embed-type">{embedContext.type === 'video' ? 'Video' : embedContext.type === 'video-transcript' ? 'Video Transcript' : embedContext.type === 'website' ? 'Website' : embedContext.type}</div>
-                        {#if embedContext.url}
-                            <div class="embed-url">{embedContext.url}</div>
-                        {/if}
+                    <div class="embed-preview-content">
+                        {#await embedPreviewData then previewResult}
+                            {#if previewResult}
+                                {@const Component = previewResult.component}
+                                <Component {...previewResult.props} />
+                            {:else}
+                                <!-- Fallback to text if component not loaded -->
+                                <div class="embed-info">
+                                    <div class="embed-title">{embedContext.title || 'Embed'}</div>
+                                    <div class="embed-type">{embedContext.type === 'video' ? 'Video' : embedContext.type === 'video-transcript' ? 'Video Transcript' : embedContext.type === 'website' ? 'Website' : embedContext.type || 'Embed'}</div>
+                                    {#if embedContext.url}
+                                        <div class="embed-url">{embedContext.url}</div>
+                                    {/if}
+                                </div>
+                            {/if}
+                        {:catch error}
+                            <!-- Error state -->
+                            <div class="embed-info">
+                                <div class="embed-title">{embedContext.title || 'Embed'}</div>
+                                <div class="embed-type">{embedContext.type || 'Embed'}</div>
+                            </div>
+                        {/await}
                     </div>
                 </div>
             {:else if currentChat && displayChatId}
@@ -1086,17 +1312,33 @@
         <!-- Info Display - Show what the link is for (chat or embed) -->
         <div class="chat-info-display link-step" transition:fade={{ duration: 200 }}>
             {#if isEmbedSharing && embedContext}
-                <!-- Embed Info Display -->
+                <!-- Embed Preview Display -->
                 <div class="embed-preview">
                     <div class="embed-preview-header">
                         <span class="embed-preview-label">{$text('settings.share.link_for_embed.text', { default: 'Link for:' })}</span>
                     </div>
-                    <div class="embed-info">
-                        <div class="embed-title">{embedContext.title}</div>
-                        <div class="embed-type">{embedContext.type === 'video' ? 'Video' : embedContext.type === 'video-transcript' ? 'Video Transcript' : embedContext.type === 'website' ? 'Website' : embedContext.type}</div>
-                        {#if embedContext.url}
-                            <div class="embed-url">{embedContext.url}</div>
-                        {/if}
+                    <div class="embed-preview-content">
+                        {#await embedPreviewData then previewResult}
+                            {#if previewResult}
+                                {@const Component = previewResult.component}
+                                <Component {...previewResult.props} />
+                            {:else}
+                                <!-- Fallback to text if component not loaded -->
+                                <div class="embed-info">
+                                    <div class="embed-title">{embedContext.title || 'Embed'}</div>
+                                    <div class="embed-type">{embedContext.type === 'video' ? 'Video' : embedContext.type === 'video-transcript' ? 'Video Transcript' : embedContext.type === 'website' ? 'Website' : embedContext.type || 'Embed'}</div>
+                                    {#if embedContext.url}
+                                        <div class="embed-url">{embedContext.url}</div>
+                                    {/if}
+                                </div>
+                            {/if}
+                        {:catch error}
+                            <!-- Error state -->
+                            <div class="embed-info">
+                                <div class="embed-title">{embedContext.title || 'Embed'}</div>
+                                <div class="embed-type">{embedContext.type || 'Embed'}</div>
+                            </div>
+                        {/await}
                     </div>
                 </div>
             {:else if currentChat && displayChatId}

@@ -80,15 +80,15 @@
             // The backend returns dummy data for non-existent embeds to prevent enumeration
             // We can't distinguish real from dummy data, but if decryption fails later, we'll know
             console.debug('[ShareEmbed] Received embed data from server:', {
-                embed_id: data.embed_id,
-                has_encrypted_content: !!data.encrypted_content,
-                has_encrypted_type: !!data.encrypted_type,
+                embed_id: data.embed?.embed_id,
+                has_encrypted_content: !!data.embed?.encrypted_content,
+                has_encrypted_type: !!data.embed?.encrypted_type,
                 child_embed_count: data.child_embeds?.length || 0,
                 embed_keys_count: data.embed_keys?.length || 0
             });
 
             return {
-                embed: data,
+                embed: data.embed || null,
                 childEmbeds: data.child_embeds || [],
                 embed_keys: data.embed_keys || []
             };
@@ -126,16 +126,22 @@
 
             // Decrypt the key blob using embed share encryption service
             const { decryptEmbedShareKeyBlob } = await import('@repo/ui');
-            const result = await decryptEmbedShareKeyBlob(encryptedBlob, embedId, password);
+            const result = await decryptEmbedShareKeyBlob(embedId, encryptedBlob, serverTime, password);
 
-            if (!result) {
-                error = 'Failed to decrypt share link. The link may be invalid or expired.';
-                isLoading = false;
-                return;
-            }
-
-            if (result.isExpired) {
-                error = 'This embed link has expired.';
+            if (!result.success) {
+                if (result.error === 'expired') {
+                    error = 'This embed link has expired.';
+                } else if (result.error === 'password_required') {
+                    requiresPassword = true;
+                    isLoading = false;
+                    return;
+                } else if (result.error === 'invalid_password') {
+                    passwordError = 'Invalid password. Please try again.';
+                    isLoading = false;
+                    return;
+                } else {
+                    error = 'Failed to decrypt share link. The link may be invalid or expired.';
+                }
                 isLoading = false;
                 return;
             }
@@ -158,21 +164,29 @@
                 return;
             }
 
+            // Validate that we have encrypted content
+            if (!fetchedEmbed.encrypted_content) {
+                error = 'Embed data is missing encrypted content. The embed may be corrupted.';
+                isLoading = false;
+                return;
+            }
+
             // Set the embed encryption key in the database cache BEFORE storing embed
             // This allows the embed to be decrypted when stored
+            // Pass hashed_chat_id if available so the cache key matches when retrieving
             const { embedStore } = await import('@repo/ui');
-            embedStore.setEmbedKeyInCache(embedId, result.embedKey);
+            embedStore.setEmbedKeyInCache(embedId, result.embedKey, fetchedEmbed.hashed_chat_id);
 
             // Store embed in IndexedDB
             console.debug('[ShareEmbed] Storing embed in IndexedDB...');
-            await embedStore.init();
+            // Note: embedStore doesn't require initialization - it's ready to use
 
             // Store main embed first
             const contentRef = `embed:${embedId}`;
             await embedStore.putEncrypted(contentRef, {
                 encrypted_content: fetchedEmbed.encrypted_content,
                 encrypted_type: fetchedEmbed.encrypted_type,
-                embed_id: fetchedEmbed.embed_id,
+                embed_id: fetchedEmbed.embed_id || embedId,
                 status: fetchedEmbed.status || 'finished',
                 hashed_chat_id: fetchedEmbed.hashed_chat_id,
                 hashed_user_id: fetchedEmbed.hashed_user_id
@@ -243,11 +257,22 @@
 
             console.debug('[ShareEmbed] Successfully stored embed and child embeds in IndexedDB');
 
+            // Verify the embed can be retrieved and decrypted before proceeding
+            // This ensures the embed key is properly cached and the embed is accessible
+            const verifyEmbed = await embedStore.get(`embed:${embedId}`);
+            if (!verifyEmbed || !verifyEmbed.content) {
+                console.warn('[ShareEmbed] Embed verification failed - embed may not be decryptable yet');
+                // Continue anyway - handleEmbedFullscreen will retry loading
+            } else {
+                console.debug('[ShareEmbed] Embed verified and decrypted successfully');
+            }
+
             // Navigate to main app first
             await goto('/');
 
-            // Wait a brief moment for the main app to load
-            await new Promise(resolve => setTimeout(resolve, 100));
+            // Wait a bit longer for the main app to fully initialize and ActiveChat to be ready
+            // This ensures the embedfullscreen event listener is registered
+            await new Promise(resolve => setTimeout(resolve, 300));
 
             // Determine embed type from the fetched embed data
             // encrypted_type indicates app-skill-use embeds, otherwise use the direct embed_type

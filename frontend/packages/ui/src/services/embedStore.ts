@@ -680,46 +680,55 @@ export class EmbedStore {
       // If parsed object has encrypted_content, decrypt using embed key
       // The embed key is obtained from embed_keys collection (wrapped with master key or chat key)
       if (parsed && parsed.encrypted_content && typeof parsed.encrypted_content === 'string') {
-        let decryptionFailed = false;
-        try {
-          // Get the embed_id to look up embed key
-          const embedId = parsed.embed_id || contentRef.replace('embed:', '');
-          
-          // Try to get the unwrapped embed key
-          let embedKey = await this.getEmbedKey(embedId, parsed.hashed_chat_id);
-          
-          if (embedKey) {
-            // Decrypt content with embed key
-            console.debug('[EmbedStore] Attempting decrypt with embed key:', {
-              embedId,
-              keyLength: embedKey.length,
-              contentLength: parsed.encrypted_content?.length || 0
-            });
-            const decryptedContent = await decryptWithEmbedKey(parsed.encrypted_content, embedKey);
-            if (decryptedContent) {
-              parsed.content = decryptedContent;
-              console.debug('[EmbedStore] ✅ Successfully decrypted embed content with embed key:', embedId);
-            } else {
-              console.warn('[EmbedStore] ❌ Failed to decrypt encrypted_content with embed key - decrypt returned null');
-              decryptionFailed = true;
-            }
-          } else {
-            console.warn('[EmbedStore] No embed key found for:', embedId);
-            decryptionFailed = true;
-          }
-        } catch (error) {
-          console.warn('[EmbedStore] Error decrypting encrypted_content field:', error);
-          decryptionFailed = true;
-        }
-        
-        // CRITICAL: If decryption failed, set a flag so UI can show error state instead of crashing
-        // This prevents crashes when embed keys are missing (e.g., not synced yet)
-        if (decryptionFailed && !parsed.content) {
+        // Validate encrypted_content is not empty
+        if (parsed.encrypted_content.trim().length === 0) {
+          console.warn('[EmbedStore] encrypted_content is empty, cannot decrypt');
           parsed._decryptionFailed = true;
           parsed.status = 'error';
-          // Provide minimal content to prevent crashes in TOON decoder
           parsed.content = null;
-          console.warn('[EmbedStore] Embed decryption failed, setting error status for:', contentRef);
+        } else {
+          let decryptionFailed = false;
+          try {
+            // Get the embed_id to look up embed key
+            const embedId = parsed.embed_id || contentRef.replace('embed:', '');
+            
+            // Try to get the unwrapped embed key
+            let embedKey = await this.getEmbedKey(embedId, parsed.hashed_chat_id);
+            
+            if (embedKey) {
+              // Decrypt content with embed key
+              console.debug('[EmbedStore] Attempting decrypt with embed key:', {
+                embedId,
+                keyLength: embedKey.length,
+                contentLength: parsed.encrypted_content?.length || 0,
+                contentPreview: parsed.encrypted_content.substring(0, 50) + '...'
+              });
+              const decryptedContent = await decryptWithEmbedKey(parsed.encrypted_content, embedKey);
+              if (decryptedContent) {
+                parsed.content = decryptedContent;
+                console.debug('[EmbedStore] ✅ Successfully decrypted embed content with embed key:', embedId);
+              } else {
+                console.warn('[EmbedStore] ❌ Failed to decrypt encrypted_content with embed key - decrypt returned null');
+                decryptionFailed = true;
+              }
+            } else {
+              console.warn('[EmbedStore] No embed key found for:', embedId);
+              decryptionFailed = true;
+            }
+          } catch (error) {
+            console.warn('[EmbedStore] Error decrypting encrypted_content field:', error);
+            decryptionFailed = true;
+          }
+          
+          // CRITICAL: If decryption failed, set a flag so UI can show error state instead of crashing
+          // This prevents crashes when embed keys are missing (e.g., not synced yet)
+          if (decryptionFailed && !parsed.content) {
+            parsed._decryptionFailed = true;
+            parsed.status = 'error';
+            // Provide minimal content to prevent crashes in TOON decoder
+            parsed.content = null;
+            console.warn('[EmbedStore] Embed decryption failed, setting error status for:', contentRef);
+          }
         }
       }
       
@@ -876,10 +885,23 @@ export class EmbedStore {
    * @returns Promise<Uint8Array | null> - The unwrapped embed key or null
    */
   async getEmbedKey(embedId: string, hashedChatId?: string): Promise<Uint8Array | null> {
-    // Check cache first
+    // Check cache first with the provided hashedChatId (or 'master' as default)
     const cacheKey = `${embedId}:${hashedChatId || 'master'}`;
     if (embedKeyCache.has(cacheKey)) {
       return embedKeyCache.get(cacheKey)!;
+    }
+    
+    // Fallback: If hashedChatId was provided but cache lookup failed, try 'master' cache key
+    // This handles cases where the key was set with 'master' but we're looking it up with a hashedChatId
+    if (hashedChatId) {
+      const masterCacheKey = `${embedId}:master`;
+      if (embedKeyCache.has(masterCacheKey)) {
+        const masterKey = embedKeyCache.get(masterCacheKey)!;
+        // Also cache it with the hashedChatId for future lookups
+        embedKeyCache.set(cacheKey, masterKey);
+        console.debug('[EmbedStore] Found embed key in master cache, also cached with hashedChatId:', embedId);
+        return masterKey;
+      }
     }
 
     try {

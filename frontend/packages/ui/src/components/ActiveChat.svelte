@@ -291,7 +291,23 @@
             // CRITICAL: Backup handler for logout - ensures demo chat loads even if userLoggingOut event wasn't caught
             // This is especially important on mobile where event timing might be off
             // Only trigger if we have a current chat that's not a demo chat (user was logged in)
+            // CRITICAL: Don't clear shared chats - they're valid for non-auth users
             if (currentChat && !isPublicChat(currentChat.chat_id)) {
+                // Check if this is a shared chat (has chat key in cache or is in sessionStorage shared_chats)
+                // chatDB.getChatKey is synchronous, so we can check immediately
+                const chatKey = chatDB.getChatKey(currentChat.chat_id);
+                const sharedChatIds = typeof sessionStorage !== 'undefined' 
+                    ? JSON.parse(sessionStorage.getItem('shared_chats') || '[]')
+                    : [];
+                const isSharedChat = chatKey !== null || sharedChatIds.includes(currentChat.chat_id);
+                
+                if (isSharedChat) {
+                    // This is a shared chat - don't clear it, it's valid for non-auth users
+                    console.debug('[ActiveChat] Auth state changed to unauthenticated - keeping shared chat:', currentChat.chat_id);
+                    return; // Keep the shared chat loaded
+                }
+                
+                // Not a shared chat - proceed with clearing
                 console.debug('[ActiveChat] Auth state changed to unauthenticated - clearing user chat and loading demo chat (backup handler)');
                 
                 // Clear current chat state
@@ -304,7 +320,7 @@
                 // Clear the persistent store
                 activeChatStore.clearActiveChat();
                 
-                // Load demo welcome chat
+                // Load demo welcome chat (async operation)
                 (async () => {
                     try {
                         const welcomeDemo = DEMO_CHATS.find(chat => chat.chat_id === 'demo-welcome');
