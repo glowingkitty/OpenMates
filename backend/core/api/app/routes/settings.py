@@ -1,4 +1,4 @@
-from fastapi import APIRouter, UploadFile, File, HTTPException, Depends, Cookie, Request
+from fastapi import APIRouter, UploadFile, File, HTTPException, Depends, Cookie, Request, Security
 from fastapi.responses import StreamingResponse
 import logging
 import time
@@ -8,7 +8,16 @@ from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.models.user import User
-from backend.core.api.app.routes.auth_routes.auth_dependencies import get_directus_service, get_cache_service, get_compliance_service, get_current_user, get_encryption_service, get_current_user_or_api_key 
+from backend.core.api.app.routes.auth_routes.auth_dependencies import get_directus_service, get_cache_service, get_compliance_service, get_current_user, get_encryption_service, get_current_user_or_api_key
+from backend.core.api.app.utils.api_key_auth import api_key_scheme
+from fastapi.security import HTTPBearer
+
+# Create an optional API key scheme that doesn't fail if missing (for endpoints that support both session and API key auth)
+optional_api_key_scheme = HTTPBearer(
+    scheme_name="API Key",
+    description="Enter your API key. API keys start with 'sk-api-'. Use format: Bearer sk-api-...",
+    auto_error=False  # Don't raise error if missing - allows session auth to work
+) 
 import os
 import random
 import string
@@ -17,12 +26,12 @@ from backend.core.api.app.services.s3 import S3UploadService
 from backend.core.api.app.services.compliance import ComplianceService
 from backend.core.api.app.services.limiter import limiter
 from backend.core.api.app.utils.device_fingerprint import generate_device_fingerprint_hash, _extract_client_ip # Updated imports
-from backend.core.api.app.schemas.settings import LanguageUpdateRequest, DarkModeUpdateRequest, AutoTopUpLowBalanceRequest # Import request/response models
+from backend.core.api.app.schemas.settings import LanguageUpdateRequest, DarkModeUpdateRequest, AutoTopUpLowBalanceRequest, BillingOverviewResponse, InvoiceResponse # Import request/response models
 import hashlib  # For API key hashing and user ID hashing
 import secrets  # For secure API key generation
 from datetime import datetime, timezone
 
-router = APIRouter(prefix="/v1/settings")
+router = APIRouter(prefix="/v1/settings", tags=["Settings"])
 logger = logging.getLogger(__name__)
 
 # --- Define a simple success response model ---
@@ -32,7 +41,7 @@ class SimpleSuccessResponse(BaseModel):
 
 
 # --- Endpoint for updating profile image ---
-@router.post("/user/update_profile_image", response_model=dict) # Keep original response model
+@router.post("/user/update_profile_image", response_model=dict, include_in_schema=False)  # Exclude from schema - not in whitelist
 @limiter.limit("10/minute")  # Prevent abuse of profile image uploads
 async def update_profile_image(
     request: Request,  # Keep request parameter for IP/fingerprint
@@ -180,7 +189,7 @@ async def update_profile_image(
         raise HTTPException(status_code=500, detail="Error processing image")
 
 # --- Endpoint for Privacy & Apps Consent ---
-@router.post("/user/consent/privacy-apps", response_model=SimpleSuccessResponse)
+@router.post("/user/consent/privacy-apps", response_model=SimpleSuccessResponse, include_in_schema=False)  # Exclude from schema - not in whitelist
 @limiter.limit("30/minute")  # Prevent abuse of consent updates
 async def record_privacy_apps_consent(
     request: Request, # Add request parameter for compliance logging
@@ -241,7 +250,7 @@ async def record_privacy_apps_consent(
         raise HTTPException(status_code=500, detail="An error occurred while saving consent")
 
 # --- Endpoint for updating user language ---
-@router.post("/user/language", response_model=SimpleSuccessResponse)
+@router.post("/user/language", response_model=SimpleSuccessResponse, include_in_schema=False)  # Exclude from schema - not in whitelist
 @limiter.limit("30/minute")  # Prevent abuse of language updates
 async def update_user_language(
     request: Request,
@@ -284,7 +293,7 @@ async def update_user_language(
         raise HTTPException(status_code=500, detail="An error occurred while updating language setting")
 
 # --- Endpoint for updating user dark mode preference ---
-@router.post("/user/darkmode", response_model=SimpleSuccessResponse)
+@router.post("/user/darkmode", response_model=SimpleSuccessResponse, include_in_schema=False)  # Exclude from schema - not in whitelist
 @limiter.limit("30/minute")  # Prevent abuse of dark mode updates
 async def update_user_darkmode(
     request: Request,
@@ -321,7 +330,7 @@ async def update_user_darkmode(
         raise HTTPException(status_code=500, detail="An error occurred while updating dark mode setting")
 
 # --- Endpoint for Mates Settings Consent ---
-@router.post("/user/consent/mates", response_model=SimpleSuccessResponse)
+@router.post("/user/consent/mates", response_model=SimpleSuccessResponse, include_in_schema=False)  # Exclude from schema - not in whitelist
 @limiter.limit("30/minute")  # Prevent abuse of consent updates
 async def record_mates_consent(
     request: Request, # Add request parameter for compliance logging
@@ -382,12 +391,16 @@ async def record_mates_consent(
         raise HTTPException(status_code=500, detail="An error occurred while saving consent")
 
 # --- Endpoint for Low Balance Auto Top-Up Settings ---
-@router.post("/auto-topup/low-balance", response_model=SimpleSuccessResponse)
+@router.post(
+    "/auto-topup/low-balance",
+    response_model=SimpleSuccessResponse,
+    dependencies=[Security(optional_api_key_scheme)]  # Add security requirement for Swagger UI, but don't fail if missing (handled by get_current_user_or_api_key)
+)
 @limiter.limit("30/minute")  # Prevent abuse of auto-topup settings
 async def update_low_balance_auto_topup(
     request: Request,
     request_data: AutoTopUpLowBalanceRequest,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user_or_api_key),  # Supports both session and API key auth
     directus_service: DirectusService = Depends(get_directus_service),
     cache_service: CacheService = Depends(get_cache_service)
 ):
@@ -458,12 +471,13 @@ class ApiKeyCreateRequest(BaseModel):
     expires_at: Optional[str] = None  # Optional expiration timestamp (ISO format)
 
 class ApiKeyResponse(BaseModel):
+    """Response model for API key information (encrypted fields excluded for REST API)"""
     id: str
-    encrypted_name: str  # Client decrypts for display
-    encrypted_key_prefix: str  # Client decrypts for display
     created_at: str
     expires_at: Optional[str] = None
     last_used_at: Optional[str] = None
+    # Note: encrypted_name and encrypted_key_prefix are excluded from REST API responses
+    # These fields are only available via CLI tools that have decryption keys
 
 class ApiKeyListResponse(BaseModel):
     api_keys: list[ApiKeyResponse]
@@ -471,32 +485,70 @@ class ApiKeyListResponse(BaseModel):
 
 # --- API Key Management Endpoints ---
 
-@router.get("/api-keys", response_model=ApiKeyListResponse)
+@router.get(
+    "/api-keys",
+    response_model=ApiKeyListResponse,
+    dependencies=[Security(optional_api_key_scheme)]  # Add security requirement for Swagger UI, but don't fail if missing (handled by get_current_user_or_api_key)
+)
 @limiter.limit("30/minute")
 async def get_api_keys(
     request: Request,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user_or_api_key),  # Supports both session and API key auth
     directus_service: DirectusService = Depends(get_directus_service),
     cache_service: CacheService = Depends(get_cache_service)
 ):
     """Get all API keys for the current user."""
     try:
+        logger.info(f"Fetching API keys for user {current_user.id}")
+        
         # Query API keys from the api_keys collection (not from user model)
         api_keys_data = await directus_service.get_user_api_keys_by_user_id(current_user.id)
         
+        logger.debug(f"Retrieved {len(api_keys_data) if api_keys_data else 0} API keys from Directus for user {current_user.id}")
+        
         # Convert to response format (client will decrypt encrypted fields)
-        api_keys = [
-            ApiKeyResponse(
-                id=key.get('id'),
-                encrypted_name=key.get('encrypted_name', ''),
-                encrypted_key_prefix=key.get('encrypted_key_prefix', ''),
-                created_at=key.get('created_at', ''),
-                expires_at=key.get('expires_at'),
-                last_used_at=key.get('last_used_at')
-            )
-            for key in api_keys_data
-        ]
-
+        api_keys = []
+        if api_keys_data:
+            for key in api_keys_data:
+                try:
+                    # Format timestamps - Directus may return datetime objects or ISO strings
+                    created_at = key.get('created_at', '')
+                    if created_at and not isinstance(created_at, str):
+                        # Convert datetime object to ISO string
+                        if hasattr(created_at, 'isoformat'):
+                            created_at = created_at.isoformat()
+                        else:
+                            created_at = str(created_at)
+                    
+                    expires_at = key.get('expires_at')
+                    if expires_at and not isinstance(expires_at, str):
+                        # Convert datetime object to ISO string
+                        if hasattr(expires_at, 'isoformat'):
+                            expires_at = expires_at.isoformat()
+                        else:
+                            expires_at = str(expires_at)
+                    
+                    last_used_at = key.get('last_used_at')
+                    if last_used_at and not isinstance(last_used_at, str):
+                        # Convert datetime object to ISO string
+                        if hasattr(last_used_at, 'isoformat'):
+                            last_used_at = last_used_at.isoformat()
+                        else:
+                            last_used_at = str(last_used_at)
+                    
+                    # Exclude encrypted fields from REST API response (only available via CLI)
+                    api_key_response = ApiKeyResponse(
+                        id=key.get('id'),
+                        created_at=created_at,
+                        expires_at=expires_at,
+                        last_used_at=last_used_at
+                    )
+                    api_keys.append(api_key_response)
+                except Exception as key_error:
+                    logger.warning(f"Error processing API key {key.get('id', 'unknown')}: {key_error}", exc_info=True)
+                    continue
+        
+        logger.info(f"Returning {len(api_keys)} API keys for user {current_user.id}")
         return ApiKeyListResponse(api_keys=api_keys)
 
     except HTTPException as e:
@@ -506,7 +558,7 @@ async def get_api_keys(
         raise HTTPException(status_code=500, detail="Failed to retrieve API keys")
 
 
-@router.post("/api-keys", response_model=ApiKeyResponse)
+@router.post("/api-keys", response_model=ApiKeyResponse, include_in_schema=False)  # Exclude from schema - not in whitelist
 @limiter.limit("10/minute")
 async def create_api_key(
     request: Request,
@@ -575,13 +627,36 @@ async def create_api_key(
 
         logger.info(f"Successfully created API key for user {current_user.id} with encryption key")
 
+        # Format created_at timestamp
+        created_at = created_key.get('created_at', datetime.now(timezone.utc).isoformat())
+        if created_at and not isinstance(created_at, str):
+            if hasattr(created_at, 'isoformat'):
+                created_at = created_at.isoformat()
+            else:
+                created_at = str(created_at)
+        
+        # Format expires_at timestamp
+        expires_at = created_key.get('expires_at')
+        if expires_at and not isinstance(expires_at, str):
+            if hasattr(expires_at, 'isoformat'):
+                expires_at = expires_at.isoformat()
+            else:
+                expires_at = str(expires_at)
+        
+        # Format last_used_at timestamp
+        last_used_at = created_key.get('last_used_at')
+        if last_used_at and not isinstance(last_used_at, str):
+            if hasattr(last_used_at, 'isoformat'):
+                last_used_at = last_used_at.isoformat()
+            else:
+                last_used_at = str(last_used_at)
+        
+        # Exclude encrypted fields from REST API response (only available via CLI)
         return ApiKeyResponse(
             id=created_key.get('id', ''),
-            encrypted_name=created_key.get('encrypted_name', ''),
-            encrypted_key_prefix=created_key.get('encrypted_key_prefix', ''),
-            created_at=created_key.get('created_at', datetime.now(timezone.utc).isoformat()),
-            expires_at=created_key.get('expires_at'),
-            last_used_at=created_key.get('last_used_at')
+            created_at=created_at,
+            expires_at=expires_at,
+            last_used_at=last_used_at
         )
 
     except HTTPException as e:
@@ -591,12 +666,12 @@ async def create_api_key(
         raise HTTPException(status_code=500, detail="Failed to create API key")
 
 
-@router.delete("/api-keys/{key_id}", response_model=SimpleSuccessResponse)
+@router.delete("/api-keys/{key_id}", response_model=SimpleSuccessResponse, include_in_schema=False)  # Exclude from schema - not in whitelist, web app only
 @limiter.limit("20/minute")
 async def delete_api_key(
     request: Request,
     key_id: str,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),  # Web app only - no API key access
     directus_service: DirectusService = Depends(get_directus_service),
     cache_service: CacheService = Depends(get_cache_service)
 ):
@@ -640,7 +715,7 @@ async def delete_api_key(
 # --- API Key Device Management Endpoints ---
 
 class DeviceResponse(BaseModel):
-    """Response model for API key device information"""
+    """Response model for API key device information (encrypted fields excluded for REST API)"""
     id: str
     api_key_id: str
     anonymized_ip: str
@@ -652,18 +727,23 @@ class DeviceResponse(BaseModel):
     last_access_at: Optional[str] = None
     access_type: str
     machine_identifier: Optional[str] = None
-    encrypted_device_name: Optional[str] = None  # Client-side encrypted device name (client decrypts with master key)
+    # Note: encrypted_device_name is excluded from REST API responses
+    # This field is only available via CLI tools that have decryption keys
 
 class DeviceListResponse(BaseModel):
     """Response model for list of API key devices"""
     devices: list[DeviceResponse]
 
 
-@router.get("/api-key-devices", response_model=DeviceListResponse)
+@router.get(
+    "/api-key-devices",
+    response_model=DeviceListResponse,
+    dependencies=[Security(optional_api_key_scheme)]  # Add security requirement for Swagger UI, but don't fail if missing (handled by get_current_user_or_api_key)
+)
 @limiter.limit("30/minute")
 async def get_api_key_devices(
     request: Request,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user_or_api_key),  # Supports both session and API key auth
     directus_service: DirectusService = Depends(get_directus_service)
 ):
     """
@@ -683,7 +763,7 @@ async def get_api_key_devices(
                 devices = await directus_service.get_api_key_devices(api_key_id, user_id=current_user.id)
                 all_devices.extend(devices)
         
-        # Convert to response format
+        # Convert to response format (exclude encrypted fields from REST API)
         device_responses = [
             DeviceResponse(
                 id=device.get('id'),
@@ -696,8 +776,8 @@ async def get_api_key_devices(
                 first_access_at=device.get('first_access_at'),
                 last_access_at=device.get('last_access_at'),
                 access_type=device.get('access_type', 'rest_api'),
-                machine_identifier=device.get('machine_identifier'),
-                encrypted_device_name=device.get('encrypted_device_name')  # Client-side encrypted (client decrypts)
+                machine_identifier=device.get('machine_identifier')
+                # Note: encrypted_device_name excluded from REST API (only available via CLI)
             )
             for device in all_devices
         ]
@@ -718,12 +798,12 @@ async def get_api_key_devices(
         raise HTTPException(status_code=500, detail="Failed to retrieve API key devices")
 
 
-@router.post("/api-key-devices/{device_id}/approve", response_model=SimpleSuccessResponse)
+@router.post("/api-key-devices/{device_id}/approve", response_model=SimpleSuccessResponse, include_in_schema=False)  # Exclude from schema - not in whitelist, web app only
 @limiter.limit("30/minute")
 async def approve_api_key_device(
     request: Request,
     device_id: str,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),  # Web app only - no API key access
     directus_service: DirectusService = Depends(get_directus_service)
 ):
     """
@@ -777,7 +857,7 @@ async def approve_api_key_device(
         raise HTTPException(status_code=500, detail="Failed to approve device")
 
 
-@router.post("/api-key-devices/{device_id}/revoke", response_model=SimpleSuccessResponse)
+@router.post("/api-key-devices/{device_id}/revoke", response_model=SimpleSuccessResponse, include_in_schema=False)  # Exclude from schema - not in whitelist
 @limiter.limit("30/minute")
 async def revoke_api_key_device(
     request: Request,
@@ -840,13 +920,17 @@ class DeviceRenameRequest(BaseModel):
     encrypted_device_name: str = Field(..., description="New encrypted device name (encrypted client-side with master key)")
 
 
-@router.patch("/api-key-devices/{device_id}/rename", response_model=SimpleSuccessResponse)
+@router.patch(
+    "/api-key-devices/{device_id}/rename",
+    response_model=SimpleSuccessResponse,
+    include_in_schema=False  # Exclude from schema - web app only, not in whitelist
+)
 @limiter.limit("30/minute")
 async def rename_api_key_device(
     request: Request,
     device_id: str,
     rename_request: DeviceRenameRequest,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),  # Web app only - no API key access
     directus_service: DirectusService = Depends(get_directus_service)
 ):
     """
@@ -897,11 +981,14 @@ async def rename_api_key_device(
 
 
 # --- Endpoint for fetching usage data ---
-@router.get("/usage")
+@router.get(
+    "/usage",
+    dependencies=[Security(optional_api_key_scheme)]  # Add security requirement for Swagger UI, but don't fail if missing (handled by get_current_user_or_api_key)
+)
 @limiter.limit("30/minute")  # Rate limit usage data fetching
 async def get_usage(
     request: Request,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user_or_api_key),  # Supports both session and API key auth
     directus_service: DirectusService = Depends(get_directus_service),
     cache_service: CacheService = Depends(get_cache_service)
 ):
@@ -966,13 +1053,13 @@ async def get_usage(
 
 # --- Endpoint for fetching usage summaries (fast) ---
 # Note: This endpoint is also re-exported in usage_api.py for OpenAPI documentation
-@router.get("/usage/summaries")
+@router.get("/usage/summaries", include_in_schema=False)  # Exclude from schema - not in whitelist (available via usage_api)
 @limiter.limit("30/minute")
 async def get_usage_summaries(
     request: Request,
     type: str,  # "chats", "apps", or "api_keys"
     months: int = 3,
-    current_user: User = Depends(get_current_user_or_api_key),  # Supports both session and API key auth
+    current_user: User = Depends(get_current_user),  # Web app only - not in whitelist
     directus_service: DirectusService = Depends(get_directus_service),
     cache_service: CacheService = Depends(get_cache_service)
 ):
@@ -1023,35 +1110,26 @@ async def get_usage_summaries(
                         "user_id": {"_eq": current_user.id},
                         "key_hash": {"_in": api_key_hashes}
                     },
-                    "fields": "key_hash,encrypted_name,encrypted_key_prefix",
+                    "fields": "key_hash",  # Only fetch key_hash - encrypted fields excluded from REST API
                     "limit": -1
                 }
                 
                 try:
                     api_keys_data = await directus_service.get_items("api_keys", params=api_keys_params, no_cache=True)
                     
-                    # Create a map of api_key_hash -> API key data
-                    api_keys_map = {
-                        key.get("key_hash"): {
-                            "encrypted_name": key.get("encrypted_name", ""),
-                            "encrypted_key_prefix": key.get("encrypted_key_prefix", "")
-                        }
+                    # Create a map of api_key_hash -> API key exists (for validation only)
+                    # Encrypted fields are excluded from REST API responses
+                    api_keys_set = set(
+                        key.get("key_hash")
                         for key in api_keys_data
                         if key.get("key_hash")
-                    }
+                    )
                     
-                    # Enrich each summary with API key data
-                    for summary in summaries:
-                        api_key_hash = summary.get("api_key_hash")
-                        if api_key_hash and api_key_hash in api_keys_map:
-                            summary["encrypted_name"] = api_keys_map[api_key_hash]["encrypted_name"]
-                            summary["encrypted_key_prefix"] = api_keys_map[api_key_hash]["encrypted_key_prefix"]
-                        else:
-                            # If API key not found (might be deleted), set empty strings
-                            summary["encrypted_name"] = ""
-                            summary["encrypted_key_prefix"] = ""
+                    # Note: We don't enrich summaries with encrypted_name/encrypted_key_prefix
+                    # These fields are only available via CLI tools that have decryption keys
+                    # REST API users can identify API keys by their hash if needed
                     
-                    logger.debug(f"Enriched {len(summaries)} API key summaries with encrypted name/prefix data")
+                    logger.debug(f"Found {len(api_keys_set)} API keys for summaries (encrypted fields excluded from REST API)")
                 except Exception as e:
                     logger.warning(f"Failed to fetch API key data for summaries: {e}", exc_info=True)
                     # Continue without enrichment - summaries will still work, just without names
@@ -1074,7 +1152,7 @@ async def get_usage_summaries(
 
 # --- Endpoint for fetching usage details (lazy loading) ---
 # Note: This endpoint is also re-exported in usage_api.py for OpenAPI documentation
-@router.get("/usage/details")
+@router.get("/usage/details", include_in_schema=False)  # Exclude from schema - not in whitelist (available via usage_api)
 @limiter.limit("30/minute")
 async def get_usage_details(
     request: Request,
@@ -1221,12 +1299,12 @@ async def get_usage_details(
 
 
 # --- Endpoint for exporting usage data as CSV ---
-@router.get("/usage/export")
+@router.get("/usage/export", include_in_schema=False)  # Exclude from schema - not in whitelist
 @limiter.limit("10/minute")  # Lower limit for export to prevent abuse
 async def export_usage_csv(
     request: Request,
     months: int = 3,
-    current_user: User = Depends(get_current_user_or_api_key),
+    current_user: User = Depends(get_current_user),  # Web app only - not in whitelist
     directus_service: DirectusService = Depends(get_directus_service),
     encryption_service: EncryptionService = Depends(get_encryption_service)
 ):
@@ -1333,5 +1411,216 @@ async def export_usage_csv(
     except Exception as e:
         logger.error(f"Error exporting usage data for user {current_user.id}: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to export usage data")
+
+
+# --- Endpoint for billing overview ---
+@router.get(
+    "/billing",
+    response_model=BillingOverviewResponse,
+    dependencies=[Security(optional_api_key_scheme)]  # Add security requirement for Swagger UI, but don't fail if missing (handled by get_current_user_or_api_key)
+)
+@limiter.limit("30/minute")
+async def get_billing_overview(
+    request: Request,
+    current_user: User = Depends(get_current_user_or_api_key),  # Supports both session and API key auth
+    directus_service: DirectusService = Depends(get_directus_service),
+    cache_service: CacheService = Depends(get_cache_service),
+    encryption_service: EncryptionService = Depends(get_encryption_service)
+):
+    """
+    Get billing overview for the current user.
+    Returns current payment tier, auto top-up settings, and list of invoices.
+    Secured by API key validation (supports both session and API key authentication).
+    """
+    logger.info(f"Fetching billing overview for user {current_user.id}")
+    
+    try:
+        # Get user data from cache (or fetch from Directus if not cached)
+        user = await cache_service.get_user_by_id(current_user.id)
+        
+        if not user:
+            logger.info(f"User {current_user.id} not found in cache, fetching from Directus")
+            profile_success, user_profile, profile_message = await directus_service.get_user_profile(current_user.id)
+            
+            if not profile_success or not user_profile:
+                logger.error(f"User profile not found in Directus for user {current_user.id}: {profile_message}")
+                raise HTTPException(status_code=404, detail=f"User with ID {current_user.id} not found.")
+            
+            # Ensure user_id is present in the profile for caching
+            if "user_id" not in user_profile:
+                user_profile["user_id"] = current_user.id
+            if "id" not in user_profile:
+                user_profile["id"] = current_user.id
+            
+            # Cache the fetched profile
+            await cache_service.set_user(user_profile, user_id=current_user.id)
+            user = user_profile
+            logger.info(f"Successfully fetched and cached user {current_user.id} from Directus")
+        
+        # Get payment tier (default to 1 if not set)
+        payment_tier = user.get("payment_tier", 1)
+        if payment_tier < 0 or payment_tier > 4:
+            payment_tier = 1
+        
+        # Get auto top-up settings with proper defaults for None values
+        auto_topup_enabled = user.get("auto_topup_low_balance_enabled")
+        if auto_topup_enabled is None:
+            auto_topup_enabled = False
+        
+        auto_topup_threshold = user.get("auto_topup_low_balance_threshold")
+        if auto_topup_threshold is None:
+            auto_topup_threshold = 100  # Fixed threshold is 100
+        
+        auto_topup_amount = user.get("auto_topup_low_balance_amount")
+        if auto_topup_amount is None:
+            auto_topup_amount = 0
+        
+        auto_topup_currency = user.get("auto_topup_low_balance_currency")
+        if auto_topup_currency is None:
+            auto_topup_currency = "eur"
+        
+        # Get vault_key_id for invoice decryption
+        vault_key_id = user.get("vault_key_id")
+        if not vault_key_id:
+            logger.error(f"Vault key ID missing for user {current_user.id}")
+            raise HTTPException(status_code=500, detail="User encryption key not found")
+        
+        # Get invoices from Directus
+        user_id_hash = hashlib.sha256(current_user.id.encode()).hexdigest()
+        
+        invoices_data = await directus_service.get_items(
+            collection="invoices",
+            params={
+                "filter": {
+                    "user_id_hash": {"_eq": user_id_hash}
+                },
+                "sort": "-date"  # Most recent first
+            }
+        )
+        
+        processed_invoices = []
+        
+        if invoices_data:
+            # Get base URL for constructing download URLs
+            # Use request.url to get the base URL (scheme + host)
+            base_url = f"{request.url.scheme}://{request.url.netloc}"
+            
+            for invoice in invoices_data:
+                try:
+                    # Check if required encrypted fields exist
+                    if "encrypted_amount" not in invoice or not invoice.get("encrypted_amount"):
+                        logger.error(f"Invoice {invoice.get('id', 'unknown')} missing or empty encrypted_amount field")
+                        continue
+                    if "encrypted_credits_purchased" not in invoice or not invoice.get("encrypted_credits_purchased"):
+                        logger.error(f"Invoice {invoice.get('id', 'unknown')} missing or empty encrypted_credits_purchased field")
+                        continue
+                    
+                    # Decrypt required fields
+                    amount = await encryption_service.decrypt_with_user_key(
+                        invoice["encrypted_amount"],
+                        vault_key_id
+                    )
+                    
+                    credits_purchased = await encryption_service.decrypt_with_user_key(
+                        invoice["encrypted_credits_purchased"],
+                        vault_key_id
+                    )
+                    
+                    # Check if critical fields decrypted successfully
+                    if not amount or not credits_purchased:
+                        logger.warning(
+                            f"Failed to decrypt critical invoice data for invoice {invoice.get('id', 'unknown')}. "
+                            f"amount={bool(amount)}, credits={bool(credits_purchased)}"
+                        )
+                        continue
+                    
+                    # Format the date
+                    invoice_date = invoice.get("date")
+                    formatted_date = None
+                    
+                    if invoice_date:
+                        try:
+                            # Handle string format (ISO format from Directus)
+                            if isinstance(invoice_date, str):
+                                # Normalize timezone indicators (Z or +00:00)
+                                date_str = invoice_date.replace('Z', '+00:00')
+                                # Parse ISO format string
+                                parsed_date = datetime.fromisoformat(date_str)
+                            # Handle datetime object (if Directus returns it as object)
+                            elif hasattr(invoice_date, 'isoformat'):
+                                parsed_date = invoice_date
+                            else:
+                                # Try to convert to string and parse
+                                date_str = str(invoice_date)
+                                parsed_date = datetime.fromisoformat(date_str.replace('Z', '+00:00'))
+                            
+                            # Format for display (YYYY-MM-DD)
+                            formatted_date = parsed_date.strftime("%Y-%m-%d")
+                        except Exception as date_parse_error:
+                            logger.warning(
+                                f"Failed to parse invoice date for invoice {invoice.get('id', 'unknown')}: {invoice_date}. "
+                                f"Error: {date_parse_error}. Using fallback."
+                            )
+                            # Fallback: try to extract date from string
+                            date_str = str(invoice_date)
+                            if len(date_str) >= 10:
+                                formatted_date = date_str[:10]  # Take first 10 chars (YYYY-MM-DD)
+                            else:
+                                formatted_date = None
+                    
+                    # If date parsing failed completely, use a fallback
+                    if not formatted_date:
+                        logger.error(f"Could not parse date for invoice {invoice.get('id', 'unknown')}. Date value: {invoice_date}")
+                        formatted_date = "1970-01-01"  # Fallback date
+                    
+                    # Get order_id
+                    order_id = invoice.get("order_id", "")
+                    
+                    # Get is_gift_card flag (defaults to False if not set for backward compatibility)
+                    is_gift_card = invoice.get("is_gift_card", False)
+                    
+                    # Get refund information (if available)
+                    refund_status = invoice.get("refund_status", "none")
+                    
+                    # Construct download URL
+                    invoice_id = invoice.get("id")
+                    download_url = None
+                    if invoice_id:
+                        download_url = f"{base_url}/v1/payments/invoices/{invoice_id}/download"
+                    
+                    processed_invoices.append(InvoiceResponse(
+                        id=invoice_id,
+                        order_id=order_id,
+                        date=formatted_date,
+                        amount=amount,
+                        credits_purchased=int(credits_purchased),
+                        is_gift_card=is_gift_card,
+                        refund_status=refund_status,
+                        download_url=download_url
+                    ))
+                    
+                except Exception as e:
+                    logger.error(
+                        f"Error processing invoice {invoice.get('id', 'unknown')}: {str(e)}",
+                        exc_info=True
+                    )
+                    continue
+        
+        logger.info(f"Successfully fetched billing overview for user {current_user.id}: tier={payment_tier}, invoices={len(processed_invoices)}")
+        
+        return BillingOverviewResponse(
+            payment_tier=payment_tier,
+            auto_topup_enabled=auto_topup_enabled,
+            auto_topup_threshold=auto_topup_threshold,
+            auto_topup_amount=auto_topup_amount,
+            auto_topup_currency=auto_topup_currency,
+            invoices=processed_invoices
+        )
+        
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        logger.error(f"Error fetching billing overview for user {current_user.id}: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to fetch billing overview")
 
 

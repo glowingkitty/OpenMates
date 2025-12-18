@@ -875,7 +875,7 @@ def create_app() -> FastAPI:
     app.include_router(email.router, include_in_schema=False)  # Email endpoints - internal use only
     app.include_router(invoice.router, include_in_schema=False)  # Invoice endpoints - internal use only
     app.include_router(credit_note.router, include_in_schema=False)  # Credit note endpoints - internal use only
-    app.include_router(settings.router, include_in_schema=False)  # Settings endpoints - internal use only
+    app.include_router(settings.router)  # Settings endpoints - billing endpoint supports API key auth
     app.include_router(payments.router, include_in_schema=False)  # Payments endpoints - internal use only (invoices don't support API keys yet)
     app.include_router(websockets.router, include_in_schema=False)  # WebSocket endpoints - internal use only
     app.include_router(internal_api.router, include_in_schema=False)  # Internal API router - service-to-service communication only

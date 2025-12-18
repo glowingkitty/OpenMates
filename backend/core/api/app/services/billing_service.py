@@ -456,16 +456,22 @@ class BillingService:
             import yaml
             import os
 
-            pricing_file = os.path.join(
-                os.path.dirname(__file__),
-                '../../../../../shared/config/pricing.yml'
-            )
+            # Try absolute path first (Docker standard)
+            pricing_file = "/shared/config/pricing.yml"
+            
+            if not os.path.exists(pricing_file):
+                # Fallback to relative path (local development)
+                pricing_file = os.path.join(
+                    os.path.dirname(__file__),
+                    '../../../../../shared/config/pricing.yml'
+                )
 
+            logger.debug(f"Loading pricing config from: {pricing_file}")
             with open(pricing_file, 'r') as f:
                 pricing_config = yaml.safe_load(f)
 
             # Find matching tier
-            for tier in pricing_config.get('tiers', []):
+            for tier in pricing_config.get('pricingTiers', []):
                 if tier.get('credits') == credits_amount:
                     price = tier.get('price', {}).get(currency)
                     if price is not None:
