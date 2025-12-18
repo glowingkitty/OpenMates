@@ -399,23 +399,47 @@
                             }
                         }
                         
+                        // CRITICAL: For shared embeds, child embeds inherit the parent embed's key (Option A - key inheritance)
+                        // Cache the parent embed key for this child embed so it can be used for decryption
+                        // This implements the key inheritance architecture where child embeds use parent's key
+                        embedStore.setEmbedKeyInCache(
+                            childEmbed.embed_id,
+                            result.embedKey, // Use parent embed's key from URL
+                            childEmbed.hashed_chat_id
+                        );
+                        // Also cache with 'master' as fallback (in case getEmbedKey is called without hashedChatId)
+                        embedStore.setEmbedKeyInCache(
+                            childEmbed.embed_id,
+                            result.embedKey, // Use parent embed's key from URL
+                            undefined // 'master' cache key
+                        );
+                        console.debug('[ShareEmbed] Cached parent embed key for child embed:', childEmbed.embed_id, 'using parent key from URL');
+                        
                         // Store the child embed with its already-encrypted content (no re-encryption)
-                        // The embed_key is already in cache, so decryption will work
+                        // Child embeds are encrypted with the parent embed's key (key inheritance - Option A)
                         await embedStore.putEncrypted(childContentRef, {
                             encrypted_content: cleanedChildContent,
                             encrypted_type: cleanedChildType,
                             embed_id: childEmbed.embed_id,
                             status: childEmbed.status || 'finished',
                             hashed_chat_id: childEmbed.hashed_chat_id,
-                            hashed_user_id: childEmbed.hashed_user_id
+                            hashed_user_id: childEmbed.hashed_user_id,
+                            parent_embed_id: embedId // Set parent_embed_id so getEmbedKey can find parent key
                         }, (childEmbed.encrypted_type ? 'app-skill-use' : childEmbed.embed_type || 'app-skill-use') as any);
                         
                         // Verify child embed can be retrieved and decrypted
                         const verifyChildEmbed = await embedStore.get(childContentRef);
                         if (!verifyChildEmbed || !verifyChildEmbed.content) {
-                            console.warn(`[ShareEmbed] Child embed verification failed for ${childEmbed.embed_id} - may not be decryptable`);
+                            // This can happen for old embeds that were encrypted with their own keys (before key inheritance)
+                            // Old child embeds require master/chat keys to unwrap, which aren't available in shared scenario
+                            // New embeds use parent key (key inheritance) and will decrypt successfully
+                            console.warn(
+                                `[ShareEmbed] Child embed verification failed for ${childEmbed.embed_id} - ` +
+                                `This may be an old embed encrypted with its own key. ` +
+                                `New embeds use parent key (key inheritance) and will work correctly.`
+                            );
                         } else {
-                            console.debug(`[ShareEmbed] ✅ Child embed ${childEmbed.embed_id} verified and decrypted successfully`);
+                            console.debug(`[ShareEmbed] ✅ Child embed ${childEmbed.embed_id} verified and decrypted successfully (using parent key - key inheritance)`);
                         }
                     } catch (embedError) {
                         console.error(`[ShareEmbed] Error storing child embed ${childEmbed.embed_id}:`, embedError);

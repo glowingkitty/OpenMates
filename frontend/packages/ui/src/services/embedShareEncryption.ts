@@ -264,6 +264,9 @@ export async function generateEmbedShareKeyBlob(
   });
   
   // Get the embed's encryption key from embedStore
+  // CRITICAL: For child embeds, getEmbedKey automatically uses the parent embed's key (key inheritance - Option A)
+  // This ensures that when sharing a child embed, we use the parent key in the share link
+  // The parent key is what decrypts both parent and child embeds
   const embedKey = await embedStore.getEmbedKey(embedId);
   if (!embedKey) {
     throw new Error(`Embed key not found for embed ID: ${embedId}`);

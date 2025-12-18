@@ -880,8 +880,9 @@ export class EmbedStore {
       return null;
     }
     
-    // For new format (separate fields), check embed_ids directly from entry
-    if (entry.embed_ids) {
+    // For new format (separate fields), check parent_embed_id and embed_ids directly from entry
+    // Always check parent_embed_id first (for child embeds), then embed_ids (for parent embeds)
+    if (entry.parent_embed_id !== undefined || entry.embed_ids !== undefined) {
       return {
         parent_embed_id: entry.parent_embed_id,
         embed_ids: Array.isArray(entry.embed_ids) ? entry.embed_ids : undefined
@@ -928,7 +929,7 @@ export class EmbedStore {
    * @returns Promise<Uint8Array | null> - The unwrapped embed key or null
    */
   async getEmbedKey(embedId: string, hashedChatId?: string): Promise<Uint8Array | null> {
-    // Check cache first with the provided hashedChatId (or 'master' as default)
+    // Check cache first
     const cacheKey = `${embedId}:${hashedChatId || 'master'}`;
     if (embedKeyCache.has(cacheKey)) {
       const cachedKey = embedKeyCache.get(cacheKey)!;
@@ -937,7 +938,6 @@ export class EmbedStore {
     }
     
     // Fallback: If hashedChatId was provided but cache lookup failed, try 'master' cache key
-    // This handles cases where the key was set with 'master' but we're looking it up with a hashedChatId
     if (hashedChatId) {
       const masterCacheKey = `${embedId}:master`;
       if (embedKeyCache.has(masterCacheKey)) {
@@ -960,7 +960,8 @@ export class EmbedStore {
       console.debug('[EmbedStore] Looking up embed keys with hashedEmbedId:', 
         hashedEmbedId.substring(0, 16) + '...', 'for embedId:', embedId);
 
-      // Try to load embed keys from IndexedDB
+      // Try to load embed keys from IndexedDB (ONLY for parent embeds)
+      // Child embeds are handled at the start of this function and use parent key
       const keys = await this.getEmbedKeyEntries(hashedEmbedId);
 
       if (keys && keys.length > 0) {
@@ -1075,23 +1076,8 @@ export class EmbedStore {
         }
       }
 
-      // No direct key found - check if this is a child embed (nested embed support)
-      // Try to get parent's key instead
-      // CRITICAL: Use getRawEntry() instead of get() to avoid infinite loop
-      // get() calls getEmbedKey() for decryption, which would create circular dependency
-      const rawEmbed = await this.getRawEntry(`embed:${embedId}`);
-      if (rawEmbed && rawEmbed.parent_embed_id) {
-        console.debug('[EmbedStore] Child embed detected, attempting to use parent key:', {
-          childId: embedId,
-          parentId: rawEmbed.parent_embed_id
-        });
-        const parentKey = await this.getEmbedKey(rawEmbed.parent_embed_id, hashedChatId);
-        if (parentKey) {
-          embedKeyCache.set(cacheKey, parentKey);
-          console.debug('[EmbedStore] Using parent embed key for child:', embedId);
-          return parentKey;
-        }
-      }
+      // No direct key found - this should not happen for child embeds (they're handled at the start)
+      // This path is only for parent embeds that couldn't unwrap their keys
 
       console.warn('[EmbedStore] Could not unwrap embed key (no valid key wrapper found and no parent key available):', embedId);
       return null;

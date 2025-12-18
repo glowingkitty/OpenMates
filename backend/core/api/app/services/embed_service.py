@@ -971,7 +971,8 @@ class EmbedService:
                         "status": "finished",
                         "hashed_user_id": user_id_hash,
                         "is_private": False,
-                "is_shared": False,
+                        "is_shared": False,
+                        "parent_embed_id": embed_id,  # CRITICAL: Set parent_embed_id for key inheritance
                         "text_length_chars": text_length_chars,
                         "created_at": created_at,
                         "updated_at": created_at
@@ -988,6 +989,7 @@ class EmbedService:
                     await self._cache_embed(child_embed_id, child_embed_data, chat_id, user_id_hash)
 
                     # SEND PLAINTEXT TOON TO CLIENT via WebSocket
+                    # CRITICAL: Pass parent_embed_id so child embeds can use parent's key (key inheritance - Option A)
                     await self.send_embed_data_to_client(
                         embed_id=child_embed_id,
                         embed_type=child_type,
@@ -1001,6 +1003,7 @@ class EmbedService:
                         text_length_chars=text_length_chars,
                         created_at=created_at,
                         updated_at=created_at,
+                        parent_embed_id=embed_id,  # Set parent_embed_id so frontend can use parent key
                         log_prefix=log_prefix
                     )
 
@@ -1053,7 +1056,7 @@ class EmbedService:
                     "status": "finished",
                     "hashed_user_id": user_id_hash,
                     "is_private": False,
-                "is_shared": False,
+                    "is_shared": False,
                     "embed_ids": child_embed_ids,  # JSON array
                     "encrypted_content": encrypted_parent_content,
                     "text_length_chars": parent_text_length_chars,
@@ -1144,7 +1147,7 @@ class EmbedService:
                     "status": "finished",
                     "hashed_user_id": user_id_hash,
                     "is_private": False,
-                "is_shared": False,
+                    "is_shared": False,
                     "embed_ids": None,  # No child embeds
                     "encrypted_content": encrypted_content,
                     "text_length_chars": single_text_length_chars,
@@ -1560,7 +1563,7 @@ class EmbedService:
                         "status": "finished",
                         "hashed_user_id": user_id_hash,
                         "is_private": False,
-                "is_shared": False,
+                        "is_shared": False,
                         "created_at": int(datetime.now().timestamp()),
                         "updated_at": int(datetime.now().timestamp())
                     }
@@ -1622,7 +1625,7 @@ class EmbedService:
                     "status": "finished",
                     "hashed_user_id": user_id_hash,
                     "is_private": False,
-                "is_shared": False,
+                    "is_shared": False,
                     "embed_ids": child_embed_ids,  # JSON array
                     "encrypted_content": encrypted_parent_content,
                     "created_at": int(datetime.now().timestamp()),
@@ -1683,7 +1686,7 @@ class EmbedService:
                     "status": "finished",
                     "hashed_user_id": user_id_hash,
                     "is_private": False,
-                "is_shared": False,
+                    "is_shared": False,
                     "embed_ids": None,  # No child embeds
                     "encrypted_content": encrypted_content,
                     "created_at": int(datetime.now().timestamp()),

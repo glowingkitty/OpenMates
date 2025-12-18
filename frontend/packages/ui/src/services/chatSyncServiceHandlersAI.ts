@@ -1316,12 +1316,31 @@ export async function handleSendEmbedDataImpl(
         
         if (isProcessingPlaceholder) {
             // ============================================================
-            // "PROCESSING" STATUS: In-memory only, no persistence
+            // "PROCESSING" STATUS: In-memory only, but generate key early for children
             // ============================================================
-            // Don't store in IndexedDB - just dispatch event for UI to render from event data
-            // This is a temporary placeholder that will be replaced when status changes to "completed"
-            console.info(`[ChatSyncService:AI] Embed ${embedData.embed_id} is "processing" - dispatching for in-memory rendering only (no storage)`);
+            console.info(`[ChatSyncService:AI] Embed ${embedData.embed_id} is "processing" - dispatching for in-memory rendering and generating key early for children`);
             
+            // Generate embed-specific encryption key early (if not already exists)
+            // This is CRITICAL for key inheritance: child embeds arrive while parent is still processing
+            // and they need the parent's key to encrypt themselves.
+            try {
+                const { generateEmbedKey } = await import('./cryptoService');
+                const { computeSHA256 } = await import('../message_parsing/utils');
+                const hashedChatId = await computeSHA256(embedData.chat_id);
+                
+                // Only generate if not already in cache
+                const existingKey = await embedStore.getEmbedKey(embedData.embed_id, hashedChatId);
+                if (!existingKey) {
+                    const newKey = generateEmbedKey();
+                    // Cache the key so children can find it
+                    embedStore.setEmbedKeyInCache(embedData.embed_id, newKey, hashedChatId);
+                    embedStore.setEmbedKeyInCache(embedData.embed_id, newKey, undefined); // master fallback
+                    console.debug(`[ChatSyncService:AI] Generated and cached early key for processing parent embed ${embedData.embed_id}`);
+                }
+            } catch (err) {
+                console.warn(`[ChatSyncService:AI] Failed to generate early key for processing embed:`, err);
+            }
+
             // Dispatch event with FULL embed data so UI can render from it directly
             serviceInstance.dispatchEvent(new CustomEvent('embedUpdated', {
                 detail: {
@@ -1390,10 +1409,54 @@ export async function handleSendEmbedDataImpl(
                 wrapEmbedKeyWithChatKey
             } = cryptoService;
             
-            // 1. Generate embed-specific encryption key (256-bit random key)
-            // Only generated ONCE per embed, when it's finalized
-            const embedKey = generateEmbedKey();
-            console.debug(`[ChatSyncService:AI] Generated embed_key for finalized embed ${embedData.embed_id}`);
+            // 0. Hash IDs first (needed for parent key lookup if this is a child embed)
+            const hashedChatId = await computeSHA256(embedData.chat_id);
+            const hashedMessageId = await computeSHA256(embedData.message_id);
+            const hashedUserId = await computeSHA256(embedData.user_id);
+            const hashedEmbedId = await computeSHA256(embedData.embed_id);
+            
+            let hashedTaskId: string | undefined;
+            if (embedData.task_id) {
+                hashedTaskId = await computeSHA256(embedData.task_id);
+            }
+            
+            // 1. Determine embed encryption key (Option A - key inheritance)
+            // - Parent embeds: Generate new unique key (or use early-generated key from processing state)
+            // - Child embeds: Use parent embed's key (key inheritance)
+            // Backend now sends parent_embed_id with child embeds, so we can use it directly
+            let embedKey: Uint8Array;
+            const isChildEmbed = !!embedData.parent_embed_id;
+            const parentEmbedId = embedData.parent_embed_id;
+            
+            if (isChildEmbed) {
+                // Child embed: Use parent embed's key (key inheritance - Option A)
+                console.debug(`[ChatSyncService:AI] Child embed detected (parent: ${parentEmbedId}), using parent embed key`);
+                // Use a retry mechanism since parent might still be processing
+                let parentKey = await embedStore.getEmbedKey(parentEmbedId!, hashedChatId);
+                
+                if (!parentKey) {
+                    // One-time retry after a short delay in case of extreme race condition
+                    console.debug(`[ChatSyncService:AI] Parent key not found for child ${embedData.embed_id}, retrying once...`);
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                    parentKey = await embedStore.getEmbedKey(parentEmbedId!, hashedChatId);
+                }
+
+                if (!parentKey) {
+                    throw new Error(`Failed to get parent embed key for child embed ${embedData.embed_id} (parent: ${parentEmbedId})`);
+                }
+                embedKey = parentKey;
+                console.debug(`[ChatSyncService:AI] Using parent embed key for child embed ${embedData.embed_id}`);
+            } else {
+                // Parent embed: Use already cached key or generate new unique key
+                const cachedKey = await embedStore.getEmbedKey(embedData.embed_id, hashedChatId);
+                if (cachedKey) {
+                    embedKey = cachedKey;
+                    console.debug(`[ChatSyncService:AI] Using existing early-generated key for finalized parent embed ${embedData.embed_id}`);
+                } else {
+                    embedKey = generateEmbedKey();
+                    console.debug(`[ChatSyncService:AI] Generated new embed_key for finalized parent embed ${embedData.embed_id}`);
+                }
+            }
             
             // 2. Encrypt content with embed_key
             const encryptedContent = await encryptWithEmbedKey(embedData.content, embedKey);
@@ -1416,32 +1479,30 @@ export async function handleSendEmbedDataImpl(
                 }
             }
 
-            // 5. Hash IDs for privacy (zero-knowledge - server cannot determine actual IDs)
-            const hashedChatId = await computeSHA256(embedData.chat_id);
-            const hashedMessageId = await computeSHA256(embedData.message_id);
-            const hashedUserId = await computeSHA256(embedData.user_id);
-            const hashedEmbedId = await computeSHA256(embedData.embed_id);
-            
-            let hashedTaskId: string | undefined;
-            if (embedData.task_id) {
-                hashedTaskId = await computeSHA256(embedData.task_id);
-            }
-
-            // 6. Create key wrappers for offline sharing support
+            // 3. Create key wrappers for offline sharing support (ONLY for parent embeds)
+            // Child embeds inherit the parent's key, so they don't need their own wrappers
             // Master key wrapper: AES(embed_key, master_key) - for owner's cross-chat access
-            const wrappedMasterKey = await wrapEmbedKeyWithMasterKey(embedKey);
-            if (!wrappedMasterKey) {
-                throw new Error('Failed to wrap embed_key with master key');
-            }
-
             // Chat key wrapper: AES(embed_key, chat_key) - for shared chat access
-            const chatKey = chatDB.getOrGenerateChatKey(embedData.chat_id);
-            if (!chatKey) {
-                throw new Error('Failed to get chat key for wrapping embed_key');
-            }
-            const wrappedChatKey = await wrapEmbedKeyWithChatKey(embedKey, chatKey);
+            let wrappedMasterKey: string | null = null;
+            let wrappedChatKey: string | null = null;
             
-            console.debug(`[ChatSyncService:AI] Created key wrappers for embed ${embedData.embed_id}`);
+            if (!isChildEmbed) {
+                // Only create key wrappers for parent embeds
+                wrappedMasterKey = await wrapEmbedKeyWithMasterKey(embedKey);
+                if (!wrappedMasterKey) {
+                    throw new Error('Failed to wrap embed_key with master key');
+                }
+
+                const chatKey = chatDB.getOrGenerateChatKey(embedData.chat_id);
+                if (!chatKey) {
+                    throw new Error('Failed to get chat key for wrapping embed_key');
+                }
+                wrappedChatKey = await wrapEmbedKeyWithChatKey(embedKey, chatKey);
+                
+                console.debug(`[ChatSyncService:AI] Created key wrappers for parent embed ${embedData.embed_id}`);
+            } else {
+                console.debug(`[ChatSyncService:AI] Skipping key wrapper creation for child embed ${embedData.embed_id} (uses parent key)`);
+            }
 
             // 7. Store encrypted embed locally in IndexedDB
             // This uses putEncrypted() since content is already encrypted with embed_key
@@ -1472,7 +1533,7 @@ export async function handleSendEmbedDataImpl(
                 hashed_message_id: hashedMessageId,
                 hashed_task_id: hashedTaskId,
                 embed_ids: embedData.embed_ids,
-                parent_embed_id: embedData.parent_embed_id,
+                parent_embed_id: parentEmbedId || embedData.parent_embed_id, // Use detected parent_embed_id if found
                 version_number: embedData.version_number,
                 file_path: embedData.file_path,
                 content_hash: embedData.content_hash,
@@ -1493,29 +1554,34 @@ export async function handleSendEmbedDataImpl(
             );
             console.info(`[ChatSyncService:AI] Stored encrypted embed ${embedData.embed_id} in local IndexedDB`);
 
-            // 8. Store embed keys locally in IndexedDB (for decryption after page reload)
-            const now = Math.floor(Date.now() / 1000);
-            const embedKeysForStorage = [
-                {
-                    hashed_embed_id: hashedEmbedId,
-                    key_type: 'master' as const,
-                    hashed_chat_id: null,
-                    encrypted_embed_key: wrappedMasterKey,
-                    hashed_user_id: hashedUserId,
-                    created_at: now
-                },
-                {
-                    hashed_embed_id: hashedEmbedId,
-                    key_type: 'chat' as const,
-                    hashed_chat_id: hashedChatId,
-                    encrypted_embed_key: wrappedChatKey,
-                    hashed_user_id: hashedUserId,
-                    created_at: now
-                }
-            ];
-            
-            await embedStore.storeEmbedKeys(embedKeysForStorage);
-            console.info(`[ChatSyncService:AI] Stored key wrappers for embed ${embedData.embed_id} locally`);
+            // 8. Store embed keys locally in IndexedDB (ONLY for parent embeds)
+            // Child embeds don't have their own key wrappers - they use the parent's key
+            if (!isChildEmbed && wrappedMasterKey && wrappedChatKey) {
+                const now = Math.floor(Date.now() / 1000);
+                const embedKeysForStorage = [
+                    {
+                        hashed_embed_id: hashedEmbedId,
+                        key_type: 'master' as const,
+                        hashed_chat_id: null,
+                        encrypted_embed_key: wrappedMasterKey,
+                        hashed_user_id: hashedUserId,
+                        created_at: now
+                    },
+                    {
+                        hashed_embed_id: hashedEmbedId,
+                        key_type: 'chat' as const,
+                        hashed_chat_id: hashedChatId,
+                        encrypted_embed_key: wrappedChatKey,
+                        hashed_user_id: hashedUserId,
+                        created_at: now
+                    }
+                ];
+                
+                await embedStore.storeEmbedKeys(embedKeysForStorage);
+                console.info(`[ChatSyncService:AI] Stored key wrappers for parent embed ${embedData.embed_id} locally`);
+            } else if (isChildEmbed) {
+                console.debug(`[ChatSyncService:AI] Skipping key wrapper storage for child embed ${embedData.embed_id} (uses parent key)`);
+            }
 
             // 9. Send encrypted embed to server for Directus storage
             const storePayload: import('../types/chat').StoreEmbedPayload = {
@@ -1529,7 +1595,7 @@ export async function handleSendEmbedDataImpl(
                 hashed_task_id: hashedTaskId,
                 hashed_user_id: hashedUserId,
                 embed_ids: embedData.embed_ids,
-                parent_embed_id: embedData.parent_embed_id,
+                parent_embed_id: parentEmbedId || embedData.parent_embed_id, // Use detected parent_embed_id if found
                 version_number: embedData.version_number,
                 file_path: embedData.file_path,
                 content_hash: embedData.content_hash,
@@ -1551,23 +1617,60 @@ export async function handleSendEmbedDataImpl(
             await sendStoreFunction(serviceInstance as any, storePayload);
             console.info(`[ChatSyncService:AI] Sent encrypted embed ${embedData.embed_id} to Directus`);
 
-            // 10. Send key wrappers to server for embed_keys collection
-            const embedKeysPayload = { keys: embedKeysForStorage };
+            // 10. Send key wrappers to server for embed_keys collection (ONLY for parent embeds)
+            // Child embeds don't have their own key wrappers - they use the parent's key
+            if (!isChildEmbed && wrappedMasterKey && wrappedChatKey) {
+                const now = Math.floor(Date.now() / 1000);
+                const embedKeysForStorage = [
+                    {
+                        hashed_embed_id: hashedEmbedId,
+                        key_type: 'master' as const,
+                        hashed_chat_id: null,
+                        encrypted_embed_key: wrappedMasterKey,
+                        hashed_user_id: hashedUserId,
+                        created_at: now
+                    },
+                    {
+                        hashed_embed_id: hashedEmbedId,
+                        key_type: 'chat' as const,
+                        hashed_chat_id: hashedChatId,
+                        encrypted_embed_key: wrappedChatKey,
+                        hashed_user_id: hashedUserId,
+                        created_at: now
+                    }
+                ];
+                
+                const embedKeysPayload = { keys: embedKeysForStorage };
 
-            const sendStoreEmbedKeysFunction = sendersModule.sendStoreEmbedKeysImpl ||
-                                              (sendersModule as any).default?.sendStoreEmbedKeysImpl;
+                const sendStoreEmbedKeysFunction = sendersModule.sendStoreEmbedKeysImpl ||
+                                                  (sendersModule as any).default?.sendStoreEmbedKeysImpl;
 
-            if (typeof sendStoreEmbedKeysFunction !== 'function') {
-                throw new Error('sendStoreEmbedKeysImpl function not found');
+                if (typeof sendStoreEmbedKeysFunction !== 'function') {
+                    throw new Error('sendStoreEmbedKeysImpl function not found');
+                }
+                
+                await sendStoreEmbedKeysFunction(serviceInstance as any, embedKeysPayload);
+                console.info(
+                    `[ChatSyncService:AI] [EMBED_EVENT] ✅ Sent key wrappers for parent embed ${embedData.embed_id} to Directus ` +
+                    `(master + chat). This should only happen ONCE per finalized embed!`
+                );
+            } else if (isChildEmbed) {
+                console.debug(`[ChatSyncService:AI] Skipping key wrapper sending for child embed ${embedData.embed_id} (uses parent key)`);
             }
-            
-            await sendStoreEmbedKeysFunction(serviceInstance as any, embedKeysPayload);
-            console.info(
-                `[ChatSyncService:AI] [EMBED_EVENT] ✅ Sent key wrappers for embed ${embedData.embed_id} to Directus ` +
-                `(master + chat). This should only happen ONCE per finalized embed!`
-            );
 
-            // 11. Dispatch event for UI to refresh from stored data
+            // 11. If this is a parent embed with child embeds, cache the parent key for all children
+            // This ensures child embeds can use the parent key for decryption (key inheritance)
+            if (!isChildEmbed && embedData.embed_ids && Array.isArray(embedData.embed_ids) && embedData.embed_ids.length > 0) {
+                console.debug(`[ChatSyncService:AI] Parent embed ${embedData.embed_id} has ${embedData.embed_ids.length} child embeds - caching parent key for children`);
+                for (const childEmbedId of embedData.embed_ids) {
+                    // Cache parent key for child embed with both hashed_chat_id and 'master' fallback
+                    embedStore.setEmbedKeyInCache(childEmbedId, embedKey, hashedChatId);
+                    embedStore.setEmbedKeyInCache(childEmbedId, embedKey, undefined); // 'master' fallback
+                    console.debug(`[ChatSyncService:AI] Cached parent key for child embed ${childEmbedId}`);
+                }
+            }
+
+            // 12. Dispatch event for UI to refresh from stored data
             serviceInstance.dispatchEvent(new CustomEvent('embedUpdated', {
                 detail: {
                     embed_id: embedData.embed_id,
