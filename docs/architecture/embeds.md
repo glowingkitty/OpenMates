@@ -309,11 +309,15 @@ Some app skills return multiple results. The structure uses a parent `app_skill_
 
 #### Key Inheritance for Nested Embeds
 
-**Important**: Child embeds automatically inherit the parent's `embed_key`. This means:
-- The parent embed has a unique encryption key wrapped in `embed_keys` collection (master + chat wrappers)
-- Child embeds reference the parent via `parent_embed_id` field
-- When decrypting child embeds, the client uses the parent's unwrapped key
+**Important**: Child embeds automatically inherit the parent's `embed_key` for encryption and decryption. This means:
+- The parent embed has a unique encryption key (`embed_key`) generated when the embed is created
+- The parent embed's key is wrapped in `embed_keys` collection (master + chat wrappers) - **ONLY for parent embeds**
+- Child embeds reference the parent via `parent_embed_id` field (set by backend when child embeds are created)
+- Child embeds are **encrypted with the parent's `embed_key`** (not their own key)
+- Child embeds **do NOT have their own `embed_keys` entries** (no key wrappers for children)
+- When decrypting child embeds, the client uses the parent's unwrapped key (via `parent_embed_id` lookup)
 - **Benefit**: Single key unwrap operation unlocks entire result set (80% fewer cryptographic operations vs independent keys)
+- **Sharing**: When sharing a child embed, the parent's key is used in the share link (since child has no separate key)
 
 **Web Search Example**:
 - Message reference (minimal):
@@ -330,10 +334,11 @@ Some app skills return multiple results. The structure uses a parent `app_skill_
     - `["660e8400-...", "770e8400-...", "880e8400-..."]`
   - `parent_embed_id`: null (this is the root)
 - Child embed entries (individual websites):
-  - Each has `type: "website"` and `parent_embed_id: "550e8400..."`
+  - Each has `type: "website"` and `parent_embed_id: "550e8400..."` (set by backend)
   - Contains website-specific content (title, URL, description, snippets, etc.)
-  - `encrypted_content` encrypted with `embed_key_parent` (inherited from parent)
-  - No separate `embed_keys` entries needed (server stores only parent's wrapped keys)
+  - `encrypted_content` encrypted with parent's `embed_key` (inherited from parent - Option A)
+  - **No `embed_keys` entries** for child embeds (only parent has key wrappers)
+  - Frontend uses `parent_embed_id` to look up parent's key for decryption
 
 **Places/Events Search**: Same structure - parent `app_skill_use` embed contains query/metadata and `embed_ids` array pointing to individual `place`/`event` embeds. All children use parent's key.
 
@@ -416,15 +421,19 @@ Each website embed (referenced in `embed_ids`, type: `website`) contains:
    - **NEVER stores plaintext** - encrypts immediately before any storage
    - **Client-Side Privacy Protection**:
      - Hash `chat_id`, `message_id`, `task_id`, `embed_id` using SHA256 (one-way, protects privacy)
-     - Generate unique `embed_key` for this embed (random 256-bit key)
+     - **Determine encryption key**:
+       - **Parent embeds**: Generate unique `embed_key` (random 256-bit key) - generated early when "processing" status is received
+       - **Child embeds**: Use parent's `embed_key` (key inheritance) - parent key must be available (cached from "processing" phase)
      - Encrypt `type` with `embed_key` (server cannot determine embed type)
      - Encrypt `content` (TOON string) with `embed_key`
      - Encrypt `text_preview` with same `embed_key`
      - Encrypt `diff` with same `embed_key` (for versioned embeds)
-   - **Create Key Wrappers** (for offline sharing support):
-     - Master key wrapper: `AES(embed_key, master_key)` with `key_type="master"`
-     - Chat key wrapper: `AES(embed_key, chat_key)` with `key_type="chat"` and `hashed_chat_id`
-     - Both wrappers stored in `embed_keys` collection with `hashed_embed_id`
+   - **Create Key Wrappers** (for offline sharing support - **ONLY for parent embeds**):
+     - **Parent embeds only**: Create key wrappers for parent's `embed_key`
+       - Master key wrapper: `AES(embed_key, master_key)` with `key_type="master"`
+       - Chat key wrapper: `AES(embed_key, chat_key)` with `key_type="chat"` and `hashed_chat_id`
+       - Both wrappers stored in `embed_keys` collection with `hashed_embed_id`
+     - **Child embeds**: Do NOT create key wrappers (they use parent's key, no separate keys)
    - Store encrypted embeds in EmbedStore (IndexedDB) - **all content encrypted**
    - Send client-encrypted embeds to server via `store_embed` WebSocket event for Directus storage
    - Send key wrappers to server via `store_embed_keys` WebSocket event for `embed_keys` collection

@@ -502,12 +502,13 @@ Embeds (app skill results, files, code, etc.) can be shared both as part of shar
 When a chat is shared, embedded content must also be decryptable by the recipient using the `chat_encryption_key` from the share link. This is achieved through the **wrapped key architecture**:
 
 **How It Works:**
-1. Each embed has a unique `embed_key` that encrypts its content
-2. The `embed_key` is stored in multiple wrapped forms in the `embed_keys` collection:
+1. **Parent embeds** have a unique `embed_key` that encrypts their content
+2. **Child embeds** use the parent's `embed_key` (key inheritance) - no separate keys
+3. The parent embed's `embed_key` is stored in multiple wrapped forms in the `embed_keys` collection (ONLY for parent embeds):
    - `key_type="master"`: `AES(embed_key, master_key)` - for owner's cross-chat access
    - `key_type="chat"`: `AES(embed_key, chat_key)` - one per chat the embed is referenced in
-3. When chat is shared, recipient uses `chat_encryption_key` to unwrap `embed_key` from the `key_type="chat"` entry
-4. Recipient uses `embed_key` to decrypt embed content
+4. When chat is shared, recipient uses `chat_encryption_key` to unwrap parent embed's `embed_key` from the `key_type="chat"` entry
+5. Recipient uses parent's `embed_key` to decrypt both parent and child embed content (key inheritance)
 
 **Offline-First Sharing:**
 - All wrapped keys are pre-stored on server when embed is created/copied to chat
