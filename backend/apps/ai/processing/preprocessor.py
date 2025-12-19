@@ -8,6 +8,8 @@ import re # For removing non-printable characters
 import datetime # For current date/time in system prompt
 
 from backend.core.api.app.services.cache import CacheService # Corrected import path
+from backend.core.api.app.services.directus.directus import DirectusService # Added for type hinting and reuse
+from backend.core.api.app.utils.encryption import EncryptionService # Added for type hinting and reuse
  
 # Import the new LLM utility
 from backend.apps.ai.utils.llm_utils import call_preprocessing_llm, LLMPreprocessingCallResult
@@ -78,6 +80,8 @@ async def handle_preprocessing(
     skill_config: AskSkillDefaultConfig,
     cache_service: CacheService,
     secrets_manager: SecretsManager, # Added SecretsManager
+    directus_service: DirectusService, # Added DirectusService for reuse
+    encryption_service: EncryptionService, # Added EncryptionService for reuse
     user_app_settings_and_memories_metadata: Optional[Dict[str, List[str]]] = None,
     discovered_apps_metadata: Optional[Dict[str, AppYAML]] = None  # AppYAML metadata for tool preselection
 ) -> PreprocessingResult:
@@ -90,6 +94,9 @@ async def handle_preprocessing(
         skill_config: The parsed default_config for the specific skill (e.g., AskSkill).
         user_app_settings_and_memories_metadata: Metadata about available user app settings/memories (app_id -> list of item_keys).
         cache_service: Instance of CacheService for fetching user credits.
+        secrets_manager: Instance of SecretsManager.
+        directus_service: Instance of DirectusService for reuse.
+        encryption_service: Instance of EncryptionService for reuse.
 
     Returns:
         PreprocessingResult: A Pydantic model containing the results of the preprocessing.
@@ -97,58 +104,60 @@ async def handle_preprocessing(
     log_prefix = f"Preprocessor (ChatID: {request_data.chat_id}, MsgID: {request_data.message_id}):"
     logger.info(f"{log_prefix} Starting preprocessing.")
 
-    # --- Credit Check ---
-    MINIMUM_REQUEST_COST = 1 # TODO: Make this configurable, perhaps in skill_config.preprocessing_thresholds
-    logger.info(f"{log_prefix} Performing credit check for user_id: {request_data.user_id}. Minimum cost: {MINIMUM_REQUEST_COST}") # Log actual user_id
+    # --- Credit Check (skip if payment disabled - self-hosted mode) ---
+    # Check if payment is enabled before performing credit checks
+    # In self-hosted mode, users can use the system without credit restrictions
+    from backend.core.api.app.utils.server_mode import is_payment_enabled
     
-    if not request_data.user_id: # Check for actual user_id
-        logger.error(f"{log_prefix} user_id is missing in request_data. Cannot perform credit check.")
-        return PreprocessingResult(
-            can_proceed=False,
-            rejection_reason="internal_error_missing_user_id",
-            error_message="User identification is missing. Cannot proceed."
-        )
-
-    cached_user = await cache_service.get_user_by_id(request_data.user_id) # Use user_id
-
-    if not cached_user:
-        logger.error(f"{log_prefix} Could not retrieve cached user data for user_id: {request_data.user_id}.") # Log actual user_id
-        return PreprocessingResult(
-            can_proceed=False,
-            rejection_reason="internal_error_user_data_not_found",
-            error_message="Could not retrieve user information. Please try again later."
-        )
-
-    user_credits = cached_user.get("credits", 0)
-    if not isinstance(user_credits, int): # Ensure credits is an int
-        logger.error(f"{log_prefix} User credits for {request_data.user_id} is not an integer: {user_credits}. Treating as 0.") # Log actual user_id
-        user_credits = 0
+    payment_enabled = is_payment_enabled()
     
-    logger.info(f"{log_prefix} User {request_data.user_id} has {user_credits} credits.") # Log actual user_id
+    if payment_enabled:
+        MINIMUM_REQUEST_COST = 1 # TODO: Make this configurable, perhaps in skill_config.preprocessing_thresholds
+        logger.info(f"{log_prefix} Performing credit check for user_id: {request_data.user_id}. Minimum cost: {MINIMUM_REQUEST_COST}") # Log actual user_id
+        
+        if not request_data.user_id: # Check for actual user_id
+            logger.error(f"{log_prefix} user_id is missing in request_data. Cannot perform credit check.")
+            return PreprocessingResult(
+                can_proceed=False,
+                rejection_reason="internal_error_missing_user_id",
+                error_message="User identification is missing. Cannot proceed."
+            )
 
-    if user_credits < MINIMUM_REQUEST_COST:
-        logger.warning(f"{log_prefix} User {request_data.user_id} has insufficient credits ({user_credits}) for minimum cost ({MINIMUM_REQUEST_COST}).") # Log actual user_id
+        cached_user = await cache_service.get_user_by_id(request_data.user_id) # Use user_id
 
-        # CRITICAL: Check if user has auto top-up enabled
-        # If so, trigger auto top-up BEFORE rejecting the request
-        auto_topup_enabled = cached_user.get('auto_topup_low_balance_enabled', False)
+        if not cached_user:
+            logger.error(f"{log_prefix} Could not retrieve cached user data for user_id: {request_data.user_id}.") # Log actual user_id
+            return PreprocessingResult(
+                can_proceed=False,
+                rejection_reason="internal_error_user_data_not_found",
+                error_message="Could not retrieve user information. Please try again later."
+            )
+
+        user_credits = cached_user.get("credits", 0)
+        if not isinstance(user_credits, int): # Ensure credits is an int
+            logger.error(f"{log_prefix} User credits for {request_data.user_id} is not an integer: {user_credits}. Treating as 0.") # Log actual user_id
+            user_credits = 0
+        
+        logger.info(f"{log_prefix} User {request_data.user_id} has {user_credits} credits.") # Log actual user_id
+
+        if user_credits < MINIMUM_REQUEST_COST:
+            logger.warning(f"{log_prefix} User {request_data.user_id} has insufficient credits ({user_credits}) for minimum cost ({MINIMUM_REQUEST_COST}).") # Log actual user_id
+
+            # CRITICAL: Check if user has auto top-up enabled
+            # If so, trigger auto top-up BEFORE rejecting the request
+            auto_topup_enabled = cached_user.get('auto_topup_low_balance_enabled', False)
         if auto_topup_enabled:
             logger.info(f"{log_prefix} User {request_data.user_id} has auto top-up enabled. Attempting to top up before processing...")
 
             # Import billing service to trigger top-up
             from backend.core.api.app.services.billing_service import BillingService
-            from backend.core.api.app.services.cache_service import CacheService
-            from backend.core.api.app.services.directus.service import DirectusService
-            from backend.core.api.app.services.encryption_service import EncryptionService
-            from backend.core.api.app.services.websocket_manager import WebSocketManager
 
-            # Create service instances (these should ideally be injected, but for now we create them)
-            # Note: These services are lightweight and safe to instantiate multiple times
+            # Use passed-in service instances instead of creating new ones
+            # This avoids redundant initializations and improves performance
             billing_service = BillingService(
                 cache_service=cache_service,
-                directus_service=DirectusService(), # Reuse if available
-                encryption_service=EncryptionService(),
-                websocket_manager=WebSocketManager()
+                directus_service=directus_service,
+                encryption_service=encryption_service
             )
 
             try:
@@ -241,7 +250,16 @@ async def handle_preprocessing(
                 selected_main_llm_model_name=None,
                 raw_llm_response=None
             )
-    logger.info(f"{log_prefix} Credit check passed for user {request_data.user_id}.") # Log actual user_id
+        logger.info(f"{log_prefix} Credit check passed for user {request_data.user_id}.") # Log actual user_id
+        # --- End Credit Check ---
+    else:
+        # Payment disabled (self-hosted mode) - skip credit check
+        logger.info(f"{log_prefix} Payment disabled (self-hosted mode). Skipping credit check - allowing request to proceed.")
+        # Still get user for other processing, but don't check credits
+        if request_data.user_id:
+            cached_user = await cache_service.get_user_by_id(request_data.user_id)
+            if not cached_user:
+                logger.warning(f"{log_prefix} Could not retrieve cached user data for user_id: {request_data.user_id}, but continuing (self-hosted mode).")
     # --- End Credit Check ---
  
     # Sanitize user messages in the history

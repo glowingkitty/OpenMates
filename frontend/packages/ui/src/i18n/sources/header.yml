@@ -67,3 +67,49 @@ login:
   cs: Přihlásit se
   sv: ''
   verified_by_human: []
+self_hosting_edition:
+  context: Text displayed under the logo when server is in self-hosting edition mode
+  en: Self Hosting Edition
+  de: Self-Hosting-Edition
+  zh: 自托管版本
+  es: Edición de autoalojamiento
+  fr: Édition auto-hébergée
+  pt: Edição de auto-hospedagem
+  ru: Издание для самостоятельного размещения
+  ja: セルフホスティング版
+  ko: 셀프 호스팅 에디션
+  it: Edizione self-hosting
+  tr: Kendi barındırma sürümü
+  vi: Phiên bản tự lưu trữ
+  id: Edisi self-hosting
+  pl: Edycja self-hosting
+  nl: Self-hosting editie
+  ar: إصدار الاستضافة الذاتية
+  hi: सेल्फ होस्टिंग संस्करण
+  th: รุ่นโฮสต์เอง
+  cs: Edice vlastního hostování
+  sv: ''
+  verified_by_human: []
+development_server:
+  context: Text displayed under the logo when server is in development mode
+  en: Development Server
+  de: Entwicklungsserver
+  zh: 开发服务器
+  es: Servidor de desarrollo
+  fr: Serveur de développement
+  pt: Servidor de desenvolvimento
+  ru: Сервер разработки
+  ja: 開発サーバー
+  ko: 개발 서버
+  it: Server di sviluppo
+  tr: Geliştirme sunucusu
+  vi: Máy chủ phát triển
+  id: Server pengembangan
+  pl: Serwer deweloperski
+  nl: Ontwikkelserver
+  ar: خادم التطوير
+  hi: विकास सर्वर
+  th: เซิร์ฟเวอร์พัฒนา
+  cs: Vývojový server
+  sv: ''
+  verified_by_human: []

@@ -18,6 +18,9 @@ EMAIL_HMAC_KEY_NAME = "email-hmac-key"
 # Vault transit key name for creator income encryption
 # This is a system-level key used to encrypt creator income credit amounts
 CREATOR_INCOME_ENCRYPTION_KEY = "creator_income"
+# Vault transit key name for newsletter email encryption
+# This is a system-level key used to encrypt newsletter subscriber email addresses
+NEWSLETTER_ENCRYPTION_KEY = "newsletter_emails"
 # Note: All chat and draft encryption now happens client-side
 # Server-side encryption methods removed for zero-knowledge architecture
 
@@ -415,6 +418,48 @@ class EncryptionService:
             logger.error(f"Failed to ensure creator income encryption key exists: {str(e)}")
             raise Exception(f"Failed to initialize creator income encryption key: {str(e)}")
 
+        # --- Ensure NEWSLETTER_ENCRYPTION_KEY exists in transit engine ---
+        # This key is used for encrypting newsletter subscriber email addresses for privacy
+        try:
+            logger.debug(f"Checking for newsletter encryption key '{NEWSLETTER_ENCRYPTION_KEY}' in transit engine...")
+            key_exists = False
+            try:
+                # Check if key exists by attempting to read its configuration
+                response = await self._vault_request("get", f"{self.transit_mount}/keys/{NEWSLETTER_ENCRYPTION_KEY}")
+                # If the response has data (not just the default {"data": {}} from 404 handling), the key exists.
+                if response and response.get("data") and response["data"].get("name") == NEWSLETTER_ENCRYPTION_KEY:
+                    key_exists = True
+                    logger.debug(f"Newsletter encryption key '{NEWSLETTER_ENCRYPTION_KEY}' already exists.")
+                else:
+                    # This case handles 404 or unexpected empty data
+                    logger.debug(f"Newsletter encryption key '{NEWSLETTER_ENCRYPTION_KEY}' not found.")
+            except Exception as e:
+                 # Log error during check, but proceed assuming key might not exist
+                 logger.warning(f"Error checking for newsletter encryption key '{NEWSLETTER_ENCRYPTION_KEY}': {str(e)}. Assuming it might not exist.")
+                 key_exists = False # Ensure we try to create if check failed
+
+            # If key does not exist, create it
+            if not key_exists:
+                 logger.debug(f"Attempting to create newsletter encryption key '{NEWSLETTER_ENCRYPTION_KEY}'...")
+                 try:
+                     # Create the key (non-derived, since it's a system-level key for all newsletter emails)
+                     await self._vault_request("post", f"{self.transit_mount}/keys/{NEWSLETTER_ENCRYPTION_KEY}", {
+                         "type": "aes256-gcm96", # AES with GCM mode for authenticated encryption
+                         "allow_plaintext_backup": False # Good practice
+                     })
+                     logger.debug(f"Successfully created newsletter encryption key '{NEWSLETTER_ENCRYPTION_KEY}'.")
+                 except Exception as create_error:
+                     # Handle potential race condition if another instance created it
+                     if "already exists" in str(create_error).lower():
+                         logger.debug(f"Newsletter encryption key '{NEWSLETTER_ENCRYPTION_KEY}' was created by another process.")
+                     else:
+                         logger.error(f"Failed to create newsletter encryption key '{NEWSLETTER_ENCRYPTION_KEY}': {str(create_error)}")
+                         raise Exception(f"Failed to initialize newsletter encryption key: {str(create_error)}")
+
+        except Exception as e:
+            logger.error(f"Failed to ensure newsletter encryption key exists: {str(e)}")
+            raise Exception(f"Failed to initialize newsletter encryption key: {str(e)}")
+
     # Removed get_email_hash_key method
 
     async def create_user_key(self) -> str:
@@ -468,6 +513,71 @@ class EncryptionService:
         
         # Use the user's specific key for decryption with context
         return await self.decrypt(ciphertext, key_name=key_id, context=context)
+    
+    async def encrypt_newsletter_email(self, email: str) -> str:
+        """
+        Encrypt newsletter subscriber email using the system-level newsletter encryption key.
+        
+        Args:
+            email: Plaintext email address
+            
+        Returns:
+            Encrypted email address (ciphertext)
+        """
+        if not email:
+            return ""
+        
+        ciphertext, _ = await self.encrypt(email, key_name=NEWSLETTER_ENCRYPTION_KEY)
+        return ciphertext
+    
+    async def decrypt_newsletter_email(self, encrypted_email: str) -> Optional[str]:
+        """
+        Decrypt newsletter subscriber email using the system-level newsletter encryption key.
+        
+        Args:
+            encrypted_email: Encrypted email address (ciphertext)
+            
+        Returns:
+            Decrypted email address or None if decryption fails
+        """
+        if not encrypted_email:
+            return None
+        
+        return await self.decrypt(encrypted_email, key_name=NEWSLETTER_ENCRYPTION_KEY)
+    
+    async def encrypt_newsletter_token(self, token: str) -> str:
+        """
+        Encrypt a newsletter unsubscribe token using server-side encryption.
+        
+        This uses the same encryption key as newsletter emails (NEWSLETTER_ENCRYPTION_KEY)
+        to ensure consistent security for all newsletter-related data.
+        
+        Args:
+            token: Plaintext unsubscribe token
+            
+        Returns:
+            Encrypted token (base64-encoded ciphertext with vault:v1: prefix)
+        """
+        if not token:
+            return ""
+        
+        ciphertext, _ = await self.encrypt(token, key_name=NEWSLETTER_ENCRYPTION_KEY)
+        return ciphertext
+    
+    async def decrypt_newsletter_token(self, encrypted_token: str) -> Optional[str]:
+        """
+        Decrypt a newsletter unsubscribe token.
+        
+        Args:
+            encrypted_token: Encrypted unsubscribe token (base64-encoded ciphertext)
+            
+        Returns:
+            Decrypted token (plaintext) or None if decryption fails
+        """
+        if not encrypted_token:
+            return None
+        
+        return await self.decrypt(encrypted_token, key_name=NEWSLETTER_ENCRYPTION_KEY)
     
     async def encrypt(self, plaintext: str, key_name: str = "user_data", context: str = None) -> Tuple[str, str]:
         """

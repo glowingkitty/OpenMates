@@ -41,9 +41,11 @@
     ];
 
     // Dynamic step sequence based on login method (matches Signup.svelte logic)
+    // Default to passkey sequence (assume passkey by default)
+    // Only use full sequence when user explicitly selects password + 2FA OTP
     // Use $signupStore to reactively access the store value (Svelte 5 reactive store syntax)
     let stepSequence = $derived(
-        $signupStore.loginMethod === 'passkey' ? passkeyStepSequence : fullStepSequence
+        $signupStore.loginMethod === 'password' ? fullStepSequence : passkeyStepSequence
     );
 
     // Props using Svelte 5 runes mode with callback props

@@ -32,6 +32,8 @@ from backend.core.api.app.routes import apps # Import apps router
 from backend.core.api.app.routes import share # Import share router
 from backend.core.api.app.routes import apps_api # Import apps API router for external API access
 from backend.core.api.app.routes import creators # Import creators router
+from backend.core.api.app.routes import newsletter # Import newsletter router
+from backend.core.api.app.routes import email_block # Import email block router
 from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.metrics import MetricsService
@@ -346,12 +348,16 @@ async def lifespan(app: FastAPI):
     app.state.image_safety_service = ImageSafetyService(secrets_manager=app.state.secrets_manager)
     logger.info("Image safety service instance created.")
 
-    # Initialize PaymentService (depends on SecretsManager)
+    # Initialize PaymentService conditionally (only if payment is enabled)
+    # Note: We check payment_enabled later after domain validation, but create service instance here
+    # The service will only be initialized/used if payment_enabled is True
     app.state.payment_service = PaymentService(secrets_manager=app.state.secrets_manager)
-    logger.info("Payment service instance created.")
+    logger.info("Payment service instance created (will be initialized only if payment enabled).")
 
-    # Initialize InvoiceNinjaService (depends on SecretsManager)
-    logger.info("Initializing Invoice Ninja service...")
+    # Initialize InvoiceNinjaService conditionally (only if payment is enabled)
+    # Note: We check payment_enabled later after domain validation, but create service instance here
+    # The service will only be initialized/used if payment_enabled is True
+    logger.info("Initializing Invoice Ninja service (will be initialized only if payment enabled)...")
     app.state.invoice_ninja_service = await InvoiceNinjaService.create(secrets_manager=app.state.secrets_manager)
 
     # Store ConfigManager in app.state
@@ -532,6 +538,35 @@ async def lifespan(app: FastAPI):
             # Store security service in app state for use in auth endpoints
             app.state.domain_security_service = domain_security_service
             
+            # --- Determine payment/billing status based on domain and environment ---
+            # This must happen AFTER domain_security_service.load_security_config() is called
+            # so that _ALLOWED_DOMAIN is populated from the encrypted file
+            from backend.core.api.app.utils.server_mode import (
+                is_payment_enabled,
+                get_server_edition,
+                get_hosting_domain
+            )
+            
+            # Determine payment status
+            payment_enabled = is_payment_enabled()
+            hosting_domain = get_hosting_domain()
+            server_edition = get_server_edition()
+            is_development = os.getenv("SERVER_ENVIRONMENT", "development").lower() == "development"
+            is_self_hosted = not payment_enabled
+            
+            # Store payment status flags in app.state for use throughout the application
+            app.state.payment_enabled = payment_enabled
+            app.state.is_self_hosted = is_self_hosted
+            app.state.is_development = is_development
+            app.state.server_edition = server_edition
+            
+            logger.info(
+                f"Payment/Billing Status: enabled={payment_enabled}, "
+                f"self_hosted={is_self_hosted}, "
+                f"server_edition={server_edition}, "
+                f"hosting_domain={hosting_domain or 'localhost'}"
+            )
+            
         except SystemExit:
             # Re-raise SystemExit to prevent server startup
             raise
@@ -544,36 +579,41 @@ async def lifespan(app: FastAPI):
         await app.state.metrics_service.initialize_metrics(app.state.directus_service)
         logger.info("Metrics service initialized successfully.")
 
-        # Initialize Payment service (sets base URL)
-        logger.info("Initializing Payment service...")
-        await app.state.payment_service.initialize(is_production=os.getenv("SERVER_ENVIRONMENT", "development") == "production")
-        logger.info("Payment service initialized successfully.")
+        # Initialize Payment service conditionally (only if payment is enabled)
+        # Check payment_enabled flag that was set during domain validation
+        if hasattr(app.state, 'payment_enabled') and app.state.payment_enabled:
+            logger.info("Initializing Payment service (payment enabled)...")
+            await app.state.payment_service.initialize(is_production=os.getenv("SERVER_ENVIRONMENT", "development") == "production")
+            logger.info("Payment service initialized successfully.")
 
-        # Initialize Stripe Product Sync service
-        logger.info("Initializing Stripe Product Sync service...")
-        app.state.stripe_product_sync = StripeProductSync(app.state.payment_service.provider)
-        logger.info("Stripe Product Sync service initialized successfully.")
+            # Initialize Stripe Product Sync service (only if payment enabled)
+            logger.info("Initializing Stripe Product Sync service...")
+            app.state.stripe_product_sync = StripeProductSync(app.state.payment_service.provider)
+            logger.info("Stripe Product Sync service initialized successfully.")
 
-        # Synchronize Stripe products with pricing configuration
-        logger.info("Synchronizing Stripe products with pricing configuration...")
-        try:
-            sync_result = await app.state.stripe_product_sync.sync_all_products()
-            if sync_result.get("success"):
-                results = sync_result.get("results", {})
-                logger.info(f"Stripe product synchronization completed successfully. "
-                           f"One-time products: {results.get('one_time_products', {}).get('created', 0)} created, "
-                           f"{results.get('one_time_products', {}).get('updated', 0)} updated, "
-                           f"{results.get('one_time_products', {}).get('errors', 0)} errors. "
-                           f"Subscription products: {results.get('subscription_products', {}).get('created', 0)} created, "
-                           f"{results.get('subscription_products', {}).get('updated', 0)} updated, "
-                           f"{results.get('subscription_products', {}).get('errors', 0)} errors.")
-            else:
-                error_msg = sync_result.get("error", "Unknown error")
-                logger.warning(f"Stripe product synchronization failed: {error_msg}")
+            # Synchronize Stripe products with pricing configuration (only if payment enabled)
+            logger.info("Synchronizing Stripe products with pricing configuration...")
+            try:
+                sync_result = await app.state.stripe_product_sync.sync_all_products()
+                if sync_result.get("success"):
+                    results = sync_result.get("results", {})
+                    logger.info(f"Stripe product synchronization completed successfully. "
+                               f"One-time products: {results.get('one_time_products', {}).get('created', 0)} created, "
+                               f"{results.get('one_time_products', {}).get('updated', 0)} updated, "
+                               f"{results.get('one_time_products', {}).get('errors', 0)} errors. "
+                               f"Subscription products: {results.get('subscription_products', {}).get('created', 0)} created, "
+                               f"{results.get('subscription_products', {}).get('updated', 0)} updated, "
+                               f"{results.get('subscription_products', {}).get('errors', 0)} errors.")
+                else:
+                    error_msg = sync_result.get("error", "Unknown error")
+                    logger.warning(f"Stripe product synchronization failed: {error_msg}")
+                    # Don't fail startup, just log the warning
+            except Exception as sync_error:
+                logger.warning(f"Stripe product synchronization encountered an error: {str(sync_error)}")
                 # Don't fail startup, just log the warning
-        except Exception as sync_error:
-            logger.warning(f"Stripe product synchronization encountered an error: {str(sync_error)}")
-            # Don't fail startup, just log the warning
+        else:
+            logger.info("Skipping Payment service initialization (payment disabled - self-hosted mode)")
+            app.state.stripe_product_sync = None
 
     except Exception as e:
         logger.critical(f"Failed during critical service initialization: {str(e)}", exc_info=True)
@@ -759,7 +799,7 @@ async def lifespan(app: FastAPI):
 def create_app() -> FastAPI:
     app = FastAPI(
         title="OpenMates API",
-        description="API for OpenMates platform with app skills integration",
+        description="First version of the OpenMates API. Work in progress. Will be extended and new docs design implemented in the weeks to come.",
         version="0.1.0",
         lifespan=lifespan,
         docs_url="/docs",  # Enable Swagger UI documentation
@@ -870,23 +910,47 @@ def create_app() -> FastAPI:
     app.add_middleware(ProxyHeadersMiddleware, trusted_hosts=trusted_hosts)
 
     # Include routers
-    # Exclude internal/web app routers from OpenAPI docs - only include endpoints that work with API keys
-    app.include_router(auth.router, include_in_schema=False)  # Auth endpoints - internal use only
-    app.include_router(email.router, include_in_schema=False)  # Email endpoints - internal use only
-    app.include_router(invoice.router, include_in_schema=False)  # Invoice endpoints - internal use only
-    app.include_router(credit_note.router, include_in_schema=False)  # Credit note endpoints - internal use only
-    app.include_router(settings.router)  # Settings endpoints - billing endpoint supports API key auth
-    app.include_router(payments.router, include_in_schema=False)  # Payments endpoints - internal use only (invoices don't support API keys yet)
-    app.include_router(websockets.router, include_in_schema=False)  # WebSocket endpoints - internal use only
+    # By default, all routers are excluded from OpenAPI schema (include_in_schema=False)
+    # Only routers explicitly marked with include_in_schema=True will appear in API documentation
+    # This ensures endpoints are not exposed to API users unless explicitly intended
+    
+    # Internal/web app routers - excluded from API schema (web app only, not for API access)
+    app.include_router(auth.router, include_in_schema=False)  # Auth endpoints - web app only
+    app.include_router(email.router, include_in_schema=False)  # Email endpoints - web app only
+    
+    # Conditionally register payment-related routers (only if payment is enabled)
+    # Note: payment_enabled flag is set during lifespan startup, but we check it here
+    # If not yet set (shouldn't happen), default to False for safety
+    payment_enabled = getattr(app.state, 'payment_enabled', False)
+    
+    if payment_enabled:
+        app.include_router(invoice.router, include_in_schema=False)  # Invoice endpoints - web app only
+        app.include_router(credit_note.router, include_in_schema=False)  # Credit note endpoints - web app only
+        app.include_router(payments.router, include_in_schema=False)  # Payments endpoints - web app only
+        logger.info("Payment-related routes registered (payment enabled)")
+    else:
+        logger.info("Skipping payment-related routes (payment disabled - self-hosted mode)")
+    
+    # Web app only routers - excluded from API schema (use web app auth, not API keys)
+    app.include_router(websockets.router, include_in_schema=False)  # WebSocket endpoints - web app only
     app.include_router(internal_api.router, include_in_schema=False)  # Internal API router - service-to-service communication only
     app.include_router(apps.router, include_in_schema=False)  # Apps router - public endpoint, not API key based
-    app.include_router(share.router, include_in_schema=False)  # Share router - internal use only
-    app.include_router(creators.router)  # Creators router - requires authentication, include in schema
-    # Keep apps_api router in docs - it uses API key authentication for external API access
-    app.include_router(apps_api.router)  # Include apps API router for external API access with API keys
-    # Include usage API router in docs - supports both session and API key auth
+    app.include_router(share.router, include_in_schema=False)  # Share router - web app only
+    app.include_router(newsletter.router, include_in_schema=False)  # Newsletter endpoints - web app only (uses verify_allowed_origin)
+    app.include_router(email_block.router, include_in_schema=False)  # Email blocking endpoints - web app only (uses verify_allowed_origin)
+    
+    # API routers - explicitly included in schema (support API key authentication)
+    app.include_router(settings.router, include_in_schema=True)  # Settings endpoints - some endpoints support API key auth
+    app.include_router(apps_api.router, include_in_schema=True)  # Apps API router - uses API key authentication for external API access
     from backend.core.api.app.routes import usage_api
-    app.include_router(usage_api.router)  # Include usage API router for external API access with API keys
+    app.include_router(usage_api.router, include_in_schema=True)  # Usage API router - supports both session and API key auth
+    
+    # Conditionally register creators router (only if payment is enabled - tips require payment)
+    if payment_enabled:
+        app.include_router(creators.router, include_in_schema=True)  # Creators router - requires authentication, supports API keys
+        logger.info("Creators router registered (payment enabled)")
+    else:
+        logger.info("Skipping creators router (payment disabled - tips require payment)")
 
     # Redirect /health to /v1/health for backward compatibility
     @app.get("/health", include_in_schema=False)
@@ -1022,6 +1086,40 @@ def create_app() -> FastAPI:
             "providers": providers_health,
             "apps": apps_health,
             "external_services": external_services_health
+        }
+
+    # Server information endpoint - public endpoint (no auth required)
+    # Included in OpenAPI docs - useful for clients to determine server type
+    @app.get("/v1/server", dependencies=[])  # Explicitly no dependencies (no auth required)
+    @limiter.limit("60/minute")
+    async def server_info(request: Request):
+        """
+        Get server information including server edition.
+        
+        Returns information about whether this is an official OpenMates cloud instance
+        or a self-hosting edition. This is useful for clients to adapt their behavior
+        (e.g., showing/hiding payment features, displaying appropriate branding).
+        
+        Returns:
+            Dict with 'edition' field:
+            - "official_openmates_cloud" - Official OpenMates cloud server (production or development)
+            - "self_hosting_edition" - Self-hosted instance
+        """
+        from backend.core.api.app.utils.server_mode import get_server_edition
+        
+        # Get server edition from server_mode utility
+        server_edition = get_server_edition()
+        
+        # Map server_edition to the requested format
+        # "production" or "development" -> "official_openmates_cloud"
+        # "self_hosted" -> "self_hosting_edition"
+        if server_edition in ["production", "development"]:
+            edition = "official_openmates_cloud"
+        else:
+            edition = "self_hosting_edition"
+        
+        return {
+            "edition": edition
         }
 
     return app

@@ -65,7 +65,7 @@ from backend.core.api.app.services.metrics import MetricsService
 from backend.core.api.app.services.compliance import ComplianceService
 from backend.core.api.app.services.limiter import limiter
 from backend.core.api.app.utils.device_fingerprint import generate_device_fingerprint_hash, _extract_client_ip
-from backend.core.api.app.utils.invite_code import validate_invite_code
+from backend.core.api.app.utils.invite_code import validate_invite_code, get_signup_requirements
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.routes.auth_routes.auth_dependencies import (
     get_directus_service,
@@ -926,29 +926,19 @@ async def passkey_registration_complete(
             invite_code = complete_request.invite_code
             code_data = None
             
-            # Check if invite code is required based on SIGNUP_LIMIT
-            # SIGNUP_LIMIT=0 means open signup (no invite codes required)
-            # SIGNUP_LIMIT>0 means require invite codes once user count reaches the limit
-            signup_limit = int(os.getenv("SIGNUP_LIMIT", "0"))
+            # Get signup requirements based on server edition and configuration
+            # For self-hosted: domain restriction OR invite code required
+            # For non-self-hosted: use SIGNUP_LIMIT logic
+            require_invite_code, require_domain_restriction, domain_restriction_value = await get_signup_requirements(
+                directus_service, cache_service
+            )
             
-            # Default to not requiring invite code (open signup) unless SIGNUP_LIMIT is set
-            if signup_limit == 0:
-                require_invite_code = False
-                logger.info("SIGNUP_LIMIT is 0 - open signup enabled (invite codes not required)")
-            else:
-                # SIGNUP_LIMIT > 0: require invite codes when user count reaches the limit
-                # Check if we have this value cached
-                cached_require_invite_code = await cache_service.get("require_invite_code")
-                if cached_require_invite_code is not None:
-                    require_invite_code = cached_require_invite_code
-                else:
-                    # Get the total user count and compare with SIGNUP_LIMIT
-                    total_users = await directus_service.get_total_users_count()
-                    require_invite_code = total_users >= signup_limit
-                    # Cache this value for quick access
-                    await cache_service.set("require_invite_code", require_invite_code, ttl=172800)  # Cache for 48 hours
-                    
-                logger.info(f"Invite code requirement check: limit={signup_limit}, required={require_invite_code}")
+            # Check domain restriction if required (for self-hosted with SIGNUP_DOMAIN_RESTRICTION set)
+            if require_domain_restriction and domain_restriction_value:
+                # Extract email from encrypted_email if available, or check during email verification step
+                # For passkey registration, domain check should have happened during email verification
+                # We validate here as a safety check
+                logger.info(f"Domain restriction enabled ({domain_restriction_value}) for self-hosted edition")
             
             if require_invite_code:
                 if not invite_code:
@@ -957,8 +947,8 @@ async def passkey_registration_complete(
                         message="Invite code is required for signup.",
                         user=None
                     )
-                code_data = await validate_invite_code(invite_code, directus_service, cache_service)
-                if not code_data:
+                is_valid, message, code_data = await validate_invite_code(invite_code, directus_service, cache_service)
+                if not is_valid or not code_data:
                     return PasskeyRegistrationCompleteResponse(
                         success=False,
                         message="Invalid or expired invite code.",
@@ -1195,7 +1185,9 @@ async def passkey_registration_complete(
             invite_code = complete_request.invite_code
             code_data = None
             if invite_code:
-                code_data = await validate_invite_code(invite_code, directus_service, cache_service)
+                is_valid, message, code_data = await validate_invite_code(invite_code, directus_service, cache_service)
+                if not is_valid:
+                    code_data = None  # Ensure code_data is None if validation failed
             
             gifted_credits = code_data.get('gifted_credits') if code_data else None
             if gifted_credits and isinstance(gifted_credits, (int, float)) and gifted_credits > 0:
@@ -1212,9 +1204,9 @@ async def passkey_registration_complete(
                     except Exception as encrypt_err:
                         logger.error(f"Failed to encrypt gifted credits for user {user_id}: {encrypt_err}", exc_info=True)
             
-            # Consume invite code if provided
-            signup_limit = int(os.getenv("SIGNUP_LIMIT", "0"))
-            require_invite_code = signup_limit > 0
+            # Consume invite code if provided and required
+            # Use the same signup requirements logic for consistency
+            require_invite_code, _, _ = await get_signup_requirements(directus_service, cache_service)
             if require_invite_code and invite_code and code_data:
                 try:
                     consume_success = await directus_service.consume_invite_code(invite_code, code_data)

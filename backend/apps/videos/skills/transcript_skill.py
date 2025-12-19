@@ -456,7 +456,7 @@ class TranscriptSkill(BaseSkill):
         url: str,
         secrets_manager: SecretsManager,
         languages: List[str] = None,
-        max_retries: int = 3
+        max_retries: int = 10
     ) -> Dict[str, Any]:
         """
         Fetch transcript for a video with retry logic using different IP addresses.
@@ -470,7 +470,7 @@ class TranscriptSkill(BaseSkill):
             url: Original video URL
             secrets_manager: SecretsManager instance to build proxy configs for each retry
             languages: List of language codes to try (default: ["en", "de", "es", "fr"])
-            max_retries: Maximum number of retry attempts
+            max_retries: Maximum number of retry attempts (default: 10, each with different IP address)
 
         Returns:
             Dict with success status, transcript data, or error information
@@ -486,15 +486,17 @@ class TranscriptSkill(BaseSkill):
             }
 
         # Pre-build proxy configs for each retry attempt to get different IPs
+        # Each attempt gets a unique session suffix to ensure different IP addresses
         proxy_configs = []
         for attempt in range(max_retries):
-            session_suffix = f"retry{attempt}" if attempt > 0 else None
+            # Use unique session suffix for each attempt (including first) to get different IPs
+            session_suffix = f"retry{attempt}"
             proxy_url = await self._build_oxylabs_proxy_url_async(secrets_manager, session_suffix)
             proxy_config = self._make_proxy_config(proxy_url)
             proxy_configs.append(proxy_config)
 
             if proxy_url:
-                logger.debug(f"Built proxy config for attempt {attempt+1} with session suffix: {session_suffix}")
+                logger.debug(f"Built proxy config for attempt {attempt+1}/{max_retries} with session suffix: {session_suffix}")
 
         # Run synchronous transcript fetching in thread pool to avoid blocking
         def _fetch_sync():
@@ -703,19 +705,26 @@ class TranscriptSkill(BaseSkill):
             
             # Create creator income entry asynchronously (fire-and-forget)
             # This doesn't block the skill response
-            try:
-                asyncio.create_task(
-                    self._create_creator_income_for_video(
-                        video_id=video_id,
-                        video_url=video_url,
-                        app_id=self.app_id,
-                        skill_id=self.skill_id,
-                        secrets_manager=secrets_manager
+            # Skip revenue sharing if payment is disabled (self-hosted mode)
+            from backend.core.api.app.utils.server_mode import is_payment_enabled
+            payment_enabled = is_payment_enabled()
+            
+            if payment_enabled:
+                try:
+                    asyncio.create_task(
+                        self._create_creator_income_for_video(
+                            video_id=video_id,
+                            video_url=video_url,
+                            app_id=self.app_id,
+                            skill_id=self.skill_id,
+                            secrets_manager=secrets_manager
+                        )
                     )
-                )
-            except Exception as e:
-                # Log but don't fail - income tracking failure shouldn't break skill execution
-                logger.warning(f"Failed to create creator income entry for video '{video_id}': {e}")
+                except Exception as e:
+                    # Log but don't fail - income tracking failure shouldn't break skill execution
+                    logger.warning(f"Failed to create creator income entry for video '{video_id}': {e}")
+            else:
+                logger.debug(f"Payment disabled (self-hosted mode). Skipping creator income entry for video '{video_id}'")
             
             return (request_id, [transcript_result], None)
             

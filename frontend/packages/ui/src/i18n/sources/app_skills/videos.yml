@@ -23,6 +23,31 @@ get_transcript:
   verified_by_human:
     - en
     - de
+get_transcript.text:
+  context: Skill name text for get transcript (used in activity logs)
+  en: Get Transcript
+  de: Transkript abrufen
+  zh: 获取转录
+  es: Obtener transcripción
+  fr: Obtenir la transcription
+  pt: Obter transcrição
+  ru: Получить транскрипт
+  ja: 文字起こしを取得
+  ko: 자막 가져오기
+  it: Ottieni trascrizione
+  tr: Transkript al
+  vi: Lấy bản ghi
+  id: Dapatkan transkrip
+  pl: Pobierz transkrypcję
+  nl: Transcript ophalen
+  ar: الحصول على النص
+  hi: प्रतिलिपि प्राप्त करें
+  th: รับสำเนา
+  cs: Získat přepis
+  sv: Hämta transkription
+  verified_by_human:
+    - en
+    - de
 get_transcript.description:
   context: Description for get transcript skill
   en: Get the full transcript of a YouTube video.

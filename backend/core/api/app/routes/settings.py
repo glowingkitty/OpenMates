@@ -1624,3 +1624,70 @@ async def get_billing_overview(
         raise HTTPException(status_code=500, detail="Failed to fetch billing overview")
 
 
+# --- Endpoint for server status (payment enabled, server edition, etc.) ---
+class ServerStatusResponse(BaseModel):
+    """Response model for server status endpoint"""
+    payment_enabled: bool
+    is_self_hosted: bool
+    is_development: bool
+    server_edition: str  # "production" | "development" | "self_hosted"
+
+
+@router.get(
+    "/server-status",
+    response_model=ServerStatusResponse,
+    dependencies=[Security(optional_api_key_scheme)]  # Public endpoint, but add security scheme for Swagger UI
+)
+@limiter.limit("60/minute")  # Rate limit to prevent abuse
+async def get_server_status(
+    request: Request
+):
+    """
+    Get server status information including payment enablement and server edition.
+    
+    This is a public endpoint (no authentication required) that allows the frontend
+    to check if payment features should be displayed and what server edition is running.
+    
+    Returns:
+        ServerStatusResponse with payment_enabled, is_self_hosted, is_development, and server_edition
+    """
+    try:
+        # Import server mode utilities
+        from backend.core.api.app.utils.server_mode import (
+            is_payment_enabled,
+            get_server_edition,
+            get_hosting_domain
+        )
+        
+        # Get payment status and server edition
+        payment_enabled = is_payment_enabled()
+        server_edition = get_server_edition()
+        hosting_domain = get_hosting_domain()
+        
+        # Determine is_self_hosted and is_development
+        is_self_hosted = not payment_enabled
+        is_development = os.getenv("SERVER_ENVIRONMENT", "development").lower() == "development"
+        
+        logger.debug(
+            f"Server status requested: payment_enabled={payment_enabled}, "
+            f"server_edition={server_edition}, hosting_domain={hosting_domain or 'localhost'}"
+        )
+        
+        return ServerStatusResponse(
+            payment_enabled=payment_enabled,
+            is_self_hosted=is_self_hosted,
+            is_development=is_development,
+            server_edition=server_edition
+        )
+        
+    except Exception as e:
+        logger.error(f"Error fetching server status: {str(e)}", exc_info=True)
+        # Return safe defaults on error (assume self-hosted to be safe)
+        return ServerStatusResponse(
+            payment_enabled=False,
+            is_self_hosted=True,
+            is_development=False,
+            server_edition="self_hosted"
+        )
+
+

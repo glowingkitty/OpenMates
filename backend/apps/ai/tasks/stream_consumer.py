@@ -658,6 +658,7 @@ async def _consume_main_processing_stream(
         preprocessing_results=preprocessing_result,
         base_instructions=base_instructions,
         directus_service=directus_service,
+        encryption_service=encryption_service, # Pass EncryptionService
         user_vault_key_id=user_vault_key_id,
         all_mates_configs=all_mates_configs,
         discovered_apps_metadata=discovered_apps_metadata,

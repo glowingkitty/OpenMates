@@ -5358,3 +5358,165 @@ you_will_receive_confirmation_soon:
   cs: Brzy obdržíte e-mailové potvrzení s vaší fakturou.
   sv: Du kommer snart att få en e-postbekräftelse med din faktura.
   verified_by_human: []
+newsletter:
+  subscribe_text:
+    context: Text shown above newsletter signup form
+    en: Stay informed about OpenMates updates and when signups are available again.
+    de: Bleiben Sie über OpenMates-Updates und verfügbare Anmeldungen informiert.
+    zh: 了解 OpenMates 更新以及何时可以再次注册。
+    es: Mantente informado sobre las actualizaciones de OpenMates y cuándo estará disponible el registro nuevamente.
+    fr: Restez informé des mises à jour d'OpenMates et des nouvelles inscriptions disponibles.
+    pt: Fique informado sobre atualizações do OpenMates e quando as inscrições estarão disponíveis novamente.
+    ru: Будьте в курсе обновлений OpenMates и когда регистрация снова станет доступной.
+    ja: OpenMatesの更新と、いつ再びサインアップできるかについて最新情報を入手してください。
+    ko: OpenMates 업데이트 및 가입이 다시 가능해질 때에 대한 정보를 받아보세요.
+    it: Rimani informato sugli aggiornamenti di OpenMates e quando le iscrizioni saranno nuovamente disponibili.
+    tr: OpenMates güncellemeleri ve kayıtların ne zaman tekrar kullanılabilir olacağı hakkında bilgi alın.
+    vi: Cập nhật về OpenMates và khi nào có thể đăng ký lại.
+    id: Dapatkan informasi tentang pembaruan OpenMates dan kapan pendaftaran tersedia lagi.
+    pl: Bądź na bieżąco z aktualizacjami OpenMates i dowiedz się, kiedy rejestracja będzie ponownie dostępna.
+    nl: Blijf op de hoogte van OpenMates-updates en wanneer aanmeldingen weer beschikbaar zijn.
+    ar: ابق على اطلاع بآخر تحديثات OpenMates ومتى ستكون التسجيلات متاحة مرة أخرى.
+    hi: OpenMates अपडेट और जब साइनअप फिर से उपलब्ध होंगे, इसके बारे में सूचित रहें।
+    th: ติดตามข่าวสารเกี่ยวกับการอัปเดต OpenMates และเมื่อใดที่การสมัครสมาชิกจะเปิดอีกครั้ง
+    cs: Zůstaňte informováni o aktualizacích OpenMates a kdy bude registrace znovu k dispozici.
+    sv: Håll dig informerad om OpenMates-uppdateringar och när registreringar är tillgängliga igen.
+    verified_by_human: []
+  email_placeholder:
+    context: Placeholder text for newsletter email input
+    en: Enter your email address
+    de: Geben Sie Ihre E-Mail-Adresse ein
+    zh: 输入您的电子邮件地址
+    es: Ingresa tu dirección de correo electrónico
+    fr: Entrez votre adresse e-mail
+    pt: Digite seu endereço de e-mail
+    ru: Введите ваш адрес электронной почты
+    ja: メールアドレスを入力してください
+    ko: 이메일 주소를 입력하세요
+    it: Inserisci il tuo indirizzo email
+    tr: E-posta adresinizi girin
+    vi: Nhập địa chỉ email của bạn
+    id: Masukkan alamat email Anda
+    pl: Wprowadź swój adres e-mail
+    nl: Voer je e-mailadres in
+    ar: أدخل عنوان بريدك الإلكتروني
+    hi: अपना ईमेल पता दर्ज करें
+    th: กรอกที่อยู่อีเมลของคุณ
+    cs: Zadejte svou e-mailovou adresu
+    sv: Ange din e-postadress
+    verified_by_human: []
+  subscribe_button:
+    context: Button text for newsletter subscription
+    en: Subscribe
+    de: Abonnieren
+    zh: 订阅
+    es: Suscribirse
+    fr: S'abonner
+    pt: Inscrever-se
+    ru: Подписаться
+    ja: 購読
+    ko: 구독
+    it: Iscriviti
+    tr: Abone ol
+    vi: Đăng ký
+    id: Berlangganan
+    pl: Subskrybuj
+    nl: Abonneren
+    ar: اشترك
+    hi: सदस्यता लें
+    th: สมัครสมาชิก
+    cs: Přihlásit se
+    sv: Prenumerera
+    verified_by_human: []
+  subscribing:
+    context: Loading text while subscribing to newsletter
+    en: Subscribing...
+    de: Abonnieren...
+    zh: 订阅中...
+    es: Suscribiendo...
+    fr: Abonnement en cours...
+    pt: Inscrevendo...
+    ru: Подписка...
+    ja: 購読中...
+    ko: 구독 중...
+    it: Iscrizione in corso...
+    tr: Abone olunuyor...
+    vi: Đang đăng ký...
+    id: Berlangganan...
+    pl: Subskrybowanie...
+    nl: Abonneren...
+    ar: جاري الاشتراك...
+    hi: सदस्यता ली जा रही है...
+    th: กำลังสมัครสมาชิก...
+    cs: Přihlašování...
+    sv: Prenumererar...
+    verified_by_human: []
+  subscribe_success:
+    context: Success message after newsletter subscription
+    en: Check your email to confirm your subscription!
+    de: Überprüfen Sie Ihre E-Mail, um Ihr Abonnement zu bestätigen!
+    zh: 请检查您的电子邮件以确认您的订阅！
+    es: ¡Revisa tu correo electrónico para confirmar tu suscripción!
+    fr: Vérifiez votre e-mail pour confirmer votre abonnement !
+    pt: Verifique seu e-mail para confirmar sua inscrição!
+    ru: Проверьте свою электронную почту, чтобы подтвердить подписку!
+    ja: メールを確認して購読を確認してください！
+    ko: 이메일을 확인하여 구독을 확인하세요!
+    it: Controlla la tua email per confermare l'iscrizione!
+    tr: Aboneliğinizi onaylamak için e-postanızı kontrol edin!
+    vi: Kiểm tra email của bạn để xác nhận đăng ký!
+    id: Periksa email Anda untuk mengonfirmasi langganan Anda!
+    pl: Sprawdź swoją pocztę e-mail, aby potwierdzić subskrypcję!
+    nl: Controleer je e-mail om je abonnement te bevestigen!
+    ar: تحقق من بريدك الإلكتروني لتأكيد اشتراكك!
+    hi: अपनी सदस्यता की पुष्टि करने के लिए अपना ईमेल जांचें!
+    th: ตรวจสอบอีเมลของคุณเพื่อยืนยันการสมัครสมาชิก!
+    cs: Zkontrolujte svůj e-mail a potvrďte své předplatné!
+    sv: Kontrollera din e-post för att bekräfta din prenumeration!
+    verified_by_human: []
+  subscribe_error:
+    context: Error message when newsletter subscription fails
+    en: Failed to subscribe. Please try again.
+    de: Abonnement fehlgeschlagen. Bitte versuchen Sie es erneut.
+    zh: 订阅失败。请重试。
+    es: Error al suscribirse. Por favor, inténtalo de nuevo.
+    fr: Échec de l'abonnement. Veuillez réessayer.
+    pt: Falha ao inscrever-se. Por favor, tente novamente.
+    ru: Не удалось подписаться. Пожалуйста, попробуйте снова.
+    ja: 購読に失敗しました。もう一度お試しください。
+    ko: 구독에 실패했습니다. 다시 시도해 주세요.
+    it: Iscrizione fallita. Riprova.
+    tr: Abone olunamadı. Lütfen tekrar deneyin.
+    vi: Đăng ký thất bại. Vui lòng thử lại.
+    id: Gagal berlangganan. Silakan coba lagi.
+    pl: Nie udało się zasubskrybować. Spróbuj ponownie.
+    nl: Abonneren mislukt. Probeer het opnieuw.
+    ar: فشل الاشتراك. يرجى المحاولة مرة أخرى.
+    hi: सदस्यता लेने में विफल। कृपया पुनः प्रयास करें।
+    th: การสมัครสมาชิกล้มเหลว กรุณาลองอีกครั้ง
+    cs: Přihlášení se nezdařilo. Zkuste to prosím znovu.
+    sv: Prenumerationen misslyckades. Försök igen.
+    verified_by_human: []
+  invalid_email:
+    context: Error message for invalid email address
+    en: Please enter a valid email address
+    de: Bitte geben Sie eine gültige E-Mail-Adresse ein
+    zh: 请输入有效的电子邮件地址
+    es: Por favor, ingresa una dirección de correo electrónico válida
+    fr: Veuillez entrer une adresse e-mail valide
+    pt: Por favor, insira um endereço de e-mail válido
+    ru: Пожалуйста, введите действительный адрес электронной почты
+    ja: 有効なメールアドレスを入力してください
+    ko: 유효한 이메일 주소를 입력하세요
+    it: Inserisci un indirizzo email valido
+    tr: Lütfen geçerli bir e-posta adresi girin
+    vi: Vui lòng nhập địa chỉ email hợp lệ
+    id: Silakan masukkan alamat email yang valid
+    pl: Wprowadź prawidłowy adres e-mail
+    nl: Voer een geldig e-mailadres in
+    ar: يرجى إدخال عنوان بريد إلكتروني صالح
+    hi: कृपया एक वैध ईमेल पता दर्ज करें
+    th: กรุณากรอกที่อยู่อีเมลที่ถูกต้อง
+    cs: Zadejte prosím platnou e-mailovou adresu
+    sv: Ange en giltig e-postadress
+    verified_by_human: []

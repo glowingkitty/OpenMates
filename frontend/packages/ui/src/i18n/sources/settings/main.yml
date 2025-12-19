@@ -738,6 +738,21 @@ developers_api_keys:
   zh: API 密钥
   es: Claves API
   fr: Clés API
+  pt: Chaves API
+  ru: API-ключи
+  ja: APIキー
+  ko: API 키
+  it: Chiavi API
+  tr: API Anahtarları
+  vi: Khóa API
+  id: Kunci API
+  pl: Klucze API
+  nl: API-sleutels
+  ar: مفاتيح API
+  hi: API कुंजियाँ
+  th: คีย์ API
+  cs: API klíče
+  sv: API-nycklar
   verified_by_human: []
 
 developers_api_keys_description:

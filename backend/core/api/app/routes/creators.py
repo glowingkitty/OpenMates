@@ -107,6 +107,8 @@ async def tip_creator(
     The tip creates a creator_income entry that will be available for the creator
     to claim when they sign up for a creator account.
     
+    NOTE: This endpoint is disabled in self-hosted mode (payment disabled).
+    
     Args:
         tip_data: Tip request containing hashed_owner_id, content_type, and credits
         current_user: Currently authenticated user (from dependency)
@@ -117,6 +119,17 @@ async def tip_creator(
     Returns:
         TipCreatorResponse with success status and updated credit balance
     """
+    # Check if payment is enabled (creator tips require payment system)
+    from backend.core.api.app.utils.server_mode import is_payment_enabled
+    payment_enabled = is_payment_enabled()
+    
+    if not payment_enabled:
+        logger.info(f"Creator tip request rejected: payment disabled (self-hosted mode)")
+        raise HTTPException(
+            status_code=404,
+            detail="Creator tips are not available in self-hosted mode"
+        )
+    
     try:
         # Validate owner_id is provided
         if not tip_data.owner_id or not tip_data.owner_id.strip():

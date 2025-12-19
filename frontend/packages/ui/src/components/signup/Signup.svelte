@@ -155,8 +155,11 @@
             : passkeyStepSequenceBase.filter(step => ![STEP_CREDITS, STEP_PAYMENT, STEP_AUTO_TOP_UP].includes(step))
     );
 
+    // Determine step sequence based on login method
+    // Default to passkey sequence (assume passkey by default)
+    // Only use full sequence when user explicitly selects password + 2FA OTP
     let stepSequence = $derived(
-        $signupStore.loginMethod === 'passkey' ? passkeyStepSequence : fullStepSequence
+        $signupStore.loginMethod === 'password' ? fullStepSequence : passkeyStepSequence
     );
 
     let isImageProcessing = $state(false);
@@ -201,26 +204,28 @@
     
     // Update stores when component is mounted and destroyed
 
-    onMount(async () => {
+    onMount(() => {
         isInSignupProcess.set(true);
         
-        // Check server status to determine if payment is enabled
-        try {
-            const { getApiEndpoint } = await import('../../config/api');
-            const response = await fetch(getApiEndpoint('/v1/settings/server-status'));
-            if (response.ok) {
-                const status = await response.json();
-                paymentEnabled = status.payment_enabled || false;
-                serverEdition = status.server_edition || null;
-                console.log(`[Signup] Payment enabled: ${paymentEnabled}, Server edition: ${serverEdition}`);
-            } else {
-                console.warn('[Signup] Failed to fetch server status, defaulting to payment enabled');
+        // Check server status to determine if payment is enabled (async, fire and forget)
+        (async () => {
+            try {
+                const { getApiEndpoint } = await import('../../config/api');
+                const response = await fetch(getApiEndpoint('/v1/settings/server-status'));
+                if (response.ok) {
+                    const status = await response.json();
+                    paymentEnabled = status.payment_enabled || false;
+                    serverEdition = status.server_edition || null;
+                    console.log(`[Signup] Payment enabled: ${paymentEnabled}, Server edition: ${serverEdition}`);
+                } else {
+                    console.warn('[Signup] Failed to fetch server status, defaulting to payment enabled');
+                    paymentEnabled = true; // Default to enabled if check fails
+                }
+            } catch (error) {
+                console.error('[Signup] Error checking server status:', error);
                 paymentEnabled = true; // Default to enabled if check fails
             }
-        } catch (error) {
-            console.error('[Signup] Error checking server status:', error);
-            paymentEnabled = true; // Default to enabled if check fails
-        }
+        })();
         
         // Set up the callbacks passed from Login to call internal handlers
         // We'll update the callbacks in Login to call our internal handlers
@@ -534,14 +539,24 @@
     function handleSkip() {
         // Profile picture step removed - moved to settings
         if (currentStep === STEP_TFA_APP_REMINDER) {
-            // Skip settings and mate settings - go directly to credits
-            goToStep(STEP_CREDITS);
+            // Skip settings and mate settings - go directly to credits (or completion if payment disabled)
+            if (paymentEnabled) {
+                goToStep(STEP_CREDITS);
+            } else {
+                goToStep(STEP_COMPLETION);
+            }
         }
     }
 
     async function handleStep(event: CustomEvent<{step: string, credits_amount?: number, price?: number, currency?: string, isGift?: boolean}>) { // Add isGift to type
-        const newStep = event.detail.step;
+        let newStep = event.detail.step;
         const oldStep = currentStep; // Capture old step value
+        
+        // Skip payment steps if payment is disabled (self-hosted mode)
+        if (!paymentEnabled && [STEP_CREDITS, STEP_PAYMENT, STEP_AUTO_TOP_UP].includes(newStep)) {
+            console.log(`[Signup] Payment disabled, redirecting from ${newStep} to completion`);
+            newStep = STEP_COMPLETION;
+        }
         
         const oldIndex = stepSequence.indexOf(oldStep);
         const newIndex = stepSequence.indexOf(newStep);
@@ -559,6 +574,22 @@
         isGiftFlow = event.detail.isGift ?? false; // Capture isGift status, default to false
         currentStep = newStep; // Update local step
         currentSignupStep.set(newStep); // Update the global store
+        
+        // CRITICAL: If we've reached the completion step (especially when payment is disabled),
+        // automatically complete the signup instead of updating last_opened to #signup/completion
+        // Skip updating last_opened to #signup/completion since we'll update it to /chat/new immediately
+        if (newStep === STEP_COMPLETION) {
+            console.log(`[Signup] Reached completion step in handleStep, automatically finishing signup...`);
+            // Use a small delay to ensure state updates are processed
+            setTimeout(async () => {
+                await handleAutoTopUpComplete({ detail: {} });
+            }, 100);
+            // Don't update last_opened here - handleAutoTopUpComplete will set it to /chat/new
+            await tick(); // Wait for Svelte to process state changes
+            updateSettingsStep(oldStep);
+            await scrollToTop();
+            return; // Exit early, don't continue with normal step handling
+        }
         
         // Update last_opened to reflect current signup step (skip alpha_disclaimer as it's not a real step)
         // This ensures the signup flow can be restored on page reload
@@ -666,6 +697,18 @@
 
         currentStep = step;
         currentSignupStep.set(step); // Also update the store here
+        
+        // CRITICAL: If we've reached the completion step (especially when payment is disabled),
+        // automatically complete the signup instead of showing an empty step
+        // Skip updating last_opened to #signup/completion since we'll update it to /chat/new immediately
+        if (step === STEP_COMPLETION) {
+            console.log(`[Signup] Reached completion step, automatically finishing signup...`);
+            // Use a small delay to ensure state updates are processed
+            setTimeout(async () => {
+                await handleAutoTopUpComplete({ detail: {} });
+            }, 100);
+            return; // Don't continue with normal step rendering or last_opened update
+        }
         
         // Update last_opened to reflect current signup step (skip alpha_disclaimer as it's not a real step)
         // This ensures the signup flow can be restored on page reload
@@ -984,6 +1027,12 @@
 
         // Signal completion of signup process AFTER ensuring auth state is updated
         isInSignupProcess.set(false);
+        
+        // CRITICAL: Close login interface to show the main app
+        // This ensures the signup UI is hidden and user can see the chat interface
+        const { loginInterfaceOpen } = await import('../../stores/uiStateStore');
+        loginInterfaceOpen.set(false);
+        console.debug("[Signup] Closed login interface after signup completion");
 
         // CRITICAL: Mark sync as completed immediately after signup
         // New users have no chats to sync, so sync completes instantly (or doesn't trigger sync events)
@@ -1424,6 +1473,7 @@
                                             />
                                         {:else if currentStep === STEP_RECOVERY_KEY}
                                             <RecoveryKeyBottomContent
+                                                paymentEnabled={paymentEnabled}
                                                 on:step={handleStep}
                                                 on:uploading={handleImageUploading}
                                                 on:selectedApp={handleSelectedApp}

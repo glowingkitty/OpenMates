@@ -1,11 +1,20 @@
 <script lang="ts">
     import { text } from '@repo/ui';
     import { externalLinks, getWebsiteUrl } from '../../config/links';
+    import { getApiUrl } from '../../config/api';
     import { getLegalChatBySlug, convertDemoChatToChat, translateDemoChat } from '../../demo_chats';
     import { activeChatStore } from '../../stores/activeChatStore';
     import { createEventDispatcher } from 'svelte';
     
     const dispatch = createEventDispatcher();
+    
+    /**
+     * Get the API documentation URL.
+     * Returns the API domain with /docs path appended.
+     */
+    function getApiDocsUrl(): string {
+        return `${getApiUrl()}/docs`;
+    }
     
     /**
      * Handle click on a legal document link
@@ -112,6 +121,12 @@
     <!-- For developers -->
     <div class="submenu-group">
         <h3>{@html $text('footer.sections.for_developers.text')}</h3>
+        <a
+            href={getApiDocsUrl()}
+            class="submenu-link"
+            target="_blank"
+            rel="noopener noreferrer"
+        >{@html $text('settings.api_docs.text')}</a>
         <a
             href={externalLinks.github}
             class="submenu-link"

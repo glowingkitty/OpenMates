@@ -924,24 +924,26 @@ changes to the documentation (to keep the documentation up to date).
     }
 
     // Setup listeners
-    onMount(async () => {
-        // Check server status to determine if payment is enabled
-        try {
-            const { getApiEndpoint } = await import('../config/api');
-            const response = await fetch(getApiEndpoint('/v1/settings/server-status'));
-            if (response.ok) {
-                const status = await response.json();
-                paymentEnabled = status.payment_enabled || false;
-                serverEdition = status.server_edition || null;
-                console.log(`[Settings] Payment enabled: ${paymentEnabled}, Server edition: ${serverEdition}`);
-            } else {
-                console.warn('[Settings] Failed to fetch server status, defaulting to payment enabled');
+    onMount(() => {
+        // Check server status to determine if payment is enabled (async, fire and forget)
+        (async () => {
+            try {
+                const { getApiEndpoint } = await import('../config/api');
+                const response = await fetch(getApiEndpoint('/v1/settings/server-status'));
+                if (response.ok) {
+                    const status = await response.json();
+                    paymentEnabled = status.payment_enabled || false;
+                    serverEdition = status.server_edition || null;
+                    console.log(`[Settings] Payment enabled: ${paymentEnabled}, Server edition: ${serverEdition}`);
+                } else {
+                    console.warn('[Settings] Failed to fetch server status, defaulting to payment enabled');
+                    paymentEnabled = true; // Default to enabled if check fails
+                }
+            } catch (error) {
+                console.error('[Settings] Error checking server status:', error);
                 paymentEnabled = true; // Default to enabled if check fails
             }
-        } catch (error) {
-            console.error('[Settings] Error checking server status:', error);
-            paymentEnabled = true; // Default to enabled if check fails
-        }
+        })();
         updateMobileState();
         window.addEventListener('resize', handleResize);
         document.addEventListener('click', handleClickOutside);
@@ -1427,6 +1429,7 @@ changes to the documentation (to keep the documentation up to date).
             {isInSignupMode}
             {settingsViews}
             {isMenuVisible}
+            {paymentEnabled}
             bind:isIncognitoEnabled
             bind:isGuestEnabled
             bind:isOfflineEnabled

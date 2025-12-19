@@ -12,7 +12,7 @@ from backend.core.api.app.services.metrics import MetricsService
 from backend.core.api.app.services.compliance import ComplianceService
 from backend.core.api.app.services.limiter import limiter
 from backend.core.api.app.utils.device_fingerprint import generate_device_fingerprint_hash, _extract_client_ip, get_geo_data_from_ip
-from backend.core.api.app.utils.invite_code import validate_invite_code
+from backend.core.api.app.utils.invite_code import validate_invite_code, get_signup_requirements
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.routes.auth_routes.auth_dependencies import get_directus_service, get_cache_service, get_metrics_service, get_compliance_service, get_encryption_service
 from backend.core.api.app.routes.auth_routes.auth_utils import verify_allowed_origin, validate_username
@@ -43,29 +43,12 @@ async def setup_password(
         invite_code = setup_request.invite_code
         code_data = None
         
-        # Check if invite code is required based on SIGNUP_LIMIT
-        # SIGNUP_LIMIT=0 means open signup (no invite codes required)
-        # SIGNUP_LIMIT>0 means require invite codes once user count reaches the limit
-        signup_limit = int(os.getenv("SIGNUP_LIMIT", "0"))
-        
-        # Default to not requiring invite code (open signup) unless SIGNUP_LIMIT is set
-        if signup_limit == 0:
-            require_invite_code = False
-            logger.info("SIGNUP_LIMIT is 0 - open signup enabled (invite codes not required)")
-        else:
-            # SIGNUP_LIMIT > 0: require invite codes when user count reaches the limit
-            # Check if we have this value cached
-            cached_require_invite_code = await cache_service.get("require_invite_code")
-            if cached_require_invite_code is not None:
-                require_invite_code = cached_require_invite_code
-            else:
-                # Get the total user count and compare with SIGNUP_LIMIT
-                total_users = await directus_service.get_total_users_count()
-                require_invite_code = total_users >= signup_limit
-                # Cache this value for quick access
-                await cache_service.set("require_invite_code", require_invite_code, ttl=172800)  # Cache for 48 hours
-                
-            logger.info(f"Invite code requirement check: limit={signup_limit}, required={require_invite_code}")
+        # Get signup requirements based on server edition and configuration
+        # For self-hosted: domain restriction OR invite code required
+        # For non-self-hosted: use SIGNUP_LIMIT logic
+        require_invite_code, require_domain_restriction, domain_restriction_value = await get_signup_requirements(
+            directus_service, cache_service
+        )
         
         # If invite code is required, validate it
         if require_invite_code:
