@@ -32,6 +32,10 @@
         chatSyncService,
         webSocketService, // Import WebSocket service to listen for auth errors
         mostUsedAppsStore, // Import most used apps store to fetch on app load
+        // deep link handler
+        processDeepLink,
+        processSettingsDeepLink as processSettingsDeepLinkUnified,
+        type DeepLinkHandlers,
     } from '@repo/ui';
     import { notificationStore, getKeyFromStorage, text, LANGUAGE_CODES } from '@repo/ui';
     import { checkAndClearMasterKeyOnLoad } from '@repo/ui';
@@ -46,6 +50,8 @@
     let activeChat = $state<ActiveChat | null>(null); // Fixed: Use $state for Svelte 5
     let isProcessingInitialHash = $state(false); // Track if we're processing initial hash load
     let originalHashChatId: string | null = null; // Store original hash chat ID from URL (read before anything modifies it)
+    let deepLinkProcessed = $state(false); // Track if any deep link was processed during onMount to avoid loading welcome chat
+    let pendingDeepLinkHandler: EventListener | null = null; // Store event handler for cleanup
     
     // CRITICAL: Reactive effect to watch for signup state changes
     // This handles cases where user profile loads asynchronously after initialize() completes
@@ -232,7 +238,10 @@
      */
     async function handleEmbedDeepLink(embedId: string) {
         console.debug(`[+page.svelte] Handling embed deep link for: ${embedId}`);
-        
+
+        // Mark that a deep link was processed
+        deepLinkProcessed = true;
+
         // Update the activeEmbedStore so the URL hash is set
         activeEmbedStore.setActiveEmbed(embedId);
         
@@ -307,15 +316,43 @@
      * IMPORTANT: This function is only called on login (when sync completes after authentication).
      * On tab reload, we load from IndexedDB directly (see instant load logic below).
      * 
+     * PRIORITY SYSTEM:
+     * 1. Skip if last_opened is a signup step (priority 1 already handled)
+     * 2. Skip if hash is a chat (priority 2 - hash chat takes precedence)
+     * 3. Load last_opened chat if hash is settings (priority 3) or no hash
+     * 
      * OPTIMIZATION: Check if chat is already loaded to avoid duplicate loads
      * Only loads if chat exists in IndexedDB but isn't currently displayed
      */
     async function handleSyncCompleteAndLoadLastChat() {
-        console.debug('[+page.svelte] Loading last opened chat (no hash in URL)...');
+        console.debug('[+page.svelte] Loading last opened chat (checking priority system)...');
         
-        // On login, use server state (from userProfile which was synced from server)
-        // This ensures new devices get the correct last opened chat from server
+        // PRIORITY 1: Skip if last_opened is a signup step (already handled with priority 1)
         const lastOpenedChatId = $userProfile.last_opened;
+        if (lastOpenedChatId && isSignupPath(lastOpenedChatId)) {
+            console.debug('[+page.svelte] [PRIORITY 1] Skipping last_opened chat - it is a signup step (already handled)');
+            return;
+        }
+        
+        // PRIORITY 2: Skip if hash is a chat (hash chat takes precedence)
+        if (originalHashChatId) {
+            console.debug('[+page.svelte] [PRIORITY 2] Skipping last_opened chat - hash chat has priority:', originalHashChatId);
+            return;
+        }
+        
+        // PRIORITY 3: Check if hash is settings - if so, we load last_opened chat after settings
+        const currentHash = browser ? window.location.hash : '';
+        const { parseDeepLink } = await import('@repo/ui');
+        const parsed = currentHash ? parseDeepLink(currentHash) : null;
+        const isSettingsHash = parsed?.type === 'settings';
+        
+        // Only load last_opened chat if:
+        // - No hash in URL, OR
+        // - Hash is settings (priority 3: settings first, then last_opened chat)
+        if (currentHash && !isSettingsHash) {
+            console.debug('[+page.svelte] [PRIORITY 2] Skipping last_opened chat - hash is not settings:', currentHash);
+            return;
+        }
         
         if (!lastOpenedChatId) {
             console.debug('[+page.svelte] No last opened chat in user profile (from server) - will load default chat');
@@ -324,6 +361,15 @@
         
         // Try to load last opened chat if it exists
         if (lastOpenedChatId) {
+            // Handle "new chat window" case - this is not a real chat ID
+            if (lastOpenedChatId === '/chat/new' || lastOpenedChatId === 'new') {
+                console.debug('[+page.svelte] Last opened is new chat window, clearing active chat');
+                // Clear active chat to show new chat window
+                // The ActiveChat component will show the new chat interface when no chat is selected
+                activeChatStore.clearActiveChat();
+                return; // Don't load default chat
+            }
+            
             // Skip if this chat is already loaded (active chat store matches)
             if ($activeChatStore === lastOpenedChatId) {
                 console.debug('[+page.svelte] Last opened chat already loaded, skipping');
@@ -339,7 +385,11 @@
                 const lastChat = await chatDB.getChat(lastOpenedChatId);
                 
                 if (lastChat && activeChat) {
-                    console.debug('[+page.svelte] ✅ Loading last opened chat from sync (login):', lastOpenedChatId);
+                    if (isSettingsHash) {
+                        console.debug('[+page.svelte] [PRIORITY 3] ✅ Loading last_opened chat after settings hash:', lastOpenedChatId);
+                    } else {
+                        console.debug('[+page.svelte] ✅ Loading last opened chat from sync (login):', lastOpenedChatId);
+                    }
                     
                     // Update the active chat store so the sidebar highlights it when opened
                     activeChatStore.setActiveChat(lastOpenedChatId);
@@ -410,7 +460,9 @@
 			'app_store',
 			'appstore', // Alias
 			'interface',
-			'main' // Main settings page
+			'main', // Main settings page
+			'newsletter', // Newsletter settings (for email link actions)
+			'email' // Email blocking settings (for email link actions)
 		];
 		
 		// Check if path starts with any public setting
@@ -430,73 +482,42 @@
 	}
 	
 	/**
-	 * Process settings deep link - extracted to reusable function
+	 * Process settings deep link - uses unified deep link handler
 	 * Handles navigation to settings pages based on hash
 	 * @param hash The hash string (e.g., '#settings/billing/invoices/.../refund')
 	 */
 	function processSettingsDeepLink(hash: string) {
-		console.debug(`[+page.svelte] Processing settings deep link: ${hash}`);
-		
-		panelState.openSettings();
-		const settingsPath = hash.substring('#settings'.length);
-		
-		// Check if this is a refund deep link (e.g., #settings/billing/invoices/{invoice_id}/refund)
-		// For refund deep links, we navigate to billing/invoices but keep the hash for SettingsInvoices to process
-		const refundMatch = settingsPath.match(/^\/billing\/invoices\/[^\/]+\/refund$/);
-		
-		if (refundMatch) {
-			// This is a refund deep link - navigate to billing/invoices
-			// SettingsInvoices will handle the refund processing
-			console.debug(`[+page.svelte] Refund deep link detected: ${hash}`);
-			settingsDeepLink.set('billing/invoices');
-			// Don't clear the hash - SettingsInvoices needs it to process the refund
-			// But we'll clear it after SettingsInvoices processes it
-		} else if (settingsPath.startsWith('/')) {
-			// Handle paths like #settings/appstore -> app_store
-			let path = settingsPath.substring(1); // Remove leading slash
-			// Map common aliases to actual settings paths
-			if (path === 'appstore') {
-				path = 'app_store';
-			}
-			settingsDeepLink.set(path);
-			
-			// Clear the hash after processing to keep URL clean
-			// (similar to how signup and chat deep links are cleared)
-			window.history.replaceState({}, '', window.location.pathname + window.location.search);
-		} else if (settingsPath === '') {
-			 settingsDeepLink.set('main'); // Default to main settings if just #settings
-			 
-			 // Clear the hash after processing
-			 window.history.replaceState({}, '', window.location.pathname + window.location.search);
-		} else {
-			 // Handle invalid settings path?
-			 console.warn(`[+page.svelte] Invalid settings deep link hash: ${hash}`);
-			 settingsDeepLink.set('main'); // Default to main on invalid hash
-			 
-			 // Clear the hash after processing
-			 window.history.replaceState({}, '', window.location.pathname + window.location.search);
-		}
+		processSettingsDeepLinkUnified(hash, {
+			openSettings: () => panelState.openSettings(),
+			setSettingsDeepLink: (path: string) => settingsDeepLink.set(path)
+		});
 	}
 	
 	/**
 	 * Handle pending deep link processing after successful login
 	 * This handles cases where user opened a deep link while not authenticated
 	 */
-	function handlePendingDeepLink(event: CustomEvent<{ hash: string }>) {
+	async function handlePendingDeepLink(event: CustomEvent<{ hash: string }>) {
 		const hash = event.detail.hash;
 		console.debug(`[+page.svelte] Processing pending deep link: ${hash}`);
 		
-		if (hash.startsWith('#settings')) {
-			// Process settings deep link now that user is authenticated
-			processSettingsDeepLink(hash);
-		} else if (hash.startsWith('#chat_id=') || hash.startsWith('#chat-id=')) {
-			// Process chat deep link
-			const chatId = hash.startsWith('#chat_id=') 
-				? hash.substring(9) // Remove '#chat_id=' prefix
-				: hash.substring(9); // Remove '#chat-id=' prefix
-			handleChatDeepLink(chatId);
-		}
-		// Note: signup deep links don't require authentication, so they're handled immediately
+		const handlers: DeepLinkHandlers = {
+			onChat: handleChatDeepLink,
+			onSettings: (path: string, fullHash: string) => processSettingsDeepLink(fullHash),
+			onSignup: (step: string) => {
+				currentSignupStep.set(step);
+				isInSignupProcess.set(true);
+				loginInterfaceOpen.set(true);
+			},
+			onEmbed: handleEmbedDeepLink,
+			requiresAuthentication,
+			isAuthenticated: () => $authStore.isAuthenticated,
+			openSettings: () => panelState.openSettings(),
+			openLogin: () => loginInterfaceOpen.set(true),
+			setSettingsDeepLink: (path: string) => settingsDeepLink.set(path)
+		};
+		
+		await processDeepLink(hash, handlers);
 	}
 	
 	onMount(async () => {
@@ -505,12 +526,51 @@
 		// CRITICAL: Read and store the ORIGINAL hash value BEFORE anything can modify it
 		// This ensures we can check for hash chat even if welcome chat loading overwrites the hash
 		const originalHash = browser ? window.location.hash : '';
-		originalHashChatId = originalHash.startsWith('#chat-id=') || originalHash.startsWith('#chat_id=')
-			? (originalHash.startsWith('#chat-id=') 
-				? originalHash.substring('#chat-id='.length)
-				: originalHash.substring('#chat_id='.length))
-			: null;
-		console.debug('[+page.svelte] [INIT] Original hash from URL:', originalHash, 'chatId:', originalHashChatId);
+		console.debug('[+page.svelte] [INIT] Original hash from URL:', originalHash);
+		
+		// PRIORITY 1: Check last_opened for signup step BEFORE processing hash
+		// Load user profile first to check last_opened
+		await loadUserProfileFromDB();
+		const initialProfile = $userProfile;
+		const hasSignupInLastOpened = initialProfile?.last_opened && isSignupPath(initialProfile.last_opened);
+		
+		if (hasSignupInLastOpened) {
+			// PRIORITY 1: last_opened signup step takes absolute priority - skip hash processing
+			const step = getStepFromPath(initialProfile.last_opened);
+			currentSignupStep.set(step);
+			isInSignupProcess.set(true);
+			loginInterfaceOpen.set(true);
+			console.debug(`[+page.svelte] [PRIORITY 1] Found signup step in last_opened: ${step} - skipping hash processing`);
+			originalHashChatId = null; // No hash processing when signup is in last_opened
+		} else {
+			// UNIFIED APPROACH: Always process through deep link handler (including empty hash)
+			// This ensures all chat loading goes through one consistent system
+			console.debug('[+page.svelte] Processing all hashes (including empty) through unified deep link handler:', originalHash || '(no hash)');
+
+			// Set global flag to prevent auto-loading during deep link processing
+			const { deepLinkProcessing } = await import('@repo/ui');
+			deepLinkProcessing.set(true);
+
+			// Extract originalHashChatId for chat hashes (needed for other logic)
+			if (originalHash && (originalHash.startsWith('#chat-id=') || originalHash.startsWith('#chat_id='))) {
+				originalHashChatId = originalHash.startsWith('#chat-id=')
+					? originalHash.substring('#chat-id='.length)
+					: originalHash.substring('#chat_id='.length);
+
+				// Set active chat store immediately to prevent race conditions
+				activeChatStore.setActiveChat(originalHashChatId);
+			} else {
+				originalHashChatId = null;
+			}
+
+			// Process through unified deep link handler
+			const handlers = createDeepLinkHandlers();
+			await processDeepLink(originalHash || '', handlers);
+			deepLinkProcessed = true; // Mark that processing was completed
+
+			// Clear the deep link processing flag
+			deepLinkProcessing.set(false);
+		}
 		
 		// Handle ?lang= query parameter for language selection
 		if (browser) {
@@ -545,10 +605,9 @@
 		// This handles cases where user closed tab/browser with stayLoggedIn=false
 		await checkAndClearMasterKeyOnLoad();
 		
-		// CRITICAL OFFLINE-FIRST: Load local user data FIRST to set optimistic auth state
+		// CRITICAL OFFLINE-FIRST: User profile already loaded above for priority checking
 		// This ensures user appears logged in immediately if they have local data, even if server is unreachable
-		console.debug('[+page.svelte] Loading local user data optimistically (offline-first)...');
-		await loadUserProfileFromDB();
+		console.debug('[+page.svelte] User profile already loaded for priority checking');
 		
 		// Check if we have local authentication data (master key + user profile)
 		const masterKey = await getKeyFromStorage();
@@ -851,36 +910,17 @@
 			console.debug(`[+page.svelte] Re-applied signup state: step=${step}, isInSignupProcess=true, loginInterfaceOpen=true`);
 		}
 		
-		// CRITICAL: Use ORIGINAL hash value (read at start of onMount) to detect hash chat
-		// This prevents welcome chat loading from overwriting the hash before we check it
-		// Priority: hash chat > last opened chat > default (demo-welcome for non-auth, new chat for auth)
-		let hasChatHash = false;
-		let hashChatId: string | null = originalHashChatId; // Use original hash, not current hash
-		
-		if (hashChatId) {
-			console.debug(`[+page.svelte] [DETECTED] Found chat deep link in ORIGINAL URL hash: ${hashChatId} - will load after chats are ready`);
-			
-			hasChatHash = true;
-			
-			// Check if it's a public chat (demo/legal) - these can be loaded immediately
+		// CRITICAL: Chat deep links are already processed at the very start of onMount
+		// This section only handles user chats that need to wait for sync
+		// Public chats and shared chats are already loaded immediately above
+		if (originalHashChatId && !isProcessingInitialHash) {
+			// Check if it's a user chat that needs sync
 			const { getPublicChatById } = await import('@repo/ui');
-			const publicChat = getPublicChatById(hashChatId);
+			const publicChat = getPublicChatById(originalHashChatId);
 			
-			if (publicChat) {
-				// Public chat - can load immediately (no sync needed)
-				console.debug(`[+page.svelte] [DETECTED] Hash chat is public chat, loading immediately: ${hashChatId}`);
-				isProcessingInitialHash = true;
-				await handleChatDeepLink(hashChatId);
-				isProcessingInitialHash = false;
-			} else if (!isAuth) {
-				// For non-authenticated users, shared chats are already in IndexedDB, so load immediately
-				console.debug(`[+page.svelte] [DETECTED] Hash chat is shared chat (non-auth), loading immediately: ${hashChatId}`);
-				isProcessingInitialHash = true;
-				await handleChatDeepLink(hashChatId);
-				isProcessingInitialHash = false;
-			} else {
+			if (!publicChat && isAuth) {
 				// User chat for authenticated users - will be loaded after sync completes
-				console.debug(`[+page.svelte] [DETECTED] Hash chat is user chat, will load after sync: ${hashChatId}`);
+				console.debug(`[+page.svelte] [DETECTED] Hash chat is user chat, will load after sync: ${originalHashChatId}`);
 			}
 		}
 		
@@ -927,17 +967,21 @@
 		// 1. No hash in URL (hash chat will be loaded after sync)
 		// 2. User is not authenticated (auth users get new chat window as default)
 		// 3. No last opened chat will be loaded (for tab reloads)
-		// Use originalHashChatId to check (read before anything could modify hash)
-		const shouldLoadWelcomeChat = !isAuth && !hasChatHash && !originalHashChatId;
-		
+		// 4. No deep link was processed (settings, embed, signup, etc.)
+		// Use originalHashChatId and deepLinkProcessed flags (read before anything could modify hash)
+		const shouldLoadWelcomeChat = false; // DISABLED: All chat loading now handled by deep link system
+
 		if (shouldLoadWelcomeChat) {
 			console.debug('[+page.svelte] [NON-AUTH] Starting welcome chat loading logic...');
 			// Retry mechanism to wait for activeChat component to bind
 			const loadWelcomeChat = async (retries = 20): Promise<void> => {
 				// CRITICAL: Check original hash (not current hash which might have been modified)
-				// If original hash exists, don't load welcome chat
-				if (originalHashChatId) {
-					console.debug('[+page.svelte] [NON-AUTH] Original hash detected, aborting welcome chat loading');
+				// If original hash exists or any deep link was processed, don't load welcome chat
+				if (originalHashChatId || deepLinkProcessed) {
+					console.debug('[+page.svelte] [NON-AUTH] Hash/deep link detected, aborting welcome chat loading', {
+						originalHashChatId,
+						deepLinkProcessed
+					});
 					return;
 				}
 				
@@ -992,22 +1036,28 @@
 			loadWelcomeChat().catch(error => {
 				console.error('[+page.svelte] [NON-AUTH] Error loading welcome chat:', error);
 			});
-		} else if (!isAuth && (hasChatHash || originalHashChatId)) {
-			console.debug('[+page.svelte] [NON-AUTH] Skipping welcome chat load - URL hash chat has priority');
+		} else if (!isAuth && (originalHashChatId || deepLinkProcessed)) {
+			console.debug('[+page.svelte] [NON-AUTH] Skipping welcome chat load - hash/deep link has priority', {
+				originalHashChatId,
+				deepLinkProcessed
+			});
 		}
 		
 		// INSTANT LOAD: Check if last opened chat is already in IndexedDB (non-blocking)
 		// This provides instant load on page reload without waiting for sync
 		// CRITICAL: On tab reload, load from IndexedDB (not server state) to prevent sudden chat switches
 		// On login, server state will be used (via handleSyncCompleteAndLoadChat)
-		// CRITICAL: URL hash chat has priority - skip last opened chat if hash is present
-		// Use originalHashChatId (read before anything could modify it)
-		if ($authStore.isAuthenticated && dbInitPromise && !hasChatHash && !originalHashChatId) {
+		// CRITICAL: URL hash chat has priority - skip last opened chat if hash is present or deep link processed
+		// Use originalHashChatId and deepLinkProcessed flags (read before anything could modify it)
+		if ($authStore.isAuthenticated && dbInitPromise && !originalHashChatId && !deepLinkProcessed) {
 			// Only load last opened chat if we don't have a chat hash
 			dbInitPromise.then(async () => {
 				// Double-check original hash still applies (shouldn't change, but be safe)
-				if (originalHashChatId) {
-					console.debug('[+page.svelte] [TAB RELOAD] Original hash detected during instant load, aborting last opened chat load');
+				if (originalHashChatId || deepLinkProcessed) {
+					console.debug('[+page.svelte] [TAB RELOAD] Hash/deep link detected during instant load, aborting last opened chat load', {
+						originalHashChatId,
+						deepLinkProcessed
+					});
 					return;
 				}
 					// Load last_opened from IndexedDB (local state) instead of server state
@@ -1086,7 +1136,8 @@
             // If sync already completed but we're just mounting (e.g., after page reload),
             // check if we should load the last opened chat from IndexedDB (not server state)
             // This prevents sudden chat switches when already logged in
-            // CRITICAL: URL hash chat has priority over last opened chat
+            // PRIORITY: URL hash chat has priority over last opened chat
+            // EXCEPTION: If hash is settings, we load settings first, then last_opened chat after
             if (activeChat) {
                 // Check if original URL hash contains a chat ID (has priority)
                 // Use originalHashChatId (read before anything could modify it)
@@ -1097,34 +1148,54 @@
                     await handleChatDeepLink(originalHashChatId);
                     isProcessingInitialHash = false;
                 } else {
-                    try {
-                        // Load from IndexedDB (local state) instead of server state
-                        const { userDB } = await import('@repo/ui');
-                        const localProfile = await userDB.getUserProfile();
-                        const lastOpenedChatId = localProfile?.last_opened;
-                        
-                        if (!lastOpenedChatId) {
-                            return;
+                    // Check if hash is settings - if so, we already processed it, now load last_opened chat
+                    const currentHash = browser ? window.location.hash : '';
+                    const { parseDeepLink } = await import('@repo/ui');
+                    const parsed = currentHash ? parseDeepLink(currentHash) : null;
+                    const isSettingsHash = parsed?.type === 'settings';
+                    
+                    // If hash is settings, we already processed it above, now load last_opened chat
+                    // If no hash or hash is not settings, check if we should load last_opened chat
+                    if (!currentHash || isSettingsHash) {
+                        try {
+                            // Load from IndexedDB (local state) instead of server state
+                            const { userDB } = await import('@repo/ui');
+                            const localProfile = await userDB.getUserProfile();
+                            const lastOpenedChatId = localProfile?.last_opened;
+                            
+                            // Skip if last_opened is a signup step (already handled with priority 1)
+                            if (lastOpenedChatId && isSignupPath(lastOpenedChatId)) {
+                                console.debug('[+page.svelte] [TAB RELOAD] Skipping last_opened chat - it is a signup step (already handled)');
+                                return;
+                            }
+                            
+                            if (!lastOpenedChatId) {
+                                return;
+                            }
+                            
+                            // Handle "new chat window" case
+                            if (lastOpenedChatId === '/chat/new' || lastOpenedChatId === 'new') {
+                                console.debug('[+page.svelte] [TAB RELOAD] Last opened was new chat window, clearing active chat');
+                                // Clear active chat to show new chat window
+                                // The ActiveChat component will show the new chat interface when no chat is selected
+                                activeChatStore.clearActiveChat();
+                                return;
+                            }
+                            
+                            // Handle real chat ID
+                            const lastChat = await chatDB.getChat(lastOpenedChatId);
+                            if (lastChat) {
+                                if (isSettingsHash) {
+                                    console.debug('[+page.svelte] [PRIORITY 3] Loading last_opened chat after settings hash:', lastOpenedChatId);
+                                } else {
+                                    console.debug('[+page.svelte] [TAB RELOAD] Sync already complete, loading last opened chat from IndexedDB:', lastOpenedChatId);
+                                }
+                                activeChatStore.setActiveChat(lastOpenedChatId);
+                                activeChat.loadChat(lastChat);
+                            }
+                        } catch (error) {
+                            console.error('[+page.svelte] Error loading last opened chat from IndexedDB:', error);
                         }
-                        
-                        // Handle "new chat window" case
-                        if (lastOpenedChatId === '/chat/new' || lastOpenedChatId === 'new') {
-                            console.debug('[+page.svelte] [TAB RELOAD] Last opened was new chat window, clearing active chat');
-                            // Clear active chat to show new chat window
-                            // The ActiveChat component will show the new chat interface when no chat is selected
-                            activeChatStore.clearActiveChat();
-                            return;
-                        }
-                        
-                        // Handle real chat ID
-                        const lastChat = await chatDB.getChat(lastOpenedChatId);
-                        if (lastChat) {
-                            console.debug('[+page.svelte] [TAB RELOAD] Sync already complete, loading last opened chat from IndexedDB:', lastOpenedChatId);
-                            activeChatStore.setActiveChat(lastOpenedChatId);
-                            activeChat.loadChat(lastChat);
-                        }
-                    } catch (error) {
-                        console.error('[+page.svelte] Error loading last opened chat from IndexedDB:', error);
                     }
                 }
             }
@@ -1136,63 +1207,12 @@
             window.history.replaceState({}, '', window.location.pathname + window.location.search);
         }
         
-        // Handle other deep links (settings, chat, etc.)
-        if (window.location.hash.startsWith('#settings')) {
-            const settingsPath = window.location.hash.substring('#settings'.length);
-            
-            // CRITICAL: Check if this settings deep link requires authentication
-            // Some settings (app_store, interface) are public and don't require authentication
-            // Others (billing, account, security) require authentication
-            const needsAuth = requiresAuthentication(settingsPath);
-            
-            if (needsAuth && !$authStore.isAuthenticated) {
-                // This settings deep link requires authentication and user is not authenticated
-                console.debug(`[+page.svelte] User not authenticated - storing settings deep link for after login: ${window.location.hash}`);
-                // Store the deep link in sessionStorage to process after login
-                sessionStorage.setItem('pendingDeepLink', window.location.hash);
-                // Open login interface to prompt user to log in
-                loginInterfaceOpen.set(true);
-                // Clear the hash immediately to keep URL clean (we'll restore it after login)
-                window.history.replaceState({}, '', window.location.pathname + window.location.search);
-            } else {
-                // Either doesn't require auth, or user is authenticated - process the deep link immediately
-                processSettingsDeepLink(window.location.hash);
-            }
-        } else if (window.location.hash.startsWith('#chat_id=') || window.location.hash.startsWith('#chat-id=')) {
-            // Handle chat deep linking from URL (fallback - should have been processed earlier)
-            // Support both #chat_id= and #chat-id= formats
-            const chatId = window.location.hash.startsWith('#chat_id=') 
-                ? window.location.hash.substring(9) // Remove '#chat_id=' prefix
-                : window.location.hash.substring(9); // Remove '#chat-id=' prefix
-            console.debug(`[+page.svelte] Found chat deep link in URL (fallback processing): ${chatId}`);
-            
-            // Only process if not already processed earlier
-            if (!isProcessingInitialHash) {
-                // Mark as processing initial hash load
-                isProcessingInitialHash = true;
-                
-                // Handle the deep link (supports both user chats and demo/legal chats)
-                await handleChatDeepLink(chatId);
-                
-                // Reset flag after processing
-                isProcessingInitialHash = false;
-            } else {
-                console.debug(`[+page.svelte] Chat hash already processed earlier, skipping duplicate processing`);
-            }
-        } else if (window.location.hash.startsWith('#embed-id=') || window.location.hash.startsWith('#embed_id=')) {
-            // Handle embed deep linking from URL
-            // Support both #embed-id= and #embed_id= formats
-            const embedId = window.location.hash.startsWith('#embed_id=')
-                ? window.location.hash.substring('#embed_id='.length)
-                : window.location.hash.substring('#embed-id='.length);
-            
-            // Handle cases where there might be additional query params (e.g., #embed-id=xxx&fullscreen=true)
-            const embedIdOnly = embedId.split('&')[0].split('?')[0];
-            
-            console.debug(`[+page.svelte] Found embed deep link in URL: ${embedIdOnly}`);
-            
-            // Handle the embed deep link (opens embed in fullscreen)
-            await handleEmbedDeepLink(embedIdOnly);
+        // Handle other deep links using unified handler (settings, embed, signup)
+        // Note: Chat deep links are already processed at the very start of onMount
+        // Only process non-chat deep links here
+        if (window.location.hash && !originalHashChatId) {
+            const handlers = createDeepLinkHandlers();
+            await processDeepLink(window.location.hash, handlers);
         }
 
         // Remove initial load state after a small delay
@@ -1206,7 +1226,9 @@
         
         // Listen for pending deep link processing after successful login
         // This handles cases where user opened a deep link while not authenticated
-        window.addEventListener('processPendingDeepLink', handlePendingDeepLink as EventListener);
+        window.addEventListener('processPendingDeepLink', ((event: CustomEvent<{ hash: string }>) => {
+            handlePendingDeepLink(event);
+        }) as unknown as EventListener);
         
         console.debug('[+page.svelte] onMount finished');
     });
@@ -1222,13 +1244,126 @@
             webSocketService.off('payment_failed', handlePaymentFailed);
         }
         // Remove pending deep link event listener
-        window.removeEventListener('processPendingDeepLink', handlePendingDeepLink as EventListener);
+        if (pendingDeepLinkHandler) {
+            window.removeEventListener('processPendingDeepLink', pendingDeepLinkHandler);
+        }
         // Note: hashchange, visibilitychange, pagehide, and beforeunload handlers are cleaned up automatically on page unload
     });
 
     /**
+     * Load demo-welcome chat for non-authenticated users
+     */
+    async function loadDemoWelcomeChat() {
+        console.debug('[+page.svelte] Loading demo-welcome chat for non-authenticated user');
+
+        // Wait for activeChat component to be ready
+        const waitForActiveChat = async (retries = 20): Promise<void> => {
+            if (activeChat) {
+                const { DEMO_CHATS, convertDemoChatToChat, translateDemoChat } = await import('@repo/ui');
+                const welcomeDemo = DEMO_CHATS.find(chat => chat.chat_id === 'demo-welcome');
+                if (welcomeDemo) {
+                    const translatedWelcomeDemo = translateDemoChat(welcomeDemo);
+                    const welcomeChat = convertDemoChatToChat(translatedWelcomeDemo);
+                    activeChatStore.setActiveChat('demo-welcome');
+                    activeChat.loadChat(welcomeChat);
+                    console.debug('[+page.svelte] ✅ Demo-welcome chat loaded successfully');
+                }
+                return;
+            } else if (retries > 0) {
+                await new Promise(resolve => setTimeout(resolve, 50));
+                return waitForActiveChat(retries - 1);
+            } else {
+                console.error('[+page.svelte] ⚠️ activeChat not ready after retries - demo-welcome may not load');
+            }
+        };
+
+        await waitForActiveChat();
+    }
+
+    /**
+     * Load last opened chat for authenticated users, or create new chat if none exists
+     */
+    async function loadLastOpenedChatOrCreateNew() {
+        console.debug('[+page.svelte] Loading last_opened chat or creating new chat for authenticated user');
+
+        const profile = $userProfile;
+        if (profile?.last_opened) {
+            // Try to load last opened chat from local storage first
+            try {
+                const { chatDB } = await import('@repo/ui');
+                const localChat = await chatDB.getChat(profile.last_opened);
+
+                if (localChat && activeChat) {
+                    console.debug('[+page.svelte] ✅ Loaded last_opened chat from local storage:', profile.last_opened);
+                    activeChatStore.setActiveChat(profile.last_opened);
+                    activeChat.loadChat(localChat);
+                    return;
+                }
+            } catch (error) {
+                console.debug('[+page.svelte] Could not load last_opened chat from local storage:', error);
+            }
+        }
+
+        // Fallback: Wait for sync to complete and load from server, or create new chat
+        console.debug('[+page.svelte] No local last_opened chat found, waiting for sync or creating new chat');
+        // Note: This will be handled by the sync completion handler
+    }
+
+    /**
+     * Create deep link handlers for unified processing
+     */
+    function createDeepLinkHandlers(): DeepLinkHandlers {
+        return {
+            onChat: async (chatId: string) => {
+                // Update originalHashChatId to reflect the new hash (important for sync completion handler)
+                originalHashChatId = chatId;
+
+                // Mark as processing initial hash load (for hashchange handler)
+                isProcessingInitialHash = true;
+                deepLinkProcessed = true; // Mark that a deep link was processed
+
+                await handleChatDeepLink(chatId);
+
+                // Reset flag after processing
+                isProcessingInitialHash = false;
+            },
+            onSettings: (path: string, fullHash: string) => {
+                deepLinkProcessed = true; // Mark that a deep link was processed
+                processSettingsDeepLink(fullHash);
+            },
+            onSignup: (step: string) => {
+                deepLinkProcessed = true; // Mark that a deep link was processed
+                currentSignupStep.set(step);
+                isInSignupProcess.set(true);
+                loginInterfaceOpen.set(true);
+                // Clear the hash after processing to keep URL clean
+                window.history.replaceState({}, '', window.location.pathname + window.location.search);
+            },
+            onEmbed: handleEmbedDeepLink,
+            onNoHash: async () => {
+                // Handle the case where no hash is present - load appropriate default chat
+                const isAuth = $authStore.isAuthenticated;
+                console.debug('[+page.svelte] onNoHash: Determining default chat to load', { isAuth });
+
+                if (isAuth) {
+                    // For authenticated users: try to load last_opened chat, otherwise create new chat
+                    await loadLastOpenedChatOrCreateNew();
+                } else {
+                    // For non-authenticated users: load demo-welcome chat
+                    await loadDemoWelcomeChat();
+                }
+            },
+            requiresAuthentication,
+            isAuthenticated: () => $authStore.isAuthenticated,
+            openSettings: () => panelState.openSettings(),
+            openLogin: () => loginInterfaceOpen.set(true),
+            setSettingsDeepLink: (path: string) => settingsDeepLink.set(path)
+        };
+    }
+
+    /**
      * Handle hash changes after page load
-     * Allows navigation by pasting URLs with chat_id, signup hash, or settings hash
+     * Uses unified deep link handler to avoid collisions
      * 
      * CRITICAL: Ignores programmatic hash updates to prevent infinite loops
      */
@@ -1244,81 +1379,8 @@
         
         console.debug('[+page.svelte] Hash changed:', window.location.hash);
         
-        if (window.location.hash.startsWith('#signup/')) {
-            // Handle signup deep linking - open login interface and set signup step
-            console.debug(`[+page.svelte] Hash changed to signup deep link: ${window.location.hash}`);
-            
-            // Extract step from hash (e.g., #signup/credits -> credits)
-            const signupHash = window.location.hash.substring(1); // Remove leading #
-            const step = getStepFromPath(signupHash);
-            
-            console.debug(`[+page.svelte] Setting signup step to: ${step} from hash: ${window.location.hash}`);
-            
-            // Set signup step and open login interface
-            currentSignupStep.set(step);
-            isInSignupProcess.set(true);
-            loginInterfaceOpen.set(true);
-            
-            // Clear the hash after processing to keep URL clean
-            window.history.replaceState({}, '', window.location.pathname + window.location.search);
-        } else if (window.location.hash.startsWith('#settings')) {
-            // Handle settings deep linking - open settings menu and navigate to specific page
-            console.debug(`[+page.svelte] Hash changed to settings deep link: ${window.location.hash}`);
-            
-            const settingsPath = window.location.hash.substring('#settings'.length);
-            
-            // CRITICAL: Check if this settings deep link requires authentication
-            // Some settings (app_store, interface) are public and don't require authentication
-            // Others (billing, account, security) require authentication
-            const needsAuth = requiresAuthentication(settingsPath);
-            
-            if (needsAuth && !$authStore.isAuthenticated) {
-                // This settings deep link requires authentication and user is not authenticated
-                console.debug(`[+page.svelte] User not authenticated - storing settings deep link for after login: ${window.location.hash}`);
-                // Store the deep link in sessionStorage to process after login
-                sessionStorage.setItem('pendingDeepLink', window.location.hash);
-                // Open login interface to prompt user to log in
-                loginInterfaceOpen.set(true);
-                // Clear the hash immediately to keep URL clean (we'll restore it after login)
-                window.history.replaceState({}, '', window.location.pathname + window.location.search);
-            } else {
-                // Either doesn't require auth, or user is authenticated - process the deep link immediately
-                processSettingsDeepLink(window.location.hash);
-            }
-        } else if (window.location.hash.startsWith('#chat_id=') || window.location.hash.startsWith('#chat-id=')) {
-            // Support both #chat_id= and #chat-id= formats
-            // CRITICAL: This handles navigation from share page to main page with hash
-            const chatId = window.location.hash.startsWith('#chat_id=')
-                ? window.location.hash.substring('#chat_id='.length)
-                : window.location.hash.substring('#chat-id='.length);
-            
-            console.debug(`[+page.svelte] Hash changed to chat deep link: ${chatId}`);
-            
-            // Update originalHashChatId to reflect the new hash (important for sync completion handler)
-            originalHashChatId = chatId;
-            
-            // Mark as processing initial hash load (for hashchange handler)
-            isProcessingInitialHash = true;
-            
-            await handleChatDeepLink(chatId);
-            
-            // Reset flag after processing
-            isProcessingInitialHash = false;
-        } else if (window.location.hash.startsWith('#embed-id=') || window.location.hash.startsWith('#embed_id=')) {
-            // Handle embed deep linking from URL hash change
-            // Support both #embed-id= and #embed_id= formats
-            const embedId = window.location.hash.startsWith('#embed_id=')
-                ? window.location.hash.substring('#embed_id='.length)
-                : window.location.hash.substring('#embed-id='.length);
-            
-            // Handle cases where there might be additional query params (e.g., #embed-id=xxx&fullscreen=true)
-            const embedIdOnly = embedId.split('&')[0].split('?')[0];
-            
-            console.debug(`[+page.svelte] Hash changed to embed deep link: ${embedIdOnly}`);
-            
-            // Handle the embed deep link (opens embed in fullscreen)
-            await handleEmbedDeepLink(embedIdOnly);
-        }
+        const handlers = createDeepLinkHandlers();
+        await processDeepLink(window.location.hash, handlers);
     }
 
     // Add handler for chatSelected event

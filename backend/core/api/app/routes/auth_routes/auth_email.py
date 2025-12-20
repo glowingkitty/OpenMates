@@ -13,7 +13,8 @@ from backend.core.api.app.services.metrics import MetricsService
 from backend.core.api.app.services.compliance import ComplianceService
 from backend.core.api.app.services.limiter import limiter
 from backend.core.api.app.utils.device_fingerprint import generate_device_fingerprint_hash, _extract_client_ip, get_geo_data_from_ip, parse_user_agent # Updated imports
-from backend.core.api.app.utils.invite_code import validate_invite_code
+from backend.core.api.app.utils.invite_code import validate_invite_code, get_signup_requirements
+from backend.core.api.app.utils.newsletter_utils import hash_email, check_ignored_email
 # Import EncryptionService and its getter
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.routes.auth_routes.auth_dependencies import get_directus_service, get_cache_service, get_metrics_service, get_compliance_service, get_encryption_service
@@ -41,29 +42,25 @@ async def request_confirm_email_code(
         invite_code = email_request.invite_code
         code_data = None
         
-        # Check if invite code is required based on SIGNUP_LIMIT
-        # SIGNUP_LIMIT=0 means open signup (no invite codes required)
-        # SIGNUP_LIMIT>0 means require invite codes once user count reaches the limit
-        signup_limit = int(os.getenv("SIGNUP_LIMIT", "0"))
+        # Get signup requirements based on server edition and configuration
+        # SIGNUP_DOMAIN_RESTRICTION is ALWAYS enforced when set (for all server editions)
+        # For self-hosted: domain restriction OR invite code required
+        # For non-self-hosted: use SIGNUP_LIMIT logic
+        require_invite_code, require_domain_restriction, domain_restriction_value = await get_signup_requirements(
+            directus_service, cache_service
+        )
         
-        # Default to not requiring invite code (open signup) unless SIGNUP_LIMIT is set
-        if signup_limit == 0:
-            require_invite_code = False
-            logger.info("SIGNUP_LIMIT is 0 - open signup enabled (invite codes not required)")
-        else:
-            # SIGNUP_LIMIT > 0: require invite codes when user count reaches the limit
-            # Check if we have this value cached
-            cached_require_invite_code = await cache_service.get("require_invite_code")
-            if cached_require_invite_code is not None:
-                require_invite_code = cached_require_invite_code
-            else:
-                # Get the total user count and compare with SIGNUP_LIMIT
-                total_users = await directus_service.get_total_users_count()
-                require_invite_code = total_users >= signup_limit
-                # Cache this value for quick access
-                await cache_service.set("require_invite_code", require_invite_code, ttl=172800)  # Cache for 48 hours
-                
-            logger.info(f"Invite code requirement check: limit={signup_limit}, required={require_invite_code}")
+        # Check domain restriction if configured (ALWAYS enforced when set, regardless of server edition)
+        if require_domain_restriction and domain_restriction_value:
+            email_parts = email_request.email.split('@')
+            if len(email_parts) != 2 or email_parts[1].lower() != domain_restriction_value.lower():
+                logger.warning(f"Email domain not allowed: {email_parts[1] if len(email_parts) > 1 else 'invalid email format'}")
+                return RequestEmailCodeResponse(
+                    success=False,
+                    message="signup.domain_not_allowed.text",
+                    error_code="DOMAIN_NOT_ALLOWED"
+                )
+            logger.info(f"Email domain check passed: {email_parts[1]}")
         
         # If invite code is required, validate it
         if require_invite_code:
@@ -86,19 +83,6 @@ async def request_confirm_email_code(
                 )
         else:
             logger.info(f"Invite code not required, skipping validation")
-
-        # Check domain restriction if configured
-        domain_restriction = os.getenv("SIGNUP_DOMAIN_RESTRICTION")
-        if domain_restriction:
-            email_parts = email_request.email.split('@')
-            if len(email_parts) != 2 or email_parts[1].lower() != domain_restriction.lower():
-                logger.warning(f"Email domain not allowed: {email_parts[1] if len(email_parts) > 1 else 'invalid email format'}")
-                return RequestEmailCodeResponse(
-                    success=False,
-                    message="signup.domain_not_allowed.text",
-                    error_code="DOMAIN_NOT_ALLOWED"
-                )
-            logger.info(f"Email domain check passed: {email_parts[1]}")
         
         # Check domain security policies (validates domain compliance)
         # Resilience: Always validate, even if service is missing from app state
@@ -166,12 +150,20 @@ async def request_confirm_email_code(
                     error_code="DOMAIN_NOT_SUPPORTED"
                 )
         
+        # Check if email is in ignored list (before checking if registered)
+        hashed_email = hash_email(email_request.email)
+        is_ignored = await check_ignored_email(hashed_email, directus_service)
+        if is_ignored:
+            logger.info(f"Signup attempt from ignored email: {hashed_email[:16]}...")
+            # Return generic error to avoid revealing that email is ignored
+            return RequestEmailCodeResponse(
+                success=False,
+                message="Unable to process signup request. Please contact support if you believe this is an error.",
+                error_code="SIGNUP_NOT_ALLOWED"
+            )
+        
         # Check if email is already registered
         logger.info(f"Checking if email is already registered...")
-        # Hash the email for lookup
-        email_bytes = email_request.email.encode('utf-8')
-        hashed_email_buffer = hashlib.sha256(email_bytes).digest()
-        hashed_email = base64.b64encode(hashed_email_buffer).decode('utf-8')
         
         exists_result, existing_user, error_msg = await directus_service.get_user_by_hashed_email(hashed_email)
 
@@ -245,29 +237,12 @@ async def check_confirm_email_code(
         invite_code = code_request.invite_code
         code_data = None
         
-        # Check if invite code is required based on SIGNUP_LIMIT
-        # SIGNUP_LIMIT=0 means open signup (no invite codes required)
-        # SIGNUP_LIMIT>0 means require invite codes once user count reaches the limit
-        signup_limit = int(os.getenv("SIGNUP_LIMIT", "0"))
-        
-        # Default to not requiring invite code (open signup) unless SIGNUP_LIMIT is set
-        if signup_limit == 0:
-            require_invite_code = False
-            logger.info("SIGNUP_LIMIT is 0 - open signup enabled (invite codes not required)")
-        else:
-            # SIGNUP_LIMIT > 0: require invite codes when user count reaches the limit
-            # Check if we have this value cached
-            cached_require_invite_code = await cache_service.get("require_invite_code")
-            if cached_require_invite_code is not None:
-                require_invite_code = cached_require_invite_code
-            else:
-                # Get the total user count and compare with SIGNUP_LIMIT
-                total_users = await directus_service.get_total_users_count()
-                require_invite_code = total_users >= signup_limit
-                # Cache this value for quick access
-                await cache_service.set("require_invite_code", require_invite_code, ttl=172800)  # Cache for 48 hours
-                
-            logger.info(f"Invite code requirement check: limit={signup_limit}, required={require_invite_code}")
+        # Get signup requirements based on server edition and configuration
+        # For self-hosted: domain restriction OR invite code required
+        # For non-self-hosted: use SIGNUP_LIMIT logic
+        require_invite_code, require_domain_restriction, domain_restriction_value = await get_signup_requirements(
+            directus_service, cache_service
+        )
         
         # If invite code is required, validate it
         if require_invite_code:

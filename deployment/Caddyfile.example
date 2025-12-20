@@ -1,0 +1,348 @@
+# Caddyfile Template for OpenMates (Self-Hosted)
+#
+# This is a reference/template configuration for Caddy reverse proxy.
+# Designed for self-hosted deployments where users deploy OpenMates on their own domain.
+# 
+# USAGE:
+# 1. Copy this file to Caddyfile.local (for local development) or Caddyfile.prod (for production)
+# 2. Replace all placeholder values (marked with <PLACEHOLDER>) with your actual values
+# 3. Environment-specific files (Caddyfile.local, Caddyfile.prod, Caddyfile.override) are gitignored
+#
+# For Docker Compose setups, you can use service names (e.g., 'api:8000') as upstream addresses.
+# For standalone Caddy, use 'localhost:8000' or your actual upstream server addresses.
+#
+# CONFIGURATION:
+# - Handles TLS via Let's Encrypt (automatic)
+# - Proxies requests to the API backend
+# - Enforces path allowlisting
+# - Enforces Origin check for internal webapp routes
+# - Adds security headers
+# - Enables structured logging
+{
+	# Email for ACME account (Let's Encrypt)
+	# Replace with your email address for certificate notifications
+	email <YOUR_EMAIL@example.com>
+}
+
+# API Domain Configuration
+# Replace <API_DOMAIN> with your actual API domain (e.g., api.yourdomain.com)
+<API_DOMAIN> {
+	# Enable structured logging (JSON format) suitable for log processors like Fail2Ban
+	log {
+		output file /var/log/caddy/<API_DOMAIN>.log {
+			roll_size 100mb
+			roll_keep 10
+			roll_keep_for 720h # 30 days
+		}
+		format json
+		level INFO
+	}
+
+	# Security Headers
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Permissions-Policy "geolocation=(), microphone=(), camera=(), interest-cohort=()"
+		-Server
+	}
+
+	# --- Request Routing ---
+
+	# Define matchers
+	@health_path path /health /v1/health /v1/server # Health check and server info endpoints (public, no auth required)
+	@webapp_paths path /v1/auth/* # Webapp paths that require Origin check
+	# Replace <FRONTEND_ORIGIN> with your frontend origin (e.g., https://yourdomain.com)
+	@webapp_origin header Origin <FRONTEND_ORIGIN>
+	@options_method method OPTIONS # Renamed for clarity
+	@websocket_path path /v1/ws* # Matcher for WebSocket paths (to exclude from compression)
+
+	# --- PUBLIC DEVELOPER API MATCHERS ---
+	# These routes are authenticated via API keys (Authorization: Bearer sk-api-...) in the backend
+	# No Origin check required - external developers access from various clients/servers
+	# FastAPI enforces which settings endpoints support API key auth vs session-only
+	@api_docs_path path /docs /docs/* /openapi.json # Swagger UI and OpenAPI schema
+	@public_api_paths path /v1/apps /v1/apps/* /v1/settings/* # Apps and Settings API endpoints (authentication enforced by FastAPI)
+
+	# --- PUBLIC SHARE MATCHERS ---
+	# Share endpoints are publicly accessible (no Origin check) for social media and cross-platform sharing
+	# Security is maintained via encryption keys in URL fragments (never sent to server)
+	@share_paths_get {
+		path /v1/share/*
+		method GET
+	}
+
+	# Matcher for WebSocket OPTIONS preflight
+	@websocket_options {
+		path /v1/ws
+		method OPTIONS
+		header Origin <FRONTEND_ORIGIN>
+	}
+
+	# Combined matcher for valid OPTIONS preflight for general webapp paths
+	# Note: OPTIONS handling is done by FastAPI's CORSMiddleware, not Caddy
+	# Includes /v1/settings/* so webapp requests with credentials get proper CORS handling
+	@webapp_general_options {
+		path /v1/auth/* /v1/settings/* /v1/share/*
+		method OPTIONS
+		header Origin <FRONTEND_ORIGIN>
+	}
+
+	# Combined matcher for actual webapp requests (non-OPTIONS) from the correct origin
+	# Includes /v1/settings/* so webapp requests with credentials get proper CORS handling (FastAPI sets specific origin)
+	@webapp_actual {
+		path /v1/auth/* /v1/settings/* /v1/share/*
+		not method OPTIONS
+		header Origin <FRONTEND_ORIGIN>
+	}
+
+	# Combined matcher for actual WebSocket requests (non-OPTIONS) from the correct origin
+	@websocket_actual {
+		path /v1/ws
+		not method OPTIONS # Ensure it's not an OPTIONS request
+		header Origin <FRONTEND_ORIGIN>
+	}
+
+	# --- PUBLIC DEVELOPER API OPTIONS MATCHERS (for browser CORS preflight) ---
+	# Allow CORS preflight from any origin for API docs and public API paths
+	# Actual authentication is handled by the backend (API key required for /v1/apps/*)
+	@api_docs_options {
+		path /docs /docs/* /openapi.json
+		method OPTIONS
+	}
+
+	@public_api_options {
+		path /v1/apps /v1/apps/* /v1/settings/*
+		method OPTIONS
+	}
+
+	@share_options {
+		path /v1/share/*
+		method OPTIONS
+	}
+
+	# Route requests using explicit handlers
+	route {
+		# === INTERNAL WEBAPP ROUTES (Origin restriction enforced) ===
+		# These handlers must come FIRST so webapp requests with credentials
+		# get proper CORS handling (FastAPI sets specific origin, not wildcard)
+
+		# 1. Handle valid OPTIONS preflight for general webapp paths (including /v1/settings/*)
+		# Pass through to FastAPI CORSMiddleware instead of responding here
+		# This ensures webapp requests with credentials get proper CORS (specific origin, not wildcard)
+		handle @webapp_general_options {
+			reverse_proxy <API_UPSTREAM> {
+				header_up Host {http.request.host}
+			}
+		}
+
+		# 2. Handle OPTIONS preflight for WebSocket requests from the correct origin
+		# Pass through to FastAPI CORSMiddleware
+		handle @websocket_options {
+			reverse_proxy <API_UPSTREAM> {
+				header_up Host {http.request.host}
+			}
+		}
+
+		# === PUBLIC DEVELOPER API ROUTES (No Origin restriction) ===
+
+		# 3. Handle OPTIONS preflight for API documentation (allow any origin)
+		handle @api_docs_options {
+			header Access-Control-Allow-Origin "*"
+			header Access-Control-Allow-Methods "GET, OPTIONS"
+			header Access-Control-Allow-Headers "Accept, Content-Type"
+			header Access-Control-Max-Age "86400" # Cache preflight for 1 day
+			respond 204
+		}
+
+		# 4. Handle OPTIONS preflight for public API paths (allow any origin)
+		# Only matches requests that didn't match @webapp_general_options (i.e., no Origin header = API key requests)
+		# Authorization header must be allowed for API key authentication
+		# Supports all HTTP methods (GET, POST, PATCH, DELETE, PUT) for settings endpoints
+		handle @public_api_options {
+			header Access-Control-Allow-Origin "*"
+			header Access-Control-Allow-Methods "GET, POST, PATCH, DELETE, PUT, OPTIONS"
+			header Access-Control-Allow-Headers "Accept, Content-Type, Authorization"
+			header Access-Control-Max-Age "86400" # Cache preflight for 1 day
+			respond 204
+		}
+
+		# 5. Handle API documentation requests (publicly accessible)
+		# Swagger UI at /docs, OpenAPI schema at /openapi.json
+		handle @api_docs_path {
+			encode gzip zstd
+			# Add permissive CORS headers for API docs
+			header Access-Control-Allow-Origin "*"
+			# Replace <API_UPSTREAM> with your API upstream address
+			# For Docker Compose: use service name like 'api:8000'
+			# For standalone: use 'localhost:8000' or actual IP:port
+			reverse_proxy <API_UPSTREAM> {
+				header_up Host {http.request.host}
+			}
+		}
+
+		# 6. Handle actual webapp requests (non-OPTIONS) from the correct origin (including /v1/settings/*)
+		# Apply compression only to non-WebSocket requests
+		# CORS headers are added by FastAPI CORSMiddleware (sets specific origin for credentials)
+		handle @webapp_actual {
+			encode gzip zstd
+			reverse_proxy <API_UPSTREAM> {
+				header_up Host {http.request.host}
+			}
+		}
+
+		# === PUBLIC DEVELOPER API ROUTES (No Origin restriction) ===
+		# These handlers come AFTER webapp handlers so API key requests (without Origin header) fall through here
+
+		# 7. Handle Public Developer API requests (/v1/apps/* and /v1/settings/*)
+		# Only matches requests that didn't match @webapp_actual (i.e., no Origin header = API key requests)
+		# Authentication is enforced by FastAPI - endpoints use get_current_user (session-only) or get_current_user_or_api_key (supports both)
+		# FastAPI will reject requests without proper authentication (401/403)
+		handle @public_api_paths {
+			encode gzip zstd
+			# Add permissive CORS headers so browsers can call the API (no credentials, so wildcard is OK)
+			header Access-Control-Allow-Origin "*"
+			reverse_proxy <API_UPSTREAM> {
+				header_up Host {http.request.host}
+			}
+		}
+
+		# 7a. Share endpoints OPTIONS - handled by FastAPI CORSMiddleware
+		# Pass OPTIONS requests through to FastAPI instead of responding here
+		# This ensures CORS configuration stays in one place (FastAPI)
+		handle @share_options {
+			reverse_proxy <API_UPSTREAM> {
+				header_up Host {http.request.host}
+			}
+		}
+
+		# 7b. Handle Share GET endpoints (/v1/share/*)
+		# Publicly accessible for social media crawlers and cross-platform sharing
+		# Security is maintained via encryption keys in URL fragments (never sent to server)
+		# Note: POST endpoints (metadata, unshare) require authentication via webapp routes
+		handle @share_paths_get {
+			# Add permissive CORS headers for cross-origin access
+			header Access-Control-Allow-Origin "*"
+			encode gzip zstd
+			reverse_proxy <API_UPSTREAM> {
+				header_up Host {http.request.host}
+				# Remove CORS headers from backend response to prevent conflicts
+				header_down -Access-Control-Allow-Origin
+				header_down -Access-Control-Allow-Credentials
+			}
+		}
+
+		# 8. Handle Health Check and Server Info paths (public endpoints, no auth required)
+		# Supports /health, /v1/health, and /v1/server
+		handle @health_path {
+			# No compression for health checks (small responses)
+			# Add CORS headers for public access (monitoring tools, Swagger UI, etc.)
+			header Access-Control-Allow-Origin "*"
+			reverse_proxy <API_UPSTREAM> {
+				header_up Host {http.request.host}
+			}
+		}
+
+		# 9. Handle actual WebSocket requests (non-OPTIONS) from the correct origin
+		# IMPORTANT: Do NOT apply compression to WebSocket connections!
+		# Compression interferes with WebSocket upgrade handshake, especially on Safari iPad OS
+		handle @websocket_actual {
+			reverse_proxy <API_UPSTREAM> {
+				header_up Host {http.request.host}
+				# For WebSockets (both HTTP/1.1 and HTTP/2 via CONNECT),
+				# Caddy's reverse_proxy handles the necessary Connection and Upgrade headers automatically.
+				# Explicitly setting them from client request headers can be problematic,
+				# especially for HTTP/2 CONNECT where these headers aren't used in the same way
+				# as in an HTTP/1.1 GET upgrade request.
+				# header_up Connection {http.request.header.Connection}
+				# header_up Upgrade {http.request.header.Upgrade}
+				flush_interval -1 # Disable response buffering for WebSockets
+			}
+		}
+
+		# 10. Define and handle requests to webapp paths OR websocket path from the WRONG origin
+		# Note: GET requests to /v1/share/* are public, but POST/PUT/DELETE require proper origin
+		# Note: /v1/settings/* endpoints are handled by @public_api_paths (no Origin check) - FastAPI enforces authentication
+		@all_wrong_origin {
+			path /v1/auth/* /v1/share/* /v1/ws*
+			not method GET  # Exclude GET requests (share GET endpoints are public)
+			not header Origin <FRONTEND_ORIGIN>
+			# This also implicitly blocks if Origin header is missing for these paths
+		}
+		handle @all_wrong_origin {
+			abort
+		}
+
+		# 11. Abort all other requests not explicitly handled above
+		# This ensures that only defined paths are accessible.
+		handle {
+			abort
+		}
+	}
+}
+
+# Frontend Webapp Domain Configuration
+# Replace <FRONTEND_DOMAIN> with your actual frontend domain (e.g., app.yourdomain.com or yourdomain.com)
+<FRONTEND_DOMAIN> {
+	# Enable structured logging (JSON format)
+	log {
+		output file /var/log/caddy/<FRONTEND_DOMAIN>.log {
+			roll_size 100mb
+			roll_keep 10
+			roll_keep_for 720h # 30 days
+		}
+		format json
+		level INFO
+	}
+
+	# Enable compression
+	encode gzip zstd
+
+	# Security Headers
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "SAMEORIGIN"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Permissions-Policy "geolocation=(), microphone=(), camera=(), interest-cohort=()"
+		-Server
+	}
+
+	# Reverse proxy to webapp container
+	# For Docker Compose: use service name like 'webapp:5173'
+	# For standalone: use 'localhost:5173' or actual IP:port
+	# Note: Port 5173 is Vite's default port (commonly used for frontend apps)
+	# Port 3000 is used by Grafana
+	reverse_proxy <WEBAPP_UPSTREAM> {
+		header_up Host {http.request.host}
+		header_up X-Real-IP {http.request.remote}
+	}
+}
+
+# Optional: Add additional domains for other services if needed
+# Example configuration for additional services:
+#
+# <SERVICE_DOMAIN> {
+# 	log {
+# 		output file /var/log/caddy/<SERVICE_DOMAIN>.log {
+# 			roll_size 100mb
+# 			roll_keep 10
+# 			roll_keep_for 720h
+# 		}
+# 		format json
+# 		level INFO
+# 	}
+# 	encode gzip zstd
+# 	header {
+# 		Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+# 		X-Content-Type-Options "nosniff"
+# 		X-Frame-Options "SAMEORIGIN"
+# 		Referrer-Policy "strict-origin-when-cross-origin"
+# 		-Server
+# 	}
+# 	reverse_proxy <SERVICE_UPSTREAM> {
+# 		header_up Host {http.request.host}
+# 		header_up X-Real-IP {http.request.remote}
+# 	}
+# }

@@ -43,6 +43,7 @@
     import { chatSyncService } from '../../services/chatSyncService'; // Import chat sync service for updating last_opened
     import { notificationStore } from '../../stores/notificationStore'; // Import notification store for payment failure notifications
     import { pricingTiers } from '../../config/pricing'; // Import pricing tiers to get price for purchased credits
+    import { phasedSyncState } from '../../stores/phasedSyncStateStore'; // Import phased sync state to mark sync completed after signup
 
     // Dynamic imports for step contents
     import ConfirmEmailTopContent from './steps/confirmemail/ConfirmEmailTopContent.svelte';
@@ -115,6 +116,7 @@
     let selectedPrice = $state(20); // Default price
     let selectedCurrency = $state('EUR'); // Default currency
     let isGiftFlow = $state(false); // Track if it's a gift flow
+    let isGiftCardRedemption = $state(false); // Track if it's a gift card redemption
     let limitedRefundConsent = $state(false);
 
     // Animation parameters
@@ -124,20 +126,44 @@
         easing: cubicInOut
     };
 
+    // Payment status - check if payment is enabled (self-hosted mode detection)
+    let paymentEnabled = $state(true); // Default to true, will be updated on mount
+    let serverEdition = $state<string | null>(null); // Server edition for display
+    let isSelfHosted = $state(false); // Self-hosted status from request-based validation
+    
     // Note: STEP_COMPLETION is not included as it's not a visible step - users go directly to the app after auto top-up
-    const fullStepSequence = [
+    // Base step sequences (will be filtered based on payment status)
+    const fullStepSequenceBase = [
         STEP_ALPHA_DISCLAIMER, STEP_BASICS, STEP_CONFIRM_EMAIL, STEP_SECURE_ACCOUNT, STEP_PASSWORD,
         STEP_ONE_TIME_CODES, STEP_TFA_APP_REMINDER, STEP_BACKUP_CODES, STEP_RECOVERY_KEY, // STEP_PROFILE_PICTURE,
         STEP_CREDITS, STEP_PAYMENT, STEP_AUTO_TOP_UP
     ];
 
-    const passkeyStepSequence = [
+    const passkeyStepSequenceBase = [
         STEP_ALPHA_DISCLAIMER, STEP_BASICS, STEP_CONFIRM_EMAIL, STEP_SECURE_ACCOUNT, STEP_RECOVERY_KEY,
         STEP_CREDITS, STEP_PAYMENT, STEP_AUTO_TOP_UP
     ];
+    
+    // Filter out payment steps if self-hosted (use isSelfHosted from request-based validation)
+    // This is more accurate than paymentEnabled alone, as paymentEnabled can be true for localhost in dev mode
+    // But since backend now ensures payment_enabled = false when is_self_hosted = true, both work
+    const fullStepSequence = $derived(
+        !isSelfHosted 
+            ? fullStepSequenceBase 
+            : fullStepSequenceBase.filter(step => ![STEP_CREDITS, STEP_PAYMENT, STEP_AUTO_TOP_UP].includes(step))
+    );
+    
+    const passkeyStepSequence = $derived(
+        !isSelfHosted
+            ? passkeyStepSequenceBase
+            : passkeyStepSequenceBase.filter(step => ![STEP_CREDITS, STEP_PAYMENT, STEP_AUTO_TOP_UP].includes(step))
+    );
 
+    // Determine step sequence based on login method
+    // Default to passkey sequence (assume passkey by default)
+    // Only use full sequence when user explicitly selects password + 2FA OTP
     let stepSequence = $derived(
-        $signupStore.loginMethod === 'passkey' ? passkeyStepSequence : fullStepSequence
+        $signupStore.loginMethod === 'password' ? fullStepSequence : passkeyStepSequence
     );
 
     let isImageProcessing = $state(false);
@@ -185,6 +211,37 @@
     onMount(() => {
         isInSignupProcess.set(true);
         
+        // Check server status to determine if payment is enabled (async, fire and forget)
+        (async () => {
+            try {
+                const { getApiEndpoint } = await import('../../config/api');
+                const response = await fetch(getApiEndpoint('/v1/settings/server-status'));
+                if (response.ok) {
+                    const status = await response.json();
+                    // Use is_self_hosted from request-based validation (more accurate than paymentEnabled)
+                    // This correctly identifies localhost and other self-hosted instances
+                    isSelfHosted = status.is_self_hosted || false;
+                    // CRITICAL: If self-hosted, payment is ALWAYS disabled
+                    // This overrides any environment-based logic that might enable payment for localhost in dev mode
+                    if (isSelfHosted) {
+                        paymentEnabled = false;
+                    } else {
+                        paymentEnabled = status.payment_enabled || false;
+                    }
+                    // Use server_edition from request-based validation (includes "development" for dev subdomains)
+                    // server_edition can be: "production" | "development" | "self_hosted"
+                    serverEdition = status.server_edition || null;
+                    console.log(`[Signup] Payment enabled: ${paymentEnabled}, Server edition: ${serverEdition}, is_self_hosted: ${isSelfHosted}, domain: ${status.domain || 'localhost'}`);
+                } else {
+                    console.warn('[Signup] Failed to fetch server status, defaulting to payment enabled');
+                    paymentEnabled = true; // Default to enabled if check fails
+                }
+            } catch (error) {
+                console.error('[Signup] Error checking server status:', error);
+                paymentEnabled = true; // Default to enabled if check fails
+            }
+        })();
+        
         // Set up the callbacks passed from Login to call internal handlers
         // We'll update the callbacks in Login to call our internal handlers
         // This is done via $effect after functions are defined
@@ -194,7 +251,13 @@
         // This ensures users see the disclaimer before proceeding with signup on new signups,
         // but preserves the step on page reload
         const existingStep = $currentSignupStep;
-        if (!existingStep || existingStep === STEP_ALPHA_DISCLAIMER) {
+        
+        // If self-hosted and user is on a payment step, skip to completion
+        if (isSelfHosted && [STEP_CREDITS, STEP_PAYMENT, STEP_AUTO_TOP_UP].includes(existingStep)) {
+            console.log(`[Signup] Payment disabled, skipping payment steps. Moving from ${existingStep} to completion.`);
+            currentSignupStep.set(STEP_COMPLETION);
+            currentStep = STEP_COMPLETION;
+        } else if (!existingStep || existingStep === STEP_ALPHA_DISCLAIMER) {
             // Only set to alpha disclaimer if no step is set or it's already at alpha disclaimer
             currentSignupStep.set(STEP_ALPHA_DISCLAIMER);
             currentStep = STEP_ALPHA_DISCLAIMER;
@@ -491,14 +554,24 @@
     function handleSkip() {
         // Profile picture step removed - moved to settings
         if (currentStep === STEP_TFA_APP_REMINDER) {
-            // Skip settings and mate settings - go directly to credits
-            goToStep(STEP_CREDITS);
+            // Skip settings and mate settings - go directly to credits (or completion if self-hosted)
+            if (!isSelfHosted) {
+                goToStep(STEP_CREDITS);
+            } else {
+                goToStep(STEP_COMPLETION);
+            }
         }
     }
 
-    async function handleStep(event: CustomEvent<{step: string, credits_amount?: number, price?: number, currency?: string, isGift?: boolean}>) { // Add isGift to type
-        const newStep = event.detail.step;
+    async function handleStep(event: CustomEvent<{step: string, credits_amount?: number, price?: number, currency?: string, isGift?: boolean, isGiftCardRedemption?: boolean, showSuccess?: boolean}>) { // Add isGiftCardRedemption and showSuccess to type
+        let newStep = event.detail.step;
         const oldStep = currentStep; // Capture old step value
+        
+        // Skip payment steps if self-hosted
+        if (isSelfHosted && [STEP_CREDITS, STEP_PAYMENT, STEP_AUTO_TOP_UP].includes(newStep)) {
+            console.log(`[Signup] Payment disabled, redirecting from ${newStep} to completion`);
+            newStep = STEP_COMPLETION;
+        }
         
         const oldIndex = stepSequence.indexOf(oldStep);
         const newIndex = stepSequence.indexOf(newStep);
@@ -514,12 +587,58 @@
         }
 
         isGiftFlow = event.detail.isGift ?? false; // Capture isGift status, default to false
+        
+        // Handle gift card redemption: show purchase confirmation, then auto-complete signup
+        console.debug(`[Signup] handleStep called: newStep=${newStep}, isGiftCardRedemption=${event.detail.isGiftCardRedemption}, showSuccess=${event.detail.showSuccess}`);
+        
+        if (event.detail.isGiftCardRedemption && event.detail.showSuccess && newStep === STEP_PAYMENT) {
+            // Set gift card redemption flag FIRST before any other state changes
+            isGiftCardRedemption = true;
+            
+            // Gift card was redeemed, credits are already added to account
+            // Update selectedCreditsAmount from gift card redemption if provided
+            if (event.detail.credits_amount !== undefined) {
+                selectedCreditsAmount = event.detail.credits_amount;
+                console.debug(`[Signup] Gift card redeemed, credits added: ${selectedCreditsAmount}`);
+            }
+            // Set payment state to success to show confirmation screen
+            paymentState = 'success';
+            console.debug(`[Signup] Gift card redeemed, isGiftCardRedemption=${isGiftCardRedemption}, showing purchase confirmation, will auto-complete signup`);
+            
+            // After showing the success message for 2 seconds, automatically complete signup
+            // This gives user time to see the confirmation before completing
+            setTimeout(async () => {
+                console.debug('[Signup] Auto-completing signup after gift card redemption');
+                await handleAutoTopUpComplete({ detail: {} });
+            }, 2000); // 2 second delay to show success message
+        } else {
+            // Only reset if we're not in a gift card redemption flow
+            isGiftCardRedemption = event.detail.isGiftCardRedemption ?? false;
+        }
+        
         currentStep = newStep; // Update local step
         currentSignupStep.set(newStep); // Update the global store
         
-        // Update last_opened to reflect current signup step (skip alpha_disclaimer as it's not a real step)
-        // This ensures the signup flow can be restored on page reload
-        if (newStep !== STEP_ALPHA_DISCLAIMER) {
+        // CRITICAL: If we've reached the completion step (especially when payment is disabled),
+        // automatically complete the signup instead of updating last_opened to #signup/completion
+        // Skip updating last_opened to #signup/completion since we'll update it to /chat/new immediately
+        if (newStep === STEP_COMPLETION) {
+            console.log(`[Signup] Reached completion step in handleStep, automatically finishing signup...`);
+            // Use a small delay to ensure state updates are processed
+            setTimeout(async () => {
+                await handleAutoTopUpComplete({ detail: {} });
+            }, 100);
+            // Don't update last_opened here - handleAutoTopUpComplete will set it to /chat/new
+            await tick(); // Wait for Svelte to process state changes
+            updateSettingsStep(oldStep);
+            await scrollToTop();
+            return; // Exit early, don't continue with normal step handling
+        }
+        
+        // Update last_opened to reflect current signup step
+        // Skip alpha_disclaimer, basics, and confirm_email - we only track steps beyond these initial steps
+        // This ensures the signup flow can be restored on page reload only if user has progressed beyond initial steps
+        if (newStep !== STEP_ALPHA_DISCLAIMER && newStep !== STEP_BASICS && newStep !== STEP_CONFIRM_EMAIL) {
             const signupPath = getPathFromStep(newStep);
             console.debug(`[Signup] Updating last_opened to ${signupPath} for step ${newStep}`);
             
@@ -594,13 +713,20 @@
                 credits_amount: undefined,
                 price: undefined,
                 currency: undefined,
-                isGift: undefined
+                isGift: undefined,
+                isGiftCardRedemption: undefined,
+                showSuccess: undefined
             }
-        } as CustomEvent<{step: string, credits_amount?: number, price?: number, currency?: string, isGift?: boolean}>;
+        } as CustomEvent<{step: string, credits_amount?: number, price?: number, currency?: string, isGift?: boolean, isGiftCardRedemption?: boolean, showSuccess?: boolean}>;
         handleStep(customEvent);
     }
 
     async function goToStep(step: string) {
+        // Skip payment steps if self-hosted
+        if (isSelfHosted && [STEP_CREDITS, STEP_PAYMENT, STEP_AUTO_TOP_UP].includes(step)) {
+            console.log(`[Signup] Payment disabled, skipping step ${step} and going to completion`);
+            step = STEP_COMPLETION;
+        }
         const oldStep = currentStep; // Capture old step value
         
         const oldIndex = stepSequence.indexOf(oldStep);
@@ -619,9 +745,22 @@
         currentStep = step;
         currentSignupStep.set(step); // Also update the store here
         
-        // Update last_opened to reflect current signup step (skip alpha_disclaimer as it's not a real step)
-        // This ensures the signup flow can be restored on page reload
-        if (step !== STEP_ALPHA_DISCLAIMER) {
+        // CRITICAL: If we've reached the completion step (especially when payment is disabled),
+        // automatically complete the signup instead of showing an empty step
+        // Skip updating last_opened to #signup/completion since we'll update it to /chat/new immediately
+        if (step === STEP_COMPLETION) {
+            console.log(`[Signup] Reached completion step, automatically finishing signup...`);
+            // Use a small delay to ensure state updates are processed
+            setTimeout(async () => {
+                await handleAutoTopUpComplete({ detail: {} });
+            }, 100);
+            return; // Don't continue with normal step rendering or last_opened update
+        }
+        
+        // Update last_opened to reflect current signup step
+        // Skip alpha_disclaimer, basics, and confirm_email - we only track steps beyond these initial steps
+        // This ensures the signup flow can be restored on page reload only if user has progressed beyond initial steps
+        if (step !== STEP_ALPHA_DISCLAIMER && step !== STEP_BASICS && step !== STEP_CONFIRM_EMAIL) {
             const signupPath = getPathFromStep(step);
             console.debug(`[Signup] Updating last_opened to ${signupPath} for step ${step}`);
             
@@ -936,6 +1075,18 @@
 
         // Signal completion of signup process AFTER ensuring auth state is updated
         isInSignupProcess.set(false);
+        
+        // CRITICAL: Close login interface to show the main app
+        // This ensures the signup UI is hidden and user can see the chat interface
+        const { loginInterfaceOpen } = await import('../../stores/uiStateStore');
+        loginInterfaceOpen.set(false);
+        console.debug("[Signup] Closed login interface after signup completion");
+
+        // CRITICAL: Mark sync as completed immediately after signup
+        // New users have no chats to sync, so sync completes instantly (or doesn't trigger sync events)
+        // This prevents the "Loading chats..." message from showing indefinitely
+        phasedSyncState.markSyncCompleted();
+        console.debug("[Signup] Marked phased sync as completed after signup (new user has no chats to sync)");
 
         if (window.innerWidth >= MOBILE_BREAKPOINT) {
             isMenuOpen.set(true);
@@ -1290,13 +1441,20 @@
                                     {:else if currentStep === STEP_MATE_SETTINGS}
                                         <MateSettingsTopContent />
                                     {:else if currentStep === STEP_CREDITS}
-                                        <CreditsTopContent />
+                                        <CreditsTopContent on:step={handleStep} />
                                     {:else if currentStep === STEP_PAYMENT}
                                         <PaymentTopContent
                                             credits_amount={selectedCreditsAmount}
                                             price={selectedPrice}
                                             currency={selectedCurrency}
                                             isGift={isGiftFlow}
+                                            isGiftCardRedemption={isGiftCardRedemption}
+                                            showSuccess={isGiftCardRedemption || paymentState === 'success'}
+                                            purchasedCredits={isGiftCardRedemption ? selectedCreditsAmount : null}
+                                            purchasedPrice={isGiftCardRedemption ? 0 : null}
+                                            paymentMethodSaved={isGiftCardRedemption ? false : paymentMethodSaved}
+                                            oncomplete={undefined}
+                                            onactivate-subscription={isGiftCardRedemption ? undefined : handleActivateSubscription}
                                             on:consentGiven={handleRefundConsent}
                                             on:paymentFormVisibility={handlePaymentFormVisibilityChange}
                                             on:openRefundInfo={handleOpenRefundInfo}
@@ -1308,13 +1466,14 @@
                                             credits_amount={selectedCreditsAmount}
                                             price={selectedPrice}
                                             currency={selectedCurrency}
+                                            isGiftCardRedemption={isGiftCardRedemption}
                                             showSuccess={true}
                                             purchasedCredits={selectedCreditsAmount}
-                                            purchasedPrice={selectedPrice}
-                                            paymentMethodSaved={paymentMethodSaved}
-                                            paymentMethodSaveError={paymentMethodSaveError}
+                                            purchasedPrice={isGiftCardRedemption ? 0 : selectedPrice}
+                                            paymentMethodSaved={isGiftCardRedemption ? false : paymentMethodSaved}
+                                            paymentMethodSaveError={isGiftCardRedemption ? null : paymentMethodSaveError}
                                             oncomplete={handleAutoTopUpComplete}
-                                            onactivate-subscription={handleActivateSubscription}
+                                            onactivate-subscription={isGiftCardRedemption ? undefined : handleActivateSubscription}
                                             on:paymentMethodStatusUpdate={(event) => {
                                                 paymentMethodSaved = event.detail.saved;
                                                 paymentMethodSaveError = event.detail.error;
@@ -1370,6 +1529,7 @@
                                             />
                                         {:else if currentStep === STEP_RECOVERY_KEY}
                                             <RecoveryKeyBottomContent
+                                                paymentEnabled={paymentEnabled}
                                                 on:step={handleStep}
                                                 on:uploading={handleImageUploading}
                                                 on:selectedApp={handleSelectedApp}

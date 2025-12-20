@@ -25,6 +25,7 @@ from backend.core.api.app.utils.secrets_manager import SecretsManager
 # Import services for type hinting
 from backend.core.api.app.services.directus.directus import DirectusService
 from backend.core.api.app.services.cache import CacheService
+from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.services.translations import TranslationService
 
 # Import tool generator
@@ -475,6 +476,7 @@ async def handle_main_processing(
     preprocessing_results: PreprocessingResult,
     base_instructions: Dict[str, Any],
     directus_service: DirectusService,
+    encryption_service: EncryptionService, # Added EncryptionService
     user_vault_key_id: Optional[str],
     all_mates_configs: List[MateConfig],
     discovered_apps_metadata: Dict[str, AppYAML],
@@ -786,9 +788,8 @@ async def handle_main_processing(
                     # Create placeholder embed IMMEDIATELY (before skill execution)
                     if cache_service and user_vault_key_id and directus_service and app_id != "unknown":
                         from backend.core.api.app.services.embed_service import EmbedService
-                        from backend.core.api.app.utils.encryption import EncryptionService
                         
-                        encryption_service = EncryptionService()
+                        # Use passed-in encryption_service
                         embed_service = EmbedService(
                             cache_service=cache_service,
                             directus_service=directus_service,
@@ -1100,9 +1101,8 @@ async def handle_main_processing(
                     if cache_service and user_vault_key_id and directus_service:
                         try:
                             from backend.core.api.app.services.embed_service import EmbedService
-                            from backend.core.api.app.utils.encryption import EncryptionService
 
-                            encryption_service = EncryptionService()
+                            # Use passed-in encryption_service
                             embed_service = EmbedService(
                                 cache_service=cache_service,
                                 directus_service=directus_service,
@@ -1404,9 +1404,8 @@ async def handle_main_processing(
                 if cache_service and user_vault_key_id and directus_service:
                     try:
                         from backend.core.api.app.services.embed_service import EmbedService
-                        from backend.core.api.app.utils.encryption import EncryptionService
 
-                        encryption_service = EncryptionService()
+                        # Use passed-in encryption_service
                         embed_service = EmbedService(
                             cache_service=cache_service,
                             directus_service=directus_service,
@@ -1830,8 +1829,7 @@ async def handle_main_processing(
                     placeholder_embed_data = inline_placeholder_embeds.get(tool_call_id)
                     if placeholder_embed_data and cache_service and user_vault_key_id and directus_service:
                         from backend.core.api.app.services.embed_service import EmbedService
-                        from backend.core.api.app.utils.encryption import EncryptionService
-                        encryption_service = EncryptionService()
+                        # Use passed-in encryption_service
                         embed_service = EmbedService(
                             cache_service=cache_service,
                             directus_service=directus_service,
@@ -1887,8 +1885,7 @@ async def handle_main_processing(
                     placeholder_embed_data = inline_placeholder_embeds.get(tool_call_id)
                     if placeholder_embed_data and cache_service and user_vault_key_id and directus_service:
                         from backend.core.api.app.services.embed_service import EmbedService
-                        from backend.core.api.app.utils.encryption import EncryptionService
-                        encryption_service = EncryptionService()
+                        # Use passed-in encryption_service
                         embed_service = EmbedService(
                             cache_service=cache_service,
                             directus_service=directus_service,
@@ -1951,8 +1948,7 @@ async def handle_main_processing(
                     placeholder_embed_data = inline_placeholder_embeds.get(tool_call_id)
                     if placeholder_embed_data and cache_service and user_vault_key_id and directus_service:
                         from backend.core.api.app.services.embed_service import EmbedService
-                        from backend.core.api.app.utils.encryption import EncryptionService
-                        encryption_service = EncryptionService()
+                        # Use passed-in encryption_service
                         embed_service = EmbedService(
                             cache_service=cache_service,
                             directus_service=directus_service,

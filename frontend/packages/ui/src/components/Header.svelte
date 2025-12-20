@@ -20,6 +20,9 @@
         context?: 'website' | 'webapp';
         isLoggedIn?: boolean;
     } = $props();
+    
+    // Server edition state - will be fetched on mount
+    let serverEdition = $state<string | null>(null);
 
     let headerDiv: HTMLElement;
 
@@ -90,6 +93,36 @@
         await goto(path, { replaceState: false });
     }
 
+    /**
+     * Handle logo click - behavior depends on server edition:
+     * - If self_hosted or development: open GitHub repo in new tab
+     * - Otherwise: if toggle menu is visible, trigger it; otherwise navigate to home
+     */
+    const handleLogoClick = (event: MouseEvent) => {
+        // Check if this is a self-hosted or development server edition
+        if (serverEdition === 'self_hosted' || serverEdition === 'development') {
+            // Open GitHub repo in new tab
+            event.preventDefault();
+            window.open(externalLinks.github, '_blank', 'noopener,noreferrer');
+            return;
+        }
+
+        // For regular edition, check if toggle menu is visible
+        const isMenuButtonVisible = context === 'webapp' && 
+            !$isInSignupProcess && 
+            !$loginInterfaceOpen && 
+            !$panelState.isActivityHistoryOpen;
+
+        if (isMenuButtonVisible) {
+            // Trigger toggle menu
+            event.preventDefault();
+            panelState.toggleChats();
+        } else {
+            // Default behavior: navigate to home
+            handleClick(event, '/');
+        }
+    }
+
     // Add state for mobile menu using Svelte 5 runes
     let isMobileMenuOpen = $state(false);
     
@@ -115,6 +148,23 @@
 
         checkMobile();
         window.addEventListener('resize', checkMobile);
+        
+        // Fetch server status to display server edition (async, fire and forget)
+        (async () => {
+            try {
+                const { getApiEndpoint } = await import('../config/api');
+                const response = await fetch(getApiEndpoint('/v1/settings/server-status'));
+                if (response.ok) {
+                    const status = await response.json();
+                    // Use server_edition from request-based validation (includes "development" for dev subdomains)
+                    // server_edition can be: "production" | "development" | "self_hosted"
+                    serverEdition = status.server_edition || null;
+                    console.log(`[Header] Server edition: ${serverEdition}, domain: ${status.domain || 'localhost'}, is_self_hosted: ${status.is_self_hosted}`);
+                }
+            } catch (error) {
+                console.error('[Header] Error fetching server status:', error);
+            }
+        })();
 
         return () => {
             window.removeEventListener('resize', checkMobile);
@@ -192,13 +242,48 @@
                             aria-label={$text('header.toggle_menu.text')}
                         ></button>
                     </div>
-                    <a
-                        href="/"
-                        class="logo-link"
-                        onclick={(e) => handleClick(e, '/')}
-                    >
-                        <strong><mark>Open</mark><span style="color: var(--color-grey-100);">Mates</span></strong>
-                    </a>
+                    <div class="logo-container">
+                        <a
+                            href={serverEdition === 'self_hosted' || serverEdition === 'development' ? externalLinks.github : '/'}
+                            class="logo-link"
+                            onclick={handleLogoClick}
+                            target={serverEdition === 'self_hosted' || serverEdition === 'development' ? '_blank' : undefined}
+                            rel={serverEdition === 'self_hosted' || serverEdition === 'development' ? 'noopener noreferrer' : undefined}
+                        >
+                            <strong><mark>Open</mark><span style="color: var(--color-grey-100);">Mates</span></strong>
+                        </a>
+                        {#if serverEdition === 'self_hosted'}
+                            <div 
+                                class="server-edition"
+                                onclick={handleLogoClick}
+                                role="button"
+                                tabindex="0"
+                                onkeydown={(e) => {
+                                    if (e.key === 'Enter' || e.key === ' ') {
+                                        e.preventDefault();
+                                        handleLogoClick(e as any);
+                                    }
+                                }}
+                            >
+                                {$text('header.self_hosting_edition.text')}
+                            </div>
+                        {:else if serverEdition === 'development'}
+                            <div 
+                                class="server-edition"
+                                onclick={handleLogoClick}
+                                role="button"
+                                tabindex="0"
+                                onkeydown={(e) => {
+                                    if (e.key === 'Enter' || e.key === ' ') {
+                                        e.preventDefault();
+                                        handleLogoClick(e as any);
+                                    }
+                                }}
+                            >
+                                {$text('header.development_server.text')}
+                            </div>
+                        {/if}
+                    </div>
                 </div>
                   
                 {#if showNavLinks && (context !== 'webapp' || isLoggedIn)}
@@ -318,6 +403,15 @@
         flex-shrink: 0;
     }
 
+    /* Container for logo and server edition text */
+    /* Logo container uses relative positioning to allow absolute positioning of server edition text */
+    /* Absolutely positioned text will not affect header height */
+    .logo-container {
+        position: relative;
+        display: flex;
+        align-items: center;
+    }
+
     .logo-link {
         font-size: 1.25rem;
         font-weight: 600;
@@ -339,6 +433,23 @@
         background-color: var(--color-primary);
         color: var(--color-grey-20);
         padding: 0 0.2rem;
+    }
+    
+    /* Server edition text displayed under the logo - absolutely positioned to not affect header height */
+    .server-edition {
+        position: absolute;
+        left: 0;
+        font-size: 0.75rem;
+        color: var(--color-grey-60);
+        font-weight: 400;
+        text-align: left;
+        line-height: 1.2;
+        cursor: pointer;
+        white-space: nowrap;
+        /* Add padding to make clickable area larger */
+        padding: 0.125rem 0;
+        left: 4px;
+        top: 24px;
     }
 
     .nav-links {
@@ -535,6 +646,10 @@
 
         .logo-link {
             font-size: 0.9rem;
+        }
+
+        .server-edition {
+            top: 18px;
         }
     }
 

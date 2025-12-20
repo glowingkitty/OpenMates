@@ -648,7 +648,22 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 			currentServerSortOrder = [];
 			syncing = false;
 			syncComplete = false;
-			activeChatStore.clearActiveChat();
+
+			// CRITICAL: Don't clear URL hash if one exists - deep links need to be processed first
+			// Only clear the store state, let +page.svelte handle the hash
+			const hasHash = typeof window !== 'undefined' && window.location.hash &&
+				(window.location.hash.startsWith('#chat-id=') || window.location.hash.startsWith('#chat_id=') ||
+				 window.location.hash.startsWith('#settings') || window.location.hash.startsWith('#embed') ||
+				 window.location.hash.startsWith('#signup'));
+
+			if (hasHash) {
+				console.debug('[Chats] Preserving URL hash for deep link processing:', window.location.hash);
+				// Only clear the store state without touching the URL hash
+				activeChatStore.setWithoutHashUpdate(null);
+			} else {
+				// No hash present, safe to clear everything including URL
+				activeChatStore.clearActiveChat();
+			}
 		}
 		
 		// Initialize selectedChatId from the persistent store on mount
@@ -658,6 +673,21 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 			selectedChatId = currentActiveChat;
 			console.debug('[Chats] Restored active chat from store:', currentActiveChat);
 		}
+
+		// Reactive sync: Update selectedChatId when activeChatStore changes (e.g., from deep links)
+		// This ensures the chat gets highlighted when loaded via deep link after component mount
+		$effect(() => {
+			const activeChat = $activeChatStore;
+			console.debug('[Chats] $effect triggered - activeChat:', activeChat, 'selectedChatId:', selectedChatId);
+			if (activeChat && activeChat !== selectedChatId) {
+				console.debug('[Chats] Syncing selectedChatId with activeChatStore:', activeChat);
+				selectedChatId = activeChat;
+			} else if (activeChat && activeChat === selectedChatId) {
+				console.debug('[Chats] selectedChatId already matches activeChat:', activeChat);
+			} else if (!activeChat) {
+				console.debug('[Chats] activeChat is null/empty');
+			}
+		});
 		
 		// CHANGED: For non-authenticated users, don't show syncing indicator
 		// Demo chats are loaded synchronously, no sync needed
@@ -668,24 +698,13 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 			// CRITICAL: For non-auth users, ensure the welcome demo chat is selected if no chat is active yet
 			// This handles the case where the sidebar mounts before +page.svelte sets the active chat
 			// FIXED: Dispatch chatSelected to ensure the chat actually loads (important for SEO and user experience)
-			// CRITICAL: URL hash chat has priority - skip welcome chat if hash is present
-			const hasChatHash = typeof window !== 'undefined' && 
-				(window.location.hash.startsWith('#chat-id=') || window.location.hash.startsWith('#chat_id='));
-			
-			if (!currentActiveChat && visiblePublicChats.length > 0 && !hasChatHash) {
-				const welcomeChat = visiblePublicChats.find(chat => chat.chat_id === 'demo-welcome');
-				if (welcomeChat) {
-					console.debug('[Chats] Auto-selecting welcome demo chat for non-authenticated user');
-					selectedChatId = 'demo-welcome';
-					activeChatStore.setActiveChat('demo-welcome');
-					// Dispatch chatSelected to ensure the chat loads in ActiveChat component
-					// This is critical for SEO scrapers and user experience
-					dispatch('chatSelected', { chat: welcomeChat });
-					console.debug('[Chats] Dispatched chatSelected for welcome demo chat');
-				}
-			} else if (hasChatHash) {
-				console.debug('[Chats] Skipping welcome chat auto-selection - URL hash chat has priority');
-			}
+			// CRITICAL: URL hash chat has priority - skip welcome chat if active chat is already set by deep link handler
+			// Use activeChatStore instead of checking hash directly to avoid race conditions
+			const hasActiveChatSet = currentActiveChat !== null;
+
+			// DISABLED: Auto-selection now handled by unified deep link system in +page.svelte
+			// This prevents conflicts with deep link processing and ensures consistent behavior
+			console.debug('[Chats] Skipping auto-selection - chat loading handled by unified deep link system');
 		}
 		
 		// Subscribe to locale changes for date formatting (already handled by reactive currentLocale)
@@ -729,31 +748,15 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 			// CRITICAL: After clearing user chats, select the welcome demo chat
 			// This ensures the welcome chat is highlighted in the sidebar after logout
 			// Use tick() to ensure reactive updates have processed (visiblePublicChats should be updated)
-			// CRITICAL: URL hash chat has priority - skip welcome chat if hash is present
+			// CRITICAL: URL hash chat has priority - skip welcome chat if active chat already set
 			await tick();
-			
-			const hasChatHash = typeof window !== 'undefined' && 
-				(window.location.hash.startsWith('#chat-id=') || window.location.hash.startsWith('#chat_id='));
 
-			// Find and select the welcome demo chat
-			if (visiblePublicChats.length > 0 && !hasChatHash) {
-				const welcomeChat = visiblePublicChats.find(chat => chat.chat_id === 'demo-welcome');
-				if (welcomeChat) {
-					console.debug('[Chats] Auto-selecting welcome demo chat after logout');
-					selectedChatId = 'demo-welcome';
-					activeChatStore.setActiveChat('demo-welcome');
-					// Dispatch chatSelected to ensure the chat is marked as active
-					// Note: ActiveChat component also loads the chat, but we need to mark it as selected here
-					dispatch('chatSelected', { chat: welcomeChat });
-					console.debug('[Chats] Dispatched chatSelected for welcome demo chat after logout');
-				} else {
-					console.warn('[Chats] Welcome demo chat not found in visiblePublicChats after logout');
-				}
-			} else if (hasChatHash) {
-				console.debug('[Chats] Skipping welcome chat auto-selection after logout - URL hash chat has priority');
-			} else {
-				console.warn('[Chats] No visible public chats available after logout');
-			}
+			// Check if active chat is already set by deep link handler (more reliable than checking hash)
+			const currentActiveChatAfterTick = $activeChatStore;
+
+			// DISABLED: Chat selection after logout now handled by unified deep link system
+			// This prevents conflicts and ensures consistent behavior across all entry points
+			console.debug('[Chats] Skipping post-logout chat selection - handled by unified deep link system');
 		};
 		window.addEventListener('userLoggingOut', handleLogoutEvent);
 		
@@ -779,22 +782,13 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 				// FALLBACK: Select welcome demo chat if not already selected
 				// This ensures the welcome chat is highlighted even if 'userLoggingOut' event doesn't fire
 				// Use tick() to ensure reactive updates have processed
-				// CRITICAL: URL hash chat has priority - skip welcome chat if hash is present
+				// CRITICAL: URL hash chat has priority - skip welcome chat if active chat already set
 				await tick();
-				const hasChatHash = typeof window !== 'undefined' && 
-					(window.location.hash.startsWith('#chat-id=') || window.location.hash.startsWith('#chat_id='));
-				
-				if (!selectedChatId && visiblePublicChats.length > 0 && !hasChatHash) {
-					const welcomeChat = visiblePublicChats.find(chat => chat.chat_id === 'demo-welcome');
-					if (welcomeChat) {
-						console.debug('[Chats] Auto-selecting welcome demo chat after auth state change (fallback)');
-						selectedChatId = 'demo-welcome';
-						activeChatStore.setActiveChat('demo-welcome');
-						dispatch('chatSelected', { chat: welcomeChat });
-					}
-				} else if (hasChatHash) {
-					console.debug('[Chats] Skipping welcome chat auto-selection after auth state change - URL hash chat has priority');
-				}
+				const currentActiveChatAfterAuthChange = $activeChatStore;
+
+				// DISABLED: Chat selection after auth change now handled by unified deep link system
+				// This prevents conflicts and ensures consistent behavior
+				console.debug('[Chats] Skipping post-auth-change chat selection - handled by unified deep link system');
 			} else if (authState.isAuthenticated && allChatsFromDB.length === 0) {
 				// OFFLINE-FIRST FIX: When auth becomes true (e.g., optimistic auth restored),
 				// load chats from IndexedDB if we haven't loaded them yet

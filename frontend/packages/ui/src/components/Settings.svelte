@@ -94,6 +94,10 @@ changes to the documentation (to keep the documentation up to date).
     import SettingsShare from './settings/share/SettingsShare.svelte';
     // Import tip settings component
     import SettingsTip from './settings/tip/SettingsTip.svelte';
+    // Import newsletter settings component
+    import SettingsNewsletter from './settings/SettingsNewsletter.svelte';
+    // Import support settings component
+    import SettingsSupport from './settings/SettingsSupport.svelte';
     
     // Import the normal store instead of the derived one that was causing the error
     import { settingsNavigationStore } from '../stores/settingsNavigationStore';
@@ -179,7 +183,11 @@ changes to the documentation (to keep the documentation up to date).
         // Share chat settings - allows users to share the current chat
         'shared/share': SettingsShare,
         // Tip creator settings - allows users to tip creators
-        'shared/tip': SettingsTip
+        'shared/tip': SettingsTip,
+        // Newsletter settings - allows anyone to subscribe to newsletter
+        'newsletter': SettingsNewsletter,
+        // Support settings - allows users to support the project
+        'support': SettingsSupport
     };
     
     /**
@@ -237,20 +245,36 @@ changes to the documentation (to keep the documentation up to date).
     // Reactive settingsViews that includes dynamic app routes
     let allSettingsViews = $derived(buildSettingsViews());
 
-    // Reactive settingsViews that filters out server options for non-admins
+    // Payment status - check if payment is enabled (self-hosted mode detection)
+    let paymentEnabled = $state(true); // Default to true, will be updated on mount
+    let serverEdition = $state<string | null>(null); // Server edition for display
+    let isSelfHosted = $state(false); // Self-hosted status from request-based validation
+    
+    // Reactive settingsViews that filters out server options for non-admins and payment routes when payment disabled
     // For non-authenticated users, show interface settings (and nested language settings), app store, and share chat
     // This allows them to explore available features like apps and share demo chats
     // Share chat (shared/share) is available for non-authenticated users to share demo chats
     let settingsViews = $derived.by(() => {
         const isAuthenticated = $authStore.isAuthenticated;
         return Object.entries(allSettingsViews).reduce((filtered, [key, component]) => {
+            // Filter out payment-related routes if self-hosted (use isSelfHosted from request-based validation)
+            // This is more accurate than paymentEnabled alone, as paymentEnabled can be true for localhost in dev mode
+            if (isSelfHosted) {
+                // Remove billing and gift card routes
+                if (key === 'billing' || key.startsWith('billing/') || 
+                    key === 'gift_cards' || key.startsWith('gift_cards/') ||
+                    key === 'shared/tip') { // Tips also require payment
+                    return filtered; // Skip this route
+                }
+            }
+            
             // For non-authenticated users, include interface settings (top-level and nested), 
-            // app store (including app details), and share chat (for sharing demo chats)
+            // app store (including app details), share chat (for sharing demo chats), newsletter, and support
             // App store is read-only for non-authenticated users (browse only, no modifications)
             if (!isAuthenticated) {
                 if (key === 'interface' || key === 'interface/language' || 
                     key === 'app_store' || key.startsWith('app_store/') ||
-                    key === 'shared/share') {
+                    key === 'shared/share' || key === 'newsletter' || key === 'support') {
                     filtered[key] = component;
                 }
             } else {
@@ -911,6 +935,36 @@ changes to the documentation (to keep the documentation up to date).
 
     // Setup listeners
     onMount(() => {
+        // Check server status to determine if payment is enabled (async, fire and forget)
+        (async () => {
+            try {
+                const { getApiEndpoint } = await import('../config/api');
+                const response = await fetch(getApiEndpoint('/v1/settings/server-status'));
+                if (response.ok) {
+                    const status = await response.json();
+                    // Use is_self_hosted from request-based validation (more accurate than paymentEnabled)
+                    // This correctly identifies localhost and other self-hosted instances
+                    isSelfHosted = status.is_self_hosted || false;
+                    // CRITICAL: If self-hosted, payment is ALWAYS disabled
+                    // This overrides any environment-based logic that might enable payment for localhost in dev mode
+                    if (isSelfHosted) {
+                        paymentEnabled = false;
+                    } else {
+                        paymentEnabled = status.payment_enabled || false;
+                    }
+                    // Use server_edition from request-based validation (includes "development" for dev subdomains)
+                    // server_edition can be: "production" | "development" | "self_hosted"
+                    serverEdition = status.server_edition || null;
+                    console.log(`[Settings] Payment enabled: ${paymentEnabled}, Server edition: ${serverEdition}, is_self_hosted: ${isSelfHosted}, domain: ${status.domain || 'localhost'}`);
+                } else {
+                    console.warn('[Settings] Failed to fetch server status, defaulting to payment enabled');
+                    paymentEnabled = true; // Default to enabled if check fails
+                }
+            } catch (error) {
+                console.error('[Settings] Error checking server status:', error);
+                paymentEnabled = true; // Default to enabled if check fails
+            }
+        })();
         updateMobileState();
         window.addEventListener('resize', handleResize);
         document.addEventListener('click', handleClickOutside);
@@ -1038,6 +1092,20 @@ changes to the documentation (to keep the documentation up to date).
                     // Dispatch event to clear user chats and load demo chat
                     console.debug('[Settings] Dispatching userLoggingOut event to clear chats and load demo');
                     window.dispatchEvent(new CustomEvent('userLoggingOut'));
+
+                    // CRITICAL: Force ActiveChat to load demo-welcome by setting activeChatStore directly
+                    // This ensures demo-welcome loads even if event handlers have timing issues
+                    // Small delay to ensure auth state changes are processed first
+                    await new Promise(resolve => setTimeout(resolve, 50));
+                    const { activeChatStore } = await import('@repo/ui');
+                    activeChatStore.setActiveChat('demo-welcome');
+                    console.debug('[Settings] Directly set activeChatStore to demo-welcome during logout');
+
+                    // CRITICAL: Ensure URL hash is set to demo-welcome
+                    if (typeof window !== 'undefined') {
+                        window.location.hash = 'chat-id=demo-welcome';
+                        console.debug('[Settings] Set URL hash to demo-welcome during logout');
+                    }
                     
                     // Reset scroll position
                  	if (settingsContentElement) {
@@ -1063,6 +1131,14 @@ changes to the documentation (to keep the documentation up to date).
                     // The panel should remain open to show demo chats after logout
                     // Only close settings menu
                  	isMenuOpen.set(false);
+
+                    // CRITICAL: Ensure URL hash is set to demo-welcome after logout
+                    // This ensures consistent behavior where logout always redirects to demo-welcome
+                    if (typeof window !== 'undefined') {
+                        window.location.hash = 'chat-id=demo-welcome';
+                        console.debug('[Settings] Set URL hash to demo-welcome after logout');
+                    }
+
                     // Small delay to allow sidebar animation if needed
                  	await new Promise(resolve => setTimeout(resolve, 100));
                 }
@@ -1098,10 +1174,12 @@ changes to the documentation (to keep the documentation up to date).
         if ($settingsDeepLink) {
             const settingsPath = $settingsDeepLink;
             
-            // For non-authenticated users, only allow app_store, interface, and share settings
+            // For non-authenticated users, only allow app_store, interface, share settings, newsletter, and support
             // Share settings are allowed so users can share demo chats
+            // Newsletter is allowed so anyone can subscribe
+            // Support is allowed so anyone can sponsor the project
             if (!$authStore.isAuthenticated) {
-                const allowedPaths = ['app_store', 'interface', 'interface/language', 'shared/share'];
+                const allowedPaths = ['app_store', 'interface', 'interface/language', 'shared/share', 'newsletter', 'support'];
                 const isAllowedPath = allowedPaths.includes(settingsPath) || 
                                      settingsPath.startsWith('app_store/') ||
                                      settingsPath.startsWith('interface/') ||
@@ -1396,6 +1474,7 @@ changes to the documentation (to keep the documentation up to date).
             {isInSignupMode}
             {settingsViews}
             {isMenuVisible}
+            {paymentEnabled}
             bind:isIncognitoEnabled
             bind:isGuestEnabled
             bind:isOfflineEnabled

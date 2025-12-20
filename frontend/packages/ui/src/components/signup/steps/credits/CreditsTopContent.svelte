@@ -89,13 +89,18 @@ step_9_top_content_svelte:
     
     /**
      * Handle gift card redemption success.
-     * Since credits are already added to the account, skip payment and go to auto_top_up.
+     * Go to payment step to show purchase confirmation, then automatically complete signup.
      */
-    function handleGiftCardRedeemed() {
+    function handleGiftCardRedeemed(event: CustomEvent<{ credits_added: number, current_credits: number }>) {
         // Credits are already added to the account via the gift card redemption API
-        // Skip payment step and go directly to auto_top_up
+        // Go to payment step with showSuccess=true to show purchase confirmation screen
+        // The payment step will display success message about gift card redemption, then auto-complete signup
+        console.debug('[CreditsTopContent] Gift card redeemed, dispatching step event to payment with isGiftCardRedemption=true');
         dispatch('step', {
-            step: 'auto_top_up'
+            step: 'payment',
+            isGiftCardRedemption: true, // Flag to indicate this is a gift card redemption
+            showSuccess: true, // Show purchase confirmation screen
+            credits_amount: event.detail.credits_added || 0 // Pass redeemed credits amount
         });
     }
     
@@ -122,6 +127,7 @@ step_9_top_content_svelte:
                 <!-- Gift Card Redemption Form -->
                 <div class="gift-card-container">
                     <GiftCardRedeem
+                        hideSuccessMessage={true}
                         on:redeemed={handleGiftCardRedeemed}
                         on:cancel={cancelGiftCard}
                     />

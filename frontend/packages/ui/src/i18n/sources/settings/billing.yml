@@ -1677,6 +1677,52 @@ invoices.error_loading:
   cs: Načítání faktur se nezdařilo. Zkuste to znovu.
   sv: Misslyckades med att ladda fakturor. Försök igen.
   verified_by_human: []
+invoices_no_invoices_title:
+  context: Title when no invoices are available
+  en: No Invoices Yet
+  de: Noch keine Rechnungen
+  zh: 还没有发票
+  es: Aún no hay facturas
+  fr: Aucune facture pour le moment
+  pt: Ainda não há faturas
+  ru: Пока нет счетов
+  ja: まだ請求書がありません
+  ko: 아직 청구서가 없습니다
+  it: Nessuna fattura ancora
+  tr: Henüz fatura yok
+  vi: Chưa có hóa đơn nào
+  id: Belum ada faktur
+  pl: Jeszcze brak faktur
+  nl: Nog geen facturen
+  ar: لا توجد فواتير حتى الآن
+  hi: अभी तक कोई चालान नहीं
+  th: ยังไม่มีใบแจ้งหนี้
+  cs: Zatím žádné faktury
+  sv: Inga fakturor än
+  verified_by_human: []
+invoices_no_invoices_description:
+  context: Description when no invoices are available
+  en: Your invoices will appear here after you make your first purchase.
+  de: Ihre Rechnungen werden hier nach Ihrem ersten Kauf angezeigt.
+  zh: 您首次购买后，发票将在此处显示。
+  es: Tus facturas aparecerán aquí después de hacer tu primera compra.
+  fr: Vos factures apparaîtront ici après votre premier achat.
+  pt: Suas faturas aparecerão aqui após sua primeira compra.
+  ru: Ваши счета появятся здесь после первой покупки.
+  ja: 最初の購入後にここに請求書が表示されます。
+  ko: 첫 구매 후 여기에 청구서가 표시됩니다.
+  it: Le tue fatture appariranno qui dopo il primo acquisto.
+  tr: İlk satın alma işleminizden sonra faturalarınız burada görünecektir.
+  vi: Hóa đơn của bạn sẽ xuất hiện ở đây sau khi bạn mua hàng lần đầu.
+  id: Faktur Anda akan muncul di sini setelah pembelian pertama.
+  pl: Twoje faktury pojawią się tutaj po pierwszym zakupie.
+  nl: Uw facturen verschijnen hier na uw eerste aankoop.
+  ar: ستظهر فواتيرك هنا بعد قيامك بعملية الشراء الأولى.
+  hi: आपकी पहली खरीदारी के बाद आपके चालान यहाँ दिखाई देंगे।
+  th: ใบแจ้งหนี้ของคุณจะปรากฏที่นี่หลังจากคุณซื้อครั้งแรก
+  cs: Vaše faktury se zde zobrazí po prvním nákupu.
+  sv: Dina fakturor kommer att visas här efter ditt första köp.
+  verified_by_human: []
 invoices.no_invoices_title:
   context: Title when no invoices are available
   en: No Invoices Yet

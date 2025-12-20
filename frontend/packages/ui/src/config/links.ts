@@ -58,7 +58,7 @@ export const baseUrls = {
   },
   webapp: {
     development: import.meta.env.VITE_WEBAPP_URL_DEV || 
-      sharedUrls?.urls?.base?.webapp?.development || 'http://localhost:5174',
+      sharedUrls?.urls?.base?.webapp?.development || 'http://localhost:5173',
     production: import.meta.env.VITE_WEBAPP_URL_PROD || 
       sharedUrls?.urls?.base?.webapp?.production || 'https://openmates.org'
   }

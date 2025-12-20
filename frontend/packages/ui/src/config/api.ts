@@ -90,6 +90,7 @@ export const apiEndpoints = {
         deleteChat:                 '/v1/chat/delete',                          // Delete a chat
     },
     settings: {
+        serverStatus:              '/v1/settings/server-status',               // Get server status (payment enabled, server edition, etc.)
         user: {
             update_profile_image:   '/v1/settings/user/update_profile_image',   // Update profile image of user
             consent_privacy_apps:   '/v1/settings/user/consent/privacy-apps',   // Record consent for privacy/apps settings
@@ -133,6 +134,9 @@ export const apiEndpoints = {
         metadata:                   '/v1/apps/metadata',                        // Get metadata for all discovered apps
         mostUsed:                    '/v1/apps/most-used',                       // Get most used apps in last 30 days (public endpoint)
     },
+    server: {
+        info:                        '/v1/server',                                // Get server information (domain and self_hosted flag based on request validation)
+    },
     usage: {
         getUsage:                    '/v1/settings/usage',                       // Get user usage data (legacy)
         getSummaries:                '/v1/settings/usage/summaries',             // Get usage summaries (fast)
@@ -141,6 +145,14 @@ export const apiEndpoints = {
     },
     creators: {
         tip:                         '/v1/creators/tip',                        // Tip a creator with credits
+    },
+    newsletter: {
+        subscribe:                   '/v1/newsletter/subscribe',                // Subscribe to newsletter (sends confirmation email)
+        confirm:                     '/v1/newsletter/confirm',                   // Confirm newsletter subscription (via token)
+        unsubscribe:                 '/v1/newsletter/unsubscribe',              // Unsubscribe from newsletter (via persistent token stored in Directus)
+    },
+    emailBlock: {
+        blockEmail:                 '/v1/block-email',                         // Block email address from all emails (signup, newsletter, etc.)
     }
 } as const;
 

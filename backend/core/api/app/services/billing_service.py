@@ -96,57 +96,74 @@ class BillingService:
                 current_credits = 0
 
             # 2. Check for sufficient balance and calculate new balance
-            if current_credits < credits_to_deduct:
-                # TODO this should be replaced later by checking during processing of a stream response if the user has enough credits for the tokens.
-                # and once that is not the case anymore, the stream should be stopped and the user informed to recharge their credits.
-                logger.warning(f"User {user_id} has insufficient credits: {current_credits} < {credits_to_deduct}. Setting credits to 0 and continuing.")
-                new_credits = 0
-                credits_to_deduct = current_credits  # Only charge what they have
+            # Skip balance check if payment is disabled (self-hosted mode)
+            from backend.core.api.app.utils.server_mode import is_payment_enabled
+            payment_enabled = is_payment_enabled()
+            
+            if payment_enabled:
+                # Payment enabled - enforce credit balance checks
+                if current_credits < credits_to_deduct:
+                    # TODO this should be replaced later by checking during processing of a stream response if the user has enough credits for the tokens.
+                    # and once that is not the case anymore, the stream should be stopped and the user informed to recharge their credits.
+                    logger.warning(f"User {user_id} has insufficient credits: {current_credits} < {credits_to_deduct}. Setting credits to 0 and continuing.")
+                    new_credits = 0
+                    credits_to_deduct = current_credits  # Only charge what they have
+                else:
+                    new_credits = current_credits - credits_to_deduct
             else:
-                new_credits = current_credits - credits_to_deduct
+                # Payment disabled (self-hosted mode) - skip balance check but still track usage
+                # Set new_credits to current_credits (no deduction) but still create usage entry
+                logger.info(f"Payment disabled (self-hosted mode). Skipping credit balance check for user {user_id}. Credits remain: {current_credits}")
+                new_credits = current_credits
+                # Note: credits_to_deduct is still used for usage entry tracking, but not actually deducted
             user['credits'] = new_credits  # Store as integer in the dictionary for caching
 
             # 3. Update user in cache
             await self.cache_service.set_user(user, user_id=user_id)
 
-            # 3.5. Check if low balance auto top-up should trigger
-            await self._check_and_trigger_low_balance_topup(user_id, user, new_credits)
+            # 3.5. Check if low balance auto top-up should trigger (only if payment enabled)
+            if payment_enabled:
+                await self._check_and_trigger_low_balance_topup(user_id, user, new_credits)
 
-            # 4. Update Directus with the encrypted string representation of the integer
-            encrypted_new_credits_tuple = await self.encryption_service.encrypt_with_user_key(
-                plaintext=str(new_credits),
-                key_id=user['vault_key_id']
-            )
-            encrypted_new_credits = encrypted_new_credits_tuple[0] # Extract the encrypted string from the tuple
-            # 4. Update Directus with retry logic
-            max_retries = 3
-            retry_delay = 5  # seconds
-            for attempt in range(max_retries):
-                update_successful = await self.directus_service.update_user(
-                    user_id, {"encrypted_credit_balance": encrypted_new_credits}
+            # 4. Update Directus with the encrypted string representation of the integer (only if payment enabled)
+            # In self-hosted mode, we still track usage but don't update credit balance in Directus
+            if payment_enabled:
+                encrypted_new_credits_tuple = await self.encryption_service.encrypt_with_user_key(
+                    plaintext=str(new_credits),
+                    key_id=user['vault_key_id']
                 )
-                if update_successful:
-                    logger.info(f"Successfully updated user {user_id} credits in Directus on attempt {attempt + 1}.")
-                    break
-                else:
-                    logger.warning(
-                        f"Attempt {attempt + 1} to update user {user_id} credits in Directus failed. "
-                        f"Retrying in {retry_delay} seconds..."
+                encrypted_new_credits = encrypted_new_credits_tuple[0] # Extract the encrypted string from the tuple
+                # 4. Update Directus with retry logic
+                max_retries = 3
+                retry_delay = 5  # seconds
+                for attempt in range(max_retries):
+                    update_successful = await self.directus_service.update_user(
+                        user_id, {"encrypted_credit_balance": encrypted_new_credits}
                     )
-                    if attempt < max_retries - 1:
-                        await asyncio.sleep(retry_delay)
+                    if update_successful:
+                        logger.info(f"Successfully updated user {user_id} credits in Directus on attempt {attempt + 1}.")
+                        break
+                    else:
+                        logger.warning(
+                            f"Attempt {attempt + 1} to update user {user_id} credits in Directus failed. "
+                            f"Retrying in {retry_delay} seconds..."
+                        )
+                        if attempt < max_retries - 1:
+                            await asyncio.sleep(retry_delay)
+                else:
+                    # This block executes if the loop completes without a `break`
+                    logger.critical(
+                        f"CRITICAL: Failed to update user {user_id} credits in Directus after {max_retries} attempts. "
+                        f"The user has been charged in cache, but the database update failed. Manual intervention required."
+                    )
+                    # We do NOT revert the cache. The charge is valid.
+                    # We raise an exception to inform the client of the persistent failure.
+                    raise HTTPException(
+                        status_code=500,
+                        detail="Your transaction was completed, but there was a delay in saving the final balance. Please refresh shortly."
+                    )
             else:
-                # This block executes if the loop completes without a `break`
-                logger.critical(
-                    f"CRITICAL: Failed to update user {user_id} credits in Directus after {max_retries} attempts. "
-                    f"The user has been charged in cache, but the database update failed. Manual intervention required."
-                )
-                # We do NOT revert the cache. The charge is valid.
-                # We raise an exception to inform the client of the persistent failure.
-                raise HTTPException(
-                    status_code=500,
-                    detail="Your transaction was completed, but there was a delay in saving the final balance. Please refresh shortly."
-                )
+                logger.debug(f"Payment disabled (self-hosted mode). Skipping Directus credit balance update for user {user_id}.")
             
             logger.info(f"Successfully charged {credits_to_deduct} credits from user {user_id}. New balance: {new_credits}")
 
@@ -297,15 +314,29 @@ class BillingService:
             email = await self._get_decrypted_email(user)
 
             # 6. Create one-time PaymentIntent using existing payment service
+            # Initialize SecretsManager with cache service
+            from backend.core.api.app.utils.secrets_manager import SecretsManager
             from backend.core.api.app.services.payment.payment_service import PaymentService
-            payment_service = PaymentService(self.cache_service, self.directus_service, self.encryption_service)
+            import os
+            
+            secrets_manager = SecretsManager(cache_service=self.cache_service)
+            await secrets_manager.initialize()
+            
+            # Determine if production or sandbox environment
+            is_production = os.getenv('ENVIRONMENT', 'development') == 'production'
+            
+            # Create and initialize PaymentService
+            payment_service = PaymentService(secrets_manager=secrets_manager)
+            await payment_service.initialize(is_production=is_production)
 
+            # Create order with correct parameters
+            # PaymentService.create_order expects: (amount, currency, email, credits_amount, customer_id)
             order_result = await payment_service.create_order(
-                user_id=user_id,
-                credits=credits_amount,
+                amount=price_data['amount'],  # Amount in cents from pricing config
                 currency=currency,
-                provider="stripe",  # For now, only Stripe
-                email=email
+                email=email,
+                credits_amount=credits_amount,
+                customer_id=None  # Optional - can be None for one-time payments
             )
 
             if not order_result or not order_result.get('client_secret'):
@@ -317,8 +348,9 @@ class BillingService:
             stripe.api_key = await self._get_stripe_api_key()
 
             try:
+                # Use 'id' field from order_result (PaymentIntent ID)
                 confirmed_intent = stripe.PaymentIntent.confirm(
-                    order_result['order_id'],
+                    order_result['id'],
                     payment_method=payment_method_id
                 )
 

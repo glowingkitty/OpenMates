@@ -23,7 +23,8 @@
         isOfflineEnabled = $bindable(false),
         menuItemsCount = $bindable(0),
         sliderElement = null,
-        isMenuVisible = false
+        isMenuVisible = false,
+        paymentEnabled = true
     }: {
         activeSettingsView?: string;
         direction?: string;
@@ -36,6 +37,7 @@
         menuItemsCount?: number;
         sliderElement?: HTMLDivElement | null;
         isMenuVisible?: boolean;
+        paymentEnabled?: boolean;
     } = $props();
     
     // State for docked profile visibility
@@ -329,8 +331,9 @@
                 </div>
             {/if}
             <div class="user-info-container">
-                <div class="username">{username || 'Guest'}</div>
-                <div class="credits-container">
+                <div class="username" class:shifted={!paymentEnabled}>{username || 'Guest'}</div>
+                <!-- Credits container - hidden visually when payment is disabled (self-hosted) but maintains layout space -->
+                <div class="credits-container" class:hidden={!paymentEnabled}>
                     <span class="credits-icon"></span>
                     <div class="credits-text">
                         <span class="credits-amount"><mark>{$text('settings.credits_amount.text').replace('{credits_amount}', credits.toString())}</mark></span>
@@ -495,12 +498,24 @@
         font-size: 22px;
         font-weight: 500;
         color: var(--color-grey-100);
+        transition: transform 0.3s ease;
+    }
+
+    /* Move username down when credits are hidden to fill the space */
+    /* Credits container height: icon (19px) + gap (8px) + text line-height (~20px) = ~47px */
+    .username.shifted {
+        transform: translateY(13px);
     }
 
     .credits-container {
         display: flex;
         align-items: center;
         gap: 8px;
+    }
+
+    /* Hide credits visually when payment is disabled (self-hosted) while maintaining layout space */
+    .credits-container.hidden {
+        visibility: hidden;
     }
 
     .credits-text {

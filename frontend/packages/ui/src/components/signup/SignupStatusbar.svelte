@@ -1,5 +1,6 @@
 <script lang="ts">
     import { fade } from 'svelte/transition';
+    import { signupStore } from '../../stores/signupStore';
     
     // Step name constants - must match those in Signup.svelte
     const STEP_ALPHA_DISCLAIMER = 'alpha_disclaimer';
@@ -31,12 +32,35 @@
     ];
 
     // Props using Svelte 5 runes
-    let { currentStepName = STEP_BASICS, stepSequenceOverride }: { currentStepName?: string, stepSequenceOverride?: string[] } = $props();
+    let { 
+        currentStepName = STEP_BASICS, 
+        stepSequenceOverride,
+        paymentEnabled = true
+    }: { 
+        currentStepName?: string, 
+        stepSequenceOverride?: string[],
+        paymentEnabled?: boolean
+    } = $props();
 
-    // Use override if provided, otherwise determine based on current step
+    // Filter out payment steps if payment is disabled
+    const filteredFullSequence = $derived(
+        paymentEnabled 
+            ? fullStepSequence 
+            : fullStepSequence.filter(step => ![STEP_CREDITS, STEP_PAYMENT, STEP_AUTO_TOP_UP].includes(step))
+    );
+
+    const filteredPasskeySequence = $derived(
+        paymentEnabled 
+            ? passkeyStepSequence 
+            : passkeyStepSequence.filter(step => ![STEP_CREDITS, STEP_PAYMENT, STEP_AUTO_TOP_UP].includes(step))
+    );
+
+    // Determine active sequence based on login method
+    // Default to passkey sequence (assume passkey by default)
+    // Only use full sequence when user explicitly selects password + 2FA OTP
     let activeSequence = $derived(
         stepSequenceOverride ||
-        (currentStepName === STEP_RECOVERY_KEY || !fullStepSequence.includes(currentStepName) ? passkeyStepSequence : fullStepSequence)
+        ($signupStore.loginMethod === 'password' ? filteredFullSequence : filteredPasskeySequence)
     );
 
 </script>

@@ -500,17 +500,24 @@ class ReadSkill(BaseSkill):
                     
                     # Create creator income entry asynchronously (fire-and-forget)
                     # This doesn't block the skill response
-                    try:
-                        asyncio.create_task(
-                            self._create_creator_income_for_url(
-                                url=read_url,
-                                app_id=self.app_id,
-                                skill_id=self.skill_id
+                    # Skip revenue sharing if payment is disabled (self-hosted mode)
+                    from backend.core.api.app.utils.server_mode import is_payment_enabled
+                    payment_enabled = is_payment_enabled()
+                    
+                    if payment_enabled:
+                        try:
+                            asyncio.create_task(
+                                self._create_creator_income_for_url(
+                                    url=read_url,
+                                    app_id=self.app_id,
+                                    skill_id=self.skill_id
+                                )
                             )
-                        )
-                    except Exception as e:
-                        # Log but don't fail - income tracking failure shouldn't break skill execution
-                        logger.warning(f"Failed to create creator income entry for URL '{read_url}': {e}")
+                        except Exception as e:
+                            # Log but don't fail - income tracking failure shouldn't break skill execution
+                            logger.warning(f"Failed to create creator income entry for URL '{read_url}': {e}")
+                    else:
+                        logger.debug(f"Payment disabled (self-hosted mode). Skipping creator income entry for URL '{read_url}'")
                     
                     return (request_id, [result], None)
                 

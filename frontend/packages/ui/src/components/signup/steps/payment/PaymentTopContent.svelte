@@ -48,6 +48,7 @@ step_10_top_content_svelte:
         price = 20,
         currency = 'EUR',
         isGift = false,
+        isGiftCardRedemption = false, // Flag to indicate this is a gift card redemption
         showSuccess = false, // When true, shows success message instead of payment form
         // Auto top-up props (used when showSuccess is true)
         purchasedCredits = null,
@@ -61,6 +62,7 @@ step_10_top_content_svelte:
         price?: number,
         currency?: string,
         isGift?: boolean,
+        isGiftCardRedemption?: boolean,
         showSuccess?: boolean,
         purchasedCredits?: number | null,
         purchasedPrice?: number | null,
@@ -82,6 +84,7 @@ step_10_top_content_svelte:
         localPaymentMethodSaved = paymentMethodSaved;
         localPaymentMethodSaveError = paymentMethodSaveError;
     });
+    
     
     // Check payment method on mount if showSuccess is true and paymentMethodSaved is false
     // This is a fallback check in case the parent component didn't check on reload
@@ -168,32 +171,58 @@ step_10_top_content_svelte:
 
 <div class="container">
     {#if showSuccess}
-        <!-- Success message for auto top-up step -->
-        <div class="top-container success-container">
-            <div class="header-content">
-                <div class="success-icon"></div>
-                <div class="primary-text">
-                    {@html $text('signup.purchase_successful.text')}
+        {#if isGiftCardRedemption}
+            <!-- Gift card redemption: Show credits amount in top, success message in bottom -->
+            <div class="top-container">
+                <div class="header-content">
+                    <div class="primary-text">
+                        {@html $text('signup.amount_currency.text')
+                            .replace('{currency}', '<span class="coin-icon-inline"></span>')
+                            .replace('{amount}', formatNumber(credits_amount))}
+                    </div>
                 </div>
             </div>
-        </div>
-        
-        <!-- Auto top-up content below success message -->
-        <div class="bottom-container">
-            <div class="main-content">
-                <div class="separated-block">
-                    <AutoTopUp
-                        purchasedCredits={purchasedCredits || 0}
-                        purchasedPrice={purchasedPrice || 0}
-                        currency={currency.toLowerCase()}
-                        paymentMethodSaved={localPaymentMethodSaved}
-                        paymentMethodSaveError={localPaymentMethodSaveError}
-                        {oncomplete}
-                        onactivate-subscription={onactivateSubscription}
-                    />
+            
+            <div class="bottom-container">
+                <div class="main-content">
+                    <div class="separated-block gift-card-success">
+                        <div class="success-message-container">
+                            <div class="success-icon-large"></div>
+                            <div class="success-text">
+                                {@html $text('signup.gift_card_redeemed_success.text')}
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
-        </div>
+        {:else}
+            <!-- Regular payment success: Show success message in top, auto top-up in bottom -->
+            <div class="top-container success-container">
+                <div class="header-content">
+                    <div class="success-icon"></div>
+                    <div class="primary-text">
+                        {@html $text('signup.purchase_successful.text')}
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Auto top-up content below success message -->
+            <div class="bottom-container">
+                <div class="main-content">
+                    <div class="separated-block">
+                        <AutoTopUp
+                            purchasedCredits={purchasedCredits || 0}
+                            purchasedPrice={purchasedPrice || 0}
+                            currency={currency.toLowerCase()}
+                            paymentMethodSaved={localPaymentMethodSaved}
+                            paymentMethodSaveError={localPaymentMethodSaveError}
+                            {oncomplete}
+                            onactivate-subscription={onactivateSubscription}
+                        />
+                    </div>
+                </div>
+            </div>
+        {/if}
     {:else}
         <!-- Payment form for payment step -->
         <div class="top-container">
@@ -375,5 +404,39 @@ step_10_top_content_svelte:
         .success-container ~ .bottom-container {
             top: 75px;
         }
+    }
+    
+    /* Gift card success message styling */
+    .gift-card-success {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 200px;
+    }
+    
+    .success-message-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 20px;
+        text-align: center;
+    }
+    
+    .success-icon-large {
+        width: 64px;
+        height: 64px;
+        background-color: #58BC00;
+        mask-image: url('@openmates/ui/static/icons/check.svg');
+        mask-size: contain;
+        mask-repeat: no-repeat;
+        mask-position: center;
+        animation: scaleIn 0.3s ease-out;
+    }
+    
+    .success-text {
+        font-size: 24px;
+        font-weight: 600;
+        color: var(--color-grey-100);
     }
 </style>

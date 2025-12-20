@@ -1,0 +1,44 @@
+newsletter_subscribers:
+  type: collection
+  fields:
+    id:
+      type: uuid
+      primary: true
+      
+    encrypted_email_address:
+      type: string
+      length: 512
+      unique: true
+      note: "Encrypted email address (encrypted with newsletter encryption key for server-side use)"
+      
+    hashed_email:
+      type: string
+      length: 64
+      unique: true
+      note: "SHA-256 hash of email for lookup purposes"
+      
+    confirmed_at:
+      type: timestamp
+      nullable: true
+      note: "Timestamp when user confirmed subscription"
+      
+    subscribed_at:
+      type: timestamp
+      note: "Timestamp when subscription was requested (set by application during creation)"
+      
+    language:
+      type: string
+      length: 10
+      default: "en"
+      note: "Preferred language for newsletter emails"
+      
+    darkmode:
+      type: boolean
+      default: false
+      note: "User's dark mode preference when subscribing to newsletter (used for email styling)"
+      
+    unsubscribe_token:
+      type: string
+      length: 128
+      unique: true
+      note: "Plaintext unsubscribe token for unsubscribing from newsletter (persists indefinitely, stored in cleartext for direct lookup)"

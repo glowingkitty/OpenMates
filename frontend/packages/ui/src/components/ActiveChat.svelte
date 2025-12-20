@@ -59,7 +59,7 @@
     import { draftEditorUIState } from '../services/drafts/draftState'; // Import draft state
     import { phasedSyncState } from '../stores/phasedSyncStateStore'; // Import phased sync state store
     import { websocketStatus } from '../stores/websocketStatusStore'; // Import WebSocket status for connection checks
-    import { activeChatStore } from '../stores/activeChatStore'; // For clearing persistent active chat selection
+    import { activeChatStore, deepLinkProcessing } from '../stores/activeChatStore'; // For clearing persistent active chat selection
     import { activeEmbedStore } from '../stores/activeEmbedStore'; // For managing embed URL hash
     import { settingsDeepLink } from '../stores/settingsDeepLinkStore'; // For opening settings to specific page (share)
     import { settingsMenuVisible } from '../components/Settings.svelte'; // Import settingsMenuVisible store to control Settings visibility
@@ -87,10 +87,21 @@
         STEP_CREDITS, STEP_PAYMENT, STEP_AUTO_TOP_UP
     ];
 
-    // Derive step sequence based on login method (same logic as Signup.svelte)
-    let stepSequence = $derived(
-        $signupStore.loginMethod === 'passkey' ? passkeyStepSequence : fullStepSequence
-    );
+    // State for payment enabled status (fetched from server)
+    let paymentEnabled = $state(true); // Default to enabled for backward compatibility
+    let isSelfHosted = $state(false); // Self-hosted status from request-based validation
+
+    // Derive step sequence based on login method and payment status (same logic as Signup.svelte)
+    // Default to passkey sequence (assume passkey by default)
+    // Only use full sequence when user explicitly selects password + 2FA OTP
+    let stepSequence = $derived.by(() => {
+        const baseSequence = $signupStore.loginMethod === 'password' ? fullStepSequence : passkeyStepSequence;
+        // Filter out payment steps if self-hosted (use isSelfHosted from request-based validation)
+        if (isSelfHosted) {
+            return baseSequence.filter(step => ![STEP_CREDITS, STEP_PAYMENT, STEP_AUTO_TOP_UP].includes(step));
+        }
+        return baseSequence;
+    });
 
     // Fade transition parameters for status bar
     const fadeParams = {
@@ -259,6 +270,12 @@
                 const translatedWelcomeDemo = translateDemoChat(welcomeDemo);
                 const welcomeChat = convertDemoChatToChat(translatedWelcomeDemo);
                 
+                // Check if deep link processing is happening
+                if (get(deepLinkProcessing)) {
+                    console.debug("[ActiveChat] Skipping welcome chat after logout - deep link processing in progress");
+                    return;
+                }
+
                 // Clear current chat and load welcome chat
                 currentChat = null;
                 currentMessages = [];
@@ -302,10 +319,16 @@
                     : [];
                 const isSharedChat = chatKey !== null || sharedChatIds.includes(currentChat.chat_id);
                 
-                if (isSharedChat) {
+                if (isSharedChat && !$isLoggingOut) {
                     // This is a shared chat - don't clear it, it's valid for non-auth users
+                    // EXCEPTION: If we're explicitly logging out, always switch to demo-welcome
                     console.debug('[ActiveChat] Auth state changed to unauthenticated - keeping shared chat:', currentChat.chat_id);
                     return; // Keep the shared chat loaded
+                }
+
+                if (isSharedChat && $isLoggingOut) {
+                    console.debug('[ActiveChat] Auth state changed during logout - clearing shared chat and loading demo-welcome:', currentChat.chat_id);
+                    // Continue with clearing logic below
                 }
                 
                 // Not a shared chat - proceed with clearing
@@ -324,6 +347,12 @@
                 // Load demo welcome chat (async operation)
                 (async () => {
                     try {
+                        // Check if deep link processing is happening
+                        if (get(deepLinkProcessing)) {
+                            console.debug('[ActiveChat] Skipping welcome chat backup - deep link processing in progress');
+                            return;
+                        }
+
                         const welcomeDemo = DEMO_CHATS.find(chat => chat.chat_id === 'demo-welcome');
                         if (welcomeDemo) {
                             const translatedWelcomeDemo = translateDemoChat(welcomeDemo);
@@ -2308,6 +2337,34 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             // Initialize app but skip auth initialization since it's already done in +page.svelte
             await initializeApp({ skipAuthInitialization: true });
             
+            // Check server status to determine if payment is enabled (for signup status bar)
+            try {
+                const { getApiEndpoint } = await import('../config/api');
+                const response = await fetch(getApiEndpoint('/v1/settings/server-status'));
+                if (response.ok) {
+                    const status = await response.json();
+                    // Use is_self_hosted from request-based validation (more accurate than paymentEnabled)
+                    // This correctly identifies localhost and other self-hosted instances
+                    isSelfHosted = status.is_self_hosted || false;
+                    // CRITICAL: If self-hosted, payment is ALWAYS disabled
+                    // This overrides any environment-based logic that might enable payment for localhost in dev mode
+                    if (isSelfHosted) {
+                        paymentEnabled = false;
+                    } else {
+                        paymentEnabled = status.payment_enabled || false;
+                    }
+                    console.log(`[ActiveChat] Payment enabled: ${paymentEnabled}, is_self_hosted: ${isSelfHosted}, domain: ${status.domain || 'localhost'}`);
+                } else {
+                    console.warn('[ActiveChat] Failed to fetch server status, defaulting to payment enabled');
+                    paymentEnabled = true; // Default to enabled if check fails
+                    isSelfHosted = false; // Default to not self-hosted if check fails
+                }
+            } catch (error) {
+                console.error('[ActiveChat] Error checking server status:', error);
+                paymentEnabled = true; // Default to enabled if check fails
+                isSelfHosted = false; // Default to not self-hosted if check fails
+            }
+            
             // Generate a temporary chat ID for draft saving if no chat is loaded
             // This ensures the draft service always has a chat ID to work with
             if (!currentChat?.chat_id && !temporaryChatId) {
@@ -2351,13 +2408,19 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     
                     // Use a small delay to ensure component is fully initialized
                     setTimeout(() => {
+                        // Check if deep link processing is happening
+                        if (get(deepLinkProcessing)) {
+                            console.debug("[ActiveChat] [NON-AUTH] Skipping welcome chat - deep link processing in progress");
+                            return;
+                        }
+
                         // Double-check that chat still isn't loaded (might have been loaded by +page.svelte)
                         if (!currentChat?.chat_id && $activeChatStore !== 'demo-welcome') {
                             activeChatStore.setActiveChat('demo-welcome');
                             loadChat(welcomeChat);
-                            console.debug("[ActiveChat] [NON-AUTH] ✅ Fallback: Welcome chat loaded successfully");
+                            console.info("[ActiveChat] [NON-AUTH] ✅ Fallback: Welcome chat loaded successfully");
                         } else {
-                            console.debug("[ActiveChat] [NON-AUTH] Fallback: Welcome chat already loaded, skipping");
+                            console.info("[ActiveChat] [NON-AUTH] Fallback: Welcome chat already loaded, skipping");
                         }
                     }, 100);
                 }
@@ -3137,7 +3200,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         <!-- Moved to be a child of active-chat-container for better positioning with gradient -->
         {#if $isInSignupProcess && $currentSignupStep !== STEP_BASICS && $currentSignupStep !== STEP_ALPHA_DISCLAIMER}
             <div class="status-wrapper" transition:fade={fadeParams}>
-                <SignupStatusbar currentStepName={$currentSignupStep} stepSequenceOverride={stepSequence} />
+                <SignupStatusbar currentStepName={$currentSignupStep} stepSequenceOverride={stepSequence} paymentEnabled={paymentEnabled} />
             </div>
         {/if}
         

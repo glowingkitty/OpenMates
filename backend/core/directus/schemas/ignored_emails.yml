@@ -1,0 +1,23 @@
+ignored_emails:
+  type: collection
+  fields:
+    id:
+      type: uuid
+      primary: true
+      
+    hashed_email:
+      type: string
+      length: 64
+      unique: true
+      note: "SHA-256 hash of the email address (for privacy)"
+      
+    created_at:
+      type: timestamp
+      note: "When the email was added to ignore list"
+      
+    reason:
+      type: string
+      length: 100
+      nullable: true
+      note: "Reason for ignoring (e.g., 'newsletter_unsubscribe', 'signup_rejected')"
+

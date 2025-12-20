@@ -261,7 +261,7 @@ class BasePDFTemplateService:
         
         # Fallback to environment variable or default
         if not webapp_url:
-            webapp_url = os.getenv("WEBAPP_URL", "https://openmates.org" if not is_dev else "http://localhost:5174")
+            webapp_url = os.getenv("WEBAPP_URL", "https://openmates.org" if not is_dev else "http://localhost:5173")
         
         return webapp_url
         

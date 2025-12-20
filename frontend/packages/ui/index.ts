@@ -52,6 +52,7 @@ export * from "./src/stores/userProfile"; // Export the user profile store for a
 export * from "./src/stores/i18n"; // Export i18n stores (i18nLoaded, waitForTranslations)
 export * from "./src/stores/notificationStore"; // Export notification store for displaying notifications
 export * from "./src/stores/mostUsedAppsStore"; // Export most used apps store for App Store
+export * from "./src/stores/newsletterActionStore"; // Export newsletter action store for email link actions
 // loginOverlayStore removed - not needed
 
 // Demo Chats
@@ -64,6 +65,7 @@ export { userDB } from "./src/services/userDB"; // Export user database
 export { chatSyncService } from "./src/services/chatSyncService"; // Export chat sync service
 export { webSocketService } from "./src/services/websocketService"; // Export WebSocket service for auth error handling
 export * from "./src/services/chatUrlService"; // Export chat URL service for deep linking
+export * from "./src/services/deepLinkHandler"; // Export unified deep link handler
 export { 
     getKeyFromStorage, 
     checkAndClearMasterKeyOnLoad,

@@ -18,6 +18,11 @@ class UserResponse(BaseModel):
     key_iv: Optional[str] = None # IV used for master key encryption (Web Crypto API)
     salt: Optional[str] = None # Salt used for password-based key derivation
     user_email_salt: Optional[str] = None # Salt used for client-side email encryption
+    # Low balance auto top-up fields
+    auto_topup_low_balance_enabled: bool = False # Enable automatic one-time top-up when balance low
+    auto_topup_low_balance_threshold: Optional[int] = None # Credit threshold that triggers auto top-up (fixed at 100 credits)
+    auto_topup_low_balance_amount: Optional[int] = None # Credits to purchase when threshold crossed
+    auto_topup_low_balance_currency: Optional[str] = None # Currency for auto top-up purchases
 
     class Config:
         json_schema_extra = {

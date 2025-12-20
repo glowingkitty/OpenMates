@@ -6,8 +6,17 @@ Developers Settings - API keys management and developer tools
     import { createEventDispatcher } from 'svelte';
     import { text } from '@repo/ui';
     import SettingsItem from '../SettingsItem.svelte';
+    import { getApiUrl } from '../../config/api';
 
     const dispatch = createEventDispatcher();
+    
+    /**
+     * Get the API documentation URL.
+     * Returns the API domain with /docs path appended.
+     */
+    function getApiDocsUrl(): string {
+        return `${getApiUrl()}/docs`;
+    }
     
     /**
      * Navigate to API Keys submenu by dispatching openSettings event.
@@ -35,6 +44,13 @@ Developers Settings - API keys management and developer tools
             title: $text('settings.developers_devices_text.text')
         });
     }
+
+    /**
+     * Open API documentation in a new tab.
+     */
+    function openApiDocs() {
+        window.open(getApiDocsUrl(), '_blank', 'noopener,noreferrer');
+    }
 </script>
 
 <div class="developers-container">
@@ -52,6 +68,14 @@ Developers Settings - API keys management and developer tools
         title={$text('settings.developers_devices_text.text')}
         subtitleTop={$text('settings.developers_devices_description.text')}
         onClick={navigateToDevices}
+    />
+
+    <SettingsItem
+        type="submenu"
+        icon="subsetting_icon subsetting_icon_document"
+        title={$text('settings.api_docs.text')}
+        subtitleTop=""
+        onClick={openApiDocs}
     />
 </div>
 

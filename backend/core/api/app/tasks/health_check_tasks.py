@@ -1603,8 +1603,15 @@ def check_external_services_health(self):
 
         tasks = []
 
-        # Check Stripe
-        tasks.append(_check_stripe_health(secrets_manager))
+        # Check Stripe (only if payment is enabled)
+        from backend.core.api.app.utils.server_mode import is_payment_enabled
+        payment_enabled = is_payment_enabled()
+        
+        if payment_enabled:
+            tasks.append(_check_stripe_health(secrets_manager))
+            logger.info("Health check: Including Stripe health check (payment enabled)")
+        else:
+            logger.info("Health check: Skipping Stripe health check (payment disabled - self-hosted mode)")
 
         # Check Sightengine
         tasks.append(_check_sightengine_health(secrets_manager))

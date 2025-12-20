@@ -73,7 +73,8 @@ async def preview_confirm_email(
     lang: str = Query("en", description="Language code for translations"),
     darkmode: bool = Query(False, description="Enable dark mode for the email"),
     code: str = Query("123456", description="Verification code"),
-    username: str = Query("User", description="Username to display in the email")
+    username: str = Query("User", description="Username to display in the email"),
+    email: str = Query("preview@example.com", description="Email address for blocklist link")
 ):
     """
     Preview the email confirmation template
@@ -83,7 +84,8 @@ async def preview_confirm_email(
         template_name="confirm-email",
         lang=lang,
         code=code,
-        username=username
+        username=username,
+        recipient_email=email  # Use recipient_email as it's the standard field name for blocklist URL generation
     )
 
 @router.get("/purchase-confirmation", response_class=HTMLResponse)
@@ -275,4 +277,74 @@ async def preview_recovery_key_used(
         )
     except Exception as e:
         logger.error(f"Preview Error: Failed to prepare/render recovery-key-used: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error generating preview: {str(e)}")
+
+
+@router.get("/newsletter-confirmation-request", response_class=HTMLResponse)
+async def preview_newsletter_confirmation_request(
+    request: Request,
+    lang: str = Query("en", description="Language code for translations"),
+    darkmode: bool = Query(False, description="Enable dark mode for the email"),
+    confirmation_token: str = Query("sample-token-12345", description="Confirmation token for the subscription link"),
+    email: str = Query("preview@example.com", description="Email address for block-email link")
+):
+    """
+    Preview the newsletter confirmation request email template.
+    """
+    import os
+    from urllib.parse import quote
+    
+    try:
+        # Get base URL for confirmation links
+        base_url = os.getenv("PRODUCTION_URL") or os.getenv("FRONTEND_URLS", "https://openmates.org").split(',')[0].strip()
+        if not base_url.startswith("http"):
+            base_url = f"https://{base_url}"
+        
+        # Build confirmation URL using settings deep link format (like refund links)
+        # Format: {base_url}/#settings/newsletter/confirm/{token}
+        confirm_url = f"{base_url}/#settings/newsletter/confirm/{confirmation_token}"
+        
+        # Build block-email URL instead of newsletter unsubscribe URL
+        # The "Never message me again" link should block ALL emails, not just unsubscribe from newsletter
+        # Format: {base_url}/#settings/email/block/{encoded_email}
+        encoded_email = quote(email.lower().strip())
+        block_email_url = f"{base_url}/#settings/email/block/{encoded_email}"
+        
+        return await _process_email_template(
+            request=request,
+            template_name="newsletter-confirmation-request",
+            lang=lang,
+            confirm_url=confirm_url,
+            unsubscribe_url=block_email_url  # Use block-email URL instead of newsletter unsubscribe
+        )
+    except Exception as e:
+        logger.error(f"Preview Error: Failed to prepare/render newsletter-confirmation-request: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error generating preview: {str(e)}")
+
+
+@router.get("/newsletter-confirmed", response_class=HTMLResponse)
+async def preview_newsletter_confirmed(
+    request: Request,
+    lang: str = Query("en", description="Language code for translations"),
+    darkmode: bool = Query(False, description="Enable dark mode for the email")
+):
+    """
+    Preview the newsletter confirmed email template.
+    """
+    import os
+    
+    try:
+        # Get social media links (from environment or defaults)
+        instagram_url = "https://instagram.com/openmates_official"
+        mastodon_url = "https://mastodon.social/@openmates"
+        
+        return await _process_email_template(
+            request=request,
+            template_name="newsletter-confirmed",
+            lang=lang,
+            instagram_url=instagram_url,
+            mastodon_url=mastodon_url
+        )
+    except Exception as e:
+        logger.error(f"Preview Error: Failed to prepare/render newsletter-confirmed: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Error generating preview: {str(e)}")

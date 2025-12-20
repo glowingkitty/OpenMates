@@ -358,6 +358,8 @@ async def _async_process_ai_skill_ask_task(
             base_instructions=base_instructions,
             cache_service=cache_service_instance,
             secrets_manager=secrets_manager,
+            directus_service=directus_service_instance, # Passed for reuse
+            encryption_service=encryption_service_instance, # Passed for reuse
             user_app_settings_and_memories_metadata=user_app_memories_metadata,
             discovered_apps_metadata=discovered_apps_metadata  # Pass discovered apps for tool preselection
         )

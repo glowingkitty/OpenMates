@@ -27,7 +27,7 @@ this_is_your_email_code:
   de: '{code} ist dein E-Mail-Bestätigungscode'
   zh: '{code} 是您的电子邮件地址确认码'
   es: '{code} es tu código de confirmación de dirección de correo electrónico'
-  fr: '{code} est votre code de confirmation d''adresse e-mail'
+  fr: "{code} est votre code de confirmation d'adresse e-mail"
   pt: ''
   ru: ''
   ja: '{code} はあなたのメールアドレス確認コードです'
@@ -145,34 +145,34 @@ did_not_request_email:
   context: Message at the end of the email
   en: 'You did not request this email?
 
-    Then <a href=''{mailto_link_report_email}''>click here</a> to report this email.
+    Then <a href=''{block_list_url}''>click here</a> to block future emails.
 
     '
   de: 'Du hast diese E-Mail nicht angefordert?
 
-    Dann <a href=''{mailto_link_report_email}''>klicke hier</a>, um diese E-Mail zu melden.
+    Dann <a href=''{block_list_url}''>klicke hier</a>, um zukünftige E-Mails zu blockieren.
 
     '
   zh: '您没有请求此电子邮件？
 
-    请<a href=''{mailto_link_report_email}''>点击此处</a>举报此电子邮件。
+    请<a href=''{block_list_url}''>点击此处</a>阻止未来的电子邮件。
 
     '
   es: '¿No solicitaste este correo electrónico?
 
-    Entonces <a href=''{mailto_link_report_email}''>haz clic aquí</a> para reportar este correo.
+    Entonces <a href=''{block_list_url}''>haz clic aquí</a> para bloquear correos futuros.
 
     '
   fr: 'Vous n''avez pas demandé cet e-mail ?
 
-    Alors <a href=''{mailto_link_report_email}''>cliquez ici</a> pour signaler cet e-mail.
+    Alors <a href=''{block_list_url}''>cliquez ici</a> pour bloquer les e-mails futurs.
 
     '
   pt: ''
   ru: ''
   ja: 'このメールをリクエストしていませんか？
 
-    このメールを報告するには<a href=''{mailto_link_report_email}''>ここをクリック</a>してください。
+    今後のメールをブロックするには<a href=''{block_list_url}''>ここをクリック</a>してください。
 
     '
   ko: ''
@@ -188,7 +188,7 @@ did_not_request_email:
   cs: ''
   sv: 'Begärde du inte detta e-postmeddelande?
 
-    Då kan du <a href=''{mailto_link_report_email}''>klicka här</a> för att rapportera detta e-postmeddelande.
+    Då kan du <a href=''{block_list_url}''>klicka här</a> för att blockera framtida e-postmeddelanden.
 
     '
   verified_by_human: []
@@ -214,6 +214,29 @@ this_email_was_sent_by:
   th: ''
   cs: ''
   sv: 'Detta e-postmeddelande skickades av OpenMates.'
+  verified_by_human: []
+this_email_was_sent_by_self_hosted:
+  context: text in the footer of the email for self-hosted versions
+  en: 'This email was sent by a self hosted version of OpenMates. Which is independently run &amp; maintained. Check OpenMates.org for the official cloud edition.'
+  de: 'Diese E-Mail wurde von einer selbst gehosteten Version von OpenMates gesendet. Diese wird unabhängig betrieben &amp; gewartet. Besuche OpenMates.org für die offizielle Cloud-Version.'
+  zh: '此电子邮件由 OpenMates 的自托管版本发送。该版本独立运行和维护。访问 OpenMates.org 获取官方云版本。'
+  es: 'Este correo fue enviado por una versión auto alojada de OpenMates. Que es ejecutada y mantenida de forma independiente. Consulta OpenMates.org para la edición oficial en la nube.'
+  fr: "Cet e-mail a été envoyé par une version auto-hébergée de OpenMates. Qui est gérée et maintenue de manière indépendante. Consultez OpenMates.org pour l'édition cloud officielle."
+  pt: ''
+  ru: ''
+  ja: 'このメールは、OpenMatesのセルフホスト版から送信されました。これは独立して運営・保守されています。公式クラウド版についてはOpenMates.orgをご確認ください。'
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: 'Detta e-postmeddelande skickades av en självhostad version av OpenMates. Som körs och underhålls oberoende. Kolla OpenMates.org för den officiella molneditionen.'
   verified_by_human: []
 legal:
   context: Legal section header
@@ -2347,4 +2370,464 @@ if_this_wasnt_you_react_invite_codes:
   th: ''
   cs: ''
   sv: ''
+  verified_by_human: []
+newsletter_confirmation_request.title:
+  context: Newsletter confirmation email title
+  en: Confirm your newsletter subscription
+  de: Bestätigen Sie Ihr Newsletter-Abonnement
+  zh: 确认您的新闻通讯订阅
+  es: Confirma tu suscripción al boletín
+  fr: Confirmez votre abonnement à la newsletter
+  pt: Confirme sua assinatura do boletim informativo
+  ru: Подтвердите подписку на рассылку
+  ja: ニュースレターの購読を確認
+  ko: 뉴스레터 구독 확인
+  it: Conferma la tua iscrizione alla newsletter
+  tr: Bülten aboneliğinizi onaylayın
+  vi: Xác nhận đăng ký bản tin
+  id: Konfirmasi langganan newsletter Anda
+  pl: Potwierdź subskrypcję newslettera
+  nl: Bevestig je nieuwsbriefabonnement
+  ar: أكد اشتراكك في النشرة الإخبارية
+  hi: अपनी न्यूज़लेटर सदस्यता की पुष्टि करें
+  th: ยืนยันการสมัครรับจดหมายข่าว
+  cs: Potvrďte své předplatné newsletteru
+  sv: Bekräfta din nyhetsbrevsprenumeration
+  verified_by_human: []
+newsletter_confirmation_request.subtitle:
+  context: Newsletter confirmation email subtitle
+  en: Stay informed about OpenMates
+  de: Bleiben Sie über OpenMates informiert
+  zh: 了解 OpenMates 的最新动态
+  es: Mantente informado sobre OpenMates
+  fr: Restez informé sur OpenMates
+  pt: Fique informado sobre o OpenMates
+  ru: Будьте в курсе новостей OpenMates
+  ja: OpenMatesについて最新情報を入手
+  ko: OpenMates에 대한 최신 정보 받기
+  it: Rimani informato su OpenMates
+  tr: OpenMates hakkında bilgi alın
+  vi: Cập nhật về OpenMates
+  id: Dapatkan informasi tentang OpenMates
+  pl: Bądź na bieżąco z OpenMates
+  nl: Blijf op de hoogte van OpenMates
+  ar: ابق على اطلاع بآخر أخبار OpenMates
+  hi: OpenMates के बारे में सूचित रहें
+  th: ติดตามข่าวสารเกี่ยวกับ OpenMates
+  cs: Zůstaňte informováni o OpenMates
+  sv: Håll dig informerad om OpenMates
+  verified_by_human: []
+newsletter_confirmation_request.description:
+  context: Newsletter confirmation email description
+  en: 'Thank you for subscribing! Please confirm your email address to receive updates about OpenMates, including new signup availability, feature updates, and important announcements.'
+  de: 'Vielen Dank für Ihr Abonnement! Bitte bestätigen Sie Ihre E-Mail-Adresse, um Updates über OpenMates zu erhalten, einschließlich neuer Anmeldeverfügbarkeit, Feature-Updates und wichtiger Ankündigungen.'
+  zh: '感谢您的订阅！请确认您的电子邮件地址，以接收有关 OpenMates 的更新，包括新的注册可用性、功能更新和重要公告。'
+  es: '¡Gracias por suscribirte! Por favor, confirma tu dirección de correo electrónico para recibir actualizaciones sobre OpenMates, incluyendo nueva disponibilidad de registro, actualizaciones de funciones y anuncios importantes.'
+  fr: 'Merci de vous être abonné ! Veuillez confirmer votre adresse e-mail pour recevoir des mises à jour sur OpenMates, notamment la disponibilité de nouvelles inscriptions, les mises à jour de fonctionnalités et les annonces importantes.'
+  pt: 'Obrigado por se inscrever! Por favor, confirme seu endereço de e-mail para receber atualizações sobre o OpenMates, incluindo nova disponibilidade de registro, atualizações de recursos e anúncios importantes.'
+  ru: 'Спасибо за подписку! Пожалуйста, подтвердите свой адрес электронной почты, чтобы получать обновления об OpenMates, включая новую доступность регистрации, обновления функций и важные объявления.'
+  ja: 'ご購読ありがとうございます！メールアドレスを確認して、新しいサインアップの可用性、機能の更新、重要な発表を含むOpenMatesに関する更新情報を受け取ってください。'
+  ko: '구독해 주셔서 감사합니다! 이메일 주소를 확인하여 새로운 가입 가능 여부, 기능 업데이트 및 중요한 공지사항을 포함한 OpenMates 업데이트를 받으세요.'
+  it: 'Grazie per esserti iscritto! Conferma il tuo indirizzo email per ricevere aggiornamenti su OpenMates, inclusa la nuova disponibilità di registrazione, aggiornamenti delle funzionalità e annunci importanti.'
+  tr: 'Abone olduğunuz için teşekkürler! Yeni kayıt kullanılabilirliği, özellik güncellemeleri ve önemli duyurular dahil olmak üzere OpenMates hakkında güncellemeler almak için e-posta adresinizi onaylayın.'
+  vi: 'Cảm ơn bạn đã đăng ký! Vui lòng xác nhận địa chỉ email của bạn để nhận cập nhật về OpenMates, bao gồm khả năng đăng ký mới, cập nhật tính năng và thông báo quan trọng.'
+  id: 'Terima kasih telah berlangganan! Silakan konfirmasi alamat email Anda untuk menerima pembaruan tentang OpenMates, termasuk ketersediaan pendaftaran baru, pembaruan fitur, dan pengumuman penting.'
+  pl: 'Dziękujemy za subskrypcję! Proszę potwierdzić swój adres e-mail, aby otrzymywać aktualizacje dotyczące OpenMates, w tym nową dostępność rejestracji, aktualizacje funkcji i ważne ogłoszenia.'
+  nl: 'Bedankt voor je abonnement! Bevestig je e-mailadres om updates over OpenMates te ontvangen, inclusief nieuwe aanmeldingsbeschikbaarheid, functie-updates en belangrijke aankondigingen.'
+  ar: 'شكرًا لك على الاشتراك! يرجى تأكيد عنوان بريدك الإلكتروني لتلقي تحديثات حول OpenMates، بما في ذلك توفر التسجيل الجديد وتحديثات الميزات والإعلانات المهمة.'
+  hi: 'सदस्यता लेने के लिए धन्यवाद! कृपया OpenMates के बारे में अपडेट प्राप्त करने के लिए अपना ईमेल पता पुष्टि करें, जिसमें नई साइनअप उपलब्धता, सुविधा अपडेट और महत्वपूर्ण घोषणाएं शामिल हैं।'
+  th: 'ขอบคุณที่สมัครรับจดหมายข่าว! กรุณายืนยันที่อยู่อีเมลของคุณเพื่อรับอัปเดตเกี่ยวกับ OpenMates รวมถึงการเปิดให้สมัครใหม่ การอัปเดตฟีเจอร์ และประกาศสำคัญ'
+  cs: 'Děkujeme za předplatné! Potvrďte prosím svou e-mailovou adresu, abyste mohli dostávat aktualizace o OpenMates, včetně nové dostupnosti registrace, aktualizací funkcí a důležitých oznámení.'
+  sv: 'Tack för att du prenumerar! Bekräfta din e-postadress för att få uppdateringar om OpenMates, inklusive ny registrerings tillgänglighet, funktionsuppdateringar och viktiga meddelanden.'
+  verified_by_human: []
+newsletter_confirmation_request.confirm_button:
+  context: Newsletter confirmation button text
+  en: Confirm Subscription
+  de: Abonnement bestätigen
+  zh: 确认订阅
+  es: Confirmar suscripción
+  fr: Confirmer l'abonnement
+  pt: Confirmar assinatura
+  ru: Подтвердить подписку
+  ja: 購読を確認
+  ko: 구독 확인
+  it: Conferma iscrizione
+  tr: Aboneliği onayla
+  vi: Xác nhận đăng ký
+  id: Konfirmasi langganan
+  pl: Potwierdź subskrypcję
+  nl: Bevestig abonnement
+  ar: تأكيد الاشتراك
+  hi: सदस्यता की पुष्टि करें
+  th: ยืนยันการสมัครสมาชิก
+  cs: Potvrdit předplatné
+  sv: Bekräfta prenumeration
+  verified_by_human: []
+newsletter_confirmation_request.did_not_request:
+  context: Text before unsubscribe link in newsletter confirmation email
+  en: 'I did not request this email.'
+  de: 'Ich habe diese E-Mail nicht angefordert.'
+  zh: '我没有请求此电子邮件。'
+  es: 'No solicité este correo electrónico.'
+  fr: 'Je n''ai pas demandé cet e-mail.'
+  pt: 'Eu não solicitei este e-mail.'
+  ru: 'Я не запрашивал это письмо.'
+  ja: 'このメールはリクエストしていません。'
+  ko: '이 이메일을 요청하지 않았습니다.'
+  it: 'Non ho richiesto questa email.'
+  tr: 'Bu e-postayı talep etmedim.'
+  vi: 'Tôi không yêu cầu email này.'
+  id: 'Saya tidak meminta email ini.'
+  pl: 'Nie prosiłem o ten e-mail.'
+  nl: 'Ik heb deze e-mail niet aangevraagd.'
+  ar: 'لم أطلب هذا البريد الإلكتروني.'
+  hi: 'मैंने यह ईमेल नहीं मांगा।'
+  th: 'ฉันไม่ได้ขออีเมลนี้'
+  cs: 'Tento e-mail jsem nepožádal.'
+  sv: 'Jag begärde inte detta e-postmeddelande.'
+  verified_by_human: []
+newsletter_confirmation_request.unsubscribe_link:
+  context: Unsubscribe link text in newsletter confirmation email
+  en: 'Never message me again'
+  de: 'Mir niemals wieder eine Nachricht senden'
+  zh: '不要再给我发消息'
+  es: 'Nunca me vuelvas a enviar un mensaje'
+  fr: 'Ne plus jamais me contacter'
+  pt: 'Nunca mais me envie mensagens'
+  ru: 'Больше никогда не отправлять мне сообщения'
+  ja: '二度とメッセージを送らないでください'
+  ko: '다시는 메시지를 보내지 마세요'
+  it: 'Non inviarmi mai più messaggi'
+  tr: 'Bana bir daha asla mesaj gönderme'
+  vi: 'Đừng bao giờ gửi tin nhắn cho tôi nữa'
+  id: 'Jangan pernah mengirim pesan kepada saya lagi'
+  pl: 'Nigdy więcej nie wysyłaj mi wiadomości'
+  nl: 'Stuur me nooit meer een bericht'
+  ar: 'لا تراسلني مرة أخرى'
+  hi: 'कभी भी मुझे फिर से संदेश न भेजें'
+  th: 'อย่าส่งข้อความหาฉันอีก'
+  cs: 'Už mi nikdy neposílej zprávy'
+  sv: 'Skicka mig aldrig meddelanden igen'
+  verified_by_human: []
+newsletter_confirmation_request.subject:
+  context: Newsletter confirmation email subject line
+  en: Confirm your newsletter subscription
+  de: Bestätigen Sie Ihr Newsletter-Abonnement
+  zh: 确认您的新闻通讯订阅
+  es: Confirma tu suscripción al boletín
+  fr: Confirmez votre abonnement à la newsletter
+  pt: Confirme sua assinatura do boletim informativo
+  ru: Подтвердите подписку на рассылку
+  ja: ニュースレターの購読を確認
+  ko: 뉴스레터 구독 확인
+  it: Conferma la tua iscrizione alla newsletter
+  tr: Bülten aboneliğinizi onaylayın
+  vi: Xác nhận đăng ký bản tin
+  id: Konfirmasi langganan newsletter Anda
+  pl: Potwierdź subskrypcję newslettera
+  nl: Bevestig je nieuwsbriefabonnement
+  ar: أكد اشتراكك في النشرة الإخبارية
+  hi: अपनी न्यूज़लेटर सदस्यता की पुष्टि करें
+  th: ยืนยันการสมัครรับจดหมายข่าว
+  cs: Potvrďte své předplatné newsletteru
+  sv: Bekräfta din nyhetsbrevsprenumeration
+  verified_by_human: []
+newsletter_confirmed.subject:
+  context: Newsletter confirmed email subject line
+  en: Newsletter subscription confirmed!
+  de: Newsletter-Abonnement bestätigt!
+  zh: 新闻通讯订阅确认！
+  es: Suscripción al boletín confirmada!
+  fr: Abonnement à la newsletter confirmé !
+  pt: Assinatura do boletim informativo confirmada!
+  ru: Подписка на рассылку подтверждена!
+  ja: ニュースレターの購読が確認されました！
+  ko: 뉴스레터 구독이 확인되었습니다!
+  it: Iscrizione alla newsletter confermata!
+  tr: Bülten aboneliği onaylandı!
+  vi: Đăng ký bản tin đã được xác nhận!
+  id: Langganan newsletter Anda telah terkonfirmasi!
+  pl: Subskrypcja newslettera potwierdzona!
+  nl: Je nieuwsbriefabonnement is bevestigd!
+  ar: تم تأكيد اشتراكك في النشرة الإخبارية!
+  hi: अपनी न्यूज़लेटर सदस्यता की पुष्टि की गई है!
+  th: การสมัครรับจดหมายข่าวถูกยืนยันแล้ว!
+  cs: Předplatné newsletteru bylo potvrzeno!
+  sv: Nyhetsbrevsprenumerationen bekräftad!
+  verified_by_human: []
+newsletter_confirmed.title:
+  context: Newsletter confirmed email title
+  en: You're subscribed!
+  de: Sie sind abonniert!
+  zh: 您已订阅！
+  es: ¡Estás suscrito!
+  fr: Vous êtes abonné !
+  pt: Você está inscrito!
+  ru: Вы подписаны!
+  ja: 購読完了！
+  ko: 구독 완료!
+  it: Sei iscritto!
+  tr: Abone oldunuz!
+  vi: Bạn đã đăng ký!
+  id: Anda berlangganan!
+  pl: Jesteś zapisany!
+  nl: Je bent geabonneerd!
+  ar: أنت مشترك!
+  hi: आप सदस्यता ले चुके हैं!
+  th: คุณสมัครสมาชิกแล้ว!
+  cs: Jste přihlášeni!
+  sv: Du är prenumerant!
+  verified_by_human: []
+newsletter_confirmed.subtitle:
+  context: Newsletter confirmed email subtitle
+  en: Welcome to the OpenMates newsletter
+  de: Willkommen beim OpenMates-Newsletter
+  zh: 欢迎订阅 OpenMates 新闻通讯
+  es: Bienvenido al boletín de OpenMates
+  fr: Bienvenue dans la newsletter OpenMates
+  pt: Bem-vindo ao boletim informativo do OpenMates
+  ru: Добро пожаловать в рассылку OpenMates
+  ja: OpenMatesニュースレターへようこそ
+  ko: OpenMates 뉴스레터에 오신 것을 환영합니다
+  it: Benvenuto nella newsletter di OpenMates
+  tr: OpenMates bültenine hoş geldiniz
+  vi: Chào mừng đến với bản tin OpenMates
+  id: Selamat datang di newsletter OpenMates
+  pl: Witamy w biuletynie OpenMates
+  nl: Welkom bij de OpenMates nieuwsbrief
+  ar: مرحباً بك في نشرة OpenMates الإخبارية
+  hi: OpenMates न्यूज़लेटर में आपका स्वागत है
+  th: ยินดีต้อนรับสู่จดหมายข่าว OpenMates
+  cs: Vítejte v newsletteru OpenMates
+  sv: Välkommen till OpenMates nyhetsbrev
+  verified_by_human: []
+newsletter_confirmed.description:
+  context: Newsletter confirmed email description
+  en: 'Thank you for confirming your subscription! You''ll now receive updates about OpenMates, including new signup availability, feature updates, and important announcements.'
+  de: 'Vielen Dank, dass Sie Ihr Abonnement bestätigt haben! Sie erhalten nun Updates über OpenMates, einschließlich neuer Anmeldeverfügbarkeit, Feature-Updates und wichtiger Ankündigungen.'
+  zh: '感谢您确认订阅！您现在将收到有关 OpenMates 的更新，包括新的注册可用性、功能更新和重要公告。'
+  es: '¡Gracias por confirmar tu suscripción! Ahora recibirás actualizaciones sobre OpenMates, incluyendo nueva disponibilidad de registro, actualizaciones de funciones y anuncios importantes.'
+  fr: 'Merci d''avoir confirmé votre abonnement ! Vous recevrez désormais des mises à jour sur OpenMates, notamment la disponibilité de nouvelles inscriptions, les mises à jour de fonctionnalités et les annonces importantes.'
+  pt: 'Obrigado por confirmar sua inscrição! Agora você receberá atualizações sobre o OpenMates, incluindo nova disponibilidade de registro, atualizações de recursos e anúncios importantes.'
+  ru: 'Спасибо за подтверждение подписки! Теперь вы будете получать обновления об OpenMates, включая новую доступность регистрации, обновления функций и важные объявления.'
+  ja: 'ご購読の確認ありがとうございます！新しいサインアップの可用性、機能の更新、重要な発表を含むOpenMatesに関する更新情報を受け取ります。'
+  ko: '구독을 확인해 주셔서 감사합니다! 이제 새로운 가입 가능 여부, 기능 업데이트 및 중요한 공지사항을 포함한 OpenMates 업데이트를 받게 됩니다.'
+  it: 'Grazie per aver confermato la tua iscrizione! Ora riceverai aggiornamenti su OpenMates, inclusa la nuova disponibilità di registrazione, aggiornamenti delle funzionalità e annunci importanti.'
+  tr: 'Aboneliğinizi onayladığınız için teşekkürler! Artık yeni kayıt kullanılabilirliği, özellik güncellemeleri ve önemli duyurular dahil olmak üzere OpenMates hakkında güncellemeler alacaksınız.'
+  vi: 'Cảm ơn bạn đã xác nhận đăng ký! Bây giờ bạn sẽ nhận được cập nhật về OpenMates, bao gồm khả năng đăng ký mới, cập nhật tính năng và thông báo quan trọng.'
+  id: 'Terima kasih telah mengonfirmasi langganan Anda! Anda sekarang akan menerima pembaruan tentang OpenMates, termasuk ketersediaan pendaftaran baru, pembaruan fitur, dan pengumuman penting.'
+  pl: 'Dziękujemy za potwierdzenie subskrypcji! Teraz będziesz otrzymywać aktualizacje dotyczące OpenMates, w tym nową dostępność rejestracji, aktualizacje funkcji i ważne ogłoszenia.'
+  nl: 'Bedankt voor het bevestigen van je abonnement! Je ontvangt nu updates over OpenMates, inclusief nieuwe aanmeldingsbeschikbaarheid, functie-updates en belangrijke aankondigingen.'
+  ar: 'شكرًا لك على تأكيد اشتراكك! ستتلقى الآن تحديثات حول OpenMates، بما في ذلك توفر التسجيل الجديد وتحديثات الميزات والإعلانات المهمة.'
+  hi: 'अपनी सदस्यता की पुष्टि करने के लिए धन्यवाद! अब आप OpenMates के बारे में अपडेट प्राप्त करेंगे, जिसमें नई साइनअप उपलब्धता, सुविधा अपडेट और महत्वपूर्ण घोषणाएं शामिल हैं।'
+  th: 'ขอบคุณที่ยืนยันการสมัครสมาชิก! ตอนนี้คุณจะได้รับอัปเดตเกี่ยวกับ OpenMates รวมถึงการเปิดให้สมัครใหม่ การอัปเดตฟีเจอร์ และประกาศสำคัญ'
+  cs: 'Děkujeme za potvrzení předplatného! Nyní budete dostávat aktualizace o OpenMates, včetně nové dostupnosti registrace, aktualizací funkcí a důležitých oznámení.'
+  sv: 'Tack för att du bekräftade din prenumeration! Du kommer nu att få uppdateringar om OpenMates, inklusive ny registrerings tillgänglighet, funktionsuppdateringar och viktiga meddelanden.'
+  verified_by_human: []
+newsletter_confirmed.social_media_text:
+  context: Text before social media buttons in newsletter confirmed email
+  en: 'Also check out our social media channels:'
+  de: 'Schauen Sie auch in unsere Social-Media-Kanäle:'
+  zh: '也请查看我们的社交媒体频道：'
+  es: 'También consulta nuestros canales de redes sociales:'
+  fr: 'Consultez également nos réseaux sociaux :'
+  pt: 'Também confira nossos canais de mídia social:'
+  ru: 'Также посетите наши каналы в социальных сетях:'
+  ja: 'ソーシャルメディアチャンネルもご覧ください：'
+  ko: '소셜 미디어 채널도 확인하세요:'
+  it: 'Controlla anche i nostri canali social:'
+  tr: 'Sosyal medya kanallarımıza da göz atın:'
+  vi: 'Cũng hãy xem các kênh truyền thông xã hội của chúng tôi:'
+  id: 'Juga lihat saluran media sosial kami:'
+  pl: 'Sprawdź także nasze kanały w mediach społecznościowych:'
+  nl: 'Bekijk ook onze sociale media kanalen:'
+  ar: 'تحقق أيضًا من قنواتنا على وسائل التواصل الاجتماعي:'
+  hi: 'हमारे सोशल मीडिया चैनल भी देखें:'
+  th: 'ตรวจสอบช่องทางโซเชียลมีเดียของเราด้วย:'
+  cs: 'Podívejte se také na naše kanály na sociálních sítích:'
+  sv: 'Kolla också in våra sociala mediekanaler:'
+  verified_by_human: []
+newsletter_confirmed.unsubscribe_text:
+  context: Text before unsubscribe link in newsletter confirmed email
+  en: "Don't want to receive our newsletter anymore?"
+  de: 'Möchten Sie unseren Newsletter nicht mehr erhalten?'
+  zh: '不想再收到我们的时事通讯？'
+  es: '¿Ya no quieres recibir nuestro boletín?'
+  fr: 'Vous ne souhaitez plus recevoir notre newsletter ?'
+  pt: ''
+  ru: ''
+  ja: 'ニュースレターの受信を停止しますか？'
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: 'ไม่ต้องการรับจดหมายข่าวของเราอีกต่อไป?'
+  cs: 'Nechcete už dostávat náš newsletter?'
+  sv: 'Vill du inte längre få vårt nyhetsbrev?'
+  verified_by_human: []
+newsletter_confirmed.unsubscribe_link:
+  context: Unsubscribe link text in newsletter confirmed email
+  en: 'Unsubscribe here'
+  de: 'Hier abmelden'
+  zh: '在此退订'
+  es: 'Darse de baja aquí'
+  fr: 'Se désabonner ici'
+  pt: ''
+  ru: ''
+  ja: 'ここで配信停止'
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: 'ยกเลิกการสมัครสมาชิกที่นี่'
+  cs: 'Zde se odhlásit'
+  sv: 'Avprenumerera här'
+  verified_by_human: []
+newsletter.subject:
+  context: Newsletter email subject line
+  en: Newsletter
+  de: Newsletter
+  zh: 新闻通讯
+  es: Boletín
+  fr: Newsletter
+  pt: Boletim informativo
+  ru: Рассылка
+  ja: ニュースレター
+  ko: 뉴스레터
+  it: Newsletter
+  tr: Bülten
+  vi: Bản tin
+  id: Newsletter
+  pl: Newsletter
+  nl: Nieuwsbrief
+  ar: النشرة الإخبارية
+  hi: न्यूज़लेटर
+  th: จดหมายข่าว
+  cs: Newsletter
+  sv: Nyhetsbrev
+  verified_by_human: []
+newsletter.title:
+  context: Newsletter email title
+  en: Newsletter
+  de: Newsletter
+  zh: 新闻通讯
+  es: Boletín
+  fr: Newsletter
+  pt: Boletim informativo
+  ru: Рассылка
+  ja: ニュースレター
+  ko: 뉴스레터
+  it: Newsletter
+  tr: Bülten
+  vi: Bản tin
+  id: Newsletter
+  pl: Newsletter
+  nl: Nieuwsbrief
+  ar: النشرة الإخبارية
+  hi: न्यूज़लेटर
+  th: จดหมายข่าว
+  cs: Newsletter
+  sv: Nyhetsbrev
+  verified_by_human: []
+newsletter.default_content:
+  context: Default newsletter content when no custom content is provided
+  en: Thank you for subscribing to our newsletter!
+  de: Vielen Dank, dass Sie unseren Newsletter abonniert haben!
+  zh: 感谢您订阅我们的新闻通讯！
+  es: ¡Gracias por suscribirte a nuestro boletín!
+  fr: Merci de vous être abonné à notre newsletter !
+  pt: Obrigado por assinar nosso boletim informativo!
+  ru: Спасибо за подписку на нашу рассылку!
+  ja: ニュースレターにご登録いただきありがとうございます！
+  ko: 뉴스레터를 구독해 주셔서 감사합니다!
+  it: Grazie per esserti iscritto alla nostra newsletter!
+  tr: Bültenimize abone olduğunuz için teşekkürler!
+  vi: Cảm ơn bạn đã đăng ký bản tin của chúng tôi!
+  id: Terima kasih telah berlangganan newsletter kami!
+  pl: Dziękujemy za subskrypcję naszego newslettera!
+  nl: Bedankt voor het abonneren op onze nieuwsbrief!
+  ar: شكراً لك على الاشتراك في نشرتنا الإخبارية!
+  hi: हमारे न्यूज़लेटर की सदस्यता लेने के लिए धन्यवाद!
+  th: ขอบคุณที่สมัครรับจดหมายข่าวของเรา!
+  cs: Děkujeme za předplatné našeho newsletteru!
+  sv: Tack för att du prenumererar på vårt nyhetsbrev!
+  verified_by_human: []
+newsletter.social_media_text:
+  context: Text above social media buttons in newsletter
+  en: 'Follow us on social media:'
+  de: 'Folgen Sie uns in den sozialen Medien:'
+  zh: '在社交媒体上关注我们：'
+  es: 'Síguenos en las redes sociales:'
+  fr: 'Suivez-nous sur les réseaux sociaux :'
+  pt: 'Siga-nos nas redes sociais:'
+  ru: 'Следите за нами в социальных сетях:'
+  ja: 'ソーシャルメディアでフォローしてください：'
+  ko: '소셜 미디어에서 팔로우하세요:'
+  it: 'Seguici sui social media:'
+  tr: 'Sosyal medyada bizi takip edin:'
+  vi: 'Theo dõi chúng tôi trên mạng xã hội:'
+  id: 'Ikuti kami di media sosial:'
+  pl: 'Śledź nas w mediach społecznościowych:'
+  nl: 'Volg ons op sociale media:'
+  ar: 'تابعنا على وسائل التواصل الاجتماعي:'
+  hi: 'सोशल मीडिया पर हमें फॉलो करें:'
+  th: 'ติดตามเราบนโซเชียลมีเดีย:'
+  cs: 'Sledujte nás na sociálních sítích:'
+  sv: 'Följ oss på sociala medier:'
+  verified_by_human: []
+newsletter.unsubscribe_text:
+  context: Text before unsubscribe link in newsletter
+  en: Don't want to receive these emails?
+  de: Möchten Sie diese E-Mails nicht mehr erhalten?
+  zh: 不想再收到这些邮件？
+  es: ¿No quieres recibir estos correos?
+  fr: Vous ne souhaitez plus recevoir ces e-mails ?
+  pt: Não quer mais receber estes e-mails?
+  ru: Не хотите получать эти письма?
+  ja: これらのメールを受信したくないですか？
+  ko: 이러한 이메일을 더 이상 받고 싶지 않으신가요?
+  it: Non vuoi più ricevere queste email?
+  tr: Bu e-postaları almak istemiyor musunuz?
+  vi: Không muốn nhận những email này?
+  id: Tidak ingin menerima email ini?
+  pl: Nie chcesz otrzymywać tych e-maili?
+  nl: Wil je deze e-mails niet meer ontvangen?
+  ar: لا تريد تلقي هذه الرسائل؟
+  hi: क्या आप ये ईमेल प्राप्त नहीं करना चाहते?
+  th: ไม่ต้องการรับอีเมลเหล่านี้?
+  cs: Nechcete dostávat tyto e-maily?
+  sv: Vill du inte ta emot dessa e-postmeddelanden?
+  verified_by_human: []
+newsletter.unsubscribe_link:
+  context: Unsubscribe link text in newsletter
+  en: Unsubscribe
+  de: Abmelden
+  zh: 取消订阅
+  es: Cancelar suscripción
+  fr: Se désabonner
+  pt: Cancelar assinatura
+  ru: Отписаться
+  ja: 購読を解除
+  ko: 구독 취소
+  it: Disiscriviti
+  tr: Abonelikten çık
+  vi: Hủy đăng ký
+  id: Berhenti berlangganan
+  pl: Anuluj subskrypcję
+  nl: Uitschrijven
+  ar: إلغاء الاشتراك
+  hi: सदस्यता रद्द करें
+  th: ยกเลิกการสมัครสมาชิก
+  cs: Odhlásit se
+  sv: Avprenumerera
   verified_by_human: []
