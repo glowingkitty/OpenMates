@@ -4508,26 +4508,26 @@ purchase_successful:
   verified_by_human: []
 gift_card_redeemed_success:
   context: Success message after gift card redemption during signup
-  en: Gift Card Redeemed Successfully!
-  de: Gutschein erfolgreich eingelöst!
-  zh: 礼品卡兑换成功！
-  es: ¡Tarjeta de regalo canjeada exitosamente!
-  fr: Carte cadeau échangée avec succès !
-  pt: Cartão presente resgatado com sucesso!
-  ru: Подарочная карта успешно обменена!
-  ja: ギフトカードの引き換えに成功しました！
-  ko: 기프트 카드가 성공적으로 사용되었습니다!
-  it: Buono regalo riscattato con successo!
-  tr: Hediye kartı başarıyla kullanıldı!
-  vi: Đổi thẻ quà tặng thành công!
-  id: Kartu hadiah berhasil ditukar!
-  pl: Karta podarunkowa została zrealizowana pomyślnie!
-  nl: Cadeaukaart succesvol ingewisseld!
-  ar: تم استبدال بطاقة الهدية بنجاح!
-  hi: उपहार कार्ड सफलतापूर्वक रिडीम किया गया!
-  th: แลกบัตรของขวัญสำเร็จแล้ว!
-  cs: Dárková karta byla úspěšně vyměněna!
-  sv: Presentkortet har lösts in framgångsrikt!
+  en: Enjoy your gift!
+  de: Viel Spaß mit deinem Geschenk!
+  zh: 享受您的礼物！
+  es: ¡Disfruta de tu regalo!
+  fr: Profitez de votre cadeau !
+  pt: Aproveite seu presente!
+  ru: Наслаждайтесь вашим подарком!
+  ja: ギフトをお楽しみください！
+  ko: 선물을 즐기세요!
+  it: Goditi il tuo regalo!
+  tr: Hediyenin tadını çıkar!
+  vi: Tận hưởng món quà của bạn!
+  id: Nikmati hadiah Anda!
+  pl: Ciesz się swoim prezentem!
+  nl: Geniet van je cadeau!
+  ar: استمتع بهديتك!
+  hi: अपने उपहार का आनंद लें!
+  th: สนุกกับของขวัญของคุณ!
+  cs: Užijte si svůj dárek!
+  sv: Njut av din present!
   verified_by_human: []
 credits_purchased:
   context: Label for credits purchased in purchase summary

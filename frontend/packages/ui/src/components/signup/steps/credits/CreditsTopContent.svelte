@@ -95,6 +95,7 @@ step_9_top_content_svelte:
         // Credits are already added to the account via the gift card redemption API
         // Go to payment step with showSuccess=true to show purchase confirmation screen
         // The payment step will display success message about gift card redemption, then auto-complete signup
+        console.debug('[CreditsTopContent] Gift card redeemed, dispatching step event to payment with isGiftCardRedemption=true');
         dispatch('step', {
             step: 'payment',
             isGiftCardRedemption: true, // Flag to indicate this is a gift card redemption

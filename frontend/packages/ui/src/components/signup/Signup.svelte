@@ -589,6 +589,8 @@
         isGiftFlow = event.detail.isGift ?? false; // Capture isGift status, default to false
         
         // Handle gift card redemption: show purchase confirmation, then auto-complete signup
+        console.debug(`[Signup] handleStep called: newStep=${newStep}, isGiftCardRedemption=${event.detail.isGiftCardRedemption}, showSuccess=${event.detail.showSuccess}`);
+        
         if (event.detail.isGiftCardRedemption && event.detail.showSuccess && newStep === STEP_PAYMENT) {
             // Set gift card redemption flag FIRST before any other state changes
             isGiftCardRedemption = true;
@@ -1439,7 +1441,7 @@
                                     {:else if currentStep === STEP_MATE_SETTINGS}
                                         <MateSettingsTopContent />
                                     {:else if currentStep === STEP_CREDITS}
-                                        <CreditsTopContent />
+                                        <CreditsTopContent on:step={handleStep} />
                                     {:else if currentStep === STEP_PAYMENT}
                                         <PaymentTopContent
                                             credits_amount={selectedCreditsAmount}
