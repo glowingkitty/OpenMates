@@ -146,46 +146,63 @@ async def handle_preprocessing(
             # CRITICAL: Check if user has auto top-up enabled
             # If so, trigger auto top-up BEFORE rejecting the request
             auto_topup_enabled = cached_user.get('auto_topup_low_balance_enabled', False)
-        if auto_topup_enabled:
-            logger.info(f"{log_prefix} User {request_data.user_id} has auto top-up enabled. Attempting to top up before processing...")
+            if auto_topup_enabled:
+                logger.info(f"{log_prefix} User {request_data.user_id} has auto top-up enabled. Attempting to top up before processing...")
 
-            # Import billing service to trigger top-up
-            from backend.core.api.app.services.billing_service import BillingService
+                # Import billing service to trigger top-up
+                from backend.core.api.app.services.billing_service import BillingService
 
-            # Use passed-in service instances instead of creating new ones
-            # This avoids redundant initializations and improves performance
-            billing_service = BillingService(
-                cache_service=cache_service,
-                directus_service=directus_service,
-                encryption_service=encryption_service
-            )
+                # Use passed-in service instances instead of creating new ones
+                # This avoids redundant initializations and improves performance
+                billing_service = BillingService(
+                    cache_service=cache_service,
+                    directus_service=directus_service,
+                    encryption_service=encryption_service
+                )
 
-            try:
-                # Trigger low balance auto top-up synchronously
-                # This will check cooldown, payment method, and process payment
-                import asyncio
-                await billing_service._trigger_low_balance_topup(request_data.user_id, cached_user)
+                try:
+                    # Trigger low balance auto top-up synchronously
+                    # This will check cooldown, payment method, and process payment
+                    import asyncio
+                    await billing_service._trigger_low_balance_topup(request_data.user_id, cached_user)
 
-                # Wait a moment for payment to process
-                await asyncio.sleep(2)
+                    # Wait a moment for payment to process
+                    await asyncio.sleep(2)
 
-                # Refresh user credits from cache after top-up
-                refreshed_user = await cache_service.get_user_by_id(request_data.user_id)
-                if refreshed_user:
-                    new_credits = refreshed_user.get("credits", 0)
-                    logger.info(f"{log_prefix} After auto top-up: User {request_data.user_id} now has {new_credits} credits.")
+                    # Refresh user credits from cache after top-up
+                    refreshed_user = await cache_service.get_user_by_id(request_data.user_id)
+                    if refreshed_user:
+                        new_credits = refreshed_user.get("credits", 0)
+                        logger.info(f"{log_prefix} After auto top-up: User {request_data.user_id} now has {new_credits} credits.")
 
-                    if new_credits >= MINIMUM_REQUEST_COST:
-                        logger.info(f"{log_prefix} Auto top-up successful! Proceeding with message processing.")
-                        # Update user_credits to proceed with processing
-                        user_credits = new_credits
-                        cached_user = refreshed_user
+                        if new_credits >= MINIMUM_REQUEST_COST:
+                            logger.info(f"{log_prefix} Auto top-up successful! Proceeding with message processing.")
+                            # Update user_credits to proceed with processing
+                            user_credits = new_credits
+                            cached_user = refreshed_user
+                        else:
+                            logger.warning(f"{log_prefix} Auto top-up completed but still insufficient credits ({new_credits}). Rejecting request.")
+                            return PreprocessingResult(
+                                can_proceed=False,
+                                rejection_reason="insufficient_credits",
+                                error_message=f"Auto top-up was triggered but you still have insufficient credits ({new_credits}). This action requires at least {MINIMUM_REQUEST_COST}. Please check your payment method and try again.",
+                                harmful_or_illegal_score=None,
+                                category=None,
+                                llm_response_temp=None,
+                                complexity=None,
+                                misuse_risk_score=None,
+                                load_app_settings_and_memories=None,
+                                selected_mate_id=None,
+                                selected_main_llm_model_id=None,
+                                selected_main_llm_model_name=None,
+                                raw_llm_response=None
+                            )
                     else:
-                        logger.warning(f"{log_prefix} Auto top-up completed but still insufficient credits ({new_credits}). Rejecting request.")
+                        logger.error(f"{log_prefix} Failed to refresh user data after auto top-up.")
                         return PreprocessingResult(
                             can_proceed=False,
                             rejection_reason="insufficient_credits",
-                            error_message=f"Auto top-up was triggered but you still have insufficient credits ({new_credits}). This action requires at least {MINIMUM_REQUEST_COST}. Please check your payment method and try again.",
+                            error_message=f"You have {user_credits} credits, but this action requires at least {MINIMUM_REQUEST_COST}. Auto top-up was triggered but we couldn't verify the result. Please try again in a moment.",
                             harmful_or_illegal_score=None,
                             category=None,
                             llm_response_temp=None,
@@ -197,12 +214,14 @@ async def handle_preprocessing(
                             selected_main_llm_model_name=None,
                             raw_llm_response=None
                         )
-                else:
-                    logger.error(f"{log_prefix} Failed to refresh user data after auto top-up.")
+
+                except Exception as e:
+                    logger.error(f"{log_prefix} Auto top-up failed with error: {e}", exc_info=True)
+                    # Continue to reject with original insufficient credits message
                     return PreprocessingResult(
                         can_proceed=False,
                         rejection_reason="insufficient_credits",
-                        error_message=f"You have {user_credits} credits, but this action requires at least {MINIMUM_REQUEST_COST}. Auto top-up was triggered but we couldn't verify the result. Please try again in a moment.",
+                        error_message=f"You have {user_credits} credits, but this action requires at least {MINIMUM_REQUEST_COST}. Auto top-up failed: {str(e)}. Please buy credits manually and try again.",
                         harmful_or_illegal_score=None,
                         category=None,
                         llm_response_temp=None,
@@ -214,14 +233,12 @@ async def handle_preprocessing(
                         selected_main_llm_model_name=None,
                         raw_llm_response=None
                     )
-
-            except Exception as e:
-                logger.error(f"{log_prefix} Auto top-up failed with error: {e}", exc_info=True)
-                # Continue to reject with original insufficient credits message
+            else:
+                # No auto top-up enabled, reject immediately
                 return PreprocessingResult(
                     can_proceed=False,
                     rejection_reason="insufficient_credits",
-                    error_message=f"You have {user_credits} credits, but this action requires at least {MINIMUM_REQUEST_COST}. Auto top-up failed: {str(e)}. Please buy credits manually and try again.",
+                    error_message=f"You have {user_credits} credits, but this action requires at least {MINIMUM_REQUEST_COST}. Please buy more credits and then try again.",
                     harmful_or_illegal_score=None,
                     category=None,
                     llm_response_temp=None,
@@ -233,23 +250,6 @@ async def handle_preprocessing(
                     selected_main_llm_model_name=None,
                     raw_llm_response=None
                 )
-        else:
-            # No auto top-up enabled, reject immediately
-            return PreprocessingResult(
-                can_proceed=False,
-                rejection_reason="insufficient_credits",
-                error_message=f"You have {user_credits} credits, but this action requires at least {MINIMUM_REQUEST_COST}. Please buy more credits and then try again.",
-                harmful_or_illegal_score=None,
-                category=None,
-                llm_response_temp=None,
-                complexity=None,
-                misuse_risk_score=None,
-                load_app_settings_and_memories=None,
-                selected_mate_id=None,
-                selected_main_llm_model_id=None,
-                selected_main_llm_model_name=None,
-                raw_llm_response=None
-            )
         logger.info(f"{log_prefix} Credit check passed for user {request_data.user_id}.") # Log actual user_id
         # --- End Credit Check ---
     else:

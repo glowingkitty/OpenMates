@@ -127,6 +127,7 @@ step_9_top_content_svelte:
                 <!-- Gift Card Redemption Form -->
                 <div class="gift-card-container">
                     <GiftCardRedeem
+                        hideSuccessMessage={true}
                         on:redeemed={handleGiftCardRedeemed}
                         on:cancel={cancelGiftCard}
                     />

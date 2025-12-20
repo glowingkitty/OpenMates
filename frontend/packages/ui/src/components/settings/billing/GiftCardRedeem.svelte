@@ -10,6 +10,13 @@ Gift Card Redeem - Component for redeeming gift card codes
 
     const dispatch = createEventDispatcher();
 
+    // Props to control behavior in different contexts
+    let { 
+        hideSuccessMessage = false // When true, don't show success message (e.g., during signup)
+    }: {
+        hideSuccessMessage?: boolean;
+    } = $props();
+
     let giftCardCode = $state('');
     let isRedeeming = $state(false);
     let errorMessage: string | null = $state(null);
@@ -52,16 +59,19 @@ Gift Card Redeem - Component for redeeming gift card codes
                     updateProfile({ credits: result.current_credits });
                 }
 
-                successMessage = result.message || $text('settings.billing.gift_card.success.text');
+                // Only show success message if not hidden (e.g., during signup we navigate away immediately)
+                if (!hideSuccessMessage) {
+                    successMessage = result.message || $text('settings.billing.gift_card.success.text');
+                }
                 
-                // Dispatch success event after a short delay to show success message
-                // Include credits information for signup flow
+                // Dispatch success event - if hideSuccessMessage is true, dispatch immediately, otherwise wait to show message
+                const delay = hideSuccessMessage ? 0 : 1500;
                 setTimeout(() => {
                     dispatch('redeemed', {
                         credits_added: result.credits_added || 0,
                         current_credits: result.current_credits || 0
                     });
-                }, 1500);
+                }, delay);
             } else {
                 console.error("Failed to redeem gift card:", result.message);
                 errorMessage = result.message || $text('settings.billing.gift_card.error.invalid.text');
