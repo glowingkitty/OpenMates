@@ -24,8 +24,7 @@ newsletter_subscribers:
       
     subscribed_at:
       type: timestamp
-      default: $NOW
-      note: "Timestamp when subscription was requested"
+      note: "Timestamp when subscription was requested (set by application during creation)"
       
     language:
       type: string
@@ -33,17 +32,8 @@ newsletter_subscribers:
       default: "en"
       note: "Preferred language for newsletter emails"
       
-    encrypted_unsubscribe_token:
+    unsubscribe_token:
       type: string
-      length: 512
+      length: 128
       unique: true
-      note: "Encrypted unsubscribe token for unsubscribing from newsletter (encrypted with newsletter encryption key, persists indefinitely)"
-      
-    date_created:
-      type: timestamp
-      default: $NOW
-      
-    date_updated:
-      type: timestamp
-      default: $NOW
-      on_update: $NOW
+      note: "Plaintext unsubscribe token for unsubscribing from newsletter (persists indefinitely, stored in cleartext for direct lookup)"

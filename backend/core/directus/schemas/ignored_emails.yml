@@ -13,7 +13,6 @@ ignored_emails:
       
     created_at:
       type: timestamp
-      default: $NOW
       note: "When the email was added to ignore list"
       
     reason:
@@ -21,12 +20,4 @@ ignored_emails:
       length: 100
       nullable: true
       note: "Reason for ignoring (e.g., 'newsletter_unsubscribe', 'signup_rejected')"
-      
-    date_created:
-      type: timestamp
-      default: $NOW
-      
-    date_updated:
-      type: timestamp
-      default: $NOW
-      on_update: $NOW
+

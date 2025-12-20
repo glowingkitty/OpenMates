@@ -96,6 +96,8 @@ changes to the documentation (to keep the documentation up to date).
     import SettingsTip from './settings/tip/SettingsTip.svelte';
     // Import newsletter settings component
     import SettingsNewsletter from './settings/SettingsNewsletter.svelte';
+    // Import support settings component
+    import SettingsSupport from './settings/SettingsSupport.svelte';
     
     // Import the normal store instead of the derived one that was causing the error
     import { settingsNavigationStore } from '../stores/settingsNavigationStore';
@@ -183,7 +185,9 @@ changes to the documentation (to keep the documentation up to date).
         // Tip creator settings - allows users to tip creators
         'shared/tip': SettingsTip,
         // Newsletter settings - allows anyone to subscribe to newsletter
-        'newsletter': SettingsNewsletter
+        'newsletter': SettingsNewsletter,
+        // Support settings - allows users to support the project
+        'support': SettingsSupport
     };
     
     /**
@@ -263,12 +267,12 @@ changes to the documentation (to keep the documentation up to date).
             }
             
             // For non-authenticated users, include interface settings (top-level and nested), 
-            // app store (including app details), share chat (for sharing demo chats), and newsletter
+            // app store (including app details), share chat (for sharing demo chats), newsletter, and support
             // App store is read-only for non-authenticated users (browse only, no modifications)
             if (!isAuthenticated) {
                 if (key === 'interface' || key === 'interface/language' || 
                     key === 'app_store' || key.startsWith('app_store/') ||
-                    key === 'shared/share' || key === 'newsletter') {
+                    key === 'shared/share' || key === 'newsletter' || key === 'support') {
                     filtered[key] = component;
                 }
             } else {
@@ -1075,6 +1079,20 @@ changes to the documentation (to keep the documentation up to date).
                     // Dispatch event to clear user chats and load demo chat
                     console.debug('[Settings] Dispatching userLoggingOut event to clear chats and load demo');
                     window.dispatchEvent(new CustomEvent('userLoggingOut'));
+
+                    // CRITICAL: Force ActiveChat to load demo-welcome by setting activeChatStore directly
+                    // This ensures demo-welcome loads even if event handlers have timing issues
+                    // Small delay to ensure auth state changes are processed first
+                    await new Promise(resolve => setTimeout(resolve, 50));
+                    const { activeChatStore } = await import('@repo/ui');
+                    activeChatStore.setActiveChat('demo-welcome');
+                    console.debug('[Settings] Directly set activeChatStore to demo-welcome during logout');
+
+                    // CRITICAL: Ensure URL hash is set to demo-welcome
+                    if (typeof window !== 'undefined') {
+                        window.location.hash = 'chat-id=demo-welcome';
+                        console.debug('[Settings] Set URL hash to demo-welcome during logout');
+                    }
                     
                     // Reset scroll position
                  	if (settingsContentElement) {
@@ -1100,6 +1118,14 @@ changes to the documentation (to keep the documentation up to date).
                     // The panel should remain open to show demo chats after logout
                     // Only close settings menu
                  	isMenuOpen.set(false);
+
+                    // CRITICAL: Ensure URL hash is set to demo-welcome after logout
+                    // This ensures consistent behavior where logout always redirects to demo-welcome
+                    if (typeof window !== 'undefined') {
+                        window.location.hash = 'chat-id=demo-welcome';
+                        console.debug('[Settings] Set URL hash to demo-welcome after logout');
+                    }
+
                     // Small delay to allow sidebar animation if needed
                  	await new Promise(resolve => setTimeout(resolve, 100));
                 }
@@ -1135,11 +1161,12 @@ changes to the documentation (to keep the documentation up to date).
         if ($settingsDeepLink) {
             const settingsPath = $settingsDeepLink;
             
-            // For non-authenticated users, only allow app_store, interface, share settings, and newsletter
+            // For non-authenticated users, only allow app_store, interface, share settings, newsletter, and support
             // Share settings are allowed so users can share demo chats
             // Newsletter is allowed so anyone can subscribe
+            // Support is allowed so anyone can sponsor the project
             if (!$authStore.isAuthenticated) {
-                const allowedPaths = ['app_store', 'interface', 'interface/language', 'shared/share', 'newsletter'];
+                const allowedPaths = ['app_store', 'interface', 'interface/language', 'shared/share', 'newsletter', 'support'];
                 const isAllowedPath = allowedPaths.includes(settingsPath) || 
                                      settingsPath.startsWith('app_store/') ||
                                      settingsPath.startsWith('interface/') ||

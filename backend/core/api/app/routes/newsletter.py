@@ -226,34 +226,31 @@ async def newsletter_confirm(
                 subscriber_id = items[0].get("id")
                 update_url = f"{directus_service.base_url}/items/{collection_name}/{subscriber_id}"
                 
-                # Generate and encrypt unsubscribe token if not already present
-                existing_encrypted_token = items[0].get("encrypted_unsubscribe_token")
-                if not existing_encrypted_token:
-                    # Generate new token and encrypt it
-                    new_token = secrets.token_urlsafe(32)
-                    existing_encrypted_token = await encryption_service.encrypt_newsletter_token(new_token)
+                # Generate unsubscribe token if not already present (store plaintext for direct lookup)
+                existing_token = items[0].get("unsubscribe_token")
+                if not existing_token:
+                    # Generate new plaintext token
+                    existing_token = secrets.token_urlsafe(32)
                 
                 update_payload = {
                     "encrypted_email_address": encrypted_email,
                     "confirmed_at": now,
                     "language": language,
-                    "encrypted_unsubscribe_token": existing_encrypted_token,
-                    "date_updated": now
+                    "unsubscribe_token": existing_token
                 }
                 await directus_service._make_api_request("PATCH", update_url, json=update_payload)
                 logger.info(f"Updated existing newsletter subscriber: {hashed_email[:16]}...")
             else:
                 # Create new subscriber (only created after confirmation)
-                # Generate and encrypt unsubscribe token for persistent unsubscribe link
+                # Generate plaintext unsubscribe token for persistent unsubscribe link (stored in cleartext for direct lookup)
                 unsubscribe_token = secrets.token_urlsafe(32)
-                encrypted_unsubscribe_token = await encryption_service.encrypt_newsletter_token(unsubscribe_token)
                 create_payload = {
                     "encrypted_email_address": encrypted_email,
                     "hashed_email": hashed_email,
                     "confirmed_at": now,
                     "subscribed_at": now,
                     "language": language,
-                    "encrypted_unsubscribe_token": encrypted_unsubscribe_token
+                    "unsubscribe_token": unsubscribe_token
                 }
                 await directus_service.create_item(collection_name, create_payload)
                 logger.info(f"Created new newsletter subscriber: {hashed_email[:16]}...")
@@ -292,29 +289,24 @@ async def newsletter_unsubscribe(
     request: Request,
     token: str,
     directus_service: DirectusService = Depends(get_directus_service),
-    encryption_service: EncryptionService = Depends(get_encryption_service),
 ):
     """
-    Unsubscribe from newsletter using persistent encrypted token stored in Directus.
+    Unsubscribe from newsletter using persistent plaintext token stored in Directus.
     
-    The token is encrypted server-side and stored in the newsletter_subscribers collection
-    as encrypted_unsubscribe_token, persisting indefinitely and allowing users to unsubscribe
+    The token is stored in plaintext in the newsletter_subscribers collection
+    as unsubscribe_token, persisting indefinitely and allowing users to unsubscribe
     even weeks or months after subscribing.
     
     This endpoint:
-    1. Encrypts the incoming plaintext token
-    2. Looks up subscriber by encrypted_unsubscribe_token in Directus
-    3. Deletes the newsletter subscription
-    4. Does NOT add to block list (only unsubscribes from newsletter)
+    1. Looks up subscriber by unsubscribe_token in Directus (direct plaintext search)
+    2. Deletes the newsletter subscription
+    3. Does NOT add to block list (only unsubscribes from newsletter)
     """
     try:
-        # Encrypt the incoming plaintext token to compare with stored encrypted tokens
-        encrypted_token = await encryption_service.encrypt_newsletter_token(token)
-        
-        # Look up subscriber by encrypted_unsubscribe_token in Directus
+        # Look up subscriber by plaintext unsubscribe_token in Directus
         collection_name = "newsletter_subscribers"
         url = f"{directus_service.base_url}/items/{collection_name}"
-        params = {"filter[encrypted_unsubscribe_token][_eq]": encrypted_token}
+        params = {"filter[unsubscribe_token][_eq]": token}
         
         response = await directus_service._make_api_request("GET", url, params=params)
         

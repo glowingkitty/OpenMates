@@ -2923,3 +2923,72 @@ newsletter_info:
   cs: Po přihlášení obdržíte potvrzovací e-mail. Klikněte na odkaz v e-mailu a dokončete přihlášení.
   sv: Efter prenumeration får du ett bekräftelsemejl. Klicka på länken i e-postmeddelandet för att slutföra din prenumeration.
   verified_by_human: []
+support:
+  context: Support settings menu item
+  en: Support
+  de: Unterstützung
+  zh: 支持
+  es: Soporte
+  fr: Support
+  pt: Suporte
+  ru: Поддержка
+  ja: サポート
+  ko: 지원
+  it: Supporto
+  tr: Destek
+  vi: Hỗ trợ
+  id: Dukungan
+  pl: Wsparcie
+  nl: Ondersteuning
+  ar: الدعم
+  hi: सहायता
+  th: การสนับสนุน
+  cs: Podpora
+  sv: Stöd
+  verified_by_human: []
+support_sponsor_github:
+  context: Sponsor on GitHub menu item
+  en: Sponsor on GitHub
+  de: Auf GitHub sponsern
+  zh: 在 GitHub 上赞助
+  es: Patrocinar en GitHub
+  fr: Sponsoriser sur GitHub
+  pt: Patrocinar no GitHub
+  ru: Спонсировать на GitHub
+  ja: GitHubでスポンサーになる
+  ko: GitHub에서 후원하기
+  it: Sponsorizza su GitHub
+  tr: GitHub'da Sponsor Ol
+  vi: Tài trợ trên GitHub
+  id: Sponsor di GitHub
+  pl: Sponsoruj na GitHubie
+  nl: Sponsor op GitHub
+  ar: رعاية على GitHub
+  hi: GitHub पर प्रायोजक बनें
+  th: สนับสนุนบน GitHub
+  cs: Sponzorovat na GitHubu
+  sv: Sponsra på GitHub
+  verified_by_human: []
+support_sponsor_github_description:
+  context: Description for Sponsor on GitHub option
+  en: Support the development of OpenMates by becoming a GitHub sponsor.
+  de: Unterstützen Sie die Entwicklung von OpenMates, indem Sie GitHub-Sponsor werden.
+  zh: 通过成为 GitHub 赞助者来支持 OpenMates 的开发。
+  es: Apoya el desarrollo de OpenMates convirtiéndote en un patrocinador de GitHub.
+  fr: Soutenez le développement d'OpenMates en devenant sponsor GitHub.
+  pt: Apoie o desenvolvimento do OpenMates tornando-se um patrocinador do GitHub.
+  ru: Поддержите разработку OpenMates, став спонсором GitHub.
+  ja: GitHubスポンサーになってOpenMatesの開発をサポートしてください。
+  ko: GitHub 스폰서가 되어 OpenMates 개발을 지원하세요.
+  it: Supporta lo sviluppo di OpenMates diventando uno sponsor GitHub.
+  tr: GitHub sponsoru olarak OpenMates'in geliştirilmesini destekleyin.
+  vi: Hỗ trợ phát triển OpenMates bằng cách trở thành nhà tài trợ GitHub.
+  id: Dukung pengembangan OpenMates dengan menjadi sponsor GitHub.
+  pl: Wspieraj rozwój OpenMates, zostając sponsorem GitHub.
+  nl: Ondersteun de ontwikkeling van OpenMates door GitHub-sponsor te worden.
+  ar: ادعم تطوير OpenMates من خلال أن تصبح راعياً على GitHub.
+  hi: GitHub प्रायोजक बनकर OpenMates के विकास का समर्थन करें।
+  th: สนับสนุนการพัฒนา OpenMates โดยการเป็นผู้สนับสนุน GitHub
+  cs: Podpořte vývoj OpenMates tím, že se stanete sponzorem GitHub.
+  sv: Stöd utvecklingen av OpenMates genom att bli en GitHub-sponsor.
+  verified_by_human: []

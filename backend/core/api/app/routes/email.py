@@ -335,8 +335,8 @@ async def preview_newsletter_confirmed(
     
     try:
         # Get social media links (from environment or defaults)
-        instagram_url = os.getenv("INSTAGRAM_URL", "https://instagram.com/openmates")
-        mastodon_url = os.getenv("MASTODON_URL", "https://mastodon.social/@openmates")
+        instagram_url = "https://instagram.com/openmates_official"
+        mastodon_url = "https://mastodon.social/@openmates"
         
         return await _process_email_template(
             request=request,

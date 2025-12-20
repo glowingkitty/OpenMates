@@ -97,6 +97,10 @@
   --icon-mask-image: url('@openmates/ui/static/icons/lock.svg');
 }
 
+.subsetting_icon.volunteering {
+  --icon-mask-image: url('@openmates/ui/static/icons/volunteering.svg');
+}
+
 /* Add new modify icon for the subsubmenu items */
 .clickable-icon.icon_modify {
   -webkit-mask-image: url('@openmates/ui/static/icons/create.svg');
@@ -157,6 +161,13 @@
   &::after {
     -webkit-mask-image: url('@openmates/ui/static/icons/lock.svg');
     mask-image: url('@openmates/ui/static/icons/lock.svg');
+  }
+}
+
+.subsetting_icon_volunteering {
+  &::after {
+    -webkit-mask-image: url('@openmates/ui/static/icons/volunteering.svg');
+    mask-image: url('@openmates/ui/static/icons/volunteering.svg');
   }
 }
 
@@ -1237,6 +1248,14 @@ div.clickable-icon {
 
   &::before {
       background-image: url('@openmates/ui/static/icons/mail.svg');
+  }
+}
+
+.icon.support {
+  background: var(--color-primary);
+
+  &::before {
+      background-image: url('@openmates/ui/static/icons/volunteering.svg');
   }
 }
 

@@ -18,7 +18,6 @@ from backend.core.api.app.tasks.celery_config import app
 from backend.core.api.app.services.email_template import EmailTemplateService
 from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.utils.secrets_manager import SecretsManager
-from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.utils.newsletter_utils import hash_email
 from backend.core.api.app.utils.log_filters import SensitiveDataFilter
 
@@ -160,7 +159,6 @@ async def _async_send_newsletter_confirmed_email(
         await secrets_manager.initialize()
         email_template_service = EmailTemplateService(secrets_manager=secrets_manager)
         directus_service = DirectusService()
-        encryption_service = EncryptionService()
         
         # Look up the subscriber to get their persistent unsubscribe token
         hashed_email = hash_email(email.lower().strip())
@@ -176,30 +174,22 @@ async def _async_send_newsletter_confirmed_email(
             items = response_data.get("data", [])
             
             if items:
-                # Get the encrypted unsubscribe token
-                encrypted_token = items[0].get("encrypted_unsubscribe_token")
-                if encrypted_token:
-                    # Decrypt the token to get the plaintext token for the URL
-                    try:
-                        plaintext_token = await encryption_service.decrypt_newsletter_token(encrypted_token)
-                        if plaintext_token:
-                            # Build unsubscribe URL with the plaintext token using settings deep link format
-                            # Format: {base_url}/#settings/newsletter/unsubscribe/{token}
-                            base_url = os.getenv("PRODUCTION_URL") or os.getenv("FRONTEND_URLS", "https://openmates.org").split(',')[0].strip()
-                            if not base_url.startswith("http"):
-                                base_url = f"https://{base_url}"
-                            unsubscribe_url = f"{base_url}/#settings/newsletter/unsubscribe/{plaintext_token}"
-                            logger.debug(f"Generated unsubscribe URL for newsletter confirmed email")
-                        else:
-                            logger.warning(f"Failed to decrypt unsubscribe token for newsletter confirmed email")
-                    except Exception as decrypt_error:
-                        logger.error(f"Error decrypting unsubscribe token for newsletter confirmed email: {str(decrypt_error)}")
+                # Get the plaintext unsubscribe token (stored in cleartext for direct lookup)
+                unsubscribe_token = items[0].get("unsubscribe_token")
+                if unsubscribe_token:
+                    # Build unsubscribe URL with the plaintext token using settings deep link format
+                    # Format: {base_url}/#settings/newsletter/unsubscribe/{token}
+                    base_url = os.getenv("PRODUCTION_URL") or os.getenv("FRONTEND_URLS", "https://openmates.org").split(',')[0].strip()
+                    if not base_url.startswith("http"):
+                        base_url = f"https://{base_url}"
+                    unsubscribe_url = f"{base_url}/#settings/newsletter/unsubscribe/{unsubscribe_token}"
+                    logger.debug(f"Generated unsubscribe URL for newsletter confirmed email")
                 else:
-                    logger.warning(f"No encrypted_unsubscribe_token found for subscriber: {hashed_email[:16]}...")
+                    logger.warning(f"No unsubscribe_token found for subscriber: {hashed_email[:16]}...")
         
         # Get social media links (from environment or defaults)
-        instagram_url = os.getenv("INSTAGRAM_URL", "https://instagram.com/openmates")
-        mastodon_url = os.getenv("MASTODON_URL", "https://mastodon.social/@openmates")
+        instagram_url = "https://instagram.com/openmates_official"
+        mastodon_url = "https://mastodon.social/@openmates"
         
         # Prepare email context
         context = {

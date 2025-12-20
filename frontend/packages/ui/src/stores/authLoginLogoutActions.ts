@@ -258,20 +258,6 @@ export async function logout(callbacks?: LogoutCallbacks): Promise<boolean> {
         });
         console.debug('[AuthStore] Local UI state reset complete - menu button should now update immediately.');
 
-        // CRITICAL: Dispatch userLoggingOut event to clear active chat and reset UI state
-        // This must happen after auth state is reset but before database deletion
-        // ActiveChat.svelte and Chats.svelte listen for this event to clear chat state
-        console.debug('[AuthStore] Dispatching userLoggingOut event to clear active chat and reset UI');
-        if (typeof window !== 'undefined') {
-            window.dispatchEvent(new CustomEvent('userLoggingOut'));
-        }
-
-        // CRITICAL: Clear active chat store to ensure chat selection is reset
-        // This prevents the old chat from remaining highlighted after logout
-        const { activeChatStore } = await import('../stores/activeChatStore');
-        activeChatStore.clearActiveChat();
-        console.debug('[AuthStore] Active chat store cleared');
-
         if (callbacks?.afterLocalLogout) {
             await callbacks.afterLocalLogout();
         }
@@ -393,19 +379,6 @@ export async function logout(callbacks?: LogoutCallbacks): Promise<boolean> {
                 language: currentLang,
                 darkmode: currentMode
             });
-            
-            // CRITICAL: Dispatch userLoggingOut event in error recovery path too
-            // This ensures active chat is cleared even if logout fails partially
-            console.debug('[AuthStore] Dispatching userLoggingOut event in error recovery path');
-            if (typeof window !== 'undefined') {
-                window.dispatchEvent(new CustomEvent('userLoggingOut'));
-            }
-            
-            // CRITICAL: Clear active chat store in error recovery path too
-            const { activeChatStore } = await import('../stores/activeChatStore');
-            activeChatStore.clearActiveChat();
-            console.debug('[AuthStore] Active chat store cleared in error recovery path');
-            
             console.debug('[AuthStore] Critical error recovery complete - UI state reset.');
         } catch (resetError) {
             console.error("[AuthStore] Failed to reset state even during critical error handling:", resetError);

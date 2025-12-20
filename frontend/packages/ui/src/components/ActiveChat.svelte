@@ -318,10 +318,16 @@
                     : [];
                 const isSharedChat = chatKey !== null || sharedChatIds.includes(currentChat.chat_id);
                 
-                if (isSharedChat) {
+                if (isSharedChat && !$isLoggingOut) {
                     // This is a shared chat - don't clear it, it's valid for non-auth users
+                    // EXCEPTION: If we're explicitly logging out, always switch to demo-welcome
                     console.debug('[ActiveChat] Auth state changed to unauthenticated - keeping shared chat:', currentChat.chat_id);
                     return; // Keep the shared chat loaded
+                }
+
+                if (isSharedChat && $isLoggingOut) {
+                    console.debug('[ActiveChat] Auth state changed during logout - clearing shared chat and loading demo-welcome:', currentChat.chat_id);
+                    // Continue with clearing logic below
                 }
                 
                 // Not a shared chat - proceed with clearing
