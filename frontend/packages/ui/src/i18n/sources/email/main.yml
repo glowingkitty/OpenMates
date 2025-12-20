@@ -2509,6 +2509,52 @@ newsletter_confirmation_request.unsubscribe_link:
   cs: 'Už mi nikdy neposílej zprávy'
   sv: 'Skicka mig aldrig meddelanden igen'
   verified_by_human: []
+newsletter_confirmation_request.subject:
+  context: Newsletter confirmation email subject line
+  en: Confirm your newsletter subscription
+  de: Bestätigen Sie Ihr Newsletter-Abonnement
+  zh: 确认您的新闻通讯订阅
+  es: Confirma tu suscripción al boletín
+  fr: Confirmez votre abonnement à la newsletter
+  pt: Confirme sua assinatura do boletim informativo
+  ru: Подтвердите подписку на рассылку
+  ja: ニュースレターの購読を確認
+  ko: 뉴스레터 구독 확인
+  it: Conferma la tua iscrizione alla newsletter
+  tr: Bülten aboneliğinizi onaylayın
+  vi: Xác nhận đăng ký bản tin
+  id: Konfirmasi langganan newsletter Anda
+  pl: Potwierdź subskrypcję newslettera
+  nl: Bevestig je nieuwsbriefabonnement
+  ar: أكد اشتراكك في النشرة الإخبارية
+  hi: अपनी न्यूज़लेटर सदस्यता की पुष्टि करें
+  th: ยืนยันการสมัครรับจดหมายข่าว
+  cs: Potvrďte své předplatné newsletteru
+  sv: Bekräfta din nyhetsbrevsprenumeration
+  verified_by_human: []
+newsletter_confirmed.subject:
+  context: Newsletter confirmed email subject line
+  en: Newsletter subscription confirmed!
+  de: Newsletter-Abonnement bestätigt!
+  zh: 新闻通讯订阅确认！
+  es: Suscripción al boletín confirmada!
+  fr: Abonnement à la newsletter confirmé !
+  pt: Assinatura do boletim informativo confirmada!
+  ru: Подписка на рассылку подтверждена!
+  ja: ニュースレターの購読が確認されました！
+  ko: 뉴스레터 구독이 확인되었습니다!
+  it: Iscrizione alla newsletter confermata!
+  tr: Bülten aboneliği onaylandı!
+  vi: Đăng ký bản tin đã được xác nhận!
+  id: Langganan newsletter Anda telah terkonfirmasi!
+  pl: Subskrypcja newslettera potwierdzona!
+  nl: Je nieuwsbriefabonnement is bevestigd!
+  ar: تم تأكيد اشتراكك في النشرة الإخبارية!
+  hi: अपनी न्यूज़लेटर सदस्यता की पुष्टि की गई है!
+  th: การสมัครรับจดหมายข่าวถูกยืนยันแล้ว!
+  cs: Předplatné newsletteru bylo potvrzeno!
+  sv: Nyhetsbrevsprenumerationen bekräftad!
+  verified_by_human: []
 newsletter_confirmed.title:
   context: Newsletter confirmed email title
   en: You're subscribed!

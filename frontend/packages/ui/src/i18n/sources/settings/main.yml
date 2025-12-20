@@ -2693,6 +2693,167 @@ newsletter_subscribe_error:
   cs: Při zpracování vašeho požadavku na přihlášení došlo k chybě. Zkuste to prosím znovu.
   sv: Ett fel uppstod vid bearbetning av din prenumerationsförfrågan. Försök igen.
   verified_by_human: []
+newsletter_processing:
+  context: Message shown while processing newsletter action from email link
+  en: Processing your request...
+  de: Ihre Anfrage wird bearbeitet...
+  zh: 正在处理您的请求...
+  es: Procesando su solicitud...
+  fr: Traitement de votre demande...
+  pt: Processando sua solicitação...
+  ru: Обработка вашего запроса...
+  ja: リクエストを処理中...
+  ko: 요청을 처리하는 중...
+  it: Elaborazione della richiesta...
+  tr: İsteğiniz işleniyor...
+  vi: Đang xử lý yêu cầu của bạn...
+  id: Memproses permintaan Anda...
+  pl: Przetwarzanie żądania...
+  nl: Uw verzoek wordt verwerkt...
+  ar: معالجة طلبك...
+  hi: आपका अनुरोध संसाधित किया जा रहा है...
+  th: กำลังประมวลผลคำขอของคุณ...
+  cs: Zpracování vašeho požadavku...
+  sv: Bearbetar din begäran...
+  verified_by_human: []
+newsletter_confirm_success:
+  context: Success message when newsletter confirmation succeeds
+  en: You have been successfully subscribed to our newsletter!
+  de: Sie wurden erfolgreich für unseren Newsletter angemeldet!
+  zh: 您已成功订阅我们的新闻通讯！
+  es: ¡Te has suscrito exitosamente a nuestro boletín!
+  fr: Vous avez été abonné avec succès à notre newsletter !
+  pt: Você foi inscrito com sucesso em nosso boletim informativo!
+  ru: Вы успешно подписались на нашу рассылку!
+  ja: ニュースレターへの登録が完了しました！
+  ko: 뉴스레터 구독이 완료되었습니다!
+  it: Ti sei iscrito con successo alla nostra newsletter!
+  tr: Bültenimize başarıyla abone oldunuz!
+  vi: Bạn đã đăng ký bản tin thành công!
+  id: Anda telah berhasil berlangganan newsletter kami!
+  pl: Zostałeś pomyślnie zapisany do naszego newslettera!
+  nl: Je bent succesvol geabonneerd op onze nieuwsbrief!
+  ar: تم الاشتراك بنجاح في نشرتنا الإخبارية!
+  hi: आप हमारे न्यूज़लेटर की सदस्यता लेने में सफल रहे!
+  th: คุณได้สมัครรับจดหมายข่าวของเราสำเร็จแล้ว!
+  cs: Úspěšně jste se přihlásili k odběru našeho zpravodaje!
+  sv: Du har framgångsrikt prenumererat på vårt nyhetsbrev!
+  verified_by_human: []
+newsletter_confirm_error:
+  context: Error message when newsletter confirmation fails
+  en: Failed to confirm your subscription. The link may have expired. Please subscribe again.
+  de: Die Bestätigung Ihrer Anmeldung ist fehlgeschlagen. Der Link ist möglicherweise abgelaufen. Bitte melden Sie sich erneut an.
+  zh: 确认订阅失败。链接可能已过期。请重新订阅。
+  es: No se pudo confirmar tu suscripción. El enlace puede haber expirado. Por favor, suscríbete de nuevo.
+  fr: Échec de la confirmation de votre abonnement. Le lien a peut-être expiré. Veuillez vous réabonner.
+  pt: Falha ao confirmar sua assinatura. O link pode ter expirado. Por favor, inscreva-se novamente.
+  ru: Не удалось подтвердить подписку. Ссылка могла истечь. Пожалуйста, подпишитесь снова.
+  ja: 購読の確認に失敗しました。リンクの有効期限が切れている可能性があります。再度購読してください。
+  ko: 구독 확인에 실패했습니다. 링크가 만료되었을 수 있습니다. 다시 구독해 주세요.
+  it: Impossibile confermare l'iscrizione. Il link potrebbe essere scaduto. Iscriviti di nuovo.
+  tr: Aboneliğiniz onaylanamadı. Bağlantının süresi dolmuş olabilir. Lütfen tekrar abone olun.
+  vi: Không thể xác nhận đăng ký. Liên kết có thể đã hết hạn. Vui lòng đăng ký lại.
+  id: Gagal mengonfirmasi langganan Anda. Tautan mungkin telah kedaluwarsa. Silakan berlangganan lagi.
+  pl: Nie udało się potwierdzić subskrypcji. Link mógł wygasnąć. Proszę zapisać się ponownie.
+  nl: Bevestiging van je abonnement is mislukt. De link is mogelijk verlopen. Abonneer je opnieuw.
+  ar: فشل في تأكيد اشتراكك. قد تكون الرابط منتهية الصلاحية. يرجى الاشتراك مرة أخرى.
+  hi: आपकी सदस्यता की पुष्टि करने में विफल। लिंक समाप्त हो गया हो सकता है। कृपया फिर से सदस्यता लें।
+  th: ยืนยันการสมัครรับจดหมายข่าวล้มเหลว ลิงก์อาจหมดอายุแล้ว กรุณาสมัครรับจดหมายข่าวอีกครั้ง
+  cs: Nepodařilo se potvrdit vaše předplatné. Odkaz mohl vypršet. Přihlaste se prosím znovu.
+  sv: Det gick inte att bekräfta din prenumeration. Länken kan ha gått ut. Prenumerera igen.
+  verified_by_human: []
+newsletter_unsubscribe_success:
+  context: Success message when newsletter unsubscribe succeeds
+  en: You have been successfully unsubscribed from our newsletter.
+  de: Sie haben sich erfolgreich von unserem Newsletter abgemeldet.
+  zh: 您已成功取消订阅我们的新闻通讯。
+  es: Te has dado de baja exitosamente de nuestro boletín.
+  fr: Vous avez été désabonné avec succès de notre newsletter.
+  pt: Você foi cancelado com sucesso do nosso boletim informativo.
+  ru: Вы успешно отписались от нашей рассылки.
+  ja: ニュースレターの配信を停止しました。
+  ko: 뉴스레터 구독이 취소되었습니다.
+  it: Ti sei disiscritto con successo dalla nostra newsletter.
+  tr: Bültenimizden başarıyla abonelikten çıktınız.
+  vi: Bạn đã hủy đăng ký bản tin thành công.
+  id: Anda telah berhasil berhenti berlangganan newsletter kami.
+  pl: Zostałeś pomyślnie wypisany z naszego newslettera.
+  nl: Je bent succesvol uitgeschreven van onze nieuwsbrief.
+  ar: تم إلغاء الاشتراك بنجاح من نشرتنا الإخبارية.
+  hi: आपने हमारे न्यूज़लेटर की सदस्यता सफलतापूर्वक रद्द कर दी है।
+  th: คุณได้ยกเลิกการสมัครรับจดหมายข่าวของเราสำเร็จแล้ว
+  cs: Úspěšně jste se odhlásili z odběru našeho zpravodaje.
+  sv: Du har framgångsrikt avprenumererat från vårt nyhetsbrev.
+  verified_by_human: []
+newsletter_unsubscribe_error:
+  context: Error message when newsletter unsubscribe fails
+  en: Failed to unsubscribe. The link may have expired or is invalid.
+  de: Die Abmeldung ist fehlgeschlagen. Der Link ist möglicherweise abgelaufen oder ungültig.
+  zh: 取消订阅失败。链接可能已过期或无效。
+  es: No se pudo cancelar la suscripción. El enlace puede haber expirado o ser inválido.
+  fr: Échec de la désinscription. Le lien a peut-être expiré ou est invalide.
+  pt: Falha ao cancelar a assinatura. O link pode ter expirado ou ser inválido.
+  ru: Не удалось отписаться. Ссылка могла истечь или быть недействительной.
+  ja: 配信停止に失敗しました。リンクの有効期限が切れているか、無効である可能性があります。
+  ko: 구독 취소에 실패했습니다. 링크가 만료되었거나 유효하지 않을 수 있습니다.
+  it: Impossibile disiscriversi. Il link potrebbe essere scaduto o non valido.
+  tr: Abonelikten çıkma başarısız oldu. Bağlantının süresi dolmuş veya geçersiz olabilir.
+  vi: Không thể hủy đăng ký. Liên kết có thể đã hết hạn hoặc không hợp lệ.
+  id: Gagal berhenti berlangganan. Tautan mungkin telah kedaluwarsa atau tidak valid.
+  pl: Nie udało się anulować subskrypcji. Link mógł wygasnąć lub być nieprawidłowy.
+  nl: Uitschrijven is mislukt. De link is mogelijk verlopen of ongeldig.
+  ar: فشل في إلغاء الاشتراك. قد تكون الرابط منتهية الصلاحية أو غير صالحة.
+  hi: सदस्यता रद्द करने में विफल। लिंक समाप्त हो गया हो सकता है या अमान्य हो सकता है।
+  th: ยกเลิกการสมัครรับจดหมายข่าวล้มเหลว ลิงก์อาจหมดอายุหรือไม่ถูกต้อง
+  cs: Odhlášení se nezdařilo. Odkaz mohl vypršet nebo je neplatný.
+  sv: Avprenumeration misslyckades. Länken kan ha gått ut eller vara ogiltig.
+  verified_by_human: []
+newsletter_block_success:
+  context: Success message when email blocking succeeds
+  en: Your email address has been blocked. You will not receive any further emails from us.
+  de: Ihre E-Mail-Adresse wurde blockiert. Sie erhalten keine weiteren E-Mails von uns.
+  zh: 您的电子邮件地址已被阻止。您将不会再收到我们的任何电子邮件。
+  es: Tu dirección de correo electrónico ha sido bloqueada. No recibirás más correos electrónicos de nosotros.
+  fr: Votre adresse e-mail a été bloquée. Vous ne recevrez plus d'e-mails de notre part.
+  pt: Seu endereço de e-mail foi bloqueado. Você não receberá mais e-mails nossos.
+  ru: Ваш адрес электронной почты был заблокирован. Вы больше не будете получать от нас письма.
+  ja: メールアドレスがブロックされました。今後、当社からのメールは受信されません。
+  ko: 이메일 주소가 차단되었습니다. 더 이상 이메일을 받지 않습니다.
+  it: Il tuo indirizzo email è stato bloccato. Non riceverai più email da noi.
+  tr: E-posta adresiniz engellendi. Artık bizden e-posta almayacaksınız.
+  vi: Địa chỉ email của bạn đã bị chặn. Bạn sẽ không nhận được email nào từ chúng tôi nữa.
+  id: Alamat email Anda telah diblokir. Anda tidak akan menerima email lagi dari kami.
+  pl: Twój adres e-mail został zablokowany. Nie będziesz już otrzymywać od nas żadnych e-maili.
+  nl: Je e-mailadres is geblokkeerd. Je ontvangt geen e-mails meer van ons.
+  ar: تم حظر عنوان بريدك الإلكتروني. لن تتلقى أي رسائل بريد إلكتروني أخرى منا.
+  hi: आपका ईमेल पता अवरुद्ध कर दिया गया है। आपको हमारी ओर से कोई और ईमेल नहीं मिलेगा।
+  th: ที่อยู่อีเมลของคุณถูกบล็อกแล้ว คุณจะไม่ได้รับอีเมลจากเราอีกต่อไป
+  cs: Vaše e-mailová adresa byla zablokována. Už od nás nebudete dostávat žádné e-maily.
+  sv: Din e-postadress har blockerats. Du kommer inte att få några fler e-postmeddelanden från oss.
+  verified_by_human: []
+newsletter_block_error:
+  context: Error message when email blocking fails
+  en: Failed to block your email address. Please try again.
+  de: Die Blockierung Ihrer E-Mail-Adresse ist fehlgeschlagen. Bitte versuchen Sie es erneut.
+  zh: 阻止您的电子邮件地址失败。请重试。
+  es: No se pudo bloquear tu dirección de correo electrónico. Por favor, inténtalo de nuevo.
+  fr: Échec du blocage de votre adresse e-mail. Veuillez réessayer.
+  pt: Falha ao bloquear seu endereço de e-mail. Por favor, tente novamente.
+  ru: Не удалось заблокировать ваш адрес электронной почты. Пожалуйста, попробуйте снова.
+  ja: メールアドレスのブロックに失敗しました。もう一度お試しください。
+  ko: 이메일 주소 차단에 실패했습니다. 다시 시도해 주세요.
+  it: Impossibile bloccare il tuo indirizzo email. Riprova.
+  tr: E-posta adresinizi engelleme başarısız oldu. Lütfen tekrar deneyin.
+  vi: Không thể chặn địa chỉ email của bạn. Vui lòng thử lại.
+  id: Gagal memblokir alamat email Anda. Silakan coba lagi.
+  pl: Nie udało się zablokować adresu e-mail. Spróbuj ponownie.
+  nl: Het blokkeren van je e-mailadres is mislukt. Probeer het opnieuw.
+  ar: فشل في حظر عنوان بريدك الإلكتروني. يرجى المحاولة مرة أخرى.
+  hi: आपका ईमेल पता अवरुद्ध करने में विफल। कृपया पुनः प्रयास करें।
+  th: ไม่สามารถบล็อกที่อยู่อีเมลของคุณได้ กรุณาลองอีกครั้ง
+  cs: Nepodařilo se zablokovat vaši e-mailovou adresu. Zkuste to prosím znovu.
+  sv: Det gick inte att blockera din e-postadress. Försök igen.
+  verified_by_human: []
 newsletter_email_required:
   context: Error message when email is empty
   en: Email address is required.

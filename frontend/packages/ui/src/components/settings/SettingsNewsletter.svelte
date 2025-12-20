@@ -9,7 +9,7 @@ changes to the documentation (to keep the documentation up to date).
 
 -->
 <script lang="ts">
-    import { text } from '@repo/ui';
+    import { text, notificationStore } from '@repo/ui';
     import { locale } from 'svelte-i18n';
     import { getApiEndpoint, apiEndpoints } from '../../config/api';
     import InputWarning from '../common/InputWarning.svelte';
@@ -26,9 +26,8 @@ changes to the documentation (to keep the documentation up to date).
     let isEmailValidationPending = $state(false);
     let emailInput = $state<HTMLInputElement>();
     
-    // Get current language for newsletter subscription
-    // Default to 'en' if locale is not available
-    let currentLanguage = $derived($locale || 'en');
+    // State for newsletter actions from email links
+    let isProcessingAction = $state(false);
     
     /**
      * Debounce helper function for email validation
@@ -116,6 +115,18 @@ changes to the documentation (to keep the documentation up to date).
         isSubmitting = true;
         
         try {
+            // Get current language for newsletter subscription
+            // Use the same logic as Basics.svelte: localStorage or browser default
+            const currentLang = localStorage.getItem('preferredLanguage') || 
+                              navigator.language.split('-')[0] || 
+                              'en';
+            
+            // Get dark mode setting for newsletter subscription
+            // Use the same logic as Basics.svelte: localStorage or system preference
+            const prefersDarkMode = window.matchMedia && 
+                                  window.matchMedia('(prefers-color-scheme: dark)').matches;
+            const darkModeEnabled = localStorage.getItem('darkMode') === 'true' || prefersDarkMode;
+            
             const response = await fetch(getApiEndpoint(apiEndpoints.newsletter.subscribe), {
                 method: 'POST',
                 headers: {
@@ -125,7 +136,8 @@ changes to the documentation (to keep the documentation up to date).
                 },
                 body: JSON.stringify({
                     email: email.trim().toLowerCase(),
-                    language: currentLanguage
+                    language: currentLang,
+                    darkmode: darkModeEnabled
                 }),
                 credentials: 'include'
             });
@@ -166,6 +178,179 @@ changes to the documentation (to keep the documentation up to date).
         !emailError && 
         !isEmailValidationPending
     );
+    
+    /**
+     * Handle newsletter confirmation from email link.
+     * Similar to how SettingsInvoices handles refund deep links.
+     */
+    async function handleConfirmSubscription(token: string) {
+        isProcessingAction = true;
+        errorMessage = '';
+        successMessage = '';
+        
+        try {
+            const response = await fetch(getApiEndpoint(`${apiEndpoints.newsletter.confirm}/${token}`), {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/json',
+                    'Origin': window.location.origin
+                },
+                credentials: 'include'
+            });
+            
+            const data = await response.json();
+            
+            if (response.ok && data.success) {
+                successMessage = data.message || $text('settings.newsletter_confirm_success.text');
+            } else {
+                errorMessage = data.message || $text('settings.newsletter_confirm_error.text');
+            }
+        } catch (error) {
+            console.error('[SettingsNewsletter] Error confirming newsletter subscription:', error);
+            errorMessage = $text('settings.newsletter_confirm_error.text');
+        } finally {
+            isProcessingAction = false;
+        }
+    }
+    
+    /**
+     * Handle newsletter unsubscribe from email link.
+     */
+    async function handleUnsubscribe(token: string) {
+        isProcessingAction = true;
+        errorMessage = '';
+        successMessage = '';
+        
+        try {
+            const response = await fetch(getApiEndpoint(`${apiEndpoints.newsletter.unsubscribe}/${token}`), {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/json',
+                    'Origin': window.location.origin
+                },
+                credentials: 'include'
+            });
+            
+            const data = await response.json();
+            
+            if (response.ok && data.success) {
+                successMessage = data.message || $text('settings.newsletter_unsubscribe_success.text');
+            } else {
+                errorMessage = data.message || $text('settings.newsletter_unsubscribe_error.text');
+            }
+        } catch (error) {
+            console.error('[SettingsNewsletter] Error unsubscribing from newsletter:', error);
+            errorMessage = $text('settings.newsletter_unsubscribe_error.text');
+        } finally {
+            isProcessingAction = false;
+        }
+    }
+    
+    /**
+     * Handle email blocking from email link.
+     */
+    async function handleBlockEmail(emailToBlock: string) {
+        isProcessingAction = true;
+        errorMessage = '';
+        successMessage = '';
+        
+        try {
+            const response = await fetch(getApiEndpoint(apiEndpoints.emailBlock.blockEmail), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'Origin': window.location.origin
+                },
+                body: JSON.stringify({
+                    email: emailToBlock.toLowerCase().trim()
+                }),
+                credentials: 'include'
+            });
+            
+            const data = await response.json();
+            
+            if (response.ok && data.success) {
+                successMessage = data.message || $text('settings.newsletter_block_success.text');
+            } else {
+                errorMessage = data.message || $text('settings.newsletter_block_error.text');
+            }
+        } catch (error) {
+            console.error('[SettingsNewsletter] Error blocking email:', error);
+            errorMessage = $text('settings.newsletter_block_error.text');
+        } finally {
+            isProcessingAction = false;
+        }
+    }
+    
+    // Handle deep link actions - format: #settings/newsletter/confirm/{token}, #settings/newsletter/unsubscribe/{token}, #settings/email/block/{email}
+    // Similar to how SettingsInvoices handles refund deep links
+    // Process immediately when component is ready (no need to wait for data like invoices)
+    $effect(() => {
+        if (typeof window === 'undefined' || isProcessingAction) {
+            return;
+        }
+        
+        const hash = window.location.hash;
+        
+        // Check for newsletter confirmation deep link (e.g., #settings/newsletter/confirm/{token})
+        const confirmMatch = hash.match(/^#settings\/newsletter\/confirm\/(.+)$/);
+        if (confirmMatch) {
+            const token = confirmMatch[1];
+            console.debug(`[SettingsNewsletter] Deep link confirmation detected for token: ${token.substring(0, 10)}...`);
+            
+            // Mark as processing to prevent re-processing
+            isProcessingAction = true;
+            
+            // Small delay to ensure UI is ready
+            setTimeout(() => {
+                handleConfirmSubscription(token).finally(() => {
+                    // Clear the deep link from URL after processing
+                    window.history.replaceState({}, '', window.location.pathname + window.location.search);
+                });
+            }, 500);
+            return;
+        }
+        
+        // Check for newsletter unsubscribe deep link (e.g., #settings/newsletter/unsubscribe/{token})
+        const unsubscribeMatch = hash.match(/^#settings\/newsletter\/unsubscribe\/(.+)$/);
+        if (unsubscribeMatch) {
+            const token = unsubscribeMatch[1];
+            console.debug(`[SettingsNewsletter] Deep link unsubscribe detected for token: ${token.substring(0, 10)}...`);
+            
+            // Mark as processing to prevent re-processing
+            isProcessingAction = true;
+            
+            // Small delay to ensure UI is ready
+            setTimeout(() => {
+                handleUnsubscribe(token).finally(() => {
+                    // Clear the deep link from URL after processing
+                    window.history.replaceState({}, '', window.location.pathname + window.location.search);
+                });
+            }, 500);
+            return;
+        }
+        
+        // Check for email block deep link (e.g., #settings/email/block/{email})
+        const blockMatch = hash.match(/^#settings\/email\/block\/(.+)$/);
+        if (blockMatch) {
+            const encodedEmail = blockMatch[1];
+            const emailToBlock = decodeURIComponent(encodedEmail);
+            console.debug(`[SettingsNewsletter] Deep link email block detected for: ${emailToBlock.substring(0, 10)}...`);
+            
+            // Mark as processing to prevent re-processing
+            isProcessingAction = true;
+            
+            // Small delay to ensure UI is ready
+            setTimeout(() => {
+                handleBlockEmail(emailToBlock).finally(() => {
+                    // Clear the deep link from URL after processing
+                    window.history.replaceState({}, '', window.location.pathname + window.location.search);
+                });
+            }, 500);
+            return;
+        }
+    });
 </script>
 
 <div class="newsletter-settings">
@@ -209,6 +394,13 @@ changes to the documentation (to keep the documentation up to date).
                 {/if}
             </button>
         </div>
+        
+        <!-- Processing action message (from email links) -->
+        {#if isProcessingAction}
+            <div class="message processing-message" role="alert">
+                {$text('settings.newsletter_processing.text')}
+            </div>
+        {/if}
         
         <!-- Success message -->
         {#if successMessage}
@@ -288,6 +480,12 @@ changes to the documentation (to keep the documentation up to date).
         background-color: var(--color-error-light, #ffebee);
         color: var(--color-error-dark, #c62828);
         border: 1px solid var(--color-error, #f44336);
+    }
+    
+    .processing-message {
+        background-color: var(--color-info-light, #e3f2fd);
+        color: var(--color-info-dark, #1565c0);
+        border: 1px solid var(--color-info, #2196f3);
     }
     
     .newsletter-info {

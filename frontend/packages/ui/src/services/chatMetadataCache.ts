@@ -85,7 +85,8 @@ class ChatMetadataCache {
             // Ensure chat key is loaded from encrypted_chat_key if available
             if (chat.encrypted_chat_key && !chatDB.getChatKey(chat.chat_id)) {
                 const { decryptChatKeyWithMasterKey } = await import('./cryptoService');
-                const chatKey = decryptChatKeyWithMasterKey(chat.encrypted_chat_key);
+                // CRITICAL FIX: await decryptChatKeyWithMasterKey since it's async to prevent storing Promises
+                const chatKey = await decryptChatKeyWithMasterKey(chat.encrypted_chat_key);
                 if (chatKey) {
                     // Store the chat key in the database service's cache
                     chatDB.setChatKey(chat.chat_id, chatKey);

@@ -13,6 +13,12 @@ import { writable } from 'svelte/store';
 import { browser } from '$app/environment';
 
 /**
+ * Store to track when deep link processing is happening
+ * This prevents auto-loading of demo-welcome during deep link processing
+ */
+export const deepLinkProcessing = writable(false);
+
+/**
  * Flag to prevent hashchange events from triggering when we programmatically update the hash
  * This prevents infinite loops when setActiveChat updates the hash
  * Uses a timestamp to track when we last updated the hash programmatically
@@ -106,6 +112,15 @@ function createActiveChatStore() {
 		clearActiveChat: () => {
 			set(null);
 			updateUrlHash(null);
+		},
+		
+		/**
+		 * Set the store value without updating the URL hash
+		 * Used when we need to update the store state while preserving the hash
+		 * (e.g., during deep link processing)
+		 */
+		setWithoutHashUpdate: (chatId: string | null) => {
+			set(chatId);
 		},
 		
 		/**

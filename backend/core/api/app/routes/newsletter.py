@@ -38,6 +38,7 @@ logger = logging.getLogger(__name__)
 class NewsletterSubscribeRequest(BaseModel):
     email: EmailStr
     language: str = "en"
+    darkmode: bool = False  # Default to light mode if not provided
 
 
 class NewsletterSubscribeResponse(BaseModel):
@@ -79,6 +80,7 @@ async def newsletter_subscribe(
     try:
         email = subscribe_request.email.lower().strip()
         language = subscribe_request.language or "en"
+        darkmode = subscribe_request.darkmode if hasattr(subscribe_request, 'darkmode') else False
         
         # Hash email for lookup
         hashed_email = hash_email(email)
@@ -122,6 +124,7 @@ async def newsletter_subscribe(
             "email": email,
             "hashed_email": hashed_email,
             "language": language,
+            "darkmode": darkmode,
             "created_at": datetime.now(timezone.utc).isoformat()
         }
         await cache_service.set(cache_key, cache_data, ttl=1800)  # 30 minutes
@@ -134,6 +137,7 @@ async def newsletter_subscribe(
                 'email': email,
                 'confirmation_token': confirmation_token,
                 'language': language,
+                'darkmode': darkmode,
             },
             queue='email'
         )
@@ -181,6 +185,7 @@ async def newsletter_confirm(
         email = cache_data.get("email")
         hashed_email = cache_data.get("hashed_email")
         language = cache_data.get("language", "en")
+        darkmode = cache_data.get("darkmode", False)
         
         if not email or not hashed_email:
             logger.error(f"Invalid cache data for newsletter confirmation token")
@@ -263,6 +268,7 @@ async def newsletter_confirm(
             kwargs={
                 'email': email,
                 'language': language,
+                'darkmode': darkmode,
             },
             queue='email'
         )

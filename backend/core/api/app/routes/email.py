@@ -300,13 +300,15 @@ async def preview_newsletter_confirmation_request(
         if not base_url.startswith("http"):
             base_url = f"https://{base_url}"
         
-        # Build confirmation URL
-        confirm_url = f"{base_url}/newsletter/confirm/{confirmation_token}"
+        # Build confirmation URL using settings deep link format (like refund links)
+        # Format: {base_url}/#settings/newsletter/confirm/{token}
+        confirm_url = f"{base_url}/#settings/newsletter/confirm/{confirmation_token}"
         
         # Build block-email URL instead of newsletter unsubscribe URL
         # The "Never message me again" link should block ALL emails, not just unsubscribe from newsletter
+        # Format: {base_url}/#settings/email/block/{encoded_email}
         encoded_email = quote(email.lower().strip())
-        block_email_url = f"{base_url}/block-email#email={encoded_email}"
+        block_email_url = f"{base_url}/#settings/email/block/{encoded_email}"
         
         return await _process_email_template(
             request=request,

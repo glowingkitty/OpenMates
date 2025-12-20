@@ -59,7 +59,7 @@
     import { draftEditorUIState } from '../services/drafts/draftState'; // Import draft state
     import { phasedSyncState } from '../stores/phasedSyncStateStore'; // Import phased sync state store
     import { websocketStatus } from '../stores/websocketStatusStore'; // Import WebSocket status for connection checks
-    import { activeChatStore } from '../stores/activeChatStore'; // For clearing persistent active chat selection
+    import { activeChatStore, deepLinkProcessing } from '../stores/activeChatStore'; // For clearing persistent active chat selection
     import { activeEmbedStore } from '../stores/activeEmbedStore'; // For managing embed URL hash
     import { settingsDeepLink } from '../stores/settingsDeepLinkStore'; // For opening settings to specific page (share)
     import { settingsMenuVisible } from '../components/Settings.svelte'; // Import settingsMenuVisible store to control Settings visibility
@@ -269,6 +269,12 @@
                 const translatedWelcomeDemo = translateDemoChat(welcomeDemo);
                 const welcomeChat = convertDemoChatToChat(translatedWelcomeDemo);
                 
+                // Check if deep link processing is happening
+                if (get(deepLinkProcessing)) {
+                    console.debug("[ActiveChat] Skipping welcome chat after logout - deep link processing in progress");
+                    return;
+                }
+
                 // Clear current chat and load welcome chat
                 currentChat = null;
                 currentMessages = [];
@@ -334,6 +340,12 @@
                 // Load demo welcome chat (async operation)
                 (async () => {
                     try {
+                        // Check if deep link processing is happening
+                        if (get(deepLinkProcessing)) {
+                            console.debug('[ActiveChat] Skipping welcome chat backup - deep link processing in progress');
+                            return;
+                        }
+
                         const welcomeDemo = DEMO_CHATS.find(chat => chat.chat_id === 'demo-welcome');
                         if (welcomeDemo) {
                             const translatedWelcomeDemo = translateDemoChat(welcomeDemo);
@@ -2378,13 +2390,19 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     
                     // Use a small delay to ensure component is fully initialized
                     setTimeout(() => {
+                        // Check if deep link processing is happening
+                        if (get(deepLinkProcessing)) {
+                            console.debug("[ActiveChat] [NON-AUTH] Skipping welcome chat - deep link processing in progress");
+                            return;
+                        }
+
                         // Double-check that chat still isn't loaded (might have been loaded by +page.svelte)
                         if (!currentChat?.chat_id && $activeChatStore !== 'demo-welcome') {
                             activeChatStore.setActiveChat('demo-welcome');
                             loadChat(welcomeChat);
-                            console.debug("[ActiveChat] [NON-AUTH] ✅ Fallback: Welcome chat loaded successfully");
+                            console.info("[ActiveChat] [NON-AUTH] ✅ Fallback: Welcome chat loaded successfully");
                         } else {
-                            console.debug("[ActiveChat] [NON-AUTH] Fallback: Welcome chat already loaded, skipping");
+                            console.info("[ActiveChat] [NON-AUTH] Fallback: Welcome chat already loaded, skipping");
                         }
                     }, 100);
                 }

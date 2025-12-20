@@ -303,6 +303,12 @@ class EmailTemplateService:
                 elif template == "signup_milestone":
                     subject_key = "email.signup_milestone.text"
                     subject = self.translation_service.get_nested_translation(subject_key, lang, context)
+                elif template == "newsletter-confirmation-request":
+                    subject_key = "email.newsletter_confirmation_request.subject"
+                    subject = self.translation_service.get_nested_translation(subject_key, lang, context)
+                elif template == "newsletter-confirmed":
+                    subject_key = "email.newsletter_confirmed.subject.text"
+                    subject = self.translation_service.get_nested_translation(subject_key, lang, context)
                 else:
                     subject_key = f"email.{template}.subject"
                     subject = self.translation_service.get_nested_translation(subject_key, lang, context)

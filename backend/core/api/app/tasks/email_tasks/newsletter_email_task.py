@@ -35,7 +35,8 @@ def send_newsletter_confirmation_email(
     self,
     email: str,
     confirmation_token: str,
-    language: str = "en"
+    language: str = "en",
+    darkmode: bool = False
 ) -> bool:
     """
     Send newsletter confirmation email with confirmation and unsubscribe links.
@@ -46,7 +47,7 @@ def send_newsletter_confirmation_email(
     try:
         result = asyncio.run(
             _async_send_newsletter_confirmation_email(
-                email, confirmation_token, language
+                email, confirmation_token, language, darkmode
             )
         )
         logger.info(f"Newsletter confirmation email task completed for {email[:2]}***")
@@ -59,7 +60,8 @@ def send_newsletter_confirmation_email(
 async def _async_send_newsletter_confirmation_email(
     email: str,
     confirmation_token: str,
-    language: str = "en"
+    language: str = "en",
+    darkmode: bool = False
 ) -> bool:
     """
     Async implementation of the newsletter confirmation email task
@@ -75,21 +77,22 @@ async def _async_send_newsletter_confirmation_email(
         if not base_url.startswith("http"):
             base_url = f"https://{base_url}"
         
-        # Build confirmation URL
-        confirm_url = f"{base_url}/newsletter/confirm/{confirmation_token}"
+        # Build confirmation URL using settings deep link format (like refund links)
+        # Format: {base_url}/#settings/newsletter/confirm/{token}
+        confirm_url = f"{base_url}/#settings/newsletter/confirm/{confirmation_token}"
         
         # Build block-email URL instead of newsletter unsubscribe URL
         # The "Never message me again" link should block ALL emails, not just unsubscribe from newsletter
-        # Format: {base_url}/block-email#email={encoded_email}
+        # Format: {base_url}/#settings/email/block/{encoded_email}
         from urllib.parse import quote
         encoded_email = quote(email.lower().strip())
-        block_email_url = f"{base_url}/block-email#email={encoded_email}"
+        block_email_url = f"{base_url}/#settings/email/block/{encoded_email}"
         
         # Prepare email context
         context = {
             "confirm_url": confirm_url,
             "unsubscribe_url": block_email_url,  # Use block-email URL instead of newsletter unsubscribe
-            "darkmode": False  # Default to light mode for newsletter emails
+            "darkmode": darkmode  # Use darkmode setting from user preference
         }
         
         logger.info(f"Sending newsletter confirmation email to {email[:2]}*** - language: {language}")
@@ -117,7 +120,8 @@ async def _async_send_newsletter_confirmation_email(
 def send_newsletter_confirmed_email(
     self,
     email: str,
-    language: str = "en"
+    language: str = "en",
+    darkmode: bool = False
 ) -> bool:
     """
     Send newsletter confirmed success email.
@@ -128,7 +132,7 @@ def send_newsletter_confirmed_email(
     try:
         result = asyncio.run(
             _async_send_newsletter_confirmed_email(
-                email, language
+                email, language, darkmode
             )
         )
         logger.info(f"Newsletter confirmed email task completed for {email[:2]}***")
@@ -140,7 +144,8 @@ def send_newsletter_confirmed_email(
 
 async def _async_send_newsletter_confirmed_email(
     email: str,
-    language: str = "en"
+    language: str = "en",
+    darkmode: bool = False
 ) -> bool:
     """
     Async implementation of the newsletter confirmed email task
@@ -178,11 +183,12 @@ async def _async_send_newsletter_confirmed_email(
                     try:
                         plaintext_token = await encryption_service.decrypt_newsletter_token(encrypted_token)
                         if plaintext_token:
-                            # Build unsubscribe URL with the plaintext token
+                            # Build unsubscribe URL with the plaintext token using settings deep link format
+                            # Format: {base_url}/#settings/newsletter/unsubscribe/{token}
                             base_url = os.getenv("PRODUCTION_URL") or os.getenv("FRONTEND_URLS", "https://openmates.org").split(',')[0].strip()
                             if not base_url.startswith("http"):
                                 base_url = f"https://{base_url}"
-                            unsubscribe_url = f"{base_url}/unsubscribe/{plaintext_token}"
+                            unsubscribe_url = f"{base_url}/#settings/newsletter/unsubscribe/{plaintext_token}"
                             logger.debug(f"Generated unsubscribe URL for newsletter confirmed email")
                         else:
                             logger.warning(f"Failed to decrypt unsubscribe token for newsletter confirmed email")
@@ -199,7 +205,7 @@ async def _async_send_newsletter_confirmed_email(
         context = {
             "instagram_url": instagram_url,
             "mastodon_url": mastodon_url,
-            "darkmode": False  # Default to light mode for newsletter emails
+            "darkmode": darkmode  # Use darkmode setting from user preference
         }
         
         # Add unsubscribe URL if we successfully retrieved and decrypted the token
