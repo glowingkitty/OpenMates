@@ -107,6 +107,10 @@ def is_payment_enabled() -> bool:
     Payment is enabled when:
     1. Domain matches the allowed domain from encrypted config OR is a subdomain of it (regardless of environment)
     2. OR (development environment AND localhost)
+    3. OR (development environment AND domain is a *.dev.{allowed_domain} subdomain)
+    
+    Note: This function may be called before encrypted config is loaded (during router registration).
+    In that case, it will check environment variables directly for dev subdomain patterns.
     
     Returns:
         True if payment should be enabled, False otherwise.
@@ -114,24 +118,35 @@ def is_payment_enabled() -> bool:
     domain = get_hosting_domain()
     is_localhost = domain is None
     
-    # Get allowed domain from encrypted config (not hardcoded!)
-    allowed_domain = get_allowed_domain()
-    # Check if domain is the allowed domain or a subdomain of it
-    # This handles subdomains of the official domain being treated as official
-    is_allowed_domain = is_domain_allowed_or_subdomain(domain, allowed_domain)
-    
     server_env = os.getenv("SERVER_ENVIRONMENT", "development").lower()
     is_development = server_env == "development"
     
-    # Case 1: Allowed domain from encrypted config (always enabled)
-    # This includes subdomains of the official domain
-    if is_allowed_domain:
-        return True
-        
-    # Case 2: Development on localhost (enabled for testing)
+    # Case 1: Development on localhost (enabled for testing)
     if is_development and is_localhost:
         return True
-        
+    
+    # Case 2: Check if domain matches allowed domain or is a subdomain
+    # Get allowed domain from encrypted config (may be None if not loaded yet)
+    allowed_domain = get_allowed_domain()
+    
+    if allowed_domain:
+        # Config is loaded - use proper domain matching
+        is_allowed_domain = is_domain_allowed_or_subdomain(domain, allowed_domain)
+        if is_allowed_domain:
+            return True
+    else:
+        # Config not loaded yet (e.g., during router registration)
+        # Fallback: Check if domain matches dev subdomain pattern
+        # This handles the case where we're on dev.openmates.org or *.dev.openmates.org
+        # We check for common dev subdomain patterns
+        if domain:
+            domain_lower = domain.lower()
+            # Check for *.dev.* pattern (e.g., app.dev.openmates.org, dev.openmates.org)
+            # This is a safe fallback for development servers
+            if is_development and (".dev." in domain_lower or domain_lower.startswith("dev.")):
+                logger.debug(f"Payment enabled: Development server detected on dev subdomain: {domain}")
+                return True
+    
     # All other cases (self-hosted, or dev on custom domain) -> Disabled
     return False
 
@@ -140,8 +155,8 @@ def get_server_edition() -> str:
     Get the server edition string.
     
     Returns:
-        "production" - Official production server (matches allowed domain from encrypted config or is a subdomain)
-        "development" - Development server (allowed domain in dev mode)
+        "production" - Official production server (matches allowed domain from encrypted config or is a non-dev subdomain)
+        "development" - Development server (allowed domain dev subdomain like *.dev.{allowed_domain})
         "self_hosted" - Self-hosted instance (including localhost)
     """
     domain = get_hosting_domain()
@@ -152,9 +167,19 @@ def get_server_edition() -> str:
     # This handles subdomains of the official domain being treated as official
     is_allowed_domain = is_domain_allowed_or_subdomain(domain, allowed_domain)
     
-    # Only return "production" if domain matches allowed domain or is a subdomain
-    # This includes subdomains like app.dev.example.org when allowed domain is example.org
     if is_allowed_domain:
+        # It's an official domain - check if it's a dev subdomain
+        if allowed_domain and domain:
+            if is_dev_subdomain(domain, allowed_domain):
+                return "development"
+        elif domain:
+            # Config not loaded yet - check for dev subdomain pattern
+            domain_lower = domain.lower()
+            server_env = os.getenv("SERVER_ENVIRONMENT", "development").lower()
+            is_development = server_env == "development"
+            if is_development and (".dev." in domain_lower or domain_lower.startswith("dev.")):
+                return "development"
+        # Official domain but not a dev subdomain - production
         return "production"
     
     # All other cases (localhost, custom domains, etc.) are self-hosted

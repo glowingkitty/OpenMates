@@ -48,6 +48,7 @@ step_10_top_content_svelte:
         price = 20,
         currency = 'EUR',
         isGift = false,
+        isGiftCardRedemption = false, // Flag to indicate this is a gift card redemption
         showSuccess = false, // When true, shows success message instead of payment form
         // Auto top-up props (used when showSuccess is true)
         purchasedCredits = null,
@@ -61,6 +62,7 @@ step_10_top_content_svelte:
         price?: number,
         currency?: string,
         isGift?: boolean,
+        isGiftCardRedemption?: boolean,
         showSuccess?: boolean,
         purchasedCredits?: number | null,
         purchasedPrice?: number | null,
@@ -168,12 +170,16 @@ step_10_top_content_svelte:
 
 <div class="container">
     {#if showSuccess}
-        <!-- Success message for auto top-up step -->
+        <!-- Success message for auto top-up step or gift card redemption -->
         <div class="top-container success-container">
             <div class="header-content">
                 <div class="success-icon"></div>
                 <div class="primary-text">
-                    {@html $text('signup.purchase_successful.text')}
+                    {#if isGiftCardRedemption}
+                        {@html $text('signup.gift_card_redeemed_success.text')}
+                    {:else}
+                        {@html $text('signup.purchase_successful.text')}
+                    {/if}
                 </div>
             </div>
         </div>

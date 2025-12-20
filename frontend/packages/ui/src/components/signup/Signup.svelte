@@ -116,6 +116,7 @@
     let selectedPrice = $state(20); // Default price
     let selectedCurrency = $state('EUR'); // Default currency
     let isGiftFlow = $state(false); // Track if it's a gift flow
+    let isGiftCardRedemption = $state(false); // Track if it's a gift card redemption
     let limitedRefundConsent = $state(false);
 
     // Animation parameters
@@ -562,7 +563,7 @@
         }
     }
 
-    async function handleStep(event: CustomEvent<{step: string, credits_amount?: number, price?: number, currency?: string, isGift?: boolean}>) { // Add isGift to type
+    async function handleStep(event: CustomEvent<{step: string, credits_amount?: number, price?: number, currency?: string, isGift?: boolean, isGiftCardRedemption?: boolean, showSuccess?: boolean}>) { // Add isGiftCardRedemption and showSuccess to type
         let newStep = event.detail.step;
         const oldStep = currentStep; // Capture old step value
         
@@ -586,6 +587,22 @@
         }
 
         isGiftFlow = event.detail.isGift ?? false; // Capture isGift status, default to false
+        isGiftCardRedemption = event.detail.isGiftCardRedemption ?? false; // Capture gift card redemption status
+        
+        // Handle gift card redemption: if showSuccess is true, set payment form to show success state
+        if (event.detail.isGiftCardRedemption && event.detail.showSuccess && newStep === STEP_PAYMENT) {
+            // Gift card was redeemed, show payment confirmation screen
+            paymentFormVisible = false; // Hide payment form
+            showingPaymentForm = false;
+            paymentState = 'success'; // Set to success state to show confirmation
+            // Update selectedCreditsAmount from gift card redemption if provided
+            if (event.detail.credits_amount !== undefined) {
+                selectedCreditsAmount = event.detail.credits_amount;
+                console.debug(`[Signup] Gift card redeemed, credits added: ${selectedCreditsAmount}`);
+            }
+            console.debug('[Signup] Gift card redeemed, showing payment confirmation screen with auto top-up options');
+        }
+        
         currentStep = newStep; // Update local step
         currentSignupStep.set(newStep); // Update the global store
         
@@ -682,9 +699,11 @@
                 credits_amount: undefined,
                 price: undefined,
                 currency: undefined,
-                isGift: undefined
+                isGift: undefined,
+                isGiftCardRedemption: undefined,
+                showSuccess: undefined
             }
-        } as CustomEvent<{step: string, credits_amount?: number, price?: number, currency?: string, isGift?: boolean}>;
+        } as CustomEvent<{step: string, credits_amount?: number, price?: number, currency?: string, isGift?: boolean, isGiftCardRedemption?: boolean, showSuccess?: boolean}>;
         handleStep(customEvent);
     }
 
@@ -1414,6 +1433,13 @@
                                             price={selectedPrice}
                                             currency={selectedCurrency}
                                             isGift={isGiftFlow}
+                                            isGiftCardRedemption={isGiftCardRedemption}
+                                            showSuccess={isGiftCardRedemption || (paymentState === 'success' && !isGiftCardRedemption)}
+                                            purchasedCredits={isGiftCardRedemption ? selectedCreditsAmount : null}
+                                            purchasedPrice={isGiftCardRedemption ? 0 : null}
+                                            paymentMethodSaved={isGiftCardRedemption ? false : paymentMethodSaved}
+                                            oncomplete={isGiftCardRedemption ? handleAutoTopUpComplete : undefined}
+                                            onactivate-subscription={isGiftCardRedemption ? undefined : handleActivateSubscription}
                                             on:consentGiven={handleRefundConsent}
                                             on:paymentFormVisibility={handlePaymentFormVisibilityChange}
                                             on:openRefundInfo={handleOpenRefundInfo}

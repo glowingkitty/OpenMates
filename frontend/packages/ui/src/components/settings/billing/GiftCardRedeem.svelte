@@ -55,8 +55,12 @@ Gift Card Redeem - Component for redeeming gift card codes
                 successMessage = result.message || $text('settings.billing.gift_card.success.text');
                 
                 // Dispatch success event after a short delay to show success message
+                // Include credits information for signup flow
                 setTimeout(() => {
-                    dispatch('redeemed');
+                    dispatch('redeemed', {
+                        credits_added: result.credits_added || 0,
+                        current_credits: result.current_credits || 0
+                    });
                 }, 1500);
             } else {
                 console.error("Failed to redeem gift card:", result.message);

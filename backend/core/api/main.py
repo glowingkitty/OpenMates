@@ -47,6 +47,7 @@ from backend.core.api.app.services.stripe_product_sync import StripeProductSync 
 from backend.core.api.app.services.translations import TranslationService # Import TranslationService for resolving app metadata translations
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.utils.secrets_manager import SecretsManager  # Add import for SecretManager
+from backend.core.api.app.utils.server_mode import is_payment_enabled  # Import for checking payment status during router registration
 from backend.core.api.app.services.limiter import limiter
 from backend.core.api.app.utils.config_manager import config_manager
 from backend.shared.python_schemas.app_metadata_schemas import AppYAML # Moved AppYAML to backend_shared
@@ -919,9 +920,10 @@ def create_app() -> FastAPI:
     app.include_router(email.router, include_in_schema=False)  # Email endpoints - web app only
     
     # Conditionally register payment-related routers (only if payment is enabled)
-    # Note: payment_enabled flag is set during lifespan startup, but we check it here
-    # If not yet set (shouldn't happen), default to False for safety
-    payment_enabled = getattr(app.state, 'payment_enabled', False)
+    # Note: We call is_payment_enabled() directly here because app.state.payment_enabled
+    # is only set during lifespan startup, which happens after create_app() returns.
+    # This ensures the payment router is registered correctly based on domain/environment.
+    payment_enabled = is_payment_enabled()
     
     if payment_enabled:
         app.include_router(invoice.router, include_in_schema=False)  # Invoice endpoints - web app only
