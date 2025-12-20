@@ -71,25 +71,37 @@ def process_template_variables(context: Dict[Any, Any]) -> Dict[Any, Any]:
     # This replaces the mailto link in "did_not_request_email" translation
     # The URL points to a server-specific endpoint where users can block their email
     if 'block_list_url' not in processed_context or not processed_context.get('block_list_url'):
-        # Try to get webapp URL from shared URLs (if available in context)
-        # The add_shared_urls_to_context function may have set base URLs
+        # Try to get webapp URL from shared URLs
         try:
+            from backend.core.api.app.services.email.config_loader import load_shared_urls
             from backend.core.api.app.utils.server_mode import get_hosting_domain
+            import os
             
             # Determine environment
-            is_prod = processed_context.get('is_production', True)
+            is_dev = os.getenv("ENVIRONMENT", "production").lower() in ("development", "dev", "test") or \
+                     "localhost" in os.getenv("WEBAPP_URL", "").lower()
+            env_name = "development" if is_dev else "production"
             
-            # Construct block list URL from hosting domain
-            # This creates a server-specific URL pointing to the block list endpoint
-            hosting_domain = get_hosting_domain()
+            # Load shared URLs
+            shared_urls = load_shared_urls()
             
-            if hosting_domain:
-                # Use HTTPS by default for production, HTTP for development
-                protocol = "https" if is_prod else "http"
-                base_url = f"{protocol}://{hosting_domain}/block-email"
-            else:
-                # Fallback to localhost for development
-                base_url = "http://localhost:5173/block-email"
+            # Get webapp URL from shared config
+            base_webapp_url = shared_urls.get('urls', {}).get('base', {}).get('webapp', {}).get(env_name)
+            
+            # Fallback to hosting domain or environment variables
+            if not base_webapp_url:
+                hosting_domain = get_hosting_domain()
+                if hosting_domain:
+                    protocol = "https" if not is_dev else "http"
+                    base_webapp_url = f"{protocol}://{hosting_domain}"
+                else:
+                    base_webapp_url = os.getenv("WEBAPP_URL", "https://openmates.org" if not is_dev else "http://localhost:5173")
+            
+            # Ensure base_webapp_url doesn't end with a slash for consistent path appending
+            if base_webapp_url.endswith('/'):
+                base_webapp_url = base_webapp_url[:-1]
+                
+            base_url = f"{base_webapp_url}/block-email"
             
             # Append email to URL hash if available in context
             # Check for common email field names in context

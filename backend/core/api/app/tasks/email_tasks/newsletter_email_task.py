@@ -71,8 +71,22 @@ async def _async_send_newsletter_confirmation_email(
         await secrets_manager.initialize()
         email_template_service = EmailTemplateService(secrets_manager=secrets_manager)
         
-        # Get base URL for confirmation links
-        base_url = os.getenv("PRODUCTION_URL") or os.getenv("FRONTEND_URLS", "https://openmates.org").split(',')[0].strip()
+        # Get webapp URL from shared config loader
+        from backend.core.api.app.services.email.config_loader import load_shared_urls
+        shared_urls = load_shared_urls()
+        
+        # Determine environment (development or production)
+        is_dev = os.getenv("ENVIRONMENT", "production").lower() in ("development", "dev", "test") or \
+                 "localhost" in os.getenv("WEBAPP_URL", "").lower()
+        env_name = "development" if is_dev else "production"
+        
+        # Get webapp URL from shared config
+        base_url = shared_urls.get('urls', {}).get('base', {}).get('webapp', {}).get(env_name)
+        
+        # Fallback to environment variable or default
+        if not base_url:
+            base_url = os.getenv("WEBAPP_URL", "https://openmates.org" if not is_dev else "http://localhost:5173")
+            
         if not base_url.startswith("http"):
             base_url = f"https://{base_url}"
         
@@ -179,9 +193,26 @@ async def _async_send_newsletter_confirmed_email(
                 if unsubscribe_token:
                     # Build unsubscribe URL with the plaintext token using settings deep link format
                     # Format: {base_url}/#settings/newsletter/unsubscribe/{token}
-                    base_url = os.getenv("PRODUCTION_URL") or os.getenv("FRONTEND_URLS", "https://openmates.org").split(',')[0].strip()
+                    
+                    # Load shared URLs configuration to get webapp URL
+                    from backend.core.api.app.services.email.config_loader import load_shared_urls
+                    shared_urls = load_shared_urls()
+
+                    # Determine environment (development or production)
+                    is_dev = os.getenv("ENVIRONMENT", "production").lower() in ("development", "dev", "test") or \
+                             "localhost" in os.getenv("WEBAPP_URL", "").lower()
+                    env_name = "development" if is_dev else "production"
+
+                    # Get webapp URL from shared config
+                    base_url = shared_urls.get('urls', {}).get('base', {}).get('webapp', {}).get(env_name)
+
+                    # Fallback to environment variable or default
+                    if not base_url:
+                        base_url = os.getenv("WEBAPP_URL", "https://openmates.org" if not is_dev else "http://localhost:5173")
+
                     if not base_url.startswith("http"):
                         base_url = f"https://{base_url}"
+                        
                     unsubscribe_url = f"{base_url}/#settings/newsletter/unsubscribe/{unsubscribe_token}"
                     logger.debug(f"Generated unsubscribe URL for newsletter confirmed email")
                 else:
