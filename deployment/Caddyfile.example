@@ -52,11 +52,7 @@
 
 	# Define matchers
 	@health_path path /health /v1/health /v1/server # Health check and server info endpoints (public, no auth required)
-	@webapp_paths path /v1/auth/* # Webapp paths that require Origin check
-	# Replace <FRONTEND_ORIGIN> with your frontend origin (e.g., https://yourdomain.com)
-	@webapp_origin header Origin <FRONTEND_ORIGIN>
 	@options_method method OPTIONS # Renamed for clarity
-	@websocket_path path /v1/ws* # Matcher for WebSocket paths (to exclude from compression)
 
 	# --- PUBLIC DEVELOPER API MATCHERS ---
 	# These routes are authenticated via API keys (Authorization: Bearer sk-api-...) in the backend
@@ -77,31 +73,27 @@
 	@websocket_options {
 		path /v1/ws
 		method OPTIONS
-		header Origin <FRONTEND_ORIGIN>
 	}
 
 	# Combined matcher for valid OPTIONS preflight for general webapp paths
 	# Note: OPTIONS handling is done by FastAPI's CORSMiddleware, not Caddy
 	# Includes /v1/settings/* so webapp requests with credentials get proper CORS handling
 	@webapp_general_options {
-		path /v1/auth/* /v1/settings/* /v1/share/*
+		path /v1/auth/* /v1/settings/* /v1/share/* /v1/newsletter/* /v1/block-email
 		method OPTIONS
-		header Origin <FRONTEND_ORIGIN>
 	}
 
 	# Combined matcher for actual webapp requests (non-OPTIONS) from the correct origin
 	# Includes /v1/settings/* so webapp requests with credentials get proper CORS handling (FastAPI sets specific origin)
 	@webapp_actual {
-		path /v1/auth/* /v1/settings/* /v1/share/*
+		path /v1/auth/* /v1/settings/* /v1/share/* /v1/newsletter/* /v1/block-email
 		not method OPTIONS
-		header Origin <FRONTEND_ORIGIN>
 	}
 
 	# Combined matcher for actual WebSocket requests (non-OPTIONS) from the correct origin
 	@websocket_actual {
 		path /v1/ws
 		not method OPTIONS # Ensure it's not an OPTIONS request
-		header Origin <FRONTEND_ORIGIN>
 	}
 
 	# --- PUBLIC DEVELOPER API OPTIONS MATCHERS (for browser CORS preflight) ---
@@ -185,10 +177,13 @@
 		# 6. Handle actual webapp requests (non-OPTIONS) from the correct origin (including /v1/settings/*)
 		# Apply compression only to non-WebSocket requests
 		# CORS headers are added by FastAPI CORSMiddleware (sets specific origin for credentials)
+		# IMPORTANT: Do NOT set any CORS headers here - let FastAPI handle them to ensure credentials work correctly
 		handle @webapp_actual {
 			encode gzip zstd
 			reverse_proxy <API_UPSTREAM> {
 				header_up Host {http.request.host}
+				# Preserve all response headers from FastAPI (including CORS headers)
+				# Don't strip or override any headers - FastAPI CORSMiddleware handles CORS correctly
 			}
 		}
 
@@ -201,8 +196,6 @@
 		# FastAPI will reject requests without proper authentication (401/403)
 		handle @public_api_paths {
 			encode gzip zstd
-			# Add permissive CORS headers so browsers can call the API (no credentials, so wildcard is OK)
-			header Access-Control-Allow-Origin "*"
 			reverse_proxy <API_UPSTREAM> {
 				header_up Host {http.request.host}
 			}
@@ -261,20 +254,7 @@
 			}
 		}
 
-		# 10. Define and handle requests to webapp paths OR websocket path from the WRONG origin
-		# Note: GET requests to /v1/share/* are public, but POST/PUT/DELETE require proper origin
-		# Note: /v1/settings/* endpoints are handled by @public_api_paths (no Origin check) - FastAPI enforces authentication
-		@all_wrong_origin {
-			path /v1/auth/* /v1/share/* /v1/ws*
-			not method GET  # Exclude GET requests (share GET endpoints are public)
-			not header Origin <FRONTEND_ORIGIN>
-			# This also implicitly blocks if Origin header is missing for these paths
-		}
-		handle @all_wrong_origin {
-			abort
-		}
-
-		# 11. Abort all other requests not explicitly handled above
+		# 10. Abort all other requests not explicitly handled above
 		# This ensures that only defined paths are accessible.
 		handle {
 			abort
