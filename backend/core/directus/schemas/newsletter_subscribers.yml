@@ -32,6 +32,11 @@ newsletter_subscribers:
       default: "en"
       note: "Preferred language for newsletter emails"
       
+    darkmode:
+      type: boolean
+      default: false
+      note: "User's dark mode preference when subscribing to newsletter (used for email styling)"
+      
     unsubscribe_token:
       type: string
       length: 128

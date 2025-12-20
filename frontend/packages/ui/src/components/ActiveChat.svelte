@@ -89,14 +89,15 @@
 
     // State for payment enabled status (fetched from server)
     let paymentEnabled = $state(true); // Default to enabled for backward compatibility
+    let isSelfHosted = $state(false); // Self-hosted status from request-based validation
 
     // Derive step sequence based on login method and payment status (same logic as Signup.svelte)
     // Default to passkey sequence (assume passkey by default)
     // Only use full sequence when user explicitly selects password + 2FA OTP
     let stepSequence = $derived.by(() => {
         const baseSequence = $signupStore.loginMethod === 'password' ? fullStepSequence : passkeyStepSequence;
-        // Filter out payment steps if payment is disabled
-        if (!paymentEnabled) {
+        // Filter out payment steps if self-hosted (use isSelfHosted from request-based validation)
+        if (isSelfHosted) {
             return baseSequence.filter(step => ![STEP_CREDITS, STEP_PAYMENT, STEP_AUTO_TOP_UP].includes(step));
         }
         return baseSequence;
@@ -2342,15 +2343,26 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 const response = await fetch(getApiEndpoint('/v1/settings/server-status'));
                 if (response.ok) {
                     const status = await response.json();
-                    paymentEnabled = status.payment_enabled || false;
-                    console.log(`[ActiveChat] Payment enabled: ${paymentEnabled}`);
+                    // Use is_self_hosted from request-based validation (more accurate than paymentEnabled)
+                    // This correctly identifies localhost and other self-hosted instances
+                    isSelfHosted = status.is_self_hosted || false;
+                    // CRITICAL: If self-hosted, payment is ALWAYS disabled
+                    // This overrides any environment-based logic that might enable payment for localhost in dev mode
+                    if (isSelfHosted) {
+                        paymentEnabled = false;
+                    } else {
+                        paymentEnabled = status.payment_enabled || false;
+                    }
+                    console.log(`[ActiveChat] Payment enabled: ${paymentEnabled}, is_self_hosted: ${isSelfHosted}, domain: ${status.domain || 'localhost'}`);
                 } else {
                     console.warn('[ActiveChat] Failed to fetch server status, defaulting to payment enabled');
                     paymentEnabled = true; // Default to enabled if check fails
+                    isSelfHosted = false; // Default to not self-hosted if check fails
                 }
             } catch (error) {
                 console.error('[ActiveChat] Error checking server status:', error);
                 paymentEnabled = true; // Default to enabled if check fails
+                isSelfHosted = false; // Default to not self-hosted if check fails
             }
             
             // Generate a temporary chat ID for draft saving if no chat is loaded

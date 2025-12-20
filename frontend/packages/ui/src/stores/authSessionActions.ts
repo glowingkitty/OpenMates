@@ -18,6 +18,7 @@ import { setWebSocketToken, clearWebSocketToken } from '../utils/cookies'; // Im
 import { notificationStore } from './notificationStore'; // Import notification store for logout notifications
 import { loadUserProfileFromDB } from './userProfile'; // Import to load user profile from IndexedDB
 import { loginInterfaceOpen } from './uiStateStore'; // Import loginInterfaceOpen to control login interface visibility
+import { activeChatStore } from './activeChatStore'; // Import activeChatStore to navigate to demo-welcome on logout
 
 // Import core auth state and related flags
 import { authStore, isCheckingAuth, needsDeviceVerification } from './authState';
@@ -129,6 +130,17 @@ export async function checkAuth(deviceSignals?: Record<string, string | null>, f
                 
                 // Show notification that user was logged out
                 notificationStore.warning("You have been logged out. Please log in again.", 5000);
+                
+                // CRITICAL: Navigate to demo-welcome chat to hide the previously open chat
+                // This ensures the previous chat is not visible after logout
+                // Small delay to ensure auth state changes are processed first
+                setTimeout(() => {
+                    if (typeof window !== 'undefined') {
+                        activeChatStore.setActiveChat('demo-welcome');
+                        window.location.hash = 'chat-id=demo-welcome';
+                        console.debug("[AuthSessionActions] Navigated to demo-welcome chat after logout notification (missing master key)");
+                    }
+                }, 50);
                 
                 // Trigger server logout and local data cleanup
                 // Database deletion happens asynchronously without blocking UI
@@ -308,6 +320,17 @@ export async function checkAuth(deviceSignals?: Record<string, string | null>, f
                 
                 // Show notification that user was logged out
                 notificationStore.warning("You have been logged out. Please log in again.", 5000);
+                
+                // CRITICAL: Navigate to demo-welcome chat to hide the previously open chat
+                // This ensures the previous chat is not visible after logout
+                // Small delay to ensure auth state changes are processed first
+                setTimeout(() => {
+                    if (typeof window !== 'undefined') {
+                        activeChatStore.setActiveChat('demo-welcome');
+                        window.location.hash = 'chat-id=demo-welcome';
+                        console.debug("[AuthSessionActions] Navigated to demo-welcome chat after logout notification");
+                    }
+                }, 50);
                 
                 // Clear master key and all email data from storage
                 await cryptoService.clearKeyFromStorage();

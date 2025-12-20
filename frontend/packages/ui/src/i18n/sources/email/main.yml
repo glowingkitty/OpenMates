@@ -2693,3 +2693,141 @@ newsletter_confirmed.unsubscribe_link:
   cs: 'Zde se odhlásit'
   sv: 'Avprenumerera här'
   verified_by_human: []
+newsletter.subject:
+  context: Newsletter email subject line
+  en: Newsletter
+  de: Newsletter
+  zh: 新闻通讯
+  es: Boletín
+  fr: Newsletter
+  pt: Boletim informativo
+  ru: Рассылка
+  ja: ニュースレター
+  ko: 뉴스레터
+  it: Newsletter
+  tr: Bülten
+  vi: Bản tin
+  id: Newsletter
+  pl: Newsletter
+  nl: Nieuwsbrief
+  ar: النشرة الإخبارية
+  hi: न्यूज़लेटर
+  th: จดหมายข่าว
+  cs: Newsletter
+  sv: Nyhetsbrev
+  verified_by_human: []
+newsletter.title:
+  context: Newsletter email title
+  en: Newsletter
+  de: Newsletter
+  zh: 新闻通讯
+  es: Boletín
+  fr: Newsletter
+  pt: Boletim informativo
+  ru: Рассылка
+  ja: ニュースレター
+  ko: 뉴스레터
+  it: Newsletter
+  tr: Bülten
+  vi: Bản tin
+  id: Newsletter
+  pl: Newsletter
+  nl: Nieuwsbrief
+  ar: النشرة الإخبارية
+  hi: न्यूज़लेटर
+  th: จดหมายข่าว
+  cs: Newsletter
+  sv: Nyhetsbrev
+  verified_by_human: []
+newsletter.default_content:
+  context: Default newsletter content when no custom content is provided
+  en: Thank you for subscribing to our newsletter!
+  de: Vielen Dank, dass Sie unseren Newsletter abonniert haben!
+  zh: 感谢您订阅我们的新闻通讯！
+  es: ¡Gracias por suscribirte a nuestro boletín!
+  fr: Merci de vous être abonné à notre newsletter !
+  pt: Obrigado por assinar nosso boletim informativo!
+  ru: Спасибо за подписку на нашу рассылку!
+  ja: ニュースレターにご登録いただきありがとうございます！
+  ko: 뉴스레터를 구독해 주셔서 감사합니다!
+  it: Grazie per esserti iscritto alla nostra newsletter!
+  tr: Bültenimize abone olduğunuz için teşekkürler!
+  vi: Cảm ơn bạn đã đăng ký bản tin của chúng tôi!
+  id: Terima kasih telah berlangganan newsletter kami!
+  pl: Dziękujemy za subskrypcję naszego newslettera!
+  nl: Bedankt voor het abonneren op onze nieuwsbrief!
+  ar: شكراً لك على الاشتراك في نشرتنا الإخبارية!
+  hi: हमारे न्यूज़लेटर की सदस्यता लेने के लिए धन्यवाद!
+  th: ขอบคุณที่สมัครรับจดหมายข่าวของเรา!
+  cs: Děkujeme za předplatné našeho newsletteru!
+  sv: Tack för att du prenumererar på vårt nyhetsbrev!
+  verified_by_human: []
+newsletter.social_media_text:
+  context: Text above social media buttons in newsletter
+  en: 'Follow us on social media:'
+  de: 'Folgen Sie uns in den sozialen Medien:'
+  zh: '在社交媒体上关注我们：'
+  es: 'Síguenos en las redes sociales:'
+  fr: 'Suivez-nous sur les réseaux sociaux :'
+  pt: 'Siga-nos nas redes sociais:'
+  ru: 'Следите за нами в социальных сетях:'
+  ja: 'ソーシャルメディアでフォローしてください：'
+  ko: '소셜 미디어에서 팔로우하세요:'
+  it: 'Seguici sui social media:'
+  tr: 'Sosyal medyada bizi takip edin:'
+  vi: 'Theo dõi chúng tôi trên mạng xã hội:'
+  id: 'Ikuti kami di media sosial:'
+  pl: 'Śledź nas w mediach społecznościowych:'
+  nl: 'Volg ons op sociale media:'
+  ar: 'تابعنا على وسائل التواصل الاجتماعي:'
+  hi: 'सोशल मीडिया पर हमें फॉलो करें:'
+  th: 'ติดตามเราบนโซเชียลมีเดีย:'
+  cs: 'Sledujte nás na sociálních sítích:'
+  sv: 'Följ oss på sociala medier:'
+  verified_by_human: []
+newsletter.unsubscribe_text:
+  context: Text before unsubscribe link in newsletter
+  en: Don't want to receive these emails?
+  de: Möchten Sie diese E-Mails nicht mehr erhalten?
+  zh: 不想再收到这些邮件？
+  es: ¿No quieres recibir estos correos?
+  fr: Vous ne souhaitez plus recevoir ces e-mails ?
+  pt: Não quer mais receber estes e-mails?
+  ru: Не хотите получать эти письма?
+  ja: これらのメールを受信したくないですか？
+  ko: 이러한 이메일을 더 이상 받고 싶지 않으신가요?
+  it: Non vuoi più ricevere queste email?
+  tr: Bu e-postaları almak istemiyor musunuz?
+  vi: Không muốn nhận những email này?
+  id: Tidak ingin menerima email ini?
+  pl: Nie chcesz otrzymywać tych e-maili?
+  nl: Wil je deze e-mails niet meer ontvangen?
+  ar: لا تريد تلقي هذه الرسائل؟
+  hi: क्या आप ये ईमेल प्राप्त नहीं करना चाहते?
+  th: ไม่ต้องการรับอีเมลเหล่านี้?
+  cs: Nechcete dostávat tyto e-maily?
+  sv: Vill du inte ta emot dessa e-postmeddelanden?
+  verified_by_human: []
+newsletter.unsubscribe_link:
+  context: Unsubscribe link text in newsletter
+  en: Unsubscribe
+  de: Abmelden
+  zh: 取消订阅
+  es: Cancelar suscripción
+  fr: Se désabonner
+  pt: Cancelar assinatura
+  ru: Отписаться
+  ja: 購読を解除
+  ko: 구독 취소
+  it: Disiscriviti
+  tr: Abonelikten çık
+  vi: Hủy đăng ký
+  id: Berhenti berlangganan
+  pl: Anuluj subskrypcję
+  nl: Uitschrijven
+  ar: إلغاء الاشتراك
+  hi: सदस्यता रद्द करें
+  th: ยกเลิกการสมัครสมาชิก
+  cs: Odhlásit se
+  sv: Avprenumerera
+  verified_by_human: []

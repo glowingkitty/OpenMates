@@ -34,7 +34,7 @@ class BlockEmailResponse(BaseModel):
 
 
 @router.post("/block-email", response_model=BlockEmailResponse, dependencies=[Depends(verify_allowed_origin)])
-@limiter.limit("10/minute")
+@limiter.limit("5/minute")
 async def block_email(
     request: Request,
     block_request: BlockEmailRequest,

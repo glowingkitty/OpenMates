@@ -15,10 +15,10 @@ urls:
   # Base URLs for different environments
   base:
     website:
-      development: "http://localhost:5174"
+      development: "http://localhost:5173"
       production: "https://openmates.org"
     webapp:
-      development: "http://localhost:5174" 
+      development: "http://localhost:5173" 
       production: "https://openmates.org"
     api:
       development: "http://localhost:8000"

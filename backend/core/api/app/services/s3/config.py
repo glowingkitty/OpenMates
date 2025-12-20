@@ -23,7 +23,7 @@ def load_urls_config():
         return {
             'base': {
                 'webapp': {
-                    'development': 'http://localhost:5174',
+                    'development': 'http://localhost:5173',
                     'production': 'https://openmates.org'
                 }
             }
@@ -168,7 +168,7 @@ def get_allowed_origins(environment: str) -> List[str]:
     # If no origins were found, add defaults
     if not origins:
         if environment == 'development':
-            origins = ['http://localhost:5174']
+            origins = ['http://localhost:5173']
         else:
             origins = ['https://openmates.org']
     

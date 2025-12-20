@@ -100,6 +100,44 @@ docker exec -it api python /app/backend/scripts/delete_users_without_chats.py
 
 ---
 
+### Send Newsletter
+
+**Purpose:** Send newsletter emails to all confirmed newsletter subscribers.
+
+**Command:**
+```bash
+# Send newsletter to all subscribers using default template
+docker exec -it api python /app/backend/scripts/send_newsletter.py
+
+# Send newsletter using specific template
+docker exec -it api python /app/backend/scripts/send_newsletter.py --template newsletter-monthly
+
+# Dry run (test without sending emails)
+docker exec -it api python /app/backend/scripts/send_newsletter.py --dry-run
+
+# Test with limited number of subscribers
+docker exec -it api python /app/backend/scripts/send_newsletter.py --limit 5
+```
+
+**What it does:**
+- Fetches all confirmed newsletter subscribers from Directus
+- Decrypts their email addresses
+- Checks if emails are in the ignored list (skips if ignored)
+- Sends newsletter emails to each subscriber using the specified template
+- Provides progress feedback and error handling
+- Displays summary statistics after completion
+
+**Options:**
+- `--template`: Name of the email template to use (default: "newsletter")
+- `--dry-run`: Simulate sending without actually sending emails (useful for testing)
+- `--limit`: Limit the number of subscribers to process (useful for testing)
+
+**Use case:** Sending monthly newsletters, announcements, or updates to all newsletter subscribers.
+
+**Note:** The script uses the `newsletter.mjml` template by default. You can customize the template or create new templates in `/backend/core/api/templates/email/`. The template receives context variables including `unsubscribe_url`, `darkmode`, and any custom variables you add to the script.
+
+---
+
 ## Running Scripts
 
 All scripts in this directory should be executed inside the Docker container to ensure:

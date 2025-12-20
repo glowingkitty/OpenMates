@@ -190,6 +190,11 @@ _backup
 .vercel
 .env*.local
 
+# Deployment configuration
+# Allow template/example files, but ignore environment-specific overrides
+deployment/dev_server
+deployment/prod_server
+# Legacy .deployment directory (kept for backward compatibility, but gitignored)
 .deployment
 
 # Private context files (anywhere within .context)

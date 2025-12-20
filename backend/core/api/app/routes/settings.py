@@ -1630,7 +1630,8 @@ class ServerStatusResponse(BaseModel):
     payment_enabled: bool
     is_self_hosted: bool
     is_development: bool
-    server_edition: str  # "production" | "development" | "self_hosted"
+    server_edition: str  # "production" | "development" | "self_hosted" (deprecated, use is_self_hosted)
+    domain: Optional[str]  # Domain extracted from request (None for localhost)
 
 
 @router.get(
@@ -1648,36 +1649,64 @@ async def get_server_status(
     This is a public endpoint (no authentication required) that allows the frontend
     to check if payment features should be displayed and what server edition is running.
     
+    This endpoint uses request-based validation to determine if the server is self-hosted.
+    It extracts the domain from the request headers (Origin or Host) and validates it
+    against the official domain from encrypted config. This provides better security
+    than environment variable-based detection alone.
+    
     Returns:
-        ServerStatusResponse with payment_enabled, is_self_hosted, is_development, and server_edition
+        ServerStatusResponse with payment_enabled, is_self_hosted, is_development, 
+        server_edition (deprecated), and domain
     """
     try:
         # Import server mode utilities
         from backend.core.api.app.utils.server_mode import (
             is_payment_enabled,
             get_server_edition,
-            get_hosting_domain
+            get_hosting_domain,
+            validate_request_domain
         )
         
-        # Get payment status and server edition
-        payment_enabled = is_payment_enabled()
-        server_edition = get_server_edition()
-        hosting_domain = get_hosting_domain()
+        # Validate request domain against official domain (request-based security)
+        # This extracts domain from request headers and checks if it matches official domain
+        # Returns: (domain, is_self_hosted, edition) where edition is "production" | "development" | "self_hosted"
+        request_domain, is_self_hosted_from_request, request_edition = validate_request_domain(request)
         
-        # Determine is_self_hosted and is_development
-        is_self_hosted = not payment_enabled
-        is_development = os.getenv("SERVER_ENVIRONMENT", "development").lower() == "development"
+        # Use request-based validation for is_self_hosted (more secure)
+        # This cannot be easily spoofed by environment variables
+        is_self_hosted = is_self_hosted_from_request
+        
+        # CRITICAL: If self-hosted (from request validation), payment is ALWAYS disabled
+        # This overrides any environment-based logic that might enable payment for localhost in dev mode
+        if is_self_hosted:
+            payment_enabled = False
+        else:
+            # Only check environment-based payment logic if NOT self-hosted
+            payment_enabled = is_payment_enabled()
+        
+        # Get server edition (for backward compatibility)
+        server_edition = get_server_edition()
+        
+        # Determine is_development based on request edition
+        # "development" edition means *.dev.{official_domain} subdomain
+        is_development = request_edition == "development"
         
         logger.debug(
             f"Server status requested: payment_enabled={payment_enabled}, "
-            f"server_edition={server_edition}, hosting_domain={hosting_domain or 'localhost'}"
+            f"is_self_hosted={is_self_hosted} (from request), "
+            f"is_development={is_development} (from request edition), "
+            f"request_edition={request_edition}, "
+            f"server_edition={server_edition}, "
+            f"request_domain={request_domain or 'localhost'}, "
+            f"origin={request.headers.get('origin')}, host={request.headers.get('host')}"
         )
         
         return ServerStatusResponse(
             payment_enabled=payment_enabled,
             is_self_hosted=is_self_hosted,
             is_development=is_development,
-            server_edition=server_edition
+            server_edition=request_edition,  # Use request-based edition (more accurate)
+            domain=request_domain
         )
         
     except Exception as e:
@@ -1687,7 +1716,8 @@ async def get_server_status(
             payment_enabled=False,
             is_self_hosted=True,
             is_development=False,
-            server_edition="self_hosted"
+            server_edition="self_hosted",
+            domain=None
         )
 
 

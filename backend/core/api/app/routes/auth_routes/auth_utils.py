@@ -40,7 +40,7 @@ def get_cookie_domain(request: Request) -> Optional[str]:
     5. Return parent domain with leading dot for production subdomains
     
     Examples:
-    - localhost:5174 → None (same-origin cookies work fine)
+    - localhost:5173 → None (same-origin cookies work fine)
     - openmates.org → ".openmates.org" (enables cross-subdomain sharing)
     - app.dev.openmates.org → ".openmates.org" (handles nested subdomains)
     

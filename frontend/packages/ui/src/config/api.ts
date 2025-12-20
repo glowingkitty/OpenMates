@@ -135,7 +135,7 @@ export const apiEndpoints = {
         mostUsed:                    '/v1/apps/most-used',                       // Get most used apps in last 30 days (public endpoint)
     },
     server: {
-        info:                        '/v1/server',                                // Get server information (edition: official_openmates_cloud or self_hosting_edition)
+        info:                        '/v1/server',                                // Get server information (domain and self_hosted flag based on request validation)
     },
     usage: {
         getUsage:                    '/v1/settings/usage',                       // Get user usage data (legacy)

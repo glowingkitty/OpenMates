@@ -861,7 +861,7 @@ def create_app() -> FastAPI:
     is_dev = os.getenv("SERVER_ENVIRONMENT", "development").lower() == "development"
 
     # Define defaults clearly
-    default_dev_origins_str = "http://localhost:5174, https://app.dev.openmates.org"
+    default_dev_origins_str = "http://localhost:5173, https://app.dev.openmates.org"
     default_prod_origin_str = "https://openmates.org"
 
     # 1. Get the relevant string (either from env var or default)
@@ -1094,31 +1094,41 @@ def create_app() -> FastAPI:
     @limiter.limit("60/minute")
     async def server_info(request: Request):
         """
-        Get server information including server edition.
+        Get server information including domain and self-hosted status.
         
-        Returns information about whether this is an official OpenMates cloud instance
-        or a self-hosting edition. This is useful for clients to adapt their behavior
-        (e.g., showing/hiding payment features, displaying appropriate branding).
+        This endpoint uses request-based validation to determine if the server
+        is the official instance or self-hosted. It extracts the domain from
+        the request headers (Origin or Host) and validates it against the
+        official domain from encrypted config.
+        
+        This approach is more secure than environment variable-based detection
+        because it validates the actual request domain, making it harder for
+        malicious actors to spoof the official instance.
         
         Returns:
-            Dict with 'edition' field:
-            - "official_openmates_cloud" - Official OpenMates cloud server (production or development)
-            - "self_hosting_edition" - Self-hosted instance
+            Dict with:
+            - "domain": The domain extracted from the request (None for localhost)
+            - "self_hosted": Boolean indicating if this is a self-hosted instance
+              (True if domain doesn't match official domain or is localhost)
+            - "edition": Server edition string ("production" | "development" | "self_hosted")
+              - "production": Official domain or non-dev subdomain
+              - "development": *.dev.{official_domain} subdomain
+              - "self_hosted": Other domains or localhost
         """
-        from backend.core.api.app.utils.server_mode import get_server_edition
+        from backend.core.api.app.utils.server_mode import validate_request_domain
         
-        # Get server edition from server_mode utility
-        server_edition = get_server_edition()
+        # Validate request domain against official domain
+        # This uses request headers (Origin/Host) for security validation
+        domain, is_self_hosted, edition = validate_request_domain(request)
         
-        # Map server_edition to the requested format
-        # "production" or "development" -> "official_openmates_cloud"
-        # "self_hosted" -> "self_hosting_edition"
-        if server_edition in ["production", "development"]:
-            edition = "official_openmates_cloud"
-        else:
-            edition = "self_hosting_edition"
+        logger.debug(
+            f"Server info requested: domain={domain}, self_hosted={is_self_hosted}, "
+            f"edition={edition}, origin={request.headers.get('origin')}, host={request.headers.get('host')}"
+        )
         
         return {
+            "domain": domain,
+            "self_hosted": is_self_hosted,
             "edition": edition
         }
 

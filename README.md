@@ -148,7 +148,7 @@ Once the initial setup is complete, you can start the services. For a typical de
 -   **3. Start the frontend service (for development):**
     This command starts the web app with hot-reloading, which is ideal for development.
     ```bash
-    pnpm --filter web_app dev --host 0.0.0.0 --port 5174
+    pnpm --filter web_app dev --host 0.0.0.0 --port 5173
     ```
     *Note: The first time you access the web app, it may take up to a minute to load as Svelte builds the necessary files.*
 
@@ -158,7 +158,22 @@ Once the initial setup is complete, you can start the services. For a typical de
     docker compose --env-file .env -f backend/core/docker-compose.yml logs cms-setup
     ```
 -   **5. Access the web app:**
-    Open [http://localhost:5174](http://localhost:5174) in your browser. Click "Sign Up" and use the invite code to create your account.
+    Open [http://localhost:5173](http://localhost:5173) in your browser. Click "Sign Up" and use the invite code to create your account.
+
+### Development workflow
+
+For development, you typically want to restart the backend services (excluding the webapp container, since you're running the frontend with `pnpm dev` for hot-reloading) and start the frontend separately.
+
+**Restart backend services (for development):**
+This command stops all services, rebuilds all backend services (excluding webapp), and starts them again. The webapp container is excluded since you'll run the frontend with `pnpm dev` for better development experience.
+```bash
+docker compose --env-file .env -f backend/core/docker-compose.yml -f backend/core/docker-compose.override.yml down && docker volume rm openmates-cache-data && docker compose --env-file .env -f backend/core/docker-compose.yml -f backend/core/docker-compose.override.yml build api cms cms-database cms-setup task-worker task-scheduler app-ai app-web app-videos app-news app-maps app-ai-worker app-web-worker cache vault vault-setup prometheus cadvisor loki promtail grafana && docker compose --env-file .env -f backend/core/docker-compose.yml -f backend/core/docker-compose.override.yml up -d --scale webapp=0
+```
+
+**Start the frontend (for development):**
+```bash
+pnpm --filter web_app dev --host 0.0.0.0 --port 5173
+```
 
 ### Manage the services
 
@@ -180,6 +195,26 @@ You can use standard Docker Compose commands to manage your OpenMates environmen
     ```bash
     docker compose --env-file .env -f backend/core/docker-compose.yml restart api
     ```
+
+### Reverse Proxy Configuration (Caddy)
+
+For production deployments or when you need TLS/HTTPS support, you can use Caddy as a reverse proxy. OpenMates provides a template-based configuration pattern:
+
+1. **Copy the template:**
+   ```bash
+   cp deployment/Caddyfile.example deployment/dev_server/Caddyfile.local
+   ```
+
+2. **Edit the configuration:**
+   - Replace `<API_DOMAIN>` with your API domain (e.g., `api.dev.openmates.org`)
+   - Replace `<FRONTEND_ORIGIN>` with your frontend origin (e.g., `https://app.dev.openmates.org`)
+   - Replace `<API_UPSTREAM>` with your API upstream (e.g., `api:8000` for Docker Compose or `localhost:8000` for standalone)
+   - Replace `<YOUR_EMAIL@example.com>` with your email for Let's Encrypt
+
+3. **Use the configuration:**
+   Point Caddy to your configured file, or see [deployment/README.md](./deployment/README.md) for detailed instructions.
+
+**Note:** Environment-specific Caddyfiles (like `Caddyfile.local`, `Caddyfile.prod`) are gitignored to prevent committing sensitive configuration. Only the template (`Caddyfile.example`) is committed to the repository.
 
 ### Troubleshooting
 

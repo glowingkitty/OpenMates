@@ -471,7 +471,7 @@ async def _async_process_invoice_and_send_email(
 
                 # Fallback to environment variable or default
                 if not webapp_url:
-                    webapp_url = os.getenv("WEBAPP_URL", "https://openmates.org" if not is_dev else "http://localhost:5174")
+                    webapp_url = os.getenv("WEBAPP_URL", "https://openmates.org" if not is_dev else "http://localhost:5173")
 
                 # Generate deep link URL: {webapp_url}#settings/billing/invoices/{invoice_uuid}/refund
                 refund_deep_link_url = f"{webapp_url}#settings/billing/invoices/{invoice_uuid}/refund"

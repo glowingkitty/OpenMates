@@ -128,6 +128,7 @@
     // Payment status - check if payment is enabled (self-hosted mode detection)
     let paymentEnabled = $state(true); // Default to true, will be updated on mount
     let serverEdition = $state<string | null>(null); // Server edition for display
+    let isSelfHosted = $state(false); // Self-hosted status from request-based validation
     
     // Note: STEP_COMPLETION is not included as it's not a visible step - users go directly to the app after auto top-up
     // Base step sequences (will be filtered based on payment status)
@@ -142,15 +143,17 @@
         STEP_CREDITS, STEP_PAYMENT, STEP_AUTO_TOP_UP
     ];
     
-    // Filter out payment steps if payment is disabled (self-hosted mode)
+    // Filter out payment steps if self-hosted (use isSelfHosted from request-based validation)
+    // This is more accurate than paymentEnabled alone, as paymentEnabled can be true for localhost in dev mode
+    // But since backend now ensures payment_enabled = false when is_self_hosted = true, both work
     const fullStepSequence = $derived(
-        paymentEnabled 
+        !isSelfHosted 
             ? fullStepSequenceBase 
             : fullStepSequenceBase.filter(step => ![STEP_CREDITS, STEP_PAYMENT, STEP_AUTO_TOP_UP].includes(step))
     );
     
     const passkeyStepSequence = $derived(
-        paymentEnabled
+        !isSelfHosted
             ? passkeyStepSequenceBase
             : passkeyStepSequenceBase.filter(step => ![STEP_CREDITS, STEP_PAYMENT, STEP_AUTO_TOP_UP].includes(step))
     );
@@ -214,9 +217,20 @@
                 const response = await fetch(getApiEndpoint('/v1/settings/server-status'));
                 if (response.ok) {
                     const status = await response.json();
-                    paymentEnabled = status.payment_enabled || false;
+                    // Use is_self_hosted from request-based validation (more accurate than paymentEnabled)
+                    // This correctly identifies localhost and other self-hosted instances
+                    isSelfHosted = status.is_self_hosted || false;
+                    // CRITICAL: If self-hosted, payment is ALWAYS disabled
+                    // This overrides any environment-based logic that might enable payment for localhost in dev mode
+                    if (isSelfHosted) {
+                        paymentEnabled = false;
+                    } else {
+                        paymentEnabled = status.payment_enabled || false;
+                    }
+                    // Use server_edition from request-based validation (includes "development" for dev subdomains)
+                    // server_edition can be: "production" | "development" | "self_hosted"
                     serverEdition = status.server_edition || null;
-                    console.log(`[Signup] Payment enabled: ${paymentEnabled}, Server edition: ${serverEdition}`);
+                    console.log(`[Signup] Payment enabled: ${paymentEnabled}, Server edition: ${serverEdition}, is_self_hosted: ${isSelfHosted}, domain: ${status.domain || 'localhost'}`);
                 } else {
                     console.warn('[Signup] Failed to fetch server status, defaulting to payment enabled');
                     paymentEnabled = true; // Default to enabled if check fails
@@ -237,8 +251,8 @@
         // but preserves the step on page reload
         const existingStep = $currentSignupStep;
         
-        // If payment is disabled and user is on a payment step, skip to completion
-        if (!paymentEnabled && [STEP_CREDITS, STEP_PAYMENT, STEP_AUTO_TOP_UP].includes(existingStep)) {
+        // If self-hosted and user is on a payment step, skip to completion
+        if (isSelfHosted && [STEP_CREDITS, STEP_PAYMENT, STEP_AUTO_TOP_UP].includes(existingStep)) {
             console.log(`[Signup] Payment disabled, skipping payment steps. Moving from ${existingStep} to completion.`);
             currentSignupStep.set(STEP_COMPLETION);
             currentStep = STEP_COMPLETION;
@@ -539,8 +553,8 @@
     function handleSkip() {
         // Profile picture step removed - moved to settings
         if (currentStep === STEP_TFA_APP_REMINDER) {
-            // Skip settings and mate settings - go directly to credits (or completion if payment disabled)
-            if (paymentEnabled) {
+            // Skip settings and mate settings - go directly to credits (or completion if self-hosted)
+            if (!isSelfHosted) {
                 goToStep(STEP_CREDITS);
             } else {
                 goToStep(STEP_COMPLETION);
@@ -552,8 +566,8 @@
         let newStep = event.detail.step;
         const oldStep = currentStep; // Capture old step value
         
-        // Skip payment steps if payment is disabled (self-hosted mode)
-        if (!paymentEnabled && [STEP_CREDITS, STEP_PAYMENT, STEP_AUTO_TOP_UP].includes(newStep)) {
+        // Skip payment steps if self-hosted
+        if (isSelfHosted && [STEP_CREDITS, STEP_PAYMENT, STEP_AUTO_TOP_UP].includes(newStep)) {
             console.log(`[Signup] Payment disabled, redirecting from ${newStep} to completion`);
             newStep = STEP_COMPLETION;
         }
@@ -675,8 +689,8 @@
     }
 
     async function goToStep(step: string) {
-        // Skip payment steps if payment is disabled (self-hosted mode)
-        if (!paymentEnabled && [STEP_CREDITS, STEP_PAYMENT, STEP_AUTO_TOP_UP].includes(step)) {
+        // Skip payment steps if self-hosted
+        if (isSelfHosted && [STEP_CREDITS, STEP_PAYMENT, STEP_AUTO_TOP_UP].includes(step)) {
             console.log(`[Signup] Payment disabled, skipping step ${step} and going to completion`);
             step = STEP_COMPLETION;
         }

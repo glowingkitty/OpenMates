@@ -156,8 +156,10 @@
                 const response = await fetch(getApiEndpoint('/v1/settings/server-status'));
                 if (response.ok) {
                     const status = await response.json();
+                    // Use server_edition from request-based validation (includes "development" for dev subdomains)
+                    // server_edition can be: "production" | "development" | "self_hosted"
                     serverEdition = status.server_edition || null;
-                    console.log(`[Header] Server edition: ${serverEdition}`);
+                    console.log(`[Header] Server edition: ${serverEdition}, domain: ${status.domain || 'localhost'}, is_self_hosted: ${status.is_self_hosted}`);
                 }
             } catch (error) {
                 console.error('[Header] Error fetching server status:', error);

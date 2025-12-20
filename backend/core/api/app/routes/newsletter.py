@@ -65,7 +65,7 @@ class NewsletterUnsubscribeResponse(BaseModel):
 
 
 @router.post("/newsletter/subscribe", response_model=NewsletterSubscribeResponse, dependencies=[Depends(verify_allowed_origin)])
-@limiter.limit("5/minute")
+@limiter.limit("2/minute")
 async def newsletter_subscribe(
     request: Request,
     subscribe_request: NewsletterSubscribeRequest,
@@ -158,7 +158,7 @@ async def newsletter_subscribe(
 
 
 @router.get("/newsletter/confirm/{token}", response_model=NewsletterConfirmResponse)
-@limiter.limit("10/minute")
+@limiter.limit("5/minute")
 async def newsletter_confirm(
     request: Request,
     token: str,
@@ -236,6 +236,7 @@ async def newsletter_confirm(
                     "encrypted_email_address": encrypted_email,
                     "confirmed_at": now,
                     "language": language,
+                    "darkmode": darkmode,
                     "unsubscribe_token": existing_token
                 }
                 await directus_service._make_api_request("PATCH", update_url, json=update_payload)
@@ -250,6 +251,7 @@ async def newsletter_confirm(
                     "confirmed_at": now,
                     "subscribed_at": now,
                     "language": language,
+                    "darkmode": darkmode,
                     "unsubscribe_token": unsubscribe_token
                 }
                 await directus_service.create_item(collection_name, create_payload)
@@ -284,7 +286,7 @@ async def newsletter_confirm(
 
 
 @router.get("/newsletter/unsubscribe/{token}", response_model=NewsletterUnsubscribeResponse)
-@limiter.limit("10/minute")
+@limiter.limit("5/minute")
 async def newsletter_unsubscribe(
     request: Request,
     token: str,

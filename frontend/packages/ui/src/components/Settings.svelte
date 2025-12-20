@@ -248,6 +248,7 @@ changes to the documentation (to keep the documentation up to date).
     // Payment status - check if payment is enabled (self-hosted mode detection)
     let paymentEnabled = $state(true); // Default to true, will be updated on mount
     let serverEdition = $state<string | null>(null); // Server edition for display
+    let isSelfHosted = $state(false); // Self-hosted status from request-based validation
     
     // Reactive settingsViews that filters out server options for non-admins and payment routes when payment disabled
     // For non-authenticated users, show interface settings (and nested language settings), app store, and share chat
@@ -256,8 +257,9 @@ changes to the documentation (to keep the documentation up to date).
     let settingsViews = $derived.by(() => {
         const isAuthenticated = $authStore.isAuthenticated;
         return Object.entries(allSettingsViews).reduce((filtered, [key, component]) => {
-            // Filter out payment-related routes if payment is disabled (self-hosted mode)
-            if (!paymentEnabled) {
+            // Filter out payment-related routes if self-hosted (use isSelfHosted from request-based validation)
+            // This is more accurate than paymentEnabled alone, as paymentEnabled can be true for localhost in dev mode
+            if (isSelfHosted) {
                 // Remove billing and gift card routes
                 if (key === 'billing' || key.startsWith('billing/') || 
                     key === 'gift_cards' || key.startsWith('gift_cards/') ||
@@ -940,9 +942,20 @@ changes to the documentation (to keep the documentation up to date).
                 const response = await fetch(getApiEndpoint('/v1/settings/server-status'));
                 if (response.ok) {
                     const status = await response.json();
-                    paymentEnabled = status.payment_enabled || false;
+                    // Use is_self_hosted from request-based validation (more accurate than paymentEnabled)
+                    // This correctly identifies localhost and other self-hosted instances
+                    isSelfHosted = status.is_self_hosted || false;
+                    // CRITICAL: If self-hosted, payment is ALWAYS disabled
+                    // This overrides any environment-based logic that might enable payment for localhost in dev mode
+                    if (isSelfHosted) {
+                        paymentEnabled = false;
+                    } else {
+                        paymentEnabled = status.payment_enabled || false;
+                    }
+                    // Use server_edition from request-based validation (includes "development" for dev subdomains)
+                    // server_edition can be: "production" | "development" | "self_hosted"
                     serverEdition = status.server_edition || null;
-                    console.log(`[Settings] Payment enabled: ${paymentEnabled}, Server edition: ${serverEdition}`);
+                    console.log(`[Settings] Payment enabled: ${paymentEnabled}, Server edition: ${serverEdition}, is_self_hosted: ${isSelfHosted}, domain: ${status.domain || 'localhost'}`);
                 } else {
                     console.warn('[Settings] Failed to fetch server status, defaulting to payment enabled');
                     paymentEnabled = true; // Default to enabled if check fails

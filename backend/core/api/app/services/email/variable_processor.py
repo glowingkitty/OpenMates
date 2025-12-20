@@ -89,7 +89,7 @@ def process_template_variables(context: Dict[Any, Any]) -> Dict[Any, Any]:
                 base_url = f"{protocol}://{hosting_domain}/block-email"
             else:
                 # Fallback to localhost for development
-                base_url = "http://localhost:5174/block-email"
+                base_url = "http://localhost:5173/block-email"
             
             # Append email to URL hash if available in context
             # Check for common email field names in context
