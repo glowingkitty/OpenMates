@@ -85,6 +85,13 @@ step_10_top_content_svelte:
         localPaymentMethodSaveError = paymentMethodSaveError;
     });
     
+    // Debug: Log prop values when they change
+    $effect(() => {
+        if (showSuccess) {
+            console.debug(`[PaymentTopContent] showSuccess=true, isGiftCardRedemption=${isGiftCardRedemption}`);
+        }
+    });
+    
     // Check payment method on mount if showSuccess is true and paymentMethodSaved is false
     // This is a fallback check in case the parent component didn't check on reload
     onMount(async () => {
@@ -177,12 +184,15 @@ step_10_top_content_svelte:
                 <div class="primary-text">
                     {#if isGiftCardRedemption}
                         {@html $text('signup.gift_card_redeemed_success.text')}
+                        {console.debug('[PaymentTopContent] Showing gift card redemption success message')}
                     {:else}
                         {@html $text('signup.purchase_successful.text')}
+                        {console.debug('[PaymentTopContent] Showing regular purchase success message, isGiftCardRedemption=', isGiftCardRedemption)}
                     {/if}
                 </div>
             </div>
         </div>
+        
         
         {#if !isGiftCardRedemption}
             <!-- Auto top-up content below success message (only for regular payments, not gift cards) -->

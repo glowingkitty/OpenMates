@@ -587,10 +587,12 @@
         }
 
         isGiftFlow = event.detail.isGift ?? false; // Capture isGift status, default to false
-        isGiftCardRedemption = event.detail.isGiftCardRedemption ?? false; // Capture gift card redemption status
         
         // Handle gift card redemption: show purchase confirmation, then auto-complete signup
         if (event.detail.isGiftCardRedemption && event.detail.showSuccess && newStep === STEP_PAYMENT) {
+            // Set gift card redemption flag FIRST before any other state changes
+            isGiftCardRedemption = true;
+            
             // Gift card was redeemed, credits are already added to account
             // Update selectedCreditsAmount from gift card redemption if provided
             if (event.detail.credits_amount !== undefined) {
@@ -599,7 +601,7 @@
             }
             // Set payment state to success to show confirmation screen
             paymentState = 'success';
-            console.debug('[Signup] Gift card redeemed, showing purchase confirmation, will auto-complete signup');
+            console.debug(`[Signup] Gift card redeemed, isGiftCardRedemption=${isGiftCardRedemption}, showing purchase confirmation, will auto-complete signup`);
             
             // After showing the success message for 2 seconds, automatically complete signup
             // This gives user time to see the confirmation before completing
@@ -607,6 +609,9 @@
                 console.debug('[Signup] Auto-completing signup after gift card redemption');
                 await handleAutoTopUpComplete({ detail: {} });
             }, 2000); // 2 second delay to show success message
+        } else {
+            // Only reset if we're not in a gift card redemption flow
+            isGiftCardRedemption = event.detail.isGiftCardRedemption ?? false;
         }
         
         currentStep = newStep; // Update local step

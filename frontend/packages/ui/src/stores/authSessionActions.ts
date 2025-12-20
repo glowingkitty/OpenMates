@@ -5,7 +5,7 @@
 
 import { get } from 'svelte/store';
 import { getApiEndpoint, apiEndpoints } from '../config/api';
-import { currentSignupStep, isInSignupProcess, getStepFromPath, STEP_ONE_TIME_CODES, isSignupPath } from './signupState';
+import { currentSignupStep, isInSignupProcess, getStepFromPath, STEP_ONE_TIME_CODES, STEP_ALPHA_DISCLAIMER, isSignupPath } from './signupState';
 import { requireInviteCode } from './signupRequirements';
 import { userDB } from '../services/userDB';
 import { chatDB } from '../services/db'; // Import chatDB
@@ -19,6 +19,8 @@ import { notificationStore } from './notificationStore'; // Import notification 
 import { loadUserProfileFromDB } from './userProfile'; // Import to load user profile from IndexedDB
 import { loginInterfaceOpen } from './uiStateStore'; // Import loginInterfaceOpen to control login interface visibility
 import { activeChatStore } from './activeChatStore'; // Import activeChatStore to navigate to demo-welcome on logout
+import { clearSignupData, clearIncompleteSignupData } from './signupStore'; // Import signup cleanup functions
+import { clearAllSessionStorageDrafts } from '../services/drafts/sessionStorageDraftService'; // Import sessionStorage draft cleanup
 
 // Import core auth state and related flags
 import { authStore, isCheckingAuth, needsDeviceVerification } from './authState';
@@ -320,6 +322,44 @@ export async function checkAuth(deviceSignals?: Record<string, string | null>, f
                 
                 // Show notification that user was logged out
                 notificationStore.warning("You have been logged out. Please log in again.", 5000);
+                
+                // CRITICAL: If user is in signup flow, close signup interface and return to demo
+                // This ensures the signup/login interface is closed when logout notification appears during signup
+                const wasInSignupProcess = get(isInSignupProcess);
+                if (wasInSignupProcess) {
+                    console.debug("[AuthSessionActions] User was in signup process - closing signup interface and returning to demo");
+                    
+                    // Reset signup process state FIRST to ensure Login component switches to login view
+                    // This prevents the signup view from remaining visible after closing
+                    isInSignupProcess.set(false);
+                    
+                    // Clear the signup store data when closing to demo
+                    clearSignupData();
+                    
+                    // Clear incomplete signup data from IndexedDB when closing to demo
+                    // This ensures username doesn't persist if user interrupts signup
+                    clearIncompleteSignupData().catch(error => {
+                        console.error("[AuthSessionActions] Error clearing incomplete signup data:", error);
+                    });
+                    
+                    // Reset signup step to alpha disclaimer for next time
+                    currentSignupStep.set(STEP_ALPHA_DISCLAIMER);
+                    
+                    // CRITICAL: Clear all sessionStorage drafts when returning to demo mode
+                    // This ensures drafts don't persist if user interrupts login/signup
+                    clearAllSessionStorageDrafts();
+                    console.debug("[AuthSessionActions] Cleared all sessionStorage drafts when returning to demo");
+                    
+                    // Close the login interface and load demo chat
+                    // This dispatches a global event that ActiveChat.svelte listens to
+                    window.dispatchEvent(new CustomEvent('closeLoginInterface'));
+                    
+                    // Small delay to ensure the interface closes before loading chat
+                    setTimeout(() => {
+                        // Dispatch event to load demo chat (ActiveChat will handle this)
+                        window.dispatchEvent(new CustomEvent('loadDemoChat'));
+                    }, 100);
+                }
                 
                 // CRITICAL: Navigate to demo-welcome chat to hide the previously open chat
                 // This ensures the previous chat is not visible after logout
