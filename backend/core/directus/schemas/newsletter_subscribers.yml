@@ -1,0 +1,49 @@
+newsletter_subscribers:
+  type: collection
+  fields:
+    id:
+      type: uuid
+      primary: true
+      
+    encrypted_email_address:
+      type: string
+      length: 512
+      unique: true
+      note: "Encrypted email address (encrypted with newsletter encryption key for server-side use)"
+      
+    hashed_email:
+      type: string
+      length: 64
+      unique: true
+      note: "SHA-256 hash of email for lookup purposes"
+      
+    confirmed_at:
+      type: timestamp
+      nullable: true
+      note: "Timestamp when user confirmed subscription"
+      
+    subscribed_at:
+      type: timestamp
+      default: $NOW
+      note: "Timestamp when subscription was requested"
+      
+    language:
+      type: string
+      length: 10
+      default: "en"
+      note: "Preferred language for newsletter emails"
+      
+    encrypted_unsubscribe_token:
+      type: string
+      length: 512
+      unique: true
+      note: "Encrypted unsubscribe token for unsubscribing from newsletter (encrypted with newsletter encryption key, persists indefinitely)"
+      
+    date_created:
+      type: timestamp
+      default: $NOW
+      
+    date_updated:
+      type: timestamp
+      default: $NOW
+      on_update: $NOW

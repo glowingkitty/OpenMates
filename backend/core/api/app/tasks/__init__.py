@@ -9,6 +9,7 @@ from .email_tasks import credit_note_email_task  # Import credit note email task
 from .email_tasks import milestone_checker_task
 from .email_tasks import signup_milestone_email_task
 from .email_tasks import recovery_key_email_task  # Import the new recovery key email task
+from .email_tasks import newsletter_email_task  # Import newsletter email task
 # Keep import for any other existing task files if necessary
 from . import user_metrics # This one stays as it wasn't moved
 from . import user_cache_tasks # Ensure user_cache_tasks are discoverable

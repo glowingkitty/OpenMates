@@ -152,6 +152,7 @@ export function buildPrivacyPolicyContent(t: TranslationFunction): string {
 	lines.push(`- ${t('legal.privacy.data_categories.usage.text')}`);
 	lines.push(`- ${t('legal.privacy.data_categories.content.text')}`);
 	lines.push(`- ${t('legal.privacy.data_categories.payments.text')}`);
+	lines.push(`- ${t('legal.privacy.data_categories.newsletter.text')}`);
 	lines.push('');
 
 	// Section 6: Data Retention

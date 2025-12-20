@@ -1232,6 +1232,14 @@ div.clickable-icon {
   }
 }
 
+.icon.newsletter {
+  background: var(--color-primary);
+
+  &::before {
+      background-image: url('@openmates/ui/static/icons/mail.svg');
+  }
+}
+
 /* App Icons */
 .icon.app-ai {
   background: var(--color-app-ai);

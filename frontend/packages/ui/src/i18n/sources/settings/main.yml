@@ -2509,3 +2509,256 @@ app_settings_memories.creating:
   cs: Vytváření...
   sv: Skapar...
   verified_by_human: []
+newsletter:
+  context: Newsletter settings menu item
+  en: Newsletter
+  de: Newsletter
+  zh: 新闻通讯
+  es: Boletín
+  fr: Newsletter
+  pt: Newsletter
+  ru: Рассылка
+  ja: ニュースレター
+  ko: 뉴스레터
+  it: Newsletter
+  tr: Bülten
+  vi: Bản tin
+  id: Newsletter
+  pl: Newsletter
+  nl: Nieuwsbrief
+  ar: النشرة الإخبارية
+  hi: न्यूज़लेटर
+  th: จดหมายข่าว
+  cs: Zpravodaj
+  sv: Nyhetsbrev
+  verified_by_human: []
+newsletter_title:
+  context: Newsletter settings page title
+  en: Newsletter Subscription
+  de: Newsletter-Anmeldung
+  zh: 订阅新闻通讯
+  es: Suscripción al boletín
+  fr: Abonnement à la newsletter
+  pt: Assinatura do boletim informativo
+  ru: Подписка на рассылку
+  ja: ニュースレター購読
+  ko: 뉴스레터 구독
+  it: Iscrizione alla newsletter
+  tr: Bülten aboneliği
+  vi: Đăng ký bản tin
+  id: Berlangganan newsletter
+  pl: Subskrypcja newslettera
+  nl: Nieuwsbrief abonnement
+  ar: الاشتراك في النشرة الإخبارية
+  hi: न्यूज़लेटर सदस्यता
+  th: การสมัครรับจดหมายข่าว
+  cs: Přihlášení k odběru zpravodaje
+  sv: Nyhetsbrevsprenumeration
+  verified_by_human: []
+newsletter_description:
+  context: Newsletter settings description
+  en: Stay updated with the latest news, updates, and features from OpenMates.
+  de: Bleiben Sie mit den neuesten Nachrichten, Updates und Funktionen von OpenMates auf dem Laufenden.
+  zh: 及时了解 OpenMates 的最新新闻、更新和功能。
+  es: Mantente actualizado con las últimas noticias, actualizaciones y funciones de OpenMates.
+  fr: Restez informé des dernières actualités, mises à jour et fonctionnalités d'OpenMates.
+  pt: Mantenha-se atualizado com as últimas notícias, atualizações e recursos do OpenMates.
+  ru: Будьте в курсе последних новостей, обновлений и функций OpenMates.
+  ja: OpenMatesの最新ニュース、アップデート、機能について最新情報を入手してください。
+  ko: OpenMates의 최신 뉴스, 업데이트 및 기능에 대한 최신 정보를 받아보세요.
+  it: Rimani aggiornato con le ultime notizie, aggiornamenti e funzionalità di OpenMates.
+  tr: OpenMates'ten en son haberler, güncellemeler ve özellikler hakkında güncel kalın.
+  vi: Cập nhật tin tức, cập nhật và tính năng mới nhất từ OpenMates.
+  id: Tetap update dengan berita, pembaruan, dan fitur terbaru dari OpenMates.
+  pl: Bądź na bieżąco z najnowszymi wiadomościami, aktualizacjami i funkcjami OpenMates.
+  nl: Blijf op de hoogte van het laatste nieuws, updates en functies van OpenMates.
+  ar: ابق على اطلاع بآخر الأخبار والتحديثات والميزات من OpenMates.
+  hi: OpenMates से नवीनतम समाचार, अपडेट और सुविधाओं के साथ अपडेट रहें।
+  th: ติดตามข่าวสาร อัปเดต และฟีเจอร์ล่าสุดจาก OpenMates
+  cs: Zůstaňte informováni o nejnovějších zprávách, aktualizacích a funkcích OpenMates.
+  sv: Håll dig uppdaterad med de senaste nyheterna, uppdateringarna och funktionerna från OpenMates.
+  verified_by_human: []
+newsletter_email_placeholder:
+  context: Email input placeholder for newsletter subscription
+  en: Enter your email address
+  de: Geben Sie Ihre E-Mail-Adresse ein
+  zh: 输入您的电子邮件地址
+  es: Ingrese su dirección de correo electrónico
+  fr: Entrez votre adresse e-mail
+  pt: Digite seu endereço de e-mail
+  ru: Введите ваш адрес электронной почты
+  ja: メールアドレスを入力してください
+  ko: 이메일 주소를 입력하세요
+  it: Inserisci il tuo indirizzo email
+  tr: E-posta adresinizi girin
+  vi: Nhập địa chỉ email của bạn
+  id: Masukkan alamat email Anda
+  pl: Wprowadź swój adres e-mail
+  nl: Voer uw e-mailadres in
+  ar: أدخل عنوان بريدك الإلكتروني
+  hi: अपना ईमेल पता दर्ज करें
+  th: ป้อนที่อยู่อีเมลของคุณ
+  cs: Zadejte svou e-mailovou adresu
+  sv: Ange din e-postadress
+  verified_by_human: []
+newsletter_subscribe_button:
+  context: Subscribe button text
+  en: Subscribe
+  de: Abonnieren
+  zh: 订阅
+  es: Suscribirse
+  fr: S'abonner
+  pt: Assinar
+  ru: Подписаться
+  ja: 購読
+  ko: 구독
+  it: Iscriviti
+  tr: Abone ol
+  vi: Đăng ký
+  id: Berlangganan
+  pl: Subskrybuj
+  nl: Abonneren
+  ar: اشترك
+  hi: सदस्यता लें
+  th: สมัครสมาชิก
+  cs: Přihlásit se
+  sv: Prenumerera
+  verified_by_human: []
+newsletter_subscribing:
+  context: Subscribe button text while submitting
+  en: Subscribing...
+  de: Wird abonniert...
+  zh: 订阅中...
+  es: Suscribiendo...
+  fr: Abonnement en cours...
+  pt: Assinando...
+  ru: Подписка...
+  ja: 購読中...
+  ko: 구독 중...
+  it: Iscrizione...
+  tr: Abone olunuyor...
+  vi: Đang đăng ký...
+  id: Berlangganan...
+  pl: Subskrybowanie...
+  nl: Abonneren...
+  ar: جاري الاشتراك...
+  hi: सदस्यता ली जा रही है...
+  th: กำลังสมัครสมาชิก...
+  cs: Přihlašování...
+  sv: Prenumererar...
+  verified_by_human: []
+newsletter_subscribe_success:
+  context: Success message after subscribing
+  en: Please check your email to confirm your subscription.
+  de: Bitte überprüfen Sie Ihre E-Mails, um Ihr Abonnement zu bestätigen.
+  zh: 请检查您的电子邮件以确认您的订阅。
+  es: Por favor, revise su correo electrónico para confirmar su suscripción.
+  fr: Veuillez vérifier votre e-mail pour confirmer votre abonnement.
+  pt: Por favor, verifique seu e-mail para confirmar sua assinatura.
+  ru: Пожалуйста, проверьте свою электронную почту, чтобы подтвердить подписку.
+  ja: 購読を確認するには、メールを確認してください。
+  ko: 구독을 확인하려면 이메일을 확인하세요.
+  it: Controlla la tua email per confermare l'iscrizione.
+  tr: Aboneliğinizi onaylamak için lütfen e-postanızı kontrol edin.
+  vi: Vui lòng kiểm tra email của bạn để xác nhận đăng ký.
+  id: Silakan periksa email Anda untuk mengonfirmasi langganan Anda.
+  pl: Sprawdź swoją pocztę e-mail, aby potwierdzić subskrypcję.
+  nl: Controleer uw e-mail om uw abonnement te bevestigen.
+  ar: يرجى التحقق من بريدك الإلكتروني لتأكيد اشتراكك.
+  hi: कृपया अपनी सदस्यता की पुष्टि करने के लिए अपना ईमेल जांचें।
+  th: กรุณาตรวจสอบอีเมลของคุณเพื่อยืนยันการสมัครสมาชิก
+  cs: Zkontrolujte prosím svůj e-mail a potvrďte své přihlášení.
+  sv: Kontrollera din e-post för att bekräfta din prenumeration.
+  verified_by_human: []
+newsletter_subscribe_error:
+  context: Error message when subscription fails
+  en: An error occurred while processing your subscription request. Please try again.
+  de: Beim Verarbeiten Ihrer Abonnementanfrage ist ein Fehler aufgetreten. Bitte versuchen Sie es erneut.
+  zh: 处理您的订阅请求时出错。请重试。
+  es: Ocurrió un error al procesar su solicitud de suscripción. Por favor, inténtelo de nuevo.
+  fr: Une erreur s'est produite lors du traitement de votre demande d'abonnement. Veuillez réessayer.
+  pt: Ocorreu um erro ao processar sua solicitação de assinatura. Por favor, tente novamente.
+  ru: Произошла ошибка при обработке вашего запроса на подписку. Пожалуйста, попробуйте еще раз.
+  ja: 購読リクエストの処理中にエラーが発生しました。もう一度お試しください。
+  ko: 구독 요청을 처리하는 중 오류가 발생했습니다. 다시 시도해 주세요.
+  it: Si è verificato un errore durante l'elaborazione della richiesta di iscrizione. Riprova.
+  tr: Abonelik isteğiniz işlenirken bir hata oluştu. Lütfen tekrar deneyin.
+  vi: Đã xảy ra lỗi khi xử lý yêu cầu đăng ký của bạn. Vui lòng thử lại.
+  id: Terjadi kesalahan saat memproses permintaan langganan Anda. Silakan coba lagi.
+  pl: Wystąpił błąd podczas przetwarzania żądania subskrypcji. Spróbuj ponownie.
+  nl: Er is een fout opgetreden bij het verwerken van uw abonnementsverzoek. Probeer het opnieuw.
+  ar: حدث خطأ أثناء معالجة طلب الاشتراك الخاص بك. يرجى المحاولة مرة أخرى.
+  hi: आपके सदस्यता अनुरोध को संसाधित करते समय एक त्रुटि हुई। कृपया पुनः प्रयास करें।
+  th: เกิดข้อผิดพลาดขณะประมวลผลคำขอสมัครสมาชิกของคุณ กรุณาลองอีกครั้ง
+  cs: Při zpracování vašeho požadavku na přihlášení došlo k chybě. Zkuste to prosím znovu.
+  sv: Ett fel uppstod vid bearbetning av din prenumerationsförfrågan. Försök igen.
+  verified_by_human: []
+newsletter_email_required:
+  context: Error message when email is empty
+  en: Email address is required.
+  de: E-Mail-Adresse ist erforderlich.
+  zh: 需要电子邮件地址。
+  es: Se requiere la dirección de correo electrónico.
+  fr: L'adresse e-mail est requise.
+  pt: O endereço de e-mail é obrigatório.
+  ru: Требуется адрес электронной почты.
+  ja: メールアドレスが必要です。
+  ko: 이메일 주소가 필요합니다.
+  it: L'indirizzo email è obbligatorio.
+  tr: E-posta adresi gereklidir.
+  vi: Cần có địa chỉ email.
+  id: Alamat email wajib diisi.
+  pl: Wymagany jest adres e-mail.
+  nl: E-mailadres is verplicht.
+  ar: عنوان البريد الإلكتروني مطلوب.
+  hi: ईमेल पता आवश्यक है।
+  th: ต้องระบุที่อยู่อีเมล
+  cs: E-mailová adresa je povinná.
+  sv: E-postadress krävs.
+  verified_by_human: []
+newsletter_email_invalid:
+  context: Error message when email format is invalid
+  en: Please enter a valid email address.
+  de: Bitte geben Sie eine gültige E-Mail-Adresse ein.
+  zh: 请输入有效的电子邮件地址。
+  es: Por favor, ingrese una dirección de correo electrónico válida.
+  fr: Veuillez entrer une adresse e-mail valide.
+  pt: Por favor, insira um endereço de e-mail válido.
+  ru: Пожалуйста, введите действительный адрес электронной почты.
+  ja: 有効なメールアドレスを入力してください。
+  ko: 유효한 이메일 주소를 입력하세요.
+  it: Inserisci un indirizzo email valido.
+  tr: Lütfen geçerli bir e-posta adresi girin.
+  vi: Vui lòng nhập địa chỉ email hợp lệ.
+  id: Silakan masukkan alamat email yang valid.
+  pl: Wprowadź prawidłowy adres e-mail.
+  nl: Voer een geldig e-mailadres in.
+  ar: يرجى إدخال عنوان بريد إلكتروني صالح.
+  hi: कृपया एक वैध ईमेल पता दर्ज करें।
+  th: กรุณากรอกที่อยู่อีเมลที่ถูกต้อง
+  cs: Zadejte prosím platnou e-mailovou adresu.
+  sv: Ange en giltig e-postadress.
+  verified_by_human: []
+newsletter_info:
+  context: Additional information about newsletter subscription
+  en: After subscribing, you will receive a confirmation email. Click the link in the email to complete your subscription.
+  de: Nach der Anmeldung erhalten Sie eine Bestätigungs-E-Mail. Klicken Sie auf den Link in der E-Mail, um Ihr Abonnement abzuschließen.
+  zh: 订阅后，您将收到一封确认电子邮件。点击电子邮件中的链接以完成订阅。
+  es: Después de suscribirse, recibirá un correo electrónico de confirmación. Haga clic en el enlace del correo electrónico para completar su suscripción.
+  fr: Après vous être abonné, vous recevrez un e-mail de confirmation. Cliquez sur le lien dans l'e-mail pour finaliser votre abonnement.
+  pt: Após se inscrever, você receberá um e-mail de confirmação. Clique no link no e-mail para concluir sua assinatura.
+  ru: После подписки вы получите письмо с подтверждением. Нажмите на ссылку в письме, чтобы завершить подписку.
+  ja: 購読後、確認メールが届きます。メール内のリンクをクリックして購読を完了してください。
+  ko: 구독 후 확인 이메일을 받게 됩니다. 이메일의 링크를 클릭하여 구독을 완료하세요.
+  it: Dopo l'iscrizione, riceverai un'email di conferma. Fai clic sul link nell'email per completare l'iscrizione.
+  tr: Abone olduktan sonra bir onay e-postası alacaksınız. Aboneliğinizi tamamlamak için e-postadaki bağlantıya tıklayın.
+  vi: Sau khi đăng ký, bạn sẽ nhận được email xác nhận. Nhấp vào liên kết trong email để hoàn tất đăng ký.
+  id: Setelah berlangganan, Anda akan menerima email konfirmasi. Klik tautan di email untuk menyelesaikan langganan Anda.
+  pl: Po zapisaniu się otrzymasz e-mail z potwierdzeniem. Kliknij link w e-mailu, aby ukończyć subskrypcję.
+  nl: Na het abonneren ontvangt u een bevestigings-e-mail. Klik op de link in de e-mail om uw abonnement te voltooien.
+  ar: بعد الاشتراك، سوف تتلقى بريدًا إلكترونيًا للتأكيد. انقر فوق الرابط في البريد الإلكتروني لإكمال اشتراكك.
+  hi: सदस्यता लेने के बाद, आपको एक पुष्टिकरण ईमेल प्राप्त होगा। अपनी सदस्यता पूरी करने के लिए ईमेल में लिंक पर क्लिक करें।
+  th: หลังจากสมัครสมาชิกแล้ว คุณจะได้รับอีเมลยืนยัน คลิกที่ลิงก์ในอีเมลเพื่อเสร็จสิ้นการสมัครสมาชิก
+  cs: Po přihlášení obdržíte potvrzovací e-mail. Klikněte na odkaz v e-mailu a dokončete přihlášení.
+  sv: Efter prenumeration får du ett bekräftelsemejl. Klicka på länken i e-postmeddelandet för att slutföra din prenumeration.
+  verified_by_human: []

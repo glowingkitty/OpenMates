@@ -1478,20 +1478,28 @@ data_categories.payments:
   es: 'Pagos: Tokens de método de pago, ID de transacciones, dirección de facturación e información de IVA según se requiera para la facturación (procesados principalmente por Stripe). No almacenamos números de tarjeta completos.'
   fr: 'Paiements : Jetons de méthode de paiement, ID de transaction, adresse de facturation et informations TVA selon les besoins pour la facturation (traités principalement par Stripe). Nous ne stockons pas les numéros de carte complets.'
   pt: 'Pagamentos: Tokens de método de pagamento, IDs de transação, endereço de cobrança e informações de IVA conforme necessário para faturamento (processados principalmente pelo Stripe). Não armazenamos números de cartão completos.'
-  ru: 'Платежи: Токены способов оплаты, идентификаторы транзакций, адрес для выставления счетов и информация о НДС, как требуется для выставления счетов (обрабатываются в основном Stripe). Мы не храним полные номера карт.'
-  ja: '支払い：請求に必要な支払い方法トークン、取引ID、請求先住所、VAT情報（主にStripeによって処理）。完全なカード番号は保存しません。'
-  ko: '결제: 청구에 필요한 결제 방법 토큰, 거래 ID, 청구 주소 및 VAT 정보(주로 Stripe에서 처리). 전체 카드 번호는 저장하지 않습니다.'
-  it: 'Pagamenti: Token del metodo di pagamento, ID transazione, indirizzo di fatturazione e informazioni IVA come richiesto per la fatturazione (elaborati principalmente da Stripe). Non memorizziamo numeri di carta completi.'
-  tr: "Ödemeler: Faturalama için gereken ödeme yöntemi token'ları, işlem kimlikleri, fatura adresi ve KDV bilgileri (öncelikle Stripe tarafından işlenir). Tam kart numaralarını saklamıyoruz."
-  vi: 'Thanh toán: Token phương thức thanh toán, ID giao dịch, địa chỉ thanh toán và thông tin VAT theo yêu cầu để lập hóa đơn (được xử lý chủ yếu bởi Stripe). Chúng tôi không lưu trữ số thẻ đầy đủ.'
-  id: 'Pembayaran: Token metode pembayaran, ID transaksi, alamat penagihan dan informasi PPN sesuai kebutuhan untuk penagihan (diproses terutama oleh Stripe). Kami tidak menyimpan nomor kartu lengkap.'
-  pl: 'Płatności: Tokeny metod płatności, identyfikatory transakcji, adres rozliczeniowy i informacje o VAT zgodnie z wymaganiami do fakturowania (przetwarzane głównie przez Stripe). Nie przechowujemy pełnych numerów kart.'
-  nl: "Betalingen: Betaalmethode-tokens, transactie-ID's, factuuradres en BTW-informatie zoals vereist voor facturering (voornamelijk verwerkt door Stripe). We slaan geen volledige kaartnummers op."
-  ar: 'المدفوعات: رموز طريقة الدفع ومعرفات المعاملات وعنوان الفوترة ومعلومات ضريبة القيمة المضافة حسب الحاجة للفوترة (يتم معالجتها بشكل أساسي بواسطة Stripe). لا نقوم بتخزين أرقام البطاقات الكاملة.'
-  hi: 'भुगतान: चालान के लिए आवश्यक भुगतान विधि टोकन, लेनदेन ID, बिलिंग पता और VAT जानकारी (मुख्य रूप से Stripe द्वारा संसाधित)। हम पूर्ण कार्ड नंबर संग्रहीत नहीं करते हैं।'
-  th: 'การชำระเงิน: โทเค็นวิธีการชำระเงิน ID ธุรกรรม ที่อยู่เรียกเก็บเงิน และข้อมูล VAT ตามที่จำเป็นสำหรับการออกใบแจ้งหนี้ (ประมวลผลโดย Stripe เป็นหลัก) เราไม่เก็บหมายเลขบัตรครบถ้วน'
-  cs: 'Platby: Tokeny platebních metod, ID transakcí, fakturační adresa a informace o DPH podle požadavků pro fakturaci (zpracováváno především společností Stripe). Neukládáme úplná čísla karet.'
-  sv: 'Betalningar: Betalningsmetodtoken, transaktions-ID, faktureringsadress och moms-information enligt behov för fakturering (bearbetas främst av Stripe). Vi lagrar inte fullständiga kortnummer.'
+data_categories.newsletter:
+  context: Newsletter subscription data category
+  en: 'Newsletter: If you choose to subscribe to our newsletter, we store your email address in encrypted form. Newsletter subscription is optional and separate from account creation. Creating an account does not automatically subscribe you to the newsletter.'
+  de: 'Newsletter: Wenn Sie sich für unseren Newsletter anmelden, speichern wir Ihre E-Mail-Adresse in verschlüsselter Form. Die Newsletter-Anmeldung ist optional und getrennt von der Kontenerstellung. Die Erstellung eines Kontos abonniert Sie nicht automatisch für den Newsletter.'
+  zh: '新闻通讯：如果您选择订阅我们的新闻通讯，我们会以加密形式存储您的电子邮件地址。新闻通讯订阅是可选的，与帐户创建分开。创建帐户不会自动订阅新闻通讯。'
+  es: 'Boletín: Si elige suscribirse a nuestro boletín, almacenamos su dirección de correo electrónico en forma cifrada. La suscripción al boletín es opcional y está separada de la creación de cuenta. Crear una cuenta no le suscribe automáticamente al boletín.'
+  fr: 'Newsletter : Si vous choisissez de vous abonner à notre newsletter, nous stockons votre adresse e-mail sous forme cryptée. L''abonnement à la newsletter est facultatif et distinct de la création de compte. La création d''un compte ne vous abonne pas automatiquement à la newsletter.'
+  pt: 'Newsletter: Se você optar por se inscrever em nosso boletim informativo, armazenamos seu endereço de e-mail em forma criptografada. A assinatura do boletim informativo é opcional e separada da criação de conta. Criar uma conta não o inscreve automaticamente no boletim informativo.'
+  ru: 'Рассылка: Если вы решите подписаться на нашу рассылку, мы храним ваш адрес электронной почты в зашифрованном виде. Подписка на рассылку является необязательной и отделена от создания учетной записи. Создание учетной записи не подписывает вас автоматически на рассылку.'
+  ja: 'ニュースレター：ニュースレターに登録することを選択した場合、メールアドレスを暗号化された形式で保存します。ニュースレターの登録は任意であり、アカウント作成とは別です。アカウントを作成しても、自動的にニュースレターに登録されることはありません。'
+  ko: '뉴스레터: 뉴스레터를 구독하기로 선택한 경우 이메일 주소를 암호화된 형식으로 저장합니다. 뉴스레터 구독은 선택 사항이며 계정 생성과 별개입니다. 계정을 생성해도 자동으로 뉴스레터에 가입되지 않습니다.'
+  it: 'Newsletter: Se scegli di iscriverti alla nostra newsletter, memorizziamo il tuo indirizzo email in forma crittografata. L''iscrizione alla newsletter è facoltativa e separata dalla creazione dell''account. La creazione di un account non ti iscrive automaticamente alla newsletter.'
+  tr: 'Bülten: Bültenimize abone olmayı seçerseniz, e-posta adresinizi şifrelenmiş biçimde saklarız. Bülten aboneliği isteğe bağlıdır ve hesap oluşturmadan ayrıdır. Bir hesap oluşturmak sizi otomatik olarak bültene abone etmez.'
+  vi: 'Bản tin: Nếu bạn chọn đăng ký bản tin của chúng tôi, chúng tôi lưu trữ địa chỉ email của bạn ở dạng mã hóa. Đăng ký bản tin là tùy chọn và tách biệt với việc tạo tài khoản. Tạo tài khoản không tự động đăng ký bạn vào bản tin.'
+  id: 'Newsletter: Jika Anda memilih untuk berlangganan newsletter kami, kami menyimpan alamat email Anda dalam bentuk terenkripsi. Langganan newsletter bersifat opsional dan terpisah dari pembuatan akun. Membuat akun tidak secara otomatis berlangganan Anda ke newsletter.'
+  pl: 'Newsletter: Jeśli zdecydujesz się zapisać do naszego newslettera, przechowujemy Twój adres e-mail w zaszyfrowanej formie. Subskrypcja newslettera jest opcjonalna i oddzielona od tworzenia konta. Utworzenie konta nie zapisuje Cię automatycznie do newslettera.'
+  nl: 'Nieuwsbrief: Als u ervoor kiest om u te abonneren op onze nieuwsbrief, slaan we uw e-mailadres op in versleutelde vorm. Nieuwsbriefabonnement is optioneel en gescheiden van accountaanmaak. Het aanmaken van een account abonneert u niet automatisch op de nieuwsbrief.'
+  ar: 'النشرة الإخبارية: إذا اخترت الاشتراك في نشرتنا الإخبارية، فإننا نخزن عنوان بريدك الإلكتروني في شكل مشفر. الاشتراك في النشرة الإخبارية اختياري ومنفصل عن إنشاء الحساب. إنشاء حساب لا يشترك لك تلقائياً في النشرة الإخبارية.'
+  hi: 'न्यूज़लेटर: यदि आप हमारे न्यूज़लेटर की सदस्यता लेने का विकल्प चुनते हैं, तो हम आपका ईमेल पता एन्क्रिप्टेड रूप में संग्रहीत करते हैं। न्यूज़लेटर सदस्यता वैकल्पिक है और खाता निर्माण से अलग है। खाता बनाना आपको स्वचालित रूप से न्यूज़लेटर की सदस्यता नहीं देता है।'
+  th: 'จดหมายข่าว: หากคุณเลือกสมัครรับจดหมายข่าวของเรา เราจะจัดเก็บที่อยู่อีเมลของคุณในรูปแบบที่เข้ารหัส การสมัครรับจดหมายข่าวเป็นทางเลือกและแยกจากการสร้างบัญชี การสร้างบัญชีจะไม่สมัครรับจดหมายข่าวให้คุณโดยอัตโนมัติ'
+  cs: 'Zpravodaj: Pokud se rozhodnete přihlásit k odběru našeho zpravodaje, ukládáme vaši e-mailovou adresu v zašifrované podobě. Přihlášení k odběru zpravodaje je volitelné a oddělené od vytvoření účtu. Vytvoření účtu vás automaticky nepřihlásí k odběru zpravodaje.'
+  sv: 'Nyhetsbrev: Om du väljer att prenumerera på vårt nyhetsbrev lagrar vi din e-postadress i krypterad form. Nyhetsbrevsprenumeration är valfri och separat från kontoskapande. Att skapa ett konto prenumererar inte automatiskt dig på nyhetsbrevet.'
   verified_by_human: []
 data_retention.heading:
   context: Heading for data retention section

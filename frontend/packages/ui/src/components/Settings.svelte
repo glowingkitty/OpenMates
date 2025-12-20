@@ -94,6 +94,8 @@ changes to the documentation (to keep the documentation up to date).
     import SettingsShare from './settings/share/SettingsShare.svelte';
     // Import tip settings component
     import SettingsTip from './settings/tip/SettingsTip.svelte';
+    // Import newsletter settings component
+    import SettingsNewsletter from './settings/SettingsNewsletter.svelte';
     
     // Import the normal store instead of the derived one that was causing the error
     import { settingsNavigationStore } from '../stores/settingsNavigationStore';
@@ -179,7 +181,9 @@ changes to the documentation (to keep the documentation up to date).
         // Share chat settings - allows users to share the current chat
         'shared/share': SettingsShare,
         // Tip creator settings - allows users to tip creators
-        'shared/tip': SettingsTip
+        'shared/tip': SettingsTip,
+        // Newsletter settings - allows anyone to subscribe to newsletter
+        'newsletter': SettingsNewsletter
     };
     
     /**
@@ -259,12 +263,12 @@ changes to the documentation (to keep the documentation up to date).
             }
             
             // For non-authenticated users, include interface settings (top-level and nested), 
-            // app store (including app details), and share chat (for sharing demo chats)
+            // app store (including app details), share chat (for sharing demo chats), and newsletter
             // App store is read-only for non-authenticated users (browse only, no modifications)
             if (!isAuthenticated) {
                 if (key === 'interface' || key === 'interface/language' || 
                     key === 'app_store' || key.startsWith('app_store/') ||
-                    key === 'shared/share') {
+                    key === 'shared/share' || key === 'newsletter') {
                     filtered[key] = component;
                 }
             } else {
@@ -1131,10 +1135,11 @@ changes to the documentation (to keep the documentation up to date).
         if ($settingsDeepLink) {
             const settingsPath = $settingsDeepLink;
             
-            // For non-authenticated users, only allow app_store, interface, and share settings
+            // For non-authenticated users, only allow app_store, interface, share settings, and newsletter
             // Share settings are allowed so users can share demo chats
+            // Newsletter is allowed so anyone can subscribe
             if (!$authStore.isAuthenticated) {
-                const allowedPaths = ['app_store', 'interface', 'interface/language', 'shared/share'];
+                const allowedPaths = ['app_store', 'interface', 'interface/language', 'shared/share', 'newsletter'];
                 const isAllowedPath = allowedPaths.includes(settingsPath) || 
                                      settingsPath.startsWith('app_store/') ||
                                      settingsPath.startsWith('interface/') ||

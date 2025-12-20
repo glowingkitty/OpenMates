@@ -70,7 +70,7 @@
           {% else %}
           <mj-text font-size="14px" color="#808080" padding-bottom="40px" padding-top="0px">
           {% endif %}
-            {{ t.email.on_openmates.text }}
+            {{ on_domain_text }}
           </mj-text>
           {% if darkmode %}
           <mj-text font-size="14px" color="#808080">
