@@ -2,15 +2,14 @@
     import { createEventDispatcher } from 'svelte';
     import { fade } from 'svelte/transition';
     import { text } from '@repo/ui';
-    import WaitingList from '../../../WaitingList.svelte';
     import Toggle from '../../../Toggle.svelte';
+    import InputWarning from '../../../common/InputWarning.svelte';
     import { requireInviteCode } from '../../../../stores/signupRequirements';
     import { getApiEndpoint, apiEndpoints } from '../../../../config/api';
     import { tick } from 'svelte';
     import { externalLinks, getWebsiteUrl } from '../../../../config/links';
     import { onMount, onDestroy } from 'svelte';
     import { get } from 'svelte/store';
-    import InputWarning from '../../../common/InputWarning.svelte';
     import { updateUsername } from '../../../../stores/userProfile';
     import { signupStore } from '../../../../stores/signupStore';
     import * as cryptoService from '../../../../services/cryptoService';
@@ -567,6 +566,153 @@
             updateUsername(username);
         }
     });
+
+    // --- Newsletter Subscription State (for users without invite code) ---
+    let newsletterEmail = $state('');
+    let isNewsletterSubmitting = $state(false);
+    let newsletterSuccessMessage = $state('');
+    let newsletterErrorMessage = $state('');
+    let showNewsletterEmailWarning = $state(false);
+    let newsletterEmailError = $state('');
+    let isNewsletterEmailValidationPending = $state(false);
+    let newsletterEmailInput = $state<HTMLInputElement>();
+
+    /**
+     * Email validation check for newsletter subscription (same as signup email validation)
+     */
+    const debouncedCheckNewsletterEmail = debounce((email: string) => {
+        if (!email) {
+            newsletterEmailError = '';
+            showNewsletterEmailWarning = false;
+            isNewsletterEmailValidationPending = false;
+            return;
+        }
+
+        if (!email.includes('@')) {
+            newsletterEmailError = $text('signup.at_missing.text');
+            showNewsletterEmailWarning = true;
+            isNewsletterEmailValidationPending = false;
+            return;
+        }
+
+        if (!email.match(/\.[a-z]{2,}$/i)) {
+            newsletterEmailError = $text('signup.domain_ending_missing.text');
+            showNewsletterEmailWarning = true;
+            isNewsletterEmailValidationPending = false;
+            return;
+        }
+
+        newsletterEmailError = '';
+        showNewsletterEmailWarning = false;
+        isNewsletterEmailValidationPending = false;
+    }, 800);
+
+    // Watch newsletter email changes and validate
+    $effect(() => {
+        if (newsletterEmail) {
+            isNewsletterEmailValidationPending = true;
+            debouncedCheckNewsletterEmail(newsletterEmail);
+        } else {
+            newsletterEmailError = '';
+            showNewsletterEmailWarning = false;
+            isNewsletterEmailValidationPending = false;
+        }
+    });
+
+    /**
+     * Handles newsletter subscription form submission.
+     * Sends email to backend which will send a confirmation email to the user.
+     */
+    async function handleNewsletterSubscribe() {
+        // Reset messages
+        newsletterSuccessMessage = '';
+        newsletterErrorMessage = '';
+        
+        // Validate email before submission
+        if (!newsletterEmail || !newsletterEmail.trim()) {
+            newsletterEmailError = $text('signup.at_missing.text');
+            showNewsletterEmailWarning = true;
+            if (newsletterEmailInput && !isTouchDevice) {
+                newsletterEmailInput.focus();
+            }
+            return;
+        }
+        
+        // Check if email validation is pending or has errors
+        if (isNewsletterEmailValidationPending || newsletterEmailError) {
+            if (newsletterEmailInput && !isTouchDevice) {
+                newsletterEmailInput.focus();
+            }
+            return;
+        }
+        
+        isNewsletterSubmitting = true;
+        
+        try {
+            // Get current language for newsletter subscription
+            // Use the same logic as signup form: localStorage or browser default
+            const currentLang = localStorage.getItem('preferredLanguage') || 
+                              navigator.language.split('-')[0] || 
+                              'en';
+            
+            // Get dark mode setting for newsletter subscription
+            // Use the same logic as signup form: localStorage or system preference
+            const prefersDarkMode = window.matchMedia && 
+                                  window.matchMedia('(prefers-color-scheme: dark)').matches;
+            const darkModeEnabled = localStorage.getItem('darkMode') === 'true' || prefersDarkMode;
+            
+            const response = await fetch(getApiEndpoint(apiEndpoints.newsletter.subscribe), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'Origin': window.location.origin
+                },
+                body: JSON.stringify({
+                    email: newsletterEmail.trim().toLowerCase(),
+                    language: currentLang,
+                    darkmode: darkModeEnabled
+                }),
+                credentials: 'include'
+            });
+            
+            const data = await response.json();
+            
+            if (response.ok && data.success) {
+                // Show success message
+                newsletterSuccessMessage = data.message || $text('signup.newsletter.subscribe_success.text');
+                // Clear email input
+                newsletterEmail = '';
+                newsletterEmailError = '';
+                showNewsletterEmailWarning = false;
+            } else {
+                // Show error message from API or default error
+                newsletterErrorMessage = data.message || $text('signup.newsletter.subscribe_error.text');
+            }
+        } catch (error) {
+            console.error('[Basics] Error subscribing to newsletter:', error);
+            newsletterErrorMessage = $text('signup.newsletter.subscribe_error.text');
+        } finally {
+            isNewsletterSubmitting = false;
+        }
+    }
+    
+    /**
+     * Handles Enter key press in newsletter email input field.
+     */
+    function handleNewsletterKeyPress(event: KeyboardEvent) {
+        if (event.key === 'Enter' && !isNewsletterSubmitting && !isNewsletterEmailValidationPending && !newsletterEmailError) {
+            handleNewsletterSubscribe();
+        }
+    }
+    
+    // Check if newsletter form is valid
+    let isNewsletterFormValid = $derived(
+        newsletterEmail && 
+        !newsletterEmailError && 
+        !isNewsletterEmailValidationPending
+    );
+    // --- End Newsletter Subscription State ---
 </script>
 
 <h1><mark>{@html $text('signup.sign_up.text')}</mark></h1>
@@ -701,7 +847,67 @@
     {/if}
 </div>
 {#if !isValidated && $requireInviteCode}
-    <WaitingList showPersonalInviteMessage={true} />
+    <!-- Newsletter Subscription Form (for users without invite code) -->
+    <div class="newsletter-content">
+        <p class="newsletter-text">
+            {$text('signup.newsletter.subscribe_text.text')}
+        </p>
+        
+        <div class="newsletter-form">
+            <div class="input-group">
+                <div class="input-wrapper">
+                    <span class="clickable-icon icon_mail"></span>
+                    <input
+                        bind:this={newsletterEmailInput}
+                        type="email"
+                        placeholder={$text('signup.newsletter.email_placeholder.text')}
+                        bind:value={newsletterEmail}
+                        onkeypress={handleNewsletterKeyPress}
+                        disabled={isNewsletterSubmitting}
+                        class:error={!!newsletterEmailError}
+                        aria-label={$text('signup.newsletter.email_placeholder.text')}
+                        autocomplete="email"
+                    />
+                    {#if showNewsletterEmailWarning && newsletterEmailError}
+                        <InputWarning
+                            message={newsletterEmailError}
+                            target={newsletterEmailInput}
+                        />
+                    {/if}
+                </div>
+            </div>
+            
+            <div class="button-container">
+                <button
+                    class="action-button newsletter-button"
+                    onclick={handleNewsletterSubscribe}
+                    disabled={!isNewsletterFormValid || isNewsletterSubmitting}
+                    class:loading={isNewsletterSubmitting}
+                    aria-label={$text('signup.newsletter.subscribe_button.text')}
+                >
+                    {#if isNewsletterSubmitting}
+                        {$text('signup.newsletter.subscribing.text')}
+                    {:else}
+                        {$text('signup.newsletter.subscribe_button.text')}
+                    {/if}
+                </button>
+            </div>
+            
+            <!-- Success message -->
+            {#if newsletterSuccessMessage}
+                <div class="newsletter-message success-message" role="alert">
+                    {newsletterSuccessMessage}
+                </div>
+            {/if}
+            
+            <!-- Error message -->
+            {#if newsletterErrorMessage}
+                <div class="newsletter-message error-message" role="alert">
+                    {newsletterErrorMessage}
+                </div>
+            {/if}
+        </div>
+    </div>
 {:else}
     {#if isRateLimited}
         <div class="rate-limit-message" transition:fade>
@@ -732,4 +938,80 @@
         text-align: left;
         cursor: pointer;
     }
+
+    
+
+    .newsletter-content {
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 1rem;
+    }
+
+    .newsletter-text {
+        color: var(--color-grey-60);
+        margin: 0;
+        text-align: center;
+        font-size: 14px;
+    }
+
+    .newsletter-form {
+        width: 100%;
+        max-width: 400px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .newsletter-form .input-group {
+        margin-bottom: 0;
+    }
+
+    .newsletter-form .input-wrapper {
+        position: relative;
+        display: flex;
+        align-items: center;
+        width: 100%;
+    }
+
+    .newsletter-form .input-wrapper .clickable-icon {
+        position: absolute;
+        left: 1rem;
+        color: var(--color-grey-60);
+        z-index: 1;
+    }
+
+    .newsletter-form .input-wrapper input.error {
+        border-color: var(--color-error, #e74c3c);
+    }
+
+    .newsletter-form .button-container {
+        width: 100%;
+    }
+
+    .newsletter-form .button-container button {
+        width: 100%;
+    }
+
+    .newsletter-message {
+        padding: 10px 12px;
+        border-radius: 8px;
+        font-size: 14px;
+        line-height: 1.4;
+        text-align: center;
+    }
+
+    .newsletter-message.success-message {
+        background-color: var(--color-success-light, #e8f5e9);
+        color: var(--color-success-dark, #2e7d32);
+        border: 1px solid var(--color-success, #4caf50);
+    }
+
+    .newsletter-message.error-message {
+        background-color: var(--color-error-light, #ffebee);
+        color: var(--color-error-dark, #c62828);
+        border: 1px solid var(--color-error, #f44336);
+    }
+
 </style>

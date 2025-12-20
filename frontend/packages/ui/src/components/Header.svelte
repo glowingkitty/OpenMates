@@ -438,7 +438,6 @@
     /* Server edition text displayed under the logo - absolutely positioned to not affect header height */
     .server-edition {
         position: absolute;
-        top: 100%;
         left: 0;
         font-size: 0.75rem;
         color: var(--color-grey-60);
@@ -647,6 +646,10 @@
 
         .logo-link {
             font-size: 0.9rem;
+        }
+
+        .server-edition {
+            top: 18px;
         }
     }
 
