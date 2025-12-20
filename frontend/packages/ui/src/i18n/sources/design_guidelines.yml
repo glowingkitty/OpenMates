@@ -21,28 +21,6 @@ section_title:
   cs: Pokyny pro design
   sv: Designriktlinjer
   verified_by_human: []
-privacy:
-  en: ''
-  de: ''
-  zh: ''
-  es: ''
-  fr: ''
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
-  verified_by_human: []
 privacy.headline:
   context: Main headline for privacy section
   en: Your privacy matters
@@ -66,7 +44,7 @@ privacy.headline:
   cs: Vaše soukromí je důležité
   sv: Din integritet är viktig
   verified_by_human: []
-privacy.text:
+privacy:
   context: Main text explaining privacy importance
   en: In today's turbulent world, where profit-at-all-costs companies frequently misuse user data, where companies with inadequate security measures are regularly hacked and their users' data falls into the hands of bad actors, and where we cannot always rely on governments to protect the rights and well-being of their citizens, making decisions to safeguard your privacy has become increasingly essential.
   de: In der heutigen turbulenten Welt, in der Profit-um-jeden-Preis Unternehmen häufig Nutzerdaten missbrauchen, in der Unternehmen mit unzureichenden Sicherheitsmaßnahmen regelmäßig gehackt werden und die Nutzerdaten in die Hände von böswilligen Akteuren fallen, und in der wir uns nicht immer darauf verlassen können, dass Regierungen die Rechte und das Wohlergehen ihrer Bürger schützen, wird es zunehmend wichtiger, Entscheidungen zum Schutz deiner Privatsphäre zu treffen.
@@ -217,28 +195,6 @@ privacy.self_hosting:
   cs: ''
   sv: ''
   verified_by_human: []
-maximum_good:
-  en: ''
-  de: ''
-  zh: ''
-  es: ''
-  fr: ''
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
-  verified_by_human: []
 maximum_good.headline_1:
   context: Used in 'Maximum good, not maximum greed.'
   en: Maximum good
@@ -285,7 +241,7 @@ maximum_good.headline_2:
   cs: ''
   sv: ''
   verified_by_human: []
-maximum_good.text:
+maximum_good:
   context: Main text explaining maximum good philosophy
   en: Over recent years, profit-at-all-cost tech monopolies have over and over again prioritized their greed instead of the interests of their users and our planet, ignoring the negative consequences and destruction caused by those decisions. We can't just continue like that.
   de: In den letzten Jahren haben Profit-um-jeden-Preis Tech-Monopole immer wieder ihre Gier über die Interessen ihrer Nutzer und unseres Planeten gestellt und dabei die negativen Folgen und Zerstörung ignoriert, die diese Entscheidungen verursachen. So können wir nicht weitermachen.

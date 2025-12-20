@@ -89,16 +89,16 @@ step_9_top_content_svelte:
     
     /**
      * Handle gift card redemption success.
-     * Show payment confirmation with gift card success message, then proceed to auto_top_up.
+     * Go to payment step to show purchase confirmation, then automatically complete signup.
      */
     function handleGiftCardRedeemed(event: CustomEvent<{ credits_added: number, current_credits: number }>) {
         // Credits are already added to the account via the gift card redemption API
-        // Go to payment step with showSuccess=true to show confirmation screen
-        // The payment step will display a success message about gift card redemption
+        // Go to payment step with showSuccess=true to show purchase confirmation screen
+        // The payment step will display success message about gift card redemption, then auto-complete signup
         dispatch('step', {
             step: 'payment',
             isGiftCardRedemption: true, // Flag to indicate this is a gift card redemption
-            showSuccess: true, // Show success confirmation screen
+            showSuccess: true, // Show purchase confirmation screen
             credits_amount: event.detail.credits_added || 0 // Pass redeemed credits amount
         });
     }

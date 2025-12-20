@@ -458,28 +458,6 @@ ai_accuracy.description:
   cs: ''
   sv: ''
   verified_by_human: []
-ai_accuracy.data_sharing:
-  en: ''
-  de: ''
-  zh: ''
-  es: ''
-  fr: ''
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
-  verified_by_human: []
 ai_accuracy.data_sharing.heading:
   context: Subsection heading for data sharing warning
   en: Data Sharing with AI Partners
@@ -503,7 +481,7 @@ ai_accuracy.data_sharing.heading:
   cs: ''
   sv: ''
   verified_by_human: []
-ai_accuracy.data_sharing.text:
+ai_accuracy.data_sharing:
   context: Data sharing warning with AI partners
   en: To process your requests, OpenMates sends your prompts and data to third-party AI service providers (as detailed in our Privacy Policy). While these providers claim they do not train models on user data, we cannot independently verify these claims. Therefore, we strongly advise against submitting highly sensitive personal, financial, medical, or confidential information to OpenMates. Please consider potential consequences before sharing sensitive data. We are committed to privacy and have designed OpenMates with privacy in mind, but we cannot guarantee how external partners process your data.
   de: ''

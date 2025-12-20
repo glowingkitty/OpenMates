@@ -458,29 +458,6 @@ api_key_details:
   cs: API klíč
   sv: API-nyckel
   verified_by_human: []
-api_key_details.text:
-  context: API key details text/description
-  en: API Key
-  de: API-Schlüssel
-  zh: API 密钥
-  es: Clave API
-  fr: Clé API
-  pt: Chave API
-  ru: API-ключ
-  ja: APIキー
-  ko: API 키
-  it: Chiave API
-  tr: API Anahtarı
-  vi: Khóa API
-  id: Kunci API
-  pl: Klucz API
-  nl: API-sleutel
-  ar: مفتاح API
-  hi: API कुंजी
-  th: คีย์ API
-  cs: API klíč
-  sv: API-nyckel
-  verified_by_human: []
 chat_details:
   context: Chat details header
   en: Chat Details

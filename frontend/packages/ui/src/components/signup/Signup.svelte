@@ -589,18 +589,24 @@
         isGiftFlow = event.detail.isGift ?? false; // Capture isGift status, default to false
         isGiftCardRedemption = event.detail.isGiftCardRedemption ?? false; // Capture gift card redemption status
         
-        // Handle gift card redemption: if showSuccess is true, set payment form to show success state
+        // Handle gift card redemption: show purchase confirmation, then auto-complete signup
         if (event.detail.isGiftCardRedemption && event.detail.showSuccess && newStep === STEP_PAYMENT) {
-            // Gift card was redeemed, show payment confirmation screen
-            paymentFormVisible = false; // Hide payment form
-            showingPaymentForm = false;
-            paymentState = 'success'; // Set to success state to show confirmation
+            // Gift card was redeemed, credits are already added to account
             // Update selectedCreditsAmount from gift card redemption if provided
             if (event.detail.credits_amount !== undefined) {
                 selectedCreditsAmount = event.detail.credits_amount;
                 console.debug(`[Signup] Gift card redeemed, credits added: ${selectedCreditsAmount}`);
             }
-            console.debug('[Signup] Gift card redeemed, showing payment confirmation screen with auto top-up options');
+            // Set payment state to success to show confirmation screen
+            paymentState = 'success';
+            console.debug('[Signup] Gift card redeemed, showing purchase confirmation, will auto-complete signup');
+            
+            // After showing the success message for 2 seconds, automatically complete signup
+            // This gives user time to see the confirmation before completing
+            setTimeout(async () => {
+                console.debug('[Signup] Auto-completing signup after gift card redemption');
+                await handleAutoTopUpComplete({ detail: {} });
+            }, 2000); // 2 second delay to show success message
         }
         
         currentStep = newStep; // Update local step
@@ -622,9 +628,10 @@
             return; // Exit early, don't continue with normal step handling
         }
         
-        // Update last_opened to reflect current signup step (skip alpha_disclaimer as it's not a real step)
-        // This ensures the signup flow can be restored on page reload
-        if (newStep !== STEP_ALPHA_DISCLAIMER) {
+        // Update last_opened to reflect current signup step
+        // Skip alpha_disclaimer, basics, and confirm_email - we only track steps beyond these initial steps
+        // This ensures the signup flow can be restored on page reload only if user has progressed beyond initial steps
+        if (newStep !== STEP_ALPHA_DISCLAIMER && newStep !== STEP_BASICS && newStep !== STEP_CONFIRM_EMAIL) {
             const signupPath = getPathFromStep(newStep);
             console.debug(`[Signup] Updating last_opened to ${signupPath} for step ${newStep}`);
             
@@ -743,9 +750,10 @@
             return; // Don't continue with normal step rendering or last_opened update
         }
         
-        // Update last_opened to reflect current signup step (skip alpha_disclaimer as it's not a real step)
-        // This ensures the signup flow can be restored on page reload
-        if (step !== STEP_ALPHA_DISCLAIMER) {
+        // Update last_opened to reflect current signup step
+        // Skip alpha_disclaimer, basics, and confirm_email - we only track steps beyond these initial steps
+        // This ensures the signup flow can be restored on page reload only if user has progressed beyond initial steps
+        if (step !== STEP_ALPHA_DISCLAIMER && step !== STEP_BASICS && step !== STEP_CONFIRM_EMAIL) {
             const signupPath = getPathFromStep(step);
             console.debug(`[Signup] Updating last_opened to ${signupPath} for step ${step}`);
             
@@ -1434,11 +1442,11 @@
                                             currency={selectedCurrency}
                                             isGift={isGiftFlow}
                                             isGiftCardRedemption={isGiftCardRedemption}
-                                            showSuccess={isGiftCardRedemption || (paymentState === 'success' && !isGiftCardRedemption)}
+                                            showSuccess={isGiftCardRedemption || paymentState === 'success'}
                                             purchasedCredits={isGiftCardRedemption ? selectedCreditsAmount : null}
                                             purchasedPrice={isGiftCardRedemption ? 0 : null}
                                             paymentMethodSaved={isGiftCardRedemption ? false : paymentMethodSaved}
-                                            oncomplete={isGiftCardRedemption ? handleAutoTopUpComplete : undefined}
+                                            oncomplete={undefined}
                                             onactivate-subscription={isGiftCardRedemption ? undefined : handleActivateSubscription}
                                             on:consentGiven={handleRefundConsent}
                                             on:paymentFormVisibility={handlePaymentFormVisibilityChange}
@@ -1451,13 +1459,14 @@
                                             credits_amount={selectedCreditsAmount}
                                             price={selectedPrice}
                                             currency={selectedCurrency}
+                                            isGiftCardRedemption={isGiftCardRedemption}
                                             showSuccess={true}
                                             purchasedCredits={selectedCreditsAmount}
-                                            purchasedPrice={selectedPrice}
-                                            paymentMethodSaved={paymentMethodSaved}
-                                            paymentMethodSaveError={paymentMethodSaveError}
+                                            purchasedPrice={isGiftCardRedemption ? 0 : selectedPrice}
+                                            paymentMethodSaved={isGiftCardRedemption ? false : paymentMethodSaved}
+                                            paymentMethodSaveError={isGiftCardRedemption ? null : paymentMethodSaveError}
                                             oncomplete={handleAutoTopUpComplete}
-                                            onactivate-subscription={handleActivateSubscription}
+                                            onactivate-subscription={isGiftCardRedemption ? undefined : handleActivateSubscription}
                                             on:paymentMethodStatusUpdate={(event) => {
                                                 paymentMethodSaved = event.detail.saved;
                                                 paymentMethodSaveError = event.detail.error;

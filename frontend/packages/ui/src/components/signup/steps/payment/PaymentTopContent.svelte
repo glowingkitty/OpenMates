@@ -184,22 +184,24 @@ step_10_top_content_svelte:
             </div>
         </div>
         
-        <!-- Auto top-up content below success message -->
-        <div class="bottom-container">
-            <div class="main-content">
-                <div class="separated-block">
-                    <AutoTopUp
-                        purchasedCredits={purchasedCredits || 0}
-                        purchasedPrice={purchasedPrice || 0}
-                        currency={currency.toLowerCase()}
-                        paymentMethodSaved={localPaymentMethodSaved}
-                        paymentMethodSaveError={localPaymentMethodSaveError}
-                        {oncomplete}
-                        onactivate-subscription={onactivateSubscription}
-                    />
+        {#if !isGiftCardRedemption}
+            <!-- Auto top-up content below success message (only for regular payments, not gift cards) -->
+            <div class="bottom-container">
+                <div class="main-content">
+                    <div class="separated-block">
+                        <AutoTopUp
+                            purchasedCredits={purchasedCredits || 0}
+                            purchasedPrice={purchasedPrice || 0}
+                            currency={currency.toLowerCase()}
+                            paymentMethodSaved={localPaymentMethodSaved}
+                            paymentMethodSaveError={localPaymentMethodSaveError}
+                            {oncomplete}
+                            onactivate-subscription={onactivateSubscription}
+                        />
+                    </div>
                 </div>
             </div>
-        </div>
+        {/if}
     {:else}
         <!-- Payment form for payment step -->
         <div class="top-container">
