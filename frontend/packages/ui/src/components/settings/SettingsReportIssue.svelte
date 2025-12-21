@@ -254,11 +254,11 @@
             
             if (response.ok && data.success) {
                 // Show success message
-                successMessage = data.message || $text('settings.report_issue.success.text');
+                successMessage = data.message || $text('settings.report_issue_success.text');
                 
                 // Show notification
                 notificationStore.success(
-                    $text('settings.report_issue.success.text'),
+                    $text('settings.report_issue_success.text'),
                     5000
                 );
                 
@@ -272,7 +272,7 @@
                 showDescriptionWarning = false;
             } else {
                 // Show error message from API or default error
-                errorMessage = data.message || data.detail || $text('settings.report_issue.error.text');
+                errorMessage = data.message || data.detail || $text('settings.report_issue_error.text');
                 notificationStore.error(
                     errorMessage,
                     10000
@@ -280,7 +280,7 @@
             }
         } catch (error) {
             console.error('[SettingsReportIssue] Error submitting issue:', error);
-            errorMessage = $text('settings.report_issue.error.text');
+            errorMessage = $text('settings.report_issue_error.text');
             notificationStore.error(
                 errorMessage,
                 10000

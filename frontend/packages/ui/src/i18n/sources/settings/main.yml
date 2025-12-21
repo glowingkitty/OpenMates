@@ -3383,7 +3383,7 @@ report_issue.submitting:
   cs: Odesílání...
   sv: Skickar...
   verified_by_human: []
-report_issue.success:
+report_issue_success:
   context: Success message after submitting issue report
   en: Issue reported successfully. Thank you for your feedback!
   de: Problem erfolgreich gemeldet. Vielen Dank für dein Feedback!
@@ -3406,7 +3406,7 @@ report_issue.success:
   cs: Problém byl úspěšně nahlášen. Děkujeme za vaši zpětnou vazbu!
   sv: Problem rapporterat framgångsrikt. Tack för din feedback!
   verified_by_human: []
-report_issue.error:
+report_issue_error:
   context: Error message when submitting issue report fails
   en: Failed to submit issue. Please try again later.
   de: Fehler beim Einreichen des Problems. Bitte versuche es später erneut.
