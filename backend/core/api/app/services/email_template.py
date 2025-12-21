@@ -320,6 +320,14 @@ class EmailTemplateService:
                         subject = subject_template.format(issue_title=context["issue_title"])
                     else:
                         subject = self.translation_service.get_nested_translation(subject_key, lang, context)
+                elif template == "community_share_notification":
+                    subject_key = "email.community_share_notification.subject.text"
+                    # The translation contains {chat_title} which needs to be replaced
+                    if "chat_title" in context:
+                        subject_template = self.translation_service.get_nested_translation(subject_key, lang, {})
+                        subject = subject_template.format(chat_title=context["chat_title"])
+                    else:
+                        subject = self.translation_service.get_nested_translation(subject_key, lang, context)
                 else:
                     subject_key = f"email.{template}.subject"
                     subject = self.translation_service.get_nested_translation(subject_key, lang, context)
@@ -344,7 +352,8 @@ class EmailTemplateService:
             # These are essential account-related emails that users can't unsubscribe from
             transactional_templates = {
                 'confirm-email', 'new-device-login', 'backup-code-was-used', 
-                'recovery-key-was-used', 'purchase-confirmation', 'refund-confirmation', 'signup_milestone', 'issue_report'
+                'recovery-key-was-used', 'purchase-confirmation', 'refund-confirmation', 
+                'signup_milestone', 'issue_report', 'community_share_notification'
             }
             is_transactional = template in transactional_templates
             
@@ -434,14 +443,58 @@ class EmailTemplateService:
                     headers=headers,
                     data=json.dumps(email_data)
                 ) as response:
+                    response_text = await response.text()
+                    
                     if response.status == 200:
-                        response_data = await response.json()
-                        message_id = response_data.get('Messages', [{}])[0].get('MessageID', 'unknown')
-                        logger.info(f"Email sent successfully. Message ID: {message_id}")
-                        return True
+                        try:
+                            response_data = json.loads(response_text)
+                            logger.debug(f"Mailjet API response: {json.dumps(response_data)}")
+                            
+                            # Mailjet can return success with errors in the Messages array
+                            # Check for errors in the response
+                            messages = response_data.get('Messages', [])
+                            if not messages:
+                                logger.error(f"Mailjet returned 200 but no Messages in response: {response_data}")
+                                return False
+                            
+                            # Check each message for errors
+                            has_errors = False
+                            for msg in messages:
+                                errors = msg.get('Errors', [])
+                                if errors:
+                                    has_errors = True
+                                    for error in errors:
+                                        logger.error(f"Mailjet API error in message: {error.get('ErrorMessage', 'Unknown error')} (ErrorCode: {error.get('ErrorCode', 'unknown')})")
+                            
+                            if has_errors:
+                                logger.error(f"Mailjet API returned errors despite 200 status. Full response: {response_data}")
+                                return False
+                            
+                            # Extract message ID - Mailjet uses 'MessageID' in the Messages array
+                            message_id = messages[0].get('MessageID', 'unknown')
+                            
+                            if message_id == 'unknown':
+                                logger.warning(f"Mailjet response structure unexpected. Response: {response_data}")
+                                # Still return True if status is 200 and no errors, as Mailjet might have accepted it
+                                logger.info(f"Email sent successfully (Message ID not found in expected format, but status 200 and no errors)")
+                            else:
+                                logger.info(f"Email sent successfully. Message ID: {message_id}")
+                            
+                            return True
+                        except json.JSONDecodeError as e:
+                            logger.error(f"Failed to parse Mailjet JSON response: {e}. Response text: {response_text[:500]}")
+                            return False
                     else:
-                        error_text = await response.text()
-                        logger.error(f"Failed to send email. Status: {response.status}, Response: {error_text}")
+                        logger.error(f"Failed to send email. Status: {response.status}, Response: {response_text[:1000]}")
+                        # Try to parse error response for more details
+                        try:
+                            error_data = json.loads(response_text)
+                            if 'Messages' in error_data:
+                                for msg in error_data.get('Messages', []):
+                                    for error in msg.get('Errors', []):
+                                        logger.error(f"Mailjet API error: {error.get('ErrorMessage', 'Unknown error')} (ErrorCode: {error.get('ErrorCode', 'unknown')})")
+                        except:
+                            pass
                         return False
                         
         except Exception as e:

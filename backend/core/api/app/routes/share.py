@@ -6,6 +6,7 @@
 import logging
 import hashlib
 import time
+import os
 from typing import Dict, Any, Optional
 from fastapi import APIRouter, HTTPException, Request, Depends, Body
 from pydantic import BaseModel
@@ -53,6 +54,8 @@ class ShareChatMetadataUpdate(BaseModel):
     title: Optional[str] = None
     summary: Optional[str] = None
     is_shared: Optional[bool] = None  # Whether the chat is being shared (set to true when share link is created)
+    share_with_community: Optional[bool] = None  # Whether the chat is shared with the community
+    share_link: Optional[str] = None  # The share link URL (for community sharing notification)
 
 class UnshareChatRequest(BaseModel):
     """Request model for unsharing a chat"""
@@ -455,6 +458,29 @@ async def update_share_metadata(
                     logger.error(f"Could not verify update for chat {chat_id} - chat not found after update")
             except Exception as e:
                 logger.error(f"Error verifying update for chat {chat_id}: {e}", exc_info=True)
+        
+        # If chat is shared with community, send notification email to admin
+        if payload.share_with_community and payload.share_link:
+            try:
+                # Get admin email from environment variable
+                admin_email = os.getenv("ADMIN_NOTIFY_EMAIL", "notify@openmates.org")
+                
+                # Dispatch email task to notify admin about community share
+                from backend.core.api.app.tasks.celery_config import app
+                app.send_task(
+                    name='app.tasks.email_tasks.community_share_email_task.send_community_share_notification',
+                    kwargs={
+                        "admin_email": admin_email,
+                        "chat_title": payload.title or "Untitled Chat",
+                        "chat_summary": payload.summary or "",
+                        "share_link": payload.share_link
+                    },
+                    queue='email'
+                )
+                logger.info(f"Dispatched community share notification email task for chat {chat_id} to admin {admin_email}")
+            except Exception as e:
+                # Log error but don't fail the request if email dispatch fails
+                logger.error(f"Failed to dispatch community share notification email for chat {chat_id}: {e}", exc_info=True)
         
         return {"success": True, "chat_id": chat_id}
         

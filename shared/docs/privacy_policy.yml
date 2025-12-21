@@ -67,14 +67,14 @@ providers:
       - Search queries entered by users (Brave sees the content of what you search for)
       - Country and language preferences for localized results
       - Note: All data is shared without user identifiers - Brave does not know which specific user made each search
-  oxylabs:
-    privacy_policy: https://oxylabs.io/legal/privacy
-    provider_location: EU
+  webshare:
+    privacy_policy: https://www.webshare.io/privacy-policy
+    provider_location: US
     used_for:
       - videos get transcript skill (when users request video transcripts)
     data_shared:
-      - URLs of YouTube videos for which transcripts are requested (Oxylabs sees which videos you request transcripts for)
-      - Note: Oxylabs acts as a proxy service, routing requests to YouTube. All data is shared without user identifiers - Oxylabs does not know which specific user requested each transcript
+      - URLs of YouTube videos for which transcripts are requested (Webshare sees which videos you request transcripts for)
+      - Note: Webshare acts as a proxy service, routing requests to YouTube. All data is shared without user identifiers - Webshare does not know which specific user requested each transcript
   google:
     privacy_policy: https://policies.google.com/privacy
     provider_location: US

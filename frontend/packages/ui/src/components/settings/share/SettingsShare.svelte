@@ -78,6 +78,9 @@
     // Time limit state - duration in seconds (0 = no expiration)
     let selectedDuration: ShareDuration = $state(0);
 
+    // Share with Community state - only for chats, not embeds
+    let shareWithCommunity = $state(false);
+
     // Generated share link state
     let generatedLink = $state('');
     let isLinkGenerated = $state(false);
@@ -958,6 +961,7 @@
             
             // Always send is_shared = true when sharing (even if no title/summary)
             // This ensures the server marks the chat as shared
+            // Also send share_with_community flag and share link if community sharing is enabled
             try {
                 const response = await fetch(getApiEndpoint('/v1/share/chat/metadata'), {
                     method: 'POST',
@@ -970,7 +974,9 @@
                         chat_id: currentChatId,
                         title: title || null,
                         summary: summary || null,
-                        is_shared: true  // Mark chat as shared on server
+                        is_shared: true,  // Mark chat as shared on server
+                        share_with_community: shareWithCommunity && !isEmbedSharing ? true : undefined,  // Only for chats, not embeds
+                        share_link: shareWithCommunity && !isEmbedSharing && generatedLink ? generatedLink : undefined  // Include share link for community sharing
                     }),
                     credentials: 'include' // Include cookies for authentication
                 });
@@ -1208,7 +1214,18 @@
             void isPasswordProtected;
             void selectedDuration;
             void password;
+            void shareWithCommunity;
             resetGeneratedState();
+        }
+    });
+    
+    // When Share with Community is enabled, disable password and time limit
+    $effect(() => {
+        if (shareWithCommunity && !isEmbedSharing) {
+            // Disable password protection and time limit when sharing with community
+            isPasswordProtected = false;
+            password = '';
+            selectedDuration = 0;
         }
     });
     
@@ -1218,6 +1235,11 @@
     
     // Password must be max 10 characters
     let isPasswordValid = $derived(!isPasswordProtected || (password.length > 0 && password.length <= 10));
+    
+    // When Share with Community is enabled, password and time limit are disabled
+    let isPasswordDisabled = $derived(shareWithCommunity && !isEmbedSharing);
+    let isTimeLimitDisabled = $derived(shareWithCommunity && !isEmbedSharing);
+    
     // Can generate link if we have either a chat ID or an embed context
     let canGenerateLink = $derived((currentChatId || (isEmbedSharing && embedContext)) && isPasswordValid);
     
@@ -1335,8 +1357,35 @@
         <div class="share-options-section">
             <h3 class="section-title">{$text('settings.share.optional_settings.text', { default: 'Optional Settings' })}</h3>
 
+            <!-- Share with Community Toggle (only for chats, not embeds) -->
+            {#if !isEmbedSharing}
+                <div class="option-row">
+                    <div class="option-label">
+                        <div class="icon settings_size shared"></div>
+                        <span>{$text('settings.share.share_with_community.text', { default: 'Share with Community' })}</span>
+                    </div>
+                    <Toggle
+                        bind:checked={shareWithCommunity}
+                        name="share-with-community"
+                        ariaLabel="Toggle share with community"
+                    />
+                </div>
+
+                <!-- Share with Community Explainer -->
+                {#if shareWithCommunity}
+                    <div class="community-info" transition:slide={{ duration: 200, easing: cubicOut }}>
+                        <div class="info-icon">ℹ️</div>
+                        <p>
+                            {$text('settings.share.share_with_community_info.text', { 
+                                default: 'If you select "Share with Community", your chat might also be selected to be shown to other users on the platform, as well as on social media and at events.' 
+                            })}
+                        </p>
+                    </div>
+                {/if}
+            {/if}
+
             <!-- Password Protection Toggle -->
-            <div class="option-row">
+            <div class="option-row" class:disabled={isPasswordDisabled}>
                 <div class="option-label">
                     <div class="icon settings_size lock"></div>
                     <span>{$text('settings.share.password_protection.text')}</span>
@@ -1345,6 +1394,7 @@
                     bind:checked={isPasswordProtected}
                     name="password-protection"
                     ariaLabel="Toggle password protection"
+                    disabled={isPasswordDisabled}
                 />
             </div>
 
@@ -1370,7 +1420,7 @@
             {/if}
 
             <!-- Time Limit Selection -->
-            <div class="option-row">
+            <div class="option-row" class:disabled={isTimeLimitDisabled}>
                 <div class="option-label">
                     <div class="icon settings_size time"></div>
                     <span>{$text('settings.share.time_limit.text')}</span>
@@ -1378,12 +1428,18 @@
             </div>
 
             <!-- Duration Options -->
-            <div class="duration-options">
+            <div class="duration-options" class:disabled={isTimeLimitDisabled}>
                 {#each durationOptions as option}
                     <button
                         class="duration-option"
                         class:selected={selectedDuration === option.value}
-                        onclick={() => selectedDuration = option.value}
+                        class:disabled={isTimeLimitDisabled}
+                        onclick={() => {
+                            if (!isTimeLimitDisabled) {
+                                selectedDuration = option.value;
+                            }
+                        }}
+                        disabled={isTimeLimitDisabled}
                     >
                         {$text(option.labelKey)}
                     </button>
@@ -1620,6 +1676,21 @@
         color: var(--color-grey-100);
     }
     
+    .option-row.disabled {
+        opacity: 0.5;
+        pointer-events: none;
+    }
+    
+    .duration-options.disabled {
+        opacity: 0.5;
+        pointer-events: none;
+    }
+    
+    .duration-option.disabled {
+        cursor: not-allowed;
+        opacity: 0.5;
+    }
+    
     /* Password input */
     .password-input-container {
         padding: 0 12px;
@@ -1757,6 +1828,30 @@
     }
     
     .expire-time-info p {
+        font-size: 12px;
+        color: var(--color-grey-70);
+        margin: 0;
+        line-height: 1.4;
+    }
+    
+    /* Community share info */
+    .community-info {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        padding: 12px 16px;
+        background-color: var(--color-grey-5);
+        border-radius: 8px;
+        border: 1px solid var(--color-grey-20);
+        margin-top: 8px;
+    }
+    
+    .community-info .info-icon {
+        font-size: 16px;
+        line-height: 1;
+    }
+    
+    .community-info p {
         font-size: 12px;
         color: var(--color-grey-70);
         margin: 0;

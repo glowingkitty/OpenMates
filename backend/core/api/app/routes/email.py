@@ -398,3 +398,25 @@ async def preview_issue_report(
     except Exception as e:
         logger.error(f"Preview Error: Failed to prepare/render issue-report: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Error generating preview: {str(e)}")
+
+
+@router.get("/community-share-notification", response_class=HTMLResponse)
+async def preview_community_share_notification(
+    request: Request,
+    lang: str = Query("en", description="Language code for translations"),
+    darkmode: bool = Query(True, description="Enable dark mode for the email"),
+    chat_title: str = Query("Sample Chat Title", description="Title of the shared chat"),
+    chat_summary: str = Query("This is a sample chat summary explaining the interesting parts of the conversation.", description="Summary of the chat"),
+    share_link: str = Query("https://openmates.org/share/chat/123#key=abc", description="The full share link")
+):
+    """
+    Preview the community share notification email template
+    """
+    return await _process_email_template(
+        request=request,
+        template_name="community_share_notification",
+        lang=lang,
+        chat_title=chat_title,
+        chat_summary=chat_summary,
+        share_link=share_link
+    )
