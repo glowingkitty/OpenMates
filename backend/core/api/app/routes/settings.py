@@ -1637,6 +1637,7 @@ class ServerStatusResponse(BaseModel):
 @router.get(
     "/server-status",
     response_model=ServerStatusResponse,
+    include_in_schema=False,  # Exclude from OpenAPI docs - internal endpoint for frontend
     dependencies=[Security(optional_api_key_scheme)]  # Public endpoint, but add security scheme for Swagger UI
 )
 @limiter.limit("60/minute")  # Rate limit to prevent abuse

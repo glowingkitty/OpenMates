@@ -17,10 +17,21 @@ async def verify_allowed_origin(request: Request):
     allowed_origins = request.app.state.allowed_origins
     
     if not origin or origin not in allowed_origins:
-        logger.warning(f"Unauthorized origin access to auth endpoint: {request.url.path}, Origin: {origin}")
+        # Log detailed error information for debugging
+        logger.error(
+            f"🚨 CORS BLOCKED: Unauthorized origin access\n"
+            f"   Endpoint: {request.url.path}\n"
+            f"   Origin: {origin or '(MISSING)'}\n"
+            f"   Allowed Origins: {', '.join(allowed_origins) if allowed_origins else '(NONE CONFIGURED)'}\n"
+            f"   Method: {request.method}\n"
+            f"   ⚠️  This usually means FRONTEND_URLS/PRODUCTION_URL is missing the origin URL"
+        )
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Access denied: Authentication endpoints can only be accessed from authorized applications"
+            detail=(
+                f"Access denied: Origin '{origin or '(missing)'}' is not in the allowed origins list. "
+                f"Please check that FRONTEND_URLS (dev) or PRODUCTION_URL (prod) includes this origin."
+            )
         )
     
     return True
