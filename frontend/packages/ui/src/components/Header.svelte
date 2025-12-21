@@ -410,8 +410,9 @@
         position: relative;
         display: flex;
         align-items: center;
+        gap: 8px;
     }
-
+    
     .logo-link {
         font-size: 1.25rem;
         font-weight: 600;

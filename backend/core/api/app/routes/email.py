@@ -295,8 +295,22 @@ async def preview_newsletter_confirmation_request(
     from urllib.parse import quote
     
     try:
-        # Get base URL for confirmation links
-        base_url = os.getenv("PRODUCTION_URL") or os.getenv("FRONTEND_URLS", "https://openmates.org").split(',')[0].strip()
+        # Get base URL for confirmation links from shared config
+        from backend.core.api.app.services.email.config_loader import load_shared_urls
+        shared_urls = load_shared_urls()
+        
+        # Determine environment (development or production)
+        is_dev = os.getenv("ENVIRONMENT", "production").lower() in ("development", "dev", "test") or \
+                 "localhost" in os.getenv("WEBAPP_URL", "").lower()
+        env_name = "development" if is_dev else "production"
+        
+        # Get webapp URL from shared config
+        base_url = shared_urls.get('urls', {}).get('base', {}).get('webapp', {}).get(env_name)
+        
+        # Fallback to environment variable or default
+        if not base_url:
+            base_url = os.getenv("WEBAPP_URL", "https://openmates.org" if not is_dev else "http://localhost:5173")
+        
         if not base_url.startswith("http"):
             base_url = f"https://{base_url}"
         
@@ -347,4 +361,40 @@ async def preview_newsletter_confirmed(
         )
     except Exception as e:
         logger.error(f"Preview Error: Failed to prepare/render newsletter-confirmed: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error generating preview: {str(e)}")
+
+
+@router.get("/issue-report", response_class=HTMLResponse)
+async def preview_issue_report(
+    request: Request,
+    lang: str = Query("en", description="Language code for translations"),
+    darkmode: bool = Query(True, description="Enable dark mode for the email"),
+    issue_title: str = Query("Sample Issue Title", description="Title of the reported issue"),
+    issue_description: str = Query("This is a sample issue description with multiple lines.\n\nIt demonstrates how the issue report email will look.", description="Description of the reported issue"),
+    chat_or_embed_url: str = Query("https://example.com/chat/123", description="Optional URL to a chat or embed related to the issue"),
+    timestamp: str = Query(None, description="Timestamp when the issue was reported"),
+    estimated_location: str = Query("Berlin, DE", description="Estimated geographic location based on IP address")
+):
+    """
+    Preview the issue report email template.
+    """
+    from datetime import datetime, timezone
+    
+    try:
+        # Use provided timestamp or generate current one
+        if not timestamp:
+            timestamp = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S %Z')
+        
+        return await _process_email_template(
+            request=request,
+            template_name="issue_report",
+            lang=lang,
+            issue_title=issue_title,
+            issue_description=issue_description,
+            chat_or_embed_url=chat_or_embed_url or "Not provided",
+            timestamp=timestamp,
+            estimated_location=estimated_location
+        )
+    except Exception as e:
+        logger.error(f"Preview Error: Failed to prepare/render issue-report: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Error generating preview: {str(e)}")

@@ -2831,3 +2831,187 @@ newsletter.unsubscribe_link:
   cs: Odhlásit se
   sv: Avprenumerera
   verified_by_human: []
+issue_report.title:
+  context: Email subject for issue report email
+  en: 'Issue reported: {issue_title}'
+  de: 'Problem gemeldet: {issue_title}'
+  zh: '报告的问题：{issue_title}'
+  es: 'Problema reportado: {issue_title}'
+  fr: 'Problème signalé : {issue_title}'
+  pt: 'Problema reportado: {issue_title}'
+  ru: 'Сообщена проблема: {issue_title}'
+  ja: '報告された問題：{issue_title}'
+  ko: '보고된 문제: {issue_title}'
+  it: 'Problema segnalato: {issue_title}'
+  tr: 'Bildirilen sorun: {issue_title}'
+  vi: 'Sự cố đã báo cáo: {issue_title}'
+  id: 'Masalah dilaporkan: {issue_title}'
+  pl: 'Zgłoszony problem: {issue_title}'
+  nl: 'Probleem gemeld: {issue_title}'
+  ar: 'تم الإبلاغ عن المشكلة: {issue_title}'
+  hi: 'रिपोर्ट की गई समस्या: {issue_title}'
+  th: 'รายงานปัญหา: {issue_title}'
+  cs: 'Nahlášený problém: {issue_title}'
+  sv: 'Rapporterat problem: {issue_title}'
+  verified_by_human: []
+issue_report.header:
+  context: Header text in issue report email body
+  en: New issue reported
+  de: Neues Problem gemeldet
+  zh: 新报告的问题
+  es: Nuevo problema reportado
+  fr: Nouveau problème signalé
+  pt: Novo problema reportado
+  ru: Сообщена новая проблема
+  ja: 新しい問題が報告されました
+  ko: 새로운 문제 신고됨
+  it: Nuovo problema segnalato
+  tr: Yeni sorun bildirildi
+  vi: Sự cố mới được báo cáo
+  id: Masalah baru dilaporkan
+  pl: Zgłoszono nowy problem
+  nl: Nieuw probleem gemeld
+  ar: تم الإبلاغ عن مشكلة جديدة
+  hi: नई समस्या रिपोर्ट की गई
+  th: รายงานปัญหาใหม่
+  cs: Nahlášeno nový problém
+  sv: Nytt problem rapporterat
+  verified_by_human: []
+issue_report.new_issue_reported:
+  context: Subheading in issue report email
+  en: A new issue has been reported
+  de: Ein neues Problem wurde gemeldet
+  zh: 已报告新问题
+  es: Se ha reportado un nuevo problema
+  fr: Un nouveau problème a été signalé
+  pt: Um novo problema foi reportado
+  ru: Сообщена новая проблема
+  ja: 新しい問題が報告されました
+  ko: 새로운 문제가 신고되었습니다
+  it: È stato segnalato un nuovo problema
+  tr: Yeni bir sorun bildirildi
+  vi: Đã báo cáo sự cố mới
+  id: Masalah baru telah dilaporkan
+  pl: Zgłoszono nowy problem
+  nl: Er is een nieuw probleem gemeld
+  ar: تم الإبلاغ عن مشكلة جديدة
+  hi: एक नई समस्या रिपोर्ट की गई है
+  th: มีการรายงานปัญหาใหม่
+  cs: Byl nahlášen nový problém
+  sv: Ett nytt problem har rapporterats
+  verified_by_human: []
+issue_report.title_label:
+  context: Label for issue title in email
+  en: Title
+  de: Titel
+  zh: 标题
+  es: Título
+  fr: Titre
+  pt: Título
+  ru: Заголовок
+  ja: タイトル
+  ko: 제목
+  it: Titolo
+  tr: Başlık
+  vi: Tiêu đề
+  id: Judul
+  pl: Tytuł
+  nl: Titel
+  ar: العنوان
+  hi: शीर्षक
+  th: หัวข้อ
+  cs: Název
+  sv: Rubrik
+  verified_by_human: []
+issue_report.description_label:
+  context: Label for issue description in email
+  en: Description
+  de: Beschreibung
+  zh: 描述
+  es: Descripción
+  fr: Description
+  pt: Descrição
+  ru: Описание
+  ja: 説明
+  ko: 설명
+  it: Descrizione
+  tr: Açıklama
+  vi: Mô tả
+  id: Deskripsi
+  pl: Opis
+  nl: Beschrijving
+  ar: الوصف
+  hi: विवरण
+  th: คำอธิบาย
+  cs: Popis
+  sv: Beskrivning
+  verified_by_human: []
+issue_report.url_label:
+  context: Label for shared chat or embed URL in email
+  en: Shared chat / embed
+  de: Geteilter Chat / Einbettung
+  zh: 共享聊天 / 嵌入
+  es: Chat compartido / incrustación
+  fr: Chat partagé / intégration
+  pt: Chat compartilhado / incorporação
+  ru: Общий чат / встраивание
+  ja: 共有チャット / 埋め込み
+  ko: 공유 채팅 / 임베드
+  it: Chat condiviso / incorporazione
+  tr: Paylaşılan sohbet / gömme
+  vi: Trò chuyện được chia sẻ / nhúng
+  id: Chat bersama / embed
+  pl: Udostępniony czat / osadzenie
+  nl: Gedeelde chat / embed
+  ar: دردشة مشتركة / تضمين
+  hi: साझा चैट / एम्बेड
+  th: แชทที่แชร์ / การฝัง
+  cs: Sdílený chat / vložení
+  sv: Delad chatt / inbäddning
+  verified_by_human: []
+issue_report.timestamp_label:
+  context: Label for timestamp in email
+  en: Timestamp
+  de: Zeitstempel
+  zh: 时间戳
+  es: Marca de tiempo
+  fr: Horodatage
+  pt: Carimbo de data/hora
+  ru: Временная метка
+  ja: タイムスタンプ
+  ko: 타임스탬프
+  it: Timestamp
+  tr: Zaman damgası
+  vi: Dấu thời gian
+  id: Stempel waktu
+  pl: Znacznik czasu
+  nl: Tijdstempel
+  ar: الطابع الزمني
+  hi: समय स्टैम्प
+  th: ตราเวลา
+  cs: Časová značka
+  sv: Tidsstämpel
+  verified_by_human: []
+issue_report.location_label:
+  context: Label for estimated location in email
+  en: Estimated Location
+  de: Geschätzte Position
+  zh: 估计位置
+  es: Ubicación estimada
+  fr: Emplacement estimé
+  pt: Localização estimada
+  ru: Предполагаемое местоположение
+  ja: 推定位置
+  ko: 예상 위치
+  it: Posizione stimata
+  tr: Tahmini konum
+  vi: Vị trí ước tính
+  id: Perkiraan lokasi
+  pl: Szacowana lokalizacja
+  nl: Geschatte locatie
+  ar: الموقع المقدر
+  hi: अनुमानित स्थान
+  th: ตำแหน่งโดยประมาณ
+  cs: Odhadovaná poloha
+  sv: Uppskattad plats
+  verified_by_human: []

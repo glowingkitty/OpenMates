@@ -462,15 +462,21 @@
 			'interface',
 			'main', // Main settings page
 			'newsletter', // Newsletter settings (for email link actions)
-			'email' // Email blocking settings (for email link actions)
+			'email', // Email blocking settings (for email link actions)
+			'support', // Support settings (for sponsoring the project)
+			'report_issue' // Report issue settings (for reporting bugs/issues)
 		];
 		
 		// Check if path starts with any public setting
 		const normalizedPath = settingsPath.startsWith('/') ? settingsPath.substring(1) : settingsPath;
 		const firstSegment = normalizedPath.split('/')[0];
 		
+		// Normalize hyphens to underscores for consistency (e.g., report-issue -> report_issue)
+		// This matches the normalization done in processSettingsDeepLink
+		const normalizedSegment = firstSegment.replace(/-/g, '_');
+		
 		// Map aliases
-		const mappedPath = firstSegment === 'appstore' ? 'app_store' : firstSegment;
+		const mappedPath = normalizedSegment === 'appstore' ? 'app_store' : normalizedSegment;
 		
 		// If it's a public setting, no authentication required
 		if (publicSettings.includes(mappedPath) || normalizedPath === '') {

@@ -336,6 +336,22 @@
         }
     }
 
+    // Check if server is self-hosted (for skipping email confirmation)
+    let isSelfHosted = $state(false);
+    
+    onMount(async () => {
+        // Check server status to determine if self-hosted
+        try {
+            const response = await fetch(getApiEndpoint('/v1/settings/server-status'));
+            if (response.ok) {
+                const status = await response.json();
+                isSelfHosted = status.is_self_hosted || false;
+            }
+        } catch (error) {
+            console.error('[Basics] Error checking server status:', error);
+        }
+    });
+
     // Handle form submission
     async function handleSubmit(event: Event) {
         event.preventDefault();
@@ -360,7 +376,25 @@
             // Hash the email for lookup and uniqueness check
             const hashedEmail = await cryptoService.hashEmail(email);
             
-            // Request email verification code
+            // If self-hosted, skip email confirmation and go directly to secure_account
+            if (isSelfHosted) {
+                // Update the Svelte store
+                signupStore.update(store => ({
+                    ...store,
+                    email,
+                    username,
+                    inviteCode,
+                    language: currentLang,
+                    darkmode: darkModeEnabled,
+                    stayLoggedIn: stayLoggedIn
+                }));
+                
+                // Dispatch the next event to transition to secure_account (skipping email confirmation)
+                dispatch('next');
+                return;
+            }
+            
+            // Request email verification code (only for non-self-hosted)
             const response = await fetch(getApiEndpoint(apiEndpoints.auth.request_confirm_email_code), {
                 method: 'POST',
                 headers: {

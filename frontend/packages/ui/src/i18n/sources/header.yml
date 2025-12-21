@@ -113,3 +113,26 @@ development_server:
   cs: Vývojový server
   sv: ''
   verified_by_human: []
+report_issue:
+  context: Tooltip and aria-label for the report issue bug icon in header
+  en: Report Issue
+  de: Problem melden
+  zh: 报告问题
+  es: Reportar problema
+  fr: Signaler un problème
+  pt: Reportar problema
+  ru: Сообщить о проблеме
+  ja: 問題を報告
+  ko: 문제 신고
+  it: Segnala problema
+  tr: Sorun bildir
+  vi: Báo cáo sự cố
+  id: Laporkan masalah
+  pl: Zgłoś problem
+  nl: Probleem melden
+  ar: الإبلاغ عن مشكلة
+  hi: समस्या रिपोर्ट करें
+  th: รายงานปัญหา
+  cs: Nahlásit problém
+  sv: Rapportera problem
+  verified_by_human: []

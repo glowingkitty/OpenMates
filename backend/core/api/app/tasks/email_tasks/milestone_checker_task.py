@@ -41,7 +41,7 @@ def check_and_notify_milestone(total_users: int) -> bool:
         milestone = check_user_signup_milestone(total_users)
         if milestone:
             # Get admin email from environment variable
-            admin_email = os.getenv("ADMIN_EMAIL", "notify@openmates.org")
+            admin_email = os.getenv("ADMIN_NOTIFY_EMAIL", "notify@openmates.org")
             
             # Dispatch the email task
             app.send_task(

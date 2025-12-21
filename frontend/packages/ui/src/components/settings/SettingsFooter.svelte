@@ -4,7 +4,10 @@
     import { getApiUrl } from '../../config/api';
     import { getLegalChatBySlug, convertDemoChatToChat, translateDemoChat } from '../../demo_chats';
     import { activeChatStore } from '../../stores/activeChatStore';
+    import { isInSignupProcess } from '../../stores/signupState';
+    import { loginInterfaceOpen } from '../../stores/uiStateStore';
     import { createEventDispatcher } from 'svelte';
+    import { get } from 'svelte/store';
     
     const dispatch = createEventDispatcher();
     
@@ -17,11 +20,47 @@
     }
     
     /**
+     * Check if user is currently in login/signup flow
+     * Returns true if either signup process is active or login interface is open
+     */
+    function isInLoginSignupFlow(): boolean {
+        return get(isInSignupProcess) || get(loginInterfaceOpen);
+    }
+    
+    /**
+     * Get the URL for a legal document link
+     * Returns the full website URL for the legal document
+     */
+    function getLegalUrl(slug: 'imprint' | 'privacy' | 'terms'): string {
+        switch (slug) {
+            case 'imprint':
+                return getWebsiteUrl(externalLinks.legal.imprint);
+            case 'privacy':
+                return getWebsiteUrl(externalLinks.legal.privacyPolicy);
+            case 'terms':
+                return getWebsiteUrl(externalLinks.legal.terms);
+        }
+    }
+    
+    /**
      * Handle click on a legal document link
-     * Opens the legal chat instead of navigating to external URL
-     * Stores the chat in IndexedDB so it appears in the sidebar
+     * If user is in login/signup flow, opens the link in a new tab (since chats can't be opened)
+     * Otherwise, opens the legal chat instead of navigating to external URL
      */
     async function handleLegalLinkClick(event: MouseEvent, slug: 'imprint' | 'privacy' | 'terms') {
+        // Check if user is in login/signup flow
+        // If so, open the URL in a new tab instead of trying to open the chat
+        if (isInLoginSignupFlow()) {
+            // Prevent default navigation to avoid opening in current tab
+            event.preventDefault();
+            event.stopPropagation();
+            
+            console.debug(`[SettingsFooter] User in login/signup flow - opening legal link in new tab: ${slug}`);
+            const url = getLegalUrl(slug);
+            window.open(url, '_blank', 'noopener,noreferrer');
+            return;
+        }
+        
         // Prevent default navigation
         event.preventDefault();
         event.stopPropagation();

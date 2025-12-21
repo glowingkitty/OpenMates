@@ -206,6 +206,8 @@ export function processSettingsDeepLink(
         if (path === 'appstore') {
             path = 'app_store';
         }
+        // Normalize hyphens to underscores for consistency (e.g., report-issue -> report_issue)
+        path = path.replace(/-/g, '_');
         handlers.setSettingsDeepLink(path);
         
         // Clear the hash after processing

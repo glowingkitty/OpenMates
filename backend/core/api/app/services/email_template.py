@@ -312,6 +312,14 @@ class EmailTemplateService:
                 elif template == "newsletter":
                     subject_key = "email.newsletter.subject.text"
                     subject = self.translation_service.get_nested_translation(subject_key, lang, context)
+                elif template == "issue_report":
+                    subject_key = "email.issue_report.title.text"
+                    # The translation contains {issue_title} which needs to be replaced
+                    if "issue_title" in context:
+                        subject_template = self.translation_service.get_nested_translation(subject_key, lang, {})
+                        subject = subject_template.format(issue_title=context["issue_title"])
+                    else:
+                        subject = self.translation_service.get_nested_translation(subject_key, lang, context)
                 else:
                     subject_key = f"email.{template}.subject"
                     subject = self.translation_service.get_nested_translation(subject_key, lang, context)
@@ -336,7 +344,7 @@ class EmailTemplateService:
             # These are essential account-related emails that users can't unsubscribe from
             transactional_templates = {
                 'confirm-email', 'new-device-login', 'backup-code-was-used', 
-                'recovery-key-was-used', 'purchase-confirmation', 'refund-confirmation', 'signup_milestone'
+                'recovery-key-was-used', 'purchase-confirmation', 'refund-confirmation', 'signup_milestone', 'issue_report'
             }
             is_transactional = template in transactional_templates
             

@@ -245,8 +245,22 @@ async def send_newsletter_to_all(
         logger.error(f"Failed to initialize services: {str(e)}", exc_info=True)
         sys.exit(1)
     
-    # Get base URL for unsubscribe links
-    base_url = os.getenv("PRODUCTION_URL") or os.getenv("FRONTEND_URLS", "https://openmates.org").split(',')[0].strip()
+    # Get base URL for unsubscribe links from shared config
+    from backend.core.api.app.services.email.config_loader import load_shared_urls
+    shared_urls = load_shared_urls()
+    
+    # Determine environment (development or production)
+    is_dev = os.getenv("ENVIRONMENT", "production").lower() in ("development", "dev", "test") or \
+             "localhost" in os.getenv("WEBAPP_URL", "").lower()
+    env_name = "development" if is_dev else "production"
+    
+    # Get webapp URL from shared config
+    base_url = shared_urls.get('urls', {}).get('base', {}).get('webapp', {}).get(env_name)
+    
+    # Fallback to environment variable or default
+    if not base_url:
+        base_url = os.getenv("WEBAPP_URL", "https://openmates.org" if not is_dev else "http://localhost:5173")
+    
     if not base_url.startswith("http"):
         base_url = f"https://{base_url}"
     logger.info(f"Base URL: {base_url}")

@@ -110,7 +110,7 @@ def is_payment_enabled() -> bool:
     3. OR (development environment AND domain is a *.dev.{allowed_domain} subdomain)
     
     Note: This function may be called before encrypted config is loaded (during router registration).
-    In that case, it will check environment variables directly for dev subdomain patterns.
+    In that case, it will try to load the config, or check environment variables for dev subdomain patterns.
     
     Returns:
         True if payment should be enabled, False otherwise.
@@ -136,6 +136,29 @@ def is_payment_enabled() -> bool:
             return True
     else:
         # Config not loaded yet (e.g., during router registration)
+        # Try to load it now if we're in production mode and have a domain
+        # This ensures payment is enabled correctly even during router registration
+        if not is_development and domain:
+            try:
+                from backend.core.api.app.services.domain_security import DomainSecurityService
+                domain_security_service = DomainSecurityService()
+                domain_security_service.load_security_config()
+                # Now try to get the allowed domain again
+                allowed_domain = get_allowed_domain()
+                if allowed_domain:
+                    is_allowed_domain = is_domain_allowed_or_subdomain(domain, allowed_domain)
+                    if is_allowed_domain:
+                        logger.debug(f"Payment enabled: Production domain '{domain}' matches allowed domain '{allowed_domain}' (config loaded during router registration)")
+                        return True
+            except SystemExit:
+                # Re-raise SystemExit - if config can't be loaded, server should not start
+                raise
+            except Exception as e:
+                # If config can't be loaded for other reasons, log warning but don't fail
+                # This allows the server to start even if config loading fails during router registration
+                # The config will be loaded again during lifespan startup, where it will fail properly if needed
+                logger.warning(f"Could not load domain security config during payment check: {e}. Will retry during lifespan startup.")
+        
         # Fallback: Check if domain matches dev subdomain pattern
         # This handles the case where we're on dev.openmates.org or *.dev.openmates.org
         # We check for common dev subdomain patterns
