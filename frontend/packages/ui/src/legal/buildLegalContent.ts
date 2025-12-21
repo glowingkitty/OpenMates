@@ -104,10 +104,10 @@ export function buildPrivacyPolicyContent(t: TranslationFunction): string {
 	lines.push(t('legal.privacy.brave.description.text'));
 	lines.push('');
 
-	// Section 3.11: Oxylabs
-	lines.push(`### ${t('legal.privacy.oxylabs.heading.text')}`);
+	// Section 3.11: Webshare
+	lines.push(`### ${t('legal.privacy.webshare.heading.text')}`);
 	lines.push('');
-	lines.push(t('legal.privacy.oxylabs.description.text'));
+	lines.push(t('legal.privacy.webshare.description.text'));
 	lines.push('');
 
 	// Section 3.12: Google
