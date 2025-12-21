@@ -13,8 +13,8 @@ load_dotenv()
 
 # Configuration from environment variables
 CMS_URL = 'http://cms:8055'
-ADMIN_EMAIL = os.getenv('ADMIN_EMAIL')
-ADMIN_PASSWORD = os.getenv('ADMIN_PASSWORD')
+ADMIN_EMAIL = os.getenv('DATABASE_ADMIN_EMAIL')
+ADMIN_PASSWORD = os.getenv('DATABASE_ADMIN_PASSWORD')
 DIRECTUS_TOKEN = os.getenv('DIRECTUS_TOKEN')
 
 # Print environment variables for debugging

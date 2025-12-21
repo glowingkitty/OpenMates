@@ -10,6 +10,7 @@ import datetime # For current date/time in system prompt
 from backend.core.api.app.services.cache import CacheService # Corrected import path
 from backend.core.api.app.services.directus.directus import DirectusService # Added for type hinting and reuse
 from backend.core.api.app.utils.encryption import EncryptionService # Added for type hinting and reuse
+from backend.core.api.app.services.translations import TranslationService # For loading translations
  
 # Import the new LLM utility
 from backend.apps.ai.utils.llm_utils import call_preprocessing_llm, LLMPreprocessingCallResult
@@ -72,6 +73,44 @@ def _sanitize_text_content(text: str) -> str:
     sanitized_text = re.sub(r'[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]', '', normalized_text)
     
     return sanitized_text
+
+
+def _get_insufficient_credits_error_message() -> str:
+    """
+    Get the insufficient credits error message from translations.
+    Uses TranslationService which loads translations from cache (pre-loaded on server startup).
+    Falls back to English hardcoded message if translation service fails.
+    
+    Translation structure: settings -> billing -> insufficient_credits_error -> { text: "..." }
+    
+    Returns:
+        Translated error message string
+    """
+    try:
+        # TranslationService uses class-level cache, so it's safe to create a new instance
+        # Translations are pre-loaded on server startup into shared cache
+        translation_service = TranslationService()
+        translations = translation_service.get_translations(lang="en")
+        
+        # Navigate to settings.billing.insufficient_credits_error.text
+        # Translation structure: settings -> billing -> insufficient_credits_error -> { text: "..." }
+        if translations and "settings" in translations:
+            settings = translations["settings"]
+            if settings and isinstance(settings, dict) and "billing" in settings:
+                billing = settings["billing"]
+                if billing and isinstance(billing, dict) and "insufficient_credits_error" in billing:
+                    error_msg = billing["insufficient_credits_error"]
+                    # Translation is stored as a dict with "text" key per _convert_yaml_to_json_structure
+                    if isinstance(error_msg, dict) and "text" in error_msg:
+                        return error_msg["text"]
+                    elif isinstance(error_msg, str):
+                        # Fallback in case structure is different
+                        return error_msg
+    except Exception as e:
+        logger.warning(f"Failed to load insufficient_credits_error translation: {e}. Using fallback message.")
+    
+    # Fallback to English message if translation lookup fails
+    return "You don't have enough credits to complete this request. Please buy more credits or activate auto top-up with a valid payment method."
 
 
 async def handle_preprocessing(
@@ -143,22 +182,35 @@ async def handle_preprocessing(
         if user_credits < MINIMUM_REQUEST_COST:
             logger.warning(f"{log_prefix} User {request_data.user_id} has insufficient credits ({user_credits}) for minimum cost ({MINIMUM_REQUEST_COST}).") # Log actual user_id
 
-            # CRITICAL: Check if user has auto top-up enabled
-            # If so, trigger auto top-up BEFORE rejecting the request
+            # CRITICAL: Check if user has auto top-up enabled AND a payment method
+            # Auto top-up should only be attempted if BOTH conditions are met:
+            # 1. User has auto top-up enabled
+            # 2. User has a payment method saved
+            # NOTE: All checks use cached_user data (from cache_service.get_user_by_id above)
+            # No Directus requests are made - we only read from the cached user dict
             auto_topup_enabled = cached_user.get('auto_topup_low_balance_enabled', False)
-            if auto_topup_enabled:
-                logger.info(f"{log_prefix} User {request_data.user_id} has auto top-up enabled. Attempting to top up before processing...")
+            
+            # Check if user has a payment method before attempting auto top-up
+            # Import billing service to check payment method
+            from backend.core.api.app.services.billing_service import BillingService
 
-                # Import billing service to trigger top-up
-                from backend.core.api.app.services.billing_service import BillingService
+            # Use passed-in service instances instead of creating new ones
+            # This avoids redundant initializations and improves performance
+            billing_service = BillingService(
+                cache_service=cache_service,
+                directus_service=directus_service,
+                encryption_service=encryption_service
+            )
 
-                # Use passed-in service instances instead of creating new ones
-                # This avoids redundant initializations and improves performance
-                billing_service = BillingService(
-                    cache_service=cache_service,
-                    directus_service=directus_service,
-                    encryption_service=encryption_service
-                )
+            # Check if user has a payment method (reads from cached_user dict - no Directus call)
+            # _get_decrypted_payment_method only reads encrypted_payment_method_id from the cached user dict
+            # and decrypts it using the vault key. No database queries are made.
+            payment_method_id = await billing_service._get_decrypted_payment_method(cached_user)
+            has_payment_method = payment_method_id is not None and payment_method_id != ""
+
+            # Only attempt auto top-up if both conditions are met
+            if auto_topup_enabled and has_payment_method:
+                logger.info(f"{log_prefix} User {request_data.user_id} has auto top-up enabled and a payment method. Attempting to top up before processing...")
 
                 try:
                     # Trigger low balance auto top-up synchronously
@@ -182,10 +234,11 @@ async def handle_preprocessing(
                             cached_user = refreshed_user
                         else:
                             logger.warning(f"{log_prefix} Auto top-up completed but still insufficient credits ({new_credits}). Rejecting request.")
+                            # Return unified insufficient_credits error message from translations
                             return PreprocessingResult(
                                 can_proceed=False,
                                 rejection_reason="insufficient_credits",
-                                error_message=f"Auto top-up was triggered but you still have insufficient credits ({new_credits}). This action requires at least {MINIMUM_REQUEST_COST}. Please check your payment method and try again.",
+                                error_message=_get_insufficient_credits_error_message(),
                                 harmful_or_illegal_score=None,
                                 category=None,
                                 llm_response_temp=None,
@@ -199,10 +252,11 @@ async def handle_preprocessing(
                             )
                     else:
                         logger.error(f"{log_prefix} Failed to refresh user data after auto top-up.")
+                        # Return unified insufficient_credits error message from translations
                         return PreprocessingResult(
                             can_proceed=False,
                             rejection_reason="insufficient_credits",
-                            error_message=f"You have {user_credits} credits, but this action requires at least {MINIMUM_REQUEST_COST}. Auto top-up was triggered but we couldn't verify the result. Please try again in a moment.",
+                            error_message=_get_insufficient_credits_error_message(),
                             harmful_or_illegal_score=None,
                             category=None,
                             llm_response_temp=None,
@@ -217,11 +271,11 @@ async def handle_preprocessing(
 
                 except Exception as e:
                     logger.error(f"{log_prefix} Auto top-up failed with error: {e}", exc_info=True)
-                    # Continue to reject with original insufficient credits message
+                    # Return unified insufficient_credits error message from translations
                     return PreprocessingResult(
                         can_proceed=False,
                         rejection_reason="insufficient_credits",
-                        error_message=f"You have {user_credits} credits, but this action requires at least {MINIMUM_REQUEST_COST}. Auto top-up failed: {str(e)}. Please buy credits manually and try again.",
+                        error_message=_get_insufficient_credits_error_message(),
                         harmful_or_illegal_score=None,
                         category=None,
                         llm_response_temp=None,
@@ -234,11 +288,17 @@ async def handle_preprocessing(
                         raw_llm_response=None
                     )
             else:
-                # No auto top-up enabled, reject immediately
+                # No auto top-up enabled OR no payment method - reject with unified message
+                if auto_topup_enabled and not has_payment_method:
+                    logger.warning(f"{log_prefix} User {request_data.user_id} has auto top-up enabled but no payment method. Cannot trigger auto top-up.")
+                else:
+                    logger.info(f"{log_prefix} User {request_data.user_id} does not have auto top-up enabled or no payment method. Rejecting request.")
+                
+                # Return unified insufficient_credits error message from translations
                 return PreprocessingResult(
                     can_proceed=False,
                     rejection_reason="insufficient_credits",
-                    error_message=f"You have {user_credits} credits, but this action requires at least {MINIMUM_REQUEST_COST}. Please buy more credits and then try again.",
+                    error_message=_get_insufficient_credits_error_message(),
                     harmful_or_illegal_score=None,
                     category=None,
                     llm_response_temp=None,

@@ -1,20 +1,29 @@
 # backend/apps/videos/skills/transcript_skill.py
 #
 # YouTube transcript skill implementation.
-# Provides functionality to fetch YouTube video transcripts via Oxylabs proxy.
+# Provides functionality to fetch YouTube video transcripts via Webshare proxy.
 #
 # This skill:
 # 1. Extracts video ID from YouTube URL
-# 2. Fetches transcript using youtube-transcript-api through Oxylabs proxy
+# 2. Fetches transcript using youtube-transcript-api through Webshare proxy
 # 3. Returns transcript text for LLM processing
 
 import logging
-import os
 import asyncio
+import random
+import time
 from typing import Dict, Any, List, Optional, Tuple
-from urllib.parse import urlparse, parse_qs, quote_plus
+from urllib.parse import urlparse, parse_qs
 from pydantic import BaseModel, Field, field_validator, ValidationError
 from celery import Celery  # For Celery type hinting
+from requests import Session
+
+# User-Agent generation library for realistic browser fingerprints
+try:
+    from user_agents import UserAgent
+    USER_AGENTS_AVAILABLE = True
+except ImportError:
+    USER_AGENTS_AVAILABLE = False
 
 from backend.apps.base_skill import BaseSkill
 from backend.core.api.app.utils.secrets_manager import SecretsManager
@@ -29,11 +38,19 @@ from backend.shared.python_utils.url_normalizer import sanitize_url_remove_fragm
 # YouTube transcript API imports
 try:
     from youtube_transcript_api import YouTubeTranscriptApi
-    from youtube_transcript_api.proxies import GenericProxyConfig
+    try:
+        from youtube_transcript_api.proxies import WebshareProxyConfig
+        WEBSHARE_AVAILABLE = True
+    except ImportError:
+        # WebshareProxyConfig might not be available in older versions
+        WebshareProxyConfig = None  # type: ignore
+        WEBSHARE_AVAILABLE = False
     # TextFormatter removed - we now extract timestamps directly from transcript items
     YOUTUBE_TRANSCRIPT_AVAILABLE = True
 except ImportError:
     YOUTUBE_TRANSCRIPT_AVAILABLE = False
+    WEBSHARE_AVAILABLE = False
+    WebshareProxyConfig = None  # type: ignore
     logger = logging.getLogger(__name__)
     logger.warning("youtube-transcript-api not available. Install with: pip install youtube-transcript-api")
 
@@ -168,10 +185,21 @@ class TranscriptResponse(BaseModel):
 
 class TranscriptSkill(BaseSkill):
     """
-    YouTube transcript skill that fetches video transcripts via Oxylabs proxy.
-    
+    YouTube transcript skill that fetches video transcripts via Webshare proxy with anti-detection features.
+
     Supports multiple video URLs in a single request, processing them in parallel.
     Each video is processed independently and results are combined.
+
+    Proxy Configuration:
+    - Uses Webshare (rotating residential proxies) - configured via secrets manager
+    - Automatically rotates through residential IP pool to avoid blocks
+
+    Anti-Detection Features:
+    - Dynamic User-Agent generation (uses 'user-agents' library for current browser versions)
+    - Randomized HTTP headers (Accept-Language, DNT, etc.)
+    - Webshare automatically rotates through residential IP pool
+    - Random delays (10-100ms) between retry attempts
+    - Up to 10 retry attempts with different IPs and headers per attempt
     
     ARCHITECTURE DECISION: Direct Async Execution vs Celery Tasks
     ==============================================================
@@ -294,121 +322,58 @@ class TranscriptSkill(BaseSkill):
             logger.error(f"Error extracting video ID from URL '{url}': {e}", exc_info=True)
             return None
     
-    def _build_oxylabs_proxy_url(self, secrets_manager: SecretsManager) -> Optional[str]:
+    async def _build_webshare_proxy_config_async(
+        self,
+        secrets_manager: SecretsManager,
+        filter_ip_locations: Optional[List[str]] = None
+    ) -> Optional[Any]:  # Returns WebshareProxyConfig if available, None otherwise
         """
-        Build Oxylabs proxy URL from environment variables.
+        Build Webshare proxy configuration from secrets manager (async version).
         
-        Follows Oxylabs' "customer-USERNAME-cc-US-city-london-sessid-ABC-sesstime-5"
-        pattern, but any of the optional pieces can be omitted.
+        Webshare uses rotating residential proxies automatically to avoid IP blocks.
         
         Args:
-            secrets_manager: SecretsManager instance to get Oxylabs credentials
-            
+            secrets_manager: SecretsManager instance to get Webshare credentials
+            filter_ip_locations: Optional list of country codes to filter IP locations
+                                 (e.g., ["us", "de"]). If None, uses all available locations.
+        
         Returns:
-            Proxy URL string if credentials are available, None otherwise
+            WebshareProxyConfig instance if credentials are available, None otherwise
         """
-        try:
-            # Get Oxylabs credentials from secrets manager
-            # Note: We need to use async get_secret, but this is a sync method
-            # We'll handle this in the async context where we have access to await
-            return None  # Will be built in async context
-        except Exception as e:
-            logger.error(f"Error building Oxylabs proxy URL: {e}", exc_info=True)
+        # Check if WebshareProxyConfig is available
+        if not WEBSHARE_AVAILABLE or WebshareProxyConfig is None:
+            logger.warning("WebshareProxyConfig not available - transcript fetching may fail without proxy")
             return None
-    
-    async def _build_oxylabs_proxy_url_async(self, secrets_manager: SecretsManager, session_suffix: Optional[str] = None) -> Optional[str]:
-        """
-        Build Oxylabs proxy URL from secrets manager (async version).
-
-        Args:
-            secrets_manager: SecretsManager instance to get Oxylabs credentials
-            session_suffix: Optional suffix to add to session ID for different IPs (e.g., "retry1", "retry2")
-
-        Returns:
-            Proxy URL string if credentials are available, None otherwise
-        """
+        
         try:
-            # Get Oxylabs credentials from secrets manager
-            ox_username = await secrets_manager.get_secret(
-                secret_path="kv/data/providers/oxylabs",
+            # Get Webshare credentials from secrets manager
+            ws_username = await secrets_manager.get_secret(
+                secret_path="kv/data/providers/webshare",
                 secret_key="proxy_username"
             )
-            ox_password = await secrets_manager.get_secret(
-                secret_path="kv/data/providers/oxylabs",
+            ws_password = await secrets_manager.get_secret(
+                secret_path="kv/data/providers/webshare",
                 secret_key="proxy_password"
             )
-
-            if not ox_username or not ox_password:
-                logger.debug("Oxylabs credentials not found - proceeding without proxy")
-                return None
-
-            # Get optional proxy configuration
-            ox_country = os.getenv("OX_COUNTRY", "").strip().upper()
-            ox_city = os.getenv("OX_CITY", "").strip().lower()
-            ox_state = os.getenv("OX_STATE", "").strip().lower()
-            ox_sessid = os.getenv("OX_SESSID", "").strip()
-            ox_sestime = os.getenv("OX_SESTIME", "").strip()
-            ox_host = os.getenv("OX_HOST", "pr.oxylabs.io")
-            ox_port = int(os.getenv("OX_PORT", "7777"))  # 7777 = datacenter, 8080 = residential
-
-            # Build proxy username with optional parameters
-            parts = ["customer", ox_username]
-
-            if ox_country:
-                parts.append(f"cc-{ox_country}")
-
-            if ox_city:
-                parts.append(f"city-{ox_city}")
-
-            if ox_state:
-                parts.append(f"st-{ox_state}")
-
-            # Generate unique session ID for each attempt to get different IP
-            if ox_sessid:
-                # If session_suffix provided, append it to get different IP for retries
-                if session_suffix:
-                    unique_sessid = f"{ox_sessid}-{session_suffix}"
-                else:
-                    unique_sessid = ox_sessid
-                parts.append(f"sessid-{unique_sessid}")
-            elif session_suffix:
-                # If no base session ID but suffix provided, use just the suffix
-                parts.append(f"sessid-{session_suffix}")
-
-            if ox_sestime:
-                parts.append(f"sesstime-{ox_sestime}")
-
-            # Assemble the username part Oxylabs expects
-            ox_user = "-".join(parts)
-
-            # URL-encode credentials (password may contain special chars)
-            auth = f"{quote_plus(ox_user)}:{quote_plus(ox_password)}"
-            proxy_url = f"http://{auth}@{ox_host}:{ox_port}"
-
-            logger.debug(f"Built Oxylabs proxy URL (host: {ox_host}, port: {ox_port}, session_suffix: {session_suffix})")
-            return proxy_url
-
-        except Exception as e:
-            logger.warning(f"Error building Oxylabs proxy URL (will proceed without proxy): {e}", exc_info=True)
-            return None
-    
-    def _make_proxy_config(self, proxy_url: Optional[str]) -> Optional[GenericProxyConfig]:
-        """
-        Create GenericProxyConfig for youtube-transcript-api.
-        
-        Args:
-            proxy_url: Oxylabs proxy URL (or None if no proxy)
             
-        Returns:
-            GenericProxyConfig instance or None
-        """
-        if not proxy_url:
-            return None
-        
-        try:
-            return GenericProxyConfig(http_url=proxy_url, https_url=proxy_url)
+            if not ws_username or not ws_password:
+                logger.warning("Webshare credentials not found - transcript fetching may fail without proxy")
+                return None
+            
+            # Build WebshareProxyConfig
+            # If filter_ip_locations is provided, use it to limit IP pool to specific countries
+            config_kwargs = {
+                "proxy_username": ws_username,
+                "proxy_password": ws_password,
+            }
+            
+            if filter_ip_locations:
+                config_kwargs["filter_ip_locations"] = filter_ip_locations
+            
+            return WebshareProxyConfig(**config_kwargs)
+            
         except Exception as e:
-            logger.error(f"Error creating proxy config: {e}", exc_info=True)
+            logger.warning(f"Error building Webshare proxy config: {e}", exc_info=True)
             return None
     
     def _format_timestamp(self, seconds: float) -> str:
@@ -428,6 +393,125 @@ class TranscriptSkill(BaseSkill):
         
         return f"[{hours:02d}:{minutes:02d}:{secs:02d}.{milliseconds:03d}]"
     
+    def _generate_random_user_agent(self) -> str:
+        """
+        Generate a realistic, up-to-date User-Agent to avoid fingerprinting.
+
+        Uses the user-agents library to generate current, realistic browser User-Agents
+        that automatically stay up-to-date with actual browser versions and distributions.
+        Falls back to hardcoded agents if library is unavailable.
+
+        Returns:
+            Random User-Agent string
+        """
+        if USER_AGENTS_AVAILABLE:
+            try:
+                # Generate a random UserAgent that mimics real browser distribution
+                # This automatically includes current browser versions and realistic OS combinations
+                user_agent = UserAgent()
+
+                # Get a random user agent - the library handles version updates automatically
+                ua_string = user_agent.random
+
+                logger.debug(f"Generated dynamic User-Agent: {ua_string[:50]}...")
+                return ua_string
+
+            except Exception as e:
+                logger.warning(f"Failed to generate dynamic User-Agent: {e}. Falling back to static list.")
+
+        # Fallback to static list if library fails or unavailable
+        user_agents = [
+            # Chrome on Windows (most common)
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
+
+            # Chrome on macOS
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+
+            # Firefox on Windows
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/121.0",
+
+            # Safari on macOS
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Safari/605.1.15",
+
+            # Edge on Windows
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Edg/120.0.0.0",
+        ]
+
+        return random.choice(user_agents)
+
+    def _create_custom_http_session(self, proxy_config: Optional[object] = None) -> Session:
+        """
+        Create a custom HTTP session with randomized headers to avoid fingerprinting.
+
+        This replaces the default session that youtube-transcript-api would create,
+        adding randomization to help bypass YouTube's detection systems.
+
+        Args:
+            proxy_config: Optional proxy configuration to apply.
+                         Can be WebshareProxyConfig (handled by YouTubeTranscriptApi) or
+                         GenericProxyConfig (applied to session directly).
+
+        Returns:
+            Configured requests.Session with randomized headers
+        """
+        session = Session()
+
+        # Generate randomized headers
+        user_agent = self._generate_random_user_agent()
+        accept_language = random.choice([
+            "en-US,en;q=0.9",
+            "en-US,en;q=0.8",
+            "en-US,en;q=0.9,es;q=0.8",
+            "en-GB,en;q=0.9",
+            "en-US,en;q=0.9,de;q=0.8",
+        ])
+        dnt_value = random.choice(["1", "0"])
+
+        # Set randomized headers
+        session.headers.update({
+            "User-Agent": user_agent,
+            "Accept-Language": accept_language,
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+            "Accept-Encoding": "gzip, deflate, br",
+            "DNT": dnt_value,  # Do Not Track header variation
+            "Upgrade-Insecure-Requests": "1",
+            "Connection": "close",  # Force connection close to prevent reuse and ensure IP rotation
+        })
+
+        # Apply proxy configuration if provided
+        # Note: WebshareProxyConfig is handled by YouTubeTranscriptApi internally,
+        # so we don't need to apply it to the session here
+        # The session is only used for custom headers (User-Agent, Accept-Language, etc.)
+        # Connection: close ensures each request gets a fresh connection, helping with IP rotation
+
+        # Session details logged at trace level if needed (too verbose for debug)
+
+        return session
+
+    def _get_current_ip_address(self, session: Session) -> str:
+        """
+        Get the current IP address being used by the session.
+
+        This helps debug whether proxy IP rotation is working correctly.
+
+        Args:
+            session: The requests session to check
+
+        Returns:
+            IP address string or error message
+        """
+        try:
+            # Use a simple IP check service with short timeout
+            response = session.get("https://api.ipify.org?format=text", timeout=5)
+            if response.status_code == 200:
+                ip = response.text.strip()
+                return ip
+            else:
+                return f"HTTP {response.status_code}"
+        except Exception as e:
+            return f"Error: {str(e)[:50]}"
+
     def _format_transcript_with_timestamps(self, transcript_items: List[Dict[str, Any]]) -> str:
         """
         Format transcript items into a single multiline string with timestamps.
@@ -485,37 +569,73 @@ class TranscriptSkill(BaseSkill):
                 "error": "youtube-transcript-api package not installed"
             }
 
-        # Pre-build proxy configs for each retry attempt to get different IPs
-        # Each attempt gets a unique session suffix to ensure different IP addresses
-        proxy_configs = []
-        for attempt in range(max_retries):
-            # Use unique session suffix for each attempt (including first) to get different IPs
-            session_suffix = f"retry{attempt}"
-            proxy_url = await self._build_oxylabs_proxy_url_async(secrets_manager, session_suffix)
-            proxy_config = self._make_proxy_config(proxy_url)
-            proxy_configs.append(proxy_config)
-
-            if proxy_url:
-                logger.debug(f"Built proxy config for attempt {attempt+1}/{max_retries} with session suffix: {session_suffix}")
+        # Pre-build proxy config for retry attempts
+        # Webshare automatically rotates IPs, but we ensure proper rotation by:
+        # 1. Closing sessions after each attempt (Connection: close header)
+        # 2. Creating fresh YouTubeTranscriptApi instances for each attempt
+        # 3. Adding delays between attempts to avoid rate limiting
+        webshare_config = await self._build_webshare_proxy_config_async(secrets_manager)
+        
+        if webshare_config:
+            logger.debug(f"Using Webshare proxy for {max_retries} retry attempts")
+            proxy_configs = [webshare_config] * max_retries
+        else:
+            logger.warning(f"Webshare proxy not available - attempting direct connection (may fail due to IP blocks)")
+            proxy_configs = [None] * max_retries
 
         # Run synchronous transcript fetching in thread pool to avoid blocking
         def _fetch_sync():
             """Synchronous transcript fetching function to run in thread pool."""
+            logger.debug(f"Starting transcript fetch for video {video_id}, languages: {languages}, max retries: {max_retries}")
+
             for attempt in range(max_retries):
                 try:
+                    # Add random delay between attempts (10-100ms) to avoid looking like a bot
+                    if attempt > 0:  # No delay on first attempt
+                        delay_ms = random.randint(10, 100)
+                        logger.debug(f"Adding {delay_ms}ms delay before attempt {attempt+1}/{max_retries}")
+                        time.sleep(delay_ms / 1000.0)
+
                     # Use pre-built proxy config for this attempt (different IP for each retry)
                     proxy_config = proxy_configs[attempt]
-                    if proxy_config:
-                        logger.debug(f"Attempt {attempt+1}/{max_retries}: Using proxy with different session ID (retry{attempt})")
+
+                    # Create custom HTTP session with randomized User-Agent and headers for each attempt
+                    custom_session = self._create_custom_http_session(proxy_config)
+
+                    # Only log attempt details on first attempt or failures (reduce verbosity)
+                    if attempt == 0:
+                        # Check IP only on first attempt
+                        current_ip = self._get_current_ip_address(custom_session) if custom_session else "N/A"
+                        logger.debug(f"Attempt 1/{max_retries} for video {video_id}, IP: {current_ip}")
+
+                    # Create YouTubeTranscriptApi instance for this attempt
+                    # IMPORTANT: When using WebshareProxyConfig, we should NOT pass http_client
+                    # because WebshareProxyConfig handles the proxy internally and creates its own session.
+                    # Passing a custom session can interfere with the proxy setup.
+                    # For direct connections (no proxy), we use custom session for anti-detection headers.
+                    if proxy_config and WEBSHARE_AVAILABLE and WebshareProxyConfig and isinstance(proxy_config, WebshareProxyConfig):
+                        # WebshareProxyConfig handles proxy internally - don't pass custom session
+                        # This ensures the proxy works correctly and IPs rotate properly
                         ytt_api = YouTubeTranscriptApi(proxy_config=proxy_config)
+                        # Note: We lose custom headers here, but Webshare's residential IPs should be enough
+                        # The library will create its own session with proper proxy configuration
+                    elif proxy_config:
+                        # For other proxy types (if any), use custom session
+                        ytt_api = YouTubeTranscriptApi(proxy_config=proxy_config, http_client=custom_session)
                     else:
-                        logger.debug(f"Attempt {attempt+1}/{max_retries}: No proxy available, using direct connection")
-                        ytt_api = YouTubeTranscriptApi()
+                        # No proxy - use custom session for anti-detection headers
+                        ytt_api = YouTubeTranscriptApi(http_client=custom_session)
                     
-                    # Fetch transcript - API will pick the first available language
-                    # The fetch() method returns a TranscriptList object containing transcript items
-                    # Each item has: text, start (timestamp in seconds), duration (in seconds)
-                    fetched = ytt_api.fetch(video_id, languages=languages)
+                    try:
+                        # Fetch transcript - API will pick the first available language
+                        # The fetch() method returns a TranscriptList object containing transcript items
+                        # Each item has: text, start (timestamp in seconds), duration (in seconds)
+                        fetched = ytt_api.fetch(video_id, languages=languages)
+                    finally:
+                        # Close the session if we created one (only for non-Webshare cases)
+                        # WebshareProxyConfig manages its own session lifecycle
+                        if not (proxy_config and WEBSHARE_AVAILABLE and WebshareProxyConfig and isinstance(proxy_config, WebshareProxyConfig)):
+                            custom_session.close()
                     
                     # Extract transcript items with timestamps
                     # Each item can be accessed as dict (item['text']) or object (item.text)
@@ -537,7 +657,10 @@ class TranscriptSkill(BaseSkill):
                     
                     # Also keep plain text for word/character counting
                     plain_text = " ".join(transcript_text_parts)
-                    
+
+                    # Log success (simplified)
+                    logger.info(f"Transcript fetched for video {video_id} (attempt {attempt+1}/{max_retries}, language: {fetched.language}, words: {len(plain_text.split())})")
+
                     return {
                         "success": True,
                         "url": url,
@@ -548,9 +671,18 @@ class TranscriptSkill(BaseSkill):
                         "language": fetched.language,
                     }
                 except Exception as exc:
-                    proxy_info = f"(proxy session: retry{attempt})" if proxy_configs[attempt] else "(direct connection)"
-                    logger.warning(f"Transcript fetch attempt {attempt+1}/{max_retries} failed for {video_id} {proxy_info}: {type(exc).__name__}: {exc}")
+                    # Simplified error logging
+                    error_type = type(exc).__name__
+                    error_msg = str(exc)[:200]  # Truncate long error messages
+                    
+                    # Only log detailed errors on last attempt or for specific error types
+                    if attempt == max_retries - 1 or "IpBlocked" in error_type or "RequestBlocked" in error_type:
+                        logger.warning(f"Transcript fetch attempt {attempt+1}/{max_retries} failed for video {video_id}: {error_type} - {error_msg}")
+                    else:
+                        logger.debug(f"Transcript fetch attempt {attempt+1}/{max_retries} failed for video {video_id}: {error_type}")
+
                     if attempt == max_retries - 1:
+                        logger.error(f"All {max_retries} attempts failed for video {video_id}: {error_type}")
                         return {
                             "success": False,
                             "url": url,
@@ -639,8 +771,6 @@ class TranscriptSkill(BaseSkill):
         # Extract optional languages parameter
         languages = req.get("languages")
         
-        logger.debug(f"Executing transcript fetch (id: {request_id}): url='{video_url}'")
-        
         try:
             # Extract video ID from URL
             video_id = self._extract_video_id(video_url)
@@ -701,7 +831,7 @@ class TranscriptSkill(BaseSkill):
                 "hash": self._generate_result_hash(video_url)
             }
             
-            logger.info(f"Transcript fetch (id: {request_id}) completed: video_id='{video_id}'")
+            logger.debug(f"Transcript fetch completed for video {video_id}")
             
             # Create creator income entry asynchronously (fire-and-forget)
             # This doesn't block the skill response
@@ -896,9 +1026,7 @@ class TranscriptSkill(BaseSkill):
         if error:
             return TranscriptResponse(results=[], error=error)
         
-        # Proxy configuration is now handled per-attempt in _fetch_transcript
-        # to ensure different IPs are used for each retry
-        logger.debug("Proxy configurations will be built per-retry to use different IPs")
+        # Proxy configuration is handled in _fetch_transcript
         
         # Initialize cache service for content sanitization (shared across all requests)
         from backend.core.api.app.services.cache import CacheService
@@ -934,9 +1062,11 @@ class TranscriptSkill(BaseSkill):
             logger=logger
         )
         
-        # Add skill-specific logging
-        total_results = sum(len(group.get("results", [])) for group in grouped_results)
-        logger.info(f"Transcript skill execution completed: {len(grouped_results)} request groups, {success_count} successful, {failed_count} failed, {total_results} total results")
+        # Add skill-specific logging (simplified)
+        if failed_count > 0:
+            logger.info(f"Transcript skill completed: {success_count} successful, {failed_count} failed")
+        else:
+            logger.debug(f"Transcript skill completed: {success_count} successful")
         
         return response
     

@@ -2208,6 +2208,29 @@ auto_topup_payment_method_error:
   cs: Platební metodu se nepodařilo uložit. Měsíční automatické dobíjení není k dispozici. Můžete to nastavit později v nastavení.
   sv: Betalningsmetoden kunde inte sparas. Månadsvis automatisk påfyllning är inte tillgänglig. Du kan ställa in detta senare i inställningarna.
   verified_by_human: []
+insufficient_credits_error:
+  context: Error message when user doesn't have enough credits to complete a request
+  en: You don't have enough credits to complete this request. Please buy more credits or activate auto top-up with a valid payment method.
+  de: Sie haben nicht genug Credits, um diese Anfrage abzuschließen. Bitte kaufen Sie mehr Credits oder aktivieren Sie Auto-Aufladen mit einer gültigen Zahlungsmethode.
+  zh: 您没有足够的积分来完成此请求。请购买更多积分或使用有效的付款方式激活自动充值。
+  es: No tienes suficientes créditos para completar esta solicitud. Por favor, compra más créditos o activa la recarga automática con un método de pago válido.
+  fr: Vous n'avez pas assez de crédits pour compléter cette demande. Veuillez acheter plus de crédits ou activer le rechargement automatique avec un moyen de paiement valide.
+  pt: Você não tem créditos suficientes para completar esta solicitação. Por favor, compre mais créditos ou ative o recarregamento automático com um método de pagamento válido.
+  ru: У вас недостаточно кредитов для выполнения этого запроса. Пожалуйста, купите больше кредитов или активируйте автопополнение с действительным способом оплаты.
+  ja: このリクエストを完了するのに十分なクレジットがありません。より多くのクレジットを購入するか、有効な支払い方法で自動チャージを有効にしてください。
+  ko: 이 요청을 완료하기에 충분한 크레딧이 없습니다. 더 많은 크레딧을 구매하거나 유효한 결제 수단으로 자동 충전을 활성화하세요.
+  it: Non hai abbastanza crediti per completare questa richiesta. Per favore, acquista più crediti o attiva la ricarica automatica con un metodo di pagamento valido.
+  tr: Bu isteği tamamlamak için yeterli krediniz yok. Lütfen daha fazla kredi satın alın veya geçerli bir ödeme yöntemiyle otomatik yükleme etkinleştirin.
+  vi: Bạn không có đủ tín dụng để hoàn thành yêu cầu này. Vui lòng mua thêm tín dụng hoặc kích hoạt tự động nạp tiền với phương thức thanh toán hợp lệ.
+  id: Anda tidak memiliki cukup kredit untuk menyelesaikan permintaan ini. Silakan beli lebih banyak kredit atau aktifkan isi ulang otomatis dengan metode pembayaran yang valid.
+  pl: Nie masz wystarczającej liczby kredytów, aby ukończyć to żądanie. Proszę kupić więcej kredytów lub aktywować auto-doładowanie z ważną metodą płatności.
+  nl: Je hebt niet genoeg credits om dit verzoek te voltooien. Koop meer credits of activeer automatisch opwaarderen met een geldige betaalmethode.
+  ar: ليس لديك رصيد كافٍ لإكمال هذا الطلب. يرجى شراء المزيد من الاعتمادات أو تفعيل إعادة الشحن التلقائي بطريقة دفع صالحة.
+  hi: इस अनुरोध को पूरा करने के लिए आपके पास पर्याप्त क्रेडिट नहीं हैं। कृपया अधिक क्रेडिट खरीदें या एक वैध भुगतान विधि के साथ स्वचालित टॉप-अप सक्रिय करें।
+  th: คุณไม่มีเครดิตเพียงพอที่จะดำเนินการคำขอนี้ โปรดซื้อเครดิตเพิ่มเติมหรือเปิดใช้งานการเติมเงินอัตโนมัติด้วยวิธีการชำระเงินที่ถูกต้อง
+  cs: Nemáte dostatek kreditů k dokončení tohoto požadavku. Prosím, kupte více kreditů nebo aktivujte automatické dobíjení s platnou platební metodou.
+  sv: Du har inte tillräckligt med krediter för att slutföra denna begäran. Vänligen köp fler krediter eller aktivera automatisk påfyllning med en giltig betalningsmetod.
+  verified_by_human: []
 auto_topup_settings_help:
   context: Help text about changing auto top-up settings
   en: In Settings/Billing you can change the Auto top-up settings at any time.

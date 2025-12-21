@@ -266,7 +266,7 @@ def get_provider_api_key_env_vars(provider_id: str) -> List[str]:
     provider_key_map = {
         "brave": ["SECRET__BRAVE__API_KEY", "SECRET__BRAVE_SEARCH__API_KEY"],
         "firecrawl": ["SECRET__FIRECRAWL__API_KEY", "FIRECRAWL_API_KEY"],
-        "youtube": ["SECRET__YOUTUBE__API_KEY", "SECRET__GOOGLE__YOUTUBE__API_KEY"],
+        "youtube": ["SECRET__YOUTUBE__API_KEY", "SECRET__YOUTUBE__API_KEY"],
         "google_maps": ["SECRET__GOOGLE_MAPS__API_KEY"],
     }
     

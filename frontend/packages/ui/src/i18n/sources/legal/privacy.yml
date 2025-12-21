@@ -941,74 +941,74 @@ brave.privacy_policy_link:
   cs: Zásady ochrany osobních údajů Brave Search
   sv: Brave Searchs integritetspolicy
   verified_by_human: []
-oxylabs.heading:
-  context: Section heading for Oxylabs service
-  en: 3.11 Oxylabs (Video Transcript Proxy)
-  de: 3.11 Oxylabs (Video-Transkript-Proxy)
-  zh: 3.11 Oxylabs（视频转录代理）
-  es: 3.11 Oxylabs (Proxy de Transcripción de Video)
-  fr: 3.11 Oxylabs (Proxy de transcription vidéo)
-  pt: 3.11 Oxylabs (Proxy de Transcrição de Vídeo)
-  ru: 3.11 Oxylabs (Прокси-сервер для транскрипции видео)
-  ja: 3.11 Oxylabs（動画文字起こしプロキシ）
-  ko: 3.11 Oxylabs(비디오 전사 프록시)
-  it: 3.11 Oxylabs (Proxy di Trascrizione Video)
-  tr: 3.11 Oxylabs (Video Transkript Proxy)
-  vi: 3.11 Oxylabs (Proxy Bản ghi Video)
-  id: 3.11 Oxylabs (Proxy Transkrip Video)
-  pl: 3.11 Oxylabs (Proxy Transkrypcji Wideo)
-  nl: 3.11 Oxylabs (Video Transcript Proxy)
-  ar: 3.11 Oxylabs (وكيل نسخ الفيديو)
-  hi: 3.11 Oxylabs (वीडियो ट्रांसक्रिप्ट प्रॉक्सी)
-  th: 3.11 Oxylabs (พร็อกซี่คำบรรยายวิดีโอ)
-  cs: 3.11 Oxylabs (Proxy pro přepis videa)
-  sv: 3.11 Oxylabs (Videoavskriftsproxy)
+webshare.heading:
+  context: Section heading for Webshare service
+  en: 3.11 Webshare (Video Transcript Proxy)
+  de: 3.11 Webshare (Video-Transkript-Proxy)
+  zh: 3.11 Webshare（视频转录代理）
+  es: 3.11 Webshare (Proxy de Transcripción de Video)
+  fr: 3.11 Webshare (Proxy de transcription vidéo)
+  pt: 3.11 Webshare (Proxy de Transcrição de Vídeo)
+  ru: 3.11 Webshare (Прокси-сервер для транскрипции видео)
+  ja: 3.11 Webshare（動画文字起こしプロキシ）
+  ko: 3.11 Webshare(비디오 전사 프록시)
+  it: 3.11 Webshare (Proxy di Trascrizione Video)
+  tr: 3.11 Webshare (Video Transkript Proxy)
+  vi: 3.11 Webshare (Proxy Bản ghi Video)
+  id: 3.11 Webshare (Proxy Transkrip Video)
+  pl: 3.11 Webshare (Proxy Transkrypcji Wideo)
+  nl: 3.11 Webshare (Video Transcript Proxy)
+  ar: 3.11 Webshare (وكيل نسخ الفيديو)
+  hi: 3.11 Webshare (वीडियो ट्रांसक्रिप्ट प्रॉक्सी)
+  th: 3.11 Webshare (พร็อกซี่คำบรรยายวิดีโอ)
+  cs: 3.11 Webshare (Proxy pro přepis videa)
+  sv: 3.11 Webshare (Videoavskriftsproxy)
   verified_by_human: []
-oxylabs.description:
-  context: Description of Oxylabs service
-  en: 'We use Oxylabs (EU company) as a proxy service for fetching YouTube video transcripts in the web application. When you use the videos get transcript skill, the URLs of YouTube videos you request transcripts for are routed through Oxylabs proxy to YouTube. Oxylabs sees which videos you request transcripts for, but all data is shared without user identifiers - Oxylabs does not know which specific user requested each transcript. This data sharing only occurs when you actively use the videos get transcript skill.'
-  de: 'Wir verwenden Oxylabs (EU-Unternehmen) als Proxy-Dienst zum Abrufen von YouTube-Video-Transkripten in der Webanwendung. Wenn Sie die Funktion "Videos Transkript abrufen" verwenden, werden die URLs der YouTube-Videos, für die Sie Transkripte anfordern, über den Oxylabs-Proxy zu YouTube weitergeleitet. Oxylabs sieht, für welche Videos Sie Transkripte anfordern, aber alle Daten werden ohne Benutzerkennungen geteilt - Oxylabs weiß nicht, welcher spezifische Benutzer jedes Transkript angefordert hat. Diese Datenweitergabe erfolgt nur, wenn Sie aktiv die Funktion "Videos Transkript abrufen" verwenden.'
-  zh: '我们在 Web 应用程序中使用 Oxylabs（欧盟公司）作为代理服务来获取 YouTube 视频转录。当您使用视频获取转录功能时，您请求转录的 YouTube 视频的 URL 会通过 Oxylabs 代理路由到 YouTube。Oxylabs 会看到您请求转录的视频，但所有数据都是在没有用户标识符的情况下共享的 - Oxylabs 不知道哪个特定用户请求了每个转录。这种数据共享仅在您主动使用视频获取转录功能时发生。'
-  es: 'Utilizamos Oxylabs (empresa de la UE) como servicio proxy para obtener transcripciones de videos de YouTube en la aplicación web. Cuando utiliza la función de obtener transcripción de videos, las URL de los videos de YouTube para los que solicita transcripciones se enrutan a través del proxy de Oxylabs a YouTube. Oxylabs ve para qué videos solicita transcripciones, pero todos los datos se comparten sin identificadores de usuario: Oxylabs no sabe qué usuario específico solicitó cada transcripción. Este intercambio de datos solo ocurre cuando utiliza activamente la función de obtener transcripción de videos.'
-  fr: "Nous utilisons Oxylabs (entreprise de l'UE) comme service proxy pour récupérer les transcriptions de vidéos YouTube dans l'application web. Lorsque vous utilisez la fonction d'obtention de transcription de vidéos, les URL des vidéos YouTube pour lesquelles vous demandez des transcriptions sont acheminées via le proxy Oxylabs vers YouTube. Oxylabs voit pour quelles vidéos vous demandez des transcriptions, mais toutes les données sont partagées sans identifiants d'utilisateur - Oxylabs ne sait pas quel utilisateur spécifique a demandé chaque transcription. Ce partage de données ne se produit que lorsque vous utilisez activement la fonction d'obtention de transcription de vidéos."
-  pt: 'Usamos Oxylabs (empresa da UE) como serviço proxy para buscar transcrições de vídeos do YouTube no aplicativo web. Quando você usa a função de obter transcrição de vídeos, as URLs dos vídeos do YouTube para os quais você solicita transcrições são roteadas através do proxy Oxylabs para o YouTube. Oxylabs vê para quais vídeos você solicita transcrições, mas todos os dados são compartilhados sem identificadores de usuário - Oxylabs não sabe qual usuário específico solicitou cada transcrição. Este compartilhamento de dados ocorre apenas quando você usa ativamente a função de obter transcrição de vídeos.'
-  ru: 'Мы используем Oxylabs (компания ЕС) в качестве прокси-сервиса для получения транскрипций видео YouTube в веб-приложении. Когда вы используете функцию получения транскрипции видео, URL-адреса видео YouTube, для которых вы запрашиваете транскрипции, маршрутизируются через прокси Oxylabs на YouTube. Oxylabs видит, для каких видео вы запрашиваете транскрипции, но все данные передаются без идентификаторов пользователей - Oxylabs не знает, какой конкретный пользователь запросил каждую транскрипцию. Эта передача данных происходит только тогда, когда вы активно используете функцию получения транскрипции видео.'
-  ja: '当社は、ウェブアプリケーションでYouTube動画の文字起こしを取得するためのプロキシサービスとしてOxylabs（EU企業）を使用しています。動画の文字起こし取得機能を使用すると、文字起こしをリクエストするYouTube動画のURLがOxylabsプロキシ経由でYouTubeにルーティングされます。Oxylabsは文字起こしをリクエストする動画を確認しますが、すべてのデータはユーザー識別子なしで共有されます - Oxylabsはどの特定のユーザーが各文字起こしをリクエストしたかを知りません。このデータ共有は、動画の文字起こし取得機能を積極的に使用する場合にのみ発生します。'
-  ko: '웹 애플리케이션에서 YouTube 비디오 전사를 가져오기 위한 프록시 서비스로 Oxylabs(EU 회사)를 사용합니다. 비디오 전사 가져오기 기능을 사용하면 전사를 요청하는 YouTube 비디오의 URL이 Oxylabs 프록시를 통해 YouTube로 라우팅됩니다. Oxylabs는 전사를 요청하는 비디오를 볼 수 있지만 모든 데이터는 사용자 식별자 없이 공유됩니다 - Oxylabs는 어떤 특정 사용자가 각 전사를 요청했는지 알 수 없습니다. 이 데이터 공유는 비디오 전사 가져오기 기능을 적극적으로 사용할 때만 발생합니다.'
-  it: "Utilizziamo Oxylabs (azienda UE) come servizio proxy per recuperare le trascrizioni dei video di YouTube nell'applicazione web. Quando utilizzi la funzione di ottenere trascrizione video, gli URL dei video di YouTube per i quali richiedi trascrizioni vengono instradati tramite il proxy Oxylabs a YouTube. Oxylabs vede per quali video richiedi trascrizioni, ma tutti i dati sono condivisi senza identificatori utente - Oxylabs non sa quale utente specifico ha richiesto ogni trascrizione. Questa condivisione dei dati si verifica solo quando utilizzi attivamente la funzione di ottenere trascrizione video."
-  tr: "Web uygulamasında YouTube video transkriptlerini almak için bir proxy hizmeti olarak Oxylabs (AB şirketi) kullanıyoruz. Video transkript alma özelliğini kullandığınızda, transkript istediğiniz YouTube videolarının URL'leri Oxylabs proxy üzerinden YouTube'a yönlendirilir. Oxylabs hangi videolar için transkript istediğinizi görür, ancak tüm veriler kullanıcı tanımlayıcıları olmadan paylaşılır - Oxylabs hangi belirli kullanıcının her transkripti istediğini bilmez. Bu veri paylaşımı yalnızca video transkript alma özelliğini aktif olarak kullandığınızda gerçekleşir."
-  vi: 'Chúng tôi sử dụng Oxylabs (công ty EU) như một dịch vụ proxy để lấy bản ghi video YouTube trong ứng dụng web. Khi bạn sử dụng tính năng lấy bản ghi video, URL của các video YouTube mà bạn yêu cầu bản ghi sẽ được định tuyến qua proxy Oxylabs đến YouTube. Oxylabs thấy bạn yêu cầu bản ghi cho video nào, nhưng tất cả dữ liệu được chia sẻ mà không có định danh người dùng - Oxylabs không biết người dùng cụ thể nào đã yêu cầu mỗi bản ghi. Việc chia sẻ dữ liệu này chỉ xảy ra khi bạn tích cực sử dụng tính năng lấy bản ghi video.'
-  id: 'Kami menggunakan Oxylabs (perusahaan UE) sebagai layanan proxy untuk mengambil transkrip video YouTube di aplikasi web. Saat Anda menggunakan fitur mendapatkan transkrip video, URL video YouTube yang Anda minta transkripnya diarahkan melalui proxy Oxylabs ke YouTube. Oxylabs melihat video mana yang Anda minta transkripnya, tetapi semua data dibagikan tanpa pengenal pengguna - Oxylabs tidak tahu pengguna spesifik mana yang meminta setiap transkrip. Berbagi data ini hanya terjadi ketika Anda secara aktif menggunakan fitur mendapatkan transkrip video.'
-  pl: 'Używamy Oxylabs (firma UE) jako usługi proxy do pobierania transkrypcji filmów YouTube w aplikacji internetowej. Gdy używasz funkcji pobierania transkrypcji filmów, adresy URL filmów YouTube, dla których żądasz transkrypcji, są kierowane przez proxy Oxylabs do YouTube. Oxylabs widzi, dla których filmów żądasz transkrypcji, ale wszystkie dane są udostępniane bez identyfikatorów użytkownika - Oxylabs nie wie, który konkretny użytkownik zażądał każdej transkrypcji. To udostępnianie danych następuje tylko wtedy, gdy aktywnie używasz funkcji pobierania transkrypcji filmów.'
-  nl: "We gebruiken Oxylabs (EU-bedrijf) als proxyservice voor het ophalen van YouTube-videotranscripten in de webapplicatie. Wanneer u de functie voor het ophalen van videotranscripten gebruikt, worden de URL's van de YouTube-video's waarvoor u transcripten aanvraagt, via de Oxylabs-proxy naar YouTube doorgestuurd. Oxylabs ziet voor welke video's u transcripten aanvraagt, maar alle gegevens worden gedeeld zonder gebruikersidentificatoren - Oxylabs weet niet welke specifieke gebruiker elk transcript heeft aangevraagd. Deze gegevensdeling vindt alleen plaats wanneer u actief de functie voor het ophalen van videotranscripten gebruikt."
-  ar: 'نستخدم Oxylabs (شركة الاتحاد الأوروبي) كخدمة وكيل لجلب نصوص فيديو YouTube في تطبيق الويب. عند استخدام وظيفة الحصول على نص الفيديو، يتم توجيه عناوين URL لمقاطع فيديو YouTube التي تطلب نصوصها عبر وكيل Oxylabs إلى YouTube. يرى Oxylabs مقاطع الفيديو التي تطلب نصوصها، ولكن يتم مشاركة جميع البيانات دون معرفات المستخدم - لا يعرف Oxylabs المستخدم المحدد الذي طلب كل نص. يحدث تبادل البيانات هذا فقط عند استخدام وظيفة الحصول على نص الفيديو بنشاط.'
-  hi: 'हम वेब एप्लिकेशन में YouTube वीडियो ट्रांसक्रिप्ट प्राप्त करने के लिए एक प्रॉक्सी सेवा के रूप में Oxylabs (EU कंपनी) का उपयोग करते हैं। जब आप वीडियो ट्रांसक्रिप्ट प्राप्त करने की क्षमता का उपयोग करते हैं, तो आपके द्वारा ट्रांसक्रिप्ट के लिए अनुरोध किए गए YouTube वीडियो के URL Oxylabs प्रॉक्सी के माध्यम से YouTube पर रूट किए जाते हैं। Oxylabs देखता है कि आप किन वीडियो के लिए ट्रांसक्रिप्ट का अनुरोध करते हैं, लेकिन सभी डेटा उपयोगकर्ता पहचानकर्ताओं के बिना साझा किया जाता है - Oxylabs नहीं जानता कि किस विशिष्ट उपयोगकर्ता ने प्रत्येक ट्रांसक्रिप्ट का अनुरोध किया। यह डेटा साझाकरण केवल तब होता है जब आप सक्रिय रूप से वीडियो ट्रांसक्रिप्ट प्राप्त करने की क्षमता का उपयोग करते हैं।'
-  th: 'เราใช้ Oxylabs (บริษัทสหภาพยุโรป) เป็นบริการพร็อกซี่สำหรับดึงคำบรรยายวิดีโอ YouTube ในแอปพลิเคชันเว็บ เมื่อคุณใช้ทักษะดึงคำบรรยายวิดีโอ URL ของวิดีโอ YouTube ที่คุณขอคำบรรยายจะถูกส่งผ่านพร็อกซี่ Oxylabs ไปยัง YouTube Oxylabs เห็นวิดีโอที่คุณขอคำบรรยาย แต่ข้อมูลทั้งหมดจะถูกแชร์โดยไม่มีตัวระบุผู้ใช้ - Oxylabs ไม่ทราบว่าผู้ใช้เฉพาะรายใดขอคำบรรยายแต่ละรายการ การแชร์ข้อมูลนี้เกิดขึ้นเฉพาะเมื่อคุณใช้ทักษะดึงคำบรรยายวิดีโออย่างแข็งขัน'
-  cs: 'Používáme Oxylabs (společnost EU) jako proxy službu pro získávání přepisů videí YouTube v webové aplikaci. Když používáte funkci získání přepisu videa, URL videí YouTube, pro která požadujete přepisy, jsou směrována přes proxy Oxylabs na YouTube. Oxylabs vidí, pro která videa požadujete přepisy, ale všechna data jsou sdílena bez identifikátorů uživatelů - Oxylabs neví, který konkrétní uživatel požádal o každý přepis. Toto sdílení dat nastává pouze tehdy, když aktivně používáte funkci získání přepisu videa.'
-  sv: 'Vi använder Oxylabs (EU-företag) som en proxytjänst för att hämta YouTube-videoavskrifter i webbapplikationen. När du använder funktionen för att hämta videoavskrifter dirigeras URL:erna för YouTube-videor som du begär avskrifter för via Oxylabs-proxyn till YouTube. Oxylabs ser vilka videor du begär avskrifter för, men all data delas utan användaridentifierare - Oxylabs vet inte vilken specifik användare som begärde varje avskrift. Denna datadelning sker endast när du aktivt använder funktionen för att hämta videoavskrifter.'
+webshare.description:
+  context: Description of Webshare service
+  en: 'We use Webshare as a proxy service for fetching YouTube video transcripts in the web application. When you use the videos get transcript skill, the URLs of YouTube videos you request transcripts for are routed through Webshare proxy to YouTube. Webshare sees which videos you request transcripts for, but all data is shared without user identifiers - Webshare does not know which specific user requested each transcript. This data sharing only occurs when you actively use the videos get transcript skill.'
+  de: 'Wir verwenden Webshare als Proxy-Dienst zum Abrufen von YouTube-Video-Transkripten in der Webanwendung. Wenn Sie die Funktion "Videos Transkript abrufen" verwenden, werden die URLs der YouTube-Videos, für die Sie Transkripte anfordern, über den Webshare-Proxy zu YouTube weitergeleitet. Webshare sieht, für welche Videos Sie Transkripte anfordern, aber alle Daten werden ohne Benutzerkennungen geteilt - Webshare weiß nicht, welcher spezifische Benutzer jedes Transkript angefordert hat. Diese Datenweitergabe erfolgt nur, wenn Sie aktiv die Funktion "Videos Transkript abrufen" verwenden.'
+  zh: '我们在 Web 应用程序中使用 Webshare 作为代理服务来获取 YouTube 视频转录。当您使用视频获取转录功能时，您请求转录的 YouTube 视频的 URL 会通过 Webshare 代理路由到 YouTube。Webshare 会看到您请求转录的视频，但所有数据都是在没有用户标识符的情况下共享的 - Webshare 不知道哪个特定用户请求了每个转录。这种数据共享仅在您主动使用视频获取转录功能时发生。'
+  es: 'Utilizamos Webshare como servicio proxy para obtener transcripciones de videos de YouTube en la aplicación web. Cuando utiliza la función de obtener transcripción de videos, las URL de los videos de YouTube para los que solicita transcripciones se enrutan a través del proxy de Webshare a YouTube. Webshare ve para qué videos solicita transcripciones, pero todos los datos se comparten sin identificadores de usuario: Webshare no sabe qué usuario específico solicitó cada transcripción. Este intercambio de datos solo ocurre cuando utiliza activamente la función de obtener transcripción de videos.'
+  fr: "Nous utilisons Webshare comme service proxy pour récupérer les transcriptions de vidéos YouTube dans l'application web. Lorsque vous utilisez la fonction d'obtention de transcription de vidéos, les URL des vidéos YouTube pour lesquelles vous demandez des transcriptions sont acheminées via le proxy Webshare vers YouTube. Webshare voit pour quelles vidéos vous demandez des transcriptions, mais toutes les données sont partagées sans identifiants d'utilisateur - Webshare ne sait pas quel utilisateur spécifique a demandé chaque transcription. Ce partage de données ne se produit que lorsque vous utilisez activement la fonction d'obtention de transcription de vidéos."
+  pt: 'Usamos Webshare como serviço proxy para buscar transcrições de vídeos do YouTube no aplicativo web. Quando você usa a função de obter transcrição de vídeos, as URLs dos vídeos do YouTube para os quais você solicita transcrições são roteadas através do proxy Webshare para o YouTube. Webshare vê para quais vídeos você solicita transcrições, mas todos os dados são compartilhados sem identificadores de usuário - Webshare não sabe qual usuário específico solicitou cada transcrição. Este compartilhamento de dados ocorre apenas quando você usa ativamente a função de obter transcrição de vídeos.'
+  ru: 'Мы используем Webshare в качестве прокси-сервиса для получения транскрипций видео YouTube в веб-приложении. Когда вы используете функцию получения транскрипции видео, URL-адреса видео YouTube, для которых вы запрашиваете транскрипции, маршрутизируются через прокси Webshare на YouTube. Webshare видит, для каких видео вы запрашиваете транскрипции, но все данные передаются без идентификаторов пользователей - Webshare не знает, какой конкретный пользователь запросил каждую транскрипцию. Эта передача данных происходит только тогда, когда вы активно используете функцию получения транскрипции видео.'
+  ja: '当社は、ウェブアプリケーションでYouTube動画の文字起こしを取得するためのプロキシサービスとしてWebshareを使用しています。動画の文字起こし取得機能を使用すると、文字起こしをリクエストするYouTube動画のURLがWebshareプロキシ経由でYouTubeにルーティングされます。Webshareは文字起こしをリクエストする動画を確認しますが、すべてのデータはユーザー識別子なしで共有されます - Webshareはどの特定のユーザーが各文字起こしをリクエストしたかを知りません。このデータ共有は、動画の文字起こし取得機能を積極的に使用する場合にのみ発生します。'
+  ko: '웹 애플리케이션에서 YouTube 비디오 전사를 가져오기 위한 프록시 서비스로 Webshare를 사용합니다. 비디오 전사 가져오기 기능을 사용하면 전사를 요청하는 YouTube 비디오의 URL이 Webshare 프록시를 통해 YouTube로 라우팅됩니다. Webshare는 전사를 요청하는 비디오를 볼 수 있지만 모든 데이터는 사용자 식별자 없이 공유됩니다 - Webshare는 어떤 특정 사용자가 각 전사를 요청했는지 알 수 없습니다. 이 데이터 공유는 비디오 전사 가져오기 기능을 적극적으로 사용할 때만 발생합니다.'
+  it: "Utilizziamo Webshare come servizio proxy per recuperare le trascrizioni dei video di YouTube nell'applicazione web. Quando utilizzi la funzione di ottenere trascrizione video, gli URL dei video di YouTube per i quali richiedi trascrizioni vengono instradati tramite il proxy Webshare a YouTube. Webshare vede per quali video richiedi trascrizioni, ma tutti i dati sono condivisi senza identificatori utente - Webshare non sa quale utente specifico ha richiesto ogni trascrizione. Questa condivisione dei dati si verifica solo quando utilizzi attivamente la funzione di ottenere trascrizione video."
+  tr: "Web uygulamasında YouTube video transkriptlerini almak için bir proxy hizmeti olarak Webshare kullanıyoruz. Video transkript alma özelliğini kullandığınızda, transkript istediğiniz YouTube videolarının URL'leri Webshare proxy üzerinden YouTube'a yönlendirilir. Webshare hangi videolar için transkript istediğinizi görür, ancak tüm veriler kullanıcı tanımlayıcıları olmadan paylaşılır - Webshare hangi belirli kullanıcının her transkripti istediğini bilmez. Bu veri paylaşımı yalnızca video transkript alma özelliğini aktif olarak kullandığınızda gerçekleşir."
+  vi: 'Chúng tôi sử dụng Webshare như một dịch vụ proxy để lấy bản ghi video YouTube trong ứng dụng web. Khi bạn sử dụng tính năng lấy bản ghi video, URL của các video YouTube mà bạn yêu cầu bản ghi sẽ được định tuyến qua proxy Webshare đến YouTube. Webshare thấy bạn yêu cầu bản ghi cho video nào, nhưng tất cả dữ liệu được chia sẻ mà không có định danh người dùng - Webshare không biết người dùng cụ thể nào đã yêu cầu mỗi bản ghi. Việc chia sẻ dữ liệu này chỉ xảy ra khi bạn tích cực sử dụng tính năng lấy bản ghi video.'
+  id: 'Kami menggunakan Webshare sebagai layanan proxy untuk mengambil transkrip video YouTube di aplikasi web. Saat Anda menggunakan fitur mendapatkan transkrip video, URL video YouTube yang Anda minta transkripnya diarahkan melalui proxy Webshare ke YouTube. Webshare melihat video mana yang Anda minta transkripnya, tetapi semua data dibagikan tanpa pengenal pengguna - Webshare tidak tahu pengguna spesifik mana yang meminta setiap transkrip. Berbagi data ini hanya terjadi ketika Anda secara aktif menggunakan fitur mendapatkan transkrip video.'
+  pl: 'Używamy Webshare jako usługi proxy do pobierania transkrypcji filmów YouTube w aplikacji internetowej. Gdy używasz funkcji pobierania transkrypcji filmów, adresy URL filmów YouTube, dla których żądasz transkrypcji, są kierowane przez proxy Webshare do YouTube. Webshare widzi, dla których filmów żądasz transkrypcji, ale wszystkie dane są udostępniane bez identyfikatorów użytkownika - Webshare nie wie, który konkretny użytkownik zażądał każdej transkrypcji. To udostępnianie danych następuje tylko wtedy, gdy aktywnie używasz funkcji pobierania transkrypcji filmów.'
+  nl: "We gebruiken Webshare als proxyservice voor het ophalen van YouTube-videotranscripten in de webapplicatie. Wanneer u de functie voor het ophalen van videotranscripten gebruikt, worden de URL's van de YouTube-video's waarvoor u transcripten aanvraagt, via de Webshare-proxy naar YouTube doorgestuurd. Webshare ziet voor welke video's u transcripten aanvraagt, maar alle gegevens worden gedeeld zonder gebruikersidentificatoren - Webshare weet niet welke specifieke gebruiker elk transcript heeft aangevraagd. Deze gegevensdeling vindt alleen plaats wanneer u actief de functie voor het ophalen van videotranscripten gebruikt."
+  ar: 'نستخدم Webshare كخدمة وكيل لجلب نصوص فيديو YouTube في تطبيق الويب. عند استخدام وظيفة الحصول على نص الفيديو، يتم توجيه عناوين URL لمقاطع فيديو YouTube التي تطلب نصوصها عبر وكيل Webshare إلى YouTube. يرى Webshare مقاطع الفيديو التي تطلب نصوصها، ولكن يتم مشاركة جميع البيانات دون معرفات المستخدم - لا يعرف Webshare المستخدم المحدد الذي طلب كل نص. يحدث تبادل البيانات هذا فقط عند استخدام وظيفة الحصول على نص الفيديو بنشاط.'
+  hi: 'हम वेब एप्लिकेशन में YouTube वीडियो ट्रांसक्रिप्ट प्राप्त करने के लिए एक प्रॉक्सी सेवा के रूप में Webshare का उपयोग करते हैं। जब आप वीडियो ट्रांसक्रिप्ट प्राप्त करने की क्षमता का उपयोग करते हैं, तो आपके द्वारा ट्रांसक्रिप्ट के लिए अनुरोध किए गए YouTube वीडियो के URL Webshare प्रॉक्सी के माध्यम से YouTube पर रूट किए जाते हैं। Webshare देखता है कि आप किन वीडियो के लिए ट्रांसक्रिप्ट का अनुरोध करते हैं, लेकिन सभी डेटा उपयोगकर्ता पहचानकर्ताओं के बिना साझा किया जाता है - Webshare नहीं जानता कि किस विशिष्ट उपयोगकर्ता ने प्रत्येक ट्रांसक्रिप्ट का अनुरोध किया। यह डेटा साझाकरण केवल तब होता है जब आप सक्रिय रूप से वीडियो ट्रांसक्रिप्ट प्राप्त करने की क्षमता का उपयोग करते हैं।'
+  th: 'เราใช้ Webshare เป็นบริการพร็อกซี่สำหรับดึงคำบรรยายวิดีโอ YouTube ในแอปพลิเคชันเว็บ เมื่อคุณใช้ทักษะดึงคำบรรยายวิดีโอ URL ของวิดีโอ YouTube ที่คุณขอคำบรรยายจะถูกส่งผ่านพร็อกซี่ Webshare ไปยัง YouTube Webshare เห็นวิดีโอที่คุณขอคำบรรยาย แต่ข้อมูลทั้งหมดจะถูกแชร์โดยไม่มีตัวระบุผู้ใช้ - Webshare ไม่ทราบว่าผู้ใช้เฉพาะรายใดขอคำบรรยายแต่ละรายการ การแชร์ข้อมูลนี้เกิดขึ้นเฉพาะเมื่อคุณใช้ทักษะดึงคำบรรยายวิดีโออย่างแข็งขัน'
+  cs: 'Používáme Webshare jako proxy službu pro získávání přepisů videí YouTube v webové aplikaci. Když používáte funkci získání přepisu videa, URL videí YouTube, pro která požadujete přepisy, jsou směrována přes proxy Webshare na YouTube. Webshare vidí, pro která videa požadujete přepisy, ale všechna data jsou sdílena bez identifikátorů uživatelů - Webshare neví, který konkrétní uživatel požádal o každý přepis. Toto sdílení dat nastává pouze tehdy, když aktivně používáte funkci získání přepisu videa.'
+  sv: 'Vi använder Webshare som en proxytjänst för att hämta YouTube-videoavskrifter i webbapplikationen. När du använder funktionen för att hämta videoavskrifter dirigeras URL:erna för YouTube-videor som du begär avskrifter för via Webshare-proxyn till YouTube. Webshare ser vilka videor du begär avskrifter för, men all data delas utan användaridentifierare - Webshare vet inte vilken specifik användare som begärde varje avskrift. Denna datadelning sker endast när du aktivt använder funktionen för att hämta videoavskrifter.'
   verified_by_human: []
-oxylabs.privacy_policy_link:
-  context: Link text for Oxylabs' privacy policy
-  en: Oxylabs Privacy Policy
-  de: Oxylabs Datenschutzerklärung
-  zh: Oxylabs 隐私政策
-  es: Política de privacidad de Oxylabs
-  fr: Politique de confidentialité d'Oxylabs
-  pt: Política de Privacidade da Oxylabs
-  ru: Политика конфиденциальности Oxylabs
-  ja: Oxylabsプライバシーポリシー
-  ko: Oxylabs 개인정보 보호정책
-  it: Informativa sulla Privacy di Oxylabs
-  tr: Oxylabs Gizlilik Politikası
-  vi: Chính sách Bảo mật của Oxylabs
-  id: Kebijakan Privasi Oxylabs
-  pl: Polityka Prywatności Oxylabs
-  nl: Privacybeleid van Oxylabs
-  ar: سياسة خصوصية Oxylabs
-  hi: Oxylabs गोपनीयता नीति
-  th: นโยบายความเป็นส่วนตัวของ Oxylabs
-  cs: Zásady ochrany osobních údajů Oxylabs
-  sv: Oxylabs integritetspolicy
+webshare.privacy_policy_link:
+  context: Link text for Webshare's privacy policy
+  en: Webshare Privacy Policy
+  de: Webshare Datenschutzerklärung
+  zh: Webshare 隐私政策
+  es: Política de privacidad de Webshare
+  fr: Politique de confidentialité de Webshare
+  pt: Política de Privacidade da Webshare
+  ru: Политика конфиденциальности Webshare
+  ja: Webshareプライバシーポリシー
+  ko: Webshare 개인정보 보호정책
+  it: Informativa sulla Privacy di Webshare
+  tr: Webshare Gizlilik Politikası
+  vi: Chính sách Bảo mật của Webshare
+  id: Kebijakan Privasi Webshare
+  pl: Polityka Prywatności Webshare
+  nl: Privacybeleid van Webshare
+  ar: سياسة خصوصية Webshare
+  hi: Webshare गोपनीयता नीति
+  th: นโยบายความเป็นส่วนตัวของ Webshare
+  cs: Zásady ochrany osobních údajů Webshare
+  sv: Webshare integritetspolicy
   verified_by_human: []
 google.heading:
   context: Section heading for Google service

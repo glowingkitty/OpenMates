@@ -885,7 +885,74 @@ def create_app() -> FastAPI:
         allowed_origins = []
         logger.warning("Origin string resolved to empty. No origins will be allowed.")
 
-    # 3. Log the final list
+    # 3. Validate CORS configuration for production environment
+    # In production, we require at least one HTTPS URL that is not localhost
+    if not is_dev:
+        from urllib.parse import urlparse
+        
+        # Check if there's at least one non-localhost HTTPS URL
+        has_production_url = False
+        localhost_urls = []
+        non_https_urls = []
+        
+        for origin in allowed_origins:
+            try:
+                parsed = urlparse(origin)
+                hostname = parsed.hostname or ""
+                
+                # Check if it's localhost
+                if hostname.lower() in ["localhost", "127.0.0.1", "::1", "0.0.0.0"]:
+                    localhost_urls.append(origin)
+                # Check if it's HTTPS
+                elif parsed.scheme.lower() == "https":
+                    has_production_url = True
+                else:
+                    non_https_urls.append(origin)
+            except Exception:
+                # Invalid URL format - will be caught by CORS middleware anyway
+                pass
+        
+        if not has_production_url:
+            env_var_name = "PRODUCTION_URL"
+            env_var_value = os.getenv(env_var_name, "(NOT SET)")
+            
+            error_msg = (
+                "=" * 80 + "\n"
+                "🚨 CORS CONFIGURATION ERROR - MISSING PRODUCTION HTTPS URL 🚨\n"
+                f"Environment: PRODUCTION\n"
+                f"Configured URLs: {', '.join(allowed_origins) if allowed_origins else '(NONE)'}\n"
+                f"Environment Variable: {env_var_name}\n"
+                f"Current Value: {env_var_value}\n"
+            )
+            
+            if localhost_urls:
+                error_msg += f"\n⚠️  Found localhost URLs (not suitable for production): {', '.join(localhost_urls)}\n"
+            if non_https_urls:
+                error_msg += f"\n⚠️  Found non-HTTPS URLs: {', '.join(non_https_urls)}\n"
+            
+            error_msg += (
+                "\n"
+                "⚠️  IMPACT: CORS requests from production frontend will FAIL!\n"
+                "   - API requests will return 403 Forbidden\n"
+                "   - OPTIONS preflight requests will fail\n"
+                "   - Frontend will not be able to communicate with the API\n"
+                "\n"
+                "🔧 FIX: Set PRODUCTION_URL to your production frontend URL:\n"
+                f"   {env_var_name}=\"https://your-domain.com\"\n"
+                "   (For multiple URLs, separate with commas)\n"
+                "=" * 80
+            )
+            
+            logger.error(error_msg)
+            # Also log as warning for less critical visibility
+            logger.warning(
+                f"CORS validation failed: No HTTPS production URL found. "
+                f"PRODUCTION_URL must contain at least one HTTPS URL that is not localhost."
+            )
+        else:
+            logger.info("✅ CORS configuration validation passed: Production HTTPS URL found")
+
+    # 4. Log the final list
     logger.info(f"Final allowed origins configured: {allowed_origins}")
 
     # Make allowed_origins accessible outside this module
