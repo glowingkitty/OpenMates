@@ -3015,3 +3015,135 @@ issue_report.location_label:
   cs: Odhadovaná poloha
   sv: Uppskattad plats
   verified_by_human: []
+community_share_notification.subject:
+  context: Email subject for community share notification
+  en: 'New chat suggested for community: {chat_title}'
+  de: 'Neuer Chat für die Community vorgeschlagen: {chat_title}'
+  zh: '社区建议的新聊天：{chat_title}'
+  es: 'Nuevo chat sugerido para la comunidad: {chat_title}'
+  fr: 'Nouveau chat suggéré pour la communauté : {chat_title}'
+  pt: 'Novo chat sugerido para a comunidade: {chat_title}'
+  ru: 'Новый чат предложен для сообщества: {chat_title}'
+  ja: 'コミュニティに提案された新しいチャット: {chat_title}'
+  ko: '커뮤니티에 제안된 새로운 채팅: {chat_title}'
+  it: 'Nuova chat suggerita per la comunità: {chat_title}'
+  tr: 'Topluluk için önerilen yeni sohbet: {chat_title}'
+  vi: 'Cuộc trò chuyện mới được đề xuất cho cộng đồng: {chat_title}'
+  id: 'Obrolan baru disarankan untuk komunitas: {chat_title}'
+  pl: 'Nowy czat zasugerowany dla społeczności: {chat_title}'
+  nl: 'Nieuwe chat voorgesteld voor de community: {chat_title}'
+  ar: 'تم اقتراح دردشة جديدة للمجتمع: {chat_title}'
+  hi: 'समुदाय के लिए नया चैट सुझाव: {chat_title}'
+  th: 'แชทใหม่ที่แนะนำสำหรับชุมชน: {chat_title}'
+  cs: 'Nový chat navržený pro komunitu: {chat_title}'
+  sv: 'Ny chatt föreslagen för communityn: {chat_title}'
+community_share_notification.header:
+  context: Header text in community share notification email body
+  en: New chat suggested for community
+  de: Neuer Chat für die Community vorgeschlagen
+  zh: 社区建议的新聊天
+  es: Nuevo chat sugerido para la comunidad
+  fr: Nouveau chat suggéré pour la communauté
+  pt: Novo chat sugerido para a comunidade
+  ru: Новый чат предложен для сообщества
+  ja: コミュニティに提案された新しいチャット
+  ko: 커뮤니티에 제안된 새로운 채팅
+  it: Nuova chat suggerita per la comunità
+  tr: Topluluk için önerilen yeni sohbet
+  vi: Cuộc trò chuyện mới được đề xuất cho cộng đồng
+  id: Obrolan baru disarankan untuk komunitas
+  pl: Nowy czat zasugerowany dla społeczności
+  nl: Nieuwe chat voorgesteld voor de community
+  ar: تم اقتراح دردشة جديدة للمجتمع
+  hi: समुदाय के लिए नया चैट सुझाव
+  th: แชทใหม่ที่แนะนำสำหรับชุมชน
+  cs: Nový chat navržený pro komunitu
+  sv: Ny chatt föreslagen för communityn
+community_share_notification.description:
+  context: Description text in community share notification email body
+  en: A user has shared a chat with the community. The chat might be selected to be shown to other users on the platform, as well as on social media and at events.
+  de: Ein Nutzer hat einen Chat mit der Community geteilt. Der Chat könnte ausgewählt werden, um anderen Nutzern auf der Plattform, in sozialen Medien und bei Veranstaltungen gezeigt zu werden.
+  zh: 用户与社区分享了聊天内容。该聊天可能会被选中，向平台上的其他用户展示，并在社交媒体和活动中展示。
+  es: Un usuario ha compartido un chat con la comunidad. El chat podría ser seleccionado para ser mostrado a otros usuarios en la plataforma, así como en las redes sociales y en eventos.
+  fr: Un utilisateur a partagé une discussion avec la communauté. La discussion pourrait être sélectionnée pour être montrée à d'autres utilisateurs sur la plateforme, ainsi que sur les réseaux sociaux et lors d'événements.
+  pt: Um usuário compartilhou um chat com a comunidade. O chat pode ser selecionado para ser exibido a outros usuários na plataforma, bem como em redes sociais e eventos.
+  ru: Пользователь поделился чатом с сообществом. Чат может быть выбран для показа другим пользователям платформы, а также в социальных сетях и на мероприятиях.
+  ja: ユーザーがコミュニティとチャットを共有しました。このチャットは、プラットフォーム上の他のユーザーに表示されるほか、ソーシャルメディアやイベントでも紹介される可能性があります。
+  ko: 사용자가 커뮤니티와 채팅을 공유했습니다. 이 채팅은 플랫폼의 다른 사용자에게 표시되거나 소셜 미디어 및 이벤트에서 소개될 수 있습니다.
+  it: Un utente ha condiviso una chat con la comunità. La chat potrebbe essere selezionata per essere mostrata ad altri utenti sulla piattaforma, oltre che sui social media e in occasione di eventi.
+  tr: Bir kullanıcı toplulukla bir sohbet paylaştı. Sohbet, platformdaki diğer kullanıcılara gösterilmek üzere seçilebilir, ayrıca sosyal medyada ve etkinliklerde yer alabilir.
+  vi: Một người dùng đã chia sẻ cuộc trò chuyện với cộng đồng. Cuộc trò chuyện có thể được chọn để hiển thị cho những người dùng khác trên nền tảng, cũng như trên mạng xã hội và tại các sự kiện.
+  id: Seorang pengguna telah membagikan obrolan dengan komunitas. Obrolan tersebut mungkin dipilih untuk ditampilkan kepada pengguna lain di platform, serta di media sosial dan di acara-acara.
+  pl: Użytkownik udostępnił czat społeczności. Czat może zostać wybrany do wyświetlenia innym użytkownikom na platformie, a także w mediach społecznościowych i na wydarzeniach.
+  nl: Een gebruiker heeft een chat gedeeld met de community. De chat kan worden geselecteerd om aan andere gebruikers op het platform te worden getoond, evenals op sociale media en tijdens evenementen.
+  ar: قام أحد المستخدمين بمشاركة دردشة مع المجتمع. قد يتم اختيار الدردشة لعرضها لمستخدمين آخرين على المنصة، وكذلك على وسائل التواصل الاجتماعي وفي الفعاليات.
+  hi: एक उपयोगकर्ता ने समुदाय के साथ चैट साझा की है। चैट को प्लेटफ़ॉर्म पर अन्य उपयोगकर्ताओं को दिखाने के साथ-साथ सोशल मीडिया और कार्यक्रमों में दिखाने के लिए चुना जा सकता है।
+  th: ผู้ใช้ได้แชร์แชทกับชุมชน แชทอาจถูกเลือกเพื่อแสดงให้ผู้ใช้อื่นบนแพลตฟอร์ม รวมถึงบนโซเชียลมีเดียและในงานต่างๆ
+  cs: Uživatel sdílel chat s komunitou. Chat může být vybrán k zobrazení ostatním uživatelům na platformě, stejně jako na sociálních sítích a na akcích.
+  sv: En användare har delat en chatt med communityn. Chatten kan väljas ut för att visas för andra användare på plattformen, liksom på sociala medier och vid evenemang.
+community_share_notification.chat_title_label:
+  context: Label for chat title in email
+  en: Chat Title
+  de: Chat-Titel
+  zh: 聊天标题
+  es: Título del chat
+  fr: Titre de la discussion
+  pt: Título do Chat
+  ru: Название чата
+  ja: チャットのタイトル
+  ko: 채팅 제목
+  it: Titolo della chat
+  tr: Sohbet Başlığı
+  vi: Tiêu đề cuộc trò chuyện
+  id: Judul Obrolan
+  pl: Tytuł czatu
+  nl: Chat Titel
+  ar: عنوان الدردشة
+  hi: चैट का शीर्षक
+  th: หัวข้อแชท
+  cs: Název chatu
+  sv: Chat-titel
+community_share_notification.summary_label:
+  context: Label for chat summary in email
+  en: Summary
+  de: Zusammenfassung
+  zh: 摘要
+  es: Resumen
+  fr: Résumé
+  pt: Resumo
+  ru: Резюме
+  ja: 概要
+  ko: 요약
+  it: Riepilogo
+  tr: Özet
+  vi: Tóm tắt
+  id: Ringkasan
+  pl: Podsumowanie
+  nl: Samenvatting
+  ar: الملخص
+  hi: सारांश
+  th: สรุป
+  cs: Souhrn
+  sv: Sammanfattning
+community_share_notification.link_label:
+  context: Label for share link in email
+  en: Share Link
+  de: Share-Link
+  zh: 分享链接
+  es: Enlace para compartir
+  fr: Lien de partage
+  pt: Link de Compartilhamento
+  ru: Ссылка для общего доступа
+  ja: 共有リンク
+  ko: 공유 링크
+  it: Link di condivisione
+  tr: Paylaşım Bağlantısı
+  vi: Liên kết chia sẻ
+  id: Tautan Bagikan
+  pl: Link do udostępnienia
+  nl: Deel-link
+  ar: رابط المشاركة
+  hi: साझा करने का लिंक
+  th: ลิงก์แชร์
+  cs: Odkaz pro sdílení
+  sv: Delningslänk

@@ -301,7 +301,13 @@ async def _sanitize_text_chunk(
         
         # Check if call was successful (error_message is None) and has arguments
         if result.error_message or not result.arguments:
-            error_msg = f"[{task_id}] Prompt injection detection failed for chunk {chunk_index+1}: {result.error_message or 'No arguments returned'}. This is a critical security failure - cannot proceed with unsanitized external content."
+            error_msg = f"[{task_id}] Prompt injection detection failed for chunk {chunk_index+1}: {result.error_message or 'No arguments returned'}."
+            
+            # Add helpful hint for self-hosted users if it looks like a provider error
+            if result.error_message and ("Groq" in result.error_message or "API key" in result.error_message.lower()):
+                error_msg += " HINT: This usually indicates the Groq API key is missing or invalid. Groq is REQUIRED for content sanitization when using skills that fetch external data. Please check your .env file and Vault configuration."
+            
+            error_msg += " This is a critical security failure - cannot proceed with unsanitized external content."
             logger.error(error_msg)
             # Return None to indicate failure - caller should handle this as an error
             return None
