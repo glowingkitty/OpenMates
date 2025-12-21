@@ -1750,6 +1750,37 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         settingsDeepLink.set('shared/share');
     }
 
+    /**
+     * Handler for the report issue button click.
+     * Opens the settings menu and navigates to the report issue page.
+     * This ensures the settings menu is properly opened on mobile devices.
+     */
+    async function handleReportIssue() {
+        console.debug("[ActiveChat] Report issue button clicked, opening report issue settings");
+        
+        // CRITICAL: Set settingsMenuVisible to true FIRST
+        // Settings.svelte watches settingsMenuVisible store and will sync isMenuVisible
+        // The deep link effect in Settings.svelte will also ensure the menu is open
+        // This must be set before the deep link to ensure proper sequencing
+        settingsMenuVisible.set(true);
+        
+        // CRITICAL: Also open via panelState for consistency
+        // This ensures the panel state is properly tracked
+        panelState.openSettings();
+        
+        // CRITICAL: Wait for store update to propagate and DOM to update
+        // This ensures the Settings component's effect has time to sync isMenuVisible
+        // and the menu is actually visible in the DOM before setting the deep link
+        await tick();
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+        // Navigate to the report issue settings page
+        // The settingsDeepLink store triggers the Settings component to:
+        // 1. Open the menu if not already open (line 1103 in Settings.svelte)
+        // 2. Navigate to the specified path after a brief delay (line 1117)
+        settingsDeepLink.set('report_issue');
+    }
+
     // Update handler for chat updates to be more selective
     async function handleChatUpdated(event: CustomEvent) {
         const detail = event.detail as any; 
@@ -3266,11 +3297,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                 <button
                                     class="clickable-icon icon_bug top-button"
                                     aria-label={$text('header.report_issue.text')}
-                                    onclick={() => {
-                                        // Open settings with report issue deep link
-                                        panelState.openSettings();
-                                        settingsDeepLink.set('report_issue');
-                                    }}
+                                    onclick={handleReportIssue}
                                     use:tooltip
                                     style="margin: 5px;"
                                 >

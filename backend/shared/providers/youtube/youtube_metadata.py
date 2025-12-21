@@ -32,7 +32,7 @@ async def _get_youtube_api_key(secrets_manager: SecretsManager) -> Optional[str]
     Retrieves the YouTube Data API key from Vault, with fallback to environment variables.
     
     Checks Vault first, then falls back to environment variables if Vault lookup fails.
-    Supports both SECRET__YOUTUBE__API_KEY and SECRET__GOOGLE__YOUTUBE__API_KEY for compatibility.
+    Supports both SECRET__YOUTUBE__API_KEY and SECRET__YOUTUBE__API_KEY for compatibility.
     
     Args:
         secrets_manager: The SecretsManager instance to use
@@ -53,7 +53,7 @@ async def _get_youtube_api_key(secrets_manager: SecretsManager) -> Optional[str]
         logger.debug(f"Failed to retrieve YouTube API key from Vault: {e}")
     
     # Fallback to environment variables
-    api_key = os.getenv("SECRET__YOUTUBE__API_KEY") or os.getenv("SECRET__GOOGLE__YOUTUBE__API_KEY")
+    api_key = os.getenv("SECRET__YOUTUBE__API_KEY") or os.getenv("SECRET__YOUTUBE__API_KEY")
     if api_key:
         logger.debug("YouTube API key retrieved from environment variable")
         return api_key

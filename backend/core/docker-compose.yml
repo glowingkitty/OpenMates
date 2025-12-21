@@ -67,8 +67,8 @@ services:
     environment:
       KEY: "${DIRECTUS_SECRET}"
       SECRET: "${DIRECTUS_SECRET}"
-      ADMIN_EMAIL: "${ADMIN_EMAIL}"
-      ADMIN_PASSWORD: "${ADMIN_PASSWORD}"
+      ADMIN_EMAIL: "${DATABASE_ADMIN_EMAIL}"
+      ADMIN_PASSWORD: "${DATABASE_ADMIN_PASSWORD}"
       DB_CLIENT: "pg"
       DB_HOST: "cms-database"
       DB_PORT: "5432"
@@ -126,8 +126,8 @@ services:
       dockerfile: Dockerfile
     env_file: ../../.env
     environment:
-      ADMIN_EMAIL: ${ADMIN_EMAIL}
-      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+      ADMIN_EMAIL: ${DATABASE_ADMIN_EMAIL}
+      ADMIN_PASSWORD: ${DATABASE_ADMIN_PASSWORD}
       DIRECTUS_TOKEN: ${DIRECTUS_TOKEN}
       SCHEMAS_DIR: "/usr/src/app/schemas"
     volumes:
