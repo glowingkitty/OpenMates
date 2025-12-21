@@ -145,6 +145,45 @@ When sharing publicly:
    - On subsequent visits, the stored key is used automatically
    - **Password Protection (Optional):** Users can optionally set a password when sharing publicly. The password is used to derive an additional encryption key that is combined with the shared encryption key, providing an extra layer of security. The server has no knowledge of whether a chat is password-protected (true zero-knowledge).
 
+### Share with Community
+
+When sharing a chat publicly, users can optionally activate the "Share with Community" feature. This feature makes the chat eligible for broader visibility and discovery across the platform and external channels.
+
+1. **Activation:**
+   - The "Share with Community" option can be enabled when sharing a chat publicly
+   - This is an opt-in feature that extends public sharing with additional visibility
+   - Users must explicitly enable this feature - it is not automatically activated when sharing publicly
+   - Once enabled, the chat becomes eligible for community discovery and promotion
+
+2. **Visibility and Discovery:**
+   - **Platform Discovery:** Chats shared with the community may be featured in community sections, discovery feeds, or curated collections on the platform
+   - **Social Media:** Community-shared chats may be promoted on social media platforms (Twitter, Facebook, LinkedIn, etc.) to showcase interesting conversations and use cases
+   - **Pinterest:** Community-shared chats may be shared on Pinterest boards to reach a broader audience interested in the topics discussed
+   - **Events and Presentations:** Community-shared chats may be featured at events, conferences, or in presentations to demonstrate platform capabilities and real-world use cases
+   - **Curated Collections:** Platform administrators may curate community-shared chats into themed collections or showcases
+
+3. **Access Mode:**
+   - **Read-Only by Default:** Community-shared chats follow the same read-only access mode as regular public shares
+   - **User Response Behavior:** Same as public shares - if a user attempts to respond, the chat is automatically copied to their account
+   - The original shared chat remains unchanged and unaffected
+
+4. **Content Guidelines:**
+   - Community-shared chats should represent high-quality, valuable conversations
+   - Platform administrators may review and curate community-shared chats before featuring them
+   - Users should ensure their shared content is appropriate for broader public visibility
+   - Content may be subject to community guidelines and moderation policies
+
+5. **Privacy and Control:**
+   - Users can disable "Share with Community" at any time without affecting the public share link
+   - Disabling community sharing removes the chat from community discovery features but maintains the public share link functionality
+   - All encryption and security principles from public sharing apply
+   - **Password Protection:** Users can still set a password when sharing with community, but password-protected chats may have limited visibility in community features (implementation decision)
+
+6. **Attribution:**
+   - When community-shared chats are featured, proper attribution to the original creator should be maintained
+   - Users' privacy preferences should be respected (e.g., anonymous sharing options if available)
+   - The original chat owner retains full control over the shared content
+
 ### Share with User (Invite via Email)
 
 When sharing with specific users:
@@ -380,6 +419,7 @@ The interface must provide clear visual feedback and controls for different shar
 
 - **Sharing Mode Selection:** Clear options to choose between read-only and group chat modes (for user-specific sharing)
 - **Password Protection Toggle:** Option to set an optional password for both public and user-specific sharing
+- **Share with Community Toggle:** Option to enable "Share with Community" when sharing publicly, making the chat eligible for platform discovery, social media promotion, Pinterest sharing, and event features
 - **Share Link Display:** Show the shareable link with clear copy-to-clipboard functionality
 - **Access Control:** For user-specific sharing, show list of users who have access and allow adding/removing users
 
@@ -580,6 +620,12 @@ Add the following fields to the `chats` collection:
   - Only populated when `share_mode` is enabled
   - Server can decrypt for OG tag generation
 
+- `shared_with_community` (boolean, default: false)
+  - Indicates whether the chat is shared with the community
+  - Only relevant when `is_private = false` (public sharing is enabled)
+  - When `true`, the chat is eligible for platform discovery, social media promotion and event features
+  - Users can enable/disable this feature independently of public sharing
+
 #### Embeds Collection
 
 Add the following fields to the `embeds` collection:
@@ -611,6 +657,7 @@ Add the following fields to the `embeds` collection:
    - Client decrypts `encrypted_title` and `encrypted_chat_summary` using chat key (derived from master key)
    - Client sends plaintext title and summary to server (only when sharing is enabled)
    - Server has `is_private = false` by default
+   - If user enables "Share with Community", client sends `shared_with_community = true` flag to server
 
 2. **Server Stores Shared Metadata**:
    - Server encrypts title and summary with shared vault key (`shared-content-metadata`)
@@ -635,10 +682,18 @@ Add the following fields to the `embeds` collection:
    - Client sends request to server to set `is_private = true`
    - Server updates `is_private` field to `true`
    - **Server MUST clear `shared_encrypted_title` and `shared_encrypted_summary`** (set to null) to remove OG metadata
+   - **Server MUST set `shared_with_community = false`** when unsharing (removes from community discovery)
    - Existing share links become invalid (server returns dummy data for `is_private = true` chats)
    - Users who had access via share links will lose access on next login/tab reload (client checks `is_private` field)
 
-6. **Checking for Unshared Chats**:
+6. **Disabling Community Sharing**:
+   - User can disable "Share with Community" without unsharing the chat
+   - Client sends request to server to set `shared_with_community = false`
+   - Server updates `shared_with_community` field to `false`
+   - Chat remains publicly accessible via share link but is removed from community discovery features
+   - Public share link continues to work normally
+
+7. **Checking for Unshared Chats**:
    - On login and tab reload, client checks all chats where user is not the owner
    - For each shared chat, client requests `is_private` status from server
    - If `is_private = true`, client removes the chat from local storage and UI
