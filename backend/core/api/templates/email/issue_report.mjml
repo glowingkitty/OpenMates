@@ -1,0 +1,57 @@
+<mjml>
+  <mj-head>
+    <mj-title>{{ t.email.issue_report.title.text }}</mj-title>
+    <mj-attributes>
+      <mj-all font-family="Arial, Helvetica, sans-serif" font-size="16px" align="center" font-weight="bold" line-height="1.3" />
+      {% if darkmode %}
+      <mj-text color="#e6e6e6" />
+      {% else %}
+      <mj-text color="#000000" />
+      {% endif %}
+    </mj-attributes>
+    <!-- Include styles from separate file -->
+    <mj-include path="./components/email-styles.mjml" />
+  </mj-head>
+  <mj-body css-class="{% if darkmode %}dark-mode{% else %}light-mode{% endif %}">
+    <!-- Header -->
+    <mj-include path="./components/header.mjml" />
+    
+    <!-- Main Content -->
+    <mj-wrapper css-class="content-box" padding="20px" padding-bottom="0">
+      <mj-section>
+        <mj-column>
+          <mj-image width="50px" height="50px" src="icons/bug.png" align="center" css-class="email-icon-50" />
+          <mj-text font-size="30px" padding-bottom="30px">
+            <mark>{{ t.email.issue_report.header.text }}</mark>
+          </mj-text>
+          <mj-text font-size="16px" padding-bottom="20px">
+            <strong>{{ t.email.issue_report.title_label.text }}:</strong><br/>
+            {{ issue_title }}
+          </mj-text>
+          <mj-text font-size="16px" padding-bottom="20px">
+            <strong>{{ t.email.issue_report.description_label.text }}:</strong><br/>
+            {{ issue_description | replace('\n', '<br/>') | safe }}
+          </mj-text>
+          {% if chat_or_embed_url and chat_or_embed_url != "Not provided" %}
+          <mj-text font-size="16px" padding-bottom="20px">
+            <strong>{{ t.email.issue_report.url_label.text }}:</strong><br/>
+            <a href="{{ chat_or_embed_url }}" style="color: #6364FF; text-decoration: underline;">{{ chat_or_embed_url }}</a>
+          </mj-text>
+          {% endif %}
+          <mj-text font-size="16px" padding-bottom="20px">
+            <strong>{{ t.email.issue_report.timestamp_label.text }}:</strong><br/>
+            {{ timestamp }}
+          </mj-text>
+          <mj-text font-size="16px" padding-bottom="30px">
+            <strong>{{ t.email.issue_report.location_label.text }}:</strong><br/>
+            {{ estimated_location }}
+          </mj-text>
+        </mj-column>
+      </mj-section>
+    </mj-wrapper>
+    
+    <!-- Footer -->
+    <mj-include path="./components/footer.mjml" />
+  </mj-body>
+</mjml>
+

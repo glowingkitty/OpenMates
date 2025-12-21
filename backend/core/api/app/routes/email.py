@@ -362,3 +362,39 @@ async def preview_newsletter_confirmed(
     except Exception as e:
         logger.error(f"Preview Error: Failed to prepare/render newsletter-confirmed: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Error generating preview: {str(e)}")
+
+
+@router.get("/issue-report", response_class=HTMLResponse)
+async def preview_issue_report(
+    request: Request,
+    lang: str = Query("en", description="Language code for translations"),
+    darkmode: bool = Query(True, description="Enable dark mode for the email"),
+    issue_title: str = Query("Sample Issue Title", description="Title of the reported issue"),
+    issue_description: str = Query("This is a sample issue description with multiple lines.\n\nIt demonstrates how the issue report email will look.", description="Description of the reported issue"),
+    chat_or_embed_url: str = Query("https://example.com/chat/123", description="Optional URL to a chat or embed related to the issue"),
+    timestamp: str = Query(None, description="Timestamp when the issue was reported"),
+    estimated_location: str = Query("Berlin, DE", description="Estimated geographic location based on IP address")
+):
+    """
+    Preview the issue report email template.
+    """
+    from datetime import datetime, timezone
+    
+    try:
+        # Use provided timestamp or generate current one
+        if not timestamp:
+            timestamp = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S %Z')
+        
+        return await _process_email_template(
+            request=request,
+            template_name="issue_report",
+            lang=lang,
+            issue_title=issue_title,
+            issue_description=issue_description,
+            chat_or_embed_url=chat_or_embed_url or "Not provided",
+            timestamp=timestamp,
+            estimated_location=estimated_location
+        )
+    except Exception as e:
+        logger.error(f"Preview Error: Failed to prepare/render issue-report: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error generating preview: {str(e)}")

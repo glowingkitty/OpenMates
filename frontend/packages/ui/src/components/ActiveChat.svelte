@@ -3262,10 +3262,26 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                     </button>
                                 </div>
                             {/if}
+                            <div class="new-chat-button-wrapper">
+                                <button
+                                    class="clickable-icon icon_bug top-button"
+                                    aria-label={$text('header.report_issue.text')}
+                                    onclick={() => {
+                                        // Open settings with report issue deep link
+                                        panelState.openSettings();
+                                        settingsDeepLink.set('report_issue');
+                                    }}
+                                    use:tooltip
+                                    style="margin: 5px;"
+                                >
+                                </button>
+                            </div>
                         </div>
 
                         <!-- Right side buttons -->
                         <div class="right-buttons">
+                            <!-- Bug icon for reporting issues -->
+                            
                             <!-- Activate buttons once features are implemented -->
                             <!-- Video call button -->
                             <!-- <button 

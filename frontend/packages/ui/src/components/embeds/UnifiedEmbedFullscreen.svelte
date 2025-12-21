@@ -19,6 +19,8 @@
   // @ts-ignore - @repo/ui module exists at runtime
   import { text } from '@repo/ui';
   import BasicInfosBar from './BasicInfosBar.svelte';
+  import { panelState } from '../../stores/panelStateStore';
+  import { settingsDeepLink } from '../../stores/settingsDeepLinkStore';
   
   /**
    * Props interface for unified embed fullscreen
@@ -142,6 +144,24 @@
     }
   }
   
+  // Handle report issue action - opens settings with report issue page
+  // The SettingsReportIssue component will auto-generate the embed share URL
+  async function handleReportIssue() {
+    console.debug('[UnifiedEmbedFullscreen] Opening report issue settings');
+    
+    // Open settings menu
+    panelState.openSettings();
+    
+    // Wait for settings to open, then navigate to report issue page
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
+    // Set deep link to report issue page
+    // SettingsReportIssue will auto-generate the embed share URL from activeEmbedStore
+    settingsDeepLink.set('report_issue');
+    
+    console.debug('[UnifiedEmbedFullscreen] Report issue settings opened');
+  }
+  
   // Close fullscreen when user switches to a different chat
   function handleChatSelected() {
     console.debug('[UnifiedEmbedFullscreen] Chat selected, closing fullscreen');
@@ -172,7 +192,7 @@
   <div class="fullscreen-container">
     <!-- Top bar with action buttons -->
     <div class="top-bar">
-      <!-- Left side: Share, Copy, and Download buttons -->
+      <!-- Left side: Share, Report Issue, Copy, and Download buttons -->
       <div class="top-bar-left">
         <!-- Share button - always shown -->
         <div class="button-wrapper">
@@ -183,6 +203,17 @@
             title={$text('chat.share.text') || 'Share'}
           >
             <span class="clickable-icon icon_share"></span>
+          </button>
+        </div>
+        <!-- Report Issue button - always shown -->
+        <div class="button-wrapper">
+          <button
+            class="action-button report-issue-button"
+            onclick={handleReportIssue}
+            aria-label={$text('header.report_issue.text') || 'Report Issue'}
+            title={$text('header.report_issue.text') || 'Report Issue'}
+          >
+            <span class="clickable-icon icon_bug"></span>
           </button>
         </div>
         <!-- Copy button -->

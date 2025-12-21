@@ -514,6 +514,8 @@ div.clickable-icon {
 .clickable-icon.icon_bug {
   -webkit-mask-image: url('@openmates/ui/static/icons/bug.svg');
   mask-image: url('@openmates/ui/static/icons/bug.svg');
+  mask-size: contain;
+  -webkit-mask-size: contain;
 }
 
 .clickable-icon.icon_github {
@@ -1256,6 +1258,14 @@ div.clickable-icon {
 
   &::before {
       background-image: url('@openmates/ui/static/icons/volunteering.svg');
+  }
+}
+
+.icon.report_issue {
+  background: var(--color-primary);
+
+  &::before {
+      background-image: url('@openmates/ui/static/icons/bug.svg');
   }
 }
 

@@ -1721,3 +1721,156 @@ async def get_server_status(
         )
 
 
+# --- Endpoint for reporting issues ---
+class IssueReportRequest(BaseModel):
+    """Request model for issue reporting endpoint"""
+    title: str = Field(..., min_length=3, max_length=200, description="Issue title (required, 3-200 characters)")
+    description: str = Field(..., min_length=10, max_length=5000, description="Issue description (required, 10-5000 characters)")
+    chat_or_embed_url: Optional[str] = Field(None, max_length=500, description="Optional chat or embed URL related to the issue")
+
+
+class IssueReportResponse(BaseModel):
+    """Response model for issue reporting endpoint"""
+    success: bool
+    message: str
+
+
+@router.post(
+    "/issues",
+    response_model=IssueReportResponse,
+    include_in_schema=False  # Exclude from schema - web app only, not for API access
+)
+@limiter.limit("5/minute")  # Rate limit to prevent abuse
+async def report_issue(
+    request: Request,
+    issue_data: IssueReportRequest
+):
+    """
+    Report an issue to the server owner.
+    
+    This endpoint is exclusive to the web app (not accessible via API keys) but allows
+    both authenticated and non-authenticated users to submit issue reports.
+    The issue report is sent via email to the server owner (admin email).
+    
+    The email includes:
+    - Issue title
+    - Issue description
+    - Optional chat or embed URL
+    - Timestamp
+    - Estimated geo location (based on IP address)
+    
+    Args:
+        request: FastAPI Request object (for IP extraction and geo location)
+        issue_data: Issue report data (title, description, optional URL)
+    
+    Returns:
+        IssueReportResponse with success status and message
+    """
+    try:
+        # Import necessary utilities
+        from backend.core.api.app.utils.device_fingerprint import _extract_client_ip, get_geo_data_from_ip
+        from datetime import datetime, timezone
+        from html import escape
+        from urllib.parse import urlparse, urlunparse
+        
+        # SECURITY: Sanitize user inputs to prevent XSS attacks
+        # HTML escape title and description to prevent injection of malicious HTML/JavaScript
+        sanitized_title = escape(issue_data.title.strip())
+        sanitized_description = escape(issue_data.description.strip())
+        
+        # SECURITY: Validate and sanitize URL if provided
+        sanitized_url = None
+        if issue_data.chat_or_embed_url:
+            url_str = issue_data.chat_or_embed_url.strip()
+            # Validate URL format - must be a valid URL structure
+            try:
+                parsed = urlparse(url_str)
+                # Only allow http/https schemes for security
+                if parsed.scheme in ('http', 'https'):
+                    # Reconstruct URL to normalize it (removes potential injection attempts)
+                    sanitized_url = urlunparse((
+                        parsed.scheme,
+                        parsed.netloc,
+                        parsed.path,
+                        parsed.params,
+                        parsed.query,
+                        parsed.fragment
+                    ))
+                else:
+                    # If no scheme, check if it's a relative URL (starts with /)
+                    if url_str.startswith('/'):
+                        # For relative URLs, validate it matches expected patterns
+                        # Allow only /share/chat/, /share/embed/, or /#chat-id= patterns
+                        if (url_str.startswith('/share/chat/') or 
+                            url_str.startswith('/share/embed') or 
+                            url_str.startswith('/#chat-id=')):
+                            sanitized_url = url_str
+                        else:
+                            logger.warning(f"Invalid relative URL format in issue report: {url_str[:100]}")
+                            sanitized_url = None
+                    else:
+                        logger.warning(f"Invalid URL scheme in issue report: {parsed.scheme}")
+                        sanitized_url = None
+            except Exception as e:
+                logger.warning(f"Error parsing URL in issue report: {str(e)}")
+                sanitized_url = None
+        
+        # Extract client IP address
+        client_ip = _extract_client_ip(request.headers, request.client.host if request.client else None)
+        
+        # Get geo location data from IP
+        geo_data = get_geo_data_from_ip(client_ip)
+        country_code = geo_data.get("country_code", "Unknown")
+        region = geo_data.get("region")
+        city = geo_data.get("city")
+        
+        # Build location string
+        location_parts = []
+        if city:
+            location_parts.append(city)
+        if region:
+            location_parts.append(region)
+        if country_code and country_code != "Unknown":
+            location_parts.append(country_code)
+        estimated_location = ", ".join(location_parts) if location_parts else "Unknown location"
+        
+        # Get current timestamp
+        current_time = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')
+        
+        # Get admin email from environment variable
+        admin_email = os.getenv("REPORT_ISSUE_EMAIL", "reportissue@openmates.org")
+        
+        # Log the full admin email for debugging (this is safe as it's the server owner's email)
+        logger.info(f"Issue report received - will send to admin email: {admin_email}")
+        
+        # Dispatch the email task with sanitized data
+        from backend.core.api.app.tasks.celery_config import app
+        task_result = app.send_task(
+            name='app.tasks.email_tasks.issue_report_email_task.send_issue_report_email',
+            kwargs={
+                "admin_email": admin_email,
+                "issue_title": sanitized_title,
+                "issue_description": sanitized_description,
+                "chat_or_embed_url": sanitized_url,
+                "timestamp": current_time,
+                "estimated_location": estimated_location
+            },
+            queue='email'
+        )
+        
+        logger.info(
+            f"Issue report submitted: '{issue_data.title[:50]}...' - "
+            f"email task dispatched to queue 'email' with task_id={task_result.id}, "
+            f"recipient={admin_email}"
+        )
+        
+        return IssueReportResponse(
+            success=True,
+            message="Issue report submitted successfully. Thank you for your feedback!"
+        )
+        
+    except Exception as e:
+        logger.error(f"Error processing issue report: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to submit issue report. Please try again later.")
+
+

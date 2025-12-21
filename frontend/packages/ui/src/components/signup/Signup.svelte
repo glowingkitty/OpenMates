@@ -144,19 +144,20 @@
         STEP_CREDITS, STEP_PAYMENT, STEP_AUTO_TOP_UP
     ];
     
-    // Filter out payment steps if self-hosted (use isSelfHosted from request-based validation)
+    // Filter out payment steps and email confirmation if self-hosted (use isSelfHosted from request-based validation)
     // This is more accurate than paymentEnabled alone, as paymentEnabled can be true for localhost in dev mode
     // But since backend now ensures payment_enabled = false when is_self_hosted = true, both work
+    // Email confirmation is also skipped in self-hosted mode since Mailjet is not required
     const fullStepSequence = $derived(
         !isSelfHosted 
             ? fullStepSequenceBase 
-            : fullStepSequenceBase.filter(step => ![STEP_CREDITS, STEP_PAYMENT, STEP_AUTO_TOP_UP].includes(step))
+            : fullStepSequenceBase.filter(step => ![STEP_CONFIRM_EMAIL, STEP_CREDITS, STEP_PAYMENT, STEP_AUTO_TOP_UP].includes(step))
     );
     
     const passkeyStepSequence = $derived(
         !isSelfHosted
             ? passkeyStepSequenceBase
-            : passkeyStepSequenceBase.filter(step => ![STEP_CREDITS, STEP_PAYMENT, STEP_AUTO_TOP_UP].includes(step))
+            : passkeyStepSequenceBase.filter(step => ![STEP_CONFIRM_EMAIL, STEP_CREDITS, STEP_PAYMENT, STEP_AUTO_TOP_UP].includes(step))
     );
 
     // Determine step sequence based on login method
@@ -252,8 +253,13 @@
         // but preserves the step on page reload
         const existingStep = $currentSignupStep;
         
-        // If self-hosted and user is on a payment step, skip to completion
-        if (isSelfHosted && [STEP_CREDITS, STEP_PAYMENT, STEP_AUTO_TOP_UP].includes(existingStep)) {
+        // If self-hosted and user is on email confirmation step, skip to secure_account
+        if (isSelfHosted && existingStep === STEP_CONFIRM_EMAIL) {
+            console.log(`[Signup] Email confirmation disabled (self-hosted), skipping to secure_account.`);
+            currentSignupStep.set(STEP_SECURE_ACCOUNT);
+            currentStep = STEP_SECURE_ACCOUNT;
+        } else if (isSelfHosted && [STEP_CREDITS, STEP_PAYMENT, STEP_AUTO_TOP_UP].includes(existingStep)) {
+            // If self-hosted and user is on a payment step, skip to completion
             console.log(`[Signup] Payment disabled, skipping payment steps. Moving from ${existingStep} to completion.`);
             currentSignupStep.set(STEP_COMPLETION);
             currentStep = STEP_COMPLETION;
@@ -567,10 +573,15 @@
         let newStep = event.detail.step;
         const oldStep = currentStep; // Capture old step value
         
-        // Skip payment steps if self-hosted
-        if (isSelfHosted && [STEP_CREDITS, STEP_PAYMENT, STEP_AUTO_TOP_UP].includes(newStep)) {
-            console.log(`[Signup] Payment disabled, redirecting from ${newStep} to completion`);
-            newStep = STEP_COMPLETION;
+        // Skip email confirmation and payment steps if self-hosted
+        if (isSelfHosted && [STEP_CONFIRM_EMAIL, STEP_CREDITS, STEP_PAYMENT, STEP_AUTO_TOP_UP].includes(newStep)) {
+            if (newStep === STEP_CONFIRM_EMAIL) {
+                console.log(`[Signup] Email confirmation disabled (self-hosted), redirecting to secure_account`);
+                newStep = STEP_SECURE_ACCOUNT;
+            } else {
+                console.log(`[Signup] Payment disabled, redirecting from ${newStep} to completion`);
+                newStep = STEP_COMPLETION;
+            }
         }
         
         const oldIndex = stepSequence.indexOf(oldStep);
@@ -722,8 +733,8 @@
     }
 
     async function goToStep(step: string) {
-        // Skip payment steps if self-hosted
-        if (isSelfHosted && [STEP_CREDITS, STEP_PAYMENT, STEP_AUTO_TOP_UP].includes(step)) {
+        // Skip email confirmation and payment steps if self-hosted
+        if (isSelfHosted && [STEP_CONFIRM_EMAIL, STEP_CREDITS, STEP_PAYMENT, STEP_AUTO_TOP_UP].includes(step)) {
             console.log(`[Signup] Payment disabled, skipping step ${step} and going to completion`);
             step = STEP_COMPLETION;
         }

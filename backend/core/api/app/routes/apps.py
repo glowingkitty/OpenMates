@@ -12,15 +12,147 @@ from typing import Dict, Any, List, Optional
 from fastapi import APIRouter, HTTPException, Request, Depends
 from pydantic import BaseModel
 
-from backend.shared.python_schemas.app_metadata_schemas import AppYAML
+from backend.shared.python_schemas.app_metadata_schemas import AppYAML, AppSkillDefinition
 from backend.core.api.app.services.directus.directus import DirectusService
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.limiter import limiter
 from backend.core.api.app.routes.internal_api import get_directus_service, get_cache_service
+from backend.core.api.app.utils.secrets_manager import SecretsManager
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/v1/apps", tags=["Apps"])
+
+
+def map_provider_name_to_id(provider_name: str, app_id: str) -> str:
+    """
+    Map provider name from app.yml to provider ID (provider YAML filename).
+    
+    Args:
+        provider_name: Provider name from app.yml (e.g., "Brave", "Google", "Firecrawl")
+        app_id: App ID for context (e.g., "maps" for Google Maps)
+        
+    Returns:
+        Provider ID (lowercase, matches provider YAML filename)
+    """
+    # Handle special cases
+    if provider_name == "Google" and app_id == "maps":
+        return "google_maps"
+    elif provider_name == "YouTube":
+        return "youtube"
+    elif provider_name == "Brave" or provider_name == "Brave Search":
+        return "brave"
+    # Most providers just need to be lowercased
+    return provider_name.lower().strip()
+
+
+def get_provider_api_key_env_vars(provider_id: str) -> List[str]:
+    """
+    Get the environment variable names for a provider's API key.
+    
+    Maps provider IDs to their required API key environment variable names.
+    This function centralizes the mapping of providers to their API key requirements.
+    
+    Args:
+        provider_id: Provider ID (e.g., "brave", "firecrawl", "youtube")
+        
+    Returns:
+        List of environment variable names to check (in order of preference)
+    """
+    # Map provider IDs to their API key environment variable names
+    # Format: SECRET__{PROVIDER}__API_KEY
+    provider_key_map = {
+        "brave": ["SECRET__BRAVE__API_KEY", "SECRET__BRAVE_SEARCH__API_KEY"],
+        "firecrawl": ["SECRET__FIRECRAWL__API_KEY", "FIRECRAWL_API_KEY"],
+        "youtube": ["SECRET__YOUTUBE__API_KEY", "SECRET__GOOGLE__YOUTUBE__API_KEY"],
+        "google_maps": ["SECRET__GOOGLE_MAPS__API_KEY"],
+    }
+    
+    # Return mapped env vars or default pattern
+    if provider_id in provider_key_map:
+        return provider_key_map[provider_id]
+    
+    # Default pattern: SECRET__{PROVIDER_ID_UPPER}__API_KEY
+    # Convert provider_id to uppercase and replace underscores with double underscores
+    default_key = f"SECRET__{provider_id.upper().replace('_', '__')}__API_KEY"
+    return [default_key]
+
+
+async def check_provider_api_key_available(provider_id: str, secrets_manager: SecretsManager) -> bool:
+    """
+    Check if an API key is available for a provider.
+    
+    Checks both Vault and environment variables to determine if the API key is configured.
+    This is used to determine if a skill should be shown as available.
+    
+    Args:
+        provider_id: Provider ID (e.g., "brave", "firecrawl", "youtube")
+        secrets_manager: SecretsManager instance for checking Vault
+        
+    Returns:
+        True if API key is available, False otherwise
+    """
+    # Get the Vault path and key name for this provider
+    # Standard pattern: kv/data/providers/{provider_id}
+    vault_path = f"kv/data/providers/{provider_id}"
+    vault_key = "api_key"
+    
+    # First, try to get from Vault
+    try:
+        if secrets_manager.vault_token and secrets_manager.vault_url:
+            api_key = await secrets_manager.get_secret(
+                secret_path=vault_path,
+                secret_key=vault_key
+            )
+            if api_key and api_key.strip():
+                logger.debug(f"API key found in Vault for provider '{provider_id}'")
+                return True
+    except Exception as e:
+        logger.debug(f"Error checking Vault for provider '{provider_id}' API key: {e}")
+    
+    # Fallback to environment variables
+    env_var_names = get_provider_api_key_env_vars(provider_id)
+    for env_var_name in env_var_names:
+        api_key = os.getenv(env_var_name)
+        if api_key and api_key.strip():
+            logger.debug(f"API key found in environment variable '{env_var_name}' for provider '{provider_id}'")
+            return True
+    
+    logger.debug(f"No API key found for provider '{provider_id}' (checked Vault and env vars: {env_var_names})")
+    return False
+
+
+async def is_skill_available(skill: AppSkillDefinition, app_id: str, secrets_manager: SecretsManager) -> bool:
+    """
+    Check if a skill is available based on API key availability for its providers.
+    
+    A skill is considered available if at least one of its providers has a configured API key.
+    If a skill has no providers, it's considered available (no API key required).
+    
+    Args:
+        skill: The skill definition
+        app_id: The app ID for provider name mapping
+        secrets_manager: SecretsManager instance for checking API keys
+        
+    Returns:
+        True if the skill is available (at least one provider has API key), False otherwise
+    """
+    # If skill has no providers, it's available (no API key required)
+    if not skill.providers or len(skill.providers) == 0:
+        logger.debug(f"Skill '{skill.id}' has no providers, considering it available")
+        return True
+    
+    # Check if at least one provider has an available API key
+    for provider_name in skill.providers:
+        provider_id = map_provider_name_to_id(provider_name, app_id)
+        is_available = await check_provider_api_key_available(provider_id, secrets_manager)
+        if is_available:
+            logger.debug(f"Skill '{skill.id}' is available - provider '{provider_id}' has API key configured")
+            return True
+    
+    # No providers have API keys configured
+    logger.debug(f"Skill '{skill.id}' is not available - no providers have API keys configured")
+    return False
 
 
 def resolve_translation(
@@ -190,6 +322,15 @@ async def get_apps_metadata(request: Request):
     else:
         logger.warning("TranslationService not found in app.state - translations will not be resolved")
     
+    # Get cache service for secrets manager
+    cache_service = None
+    if hasattr(request.app.state, 'cache_service'):
+        cache_service = request.app.state.cache_service
+    
+    # Initialize secrets manager for API key availability checks
+    secrets_manager = SecretsManager(cache_service=cache_service)
+    await secrets_manager.initialize()
+    
     # Convert AppYAML to API response format
     # Transform the discovered AppYAML objects to the API response format with resolved translations
     # Filter out components with stage='planning' or incompatible stages
@@ -218,7 +359,7 @@ async def get_apps_metadata(request: Request):
             fallback=""
         )
         
-        # Convert skills - filter by stage and resolve all translations
+        # Convert skills - filter by stage, API key availability, and resolve all translations
         # Skills have stage field in the schema, so we can access it directly
         skills = []
         for skill in app_metadata.skills:
@@ -226,6 +367,12 @@ async def get_apps_metadata(request: Request):
             skill_stage = getattr(skill, 'stage', 'development').lower()
             if skill_stage not in allowed_stages:
                 logger.debug(f"Skipping skill '{skill.id}' from app '{app_id}' - stage '{skill_stage}' not compatible with '{server_environment}' environment")
+                continue
+            
+            # Check if skill is available based on API key configuration
+            skill_available = await is_skill_available(skill, app_id, secrets_manager)
+            if not skill_available:
+                logger.debug(f"Skipping skill '{skill.id}' from app '{app_id}' - no API keys configured for providers")
                 continue
             
             skill_name = resolve_translation(
@@ -357,6 +504,15 @@ async def get_app_metadata(app_id: str, request: Request):
     if hasattr(request.app.state, 'translation_service'):
         translation_service = request.app.state.translation_service
     
+    # Get cache service for secrets manager
+    cache_service = None
+    if hasattr(request.app.state, 'cache_service'):
+        cache_service = request.app.state.cache_service
+    
+    # Initialize secrets manager for API key availability checks
+    secrets_manager = SecretsManager(cache_service=cache_service)
+    await secrets_manager.initialize()
+    
     # Resolve app name and description translations
     resolved_name = resolve_translation(
         translation_service,
@@ -372,13 +528,19 @@ async def get_app_metadata(app_id: str, request: Request):
         fallback=""
     )
     
-    # Convert skills - filter by stage and resolve all translations
+    # Convert skills - filter by stage, API key availability, and resolve all translations
     skills = []
     for skill in app_metadata.skills:
         # Filter out skills with incompatible stages (exclude 'planning' and stages not in allowed_stages)
         skill_stage = getattr(skill, 'stage', 'development').lower()
         if skill_stage not in allowed_stages:
             logger.debug(f"Skipping skill '{skill.id}' from app '{app_id}' - stage '{skill_stage}' not compatible with '{server_environment}' environment")
+            continue
+        
+        # Check if skill is available based on API key configuration
+        skill_available = await is_skill_available(skill, app_id, secrets_manager)
+        if not skill_available:
+            logger.debug(f"Skipping skill '{skill.id}' from app '{app_id}' - no API keys configured for providers")
             continue
         
         skill_name = resolve_translation(

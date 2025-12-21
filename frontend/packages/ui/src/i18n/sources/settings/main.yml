@@ -2992,3 +2992,440 @@ support_sponsor_github_description:
   cs: Podpořte vývoj OpenMates tím, že se stanete sponzorem GitHub.
   sv: Stöd utvecklingen av OpenMates genom att bli en GitHub-sponsor.
   verified_by_human: []
+report_issue:
+  context: Report issue settings menu item
+  en: Report Issue
+  de: Problem melden
+  zh: 报告问题
+  es: Reportar problema
+  fr: Signaler un problème
+  pt: Reportar problema
+  ru: Сообщить о проблеме
+  ja: 問題を報告
+  ko: 문제 신고
+  it: Segnala problema
+  tr: Sorun bildir
+  vi: Báo cáo sự cố
+  id: Laporkan masalah
+  pl: Zgłoś problem
+  nl: Probleem melden
+  ar: الإبلاغ عن مشكلة
+  hi: समस्या रिपोर्ट करें
+  th: รายงานปัญหา
+  cs: Nahlásit problém
+  sv: Rapportera problem
+  verified_by_human: []
+report_issue.description:
+  context: Description text for the report issue form
+  en: Found a bug or have a suggestion? Let us know! Fill out the form below to report an issue.
+  de: Einen Fehler gefunden oder einen Vorschlag? Lass es uns wissen! Fülle das untenstehende Formular aus, um ein Problem zu melden.
+  zh: 发现了错误或有建议？告诉我们！请填写下面的表单来报告问题。
+  es: ¿Encontraste un error o tienes una sugerencia? ¡Haznos saber! Completa el formulario a continuación para reportar un problema.
+  fr: Vous avez trouvé un bug ou avez une suggestion ? Faites-le nous savoir ! Remplissez le formulaire ci-dessous pour signaler un problème.
+  pt: Encontrou um bug ou tem uma sugestão? Avise-nos! Preencha o formulário abaixo para reportar um problema.
+  ru: Нашли ошибку или есть предложение? Дайте нам знать! Заполните форму ниже, чтобы сообщить о проблеме.
+  ja: バグを見つけたり、提案がありますか？お知らせください！以下のフォームに記入して問題を報告してください。
+  ko: 버그를 발견했거나 제안이 있으신가요? 알려주세요! 아래 양식을 작성하여 문제를 신고하세요.
+  it: Hai trovato un bug o hai un suggerimento? Faccelo sapere! Compila il modulo qui sotto per segnalare un problema.
+  tr: Bir hata buldunuz mu veya bir öneriniz mi var? Bize bildirin! Bir sorun bildirmek için aşağıdaki formu doldurun.
+  vi: Tìm thấy lỗi hoặc có đề xuất? Hãy cho chúng tôi biết! Điền vào biểu mẫu bên dưới để báo cáo sự cố.
+  id: Menemukan bug atau punya saran? Beri tahu kami! Isi formulir di bawah ini untuk melaporkan masalah.
+  pl: Znalazłeś błąd lub masz sugestię? Daj nam znać! Wypełnij poniższy formularz, aby zgłosić problem.
+  nl: Een bug gevonden of een suggestie? Laat het ons weten! Vul het onderstaande formulier in om een probleem te melden.
+  ar: وجدت خطأ أو لديك اقتراح؟ أخبرنا! املأ النموذج أدناه للإبلاغ عن مشكلة.
+  hi: बग मिला या सुझाव है? हमें बताएं! समस्या रिपोर्ट करने के लिए नीचे दिया गया फॉर्म भरें।
+  th: พบข้อผิดพลาดหรือมีข้อเสนอแนะ? แจ้งให้เราทราบ! กรอกแบบฟอร์มด้านล่างเพื่อรายงานปัญหา
+  cs: Našli jste chybu nebo máte návrh? Dejte nám vědět! Vyplňte níže uvedený formulář pro nahlášení problému.
+  sv: Hittat en bugg eller har ett förslag? Låt oss veta! Fyll i formuläret nedan för att rapportera ett problem.
+  verified_by_human: []
+report_issue.title_label:
+  context: Label for issue title input field
+  en: Issue Title
+  de: Titel des Problems
+  zh: 问题标题
+  es: Título del problema
+  fr: Titre du problème
+  pt: Título do problema
+  ru: Заголовок проблемы
+  ja: 問題のタイトル
+  ko: 문제 제목
+  it: Titolo del problema
+  tr: Sorun başlığı
+  vi: Tiêu đề sự cố
+  id: Judul masalah
+  pl: Tytuł problemu
+  nl: Probleemtitel
+  ar: عنوان المشكلة
+  hi: समस्या का शीर्षक
+  th: หัวข้อปัญหา
+  cs: Název problému
+  sv: Problemrubrik
+  verified_by_human: []
+report_issue.title_placeholder:
+  context: Placeholder text for issue title input field
+  en: Enter a brief title for your issue
+  de: Gib einen kurzen Titel für dein Problem ein
+  zh: 输入问题的简短标题
+  es: Ingresa un título breve para tu problema
+  fr: Entrez un titre bref pour votre problème
+  pt: Digite um título breve para seu problema
+  ru: Введите краткий заголовок для вашей проблемы
+  ja: 問題の簡単なタイトルを入力してください
+  ko: 문제에 대한 간단한 제목을 입력하세요
+  it: Inserisci un titolo breve per il tuo problema
+  tr: Sorununuz için kısa bir başlık girin
+  vi: Nhập tiêu đề ngắn gọn cho sự cố của bạn
+  id: Masukkan judul singkat untuk masalah Anda
+  pl: Wprowadź krótki tytuł dla swojego problemu
+  nl: Voer een korte titel in voor uw probleem
+  ar: أدخل عنوانًا موجزًا لمشكلتك
+  hi: अपनी समस्या के लिए एक संक्षिप्त शीर्षक दर्ज करें
+  th: ป้อนหัวข้อสั้นๆ สำหรับปัญหาของคุณ
+  cs: Zadejte stručný název pro váš problém
+  sv: Ange en kort rubrik för ditt problem
+  verified_by_human: []
+report_issue.title_required:
+  context: Error message when issue title is empty
+  en: Issue title is required
+  de: Titel des Problems ist erforderlich
+  zh: 问题标题是必需的
+  es: El título del problema es obligatorio
+  fr: Le titre du problème est requis
+  pt: O título do problema é obrigatório
+  ru: Заголовок проблемы обязателен
+  ja: 問題のタイトルは必須です
+  ko: 문제 제목은 필수입니다
+  it: Il titolo del problema è obbligatorio
+  tr: Sorun başlığı gereklidir
+  vi: Tiêu đề sự cố là bắt buộc
+  id: Judul masalah wajib diisi
+  pl: Tytuł problemu jest wymagany
+  nl: Probleemtitel is verplicht
+  ar: عنوان المشكلة مطلوب
+  hi: समस्या का शीर्षक आवश्यक है
+  th: หัวข้อปัญหาจำเป็นต้องระบุ
+  cs: Název problému je povinný
+  sv: Problemrubrik krävs
+  verified_by_human: []
+report_issue.title_too_short:
+  context: Error message when issue title is too short
+  en: Issue title must be at least 3 characters long
+  de: Der Titel des Problems muss mindestens 3 Zeichen lang sein
+  zh: 问题标题必须至少包含 3 个字符
+  es: El título del problema debe tener al menos 3 caracteres
+  fr: Le titre du problème doit contenir au moins 3 caractères
+  pt: O título do problema deve ter pelo menos 3 caracteres
+  ru: Заголовок проблемы должен содержать не менее 3 символов
+  ja: 問題のタイトルは少なくとも3文字である必要があります
+  ko: 문제 제목은 최소 3자 이상이어야 합니다
+  it: Il titolo del problema deve essere lungo almeno 3 caratteri
+  tr: Sorun başlığı en az 3 karakter uzunluğunda olmalıdır
+  vi: Tiêu đề sự cố phải có ít nhất 3 ký tự
+  id: Judul masalah harus minimal 3 karakter
+  pl: Tytuł problemu musi mieć co najmniej 3 znaki
+  nl: Probleemtitel moet minimaal 3 tekens lang zijn
+  ar: يجب أن يكون عنوان المشكلة 3 أحرف على الأقل
+  hi: समस्या का शीर्षक कम से कम 3 वर्ण लंबा होना चाहिए
+  th: หัวข้อปัญหาต้องมีความยาวอย่างน้อย 3 ตัวอักษร
+  cs: Název problému musí mít alespoň 3 znaky
+  sv: Problemrubriken måste vara minst 3 tecken lång
+  verified_by_human: []
+report_issue.description_label:
+  context: Label for issue description textarea field
+  en: Issue Description
+  de: Beschreibung des Problems
+  zh: 问题描述
+  es: Descripción del problema
+  fr: Description du problème
+  pt: Descrição do problema
+  ru: Описание проблемы
+  ja: 問題の説明
+  ko: 문제 설명
+  it: Descrizione del problema
+  tr: Sorun açıklaması
+  vi: Mô tả sự cố
+  id: Deskripsi masalah
+  pl: Opis problemu
+  nl: Probleembeschrijving
+  ar: وصف المشكلة
+  hi: समस्या का विवरण
+  th: คำอธิบายปัญหา
+  cs: Popis problému
+  sv: Problembeskrivning
+  verified_by_human: []
+report_issue.description_placeholder:
+  context: Placeholder text for issue description textarea field
+  en: Describe the issue in detail. Include steps to reproduce if possible.
+  de: Beschreibe das Problem im Detail. Füge Schritte zur Reproduktion hinzu, falls möglich.
+  zh: 详细描述问题。如果可能，请包含重现步骤。
+  es: Describe el problema en detalle. Incluye pasos para reproducirlo si es posible.
+  fr: Décrivez le problème en détail. Incluez les étapes pour le reproduire si possible.
+  pt: Descreva o problema em detalhes. Inclua etapas para reproduzir, se possível.
+  ru: Подробно опишите проблему. По возможности включите шаги для воспроизведения.
+  ja: 問題を詳しく説明してください。可能であれば、再現手順を含めてください。
+  ko: 문제를 자세히 설명하세요. 가능하면 재현 단계를 포함하세요.
+  it: Descrivi il problema in dettaglio. Includi i passaggi per riprodurlo se possibile.
+  tr: Sorunu detaylı olarak açıklayın. Mümkünse yeniden üretme adımlarını ekleyin.
+  vi: Mô tả chi tiết sự cố. Nếu có thể, hãy bao gồm các bước để tái tạo.
+  id: Jelaskan masalah secara detail. Sertakan langkah-langkah untuk mereproduksi jika memungkinkan.
+  pl: Opisz problem szczegółowo. Jeśli to możliwe, dołącz kroki do odtworzenia.
+  nl: Beschrijf het probleem in detail. Voeg indien mogelijk stappen toe om het te reproduceren.
+  ar: اشرح المشكلة بالتفصيل. قم بتضمين خطوات إعادة الإنتاج إن أمكن.
+  hi: समस्या का विस्तार से वर्णन करें। यदि संभव हो तो पुनरुत्पादन के चरण शामिल करें।
+  th: อธิบายปัญหาอย่างละเอียด รวมขั้นตอนในการทำซ้ำหากเป็นไปได้
+  cs: Popište problém podrobně. Pokud je to možné, zahrňte kroky k reprodukci.
+  sv: Beskriv problemet i detalj. Inkludera steg för att återskapa om möjligt.
+  verified_by_human: []
+report_issue.description_required:
+  context: Error message when issue description is empty
+  en: Issue description is required
+  de: Beschreibung des Problems ist erforderlich
+  zh: 问题描述是必需的
+  es: La descripción del problema es obligatoria
+  fr: La description du problème est requise
+  pt: A descrição do problema é obrigatória
+  ru: Описание проблемы обязательно
+  ja: 問題の説明は必須です
+  ko: 문제 설명은 필수입니다
+  it: La descrizione del problema è obbligatoria
+  tr: Sorun açıklaması gereklidir
+  vi: Mô tả sự cố là bắt buộc
+  id: Deskripsi masalah wajib diisi
+  pl: Opis problemu jest wymagany
+  nl: Probleembeschrijving is verplicht
+  ar: وصف المشكلة مطلوب
+  hi: समस्या का विवरण आवश्यक है
+  th: คำอธิบายปัญหาจำเป็นต้องระบุ
+  cs: Popis problému je povinný
+  sv: Problembeskrivning krävs
+  verified_by_human: []
+report_issue.description_too_short:
+  context: Error message when issue description is too short
+  en: Issue description must be at least 10 characters long
+  de: Die Beschreibung des Problems muss mindestens 10 Zeichen lang sein
+  zh: 问题描述必须至少包含 10 个字符
+  es: La descripción del problema debe tener al menos 10 caracteres
+  fr: La description du problème doit contenir au moins 10 caractères
+  pt: A descrição do problema deve ter pelo menos 10 caracteres
+  ru: Описание проблемы должно содержать не менее 10 символов
+  ja: 問題の説明は少なくとも10文字である必要があります
+  ko: 문제 설명은 최소 10자 이상이어야 합니다
+  it: La descrizione del problema deve essere lunga almeno 10 caratteri
+  tr: Sorun açıklaması en az 10 karakter uzunluğunda olmalıdır
+  vi: Mô tả sự cố phải có ít nhất 10 ký tự
+  id: Deskripsi masalah harus minimal 10 karakter
+  pl: Opis problemu musi mieć co najmniej 10 znaków
+  nl: Probleembeschrijving moet minimaal 10 tekens lang zijn
+  ar: يجب أن يكون وصف المشكلة 10 أحرف على الأقل
+  hi: समस्या का विवरण कम से कम 10 वर्ण लंबा होना चाहिए
+  th: คำอธิบายปัญหาต้องมีความยาวอย่างน้อย 10 ตัวอักษร
+  cs: Popis problému musí mít alespoň 10 znaků
+  sv: Problembeskrivningen måste vara minst 10 tecken lång
+  verified_by_human: []
+report_issue.url_label:
+  context: Label for shared chat or embed URL input field
+  en: Shared chat or embed URL
+  de: Geteilte Chat- oder Embed-URL
+  zh: 共享聊天或嵌入 URL
+  es: URL de chat compartido o incrustación
+  fr: URL de chat partagé ou d'intégration
+  pt: URL de chat compartilhado ou incorporação
+  ru: URL общего чата или встраивания
+  ja: 共有チャットまたは埋め込みURL
+  ko: 공유 채팅 또는 임베드 URL
+  it: URL chat condiviso o incorporazione
+  tr: Paylaşılan sohbet veya gömme URL'si
+  vi: URL trò chuyện được chia sẻ hoặc nhúng
+  id: URL chat atau embed yang dibagikan
+  pl: URL udostępnionego czatu lub osadzenia
+  nl: Gedeelde chat- of embed-URL
+  ar: رابط الدردشة المشتركة أو التضمين
+  hi: साझा चैट या एम्बेड URL
+  th: URL แชทที่แชร์หรือการฝัง
+  cs: URL sdíleného chatu nebo vložení
+  sv: Delad chatt- eller inbäddnings-URL
+  verified_by_human: []
+report_issue.url_placeholder:
+  context: Placeholder text for shared chat or embed URL input field
+  en: https://openmates.org/share/chat/123#key=...
+  de: https://openmates.org/share/chat/123#key=... 
+  zh: https://openmates.org/share/chat/123#key=...
+  es: https://openmates.org/share/chat/123#key=...
+  fr: https://openmates.org/share/chat/123#key=...
+  pt: https://openmates.org/share/chat/123#key=...
+  ru: https://openmates.org/share/chat/123#key=...
+  ja: https://openmates.org/share/chat/123#key=...
+  ko: https://openmates.org/share/chat/123#key=...
+  it: https://openmates.org/share/chat/123#key=...
+  tr: https://openmates.org/share/chat/123#key=...
+  vi: https://openmates.org/share/chat/123#key=...
+  id: https://openmates.org/share/chat/123#key=...
+  pl: https://openmates.org/share/chat/123#key=...
+  nl: https://openmates.org/share/chat/123#key=...
+  ar: https://openmates.org/share/chat/123#key=...
+  hi: https://openmates.org/share/chat/123#key=...
+  th: https://openmates.org/share/chat/123#key=...
+  cs: https://openmates.org/share/chat/123#key=...
+  sv: https://openmates.org/share/chat/123#key=...
+  verified_by_human: []
+report_issue.url_invalid:
+  context: Error message when URL is not a valid shared chat or embed URL
+  en: Share the chat or embed first, then paste the URL here.
+  de: Teile den Chat oder das Embed zuerst, dann füge die URL hier ein.
+  zh: 请先分享聊天或嵌入，然后在此处粘贴 URL。
+  es: Comparte el chat o la incrustación primero, luego pega la URL aquí.
+  fr: Partagez d'abord le chat ou l'intégration, puis collez l'URL ici.
+  pt: Compartilhe o chat ou a incorporação primeiro, depois cole a URL aqui.
+  ru: Сначала поделитесь чатом или встраиванием, затем вставьте URL здесь.
+  ja: まずチャットまたは埋め込みを共有してから、ここにURLを貼り付けてください。
+  ko: 먼저 채팅 또는 임베드를 공유한 다음 여기에 URL을 붙여넣으세요.
+  it: Condividi prima la chat o l'incorporazione, poi incolla l'URL qui.
+  tr: Önce sohbeti veya gömme öğesini paylaşın, ardından URL'yi buraya yapıştırın.
+  vi: Chia sẻ trò chuyện hoặc nhúng trước, sau đó dán URL vào đây.
+  id: Bagikan chat atau embed terlebih dahulu, lalu tempelkan URL di sini.
+  pl: Najpierw udostępnij czat lub osadzenie, a następnie wklej tutaj URL.
+  nl: Deel eerst de chat of embed, plak dan de URL hier.
+  ar: شارك الدردشة أو التضمين أولاً، ثم الصق الرابط هنا.
+  hi: पहले चैट या एम्बेड साझा करें, फिर यहां URL पेस्ट करें।
+  th: แชร์แชทหรือการฝังก่อน แล้ววาง URL ที่นี่
+  cs: Nejprve sdílejte chat nebo vložení, poté sem vložte URL.
+  sv: Dela chatt eller inbäddning först, klistra sedan in URL:en här.
+  verified_by_human: []
+report_issue.signal_reminder:
+  context: Reminder text about Signal group for discussions or screenshots
+  en: 'Tip: For discussions or to share screenshots, consider joining our'
+  de: 'Tipp: Für Diskussionen oder zum Teilen von Screenshots, erwäge, unserer'
+  zh: '提示：要进行讨论或分享截图，请考虑加入我们的'
+  es: 'Consejo: Para discusiones o para compartir capturas de pantalla, considera unirte a nuestro'
+  fr: 'Astuce : Pour les discussions ou pour partager des captures d''écran, envisagez de rejoindre notre'
+  pt: 'Dica: Para discussões ou para compartilhar capturas de tela, considere ingressar em nosso'
+  ru: 'Совет: Для обсуждений или обмена скриншотами рассмотрите возможность присоединения к нашей'
+  ja: 'ヒント: ディスカッションやスクリーンショットの共有には、'
+  ko: '팁: 토론이나 스크린샷 공유를 위해'
+  it: 'Suggerimento: Per discussioni o per condividere screenshot, considera di unirti al nostro'
+  tr: 'İpucu: Tartışmalar veya ekran görüntüleri paylaşmak için'
+  vi: 'Mẹo: Để thảo luận hoặc chia sẻ ảnh chụp màn hình, hãy cân nhắc tham gia nhóm Signal của chúng tôi. Bạn có thể tìm thấy liên kết trong phần Hỗ trợ.'
+  id: 'Tip: Untuk diskusi atau berbagi tangkapan layar, pertimbangkan untuk bergabung dengan grup Signal kami. Anda dapat menemukan tautan di bagian Dukungan.'
+  pl: 'Wskazówka: Aby prowadzić dyskusje lub udostępniać zrzuty ekranu, rozważ dołączenie do naszej grupy Signal. Link znajdziesz w sekcji Wsparcie.'
+  nl: 'Tip: Voor discussies of om screenshots te delen, overweeg om lid te worden van onze Signal-groep. Je kunt de link vinden in de sectie Ondersteuning.'
+  ar: 'نصيحة: للمناقشات أو لمشاركة لقطات الشاشة، فكر في الانضمام إلى مجموعة Signal الخاصة بنا. يمكنك العثور على الرابط في قسم الدعم.'
+  hi: 'सुझाव: चर्चा या स्क्रीनशॉट साझा करने के लिए, हमारे Signal समूह में शामिल होने पर विचार करें। आप समर्थन अनुभाग में लिंक पा सकते हैं।'
+  th: 'เคล็ดลับ: สำหรับการสนทนาหรือแชร์ภาพหน้าจอ พิจารณาเข้าร่วมกลุ่ม Signal ของเรา คุณสามารถค้นหาลิงก์ได้ในส่วนการสนับสนุน'
+  cs: 'Tip: Pro diskuse nebo sdílení snímků obrazovky zvažte připojení k naší skupině Signal. Odkaz najdete v sekci Podpora.'
+  sv: 'Tips: För diskussioner eller att dela skärmdumpar, överväg att gå med i vår Signal-grupp. Du hittar länken i avsnittet Stöd.'
+  verified_by_human: []
+report_issue.signal_link:
+  context: Link text for Signal group
+  en: Signal group
+  de: Signal-Gruppe
+  zh: Signal 群组
+  es: grupo de Signal
+  fr: groupe Signal
+  pt: grupo do Signal
+  ru: группе Signal
+  ja: Signalグループ
+  ko: Signal 그룹
+  it: gruppo Signal
+  tr: Signal grubumuza
+  vi: nhóm Signal của chúng tôi
+  id: grup Signal kami
+  pl: grupy Signal
+  nl: Signal-groep
+  ar: مجموعة Signal الخاصة بنا
+  hi: Signal समूह
+  th: กลุ่ม Signal ของเรา
+  cs: skupině Signal
+  sv: Signal-grupp
+  verified_by_human: []
+report_issue.submit_button:
+  context: Submit button text for report issue form
+  en: Submit Issue
+  de: Problem einreichen
+  zh: 提交问题
+  es: Enviar problema
+  fr: Soumettre le problème
+  pt: Enviar problema
+  ru: Отправить проблему
+  ja: 問題を送信
+  ko: 문제 제출
+  it: Invia problema
+  tr: Sorunu gönder
+  vi: Gửi sự cố
+  id: Kirim masalah
+  pl: Wyślij problem
+  nl: Probleem indienen
+  ar: إرسال المشكلة
+  hi: समस्या सबमिट करें
+  th: ส่งปัญหา
+  cs: Odeslat problém
+  sv: Skicka problem
+  verified_by_human: []
+report_issue.submitting:
+  context: Submit button text while submitting issue report
+  en: Submitting...
+  de: Wird eingereicht...
+  zh: 提交中...
+  es: Enviando...
+  fr: Envoi en cours...
+  pt: Enviando...
+  ru: Отправка...
+  ja: 送信中...
+  ko: 제출 중...
+  it: Invio in corso...
+  tr: Gönderiliyor...
+  vi: Đang gửi...
+  id: Mengirim...
+  pl: Wysyłanie...
+  nl: Indienen...
+  ar: جاري الإرسال...
+  hi: सबमिट हो रहा है...
+  th: กำลังส่ง...
+  cs: Odesílání...
+  sv: Skickar...
+  verified_by_human: []
+report_issue.success:
+  context: Success message after submitting issue report
+  en: Issue reported successfully. Thank you for your feedback!
+  de: Problem erfolgreich gemeldet. Vielen Dank für dein Feedback!
+  zh: 问题已成功报告。感谢您的反馈！
+  es: Problema reportado con éxito. ¡Gracias por tus comentarios!
+  fr: Problème signalé avec succès. Merci pour vos commentaires !
+  pt: Problema reportado com sucesso. Obrigado pelo seu feedback!
+  ru: Проблема успешно отправлена. Спасибо за ваш отзыв!
+  ja: 問題が正常に報告されました。フィードバックありがとうございます！
+  ko: 문제가 성공적으로 신고되었습니다. 피드백을 주셔서 감사합니다!
+  it: Problema segnalato con successo. Grazie per il tuo feedback!
+  tr: Sorun başarıyla bildirildi. Geri bildiriminiz için teşekkürler!
+  vi: Đã báo cáo sự cố thành công. Cảm ơn phản hồi của bạn!
+  id: Masalah berhasil dilaporkan. Terima kasih atas masukan Anda!
+  pl: Problem został pomyślnie zgłoszony. Dziękujemy za opinię!
+  nl: Probleem succesvol gemeld. Bedankt voor uw feedback!
+  ar: تم الإبلاغ عن المشكلة بنجاح. شكرًا لملاحظاتك!
+  hi: समस्या सफलतापूर्वक रिपोर्ट की गई। आपकी प्रतिक्रिया के लिए धन्यवाद!
+  th: รายงานปัญหาสำเร็จแล้ว ขอบคุณสำหรับความคิดเห็นของคุณ!
+  cs: Problém byl úspěšně nahlášen. Děkujeme za vaši zpětnou vazbu!
+  sv: Problem rapporterat framgångsrikt. Tack för din feedback!
+  verified_by_human: []
+report_issue.error:
+  context: Error message when submitting issue report fails
+  en: Failed to submit issue. Please try again later.
+  de: Fehler beim Einreichen des Problems. Bitte versuche es später erneut.
+  zh: 提交问题失败。请稍后再试。
+  es: Error al enviar el problema. Por favor, inténtalo de nuevo más tarde.
+  fr: Échec de l'envoi du problème. Veuillez réessayer plus tard.
+  pt: Falha ao enviar o problema. Por favor, tente novamente mais tarde.
+  ru: Не удалось отправить проблему. Пожалуйста, попробуйте позже.
+  ja: 問題の送信に失敗しました。後でもう一度お試しください。
+  ko: 문제 제출에 실패했습니다. 나중에 다시 시도해 주세요.
+  it: Invio del problema fallito. Riprova più tardi.
+  tr: Sorun gönderilemedi. Lütfen daha sonra tekrar deneyin.
+  vi: Gửi sự cố thất bại. Vui lòng thử lại sau.
+  id: Gagal mengirim masalah. Silakan coba lagi nanti.
+  pl: Nie udało się wysłać problemu. Spróbuj ponownie później.
+  nl: Probleem indienen mislukt. Probeer het later opnieuw.
+  ar: فشل في إرسال المشكلة. يرجى المحاولة مرة أخرى لاحقًا.
+  hi: समस्या सबमिट करने में विफल। कृपया बाद में पुनः प्रयास करें।
+  th: ส่งปัญหาล้มเหลว กรุณาลองอีกครั้งในภายหลัง
+  cs: Odeslání problému se nezdařilo. Zkuste to prosím později znovu.
+  sv: Det gick inte att skicka problemet. Försök igen senare.
+  verified_by_human: []
