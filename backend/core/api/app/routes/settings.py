@@ -1725,7 +1725,7 @@ async def get_server_status(
 class IssueReportRequest(BaseModel):
     """Request model for issue reporting endpoint"""
     title: str = Field(..., min_length=3, max_length=200, description="Issue title (required, 3-200 characters)")
-    description: str = Field(..., min_length=10, max_length=5000, description="Issue description (required, 10-5000 characters)")
+    description: Optional[str] = Field(None, min_length=10, max_length=5000, description="Issue description (optional, 10-5000 characters if provided)")
     chat_or_embed_url: Optional[str] = Field(None, max_length=500, description="Optional chat or embed URL related to the issue")
 
 
@@ -1776,7 +1776,8 @@ async def report_issue(
         # SECURITY: Sanitize user inputs to prevent XSS attacks
         # HTML escape title and description to prevent injection of malicious HTML/JavaScript
         sanitized_title = escape(issue_data.title.strip())
-        sanitized_description = escape(issue_data.description.strip())
+        # Description is optional - only sanitize if provided
+        sanitized_description = escape(issue_data.description.strip()) if issue_data.description else None
         
         # SECURITY: Validate and sanitize URL if provided
         sanitized_url = None

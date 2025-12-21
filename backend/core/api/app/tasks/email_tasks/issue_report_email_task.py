@@ -31,7 +31,7 @@ def send_issue_report_email(
     self: BaseServiceTask,
     admin_email: str,
     issue_title: str,
-    issue_description: str,
+    issue_description: Optional[str],
     chat_or_embed_url: Optional[str],
     timestamp: str,
     estimated_location: str
@@ -87,7 +87,7 @@ async def _async_send_issue_report_email(
     task: BaseServiceTask,
     admin_email: str,
     issue_title: str,
-    issue_description: str,
+    issue_description: Optional[str],
     chat_or_embed_url: Optional[str],
     timestamp: str,
     estimated_location: str

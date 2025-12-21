@@ -205,17 +205,6 @@
             <span class="clickable-icon icon_share"></span>
           </button>
         </div>
-        <!-- Report Issue button - always shown -->
-        <div class="button-wrapper">
-          <button
-            class="action-button report-issue-button"
-            onclick={handleReportIssue}
-            aria-label={$text('header.report_issue.text') || 'Report Issue'}
-            title={$text('header.report_issue.text') || 'Report Issue'}
-          >
-            <span class="clickable-icon icon_bug"></span>
-          </button>
-        </div>
         <!-- Copy button -->
         {#if onCopy}
           <div class="button-wrapper">
@@ -242,6 +231,17 @@
             </button>
           </div>
         {/if}
+          <!-- Report Issue button - always shown -->
+          <div class="button-wrapper">
+            <button
+              class="action-button report-issue-button"
+              onclick={handleReportIssue}
+              aria-label={$text('header.report_issue.text') || 'Report Issue'}
+              title={$text('header.report_issue.text') || 'Report Issue'}
+            >
+              <span class="clickable-icon icon_bug"></span>
+            </button>
+          </div>
       </div>
       
       <!-- Right side: Minimize button -->
