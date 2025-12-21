@@ -733,8 +733,13 @@
     }
 
     async function goToStep(step: string) {
-        // Skip email confirmation and payment steps if self-hosted
-        if (isSelfHosted && [STEP_CONFIRM_EMAIL, STEP_CREDITS, STEP_PAYMENT, STEP_AUTO_TOP_UP].includes(step)) {
+        // Skip email confirmation step if self-hosted - go directly to secure account setup
+        if (isSelfHosted && step === STEP_CONFIRM_EMAIL) {
+            console.log(`[Signup] Email confirmation disabled (self-hosted), redirecting to secure_account`);
+            step = STEP_SECURE_ACCOUNT;
+        }
+        // Skip payment steps if self-hosted - go to completion
+        else if (isSelfHosted && [STEP_CREDITS, STEP_PAYMENT, STEP_AUTO_TOP_UP].includes(step)) {
             console.log(`[Signup] Payment disabled, skipping step ${step} and going to completion`);
             step = STEP_COMPLETION;
         }
@@ -1407,7 +1412,15 @@
             <Basics
                 on:switchToLogin={handleSwitchToLogin}
                 on:validated={(e) => { isInviteCodeValidated = e.detail.isValidated; is_admin = e.detail.is_admin; }}
-                on:next={() => goToStep(STEP_CONFIRM_EMAIL)}
+                on:next={() => {
+                    // For self-hosted, skip email confirmation and go directly to secure account setup
+                    // Account creation will happen in the secure account step (password or passkey setup)
+                    if (isSelfHosted) {
+                        goToStep(STEP_SECURE_ACCOUNT);
+                    } else {
+                        goToStep(STEP_CONFIRM_EMAIL);
+                    }
+                }}
                 on:requestSwitchToLogin={handleSwitchToLogin}
             />
         {:else}

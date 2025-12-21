@@ -4,7 +4,7 @@
     This component allows users (including non-authenticated users) to report issues.
     The form includes:
     - Issue title (required)
-    - Issue description (required)
+    - Issue description (optional)
     - Chat or embed URL (optional)
     - Reminder about Signal group for discussion/screenshots
 -->
@@ -90,19 +90,9 @@
             showTitleWarning = false;
         }
         
-        // Validate description
-        if (!issueDescription || !issueDescription.trim()) {
-            descriptionError = $text('settings.report_issue.description_required.text');
-            showDescriptionWarning = true;
-            isValid = false;
-        } else if (issueDescription.trim().length < 10) {
-            descriptionError = $text('settings.report_issue.description_too_short.text');
-            showDescriptionWarning = true;
-            isValid = false;
-        } else {
-            descriptionError = '';
-            showDescriptionWarning = false;
-        }
+        // Validate description (optional - no validation needed, any length is acceptable)
+        descriptionError = '';
+        showDescriptionWarning = false;
         
         // Validate URL if provided
         if (chatOrEmbedUrl && chatOrEmbedUrl.trim()) {
@@ -239,7 +229,10 @@
             // SECURITY: Sanitize inputs before sending to backend
             // The backend will also sanitize, but this provides defense-in-depth
             const sanitizedTitle = sanitizeTextInput(issueTitle);
-            const sanitizedDescription = sanitizeTextInput(issueDescription);
+            // Description is optional - send null if empty, otherwise sanitize
+            const sanitizedDescription = issueDescription.trim() 
+                ? sanitizeTextInput(issueDescription) 
+                : null;
             const sanitizedUrl = chatOrEmbedUrl.trim() || null;
             
             const response = await fetch(getApiEndpoint('/v1/settings/issues'), {
@@ -311,10 +304,10 @@
     
     /**
      * Check if form is valid
+     * Description is optional with no minimum length requirement
      */
     let isFormValid = $derived(
         issueTitle.trim().length >= 3 &&
-        issueDescription.trim().length >= 10 &&
         (!chatOrEmbedUrl.trim() || validateUrl(chatOrEmbedUrl)) &&
         !isSubmitting
     );
@@ -389,7 +382,6 @@
                     class:error={!!descriptionError}
                     aria-label={$text('settings.report_issue.description_label.text')}
                     rows="5"
-                    required
                 ></textarea>
                 {#if showDescriptionWarning && descriptionError}
                     <InputWarning

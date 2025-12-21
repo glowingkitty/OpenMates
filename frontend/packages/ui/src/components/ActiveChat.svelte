@@ -96,9 +96,9 @@
     // Only use full sequence when user explicitly selects password + 2FA OTP
     let stepSequence = $derived.by(() => {
         const baseSequence = $signupStore.loginMethod === 'password' ? fullStepSequence : passkeyStepSequence;
-        // Filter out payment steps if self-hosted (use isSelfHosted from request-based validation)
+        // Filter out email confirmation and payment steps if self-hosted (use isSelfHosted from request-based validation)
         if (isSelfHosted) {
-            return baseSequence.filter(step => ![STEP_CREDITS, STEP_PAYMENT, STEP_AUTO_TOP_UP].includes(step));
+            return baseSequence.filter(step => ![STEP_CONFIRM_EMAIL, STEP_CREDITS, STEP_PAYMENT, STEP_AUTO_TOP_UP].includes(step));
         }
         return baseSequence;
     });
@@ -3200,7 +3200,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         <!-- Moved to be a child of active-chat-container for better positioning with gradient -->
         {#if $isInSignupProcess && $currentSignupStep !== STEP_BASICS && $currentSignupStep !== STEP_ALPHA_DISCLAIMER}
             <div class="status-wrapper" transition:fade={fadeParams}>
-                <SignupStatusbar currentStepName={$currentSignupStep} stepSequenceOverride={stepSequence} paymentEnabled={paymentEnabled} />
+                <SignupStatusbar currentStepName={$currentSignupStep} stepSequenceOverride={stepSequence} paymentEnabled={paymentEnabled} isSelfHosted={isSelfHosted} />
             </div>
         {/if}
         

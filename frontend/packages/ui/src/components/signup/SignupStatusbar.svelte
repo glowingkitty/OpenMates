@@ -35,31 +35,70 @@
     let { 
         currentStepName = STEP_BASICS, 
         stepSequenceOverride,
-        paymentEnabled = true
+        paymentEnabled = true,
+        isSelfHosted = false
     }: { 
         currentStepName?: string, 
         stepSequenceOverride?: string[],
-        paymentEnabled?: boolean
+        paymentEnabled?: boolean,
+        isSelfHosted?: boolean
     } = $props();
 
-    // Filter out payment steps if payment is disabled
+    // Filter out email confirmation step if self-hosted, and payment steps if payment is disabled
     const filteredFullSequence = $derived(
-        paymentEnabled 
-            ? fullStepSequence 
-            : fullStepSequence.filter(step => ![STEP_CREDITS, STEP_PAYMENT, STEP_AUTO_TOP_UP].includes(step))
+        (() => {
+            let sequence = fullStepSequence;
+            // Filter out email confirmation for self-hosted
+            if (isSelfHosted) {
+                sequence = sequence.filter(step => step !== STEP_CONFIRM_EMAIL);
+            }
+            // Filter out payment steps if payment is disabled
+            if (!paymentEnabled) {
+                sequence = sequence.filter(step => ![STEP_CREDITS, STEP_PAYMENT, STEP_AUTO_TOP_UP].includes(step));
+            }
+            return sequence;
+        })()
     );
 
     const filteredPasskeySequence = $derived(
-        paymentEnabled 
-            ? passkeyStepSequence 
-            : passkeyStepSequence.filter(step => ![STEP_CREDITS, STEP_PAYMENT, STEP_AUTO_TOP_UP].includes(step))
+        (() => {
+            let sequence = passkeyStepSequence;
+            // Filter out email confirmation for self-hosted
+            if (isSelfHosted) {
+                sequence = sequence.filter(step => step !== STEP_CONFIRM_EMAIL);
+            }
+            // Filter out payment steps if payment is disabled
+            if (!paymentEnabled) {
+                sequence = sequence.filter(step => ![STEP_CREDITS, STEP_PAYMENT, STEP_AUTO_TOP_UP].includes(step));
+            }
+            return sequence;
+        })()
+    );
+
+    // Filter stepSequenceOverride if provided (apply self-hosted and payment filtering)
+    // This ensures filtering is always applied, even if the override was computed before isSelfHosted was set
+    const filteredStepSequenceOverride = $derived(
+        stepSequenceOverride 
+            ? (() => {
+                let sequence = [...stepSequenceOverride]; // Create a copy to avoid mutating the original
+                // Filter out email confirmation for self-hosted (always apply this filter)
+                if (isSelfHosted) {
+                    sequence = sequence.filter(step => step !== STEP_CONFIRM_EMAIL);
+                }
+                // Filter out payment steps if payment is disabled (always apply this filter)
+                if (!paymentEnabled) {
+                    sequence = sequence.filter(step => ![STEP_CREDITS, STEP_PAYMENT, STEP_AUTO_TOP_UP].includes(step));
+                }
+                return sequence;
+            })()
+            : null
     );
 
     // Determine active sequence based on login method
     // Default to passkey sequence (assume passkey by default)
     // Only use full sequence when user explicitly selects password + 2FA OTP
     let activeSequence = $derived(
-        stepSequenceOverride ||
+        filteredStepSequenceOverride ||
         ($signupStore.loginMethod === 'password' ? filteredFullSequence : filteredPasskeySequence)
     );
 
