@@ -1375,10 +1375,10 @@
      */
     async function handleHashChange() {
         // Import the check function
-        const { isProgrammaticHashUpdate } = await import('@repo/ui');
+        const { isProgrammaticHashUpdate, isProgrammaticEmbedHashUpdate } = await import('@repo/ui');
         
         // Ignore hash changes that we triggered programmatically (prevents infinite loops)
-        if (isProgrammaticHashUpdate()) {
+        if (isProgrammaticHashUpdate() || isProgrammaticEmbedHashUpdate()) {
             console.debug('[+page.svelte] Ignoring programmatic hash update');
             return;
         }

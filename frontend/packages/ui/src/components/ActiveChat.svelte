@@ -494,9 +494,28 @@
             }
         }
         
+        // Canonicalize embed type:
+        // - For deep links we may receive a placeholder embedType (e.g. "app-skill-use")
+        // - Prefer the stored embed type when available, but keep ActiveChat's expected aliases
+        //   (web-website is rendered via embedType "website" in this component).
+        let resolvedEmbedType = embedType;
+        const inferredType = finalEmbedData?.type;
+        if (inferredType) {
+            resolvedEmbedType = inferredType === 'web-website' ? 'website' : inferredType;
+        }
+        
+        // If we already have this embed open, ignore duplicate events (e.g. hashchange deep-link echoes).
+        if (showEmbedFullscreen && embedFullscreenData?.embedId === embedId && embedFullscreenData?.embedType === resolvedEmbedType) {
+            console.debug('[ActiveChat] Ignoring duplicate embedfullscreen event for already-open embed:', {
+                embedId,
+                resolvedEmbedType
+            });
+            return;
+        }
+        
         // For web search embeds, load child website embeds and transform to results array
         // This is needed because parent embed only contains embed_ids, not the actual website data
-        if (embedType === 'app-skill-use' && finalDecodedContent) {
+        if (resolvedEmbedType === 'app-skill-use' && finalDecodedContent) {
             const appId = finalDecodedContent.app_id || '';
             const skillId = finalDecodedContent.skill_id || '';
             
@@ -595,7 +614,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         
         // Store fullscreen data (moved below after all async operations)
         console.debug('[ActiveChat] Setting showEmbedFullscreen to true, embedFullscreenData:', {
-            embedType,
+            embedType: resolvedEmbedType,
             embedId,
             hasEmbedData: !!finalEmbedData,
             hasDecodedContent: !!finalDecodedContent,
@@ -609,7 +628,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             embedId,
             embedData: finalEmbedData,
             decodedContent: finalDecodedContent,
-            embedType,
+            embedType: resolvedEmbedType,
             attrs
         };
         
@@ -625,7 +644,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             console.debug('[ActiveChat] Updated URL hash with embed ID:', embedId);
         }
         
-        console.debug('[ActiveChat] Opening embed fullscreen:', embedType, embedId, 'showEmbedFullscreen:', showEmbedFullscreen, 'embedFullscreenData:', !!embedFullscreenData);
+        console.debug('[ActiveChat] Opening embed fullscreen:', resolvedEmbedType, embedId, 'showEmbedFullscreen:', showEmbedFullscreen, 'embedFullscreenData:', !!embedFullscreenData);
     }
     
     // Handler for closing embed fullscreen
