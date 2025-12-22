@@ -17,8 +17,6 @@
 -->
 
 <script lang="ts">
-  // @ts-ignore - @repo/ui module exists at runtime
-  import { text } from '@repo/ui';
   import BasicInfosBar from './BasicInfosBar.svelte';
   
   /**
@@ -117,8 +115,11 @@
    * Starts a timer that will trigger context menu if touch is held long enough
    */
   function handleTouchStart(e: TouchEvent) {
+    // Prevent TipTap / parent handlers from interfering with embed interactions
+    e.stopPropagation();
+    
     // Only handle single touch
-    if (e.touches.length !== 1 || status !== 'finished') {
+    if (e.touches.length !== 1) {
       clearTouchTimer();
       return;
     }
@@ -173,6 +174,7 @@
    * Handle touch move - cancel long-press if finger moves too much
    */
   function handleTouchMove(e: TouchEvent) {
+    e.stopPropagation();
     if (!touchTimer || e.touches.length !== 1) {
       return;
     }
@@ -191,6 +193,7 @@
    * Handle touch end - cancel long-press timer
    */
   function handleTouchEnd(e: TouchEvent) {
+    e.stopPropagation();
     clearTouchTimer();
   }
   
@@ -260,26 +263,53 @@
     }
   }
   
+  // Stop mousedown from bubbling to TipTap node view handlers (which can interfere with fullscreen opening)
+  function handleMouseDown(e: MouseEvent) {
+    e.stopPropagation();
+  }
+  
+  // Pointer events can fire before click on some platforms (and can trigger parent handlers)
+  function handlePointerDown(e: PointerEvent) {
+    e.stopPropagation();
+  }
+  
   /**
    * Handle right-click context menu
    * Allow the event to bubble up to ReadOnlyMessage for proper context menu handling
    * Only prevent default browser context menu
    */
   function handleContextMenu(e: MouseEvent) {
-    // Only handle context menu for finished embeds
-    if (status !== 'finished') {
-      return; // Let default behavior for processing/error states
-    }
-    
-    // Prevent default browser context menu
+    // Always prevent native browser context menu inside embeds.
     e.preventDefault();
+    // Stop bubbling to TipTap's contextmenu handler to avoid duplicate menu triggers.
+    e.stopPropagation();
     
     // Mark that we're handling a context menu to prevent normal click from firing
     isContextMenuHandled = true;
     
-    // Don't stop propagation - let it bubble up to ReadOnlyMessage
-    // ReadOnlyMessage will handle showing the context menu
-    console.debug('[UnifiedEmbedPreview] Context menu event (right-click) - allowing to bubble up');
+    // Dispatch a custom event that ReadOnlyMessage can listen to.
+    // This ensures right-click always opens EmbedContextMenu (and not the browser menu).
+    if (previewElement) {
+      const rect = previewElement.getBoundingClientRect();
+      const contextMenuEvent = new CustomEvent('embed-context-menu', {
+        bubbles: true,
+        cancelable: true,
+        detail: {
+          embedId: id,
+          appId,
+          skillId,
+          rect: {
+            left: rect.left,
+            top: rect.top,
+            width: rect.width,
+            height: rect.height
+          },
+          x: e.clientX,
+          y: e.clientY
+        }
+      });
+      previewElement.dispatchEvent(contextMenuEvent);
+    }
   }
   
   // Handle keyboard navigation
@@ -297,13 +327,6 @@
   }
   
   // Handle stop button click - prevent event propagation
-  function handleStopClick(e: MouseEvent) {
-    e.stopPropagation();
-    if (onStop) {
-      onStop();
-    }
-  }
-  
   // Wrapper for BasicInfosBar onStop prop (it expects () => void)
   function handleStop() {
     if (onStop) {
@@ -328,14 +351,16 @@
     role: 'button',
     tabindex: 0,
     onclick: handleClick,
-    onkeydown: handleKeydown,
-    oncontextmenu: handleContextMenu,
-    ontouchstart: handleTouchStart,
-    ontouchmove: handleTouchMove,
-    ontouchend: handleTouchEnd
+    onkeydown: handleKeydown
   } : {
     role: 'presentation'
   })}
+  onpointerdown={handlePointerDown}
+  onmousedown={handleMouseDown}
+  oncontextmenu={handleContextMenu}
+  ontouchstart={handleTouchStart}
+  ontouchmove={handleTouchMove}
+  ontouchend={handleTouchEnd}
 >
   {#if useMobileLayout}
     <!-- Mobile Layout: Vertical card (150x290px) -->
@@ -415,15 +440,22 @@
     transition: background-color 0.2s, transform 0.2s, box-shadow 0.2s;
     overflow: hidden;
     box-sizing: border-box;
-    /* Ensure context menu events bubble from child elements */
-    /* Child elements like images should not block context menu events */
+    /* Prevent selection/callouts inside embeds; embeds behave as one interactive element. */
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
   }
   
-  /* Ensure child elements (like images) don't block context menu events */
-  .unified-embed-preview * {
-    /* Allow context menu events to bubble up to the parent */
-    /* Images and other child elements should not prevent context menu */
-    pointer-events: auto;
+  /* Prevent image drag/callouts */
+  .unified-embed-preview :global(img) {
+    -webkit-user-drag: none;
+    user-drag: none;
+  }
+  
+  /* Finished embeds act like a single button: children shouldn't capture pointer events. */
+  .unified-embed-preview.finished .desktop-layout,
+  .unified-embed-preview.finished .mobile-layout {
+    pointer-events: none;
   }
   
   /* Desktop layout: 300x200px */
@@ -541,4 +573,3 @@
     -webkit-box-orient: vertical;
   }
 </style>
-

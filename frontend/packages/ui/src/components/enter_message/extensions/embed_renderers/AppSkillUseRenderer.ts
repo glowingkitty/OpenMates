@@ -19,6 +19,7 @@ import NewsSearchEmbedPreview from '../../../embeds/news/NewsSearchEmbedPreview.
 import VideosSearchEmbedPreview from '../../../embeds/videos/VideosSearchEmbedPreview.svelte';
 import MapsSearchEmbedPreview from '../../../embeds/maps/MapsSearchEmbedPreview.svelte';
 import VideoTranscriptEmbedPreview from '../../../embeds/videos/VideoTranscriptEmbedPreview.svelte';
+import WebReadEmbedPreview from '../../../embeds/web/WebReadEmbedPreview.svelte';
 
 // Track mounted components for cleanup
 const mountedComponents = new WeakMap<HTMLElement, ReturnType<typeof mount>>();
@@ -101,7 +102,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
           
           // For web read, render web read preview
           if (appId === 'web' && skillId === 'read') {
-            return this.renderWebRead(attrs, embedData, decodedContent || {}, content);
+            return this.renderWebReadComponent(attrs, embedData, decodedContent || {}, content);
           }
           
           // For other skills, render generic app skill preview
@@ -441,6 +442,57 @@ export class AppSkillUseRenderer implements EmbedRenderer {
   }
   
   /**
+   * Render web read embed using Svelte component
+   */
+  private renderWebReadComponent(
+    attrs: EmbedNodeAttributes,
+    embedData: any,
+    decodedContent: any,
+    content: HTMLElement
+  ): void {
+    const status = decodedContent.status || attrs.status || 'processing';
+    const taskId = decodedContent.task_id || '';
+    const results = decodedContent.results || [];
+    
+    // Cleanup any existing mounted component
+    const existingComponent = mountedComponents.get(content);
+    if (existingComponent) {
+      try {
+        unmount(existingComponent);
+      } catch (e) {
+        console.warn('[AppSkillUseRenderer] Error unmounting existing component:', e);
+      }
+    }
+    
+    content.innerHTML = '';
+    
+    try {
+      const embedId = attrs.contentRef?.replace('embed:', '') || '';
+      const handleFullscreen = () => {
+        this.openFullscreen(attrs, embedData, decodedContent);
+      };
+      
+      const component = mount(WebReadEmbedPreview, {
+        target: content,
+        props: {
+          id: embedId,
+          status: status as 'processing' | 'finished' | 'error',
+          results,
+          taskId,
+          isMobile: false,
+          onFullscreen: handleFullscreen
+        }
+      });
+      
+      mountedComponents.set(content, component);
+      console.debug('[AppSkillUseRenderer] Mounted WebReadEmbedPreview component:', { embedId, status, resultsCount: results.length });
+    } catch (error) {
+      console.error('[AppSkillUseRenderer] Error mounting WebReadEmbedPreview:', error);
+      this.renderWebReadFallbackHTML(attrs, embedData, decodedContent, content);
+    }
+  }
+  
+  /**
    * Render video transcript embed using Svelte component
    * Uses Svelte 5's mount() API to mount the component into the DOM
    */
@@ -553,10 +605,9 @@ export class AppSkillUseRenderer implements EmbedRenderer {
   }
   
   /**
-   * Render web read skill embed preview
-   * Shows website information from read results
+   * Fallback HTML rendering for web read (used when Svelte mount fails)
    */
-  private renderWebRead(
+  private renderWebReadFallbackHTML(
     attrs: EmbedNodeAttributes,
     embedData: any,
     decodedContent: any,
@@ -569,7 +620,15 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     // Extract website information from first result
     const url = firstResult.url || '';
     const title = firstResult.title || '';
-    const hostname = url ? new URL(url).hostname : '';
+    let hostname = '';
+    if (url) {
+      try {
+        hostname = new URL(url).hostname;
+      } catch {
+        const withoutScheme = url.replace(/^[a-zA-Z]+:\/\//, '');
+        hostname = withoutScheme.split('/')[0] || '';
+      }
+    }
     const displayTitle = title || hostname || 'Website';
     const resultCount = results.length;
     
@@ -596,7 +655,8 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     content.innerHTML = html;
     
     // Add click handler for fullscreen
-    if (attrs.status === 'finished') {
+    const status = decodedContent.status || attrs.status || 'finished';
+    if (status === 'finished') {
       content.style.cursor = 'pointer';
       content.addEventListener('click', () => {
         this.openFullscreen(attrs, embedData, decodedContent);
