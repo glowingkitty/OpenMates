@@ -157,7 +157,10 @@ class EmailTemplateService:
         # Mailjet API keys will be fetched from SecretsManager in send_email method
         # Mailjet API endpoint
         self.mailjet_api_url = "https://api.mailjet.com/v3.1/send"
-        self.mailjet_contact_api_base_url = "https://api.mailjet.com/v3/REST/contact"
+        # Contact lookup uses v3 REST, GDPR deletion uses v4 endpoint.
+        # Mailjet GDPR deletion requires the numeric/string contact ID, not the email.
+        self.mailjet_contact_lookup_base_url = "https://api.mailjet.com/v3/REST/contact"
+        self.mailjet_gdpr_delete_base_url = "https://api.mailjet.com/v4/contacts"
         
         # Default sender info
         self.default_sender_name = os.getenv("EMAIL_SENDER_NAME", "OpenMates")
@@ -551,15 +554,51 @@ class EmailTemplateService:
         """
         try:
             encoded_recipient = quote(recipient_email, safe="")
-            url = f"{self.mailjet_contact_api_base_url}/{encoded_recipient}"
-            async with session.delete(url, auth=auth) as response:
-                # 200/204: deleted; 404: not found; anything else: warn but do not fail the email send.
-                if response.status in (200, 204, 404):
+            lookup_url = f"{self.mailjet_contact_lookup_base_url}/{encoded_recipient}"
+
+            async with session.get(lookup_url, auth=auth) as lookup_response:
+                if lookup_response.status == 404:
+                    logger.info("Mailjet contact cleanup: contact not found (non-fatal).")
+                    return
+                if lookup_response.status != 200:
+                    body = await lookup_response.text()
+                    logger.warning(
+                        f"Mailjet contact lookup returned status {lookup_response.status} (non-fatal). "
+                        f"Response: {body[:500]}"
+                    )
+                    return
+
+                body = await lookup_response.text()
+                try:
+                    lookup_data = json.loads(body)
+                except json.JSONDecodeError:
+                    logger.warning(
+                        "Mailjet contact lookup returned non-JSON body (non-fatal). "
+                        f"Response: {body[:500]}"
+                    )
+                    return
+
+                contact_id: Optional[Union[str, int]] = None
+                data = lookup_data.get("Data") or []
+                if data and isinstance(data, list) and isinstance(data[0], dict):
+                    contact_id = data[0].get("ID")
+
+                if not contact_id:
+                    logger.warning(
+                        f"Mailjet contact lookup did not return a contact ID for {recipient_email} (non-fatal). "
+                        f"Response: {str(lookup_data)[:500]}"
+                    )
+                    return
+
+            delete_url = f"{self.mailjet_gdpr_delete_base_url}/{contact_id}"
+            async with session.delete(delete_url, auth=auth) as delete_response:
+                # 200: anonymized, then removed after 30 days; 404: already missing; others warn.
+                if delete_response.status in (200, 404):
                     logger.info("Mailjet contact cleanup attempted (non-fatal).")
                     return
-                body = await response.text()
+                body = await delete_response.text()
                 logger.warning(
-                    f"Mailjet contact cleanup returned status {response.status} (non-fatal). "
+                    f"Mailjet contact cleanup returned status {delete_response.status} (non-fatal). "
                     f"Response: {body[:500]}"
                 )
         except Exception as e:

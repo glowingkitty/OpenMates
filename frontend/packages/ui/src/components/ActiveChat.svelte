@@ -494,14 +494,36 @@
             }
         }
         
-        // Canonicalize embed type:
-        // - For deep links we may receive a placeholder embedType (e.g. "app-skill-use")
-        // - Prefer the stored embed type when available, but keep ActiveChat's expected aliases
-        //   (web-website is rendered via embedType "website" in this component).
-        let resolvedEmbedType = embedType;
-        const inferredType = finalEmbedData?.type;
-        if (inferredType) {
-            resolvedEmbedType = inferredType === 'web-website' ? 'website' : inferredType;
+        // Normalize embed types from different sources:
+        // - Renderers use UI types (e.g. "code-code", "app-skill-use")
+        // - Some synced/stored embeds can expose server types (e.g. "code", "app_skill_use")
+        // - Deep links dispatch a placeholder type, but we can infer from stored embed when needed
+        const normalizeEmbedType = (t: string | null | undefined): string | null => {
+            if (!t) return null;
+            switch (t) {
+                case 'app_skill_use':
+                    return 'app-skill-use';
+                case 'app-skill-use':
+                    return 'app-skill-use';
+                case 'web-website':
+                case 'website':
+                    return 'website';
+                case 'code':
+                case 'code-code':
+                    return 'code-code';
+                case 'videos-video':
+                    return 'videos-video';
+                default:
+                    return t;
+            }
+        };
+        
+        let resolvedEmbedType = normalizeEmbedType(embedType) || embedType;
+        const inferredType = normalizeEmbedType(finalEmbedData?.type) || finalEmbedData?.type;
+        
+        // Only override the event type when it's a placeholder (deep-link default) and inference is more specific.
+        if (inferredType && (resolvedEmbedType === 'app-skill-use' || resolvedEmbedType === 'app_skill_use')) {
+            resolvedEmbedType = inferredType;
         }
         
         // If we already have this embed open, ignore duplicate events (e.g. hashchange deep-link echoes).

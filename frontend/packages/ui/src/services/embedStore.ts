@@ -108,6 +108,21 @@ export interface EmbedKeyEntry {
 }
 
 export class EmbedStore {
+  private normalizeEmbedType(type: string): EmbedType {
+    // Normalize server embed types to the UI embed types used throughout the frontend.
+    // This prevents mismatches like "app_skill_use" vs "app-skill-use" and "code" vs "code-code".
+    switch (type) {
+      case 'app_skill_use':
+        return 'app-skill-use' as EmbedType;
+      case 'website':
+        return 'web-website' as EmbedType;
+      case 'code':
+        return 'code-code' as EmbedType;
+      default:
+        return type as EmbedType;
+    }
+  }
+  
   /**
    * Extract app_id and skill_id from embed content (for app_skill_use embeds)
    * This extracts metadata from TOON content to enable efficient filtering in IndexedDB
@@ -308,11 +323,13 @@ export class EmbedStore {
     plaintextContent?: string,
     preExtractedMetadata?: { app_id?: string; skill_id?: string }
   ): Promise<void> {
+    const normalizedType = this.normalizeEmbedType(type as unknown as string);
+    
     // Extract app_id and skill_id from plaintext content if provided, otherwise try to decrypt
     // For app_skill_use embeds, we extract metadata to enable efficient filtering in IndexedDB
     let appMetadata: { app_id?: string; skill_id?: string } = {};
     
-    if (type === 'app-skill-use' || type === 'app_skill_use') {
+    if (normalizedType === 'app-skill-use' || normalizedType === 'app_skill_use') {
       try {
         // If metadata was already extracted upstream, trust it
         if (preExtractedMetadata?.app_id || preExtractedMetadata?.skill_id) {
@@ -374,7 +391,7 @@ export class EmbedStore {
       // New embeds should use separate fields below
       // data: undefined, // Don't store JSON string anymore
       
-      type,
+      type: normalizedType,
       createdAt, // Server-provided timestamp (preserved!)
       updatedAt, // Server-provided timestamp (preserved!)
       
@@ -413,7 +430,7 @@ export class EmbedStore {
       await new Promise<void>((resolve, reject) => {
         const request = store.put(entry);
         request.onsuccess = () => {
-          console.info('[EmbedStore] ✅ Successfully stored encrypted embed in IndexedDB:', contentRef, { type, hasEmbedId: !!encryptedData.embed_id });
+          console.info('[EmbedStore] ✅ Successfully stored encrypted embed in IndexedDB:', contentRef, { type: normalizedType, hasEmbedId: !!encryptedData.embed_id });
           resolve();
         };
         request.onerror = () => reject(request.error);

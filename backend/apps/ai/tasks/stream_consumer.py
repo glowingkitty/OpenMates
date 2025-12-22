@@ -578,9 +578,12 @@ async def _consume_main_processing_stream(
     log_prefix = f"[Task ID: {task_id}, ChatID: {request_data.chat_id}] _consume_main_processing_stream:"
     logger.info(f"{log_prefix} Starting to consume stream from main_processor.")
 
+    standardized_error_message = "The AI service encountered an error while processing your request. Please try again in a moment."
+
     # Local flags for interruption status
     was_revoked_during_stream = False
     was_soft_limited_during_stream = False
+    stream_exception: Optional[BaseException] = None
 
     # Check for revocation before starting
     # Use AsyncResult to check task status
@@ -1172,6 +1175,7 @@ async def _consume_main_processing_stream(
         was_soft_limited_during_stream = True
     except Exception as e:
         logger.error(f"{log_prefix} Exception during main processing stream consumption: {e}", exc_info=True)
+        stream_exception = e
         # Check if revoked after an unexpected error
         if celery_config.app.AsyncResult(task_id).state == TASK_STATE_REVOKED:
             was_revoked_during_stream = True
@@ -1199,6 +1203,42 @@ async def _consume_main_processing_stream(
             logger.error(f"{log_prefix} Error finalizing interrupted code embed: {e}", exc_info=True)
 
     aggregated_response = "".join(final_response_chunks)
+
+    # Ensure we never complete with an empty assistant message on server-side failures.
+    # This avoids clients sending an "ai_response_completed" payload without encrypted_content,
+    # and ensures the user always sees a retryable error message when all providers fail.
+    if (
+        not aggregated_response
+        and not was_revoked_during_stream
+        and not was_soft_limited_during_stream
+    ):
+        if stream_exception:
+            logger.error(
+                f"{log_prefix} Stream failed before producing any content. "
+                f"Returning standardized user-facing error message. Technical error: {stream_exception!r}"
+            )
+        else:
+            logger.error(
+                f"{log_prefix} Stream completed with empty content (no interruption). "
+                "Returning standardized user-facing error message."
+            )
+        aggregated_response = standardized_error_message
+        final_response_chunks = [aggregated_response]
+        if stream_chunk_count == 0:
+            # Mirror fake-stream behavior: one content chunk + one final marker.
+            # Publish a synthetic first chunk so clients can render something immediately.
+            if cache_service:
+                synthetic_payload = _create_redis_payload(
+                    task_id, request_data, aggregated_response, 1, is_final=False
+                )
+                await _publish_to_redis(
+                    cache_service,
+                    redis_channel_name,
+                    synthetic_payload,
+                    log_prefix,
+                    f"Published synthetic error chunk (seq: 1) to '{redis_channel_name}'",
+                )
+            stream_chunk_count = 1
     
     # IMPROVED LOGGING: Log the full streamed assistant message for debugging
     # This helps diagnose parsing issues, embed reference problems, and code block extraction
@@ -1368,7 +1408,6 @@ async def _consume_main_processing_stream(
     
     # Determine if this is a server error (all providers failed) vs user interruption
     # Check for both old "[ERROR:" format and new standardized error message format
-    standardized_error_message = "The AI service encountered an error while processing your request. Please try again in a moment."
     is_old_format_error = aggregated_response.strip().startswith("[ERROR:")
     is_new_format_error = aggregated_response.strip() == standardized_error_message
     is_error = is_old_format_error or is_new_format_error
