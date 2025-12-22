@@ -193,6 +193,11 @@ directus_users:
       length: 512
       note: "Encrypted timestamp of last auto top-up to prevent rapid retriggering"
 
+    encrypted_email_auto_topup:
+      type: string
+      length: 512
+      note: "Server-encrypted email address for auto top-up notifications (encrypted with user's vault key)"
+
     encrypted_hidden_demo_chats:
       type: textfield
       note: "Encrypted JSON array of demo chat IDs that user has dismissed/deleted (e.g., ['demo-welcome', 'demo-power-of-apps']). Syncs across devices."

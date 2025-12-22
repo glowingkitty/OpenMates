@@ -11,10 +11,15 @@ Auto Top-Up Settings - Submenu for low balance and monthly auto top-up options
 
     const dispatch = createEventDispatcher();
 
+    type SubscriptionDetails = {
+        status?: string;
+        credits_amount?: number | null;
+        next_billing_date?: string | null;
+    };
+
     // Subscription state
     let hasActiveSubscription = $state(false);
-    let subscriptionDetails: any = $state(null);
-    let isLoading = $state(false);
+    let subscriptionDetails: SubscriptionDetails | null = $state(null);
 
     // Low balance settings from user profile
     let lowBalanceEnabled = $state(false);
@@ -26,6 +31,20 @@ Auto Top-Up Settings - Submenu for low balance and monthly auto top-up options
         return credits.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
     }
 
+    function isActiveLikeSubscription(status?: string): boolean {
+        const normalized = (status || '').toLowerCase();
+        return normalized === 'active' || normalized === 'trialing';
+    }
+
+    function parseNextChargeDate(details: SubscriptionDetails | null): Date | null {
+        const raw = details?.next_billing_date;
+        if (!raw) return null;
+        const date = new Date(raw);
+        return Number.isNaN(date.getTime()) ? null : date;
+    }
+
+    let nextChargeDate = $derived(parseNextChargeDate(subscriptionDetails));
+
     // Load user profile data
     userProfile.subscribe(profile => {
         lowBalanceEnabled = profile.auto_topup_low_balance_enabled || false;
@@ -34,8 +53,6 @@ Auto Top-Up Settings - Submenu for low balance and monthly auto top-up options
 
     // Fetch subscription details
     async function fetchSubscriptionDetails() {
-        isLoading = true;
-
         try {
             const response = await fetch(getApiEndpoint(apiEndpoints.payments.getSubscription), {
                 credentials: 'include'
@@ -43,17 +60,21 @@ Auto Top-Up Settings - Submenu for low balance and monthly auto top-up options
 
             if (response.ok) {
                 const data = await response.json();
-                subscriptionDetails = data;
-                hasActiveSubscription = data.status === 'active';
+                subscriptionDetails = data?.subscription ?? null;
+                const hasSubscription = Boolean(data?.has_subscription && subscriptionDetails);
+                hasActiveSubscription = Boolean(hasSubscription && isActiveLikeSubscription(subscriptionDetails?.status));
             } else if (response.status === 404) {
-                // No subscription found
-                hasActiveSubscription = false;
+                // Endpoint not available (payments disabled) or legacy "no subscription" response
                 subscriptionDetails = null;
+                hasActiveSubscription = false;
+            } else {
+                subscriptionDetails = null;
+                hasActiveSubscription = false;
             }
         } catch (error) {
             console.error('Error fetching subscription:', error);
-        } finally {
-            isLoading = false;
+            subscriptionDetails = null;
+            hasActiveSubscription = false;
         }
     }
 
@@ -89,7 +110,7 @@ Auto Top-Up Settings - Submenu for low balance and monthly auto top-up options
     icon="subsetting_icon subsetting_icon_calendar"
     title={$text('settings.billing.monthly.text')}
     subtitle={hasActiveSubscription && subscriptionDetails
-        ? `${$text('settings.active.text')} - ${formatCredits(subscriptionDetails.credits || 0)} ${$text('settings.billing.credits.text')}/month`
+        ? `${$text('settings.active.text')} - ${formatCredits(subscriptionDetails.credits_amount || 0)} ${$text('settings.billing.credits.text')}/month${nextChargeDate ? ` • ${$text('settings.billing.next_charge.text')}: ${nextChargeDate.toLocaleDateString()}` : ''}`
         : $text('settings.billing.no_subscription.text')}
     onClick={() => navigateToSubview('monthly')}
 />

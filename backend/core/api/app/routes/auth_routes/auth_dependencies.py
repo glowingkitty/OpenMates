@@ -108,11 +108,13 @@ async def get_current_user(
             invoice_counter=cached_data.get("invoice_counter"),
             # Monthly subscription fields
             encrypted_payment_method_id=cached_data.get("encrypted_payment_method_id"),
+            stripe_customer_id=cached_data.get("stripe_customer_id"),
             stripe_subscription_id=cached_data.get("stripe_subscription_id"),
             subscription_status=cached_data.get("subscription_status"),
             subscription_credits=cached_data.get("subscription_credits"),
             subscription_currency=cached_data.get("subscription_currency"),
             next_billing_date=cached_data.get("next_billing_date"),
+            subscription_billing_day_preference=cached_data.get("subscription_billing_day_preference"),
             # Low balance auto top-up fields
             # Handle None values explicitly - if field is None in DB, default to False
             auto_topup_low_balance_enabled=cached_data.get("auto_topup_low_balance_enabled") or False,
@@ -186,6 +188,7 @@ async def get_current_user(
         subscription_credits=user_data.get("subscription_credits"),
         subscription_currency=user_data.get("subscription_currency"),
         next_billing_date=user_data.get("next_billing_date"),
+        subscription_billing_day_preference=user_data.get("subscription_billing_day_preference"),
         # Low balance auto top-up fields
         # Handle None values explicitly - if field is None in DB, default to False
         auto_topup_low_balance_enabled=user_data.get("auto_topup_low_balance_enabled") or False,
@@ -224,11 +227,13 @@ async def get_current_user(
         "account_id": user_data.get("account_id"),
         # Monthly subscription fields
         "encrypted_payment_method_id": user.encrypted_payment_method_id,
+        "stripe_customer_id": user.stripe_customer_id,
         "stripe_subscription_id": user.stripe_subscription_id,
         "subscription_status": user.subscription_status,
         "subscription_credits": user.subscription_credits,
         "subscription_currency": user.subscription_currency,
         "next_billing_date": user.next_billing_date,
+        "subscription_billing_day_preference": user.subscription_billing_day_preference,
         # Low balance auto top-up fields
         "auto_topup_low_balance_enabled": user.auto_topup_low_balance_enabled,
         "auto_topup_low_balance_threshold": user.auto_topup_low_balance_threshold,

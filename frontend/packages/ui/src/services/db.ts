@@ -2213,6 +2213,13 @@ class ChatDatabase {
         // This ensures even undefined/null values are removed from storage
         delete encryptedMessage.category;
 
+        // Encrypt model_name if present - ZERO-KNOWLEDGE: Remove plaintext model_name
+        if (message.model_name) {
+            encryptedMessage.encrypted_model_name = await encryptWithChatKey(message.model_name, chatKey);
+        }
+        // CRITICAL: Always remove plaintext model_name for zero-knowledge architecture
+        delete encryptedMessage.model_name;
+
         return encryptedMessage;
     }
 
@@ -2221,9 +2228,22 @@ class ChatDatabase {
      * CRITICAL: This function is now async because encryptWithChatKey is async.
      * All callers must await this function to prevent storing Promises in IndexedDB.
      */
-    public async getEncryptedFields(message: Message, chatId: string): Promise<{ encrypted_content?: string, encrypted_sender_name?: string, encrypted_category?: string }> {
+    public async getEncryptedFields(
+        message: Message,
+        chatId: string
+    ): Promise<{
+        encrypted_content?: string;
+        encrypted_sender_name?: string;
+        encrypted_category?: string;
+        encrypted_model_name?: string;
+    }> {
         const chatKey = this.getOrGenerateChatKey(chatId);
-        const encryptedFields: { encrypted_content?: string, encrypted_sender_name?: string, encrypted_category?: string } = {};
+        const encryptedFields: {
+            encrypted_content?: string;
+            encrypted_sender_name?: string;
+            encrypted_category?: string;
+            encrypted_model_name?: string;
+        } = {};
 
         // CRITICAL FIX: await all async encryption calls to prevent storing Promises
         // Encrypt content if present
@@ -2240,6 +2260,11 @@ class ChatDatabase {
         // Encrypt category if present
         if (message.category) {
             encryptedFields.encrypted_category = await encryptWithChatKey(message.category, chatKey);
+        }
+
+        // Encrypt model_name if present
+        if (message.model_name) {
+            encryptedFields.encrypted_model_name = await encryptWithChatKey(message.model_name, chatKey);
         }
 
         return encryptedFields;
@@ -2386,6 +2411,21 @@ class ChatDatabase {
                 // DEFENSIVE: Handle malformed encrypted_category
                 console.error(`[ChatDatabase] Error decrypting category for message ${message.message_id}:`, error);
                 decryptedMessage.category = message.category || undefined;
+            }
+        }
+
+        // Decrypt model_name if present
+        if (message.encrypted_model_name) {
+            try {
+                const decryptedModelName = await decryptWithChatKey(message.encrypted_model_name, chatKey);
+                if (decryptedModelName) {
+                    decryptedMessage.model_name = decryptedModelName;
+                    // Clear encrypted field
+                    delete decryptedMessage.encrypted_model_name;
+                }
+            } catch (error) {
+                console.error(`[ChatDatabase] Error decrypting model_name for message ${message.message_id}:`, error);
+                decryptedMessage.model_name = message.model_name || undefined;
             }
         }
 

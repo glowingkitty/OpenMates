@@ -872,11 +872,17 @@ class TranscriptSkill(BaseSkill):
         secrets_manager: SecretsManager
     ) -> None:
         """
-        Create creator income entry for a YouTube video.
+        Create creator income entries for a YouTube video.
         
         This method is called asynchronously (fire-and-forget) after successful transcript fetch.
-        It fetches the channel ID from video metadata, then creates a creator_income entry
-        with 10 credits reserved for the creator (50% of 20 credits total).
+        It fetches the channel ID from video metadata, then creates two creator_income entries:
+        1. One for the video creator (channel owner) - 9 credits
+        2. One for YouTube (the platform) - 1 credit, claimable by YouTube to cover their server costs
+        
+        Revenue split per transcript request (20 credits total):
+        - Creator: 9 credits (claimable by video channel owner)
+        - YouTube: 1 credit (claimable by YouTube to cover server costs)
+        - OpenMates: 10 credits (covers operational costs, not tracked as creator income)
         
         Args:
             video_id: The YouTube video ID
@@ -929,13 +935,16 @@ class TranscriptSkill(BaseSkill):
                 encryption_service=encryption_service
             )
             
-            # Revenue split: 10 credits to creator, 10 to OpenMates (50/50 split)
-            # Total cost is 20 credits per request
-            creator_credits = 10
+            # Revenue split per transcript request (20 credits total):
+            # - Creator: 9 credits (claimable by video channel owner)
+            # - YouTube: 1 credit (claimable by YouTube to cover their server costs)
+            # - OpenMates: 10 credits (covers operational costs, not tracked as creator income)
+            creator_credits = 9
+            youtube_credits = 1
             
-            # Create income entry
+            # Create income entry for video creator (channel owner)
             # Use video_id as content_id (already extracted and normalized)
-            success = await revenue_service.create_income_entry(
+            creator_success = await revenue_service.create_income_entry(
                 owner_id=channel_id,
                 content_id=video_id,
                 content_type="video",
@@ -945,10 +954,28 @@ class TranscriptSkill(BaseSkill):
                 income_source="skill_usage"
             )
             
-            if success:
+            if creator_success:
                 logger.debug(f"Created creator income entry for video: channel_id={channel_id}, video_id={video_id}, credits={creator_credits}")
             else:
                 logger.warning(f"Failed to create creator income entry for video: channel_id={channel_id}, video_id={video_id}")
+
+            # Create income entry for YouTube (the platform)
+            # These credits are claimable by YouTube to cover their server costs
+            # We use "youtube" as the owner_id so YouTube can claim these credits
+            youtube_success = await revenue_service.create_income_entry(
+                owner_id="youtube",
+                content_id=video_id,
+                content_type="video",
+                app_id=app_id,
+                skill_id=skill_id,
+                credits=youtube_credits,
+                income_source="skill_usage"
+            )
+            
+            if youtube_success:
+                logger.debug(f"Created YouTube income entry for video: video_id={video_id}, credits={youtube_credits} (claimable by YouTube to cover server costs)")
+            else:
+                logger.warning(f"Failed to create YouTube income entry for video: video_id={video_id}")
                 
         except Exception as e:
             # Log but don't raise - income tracking failure shouldn't break skill execution

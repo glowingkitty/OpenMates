@@ -41,7 +41,8 @@ def process_invoice_and_send_email(
     sender_email: str,
     sender_vat: str,
     email_encryption_key: Optional[str] = None,  # Add email encryption key parameter
-    is_gift_card: bool = False  # Flag to indicate if this is a gift card purchase
+    is_gift_card: bool = False,  # Flag to indicate if this is a gift card purchase
+    is_auto_topup: bool = False  # Flag to indicate if this is auto top-up (use server-side email decryption)
 ) -> bool:
     """
     Celery task to generate invoice, upload to S3, save to Directus, and send email.
@@ -54,7 +55,7 @@ def process_invoice_and_send_email(
                 self, order_id, user_id, credits_purchased,
                 sender_addressline1, sender_addressline2, sender_addressline3,
                 sender_country, sender_email, sender_vat,
-                email_encryption_key, is_gift_card
+                email_encryption_key, is_gift_card, is_auto_topup
             )
         )
         logger.info(f"Invoice processing task completed for Order ID: {order_id}, User ID: {user_id}. Success: {result}")
@@ -77,7 +78,8 @@ async def _async_process_invoice_and_send_email(
     sender_email: str,
     sender_vat: str,
     email_encryption_key: Optional[str] = None,  # Add email encryption key parameter
-    is_gift_card: bool = False  # Flag to indicate if this is a gift card purchase
+    is_gift_card: bool = False,  # Flag to indicate if this is a gift card purchase
+    is_auto_topup: bool = False,  # Flag to indicate if this is auto top-up (use server-side email decryption)
 ) -> bool:
     """
     Async implementation for invoice processing.
@@ -193,16 +195,48 @@ async def _async_process_invoice_and_send_email(
         date_str_filename = now_utc.strftime('%Y_%m_%d')
 
         # 6. Prepare Invoice Data Dictionary (using service from BaseTask)
-        # Decrypt email now for receiver_email field using the client-provided email encryption key
-        if not email_encryption_key:
-            logger.error(f"Missing email_encryption_key for invoice task {order_id}. Cannot decrypt user email.")
-            raise Exception("Missing email encryption key")
-            
-        logger.info(f"Decrypting email using client-provided email encryption key for invoice task {order_id}")
-        decrypted_email = await task.encryption_service.decrypt_with_email_key(encrypted_email, email_encryption_key)
-            
+        # Decrypt email - different approach for auto top-up vs manual purchases
+        decrypted_email = None
+
+        if is_auto_topup:
+            # Auto top-up: use server-side vault decryption
+            logger.info(f"Auto top-up invoice task {order_id} - using server-side email decryption")
+
+            # Try auto top-up specific email first
+            encrypted_email_auto_topup = user_profile.get("encrypted_email_auto_topup")
+            if encrypted_email_auto_topup:
+                try:
+                    decrypted_email = await task.encryption_service.decrypt_with_user_key(
+                        ciphertext=encrypted_email_auto_topup,
+                        key_id=vault_key_id
+                    )
+                    if decrypted_email:
+                        logger.info(f"Successfully decrypted auto top-up email for invoice task {order_id}")
+                    else:
+                        logger.warning(f"Vault decryption returned empty for auto top-up email in invoice task {order_id}")
+                except Exception as auto_email_error:
+                    logger.warning(f"Failed to decrypt auto top-up email for invoice task {order_id}: {auto_email_error}")
+
+            # No fallback to `encrypted_email_address` here:
+            # `encrypted_email_address` is client-side encrypted (TweetNaCl secretbox) and requires the
+            # client-provided `email_encryption_key`, which is not available for background auto top-ups.
+            if not decrypted_email:
+                logger.error(
+                    f"Missing/undecryptable encrypted_email_auto_topup for auto top-up invoice task {order_id}; "
+                    f"cannot decrypt encrypted_email_address server-side without client key."
+                )
+
+        else:
+            # Manual purchase: use client-provided email key
+            if not email_encryption_key:
+                logger.error(f"Missing email_encryption_key for invoice task {order_id}. Cannot decrypt user email.")
+                raise Exception("Missing email encryption key")
+
+            logger.info(f"Decrypting email using client-provided email encryption key for invoice task {order_id}")
+            decrypted_email = await task.encryption_service.decrypt_with_email_key(encrypted_email, email_encryption_key)
+
         if not decrypted_email:
-            logger.error(f"Failed to decrypt email with provided key for invoice task {order_id}.")
+            logger.error(f"Failed to decrypt email for invoice task {order_id}. Auto top-up: {is_auto_topup}")
             raise Exception("Failed to decrypt user email")
 
         # TODO For consumers, we only show the email address of the receiver.

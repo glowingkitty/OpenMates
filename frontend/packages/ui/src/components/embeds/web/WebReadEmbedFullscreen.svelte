@@ -57,10 +57,20 @@
   // Get first result for main display
   let firstResult = $derived(results[0]);
   
+  function safeHostname(url?: string): string {
+    if (!url) return '';
+    try {
+      return new URL(url).hostname;
+    } catch {
+      const withoutScheme = url.replace(/^[a-zA-Z]+:\/\//, '');
+      return withoutScheme.split('/')[0] || '';
+    }
+  }
+  
   // Format display title
   let displayTitle = $derived(
     firstResult?.title || 
-    (firstResult?.url ? new URL(firstResult.url).hostname : '') ||
+    safeHostname(firstResult?.url) ||
     'Web Read'
   );
   
@@ -456,4 +466,3 @@
     }
   }
 </style>
-

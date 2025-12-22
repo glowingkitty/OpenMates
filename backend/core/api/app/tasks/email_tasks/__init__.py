@@ -16,6 +16,7 @@ from . import recovery_key_email_task
 from . import newsletter_email_task  # Import newsletter email task
 from . import issue_report_email_task  # Import issue report email task
 from . import community_share_email_task  # Import community share notification task
+from . import mailjet_contact_cleanup_task  # Import Mailjet contact cleanup task
 
 # Note: When celery_config.py imports 'backend.core.api.app.tasks.email_tasks',
 # this __init__.py will execute and import all the task modules, which causes
@@ -33,5 +34,6 @@ __all__ = [
     'newsletter_email_task',
     'issue_report_email_task',
     'community_share_email_task',
+    'mailjet_contact_cleanup_task',
 ]
 

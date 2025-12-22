@@ -233,7 +233,9 @@ class EncryptionService:
                 self._token_valid_until = 0
                 raise Exception(f"Vault token is expired or invalid")
             elif response.status_code != 200:
-                logger.error(f"Vault request failed: {response.status_code}")
+                logger.error(
+                    f"Vault request failed: {response.status_code} for {method.upper()} {path}. Response: {response.text}"
+                )
                 raise Exception(f"Vault request failed with status {response.status_code}")
             
             return response.json()
@@ -618,6 +620,13 @@ class EncryptionService:
         If the key is a derived key, context must be provided
         """
         if not ciphertext:
+            return None
+
+        # Vault transit ciphertexts always have the `vault:` prefix (e.g. `vault:v1:...`).
+        # If we don't see it, this is likely client-side encrypted data; avoid sending it to Vault
+        # (which would return 400) and let callers fall back to the appropriate decryptor.
+        if not isinstance(ciphertext, str) or not ciphertext.startswith("vault:"):
+            logger.warning("decrypt: Ciphertext is not a Vault transit value (missing `vault:` prefix).")
             return None
             
         # Send to Vault for decryption

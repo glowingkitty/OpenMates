@@ -22,17 +22,18 @@ rate_limits:
 # 
 # Revenue Share Model (see docs/architecture/revenue_share_model.md):
 # - User pays: 20 credits per transcript request
-# - Creator (video owner) gets: 10 credits (50% of user payment)
-# - OpenMates gets: 10 credits (covers proxy service costs + operations margin)
+# - Creator (video owner) gets: 9 credits (claimable by channel owner)
+# - YouTube gets: 1 credit (claimable by YouTube to cover their server costs)
+# - OpenMates gets: 10 credits (covers operational costs, not tracked as creator income)
 #
-# This 50/50 split:
-# 1. Provides meaningful compensation to video creators (€0.01 per transcript)
-# 2. Covers our proxy service costs with sustainable margin
-# 3. Aligns with revenue share model principles
+# This split:
+# 1. Provides compensation to video creators (€0.009 per transcript)
+# 2. Reserves credits for YouTube that they can claim to cover their server costs
+# 3. Covers OpenMates operational costs
 # 4. Keeps pricing competitive and fair for users (€0.02 per transcript)
 #
 # Users are always charged 20 credits per transcript request
 # If a user makes 5 parallel transcript requests, they are charged 100 credits total (5 * 20)
 pricing:
-  per_request_credits: 20  # Always 20 credits per transcript request for users (10 to creator, 10 to OpenMates)
+  per_request_credits: 20  # Always 20 credits per transcript request for users (9 to creator, 1 to YouTube, 10 to OpenMates)
 

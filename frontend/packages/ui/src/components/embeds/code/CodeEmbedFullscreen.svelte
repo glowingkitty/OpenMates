@@ -41,10 +41,11 @@
   import 'highlight.js/lib/languages/dockerfile';
   import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
   import BasicInfosBar from '../BasicInfosBar.svelte';
-  // @ts-ignore - @repo/ui module exists at runtime
+  // @ts-expect-error - @repo/ui module exists at runtime
   import { text } from '@repo/ui';
   import { downloadCodeFile } from '../../../services/zipExportService';
   import { notificationStore } from '../../../stores/notificationStore';
+  import { countCodeLines, formatLanguageName, parseCodeEmbedContent } from './codeEmbedContent';
   
   /**
    * Props for code embed fullscreen
@@ -60,6 +61,8 @@
     codeContent: string;
     /** Close handler */
     onClose: () => void;
+    /** Optional: Embed ID for sharing (from embed:{embed_id} contentRef) */
+    embedId?: string;
   }
   
   let {
@@ -67,42 +70,44 @@
     filename,
     lineCount = 0,
     codeContent,
-    onClose
+    onClose,
+    embedId
   }: Props = $props();
   
   // Reference to the code element for syntax highlighting
   let codeElement: HTMLElement | null = $state(null);
-  
-  // Display language name (capitalize first letter)
-  let displayLanguage = $derived(
-    language ? language.charAt(0).toUpperCase() + language.slice(1) : ''
-  );
+
+  let parsedContent = $derived.by(() => parseCodeEmbedContent(codeContent, { language, filename }));
+  let renderCodeContent = $derived(parsedContent.code);
+  let renderLanguage = $derived(parsedContent.language || '');
+  let renderFilename = $derived(parsedContent.filename);
+  let displayLanguage = $derived.by(() => formatLanguageName(renderLanguage));
   
   // Calculate actual line count from content if not provided
-  let actualLineCount = $derived(() => {
+  let actualLineCount = $derived.by(() => {
     if (lineCount > 0) return lineCount;
-    if (!codeContent) return 0;
-    return codeContent.split('\n').length;
+    return countCodeLines(renderCodeContent);
   });
   
   // Build skill name for BasicInfosBar: filename (or "Code snippet")
   let skillName = $derived.by(() => {
     // If filename is provided, extract just the filename from path if needed
-    if (filename) {
+    const effectiveFilename = renderFilename;
+    if (effectiveFilename) {
       // Extract filename from filepath (handle both forward and backslash paths)
-      const pathParts = filename.split(/[/\\]/);
+      const pathParts = effectiveFilename.split(/[/\\]/);
       return pathParts[pathParts.length - 1];
     }
     // If no filename provided, use translation for "Code snippet"
     return $text('embeds.code_snippet.text');
   });
   
-  // Build fullscreen title: same as skill name
-  let fullscreenTitle = $derived(skillName);
+  // No header in fullscreen for code embeds (buttons overlay the top area)
+  const fullscreenTitle = '';
   
   // Build status text: line count + language (always use code_info.text format)
   let statusText = $derived.by(() => {
-    const lineCount = actualLineCount();
+    const lineCount = actualLineCount;
     if (lineCount === 0) return '';
     
     // Build line count text with proper singular/plural handling
@@ -110,19 +115,8 @@
       ? $text('embeds.code_line_singular.text')
       : $text('embeds.code_line_plural.text');
     
-    // Always use code_info.text format, with language if available
-    const languageToShow = (language && language !== 'text' && language !== 'plaintext') 
-      ? displayLanguage 
-      : '';
-    
-    const result = $text('embeds.code_info.text', {
-      lineCount: lineCount,
-      lineCountText: lineCountText,
-      language: languageToShow
-    });
-    
-    // Clean up trailing comma and space if language is empty
-    return languageToShow ? result : result.replace(/,\s*$/, '');
+    const languageToShow = displayLanguage;
+    return languageToShow ? `${lineCount} ${lineCountText}, ${languageToShow}` : `${lineCount} ${lineCountText}`;
   });
   
   // Map skillId to icon name
@@ -130,23 +124,20 @@
   
   // Apply syntax highlighting after mount and when content changes
   onMount(() => {
-    highlightCode();
+    highlightCode(renderCodeContent, renderLanguage);
   });
   
   // Re-highlight when code content changes
   $effect(() => {
-    // Track dependencies
-    const _ = codeContent;
-    const __ = language;
-    highlightCode();
+    highlightCode(renderCodeContent, renderLanguage);
   });
   
   /**
    * Apply syntax highlighting using highlight.js
    * Uses auto-detection if language is not specified
    */
-  function highlightCode() {
-    if (!codeElement || !codeContent) return;
+  function highlightCode(content: string, language: string) {
+    if (!codeElement || !content) return;
     
     try {
       let highlighted: string;
@@ -154,15 +145,15 @@
       if (language && language !== 'text' && language !== 'plaintext') {
         // Try to highlight with specified language
         try {
-          highlighted = hljs.highlight(codeContent, { language }).value;
-        } catch (e) {
+          highlighted = hljs.highlight(content, { language }).value;
+        } catch {
           // Fallback to auto-detection if language not supported
           console.debug(`[CodeEmbedFullscreen] Language '${language}' not supported, using auto-detection`);
-          highlighted = hljs.highlightAuto(codeContent).value;
+          highlighted = hljs.highlightAuto(content).value;
         }
       } else {
         // Auto-detect language
-        highlighted = hljs.highlightAuto(codeContent).value;
+        highlighted = hljs.highlightAuto(content).value;
       }
       
       // Sanitize the highlighted HTML to prevent XSS
@@ -173,14 +164,14 @@
     } catch (error) {
       console.warn('[CodeEmbedFullscreen] Error highlighting code:', error);
       // Fallback to plain text
-      codeElement.textContent = codeContent;
+      codeElement.textContent = renderCodeContent;
     }
   }
   
   // Handle copy code to clipboard
   async function handleCopy() {
     try {
-      await navigator.clipboard.writeText(codeContent);
+      await navigator.clipboard.writeText(renderCodeContent);
       console.debug('[CodeEmbedFullscreen] Copied code to clipboard');
       notificationStore.success('Code copied to clipboard');
     } catch (error) {
@@ -193,11 +184,66 @@
   async function handleDownload() {
     try {
       console.debug('[CodeEmbedFullscreen] Starting code file download');
-      await downloadCodeFile(codeContent, language, filename);
+      await downloadCodeFile(renderCodeContent, renderLanguage, renderFilename);
       notificationStore.success('Code file downloaded successfully');
     } catch (error) {
       console.error('[CodeEmbedFullscreen] Failed to download code file:', error);
       notificationStore.error('Failed to download code file');
+    }
+  }
+
+  // Handle share - opens share settings menu for this specific code embed
+  async function handleShare() {
+    try {
+      console.debug('[CodeEmbedFullscreen] Opening share settings for code embed:', {
+        embedId,
+        filename: renderFilename,
+        language: renderLanguage,
+        lineCount: actualLineCount
+      });
+
+      // Check if we have embed_id for proper sharing
+      if (!embedId) {
+        console.warn('[CodeEmbedFullscreen] No embed_id available - cannot create encrypted share link');
+        notificationStore.error('Unable to share this code embed. Missing embed ID.');
+        return;
+      }
+
+      // Import required modules
+      const { navigateToSettings } = await import('../../../stores/settingsNavigationStore');
+      const { settingsDeepLink } = await import('../../../stores/settingsDeepLinkStore');
+      const { panelState } = await import('../../../stores/panelStateStore');
+
+      // Set embed context with embed_id for proper encrypted sharing
+      const embedContext = {
+        type: 'code',
+        embed_id: embedId,
+        filename: renderFilename,
+        language: renderLanguage,
+        lineCount: actualLineCount
+      };
+
+      // Store embed context for SettingsShare
+      (window as unknown as { __embedShareContext?: unknown }).__embedShareContext = embedContext;
+
+      // Navigate to share settings
+      navigateToSettings(
+        'shared/share',
+        $text('settings.share.share_code.text', { default: 'Share Code' }),
+        'share',
+        'settings.share.share_code.text'
+      );
+
+      // Also set settingsDeepLink to ensure Settings component navigates properly
+      settingsDeepLink.set('shared/share');
+
+      // Open settings panel
+      panelState.openSettings();
+
+      console.debug('[CodeEmbedFullscreen] Opened share settings for code embed');
+    } catch (error) {
+      console.error('[CodeEmbedFullscreen] Error opening share settings:', error);
+      notificationStore.error('Failed to open share menu. Please try again.');
     }
   }
   
@@ -214,12 +260,16 @@
   {onClose}
   onCopy={handleCopy}
   onDownload={handleDownload}
+  onShare={handleShare}
 >
   {#snippet content()}
-    {#if codeContent}
+    {#if renderCodeContent}
       <!-- Full code with syntax highlighting -->
       <div class="code-fullscreen-container">
-        <pre class="code-fullscreen"><code bind:this={codeElement}>{codeContent}</code></pre>
+        <div class="code-fullscreen-grid">
+          <pre class="line-numbers" aria-hidden="true">{Array.from({ length: actualLineCount }, (_, i) => i + 1).join('\n')}</pre>
+          <pre class="code-fullscreen"><code bind:this={codeElement}>{renderCodeContent}</code></pre>
+        </div>
       </div>
     {:else}
       <!-- Empty state -->
@@ -249,12 +299,33 @@
 <style>
   /* Code fullscreen container */
   .code-fullscreen-container {
-    width: 100%;
+    width: calc(100% - 10px);
     background-color: var(--color-grey-15);
-    border-radius: 12px;
-    padding: 16px;
-    overflow-x: auto;
-    margin-bottom: 16px;
+    margin-top: 70px;
+    overflow: hidden;
+    padding-bottom: 16px;
+    margin-left: 10px;
+    margin-right: 10px;
+  }
+
+  .code-fullscreen-grid {
+    display: flex;
+    align-items: flex-start;
+    width: 100%;
+    gap: 0;
+  }
+
+  .line-numbers {
+    margin: 0;
+    padding: 0 12px 0 0;
+    font-size: 16px;
+    line-height: 1.6;
+    font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Mono', 'Consolas', monospace;
+    color: var(--color-font-tertiary);
+    text-align: right;
+    user-select: none;
+    -webkit-user-select: none;
+    flex: 0 0 auto;
   }
   
   .code-fullscreen {
@@ -266,9 +337,12 @@
     font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Mono', 'Consolas', monospace;
     background: transparent;
     color: var(--color-font-primary);
-    width: 100%;
     display: block;
     overflow-x: auto;
+    width: 100%;
+    min-width: 0;
+    user-select: text;
+    -webkit-user-select: text;
   }
   
   .code-fullscreen code {
@@ -280,6 +354,8 @@
     font-size: inherit;
     line-height: inherit;
     font-family: inherit;
+    user-select: text;
+    -webkit-user-select: text;
   }
   
   /* Syntax highlighting colors - basic support */
@@ -312,4 +388,3 @@
     color: var(--color-font-secondary);
   }
 </style>
-

@@ -43,8 +43,8 @@
   import 'highlight.js/lib/languages/css';
   import 'highlight.js/lib/languages/dockerfile';
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
-  // @ts-ignore - @repo/ui module exists at runtime
   import { text } from '@repo/ui';
+  import { countCodeLines, formatLanguageName, parseCodeEmbedContent } from './codeEmbedContent';
   
   /**
    * Props for code embed preview
@@ -87,43 +87,38 @@
   
   // Reference to the code element for syntax highlighting
   let codeElement: HTMLElement | null = $state(null);
-  
-  // Display language name (capitalize first letter)
-  let displayLanguage = $derived(
-    language ? language.charAt(0).toUpperCase() + language.slice(1) : ''
-  );
+
+  let parsedContent = $derived.by(() => parseCodeEmbedContent(codeContent, { language, filename }));
+  let renderCodeContent = $derived(parsedContent.code);
+  let renderLanguage = $derived(parsedContent.language || '');
+  let renderFilename = $derived(parsedContent.filename);
+  let displayLanguage = $derived.by(() => formatLanguageName(renderLanguage));
   
   // Extract preview lines (max 8 lines)
-  let previewLines = $derived(() => {
-    if (!codeContent) return [];
-    const lines = codeContent.split('\n');
+  let previewLines = $derived.by(() => {
+    const content = renderCodeContent;
+    if (!content) return [];
+    const lines = content.split('\n');
     return lines.slice(0, MAX_PREVIEW_LINES);
   });
   
   // Preview text (joined lines)
-  let previewText = $derived(() => previewLines().join('\n'));
-  
-  // Check if code is truncated (more than 8 lines)
-  let isTruncated = $derived(() => {
-    if (!codeContent) return false;
-    const lines = codeContent.split('\n');
-    return lines.length > MAX_PREVIEW_LINES;
-  });
+  let previewText = $derived(previewLines.join('\n'));
   
   // Calculate actual line count from content if not provided
-  let actualLineCount = $derived(() => {
+  let actualLineCount = $derived.by(() => {
     if (lineCount > 0) return lineCount;
-    if (!codeContent) return 0;
-    return codeContent.split('\n').filter(line => line.trim()).length;
+    return countCodeLines(renderCodeContent);
   });
   
   // Build skill name for BasicInfosBar: filename (or "Code snippet") on first line
   // Second line will be handled by showStatus (line count + language)
   let skillName = $derived.by(() => {
     // If filename is provided, extract just the filename from path if needed
-    if (filename) {
+    const effectiveFilename = renderFilename;
+    if (effectiveFilename) {
       // Extract filename from filepath (handle both forward and backslash paths)
-      const pathParts = filename.split(/[/\\]/);
+      const pathParts = effectiveFilename.split(/[/\\]/);
       return pathParts[pathParts.length - 1];
     }
     // If no filename provided, use translation for "Code snippet"
@@ -132,7 +127,7 @@
   
   // Build status text: line count + language (always use code_info.text format)
   let statusText = $derived.by(() => {
-    const lineCount = actualLineCount();
+    const lineCount = actualLineCount;
     if (lineCount === 0) return '';
     
     // Build line count text with proper singular/plural handling
@@ -140,19 +135,8 @@
       ? $text('embeds.code_line_singular.text')
       : $text('embeds.code_line_plural.text');
     
-    // Always use code_info.text format, with language if available
-    const languageToShow = (language && language !== 'text' && language !== 'plaintext') 
-      ? displayLanguage 
-      : '';
-    
-    const result = $text('embeds.code_info.text', {
-      lineCount: lineCount,
-      lineCountText: lineCountText,
-      language: languageToShow
-    });
-    
-    // Clean up trailing comma and space if language is empty
-    return languageToShow ? result : result.replace(/,\s*$/, '');
+    const languageToShow = displayLanguage;
+    return languageToShow ? `${lineCount} ${lineCountText}, ${languageToShow}` : `${lineCount} ${lineCountText}`;
   });
   
   // Map skillId to icon name
@@ -160,25 +144,20 @@
   
   // Apply syntax highlighting after mount and when content changes
   onMount(() => {
-    highlightCode();
+    highlightCode(renderCodeContent, renderLanguage, previewText);
   });
   
   // Re-highlight when code content changes
   $effect(() => {
-    // Track dependencies
-    const _ = codeContent;
-    const __ = language;
-    highlightCode();
+    highlightCode(renderCodeContent, renderLanguage, previewText);
   });
   
   /**
    * Apply syntax highlighting using highlight.js
    * Uses auto-detection if language is not specified
    */
-  function highlightCode() {
-    if (!codeElement || !codeContent) return;
-    
-    const codeToHighlight = previewText();
+  function highlightCode(content: string, language: string, codeToHighlight: string) {
+    if (!codeElement || !content) return;
     if (!codeToHighlight) return;
     
     try {
@@ -188,7 +167,7 @@
         // Try to highlight with specified language
         try {
           highlighted = hljs.highlight(codeToHighlight, { language }).value;
-        } catch (e) {
+        } catch {
           // Fallback to auto-detection if language not supported
           console.debug(`[CodeEmbedPreview] Language '${language}' not supported, using auto-detection`);
           highlighted = hljs.highlightAuto(codeToHighlight).value;
@@ -232,16 +211,16 @@
   customStatusText={statusText}
   showSkillIcon={false}
 >
-  {#snippet details({ isMobile: isMobileLayout })}
-    <div class="code-details" class:mobile={isMobileLayout}>
-      {#if codeContent}
-        <!-- Code preview with syntax highlighting -->
-        <div class="code-preview-container">
-          <pre class="code-preview"><code bind:this={codeElement}>{previewText()}</code></pre>
-        </div>
-      {:else if status === 'processing'}
-        <!-- Processing state -->
-        <div class="processing-placeholder">
+	  {#snippet details({ isMobile: isMobileLayout })}
+	    <div class="code-details" class:mobile={isMobileLayout}>
+	      {#if renderCodeContent}
+	        <!-- Code preview with syntax highlighting -->
+	        <div class="code-preview-container">
+	          <pre class="code-preview"><code bind:this={codeElement}>{previewText}</code></pre>
+	        </div>
+	      {:else if status === 'processing'}
+	        <!-- Processing state -->
+	        <div class="processing-placeholder">
           <span class="processing-dot"></span>
           <span class="processing-text">{$text('embeds.processing.text')}</span>
         </div>

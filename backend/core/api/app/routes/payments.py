@@ -126,7 +126,7 @@ class InvoiceResponse(BaseModel):
 class InvoicesListResponse(BaseModel):
     invoices: List[InvoiceResponse]
 
-class GetSubscriptionResponse(BaseModel):
+class SubscriptionDetailsResponse(BaseModel):
     subscription_id: str
     status: str
     credits_amount: int
@@ -136,6 +136,10 @@ class GetSubscriptionResponse(BaseModel):
     next_billing_date: Optional[str] = None
     cancel_at_period_end: bool
     billing_day_preference: Optional[str] = None
+
+class GetSubscriptionResponse(BaseModel):
+    has_subscription: bool
+    subscription: Optional[SubscriptionDetailsResponse] = None
 
 class HasPaymentMethodResponse(BaseModel):
     has_payment_method: bool
@@ -856,9 +860,14 @@ async def payment_webhook(
                     sender_vat = await secrets_manager.get_secret(secret_path=invoice_sender_path, secret_key="vat")
                     
                     # Get the email encryption key from the cached order data
+                    # For auto top-up orders, we don't have a client email key
+                    is_auto_topup = cached_order_data.get("is_auto_topup", False)
                     email_encryption_key = cached_order_data.get("email_encryption_key")
-                    if not email_encryption_key:
+
+                    if not email_encryption_key and not is_auto_topup:
                         logger.warning(f"Email encryption key not found in cached order data for order {webhook_order_id}. Email decryption may fail.")
+                    elif is_auto_topup:
+                        logger.info(f"Auto top-up order {webhook_order_id} - will use server-side email decryption for invoice")
                     
                     task_payload = {
                         "order_id": webhook_order_id,
@@ -870,8 +879,9 @@ async def payment_webhook(
                         "sender_country": sender_country,
                         "sender_email": sender_email if sender_email else "support@openmates.org",
                         "sender_vat": sender_vat,
-                        "email_encryption_key": email_encryption_key,  # Pass the email encryption key to the task
-                        "is_gift_card": is_gift_card  # Pass gift card flag to invoice task
+                        "email_encryption_key": email_encryption_key,  # Pass the email encryption key to the task (None for auto top-up)
+                        "is_gift_card": is_gift_card,  # Pass gift card flag to invoice task
+                        "is_auto_topup": is_auto_topup  # Pass auto top-up flag to invoice task
                     }
                     app.send_task(
                         name='app.tasks.email_tasks.purchase_confirmation_email_task.process_invoice_and_send_email',
@@ -1644,13 +1654,16 @@ async def get_subscription(
     """
     Get the user's active subscription details.
     Bonus credits and price are calculated from pricing.yml based on the stored credits amount.
+    
+    Always returns 200 with an explicit `has_subscription` flag to avoid ambiguous 404s when a user simply
+    doesn't have an active subscription.
     """
     logger.info(f"Fetching subscription for user {current_user.id}")
     
     try:
         # Check if user has a subscription
         if not current_user.stripe_subscription_id:
-            raise HTTPException(status_code=404, detail="No active subscription found")
+            return GetSubscriptionResponse(has_subscription=False, subscription=None)
         
         # Get subscription from Stripe
         if payment_service.provider_name != "stripe":
@@ -1661,7 +1674,11 @@ async def get_subscription(
         )
         
         if not subscription_result:
-            raise HTTPException(status_code=404, detail="Subscription not found")
+            logger.warning(
+                f"User {current_user.id} has stripe_subscription_id={current_user.stripe_subscription_id} "
+                "but provider returned no subscription"
+            )
+            return GetSubscriptionResponse(has_subscription=False, subscription=None)
         
         # Get tier info from pricing.yml
         tier_info = get_tier_info(
@@ -1688,15 +1705,18 @@ async def get_subscription(
             ).isoformat()
         
         return GetSubscriptionResponse(
-            subscription_id=current_user.stripe_subscription_id,
-            status=subscription_result['status'],
-            credits_amount=tier_info['credits'],
-            bonus_credits=tier_info['bonus_credits'],
-            currency=tier_info['currency'],
-            price=tier_info['price'],
-            next_billing_date=next_billing_date,
-            cancel_at_period_end=subscription_result.get('cancel_at_period_end', False),
-            billing_day_preference=current_user.subscription_billing_day_preference or 'anniversary'
+            has_subscription=True,
+            subscription=SubscriptionDetailsResponse(
+                subscription_id=current_user.stripe_subscription_id,
+                status=subscription_result['status'],
+                credits_amount=tier_info['credits'],
+                bonus_credits=tier_info['bonus_credits'],
+                currency=tier_info['currency'],
+                price=tier_info['price'],
+                next_billing_date=next_billing_date,
+                cancel_at_period_end=subscription_result.get('cancel_at_period_end', False),
+                billing_day_preference=current_user.subscription_billing_day_preference or 'anniversary'
+            )
         )
         
     except HTTPException as e:

@@ -22,7 +22,10 @@ providers:
     privacy_policy: https://www.mailjet.com/privacy-policy
     provider_location: EU
     used_for:
-      - email sending
+      - email sending (transactional + newsletter)
+    data_shared:
+      - Recipient email address (required to deliver emails)
+      - Email content (subject + body + metadata required for delivery)
   sightengine:
     privacy_policy: https://sightengine.com/policies/privacy
     provider_location: EU

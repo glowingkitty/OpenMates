@@ -43,7 +43,8 @@ def _create_redis_payload(
     sequence: int,
     is_final: bool = False,
     interrupted_soft: bool = False,
-    interrupted_revoke: bool = False
+    interrupted_revoke: bool = False,
+    model_name: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Create standardized Redis payload for streaming chunks."""
     payload = {
@@ -58,6 +59,9 @@ def _create_redis_payload(
         "sequence": sequence,
         "is_final_chunk": is_final
     }
+
+    if model_name:
+        payload["model_name"] = model_name
     
     if is_final:
         payload.update({
@@ -374,6 +378,9 @@ async def _generate_fake_stream_for_harmful_content(
     """Generate fake stream for harmful content with predefined response."""
     log_prefix = f"[Task ID: {task_id}, ChatID: {request_data.chat_id}] _generate_fake_stream_for_harmful_content:"
     logger.info(f"{log_prefix} Generating fake stream for harmful content.")
+
+    selected_model_id = preprocessing_result.selected_main_llm_model_id or ""
+    model_name = selected_model_id.split("/", 1)[1] if isinstance(selected_model_id, str) and "/" in selected_model_id else (selected_model_id or "harmful_content_filter")
     
     # Check for revocation
     if celery_config.app.AsyncResult(task_id).state == TASK_STATE_REVOKED:
@@ -383,7 +390,7 @@ async def _generate_fake_stream_for_harmful_content(
     redis_channel = f"chat_stream::{request_data.chat_id}"
     
     # Publish content chunk
-    content_payload = _create_redis_payload(task_id, request_data, predefined_response, 1)
+    content_payload = _create_redis_payload(task_id, request_data, predefined_response, 1, model_name=model_name)
     await _publish_to_redis(
         cache_service, redis_channel, content_payload, log_prefix,
         f"Published content chunk to '{redis_channel}'. Length: {len(predefined_response)}"
@@ -396,7 +403,7 @@ async def _generate_fake_stream_for_harmful_content(
         logger.error(f"{log_prefix} Failed to log fake stream output: {e}", exc_info=True)
     
     # Publish final marker
-    final_payload = _create_redis_payload(task_id, request_data, predefined_response, 2, is_final=True)
+    final_payload = _create_redis_payload(task_id, request_data, predefined_response, 2, is_final=True, model_name=model_name)
     await _publish_to_redis(
         cache_service, redis_channel, final_payload, log_prefix,
         f"Published final marker to '{redis_channel}'"
@@ -460,6 +467,9 @@ async def _generate_fake_stream_for_simple_message(
     log_prefix = f"[Task ID: {task_id}, ChatID: {request_data.chat_id}] _generate_fake_stream_for_simple_message:"
     logger.info(f"{log_prefix} Generating simple fake stream.")
 
+    selected_model_id = preprocessing_result.selected_main_llm_model_id or ""
+    model_name = selected_model_id.split("/", 1)[1] if isinstance(selected_model_id, str) and "/" in selected_model_id else (selected_model_id or "system")
+
     # Check for revocation
     if celery_config.app.AsyncResult(task_id).state == TASK_STATE_REVOKED:
         logger.warning(f"{log_prefix} Task was revoked before starting fake stream.")
@@ -468,7 +478,7 @@ async def _generate_fake_stream_for_simple_message(
     redis_channel = f"chat_stream::{request_data.chat_id}"
 
     # Publish content chunk
-    content_payload = _create_redis_payload(task_id, request_data, message_text, 1)
+    content_payload = _create_redis_payload(task_id, request_data, message_text, 1, model_name=model_name)
     await _publish_to_redis(
         cache_service, redis_channel, content_payload, log_prefix,
         f"Published content chunk to '{redis_channel}'. Length: {len(message_text)}"
@@ -481,7 +491,7 @@ async def _generate_fake_stream_for_simple_message(
         logger.error(f"{log_prefix} Failed to log fake stream output: {e}", exc_info=True)
 
     # Publish final marker
-    final_payload = _create_redis_payload(task_id, request_data, message_text, 2, is_final=True)
+    final_payload = _create_redis_payload(task_id, request_data, message_text, 2, is_final=True, model_name=model_name)
     await _publish_to_redis(
         cache_service, redis_channel, final_payload, log_prefix,
         f"Published final marker to '{redis_channel}'"
@@ -578,9 +588,12 @@ async def _consume_main_processing_stream(
     log_prefix = f"[Task ID: {task_id}, ChatID: {request_data.chat_id}] _consume_main_processing_stream:"
     logger.info(f"{log_prefix} Starting to consume stream from main_processor.")
 
+    standardized_error_message = "The AI service encountered an error while processing your request. Please try again in a moment."
+
     # Local flags for interruption status
     was_revoked_during_stream = False
     was_soft_limited_during_stream = False
+    stream_exception: Optional[BaseException] = None
 
     # Check for revocation before starting
     # Use AsyncResult to check task status
@@ -670,6 +683,13 @@ async def _consume_main_processing_stream(
     usage: Optional[Union[MistralUsage, GoogleUsageMetadata, AnthropicUsageMetadata, OpenAIUsageMetadata]] = None
     redis_channel_name = f"chat_stream::{request_data.chat_id}"
     tool_calls_info: Optional[List[Dict[str, Any]]] = None  # Track tool calls for code block generation
+
+    # Persist model identifier in stream payloads so clients can store it encrypted with the message.
+    # Prefer the canonical selected model id (provider/model) and fall back to a safe default.
+    selected_model_id = preprocessing_result.selected_main_llm_model_id or ""
+    stream_model_name: Optional[str] = None
+    if isinstance(selected_model_id, str) and selected_model_id:
+        stream_model_name = selected_model_id.split("/", 1)[1] if "/" in selected_model_id else selected_model_id
     
     # URL validation tracking: collect all validation tasks and broken URLs
     # These are used to validate URLs during streaming and correct the full response after completion
@@ -713,7 +733,7 @@ async def _consume_main_processing_stream(
                         current_full_content = "".join(final_response_chunks)
                         payload = _create_redis_payload(
                             task_id, request_data, current_full_content, stream_chunk_count,
-                            is_final=True, interrupted_revoke=True
+                            is_final=True, interrupted_revoke=True, model_name=stream_model_name
                         )
                         await _publish_to_redis(
                             cache_service, redis_channel_name, payload, log_prefix,
@@ -1127,7 +1147,9 @@ async def _consume_main_processing_stream(
                 # This ensures paragraph-by-paragraph streaming and embed placeholders show up right away
                 if cache_service:
                     current_full_content = "".join(final_response_chunks)
-                    payload = _create_redis_payload(task_id, request_data, current_full_content, stream_chunk_count)
+                    payload = _create_redis_payload(
+                        task_id, request_data, current_full_content, stream_chunk_count, model_name=stream_model_name
+                    )
                     
                     # CRITICAL: Always log chunk publishing for debugging (but less verbose)
                     # This helps diagnose if chunks are being published correctly
@@ -1172,6 +1194,7 @@ async def _consume_main_processing_stream(
         was_soft_limited_during_stream = True
     except Exception as e:
         logger.error(f"{log_prefix} Exception during main processing stream consumption: {e}", exc_info=True)
+        stream_exception = e
         # Check if revoked after an unexpected error
         if celery_config.app.AsyncResult(task_id).state == TASK_STATE_REVOKED:
             was_revoked_during_stream = True
@@ -1199,6 +1222,42 @@ async def _consume_main_processing_stream(
             logger.error(f"{log_prefix} Error finalizing interrupted code embed: {e}", exc_info=True)
 
     aggregated_response = "".join(final_response_chunks)
+
+    # Ensure we never complete with an empty assistant message on server-side failures.
+    # This avoids clients sending an "ai_response_completed" payload without encrypted_content,
+    # and ensures the user always sees a retryable error message when all providers fail.
+    if (
+        not aggregated_response
+        and not was_revoked_during_stream
+        and not was_soft_limited_during_stream
+    ):
+        if stream_exception:
+            logger.error(
+                f"{log_prefix} Stream failed before producing any content. "
+                f"Returning standardized user-facing error message. Technical error: {stream_exception!r}"
+            )
+        else:
+            logger.error(
+                f"{log_prefix} Stream completed with empty content (no interruption). "
+                "Returning standardized user-facing error message."
+            )
+        aggregated_response = standardized_error_message
+        final_response_chunks = [aggregated_response]
+        if stream_chunk_count == 0:
+            # Mirror fake-stream behavior: one content chunk + one final marker.
+            # Publish a synthetic first chunk so clients can render something immediately.
+            if cache_service:
+                synthetic_payload = _create_redis_payload(
+                    task_id, request_data, aggregated_response, 1, is_final=False, model_name=stream_model_name
+                )
+                await _publish_to_redis(
+                    cache_service,
+                    redis_channel_name,
+                    synthetic_payload,
+                    log_prefix,
+                    f"Published synthetic error chunk (seq: 1) to '{redis_channel_name}'",
+                )
+            stream_chunk_count = 1
     
     # IMPROVED LOGGING: Log the full streamed assistant message for debugging
     # This helps diagnose parsing issues, embed reference problems, and code block extraction
@@ -1292,7 +1351,8 @@ async def _consume_main_processing_stream(
                 # Publish corrected response to client (user will see text update)
                 correction_payload = _create_redis_payload(
                     task_id, request_data, corrected_response, stream_chunk_count + 2,
-                    is_final=False  # Not final, just a correction update
+                    is_final=False,  # Not final, just a correction update
+                    model_name=stream_model_name
                 )
                 await _publish_to_redis(
                     cache_service, redis_channel_name, correction_payload, log_prefix,
@@ -1353,7 +1413,8 @@ async def _consume_main_processing_stream(
     final_payload = _create_redis_payload(
         task_id, request_data, aggregated_response, stream_chunk_count + 1,
         is_final=True, interrupted_soft=was_soft_limited_during_stream,
-        interrupted_revoke=was_revoked_during_stream
+        interrupted_revoke=was_revoked_during_stream,
+        model_name=stream_model_name
     )
     await _publish_to_redis(
         cache_service, redis_channel_name, final_payload, log_prefix,
@@ -1368,7 +1429,6 @@ async def _consume_main_processing_stream(
     
     # Determine if this is a server error (all providers failed) vs user interruption
     # Check for both old "[ERROR:" format and new standardized error message format
-    standardized_error_message = "The AI service encountered an error while processing your request. Please try again in a moment."
     is_old_format_error = aggregated_response.strip().startswith("[ERROR:")
     is_new_format_error = aggregated_response.strip() == standardized_error_message
     is_error = is_old_format_error or is_new_format_error

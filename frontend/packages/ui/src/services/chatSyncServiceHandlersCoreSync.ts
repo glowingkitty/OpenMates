@@ -472,6 +472,7 @@ export async function handleChatContentBatchResponseImpl(
                         encrypted_content: serverMsg.encrypted_content,
                         encrypted_sender_name: serverMsg.encrypted_sender_name,
                         encrypted_category: serverMsg.encrypted_category,
+                        encrypted_model_name: serverMsg.encrypted_model_name,
                     };
                     await chatDB.saveMessage(messageToSave, transaction);
                 }

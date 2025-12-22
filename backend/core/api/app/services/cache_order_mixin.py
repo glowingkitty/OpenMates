@@ -7,7 +7,18 @@ logger = logging.getLogger(__name__)
 class OrderCacheMixin:
     """Mixin for order-specific caching methods"""
 
-    async def set_order(self, order_id: str, user_id: str, credits_amount: int, status: str = "created", ttl: int = 86400, email_encryption_key: str = None, is_gift_card: bool = False, currency: str = None) -> bool:
+    async def set_order(
+        self,
+        order_id: str,
+        user_id: str,
+        credits_amount: int,
+        status: str = "created",
+        ttl: int = 86400,
+        email_encryption_key: str = None,
+        is_gift_card: bool = False,
+        currency: str = None,
+        is_auto_topup: bool = False,
+    ) -> bool:
         """Cache order metadata and status."""
         try:
             if not order_id or not user_id or credits_amount is None:
@@ -33,6 +44,10 @@ class OrderCacheMixin:
             # Store currency if provided (for tier system updates)
             if currency:
                 order_data["currency"] = currency
+
+            # Store auto top-up flag (used by webhook/email processing)
+            if is_auto_topup:
+                order_data["is_auto_topup"] = True
             
             logger.debug(f"Setting order in cache: {order_data}")
             return await self.set(order_cache_key, order_data, ttl=ttl)

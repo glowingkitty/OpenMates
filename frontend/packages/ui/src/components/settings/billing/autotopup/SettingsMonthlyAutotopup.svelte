@@ -11,6 +11,7 @@ Allows creating new subscriptions if user has a saved payment method
     import Toggle from '../../../Toggle.svelte';
 
     let isLoading = $state(false);
+    let hasSubscription = $state(false);
     let hasActiveSubscription = $state(false);
     let subscriptionDetails: any = $state(null);
     let hasPaymentMethod = $state(false);
@@ -26,6 +27,31 @@ Allows creating new subscriptions if user has a saved payment method
     // Format credits with dots as thousand separators
     function formatCredits(credits: number): string {
         return credits.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+    }
+
+    function isActiveLikeSubscription(status?: string): boolean {
+        const normalized = (status || '').toLowerCase();
+        return normalized === 'active' || normalized === 'trialing';
+    }
+
+    function parseNextChargeDate(details: any): Date | null {
+        const raw =
+            details?.next_billing_date ??
+            details?.nextBillingDate ??
+            details?.next_payment_date ??
+            details?.nextPaymentDate ??
+            null;
+
+        if (raw === null || raw === undefined || raw === '') return null;
+
+        if (typeof raw === 'number' && Number.isFinite(raw)) {
+            const ms = raw < 1e12 ? raw * 1000 : raw;
+            const date = new Date(ms);
+            return Number.isNaN(date.getTime()) ? null : date;
+        }
+
+        const date = new Date(raw);
+        return Number.isNaN(date.getTime()) ? null : date;
     }
 
     /**
@@ -78,24 +104,27 @@ Allows creating new subscriptions if user has a saved payment method
 
             if (response.ok) {
                 const data = await response.json();
-                subscriptionDetails = data;
-                hasActiveSubscription = data.status === 'active';
+                subscriptionDetails = data?.subscription ?? null;
+                hasSubscription = Boolean(data?.has_subscription && subscriptionDetails);
+                hasActiveSubscription = Boolean(hasSubscription && isActiveLikeSubscription(subscriptionDetails?.status));
                 // Set billing preference from API response
-                billingDayPreference = data.billing_day_preference || 'anniversary';
+                billingDayPreference = subscriptionDetails?.billing_day_preference || 'anniversary';
             } else if (response.status === 404) {
                 // No subscription found
+                hasSubscription = false;
                 hasActiveSubscription = false;
                 subscriptionDetails = null;
             } else {
                 throw new Error('Failed to fetch subscription details');
             }
         } catch (error) {
-            console.error('Error fetching subscription:', error);
-            hasActiveSubscription = false;
-            subscriptionDetails = null;
-        } finally {
-            isLoading = false;
-        }
+                console.error('Error fetching subscription:', error);
+                hasSubscription = false;
+                hasActiveSubscription = false;
+                subscriptionDetails = null;
+            } finally {
+                isLoading = false;
+            }
     }
 
     // Check if user has payment method
@@ -239,17 +268,21 @@ Allows creating new subscriptions if user has a saved payment method
         fetchSubscriptionDetails();
         checkPaymentMethod();
     });
+
+    let nextChargeDate = $derived(parseNextChargeDate(subscriptionDetails));
 </script>
 
 <div class="monthly-container">
     {#if isLoading}
         <p class="info-text">Loading...</p>
-    {:else if hasActiveSubscription && subscriptionDetails}
-        <!-- Active Subscription View -->
+    {:else if hasSubscription && subscriptionDetails}
+        <!-- Subscription View -->
         <div class="subscription-info">
             <div class="info-row">
                 <span class="info-label">{$text('settings.billing.status.text')}:</span>
-                <span class="status-badge active">Active</span>
+                <span class="status-badge {hasActiveSubscription ? 'active' : 'inactive'}">
+                    {subscriptionDetails.status || 'unknown'}
+                </span>
             </div>
             <div class="info-row">
                 <span class="info-label">{$text('settings.billing.amount.text')}:</span>
@@ -273,12 +306,10 @@ Allows creating new subscriptions if user has a saved payment method
                     {formatCurrency(subscriptionDetails.price || 0, subscriptionDetails.currency || 'EUR')}/month
                 </span>
             </div>
-            {#if subscriptionDetails.next_billing_date}
-                <div class="info-row">
-                    <span class="info-label">{$text('settings.billing.next_charge.text')}:</span>
-                    <span class="info-value">{new Date(subscriptionDetails.next_billing_date).toLocaleDateString()}</span>
-                </div>
-            {/if}
+            <div class="info-row">
+                <span class="info-label">{$text('settings.billing.next_charge.text')}:</span>
+                <span class="info-value">{nextChargeDate ? nextChargeDate.toLocaleDateString() : '—'}</span>
+            </div>
             <div class="info-row">
                 <span class="info-label">Billing day:</span>
                 <span class="info-value">
@@ -450,10 +481,15 @@ Allows creating new subscriptions if user has a saved payment method
         font-weight: 600;
     }
 
-    .status-badge.active {
-        background: rgba(88, 188, 0, 0.2);
-        color: #58BC00;
-    }
+	    .status-badge.active {
+	        background: rgba(88, 188, 0, 0.2);
+	        color: #58BC00;
+	    }
+	
+	    .status-badge.inactive {
+	        background: rgba(255, 165, 0, 0.18);
+	        color: #FFA500;
+	    }
 
     /* Icon */
     .coin-icon-small {

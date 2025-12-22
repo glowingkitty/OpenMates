@@ -11,6 +11,7 @@ Matches the design from the signup flow screenshot.
     import { createEventDispatcher, onMount } from 'svelte';
     import { userProfile } from '../../stores/userProfile';
     import { apiEndpoints, getApiUrl } from '../../config/api';
+    import { getEmailDecryptedWithMasterKey } from '../../services/cryptoService';
 
     const dispatch = createEventDispatcher();
 
@@ -38,6 +39,7 @@ Matches the design from the signup flow screenshot.
     let monthlyEnabled = $state(false);
     let isProcessing = $state(false);
     let isLoadingSettings = $state(true);
+    let lowBalanceEmailError: string | null = $state(null);
     
     // State for subscription details
     let hasActiveSubscription = $state(false);
@@ -52,8 +54,8 @@ Matches the design from the signup flow screenshot.
 
             if (response.ok) {
                 const data = await response.json();
-                subscriptionDetails = data;
-                hasActiveSubscription = data.status === 'active';
+                subscriptionDetails = data?.subscription ?? null;
+                hasActiveSubscription = Boolean(data?.has_subscription && subscriptionDetails?.status === 'active');
                 // Sync monthly toggle with subscription status
                 monthlyEnabled = hasActiveSubscription;
                 console.debug('[AutoTopUp] Subscription status:', hasActiveSubscription, data);
@@ -226,16 +228,24 @@ Matches the design from the signup flow screenshot.
     // Handle finish button
     async function handleFinish() {
         isProcessing = true;
+        lowBalanceEmailError = null;
 
         try {
             // CRITICAL: Save low balance auto top-up settings if enabled
             // This ensures settings are persisted to backend (cache and Directus)
             if (lowBalanceEnabled && lowBalanceAmount > 0) {
                 try {
+                    const decryptedEmail = await getEmailDecryptedWithMasterKey();
+                    if (!decryptedEmail) {
+                        lowBalanceEmailError = 'Email could not be decrypted on this device. Disable low-balance auto top-up or log in again to unlock encryption keys.';
+                        isProcessing = false;
+                        return;
+                    }
                     console.debug('[AutoTopUp] Saving low balance auto top-up settings:', {
                         enabled: lowBalanceEnabled,
                         amount: lowBalanceAmount,
-                        currency: currency
+                        currency: currency,
+                        hasDecryptedEmail: Boolean(decryptedEmail)
                     });
                     
                     const response = await fetch(getApiUrl() + apiEndpoints.settings.autoTopUp.lowBalance, {
@@ -246,7 +256,8 @@ Matches the design from the signup flow screenshot.
                             enabled: lowBalanceEnabled,
                             threshold: lowBalanceThreshold, // Always 100 credits (fixed)
                             amount: lowBalanceAmount,
-                            currency: currency.toLowerCase()
+                            currency: currency.toLowerCase(),
+                            email: decryptedEmail
                         })
                     });
 
@@ -347,6 +358,17 @@ Matches the design from the signup flow screenshot.
             }
         }
     }
+
+    async function handleLowBalanceToggleChange(event: CustomEvent<{ checked: boolean }>) {
+        lowBalanceEmailError = null;
+        if (!event.detail.checked) return;
+
+        const decryptedEmail = await getEmailDecryptedWithMasterKey();
+        if (!decryptedEmail) {
+            lowBalanceEmailError = 'Email could not be decrypted on this device. Log in again to unlock encryption keys.';
+            lowBalanceEnabled = false;
+        }
+    }
 </script>
 
 <!-- Auto top-up header with icon -->
@@ -366,12 +388,15 @@ Matches the design from the signup flow screenshot.
 <!-- Low Balance Auto Top-Up Toggle -->
 <div class="toggle-option">
     <div class="toggle-row">
-        <Toggle bind:checked={lowBalanceEnabled} id="low-balance-toggle" disabled={isProcessing} />
+        <Toggle bind:checked={lowBalanceEnabled} id="low-balance-toggle" disabled={isProcessing} on:change={handleLowBalanceToggleChange} />
         <div class="warning-icon"></div>
         <label for="low-balance-toggle" class="option-label">
             {$text('settings.billing.on_low_balance.text')}
         </label>
     </div>
+    {#if lowBalanceEmailError}
+        <div class="error-message">{lowBalanceEmailError}</div>
+    {/if}
     {#if lowBalanceEnabled}
         <div class="option-description">
             {@html $text('settings.billing.auto_topup_low_balance_description.text')
@@ -588,4 +613,3 @@ Matches the design from the signup flow screenshot.
         border: 1px solid var(--color-grey-30);
     }
 </style>
-

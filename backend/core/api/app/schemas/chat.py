@@ -15,6 +15,7 @@ class EncryptedMessageBase(BaseModel):
     role: Literal['user', 'assistant', 'system']
     encrypted_category: Optional[str] = None # Encrypted category, only if role is 'assistant'
     encrypted_sender_name: Optional[str] = None # Encrypted sender name
+    encrypted_model_name: Optional[str] = None # Encrypted model name (assistant only)
 
 class AIHistoryMessage(MessageBase):
     """

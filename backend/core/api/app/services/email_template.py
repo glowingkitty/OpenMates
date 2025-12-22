@@ -3,7 +3,7 @@ import logging
 import re
 import base64
 import yaml
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, Tuple, Union
 import aiohttp
 import json
 from pathlib import Path
@@ -17,6 +17,7 @@ from email.mime.multipart import MIMEMultipart
 import sys
 from html.parser import HTMLParser
 from urllib.parse import urlparse
+from urllib.parse import quote
 
 from backend.core.api.app.services.translations import TranslationService
 from backend.core.api.app.services.email.config_loader import load_shared_urls, add_shared_urls_to_context
@@ -156,6 +157,10 @@ class EmailTemplateService:
         # Mailjet API keys will be fetched from SecretsManager in send_email method
         # Mailjet API endpoint
         self.mailjet_api_url = "https://api.mailjet.com/v3.1/send"
+        # Contact lookup uses v3 REST, GDPR deletion uses v4 endpoint.
+        # Mailjet GDPR deletion requires the numeric/string contact ID, not the email.
+        self.mailjet_contact_lookup_base_url = "https://api.mailjet.com/v3/REST/contact"
+        self.mailjet_gdpr_delete_base_url = "https://api.mailjet.com/v4/contacts"
         
         # Default sender info
         self.default_sender_name = os.getenv("EMAIL_SENDER_NAME", "OpenMates")
@@ -167,8 +172,9 @@ class EmailTemplateService:
         self, 
         template_name: str,
         context: Dict[str, Any] = None,
-        lang: str = "en"
-    ) -> str:
+        lang: str = "en",
+        return_context: bool = False,
+    ) -> Union[str, Tuple[str, Dict[str, Any]]]:
         """
         Render an email template with the given context.
         
@@ -178,7 +184,7 @@ class EmailTemplateService:
             lang: Language code for translations
             
         Returns:
-            Rendered HTML content
+            Rendered HTML content, optionally with the processed context used for rendering.
         """
         if context is None:
             context = {}
@@ -206,7 +212,9 @@ class EmailTemplateService:
                 template_name=template_name,
                 context=working_context
             )
-            
+
+            if return_context:
+                return html_content, working_context
             return html_content
             
         except Exception as e:
@@ -253,6 +261,10 @@ class EmailTemplateService:
             # Initialize default context if needed
             if context is None:
                 context = {}
+
+            # Ensure recipient email is available to the template variable processor (e.g., block_list_url deep link).
+            # SensitiveDataFilter will redact this if it ever appears in logs.
+            context.setdefault("recipient_email", recipient_email)
                 
             # Set defaults for sender
             sender_name = sender_name or self.default_sender_name
@@ -340,8 +352,8 @@ class EmailTemplateService:
             if 't' not in context:
                 context['t'] = translations
                 
-            # Render the HTML template
-            html_content = self.render_template(template, context, lang)
+            # Render the HTML template and capture the processed context used for rendering
+            html_content, render_context = self.render_template(template, context, lang, return_context=True)
             
             # Generate plain text version for better deliverability
             # This is critical for spam prevention - emails without plain text are often flagged
@@ -358,24 +370,30 @@ class EmailTemplateService:
             is_transactional = template in transactional_templates
             
             # For transactional emails, use mailto: support link instead of unsubscribe
-            # This satisfies email providers that prefer List-Unsubscribe while being appropriate for transactional emails
-            # For non-transactional emails (if any), use proper unsubscribe URL
+            # This satisfies providers that prefer List-Unsubscribe while being appropriate for transactional emails
+            # For non-transactional emails (if any), prefer a proper unsubscribe URL provided by the caller.
+            support_email = render_context.get('contact_email', self.default_sender_email)
+
+            list_unsubscribe_urls: list[str] = []
             if is_transactional:
-                # Use mailto: link to support for transactional emails
-                # This is appropriate since users can't "unsubscribe" from essential account emails
-                # Users can contact support if they have concerns about receiving these emails
-                support_email = context.get('contact_email', self.default_sender_email)
-                unsubscribe_url = f"mailto:{support_email}?subject=Email%20Preferences"
+                # Transactional emails: include a mailto: method for user support.
+                list_unsubscribe_urls.append(f"mailto:{support_email}?subject=Email%20Preferences")
             else:
-                # For marketing/newsletter emails (if you add them later), use proper unsubscribe
-                unsubscribe_url = context.get('unsubscribe_url')
-                if not unsubscribe_url:
-                    is_prod = context.get('is_production', True)
-                    env_name = 'production' if is_prod else 'development'
-                    base_url = self.shared_urls.get('urls', {}).get('base', {}).get('webapp', {}).get(env_name)
-                    if not base_url:
-                        base_url = os.getenv("FRONTEND_URL", "https://openmates.org")
-                    unsubscribe_url = f"{base_url}/unsubscribe?email={recipient_email}"
+                # Marketing/newsletter emails: prefer actual unsubscribe/block URLs (no mailto fallbacks).
+                # Use the same context used for rendering, so header links match the email body.
+                unsubscribe_url = render_context.get("unsubscribe_url")
+                if unsubscribe_url:
+                    list_unsubscribe_urls.append(unsubscribe_url)
+
+                block_list_url = render_context.get("block_list_url")
+                if block_list_url:
+                    list_unsubscribe_urls.append(block_list_url)
+
+                if not list_unsubscribe_urls:
+                    logger.warning(
+                        "No unsubscribe_url or block_list_url available for non-transactional email; "
+                        "omitting List-Unsubscribe headers."
+                    )
             
             # Prepare email headers - only include List-Unsubscribe if we have a valid URL
             # Note: X-Mailer cannot be set via Headers collection in Mailjet API (error send-0011)
@@ -387,11 +405,26 @@ class EmailTemplateService:
                 "Auto-Submitted": "auto-generated"
             }
             
-            # Add List-Unsubscribe header (even for transactional, using mailto: is better than nothing)
-            # Some email providers prefer this header even for transactional emails
-            # Using mailto: link to support is appropriate for transactional emails
-            email_headers["List-Unsubscribe"] = f"<{unsubscribe_url}>"
-            email_headers["List-Unsubscribe-Post"] = "List-Unsubscribe=One-Click"
+            # Add List-Unsubscribe header(s).
+            # RFC 2369 allows multiple URLs separated by commas; RFC 8058 one-click applies to HTTP(S).
+            if list_unsubscribe_urls:
+                unique_urls: list[str] = []
+                for url in list_unsubscribe_urls:
+                    if url and url not in unique_urls:
+                        unique_urls.append(url)
+                email_headers["List-Unsubscribe"] = ", ".join(f"<{url}>" for url in unique_urls)
+
+                has_http_unsubscribe = False
+                for url in unique_urls:
+                    try:
+                        scheme = urlparse(url).scheme.lower()
+                    except Exception:
+                        scheme = ""
+                    if scheme in ("http", "https"):
+                        has_http_unsubscribe = True
+                        break
+                if has_http_unsubscribe:
+                    email_headers["List-Unsubscribe-Post"] = "List-Unsubscribe=One-Click"
             
             # Prepare the email data for Mailjet API with improved spam prevention
             email_data = {
@@ -479,7 +512,9 @@ class EmailTemplateService:
                                 logger.info(f"Email sent successfully (Message ID not found in expected format, but status 200 and no errors)")
                             else:
                                 logger.info(f"Email sent successfully. Message ID: {message_id}")
-                            
+
+                            # Schedule delayed contact cleanup task (30 second delay to allow Mailjet processing)
+                            self._schedule_mailjet_contact_cleanup(recipient_email)
                             return True
                         except json.JSONDecodeError as e:
                             logger.error(f"Failed to parse Mailjet JSON response: {e}. Response text: {response_text[:500]}")
@@ -500,6 +535,94 @@ class EmailTemplateService:
         except Exception as e:
             logger.error(f"Error sending email: {str(e)}", exc_info=True)
             return False
+
+    def _schedule_mailjet_contact_cleanup(self, recipient_email: str) -> None:
+        """
+        Schedule a delayed Celery task to clean up Mailjet contact after email sending.
+
+        Uses a 30-second delay to allow Mailjet time to fully process the contact creation
+        before attempting deletion. This prevents timing issues where we try to delete
+        a contact that hasn't been fully created yet.
+
+        Args:
+            recipient_email: Email address of the contact to clean up
+        """
+        try:
+            from backend.core.api.app.tasks.email_tasks.mailjet_contact_cleanup_task import cleanup_mailjet_contact
+
+            # Schedule task with 30-second delay
+            cleanup_mailjet_contact.apply_async(
+                args=[recipient_email],
+                countdown=30  # 30-second delay
+            )
+            logger.info(f"Scheduled delayed Mailjet contact cleanup for {recipient_email[:3]}*** in 30 seconds")
+        except Exception as e:
+            logger.warning(f"Failed to schedule Mailjet contact cleanup task (non-fatal): {e}")
+
+    async def _best_effort_delete_mailjet_contact(
+        self,
+        session: aiohttp.ClientSession,
+        auth: aiohttp.BasicAuth,
+        recipient_email: str,
+    ) -> None:
+        """
+        Best-effort removal of the recipient from Mailjet Contacts after a successful send.
+
+        Notes:
+        - This is best-effort and must not impact delivery success.
+        - Mail providers can still keep addresses in delivery logs/suppression lists; this only targets Contacts.
+        """
+        try:
+            encoded_recipient = quote(recipient_email, safe="")
+            lookup_url = f"{self.mailjet_contact_lookup_base_url}/{encoded_recipient}"
+
+            async with session.get(lookup_url, auth=auth) as lookup_response:
+                if lookup_response.status == 404:
+                    logger.info("Mailjet contact cleanup: contact not found (non-fatal).")
+                    return
+                if lookup_response.status != 200:
+                    body = await lookup_response.text()
+                    logger.warning(
+                        f"Mailjet contact lookup returned status {lookup_response.status} (non-fatal). "
+                        f"Response: {body[:500]}"
+                    )
+                    return
+
+                body = await lookup_response.text()
+                try:
+                    lookup_data = json.loads(body)
+                except json.JSONDecodeError:
+                    logger.warning(
+                        "Mailjet contact lookup returned non-JSON body (non-fatal). "
+                        f"Response: {body[:500]}"
+                    )
+                    return
+
+                contact_id: Optional[Union[str, int]] = None
+                data = lookup_data.get("Data") or []
+                if data and isinstance(data, list) and isinstance(data[0], dict):
+                    contact_id = data[0].get("ID")
+
+                if not contact_id:
+                    logger.warning(
+                        f"Mailjet contact lookup did not return a contact ID for {recipient_email} (non-fatal). "
+                        f"Response: {str(lookup_data)[:500]}"
+                    )
+                    return
+
+            delete_url = f"{self.mailjet_gdpr_delete_base_url}/{contact_id}"
+            async with session.delete(delete_url, auth=auth) as delete_response:
+                # 200: anonymized, then removed after 30 days; 404: already missing; others warn.
+                if delete_response.status in (200, 404):
+                    logger.info("Mailjet contact cleanup attempted (non-fatal).")
+                    return
+                body = await delete_response.text()
+                logger.warning(
+                    f"Mailjet contact cleanup returned status {delete_response.status} (non-fatal). "
+                    f"Response: {body[:500]}"
+                )
+        except Exception as e:
+            logger.warning(f"Mailjet contact cleanup failed (non-fatal): {e}")
     
     def clear_cache(self) -> None:
         """Clear the image cache"""

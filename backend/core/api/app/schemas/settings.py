@@ -26,6 +26,7 @@ class AutoTopUpLowBalanceRequest(BaseModel):
     threshold: int
     amount: int
     currency: str
+    email: Optional[str] = None  # Decrypted email from client for server-side encryption
 
     class Config:
         json_schema_extra = {
@@ -33,7 +34,8 @@ class AutoTopUpLowBalanceRequest(BaseModel):
                 "enabled": True,
                 "threshold": 200,
                 "amount": 10000,
-                "currency": "eur"
+                "currency": "eur",
+                "email": "user@example.com"
             }
         }
 

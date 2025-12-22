@@ -32,6 +32,7 @@
     role = 'user',
     category = undefined,
     sender_name = undefined,
+    model_name = undefined,
     status = undefined,
     messageParts = [],
     appCards = undefined,
@@ -46,6 +47,7 @@
     role?: MessageRole;
     category?: string;
     sender_name?: string;
+    model_name?: string;
     status?: MessageStatus;
     messageParts?: MessagePart[];
     appCards?: AppCardData[];
@@ -94,6 +96,8 @@
   let menuType = $state<'default' | 'pdf' | 'web' | 'video-transcript' | 'video' | 'code'>('default');
   let selectedNode = $state<any>(null);
   let embedType = $state<'code' | 'video' | 'website' | 'pdf' | 'default'>('default');
+  let selectedAppId = $state<string | null>(null);
+  let selectedSkillId = $state<string | null>(null);
 
   // Add state for fullscreen using $state (Svelte 5 runes mode)
   let showFullscreen = $state(false);
@@ -123,6 +127,8 @@
     // Check DOM element for data attributes first (more reliable for app-skill-use embeds)
     const appId = dom.getAttribute('data-app-id');
     const skillId = dom.getAttribute('data-skill-id');
+    selectedAppId = appId;
+    selectedSkillId = skillId;
     
     // Determine menu type and embed type based on embed type
     if (node.type.name === 'embed') {
@@ -143,6 +149,10 @@
         // Video transcript embed
         menuType = 'video-transcript';
         embedType = 'video';
+      } else if (node.attrs.type === 'app-skill-use' && appId === 'web' && skillId === 'search') {
+        // Web search skill embed
+        menuType = 'web';
+        embedType = 'default';
       } else {
         menuType = 'default';
         embedType = 'default';
@@ -153,6 +163,47 @@
     }
 
     showMenu = true;
+  }
+
+  function getEmbedIdFromNode(node: any): string | null {
+    const raw = node?.attrs?.id || node?.attrs?.embed_id || node?.attrs?.embedId || node?.attrs?.contentRef;
+    if (!raw) return null;
+    if (typeof raw === 'string' && raw.startsWith('embed:')) return raw.replace('embed:', '');
+    if (typeof raw === 'string') return raw;
+    return null;
+  }
+
+  function inferEmbedShareType(): string {
+    // Prefer app/skill detection for app-skill-use embeds
+    if (selectedAppId === 'videos' && selectedSkillId === 'get_transcript') return 'video-transcript';
+    if (selectedAppId === 'web' && selectedSkillId === 'search') return 'web_search';
+
+    const type = selectedNode?.attrs?.type;
+    if (type === 'website' || type === 'website-group') return 'website';
+    if (type === 'videos-video') return 'video';
+    if (type === 'code') return 'code';
+    if (type === 'pdf') return 'pdf';
+    return type || 'embed';
+  }
+
+  async function openEmbedShareSettings(embedContext: any) {
+    const { navigateToSettings } = await import('../stores/settingsNavigationStore');
+    const { settingsDeepLink } = await import('../stores/settingsDeepLinkStore');
+    const { panelState } = await import('../stores/panelStateStore');
+
+    (window as unknown as { __embedShareContext?: unknown }).__embedShareContext = embedContext;
+
+    const shareTitle =
+      embedContext.type === 'web_search' ? 'Share Web Search' :
+      embedContext.type === 'website' ? 'Share Website' :
+      embedContext.type === 'video-transcript' ? 'Share Video Transcript' :
+      embedContext.type === 'video' ? 'Share Video' :
+      embedContext.type === 'code' ? 'Share Code' :
+      'Share Embed';
+
+    navigateToSettings('shared/share', shareTitle, 'share', 'settings.share.share_embed.text');
+    settingsDeepLink.set('shared/share');
+    panelState.openSettings();
   }
 
   // Update handleMenuAction to support video transcript and video embed actions
@@ -218,6 +269,144 @@
         showMenu = false;
         selectedNode = null;
         return;
+    }
+
+    if (action === 'share') {
+      const embedId = getEmbedIdFromNode(selectedNode);
+      if (!embedId) {
+        console.warn('[ChatMessage] No embed ID found for share action');
+        const { notificationStore } = await import('../stores/notificationStore');
+        notificationStore.error('Unable to share this embed. Missing embed ID.');
+        showMenu = false;
+        selectedNode = null;
+        return;
+      }
+
+      try {
+        const shareType = inferEmbedShareType();
+        const embedContext: any = { type: shareType, embed_id: embedId };
+
+        // Best-effort metadata for nicer header display in SettingsShare
+        if (shareType === 'website' || shareType === 'video') {
+          embedContext.url = selectedNode.attrs?.url;
+          embedContext.title = selectedNode.attrs?.title;
+        } else if (shareType === 'code') {
+          embedContext.filename = selectedNode.attrs?.filename;
+          embedContext.language = selectedNode.attrs?.language;
+          embedContext.lineCount = selectedNode.attrs?.lineCount;
+          embedContext.title = selectedNode.attrs?.filename;
+        }
+
+        await openEmbedShareSettings(embedContext);
+      } catch (error) {
+        console.error('[ChatMessage] Error opening share settings:', error);
+        const { notificationStore } = await import('../stores/notificationStore');
+        notificationStore.error('Failed to open share menu. Please try again.');
+      } finally {
+        showMenu = false;
+        selectedNode = null;
+      }
+
+      return;
+    }
+
+    // Handle actions for code embeds
+    if (menuType === 'code' && selectedNode.type.name === 'embed' && selectedNode.attrs.type === 'code') {
+      const embedId = getEmbedIdFromNode(selectedNode);
+
+      try {
+        let code = selectedNode.attrs?.code || '';
+        let language = selectedNode.attrs?.language || 'text';
+        let filename = selectedNode.attrs?.filename;
+
+        // Prefer resolving the embed by ID when available (source of truth)
+        if (embedId) {
+          const { resolveEmbed, decodeToonContent } = await import('../services/embedResolver');
+          const embedData = await resolveEmbed(embedId);
+          if (embedData?.content) {
+            const decodedContent = await decodeToonContent(embedData.content);
+            code = decodedContent?.code || code;
+            language = decodedContent?.language || language;
+            filename = decodedContent?.filename || filename;
+          }
+        }
+
+        switch (action) {
+          case 'copy': {
+            if (!code) break;
+            await navigator.clipboard.writeText(code);
+            const { notificationStore } = await import('../stores/notificationStore');
+            notificationStore.success('Code copied to clipboard');
+            break;
+          }
+          case 'download': {
+            if (!code) break;
+            const { downloadCodeFile } = await import('../services/zipExportService');
+            await downloadCodeFile(code, language, filename);
+            const { notificationStore } = await import('../stores/notificationStore');
+            notificationStore.success('Code file downloaded successfully');
+            break;
+          }
+        }
+      } catch (error) {
+        console.error('[ChatMessage] Error handling code action:', error);
+        const { notificationStore } = await import('../stores/notificationStore');
+        notificationStore.error('Failed to perform action');
+      } finally {
+        showMenu = false;
+        selectedNode = null;
+      }
+
+      return;
+    }
+
+    // Handle actions for web search embeds
+    if (menuType === 'web' && selectedNode.type.name === 'embed' && selectedNode.attrs.type === 'app-skill-use') {
+      const embedId = getEmbedIdFromNode(selectedNode);
+      if (!embedId) {
+        console.warn('[ChatMessage] No embed ID found for web search embed');
+        showMenu = false;
+        selectedNode = null;
+        return;
+      }
+
+      try {
+        const { resolveEmbed, decodeToonContent } = await import('../services/embedResolver');
+        const embedData = await resolveEmbed(embedId);
+        if (!embedData?.content) return;
+
+        const decodedContent = await decodeToonContent(embedData.content);
+        const query = decodedContent?.query || '';
+        const provider = decodedContent?.provider || 'Brave Search';
+        const results = decodedContent?.results || [];
+
+        if (action === 'copy') {
+          let yaml = `query: "${query}"\n`;
+          yaml += `provider: "${provider}"\n`;
+          yaml += `results:\n`;
+
+          results.forEach((result: any) => {
+            yaml += `  - title: "${(result.title || '').replace(/"/g, '\\"')}"\n`;
+            yaml += `    url: "${(result.url || '').replace(/"/g, '\\"')}"\n`;
+            if (result.snippet) {
+              yaml += `    snippet: "${String(result.snippet).replace(/"/g, '\\"')}"\n`;
+            }
+          });
+
+          await navigator.clipboard.writeText(yaml);
+          const { notificationStore } = await import('../stores/notificationStore');
+          notificationStore.success('Copied to clipboard');
+        }
+      } catch (error) {
+        console.error('[ChatMessage] Error handling web search action:', error);
+        const { notificationStore } = await import('../stores/notificationStore');
+        notificationStore.error('Failed to perform action');
+      } finally {
+        showMenu = false;
+        selectedNode = null;
+      }
+
+      return;
     }
 
     // Handle actions for video transcript embeds
@@ -309,10 +498,7 @@
             break;
 
           case 'share':
-            // Share functionality (placeholder for now)
-            console.debug('[ChatMessage] Share action for video transcript (not yet implemented)');
-            const { notificationStore: shareNotificationStore } = await import('../stores/notificationStore');
-            shareNotificationStore.info('Share functionality coming soon');
+            // Handled by generic share handler above
             break;
         }
       } catch (error) {
@@ -342,10 +528,7 @@
           break;
 
         case 'share':
-          // Share functionality (placeholder for now)
-          console.debug('[ChatMessage] Share action for video (not yet implemented)');
-          const { notificationStore: shareNotificationStore } = await import('../stores/notificationStore');
-          shareNotificationStore.info('Share functionality coming soon');
+          // Handled by generic share handler above
           break;
       }
     }
@@ -493,6 +676,9 @@
         />
       {/if}
     </div>
+    {#if role === 'assistant' && model_name}
+      <div class="generated-by">generated by {model_name}</div>
+    {/if}
     {#if messageStatusText}
       <div class="message-status">
         {messageStatusText}
@@ -516,6 +702,12 @@
     display: flex;
     gap: 20px;
     margin-top: 15px;
+  }
+
+  .generated-by {
+    font-size: 14px;
+    margin-top: 6px;
+    color: var(--color-grey-500);
   }
 
   .chat-app-cards-container.scrollable {

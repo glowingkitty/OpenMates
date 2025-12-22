@@ -243,6 +243,7 @@
         deepLinkProcessed = true;
 
         // Update the activeEmbedStore so the URL hash is set
+        // NOTE: This is a programmatic change; hashchange handler must ignore embed hash updates.
         activeEmbedStore.setActiveEmbed(embedId);
         
         // Wait a bit for ActiveChat component to be ready and register event listeners
@@ -257,7 +258,8 @@
                 // Let handleEmbedFullscreen load and decode the embed content
                 embedData: null,
                 decodedContent: null,
-                embedType: 'app-skill-use', // Default type, will be determined by handleEmbedFullscreen
+                // Use a placeholder type; ActiveChat will infer the real embed type from the stored embed.
+                embedType: 'app-skill-use',
                 attrs: null
             },
             bubbles: true
@@ -1375,10 +1377,10 @@
      */
     async function handleHashChange() {
         // Import the check function
-        const { isProgrammaticHashUpdate } = await import('@repo/ui');
+        const { isProgrammaticHashUpdate, isProgrammaticEmbedHashUpdate } = await import('@repo/ui');
         
         // Ignore hash changes that we triggered programmatically (prevents infinite loops)
-        if (isProgrammaticHashUpdate()) {
+        if (isProgrammaticHashUpdate() || isProgrammaticEmbedHashUpdate()) {
             console.debug('[+page.svelte] Ignoring programmatic hash update');
             return;
         }

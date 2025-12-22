@@ -104,6 +104,45 @@
             }
         }
     }
+    
+    /**
+     * Handle custom embed context menu events emitted by UnifiedEmbedPreview.
+     * This is the canonical way for embed previews to request the EmbedContextMenu
+     * (works for right-click and long-press, and avoids native browser menus).
+     */
+    function handleEmbedContextMenuEvent(event: CustomEvent) {
+        const target = event.target as HTMLElement;
+        const embedContainer = target.closest('[data-embed-id], [data-code-embed], .preview-container');
+        if (!embedContainer) return;
+        
+        event.preventDefault?.();
+        event.stopPropagation?.();
+        
+        logger.debug('[ReadOnlyMessage] Received embed-context-menu event');
+        
+        const pos = editor?.view.posAtDOM(embedContainer, 0);
+        const node = pos !== undefined ? editor?.state.doc.nodeAt(pos) : null;
+        if (!node) return;
+        
+        const elementId =
+            embedContainer.getAttribute('data-embed-id') ||
+            embedContainer.getAttribute('data-code-embed') ||
+            embedContainer.id;
+        
+        const rect = embedContainer.getBoundingClientRect();
+        const x = event.detail?.x;
+        const y = event.detail?.y;
+        
+        dispatch('message-embed-click', {
+            view: editor?.view,
+            node,
+            dom: embedContainer,
+            elementId,
+            rect,
+            x,
+            y
+        });
+    }
 
     // Touch event handlers for long-press detection on embeds (mobile support)
     // Constants for touch handling
@@ -365,6 +404,7 @@
         // Listen for right-clicks on the editor (for embed context menu)
         // Left clicks are handled by UnifiedEmbedPreview components directly
         editor.view.dom.addEventListener('contextmenu', handleEmbedContextMenu as EventListener);
+        editor.view.dom.addEventListener('embed-context-menu', handleEmbedContextMenuEvent as EventListener);
         editor.view.dom.addEventListener('touchstart', handleTouchStart as EventListener);
         editor.view.dom.addEventListener('touchmove', handleTouchMove as EventListener);
         editor.view.dom.addEventListener('touchend', handleTouchEnd as EventListener);
@@ -450,6 +490,7 @@
             logger.debug('Component destroying. Cleaning up Tiptap editor.');
             // Remove all event listeners
             editor.view.dom.removeEventListener('contextmenu', handleEmbedContextMenu as EventListener);
+            editor.view.dom.removeEventListener('embed-context-menu', handleEmbedContextMenuEvent as EventListener);
             editor.view.dom.removeEventListener('touchstart', handleTouchStart as EventListener);
             editor.view.dom.removeEventListener('touchmove', handleTouchMove as EventListener);
             editor.view.dom.removeEventListener('touchend', handleTouchEnd as EventListener);

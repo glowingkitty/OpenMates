@@ -494,9 +494,50 @@
             }
         }
         
+        // Normalize embed types from different sources:
+        // - Renderers use UI types (e.g. "code-code", "app-skill-use")
+        // - Some synced/stored embeds can expose server types (e.g. "code", "app_skill_use")
+        // - Deep links dispatch a placeholder type, but we can infer from stored embed when needed
+        const normalizeEmbedType = (t: string | null | undefined): string | null => {
+            if (!t) return null;
+            switch (t) {
+                case 'app_skill_use':
+                    return 'app-skill-use';
+                case 'app-skill-use':
+                    return 'app-skill-use';
+                case 'web-website':
+                case 'website':
+                    return 'website';
+                case 'code':
+                case 'code-code':
+                    return 'code-code';
+                case 'videos-video':
+                    return 'videos-video';
+                default:
+                    return t;
+            }
+        };
+        
+        let resolvedEmbedType = normalizeEmbedType(embedType) || embedType;
+        const inferredType = normalizeEmbedType(finalEmbedData?.type) || finalEmbedData?.type;
+        
+        // Only override the event type when it's a placeholder (deep-link default) and inference is more specific.
+        if (inferredType && (resolvedEmbedType === 'app-skill-use' || resolvedEmbedType === 'app_skill_use')) {
+            resolvedEmbedType = inferredType;
+        }
+        
+        // If we already have this embed open, ignore duplicate events (e.g. hashchange deep-link echoes).
+        if (showEmbedFullscreen && embedFullscreenData?.embedId === embedId && embedFullscreenData?.embedType === resolvedEmbedType) {
+            console.debug('[ActiveChat] Ignoring duplicate embedfullscreen event for already-open embed:', {
+                embedId,
+                resolvedEmbedType
+            });
+            return;
+        }
+        
         // For web search embeds, load child website embeds and transform to results array
         // This is needed because parent embed only contains embed_ids, not the actual website data
-        if (embedType === 'app-skill-use' && finalDecodedContent) {
+        if (resolvedEmbedType === 'app-skill-use' && finalDecodedContent) {
             const appId = finalDecodedContent.app_id || '';
             const skillId = finalDecodedContent.skill_id || '';
             
@@ -595,7 +636,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         
         // Store fullscreen data (moved below after all async operations)
         console.debug('[ActiveChat] Setting showEmbedFullscreen to true, embedFullscreenData:', {
-            embedType,
+            embedType: resolvedEmbedType,
             embedId,
             hasEmbedData: !!finalEmbedData,
             hasDecodedContent: !!finalDecodedContent,
@@ -609,7 +650,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             embedId,
             embedData: finalEmbedData,
             decodedContent: finalDecodedContent,
-            embedType,
+            embedType: resolvedEmbedType,
             attrs
         };
         
@@ -625,7 +666,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             console.debug('[ActiveChat] Updated URL hash with embed ID:', embedId);
         }
         
-        console.debug('[ActiveChat] Opening embed fullscreen:', embedType, embedId, 'showEmbedFullscreen:', showEmbedFullscreen, 'embedFullscreenData:', !!embedFullscreenData);
+        console.debug('[ActiveChat] Opening embed fullscreen:', resolvedEmbedType, embedId, 'showEmbedFullscreen:', showEmbedFullscreen, 'embedFullscreenData:', !!embedFullscreenData);
     }
     
     // Handler for closing embed fullscreen
@@ -1181,12 +1222,14 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         if (!targetMessage) {
             // Create a streaming AI message even if sequence is not 1 to avoid dropping chunks
             const fallbackCategory = currentTypingStatus?.chatId === chunk.chat_id ? currentTypingStatus.category : undefined;
+            const fallbackModelName = currentTypingStatus?.chatId === chunk.chat_id ? currentTypingStatus.modelName : undefined;
             const newAiMessage: ChatMessageModel = {
                 message_id: chunk.message_id,
                 chat_id: chunk.chat_id, // Ensure this is correct
                 user_message_id: chunk.user_message_id,
                 role: 'assistant',
                 category: chunk.category || fallbackCategory,
+                model_name: chunk.model_name || fallbackModelName || undefined,
                 content: chunk.full_content_so_far || '', // Store as markdown string, not Tiptap JSON
                 status: 'streaming',
                 created_at: Math.floor(Date.now() / 1000),
@@ -1210,6 +1253,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             const previousLength = targetMessage.content?.length || 0;
             const newLength = chunk.full_content_so_far?.length || 0;
             const lengthDiff = newLength - previousLength;
+            const fallbackModelName = currentTypingStatus?.chatId === chunk.chat_id ? currentTypingStatus.modelName : undefined;
             
             // Only update content if full_content_so_far is not empty,
             // or if it's the first chunk (sequence 1) where it might legitimately start empty.
@@ -1219,6 +1263,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             }
             if (targetMessage.status !== 'streaming') {
                 targetMessage.status = 'streaming';
+            }
+            if (!targetMessage.model_name) {
+                targetMessage.model_name = chunk.model_name || fallbackModelName || undefined;
             }
             currentMessages[targetMessageIndex] = targetMessage;
             currentMessages = [...currentMessages]; // New array reference for Svelte reactivity
@@ -3560,6 +3607,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             language={embedFullscreenData.decodedContent?.language || embedFullscreenData.attrs?.language}
                             filename={embedFullscreenData.decodedContent?.filename || embedFullscreenData.attrs?.filename}
                             lineCount={embedFullscreenData.decodedContent?.lineCount || embedFullscreenData.attrs?.lineCount || 0}
+                            embedId={embedFullscreenData.embedId}
                             onClose={handleCloseEmbedFullscreen}
                         />
                     {/if}
