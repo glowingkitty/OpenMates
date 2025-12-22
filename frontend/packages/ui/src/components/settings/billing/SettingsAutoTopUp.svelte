@@ -14,6 +14,7 @@ Auto Top-Up Settings - Submenu for low balance and monthly auto top-up options
     type SubscriptionDetails = {
         status?: string;
         credits_amount?: number | null;
+        next_billing_date?: string | null;
     };
 
     // Subscription state
@@ -34,6 +35,15 @@ Auto Top-Up Settings - Submenu for low balance and monthly auto top-up options
         const normalized = (status || '').toLowerCase();
         return normalized === 'active' || normalized === 'trialing';
     }
+
+    function parseNextChargeDate(details: SubscriptionDetails | null): Date | null {
+        const raw = details?.next_billing_date;
+        if (!raw) return null;
+        const date = new Date(raw);
+        return Number.isNaN(date.getTime()) ? null : date;
+    }
+
+    let nextChargeDate = $derived(parseNextChargeDate(subscriptionDetails));
 
     // Load user profile data
     userProfile.subscribe(profile => {
@@ -100,7 +110,7 @@ Auto Top-Up Settings - Submenu for low balance and monthly auto top-up options
     icon="subsetting_icon subsetting_icon_calendar"
     title={$text('settings.billing.monthly.text')}
     subtitle={hasActiveSubscription && subscriptionDetails
-        ? `${$text('settings.active.text')} - ${formatCredits(subscriptionDetails.credits_amount || 0)} ${$text('settings.billing.credits.text')}/month`
+        ? `${$text('settings.active.text')} - ${formatCredits(subscriptionDetails.credits_amount || 0)} ${$text('settings.billing.credits.text')}/month${nextChargeDate ? ` • ${$text('settings.billing.next_charge.text')}: ${nextChargeDate.toLocaleDateString()}` : ''}`
         : $text('settings.billing.no_subscription.text')}
     onClick={() => navigateToSubview('monthly')}
 />

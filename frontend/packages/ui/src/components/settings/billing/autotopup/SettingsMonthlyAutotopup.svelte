@@ -34,6 +34,26 @@ Allows creating new subscriptions if user has a saved payment method
         return normalized === 'active' || normalized === 'trialing';
     }
 
+    function parseNextChargeDate(details: any): Date | null {
+        const raw =
+            details?.next_billing_date ??
+            details?.nextBillingDate ??
+            details?.next_payment_date ??
+            details?.nextPaymentDate ??
+            null;
+
+        if (raw === null || raw === undefined || raw === '') return null;
+
+        if (typeof raw === 'number' && Number.isFinite(raw)) {
+            const ms = raw < 1e12 ? raw * 1000 : raw;
+            const date = new Date(ms);
+            return Number.isNaN(date.getTime()) ? null : date;
+        }
+
+        const date = new Date(raw);
+        return Number.isNaN(date.getTime()) ? null : date;
+    }
+
     /**
      * Format currency amount for display.
      * Handles both API prices (in cents) and pricing config prices (in main currency units).
@@ -248,6 +268,8 @@ Allows creating new subscriptions if user has a saved payment method
         fetchSubscriptionDetails();
         checkPaymentMethod();
     });
+
+    let nextChargeDate = $derived(parseNextChargeDate(subscriptionDetails));
 </script>
 
 <div class="monthly-container">
@@ -284,12 +306,10 @@ Allows creating new subscriptions if user has a saved payment method
                     {formatCurrency(subscriptionDetails.price || 0, subscriptionDetails.currency || 'EUR')}/month
                 </span>
             </div>
-            {#if subscriptionDetails.next_billing_date}
-                <div class="info-row">
-                    <span class="info-label">{$text('settings.billing.next_charge.text')}:</span>
-                    <span class="info-value">{new Date(subscriptionDetails.next_billing_date).toLocaleDateString()}</span>
-                </div>
-            {/if}
+            <div class="info-row">
+                <span class="info-label">{$text('settings.billing.next_charge.text')}:</span>
+                <span class="info-value">{nextChargeDate ? nextChargeDate.toLocaleDateString() : '—'}</span>
+            </div>
             <div class="info-row">
                 <span class="info-label">Billing day:</span>
                 <span class="info-value">

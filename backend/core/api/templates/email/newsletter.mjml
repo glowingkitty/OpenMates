@@ -119,10 +119,20 @@
         </mj-column>
       </mj-section>
       {% endif %}
+
+      <!-- Block All Emails Link -->
+      {% if block_list_url %}
+      <mj-section padding="10px 0 20px 0">
+        <mj-column>
+          <mj-text font-size="14px" color="#666666">
+            {{ t.email.did_not_request_email.text }}
+          </mj-text>
+        </mj-column>
+      </mj-section>
+      {% endif %}
     </mj-wrapper>
     
     <!-- Footer -->
     <mj-include path="./components/footer.mjml" />
   </mj-body>
 </mjml>
-

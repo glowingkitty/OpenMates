@@ -928,7 +928,13 @@ export class EmbedStore {
    * @param hashedChatId - Optional hashed chat ID to try chat key unwrapping
    * @returns Promise<Uint8Array | null> - The unwrapped embed key or null
    */
-  async getEmbedKey(embedId: string, hashedChatId?: string): Promise<Uint8Array | null> {
+  async getEmbedKey(embedId: string, hashedChatId?: string, visited: Set<string> = new Set()): Promise<Uint8Array | null> {
+    if (visited.has(embedId)) {
+      console.warn('[EmbedStore] Detected embed key lookup cycle, aborting:', embedId);
+      return null;
+    }
+    visited.add(embedId);
+
     // Check cache first
     const cacheKey = `${embedId}:${hashedChatId || 'master'}`;
     if (embedKeyCache.has(cacheKey)) {
@@ -953,6 +959,24 @@ export class EmbedStore {
     console.debug('[EmbedStore] Cache miss for:', embedId, 'cacheKey:', cacheKey, 'hashedChatId:', hashedChatId);
     console.debug('[EmbedStore] Current cache keys:', Array.from(embedKeyCache.keys()).filter(k => k.startsWith(embedId + ':')));
 
+    // Child embed support: child embeds inherit the parent's embed_key.
+    // In shared chats, only the parent's wrapped key exists in embed_keys, so for child embeds
+    // we must resolve the parent key and reuse it.
+    try {
+      const rawEntry = await this.getRawEntry(embedId);
+      const parentEmbedId = rawEntry?.parent_embed_id;
+      if (parentEmbedId && parentEmbedId !== embedId) {
+        const parentKey = await this.getEmbedKey(parentEmbedId, hashedChatId, visited);
+        if (parentKey) {
+          embedKeyCache.set(cacheKey, parentKey);
+          embedKeyCache.set(`${embedId}:master`, parentKey);
+          console.debug('[EmbedStore] ✅ Reused parent embed key for child embed:', embedId, 'parent:', parentEmbedId);
+          return parentKey;
+        }
+      }
+    } catch (error) {
+      console.debug('[EmbedStore] Child embed key fallback failed (will try direct keys):', error);
+    }
 
     try {
       // Compute hashed_embed_id for lookup
@@ -961,7 +985,6 @@ export class EmbedStore {
         hashedEmbedId.substring(0, 16) + '...', 'for embedId:', embedId);
 
       // Try to load embed keys from IndexedDB (ONLY for parent embeds)
-      // Child embeds are handled at the start of this function and use parent key
       const keys = await this.getEmbedKeyEntries(hashedEmbedId);
 
       if (keys && keys.length > 0) {
@@ -1015,65 +1038,6 @@ export class EmbedStore {
           }
         }
         console.warn('[EmbedStore] ❌ All chat key fallback attempts failed for:', embedId);
-      }
-
-      // Try key_type='embed' entries (child embeds wrapped with parent embed key)
-      // This is used for shared embeds where child embeds are wrapped with the parent embed key
-      const embedKeyEntries = keys.filter(k => k.key_type === 'embed');
-      if (embedKeyEntries.length > 0) {
-        console.debug('[EmbedStore] Found', embedKeyEntries.length, 'embed key entries (child embeds) for:', embedId);
-        
-        // For key_type='embed' entries, we need to find the parent embed key
-        // The parent_embed_id in embed_keys is a hashed_embed_id, so we need to find the parent
-        // by checking all cached embed keys and matching hashed_embed_id
-        const hashedEmbedId = await computeSHA256(embedId);
-        
-        // Try to find parent embed by checking cached embed keys
-        // We'll try all cached keys to see if any match the parent_embed_id from embed_keys entries
-        for (const embedKeyEntry of embedKeyEntries) {
-          if (embedKeyEntry.parent_embed_id) {
-            // parent_embed_id is a hashed_embed_id, so we need to find the actual embed_id
-            // by checking all cached embed keys
-            let parentKey: Uint8Array | null = null;
-            let parentEmbedId: string | null = null;
-            
-            // Try to find parent embed key by checking all cached keys
-            // This is a fallback - ideally the parent key should already be cached
-            for (const [cacheKey, cachedKey] of embedKeyCache.entries()) {
-              const [cachedEmbedId] = cacheKey.split(':');
-              if (cachedEmbedId) {
-                const cachedHashedEmbedId = await computeSHA256(cachedEmbedId);
-                if (cachedHashedEmbedId === embedKeyEntry.parent_embed_id) {
-                  parentKey = cachedKey;
-                  parentEmbedId = cachedEmbedId;
-                  console.debug('[EmbedStore] Found parent embed key in cache by matching hashed_embed_id:', parentEmbedId);
-                  break;
-                }
-              }
-            }
-            
-            // If we found a parent key, try to unwrap the child embed key
-            if (parentKey) {
-              try {
-                const { unwrapEmbedKeyWithEmbedKey } = await import('./cryptoService');
-                const childEmbedKey = await unwrapEmbedKeyWithEmbedKey(embedKeyEntry.encrypted_embed_key, parentKey);
-                if (childEmbedKey) {
-                  // Cache the unwrapped child embed key
-                  embedKeyCache.set(cacheKey, childEmbedKey);
-                  // Also cache with 'master' as fallback
-                  const masterCacheKey = `${embedId}:master`;
-                  embedKeyCache.set(masterCacheKey, childEmbedKey);
-                  console.debug('[EmbedStore] ✅ Unwrapped child embed key with parent embed key:', embedId, 'parent:', parentEmbedId);
-                  return childEmbedKey;
-                }
-              } catch (error) {
-                console.warn('[EmbedStore] Failed to unwrap child embed key with parent key:', error);
-              }
-            } else {
-              console.debug('[EmbedStore] Parent embed key not found in cache for child embed:', embedId, 'parent_embed_id (hashed):', embedKeyEntry.parent_embed_id?.substring(0, 16) + '...');
-            }
-          }
-        }
       }
 
       // No direct key found - this should not happen for child embeds (they're handled at the start)

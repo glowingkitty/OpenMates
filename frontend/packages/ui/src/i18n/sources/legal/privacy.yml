@@ -414,26 +414,26 @@ mailjet.heading:
   verified_by_human: []
 mailjet.description:
   context: Description of Mailjet service
-  en: We use Mailjet (EU company) for email sending, including transactional emails such as account verification, security alerts, and notifications for web application users.
-  de: Wir verwenden Mailjet (EU-Unternehmen) zum Versenden von E-Mails, einschließlich Transaktions-E-Mails wie Kontoverifizierung, Sicherheitswarnungen und Benachrichtigungen für Webanwendungsbenutzer.
-  zh: 我们使用 Mailjet（欧盟公司）发送电子邮件，包括交易电子邮件，例如帐户验证、安全警报和 Web 应用程序用户的通知。
-  es: Utilizamos Mailjet (empresa de la UE) para el envío de correos electrónicos, incluidos correos transaccionales como verificación de cuenta, alertas de seguridad y notificaciones para usuarios de aplicaciones web.
-  fr: Nous utilisons Mailjet (entreprise de l'UE) pour l'envoi d'e-mails, y compris les e-mails transactionnels tels que la vérification de compte, les alertes de sécurité et les notifications pour les utilisateurs de l'application web.
-  pt: Usamos Mailjet (empresa da UE) para envio de e-mails, incluindo e-mails transacionais como verificação de conta, alertas de segurança e notificações para usuários de aplicações web.
-  ru: Мы используем Mailjet (компания ЕС) для отправки электронной почты, включая транзакционные письма, такие как проверка учетной записи, предупреждения безопасности и уведомления для пользователей веб-приложения.
-  ja: 当社は、アカウント確認、セキュリティアラート、ウェブアプリケーションユーザーへの通知などのトランザクション電子メールを含む電子メール送信にMailjet（EU企業）を使用しています。
-  ko: 계정 확인, 보안 경고 및 웹 애플리케이션 사용자 알림과 같은 트랜잭션 이메일을 포함하여 이메일 전송에 Mailjet(EU 회사)을 사용합니다.
-  it: Utilizziamo Mailjet (azienda UE) per l'invio di e-mail, inclusi e-mail transazionali come verifica dell'account, avvisi di sicurezza e notifiche per gli utenti dell'applicazione web.
-  tr: Hesap doğrulama, güvenlik uyarıları ve web uygulaması kullanıcıları için bildirimler gibi işlem e-postaları dahil olmak üzere e-posta göndermek için Mailjet (AB şirketi) kullanıyoruz.
-  vi: Chúng tôi sử dụng Mailjet (công ty EU) để gửi email, bao gồm email giao dịch như xác minh tài khoản, cảnh báo bảo mật và thông báo cho người dùng ứng dụng web.
-  id: Kami menggunakan Mailjet (perusahaan UE) untuk pengiriman email, termasuk email transaksional seperti verifikasi akun, peringatan keamanan, dan notifikasi untuk pengguna aplikasi web.
-  pl: Używamy Mailjet (firma UE) do wysyłania e-maili, w tym e-maili transakcyjnych, takich jak weryfikacja konta, alerty bezpieczeństwa i powiadomienia dla użytkowników aplikacji internetowej.
-  nl: We gebruiken Mailjet (EU-bedrijf) voor het verzenden van e-mails, inclusief transactionele e-mails zoals accountverificatie, beveiligingswaarschuwingen en meldingen voor webapplicatiegebruikers.
-  ar: نستخدم Mailjet (شركة الاتحاد الأوروبي) لإرسال البريد الإلكتروني، بما في ذلك رسائل البريد الإلكتروني المعاملاتية مثل التحقق من الحساب وتنبيهات الأمان والإشعارات لمستخدمي تطبيق الويب.
-  hi: हम वेब एप्लिकेशन उपयोगकर्ताओं के लिए खाता सत्यापन, सुरक्षा अलर्ट और सूचनाओं जैसे लेनदेन ईमेल सहित ईमेल भेजने के लिए Mailjet (EU कंपनी) का उपयोग करते हैं।
-  th: เราใช้ Mailjet (บริษัทสหภาพยุโรป) สำหรับการส่งอีเมล รวมถึงอีเมลธุรกรรม เช่น การยืนยันบัญชี การแจ้งเตือนด้านความปลอดภัย และการแจ้งเตือนสำหรับผู้ใช้แอปพลิเคชันเว็บ
-  cs: Používáme Mailjet (společnost EU) pro odesílání e-mailů, včetně transakčních e-mailů, jako je ověření účtu, bezpečnostní upozornění a oznámení pro uživatele webové aplikace.
-  sv: Vi använder Mailjet (EU-företag) för att skicka e-post, inklusive transaktions-e-post som kontoverifiering, säkerhetsvarningar och meddelanden för webbapplikationsanvändare.
+  en: We use Mailjet (EU company) to send emails. This includes account-related transactional emails (e.g., account verification, security alerts) and, if you subscribe, newsletter emails. Your email address and the email content are shared with Mailjet for delivery.
+  de: Wir verwenden Mailjet (EU-Unternehmen) zum Versenden von E-Mails. Dazu gehören transaktionale E-Mails rund um dein Konto (z. B. Kontoverifizierung, Sicherheitswarnungen) sowie – falls du dich anmeldest – Newsletter-E-Mails. Deine E-Mail-Adresse und der Inhalt der E-Mail werden zum Versand an Mailjet übermittelt.
+  zh: 我们使用 Mailjet（欧盟公司）发送电子邮件。这包括与账户相关的交易邮件（例如账户验证、安全警报）以及（如果你订阅）新闻通讯邮件。为实现投递，你的电子邮件地址和邮件内容会被提供给 Mailjet。
+  es: Utilizamos Mailjet (empresa de la UE) para enviar correos electrónicos. Esto incluye correos transaccionales relacionados con la cuenta (p. ej., verificación de cuenta, alertas de seguridad) y, si te suscribes, correos del boletín. Tu dirección de correo electrónico y el contenido del correo se comparten con Mailjet para su entrega.
+  fr: Nous utilisons Mailjet (entreprise de l'UE) pour envoyer des e-mails. Cela inclut des e-mails transactionnels liés au compte (p. ex. vérification de compte, alertes de sécurité) et, si vous vous abonnez, des e-mails de newsletter. Votre adresse e-mail et le contenu de l'e-mail sont partagés avec Mailjet pour la délivrance.
+  pt: Usamos a Mailjet (empresa da UE) para enviar e-mails. Isso inclui e-mails transacionais relacionados à conta (por exemplo, verificação de conta, alertas de segurança) e, se você assinar, e-mails de newsletter. Seu endereço de e-mail e o conteúdo do e-mail são compartilhados com a Mailjet para entrega.
+  ru: Мы используем Mailjet (компания ЕС) для отправки электронной почты. Это включает транзакционные письма, связанные с аккаунтом (например, подтверждение аккаунта, предупреждения безопасности), а также, если вы подписались, письма рассылки. Ваш адрес электронной почты и содержимое письма передаются Mailjet для доставки.
+  ja: 当社はメール送信にMailjet（EU企業）を利用しています。これにはアカウントに関するトランザクションメール（例：アカウント確認、セキュリティアラート）および（購読した場合）ニュースレターのメールが含まれます。配信のため、お客様のメールアドレスとメール内容はMailjetに共有されます。
+  ko: '당사는 이메일 발송을 위해 Mailjet(EU 회사)을 사용합니다. 여기에는 계정 관련 트랜잭션 이메일(예: 계정 확인, 보안 경고)과, 구독한 경우 뉴스레터 이메일이 포함됩니다. 발송을 위해 귀하의 이메일 주소와 이메일 내용이 Mailjet과 공유됩니다.'
+  it: Utilizziamo Mailjet (azienda UE) per inviare e-mail. Ciò include e-mail transazionali relative all'account (ad es. verifica dell'account, avvisi di sicurezza) e, se ti iscrivi, e-mail della newsletter. Il tuo indirizzo e-mail e il contenuto dell'e-mail vengono condivisi con Mailjet per la consegna.
+  tr: E-posta göndermek için Mailjet'i (AB şirketi) kullanıyoruz. Buna hesapla ilgili işlem e-postaları (ör. hesap doğrulama, güvenlik uyarıları) ve abone olmanız halinde bülten e-postaları dahildir. Teslimat için e-posta adresiniz ve e-posta içeriği Mailjet ile paylaşılır.
+  vi: 'Chúng tôi sử dụng Mailjet (công ty EU) để gửi email. Điều này bao gồm email giao dịch liên quan đến tài khoản (ví dụ: xác minh tài khoản, cảnh báo bảo mật) và, nếu bạn đăng ký, email bản tin. Địa chỉ email và nội dung email của bạn được chia sẻ với Mailjet để phục vụ việc gửi.'
+  id: Kami menggunakan Mailjet (perusahaan UE) untuk mengirim email. Ini mencakup email transaksional terkait akun (misalnya verifikasi akun, peringatan keamanan) dan, jika Anda berlangganan, email newsletter. Alamat email Anda dan konten email dibagikan kepada Mailjet untuk pengiriman.
+  pl: Używamy Mailjet (firma z UE) do wysyłania e-maili. Obejmuje to transakcyjne e-maile związane z kontem (np. weryfikacja konta, alerty bezpieczeństwa) oraz — jeśli się zapiszesz — e-maile newslettera. Twój adres e-mail i treść wiadomości są przekazywane do Mailjet w celu dostarczenia.
+  nl: We gebruiken Mailjet (EU-bedrijf) om e-mails te verzenden. Dit omvat transactionele e-mails die met je account te maken hebben (bijv. accountverificatie, beveiligingswaarschuwingen) en, als je je abonneert, nieuwsbrief-e-mails. Je e-mailadres en de inhoud van de e-mail worden gedeeld met Mailjet voor bezorging.
+  ar: نستخدم Mailjet (شركة في الاتحاد الأوروبي) لإرسال رسائل البريد الإلكتروني. يشمل ذلك رسائل البريد الإلكتروني المعاملاتية المتعلقة بالحساب (مثل التحقق من الحساب وتنبيهات الأمان) وكذلك رسائل النشرة البريدية إذا اشتركت. تتم مشاركة عنوان بريدك الإلكتروني ومحتوى الرسالة مع Mailjet لأغراض الإرسال.
+  hi: हम ईमेल भेजने के लिए Mailjet (EU कंपनी) का उपयोग करते हैं। इसमें खाते से संबंधित लेनदेन ईमेल (जैसे खाता सत्यापन, सुरक्षा अलर्ट) और, यदि आप सदस्यता लेते हैं, न्यूज़लेटर ईमेल शामिल हैं। डिलीवरी के लिए आपका ईमेल पता और ईमेल की सामग्री Mailjet के साथ साझा की जाती है।
+  th: เราใช้ Mailjet (บริษัทในสหภาพยุโรป) เพื่อส่งอีเมล ซึ่งรวมถึงอีเมลธุรกรรมที่เกี่ยวข้องกับบัญชี (เช่น การยืนยันบัญชี การแจ้งเตือนด้านความปลอดภัย) และหากคุณสมัครรับข่าวสาร อีเมลจดหมายข่าวด้วย เพื่อการจัดส่ง เราจะแชร์ที่อยู่อีเมลและเนื้อหาอีเมลของคุณกับ Mailjet
+  cs: Používáme Mailjet (společnost v EU) k odesílání e-mailů. To zahrnuje transakční e-maily související s účtem (např. ověření účtu, bezpečnostní upozornění) a také newsletterové e-maily, pokud se přihlásíte k odběru. Vaše e-mailová adresa a obsah e-mailu jsou pro doručení sdíleny se službou Mailjet.
+  sv: Vi använder Mailjet (EU-företag) för att skicka e-post. Detta inkluderar transaktionsmejl kopplade till kontot (t.ex. kontoverifiering, säkerhetsvarningar) och, om du prenumererar, nyhetsbrevsmejl. Din e-postadress och e-postens innehåll delas med Mailjet för leverans.
   verified_by_human: []
 mailjet.privacy_policy_link:
   context: Link text for Mailjet's privacy policy

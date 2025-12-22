@@ -44,17 +44,13 @@
         children?: any;
     } = $props();
 
-    // For backward compatibility using Svelte 5 runes
-    $effect(() => {
-        if (subtitle && !subtitleTop) {
-            subtitleTop = subtitle;
-        }
-    });
+    // Backward-compat: `subtitle` is an alias for `subtitleTop`, without mutating props.
+    let displaySubtitleTop = $derived(subtitleTop ?? subtitle);
 
     // Computed values
     let isClickable = $derived(onClick !== undefined);
     let isSubmenuWithoutModify = $derived(type === 'submenu' && !hasModifyButton);
-    let hasAnySubtitle = $derived(subtitleTop || subtitleBottom);
+    let hasAnySubtitle = $derived(displaySubtitleTop || subtitleBottom);
     let iconClass = $derived(type === 'quickaction' || type === 'subsubmenu' ? 
         `icon settings_size subsetting_icon ${icon}` : `icon settings_size ${icon}`);
 
@@ -140,11 +136,11 @@
                 </div>
             </div>
             
-            <div class="text-and-nested-container">
-                <div class="text-container" class:has-title={!!title} class:has-subtitle={hasAnySubtitle} class:heading-text={type === 'heading'}>
+                <div class="text-and-nested-container">
+                    <div class="text-container" class:has-title={!!title} class:has-subtitle={hasAnySubtitle} class:heading-text={type === 'heading'}>
                     <!-- Top subtitle if present -->
-                    {#if subtitleTop}
-                        <div class="menu-subtitle-top">{subtitleTop}</div>
+                    {#if displaySubtitleTop}
+                        <div class="menu-subtitle-top">{displaySubtitleTop}</div>
                     {/if}
                     
                     <!-- Main title -->
@@ -206,8 +202,8 @@
                 >
                     <Toggle 
                         bind:checked
-                        name={title || subtitleTop.toLowerCase()}
-                        ariaLabel={`Toggle ${(title || subtitleTop).toLowerCase()} mode`}
+                        name={title || displaySubtitleTop?.toLowerCase?.() || ''}
+                        ariaLabel={`Toggle ${(title || displaySubtitleTop || '').toLowerCase()} mode`}
                         disabled={disabled}
                     />
                 </div>
