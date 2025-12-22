@@ -946,48 +946,52 @@ export class EmbedStore {
    * @returns Promise<Uint8Array | null> - The unwrapped embed key or null
    */
   async getEmbedKey(embedId: string, hashedChatId?: string, visited: Set<string> = new Set()): Promise<Uint8Array | null> {
-    if (visited.has(embedId)) {
+    const normalizedEmbedId = embedId.startsWith('embed:') ? embedId.slice('embed:'.length) : embedId;
+    const contentRef = `embed:${normalizedEmbedId}`;
+
+    if (visited.has(normalizedEmbedId)) {
       console.warn('[EmbedStore] Detected embed key lookup cycle, aborting:', embedId);
       return null;
     }
-    visited.add(embedId);
+    visited.add(normalizedEmbedId);
 
     // Check cache first
-    const cacheKey = `${embedId}:${hashedChatId || 'master'}`;
+    const cacheKey = `${normalizedEmbedId}:${hashedChatId || 'master'}`;
     if (embedKeyCache.has(cacheKey)) {
       const cachedKey = embedKeyCache.get(cacheKey)!;
-      console.debug('[EmbedStore] ✅ Found embed key in cache:', embedId, 'cacheKey:', cacheKey);
+      console.debug('[EmbedStore] ✅ Found embed key in cache:', normalizedEmbedId, 'cacheKey:', cacheKey);
       return cachedKey;
     }
     
     // Fallback: If hashedChatId was provided but cache lookup failed, try 'master' cache key
     if (hashedChatId) {
-      const masterCacheKey = `${embedId}:master`;
+      const masterCacheKey = `${normalizedEmbedId}:master`;
       if (embedKeyCache.has(masterCacheKey)) {
         const masterKey = embedKeyCache.get(masterCacheKey)!;
         // Also cache it with the hashedChatId for future lookups
         embedKeyCache.set(cacheKey, masterKey);
-        console.debug('[EmbedStore] Found embed key in master cache, also cached with hashedChatId:', embedId);
+        console.debug('[EmbedStore] Found embed key in master cache, also cached with hashedChatId:', normalizedEmbedId);
         return masterKey;
       }
     }
     
     // Debug: Log all cache keys to help diagnose cache misses
-    console.debug('[EmbedStore] Cache miss for:', embedId, 'cacheKey:', cacheKey, 'hashedChatId:', hashedChatId);
-    console.debug('[EmbedStore] Current cache keys:', Array.from(embedKeyCache.keys()).filter(k => k.startsWith(embedId + ':')));
+    console.debug('[EmbedStore] Cache miss for:', normalizedEmbedId, 'cacheKey:', cacheKey, 'hashedChatId:', hashedChatId);
+    console.debug('[EmbedStore] Current cache keys:', Array.from(embedKeyCache.keys()).filter(k => k.startsWith(normalizedEmbedId + ':')));
 
     // Child embed support: child embeds inherit the parent's embed_key.
     // In shared chats, only the parent's wrapped key exists in embed_keys, so for child embeds
     // we must resolve the parent key and reuse it.
     try {
-      const rawEntry = await this.getRawEntry(embedId);
+      const rawEntry = await this.getRawEntry(contentRef);
       const parentEmbedId = rawEntry?.parent_embed_id;
-      if (parentEmbedId && parentEmbedId !== embedId) {
-        const parentKey = await this.getEmbedKey(parentEmbedId, hashedChatId, visited);
+      if (parentEmbedId && parentEmbedId !== normalizedEmbedId) {
+        const normalizedParentEmbedId = parentEmbedId.startsWith('embed:') ? parentEmbedId.slice('embed:'.length) : parentEmbedId;
+        const parentKey = await this.getEmbedKey(normalizedParentEmbedId, hashedChatId, visited);
         if (parentKey) {
           embedKeyCache.set(cacheKey, parentKey);
-          embedKeyCache.set(`${embedId}:master`, parentKey);
-          console.debug('[EmbedStore] ✅ Reused parent embed key for child embed:', embedId, 'parent:', parentEmbedId);
+          embedKeyCache.set(`${normalizedEmbedId}:master`, parentKey);
+          console.debug('[EmbedStore] ✅ Reused parent embed key for child embed:', normalizedEmbedId, 'parent:', normalizedParentEmbedId);
           return parentKey;
         }
       }
@@ -997,9 +1001,9 @@ export class EmbedStore {
 
     try {
       // Compute hashed_embed_id for lookup
-      const hashedEmbedId = await computeSHA256(embedId);
+      const hashedEmbedId = await computeSHA256(normalizedEmbedId);
       console.debug('[EmbedStore] Looking up embed keys with hashedEmbedId:', 
-        hashedEmbedId.substring(0, 16) + '...', 'for embedId:', embedId);
+        hashedEmbedId.substring(0, 16) + '...', 'for embedId:', normalizedEmbedId);
 
       // Try to load embed keys from IndexedDB (ONLY for parent embeds)
       const keys = await this.getEmbedKeyEntries(hashedEmbedId);

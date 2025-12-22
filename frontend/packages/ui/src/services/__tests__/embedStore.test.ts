@@ -16,7 +16,7 @@ describe('EmbedStore.getEmbedKey', () => {
     vi.spyOn(cryptoService, 'unwrapEmbedKeyWithMasterKey').mockResolvedValue(expectedKey);
 
     vi.spyOn(store, 'getRawEntry').mockImplementation(async (contentRef: string) => {
-      if (contentRef === 'child-embed') {
+      if (contentRef === 'embed:child-embed') {
         return { parent_embed_id: 'parent-embed', embed_ids: undefined };
       }
       return { parent_embed_id: undefined, embed_ids: undefined };
@@ -46,8 +46,8 @@ describe('EmbedStore.getEmbedKey', () => {
     const store = new EmbedStore();
 
     vi.spyOn(store, 'getRawEntry').mockImplementation(async (contentRef: string) => {
-      if (contentRef === 'a') return { parent_embed_id: 'b', embed_ids: undefined };
-      if (contentRef === 'b') return { parent_embed_id: 'a', embed_ids: undefined };
+      if (contentRef === 'embed:a') return { parent_embed_id: 'b', embed_ids: undefined };
+      if (contentRef === 'embed:b') return { parent_embed_id: 'a', embed_ids: undefined };
       return { parent_embed_id: undefined, embed_ids: undefined };
     });
     vi.spyOn(store, 'getEmbedKeyEntries').mockResolvedValue([]);
