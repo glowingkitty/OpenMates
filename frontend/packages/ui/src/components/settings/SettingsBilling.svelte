@@ -52,10 +52,10 @@ Billing Settings - Credit purchases, subscription management, and auto top-up co
 
             if (response.ok) {
                 const data = await response.json();
-                subscriptionDetails = data;
-                hasActiveSubscription = data.status === 'active';
+                subscriptionDetails = data?.subscription ?? null;
+                hasActiveSubscription = Boolean(data?.has_subscription && subscriptionDetails?.status === 'active');
             } else if (response.status === 404) {
-                // No subscription found
+                // Endpoint not available (payments disabled) or legacy "no subscription" response
                 hasActiveSubscription = false;
                 subscriptionDetails = null;
             } else {

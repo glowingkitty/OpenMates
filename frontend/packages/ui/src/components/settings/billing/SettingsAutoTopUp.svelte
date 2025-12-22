@@ -43,10 +43,10 @@ Auto Top-Up Settings - Submenu for low balance and monthly auto top-up options
 
             if (response.ok) {
                 const data = await response.json();
-                subscriptionDetails = data;
-                hasActiveSubscription = data.status === 'active';
+                subscriptionDetails = data?.subscription ?? null;
+                hasActiveSubscription = Boolean(data?.has_subscription && subscriptionDetails?.status === 'active');
             } else if (response.status === 404) {
-                // No subscription found
+                // Endpoint not available (payments disabled) or legacy "no subscription" response
                 hasActiveSubscription = false;
                 subscriptionDetails = null;
             }
@@ -89,7 +89,7 @@ Auto Top-Up Settings - Submenu for low balance and monthly auto top-up options
     icon="subsetting_icon subsetting_icon_calendar"
     title={$text('settings.billing.monthly.text')}
     subtitle={hasActiveSubscription && subscriptionDetails
-        ? `${$text('settings.active.text')} - ${formatCredits(subscriptionDetails.credits || 0)} ${$text('settings.billing.credits.text')}/month`
+        ? `${$text('settings.active.text')} - ${formatCredits(subscriptionDetails.credits_amount || 0)} ${$text('settings.billing.credits.text')}/month`
         : $text('settings.billing.no_subscription.text')}
     onClick={() => navigateToSubview('monthly')}
 />

@@ -23,6 +23,13 @@
     
     // Server edition state - will be fetched on mount
     let serverEdition = $state<string | null>(null);
+    let serverEditionLabel = $derived(
+        serverEdition === 'self_hosted'
+            ? $text('header.self_hosting_edition.text')
+            : serverEdition === 'development'
+              ? $text('header.development_server.text')
+              : $text('signup.version_title.text')
+    );
 
     let headerDiv: HTMLElement;
 
@@ -252,8 +259,8 @@
                         >
                             <strong><mark>Open</mark><span style="color: var(--color-grey-100);">Mates</span></strong>
                         </a>
-                        {#if serverEdition === 'self_hosted'}
-                            <div 
+                        {#if serverEdition === 'self_hosted' || serverEdition === 'development'}
+                            <div
                                 class="server-edition"
                                 onclick={handleLogoClick}
                                 role="button"
@@ -265,23 +272,10 @@
                                     }
                                 }}
                             >
-                                {$text('header.self_hosting_edition.text')}
+                                {serverEditionLabel}
                             </div>
-                        {:else if serverEdition === 'development'}
-                            <div 
-                                class="server-edition"
-                                onclick={handleLogoClick}
-                                role="button"
-                                tabindex="0"
-                                onkeydown={(e) => {
-                                    if (e.key === 'Enter' || e.key === ' ') {
-                                        e.preventDefault();
-                                        handleLogoClick(e as any);
-                                    }
-                                }}
-                            >
-                                {$text('header.development_server.text')}
-                            </div>
+                        {:else}
+                            <div class="server-edition">{serverEditionLabel}</div>
                         {/if}
                     </div>
                 </div>

@@ -55,7 +55,7 @@ def process_invoice_and_send_email(
                 self, order_id, user_id, credits_purchased,
                 sender_addressline1, sender_addressline2, sender_addressline3,
                 sender_country, sender_email, sender_vat,
-                email_encryption_key, is_gift_card
+                email_encryption_key, is_gift_card, is_auto_topup
             )
         )
         logger.info(f"Invoice processing task completed for Order ID: {order_id}, User ID: {user_id}. Success: {result}")
@@ -78,7 +78,8 @@ async def _async_process_invoice_and_send_email(
     sender_email: str,
     sender_vat: str,
     email_encryption_key: Optional[str] = None,  # Add email encryption key parameter
-    is_gift_card: bool = False  # Flag to indicate if this is a gift card purchase
+    is_gift_card: bool = False,  # Flag to indicate if this is a gift card purchase
+    is_auto_topup: bool = False,  # Flag to indicate if this is auto top-up (use server-side email decryption)
 ) -> bool:
     """
     Async implementation for invoice processing.
@@ -202,12 +203,12 @@ async def _async_process_invoice_and_send_email(
             logger.info(f"Auto top-up invoice task {order_id} - using server-side email decryption")
 
             # Try auto top-up specific email first
-            encrypted_email_auto_topup = user_data.get('encrypted_email_auto_topup')
+            encrypted_email_auto_topup = user_profile.get("encrypted_email_auto_topup")
             if encrypted_email_auto_topup:
                 try:
                     decrypted_email = await task.encryption_service.decrypt_with_user_key(
                         ciphertext=encrypted_email_auto_topup,
-                        key_id=user_data['vault_key_id']
+                        key_id=vault_key_id
                     )
                     logger.info(f"Successfully decrypted auto top-up email for invoice task {order_id}")
                 except Exception as auto_email_error:
@@ -218,7 +219,7 @@ async def _async_process_invoice_and_send_email(
                 try:
                     decrypted_email = await task.encryption_service.decrypt_with_user_key(
                         ciphertext=encrypted_email,
-                        key_id=user_data['vault_key_id']
+                        key_id=vault_key_id
                     )
                     logger.info(f"Successfully decrypted regular email with vault key for auto top-up invoice task {order_id}")
                 except Exception as vault_email_error:

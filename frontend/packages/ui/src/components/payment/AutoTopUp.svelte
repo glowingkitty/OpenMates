@@ -54,8 +54,8 @@ Matches the design from the signup flow screenshot.
 
             if (response.ok) {
                 const data = await response.json();
-                subscriptionDetails = data;
-                hasActiveSubscription = data.status === 'active';
+                subscriptionDetails = data?.subscription ?? null;
+                hasActiveSubscription = Boolean(data?.has_subscription && subscriptionDetails?.status === 'active');
                 // Sync monthly toggle with subscription status
                 monthlyEnabled = hasActiveSubscription;
                 console.debug('[AutoTopUp] Subscription status:', hasActiveSubscription, data);

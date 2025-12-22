@@ -402,7 +402,8 @@ async def update_low_balance_auto_topup(
     request_data: AutoTopUpLowBalanceRequest,
     current_user: User = Depends(get_current_user_or_api_key),  # Supports both session and API key auth
     directus_service: DirectusService = Depends(get_directus_service),
-    cache_service: CacheService = Depends(get_cache_service)
+    cache_service: CacheService = Depends(get_cache_service),
+    encryption_service: EncryptionService = Depends(get_encryption_service)
 ):
     """
     Updates the user's low balance auto top-up settings.
@@ -454,18 +455,8 @@ async def update_low_balance_auto_topup(
         if request_data.enabled and request_data.email:
             # User is enabling auto top-up and provided email for notifications
             try:
-                # Get encryption service
-                from backend.core.api.app.utils.encryption import EncryptionService
-                from backend.core.api.app.services.cache import CacheService
-
-                # Get cache service for encryption service initialization
-                encryption_cache_service = CacheService()
-                await encryption_cache_service.initialize()
-                encryption_service = EncryptionService(encryption_cache_service)
-
                 # Get user's vault key for server-side encryption
-                user_data = await cache_service.get_user_by_id(user_id)
-                vault_key_id = user_data.get('vault_key_id') if user_data else None
+                vault_key_id = current_user.vault_key_id
 
                 if not vault_key_id:
                     logger.warning(f"No vault key ID found for user {user_id}. Cannot encrypt email for auto top-up.")
@@ -1942,4 +1933,3 @@ async def report_issue(
     except Exception as e:
         logger.error(f"Error processing issue report: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to submit issue report. Please try again later.")
-
