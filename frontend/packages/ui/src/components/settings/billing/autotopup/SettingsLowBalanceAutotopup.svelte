@@ -9,9 +9,11 @@ Low Balance Auto Top-Up Settings - Configure automatic credit purchases when bal
     import { userProfile } from '../../../../stores/userProfile';
     import { pricingTiers } from '../../../../config/pricing';
     import Toggle from '../../../Toggle.svelte';
+    import { getEmailDecryptedWithMasterKey } from '../../../../services/cryptoService';
 
     let isLoading = $state(false);
     let errorMessage: string | null = $state(null);
+    let emailErrorMessage: string | null = $state(null);
 
     // Low balance auto top-up state
     let lowBalanceEnabled = $state(false);
@@ -75,8 +77,14 @@ Low Balance Auto Top-Up Settings - Configure automatic credit purchases when bal
     async function saveLowBalanceSettings() {
         isLoading = true;
         errorMessage = null;
+        emailErrorMessage = null;
 
         try {
+            const decryptedEmail = lowBalanceEnabled ? await getEmailDecryptedWithMasterKey() : null;
+            if (lowBalanceEnabled && !decryptedEmail) {
+                emailErrorMessage = 'Email could not be decrypted on this device. Log in again to unlock encryption keys.';
+                return;
+            }
             const response = await fetch(getApiEndpoint(apiEndpoints.settings.autoTopUp.lowBalance), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -85,7 +93,8 @@ Low Balance Auto Top-Up Settings - Configure automatic credit purchases when bal
                     enabled: lowBalanceEnabled,
                     threshold: lowBalanceThreshold,
                     amount: lowBalanceAmount,
-                    currency: lowBalanceCurrency.toLowerCase()
+                    currency: lowBalanceCurrency.toLowerCase(),
+                    ...(decryptedEmail ? { email: decryptedEmail } : {})
                 })
             });
 
@@ -113,6 +122,17 @@ Low Balance Auto Top-Up Settings - Configure automatic credit purchases when bal
         }
     }
 
+    async function handleLowBalanceToggleChange(event: CustomEvent<{ checked: boolean }>) {
+        emailErrorMessage = null;
+        if (!event.detail.checked) return;
+
+        const decryptedEmail = await getEmailDecryptedWithMasterKey();
+        if (!decryptedEmail) {
+            emailErrorMessage = 'Email could not be decrypted on this device. Log in again to unlock encryption keys.';
+            lowBalanceEnabled = false;
+        }
+    }
+
     onMount(() => {
         checkPaymentMethod();
     });
@@ -128,12 +148,17 @@ Low Balance Auto Top-Up Settings - Configure automatic credit purchases when bal
                 disabled={isLoading}
                 id="low-balance-toggle"
                 ariaLabel={lowBalanceEnabled ? 'Disable low balance auto top-up' : 'Enable low balance auto top-up'}
+                on:change={handleLowBalanceToggleChange}
             />
         </div>
         <p class="help-text">
             {$text('settings.billing.low_balance_help.text')}
         </p>
     </div>
+
+    {#if emailErrorMessage}
+        <div class="error-message">{emailErrorMessage}</div>
+    {/if}
 
     {#if lowBalanceEnabled}
         <!-- Threshold Display (Fixed at 100 credits) -->

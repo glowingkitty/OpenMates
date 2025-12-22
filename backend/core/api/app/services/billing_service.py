@@ -284,19 +284,40 @@ class BillingService:
         Runs asynchronously to not block the main credit deduction.
         """
         try:
-            # 1. Check cooldown period (prevent multiple triggers within 1 hour)
+            # 1. Check cooldown period - but only if user now has sufficient credits
+            # If they still have 0 credits, the previous auto top-up likely failed to add credits
+            current_credits = user.get('credits', 0)
             last_triggered = await self._get_last_topup_timestamp(user)
+
             if last_triggered and (time.time() - last_triggered) < 3600:
-                logger.info(f"Low balance auto top-up for user {user_id} on cooldown (last trigger: {int(time.time() - last_triggered)}s ago)")
+                # If user has credits now, respect the cooldown
+                if current_credits > 100:  # Above the auto top-up threshold
+                    logger.info(f"Low balance auto top-up for user {user_id} on cooldown (last trigger: {int(time.time() - last_triggered)}s ago)")
+                    return
+                else:
+                    # If user still has insufficient credits, previous auto top-up likely failed
+                    # Allow retry but with a shorter cooldown (5 minutes) to prevent spam
+                    if (time.time() - last_triggered) < 300:  # 5 minutes
+                        logger.info(f"Auto top-up retry for user {user_id} on short cooldown (last trigger: {int(time.time() - last_triggered)}s ago, waiting 5min)")
+                        return
+                    else:
+                        logger.info(f"Auto top-up retry for user {user_id} allowed - previous attempt may have failed to add credits")
+
+            # 2. Get customer ID - required for payment method verification
+            customer_id = user.get('stripe_customer_id')
+            if not customer_id:
+                logger.warning(f"No Stripe customer ID found for user {user_id} auto top-up. Feature may not be configured properly.")
                 return
 
-            # 2. Decrypt payment method
+            # 3. Decrypt payment method
+            logger.debug(f"Decrypting payment method for user {user_id} auto top-up")
             payment_method_id = await self._get_decrypted_payment_method(user)
             if not payment_method_id:
                 logger.warning(f"No payment method found for user {user_id} auto top-up. Feature may not be configured properly.")
                 return
+            logger.debug(f"Successfully decrypted payment method for user {user_id}: pm_****{payment_method_id[-4:]}")
 
-            # 3. Get configuration
+            # 4. Get configuration
             credits_amount = user.get('auto_topup_low_balance_amount')
             if not credits_amount or credits_amount <= 0:
                 logger.warning(f"Invalid credits amount for user {user_id} auto top-up: {credits_amount}")
@@ -304,16 +325,18 @@ class BillingService:
 
             currency = user.get('auto_topup_low_balance_currency', 'eur').lower()
 
-            # 4. Get pricing info from config
+            # 5. Get pricing info from config
             price_data = await self._get_price_for_tier(credits_amount, currency)
             if not price_data:
                 logger.error(f"No pricing found for {credits_amount} credits in {currency} for user {user_id}")
                 return
 
-            # 5. Get decrypted email for receipt
+            # 6. Get decrypted email for receipt
+            logger.debug(f"Decrypting email for user {user_id} auto top-up")
             email = await self._get_decrypted_email(user)
+            logger.debug(f"Email decryption result for user {user_id}: {'success' if email else 'failed/empty'}")
 
-            # 6. Create one-time PaymentIntent using existing payment service
+            # 7. Create PaymentIntent using existing payment service
             # Initialize SecretsManager with cache service
             from backend.core.api.app.utils.secrets_manager import SecretsManager
             from backend.core.api.app.services.payment.payment_service import PaymentService
@@ -336,31 +359,59 @@ class BillingService:
                 currency=currency,
                 email=email,
                 credits_amount=credits_amount,
-                customer_id=None  # Optional - can be None for one-time payments
+                customer_id=customer_id  # Required for auto top-up with saved payment method
             )
 
             if not order_result or not order_result.get('client_secret'):
                 logger.error(f"Failed to create payment intent for user {user_id} auto top-up")
                 return
 
-            # 7. Confirm payment with saved payment method using Stripe directly
+            # Cache the order for webhook processing (critical for credit addition)
+            payment_intent_id = order_result['id']
+            cache_success = await self.cache_service.set_order(
+                order_id=payment_intent_id,
+                user_id=user_id,
+                credits_amount=credits_amount,
+                currency=currency,
+                status="auto_topup_pending",
+                is_auto_topup=True  # Flag to indicate this is auto top-up (no client email key)
+            )
+
+            if not cache_success:
+                logger.error(f"Failed to cache auto top-up order {payment_intent_id} for user {user_id}. Webhook processing will fail.")
+                return
+
+            # 8. Validate payment method belongs to customer and confirm payment
             import stripe
             stripe.api_key = await self._get_stripe_api_key()
 
             try:
+                # Verify payment method belongs to customer (same validation as in payments.py)
+                payment_method = stripe.PaymentMethod.retrieve(payment_method_id)
+                if payment_method.customer != customer_id:
+                    logger.error(f"Payment method {payment_method_id} does not belong to customer {customer_id} for user {user_id}")
+                    return
+
                 # Use 'id' field from order_result (PaymentIntent ID)
+                # Include return_url for automatic payment methods that might redirect
                 confirmed_intent = stripe.PaymentIntent.confirm(
                     order_result['id'],
-                    payment_method=payment_method_id
+                    payment_method=payment_method_id,
+                    return_url="https://app.openmates.com/billing/return"  # Dummy URL for auto top-up (not used)
                 )
 
                 logger.info(f"Auto top-up payment confirmed for user {user_id}: {credits_amount} credits, Payment Intent: {confirmed_intent.id}")
 
+                # Update cached order status to completed so webhook can process it
+                await self.cache_service.update_order_status(payment_intent_id, "auto_topup_confirmed")
+
             except stripe.error.StripeError as e:
                 logger.error(f"Stripe error confirming auto top-up payment for user {user_id}: {e.user_message}", exc_info=True)
+                # Update cached order status to failed
+                await self.cache_service.update_order_status(payment_intent_id, "auto_topup_failed")
                 return
 
-            # 8. Update last triggered timestamp
+            # 9. Update last triggered timestamp
             await self._update_last_topup_timestamp(user_id)
 
             logger.info(f"✅ Auto top-up successfully triggered for user {user_id}: {credits_amount} credits via {currency.upper()}")
@@ -386,16 +437,21 @@ class BillingService:
             if not encrypted_timestamp:
                 return None
 
-            decrypted_timestamp = await self.encryption_service.decrypt_with_user_key(
-                ciphertext=encrypted_timestamp,
-                key_id=user['vault_key_id']
-            )
+            try:
+                decrypted_timestamp = await self.encryption_service.decrypt_with_user_key(
+                    ciphertext=encrypted_timestamp,
+                    key_id=user['vault_key_id']
+                )
 
-            # Store in cache for next time
-            timestamp_float = float(decrypted_timestamp)
-            user['auto_topup_last_triggered'] = timestamp_float
+                # Store in cache for next time
+                timestamp_float = float(decrypted_timestamp)
+                user['auto_topup_last_triggered'] = timestamp_float
 
-            return timestamp_float
+                return timestamp_float
+            except Exception as vault_error:
+                logger.warning(f"Failed to decrypt auto_topup_last_triggered, treating as not set: {vault_error}")
+                # Return None to indicate no timestamp available, which allows auto top-up to proceed
+                return None
         except Exception as e:
             logger.warning(f"Error getting last topup timestamp: {e}")
             return None
@@ -461,18 +517,34 @@ class BillingService:
     async def _get_decrypted_email(self, user: Dict[str, Any]) -> str:
         """
         Decrypts and returns user email for receipts.
+        For auto top-up, uses server-encrypted email field.
         Returns empty string if decryption fails.
         """
         try:
+            # First try auto top-up specific email (server-encrypted)
+            encrypted_email_auto_topup = user.get('encrypted_email_auto_topup')
+            if encrypted_email_auto_topup:
+                try:
+                    decrypted_email = await self.encryption_service.decrypt_with_user_key(
+                        ciphertext=encrypted_email_auto_topup,
+                        key_id=user['vault_key_id']
+                    )
+                    logger.debug("Successfully decrypted auto top-up email")
+                    return decrypted_email
+                except Exception as auto_email_error:
+                    logger.warning(f"Failed to decrypt auto top-up email, falling back to regular email: {auto_email_error}")
+
+            # Fallback to regular encrypted email (client-encrypted)
             encrypted_email = user.get('encrypted_email_address')
             if not encrypted_email:
+                logger.warning("No email address found for user")
                 return ""
 
             decrypted_email = await self.encryption_service.decrypt_with_user_key(
                 ciphertext=encrypted_email,
                 key_id=user['vault_key_id']
             )
-
+            logger.debug("Successfully decrypted regular email")
             return decrypted_email
         except Exception as e:
             logger.warning(f"Error decrypting email: {e}")

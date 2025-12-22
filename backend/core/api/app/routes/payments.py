@@ -856,9 +856,14 @@ async def payment_webhook(
                     sender_vat = await secrets_manager.get_secret(secret_path=invoice_sender_path, secret_key="vat")
                     
                     # Get the email encryption key from the cached order data
+                    # For auto top-up orders, we don't have a client email key
+                    is_auto_topup = cached_order_data.get("is_auto_topup", False)
                     email_encryption_key = cached_order_data.get("email_encryption_key")
-                    if not email_encryption_key:
+
+                    if not email_encryption_key and not is_auto_topup:
                         logger.warning(f"Email encryption key not found in cached order data for order {webhook_order_id}. Email decryption may fail.")
+                    elif is_auto_topup:
+                        logger.info(f"Auto top-up order {webhook_order_id} - will use server-side email decryption for invoice")
                     
                     task_payload = {
                         "order_id": webhook_order_id,
@@ -870,8 +875,9 @@ async def payment_webhook(
                         "sender_country": sender_country,
                         "sender_email": sender_email if sender_email else "support@openmates.org",
                         "sender_vat": sender_vat,
-                        "email_encryption_key": email_encryption_key,  # Pass the email encryption key to the task
-                        "is_gift_card": is_gift_card  # Pass gift card flag to invoice task
+                        "email_encryption_key": email_encryption_key,  # Pass the email encryption key to the task (None for auto top-up)
+                        "is_gift_card": is_gift_card,  # Pass gift card flag to invoice task
+                        "is_auto_topup": is_auto_topup  # Pass auto top-up flag to invoice task
                     }
                     app.send_task(
                         name='app.tasks.email_tasks.purchase_confirmation_email_task.process_invoice_and_send_email',

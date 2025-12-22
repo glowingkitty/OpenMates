@@ -421,6 +421,9 @@ async def update_low_balance_auto_topup(
     if request_data.currency.lower() not in ['eur', 'usd', 'jpy']:
         raise HTTPException(status_code=400, detail="Invalid currency. Must be EUR, USD, or JPY")
 
+    if request_data.enabled and not request_data.email:
+        raise HTTPException(status_code=400, detail="Email is required to enable low balance auto top-up")
+
     try:
         # Fixed threshold: always 100 credits (cannot be changed to simplify setup)
         FIXED_THRESHOLD = 100
@@ -446,6 +449,71 @@ async def update_low_balance_auto_topup(
         if not success_directus:
             logger.error(f"Failed to update Directus for auto top-up settings for user {user_id}")
             raise HTTPException(status_code=500, detail="Failed to save auto top-up settings")
+
+        # Handle email encryption for auto top-up notifications
+        if request_data.enabled and request_data.email:
+            # User is enabling auto top-up and provided email for notifications
+            try:
+                # Get encryption service
+                from backend.core.api.app.utils.encryption import EncryptionService
+                from backend.core.api.app.services.cache import CacheService
+
+                # Get cache service for encryption service initialization
+                encryption_cache_service = CacheService()
+                await encryption_cache_service.initialize()
+                encryption_service = EncryptionService(encryption_cache_service)
+
+                # Get user's vault key for server-side encryption
+                user_data = await cache_service.get_user_by_id(user_id)
+                vault_key_id = user_data.get('vault_key_id') if user_data else None
+
+                if not vault_key_id:
+                    logger.warning(f"No vault key ID found for user {user_id}. Cannot encrypt email for auto top-up.")
+                else:
+                    # Encrypt email using server-side vault encryption
+                    encrypted_email_tuple = await encryption_service.encrypt_with_user_key(
+                        plaintext=request_data.email,
+                        key_id=vault_key_id
+                    )
+
+                    if encrypted_email_tuple and encrypted_email_tuple[0]:
+                        encrypted_email = encrypted_email_tuple[0]
+
+                        # Store encrypted email for auto top-up
+                        email_update_data = {
+                            "encrypted_email_auto_topup": encrypted_email
+                        }
+
+                        # Update cache first
+                        cache_email_success = await cache_service.update_user(user_id, email_update_data)
+                        if cache_email_success:
+                            logger.info(f"Successfully cached encrypted email for auto top-up for user {user_id}")
+                        else:
+                            logger.warning(f"Failed to cache encrypted email for auto top-up for user {user_id}")
+
+                        # Update Directus
+                        directus_email_success = await directus_service.update_user(user_id, email_update_data)
+                        if directus_email_success:
+                            logger.info(f"Successfully stored encrypted email for auto top-up for user {user_id}")
+                        else:
+                            logger.warning(f"Failed to store encrypted email for auto top-up for user {user_id}")
+                    else:
+                        logger.error(f"Failed to encrypt email for auto top-up for user {user_id}")
+            except Exception as email_error:
+                logger.error(f"Error encrypting email for auto top-up for user {user_id}: {email_error}", exc_info=True)
+                # Don't fail the request, just log the error
+        elif not request_data.enabled:
+            # User is disabling auto top-up, optionally clear the encrypted email
+            try:
+                email_clear_data = {
+                    "encrypted_email_auto_topup": None
+                }
+
+                await cache_service.update_user(user_id, email_clear_data)
+                await directus_service.update_user(user_id, email_clear_data)
+                logger.info(f"Cleared encrypted email for auto top-up for user {user_id}")
+            except Exception as clear_error:
+                logger.warning(f"Error clearing encrypted email for auto top-up for user {user_id}: {clear_error}")
 
         logger.info(f"Successfully updated low balance auto top-up settings for user {user_id}")
         return SimpleSuccessResponse(
@@ -1874,5 +1942,4 @@ async def report_issue(
     except Exception as e:
         logger.error(f"Error processing issue report: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to submit issue report. Please try again later.")
-
 

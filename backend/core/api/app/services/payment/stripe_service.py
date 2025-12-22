@@ -71,7 +71,7 @@ class StripeService:
         if existing_customer_id:
             try:
                 customer = stripe.Customer.retrieve(existing_customer_id)
-                if customer and not customer.deleted:
+                if customer and not getattr(customer, 'deleted', False):
                     logger.debug(f"Using existing Stripe customer: {existing_customer_id}")
                     return existing_customer_id
                 else:
