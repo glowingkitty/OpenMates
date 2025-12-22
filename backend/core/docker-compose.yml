@@ -886,22 +886,22 @@ services:
   #########################################################################
   ##### Frontend Webapp (Static SvelteKit Build)
   #########################################################################
-  # webapp:
-  #   container_name: webapp
-  #   build:
-  #     context: ../../  # Build context is project root
-  #     dockerfile: frontend/apps/web_app/Dockerfile
-  #   restart: unless-stopped
-  #   ports:
-  #     - "5173:5173"
-  #   networks:
-  #     - openmates
-  #   healthcheck:
-  #     test: ["CMD", "wget", "-q", "--spider", "http://localhost:5173/"]
-  #     interval: 30s
-  #     timeout: 10s
-  #     retries: 3
-  #     start_period: 10s
+  webapp:
+    container_name: webapp
+    build:
+      context: ../../  # Build context is project root
+      dockerfile: frontend/apps/web_app/Dockerfile
+    restart: unless-stopped
+    ports:
+      - "5173:5173"
+    networks:
+      - openmates
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:5173/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
 
 networks:
   openmates:
