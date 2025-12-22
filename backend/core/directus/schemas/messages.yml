@@ -38,6 +38,10 @@ messages:
       type: string  
       note: "[Encrypted] Category, encrypted using chat-specific key"
 
+    encrypted_model_name:
+      type: string
+      note: "[Encrypted] Model name used to generate this message, encrypted using chat-specific key"
+
     # sender_name is removed as it's derived from category via translations in the UI.
 
     created_at:

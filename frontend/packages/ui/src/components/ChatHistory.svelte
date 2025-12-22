@@ -576,6 +576,7 @@
                     <ChatMessage
                         role={msg.role}
                         category={msg.category}
+                        model_name={msg.model_name}
                         content={msg.content}
                         status={msg.status}
                         is_truncated={msg.is_truncated}

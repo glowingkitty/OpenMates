@@ -398,7 +398,8 @@ export async function sendCompletedAIResponseImpl(
             user_message_id: aiMessage.user_message_id,
             // ONLY encrypted fields - no plaintext content
             encrypted_content: encryptedFields.encrypted_content,
-            encrypted_category: encryptedFields.encrypted_category
+            encrypted_category: encryptedFields.encrypted_category,
+            encrypted_model_name: encryptedFields.encrypted_model_name
         },
         // Version info for chat update (matches user message pattern)
         versions: {

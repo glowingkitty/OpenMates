@@ -23,11 +23,13 @@ export interface Message {
   encrypted_content: string; // Encrypted markdown content, encrypted using chat-specific key
   encrypted_sender_name?: string; // Encrypted sender name, encrypted using chat-specific key
   encrypted_category?: string; // Encrypted category, encrypted using chat-specific key
+  encrypted_model_name?: string; // Encrypted model name, encrypted using chat-specific key
   
   // Decrypted fields (computed on-demand, never stored)
   content?: string; // Decrypted markdown content (computed from encrypted_content)
   category?: string; // Decrypted category (computed from encrypted_category)
   sender_name?: string; // Decrypted sender name (computed from encrypted_sender_name)
+  model_name?: string; // Decrypted model name (computed from encrypted_model_name)
   
   // Truncation fields for performance optimization (only for user messages)
   is_truncated?: boolean; // Flag indicating if content is truncated for display
@@ -222,6 +224,7 @@ export interface AIMessageUpdatePayload {
     full_content_so_far: string;
     sequence: number;
     is_final_chunk: boolean;
+    model_name?: string | null;
     interrupted_by_soft_limit?: boolean; 
     interrupted_by_revocation?: boolean; 
 }
@@ -257,6 +260,7 @@ export interface AIBackgroundResponseCompletedPayload {
     user_message_id: string;
     task_id: string;
     full_content: string;
+    model_name?: string | null;
     interrupted_by_soft_limit?: boolean;
     interrupted_by_revocation?: boolean;
 }
@@ -411,6 +415,7 @@ export interface ServerBatchMessageFormat {
     encrypted_content: string; // Encrypted markdown content, encrypted using chat-specific key
     encrypted_sender_name?: string; // Encrypted sender name, encrypted using chat-specific key
     encrypted_category?: string; // Encrypted category, encrypted using chat-specific key
+    encrypted_model_name?: string; // Encrypted model name, encrypted using chat-specific key
     // Add any other fields that might come from the server message in the batch
 }
 

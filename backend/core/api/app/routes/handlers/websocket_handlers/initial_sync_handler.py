@@ -315,6 +315,7 @@ async def handle_initial_sync(
                                 'role': msg.get('role', 'user'),
                                 'encrypted_category': msg.get('encrypted_category'),
                                 'encrypted_sender_name': msg.get('encrypted_sender_name'),
+                                'encrypted_model_name': msg.get('encrypted_model_name'),
                                 'status': msg.get('status', 'delivered'),
                                 'created_at': msg.get('created_at', int(datetime.now(timezone.utc).timestamp()))
                             }

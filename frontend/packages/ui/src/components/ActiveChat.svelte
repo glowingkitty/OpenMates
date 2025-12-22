@@ -1222,12 +1222,14 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         if (!targetMessage) {
             // Create a streaming AI message even if sequence is not 1 to avoid dropping chunks
             const fallbackCategory = currentTypingStatus?.chatId === chunk.chat_id ? currentTypingStatus.category : undefined;
+            const fallbackModelName = currentTypingStatus?.chatId === chunk.chat_id ? currentTypingStatus.modelName : undefined;
             const newAiMessage: ChatMessageModel = {
                 message_id: chunk.message_id,
                 chat_id: chunk.chat_id, // Ensure this is correct
                 user_message_id: chunk.user_message_id,
                 role: 'assistant',
                 category: chunk.category || fallbackCategory,
+                model_name: chunk.model_name || fallbackModelName || undefined,
                 content: chunk.full_content_so_far || '', // Store as markdown string, not Tiptap JSON
                 status: 'streaming',
                 created_at: Math.floor(Date.now() / 1000),
@@ -1251,6 +1253,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             const previousLength = targetMessage.content?.length || 0;
             const newLength = chunk.full_content_so_far?.length || 0;
             const lengthDiff = newLength - previousLength;
+            const fallbackModelName = currentTypingStatus?.chatId === chunk.chat_id ? currentTypingStatus.modelName : undefined;
             
             // Only update content if full_content_so_far is not empty,
             // or if it's the first chunk (sequence 1) where it might legitimately start empty.
@@ -1260,6 +1263,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             }
             if (targetMessage.status !== 'streaming') {
                 targetMessage.status = 'streaming';
+            }
+            if (!targetMessage.model_name) {
+                targetMessage.model_name = chunk.model_name || fallbackModelName || undefined;
             }
             currentMessages[targetMessageIndex] = targetMessage;
             currentMessages = [...currentMessages]; // New array reference for Svelte reactivity
@@ -3601,6 +3607,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             language={embedFullscreenData.decodedContent?.language || embedFullscreenData.attrs?.language}
                             filename={embedFullscreenData.decodedContent?.filename || embedFullscreenData.attrs?.filename}
                             lineCount={embedFullscreenData.decodedContent?.lineCount || embedFullscreenData.attrs?.lineCount || 0}
+                            embedId={embedFullscreenData.embedId}
                             onClose={handleCloseEmbedFullscreen}
                         />
                     {/if}

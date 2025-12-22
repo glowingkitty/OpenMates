@@ -76,6 +76,7 @@ MESSAGE_ALL_FIELDS = (
     "role," # Added role
     "encrypted_sender_name," # Added encrypted sender name
     "encrypted_category," # Added encrypted category
+    "encrypted_model_name," # Added encrypted model name
     # "sender_name," # Removed as per user feedback and to avoid permission issues
     "created_at"
 )
@@ -318,6 +319,7 @@ class ChatMethods:
                 "role": role,
                 "encrypted_sender_name": message_data.get("encrypted_sender_name"),
                 "encrypted_category": message_data.get("encrypted_category"),
+                "encrypted_model_name": message_data.get("encrypted_model_name"),
                 "encrypted_content": encrypted_content,
                 "created_at": message_data.get("created_at"),
             }

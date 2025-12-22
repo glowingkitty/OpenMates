@@ -512,12 +512,9 @@ class EmailTemplateService:
                                 logger.info(f"Email sent successfully (Message ID not found in expected format, but status 200 and no errors)")
                             else:
                                 logger.info(f"Email sent successfully. Message ID: {message_id}")
-                            
-                            await self._best_effort_delete_mailjet_contact(
-                                session=session,
-                                auth=auth,
-                                recipient_email=recipient_email,
-                            )
+
+                            # Schedule delayed contact cleanup task (30 second delay to allow Mailjet processing)
+                            self._schedule_mailjet_contact_cleanup(recipient_email)
                             return True
                         except json.JSONDecodeError as e:
                             logger.error(f"Failed to parse Mailjet JSON response: {e}. Response text: {response_text[:500]}")
@@ -538,6 +535,29 @@ class EmailTemplateService:
         except Exception as e:
             logger.error(f"Error sending email: {str(e)}", exc_info=True)
             return False
+
+    def _schedule_mailjet_contact_cleanup(self, recipient_email: str) -> None:
+        """
+        Schedule a delayed Celery task to clean up Mailjet contact after email sending.
+
+        Uses a 30-second delay to allow Mailjet time to fully process the contact creation
+        before attempting deletion. This prevents timing issues where we try to delete
+        a contact that hasn't been fully created yet.
+
+        Args:
+            recipient_email: Email address of the contact to clean up
+        """
+        try:
+            from backend.core.api.app.tasks.email_tasks.mailjet_contact_cleanup_task import cleanup_mailjet_contact
+
+            # Schedule task with 30-second delay
+            cleanup_mailjet_contact.apply_async(
+                args=[recipient_email],
+                countdown=30  # 30-second delay
+            )
+            logger.info(f"Scheduled delayed Mailjet contact cleanup for {recipient_email[:3]}*** in 30 seconds")
+        except Exception as e:
+            logger.warning(f"Failed to schedule Mailjet contact cleanup task (non-fatal): {e}")
 
     async def _best_effort_delete_mailjet_contact(
         self,

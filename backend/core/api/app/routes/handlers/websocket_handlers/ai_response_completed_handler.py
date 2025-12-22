@@ -54,6 +54,7 @@ async def handle_ai_response_completed(
         encrypted_content = message_payload_from_client.get("encrypted_content")
         encrypted_sender_name = message_payload_from_client.get("encrypted_sender_name")
         encrypted_category = message_payload_from_client.get("encrypted_category")
+        encrypted_model_name = message_payload_from_client.get("encrypted_model_name")
         created_at = message_payload_from_client.get("created_at")
         user_message_id = message_payload_from_client.get("user_message_id")
 
@@ -100,6 +101,8 @@ async def handle_ai_response_completed(
             message_data_for_directus["encrypted_sender_name"] = encrypted_sender_name
         if encrypted_category:
             message_data_for_directus["encrypted_category"] = encrypted_category
+        if encrypted_model_name:
+            message_data_for_directus["encrypted_model_name"] = encrypted_model_name
         if user_message_id:
             message_data_for_directus["user_message_id"] = user_message_id
 

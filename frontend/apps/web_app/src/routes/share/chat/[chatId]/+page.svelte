@@ -27,6 +27,7 @@
     } from '@repo/ui';
     import { goto } from '$app/navigation';
     import { getApiEndpoint } from '@repo/ui';
+    import { deriveParentByChildEmbeds } from '../shareChatEmbedUtils';
 
     // Get chat ID from URL params
     let chatId = $derived($page.params.chatId);
@@ -325,6 +326,11 @@
             
             // Store embeds if any
             if (fetchedEmbeds && fetchedEmbeds.length > 0) {
+                // Ensure child embeds can resolve the parent key in shared-chat (non-auth) flows.
+                // The EmbedStore can reuse a parent's embed key for a child embed if `parent_embed_id` is stored.
+                // Some payloads include `parent_embed_id` directly; otherwise we can derive it from parent `embed_ids`.
+                const derivedParentByChild = deriveParentByChildEmbeds(fetchedEmbeds);
+
                 for (const embed of fetchedEmbeds) {
                     try {
                         const contentRef = `embed:${embed.embed_id}`;
@@ -336,7 +342,9 @@
                             embed_id: embed.embed_id,
                             status: embed.status || 'finished',
                             hashed_chat_id: embed.hashed_chat_id,
-                            hashed_user_id: embed.hashed_user_id
+                            hashed_user_id: embed.hashed_user_id,
+                            embed_ids: Array.isArray(embed.embed_ids) ? embed.embed_ids : undefined,
+                            parent_embed_id: embed.parent_embed_id || derivedParentByChild.get(embed.embed_id)
                         }, (embed.encrypted_type ? 'app-skill-use' : embed.embed_type || 'app-skill-use') as any);
                     } catch (embedError) {
                         console.warn(`[ShareChat] Error storing embed ${embed.embed_id}:`, embedError);
@@ -532,4 +540,3 @@
         margin: -8px 0 0;
     }
 </style>
-

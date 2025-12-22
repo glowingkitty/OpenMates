@@ -304,6 +304,7 @@ export async function handleAIBackgroundResponseCompletedImpl(
         const { get } = await import('svelte/store');
         const typingStatus = get(aiTypingStore);
         let category = (typingStatus?.chatId === payload.chat_id) ? typingStatus.category : undefined;
+        const modelName = payload.model_name || ((typingStatus?.chatId === payload.chat_id) ? typingStatus.modelName : undefined);
         
         // CRITICAL FIX for Issue 2: If category not in typing store (because user switched chats),
         // decrypt the category from the chat's encrypted_category field
@@ -342,6 +343,7 @@ export async function handleAIBackgroundResponseCompletedImpl(
             user_message_id: payload.user_message_id,
             role: 'assistant',
             category: category || undefined,
+            model_name: modelName || undefined,
             content: payload.full_content, // Store as markdown string, not Tiptap JSON
             status: 'synced',
             created_at: Math.floor(Date.now() / 1000),

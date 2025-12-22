@@ -233,6 +233,7 @@ async def listen_for_ai_chat_streams(app: FastAPI):
                                     "user_message_id": redis_payload.get("user_message_id"),
                                     "task_id": redis_payload.get("task_id"),
                                     "full_content": full_content,
+                                    "model_name": redis_payload.get("model_name"),
                                     "interrupted_by_soft_limit": redis_payload.get("interrupted_by_soft_limit", False),
                                     "interrupted_by_revocation": redis_payload.get("interrupted_by_revocation", False)
                                 }

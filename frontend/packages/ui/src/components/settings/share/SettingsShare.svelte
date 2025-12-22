@@ -146,7 +146,10 @@
             // Get app_id and skill_id from embed data or decoded content
             const embedAppId = embedData.app_id || decodedContent.app_id || '';
             const skillId = embedData.skill_id || decodedContent.skill_id || '';
-            const status = embedData.status || embedData.type || 'finished';
+            const status =
+                embedData.status === 'processing' || embedData.status === 'finished' || embedData.status === 'error'
+                    ? embedData.status
+                    : 'finished';
             
             console.debug('[SettingsShare] Rendering embed preview:', { embedId, appId: embedAppId, skillId, status });
             
@@ -243,16 +246,17 @@
                         onFullscreen: () => {}
                     }
                 };
-            } else if (embedData.type === 'code' || embedData.type === 'code-block') {
+            } else if (embedData.type === 'code' || embedData.type === 'code-block' || embedData.type === 'code-code') {
                 // Code embed
                 return {
                     component: CodeEmbedPreview,
                     props: {
                         id: embedId,
-                        code: decodedContent.code || '',
-                        language: decodedContent.language || 'text',
-                        filename: decodedContent.filename,
-                        lineCount: decodedContent.lineCount || 0,
+                        codeContent: decodedContent.code || decodedContent.content || '',
+                        language: decodedContent.language || embedContext?.language || 'text',
+                        filename: decodedContent.filename || embedContext?.filename,
+                        lineCount: decodedContent.lineCount || embedContext?.lineCount || 0,
+                        status,
                         isMobile: false,
                         onFullscreen: () => {}
                     }
@@ -2096,6 +2100,5 @@
         line-height: 1.3;
     }
 </style>
-
 
 
