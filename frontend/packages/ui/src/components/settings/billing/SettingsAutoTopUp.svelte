@@ -11,10 +11,14 @@ Auto Top-Up Settings - Submenu for low balance and monthly auto top-up options
 
     const dispatch = createEventDispatcher();
 
+    type SubscriptionDetails = {
+        status?: string;
+        credits_amount?: number | null;
+    };
+
     // Subscription state
     let hasActiveSubscription = $state(false);
-    let subscriptionDetails: any = $state(null);
-    let isLoading = $state(false);
+    let subscriptionDetails: SubscriptionDetails | null = $state(null);
 
     // Low balance settings from user profile
     let lowBalanceEnabled = $state(false);
@@ -26,6 +30,11 @@ Auto Top-Up Settings - Submenu for low balance and monthly auto top-up options
         return credits.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
     }
 
+    function isActiveLikeSubscription(status?: string): boolean {
+        const normalized = (status || '').toLowerCase();
+        return normalized === 'active' || normalized === 'trialing';
+    }
+
     // Load user profile data
     userProfile.subscribe(profile => {
         lowBalanceEnabled = profile.auto_topup_low_balance_enabled || false;
@@ -34,8 +43,6 @@ Auto Top-Up Settings - Submenu for low balance and monthly auto top-up options
 
     // Fetch subscription details
     async function fetchSubscriptionDetails() {
-        isLoading = true;
-
         try {
             const response = await fetch(getApiEndpoint(apiEndpoints.payments.getSubscription), {
                 credentials: 'include'
@@ -44,16 +51,20 @@ Auto Top-Up Settings - Submenu for low balance and monthly auto top-up options
             if (response.ok) {
                 const data = await response.json();
                 subscriptionDetails = data?.subscription ?? null;
-                hasActiveSubscription = Boolean(data?.has_subscription && subscriptionDetails?.status === 'active');
+                const hasSubscription = Boolean(data?.has_subscription && subscriptionDetails);
+                hasActiveSubscription = Boolean(hasSubscription && isActiveLikeSubscription(subscriptionDetails?.status));
             } else if (response.status === 404) {
                 // Endpoint not available (payments disabled) or legacy "no subscription" response
-                hasActiveSubscription = false;
                 subscriptionDetails = null;
+                hasActiveSubscription = false;
+            } else {
+                subscriptionDetails = null;
+                hasActiveSubscription = false;
             }
         } catch (error) {
             console.error('Error fetching subscription:', error);
-        } finally {
-            isLoading = false;
+            subscriptionDetails = null;
+            hasActiveSubscription = false;
         }
     }
 

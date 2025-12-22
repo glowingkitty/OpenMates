@@ -529,23 +529,13 @@ class BillingService:
                         ciphertext=encrypted_email_auto_topup,
                         key_id=user['vault_key_id']
                     )
-                    logger.debug("Successfully decrypted auto top-up email")
-                    return decrypted_email
+                    if decrypted_email:
+                        logger.debug("Successfully decrypted auto top-up email")
+                        return decrypted_email
+                    logger.warning("Vault decryption returned empty for auto top-up email")
                 except Exception as auto_email_error:
                     logger.warning(f"Failed to decrypt auto top-up email, falling back to regular email: {auto_email_error}")
-
-            # Fallback to regular encrypted email (client-encrypted)
-            encrypted_email = user.get('encrypted_email_address')
-            if not encrypted_email:
-                logger.warning("No email address found for user")
-                return ""
-
-            decrypted_email = await self.encryption_service.decrypt_with_user_key(
-                ciphertext=encrypted_email,
-                key_id=user['vault_key_id']
-            )
-            logger.debug("Successfully decrypted regular email")
-            return decrypted_email
+            return ""
         except Exception as e:
             logger.warning(f"Error decrypting email: {e}")
             return ""

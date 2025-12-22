@@ -210,20 +210,21 @@ async def _async_process_invoice_and_send_email(
                         ciphertext=encrypted_email_auto_topup,
                         key_id=vault_key_id
                     )
-                    logger.info(f"Successfully decrypted auto top-up email for invoice task {order_id}")
+                    if decrypted_email:
+                        logger.info(f"Successfully decrypted auto top-up email for invoice task {order_id}")
+                    else:
+                        logger.warning(f"Vault decryption returned empty for auto top-up email in invoice task {order_id}")
                 except Exception as auto_email_error:
                     logger.warning(f"Failed to decrypt auto top-up email for invoice task {order_id}: {auto_email_error}")
 
-            # Fallback to regular encrypted email using vault decryption
-            if not decrypted_email and encrypted_email:
-                try:
-                    decrypted_email = await task.encryption_service.decrypt_with_user_key(
-                        ciphertext=encrypted_email,
-                        key_id=vault_key_id
-                    )
-                    logger.info(f"Successfully decrypted regular email with vault key for auto top-up invoice task {order_id}")
-                except Exception as vault_email_error:
-                    logger.warning(f"Failed to decrypt regular email with vault key for auto top-up invoice task {order_id}: {vault_email_error}")
+            # No fallback to `encrypted_email_address` here:
+            # `encrypted_email_address` is client-side encrypted (TweetNaCl secretbox) and requires the
+            # client-provided `email_encryption_key`, which is not available for background auto top-ups.
+            if not decrypted_email:
+                logger.error(
+                    f"Missing/undecryptable encrypted_email_auto_topup for auto top-up invoice task {order_id}; "
+                    f"cannot decrypt encrypted_email_address server-side without client key."
+                )
 
         else:
             # Manual purchase: use client-provided email key
