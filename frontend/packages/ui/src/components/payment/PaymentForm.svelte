@@ -92,7 +92,7 @@
                 {$text('signup.buy_for.text').replace(
                     '{currency}', currency
                 ).replace(
-                    '{amount}', purchasePrice.toString()
+                    '{amount}', (currency.toUpperCase() === 'JPY' ? purchasePrice : (purchasePrice / 100)).toString()
                 )}
             {/if}
         </button>

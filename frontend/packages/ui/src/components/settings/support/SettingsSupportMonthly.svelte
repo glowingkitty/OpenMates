@@ -87,8 +87,25 @@
             return;
         }
 
+        // Check minimum length
+        if (email.length < 5) {
+            emailError = 'Email address is too short';
+            showEmailWarning = true;
+            isEmailValidationPending = false;
+            return;
+        }
+
         if (!email.includes('@')) {
             emailError = $text('signup.at_missing.text');
+            showEmailWarning = true;
+            isEmailValidationPending = false;
+            return;
+        }
+
+        // Check for proper email format
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+            emailError = 'Please enter a valid email address';
             showEmailWarning = true;
             isEmailValidationPending = false;
             return;

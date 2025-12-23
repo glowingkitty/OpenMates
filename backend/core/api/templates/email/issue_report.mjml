@@ -52,7 +52,7 @@
           </mj-text>
           <mj-text font-size="16px" padding-bottom="30px">
             <strong>Debug Information:</strong><br/>
-            This issue report includes console logs and backend logs as attachments for debugging purposes.
+            This issue report includes console logs (client-side) and Docker Compose logs (all containers) as attachments for debugging purposes.
           </mj-text>
         </mj-column>
       </mj-section>

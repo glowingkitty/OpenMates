@@ -134,10 +134,10 @@ async def _async_send_issue_report_email(
         # Convert newlines to <br/> for HTML display in email
         device_info_formatted = device_info_formatted.replace('\n', '<br/>')
 
-        # Collect backend Docker Compose logs
-        logger.info("Collecting backend Docker Compose logs for issue report")
-        from backend.core.api.app.services.docker_log_collector import docker_log_collector
-        backend_logs = docker_log_collector.get_compose_logs(lines=100)
+        # Collect Docker Compose logs from all containers via Loki
+        logger.info("Collecting Docker Compose logs from all containers via Loki for issue report")
+        from backend.core.api.app.services.loki_log_collector import loki_log_collector
+        backend_logs = await loki_log_collector.get_compose_logs(lines=100)
 
         # Prepare log attachments
         attachments = []
@@ -152,17 +152,17 @@ async def _async_send_issue_report_email(
             })
             logger.info("Added console logs attachment to issue report")
 
-        # Create backend logs attachment if available
+        # Create Docker Compose logs attachment if available
         if backend_logs and backend_logs.strip():
-            # Include backend logs even if they contain errors - they might be useful for debugging
+            # Include all container logs from Loki - they might be useful for debugging
             backend_logs_b64 = base64.b64encode(backend_logs.encode('utf-8')).decode('utf-8')
             attachments.append({
-                'filename': f'backend_logs_{timestamp.replace(" ", "_").replace(":", "-")}.txt',
+                'filename': f'docker_compose_logs_{timestamp.replace(" ", "_").replace(":", "-")}.txt',
                 'content': backend_logs_b64
             })
-            logger.info("Added backend container logs attachment to issue report")
+            logger.info("Added Docker Compose logs attachment from Loki to issue report")
         else:
-            logger.warning("Backend logs not available - skipping attachment")
+            logger.warning("Docker Compose logs not available from Loki - skipping attachment")
 
         # Prepare email context with sanitized data
         email_context = {

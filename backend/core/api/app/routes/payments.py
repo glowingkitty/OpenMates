@@ -567,6 +567,10 @@ async def create_support_order(
             user_id=current_user.id if is_authenticated else None
         )
 
+        if not order_response:
+            logger.error("Failed to create support order - no response from payment service")
+            raise HTTPException(status_code=500, detail="Failed to create support order. Please check your payment details and try again.")
+
         order_id = order_response.get("order_id")
         if order_id:
             logger.info(f"Created support order {order_id}")
@@ -577,6 +581,10 @@ async def create_support_order(
             "order_token": order_response.get("token"),  # For Revolut
             "client_secret": order_response.get("client_secret")  # For Stripe
         }
+
+        # Add customer portal URL for recurring payments
+        if order_data.is_recurring and order_response.get("customer_portal_url"):
+            response_data["customer_portal_url"] = order_response.get("customer_portal_url")
 
         return CreateOrderResponse(**response_data)
 
