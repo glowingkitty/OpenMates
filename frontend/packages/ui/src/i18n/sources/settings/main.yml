@@ -2969,6 +2969,259 @@ support:
   cs: Podpora
   sv: Stöd
   verified_by_human: []
+support.one_time:
+  context: One-time support option title
+  en: One-time support
+  de: Einmalige Unterstützung
+  zh: 一次性支持
+  es: Apoyo único
+  fr: Soutien ponctuel
+  pt: Apoio único
+  ru: Разовая поддержка
+  ja: 単発サポート
+  ko: 일회성 후원
+  it: Supporto una tantum
+  tr: Tek seferlik destek
+  vi: Hỗ trợ một lần
+  id: Dukungan sekali
+  pl: Jednorazowe wsparcie
+  nl: Eenmalige ondersteuning
+  ar: دعم لمرة واحدة
+  hi: एकमुश्त समर्थन
+  th: สนับสนุนครั้งเดียว
+  cs: Jednorázová podpora
+  sv: Engångsstöd
+  verified_by_human: []
+support.one_time_description:
+  context: One-time support option description
+  en: Make a one-time contribution
+  de: Leiste einen einmaligen Beitrag
+  zh: 进行一次性捐助
+  es: Haz una contribución única
+  fr: Faites une contribution ponctuelle
+  pt: Faça uma contribuição única
+  ru: Сделайте разовый взнос
+  ja: 一度だけ寄付する
+  ko: 일회성 기부하기
+  it: Fai un contributo una tantum
+  tr: Tek seferlik katkıda bulunun
+  vi: Đóng góp một lần
+  id: Beri kontribusi sekali
+  pl: Wpłać jednorazową kwotę
+  nl: Doe een eenmalige bijdrage
+  ar: قدّم مساهمة لمرة واحدة
+  hi: एक बार का योगदान करें
+  th: บริจาคครั้งเดียว
+  cs: Přispějte jednorázově
+  sv: Ge ett engångsbidrag
+  verified_by_human: []
+support.monthly:
+  context: Monthly support option title
+  en: Monthly support
+  de: Monatliche Unterstützung
+  zh: 每月支持
+  es: Apoyo mensual
+  fr: Soutien mensuel
+  pt: Apoio mensal
+  ru: Ежемесячная поддержка
+  ja: 月額サポート
+  ko: 월간 후원
+  it: Supporto mensile
+  tr: Aylık destek
+  vi: Hỗ trợ hàng tháng
+  id: Dukungan bulanan
+  pl: Wsparcie miesięczne
+  nl: Maandelijkse ondersteuning
+  ar: دعم شهري
+  hi: मासिक समर्थन
+  th: สนับสนุนรายเดือน
+  cs: Měsíční podpora
+  sv: Månatligt stöd
+  verified_by_human: []
+support.monthly_description:
+  context: Monthly support option description
+  en: Set up a recurring monthly contribution
+  de: Richte einen monatlich wiederkehrenden Beitrag ein
+  zh: 设置每月定期捐助
+  es: Configura una contribución mensual recurrente
+  fr: Mettez en place une contribution mensuelle récurrente
+  pt: Configure uma contribuição mensal recorrente
+  ru: Настройте ежемесячный регулярный взнос
+  ja: 毎月の継続寄付を設定する
+  ko: 매월 정기 후원 설정하기
+  it: Imposta un contributo mensile ricorrente
+  tr: Aylık yinelenen katkı ayarlayın
+  vi: Thiết lập đóng góp định kỳ hàng tháng
+  id: Atur kontribusi bulanan berulang
+  pl: Ustaw cykliczną miesięczną wpłatę
+  nl: Stel een terugkerende maandelijkse bijdrage in
+  ar: إعداد مساهمة شهرية متكررة
+  hi: आवर्ती मासिक योगदान सेट करें
+  th: ตั้งค่าการสนับสนุนรายเดือนแบบต่อเนื่อง
+  cs: Nastavte opakovaný měsíční příspěvek
+  sv: Ställ in en återkommande månadsbetalning
+  verified_by_human: []
+support.disclaimer:
+  context: Support contribution disclaimer text
+  en: Support contributions help fund OpenMates development. They do not include additional credits.
+  de: Unterstützungsbeiträge helfen, die Entwicklung von OpenMates zu finanzieren. Sie enthalten keine zusätzlichen Credits.
+  zh: 支持捐助将用于资助 OpenMates 的开发，不包含额外积分。
+  es: Las contribuciones de apoyo ayudan a financiar el desarrollo de OpenMates. No incluyen créditos adicionales.
+  fr: Les contributions de soutien aident à financer le développement d’OpenMates. Elles n’incluent pas de crédits supplémentaires.
+  pt: As contribuições de apoio ajudam a financiar o desenvolvimento do OpenMates. Elas não incluem créditos adicionais.
+  ru: Взносы поддержки помогают финансировать разработку OpenMates. Они не включают дополнительные кредиты.
+  ja: サポートの寄付は OpenMates の開発資金になります。追加クレジットは含まれません。
+  ko: 후원금은 OpenMates 개발을 지원합니다. 추가 크레딧은 포함되지 않습니다.
+  it: I contributi di supporto aiutano a finanziare lo sviluppo di OpenMates. Non includono crediti aggiuntivi.
+  tr: Destek katkıları OpenMates'in geliştirilmesini finanse etmeye yardımcı olur. Ek kredi içermez.
+  vi: Các khoản đóng góp hỗ trợ giúp tài trợ cho việc phát triển OpenMates. Không bao gồm tín dụng bổ sung.
+  id: Kontribusi dukungan membantu mendanai pengembangan OpenMates. Tidak termasuk kredit tambahan.
+  pl: Wpłaty wsparcia pomagają finansować rozwój OpenMates. Nie zawierają dodatkowych kredytów.
+  nl: Steunbijdragen helpen de ontwikkeling van OpenMates te financieren. Ze bevatten geen extra credits.
+  ar: تساهم مساهمات الدعم في تمويل تطوير OpenMates. لا تتضمن أرصدة إضافية.
+  hi: समर्थन योगदान OpenMates के विकास को निधि देने में मदद करते हैं। इनमें अतिरिक्त क्रेडिट शामिल नहीं हैं।
+  th: เงินสนับสนุนช่วยเป็นทุนในการพัฒนา OpenMates และไม่รวมเครดิตเพิ่มเติม
+  cs: Příspěvky na podporu pomáhají financovat vývoj OpenMates. Neobsahují žádné další kredity.
+  sv: Stödbidrag hjälper till att finansiera utvecklingen av OpenMates. De inkluderar inga extra krediter.
+  verified_by_human: []
+support.back_to_amounts:
+  context: Back button text to return to amount selection
+  en: Back to amounts
+  de: Zurück zu den Beträgen
+  zh: 返回金额选择
+  es: Volver a los importes
+  fr: Retour aux montants
+  pt: Voltar aos valores
+  ru: Назад к суммам
+  ja: 金額に戻る
+  ko: 금액으로 돌아가기
+  it: Torna agli importi
+  tr: Tutarlar'a geri dön
+  vi: Quay lại các mức tiền
+  id: Kembali ke jumlah
+  pl: Wróć do kwot
+  nl: Terug naar bedragen
+  ar: العودة إلى المبالغ
+  hi: राशियों पर वापस जाएँ
+  th: กลับไปเลือกจำนวนเงิน
+  cs: Zpět na částky
+  sv: Tillbaka till beloppen
+  verified_by_human: []
+support.email_label:
+  context: Label for email field on support payment screens
+  en: Email
+  de: E-Mail
+  zh: 电子邮箱
+  es: Correo electrónico
+  fr: E-mail
+  pt: E-mail
+  ru: Эл. почта
+  ja: メールアドレス
+  ko: 이메일
+  it: Email
+  tr: E-posta
+  vi: Email
+  id: Email
+  pl: E-mail
+  nl: E-mail
+  ar: البريد الإلكتروني
+  hi: ईमेल
+  th: อีเมล
+  cs: E-mail
+  sv: E-post
+  verified_by_human: []
+support.monthly.cancellation_info:
+  context: Short note about cancellation for monthly support
+  en: Cancel anytime.
+  de: Jederzeit kündbar.
+  zh: 可随时取消。
+  es: Cancela en cualquier momento.
+  fr: Annulez à tout moment.
+  pt: Cancele a qualquer momento.
+  ru: Можно отменить в любое время.
+  ja: いつでもキャンセルできます。
+  ko: 언제든지 취소할 수 있습니다.
+  it: Annulla in qualsiasi momento.
+  tr: İstediğiniz zaman iptal edin.
+  vi: Hủy bất cứ lúc nào.
+  id: Batalkan kapan saja.
+  pl: Anuluj w dowolnym momencie.
+  nl: Altijd opzegbaar.
+  ar: يمكنك الإلغاء في أي وقت.
+  hi: कभी भी रद्द करें।
+  th: ยกเลิกได้ทุกเมื่อ
+  cs: Zrušit kdykoli.
+  sv: Avsluta när som helst.
+  verified_by_human: []
+support.monthly.per_month:
+  context: Unit shown after currency amount (e.g., “€5/month”)
+  en: month
+  de: Monat
+  zh: 月
+  es: mes
+  fr: mois
+  pt: mês
+  ru: мес.
+  ja: 月
+  ko: 월
+  it: mese
+  tr: ay
+  vi: tháng
+  id: bulan
+  pl: miesiąc
+  nl: maand
+  ar: شهر
+  hi: माह
+  th: เดือน
+  cs: měsíc
+  sv: månad
+  verified_by_human: []
+support.monthly.recurring_notice:
+  context: Notice explaining the payment is recurring
+  en: Recurring monthly payment.
+  de: Wiederkehrende monatliche Zahlung.
+  zh: 每月自动续费。
+  es: Pago mensual recurrente.
+  fr: Paiement mensuel récurrent.
+  pt: Pagamento mensal recorrente.
+  ru: Ежемесячный регулярный платеж.
+  ja: 毎月の継続支払いです。
+  ko: 매월 정기 결제입니다.
+  it: Pagamento mensile ricorrente.
+  tr: Aylık yinelenen ödeme.
+  vi: Thanh toán định kỳ hàng tháng.
+  id: Pembayaran bulanan berulang.
+  pl: Cykliczna płatność miesięczna.
+  nl: Terugkerende maandelijkse betaling.
+  ar: دفعة شهرية متكررة.
+  hi: आवर्ती मासिक भुगतान।
+  th: การชำระเงินรายเดือนแบบต่อเนื่อง
+  cs: Opakovaná měsíční platba.
+  sv: Återkommande månadsbetalning.
+  verified_by_human: []
+support.monthly.cancellation_details:
+  context: Cancellation details shown on monthly support payment screen
+  en: You can cancel your monthly support at any time.
+  de: Du kannst deine monatliche Unterstützung jederzeit kündigen.
+  zh: 你可以随时取消每月支持。
+  es: Puedes cancelar tu apoyo mensual en cualquier momento.
+  fr: Vous pouvez annuler votre soutien mensuel à tout moment.
+  pt: Você pode cancelar seu apoio mensal a qualquer momento.
+  ru: Вы можете отменить ежемесячную поддержку в любое время.
+  ja: 月額サポートはいつでもキャンセルできます。
+  ko: 월간 후원은 언제든지 취소할 수 있습니다.
+  it: Puoi annullare il supporto mensile in qualsiasi momento.
+  tr: Aylık desteğinizi istediğiniz zaman iptal edebilirsiniz.
+  vi: Bạn có thể hủy hỗ trợ hàng tháng bất cứ lúc nào.
+  id: Anda dapat membatalkan dukungan bulanan kapan saja.
+  pl: Możesz anulować miesięczne wsparcie w dowolnym momencie.
+  nl: Je kunt je maandelijkse ondersteuning op elk moment opzeggen.
+  ar: يمكنك إلغاء دعمك الشهري في أي وقت.
+  hi: आप अपना मासिक समर्थन कभी भी रद्द कर सकते हैं।
+  th: คุณสามารถยกเลิกการสนับสนุนรายเดือนได้ทุกเมื่อ
+  cs: Měsíční podporu můžete kdykoli zrušit.
+  sv: Du kan avsluta ditt månatliga stöd när som helst.
+  verified_by_human: []
 support_sponsor_github:
   context: Sponsor on GitHub menu item
   en: Sponsor on GitHub

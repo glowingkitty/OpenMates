@@ -8,14 +8,12 @@
 -->
 
 <script lang="ts">
-    import { createEventDispatcher, tick } from 'svelte';
+    import { tick } from 'svelte';
     import { text } from '@repo/ui';
     import SettingsItem from '../../SettingsItem.svelte';
     import Payment from '../../Payment.svelte';
     import { authStore } from '../../../stores/authStore';
     import InputWarning from '../../common/InputWarning.svelte';
-
-    const dispatch = createEventDispatcher();
 
     // Predefined monthly support amounts in EUR
     const monthlyTiers = [
@@ -83,8 +81,15 @@
     let canContinue = $derived(
         !!selectedTier &&
         !paymentStarted &&
-        (isAuthenticated || (!emailError && !!trimmedEmail))
+        !isAuthenticated &&
+        (!emailError && !!trimmedEmail)
     );
+
+    $effect(() => {
+        if (showPaymentForm && selectedTier && isAuthenticated) {
+            paymentStarted = true;
+        }
+    });
 
     async function continueToPayment() {
         if (paymentStarted) return;
@@ -161,7 +166,6 @@
         </div>
 
         {#if !isAuthenticated}
-            <!-- Email field for non-authenticated users -->
             <div class="email-field-container">
                 <div class="email-field-label">
                     {$text('settings.support.email_label.text')}
@@ -195,16 +199,18 @@
             <p>{$text('settings.support.monthly.cancellation_details.text')}</p>
         </div>
 
-        <div class="button-group">
-            <button class="primary-button" onclick={continueToPayment} disabled={!canContinue}>
-                {$text('signup.continue.text')}
-            </button>
-            {#if !isAuthenticated && paymentStarted}
-                <button class="secondary-button" onclick={changeEmail}>
-                    Change email
+        {#if !isAuthenticated}
+            <div class="button-group">
+                <button class="primary-button" onclick={continueToPayment} disabled={!canContinue}>
+                    {$text('signup.continue.text')}
                 </button>
-            {/if}
-        </div>
+                {#if paymentStarted}
+                    <button class="secondary-button" onclick={changeEmail}>
+                        Change email
+                    </button>
+                {/if}
+            </div>
+        {/if}
 
         {#if paymentStarted}
             <div class="payment-component-container">

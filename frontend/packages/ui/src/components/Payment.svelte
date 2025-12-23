@@ -75,6 +75,12 @@
         darkmode = !!profile.darkmode;
     });
 
+    $effect(() => {
+        if (supportContribution && supportEmail) {
+            userEmail = supportEmail.trim();
+        }
+    });
+
     async function getUserEmail() {
         try {
             // Get email from encrypted storage (always decrypt on demand)
@@ -321,7 +327,7 @@
         // CRITICAL: Ensure email is available before submitting payment
         // Since we set email: 'never' in the payment element, we MUST provide it in confirmPayment
         if (!userEmail) {
-            // Try to get email if not already loaded
+            // Try to get email if not already loaded (authenticated users)
             await getUserEmail();
             if (!userEmail) {
                 errorMessage = 'Email is required for payment. Please ensure your email is set in your account.';
@@ -588,7 +594,9 @@
     }
 
     onMount(() => {
-        getUserEmail();
+        if (!supportContribution || !supportEmail) {
+            getUserEmail();
+        }
         if (initialState === 'idle') {
             fetchConfigAndInitialize();
         }
@@ -650,6 +658,8 @@
                 purchasePrice={purchasePrice}
                 currency={currency}
                 userEmail={userEmail}
+                requireConsent={requireConsent}
+                isSupportContribution={supportContribution}
                 bind:isPaymentElementComplete={isPaymentElementComplete}
                 hasConsentedToLimitedRefund={hasConsentedToLimitedRefund}
                 validationErrors={validationErrors}

@@ -14,7 +14,10 @@ from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 from backend.core.api.app.models.user import User
-from backend.core.api.app.routes.auth_routes.auth_dependencies import get_current_user
+from backend.core.api.app.routes.auth_routes.auth_dependencies import (
+    get_current_user,
+    get_current_user_optional,
+)
 from backend.core.api.app.tasks.celery_config import app # Import the Celery app
 from backend.core.api.app.routes.websockets import manager
 from backend.core.api.app.services.compliance import ComplianceService
@@ -509,7 +512,7 @@ async def create_support_order(
     cache_service: CacheService = Depends(get_cache_service),
     directus_service: DirectusService = Depends(get_directus_service),
     compliance_service: ComplianceService = Depends(get_compliance_service),
-    current_user: Optional[User] = Depends(lambda: None)  # Support for non-authenticated users
+    current_user: Optional[User] = Depends(get_current_user_optional)  # Support for non-authenticated users
 ):
     """Create a payment order for supporter contributions (one-time or recurring)."""
 
