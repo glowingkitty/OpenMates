@@ -57,7 +57,7 @@ export async function sendUpdateTitleImpl(
             chat.updated_at = Math.floor(Date.now() / 1000);
             await chatDB.updateChat(chat, tx); // This will encrypt for IndexedDB storage
             tx.oncomplete = () => {
-                serviceInstance.dispatchEvent(new CustomEvent('chatUpdated', { detail: { chat_id } }));
+                serviceInstance.dispatchEvent(new CustomEvent('chatUpdated', { detail: { chat_id, type: 'title_updated', chat } }));
             };
             tx.onerror = () => console.error("[ChatSyncService:Senders] Error in sendUpdateTitle optimistic transaction:", tx.error);
         } else {

@@ -1238,6 +1238,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 // encrypted_sender_name not needed for assistant messages
                 encrypted_category: undefined
             };
+
+            console.debug(`[ActiveChat] Created new AI message with model_name: "${newAiMessage.model_name}" for message ${newAiMessage.message_id}`, {
+                chunkModelName: chunk.model_name,
+                fallbackModelName: fallbackModelName,
+                finalModelName: newAiMessage.model_name,
+                chatId: chunk.chat_id
+            });
             currentMessages = [...currentMessages, newAiMessage];
             messageToSave = newAiMessage;
             isNewMessageInStream = true;
@@ -1264,8 +1271,15 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             if (targetMessage.status !== 'streaming') {
                 targetMessage.status = 'streaming';
             }
-            if (!targetMessage.model_name) {
-                targetMessage.model_name = chunk.model_name || fallbackModelName || undefined;
+            // Update model_name if we have a new value and current value is missing or undefined
+            const newModelName = chunk.model_name || fallbackModelName;
+            if (!targetMessage.model_name && newModelName) {
+                targetMessage.model_name = newModelName;
+                console.debug(`[ActiveChat] Updated message ${targetMessage.message_id} with model_name: "${targetMessage.model_name}"`, {
+                    chunkModelName: chunk.model_name,
+                    fallbackModelName: fallbackModelName,
+                    finalModelName: targetMessage.model_name
+                });
             }
             currentMessages[targetMessageIndex] = targetMessage;
             currentMessages = [...currentMessages]; // New array reference for Svelte reactivity
@@ -1350,6 +1364,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         `isNew: ${isNewMessageInStream} | ` +
                         `content_length: ${messageToSave.content.length} chars`
                     );
+                    console.debug(`[ActiveChat] About to save message with model_name: "${messageToSave.model_name}" for message ${messageToSave.message_id}`);
                     await chatDB.saveMessage(messageToSave); // saveMessage handles both add and update
                     const saveDuration = performance.now() - saveStartTime;
                     console.log(
@@ -1380,7 +1395,22 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             console.debug('[ActiveChat] Final AI chunk marker received for message_id:', chunk.message_id);
             const finalMessageInArray = currentMessages.find(m => m.message_id === chunk.message_id);
             if (finalMessageInArray) {
-                const updatedFinalMessage = { ...finalMessageInArray, status: 'synced' as const };
+                // CRITICAL FIX: Ensure model_name is preserved in final message
+                const fallbackModelName = currentTypingStatus?.chatId === chunk.chat_id ? currentTypingStatus.modelName : undefined;
+                const finalModelName = finalMessageInArray.model_name || chunk.model_name || fallbackModelName;
+
+                const updatedFinalMessage = {
+                    ...finalMessageInArray,
+                    status: 'synced' as const,
+                    model_name: finalModelName // Explicitly preserve/set model_name
+                };
+
+                console.debug(`[ActiveChat] Final chunk - preserving model_name: "${finalModelName}" for message ${chunk.message_id}`, {
+                    originalModelName: finalMessageInArray.model_name,
+                    chunkModelName: chunk.model_name,
+                    fallbackModelName: fallbackModelName,
+                    finalModelName: finalModelName
+                });
                 
                 // Update in currentMessages array for UI
                 const finalMessageIndex = currentMessages.findIndex(m => m.message_id === chunk.message_id);
@@ -1582,8 +1612,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
         console.debug("[ActiveChat] handleSendMessage: Received message payload:", message);
         
-        // CRITICAL: Handle new chat creation immediately to ensure UI is in sync with backend events
-        if (newChat) {
+        // CRITICAL: Handle new chat activation immediately to ensure UI is in sync with backend events
+        // This must also run when we're currently in welcome/new-chat state (currentChat is null),
+        // even if sendHandlers didn't include `newChat` (e.g., when a draft chat shell existed in DB).
+        if (newChat || !currentChat?.chat_id) {
             console.info("[ActiveChat] handleSendMessage: New chat detected, setting currentChat and initializing messages.", newChat);
             
             // CRITICAL: Close any open fullscreen views when creating a new chat
@@ -1598,8 +1630,30 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 embedFullscreenData = null;
             }
             
-            // Force update currentChat immediately
-            currentChat = newChat;
+            // Force update currentChat immediately (fallback to DB if newChat wasn't provided)
+            if (newChat) {
+                currentChat = newChat;
+            } else {
+                // If the chat already exists (e.g., as a draft shell), load it now so streaming chunks aren't dropped
+                try {
+                    const { incognitoChatService } = await import('../services/incognitoChatService');
+                    const incognitoChat = await incognitoChatService.getChat(message.chat_id);
+                    if (incognitoChat) {
+                        currentChat = incognitoChat as any;
+                    } else {
+                        const dbChat = await chatDB.getChat(message.chat_id);
+                        if (dbChat) {
+                            currentChat = dbChat as any;
+                        } else {
+                            // Minimal fallback to keep UI consistent; DB should catch up shortly
+                            currentChat = { chat_id: message.chat_id } as any;
+                        }
+                    }
+                } catch (err) {
+                    console.warn('[ActiveChat] Failed to load chat for sent message; using minimal fallback:', err);
+                    currentChat = { chat_id: message.chat_id } as any;
+                }
+            }
             currentMessages = [message]; // Initialize messages with the first message
             
             // Clear temporary chat ID since we now have a real chat

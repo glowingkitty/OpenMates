@@ -3291,6 +3291,167 @@ report_issue.url_invalid:
   cs: Nejprve sdílejte chat nebo vložení, poté sem vložte URL.
   sv: Dela chatt eller inbäddning först, klistra sedan in URL:en här.
   verified_by_human: []
+report_issue.device_info.heading:
+  context: Heading for the device information notice shown under the report issue submit button
+  en: Device Information for Debugging
+  de: Device Information for Debugging
+  zh: Device Information for Debugging
+  es: Device Information for Debugging
+  fr: Device Information for Debugging
+  pt: Device Information for Debugging
+  ru: Device Information for Debugging
+  ja: Device Information for Debugging
+  ko: Device Information for Debugging
+  it: Device Information for Debugging
+  tr: Device Information for Debugging
+  vi: Device Information for Debugging
+  id: Device Information for Debugging
+  pl: Device Information for Debugging
+  nl: Device Information for Debugging
+  ar: Device Information for Debugging
+  hi: Device Information for Debugging
+  th: Device Information for Debugging
+  cs: Device Information for Debugging
+  sv: Device Information for Debugging
+  verified_by_human: []
+report_issue.device_info.description:
+  context: Description for the device information notice shown under the report issue submit button
+  en: To help debug your issue, the following technical information about your device will be included in your report and sent via email to our server admin:
+  de: To help debug your issue, the following technical information about your device will be included in your report and sent via email to our server admin:
+  zh: To help debug your issue, the following technical information about your device will be included in your report and sent via email to our server admin:
+  es: To help debug your issue, the following technical information about your device will be included in your report and sent via email to our server admin:
+  fr: To help debug your issue, the following technical information about your device will be included in your report and sent via email to our server admin:
+  pt: To help debug your issue, the following technical information about your device will be included in your report and sent via email to our server admin:
+  ru: To help debug your issue, the following technical information about your device will be included in your report and sent via email to our server admin:
+  ja: To help debug your issue, the following technical information about your device will be included in your report and sent via email to our server admin:
+  ko: To help debug your issue, the following technical information about your device will be included in your report and sent via email to our server admin:
+  it: To help debug your issue, the following technical information about your device will be included in your report and sent via email to our server admin:
+  tr: To help debug your issue, the following technical information about your device will be included in your report and sent via email to our server admin:
+  vi: To help debug your issue, the following technical information about your device will be included in your report and sent via email to our server admin:
+  id: To help debug your issue, the following technical information about your device will be included in your report and sent via email to our server admin:
+  pl: To help debug your issue, the following technical information about your device will be included in your report and sent via email to our server admin:
+  nl: To help debug your issue, the following technical information about your device will be included in your report and sent via email to our server admin:
+  ar: To help debug your issue, the following technical information about your device will be included in your report and sent via email to our server admin:
+  hi: To help debug your issue, the following technical information about your device will be included in your report and sent via email to our server admin:
+  th: To help debug your issue, the following technical information about your device will be included in your report and sent via email to our server admin:
+  cs: To help debug your issue, the following technical information about your device will be included in your report and sent via email to our server admin:
+  sv: To help debug your issue, the following technical information about your device will be included in your report and sent via email to our server admin:
+  verified_by_human: []
+report_issue.device_info.browser_os_label:
+  context: Label for the user agent entry in the device information notice
+  en: Browser & OS
+  de: Browser & OS
+  zh: Browser & OS
+  es: Browser & OS
+  fr: Browser & OS
+  pt: Browser & OS
+  ru: Browser & OS
+  ja: Browser & OS
+  ko: Browser & OS
+  it: Browser & OS
+  tr: Browser & OS
+  vi: Browser & OS
+  id: Browser & OS
+  pl: Browser & OS
+  nl: Browser & OS
+  ar: Browser & OS
+  hi: Browser & OS
+  th: Browser & OS
+  cs: Browser & OS
+  sv: Browser & OS
+  verified_by_human: []
+report_issue.device_info.screen_size_label:
+  context: Label for the viewport size entry in the device information notice
+  en: Screen Size
+  de: Screen Size
+  zh: Screen Size
+  es: Screen Size
+  fr: Screen Size
+  pt: Screen Size
+  ru: Screen Size
+  ja: Screen Size
+  ko: Screen Size
+  it: Screen Size
+  tr: Screen Size
+  vi: Screen Size
+  id: Screen Size
+  pl: Screen Size
+  nl: Screen Size
+  ar: Screen Size
+  hi: Screen Size
+  th: Screen Size
+  cs: Screen Size
+  sv: Screen Size
+  verified_by_human: []
+report_issue.device_info.touch_support_label:
+  context: Label for the touch capability entry in the device information notice
+  en: Touch Support
+  de: Touch Support
+  zh: Touch Support
+  es: Touch Support
+  fr: Touch Support
+  pt: Touch Support
+  ru: Touch Support
+  ja: Touch Support
+  ko: Touch Support
+  it: Touch Support
+  tr: Touch Support
+  vi: Touch Support
+  id: Touch Support
+  pl: Touch Support
+  nl: Touch Support
+  ar: Touch Support
+  hi: Touch Support
+  th: Touch Support
+  cs: Touch Support
+  sv: Touch Support
+  verified_by_human: []
+report_issue.device_info.privacy_label:
+  context: Label prefix for the privacy notice inside the device information notice
+  en: Privacy Notice
+  de: Privacy Notice
+  zh: Privacy Notice
+  es: Privacy Notice
+  fr: Privacy Notice
+  pt: Privacy Notice
+  ru: Privacy Notice
+  ja: Privacy Notice
+  ko: Privacy Notice
+  it: Privacy Notice
+  tr: Privacy Notice
+  vi: Privacy Notice
+  id: Privacy Notice
+  pl: Privacy Notice
+  nl: Privacy Notice
+  ar: Privacy Notice
+  hi: Privacy Notice
+  th: Privacy Notice
+  cs: Privacy Notice
+  sv: Privacy Notice
+  verified_by_human: []
+report_issue.device_info.privacy_body:
+  context: Privacy notice body text inside the device information notice
+  en: This technical data is only used for debugging purposes to help resolve your issue. It is sent via Mailjet to our server admin and is not permanently stored on OpenMates servers. The data helps us understand technical context (browser compatibility, screen layout issues, touch vs desktop usage) to provide better support.
+  de: This technical data is only used for debugging purposes to help resolve your issue. It is sent via Mailjet to our server admin and is not permanently stored on OpenMates servers. The data helps us understand technical context (browser compatibility, screen layout issues, touch vs desktop usage) to provide better support.
+  zh: This technical data is only used for debugging purposes to help resolve your issue. It is sent via Mailjet to our server admin and is not permanently stored on OpenMates servers. The data helps us understand technical context (browser compatibility, screen layout issues, touch vs desktop usage) to provide better support.
+  es: This technical data is only used for debugging purposes to help resolve your issue. It is sent via Mailjet to our server admin and is not permanently stored on OpenMates servers. The data helps us understand technical context (browser compatibility, screen layout issues, touch vs desktop usage) to provide better support.
+  fr: This technical data is only used for debugging purposes to help resolve your issue. It is sent via Mailjet to our server admin and is not permanently stored on OpenMates servers. The data helps us understand technical context (browser compatibility, screen layout issues, touch vs desktop usage) to provide better support.
+  pt: This technical data is only used for debugging purposes to help resolve your issue. It is sent via Mailjet to our server admin and is not permanently stored on OpenMates servers. The data helps us understand technical context (browser compatibility, screen layout issues, touch vs desktop usage) to provide better support.
+  ru: This technical data is only used for debugging purposes to help resolve your issue. It is sent via Mailjet to our server admin and is not permanently stored on OpenMates servers. The data helps us understand technical context (browser compatibility, screen layout issues, touch vs desktop usage) to provide better support.
+  ja: This technical data is only used for debugging purposes to help resolve your issue. It is sent via Mailjet to our server admin and is not permanently stored on OpenMates servers. The data helps us understand technical context (browser compatibility, screen layout issues, touch vs desktop usage) to provide better support.
+  ko: This technical data is only used for debugging purposes to help resolve your issue. It is sent via Mailjet to our server admin and is not permanently stored on OpenMates servers. The data helps us understand technical context (browser compatibility, screen layout issues, touch vs desktop usage) to provide better support.
+  it: This technical data is only used for debugging purposes to help resolve your issue. It is sent via Mailjet to our server admin and is not permanently stored on OpenMates servers. The data helps us understand technical context (browser compatibility, screen layout issues, touch vs desktop usage) to provide better support.
+  tr: This technical data is only used for debugging purposes to help resolve your issue. It is sent via Mailjet to our server admin and is not permanently stored on OpenMates servers. The data helps us understand technical context (browser compatibility, screen layout issues, touch vs desktop usage) to provide better support.
+  vi: This technical data is only used for debugging purposes to help resolve your issue. It is sent via Mailjet to our server admin and is not permanently stored on OpenMates servers. The data helps us understand technical context (browser compatibility, screen layout issues, touch vs desktop usage) to provide better support.
+  id: This technical data is only used for debugging purposes to help resolve your issue. It is sent via Mailjet to our server admin and is not permanently stored on OpenMates servers. The data helps us understand technical context (browser compatibility, screen layout issues, touch vs desktop usage) to provide better support.
+  pl: This technical data is only used for debugging purposes to help resolve your issue. It is sent via Mailjet to our server admin and is not permanently stored on OpenMates servers. The data helps us understand technical context (browser compatibility, screen layout issues, touch vs desktop usage) to provide better support.
+  nl: This technical data is only used for debugging purposes to help resolve your issue. It is sent via Mailjet to our server admin and is not permanently stored on OpenMates servers. The data helps us understand technical context (browser compatibility, screen layout issues, touch vs desktop usage) to provide better support.
+  ar: This technical data is only used for debugging purposes to help resolve your issue. It is sent via Mailjet to our server admin and is not permanently stored on OpenMates servers. The data helps us understand technical context (browser compatibility, screen layout issues, touch vs desktop usage) to provide better support.
+  hi: This technical data is only used for debugging purposes to help resolve your issue. It is sent via Mailjet to our server admin and is not permanently stored on OpenMates servers. The data helps us understand technical context (browser compatibility, screen layout issues, touch vs desktop usage) to provide better support.
+  th: This technical data is only used for debugging purposes to help resolve your issue. It is sent via Mailjet to our server admin and is not permanently stored on OpenMates servers. The data helps us understand technical context (browser compatibility, screen layout issues, touch vs desktop usage) to provide better support.
+  cs: This technical data is only used for debugging purposes to help resolve your issue. It is sent via Mailjet to our server admin and is not permanently stored on OpenMates servers. The data helps us understand technical context (browser compatibility, screen layout issues, touch vs desktop usage) to provide better support.
+  sv: This technical data is only used for debugging purposes to help resolve your issue. It is sent via Mailjet to our server admin and is not permanently stored on OpenMates servers. The data helps us understand technical context (browser compatibility, screen layout issues, touch vs desktop usage) to provide better support.
+  verified_by_human: []
 report_issue.signal_reminder:
   context: Reminder text about Signal group for discussions or screenshots
   en: 'Tip: For discussions or to share screenshots, consider joining our'

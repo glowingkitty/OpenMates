@@ -35,6 +35,7 @@
     role: MessageRole;
     category?: string;
     sender_name?: string; // Actual name of the mate
+    model_name?: string; // Model name for AI messages
     content: any; // Tiptap JSON content
     status?: MessageStatus; // Status of the message
     is_truncated?: boolean; // Flag indicating if content is truncated
@@ -77,6 +78,7 @@
       role: incomingMessage.role,
       category: incomingMessage.category,
       sender_name: incomingMessage.sender_name,
+      model_name: incomingMessage.model_name,
       content: processedContent,
       status: incomingMessage.status,
       is_truncated: shouldTruncate,

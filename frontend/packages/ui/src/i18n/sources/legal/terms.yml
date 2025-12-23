@@ -458,7 +458,7 @@ ai_accuracy.description:
   cs: ''
   sv: ''
   verified_by_human: []
-ai_accuracy.data_sharing.heading:
+ai_accuracy_data_sharing_heading:
   context: Subsection heading for data sharing warning
   en: Data Sharing with AI Partners
   de: ''

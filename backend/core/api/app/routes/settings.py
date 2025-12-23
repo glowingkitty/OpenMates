@@ -1782,11 +1782,20 @@ async def get_server_status(
 
 
 # --- Endpoint for reporting issues ---
+class DeviceInfo(BaseModel):
+    """Device information for debugging purposes"""
+    userAgent: str = Field(..., max_length=1000, description="Browser user agent string")
+    viewportWidth: int = Field(..., ge=0, le=10000, description="Viewport width in pixels")
+    viewportHeight: int = Field(..., ge=0, le=10000, description="Viewport height in pixels")
+    isTouchEnabled: bool = Field(..., description="Whether touch is enabled")
+
+
 class IssueReportRequest(BaseModel):
     """Request model for issue reporting endpoint"""
     title: str = Field(..., min_length=3, max_length=200, description="Issue title (required, 3-200 characters)")
     description: Optional[str] = Field(None, min_length=10, max_length=5000, description="Issue description (optional, 10-5000 characters if provided)")
     chat_or_embed_url: Optional[str] = Field(None, max_length=500, description="Optional chat or embed URL related to the issue")
+    device_info: Optional[DeviceInfo] = Field(None, description="Device information for debugging purposes (browser, screen size, touch support)")
 
 
 class IssueReportResponse(BaseModel):
@@ -1904,6 +1913,19 @@ async def report_issue(
         # Log the full admin email for debugging (this is safe as it's the server owner's email)
         logger.info(f"Issue report received - will send to admin email: {admin_email}")
         
+        # Process device information if provided
+        device_info_str = "Not provided"
+        if issue_data.device_info:
+            device_info = issue_data.device_info
+            # Format device info in a readable way for the email
+            # Sanitize the user agent to prevent any potential injection
+            sanitized_user_agent = escape(device_info.userAgent[:500])  # Limit length and escape
+            device_info_str = (
+                f"Browser & OS: {sanitized_user_agent}\n"
+                f"Screen Size: {device_info.viewportWidth} × {device_info.viewportHeight} pixels\n"
+                f"Touch Support: {'Yes' if device_info.isTouchEnabled else 'No'}"
+            )
+
         # Dispatch the email task with sanitized data
         from backend.core.api.app.tasks.celery_config import app
         task_result = app.send_task(
@@ -1914,7 +1936,8 @@ async def report_issue(
                 "issue_description": sanitized_description,
                 "chat_or_embed_url": sanitized_url,
                 "timestamp": current_time,
-                "estimated_location": estimated_location
+                "estimated_location": estimated_location,
+                "device_info": device_info_str
             },
             queue='email'
         )

@@ -34,11 +34,12 @@ def send_issue_report_email(
     issue_description: Optional[str],
     chat_or_embed_url: Optional[str],
     timestamp: str,
-    estimated_location: str
+    estimated_location: str,
+    device_info: Optional[str] = None
 ) -> bool:
     """
     Celery task to send issue report email to server owner/admin.
-    
+
     Args:
         admin_email: The email address of the admin/server owner to notify
         issue_title: The title of the reported issue
@@ -46,7 +47,8 @@ def send_issue_report_email(
         chat_or_embed_url: Optional URL to a chat or embed related to the issue
         timestamp: Timestamp when the issue was reported (formatted string)
         estimated_location: Estimated geographic location based on IP address
-    
+        device_info: Optional device information for debugging (browser, screen size, touch support)
+
     Returns:
         bool: True if email was sent successfully, False otherwise
     """
@@ -60,7 +62,7 @@ def send_issue_report_email(
         result = asyncio.run(
             _async_send_issue_report_email(
                 self, admin_email, issue_title, issue_description,
-                chat_or_embed_url, timestamp, estimated_location
+                chat_or_embed_url, timestamp, estimated_location, device_info
             )
         )
         if result:
@@ -90,7 +92,8 @@ async def _async_send_issue_report_email(
     issue_description: Optional[str],
     chat_or_embed_url: Optional[str],
     timestamp: str,
-    estimated_location: str
+    estimated_location: str,
+    device_info: Optional[str] = None
 ) -> bool:
     """
     Async implementation for sending issue report email.
@@ -123,6 +126,11 @@ async def _async_send_issue_report_email(
         # URL is already validated in route handler, but ensure it's safe for href attribute
         sanitized_url = chat_or_embed_url if chat_or_embed_url else "Not provided"
         
+        # Process device info if provided
+        device_info_formatted = device_info if device_info else "Not provided"
+        # Convert newlines to <br/> for HTML display in email
+        device_info_formatted = device_info_formatted.replace('\n', '<br/>')
+
         # Prepare email context with sanitized data
         email_context = {
             "darkmode": True,  # Default to dark mode for issue report emails
@@ -130,7 +138,8 @@ async def _async_send_issue_report_email(
             "issue_description": sanitized_description,
             "chat_or_embed_url": sanitized_url,
             "timestamp": timestamp,
-            "estimated_location": estimated_location
+            "estimated_location": estimated_location,
+            "device_info": device_info_formatted
         }
         logger.info("Prepared email context for issue report")
         
