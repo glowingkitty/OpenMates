@@ -15,6 +15,7 @@
     import InputWarning from '../common/InputWarning.svelte';
     import { onMount } from 'svelte';
     import { isPublicChat } from '../../demo_chats/convertToChat';
+    import { logCollector } from '../../services/logCollector';
     
     // Form state
     let issueTitle = $state('');
@@ -258,6 +259,9 @@
             // Collect current device information for debugging purposes
             const currentDeviceInfo = collectDeviceInfo();
 
+            // Collect console logs for debugging (last 100 lines)
+            const consoleLogs = logCollector.getLogsAsText(100);
+
             const response = await fetch(getApiEndpoint('/v1/settings/issues'), {
                 method: 'POST',
                 headers: {
@@ -269,7 +273,8 @@
                     title: sanitizedTitle,
                     description: sanitizedDescription,
                     chat_or_embed_url: sanitizedUrl,
-                    device_info: currentDeviceInfo
+                    device_info: currentDeviceInfo,
+                    console_logs: consoleLogs
                 }),
                 credentials: 'include'
             });

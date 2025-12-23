@@ -2509,6 +2509,29 @@ app_settings_memories.creating:
   cs: Vytváření...
   sv: Skapar...
   verified_by_human: []
+app_settings_memories.placeholder:
+  context: Placeholder message when app settings and memories management is temporarily disabled
+  en: Soon you can manage and create your app settings and memories here.
+  de: Bald können Sie hier Ihre App-Einstellungen und Erinnerungen verwalten und erstellen.
+  zh: 很快您就能在这里管理和创建您的应用设置和记忆。
+  es: Pronto podrás gestionar y crear tu configuración de aplicaciones y recuerdos aquí.
+  fr: Bientôt, vous pourrez gérer et créer vos paramètres d'applications et souvenirs ici.
+  pt: Em breve você poderá gerenciar e criar suas configurações de aplicativos e memórias aqui.
+  ru: Скоро вы сможете управлять и создавать настройки приложений и воспоминания здесь.
+  ja: まもなくここでアプリの設定とメモリを管理・作成できるようになります。
+  ko: 곧 여기에서 앱 설정 및 메모리를 관리하고 생성할 수 있습니다.
+  it: Presto potrai gestire e creare qui le impostazioni delle tue app e i ricordi.
+  tr: Yakında uygulama ayarlarınızı ve anılarınızı buradan yönetebilecek ve oluşturabileceksiniz.
+  vi: Sớm bạn sẽ có thể quản lý và tạo cài đặt ứng dụng và ký ức của mình tại đây.
+  id: Segera Anda dapat mengelola dan membuat pengaturan aplikasi dan memori di sini.
+  pl: Wkrótce będziesz mógł tutaj zarządzać i tworzyć ustawienia aplikacji i wspomnienia.
+  nl: Binnenkort kun je hier je app-instellingen en herinneringen beheren en aanmaken.
+  ar: قريباً ستتمكن من إدارة وإنشاء إعدادات تطبيقاتك وذكرياتك هنا.
+  hi: जल्द ही आप यहां अपनी ऐप सेटिंग्स और यादों को प्रबंधित और बना सकेंगे।
+  th: เร็วๆ นี้คุณจะสามารถจัดการและสร้างการตั้งค่าแอปและความทรงจำของคุณได้ที่นี่
+  cs: Brzy budete moci spravovat a vytvářet nastavení aplikací a vzpomínky zde.
+  sv: Snart kommer du att kunna hantera och skapa dina appinställningar och minnen här.
+  verified_by_human: []
 newsletter:
   context: Newsletter settings menu item
   en: Newsletter
@@ -3293,164 +3316,164 @@ report_issue.url_invalid:
   verified_by_human: []
 report_issue.device_info.heading:
   context: Heading for the device information notice shown under the report issue submit button
-  en: Device Information for Debugging
-  de: Device Information for Debugging
-  zh: Device Information for Debugging
-  es: Device Information for Debugging
-  fr: Device Information for Debugging
-  pt: Device Information for Debugging
-  ru: Device Information for Debugging
-  ja: Device Information for Debugging
-  ko: Device Information for Debugging
-  it: Device Information for Debugging
-  tr: Device Information for Debugging
-  vi: Device Information for Debugging
-  id: Device Information for Debugging
-  pl: Device Information for Debugging
-  nl: Device Information for Debugging
-  ar: Device Information for Debugging
-  hi: Device Information for Debugging
-  th: Device Information for Debugging
-  cs: Device Information for Debugging
-  sv: Device Information for Debugging
+  en: "Device Information for Debugging"
+  de: "Geräteinformationen für Debugging"
+  zh: "用于调试的设备信息"
+  es: "Información del dispositivo para debugging"
+  fr: "Informations de l'appareil pour le débogage"
+  pt: "Informações do dispositivo para debugging"
+  ru: "Информация об устройстве для отладки"
+  ja: "デバッグ用デバイス情報"
+  ko: "디버깅을 위한 기기 정보"
+  it: "Informazioni del dispositivo per il debugging"
+  tr: "Hata ayıklama için cihaz bilgileri"
+  vi: "Thông tin thiết bị để gỡ lỗi"
+  id: "Informasi perangkat untuk debugging"
+  pl: "Informacje o urządzeniu do debugowania"
+  nl: "Apparaatinformatie voor debugging"
+  ar: "معلومات الجهاز للتصحيح"
+  hi: "डिबगिंग के लिए डिवाइस की जानकारी"
+  th: "ข้อมูลอุปกรณ์สำหรับการแก้ไขข้อผิดพลาด"
+  cs: "Informace o zařízení pro ladění"
+  sv: "Enhetsinformation för debugging"
   verified_by_human: []
 report_issue.device_info.description:
   context: Description for the device information notice shown under the report issue submit button
-  en: To help debug your issue, the following technical information about your device will be included in your report and sent via email to our server admin:
-  de: To help debug your issue, the following technical information about your device will be included in your report and sent via email to our server admin:
-  zh: To help debug your issue, the following technical information about your device will be included in your report and sent via email to our server admin:
-  es: To help debug your issue, the following technical information about your device will be included in your report and sent via email to our server admin:
-  fr: To help debug your issue, the following technical information about your device will be included in your report and sent via email to our server admin:
-  pt: To help debug your issue, the following technical information about your device will be included in your report and sent via email to our server admin:
-  ru: To help debug your issue, the following technical information about your device will be included in your report and sent via email to our server admin:
-  ja: To help debug your issue, the following technical information about your device will be included in your report and sent via email to our server admin:
-  ko: To help debug your issue, the following technical information about your device will be included in your report and sent via email to our server admin:
-  it: To help debug your issue, the following technical information about your device will be included in your report and sent via email to our server admin:
-  tr: To help debug your issue, the following technical information about your device will be included in your report and sent via email to our server admin:
-  vi: To help debug your issue, the following technical information about your device will be included in your report and sent via email to our server admin:
-  id: To help debug your issue, the following technical information about your device will be included in your report and sent via email to our server admin:
-  pl: To help debug your issue, the following technical information about your device will be included in your report and sent via email to our server admin:
-  nl: To help debug your issue, the following technical information about your device will be included in your report and sent via email to our server admin:
-  ar: To help debug your issue, the following technical information about your device will be included in your report and sent via email to our server admin:
-  hi: To help debug your issue, the following technical information about your device will be included in your report and sent via email to our server admin:
-  th: To help debug your issue, the following technical information about your device will be included in your report and sent via email to our server admin:
-  cs: To help debug your issue, the following technical information about your device will be included in your report and sent via email to our server admin:
-  sv: To help debug your issue, the following technical information about your device will be included in your report and sent via email to our server admin:
+  en: 'To help debug your issue, the following technical information about your device will be included in your report and sent via email to our server admin:'
+  de: 'Um bei der Behebung Ihres Problems zu helfen, werden die folgenden technischen Informationen über Ihr Gerät in Ihren Bericht aufgenommen und per E-Mail an unseren Serveradministrator gesendet:'
+  zh: '为了帮助调试您的问题，以下关于您设备的技术信息将包含在您的报告中并通过电子邮件发送给我们的服务器管理员：'
+  es: 'Para ayudar a depurar tu problema, la siguiente información técnica sobre tu dispositivo se incluirá en tu reporte y se enviará por correo electrónico a nuestro administrador del servidor:'
+  fr: 'Pour aider à déboguer votre problème, les informations techniques suivantes sur votre appareil seront incluses dans votre rapport et envoyées par e-mail à notre administrateur serveur :'
+  pt: 'Para ajudar a depurar seu problema, as seguintes informações técnicas sobre seu dispositivo serão incluídas em seu relatório e enviadas por e-mail ao nosso administrador do servidor:'
+  ru: 'Чтобы помочь с отладкой вашей проблемы, следующая техническая информация о вашем устройстве будет включена в ваш отчет и отправлена по электронной почте нашему администратору сервера:'
+  ja: 'お客様の問題のデバッグをサポートするため、お客様のデバイスに関する以下の技術情報がレポートに含まれ、サーバー管理者にメールで送信されます：'
+  ko: '귀하의 문제를 디버깅하는 데 도움이 되도록, 귀하의 기기에 대한 다음 기술 정보가 보고서에 포함되어 서버 관리자에게 이메일로 전송됩니다:'
+  it: 'Per aiutare a risolvere il tuo problema, le seguenti informazioni tecniche sul tuo dispositivo saranno incluse nel tuo report e inviate via email al nostro amministratore del server:'
+  tr: 'Sorununuzu çözmeye yardımcı olmak için, cihazınızla ilgili aşağıdaki teknik bilgiler raporunuza dahil edilecek ve e-posta yoluyla sunucu yöneticimize gönderilecektir:'
+  vi: 'Để giúp gỡ lỗi vấn đề của bạn, các thông tin kỹ thuật sau về thiết bị của bạn sẽ được bao gồm trong báo cáo và gửi qua email tới quản trị viên máy chủ của chúng tôi:'
+  id: 'Untuk membantu men-debug masalah Anda, informasi teknis berikut tentang perangkat Anda akan disertakan dalam laporan Anda dan dikirim melalui email kepada admin server kami:'
+  pl: 'Aby pomóc w debugowaniu Twojego problemu, następujące informacje techniczne o Twoim urządzeniu zostaną uwzględnione w Twoim raporcie i wysłane e-mailem do naszego administratora serwera:'
+  nl: 'Om te helpen bij het debuggen van uw probleem, zal de volgende technische informatie over uw apparaat worden opgenomen in uw rapport en per e-mail worden verzonden naar onze serverbeheerder:'
+  ar: 'للمساعدة في حل مشكلتك، ستُدرج المعلومات التقنية التالية حول جهازك في تقريرك وسيتم إرسالها عبر البريد الإلكتروني إلى مدير الخادم لدينا:'
+  hi: 'आपकी समस्या को ठीक करने में मदद करने के लिए, आपके डिवाइस के बारे में निम्नलिखित तकनीकी जानकारी आपकी रिपोर्ट में शामिल की जाएगी और हमारे सर्वर एडमिन को ईमेल के माध्यम से भेजी जाएगी:'
+  th: 'เพื่อช่วยในการแก้ไขปัญหาของคุณ ข้อมูลทางเทคนิคต่อไปนี้เกี่ยวกับอุปกรณ์ของคุณจะถูกรวมไว้ในรายงานของคุณและส่งทางอีเมลไปยังผู้ดูแลเซิร์ฟเวอร์ของเรา:'
+  cs: 'Pro pomoc při ladění vašeho problému budou následující technické informace o vašem zařízení zahrnuty do vaší zprávy a odeslány e-mailem našemu správci serveru:'
+  sv: 'För att hjälpa till med debugging av ditt problem kommer följande tekniska information om din enhet att inkluderas i din rapport och skickas via e-post till vår serveradministratör:'
   verified_by_human: []
 report_issue.device_info.browser_os_label:
   context: Label for the user agent entry in the device information notice
-  en: Browser & OS
-  de: Browser & OS
-  zh: Browser & OS
-  es: Browser & OS
-  fr: Browser & OS
-  pt: Browser & OS
-  ru: Browser & OS
-  ja: Browser & OS
-  ko: Browser & OS
-  it: Browser & OS
-  tr: Browser & OS
-  vi: Browser & OS
-  id: Browser & OS
-  pl: Browser & OS
-  nl: Browser & OS
-  ar: Browser & OS
-  hi: Browser & OS
-  th: Browser & OS
-  cs: Browser & OS
-  sv: Browser & OS
+  en: "Browser & OS"
+  de: "Browser & OS"
+  zh: "浏览器和操作系统"
+  es: "Navegador y SO"
+  fr: "Navigateur et OS"
+  pt: "Navegador e SO"
+  ru: "Браузер и ОС"
+  ja: "ブラウザとOS"
+  ko: "브라우저 및 OS"
+  it: "Browser e OS"
+  tr: "Tarayıcı ve İS"
+  vi: "Trình duyệt & HĐH"
+  id: "Browser & OS"
+  pl: "Przeglądarka i OS"
+  nl: "Browser & OS"
+  ar: "المتصفح ونظام التشغيل"
+  hi: "ब्राउज़र और OS"
+  th: "เบราว์เซอร์และ OS"
+  cs: "Prohlížeč a OS"
+  sv: "Webbläsare & OS"
   verified_by_human: []
 report_issue.device_info.screen_size_label:
   context: Label for the viewport size entry in the device information notice
-  en: Screen Size
-  de: Screen Size
-  zh: Screen Size
-  es: Screen Size
-  fr: Screen Size
-  pt: Screen Size
-  ru: Screen Size
-  ja: Screen Size
-  ko: Screen Size
-  it: Screen Size
-  tr: Screen Size
-  vi: Screen Size
-  id: Screen Size
-  pl: Screen Size
-  nl: Screen Size
-  ar: Screen Size
-  hi: Screen Size
-  th: Screen Size
-  cs: Screen Size
-  sv: Screen Size
+  en: "Screen Size"
+  de: "Bildschirmgröße"
+  zh: "屏幕尺寸"
+  es: "Tamaño de pantalla"
+  fr: "Taille d'écran"
+  pt: "Tamanho da tela"
+  ru: "Размер экрана"
+  ja: "画面サイズ"
+  ko: "화면 크기"
+  it: "Dimensione schermo"
+  tr: "Ekran boyutu"
+  vi: "Kích thước màn hình"
+  id: "Ukuran layar"
+  pl: "Rozmiar ekranu"
+  nl: "Schermgrootte"
+  ar: "حجم الشاشة"
+  hi: "स्क्रीन का आकार"
+  th: "ขนาดหน้าจอ"
+  cs: "Velikost obrazovky"
+  sv: "Skärmstorlek"
   verified_by_human: []
 report_issue.device_info.touch_support_label:
   context: Label for the touch capability entry in the device information notice
-  en: Touch Support
-  de: Touch Support
-  zh: Touch Support
-  es: Touch Support
-  fr: Touch Support
-  pt: Touch Support
-  ru: Touch Support
-  ja: Touch Support
-  ko: Touch Support
-  it: Touch Support
-  tr: Touch Support
-  vi: Touch Support
-  id: Touch Support
-  pl: Touch Support
-  nl: Touch Support
-  ar: Touch Support
-  hi: Touch Support
-  th: Touch Support
-  cs: Touch Support
-  sv: Touch Support
+  en: "Touch Support"
+  de: "Touch-Unterstützung"
+  zh: "触摸支持"
+  es: "Soporte táctil"
+  fr: "Support tactile"
+  pt: "Suporte a toque"
+  ru: "Поддержка касания"
+  ja: "タッチサポート"
+  ko: "터치 지원"
+  it: "Supporto touch"
+  tr: "Dokunmatik destek"
+  vi: "Hỗ trợ cảm ứng"
+  id: "Dukungan sentuh"
+  pl: "Obsługa dotyku"
+  nl: "Aanrakingondersteuning"
+  ar: "دعم اللمس"
+  hi: "टच सपोर्ट"
+  th: "การสนับสนุนการสัมผัส"
+  cs: "Podpora dotyku"
+  sv: "Pekstöd"
   verified_by_human: []
 report_issue.device_info.privacy_label:
   context: Label prefix for the privacy notice inside the device information notice
-  en: Privacy Notice
-  de: Privacy Notice
-  zh: Privacy Notice
-  es: Privacy Notice
-  fr: Privacy Notice
-  pt: Privacy Notice
-  ru: Privacy Notice
-  ja: Privacy Notice
-  ko: Privacy Notice
-  it: Privacy Notice
-  tr: Privacy Notice
-  vi: Privacy Notice
-  id: Privacy Notice
-  pl: Privacy Notice
-  nl: Privacy Notice
-  ar: Privacy Notice
-  hi: Privacy Notice
-  th: Privacy Notice
-  cs: Privacy Notice
-  sv: Privacy Notice
+  en: "Privacy Notice"
+  de: "Datenschutzhinweis"
+  zh: "隐私声明"
+  es: "Aviso de privacidad"
+  fr: "Avis de confidentialité"
+  pt: "Aviso de privacidade"
+  ru: "Уведомление о конфиденциальности"
+  ja: "プライバシー通知"
+  ko: "개인정보 고지"
+  it: "Avviso sulla privacy"
+  tr: "Gizlilik bildirimi"
+  vi: "Thông báo về quyền riêng tư"
+  id: "Pemberitahuan privasi"
+  pl: "Informacja o prywatności"
+  nl: "Privacyverklaring"
+  ar: "إشعار الخصوصية"
+  hi: "गोपनीयता सूचना"
+  th: "ประกาศความเป็นส่วนตัว"
+  cs: "Oznámení o ochraně osobních údajů"
+  sv: "Integritetsmeddelande"
   verified_by_human: []
 report_issue.device_info.privacy_body:
   context: Privacy notice body text inside the device information notice
-  en: This technical data is only used for debugging purposes to help resolve your issue. It is sent via Mailjet to our server admin and is not permanently stored on OpenMates servers. The data helps us understand technical context (browser compatibility, screen layout issues, touch vs desktop usage) to provide better support.
-  de: This technical data is only used for debugging purposes to help resolve your issue. It is sent via Mailjet to our server admin and is not permanently stored on OpenMates servers. The data helps us understand technical context (browser compatibility, screen layout issues, touch vs desktop usage) to provide better support.
-  zh: This technical data is only used for debugging purposes to help resolve your issue. It is sent via Mailjet to our server admin and is not permanently stored on OpenMates servers. The data helps us understand technical context (browser compatibility, screen layout issues, touch vs desktop usage) to provide better support.
-  es: This technical data is only used for debugging purposes to help resolve your issue. It is sent via Mailjet to our server admin and is not permanently stored on OpenMates servers. The data helps us understand technical context (browser compatibility, screen layout issues, touch vs desktop usage) to provide better support.
-  fr: This technical data is only used for debugging purposes to help resolve your issue. It is sent via Mailjet to our server admin and is not permanently stored on OpenMates servers. The data helps us understand technical context (browser compatibility, screen layout issues, touch vs desktop usage) to provide better support.
-  pt: This technical data is only used for debugging purposes to help resolve your issue. It is sent via Mailjet to our server admin and is not permanently stored on OpenMates servers. The data helps us understand technical context (browser compatibility, screen layout issues, touch vs desktop usage) to provide better support.
-  ru: This technical data is only used for debugging purposes to help resolve your issue. It is sent via Mailjet to our server admin and is not permanently stored on OpenMates servers. The data helps us understand technical context (browser compatibility, screen layout issues, touch vs desktop usage) to provide better support.
-  ja: This technical data is only used for debugging purposes to help resolve your issue. It is sent via Mailjet to our server admin and is not permanently stored on OpenMates servers. The data helps us understand technical context (browser compatibility, screen layout issues, touch vs desktop usage) to provide better support.
-  ko: This technical data is only used for debugging purposes to help resolve your issue. It is sent via Mailjet to our server admin and is not permanently stored on OpenMates servers. The data helps us understand technical context (browser compatibility, screen layout issues, touch vs desktop usage) to provide better support.
-  it: This technical data is only used for debugging purposes to help resolve your issue. It is sent via Mailjet to our server admin and is not permanently stored on OpenMates servers. The data helps us understand technical context (browser compatibility, screen layout issues, touch vs desktop usage) to provide better support.
-  tr: This technical data is only used for debugging purposes to help resolve your issue. It is sent via Mailjet to our server admin and is not permanently stored on OpenMates servers. The data helps us understand technical context (browser compatibility, screen layout issues, touch vs desktop usage) to provide better support.
-  vi: This technical data is only used for debugging purposes to help resolve your issue. It is sent via Mailjet to our server admin and is not permanently stored on OpenMates servers. The data helps us understand technical context (browser compatibility, screen layout issues, touch vs desktop usage) to provide better support.
-  id: This technical data is only used for debugging purposes to help resolve your issue. It is sent via Mailjet to our server admin and is not permanently stored on OpenMates servers. The data helps us understand technical context (browser compatibility, screen layout issues, touch vs desktop usage) to provide better support.
-  pl: This technical data is only used for debugging purposes to help resolve your issue. It is sent via Mailjet to our server admin and is not permanently stored on OpenMates servers. The data helps us understand technical context (browser compatibility, screen layout issues, touch vs desktop usage) to provide better support.
-  nl: This technical data is only used for debugging purposes to help resolve your issue. It is sent via Mailjet to our server admin and is not permanently stored on OpenMates servers. The data helps us understand technical context (browser compatibility, screen layout issues, touch vs desktop usage) to provide better support.
-  ar: This technical data is only used for debugging purposes to help resolve your issue. It is sent via Mailjet to our server admin and is not permanently stored on OpenMates servers. The data helps us understand technical context (browser compatibility, screen layout issues, touch vs desktop usage) to provide better support.
-  hi: This technical data is only used for debugging purposes to help resolve your issue. It is sent via Mailjet to our server admin and is not permanently stored on OpenMates servers. The data helps us understand technical context (browser compatibility, screen layout issues, touch vs desktop usage) to provide better support.
-  th: This technical data is only used for debugging purposes to help resolve your issue. It is sent via Mailjet to our server admin and is not permanently stored on OpenMates servers. The data helps us understand technical context (browser compatibility, screen layout issues, touch vs desktop usage) to provide better support.
-  cs: This technical data is only used for debugging purposes to help resolve your issue. It is sent via Mailjet to our server admin and is not permanently stored on OpenMates servers. The data helps us understand technical context (browser compatibility, screen layout issues, touch vs desktop usage) to provide better support.
-  sv: This technical data is only used for debugging purposes to help resolve your issue. It is sent via Mailjet to our server admin and is not permanently stored on OpenMates servers. The data helps us understand technical context (browser compatibility, screen layout issues, touch vs desktop usage) to provide better support.
+  en: "This technical data is only used for debugging purposes to help resolve your issue. It is sent via Mailjet to our server admin and is not permanently stored on OpenMates servers. The data helps us understand technical context (browser compatibility, screen layout issues, touch vs desktop usage) to provide better support."
+  de: "Diese technischen Daten werden nur zu Debugging-Zwecken verwendet, um Ihr Problem zu lösen. Sie werden über Mailjet an unseren Serveradministrator gesendet und nicht dauerhaft auf OpenMates-Servern gespeichert. Die Daten helfen uns, den technischen Kontext (Browser-Kompatibilität, Bildschirmlayout-Probleme, Touch- vs. Desktop-Nutzung) zu verstehen, um besseren Support zu bieten."
+  zh: "这些技术数据仅用于调试目的，以帮助解决您的问题。它们通过Mailjet发送给我们的服务器管理员，不会永久存储在OpenMates服务器上。这些数据帮助我们了解技术背景（浏览器兼容性、屏幕布局问题、触摸与桌面使用）以提供更好的支持。"
+  es: "Estos datos técnicos solo se usan con fines de depuración para ayudar a resolver tu problema. Se envían a través de Mailjet a nuestro administrador del servidor y no se almacenan permanentemente en los servidores de OpenMates. Los datos nos ayudan a entender el contexto técnico (compatibilidad del navegador, problemas de diseño de pantalla, uso táctil vs escritorio) para brindar mejor soporte."
+  fr: "Ces données techniques ne sont utilisées qu'à des fins de débogage pour aider à résoudre votre problème. Elles sont envoyées via Mailjet à notre administrateur serveur et ne sont pas stockées de manière permanente sur les serveurs OpenMates. Les données nous aident à comprendre le contexte technique (compatibilité du navigateur, problèmes de mise en page d'écran, utilisation tactile vs bureau) pour fournir un meilleur support."
+  pt: "Estes dados técnicos são usados apenas para fins de depuração para ajudar a resolver seu problema. Eles são enviados via Mailjet para nosso administrador do servidor e não são armazenados permanentemente nos servidores OpenMates. Os dados nos ajudam a entender o contexto técnico (compatibilidade do navegador, problemas de layout de tela, uso tátil vs desktop) para fornecer melhor suporte."
+  ru: "Эти технические данные используются только в целях отладки для помощи в решении вашей проблемы. Они отправляются через Mailjet нашему администратору сервера и не хранятся постоянно на серверах OpenMates. Данные помогают нам понять технический контекст (совместимость браузера, проблемы с макетом экрана, использование сенсорного vs настольного) для предоставления лучшей поддержки."
+  ja: "これらの技術データは、お客様の問題解決を支援するためのデバッグ目的でのみ使用されます。Mailjetを通じてサーバー管理者に送信され、OpenMatesサーバーに永続的に保存されることはありません。このデータは、より良いサポートを提供するために技術的コンテキスト（ブラウザ互換性、画面レイアウトの問題、タッチ対デスクトップ使用）を理解するのに役立ちます。"
+  ko: "이 기술 데이터는 귀하의 문제를 해결하는 데 도움이 되는 디버깅 목적으로만 사용됩니다. Mailjet을 통해 서버 관리자에게 전송되며 OpenMates 서버에 영구적으로 저장되지 않습니다. 이 데이터는 더 나은 지원을 제공하기 위해 기술적 맥락(브라우저 호환성, 화면 레이아웃 문제, 터치 대 데스크톱 사용)을 이해하는 데 도움이 됩니다."
+  it: "Questi dati tecnici vengono utilizzati solo per scopi di debug per aiutare a risolvere il tuo problema. Vengono inviati tramite Mailjet al nostro amministratore del server e non sono archiviati permanentemente sui server OpenMates. I dati ci aiutano a comprendere il contesto tecnico (compatibilità del browser, problemi di layout dello schermo, uso touch vs desktop) per fornire un supporto migliore."
+  tr: "Bu teknik veriler yalnızca sorununuzu çözmemize yardımcı olmak için hata ayıklama amacıyla kullanılır. Mailjet aracılığıyla sunucu yöneticimize gönderilir ve OpenMates sunucularında kalıcı olarak saklanmaz. Veriler, daha iyi destek sağlamak için teknik bağlamı (tarayıcı uyumluluğu, ekran düzeni sorunları, dokunmatik vs masaüstü kullanımı) anlamamıza yardımcı olur."
+  vi: "Dữ liệu kỹ thuật này chỉ được sử dụng cho mục đích gỡ lỗi để giúp giải quyết vấn đề của bạn. Nó được gửi qua Mailjet tới quản trị viên máy chủ của chúng tôi và không được lưu trữ vĩnh viễn trên các máy chủ OpenMates. Dữ liệu giúp chúng tôi hiểu bối cảnh kỹ thuật (khả năng tương thích của trình duyệt, vấn đề bố cục màn hình, sử dụng cảm ứng so với máy tính để bàn) để cung cấp hỗ trợ tốt hơn."
+  id: "Data teknis ini hanya digunakan untuk tujuan debugging guna membantu menyelesaikan masalah Anda. Data dikirim melalui Mailjet ke admin server kami dan tidak disimpan secara permanen di server OpenMates. Data membantu kami memahami konteks teknis (kompatibilitas browser, masalah tata letak layar, penggunaan sentuh vs desktop) untuk memberikan dukungan yang lebih baik."
+  pl: "Te dane techniczne są używane wyłącznie w celach debugowania, aby pomóc rozwiązać Twój problem. Są wysyłane przez Mailjet do naszego administratora serwera i nie są trwale przechowywane na serwerach OpenMates. Dane pomagają nam zrozumieć kontekst techniczny (kompatybilność przeglądarki, problemy z układem ekranu, użycie dotykowe vs desktopowe), aby zapewnić lepsze wsparcie."
+  nl: "Deze technische gegevens worden alleen gebruikt voor debugging-doeleinden om uw probleem op te lossen. Ze worden via Mailjet verzonden naar onze serverbeheerder en niet permanent opgeslagen op OpenMates-servers. De gegevens helpen ons technische context te begrijpen (browsercompatibiliteit, schermindelingsproblemen, aanraak- vs desktopgebruik) om betere ondersteuning te bieden."
+  ar: "تُستخدم هذه البيانات التقنية فقط لأغراض التصحيح للمساعدة في حل مشكلتك. يتم إرسالها عبر Mailjet إلى مدير الخادم لدينا ولا يتم تخزينها بشكل دائم على خوادم OpenMates. تساعدنا البيانات في فهم السياق التقني (توافق المتصفح، مشاكل تخطيط الشاشة، الاستخدام اللمسي مقابل سطح المكتب) لتوفير دعم أفضل."
+  hi: "यह तकनीकी डेटा केवल आपकी समस्या को हल करने में मदद करने के लिए डिबगिंग उद्देश्यों के लिए उपयोग किया जाता है। यह Mailjet के माध्यम से हमारे सर्वर एडमिन को भेजा जाता है और OpenMates सर्वर पर स्थायी रूप से संग्रहीत नहीं किया जाता है। डेटा हमें तकनीकी संदर्भ (ब्राउज़र संगतता, स्क्रीन लेआउट समस्याएं, टच बनाम डेस्कटॉप उपयोग) समझने में मदद करता है ताकि बेहतर सहायता प्रदान की जा सके।"
+  th: "ข้อมูลเทคนิคนี้ใช้เฉพาะเพื่อการแก้ไขข้อบกพร่องเพื่อช่วยแก้ไขปัญหาของคุณ ข้อมูลจะถูกส่งผ่าน Mailjet ไปยังผู้ดูแลเซิร์ฟเวอร์ของเราและไม่ได้เก็บไว้อย่างถาวรบนเซิร์ฟเวอร์ OpenMates ข้อมูลช่วยให้เราเข้าใจบริบททางเทคนิค (ความเข้ากันได้ของเบราว์เซอร์ ปัญหาเลย์เอาต์หน้าจอ การใช้งานแบบสัมผัสเทียบกับเดสก์ท็อป) เพื่อให้การสนับสนุนที่ดีขึ้น"
+  cs: "Tato technická data se používají pouze pro účely ladění, aby pomohla vyřešit váš problém. Jsou odeslána prostřednictvím Mailjet našemu správci serveru a nejsou trvale uložena na serverech OpenMates. Data nám pomáhají pochopit technický kontext (kompatibilita prohlížeče, problémy s rozložením obrazovky, použití dotyku vs desktopu) pro poskytnutí lepší podpory."
+  sv: "Dessa tekniska data används endast för felsökningsändamål för att hjälpa till att lösa ditt problem. De skickas via Mailjet till vår serveradministratör och lagras inte permanent på OpenMates-servrar. Data hjälper oss att förstå teknisk kontext (webbläsarkompatibilitet, skärmlayoutproblem, touch- vs skrivbordsanvändning) för att ge bättre support."
   verified_by_human: []
 report_issue.signal_reminder:
   context: Reminder text about Signal group for discussions or screenshots

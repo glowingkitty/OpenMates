@@ -315,6 +315,23 @@ class RevolutService:
             logger.error(f"Error retrieving Revolut order {order_id}: {str(e)}", exc_info=True)
             return None
 
+    async def create_support_order(self, amount: int, currency: str, email: str, is_recurring: bool, user_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
+        """
+        Create a support order using Revolut (stub implementation for now).
+
+        Args:
+            amount: Amount in smallest currency unit
+            currency: Currency code
+            email: Customer email
+            is_recurring: True for monthly subscriptions, False for one-time payments
+            user_id: Optional authenticated user ID
+
+        Returns:
+            None - not implemented for Revolut yet
+        """
+        logger.warning("Support orders are not implemented for Revolut yet")
+        return None
+
     async def close(self):
         """
         Placeholder close method to be called during application shutdown.

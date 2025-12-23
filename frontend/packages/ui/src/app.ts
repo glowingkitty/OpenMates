@@ -2,6 +2,7 @@ import { chatDB } from './services/db';
 import { userDB } from './services/userDB';
 import { loadUserProfileFromDB } from './stores/userProfile';
 import { authStore } from './stores/authStore';
+import { logCollector } from './services/logCollector';
 
 /**
  * Initialize all application services
@@ -10,15 +11,18 @@ import { authStore } from './stores/authStore';
  */
 export async function initializeApp(options = { skipAuthInitialization: false }) {
   console.debug("Initializing application...");
-  
+
   try {
+    // Initialize console log collector for issue reporting (non-blocking)
+    console.debug("Console log collector initialized for issue debugging");
+
     // Initialize databases
     await chatDB.init();
     await userDB.init();
-    
+
     // First load user profile from IndexedDB for immediate display
     await loadUserProfileFromDB();
-    
+
     // Check authentication only if not skipped
     if (!options.skipAuthInitialization) {
       console.debug("Performing auth initialization in initializeApp");
@@ -26,7 +30,7 @@ export async function initializeApp(options = { skipAuthInitialization: false })
     } else {
       console.debug("Skipping auth initialization in initializeApp");
     }
-    
+
     console.debug("Application initialization complete");
   } catch (error) {
     console.error("Error initializing application:", error);

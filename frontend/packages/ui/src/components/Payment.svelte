@@ -17,7 +17,7 @@
     const dispatch = createEventDispatcher();
 
     // Props using Svelte 5 runes
-    let { 
+    let {
         purchasePrice = 20,
         currency = 'EUR',
         credits_amount = 21000,
@@ -26,7 +26,10 @@
         initialState = 'idle',
         isGift = false,
         isGiftCard = false,
-        disableWebSocketHandlers = false // When true, don't register WebSocket handlers (e.g., when used in Settings)
+        disableWebSocketHandlers = false, // When true, don't register WebSocket handlers (e.g., when used in Settings)
+        supportContribution = false, // When true, this is a supporter contribution
+        supportEmail = null, // Email for supporter contributions (non-authenticated users)
+        isRecurring = false // When true, this is a recurring monthly subscription
     }: {
         purchasePrice?: number;
         currency?: string;
@@ -37,6 +40,9 @@
         isGift?: boolean;
         isGiftCard?: boolean;
         disableWebSocketHandlers?: boolean;
+        supportContribution?: boolean;
+        supportEmail?: string | null;
+        isRecurring?: boolean;
     } = $props();
 
     let hasConsentedToLimitedRefund = $state(false);
@@ -114,21 +120,43 @@
         try {
             // Get email encryption key for server to decrypt email
             const emailEncryptionKey = cryptoService.getEmailEncryptionKeyForApi();
-            
-            // Use buy-gift-card endpoint for gift card purchases, create-order for regular purchases
-            const endpoint = isGiftCard 
-                ? apiEndpoints.payments.buyGiftCard 
-                : apiEndpoints.payments.createOrder;
-            
+
+            // Choose endpoint based on payment type
+            let endpoint;
+            let requestBody: any;
+
+            if (supportContribution) {
+                // For support contributions, use a dedicated endpoint
+                endpoint = apiEndpoints.payments.createSupportOrder;
+                requestBody = {
+                    amount: purchasePrice,
+                    currency: currency,
+                    email_encryption_key: emailEncryptionKey,
+                    support_email: supportEmail,
+                    is_recurring: isRecurring
+                };
+            } else if (isGiftCard) {
+                endpoint = apiEndpoints.payments.buyGiftCard;
+                requestBody = {
+                    credits_amount: credits_amount,
+                    currency: currency,
+                    email_encryption_key: emailEncryptionKey
+                };
+            } else {
+                // Regular credit purchase
+                endpoint = apiEndpoints.payments.createOrder;
+                requestBody = {
+                    credits_amount: credits_amount,
+                    currency: currency,
+                    email_encryption_key: emailEncryptionKey
+                };
+            }
+
             const response = await fetch(getApiEndpoint(endpoint), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 credentials: 'include',
-                body: JSON.stringify({
-                    credits_amount: credits_amount,
-                    currency: currency,
-                    email_encryption_key: emailEncryptionKey
-                })
+                body: JSON.stringify(requestBody)
             });
             if (!response.ok) {
                 const errorData = await response.json().catch(() => ({}));

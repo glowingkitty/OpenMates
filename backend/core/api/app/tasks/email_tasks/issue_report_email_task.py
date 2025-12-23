@@ -35,7 +35,8 @@ def send_issue_report_email(
     chat_or_embed_url: Optional[str],
     timestamp: str,
     estimated_location: str,
-    device_info: Optional[str] = None
+    device_info: Optional[str] = None,
+    console_logs: Optional[str] = None
 ) -> bool:
     """
     Celery task to send issue report email to server owner/admin.
@@ -48,6 +49,7 @@ def send_issue_report_email(
         timestamp: Timestamp when the issue was reported (formatted string)
         estimated_location: Estimated geographic location based on IP address
         device_info: Optional device information for debugging (browser, screen size, touch support)
+        console_logs: Optional console logs from the client (last 100 lines)
 
     Returns:
         bool: True if email was sent successfully, False otherwise
@@ -62,7 +64,7 @@ def send_issue_report_email(
         result = asyncio.run(
             _async_send_issue_report_email(
                 self, admin_email, issue_title, issue_description,
-                chat_or_embed_url, timestamp, estimated_location, device_info
+                chat_or_embed_url, timestamp, estimated_location, device_info, console_logs
             )
         )
         if result:
@@ -93,7 +95,8 @@ async def _async_send_issue_report_email(
     chat_or_embed_url: Optional[str],
     timestamp: str,
     estimated_location: str,
-    device_info: Optional[str] = None
+    device_info: Optional[str] = None,
+    console_logs: Optional[str] = None
 ) -> bool:
     """
     Async implementation for sending issue report email.
@@ -131,6 +134,36 @@ async def _async_send_issue_report_email(
         # Convert newlines to <br/> for HTML display in email
         device_info_formatted = device_info_formatted.replace('\n', '<br/>')
 
+        # Collect backend Docker Compose logs
+        logger.info("Collecting backend Docker Compose logs for issue report")
+        from backend.core.api.app.services.docker_log_collector import docker_log_collector
+        backend_logs = docker_log_collector.get_compose_logs(lines=100)
+
+        # Prepare log attachments
+        attachments = []
+
+        # Create console logs attachment if available
+        if console_logs and console_logs.strip():
+            import base64
+            console_logs_b64 = base64.b64encode(console_logs.encode('utf-8')).decode('utf-8')
+            attachments.append({
+                'filename': f'console_logs_{timestamp.replace(" ", "_").replace(":", "-")}.txt',
+                'content': console_logs_b64
+            })
+            logger.info("Added console logs attachment to issue report")
+
+        # Create backend logs attachment if available
+        if backend_logs and backend_logs.strip():
+            # Include backend logs even if they contain errors - they might be useful for debugging
+            backend_logs_b64 = base64.b64encode(backend_logs.encode('utf-8')).decode('utf-8')
+            attachments.append({
+                'filename': f'backend_logs_{timestamp.replace(" ", "_").replace(":", "-")}.txt',
+                'content': backend_logs_b64
+            })
+            logger.info("Added backend container logs attachment to issue report")
+        else:
+            logger.warning("Backend logs not available - skipping attachment")
+
         # Prepare email context with sanitized data
         email_context = {
             "darkmode": True,  # Default to dark mode for issue report emails
@@ -144,15 +177,17 @@ async def _async_send_issue_report_email(
         logger.info("Prepared email context for issue report")
         
         # Send issue report email
+        attachment_info = f" with {len(attachments)} attachment(s)" if attachments else " with no attachments"
         logger.info(
             f"Attempting to send issue report email to {admin_email} with template 'issue_report' "
-            f"(title: '{issue_title[:50]}...')"
+            f"(title: '{issue_title[:50]}...'){attachment_info}"
         )
         email_success = await task.email_template_service.send_email(
             template="issue_report",
             recipient_email=admin_email,
             context=email_context,
-            lang="en"  # Default to English for admin emails
+            lang="en",  # Default to English for admin emails
+            attachments=attachments
         )
         
         if not email_success:

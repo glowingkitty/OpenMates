@@ -1796,6 +1796,7 @@ class IssueReportRequest(BaseModel):
     description: Optional[str] = Field(None, min_length=10, max_length=5000, description="Issue description (optional, 10-5000 characters if provided)")
     chat_or_embed_url: Optional[str] = Field(None, max_length=500, description="Optional chat or embed URL related to the issue")
     device_info: Optional[DeviceInfo] = Field(None, description="Device information for debugging purposes (browser, screen size, touch support)")
+    console_logs: Optional[str] = Field(None, max_length=50000, description="Console logs from the client (last 100 lines)")
 
 
 class IssueReportResponse(BaseModel):
@@ -1926,6 +1927,12 @@ async def report_issue(
                 f"Touch Support: {'Yes' if device_info.isTouchEnabled else 'No'}"
             )
 
+        # Process console logs if provided
+        console_logs_str = None
+        if issue_data.console_logs and issue_data.console_logs.strip():
+            console_logs_str = issue_data.console_logs.strip()
+            logger.info(f"Console logs provided with issue report: {len(console_logs_str)} characters")
+
         # Dispatch the email task with sanitized data
         from backend.core.api.app.tasks.celery_config import app
         task_result = app.send_task(
@@ -1937,7 +1944,8 @@ async def report_issue(
                 "chat_or_embed_url": sanitized_url,
                 "timestamp": current_time,
                 "estimated_location": estimated_location,
-                "device_info": device_info_str
+                "device_info": device_info_str,
+                "console_logs": console_logs_str
             },
             queue='email'
         )
