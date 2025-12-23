@@ -94,6 +94,7 @@ Master Key → Encrypts Data ───→ │ Stores encrypted chats/apps (can't
 ### Safety & AI Security
 - **[`backend/apps/ai/processing/preprocessor.py`](../../backend/apps/ai/processing/preprocessor.py)**: Request safety analysis
 - **[Prompt Injection Protection](./prompt_injection_protection.md)**: LLM safety architecture
+- **[LLM Hallucination Mitigation](./llm_hallucination_mitigation.md)**: Controls to reduce fabricated URLs, tool-result hallucinations, and planned improvements
 
 ## Security Design Assumptions
 
