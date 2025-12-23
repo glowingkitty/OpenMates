@@ -283,9 +283,9 @@ export function buildTermsOfUseContent(t: TranslationFunction): string {
 	lines.push('');
 	lines.push(t('legal.terms.ai_accuracy.description.text'));
 	lines.push('');
-	lines.push(`### ${t('legal.terms.ai_accuracy.data_sharing.heading.text')}`);
+	lines.push(`### ${t('legal.terms.ai_accuracy_data_sharing_heading.text')}`);
 	lines.push('');
-	lines.push(t('legal.terms.ai_accuracy.data_sharing.text.text'));
+	lines.push(t('legal.terms.ai_accuracy_data_sharing_text.text'));
 	lines.push('');
 
 	// Section 6: Credits and Payments

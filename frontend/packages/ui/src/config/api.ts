@@ -110,6 +110,7 @@ export const apiEndpoints = {
     payments: {
         config:                     '/v1/payments/config',                      // Get public config for payment provider
         createOrder:                '/v1/payments/create-order',                // Create a payment order
+        createSupportOrder:         '/v1/payments/create-support-order',        // Create a supporter contribution order
         orderStatus:                '/v1/payments/order-status',                // Get the status of a specific order (POST request)
         savePaymentMethod:          '/v1/payments/save-payment-method',         // Save payment method from successful payment
         hasPaymentMethod:            '/v1/payments/has-payment-method',         // Check if user has a saved payment method

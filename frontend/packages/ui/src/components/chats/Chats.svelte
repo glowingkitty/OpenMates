@@ -346,19 +346,28 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 	 * Refreshes the chat list from DB and re-dispatches selection if the updated chat was selected.
 	 */
 	const handleChatUpdatedEvent = async (event: CustomEvent<{ chat_id: string; newMessage?: Message; type?: string; chat?: ChatType }>) => {
-		console.debug(`[Chats] Chat updated event received for chat_id: ${event.detail.chat_id}, type: ${event.detail.type}`);
+		const detail = event.detail as any;
+		console.debug(`[Chats] Chat updated event received for chat_id: ${detail.chat_id}, type: ${detail.type}`);
 		
-		// Invalidate cache for the updated chat to ensure fresh metadata
-		chatMetadataCache.invalidateChat(event.detail.chat_id);
+		// Invalidate decrypted metadata cache only when metadata may have changed.
+		// Invalidating on every message update causes visible flicker (e.g., reverting briefly to "Sending...").
+		const shouldInvalidateMetadata =
+			detail.type === 'title_updated' ||
+			detail.type === 'draft' ||
+			detail.type === 'draft_deleted' ||
+			detail.messagesUpdated === true;
+		if (shouldInvalidateMetadata) {
+			chatMetadataCache.invalidateChat(detail.chat_id);
+		}
 		
 		// Invalidate last message cache if a new message was added
-		if (event.detail.newMessage || event.detail.type === 'message_added') {
-			chatListCache.invalidateLastMessage(event.detail.chat_id);
+		if (detail.newMessage || detail.type === 'message_added') {
+			chatListCache.invalidateLastMessage(detail.chat_id);
 		}
 		
 	// If a draft was deleted and we have the updated chat object, patch directly
-	if (event.detail.type === 'draft_deleted' && event.detail.chat) {
-		const updatedChat = event.detail.chat;
+	if (detail.type === 'draft_deleted' && detail.chat) {
+		const updatedChat = detail.chat;
 		const chatIndex = allChatsFromDB.findIndex(c => c.chat_id === updatedChat.chat_id);
 		if (chatIndex !== -1) {
 			allChatsFromDB[chatIndex] = updatedChat;
@@ -370,9 +379,9 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 		if (cached) {
 			allChatsFromDB = cached;
 		}
-	} else if (event.detail.chat) {
+	} else if (detail.chat) {
 		// If we have the updated chat payload, patch cache and list without full reload
-		chatListCache.upsertChat(event.detail.chat);
+		chatListCache.upsertChat(detail.chat);
 		const cached = chatListCache.getCache(false);
 		if (cached) {
 			allChatsFromDB = cached;
@@ -384,8 +393,8 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 	}
 	
 	// If the updated chat is the currently selected one, re-dispatch to update main view
-	if (selectedChatId === event.detail.chat_id) {
-		const updatedChat = allChatsFromDB.find(c => c.chat_id === event.detail.chat_id); // Corrected variable name
+	if (selectedChatId === detail.chat_id) {
+		const updatedChat = allChatsFromDB.find(c => c.chat_id === detail.chat_id); // Corrected variable name
 		if (updatedChat) {
 			dispatch('chatSelected', { chat: updatedChat });
 		}

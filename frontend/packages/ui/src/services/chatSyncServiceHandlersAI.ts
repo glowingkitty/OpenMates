@@ -305,6 +305,8 @@ export async function handleAIBackgroundResponseCompletedImpl(
         const typingStatus = get(aiTypingStore);
         let category = (typingStatus?.chatId === payload.chat_id) ? typingStatus.category : undefined;
         const modelName = payload.model_name || ((typingStatus?.chatId === payload.chat_id) ? typingStatus.modelName : undefined);
+
+        console.debug(`[ChatSyncService:AI] Background response model_name: "${modelName}" for message ${payload.message_id}`);
         
         // CRITICAL FIX for Issue 2: If category not in typing store (because user switched chats),
         // decrypt the category from the chat's encrypted_category field

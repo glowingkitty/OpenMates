@@ -13,6 +13,13 @@ How do keep chargebacks to a minimum?
 
 Users need to confirm their e-mail address during signup before they can purchase credits. Should already filter out most automated scam attempts where bots try to test stolen credit card numbers.
 
+### Receipt Email Decryption (Regular vs Auto Top-Up)
+
+- **Regular user-initiated payments**: `encrypted_email_address` is client-side encrypted; the backend decrypts it only with the client-provided `email_encryption_key` (sent during payment processing / invoice generation).
+- **Low-balance auto top-up payments**: no client key is available server-side, so receipts use `encrypted_email_auto_topup` (Vault-transit encrypted server-side when the user enables auto top-up).
+
+See `docs/architecture/security.md` for the full email encryption design.
+
 ### 2-factor authentication or passkey
 
 Users need to setup 2FA OTP app (if they signup via password) or passkey during signup. Should also filter out most automated scam attempts where bots try to test stolen credit card numbers.

@@ -14,7 +14,10 @@ from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 from backend.core.api.app.models.user import User
-from backend.core.api.app.routes.auth_routes.auth_dependencies import get_current_user
+from backend.core.api.app.routes.auth_routes.auth_dependencies import (
+    get_current_user,
+    get_current_user_optional,
+)
 from backend.core.api.app.tasks.celery_config import app # Import the Celery app
 from backend.core.api.app.routes.websockets import manager
 from backend.core.api.app.services.compliance import ComplianceService
@@ -75,6 +78,13 @@ class CreateOrderRequest(BaseModel):
     currency: str
     credits_amount: int
     email_encryption_key: Optional[str] = None
+
+class CreateSupportOrderRequest(BaseModel):
+    currency: str
+    amount: int  # Amount in the smallest currency unit (e.g., cents)
+    support_email: Optional[str] = None  # Email for non-authenticated users
+    email_encryption_key: Optional[str] = None
+    is_recurring: bool = False
 
 class CreateOrderResponse(BaseModel):
     provider: str
@@ -491,6 +501,101 @@ async def create_payment_order(
     except Exception as e:
         logger.error(f"Error creating payment order for user {current_user.id}: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error during payment initiation.")
+
+@router.post("/create-support-order", response_model=CreateOrderResponse)
+@limiter.limit("5/minute")  # Lower rate limit for support contributions
+async def create_support_order(
+    request: Request,
+    order_data: CreateSupportOrderRequest,
+    payment_service: PaymentService = Depends(get_payment_service),
+    encryption_service: EncryptionService = Depends(get_encryption_service),
+    cache_service: CacheService = Depends(get_cache_service),
+    directus_service: DirectusService = Depends(get_directus_service),
+    compliance_service: ComplianceService = Depends(get_compliance_service),
+    current_user: Optional[User] = Depends(get_current_user_optional)  # Support for non-authenticated users
+):
+    """Create a payment order for supporter contributions (one-time or recurring)."""
+
+    # Determine if user is authenticated
+    is_authenticated = current_user is not None
+
+    # For non-authenticated users, we need the support_email
+    if not is_authenticated and not order_data.support_email:
+        raise HTTPException(status_code=400, detail="Email is required for support contributions")
+
+    # Get email address
+    if is_authenticated:
+        if not current_user.encrypted_email_address:
+            logger.error(f"Missing encrypted_email_address for user {current_user.id}")
+            raise HTTPException(status_code=500, detail="User email information unavailable.")
+
+        if not order_data.email_encryption_key:
+            logger.error(f"Missing email_encryption_key in request for user {current_user.id}")
+            raise HTTPException(status_code=400, detail="Email encryption key is required")
+
+        try:
+            logger.info(f"Using client-provided email encryption key for user {current_user.id}")
+            email = await encryption_service.decrypt_with_email_key(
+                current_user.encrypted_email_address,
+                order_data.email_encryption_key
+            )
+
+            if not email:
+                logger.error(f"Failed to decrypt email with provided key for user {current_user.id}")
+                raise HTTPException(status_code=400, detail="Invalid email encryption key")
+
+        except Exception as e:
+            logger.error(f"Error decrypting email for user {current_user.id}: {str(e)}")
+            raise HTTPException(status_code=500, detail="Failed to decrypt user email")
+    else:
+        # For non-authenticated users, use the provided email directly
+        email = order_data.support_email
+
+    # Validate amount (minimum support amount)
+    min_amount = 100 if order_data.currency.lower() in ['eur', 'usd', 'gbp'] else 100  # 1.00 minimum
+    if order_data.amount < min_amount:
+        raise HTTPException(status_code=400, detail=f"Minimum support amount is {min_amount/100:.2f} {order_data.currency.upper()}")
+
+    try:
+        logger.info(f"Creating support order - Amount: {order_data.amount} {order_data.currency}, "
+                   f"Email: {'authenticated' if is_authenticated else 'provided'}, "
+                   f"Recurring: {order_data.is_recurring}")
+
+        # Create the support order through payment service
+        order_response = await payment_service.create_support_order(
+            amount=order_data.amount,
+            currency=order_data.currency,
+            email=email,
+            is_recurring=order_data.is_recurring,
+            user_id=current_user.id if is_authenticated else None
+        )
+
+        if not order_response:
+            logger.error("Failed to create support order - no response from payment service")
+            raise HTTPException(status_code=500, detail="Failed to create support order. Please check your payment details and try again.")
+
+        order_id = order_response.get("order_id")
+        if order_id:
+            logger.info(f"Created support order {order_id}")
+
+        response_data = {
+            "provider": payment_service.provider_name,
+            "order_id": order_id,
+            "order_token": order_response.get("token"),  # For Revolut
+            "client_secret": order_response.get("client_secret")  # For Stripe
+        }
+
+        # Add customer portal URL for recurring payments
+        if order_data.is_recurring and order_response.get("customer_portal_url"):
+            response_data["customer_portal_url"] = order_response.get("customer_portal_url")
+
+        return CreateOrderResponse(**response_data)
+
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        logger.error(f"Error creating support order: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error during support payment initiation.")
 
 @router.post("/webhook", status_code=200)
 # Note: Webhook endpoint is called by payment providers (Stripe/Revolut)

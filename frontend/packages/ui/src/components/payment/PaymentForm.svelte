@@ -9,6 +9,8 @@
         purchasePrice = 20,
         currency = 'EUR',
         userEmail = null,
+        requireConsent = true,
+        isSupportContribution = false,
         hasConsentedToLimitedRefund = false,
         validationErrors = null,
         paymentError = null,
@@ -23,6 +25,8 @@
         purchasePrice?: number;
         currency?: string;
         userEmail?: string | null;
+        requireConsent?: boolean;
+        isSupportContribution?: boolean;
         hasConsentedToLimitedRefund?: boolean;
         validationErrors?: string | null;
         paymentError?: string | null;
@@ -59,7 +63,12 @@
     }
 
     // Derived state for button enable/disable using Svelte 5 runes
-    let canSubmit = $derived(hasConsentedToLimitedRefund && isPaymentElementComplete && !validationErrors && !paymentError);
+    let canSubmit = $derived(
+        (!requireConsent || hasConsentedToLimitedRefund) &&
+        isPaymentElementComplete &&
+        !validationErrors &&
+        !paymentError
+    );
     
     // Allow parent to set payment failed state
     export function setPaymentFailed(message?: string) {
@@ -89,11 +98,12 @@
             {#if isLoading}
                 {$text('login.loading.text')}
             {:else}
-                {$text('signup.buy_for.text').replace(
-                    '{currency}', currency
-                ).replace(
-                    '{amount}', purchasePrice.toString()
-                )}
+                {(isSupportContribution ? $text('signup.send_amount.text') : $text('signup.buy_for.text'))
+                    .replace('{currency}', currency)
+                    .replace(
+                        '{amount}',
+                        (currency.toUpperCase() === 'JPY' ? purchasePrice : (purchasePrice / 100)).toString()
+                    )}
             {/if}
         </button>
         

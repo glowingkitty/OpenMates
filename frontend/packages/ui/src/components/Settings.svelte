@@ -98,6 +98,8 @@ changes to the documentation (to keep the documentation up to date).
     import SettingsNewsletter from './settings/SettingsNewsletter.svelte';
     // Import support settings component
     import SettingsSupport from './settings/SettingsSupport.svelte';
+    import SettingsSupportOneTime from './settings/support/SettingsSupportOneTime.svelte';
+    import SettingsSupportMonthly from './settings/support/SettingsSupportMonthly.svelte';
     // Import report issue settings component
     import SettingsReportIssue from './settings/SettingsReportIssue.svelte';
     
@@ -190,6 +192,8 @@ changes to the documentation (to keep the documentation up to date).
         'newsletter': SettingsNewsletter,
         // Support settings - allows users to support the project
         'support': SettingsSupport,
+        'support/one-time': SettingsSupportOneTime,
+        'support/monthly': SettingsSupportMonthly,
         // Report issue settings - allows users (including non-authenticated) to report issues
         'report_issue': SettingsReportIssue
     };
@@ -276,9 +280,11 @@ changes to the documentation (to keep the documentation up to date).
             // app store (including app details), share chat (for sharing demo chats), newsletter, support, and report issue
             // App store is read-only for non-authenticated users (browse only, no modifications)
             if (!isAuthenticated) {
-                if (key === 'interface' || key === 'interface/language' || 
+                if (key === 'interface' || key === 'interface/language' ||
                     key === 'app_store' || key.startsWith('app_store/') ||
-                    key === 'shared/share' || key === 'newsletter' || key === 'support' || key === 'report_issue') {
+                    key === 'shared/share' || key === 'newsletter' ||
+                    key === 'support' || key.startsWith('support/') ||
+                    key === 'report_issue') {
                     filtered[key] = component;
                 }
             } else {
@@ -1185,10 +1191,11 @@ changes to the documentation (to keep the documentation up to date).
             // Report issue is allowed so anyone can report bugs/issues
             if (!$authStore.isAuthenticated) {
                 const allowedPaths = ['app_store', 'interface', 'interface/language', 'shared/share', 'newsletter', 'support', 'report_issue'];
-                const isAllowedPath = allowedPaths.includes(settingsPath) || 
+                const isAllowedPath = allowedPaths.includes(settingsPath) ||
                                      settingsPath.startsWith('app_store/') ||
                                      settingsPath.startsWith('interface/') ||
-                                     settingsPath.startsWith('shared/share');
+                                     settingsPath.startsWith('shared/share') ||
+                                     settingsPath.startsWith('support/');
                 
                 if (!isAllowedPath) {
                     // Clear the deep link if path is not allowed for non-authenticated users

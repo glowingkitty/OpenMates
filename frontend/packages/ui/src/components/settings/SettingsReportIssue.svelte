@@ -9,12 +9,13 @@
     - Reminder about Signal group for discussion/screenshots
 -->
 <script lang="ts">
-    import { text, notificationStore, activeChatStore, activeEmbedStore, authStore } from '@repo/ui';
+    import { text, notificationStore, activeChatStore, activeEmbedStore } from '@repo/ui';
     import { getApiEndpoint } from '../../config/api';
     import { externalLinks } from '../../config/links';
     import InputWarning from '../common/InputWarning.svelte';
     import { onMount } from 'svelte';
     import { isPublicChat } from '../../demo_chats/convertToChat';
+    import { logCollector } from '../../services/logCollector';
     
     // Form state
     let issueTitle = $state('');
@@ -23,6 +24,14 @@
     let isSubmitting = $state(false);
     let successMessage = $state('');
     let errorMessage = $state('');
+
+    // Device information (collected for debugging purposes)
+    let deviceInfo = $state({
+        userAgent: '',
+        viewportWidth: 0,
+        viewportHeight: 0,
+        isTouchEnabled: false
+    });
     
     // Input references for warnings
     let titleInput = $state<HTMLInputElement>();
@@ -205,6 +214,18 @@
     }
     
     /**
+     * Collect device information for debugging purposes
+     */
+    function collectDeviceInfo() {
+        return {
+            userAgent: navigator.userAgent || '',
+            viewportWidth: window.innerWidth || 0,
+            viewportHeight: window.innerHeight || 0,
+            isTouchEnabled: 'ontouchstart' in window || navigator.maxTouchPoints > 0
+        };
+    }
+
+    /**
      * Handle form submission
      */
     async function handleSubmit() {
@@ -230,11 +251,17 @@
             // The backend will also sanitize, but this provides defense-in-depth
             const sanitizedTitle = sanitizeTextInput(issueTitle);
             // Description is optional - send null if empty, otherwise sanitize
-            const sanitizedDescription = issueDescription.trim() 
-                ? sanitizeTextInput(issueDescription) 
+            const sanitizedDescription = issueDescription.trim()
+                ? sanitizeTextInput(issueDescription)
                 : null;
             const sanitizedUrl = chatOrEmbedUrl.trim() || null;
-            
+
+            // Collect current device information for debugging purposes
+            const currentDeviceInfo = collectDeviceInfo();
+
+            // Collect console logs for debugging (last 100 lines)
+            const consoleLogs = logCollector.getLogsAsText(100);
+
             const response = await fetch(getApiEndpoint('/v1/settings/issues'), {
                 method: 'POST',
                 headers: {
@@ -245,7 +272,9 @@
                 body: JSON.stringify({
                     title: sanitizedTitle,
                     description: sanitizedDescription,
-                    chat_or_embed_url: sanitizedUrl
+                    chat_or_embed_url: sanitizedUrl,
+                    device_info: currentDeviceInfo,
+                    console_logs: consoleLogs
                 }),
                 credentials: 'include'
             });
@@ -330,11 +359,13 @@
         }
     }
     
-    // Auto-generate share URL when component mounts
+    // Auto-generate share URL and collect initial device info when component mounts
     onMount(() => {
         // Small delay to ensure stores are initialized
         setTimeout(() => {
             autoGenerateShareUrl();
+            // Collect initial device info to show in the form
+            deviceInfo = collectDeviceInfo();
         }, 100);
     });
 </script>
@@ -459,6 +490,23 @@
                 {errorMessage}
             </div>
         {/if}
+
+        <!-- Device Information Notice -->
+        <div class="device-info-notice">
+            <h4>{$text('settings.report_issue.device_info.heading.text')}</h4>
+            <p class="notice-text">
+                {$text('settings.report_issue.device_info.description.text')}
+            </p>
+            <ul class="device-info-list">
+                <li><strong>{$text('settings.report_issue.device_info.browser_os_label.text')}:</strong> {deviceInfo.userAgent || 'Loading...'}</li>
+                <li><strong>{$text('settings.report_issue.device_info.screen_size_label.text')}:</strong> {deviceInfo.viewportWidth || 0} × {deviceInfo.viewportHeight || 0} pixels</li>
+                <li><strong>{$text('settings.report_issue.device_info.touch_support_label.text')}:</strong> {deviceInfo.isTouchEnabled ? 'Yes' : 'No'}</li>
+            </ul>
+            <p class="privacy-notice">
+                <strong>{$text('settings.report_issue.device_info.privacy_label.text')}:</strong>
+                {$text('settings.report_issue.device_info.privacy_body.text')}
+            </p>
+        </div>
     </div>
 </div>
 
@@ -605,5 +653,50 @@
         color: var(--color-error-dark, #c62828);
         border: 1px solid var(--color-error, #f44336);
     }
-</style>
 
+    .device-info-notice {
+        padding: 16px;
+        background-color: var(--color-info-light, #e3f2fd);
+        border: 1px solid var(--color-info, #2196f3);
+        border-radius: 8px;
+        margin-top: 8px;
+        margin-bottom: 16px;
+    }
+
+    .device-info-notice h4 {
+        margin: 0 0 12px 0;
+        font-size: 16px;
+        font-weight: 600;
+        color: var(--color-info-dark, #1565c0);
+    }
+
+    .notice-text {
+        font-size: 14px;
+        color: var(--color-info-dark, #1565c0);
+        margin: 0 0 12px 0;
+        line-height: 1.4;
+    }
+
+    .device-info-list {
+        margin: 12px 0;
+        padding-left: 20px;
+        font-size: 13px;
+        color: var(--color-info-dark, #1565c0);
+        line-height: 1.5;
+    }
+
+    .device-info-list li {
+        margin-bottom: 6px;
+        word-break: break-all;
+    }
+
+    .privacy-notice {
+        font-size: 13px;
+        color: var(--color-info-dark, #1565c0);
+        margin: 12px 0 0 0;
+        line-height: 1.4;
+        font-style: italic;
+        padding-top: 8px;
+        border-top: 1px solid var(--color-info, #2196f3);
+    }
+</style>

@@ -32,19 +32,19 @@
                              activeElement?.classList.contains('overscroll-unlock-input') ||
                              activeElement?.classList.contains('hidden-chat-unlock-input');
       
-      if (!isPasswordInput) {
-        console.debug('[KeyboardShortcuts] keydown event:', {
-          key: event.key,
-          code: event.code,
-          shiftKey: event.shiftKey,
-          ctrlKey: event.ctrlKey,
-          metaKey: event.metaKey,
-          isInputFocused,
-          activeElement: document.activeElement?.tagName,
-          activeClass: document.activeElement?.className,
-          contenteditable: document.activeElement?.getAttribute('contenteditable')
-        });
-      }
+      // if (!isPasswordInput) {
+      //   console.debug('[KeyboardShortcuts] keydown event:', {
+      //     key: event.key,
+      //     code: event.code,
+      //     shiftKey: event.shiftKey,
+      //     ctrlKey: event.ctrlKey,
+      //     metaKey: event.metaKey,
+      //     isInputFocused,
+      //     activeElement: document.activeElement?.tagName,
+      //     activeClass: document.activeElement?.className,
+      //     contenteditable: document.activeElement?.getAttribute('contenteditable')
+      //   });
+      // }
 
       // IMPORTANT: Handle Shift+Enter FIRST before the blanket Enter ignore
       // This is a special case that should focus the input field

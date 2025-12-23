@@ -1,8 +1,11 @@
 import os
+import logging
 from typing import Optional, Dict, Any
 from backend.core.api.app.services.payment.revolut_service import RevolutService
 from backend.core.api.app.services.payment.stripe_service import StripeService
 from backend.core.api.app.utils.secrets_manager import SecretsManager
+
+logger = logging.getLogger(__name__)
 
 class PaymentService:
     def __init__(self, secrets_manager: SecretsManager):
@@ -21,7 +24,7 @@ class PaymentService:
     async def create_order(self, amount: int, currency: str, email: str, credits_amount: int, customer_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
         """
         Delegates order creation to the active payment provider.
-        
+
         Args:
             amount: Amount in smallest currency unit
             currency: Currency code
@@ -30,6 +33,19 @@ class PaymentService:
             customer_id: Optional existing customer ID (for Stripe)
         """
         return await self.provider.create_order(amount, currency, email, credits_amount, customer_id)
+
+    async def create_support_order(self, amount: int, currency: str, email: str, is_recurring: bool, user_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
+        """
+        Delegates support order creation to the active payment provider.
+
+        Args:
+            amount: Amount in smallest currency unit
+            currency: Currency code
+            email: Customer email
+            is_recurring: True for monthly subscriptions, False for one-time payments
+            user_id: Optional authenticated user ID
+        """
+        return await self.provider.create_support_order(amount, currency, email, is_recurring, user_id)
 
     async def get_order(self, order_id: str) -> Optional[Dict[str, Any]]:
         """

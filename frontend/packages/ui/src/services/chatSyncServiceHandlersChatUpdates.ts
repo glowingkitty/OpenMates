@@ -49,7 +49,7 @@ export async function handleChatTitleUpdatedImpl(
             await chatDB.updateChat(chat, tx);
             
             tx.oncomplete = () => {
-                serviceInstance.dispatchEvent(new CustomEvent('chatUpdated', { detail: { chat_id: payload.chat_id } }));
+                serviceInstance.dispatchEvent(new CustomEvent('chatUpdated', { detail: { chat_id: payload.chat_id, type: 'title_updated', chat } }));
             };
             // tx.onerror is handled by the catch block for the transaction promise or by the outer catch
         } else {

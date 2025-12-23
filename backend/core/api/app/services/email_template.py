@@ -548,9 +548,10 @@ class EmailTemplateService:
             recipient_email: Email address of the contact to clean up
         """
         try:
+            # Import the task function directly
             from backend.core.api.app.tasks.email_tasks.mailjet_contact_cleanup_task import cleanup_mailjet_contact
 
-            # Schedule task with 30-second delay
+            # Schedule task with 30-second delay using .delay()
             cleanup_mailjet_contact.apply_async(
                 args=[recipient_email],
                 countdown=30  # 30-second delay

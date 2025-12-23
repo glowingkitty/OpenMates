@@ -34,11 +34,13 @@ def send_issue_report_email(
     issue_description: Optional[str],
     chat_or_embed_url: Optional[str],
     timestamp: str,
-    estimated_location: str
+    estimated_location: str,
+    device_info: Optional[str] = None,
+    console_logs: Optional[str] = None
 ) -> bool:
     """
     Celery task to send issue report email to server owner/admin.
-    
+
     Args:
         admin_email: The email address of the admin/server owner to notify
         issue_title: The title of the reported issue
@@ -46,7 +48,9 @@ def send_issue_report_email(
         chat_or_embed_url: Optional URL to a chat or embed related to the issue
         timestamp: Timestamp when the issue was reported (formatted string)
         estimated_location: Estimated geographic location based on IP address
-    
+        device_info: Optional device information for debugging (browser, screen size, touch support)
+        console_logs: Optional console logs from the client (last 100 lines)
+
     Returns:
         bool: True if email was sent successfully, False otherwise
     """
@@ -60,7 +64,7 @@ def send_issue_report_email(
         result = asyncio.run(
             _async_send_issue_report_email(
                 self, admin_email, issue_title, issue_description,
-                chat_or_embed_url, timestamp, estimated_location
+                chat_or_embed_url, timestamp, estimated_location, device_info, console_logs
             )
         )
         if result:
@@ -90,7 +94,9 @@ async def _async_send_issue_report_email(
     issue_description: Optional[str],
     chat_or_embed_url: Optional[str],
     timestamp: str,
-    estimated_location: str
+    estimated_location: str,
+    device_info: Optional[str] = None,
+    console_logs: Optional[str] = None
 ) -> bool:
     """
     Async implementation for sending issue report email.
@@ -123,6 +129,41 @@ async def _async_send_issue_report_email(
         # URL is already validated in route handler, but ensure it's safe for href attribute
         sanitized_url = chat_or_embed_url if chat_or_embed_url else "Not provided"
         
+        # Process device info if provided
+        device_info_formatted = device_info if device_info else "Not provided"
+        # Convert newlines to <br/> for HTML display in email
+        device_info_formatted = device_info_formatted.replace('\n', '<br/>')
+
+        # Collect Docker Compose logs from all containers via Loki
+        logger.info("Collecting Docker Compose logs from all containers via Loki for issue report")
+        from backend.core.api.app.services.loki_log_collector import loki_log_collector
+        backend_logs = await loki_log_collector.get_compose_logs(lines=100)
+
+        # Prepare log attachments
+        attachments = []
+
+        # Create console logs attachment if available
+        if console_logs and console_logs.strip():
+            import base64
+            console_logs_b64 = base64.b64encode(console_logs.encode('utf-8')).decode('utf-8')
+            attachments.append({
+                'filename': f'console_logs_{timestamp.replace(" ", "_").replace(":", "-")}.txt',
+                'content': console_logs_b64
+            })
+            logger.info("Added console logs attachment to issue report")
+
+        # Create Docker Compose logs attachment if available
+        if backend_logs and backend_logs.strip():
+            # Include all container logs from Loki - they might be useful for debugging
+            backend_logs_b64 = base64.b64encode(backend_logs.encode('utf-8')).decode('utf-8')
+            attachments.append({
+                'filename': f'docker_compose_logs_{timestamp.replace(" ", "_").replace(":", "-")}.txt',
+                'content': backend_logs_b64
+            })
+            logger.info("Added Docker Compose logs attachment from Loki to issue report")
+        else:
+            logger.warning("Docker Compose logs not available from Loki - skipping attachment")
+
         # Prepare email context with sanitized data
         email_context = {
             "darkmode": True,  # Default to dark mode for issue report emails
@@ -130,20 +171,23 @@ async def _async_send_issue_report_email(
             "issue_description": sanitized_description,
             "chat_or_embed_url": sanitized_url,
             "timestamp": timestamp,
-            "estimated_location": estimated_location
+            "estimated_location": estimated_location,
+            "device_info": device_info_formatted
         }
         logger.info("Prepared email context for issue report")
         
         # Send issue report email
+        attachment_info = f" with {len(attachments)} attachment(s)" if attachments else " with no attachments"
         logger.info(
             f"Attempting to send issue report email to {admin_email} with template 'issue_report' "
-            f"(title: '{issue_title[:50]}...')"
+            f"(title: '{issue_title[:50]}...'){attachment_info}"
         )
         email_success = await task.email_template_service.send_email(
             template="issue_report",
             recipient_email=admin_email,
             context=email_context,
-            lang="en"  # Default to English for admin emails
+            lang="en",  # Default to English for admin emails
+            attachments=attachments
         )
         
         if not email_success:

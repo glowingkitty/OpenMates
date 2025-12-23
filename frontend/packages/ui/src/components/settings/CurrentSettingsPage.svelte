@@ -343,9 +343,10 @@
             
             <!-- Incognito mode toggle - appears above Usage like language toggles -->
             <!-- Only show for authenticated users -->
-            {#if isAuthenticated}
-                <SettingsItem 
-                    type="quickaction" 
+            <!-- TODO: Temporarily commented out - incognito mode is too buggy and needs more testing -->
+            <!-- {#if isAuthenticated}
+                <SettingsItem
+                    type="quickaction"
                     icon="subsetting_icon subsetting_icon_incognito"
                     title={$text('settings.incognito.text')}
                     hasToggle={true}
@@ -354,21 +355,21 @@
                         // Get current value from store to ensure we're toggling from the correct state
                         const currentValue = $incognitoMode;
                         const newValue = !currentValue;
-                        
+
                         // CRITICAL: If mode is currently ON and we're turning it OFF, just toggle it off
                         // Don't show the info screen when turning off
                         if (currentValue && !newValue) {
                             // Update local state immediately for responsive UI
                             incognitoToggleChecked = newValue;
-                            
+
                             // Update store (handles deletion of incognito chats when disabling)
                             await incognitoMode.set(newValue);
-                            
+
                             // Dispatch to parent for any additional handling
                             handleQuickSettingClick('incognito');
                             return; // Exit early - don't navigate to info screen
                         }
-                        
+
                         // If mode is currently OFF and we're turning it ON, show info screen first
                         // The info screen will handle actually activating the mode when user confirms
                         // Don't update the toggle state yet - let the info screen handle activation
@@ -381,12 +382,12 @@
                             incognitoToggleChecked = newValue;
                             await incognitoMode.set(newValue);
                         }
-                        
+
                         // Dispatch to parent for any additional handling
                         handleQuickSettingClick('incognito');
                     }}
                 />
-            {/if}
+            {/if} -->
 
             <!-- Regular Settings -->
             {#each Object.entries(settingsViews).filter(([key, _]) => isTopLevelView(key)) as [key, _]}

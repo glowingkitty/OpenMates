@@ -13,6 +13,7 @@ import { tipTapToCanonicalMarkdown } from '../../../message_parsing/serializers'
 import { LOCAL_CHAT_LIST_CHANGED_EVENT } from '../../../services/drafts/draftConstants';
 import { isPublicChat } from '../../../demo_chats/convertToChat';
 import { websocketStatus } from '../../../stores/websocketStatusStore'; // Import WebSocket status store
+import { chatListCache } from '../../../services/chatListCache';
 
 // Removed sendMessageToAPI as it will be handled by chatSyncService
 
@@ -250,6 +251,10 @@ export async function handleSend(
 
         // Create new message payload using the editor content and determined chatIdToUse
         messagePayload = createMessagePayload(editorContent, chatIdToUse);
+
+        // Optimistically cache the last message so the chat list can show "Sending..." immediately
+        // (prevents a brief empty chat row while active chat selection/metadata settles)
+        chatListCache.setLastMessage(chatIdToUse, messagePayload);
         
         // Debug logging to understand the flow
         console.debug(`[handleSend] Chat creation logic:`, {

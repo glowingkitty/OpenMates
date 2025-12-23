@@ -142,6 +142,9 @@
     let activeAITaskId = $state<string | null>(null);
     let currentTypingStatus: AITypingStatus = { isTyping: false, category: null, chatId: null, userMessageId: null, aiMessageId: null };
     let queuedMessageText = $state<string | null>(null); // Message text when a message is queued
+    let awaitingAITaskStart = $state(false); // Optimistic stop button immediately after send
+    let cancelRequestedWhileAwaiting = $state(false); // If user clicks stop before task_id exists
+    let awaitingAITaskTimeoutId: NodeJS.Timeout | null = null;
     
     // --- Backspace State ---
     let isBackspaceOperation = false; // Flag to prevent immediate re-grouping after backspace
@@ -1267,18 +1270,45 @@
                 allActiveTasks: Array.from(chatSyncService.activeAITasks.entries())
             });
             activeAITaskId = taskId;
+
+            // If we now have a task id, clear optimistic pending state
+            if (taskId) {
+                awaitingAITaskStart = false;
+                cancelRequestedWhileAwaiting = false;
+                if (awaitingAITaskTimeoutId) {
+                    clearTimeout(awaitingAITaskTimeoutId);
+                    awaitingAITaskTimeoutId = null;
+                }
+            }
         } else {
             console.debug('[MessageInput] updateActiveAITaskStatus: No chatId or chatSyncService', {
                 currentChatId,
                 hasChatSyncService: !!chatSyncService
             });
             activeAITaskId = null;
+            awaitingAITaskStart = false;
+            cancelRequestedWhileAwaiting = false;
+            if (awaitingAITaskTimeoutId) {
+                clearTimeout(awaitingAITaskTimeoutId);
+                awaitingAITaskTimeoutId = null;
+            }
         }
     }
 
     function handleAiTaskOrChatChange() {
         console.debug('[MessageInput] handleAiTaskOrChatChange called');
         updateActiveAITaskStatus();
+
+        // If the user clicked stop before we had a task id, cancel as soon as it's known
+        if (cancelRequestedWhileAwaiting && activeAITaskId) {
+            const taskId = activeAITaskId;
+            console.info('[MessageInput] Cancelling AI task that started after user requested stop:', taskId);
+            // Clear UI immediately
+            cancelRequestedWhileAwaiting = false;
+            awaitingAITaskStart = false;
+            activeAITaskId = null;
+            void chatSyncService.sendCancelAiTask(taskId);
+        }
     }
 
     /**
@@ -1307,6 +1337,18 @@
      * then sends the cancellation request to the backend.
      */
     async function handleCancelAITask() {
+        // If the task isn't known yet, still allow immediate UX: hide button and cancel as soon as task starts
+        if (!activeAITaskId && awaitingAITaskStart) {
+            console.info('[MessageInput] Stop clicked before task id is known; will cancel as soon as task starts');
+            cancelRequestedWhileAwaiting = true;
+            awaitingAITaskStart = false; // Hide button immediately
+            if (awaitingAITaskTimeoutId) {
+                clearTimeout(awaitingAITaskTimeoutId);
+                awaitingAITaskTimeoutId = null;
+            }
+            return;
+        }
+
         if (activeAITaskId && currentChatId) {
             const taskId = activeAITaskId;
             console.info(`[MessageInput] Requesting cancellation for AI task: ${taskId}`);
@@ -1610,7 +1652,23 @@
     }
     function handleFileSelect() { fileInput.multiple = true; fileInput.click(); }
     function handleSendMessage() {
-        handleSend(
+        // Optimistically show stop button immediately after sending
+        awaitingAITaskStart = true;
+        cancelRequestedWhileAwaiting = false;
+        if (awaitingAITaskTimeoutId) {
+            clearTimeout(awaitingAITaskTimeoutId);
+        }
+        // If the backend never starts a task (e.g., network issues), don't leave stop button stuck
+        awaitingAITaskTimeoutId = setTimeout(() => {
+            if (awaitingAITaskStart && !activeAITaskId) {
+                console.warn('[MessageInput] Timed out waiting for AI task to start; hiding stop button');
+                awaitingAITaskStart = false;
+                cancelRequestedWhileAwaiting = false;
+            }
+            awaitingAITaskTimeoutId = null;
+        }, 15000);
+
+        void handleSend(
             editor,
             dispatch,
             (value) => (hasContent = value),
@@ -1925,7 +1983,7 @@
 
         <!-- Stop Processing Icon - shown when AI task is active -->
         <!-- Debug: activeAITaskId = {activeAITaskId}, currentChatId = {currentChatId} -->
-        {#if activeAITaskId}
+        {#if activeAITaskId || awaitingAITaskStart}
             <button
                 class="stop-processing-button {hasContent ? 'shifted-left' : ''}"
                 onclick={handleCancelAITask}

@@ -208,14 +208,22 @@
         </div>
 
         {#if isAuthenticated}
-            <!-- Add entry button -->
-            <div class="add-entry-section">
+            <!-- Add entry button - temporarily commented out -->
+            <!-- TODO: Commenting out add entry functionality - feature needs more testing and stability -->
+            <!-- <div class="add-entry-section">
                 <SettingsItem
                     type="submenu"
                     icon="create"
                     title={$text('settings.app_settings_memories.add_entry.text')}
                     onClick={handleAddEntry}
                 />
+            </div> -->
+
+            <!-- Placeholder message for disabled functionality -->
+            <div class="placeholder-section">
+                <div class="placeholder-message">
+                    <p>{$text('settings.app_settings_memories.placeholder.text')}</p>
+                </div>
             </div>
             
             <!-- List of existing entries -->
@@ -384,6 +392,21 @@
         color: var(--text-secondary, #666666);
         font-size: 1rem;
         line-height: 1.6;
+    }
+
+    .placeholder-section {
+        margin-bottom: 2rem;
+        padding-left: 0;
+    }
+
+    .placeholder-message {
+        padding: 2rem;
+        text-align: center;
+        background: var(--color-grey-10);
+        border: 1px solid var(--color-grey-20);
+        border-radius: 8px;
+        color: var(--text-secondary, #666666);
+        font-style: italic;
     }
 </style>
 

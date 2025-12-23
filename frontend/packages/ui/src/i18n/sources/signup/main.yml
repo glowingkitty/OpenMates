@@ -5059,6 +5059,29 @@ buy_for:
   cs: ''
   sv: ''
   verified_by_human: []
+send_amount:
+  context: Used in 'Send 10 EUR' for supporter contributions
+  en: Send {amount} {currency}
+  de: Senden {amount} {currency}
+  zh: 发送 {amount} {currency}
+  es: Enviar {amount} {currency}
+  fr: Envoyer {amount} {currency}
+  pt: ''
+  ru: ''
+  ja: '{amount} {currency}を送信'
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
 secured_and_powered_by:
   context: Used in 'Secured & powered by mollie'
   en: Secured & powered by {provider}

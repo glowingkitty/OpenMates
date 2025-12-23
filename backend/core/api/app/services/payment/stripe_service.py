@@ -1022,6 +1022,151 @@ class StripeService:
             logger.error(f"Unexpected error creating dynamic PaymentIntent with saved method: {str(e)}", exc_info=True)
             return None
 
+    async def create_support_order(self, amount: int, currency: str, email: str, is_recurring: bool, user_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
+        """
+        Creates a Stripe PaymentIntent or Subscription for supporter contributions.
+
+        Args:
+            amount: Amount in the smallest currency unit (e.g., cents).
+            currency: 3-letter ISO currency code (e.g., "EUR").
+            email: Customer's email address.
+            is_recurring: True for monthly subscriptions, False for one-time payments.
+            user_id: Optional authenticated user ID.
+
+        Returns:
+            A dictionary containing payment details and customer portal link for recurring payments,
+            or None if an error occurred.
+        """
+        if not self.api_key:
+            logger.error("Stripe API key not initialized.")
+            return None
+
+        try:
+            # Get or create Stripe customer
+            stripe_customer_id = await self.get_or_create_customer(email)
+            if not stripe_customer_id:
+                logger.error("Failed to get or create Stripe customer for support order")
+                return None
+
+            # Find the appropriate supporter product
+            if is_recurring:
+                product_name = "Monthly Supporter Contribution"
+            else:
+                product_name = "Supporter Contribution"
+
+            price_id = await self._find_price_for_product(product_name, currency, is_recurring)
+
+            if not price_id:
+                logger.error(f"No supporter product found for {amount} {currency} (recurring: {is_recurring})")
+                return None
+
+            logger.info(f"✅ Using supporter product for {amount} {currency} (recurring: {is_recurring}, Price ID: {price_id})")
+
+            if is_recurring:
+                return await self._create_supporter_subscription(price_id, email, stripe_customer_id, amount, currency, user_id)
+            else:
+                return await self._create_supporter_payment_intent(price_id, email, stripe_customer_id, amount, currency, user_id)
+
+        except Exception as e:
+            logger.error(f"Unexpected error creating supporter order: {str(e)}", exc_info=True)
+            return None
+
+    async def _create_supporter_payment_intent(self, price_id: str, email: str, customer_id: str, amount: int, currency: str, user_id: Optional[str]) -> Optional[Dict[str, Any]]:
+        """
+        Create a one-time PaymentIntent for supporter contribution.
+        """
+        try:
+            metadata = {
+                "product_type": "supporter_contribution",
+                "is_recurring": "false",
+                "email": email
+            }
+
+            if user_id:
+                metadata["user_id"] = user_id
+
+            payment_intent = stripe.PaymentIntent.create(
+                amount=amount,
+                currency=currency.lower(),
+                customer=customer_id,
+                metadata=metadata,
+                automatic_payment_methods={"enabled": True},
+                setup_future_usage=None,  # Don't save payment method for supporters
+                description="One-time supporter contribution to OpenMates development"
+            )
+
+            logger.info(f"Created supporter PaymentIntent {payment_intent.id} for {amount/100:.2f}")
+
+            return {
+                "id": payment_intent.id,
+                "client_secret": payment_intent.client_secret,
+                "status": payment_intent.status,
+                "order_id": payment_intent.id
+            }
+
+        except stripe.error.StripeError as e:
+            logger.error(f"Stripe API error creating supporter PaymentIntent: {e.user_message}", exc_info=True)
+            return None
+        except Exception as e:
+            logger.error(f"Unexpected error creating supporter PaymentIntent: {str(e)}", exc_info=True)
+            return None
+
+    async def _create_supporter_subscription(self, price_id: str, email: str, customer_id: str, amount: int, currency: str, user_id: Optional[str]) -> Optional[Dict[str, Any]]:
+        """
+        Create a recurring subscription for supporter contribution.
+        """
+        try:
+            metadata = {
+                "product_type": "supporter_contribution",
+                "is_recurring": "true",
+                "email": email
+            }
+
+            if user_id:
+                metadata["user_id"] = user_id
+
+            subscription = stripe.Subscription.create(
+                customer=customer_id,
+                items=[{"price": price_id}],
+                metadata=metadata,
+                payment_behavior="default_incomplete",
+                payment_settings={"save_default_payment_method": "on_subscription"},
+                expand=["latest_invoice.payment_intent"],
+                description="Monthly supporter contribution to OpenMates development"
+            )
+
+            # Create customer portal link for subscription management
+            portal_session = stripe.billing_portal.Session.create(
+                customer=customer_id,
+                return_url="https://openmates.org"  # Configure this URL as needed
+            )
+
+            logger.info(f"Created supporter subscription {subscription.id} for {amount/100:.2f} {currency.upper()}/month")
+            logger.info(f"Created customer portal link: {portal_session.url}")
+
+            response_data = {
+                "id": subscription.id,
+                "status": subscription.status,
+                "order_id": subscription.id,
+                "customer_portal_url": portal_session.url
+            }
+
+            # Include payment intent details if available
+            if hasattr(subscription, 'latest_invoice') and subscription.latest_invoice:
+                if hasattr(subscription.latest_invoice, 'payment_intent') and subscription.latest_invoice.payment_intent:
+                    payment_intent = subscription.latest_invoice.payment_intent
+                    response_data["client_secret"] = payment_intent.client_secret
+                    response_data["payment_intent_id"] = payment_intent.id
+
+            return response_data
+
+        except stripe.error.StripeError as e:
+            logger.error(f"Stripe API error creating supporter subscription: {e.user_message}", exc_info=True)
+            return None
+        except Exception as e:
+            logger.error(f"Unexpected error creating supporter subscription: {str(e)}", exc_info=True)
+            return None
+
     async def close(self):
         logger.info("StripeService close called.")
         pass

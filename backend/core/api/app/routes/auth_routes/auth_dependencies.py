@@ -250,6 +250,23 @@ async def get_current_user(
     return user
 
 
+async def get_current_user_optional(
+    directus_service: DirectusService = Depends(get_directus_service),
+    cache_service: CacheService = Depends(get_cache_service),
+    refresh_token: Optional[str] = Cookie(None, alias="auth_refresh_token", include_in_schema=False)
+) -> Optional[User]:
+    """
+    Optional variant of get_current_user.
+    Returns None when no valid session is present instead of raising 401.
+    """
+    try:
+        return await get_current_user(directus_service, cache_service, refresh_token)
+    except HTTPException as e:
+        if e.status_code == 401:
+            return None
+        raise
+
+
 async def get_current_user_or_api_key(
     request: Request,
     directus_service: DirectusService = Depends(get_directus_service),
