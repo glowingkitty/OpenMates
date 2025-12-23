@@ -41,7 +41,6 @@
   import 'highlight.js/lib/languages/dockerfile';
   import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
   import BasicInfosBar from '../BasicInfosBar.svelte';
-  // @ts-expect-error - @repo/ui module exists at runtime
   import { text } from '@repo/ui';
   import { downloadCodeFile } from '../../../services/zipExportService';
   import { notificationStore } from '../../../stores/notificationStore';
@@ -302,7 +301,6 @@
     width: calc(100% - 10px);
     background-color: var(--color-grey-15);
     margin-top: 70px;
-    overflow: hidden;
     padding-bottom: 16px;
     margin-left: 10px;
     margin-right: 10px;
@@ -318,7 +316,7 @@
   .line-numbers {
     margin: 0;
     padding: 0 12px 0 0;
-    font-size: 16px;
+    font-size: 14px;
     line-height: 1.6;
     font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Mono', 'Consolas', monospace;
     color: var(--color-font-tertiary);
@@ -331,7 +329,7 @@
   .code-fullscreen {
     margin: 0;
     padding: 0;
-    font-size: 16px;
+    font-size: 14px;
     line-height: 1.6;
     white-space: pre;
     font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Mono', 'Consolas', monospace;
