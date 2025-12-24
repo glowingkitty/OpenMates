@@ -11,6 +11,8 @@ import asyncio
 import json
 import tempfile
 import base64
+import os
+import re
 from typing import Optional, List, Dict, Any
 from datetime import datetime, timedelta, timezone
 import urllib.parse
@@ -24,6 +26,7 @@ class LokiLogCollectorService:
     def __init__(self):
         self.loki_url = "http://loki:3100"  # Internal Docker network URL
         self.compose_project = "openmates-core"  # From docker-compose.yml name field
+        self.compose_file_path = os.getenv("OPENMATES_COMPOSE_FILE", "/app/backend/core/docker-compose.yml")
 
     async def _query_loki(self, query: str, limit: int = 1000, start_time: Optional[datetime] = None) -> Optional[Dict]:
         """
@@ -72,6 +75,106 @@ class LokiLogCollectorService:
         except Exception as e:
             logger.error(f"Error querying Loki: {e}", exc_info=True)
             return None
+
+    async def _get_loki_series(self, start_time: Optional[datetime] = None) -> Optional[List[Dict[str, str]]]:
+        """
+        Query Loki for stream label sets ("series") within our compose project.
+        """
+        try:
+            if start_time is None:
+                start_time = datetime.now(timezone.utc) - timedelta(hours=1)
+
+            start_ns = int(start_time.timestamp() * 1_000_000_000)
+            end_ns = int(datetime.now(timezone.utc).timestamp() * 1_000_000_000)
+
+            url = f"{self.loki_url}/loki/api/v1/series"
+            params = [
+                ("match[]", f'{{compose_project="{self.compose_project}"}}'),
+                ("start", str(start_ns)),
+                ("end", str(end_ns)),
+            ]
+
+            timeout = aiohttp.ClientTimeout(total=30)
+            async with aiohttp.ClientSession(timeout=timeout) as session:
+                async with session.get(url, params=params) as response:
+                    if response.status != 200:
+                        error_text = await response.text()
+                        logger.warning(f"Loki series query failed with status {response.status}: {error_text}")
+                        return None
+                    result = await response.json()
+                    if result.get("status") != "success":
+                        logger.warning(f"Loki series query returned non-success status: {result.get('status')}")
+                        return None
+                    data = result.get("data")
+                    return data if isinstance(data, list) else None
+        except Exception as e:
+            logger.warning(f"Error querying Loki series: {e}", exc_info=True)
+            return None
+
+    def _parse_compose_services(self) -> Dict[str, str]:
+        """
+        Parse docker-compose.yml to build a mapping of service_name -> container_name.
+        Falls back to service_name if container_name is not specified.
+        """
+        try:
+            if not os.path.exists(self.compose_file_path):
+                return {}
+
+            with open(self.compose_file_path, "r", encoding="utf-8") as f:
+                lines = f.readlines()
+
+            in_services = False
+            current_service: Optional[str] = None
+            service_to_container: Dict[str, str] = {}
+
+            for line in lines:
+                stripped = line.strip()
+                if not in_services:
+                    if stripped == "services:":
+                        in_services = True
+                    continue
+
+                # End of "services" mapping once indentation drops to 0 (next top-level key)
+                if line and not line.startswith(" ") and stripped:
+                    break
+
+                service_match = re.match(r"^  ([A-Za-z0-9][A-Za-z0-9_-]*):\s*$", line)
+                if service_match:
+                    current_service = service_match.group(1)
+                    service_to_container[current_service] = current_service
+                    continue
+
+                if not current_service:
+                    continue
+
+                container_match = re.match(r"^    container_name:\s*([^\s#]+)\s*$", line)
+                if container_match:
+                    raw = container_match.group(1).strip().strip('"').strip("'")
+                    service_to_container[current_service] = raw
+
+            return service_to_container
+        except Exception as e:
+            logger.warning(f"Error parsing compose file for services: {e}", exc_info=True)
+            return {}
+
+    def _format_entries_for_container(self, container_name: str, entries: List[Dict[str, Any]], lines: int) -> str:
+        if not entries:
+            return f"\n--- Logs for {container_name} ---\n(no log entries found)\n"
+
+        # Keep only the most recent N entries, but output in chronological order for readability.
+        entries.sort(key=lambda x: x["timestamp_ns"])
+        tail = entries[-lines:] if lines > 0 else entries
+
+        services_seen = sorted({e["service_name"] for e in tail if e.get("service_name")})
+        services_str = f" (services: {', '.join(services_seen)})" if services_seen else ""
+
+        output = [f"\n--- Logs for {container_name}{services_str} ---\n"]
+        for e in tail:
+            timestamp_s = int(e["timestamp_ns"]) / 1_000_000_000
+            dt = datetime.fromtimestamp(timestamp_s, tz=timezone.utc)
+            formatted_time = dt.strftime("%Y-%m-%d %H:%M:%S")
+            output.append(f"{e.get('service_name', 'unknown')} | {formatted_time} | {e.get('log_line', '')}")
+        return "\n".join(output)
 
     def _format_loki_logs(self, loki_result: Dict) -> str:
         """
@@ -126,51 +229,121 @@ class LokiLogCollectorService:
             logger.error(f"Error formatting Loki logs: {e}", exc_info=True)
             return f"Error formatting logs: {str(e)}"
 
-    async def get_compose_logs(self, lines: int = 100, services: Optional[List[str]] = None) -> Optional[str]:
+    async def get_compose_logs(
+        self,
+        lines: int = 100,
+        services: Optional[List[str]] = None,
+        exclude_containers: Optional[List[str]] = None,
+        start_time: Optional[datetime] = None,
+    ) -> Optional[str]:
         """
-        Get logs from Docker Compose services via Loki.
+        Get logs from Docker Compose containers via Loki.
 
         Args:
-            lines: Number of lines to retrieve from each service
+            lines: Number of lines to retrieve per container (tail)
             services: List of specific services to get logs from (None for all)
+            exclude_containers: Container/service names to exclude
+            start_time: Start time window for Loki queries (defaults to 1 hour ago)
 
         Returns:
             String containing the logs or None if failed
         """
         try:
-            logger.info(f"Collecting Docker Compose logs from Loki (lines: {lines})")
+            logger.info(f"Collecting Docker Compose logs from Loki (per-container lines: {lines})")
 
-            # Build LogQL query to get logs from all containers in our compose project
-            base_query = f'{{compose_project="{self.compose_project}"}}'
+            excluded = set(exclude_containers or [])
+            requested = set(services or [])
 
-            # If specific services requested, filter by them
-            if services:
-                service_filter = '|'.join(services)
-                base_query = f'{{compose_project="{self.compose_project}", service=~"{service_filter}"}}'
+            # Prefer enumerating actual running containers/services from Loki so this works in production.
+            series = await self._get_loki_series(start_time=start_time)
 
-            # Query Loki
-            result = await self._query_loki(base_query, limit=lines * 5)  # Get more lines, then format
+            container_to_services: Dict[str, set] = {}
+            container_to_matcher_key: Dict[str, str] = {}
+            if series:
+                for labels in series:
+                    if labels.get("container"):
+                        container = labels.get("container")
+                        matcher_key = "container"
+                    else:
+                        container = labels.get("service")
+                        matcher_key = "service"
 
-            if result:
-                formatted_logs = self._format_loki_logs(result)
+                    service = labels.get("service") or labels.get("container") or "unknown"
+                    if not container:
+                        continue
+                    container_to_services.setdefault(container, set()).add(service)
+                    # Prefer "container" when available.
+                    if matcher_key == "container" or container not in container_to_matcher_key:
+                        container_to_matcher_key[container] = matcher_key
 
-                # Limit to requested number of lines
-                log_lines = formatted_logs.split('\n')
-                if len(log_lines) > lines + 10:  # +10 for headers
-                    log_lines = log_lines[:lines + 10] + ['... (truncated)']
+            # Fallback: parse compose file if Loki series endpoint isn't available yet.
+            if not container_to_services:
+                parsed = self._parse_compose_services()
+                for service_name, container_name in parsed.items():
+                    container_to_services.setdefault(container_name, set()).add(service_name)
+                    container_to_matcher_key.setdefault(container_name, "container")
 
-                return '\n'.join(log_lines)
-            else:
-                # Fallback: provide basic info about Loki setup
+            if not container_to_services:
                 fallback = f"=== Loki Log Collection Failed - {datetime.utcnow().isoformat()}Z ===\n"
-                fallback += f"Could not retrieve logs from Loki at {self.loki_url}\n"
-                fallback += f"Compose project: {self.compose_project}\n"
-                fallback += f"Attempted query: {base_query}\n\n"
+                fallback += f"Could not enumerate containers/services for compose project '{self.compose_project}'.\n"
+                fallback += f"Loki URL: {self.loki_url}\n"
                 fallback += "This indicates either:\n"
                 fallback += "1. Loki service is not running\n"
                 fallback += "2. Promtail hasn't collected logs yet\n"
                 fallback += "3. Network connectivity issue\n"
                 return fallback
+
+            # If a specific service list is provided, include containers that match either the
+            # container name or any associated service name.
+            def is_requested(container_name: str, service_names: set) -> bool:
+                if not requested:
+                    return True
+                if container_name in requested:
+                    return True
+                return any(s in requested for s in service_names)
+
+            # Query each container separately so "lines" applies per container.
+            header = f"=== Container Logs from Loki - {datetime.utcnow().isoformat()}Z ==="
+            output_parts = [header]
+
+            for container_name in sorted(container_to_services.keys()):
+                service_names = container_to_services.get(container_name, set())
+
+                if container_name in excluded or any(s in excluded for s in service_names):
+                    continue
+                if not is_requested(container_name, service_names):
+                    continue
+
+                matcher_key = container_to_matcher_key.get(container_name, "container")
+                query = f'{{compose_project="{self.compose_project}", {matcher_key}="{container_name}"}}'
+                result = await self._query_loki(query, limit=lines, start_time=start_time)
+
+                # If the runtime doesn't label streams with "container", fall back to "service".
+                if (not result or not result.get("data", {}).get("result")) and matcher_key == "container":
+                    if len(service_names) == 1:
+                        service_value = next(iter(service_names))
+                    else:
+                        service_value = container_name
+                    fallback_query = f'{{compose_project="{self.compose_project}", service="{service_value}"}}'
+                    result = await self._query_loki(fallback_query, limit=lines, start_time=start_time)
+
+                entries: List[Dict[str, Any]] = []
+                if result and result.get("data", {}).get("result"):
+                    for stream in result["data"]["result"]:
+                        stream_labels = stream.get("stream", {})
+                        service_name = stream_labels.get("service", "unknown")
+                        for timestamp_ns, log_line in stream.get("values", []):
+                            entries.append(
+                                {
+                                    "timestamp_ns": int(timestamp_ns),
+                                    "service_name": service_name,
+                                    "log_line": log_line,
+                                }
+                            )
+
+                output_parts.append(self._format_entries_for_container(container_name, entries, lines))
+
+            return "\n".join(output_parts).strip() + "\n"
 
         except Exception as e:
             logger.error(f"Error collecting compose logs from Loki: {e}", exc_info=True)

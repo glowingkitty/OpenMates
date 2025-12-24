@@ -294,6 +294,13 @@ class EmailTemplateService:
                         subject = subject_template.format(invoice_id=context["invoice_id"])
                     else:
                         subject = self.translation_service.get_nested_translation(subject_key, lang, context)
+                elif template == "support-contribution-confirmation":
+                    subject_key = "email.support_contribution_confirmation.text"
+                    if "receipt_id" in context:
+                        subject_template = self.translation_service.get_nested_translation(subject_key, lang, {})
+                        subject = subject_template.format(receipt_id=context["receipt_id"])
+                    else:
+                        subject = self.translation_service.get_nested_translation(subject_key, lang, context)
                 elif template == "refund-confirmation":
                     subject_key = "email.refund_confirmation.text"
                     if "credit_note_id" in context:

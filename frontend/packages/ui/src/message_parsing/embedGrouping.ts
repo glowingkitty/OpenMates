@@ -46,54 +46,91 @@ function groupConsecutiveEmbedParagraphs(content: any[]): any[] {
   const newContent: any[] = [];
   let currentGroup: any[] = [];
   let currentGroupType: string | null = null;
+  let pendingSpacerParagraphs: any[] = [];
+
+  const isEmbedParagraph = (node: any): boolean =>
+    node?.type === 'paragraph' &&
+    Array.isArray(node.content) &&
+    node.content.length === 1 &&
+    node.content[0]?.type === 'embed';
+
+  const isIgnorableParagraph = (node: any): boolean => {
+    if (node?.type !== 'paragraph') return false;
+    if (!node.content || node.content.length === 0) return true;
+    // Consider paragraphs that contain only whitespace text and/or line breaks as "empty"
+    return node.content.every((child: any) => {
+      if (!child) return true;
+      if (child.type === 'hardBreak') return true;
+      if (child.type === 'text') return (child.text || '').trim() === '';
+      return false;
+    });
+  };
   
   for (let i = 0; i < content.length; i++) {
     const node = content[i];
     
     // Check if this paragraph contains a single embed
-    if (node.type === 'paragraph' && node.content && node.content.length === 1) {
+    if (isEmbedParagraph(node)) {
       const embedNode = node.content[0];
-      if (embedNode.type === 'embed') {
-        const embedType = embedNode.attrs.type;
-        
-        // Check if this embed can continue the current group
-        if (currentGroupType === embedType && currentGroup.length > 0) {
-          const canGroupWithLast = groupHandlerRegistry.canGroup(
-            currentGroup[currentGroup.length - 1].content[0].attrs,
-            embedNode.attrs
-          );
-          
-          if (canGroupWithLast) {
-            // Can be grouped, add to current group
-            currentGroup.push(node);
-            console.debug('[groupConsecutiveEmbedParagraphs] Added embed paragraph to group:', { 
-              type: embedType,
-              groupSize: currentGroup.length 
-            });
-            continue;
-          }
+      const embedType = embedNode.attrs.type;
+
+      // Check if this embed can continue the current group (allowing blank-line paragraphs in-between)
+      if (currentGroupType === embedType && currentGroup.length > 0) {
+        const canGroupWithLast = groupHandlerRegistry.canGroup(
+          currentGroup[currentGroup.length - 1].content[0].attrs,
+          embedNode.attrs
+        );
+
+        if (canGroupWithLast) {
+          // Can be grouped, drop any "blank line" spacer paragraphs between items
+          pendingSpacerParagraphs = [];
+          currentGroup.push(node);
+          console.debug('[groupConsecutiveEmbedParagraphs] Added embed paragraph to group:', {
+            type: embedType,
+            groupSize: currentGroup.length
+          });
+          continue;
         }
-        
-        // Different type or can't be grouped - flush current group and start new one
-        if (currentGroup.length > 0) {
-          const groupedParagraph = flushEmbedParagraphGroup(currentGroup, currentGroupType!);
-          newContent.push(...groupedParagraph);
+      }
+
+      // Different type or can't be grouped - flush current group and start new one
+      if (currentGroup.length > 0) {
+        const groupedParagraph = flushEmbedParagraphGroup(currentGroup, currentGroupType!);
+        newContent.push(...groupedParagraph);
+        // Preserve blank-line paragraphs between distinct groups
+        if (pendingSpacerParagraphs.length > 0) {
+          newContent.push(...pendingSpacerParagraphs);
+          pendingSpacerParagraphs = [];
         }
-        
-        // Start new group
-        currentGroup = [node];
-        currentGroupType = embedType;
-        console.debug('[groupConsecutiveEmbedParagraphs] Started new group:', { 
-          type: embedType
-        });
+      }
+
+      // Start new group
+      currentGroup = [node];
+      currentGroupType = embedType;
+      console.debug('[groupConsecutiveEmbedParagraphs] Started new group:', {
+        type: embedType
+      });
+      continue;
+    }
+
+    // Allow "blank line" paragraphs to sit between consecutive embed paragraphs without breaking grouping
+    if (isIgnorableParagraph(node)) {
+      if (currentGroup.length > 0) {
+        pendingSpacerParagraphs.push(node);
         continue;
       }
+      newContent.push(node);
+      continue;
     }
     
     // Non-embed paragraph or other node - flush current group if it exists
     if (currentGroup.length > 0) {
       const groupedParagraph = flushEmbedParagraphGroup(currentGroup, currentGroupType!);
       newContent.push(...groupedParagraph);
+      if (pendingSpacerParagraphs.length > 0) {
+        newContent.push(...pendingSpacerParagraphs);
+        pendingSpacerParagraphs = [];
+      }
       currentGroup = [];
       currentGroupType = null;
     }
@@ -106,6 +143,10 @@ function groupConsecutiveEmbedParagraphs(content: any[]): any[] {
   if (currentGroup.length > 0) {
     const groupedParagraph = flushEmbedParagraphGroup(currentGroup, currentGroupType!);
     newContent.push(...groupedParagraph);
+    if (pendingSpacerParagraphs.length > 0) {
+      newContent.push(...pendingSpacerParagraphs);
+      pendingSpacerParagraphs = [];
+    }
   }
   
   return newContent;

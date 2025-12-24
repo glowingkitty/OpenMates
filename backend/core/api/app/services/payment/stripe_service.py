@@ -1129,6 +1129,10 @@ class StripeService:
                 customer=customer_id,
                 items=[{"price": price_id}],
                 metadata=metadata,
+                # Be explicit to avoid account-level defaults (e.g. invoicing) preventing a PaymentIntent.
+                collection_method="charge_automatically",
+                # Ensure an immediate first invoice even if the Price/Plan has a trial configured.
+                trial_end="now",
                 payment_behavior="default_incomplete",
                 payment_settings={"save_default_payment_method": "on_subscription"},
                 expand=["latest_invoice.payment_intent"],
@@ -1151,12 +1155,35 @@ class StripeService:
                 "customer_portal_url": portal_session.url
             }
 
-            # Include payment intent details if available
-            if hasattr(subscription, 'latest_invoice') and subscription.latest_invoice:
-                if hasattr(subscription.latest_invoice, 'payment_intent') and subscription.latest_invoice.payment_intent:
-                    payment_intent = subscription.latest_invoice.payment_intent
+            # Include payment intent details if available.
+            # In some Stripe configurations the nested PaymentIntent may not be present on the initial response,
+            # so we also fall back to retrieving the invoice with an explicit expand.
+            payment_intent = None
+            latest_invoice = getattr(subscription, "latest_invoice", None)
+            if latest_invoice:
+                payment_intent = getattr(latest_invoice, "payment_intent", None)
+                if payment_intent and getattr(payment_intent, "client_secret", None):
                     response_data["client_secret"] = payment_intent.client_secret
                     response_data["payment_intent_id"] = payment_intent.id
+                else:
+                    try:
+                        invoice_id = getattr(latest_invoice, "id", None) or latest_invoice
+                        invoice = stripe.Invoice.retrieve(invoice_id, expand=["payment_intent"])
+                        invoice_payment_intent = getattr(invoice, "payment_intent", None)
+                        if invoice_payment_intent and getattr(invoice_payment_intent, "client_secret", None):
+                            response_data["client_secret"] = invoice_payment_intent.client_secret
+                            response_data["payment_intent_id"] = invoice_payment_intent.id
+                    except Exception as invoice_err:
+                        logger.warning(
+                            f"Failed to retrieve expanded invoice/payment_intent for supporter subscription {subscription.id}: {invoice_err}"
+                        )
+
+            if not response_data.get("client_secret"):
+                logger.warning(
+                    "Supporter subscription created without a PaymentIntent client_secret. "
+                    f"subscription_id={subscription.id} status={getattr(subscription, 'status', None)} "
+                    f"latest_invoice={getattr(subscription, 'latest_invoice', None)}"
+                )
 
             return response_data
 

@@ -254,7 +254,14 @@ class S3UploadService:
         """
         return get_bucket_by_name(bucket_name)
 
-    async def upload_file(self, bucket_key: str, file_key: str, content: bytes, content_type: str) -> Dict[str, str]:
+    async def upload_file(
+        self,
+        bucket_key: str,
+        file_key: str,
+        content: bytes,
+        content_type: str,
+        metadata: Optional[Dict[str, str]] = None,
+    ) -> Dict[str, str]:
         """
         Upload a file to S3 using a simple approach with retries.
         
@@ -324,12 +331,15 @@ class S3UploadService:
                         'ACL': acl
                     }
                     
-                    # Add lifecycle configuration if specified
+                    # Add metadata (merge lifecycle marker + caller-provided metadata)
+                    combined_metadata = {}
                     if bucket_config['lifecycle_policy']:
-                        # Note: This is just metadata, actual lifecycle policies should be configured at the bucket level
-                        put_params['Metadata'] = {
-                            'lifecycle-policy': f"expire-after-{bucket_config['lifecycle_policy']}-days"
-                        }
+                        combined_metadata['lifecycle-policy'] = f"expire-after-{bucket_config['lifecycle_policy']}-days"
+                    if metadata:
+                        # Caller metadata wins on conflicts (except we still keep lifecycle marker if distinct)
+                        combined_metadata.update(metadata)
+                    if combined_metadata:
+                        put_params['Metadata'] = combined_metadata
                     
                     # Upload the file using the dedicated upload client
                     self.upload_client.put_object(**put_params)

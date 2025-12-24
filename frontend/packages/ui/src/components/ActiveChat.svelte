@@ -1201,11 +1201,15 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             `match: ${currentChat?.chat_id === chunk.chat_id}`
         );
 
-        if (!currentChat || currentChat.chat_id !== chunk.chat_id) {
+        // NOTE: When creating a brand-new chat, AI chunks can arrive before `currentChat` is set.
+        // Fall back to `currentMessages` so we don't drop fast error responses (e.g. credit limits).
+        const effectiveChatId = currentChat?.chat_id || currentMessages?.[0]?.chat_id || null;
+
+        if (!effectiveChatId || effectiveChatId !== chunk.chat_id) {
             console.warn(
                 `[ActiveChat] ⚠️ CHUNK IGNORED (wrong chat) | ` +
                 `seq: ${chunk.sequence} | ` +
-                `current_chat: ${currentChat?.chat_id || 'null'} | ` +
+                `effective_chat: ${effectiveChatId || 'null'} | ` +
                 `chunk_chat: ${chunk.chat_id} | ` +
                 `currentChat exists: ${!!currentChat}`
             );
@@ -1218,6 +1222,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
         let messageToSave: ChatMessageModel | null = null;
         let isNewMessageInStream = false;
+        let previousContentLengthForPersistence = 0;
+        let newContentLengthForPersistence = 0;
 
         if (!targetMessage) {
             // Create a streaming AI message even if sequence is not 1 to avoid dropping chunks
@@ -1248,6 +1254,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             currentMessages = [...currentMessages, newAiMessage];
             messageToSave = newAiMessage;
             isNewMessageInStream = true;
+            previousContentLengthForPersistence = 0;
+            newContentLengthForPersistence = newAiMessage.content.length;
             console.log(
                 `[ActiveChat] 🆕 NEW MESSAGE CREATED | ` +
                 `seq: ${chunk.sequence} | ` +
@@ -1284,6 +1292,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             currentMessages[targetMessageIndex] = targetMessage;
             currentMessages = [...currentMessages]; // New array reference for Svelte reactivity
             messageToSave = targetMessage;
+            previousContentLengthForPersistence = previousLength;
+            newContentLengthForPersistence = targetMessage.content?.length || 0;
             
             // 🔍 STREAMING DEBUG: Log content update
             console.log(
@@ -1348,15 +1358,14 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     );
                 } else {
                     // Save to IndexedDB
-                    // Check if this message already exists to prevent duplicates
-                    const existingMessage = await chatDB.getMessage(messageToSave.message_id);
-                    if (existingMessage && !isNewMessageInStream) {
-                        console.log(
-                            `[ActiveChat] 💾 DB SAVE SKIPPED (duplicate) | ` +
-                            `seq: ${chunk.sequence} | ` +
-                            `message_id: ${messageToSave.message_id}`
-                        );
-                    } else {
+                    // Do not "skip on existence": we need to persist streaming content updates
+                    // (placeholders often exist before the first chunk arrives).
+                    const shouldPersistChunk =
+                        isNewMessageInStream ||
+                        chunk.is_final_chunk ||
+                        (previousContentLengthForPersistence === 0 && newContentLengthForPersistence > 0);
+
+                    if (shouldPersistChunk) {
                     console.log(
                         `[ActiveChat] 💾 DB SAVE START | ` +
                         `seq: ${chunk.sequence} | ` +
@@ -1373,6 +1382,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         `message_id: ${messageToSave.message_id} | ` +
                         `duration: ${saveDuration.toFixed(2)}ms`
                     );
+                    } else {
+                        console.log(
+                            `[ActiveChat] 💾 DB SAVE SKIPPED (no-op chunk) | ` +
+                            `seq: ${chunk.sequence} | ` +
+                            `message_id: ${messageToSave.message_id} | ` +
+                            `prev_len: ${previousContentLengthForPersistence} | new_len: ${newContentLengthForPersistence}`
+                        );
                     }
                 }
             } catch (error) {

@@ -82,8 +82,8 @@ class CreateOrderRequest(BaseModel):
 class CreateSupportOrderRequest(BaseModel):
     currency: str
     amount: int  # Amount in the smallest currency unit (e.g., cents)
-    support_email: Optional[str] = None  # Email for non-authenticated users
-    email_encryption_key: Optional[str] = None
+    support_email: str  # Email for supporter contributions (always provided by client)
+    email_encryption_key: Optional[str] = None  # Deprecated for support payments (kept for backward compatibility)
     is_recurring: bool = False
 
 class CreateOrderResponse(BaseModel):
@@ -91,6 +91,7 @@ class CreateOrderResponse(BaseModel):
     order_token: Optional[str] = None # For Revolut
     client_secret: Optional[str] = None # For Stripe
     order_id: str
+    customer_portal_url: Optional[str] = None  # For Stripe supporter subscriptions
 
 class OrderStatusRequest(BaseModel):
     order_id: str
@@ -516,40 +517,11 @@ async def create_support_order(
 ):
     """Create a payment order for supporter contributions (one-time or recurring)."""
 
-    # Determine if user is authenticated
-    is_authenticated = current_user is not None
-
-    # For non-authenticated users, we need the support_email
-    if not is_authenticated and not order_data.support_email:
+    # Support payments are independent of user accounts.
+    # Always use the plaintext email provided by the client.
+    email = (order_data.support_email or "").strip()
+    if not email:
         raise HTTPException(status_code=400, detail="Email is required for support contributions")
-
-    # Get email address
-    if is_authenticated:
-        if not current_user.encrypted_email_address:
-            logger.error(f"Missing encrypted_email_address for user {current_user.id}")
-            raise HTTPException(status_code=500, detail="User email information unavailable.")
-
-        if not order_data.email_encryption_key:
-            logger.error(f"Missing email_encryption_key in request for user {current_user.id}")
-            raise HTTPException(status_code=400, detail="Email encryption key is required")
-
-        try:
-            logger.info(f"Using client-provided email encryption key for user {current_user.id}")
-            email = await encryption_service.decrypt_with_email_key(
-                current_user.encrypted_email_address,
-                order_data.email_encryption_key
-            )
-
-            if not email:
-                logger.error(f"Failed to decrypt email with provided key for user {current_user.id}")
-                raise HTTPException(status_code=400, detail="Invalid email encryption key")
-
-        except Exception as e:
-            logger.error(f"Error decrypting email for user {current_user.id}: {str(e)}")
-            raise HTTPException(status_code=500, detail="Failed to decrypt user email")
-    else:
-        # For non-authenticated users, use the provided email directly
-        email = order_data.support_email
 
     # Validate amount (minimum support amount)
     min_amount = 100 if order_data.currency.lower() in ['eur', 'usd', 'gbp'] else 100  # 1.00 minimum
@@ -557,9 +529,10 @@ async def create_support_order(
         raise HTTPException(status_code=400, detail=f"Minimum support amount is {min_amount/100:.2f} {order_data.currency.upper()}")
 
     try:
-        logger.info(f"Creating support order - Amount: {order_data.amount} {order_data.currency}, "
-                   f"Email: {'authenticated' if is_authenticated else 'provided'}, "
-                   f"Recurring: {order_data.is_recurring}")
+        logger.info(
+            f"Creating support order - Amount: {order_data.amount} {order_data.currency}, "
+            f"Email: provided, Recurring: {order_data.is_recurring}"
+        )
 
         # Create the support order through payment service
         order_response = await payment_service.create_support_order(
@@ -567,7 +540,7 @@ async def create_support_order(
             currency=order_data.currency,
             email=email,
             is_recurring=order_data.is_recurring,
-            user_id=current_user.id if is_authenticated else None
+            user_id=None
         )
 
         if not order_response:
@@ -578,6 +551,28 @@ async def create_support_order(
         if order_id:
             logger.info(f"Created support order {order_id}")
 
+        # Cache support orders so the webhook can generate a receipt/invoice and send email reliably.
+        # Support orders can be guest checkouts (no user_id) and do not have credits_amount.
+        try:
+            cache_success = await cache_service.set_support_order(
+                order_id=order_id,
+                status="created",
+                ttl=3600,  # 1 hour TTL to tolerate webhook delivery delays/retries
+                amount=order_data.amount,
+                currency=order_data.currency,
+                support_email=email,
+                user_id=None,
+                email_encryption_key=None,
+                is_recurring=order_data.is_recurring,
+            )
+            if not cache_success:
+                logger.error(
+                    f"CRITICAL: Failed to cache support order {order_id}. "
+                    f"Webhook-based receipt/email may not run."
+                )
+        except Exception as cache_err:
+            logger.error(f"Error caching support order {order_id}: {cache_err}", exc_info=True)
+
         response_data = {
             "provider": payment_service.provider_name,
             "order_id": order_id,
@@ -585,8 +580,8 @@ async def create_support_order(
             "client_secret": order_response.get("client_secret")  # For Stripe
         }
 
-        # Add customer portal URL for recurring payments
-        if order_data.is_recurring and order_response.get("customer_portal_url"):
+        # Add customer portal URL for recurring payments (Stripe subscriptions)
+        if order_response.get("customer_portal_url"):
             response_data["customer_portal_url"] = order_response.get("customer_portal_url")
 
         return CreateOrderResponse(**response_data)
@@ -676,6 +671,98 @@ async def payment_webhook(
 
         if (provider_name == "revolut" and event_type == "ORDER_COMPLETED") or \
            (provider_name == "stripe" and event_type == "payment_intent.succeeded"):
+
+            # Supporter contributions (one-time or first subscription payment)
+            # are handled separately from credit purchases and DO trigger email/receipt generation.
+            if provider_name == "stripe":
+                stripe_obj = (event_payload.get("data", {}) or {}).get("object", {}) or {}
+                metadata = (stripe_obj.get("metadata") or {}) if isinstance(stripe_obj, dict) else {}
+                if metadata.get("product_type") == "supporter_contribution":
+                    cached_support_order = await cache_service.get_order(webhook_order_id) or {}
+                    cached_status = (cached_support_order.get("status") or "").lower()
+                    if cached_status == "completed":
+                        logger.info(f"Support order {webhook_order_id} already completed. Skipping duplicate webhook.")
+                        return {"status": "already_completed_support_order"}
+
+                    # Prefer event fields, fall back to cache/metadata.
+                    amount_paid = stripe_obj.get("amount") or cached_support_order.get("amount")
+                    currency_paid = stripe_obj.get("currency") or cached_support_order.get("currency")
+
+                    user_id = cached_support_order.get("user_id") or metadata.get("user_id")
+                    support_email = cached_support_order.get("support_email") or metadata.get("email")
+                    email_encryption_key = cached_support_order.get("email_encryption_key")
+
+                    is_recurring = False
+                    cached_is_recurring = cached_support_order.get("is_recurring")
+                    if cached_is_recurring is not None:
+                        is_recurring = bool(cached_is_recurring)
+                    else:
+                        is_recurring = str(metadata.get("is_recurring", "")).lower() == "true"
+
+                    if not support_email and not user_id:
+                        logger.error(
+                            f"Support webhook {webhook_order_id} missing both support_email and user_id; "
+                            f"cannot send receipt."
+                        )
+                        await cache_service.set_support_order(
+                            order_id=webhook_order_id,
+                            status="failed_missing_support_email",
+                            ttl=3600,
+                            amount=amount_paid,
+                            currency=currency_paid,
+                            support_email=None,
+                            user_id=user_id,
+                            email_encryption_key=email_encryption_key,
+                            is_recurring=is_recurring,
+                        )
+                        return {"status": "failed_missing_support_email"}
+
+                    # Ensure we have a cache entry for idempotency on retries.
+                    if not cached_support_order:
+                        await cache_service.set_support_order(
+                            order_id=webhook_order_id,
+                            status="processing",
+                            ttl=3600,
+                            amount=amount_paid,
+                            currency=currency_paid,
+                            support_email=support_email,
+                            user_id=user_id,
+                            email_encryption_key=email_encryption_key,
+                            is_recurring=is_recurring,
+                        )
+                    else:
+                        await cache_service.update_order_status(webhook_order_id, "processing")
+
+                    # Fetch sender details for email/PDF tasks via SecretsManager
+                    invoice_sender_path = "kv/data/providers/invoice_sender"
+                    sender_addressline1 = await secrets_manager.get_secret(secret_path=invoice_sender_path, secret_key="addressline1")
+                    sender_addressline2 = await secrets_manager.get_secret(secret_path=invoice_sender_path, secret_key="addressline2")
+                    sender_addressline3 = await secrets_manager.get_secret(secret_path=invoice_sender_path, secret_key="addressline3")
+                    sender_country = await secrets_manager.get_secret(secret_path=invoice_sender_path, secret_key="country")
+                    sender_email = await secrets_manager.get_secret(secret_path=invoice_sender_path, secret_key="email")
+                    sender_vat = await secrets_manager.get_secret(secret_path=invoice_sender_path, secret_key="vat")
+
+                    # Support payments are account-independent: always send a guest receipt email using the
+                    # plaintext email address from metadata/cache (no server-side decryption).
+                    task_payload = {
+                        "order_id": webhook_order_id,
+                        "support_email": support_email,
+                        "sender_addressline1": sender_addressline1,
+                        "sender_addressline2": sender_addressline2,
+                        "sender_addressline3": sender_addressline3,
+                        "sender_country": sender_country,
+                        "sender_email": sender_email if sender_email else "support@openmates.org",
+                        "sender_vat": sender_vat,
+                    }
+                    app.send_task(
+                        name="app.tasks.email_tasks.support_contribution_email_task.process_guest_support_contribution_receipt_and_send_email",
+                        kwargs=task_payload,
+                        queue="email",
+                    )
+                    logger.info(f"Dispatched guest support contribution receipt task for order {webhook_order_id}.")
+
+                    await cache_service.update_order_status(webhook_order_id, "completed")
+                    return {"status": "supporter_contribution_processed"}
             
             cached_order_data = await cache_service.get_order(webhook_order_id)
             if not cached_order_data:

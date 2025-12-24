@@ -928,10 +928,10 @@ async def call_main_llm_stream(
     # Store original model_id for fallback resolution and provider override resolution (needed for openrouter)
     original_model_id = model_id
     
-    # Resolve fallback servers for models that support multiple servers (e.g., alibaba, openai)
+    # Resolve fallback servers from provider config (if any).
+    # This enables per-model fallbacks (e.g., Google AI Studio -> OpenRouter) configured in provider YAML.
     fallback_servers = []
-    if "/" in model_id and (model_id.startswith("alibaba/") or model_id.startswith("openai/")):
-        # Resolve fallback servers from provider config
+    if "/" in model_id:
         fallback_servers = resolve_fallback_servers_from_provider_config(model_id)
         if fallback_servers:
             logger.info(f"{log_prefix} Resolved {len(fallback_servers)} fallback server(s) for model '{model_id}': {fallback_servers}")
@@ -945,22 +945,20 @@ async def call_main_llm_stream(
         provider_prefix = parts[0]
         actual_model_id = parts[1]
         
-        # For providers that support multiple servers (e.g., alibaba, openai), resolve the default server
-        if provider_prefix in ["alibaba", "openai"]:
-            default_server_id, transformed_model_id = resolve_default_server_from_provider_config(model_id)
-            if default_server_id and transformed_model_id:
-                logger.info(f"{log_prefix} Resolved default server '{default_server_id}' for model '{model_id}'. Using transformed model_id: '{transformed_model_id}'")
-                # Update model_id to use the transformed version with server prefix
-                model_id = transformed_model_id
-                # Re-parse the transformed model_id
-                if "/" in model_id:
-                    parts = model_id.split("/", 1)
-                    provider_prefix = parts[0]
-                    actual_model_id = parts[1]
-                else:
-                    logger.warning(f"{log_prefix} Transformed model_id '{model_id}' does not contain a provider prefix.")
+        # Resolve default_server for any provider that defines it in provider YAML.
+        # This allows routing "provider/model" to a concrete server like "openrouter/*" or "google_ai_studio/*".
+        default_server_id, transformed_model_id = resolve_default_server_from_provider_config(model_id)
+        if default_server_id and transformed_model_id:
+            logger.info(f"{log_prefix} Resolved default server '{default_server_id}' for model '{model_id}'. Using transformed model_id: '{transformed_model_id}'")
+            model_id = transformed_model_id
+            if "/" in model_id:
+                parts = model_id.split("/", 1)
+                provider_prefix = parts[0]
+                actual_model_id = parts[1]
             else:
-                logger.warning(f"{log_prefix} Could not resolve default server for '{model_id}'. Falling back to original routing.")
+                logger.warning(f"{log_prefix} Transformed model_id '{model_id}' does not contain a provider prefix.")
+        else:
+            logger.debug(f"{log_prefix} No default_server resolution for '{model_id}'. Using provider routing.")
     else:
         logger.warning(f"{log_prefix} model_id '{model_id}' does not contain a provider prefix.")
 

@@ -1078,9 +1078,14 @@ class ChatDatabase {
         
         // Handle duplicates based on check results
         if (existingMessage) {
+            const shouldUpdateDueToNewEncryptedFields = this.hasNewEncryptedFields(existingMessage, encryptedMessage);
             // Only update if the new message has higher priority status
-            if (this.shouldUpdateMessage(existingMessage, message)) {
-                console.info(`[ChatDatabase] ✅ DUPLICATE PREVENTED - Updating existing message with higher priority status: ${message.message_id} (${existingMessage.status} -> ${message.status})`);
+            if (this.shouldUpdateMessage(existingMessage, message) || shouldUpdateDueToNewEncryptedFields) {
+                if (shouldUpdateDueToNewEncryptedFields && existingMessage.status === message.status) {
+                    console.info(`[ChatDatabase] ✅ Updating existing message to fill missing encrypted fields: ${message.message_id} (status: ${message.status})`);
+                } else {
+                    console.info(`[ChatDatabase] ✅ DUPLICATE PREVENTED - Updating existing message with higher priority status: ${message.message_id} (${existingMessage.status} -> ${message.status})`);
+                }
             } else {
                 console.info(`[ChatDatabase] ✅ DUPLICATE PREVENTED - Message ${message.message_id} already exists with equal/higher priority status (${existingMessage.status}), skipping save`);
                 return Promise.resolve();
@@ -1443,21 +1448,50 @@ class ChatDatabase {
     }
 
     /**
-     * Determines if a new message should update an existing message based on status priority
-     * Status priority: 'sending' < 'delivered' < 'synced'
+     * Determines if a new message should update an existing message.
+     *
+     * Rules:
+     * - Always allow streaming -> streaming updates (content grows over time).
+     * - Otherwise, allow updates only when status priority increases.
      */
     private shouldUpdateMessage(existing: Message, incoming: Message): boolean {
-        const statusPriority: Record<string, number> = { 
-            'sending': 1, 
-            'delivered': 2, 
-            'synced': 3 
+        const statusPriority: Record<string, number> = {
+            sending: 1,
+            waiting_for_internet: 1,
+            processing: 2,
+            streaming: 2,
+            failed: 2.5,
+            synced: 3
         };
-        
-        const existingPriority = statusPriority[existing.status] || 0;
-        const incomingPriority = statusPriority[incoming.status] || 0;
-        
-        // Update if incoming message has higher priority status
+
+        // Streaming chunks must be able to update the same message id.
+        if (existing.status === 'streaming' && incoming.status === 'streaming') {
+            return true;
+        }
+
+        const existingPriority = statusPriority[existing.status] ?? 0;
+        const incomingPriority = statusPriority[incoming.status] ?? 0;
+
         return incomingPriority > existingPriority;
+    }
+
+    /**
+     * Returns true if the incoming encrypted record adds encrypted fields that are missing on the existing record.
+     * This is important for placeholder messages (e.g. assistant message created before first chunk arrives).
+     */
+    private hasNewEncryptedFields(existing: Message, incomingEncrypted: Message): boolean {
+        const pairs: Array<[keyof Message, keyof Message]> = [
+            ['encrypted_content', 'encrypted_content'],
+            ['encrypted_sender_name', 'encrypted_sender_name'],
+            ['encrypted_category', 'encrypted_category'],
+            ['encrypted_model_name', 'encrypted_model_name']
+        ];
+
+        return pairs.some(([existingKey, incomingKey]) => {
+            const existingValue = existing[existingKey];
+            const incomingValue = incomingEncrypted[incomingKey];
+            return !existingValue && !!incomingValue;
+        });
     }
 
     /**

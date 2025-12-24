@@ -7,6 +7,56 @@ logger = logging.getLogger(__name__)
 class OrderCacheMixin:
     """Mixin for order-specific caching methods"""
 
+    async def set_support_order(
+        self,
+        order_id: str,
+        status: str = "created",
+        ttl: int = 3600,
+        amount: Optional[int] = None,
+        currency: Optional[str] = None,
+        support_email: Optional[str] = None,
+        user_id: Optional[str] = None,
+        email_encryption_key: Optional[str] = None,
+        is_recurring: bool = False,
+    ) -> bool:
+        """
+        Cache support contribution order metadata.
+
+        Unlike credit purchase orders, support orders may not have a user_id (guest checkout) and
+        do not have a credits_amount. We still cache them so the webhook can trigger receipts/email
+        reliably and we can do basic idempotency on webhook retries.
+        """
+        try:
+            if not order_id:
+                logger.error("Cannot cache support order: missing order_id.")
+                return False
+
+            order_cache_key = f"{self.ORDER_KEY_PREFIX}{order_id}"
+            order_data: Dict[str, Any] = {
+                "order_id": order_id,
+                "status": status,
+                "timestamp": int(time.time()),
+                "order_type": "support_contribution",
+                "is_recurring": bool(is_recurring),
+            }
+
+            if user_id:
+                order_data["user_id"] = user_id
+            if amount is not None:
+                order_data["amount"] = amount
+            if currency:
+                order_data["currency"] = currency
+            if support_email:
+                order_data["support_email"] = support_email
+            if email_encryption_key:
+                order_data["email_encryption_key"] = email_encryption_key
+
+            logger.debug(f"Setting support order in cache: {order_data}")
+            return await self.set(order_cache_key, order_data, ttl=ttl)
+        except Exception as e:
+            logger.error(f"Error caching support order {order_id}: {str(e)}")
+            return False
+
     async def set_order(
         self,
         order_id: str,

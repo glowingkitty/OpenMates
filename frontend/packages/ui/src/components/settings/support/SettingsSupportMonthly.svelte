@@ -122,6 +122,8 @@
             // Show success message and go back to tier selection
             backToTierSelection();
             // Could dispatch an event to show success notification
+        } else if (paymentState === 'failure') {
+            // Keep the payment form open; Payment component shows the error.
         }
     }
 </script>

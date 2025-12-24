@@ -430,25 +430,32 @@ async def _generate_fake_stream_for_harmful_content(
     
     # Save assistant response to cache for follow-up message context
     # Even harmful content responses should be cached so follow-ups have context
+    # CRITICAL: This is non-blocking - if metadata update fails, the error message should still reach the user
     if directus_service and cache_service and predefined_response:
         category = "general_knowledge"  # Default category for harmful content responses
         timestamp = int(time.time())
         content_tiptap = predefined_response  # Send as markdown
-        
-        await _update_chat_metadata(
-            request_data=request_data,
-            category=category,
-            timestamp=timestamp,
-            content_markdown=predefined_response,
-            content_tiptap=content_tiptap,
-            directus_service=directus_service,
-            cache_service=cache_service,
-            encryption_service=encryption_service,
-            user_vault_key_id=user_vault_key_id,
-            task_id=task_id,
-            log_prefix=log_prefix
-        )
-        logger.info(f"{log_prefix} Harmful content response saved to cache for future follow-up context.")
+
+        try:
+            await _update_chat_metadata(
+                request_data=request_data,
+                category=category,
+                timestamp=timestamp,
+                content_markdown=predefined_response,
+                content_tiptap=content_tiptap,
+                directus_service=directus_service,
+                cache_service=cache_service,
+                encryption_service=encryption_service,
+                user_vault_key_id=user_vault_key_id,
+                task_id=task_id,
+                log_prefix=log_prefix
+            )
+            logger.info(f"{log_prefix} Harmful content response saved to cache for future follow-up context.")
+        except Exception as e:
+            # IMPORTANT: Don't let metadata failures prevent error messages from reaching the user
+            # The error message has already been published to Redis (lines 393-410) and should reach the client
+            logger.error(f"{log_prefix} Failed to save harmful content response to cache/metadata (non-critical): {e}", exc_info=True)
+            logger.warning(f"{log_prefix} Harmful content message was still published to client successfully via Redis stream")
     
     logger.info(f"{log_prefix} Fake stream generation completed. Response length: {len(predefined_response)}.")
     return predefined_response, False, False
@@ -499,25 +506,32 @@ async def _generate_fake_stream_for_simple_message(
 
     # Save assistant response to cache for follow-up message context
     # Even simple messages (like insufficient credits) should be cached
+    # CRITICAL: This is non-blocking - if metadata update fails, the error message should still reach the user
     if directus_service and cache_service and message_text:
         category = "general_knowledge"  # Default category for simple messages
         timestamp = int(time.time())
         content_tiptap = message_text  # Send as markdown
-        
-        await _update_chat_metadata(
-            request_data=request_data,
-            category=category,
-            timestamp=timestamp,
-            content_markdown=message_text,
-            content_tiptap=content_tiptap,
-            directus_service=directus_service,
-            cache_service=cache_service,
-            encryption_service=encryption_service,
-            user_vault_key_id=user_vault_key_id,
-            task_id=task_id,
-            log_prefix=log_prefix
-        )
-        logger.info(f"{log_prefix} Simple message response saved to cache for future follow-up context.")
+
+        try:
+            await _update_chat_metadata(
+                request_data=request_data,
+                category=category,
+                timestamp=timestamp,
+                content_markdown=message_text,
+                content_tiptap=content_tiptap,
+                directus_service=directus_service,
+                cache_service=cache_service,
+                encryption_service=encryption_service,
+                user_vault_key_id=user_vault_key_id,
+                task_id=task_id,
+                log_prefix=log_prefix
+            )
+            logger.info(f"{log_prefix} Simple message response saved to cache for future follow-up context.")
+        except Exception as e:
+            # IMPORTANT: Don't let metadata failures prevent error messages from reaching the user
+            # The error message has already been published to Redis (lines 481-498) and should reach the client
+            logger.error(f"{log_prefix} Failed to save simple message to cache/metadata (non-critical): {e}", exc_info=True)
+            logger.warning(f"{log_prefix} Error message was still published to client successfully via Redis stream")
 
     logger.info(f"{log_prefix} Simple fake stream generation completed. Response length: {len(message_text)}.")
     return message_text, False, False

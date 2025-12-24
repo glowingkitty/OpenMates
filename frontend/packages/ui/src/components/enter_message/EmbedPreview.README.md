@@ -10,7 +10,7 @@ The new embed preview system provides a unified, extensible architecture for dis
 - **App-Specific Branding**: Each app type (web, code, sheets, docs, videos) has its own gradient and icon
 - **Responsive Layout**: Automatically switches between mobile and desktop layouts based on container width
 - **Extended Previews**: Hover to reveal 300x200px extended preview areas with type-specific content
-- **Grouping Support**: Multiple embeds of the same type can be grouped together with horizontal scrolling
+- **Grouping Support**: Multiple embeds of the same type can be grouped together with horizontal scrolling (including when they are separated by blank lines)
 - **Loading States**: Visual indicators for processing and failed states
 - **Accessibility**: Proper focus management and keyboard navigation
 
