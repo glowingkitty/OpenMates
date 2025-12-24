@@ -55,6 +55,8 @@
     let clientSecret: string | null = $state(null);
     let lastOrderId: string | null = $state(null);
     let paymentIntentId: string | null = $state(null); // Store actual payment_intent_id for delayed payments
+    let hostedInvoiceUrl: string | null = $state(null);
+    let customerPortalUrl: string | null = $state(null);
     let isLoading = $state(false);
     let isButtonCooldown = $state(false);
     let errorMessage: string | null = $state(null);
@@ -123,6 +125,8 @@
     async function createOrder() {
         isLoading = true;
         errorMessage = null;
+        hostedInvoiceUrl = null;
+        customerPortalUrl = null;
         try {
             // Get email encryption key for server to decrypt email
             const emailEncryptionKey = cryptoService.getEmailEncryptionKeyForApi();
@@ -145,7 +149,7 @@
                 // For support contributions, use a dedicated endpoint
                 endpoint = apiEndpoints.payments.createSupportOrder;
                 requestBody = {
-                    amount: purchasePrice,
+                    amount: purchasePrice, // Already in cents from parent component
                     currency: currency,
                     support_email: supportEmailToUse,
                     is_recurring: isRecurring
@@ -186,7 +190,19 @@
             }
             const order = await response.json();
             if (order.provider === 'stripe') {
-                if (!order.client_secret) throw new Error('Order created, but client_secret is missing.');
+                if (order.customer_portal_url) customerPortalUrl = order.customer_portal_url;
+                if (order.hosted_invoice_url) hostedInvoiceUrl = order.hosted_invoice_url;
+
+                if (!order.client_secret) {
+                    if (supportContribution && isRecurring && hostedInvoiceUrl) {
+                        errorMessage =
+                            'We could not initialize the embedded payment form. Continue on Stripe to complete your monthly support payment.';
+                        // No Stripe Elements initialization without a client_secret.
+                        lastOrderId = order.order_id;
+                        return;
+                    }
+                    throw new Error('Order created, but client_secret is missing.');
+                }
                 clientSecret = order.client_secret;
                 initializePaymentElement();
             }
@@ -673,6 +689,30 @@
             {showDelayedMessage}
         />
     {:else}
+        {#if hostedInvoiceUrl}
+            <div class="payment-form-overlay-wrapper">
+                <PaymentForm
+                    bind:this={paymentFormComponent}
+                    purchasePrice={purchasePrice}
+                    currency={currency}
+                    userEmail={userEmail}
+                    requireConsent={requireConsent}
+                    isSupportContribution={supportContribution}
+                    bind:isPaymentElementComplete={isPaymentElementComplete}
+                    hasConsentedToLimitedRefund={hasConsentedToLimitedRefund}
+                    validationErrors={validationErrors}
+                    paymentError={errorMessage}
+                    isLoading={isLoading}
+                    isButtonCooldown={isButtonCooldown}
+                    fallbackUrl={hostedInvoiceUrl}
+                    fallbackButtonLabel={'Continue on Stripe'}
+                    stripe={stripe}
+                    elements={elements}
+                    clientSecret={clientSecret}
+                    darkmode={darkmode}
+                />
+            </div>
+        {:else}
         <div class="payment-form-overlay-wrapper">
             <div id="payment-element"></div>
             <PaymentForm
@@ -707,6 +747,7 @@
                 </div>
             {/if}
         </div>
+        {/if}
     {/if}
 </div>
 

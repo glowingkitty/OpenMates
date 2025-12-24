@@ -184,7 +184,13 @@ class StripeService:
             logger.error(f"Error processing Stripe refund for PaymentIntent {payment_intent_id}: {str(e)}", exc_info=True)
             return None
 
-    async def _find_price_for_product(self, product_name: str, currency: str, recurring: bool = False) -> Optional[str]:
+    async def _find_price_for_product(
+        self,
+        product_name: str,
+        currency: str,
+        recurring: bool = False,
+        amount: Optional[int] = None,
+    ) -> Optional[str]:
         """
         Find the price ID for a product by name and currency.
         
@@ -193,6 +199,8 @@ class StripeService:
             currency: Currency code
             recurring: If True, only return recurring prices (for subscriptions).
                        If False, only return one-time prices (for PaymentIntents).
+            amount: Optional amount in the smallest currency unit. When provided,
+                    prefers a matching price amount (critical for subscriptions).
             
         Returns:
             Price ID if found, None otherwise
@@ -219,17 +227,28 @@ class StripeService:
                             is_recurring = price.recurring is not None
                             
                             if recurring and is_recurring:
-                                # Looking for recurring price and found one
-                                logger.info(f"Found recurring price {price.id} for product '{product_name}' in {currency}")
+                                if amount is not None and getattr(price, "unit_amount", None) != amount:
+                                    continue
+                                logger.info(
+                                    f"Found recurring price {price.id} for product '{product_name}' in {currency}"
+                                    + (f" (amount={amount})" if amount is not None else "")
+                                )
                                 return price.id
                             elif not recurring and not is_recurring:
-                                # Looking for one-time price and found one
-                                logger.info(f"Found one-time price {price.id} for product '{product_name}' in {currency}")
+                                if amount is not None and getattr(price, "unit_amount", None) != amount:
+                                    continue
+                                logger.info(
+                                    f"Found one-time price {price.id} for product '{product_name}' in {currency}"
+                                    + (f" (amount={amount})" if amount is not None else "")
+                                )
                                 return price.id
                             # Otherwise, continue searching for the correct type
             
             price_type = "recurring" if recurring else "one-time"
-            logger.warning(f"No {price_type} price found for product '{product_name}' in {currency}")
+            logger.warning(
+                f"No {price_type} price found for product '{product_name}' in {currency}"
+                + (f" (amount={amount})" if amount is not None else "")
+            )
             return None
             
         except Exception as e:
@@ -1054,7 +1073,7 @@ class StripeService:
             else:
                 product_name = "Supporter Contribution"
 
-            price_id = await self._find_price_for_product(product_name, currency, is_recurring)
+            price_id = await self._find_price_for_product(product_name, currency, is_recurring, amount=amount)
 
             if not price_id:
                 logger.error(f"No supporter product found for {amount} {currency} (recurring: {is_recurring})")
@@ -1134,7 +1153,11 @@ class StripeService:
                 # Ensure an immediate first invoice even if the Price/Plan has a trial configured.
                 trial_end="now",
                 payment_behavior="default_incomplete",
-                payment_settings={"save_default_payment_method": "on_subscription"},
+                # Explicitly set payment method types so Stripe always creates an invoice PaymentIntent.
+                payment_settings={
+                    "save_default_payment_method": "on_subscription",
+                    "payment_method_types": ["card"],
+                },
                 expand=["latest_invoice.payment_intent"],
                 description="Monthly supporter contribution to OpenMates development"
             )
@@ -1173,6 +1196,11 @@ class StripeService:
                         if invoice_payment_intent and getattr(invoice_payment_intent, "client_secret", None):
                             response_data["client_secret"] = invoice_payment_intent.client_secret
                             response_data["payment_intent_id"] = invoice_payment_intent.id
+                        # Provide a usable fallback URL even if the PaymentIntent is unavailable.
+                        if getattr(invoice, "hosted_invoice_url", None):
+                            response_data["hosted_invoice_url"] = invoice.hosted_invoice_url
+                        if getattr(invoice, "invoice_pdf", None):
+                            response_data["invoice_pdf"] = invoice.invoice_pdf
                     except Exception as invoice_err:
                         logger.warning(
                             f"Failed to retrieve expanded invoice/payment_intent for supporter subscription {subscription.id}: {invoice_err}"

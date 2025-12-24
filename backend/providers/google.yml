@@ -11,6 +11,7 @@ models:
   - id: "gemini-3-flash-preview"
     name: "Gemini 3 Flash Preview"
     description: "Fast Gemini 3 preview model (primary: Google AI Studio; fallback: OpenRouter)."
+    reasoning: true
     input_types:
       - text
       - image
@@ -47,6 +48,7 @@ models:
   - id: "gemini-3-pro-preview" # Official model ID
     name: "Gemini 3 Pro Preview"
     description: "Our most intelligent model with SOTA reasoning and multimodal understanding, and powerful agentic and vibe coding capabilities"
+    reasoning: true
     input_types:
       - text
       - image
@@ -87,6 +89,7 @@ models:
   - id: "gemini-flash-latest"
     name: "Gemini Flash Latest"
     description: "Our hybrid reasoning model, with a 1M token context window and thinking budgets."
+    reasoning: true
     input_types:
       - text
       - image

@@ -3,14 +3,39 @@
 
 import asyncio
 import logging
-from typing import AsyncIterator, TypeVar, Optional
+import os
+from typing import AsyncIterator, TypeVar
 
 logger = logging.getLogger(__name__)
 
-# Hardcoded timeout for first chunk (10000ms = 10 seconds)
-# This is used for streaming requests to detect if the stream is alive
-FIRST_CHUNK_TIMEOUT_MS = 10000
-FIRST_CHUNK_TIMEOUT_SECONDS = FIRST_CHUNK_TIMEOUT_MS / 1000.0
+def _get_env_float(name: str, default: float) -> float:
+    raw = os.getenv(name)
+    if raw is None or raw == "":
+        return default
+    try:
+        return float(raw)
+    except ValueError:
+        logger.warning(f"Invalid env var {name}={raw!r}; using default {default}")
+        return default
+
+
+# Default timeout for first streamed chunk (in seconds).
+# Used to detect "dead" streams where the provider never starts sending.
+FIRST_CHUNK_TIMEOUT_SECONDS = _get_env_float("AI_FIRST_CHUNK_TIMEOUT_SECONDS", 10.0)
+
+# Timeout for reasoning models where the provider may take longer to start streaming.
+REASONING_FIRST_CHUNK_TIMEOUT_SECONDS = _get_env_float("AI_REASONING_FIRST_CHUNK_TIMEOUT_SECONDS", 60.0)
+
+
+def get_first_chunk_timeout_seconds(*, is_reasoning: bool = False) -> float:
+    """
+    Resolve first-chunk streaming timeout for a given provider/model.
+
+    Env vars:
+      - AI_FIRST_CHUNK_TIMEOUT_SECONDS (global default, seconds)
+      - AI_REASONING_FIRST_CHUNK_TIMEOUT_SECONDS (reasoning models, seconds)
+    """
+    return REASONING_FIRST_CHUNK_TIMEOUT_SECONDS if is_reasoning else FIRST_CHUNK_TIMEOUT_SECONDS
 
 # Timeout for non-streaming preprocessing requests (10 seconds)
 # Preprocessing requests should complete quickly; if they take longer, the provider is likely having issues
@@ -31,7 +56,7 @@ async def stream_with_first_chunk_timeout(
     
     Args:
         stream: Async iterator to wrap
-        timeout_seconds: Timeout in seconds for the first chunk (default: 5.0)
+        timeout_seconds: Timeout in seconds for the first chunk (default: AI_FIRST_CHUNK_TIMEOUT_SECONDS or 10.0)
     
     Yields:
         Items from the stream
@@ -74,4 +99,3 @@ async def stream_with_first_chunk_timeout(
     except StopAsyncIteration:
         # Stream ended - this is normal
         return
-

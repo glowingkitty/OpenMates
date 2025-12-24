@@ -4,10 +4,17 @@
 import type { EmbedRenderer, EmbedRenderContext } from './types';
 import type { EmbedNodeAttributes } from '../../../../message_parsing/types';
 import { groupHandlerRegistry } from '../../../../message_parsing/groupHandlers';
+import { resolveEmbed, decodeToonContent } from '../../../../services/embedResolver';
 import { mount, unmount } from 'svelte';
 import WebsiteEmbedPreview from '../../../embeds/web/WebsiteEmbedPreview.svelte';
 import VideoEmbedPreview from '../../../embeds/videos/VideoEmbedPreview.svelte';
 import CodeEmbedPreview from '../../../embeds/code/CodeEmbedPreview.svelte';
+import WebSearchEmbedPreview from '../../../embeds/web/WebSearchEmbedPreview.svelte';
+import NewsSearchEmbedPreview from '../../../embeds/news/NewsSearchEmbedPreview.svelte';
+import VideosSearchEmbedPreview from '../../../embeds/videos/VideosSearchEmbedPreview.svelte';
+import MapsSearchEmbedPreview from '../../../embeds/maps/MapsSearchEmbedPreview.svelte';
+import VideoTranscriptEmbedPreview from '../../../embeds/videos/VideoTranscriptEmbedPreview.svelte';
+import WebReadEmbedPreview from '../../../embeds/web/WebReadEmbedPreview.svelte';
 
 // Track mounted components for cleanup
 const mountedComponents = new WeakMap<HTMLElement, ReturnType<typeof mount>>();
@@ -100,15 +107,27 @@ export class GroupRenderer implements EmbedRenderer {
     
     // Reverse the items so the most recently added appears on the left
     const reversedItems = [...groupedItems].reverse();
+
+    // Determine the group display name
+    const groupDisplayName = this.getGroupDisplayName(baseType, groupCount);
+
+    // App skill groups must render each item using the existing embed preview components
+    // (e.g. WebSearchEmbedPreview) so sizing and interactions match single-item rendering.
+    if (baseType === 'app-skill-use') {
+      await this.renderAppSkillUseGroup({
+        baseType,
+        groupDisplayName,
+        items: reversedItems,
+        content
+      });
+      return;
+    }
     
     // Generate individual embed HTML for each grouped item (async)
     const groupItemsHtmlPromises = reversedItems.map(item => {
       return this.renderIndividualItem(item, baseType);
     });
     const groupItemsHtml = (await Promise.all(groupItemsHtmlPromises)).join('');
-    
-    // Determine the group display name
-    const groupDisplayName = this.getGroupDisplayName(baseType, groupCount);
     
     const finalHtml = `
       <div class="${baseType}-preview-group">
@@ -158,6 +177,8 @@ export class GroupRenderer implements EmbedRenderer {
   ): Promise<string> {
     switch (baseType) {
       case 'app-skill-use':
+        // App skill use embeds should be rendered via Svelte components for correct sizing.
+        // This HTML path is kept as a last-resort fallback.
         return this.renderAppSkillUseItem(item, embedData, decodedContent);
       case 'web-website':
         return this.renderWebsiteItem(item, embedData, decodedContent);
@@ -232,6 +253,210 @@ export class GroupRenderer implements EmbedRenderer {
         </div>
       </div>
     `;
+  }
+
+  private unmountMountedComponentsInSubtree(root: HTMLElement): void {
+    const elements: HTMLElement[] = [root, ...Array.from(root.querySelectorAll<HTMLElement>('*'))];
+    for (const el of elements) {
+      const existingComponent = mountedComponents.get(el);
+      if (existingComponent) {
+        try {
+          unmount(existingComponent);
+        } catch (e) {
+          console.warn('[GroupRenderer] Error unmounting existing component:', e);
+        }
+      }
+    }
+  }
+
+  private async renderAppSkillUseGroup(args: {
+    baseType: string;
+    groupDisplayName: string;
+    items: EmbedNodeAttributes[];
+    content: HTMLElement;
+  }): Promise<void> {
+    const { baseType, groupDisplayName, items, content } = args;
+
+    // Cleanup any mounted components inside this node before re-rendering
+    this.unmountMountedComponentsInSubtree(content);
+
+    // Build group DOM (avoid innerHTML for item rendering so we can mount Svelte components)
+    content.innerHTML = '';
+
+    const groupWrapper = document.createElement('div');
+    groupWrapper.className = `${baseType}-preview-group`;
+
+    const header = document.createElement('div');
+    header.className = 'group-header';
+    header.textContent = groupDisplayName;
+
+    const scrollContainer = document.createElement('div');
+    scrollContainer.className = 'group-scroll-container';
+
+    groupWrapper.appendChild(header);
+    groupWrapper.appendChild(scrollContainer);
+    content.appendChild(groupWrapper);
+
+    for (const item of items) {
+      const itemWrapper = document.createElement('div');
+      itemWrapper.className = 'embed-group-item';
+      // Ensure items keep their intrinsic (fixed) preview size within the horizontal scroll container
+      itemWrapper.style.flex = '0 0 auto';
+
+      scrollContainer.appendChild(itemWrapper);
+
+      await this.mountAppSkillUsePreview(item, itemWrapper);
+    }
+  }
+
+  private async mountAppSkillUsePreview(item: EmbedNodeAttributes, target: HTMLElement): Promise<void> {
+    // Resolve content for this app-skill-use item
+    const embedId = item.contentRef?.startsWith('embed:') ? item.contentRef.replace('embed:', '') : '';
+
+    let embedData: any = null;
+    let decodedContent: any = null;
+
+    if (embedId) {
+      try {
+        embedData = await resolveEmbed(embedId);
+        decodedContent = embedData?.content ? await decodeToonContent(embedData.content) : null;
+      } catch (error) {
+        console.error('[GroupRenderer] Error loading app-skill-use embed for group item:', error);
+      }
+    }
+
+    const appId = decodedContent?.app_id || '';
+    const skillId = decodedContent?.skill_id || '';
+    const status = (decodedContent?.status || embedData?.status || item.status || 'processing') as 'processing' | 'finished' | 'error';
+    const taskId = decodedContent?.task_id;
+    const results = decodedContent?.results || [];
+
+    // Cleanup any existing mounted component (in case this target is reused)
+    const existingComponent = mountedComponents.get(target);
+    if (existingComponent) {
+      try {
+        unmount(existingComponent);
+      } catch (e) {
+        console.warn('[GroupRenderer] Error unmounting existing component:', e);
+      }
+    }
+    target.innerHTML = '';
+
+    const handleFullscreen = () => {
+      this.openFullscreen(item, embedData, decodedContent);
+    };
+
+    try {
+      if (appId === 'web' && skillId === 'search') {
+        const component = mount(WebSearchEmbedPreview, {
+          target,
+          props: {
+            id: embedId,
+            query: decodedContent?.query || '',
+            provider: decodedContent?.provider || 'Brave Search',
+            status,
+            results,
+            taskId,
+            isMobile: false,
+            onFullscreen: handleFullscreen
+          }
+        });
+        mountedComponents.set(target, component);
+        return;
+      }
+
+      if (appId === 'news' && skillId === 'search') {
+        const component = mount(NewsSearchEmbedPreview, {
+          target,
+          props: {
+            id: embedId,
+            query: decodedContent?.query || '',
+            provider: decodedContent?.provider || 'Brave Search',
+            status,
+            results,
+            taskId,
+            isMobile: false,
+            onFullscreen: handleFullscreen
+          }
+        });
+        mountedComponents.set(target, component);
+        return;
+      }
+
+      if (appId === 'videos' && skillId === 'search') {
+        const component = mount(VideosSearchEmbedPreview, {
+          target,
+          props: {
+            id: embedId,
+            query: decodedContent?.query || '',
+            provider: decodedContent?.provider || 'Brave Search',
+            status,
+            results,
+            taskId,
+            isMobile: false,
+            onFullscreen: handleFullscreen
+          }
+        });
+        mountedComponents.set(target, component);
+        return;
+      }
+
+      if (appId === 'maps' && skillId === 'search') {
+        const component = mount(MapsSearchEmbedPreview, {
+          target,
+          props: {
+            id: embedId,
+            query: decodedContent?.query || '',
+            provider: decodedContent?.provider || 'Google',
+            status,
+            results,
+            taskId,
+            isMobile: false,
+            onFullscreen: handleFullscreen
+          }
+        });
+        mountedComponents.set(target, component);
+        return;
+      }
+
+      if (appId === 'videos' && (skillId === 'get_transcript' || skillId === 'get-transcript')) {
+        const component = mount(VideoTranscriptEmbedPreview, {
+          target,
+          props: {
+            id: embedId,
+            status,
+            results,
+            taskId,
+            isMobile: false,
+            onFullscreen: handleFullscreen
+          }
+        });
+        mountedComponents.set(target, component);
+        return;
+      }
+
+      if (appId === 'web' && skillId === 'read') {
+        const component = mount(WebReadEmbedPreview, {
+          target,
+          props: {
+            id: embedId,
+            status,
+            results,
+            taskId,
+            isMobile: false,
+            onFullscreen: handleFullscreen
+          }
+        });
+        mountedComponents.set(target, component);
+        return;
+      }
+    } catch (error) {
+      console.error('[GroupRenderer] Error mounting app-skill-use preview component:', error);
+    }
+
+    // Fallback: render the legacy HTML view (better than a blank group item)
+    const fallbackHtml = await this.renderAppSkillUseItem(item, embedData, decodedContent);
+    target.innerHTML = fallbackHtml;
   }
   
   /**

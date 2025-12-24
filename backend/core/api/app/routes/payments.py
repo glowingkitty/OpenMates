@@ -92,6 +92,8 @@ class CreateOrderResponse(BaseModel):
     client_secret: Optional[str] = None # For Stripe
     order_id: str
     customer_portal_url: Optional[str] = None  # For Stripe supporter subscriptions
+    hosted_invoice_url: Optional[str] = None  # For Stripe supporter subscriptions fallback
+    invoice_pdf: Optional[str] = None  # For Stripe supporter subscriptions fallback
 
 class OrderStatusRequest(BaseModel):
     order_id: str

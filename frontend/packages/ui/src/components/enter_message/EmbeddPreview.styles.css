@@ -360,6 +360,7 @@
 :global(.ProseMirror .embed-group-container .group-scroll-container) {
     display: flex;
     gap: 8px;
+    align-items: flex-start;
     overflow-x: auto;
     overflow-y: hidden;
     padding: 4px 0;

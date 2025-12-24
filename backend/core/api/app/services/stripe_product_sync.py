@@ -1242,7 +1242,7 @@ class StripeProductSync:
     async def _sync_supporter_products_optimized(self, existing_products: Dict[str, Any], existing_prices: Dict[str, List[Any]]) -> Dict[str, int]:
         """
         Synchronize supporter contribution products using pre-fetched data.
-        Creates both one-time and monthly recurring supporter products.
+        Creates 2 products (one-time and monthly) with all price tiers on each product.
 
         Args:
             existing_products: Dict of existing products by name
@@ -1264,42 +1264,206 @@ class StripeProductSync:
             "jpy": 150.0
         }
 
-        logger.info(f"Synchronizing {len(supporter_tiers)} supporter tiers across {len(currencies)} currencies")
+        logger.info(f"Synchronizing supporter products with {len(supporter_tiers)} tiers across {len(currencies)} currencies")
 
-        for tier_eur in supporter_tiers:
-            for currency in currencies:
-                try:
-                    # Calculate price for this currency
-                    price = tier_eur * eur_to_other[currency]
+        try:
+            # Sync one-time supporter product (with all tiers and currencies as prices)
+            one_time_result = await self._sync_supporter_product_with_all_prices(
+                "Supporter Contribution",
+                "One-time supporter contribution to help fund OpenMates development",
+                False,  # not recurring
+                supporter_tiers, currencies, eur_to_other, existing_products, existing_prices
+            )
+            if one_time_result == "created":
+                results["created"] += 1
+            elif one_time_result == "updated":
+                results["updated"] += 1
+            else:
+                results["errors"] += 1
 
-                    # Sync one-time supporter contribution
-                    one_time_result = await self._sync_one_time_supporter_product_optimized(
-                        tier_eur, currency, price, existing_products, existing_prices
-                    )
-                    if one_time_result == "created":
-                        results["created"] += 1
-                    elif one_time_result == "updated":
-                        results["updated"] += 1
-                    else:
-                        results["errors"] += 1
+            # Sync monthly supporter product (with all tiers and currencies as prices)
+            monthly_result = await self._sync_supporter_product_with_all_prices(
+                "Monthly Supporter Contribution",
+                "Monthly recurring supporter contribution to help fund OpenMates development",
+                True,  # recurring
+                supporter_tiers, currencies, eur_to_other, existing_products, existing_prices
+            )
+            if monthly_result == "created":
+                results["created"] += 1
+            elif monthly_result == "updated":
+                results["updated"] += 1
+            else:
+                results["errors"] += 1
 
-                    # Sync monthly recurring supporter contribution
-                    monthly_result = await self._sync_monthly_supporter_product_optimized(
-                        tier_eur, currency, price, existing_products, existing_prices
-                    )
-                    if monthly_result == "created":
-                        results["created"] += 1
-                    elif monthly_result == "updated":
-                        results["updated"] += 1
-                    else:
-                        results["errors"] += 1
-
-                except Exception as e:
-                    logger.error(f"Error syncing supporter products for {tier_eur} EUR in {currency}: {str(e)}")
-                    results["errors"] += 2  # Both one-time and monthly failed
+        except Exception as e:
+            logger.error(f"Error syncing supporter products: {str(e)}")
+            results["errors"] += 2
 
         logger.info(f"Supporter products sync completed: {results['created']} created, {results['updated']} updated, {results['errors']} errors")
         return results
+
+    async def _sync_supporter_product_with_all_prices(self, product_name: str, product_description: str, is_recurring: bool, supporter_tiers: List[int], currencies: List[str], eur_to_other: Dict[str, float], existing_products: Dict[str, Any], existing_prices: Dict[str, List[Any]]) -> str:
+        """
+        Create or update a supporter product with ALL price tiers and currencies.
+
+        Args:
+            product_name: Name of the product (e.g., "Monthly Supporter Contribution")
+            product_description: Description of the product
+            is_recurring: True for monthly subscriptions, False for one-time
+            supporter_tiers: List of EUR amounts [5, 10, 20, 50, 100, 200]
+            currencies: List of currency codes ["eur", "usd", "jpy"]
+            eur_to_other: Currency conversion rates
+            existing_products: Dict of existing products by name
+            existing_prices: Dict of existing prices by product ID
+
+        Returns:
+            "created" if new product was created, "updated" if existing product was updated
+        """
+        try:
+            # Check if product already exists
+            existing_product = existing_products.get(product_name)
+
+            if existing_product:
+                logger.debug(f"Found existing supporter product: {product_name} (ID: {existing_product.id})")
+                # Update the product with all required prices
+                await self._update_supporter_product_all_prices(
+                    existing_product, is_recurring, supporter_tiers, currencies, eur_to_other, existing_prices
+                )
+                logger.info(f"Updated supporter product: {product_name} with all price tiers")
+                return "updated"
+            else:
+                logger.info(f"No existing supporter product found: {product_name}")
+                # Create new supporter product with all prices
+                await self._create_supporter_product_all_prices(
+                    product_name, product_description, is_recurring, supporter_tiers, currencies, eur_to_other
+                )
+                logger.info(f"Created supporter product: {product_name} with all price tiers")
+                return "created"
+
+        except Exception as e:
+            logger.error(f"Error syncing supporter product {product_name}: {str(e)}")
+            raise
+
+    async def _update_supporter_product_all_prices(self, product: Any, is_recurring: bool, supporter_tiers: List[int], currencies: List[str], eur_to_other: Dict[str, float], existing_prices: Dict[str, List[Any]]) -> bool:
+        """
+        Update an existing supporter product to have all required price tiers.
+        """
+        try:
+            # Update product metadata
+            self.stripe_api.Product.modify(
+                product.id,
+                metadata={
+                    "sync_source": "pricing_yml",
+                    "product_type": "supporter_contribution",
+                    "is_recurring": str(is_recurring)
+                }
+            )
+
+            # Get existing prices for this product
+            product_prices = existing_prices.get(product.id, [])
+            existing_prices_map = {}  # {(currency, tier_eur): price_object}
+
+            for price in product_prices:
+                if (is_recurring and price.recurring) or (not is_recurring and not price.recurring):
+                    # Get tier from metadata
+                    tier_eur = price.metadata.get("tier_eur") if price.metadata else None
+                    if tier_eur:
+                        existing_prices_map[(price.currency, int(tier_eur))] = price
+
+            # Ensure all required prices exist
+            for tier_eur in supporter_tiers:
+                for currency in currencies:
+                    price = tier_eur * eur_to_other[currency]
+                    price_cents = int(price * 100) if currency.lower() != 'jpy' else int(price)
+
+                    price_key = (currency, tier_eur)
+                    existing_price = existing_prices_map.get(price_key)
+
+                    price_metadata = {
+                        "tier_eur": str(tier_eur),
+                        "currency": currency,
+                        "sync_source": "pricing_yml",
+                        "product_type": "supporter_contribution",
+                        "is_recurring": str(is_recurring)
+                    }
+
+                    if existing_price:
+                        # Check if price needs updating
+                        if existing_price.unit_amount != price_cents:
+                            # Archive old price and create new one
+                            self.stripe_api.Price.modify(existing_price.id, active=False)
+                            self._create_supporter_price(product.id, currency, price_cents, is_recurring, price_metadata)
+                            logger.info(f"Updated price for {product.name} ({currency.upper()}, €{tier_eur}): {price_cents}")
+                        else:
+                            # Update metadata if needed
+                            self.stripe_api.Price.modify(existing_price.id, metadata=price_metadata)
+                    else:
+                        # Create new price
+                        self._create_supporter_price(product.id, currency, price_cents, is_recurring, price_metadata)
+                        logger.info(f"Created new price for {product.name} ({currency.upper()}, €{tier_eur}): {price_cents}")
+
+            return True
+
+        except Exception as e:
+            logger.error(f"Error updating supporter product {product.name}: {str(e)}")
+            return False
+
+    async def _create_supporter_product_all_prices(self, product_name: str, product_description: str, is_recurring: bool, supporter_tiers: List[int], currencies: List[str], eur_to_other: Dict[str, float]) -> bool:
+        """
+        Create a new supporter product with all price tiers.
+        """
+        try:
+            # Create the product
+            product = self.stripe_api.Product.create(
+                name=product_name,
+                description=product_description,
+                type="service",
+                metadata={
+                    "sync_source": "pricing_yml",
+                    "product_type": "supporter_contribution",
+                    "is_recurring": str(is_recurring)
+                }
+            )
+
+            # Create all prices for this product
+            for tier_eur in supporter_tiers:
+                for currency in currencies:
+                    price = tier_eur * eur_to_other[currency]
+                    price_cents = int(price * 100) if currency.lower() != 'jpy' else int(price)
+
+                    price_metadata = {
+                        "tier_eur": str(tier_eur),
+                        "currency": currency,
+                        "sync_source": "pricing_yml",
+                        "product_type": "supporter_contribution",
+                        "is_recurring": str(is_recurring)
+                    }
+
+                    self._create_supporter_price(product.id, currency, price_cents, is_recurring, price_metadata)
+
+            recurring_text = "monthly" if is_recurring else "one-time"
+            logger.info(f"Created {recurring_text} supporter product '{product_name}' with {len(supporter_tiers) * len(currencies)} prices")
+            return True
+
+        except Exception as e:
+            logger.error(f"Error creating supporter product '{product_name}': {str(e)}")
+            return False
+
+    def _create_supporter_price(self, product_id: str, currency: str, price_cents: int, is_recurring: bool, metadata: Dict[str, str]) -> Any:
+        """
+        Create a supporter price with appropriate parameters.
+        """
+        price_params = {
+            "product": product_id,
+            "unit_amount": price_cents,
+            "currency": currency,
+            "metadata": metadata
+        }
+
+        if is_recurring:
+            price_params["recurring"] = {"interval": "month"}
+
+        return self.stripe_api.Price.create(**price_params)
 
     async def _sync_one_time_supporter_product_optimized(self, tier_eur: int, currency: str, price: float, existing_products: Dict[str, Any], existing_prices: Dict[str, List[Any]]) -> str:
         """

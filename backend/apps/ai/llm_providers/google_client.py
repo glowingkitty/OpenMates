@@ -281,6 +281,9 @@ async def invoke_google_ai_studio_chat_completions(
             tool_config_dict = {"function_calling_config": {"mode": selected_mode}}
 
         generation_config = types.GenerateContentConfig(
+            thinking_config=types.ThinkingConfig(
+                include_thoughts=True,
+            ),
             temperature=temperature,
             max_output_tokens=max_tokens,
             system_instruction=system_prompt,
@@ -515,6 +518,9 @@ async def invoke_google_chat_completions(
             tool_config_dict = {"function_calling_config": {"mode": selected_mode}}
 
         generation_config = types.GenerateContentConfig(
+            thinking_config=types.ThinkingConfig(
+                include_thoughts=True,
+            ),
             temperature=temperature,
             max_output_tokens=max_tokens,
             system_instruction=system_prompt,
