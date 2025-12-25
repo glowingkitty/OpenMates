@@ -97,8 +97,10 @@
 
   function extractTextFromTiptap(jsonContent: TiptapJSON | null | undefined): string {
     if (!jsonContent || !jsonContent.content) return '';
+    // Type guard: ensure content is an array before mapping
+    if (!Array.isArray(jsonContent.content)) return '';
     try {
-      return jsonContent.content?.map((node: any) =>
+      return jsonContent.content.map((node: any) =>
         node.content?.map((contentNode: any) =>
           contentNode.type === 'text' ? contentNode.text : ''
         ).join('')

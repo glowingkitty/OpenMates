@@ -3,7 +3,6 @@ import type { ChatSynchronizationService } from './chatSyncService';
 import { chatDB } from './db';
 import { userDB } from './userDB';
 import { notificationStore } from '../stores/notificationStore';
-import { decryptWithMasterKey } from './cryptoService';
 import type {
     InitialSyncResponsePayload,
     Phase1LastChatPayload,
@@ -13,11 +12,11 @@ import type {
     OfflineSyncCompletePayload,
     Chat,
     Message,
-    TiptapJSON, // Added TiptapJSON for content type
-    MessageRole, // Added MessageRole for role type
     MessageStatus, // Added MessageStatus for status type
-    ServerBatchMessageFormat
+    ServerBatchMessageFormat,
+    SyncEmbed
 } from '../types/chat';
+import type { EmbedType } from '../message_parsing/types';
 
 export async function handleInitialSyncResponseImpl(
     serviceInstance: ChatSynchronizationService,
@@ -104,10 +103,14 @@ export async function handleInitialSyncResponseImpl(
         }));
 
         const messagesToSave: Message[] = payload.chats_to_add_or_update.flatMap(chat =>
-            (chat.messages || []).map(msg => ({
-                ...msg,
-                message_id: (msg as any).id || msg.message_id, // Handle missing message_id
-            }))
+            (chat.messages || []).map(msg => {
+                // Handle missing message_id - check if msg has 'id' property (legacy format)
+                const messageId = (msg as Message & { id?: string }).id || msg.message_id;
+                return {
+                    ...msg,
+                    message_id: messageId,
+                };
+            })
         );
 
         // NOW create the transaction after all async preparation work
@@ -202,9 +205,26 @@ export async function handlePhase1LastChatImpl(
             
             // CRITICAL FIX: Ensure chat_details has the chat_id field
             // The backend sends chat_id at payload root, but chat_details needs it too
-            const chatWithId = {
-                ...payload.chat_details,
-                chat_id: payload.chat_id  // Ensure chat_id is present
+            // Ensure all required Chat fields are present
+            const chatWithId: Chat = {
+                chat_id: payload.chat_id,
+                encrypted_title: payload.chat_details.encrypted_title ?? null,
+                messages_v: payload.chat_details.messages_v ?? 0,
+                title_v: payload.chat_details.title_v ?? 0,
+                draft_v: payload.chat_details.draft_v ?? 0,
+                encrypted_draft_md: payload.chat_details.encrypted_draft_md ?? null,
+                encrypted_draft_preview: payload.chat_details.encrypted_draft_preview ?? null,
+                last_edited_overall_timestamp: payload.chat_details.last_edited_overall_timestamp ?? payload.chat_details.updated_at ?? Math.floor(Date.now() / 1000),
+                unread_count: payload.chat_details.unread_count ?? 0,
+                created_at: payload.chat_details.created_at ?? Math.floor(Date.now() / 1000),
+                updated_at: payload.chat_details.updated_at ?? Math.floor(Date.now() / 1000),
+                // Include optional fields
+                encrypted_chat_key: payload.chat_details.encrypted_chat_key ?? null,
+                encrypted_icon: payload.chat_details.encrypted_icon ?? null,
+                encrypted_category: payload.chat_details.encrypted_category ?? null,
+                is_shared: payload.chat_details.is_shared,
+                is_private: payload.chat_details.is_private,
+                ...payload.chat_details
             };
             
             // Use a single transaction for all Phase 1 writes (chat + messages) for instant availability
@@ -284,7 +304,7 @@ export async function handlePhase1LastChatImpl(
         console.debug("[ChatSyncService:CoreSync] Phase 1 payload embeds check:", {
             hasEmbeds: !!payload.embeds,
             embedsLength: payload.embeds?.length || 0,
-            embedIds: payload.embeds?.map((e: any) => e.embed_id).slice(0, 5) || []
+            embedIds: payload.embeds?.map((e: SyncEmbed) => e.embed_id).slice(0, 5) || []
         });
         
         if (payload.embeds && payload.embeds.length > 0) {
@@ -322,7 +342,7 @@ export async function handlePhase1LastChatImpl(
                         is_shared: embed.is_shared ?? false,
                         createdAt: embed.createdAt || embed.created_at,
                         updatedAt: embed.updatedAt || embed.updated_at
-                    }, (embed.encrypted_type ? 'app-skill-use' : embed.embed_type || 'app-skill-use') as any);
+                    }, (embed.encrypted_type ? 'app-skill-use' : embed.embed_type || 'app-skill-use') as EmbedType);
                 }
                 
                 console.info("[ChatSyncService:CoreSync] ✅ Successfully saved", payload.embeds.length, "embeds to EmbedStore (as-is, no re-encryption)");

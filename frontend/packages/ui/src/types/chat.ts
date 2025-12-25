@@ -4,7 +4,7 @@
 import type { EmbedKeyEntry } from '../services/embedStore';
 
 // Alias for Tiptap JSON content
-export type TiptapJSON = Record<string, any> | null;
+export type TiptapJSON = Record<string, unknown> | null;
 
 // Represents the state of a message on the client, aligned with chat_sync_architecture.md
 export type MessageStatus = 'sending' | 'synced' | 'failed' | 'waiting_for_internet' | 'streaming' | 'processing';
@@ -174,9 +174,8 @@ export interface SendChatMessagePayload {
     encrypted_chat_key?: string | null; // Encrypted chat key for server storage (device sync)
 }
 
-export interface RequestCacheStatusPayload { 
-    // No payload needed, just the type
-}
+// Request cache status payload - no fields needed, just the type
+export type RequestCacheStatusPayload = Record<string, never>;
 
 export interface SetActiveChatPayload { 
     chat_id: string | null;
@@ -405,7 +404,7 @@ export interface SyncEmbed {
 
 export interface Phase1LastChatPayload {
     chat_id: string;
-    chat_details: any;
+    chat_details: Partial<Chat>; // Partial Chat object from server (may not have all fields)
     messages: Message[];
     embeds?: SyncEmbed[];  // Embeds for the chat (client-encrypted)
     embed_keys?: EmbedKeyEntry[];  // Embed keys needed to decrypt embed content
@@ -480,7 +479,7 @@ export interface SyncStatusResponsePayload {
  * 2. Direct sync response: {chats: [...], chat_count: N, phase: 'phase2'} - Full data from WebSocket handler
  */
 export interface Phase2RecentChatsPayload {
-    chats?: any[];  // Optional - only present in direct sync response
+    chats?: Partial<Chat>[];  // Optional - only present in direct sync response
     chat_count: number;
     phase?: 'phase2';  // Optional - only present in direct sync response
 }
@@ -493,7 +492,7 @@ export interface Phase2RecentChatsPayload {
  * 2. Direct sync response: {chats: [...], chat_count: N, phase: 'phase3'} - Full data from WebSocket handler
  */
 export interface Phase3FullSyncPayload {
-  chats?: any[];  // Optional - only present in direct sync response
+  chats?: Partial<Chat>[];  // Optional - only present in direct sync response
   chat_count: number;
   new_chat_suggestions?: NewChatSuggestion[];
   phase?: 'phase3';  // Optional - only present in direct sync response

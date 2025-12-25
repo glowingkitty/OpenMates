@@ -38,7 +38,6 @@ Support One-Time Payment Confirmation - Success screen after one-time support pa
         <div class="success-icon"></div>
     </div>
     <h2 class="success-title">{$text('settings.support.payment_successful.text')}</h2>
-    <p class="success-subtitle">{$text('settings.support.contribution_received.text')}</p>
 </div>
 
 <!-- Amount Display -->
@@ -48,17 +47,7 @@ Support One-Time Payment Confirmation - Success screen after one-time support pa
         <span class="amount-value">{formatCurrency(amount, currency)}</span>
         <span class="amount-label">{$text('settings.support.one_time_contribution.text')}</span>
     </div>
-</div>
-
-<!-- Email Information -->
-<div class="email-info">
-    <div class="info-box">
-        <span class="info-icon"></span>
-        <div class="info-content">
-            <p class="info-title">{$text('settings.support.email_sent.text')}</p>
-            <p class="info-description">{$text('settings.support.invoice_pdf_info.text')}</p>
-        </div>
-    </div>
+    <p class="details-text">{$text('settings.support.one_time_confirmation_details.text')}</p>
 </div>
 
 <!-- Action Button -->
@@ -107,15 +96,12 @@ Support One-Time Payment Confirmation - Success screen after one-time support pa
         margin: 0;
     }
 
-    .success-subtitle {
-        font-size: 14px;
-        color: var(--color-grey-60);
-        margin: 0;
-    }
-
     /* Amount Info Section */
     .amount-info {
         padding: 0 10px;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
     }
 
     .amount-display {
@@ -149,49 +135,13 @@ Support One-Time Payment Confirmation - Success screen after one-time support pa
         filter: invert(1);
     }
 
-    /* Email Info Section */
-    .email-info {
-        padding: 0 10px;
-        margin-top: 20px;
-    }
-
-    .info-box {
-        display: flex;
-        align-items: flex-start;
-        gap: 12px;
-        padding: 16px;
-        background-color: var(--color-info-light, #e3f2fd);
-        border: 1px solid var(--color-info, #2196f3);
-        border-radius: 12px;
-    }
-
-    .info-icon {
-        width: 20px;
-        height: 20px;
-        margin-top: 2px;
-        flex-shrink: 0;
-        background-image: url('@openmates/ui/static/icons/mail.svg');
-        background-size: contain;
-        background-repeat: no-repeat;
-        background-color: var(--color-info, #2196f3);
-    }
-
-    .info-content {
-        flex: 1;
-    }
-
-    .info-title {
-        margin: 0 0 4px 0;
+    .details-text {
         font-size: 14px;
-        font-weight: 600;
-        color: var(--color-info-dark, #1976d2);
-    }
-
-    .info-description {
+        color: var(--color-grey-60);
+        text-align: center;
+        line-height: 1.5;
         margin: 0;
-        font-size: 13px;
-        line-height: 1.4;
-        color: var(--color-info-dark, #1976d2);
+        padding: 0 10px;
     }
 
     /* Action Section */
@@ -263,10 +213,6 @@ Support One-Time Payment Confirmation - Success screen after one-time support pa
         .done-button {
             padding: 12px 20px;
             font-size: 15px;
-        }
-
-        .info-box {
-            padding: 14px;
         }
     }
 </style>

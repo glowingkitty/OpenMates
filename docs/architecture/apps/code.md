@@ -283,7 +283,7 @@ This multi-step approach ensures sed can be used safely for large-scale code rep
 
 ### Get docs
 
-Use context7.com API to get docs for the code. If no docs found, use web search + web read to get docs.
+Use Context7 API to get docs for the code. For OpenMates API documentation, retrieve directly from OpenMates docs/openapi.json (bypassing Context7 for internal APIs). If no docs found via Context7, use web search + web read to get docs.
 
 ## Automated Code Quality Checks
 
@@ -292,7 +292,7 @@ Use context7.com API to get docs for the code. If no docs found, use web search 
 **Functionality:** Every time the chatbot generates code, an automated check runs to ensure no critical issues exist in the generated code. If issues are detected, the LLM is automatically requested to fix the code until it passes validation.
 
 **Description:**
-To prevent broken code from being generated and to maintain code quality, the Code app performs automated validation checks on all generated code before it's considered complete. This ensures that generated code is syntactically correct and free from critical issues.
+To prevent broken code from being generated and to maintain code quality, the Code app performs automated syntax and compilation validation checks on all generated code before it's considered complete. This ensures that generated code is syntactically correct and compiles without errors. Code style and quality linting is handled separately via e2b (see [Automatic Linter Processing via e2b](#automatic-linter-processing-via-e2b)).
 
 **Validation Process:**
 1. **Automatic Check**: After code generation completes, the system automatically runs validation checks specific to the programming language
@@ -305,12 +305,14 @@ To prevent broken code from being generated and to maintain code quality, the Co
 | Language | Validator | Checks |
 |----------|-----------|--------|
 | **Python** | `py_compile` | Syntax errors, indentation issues, import errors |
-| **JavaScript/TypeScript** | ESLint / TypeScript compiler | Syntax errors, type errors, linting issues |
+| **JavaScript/TypeScript** | TypeScript compiler | Syntax errors, type errors |
 | **Java** | `javac` | Compilation errors, syntax issues |
 | **C/C++** | `gcc` / `clang` | Compilation errors, syntax issues |
 | **Go** | `go build` | Compilation errors, syntax issues |
 | **Rust** | `rustc` | Compilation errors, syntax issues |
-| **Other languages** | Language-specific compilers/linters | Syntax and critical errors |
+| **Other languages** | Language-specific compilers | Syntax and critical errors |
+
+> **Note:** Code style and quality linting (e.g., ESLint, ruff, pylint) is handled separately via [Automatic Linter Processing via e2b](#automatic-linter-processing-via-e2b) after the assistant response completes.
 
 **Implementation Strategy:**
 1. Create a validation service that detects the programming language from the code block
@@ -367,6 +369,117 @@ def validate_python_code(code: str) -> tuple[bool, str]:
 - Can be triggered manually for code blocks in chat history
 - Works with both streaming and non-streaming code generation
 - Integrates with the code preview system to show validation status
+
+### Automatic Linter Processing via e2b
+
+**Functionality:** After the assistant response is completed, automatically run linters on all generated/modified files using e2b sandboxed environments to catch linting issues and code quality problems.
+
+**Description:**
+In addition to syntax validation, the system automatically runs language-specific linters on all files after code generation completes. This process uses e2b sandboxed environments to safely execute linters without affecting the local development environment.
+
+**Linting Process:**
+1. **Automatic Trigger**: After assistant response completion, the system automatically identifies all generated or modified files
+2. **e2b Sandbox Execution**: Files are processed in an isolated e2b sandbox environment with appropriate language tooling installed
+3. **Language-Specific Linters**: Appropriate linters are run for each file based on its language:
+   - **Python**: `ruff`, `pylint`, or `flake8`
+   - **JavaScript/TypeScript**: `ESLint`, `TypeScript compiler`
+   - **Go**: `golangci-lint` or `gofmt`
+   - **Rust**: `clippy` and `rustfmt`
+   - **Other languages**: Language-specific linters
+4. **Issue Collection**: All linting errors and warnings are collected and formatted
+5. **Automatic Fix Request**: If linting issues are found, the LLM is automatically prompted to fix them
+6. **Iterative Fixing**: The linting process repeats until all issues are resolved or a maximum retry limit is reached
+
+**Benefits:**
+- Catches code style and quality issues automatically
+- Ensures generated code follows project coding standards
+- Runs in isolated environments, preventing conflicts with local setup
+- Provides consistent linting across all generated code
+- Reduces manual code review burden
+
+**Implementation Strategy:**
+- Use e2b sandboxed VMs for safe, isolated linting execution
+- Support project-specific linting configurations (e.g., `.eslintrc`, `pyproject.toml`)
+- Cache linting results to avoid redundant checks
+- Provide detailed linting reports with file paths, line numbers, and error messages
+- Integrate with the existing validation pipeline for seamless error reporting
+
+## Planned Code Quality Enhancements
+
+> **Status:** Planned features - to be implemented
+
+### Automatic Documentation Search Enforcement
+
+**Functionality:** Enforce automatic searching for the latest documentation before generating code, especially for framework/library APIs that change frequently.
+
+**Description:**
+For code-writing flows, the system will automatically enforce a "search current docs first" step before generating final code. This ensures that generated code uses up-to-date APIs and follows current best practices, reducing the likelihood of using deprecated or incorrect API patterns.
+
+**Implementation Strategy:**
+- Before code generation, automatically trigger the Code app's **Get docs** skill for relevant frameworks/libraries
+- The **Get docs** skill uses:
+  - **Context7 API** to retrieve up-to-date documentation for external libraries and frameworks
+  - **OpenMates docs/openapi.json** directly for OpenMates API documentation (bypassing Context7 for internal APIs)
+  - Web search + web read as fallback if no docs are found via Context7
+- Include retrieved documentation in the system prompt context
+- Require documentation verification before final code generation
+
+**Related Documentation:**
+- See the [Get docs skill](#get-docs) for implementation details
+- See [LLM Hallucination Mitigation](../llm_hallucination_mitigation.md) for details on how this fits into the broader strategy to reduce hallucinations and ensure accuracy.
+
+### Maximum Code Length Enforcement
+
+**Functionality:** Enforce a maximum code length limit through multiple layers (system prompt instructions, hardcoded line count processing, and automatic reprocessing) to prevent overly large code files that are difficult to maintain and review.
+
+**Description:**
+To maintain code quality and prevent files from growing too large, the system will enforce a maximum code length limit. This limit is enforced at three levels:
+1. **System Prompt Instructions**: The LLM is explicitly instructed to keep code files under the maximum line count
+2. **Hardcoded Line Count Processing**: After code generation, the system automatically counts lines in generated code files
+3. **Enforced Reprocessing**: If a generated code file exceeds the limit, the system automatically requests the LLM to refactor the code (e.g., split into multiple files, extract modules, reduce complexity) until it meets the limit
+
+**Implementation Strategy:**
+- Define configurable maximum line count per file (e.g., 500 lines as a default, adjustable per project)
+- Add line count validation in the code generation pipeline
+- Automatically trigger refactoring requests when limits are exceeded
+- Provide clear feedback to the LLM about which files exceed limits and require splitting
+- Support project-specific limits via configuration files
+
+**Benefits:**
+- Prevents code files from becoming unmaintainable
+- Encourages better code organization and modularity
+- Makes code reviews more manageable
+- Aligns with best practices for file size limits
+
+### Hardcoded Code Quality Checks
+
+**Functionality:** Implement hardcoded validation checks for various code quality metrics, similar to the maximum code length enforcement.
+
+**Description:**
+Beyond syntax validation and line count limits, we can implement similar hardcoded checks for other code quality metrics. These checks would run automatically after code generation and trigger reprocessing if issues are detected.
+
+**Potential Quality Checks to Consider:**
+- **Cyclomatic Complexity**: Detect functions/methods with excessive complexity
+- **Function Length**: Enforce maximum lines per function/method
+- **Import Organization**: Validate proper import ordering and grouping
+- **Code Duplication**: Detect and flag duplicate code patterns
+- **Naming Conventions**: Validate naming follows project conventions
+- **Documentation Coverage**: Ensure functions/classes have proper docstrings
+- **Type Hints Coverage**: For typed languages, ensure type hints are present
+- **Unused Code Detection**: Identify and flag unused imports, variables, or functions
+
+**Implementation Strategy:**
+- Create a modular validation system that can run multiple quality checks
+- Each check can be enabled/disabled per project or globally
+- Failed checks trigger automatic fix requests to the LLM
+- Provide clear, actionable feedback about what needs to be fixed
+- Support both language-specific and language-agnostic checks
+
+**Benefits:**
+- Ensures consistent code quality across generated code
+- Catches quality issues early in the generation process
+- Reduces manual code review burden
+- Maintains high standards automatically
 
 ## Focuses
 
