@@ -11,20 +11,21 @@ changes to the documentation (to keep the documentation up to date).
 <script lang="ts" module>
     import { writable, type Writable } from 'svelte/store';
     import { text } from '@repo/ui';
-    import { browser } from '$app/environment';
+    // Use standard browser check for library compatibility (not SvelteKit-specific)
+    const browser = typeof window !== 'undefined';
     
     // SSR-safe store initialization - only create stores on the client
     export const teamEnabled: Writable<boolean> = browser ? writable(true) : {
         subscribe: () => () => {},
         set: () => {},
         update: () => {}
-    } as any;
+    } as Writable<boolean>;
     
     export const settingsMenuVisible: Writable<boolean> = browser ? writable(false) : {
         subscribe: () => () => {},
         set: () => {},
         update: () => {}
-    } as any;
+    } as Writable<boolean>;
     
     // Removed local isMobileView - using global isMobileView from uiStateStore instead
 </script>
@@ -37,7 +38,7 @@ changes to the documentation (to keep the documentation up to date).
     import { isMenuOpen } from '../stores/menuState';
     import { getWebsiteUrl, routes } from '../config/links';
     import { tooltip } from '../actions/tooltip';
-    import { isSignupSettingsStep, isInSignupProcess, isLoggingOut, currentSignupStep, showSignupFooter } from '../stores/signupState';
+    import { isInSignupProcess, isLoggingOut, showSignupFooter } from '../stores/signupState';
     import { userProfile, updateProfile } from '../stores/userProfile';
     import { settingsDeepLink } from '../stores/settingsDeepLinkStore';
     import { webSocketService } from '../services/websocketService';
@@ -45,6 +46,8 @@ changes to the documentation (to keep the documentation up to date).
     import { incognitoMode } from '../stores/incognitoModeStore'; // Import incognito mode store
     import { isMobileView } from '../stores/uiStateStore'; // Import global isMobileView store
     import { panelState } from '../stores/panelStateStore'; // Import panelState to sync with isSettingsOpen
+    import { isAdmin } from '../stores/adminStatusStore'; // Import admin status store
+    import { phasedSyncState } from '../stores/phasedSyncStateStore'; // Import phased sync state store
     
     // Import modular components
     import SettingsFooter from './settings/SettingsFooter.svelte';
@@ -52,16 +55,12 @@ changes to the documentation (to keep the documentation up to date).
     
     // Import all settings components
     import SettingsInterface from './settings/SettingsInterface.svelte';
-    import SettingsPrivacy from './settings/SettingsPrivacy.svelte';
-    import SettingsUser from './settings/SettingsUser.svelte';
     import SettingsUsage from './settings/SettingsUsage.svelte';
     import SettingsBilling from './settings/SettingsBilling.svelte';
     import SettingsAppStore from './settings/SettingsAppStore.svelte';
     import SettingsAllApps from './settings/SettingsAllApps.svelte';
     import AppDetailsWrapper from './settings/AppDetailsWrapper.svelte';
-    import SettingsMates from './settings/SettingsMates.svelte';
     import SettingsShared from './settings/SettingsShared.svelte';
-    import SettingsMessengers from './settings/SettingsMessengers.svelte';
     import SettingsDevelopers from './settings/SettingsDevelopers.svelte';
     import SettingsApiKeys from './settings/developers/SettingsApiKeys.svelte';
     import SettingsDevices from './settings/developers/SettingsDevices.svelte';
@@ -70,6 +69,8 @@ changes to the documentation (to keep the documentation up to date).
     import SettingsLanguage from './settings/interface/SettingsLanguage.svelte';
     import SettingsIncognitoInfo from './settings/incognito/SettingsIncognitoInfo.svelte';
     import SettingsSoftwareUpdate from './settings/server/SettingsSoftwareUpdate.svelte';
+    import SettingsCommunitySuggestions from './settings/server/SettingsCommunitySuggestions.svelte';
+    import SettingsBecomeAdmin from './settings/server/SettingsBecomeAdmin.svelte';
     import { appSkillsStore } from '../stores/appSkillsStore';
     
     // Import billing sub-components
@@ -114,7 +115,10 @@ changes to the documentation (to keep the documentation up to date).
     let languageChangeHandler: () => void;
 
     // Props using Svelte 5 runes
-    let { isLoggedIn = false }: { isLoggedIn?: boolean } = $props();
+    // Note: isLoggedIn prop is available but not currently used in this component
+    let { isLoggedIn }: { isLoggedIn?: boolean } = $props();
+    // Suppress unused variable warning - prop may be used in future
+    void isLoggedIn;
     
     // State for toggles and menu visibility
     let isMenuVisible = $state(false);
@@ -140,7 +144,8 @@ changes to the documentation (to keep the documentation up to date).
     const baseHelpLink = getWebsiteUrl(routes.docs.userGuide_settings || '/docs/userguide/settings');
     
     // Create a reactive help link that updates based on the active view
-    let currentHelpLink = baseHelpLink;
+    // Note: Used in template at line 1444 (help button href)
+    let currentHelpLink = $state(baseHelpLink);
 
     // Import account and security settings components
     import SettingsAccount from './settings/SettingsAccount.svelte';
@@ -148,6 +153,7 @@ changes to the documentation (to keep the documentation up to date).
     import SettingsPasskeys from './settings/SettingsPasskeys.svelte';
     
     // Define base settingsViews map for component mapping
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const baseSettingsViews: Record<string, any> = {
         // TODO: Uncomment and implement these components when available
         // 'privacy': SettingsPrivacy,
@@ -177,7 +183,10 @@ changes to the documentation (to keep the documentation up to date).
         'developers/api-keys': SettingsApiKeys,
         'developers/devices': SettingsDevices,
         'interface': SettingsInterface,
-        // 'server': SettingsServer,
+        'server': SettingsServer,
+        'server/software-update': SettingsSoftwareUpdate,
+        'server/community-suggestions': SettingsCommunitySuggestions,
+        'server/become-admin': SettingsBecomeAdmin,
         'interface/language': SettingsLanguage,
         'incognito/info': SettingsIncognitoInfo,
         'account': SettingsAccount,
@@ -206,6 +215,7 @@ changes to the documentation (to keep the documentation up to date).
      * - app_store/{app_id}/focus/{focus_mode_id} routes for each focus mode
      * - app_store/{app_id}/settings_memories routes for apps with settings/memories
      */
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     function buildSettingsViews(): Record<string, any> {
         const views = { ...baseSettingsViews };
         
@@ -262,9 +272,11 @@ changes to the documentation (to keep the documentation up to date).
     // For non-authenticated users, show interface settings (and nested language settings), app store, and share chat
     // This allows them to explore available features like apps and share demo chats
     // Share chat (shared/share) is available for non-authenticated users to share demo chats
-    let settingsViews = $derived.by(() => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let settingsViews = $derived.by((): Record<string, any> => {
         const isAuthenticated = $authStore.isAuthenticated;
-        return Object.entries(allSettingsViews).reduce((filtered, [key, component]) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        return Object.entries(allSettingsViews).reduce((filtered: Record<string, any>, [key, component]) => {
             // Filter out payment-related routes if self-hosted (use isSelfHosted from request-based validation)
             // This is more accurate than paymentEnabled alone, as paymentEnabled can be true for localhost in dev mode
             if (isSelfHosted) {
@@ -289,12 +301,14 @@ changes to the documentation (to keep the documentation up to date).
                 }
             } else {
                 // For authenticated users, include all non-server settings, or include server settings if user is admin
+                // Exception: 'server/become-admin' is accessible to all authenticated users (via direct link)
                 // Shared settings (including nested share chat) are available for authenticated users
-                if (!key.startsWith('server') || $userProfile.is_admin) {
+                if (!key.startsWith('server') || $isAdmin || key === 'server/become-admin') {
                     filtered[key] = component;
                 }
             }
             return filtered;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         }, {} as Record<string, any>);
     });
 
@@ -302,7 +316,6 @@ changes to the documentation (to keep the documentation up to date).
     let navigationPath: string[] = $state([]);
     let breadcrumbLabel = $state($text('settings.settings.text'));
     let fullBreadcrumbLabel = $state('');
-    let shortBreadcrumbLabel = $state('');
     let navButtonElement: HTMLElement | undefined = $state();
     let currentPageInstance: CurrentSettingsPage | null = $state(null); // Reference to child component instance
 
@@ -310,7 +323,7 @@ changes to the documentation (to keep the documentation up to date).
     const MAX_BREADCRUMB_WIDTH = 220; // Adjusted to leave space for the back icon
 
     // Function to calculate the width of text with the correct font
-    function getTextWidth(text, font = '14px "Lexend Deca Variable", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif') {
+    function getTextWidth(text: string, font = '14px "Lexend Deca Variable", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif'): number {
         // Create a canvas element to measure text width
         const canvas = document.createElement('canvas');
         const context = canvas.getContext('2d');
@@ -322,7 +335,7 @@ changes to the documentation (to keep the documentation up to date).
                 const style = window.getComputedStyle(document.body);
                 const fontWeight = style.getPropertyValue('--font-weight-bold') || '700';
                 context.font = `${fontWeight} ${font}`;
-            } catch (e) {
+            } catch {
                 console.warn('Could not get computed style, using default font weight');
             }
         }
@@ -332,7 +345,7 @@ changes to the documentation (to keep the documentation up to date).
     }
     
     // Function to create optimal breadcrumb text that fits available space
-    function createOptimalBreadcrumb(pathLabels) {
+    function createOptimalBreadcrumb(pathLabels: string[]): string {
         // Save full breadcrumb first
         fullBreadcrumbLabel = pathLabels.join(' / ');
         
@@ -367,8 +380,6 @@ changes to the documentation (to keep the documentation up to date).
             shortened = '... / ' + pathLabels[pathLabels.length - 1];
         }
         
-        // Store the shortened version for tooltip
-        shortBreadcrumbLabel = shortened;
         return shortened;
     }
 
@@ -497,17 +508,11 @@ changes to the documentation (to keep the documentation up to date).
     
     // Add reference for content height calculation
     let menuItemsCount = $state(0);
-    
-    // Calculate the content height based on the number of menu items
-    let calculatedContentHeight = $derived(() => {
-        const baseHeight = 200; // Base height for user info and padding
-        const itemHeight = 50; // Average height per menu item
-        return baseHeight + (menuItemsCount * itemHeight);
-    });
 
     // Function to set active settings view with transitions
-    function handleOpenSettings(event) {
-        const { settingsPath, direction: newDirection, icon, title } = event.detail;
+    function handleOpenSettings(event: { detail: { settingsPath: string; direction: string; icon: string; title: string } } | CustomEvent<{ settingsPath: string; direction: string; icon: string; title: string }>) {
+        const detail = 'detail' in event ? event.detail : event;
+        const { settingsPath, direction: newDirection, icon } = detail;
         direction = newDirection;
 
         // Set active view for both authenticated and non-authenticated users
@@ -566,8 +571,7 @@ changes to the documentation (to keep the documentation up to date).
                     }
                 } else if (pathParts.length === 4 && pathParts[1] === 'settings_memories' && pathParts[3] === 'create') {
                     // Settings/memories create entry route
-                    const categoryId = pathParts[2];
-                    const category = app.settings_and_memories?.find(c => c.id === categoryId);
+                    // Note: category lookup removed as it's not currently used
                     // Use "Add entry" translation for the create page
                     activeSubMenuTitleKey = 'settings.app_settings_memories.add_entry.text';
                 } else {
@@ -609,7 +613,7 @@ changes to the documentation (to keep the documentation up to date).
         showSubmenuInfo = false;
         navButtonLeft = false;
 
-        // Update help link based on the active settings view
+            // Update help link based on the active settings view
         if (settingsPath !== 'main') {
             // Handle nested paths in help links (replace / with -)
             const helpPath = settingsPath.replace('/', '-');
@@ -618,9 +622,6 @@ changes to the documentation (to keep the documentation up to date).
 
             // Show left navigation and submenu info immediately for smooth transition
             showSubmenuInfo = true;
-        } else {
-            // Reset to base help link when returning to main view
-            currentHelpLink = baseHelpLink;
         }
         
         if (profileContainer) {
@@ -637,7 +638,7 @@ changes to the documentation (to keep the documentation up to date).
     }
 
     // Enhanced back navigation - handle both main and nested views
-    function backToMainView(event) {
+    function backToMainView(event?: MouseEvent) {
         // Prevent event bubbling to avoid closing the menu
         if (event) {
             event.stopPropagation();
@@ -775,18 +776,19 @@ changes to the documentation (to keep the documentation up to date).
                 // Build the translation key for the previous view's title
                 const translationKeyParts = previousPathSegments.map(segment => segment.replace(/-/g, '_'));
                 const titleKey = `settings.${translationKeyParts.join('.')}.text`;
-                title = $text(titleKey);
+                const translatedTitle = $text(titleKey);
+                title = translatedTitle;
             }
             
             direction = 'backward';
-            handleOpenSettings({
+            handleOpenSettings(new CustomEvent('openSettings', {
                 detail: {
                     settingsPath: previousPath,
                     direction: 'backward',
                     icon: icon,
                     title: title
                 }
-            });
+            }));
         } else {
             // If we're at the first level, go back to main
             direction = 'backward';
@@ -795,9 +797,6 @@ changes to the documentation (to keep the documentation up to date).
             navButtonLeft = false;
             navigationPath = [];
             breadcrumbLabel = $text('settings.settings.text');
-            
-            // Reset help link to base when returning to main view
-            currentHelpLink = baseHelpLink;
             
             if (profileContainer) {
                 profileContainer.classList.remove('submenu-active');
@@ -885,7 +884,7 @@ changes to the documentation (to keep the documentation up to date).
     }
 
     // Handler for quicksettings menu item clicks
-    function handleQuickSettingClick(event) {
+    function handleQuickSettingClick(event: CustomEvent<{ toggleName: string }>) {
         const { toggleName } = event.detail;
         
         switch(toggleName) {
@@ -915,7 +914,7 @@ changes to the documentation (to keep the documentation up to date).
     }
 
     // Click outside handler
-    function handleClickOutside(event) {
+    function handleClickOutside(event: MouseEvent) {
     	if ($isMobileView) {
     		const settingsMenu = document.querySelector('.settings-menu');
     		const profileWrapper = document.querySelector('.profile-container-wrapper');
@@ -1117,6 +1116,11 @@ changes to the documentation (to keep the documentation up to date).
                         console.debug('[Settings] Set URL hash to demo-welcome during logout');
                     }
                     
+                    // CRITICAL: Mark phased sync as completed for non-authenticated users
+                    // This prevents "Loading chats..." from showing after logout
+                    phasedSyncState.markSyncCompleted();
+                    console.debug('[Settings] Marked phased sync as completed after logout (non-auth user)');
+                    
                     // Reset scroll position
                  	if (settingsContentElement) {
                  		settingsContentElement.scrollTop = 0;
@@ -1165,11 +1169,8 @@ changes to the documentation (to keep the documentation up to date).
     }
 
     // Subscribe to both text and navigation store to handle language updates
-    let breadcrumbs = $derived($settingsNavigationStore.breadcrumbs.map(crumb => ({
-        ...crumb,
-        // Apply translations to breadcrumb titles
-        title: crumb.translationKey ? $text(crumb.translationKey + '.text') : crumb.title
-    })));
+    // Note: breadcrumbs functionality removed - can be re-added if needed in the future
+    // Breadcrumbs are available via $settingsNavigationStore.breadcrumbs if needed
 
     // Make breadcrumbLabel reactive to text store changes
     $effect(() => {
@@ -1245,14 +1246,14 @@ changes to the documentation (to keep the documentation up to date).
                 }
                 const title = $text(translationKey);
 
-                handleOpenSettings({
+                handleOpenSettings(new CustomEvent('openSettings', {
                     detail: {
                         settingsPath,
                         direction: 'forward',
                         icon,
                         title
                     }
-                });
+                }));
             }, 300);
         }
     });
@@ -1294,14 +1295,14 @@ changes to the documentation (to keep the documentation up to date).
                     ? $text(breadcrumb.translationKey + '.text')
                     : breadcrumb.title;
                 
-                handleOpenSettings({
+                handleOpenSettings(new CustomEvent('openSettings', {
                     detail: {
                         settingsPath: currentPath,
                         direction: navDirection,
-                        icon: breadcrumb.icon || currentPath.split('/').pop(),
+                        icon: breadcrumb.icon || currentPath.split('/').pop() || '',
                         title: title
                     }
-                });
+                }));
             }
         }
     });

@@ -29,6 +29,8 @@ from backend.core.api.app.services.directus.app_settings_and_memories_methods im
 from backend.core.api.app.services.directus.usage import UsageMethods # Corrected import
 from backend.core.api.app.services.directus.analytics_methods import AnalyticsMethods
 from backend.core.api.app.services.directus.embed_methods import EmbedMethods # Import EmbedMethods class
+from backend.core.api.app.services.directus.demo_chat_methods import DemoChatMethods # Import DemoChatMethods class
+from backend.core.api.app.services.directus.admin_methods import AdminMethods # Import AdminMethods class
 from backend.core.api.app.services.directus.user.user_creation import create_user
 from backend.core.api.app.services.directus.user.user_authentication import login_user, login_user_with_lookup_hash, logout_user, logout_all_sessions, refresh_token
 from backend.core.api.app.services.directus.user.user_lookup import get_user_by_hashed_email, get_total_users_count, get_active_users_since, get_user_fields_direct, authenticate_user_by_lookup_hash, add_user_lookup_hash, get_user_by_subscription_id
@@ -85,6 +87,8 @@ class DirectusService:
         self.analytics = AnalyticsMethods(self) # Anonymous analytics methods
         self.chat = ChatMethods(self) # Initialize ChatMethods
         self.embed = EmbedMethods(self) # Initialize EmbedMethods
+        self.demo_chat = DemoChatMethods(self) # Initialize DemoChatMethods
+        self.admin = AdminMethods(self) # Initialize AdminMethods
 
     async def close(self):
         """Close the httpx client."""
@@ -174,7 +178,7 @@ class DirectusService:
                     logger.error(f"Directus get_items for '{collection}': Permission denied (403). Error: {error_detail}. Params: {current_params}")
                     # Log the actual URL that was requested for debugging
                     logger.error(f"Directus get_items for '{collection}': Request URL would be: {url}?{chr(38).join(f'{k}={v}' for k, v in current_params.items())}")
-                except:
+                except Exception:
                     logger.error(f"Directus get_items for '{collection}': Permission denied (403). Response text: {response_obj.text[:500]}")
                 return []
             else:
@@ -293,27 +297,6 @@ class DirectusService:
         except Exception as e:
             logger.error(f"Exception getting any passkey encryption key for hashed_user_id: {hashed_user_id}: {e}", exc_info=True)
             return None
-
-    async def delete_encryption_key(self, hashed_user_id: str, login_method: str) -> bool:
-        """
-        Deletes an encryption key record for a user and login method.
-        """
-        params = {
-            "filter[hashed_user_id][_eq]": hashed_user_id,
-            "filter[login_method][_eq]": login_method,
-            "fields": "id",
-            "limit": 1
-        }
-        try:
-            items = await self.get_items("encryption_keys", params)
-            if items:
-                item_id = items[0].get("id")
-                if item_id:
-                    return await self.delete_item("encryption_keys", item_id)
-            return False
-        except Exception as e:
-            logger.error(f"Exception deleting encryption key for hashed_user_id: {hashed_user_id}: {e}", exc_info=True)
-            return False
 
     # Passkey management methods
     async def create_passkey(

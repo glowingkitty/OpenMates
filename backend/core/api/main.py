@@ -6,62 +6,61 @@ from dotenv import load_dotenv
 # --- Setup Logging FIRST ---
 # Load environment variables early for logging config if needed
 load_dotenv()
-from backend.core.api.app.utils.setup_logging import setup_logging
+from backend.core.api.app.utils.setup_logging import setup_logging  # noqa: E402
 setup_logging()
 # --- End Logging Setup ---
 
 # Now import other modules that might log
-from fastapi import FastAPI, Request
-from fastapi.responses import RedirectResponse
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from fastapi.openapi.utils import get_openapi
-from contextlib import asynccontextmanager
-from slowapi import _rate_limit_exceeded_handler
-from slowapi.errors import RateLimitExceeded
-from prometheus_client import make_asgi_app
-from pythonjsonlogger import jsonlogger # json is imported by CacheService now for this specific metadata
-from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
-import httpx # For service discovery
-from typing import Dict, List, Any, Optional # For type hinting
+from fastapi import FastAPI, Request  # noqa: E402
+from fastapi.responses import RedirectResponse  # noqa: E402
+from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
+from fastapi.openapi.utils import get_openapi  # noqa: E402
+from contextlib import asynccontextmanager  # noqa: E402
+from slowapi import _rate_limit_exceeded_handler  # noqa: E402
+from slowapi.errors import RateLimitExceeded  # noqa: E402
+from prometheus_client import make_asgi_app  # noqa: E402
+from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware  # noqa: E402
+import httpx  # noqa: E402 # For service discovery
+from typing import Dict, List, Any  # noqa: E402 # For type hinting
 
 # Make sure the path is correct based on your project structure
-from backend.core.api.app.routes import auth, email, invoice, credit_note, settings, payments, websockets
-from backend.core.api.app.routes import internal_api # Import the new internal API router
-from backend.core.api.app.routes import apps # Import apps router
-from backend.core.api.app.routes import share # Import share router
-from backend.core.api.app.routes import apps_api # Import apps API router for external API access
-from backend.core.api.app.routes import creators # Import creators router
-from backend.core.api.app.routes import newsletter # Import newsletter router
-from backend.core.api.app.routes import email_block # Import email block router
-from backend.core.api.app.services.directus import DirectusService
-from backend.core.api.app.services.cache import CacheService
-from backend.core.api.app.services.metrics import MetricsService
-from backend.core.api.app.services.compliance import ComplianceService
-from backend.core.api.app.services.email_template import EmailTemplateService
-from backend.core.api.app.services.image_safety import ImageSafetyService # Import ImageSafetyService
-from backend.core.api.app.services.s3.service import S3UploadService # Import S3UploadService
-from backend.core.api.app.services.payment.payment_service import PaymentService # Import PaymentService
-from backend.core.api.app.services.invoiceninja.invoiceninja import InvoiceNinjaService # Import InvoiceNinjaService
-from backend.core.api.app.services.stripe_product_sync import StripeProductSync # Import StripeProductSync
-from backend.core.api.app.services.translations import TranslationService # Import TranslationService for resolving app metadata translations
-from backend.core.api.app.utils.encryption import EncryptionService
-from backend.core.api.app.utils.secrets_manager import SecretsManager  # Add import for SecretManager
-from backend.core.api.app.utils.server_mode import is_payment_enabled  # Import for checking payment status during router registration
-from backend.core.api.app.services.limiter import limiter
-from backend.core.api.app.utils.config_manager import config_manager
-from backend.shared.python_schemas.app_metadata_schemas import AppYAML # Moved AppYAML to backend_shared
+from backend.core.api.app.routes import auth, email, invoice, credit_note, settings, payments, websockets  # noqa: E402
+from backend.core.api.app.routes import internal_api  # noqa: E402 # Import the new internal API router
+from backend.core.api.app.routes import apps  # noqa: E402 # Import apps router
+from backend.core.api.app.routes import share  # noqa: E402 # Import share router
+from backend.core.api.app.routes import demo_chat  # noqa: E402 # Import demo chat router
+from backend.core.api.app.routes import admin  # noqa: E402 # Import admin router
+from backend.core.api.app.routes import apps_api  # noqa: E402 # Import apps API router for external API access
+from backend.core.api.app.routes import creators  # noqa: E402 # Import creators router
+from backend.core.api.app.routes import newsletter  # noqa: E402 # Import newsletter router
+from backend.core.api.app.routes import email_block  # noqa: E402 # Import email block router
+from backend.core.api.app.services.directus import DirectusService  # noqa: E402
+from backend.core.api.app.services.cache import CacheService  # noqa: E402
+from backend.core.api.app.services.metrics import MetricsService  # noqa: E402
+from backend.core.api.app.services.compliance import ComplianceService  # noqa: E402
+from backend.core.api.app.services.email_template import EmailTemplateService  # noqa: E402
+from backend.core.api.app.services.image_safety import ImageSafetyService  # noqa: E402 # Import ImageSafetyService
+from backend.core.api.app.services.s3.service import S3UploadService  # noqa: E402 # Import S3UploadService
+from backend.core.api.app.services.payment.payment_service import PaymentService  # noqa: E402 # Import PaymentService
+from backend.core.api.app.services.invoiceninja.invoiceninja import InvoiceNinjaService  # noqa: E402 # Import InvoiceNinjaService
+from backend.core.api.app.services.stripe_product_sync import StripeProductSync  # noqa: E402 # Import StripeProductSync
+from backend.core.api.app.services.translations import TranslationService  # noqa: E402 # Import TranslationService for resolving app metadata translations
+from backend.core.api.app.utils.encryption import EncryptionService  # noqa: E402
+from backend.core.api.app.utils.secrets_manager import SecretsManager  # noqa: E402 # Add import for SecretManager
+from backend.core.api.app.utils.server_mode import is_payment_enabled  # noqa: E402 # Import for checking payment status during router registration
+from backend.core.api.app.services.limiter import limiter  # noqa: E402
+from backend.core.api.app.utils.config_manager import config_manager  # noqa: E402
+from backend.shared.python_schemas.app_metadata_schemas import AppYAML  # noqa: E402 # Moved AppYAML to backend_shared
 
 # Middleware & Utils
-from backend.core.api.app.middleware.logging_middleware import LoggingMiddleware
-from backend.core.api.app.utils.log_filters import SensitiveDataFilter  # Import the new filter
+from backend.core.api.app.middleware.logging_middleware import LoggingMiddleware  # noqa: E402
 
 # Add import for Celery app
-from backend.core.api.app.tasks.celery_config import app as celery_app
+from backend.core.api.app.tasks.celery_config import app as celery_app  # noqa: E402
 
 # Import our new compliance logging setup
 # Import the metrics update task
-from backend.core.api.app.tasks.user_metrics import periodic_metrics_update, update_active_users_metrics
+from backend.core.api.app.tasks.user_metrics import periodic_metrics_update, update_active_users_metrics  # noqa: E402
 
 # Get a logger instance for this module (main.py) after setup
 logger = logging.getLogger(__name__)
@@ -69,7 +68,7 @@ logger = logging.getLogger(__name__)
 # DISCOVERED_APPS_METADATA_CACHE_KEY is now defined in CacheService
 
 # Import the listener functions for Redis Pub/Sub
-from backend.core.api.app.routes.websockets import (
+from backend.core.api.app.routes.websockets import (  # noqa: E402
     listen_for_cache_events, 
     listen_for_ai_chat_streams, 
     listen_for_ai_message_persisted_events,
@@ -650,7 +649,6 @@ async def lifespan(app: FastAPI):
         # This ensures /health endpoint has data immediately instead of waiting up to 5 minutes
         logger.info("Triggering initial health check for all providers...")
         try:
-            from backend.core.api.app.tasks.health_check_tasks import check_all_providers_health
             # Trigger the health check task asynchronously (non-blocking)
             # Use apply_async for better error handling and to get task result
             task_result = celery_app.send_task(
@@ -684,7 +682,6 @@ async def lifespan(app: FastAPI):
         # Trigger initial app health check on startup
         logger.info("Triggering initial app health check for all apps...")
         try:
-            from backend.core.api.app.tasks.health_check_tasks import check_all_apps_health
             # Trigger the app health check task asynchronously (non-blocking)
             app_task_result = celery_app.send_task(
                 "health_check.check_all_apps",
@@ -809,7 +806,6 @@ def create_app() -> FastAPI:
     
     # Customize OpenAPI schema to include security scheme for API key authentication
     # This enables the "Authorize" button in Swagger UI
-    from backend.core.api.app.utils.api_key_auth import api_key_scheme
     
     def custom_openapi():
         if app.openapi_schema:
@@ -946,8 +942,8 @@ def create_app() -> FastAPI:
             logger.error(error_msg)
             # Also log as warning for less critical visibility
             logger.warning(
-                f"CORS validation failed: No HTTPS production URL found. "
-                f"PRODUCTION_URL must contain at least one HTTPS URL that is not localhost."
+                "CORS validation failed: No HTTPS production URL found. "
+                "PRODUCTION_URL must contain at least one HTTPS URL that is not localhost."
             )
         else:
             logger.info("✅ CORS configuration validation passed: Production HTTPS URL found")
@@ -1005,6 +1001,8 @@ def create_app() -> FastAPI:
     app.include_router(internal_api.router, include_in_schema=False)  # Internal API router - service-to-service communication only
     app.include_router(apps.router, include_in_schema=False)  # Apps router - public endpoint, not API key based
     app.include_router(share.router, include_in_schema=False)  # Share router - web app only
+    app.include_router(demo_chat.router, include_in_schema=False)  # Demo chat router - public access
+    app.include_router(admin.router, include_in_schema=False)  # Admin router - authenticated admin only
     app.include_router(newsletter.router, include_in_schema=False)  # Newsletter endpoints - web app only (uses verify_allowed_origin)
     app.include_router(email_block.router, include_in_schema=False)  # Email blocking endpoints - web app only (uses verify_allowed_origin)
     

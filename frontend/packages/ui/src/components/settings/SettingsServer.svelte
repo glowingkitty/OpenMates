@@ -11,9 +11,11 @@ changes to the documentation (to keep the documentation up to date).
 
 <script lang="ts">
     import { text } from '@repo/ui';
-    import { createEventDispatcher, onMount } from 'svelte';
+    import { createEventDispatcher } from 'svelte';
     import SettingsItem from '../SettingsItem.svelte';
     import SettingsSoftwareUpdate from './server/SettingsSoftwareUpdate.svelte';
+    import SettingsCommunitySuggestions from './server/SettingsCommunitySuggestions.svelte';
+    import SettingsBecomeAdmin from './server/SettingsBecomeAdmin.svelte';
 
     const dispatch = createEventDispatcher();
     
@@ -24,18 +26,56 @@ changes to the documentation (to keep the documentation up to date).
     function showSoftwareUpdateSettings(event = null) {
         // Stop propagation to prevent the event from bubbling up
         if (event) event.stopPropagation();
-        
+
         currentView = 'softwareUpdate';
         childComponent = SettingsSoftwareUpdate;
-        
+
         dispatch('openSettings', {
-            settingsPath: 'server/software-update', 
+            settingsPath: 'server/software-update',
             direction: 'forward',
             icon: 'download',
             title: $text('settings.software_updates.text'),
             translationKey: 'settings.software_updates'
         });
-        
+
+        scrollToTop();
+    }
+
+    function showCommunitySuggestions(event = null) {
+        if (event) event.stopPropagation();
+
+        currentView = 'communitySuggestions';
+        childComponent = SettingsCommunitySuggestions;
+
+        dispatch('openSettings', {
+            settingsPath: 'server/community-suggestions',
+            direction: 'forward',
+            icon: 'users',
+            title: 'Community Suggestions',
+            translationKey: 'settings.server.community_suggestions'
+        });
+
+        scrollToTop();
+    }
+
+    function showBecomeAdmin(event = null) {
+        if (event) event.stopPropagation();
+
+        currentView = 'becomeAdmin';
+        childComponent = SettingsBecomeAdmin;
+
+        dispatch('openSettings', {
+            settingsPath: 'server/become-admin',
+            direction: 'forward',
+            icon: 'shield',
+            title: 'Become Admin',
+            translationKey: 'settings.server.become_admin'
+        });
+
+        scrollToTop();
+    }
+
+    function scrollToTop() {
         // Find settings content element and scroll to top
         const settingsContent = document.querySelector('.settings-content-wrapper');
         if (settingsContent) {
@@ -57,12 +97,34 @@ changes to the documentation (to keep the documentation up to date).
 </script>
 
 {#if currentView === 'main'}
-    <SettingsItem 
+    <SettingsItem
         icon="download"
         title={$text('settings.software_updates.text')}
         onClick={() => showSoftwareUpdateSettings()}
     />
+    <SettingsItem
+        icon="users"
+        title="Community Suggestions"
+        subtitleTop="Manage demo chats from community-shared conversations"
+        onClick={() => showCommunitySuggestions()}
+    />
+    <SettingsItem
+        icon="shield"
+        title="Become Admin"
+        subtitleTop="Use admin token to gain server admin privileges"
+        onClick={() => showBecomeAdmin()}
+    />
 {:else if currentView === 'softwareUpdate' && childComponent}
+    {@const Component = childComponent}
+    <Component
+        on:back={handleBack}
+    />
+{:else if currentView === 'communitySuggestions' && childComponent}
+    {@const Component = childComponent}
+    <Component
+        on:back={handleBack}
+    />
+{:else if currentView === 'becomeAdmin' && childComponent}
     {@const Component = childComponent}
     <Component
         on:back={handleBack}

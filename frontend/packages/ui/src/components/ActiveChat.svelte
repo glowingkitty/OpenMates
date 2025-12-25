@@ -2841,6 +2841,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     // This is especially important on mobile where component initialization might be slower
                     await tick();
                     
+                    // CRITICAL: Mark phased sync as completed for non-authenticated users
+                    // This prevents "Loading chats..." from showing after logout
+                    phasedSyncState.markSyncCompleted();
+                    console.debug('[ActiveChat] Marked phased sync as completed after logout (non-auth user)');
+                    
                     // CRITICAL: Ensure loadChat is called even if there are errors
                     // Wrap in try-catch to handle any potential errors gracefully
                     try {
@@ -2870,6 +2875,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     console.warn('[ActiveChat] Welcome demo chat not found in DEMO_CHATS');
                     // Fallback: ensure welcome screen is shown even if demo chat not found
                     showWelcome = true;
+                    // Mark phased sync as completed even if demo chat not found
+                    phasedSyncState.markSyncCompleted();
+                    console.debug('[ActiveChat] Marked phased sync as completed after logout (fallback path)');
                 }
             } catch (error) {
                 console.error('[ActiveChat] Error in logout event handler:', error);
@@ -2878,6 +2886,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 currentMessages = [];
                 showWelcome = true;
                 activeChatStore.clearActiveChat();
+                // Mark phased sync as completed even if handler fails
+                phasedSyncState.markSyncCompleted();
+                console.debug('[ActiveChat] Marked phased sync as completed after logout (error fallback)');
             }
         };
         window.addEventListener('userLoggingOut', handleLogoutEvent);

@@ -13,6 +13,7 @@ changes to the documentation (to keep the documentation up to date).
     import { locale } from 'svelte-i18n';
     import { getApiEndpoint, apiEndpoints } from '../../config/api';
     import InputWarning from '../common/InputWarning.svelte';
+    import { replaceState } from '$app/navigation';
     
     // State for email input and form submission
     let email = $state('');
@@ -306,7 +307,7 @@ changes to the documentation (to keep the documentation up to date).
             setTimeout(() => {
                 handleConfirmSubscription(token).finally(() => {
                     // Clear the deep link from URL after processing
-                    window.history.replaceState({}, '', window.location.pathname + window.location.search);
+                    replaceState(window.location.pathname + window.location.search, {});
                 });
             }, 500);
             return;
@@ -325,7 +326,7 @@ changes to the documentation (to keep the documentation up to date).
             setTimeout(() => {
                 handleUnsubscribe(token).finally(() => {
                     // Clear the deep link from URL after processing
-                    window.history.replaceState({}, '', window.location.pathname + window.location.search);
+                    replaceState(window.location.pathname + window.location.search, {});
                 });
             }, 500);
             return;
@@ -345,7 +346,7 @@ changes to the documentation (to keep the documentation up to date).
             setTimeout(() => {
                 handleBlockEmail(emailToBlock).finally(() => {
                     // Clear the deep link from URL after processing
-                    window.history.replaceState({}, '', window.location.pathname + window.location.search);
+                    replaceState(window.location.pathname + window.location.search, {});
                 });
             }, 500);
             return;
