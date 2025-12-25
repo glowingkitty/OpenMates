@@ -5,12 +5,9 @@
         ActiveChat,
         Header,
         Settings,
-        Footer,
-        Login,
         Notification,
         // stores
         isInSignupProcess,
-        showSignupFooter,
         authStore,
         initialize, // Import initialize directly
         panelState, // Import the new central panel state store
@@ -40,10 +37,10 @@
     import { notificationStore, getKeyFromStorage, text, LANGUAGE_CODES } from '@repo/ui';
     import { checkAndClearMasterKeyOnLoad } from '@repo/ui';
     import { onMount, onDestroy, untrack } from 'svelte';
-    import { locale, waitLocale, _, isLoading } from 'svelte-i18n';
+    import { locale, waitLocale } from 'svelte-i18n';
     import { get } from 'svelte/store';
     import { browser } from '$app/environment';
-    import { i18nLoaded } from '@repo/ui';
+    import { replaceState } from '$app/navigation';
 
     // --- State ---
     let isInitialLoad = $state(true);
@@ -51,7 +48,7 @@
     let isProcessingInitialHash = $state(false); // Track if we're processing initial hash load
     let originalHashChatId: string | null = null; // Store original hash chat ID from URL (read before anything modifies it)
     let deepLinkProcessed = $state(false); // Track if any deep link was processed during onMount to avoid loading welcome chat
-    let pendingDeepLinkHandler: EventListener | null = null; // Store event handler for cleanup
+    let pendingDeepLinkHandler: ((event: Event) => void) | null = null; // Store event handler for cleanup
     
     // CRITICAL: Reactive effect to watch for signup state changes
     // This handles cases where user profile loads asynchronously after initialize() completes
@@ -220,11 +217,11 @@
                 console.debug(`[+page.svelte] Phased sync complete, attempting to load deep-linked chat: ${chatId}`);
                 await loadChatFromIndexedDB();
                 // Remove the listener after handling
-                chatSyncService.removeEventListener('phasedSyncComplete', handlePhasedSyncComplete as EventListener);
+                chatSyncService.removeEventListener('phasedSyncComplete', handlePhasedSyncComplete);
             };
             
             // Register listener for phased sync completion
-            chatSyncService.addEventListener('phasedSyncComplete', handlePhasedSyncComplete as EventListener);
+            chatSyncService.addEventListener('phasedSyncComplete', handlePhasedSyncComplete);
             
             // Also try immediately in case sync already completed
             // (e.g., page reload with URL already set)
@@ -604,7 +601,7 @@
 				// Remove the lang parameter from URL (cleaner URL after setting preference)
 				const newUrl = new URL(window.location.href);
 				newUrl.searchParams.delete('lang');
-				window.history.replaceState({}, '', newUrl.toString());
+				replaceState(newUrl.toString(), {});
 			}
 		}
 		
@@ -677,9 +674,10 @@
 						if (deletedCount > 0) {
 							console.info(`[+page.svelte] Cleaned up ${deletedCount} leftover shared chat(s) from previous session`);
 						}
-					} catch (dbError: any) {
+					} catch (dbError: unknown) {
 						// If DB is being deleted (e.g., during logout) or unavailable, skip cleanup
-						if (dbError?.message?.includes('being deleted') || dbError?.message?.includes('cannot be initialized')) {
+						const errorMessage = dbError instanceof Error ? dbError.message : String(dbError);
+						if (errorMessage?.includes('being deleted') || errorMessage?.includes('cannot be initialized')) {
 							console.debug('[+page.svelte] Database unavailable during shared chat cleanup - skipping (likely during logout)');
 						} else {
 							console.warn('[+page.svelte] Error accessing database during shared chat cleanup:', dbError);
@@ -760,7 +758,7 @@
 		};
 		
 		// Register listener for WebSocket auth errors
-		webSocketService.addEventListener('authError', handleWebSocketAuthError as EventListener);
+		webSocketService.addEventListener('authError', handleWebSocketAuthError);
 		console.debug('[+page.svelte] Registered WebSocket auth error listener');
 		
 		// Listen for payment completion notifications via WebSocket
@@ -809,6 +807,16 @@
 		wasInSignupProcessAtMount = get(isInSignupProcess);
 		
 		if (!wasInSignupProcessAtMount) {
+			// CRITICAL FIX: Clean up any existing handlers before registering new ones
+			// This prevents duplicate handler registrations if the effect runs multiple times
+			if (handlePaymentCompleted) {
+				webSocketService.off('payment_completed', handlePaymentCompleted);
+			}
+			if (handlePaymentFailed) {
+				webSocketService.off('payment_failed', handlePaymentFailed);
+			}
+			
+			// Register new handlers
 			webSocketService.on('payment_completed', handlePaymentCompleted);
 			webSocketService.on('payment_failed', handlePaymentFailed);
 			console.debug('[+page.svelte] Registered WebSocket payment notification listeners');
@@ -858,7 +866,7 @@
 			if (!event.persisted) {
 				// Page is being unloaded (not cached) - this is actual tab/browser close
 				// Use non-blocking approach - initiate cleanup (may not complete if page closes immediately)
-				cleanupSharedChats().catch((error) => {
+				cleanupSharedChats().catch(() => {
 					// Ignore errors - cleanup will happen on next page load if needed
 					console.debug('[+page.svelte] Shared chat cleanup on unload incomplete (will be handled on next page load)');
 				});
@@ -881,11 +889,11 @@
 			
 			// Register listener for sync completion to auto-open chat based on priority
 			// Priority: hash chat > last opened chat > default
-			const handleSyncComplete = (async () => {
+			const handleSyncComplete = async () => {
 				console.debug('[+page.svelte] Sync complete event received, marking as completed');
 				phasedSyncState.markSyncCompleted(); // Mark immediately on any sync complete event
 				await handleSyncCompleteAndLoadChat();
-			}) as EventListener;
+			};
 			
 			// Register listeners for phased sync completion events only
 			// Use explicit phase events for UX timing; no legacy sync events
@@ -1096,7 +1104,8 @@
 						if (lastChat) {
 							// SECURITY: Don't load hidden chats on page reload - they require passcode to unlock
 							// Check if chat is a hidden candidate (can't decrypt with master key)
-							if ((lastChat as any).is_hidden_candidate || (lastChat as any).is_hidden) {
+							const chatWithHidden = lastChat as Chat & { is_hidden_candidate?: boolean; is_hidden?: boolean };
+							if (chatWithHidden.is_hidden_candidate || chatWithHidden.is_hidden) {
 								console.debug('[+page.svelte] [TAB RELOAD] Last opened chat is hidden, skipping load (requires passcode)');
 								// Clear last_opened to prevent trying to load it again
 								await userDB.updateUserData({ last_opened: '/chat/new' });
@@ -1212,7 +1221,7 @@
         // Clear signup hash after processing (if it was present) to keep URL clean
         // (similar to how chat deep links are cleared after loading)
         if (hasSignupHash) {
-            window.history.replaceState({}, '', window.location.pathname + window.location.search);
+            replaceState(window.location.pathname + window.location.search, {});
         }
         
         // Handle other deep links using unified handler (settings, embed, signup)
@@ -1234,9 +1243,13 @@
         
         // Listen for pending deep link processing after successful login
         // This handles cases where user opened a deep link while not authenticated
-        window.addEventListener('processPendingDeepLink', ((event: CustomEvent<{ hash: string }>) => {
-            handlePendingDeepLink(event);
-        }) as unknown as EventListener);
+        const pendingDeepLinkHandlerWrapper = (event: Event) => {
+            if (event instanceof CustomEvent && event.detail && typeof event.detail === 'object' && 'hash' in event.detail) {
+                handlePendingDeepLink(event as CustomEvent<{ hash: string }>);
+            }
+        };
+        pendingDeepLinkHandler = pendingDeepLinkHandlerWrapper;
+        window.addEventListener('processPendingDeepLink', pendingDeepLinkHandlerWrapper);
         
         console.debug('[+page.svelte] onMount finished');
     });
@@ -1244,7 +1257,7 @@
     // Cleanup function for onDestroy
     onDestroy(() => {
         if (handleWebSocketAuthError) {
-            webSocketService.removeEventListener('authError', handleWebSocketAuthError as EventListener);
+            webSocketService.removeEventListener('authError', handleWebSocketAuthError);
         }
         // Only unregister payment handlers if they were registered
         if (!wasInSignupProcessAtMount && handlePaymentCompleted && handlePaymentFailed) {
@@ -1345,7 +1358,7 @@
                 isInSignupProcess.set(true);
                 loginInterfaceOpen.set(true);
                 // Clear the hash after processing to keep URL clean
-                window.history.replaceState({}, '', window.location.pathname + window.location.search);
+                replaceState(window.location.pathname + window.location.search, {});
             },
             onEmbed: handleEmbedDeepLink,
             onNoHash: async () => {

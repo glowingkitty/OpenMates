@@ -8,9 +8,8 @@ import hashlib
 import time
 import os
 from typing import Dict, Any, Optional
-from fastapi import APIRouter, HTTPException, Request, Depends, Body
+from fastapi import APIRouter, HTTPException, Request, Depends
 from pydantic import BaseModel
-from slowapi.util import get_remote_address
 
 from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.utils.encryption import EncryptionService
@@ -283,12 +282,10 @@ async def get_og_metadata(
             logger.warning(f"No shared_encrypted_summary found for chat {chat_id} - using fallback")
 
         # Get category for OG image selection
-        encrypted_category = chat.get("encrypted_category")
-        category = None
-
         # Note: We can't decrypt encrypted_category here because it's encrypted with
         # the user's chat key, not the shared vault key. For now, we'll use the default image.
         # In the future, we could add a shared_category field if needed.
+        category = None
 
         # Determine OG image based on category (fallback to default for now)
         og_image = "/og-images/default-chat.png"
@@ -473,7 +470,8 @@ async def update_share_metadata(
                         "admin_email": admin_email,
                         "chat_title": payload.title or "Untitled Chat",
                         "chat_summary": payload.summary or "",
-                        "share_link": payload.share_link
+                        "share_link": payload.share_link,
+                        "chat_id": chat_id
                     },
                     queue='email'
                 )

@@ -32,7 +32,8 @@ def send_community_share_notification(
     admin_email: str,
     chat_title: str,
     chat_summary: Optional[str],
-    share_link: str
+    share_link: str,
+    chat_id: Optional[str] = None
 ) -> bool:
     """
     Celery task to send community share notification email to admin.
@@ -56,7 +57,7 @@ def send_community_share_notification(
         # Use asyncio.run() which handles loop creation and cleanup properly
         result = asyncio.run(
             _async_send_community_share_notification(
-                admin_email, chat_title, chat_summary, share_link
+                admin_email, chat_title, chat_summary, share_link, chat_id
             )
         )
         if result:
@@ -83,7 +84,8 @@ async def _async_send_community_share_notification(
     admin_email: str,
     chat_title: str,
     chat_summary: Optional[str],
-    share_link: str
+    share_link: str,
+    chat_id: Optional[str] = None
 ) -> bool:
     """
     Async implementation for sending community share notification email.
@@ -107,13 +109,36 @@ async def _async_send_community_share_notification(
         
         # URL is already validated in route handler, but ensure it's safe for href attribute
         sanitized_link = share_link if share_link else ""
-        
+
+        # Generate demo chat creation URL if chat_id is provided
+        demo_chat_url = ""
+        if chat_id:
+            # Extract encryption key from share_link fragment
+            # Share links have format: https://domain/share/chat_id#key=encryption_key
+            encryption_key = ""
+            if "#key=" in sanitized_link:
+                encryption_key = sanitized_link.split("#key=")[1]
+
+            # Get base URL from environment or default
+            import os
+            base_url = os.getenv("FRONTEND_URL", "https://app.openmates.org")
+
+            # Create URL that deep links to the community suggestions settings page
+            # This will be displayed as available for approval in the admin interface
+            demo_chat_url = f"{base_url}/settings/server/community-suggestions?chat_id={chat_id}&key={encryption_key}"
+            if sanitized_title:
+                import urllib.parse
+                demo_chat_url += f"&title={urllib.parse.quote(sanitized_title[:200])}"
+            if sanitized_summary:
+                demo_chat_url += f"&summary={urllib.parse.quote(sanitized_summary[:200])}"
+
         # Prepare email context with sanitized data
         email_context = {
             "darkmode": True,  # Default to dark mode for admin emails
             "chat_title": sanitized_title,
             "chat_summary": sanitized_summary,
-            "share_link": sanitized_link
+            "share_link": sanitized_link,
+            "demo_chat_url": demo_chat_url
         }
         logger.info("Prepared email context for community share notification")
         

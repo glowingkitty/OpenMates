@@ -2,7 +2,7 @@ import { get } from 'svelte/store';
 import { chatDB } from '../db';
 import { webSocketService } from '../websocketService';
 import { chatMetadataCache } from '../chatMetadataCache';
-import type { Chat, Message, TiptapJSON } from '../../types/chat'; // Adjusted path, TiptapJSON might be from here or draftTypes
+import type { Chat, TiptapJSON } from '../../types/chat'; // Adjusted path, TiptapJSON might be from here or draftTypes
 import { getInitialContent } from '../../components/enter_message/utils'; // Adjusted path
 import { draftEditorUIState } from './draftState'; // Renamed store
 import { decryptWithMasterKey } from '../cryptoService'; // Import decryption
@@ -11,9 +11,7 @@ import type {
 	DraftEditorState, // Renamed type
 	ServerChatDraftUpdatedEventPayload, // Updated payload type
 	DraftConflictPayload,
-	   ChatDetailsServerResponse, // Added for specific server response type
-	   UserChatDraft,
-	   TiptapJSON as DraftTiptapJSON // Alias for clarity if TiptapJSON is also from ../../types/chat
+	   ChatDetailsServerResponse // Added for specific server response type
 } from './draftTypes';
 import { LOCAL_CHAT_LIST_CHANGED_EVENT } from './draftConstants';
 import { getEditorInstance } from './draftCore';
@@ -30,7 +28,7 @@ const handleDraftUpdated = async (payload: ServerChatDraftUpdatedEventPayload) =
 	}
 
 	const { chat_id, data, versions, last_edited_overall_timestamp } = payload;
-	   const { encrypted_draft_md, encrypted_draft_preview } = data;
+	   const { encrypted_draft_md } = data;
 	   const { draft_v: newUserDraftVersion } = versions; // Corrected: ChatComponentVersions uses draft_v
 
 	console.info(
@@ -44,7 +42,8 @@ const handleDraftUpdated = async (payload: ServerChatDraftUpdatedEventPayload) =
         const chat = await chatDB.getChat(chat_id);
         if (chat) {
             chat.encrypted_draft_md = encrypted_draft_md; // from payload.data
-            chat.encrypted_draft_preview = encrypted_draft_preview || null; // from payload.data
+            // Note: encrypted_draft_preview is not included in ServerChatDraftUpdatedEventPayload
+            // It will be generated/updated separately if needed
             chat.draft_v = newUserDraftVersion; // from payload.versions (corrected)
             // CRITICAL: Don't update last_edited_overall_timestamp from draft updates
             // Only messages should update this timestamp for proper sorting
@@ -97,7 +96,7 @@ const handleDraftUpdated = async (payload: ServerChatDraftUpdatedEventPayload) =
             let decryptedDraftContent: TiptapJSON | null = null;
             if (encrypted_draft_md) {
                 try {
-                    const decryptedMarkdown = decryptWithMasterKey(encrypted_draft_md);
+                    const decryptedMarkdown = await decryptWithMasterKey(encrypted_draft_md);
                     if (decryptedMarkdown) {
                         // Parse markdown back to TipTap JSON
                         decryptedDraftContent = parse_message(decryptedMarkdown, 'write', { unifiedParsingEnabled: true });
@@ -163,19 +162,21 @@ const handleChatDetails = async (payload: ChatDetailsServerResponse) => { // Cha
 		// We need to adapt it to the new structure: separate Chat and UserChatDraft.
 		
 		// 1. Update Chat entity in IndexedDB, including draft fields
+		// Decrypt title if present
+		const decryptedTitle = payload.encrypted_title ? await decryptWithMasterKey(payload.encrypted_title) : null;
+		
 		const chatToUpdate: Chat = {
 			chat_id: payload.chat_id,
-			title: payload.encrypted_title ? decryptWithMasterKey(payload.encrypted_title) : null,
-			encrypted_title: null,
+			title: decryptedTitle,
+			encrypted_title: payload.encrypted_title ?? null,
 			messages_v: payload.messages_v ?? 0,
 			title_v: payload.title_v ?? 0,
 			encrypted_draft_md: payload.encrypted_draft_md, // Encrypted draft content from payload
 			draft_v: payload.draft_v ?? 0,      // Draft version from payload
 			last_edited_overall_timestamp: payload.last_edited_overall_timestamp ?? Math.floor(Date.now()/1000),
 			unread_count: payload.unread_count ?? 0,
-			mates: (payload as any).mates ?? [],
-			created_at: (payload as any).created_at ?? Math.floor(Date.now() / 1000),
-			updated_at: (payload as any).updated_at ?? Math.floor(Date.now() / 1000),
+			created_at: payload.created_at ?? Math.floor(Date.now() / 1000),
+			updated_at: payload.updated_at ?? Math.floor(Date.now() / 1000),
 		};
 
 		await chatDB.addOrUpdateChatWithFullData(chatToUpdate, []);
@@ -185,6 +186,20 @@ const handleChatDetails = async (payload: ChatDetailsServerResponse) => { // Cha
 		   // Section for separate UserChatDraft update is removed as draft is part of Chat object.
 
 		// 2. Update draftEditorUIState and editor if this is the currently active chat
+		// Decrypt draft content before the update callback (since callbacks can't be async)
+		let decryptedDraftContent: TiptapJSON = getInitialContent();
+		if (payload.encrypted_draft_md) {
+			try {
+				const decryptedMarkdown = await decryptWithMasterKey(payload.encrypted_draft_md);
+				if (decryptedMarkdown) {
+					// Parse markdown back to TipTap JSON
+					decryptedDraftContent = parse_message(decryptedMarkdown, 'write', { unifiedParsingEnabled: true });
+				}
+			} catch (error) {
+				console.error('[DraftService] Error decrypting draft content from chat_details:', error);
+			}
+		}
+
 		draftEditorUIState.update((currentState) => {
 			if (currentState.currentChatId === payload.chat_id) {
 				console.info(
@@ -192,21 +207,8 @@ const handleChatDetails = async (payload: ChatDetailsServerResponse) => { // Cha
 				);
 				const editorInstance = getEditorInstance();
 				if (editorInstance) {
-					// Decrypt the draft content first
-					let contentToSet: TiptapJSON = getInitialContent();
-					if (payload.encrypted_draft_md) {
-						try {
-							const decryptedMarkdown = decryptWithMasterKey(payload.encrypted_draft_md);
-							if (decryptedMarkdown) {
-								// Parse markdown back to TipTap JSON
-								contentToSet = parse_message(decryptedMarkdown, 'write', { unifiedParsingEnabled: true });
-							}
-						} catch (error) {
-							console.error('[DraftService] Error decrypting draft content from chat_details:', error);
-						}
-					}
-					console.debug('[DraftService] Setting editor content from chat_details:', contentToSet);
-					editorInstance.chain().setContent(contentToSet, false).run();
+					console.debug('[DraftService] Setting editor content from chat_details:', decryptedDraftContent);
+					editorInstance.chain().setContent(decryptedDraftContent, false).run();
 					// Do NOT auto-focus the editor - user must manually click to focus
 					// This prevents unwanted focus when receiving draft updates from websocket
 					console.debug('[DraftService] Skipped auto-focus after websocket draft update - user must click to focus');
@@ -233,8 +235,18 @@ const handleChatDetails = async (payload: ChatDetailsServerResponse) => { // Cha
 };
 
 let handleWsOpen: (() => void) | null = null;
+let handlersRegistered = false; // Prevent duplicate registration
 
 export function registerWebSocketHandlers() {
+	// CRITICAL FIX: Prevent duplicate handler registration
+	// This can happen due to HMR (Hot Module Reload) during development
+	// or multiple instances being created accidentally
+	if (handlersRegistered) {
+		console.warn('[DraftService] Handlers already registered, skipping duplicate registration');
+		return;
+	}
+	
+	handlersRegistered = true;
 	console.info('[DraftService] Registering WebSocket handlers.');
 	webSocketService.on('draft_updated', handleDraftUpdated);
 	webSocketService.on('draft_conflict', handleDraftConflict);
@@ -261,6 +273,12 @@ export function registerWebSocketHandlers() {
 }
 
 export function unregisterWebSocketHandlers() {
+	if (!handlersRegistered) {
+		// Handlers were never registered, nothing to clean up
+		return;
+	}
+	
+	handlersRegistered = false;
 	console.info('[DraftService] Unregistering WebSocket handlers.');
 	webSocketService.off('draft_updated', handleDraftUpdated);
 	webSocketService.off('draft_conflict', handleDraftConflict);

@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { fade } from 'svelte/transition';
   import { onMount } from 'svelte';
   import { chatDB } from '../services/db';
   import { chatSyncService } from '../services/chatSyncService';
@@ -53,7 +52,7 @@
   const isTouchDevice = () => {
     return (('ontouchstart' in window) ||
             (navigator.maxTouchPoints > 0) ||
-            ((navigator as any).msMaxTouchPoints > 0));
+            ((navigator as Navigator & { msMaxTouchPoints?: number }).msMaxTouchPoints > 0));
   };
 
   let touchDevice = $state(isTouchDevice());
@@ -229,12 +228,12 @@
     loadSuggestions();
 
     // Refresh suggestions when Phase 3 completes (server sends latest suggestions)
-    const handleFullSyncReady = (event: CustomEvent) => {
+    const handleFullSyncReady = () => {
       console.debug('[NewChatSuggestions] fullSyncReady received, refreshing suggestions');
       // Re-load suggestions from DB (they were saved by chatSyncService on phase 3)
       loadSuggestions();
     };
-    chatSyncService.addEventListener('fullSyncReady', handleFullSyncReady as EventListener);
+    chatSyncService.addEventListener('fullSyncReady', handleFullSyncReady);
 
     // Add language change listener to reload suggestions when language changes
     const handleLanguageChange = () => {
@@ -249,7 +248,7 @@
     window.addEventListener('language-changed', handleLanguageChange);
 
     return () => {
-      chatSyncService.removeEventListener('fullSyncReady', handleFullSyncReady as EventListener);
+      chatSyncService.removeEventListener('fullSyncReady', handleFullSyncReady);
       window.removeEventListener('language-changed', handleLanguageChange);
     };
   });
@@ -414,7 +413,20 @@
     if (!id || id.trim() === '') {
       console.warn('[NewChatSuggestions] Cannot show context menu for default suggestion (no ID)', {
         suggestionText,
-        suggestionId: id || 'undefined'
+        suggestionId: id || 'undefined',
+        idType: typeof id,
+        idLength: id ? id.length : 0,
+        foundSuggestion: fullSuggestionsWithEncrypted.find(s => s.text === suggestionText)
+      });
+      return;
+    }
+
+    // Additional safety check: ensure ID is not just whitespace
+    if (id.trim().length === 0) {
+      console.warn('[NewChatSuggestions] Cannot show context menu for suggestion with whitespace-only ID', {
+        suggestionText,
+        suggestionId: id,
+        trimmedLength: id.trim().length
       });
       return;
     }
@@ -514,8 +526,25 @@
     // Validate that we have a non-empty suggestion ID
     // Empty IDs indicate default suggestions which cannot be deleted
     if (!contextMenu.suggestionId || contextMenu.suggestionId.trim() === '') {
-      console.warn('[NewChatSuggestions] Cannot delete default suggestion (no ID)');
+      console.warn('[NewChatSuggestions] Cannot delete default suggestion (no ID)', {
+        suggestionText: contextMenu.suggestionText,
+        suggestionId: contextMenu.suggestionId,
+        suggestionIdType: typeof contextMenu.suggestionId,
+        contextMenuState: { ...contextMenu }
+      });
       // Close context menu and return early
+      handleContextMenuClose();
+      return;
+    }
+
+    // Additional safety check before proceeding
+    const trimmedId = contextMenu.suggestionId.trim();
+    if (trimmedId.length === 0) {
+      console.error('[NewChatSuggestions] CRITICAL: suggestionId passed initial validation but is empty after trim', {
+        originalId: contextMenu.suggestionId,
+        trimmedId: trimmedId,
+        contextMenuState: { ...contextMenu }
+      });
       handleContextMenuClose();
       return;
     }

@@ -53,7 +53,8 @@ async def handle_encrypted_chat_metadata(
         encrypted_content = payload.get("encrypted_content")
         encrypted_sender_name = payload.get("encrypted_sender_name")
         encrypted_category = payload.get("encrypted_category")
-        encrypted_model_name = payload.get("encrypted_model_name")  # Model name used for AI response to this user message
+        # NOTE: encrypted_model_name is NOT accepted for user messages - it should only be stored on assistant messages
+        # The model_name indicates which AI model generated the assistant's response, not which model will respond
         # Get encrypted chat fields from preprocessing
         encrypted_title = payload.get("encrypted_title")
         encrypted_icon = payload.get("encrypted_icon")
@@ -115,7 +116,7 @@ async def handle_encrypted_chat_metadata(
                     'role': 'user',  # This handler only stores user messages
                     'encrypted_sender_name': encrypted_sender_name,
                     'encrypted_category': encrypted_category,
-                    'encrypted_model_name': encrypted_model_name,  # Model name used for AI response to this user message
+                    # NOTE: encrypted_model_name is NOT included for user messages - only for assistant messages
                     'encrypted_content': encrypted_content,
                     'created_at': created_at or int(datetime.now(timezone.utc).timestamp()),
                     'new_chat_messages_version': versions.get("messages_v"),  # Frontend sends messages_v, server uses messages_v

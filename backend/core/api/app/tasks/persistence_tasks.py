@@ -163,7 +163,7 @@ async def _async_persist_new_chat_message_task(
     role: str, # New: 'user', 'assistant', 'system'
     encrypted_sender_name: Optional[str], # Encrypted sender name
     encrypted_category: Optional[str], # Encrypted category
-    encrypted_model_name: Optional[str], # Encrypted model name used for AI response to this user message
+    encrypted_model_name: Optional[str], # Encrypted model name - ONLY for assistant messages (indicates which AI model generated the response)
     encrypted_content: str, # Zero-knowledge: only encrypted content stored
     created_at: int, # This is the client's original timestamp for the message
     new_chat_messages_version: int,
@@ -191,6 +191,15 @@ async def _async_persist_new_chat_message_task(
         )
         # Depending on policy, might return or raise. For now, log and continue if chat can be found/created.
         # If chat creation relies on hashed_user_id, this will fail later.
+
+    # Validate that encrypted_model_name is only provided for assistant messages
+    if encrypted_model_name and role != 'assistant':
+        logger.warning(
+            f"_async_persist_new_chat_message_task (task_id: {task_id}): "
+            f"encrypted_model_name provided for {role} message {message_id} in chat {chat_id}. "
+            f"encrypted_model_name should only be set for assistant messages. Ignoring it."
+        )
+        encrypted_model_name = None  # Remove it for non-assistant messages
 
     directus_service = DirectusService()
 
@@ -220,11 +229,13 @@ async def _async_persist_new_chat_message_task(
                     "role": role,
                     "encrypted_sender_name": encrypted_sender_name,
                     "encrypted_category": encrypted_category,
-                    "encrypted_model_name": encrypted_model_name,  # Model name used for AI response to this user message
                     "encrypted_content": encrypted_content,
                     "created_at": created_at,
                     "status": "delivered"  # Default status
                 }
+                # Only include encrypted_model_name for assistant messages
+                if encrypted_model_name and role == 'assistant':
+                    new_message_dict["encrypted_model_name"] = encrypted_model_name
                 new_message_json = json.dumps(new_message_dict)
                 
                 # Add the new message to the list (append to end for chronological order)
@@ -260,10 +271,12 @@ async def _async_persist_new_chat_message_task(
             "role": role,
             "encrypted_sender_name": encrypted_sender_name,
             "encrypted_category": encrypted_category,
-            "encrypted_model_name": encrypted_model_name,  # Model name used for AI response to this user message
             "encrypted_content": encrypted_content,
             "created_at": created_at
         }
+        # Only include encrypted_model_name for assistant messages
+        if encrypted_model_name and role == 'assistant':
+            message_data_for_directus["encrypted_model_name"] = encrypted_model_name
 
         created_message_item = await directus_service.chat.create_message_in_directus(
             message_data=message_data_for_directus
@@ -328,7 +341,7 @@ def persist_new_chat_message_task(
     role: str, # New
     encrypted_sender_name: Optional[str], # Encrypted sender name
     encrypted_category: Optional[str], # Encrypted category
-    encrypted_model_name: Optional[str], # Encrypted model name used for AI response to this user message
+    encrypted_model_name: Optional[str], # Encrypted model name - ONLY for assistant messages (indicates which AI model generated the response)
     encrypted_content: str, # Zero-knowledge: only encrypted content
     created_at: int,
     new_chat_messages_version: int,

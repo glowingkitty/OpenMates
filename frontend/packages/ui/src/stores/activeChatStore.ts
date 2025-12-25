@@ -11,6 +11,7 @@
 
 import { writable } from 'svelte/store';
 import { browser } from '$app/environment';
+import { replaceState } from '$app/navigation';
 
 /**
  * Store to track when deep link processing is happening
@@ -50,9 +51,9 @@ function updateUrlHash(chatId: string | null) {
 		window.location.hash = `chat-id=${chatId}`;
 	} else {
 		// Clear hash if no chat is selected
-		// Use replaceState to avoid adding to browser history
+		// Use SvelteKit's replaceState to avoid adding to browser history
 		if (window.location.hash.startsWith('#chat-id=')) {
-			window.history.replaceState(null, '', window.location.pathname + window.location.search);
+			replaceState(window.location.pathname + window.location.search, {});
 		}
 	}
 }

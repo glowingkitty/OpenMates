@@ -31,6 +31,7 @@
 	import { hiddenChatStore } from '../../stores/hiddenChatStore'; // Import hidden chat store
 	import { hiddenChatService } from '../../services/hiddenChatService'; // Import hidden chat service
 	import HiddenChatUnlock from './HiddenChatUnlock.svelte'; // Import hidden chat unlock component
+	import { getApiEndpoint } from '../../config/api'; // For API calls
 
 	const dispatch = createEventDispatcher();
 
@@ -392,13 +393,17 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 		await updateChatListFromDB();
 	}
 	
-	// If the updated chat is the currently selected one, re-dispatch to update main view
-	if (selectedChatId === detail.chat_id) {
-		const updatedChat = allChatsFromDB.find(c => c.chat_id === detail.chat_id); // Corrected variable name
-		if (updatedChat) {
-			dispatch('chatSelected', { chat: updatedChat });
-		}
-	}
+	// NOTE: We intentionally do NOT dispatch 'chatSelected' here for the currently selected chat.
+	// ActiveChat.svelte already listens directly to 'chatUpdated' events from chatSyncService
+	// and handles updates to the current chat internally. Dispatching 'chatSelected' here would
+	// cause page.svelte to call loadChat(), which reloads messages from IndexedDB and wipes out
+	// any streaming state. This is especially problematic during AI message streaming where
+	// chunks are being rendered in real-time - a loadChat() call would reset the display.
+	// 
+	// The chatSelected event should ONLY be dispatched when:
+	// 1. User clicks on a chat (user-initiated selection in handleChatClick)
+	// 2. A new chat is created and needs to be selected (handled separately)
+	// NOT when the current chat is simply updated with new messages/metadata.
 };
 
 	const handleChatDeletedEvent = async (event: CustomEvent<{ chat_id: string }>) => {
@@ -1033,6 +1038,14 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 		// Don't use subscription to avoid reactive loops - just check on mount
 		await loadIncognitoChats();
 
+		// Load demo chats from server in background (for non-authenticated users)
+		// Similar to how shared chats are loaded - stores in IndexedDB and displays in chat list
+		if (!$authStore.isAuthenticated) {
+			loadDemoChatsFromServer().catch(error => {
+				console.error('[Chats] Error loading demo chats from server:', error);
+			});
+		}
+
 		// Perform initial database load - loads and displays chats from IndexedDB immediately
 		await initializeAndLoadDataFromDB();
 		
@@ -1056,6 +1069,164 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 			await updateChatListFromDB();
 		}
 	});
+	
+	/**
+	 * Load demo chats from server and store in IndexedDB
+	 * Similar to how shared chats are loaded - works in background
+	 * Only loads for non-authenticated users
+	 */
+	async function loadDemoChatsFromServer(): Promise<void> {
+		if ($authStore.isAuthenticated) {
+			return; // Only load for non-authenticated users
+		}
+
+		try {
+			console.debug('[Chats] Loading demo chats from server...');
+			
+			// Fetch demo chats list
+			const response = await fetch(getApiEndpoint('/v1/demo/chats'));
+			if (!response.ok) {
+				console.warn('[Chats] Failed to fetch demo chats list:', response.status);
+				return;
+			}
+
+			const data = await response.json();
+			const demoChatsList = data.demo_chats || [];
+			
+			if (demoChatsList.length === 0) {
+				console.debug('[Chats] No demo chats available from server');
+				return;
+			}
+
+			console.debug(`[Chats] Found ${demoChatsList.length} demo chats, loading individually...`);
+
+			// Get existing demo chat IDs from sessionStorage to avoid reloading
+			const existingDemoChatIds = JSON.parse(sessionStorage.getItem('demo_chats') || '[]');
+			const demoChatIds: string[] = [];
+
+			// Ensure DB is initialized
+			await chatDB.init();
+
+			// Load each demo chat
+			for (const demoChatMeta of demoChatsList) {
+				const demoId = demoChatMeta.demo_id;
+				if (!demoId) continue;
+
+				// Skip if already loaded
+				if (existingDemoChatIds.includes(demoId)) {
+					console.debug(`[Chats] Demo chat ${demoId} already loaded, skipping`);
+					continue;
+				}
+
+				try {
+					// Fetch individual demo chat data
+					const chatResponse = await fetch(getApiEndpoint(`/v1/demo/chat/${demoId}`));
+					if (!chatResponse.ok) {
+						console.warn(`[Chats] Failed to fetch demo chat ${demoId}:`, chatResponse.status);
+						continue;
+					}
+
+					const chatData = await chatResponse.json();
+					const chatDataObj = chatData.chat_data;
+					
+					if (!chatDataObj || !chatDataObj.chat_id || !chatDataObj.encryption_key) {
+						console.warn(`[Chats] Invalid demo chat data for ${demoId}`);
+						continue;
+					}
+
+					const chatId = chatDataObj.chat_id;
+					const encryptionKey = chatDataObj.encryption_key;
+
+					// Convert encryption key from base64 string to Uint8Array
+					const keyBytes = Uint8Array.from(atob(encryptionKey), c => c.charCodeAt(0));
+
+					// Set the chat encryption key in the database cache
+					chatDB.setChatKey(chatId, keyBytes);
+
+					// Parse messages if needed (backend returns JSON strings when decrypt_content=False)
+					const rawMessages = chatDataObj.messages || [];
+					const parsedMessages = rawMessages.map((msg: any) => {
+						if (typeof msg === 'string') {
+							try {
+								return JSON.parse(msg);
+							} catch (e) {
+								console.warn('[Chats] Failed to parse message JSON:', e);
+								return null;
+							}
+						}
+						return msg;
+					}).filter((msg: any) => msg !== null);
+
+					// Calculate timestamps
+					const messageTimestamps = parsedMessages
+						.map((m: any) => m.created_at || 0)
+						.filter((ts: number) => ts > 0);
+					const lastMessageTimestamp = messageTimestamps.length > 0
+						? Math.max(...messageTimestamps)
+						: Math.floor(Date.now() / 1000);
+
+					// Create Chat object
+					const chat: ChatType = {
+						chat_id: chatId,
+						encrypted_title: chatDataObj.encrypted_title || null,
+						encrypted_chat_summary: chatDataObj.encrypted_chat_summary || null,
+						encrypted_follow_up_request_suggestions: chatDataObj.encrypted_follow_up_request_suggestions || null,
+						encrypted_icon: chatDataObj.encrypted_icon || null,
+						encrypted_category: chatDataObj.encrypted_category || null,
+						messages_v: parsedMessages.length,
+						title_v: 0,
+						draft_v: 0,
+						encrypted_draft_md: null,
+						encrypted_draft_preview: null,
+						last_edited_overall_timestamp: lastMessageTimestamp,
+						unread_count: 0,
+						created_at: lastMessageTimestamp,
+						updated_at: lastMessageTimestamp,
+						processing_metadata: false,
+						waiting_for_metadata: false
+					};
+
+					// Store chat in IndexedDB
+					await chatDB.addChat(chat);
+
+					// Store messages if any
+					if (parsedMessages.length > 0) {
+						await chatDB.batchSaveMessages(parsedMessages);
+					}
+
+					// Store embeds if any
+					if (chatDataObj.embeds && chatDataObj.embeds.length > 0) {
+						// Process embed_keys first - unwrap them with chat key
+						const embedKeys = chatDataObj.embed_keys || [];
+						// Store embeds and embed keys (similar to shared chat logic)
+						// Note: Embed storage logic would go here if needed
+					}
+
+					// Track demo chat ID in sessionStorage
+					demoChatIds.push(demoId);
+					
+					console.debug(`[Chats] Successfully loaded demo chat ${demoId} (chat_id: ${chatId})`);
+				} catch (error) {
+					console.error(`[Chats] Error loading demo chat ${demoId}:`, error);
+				}
+			}
+
+			// Update sessionStorage with all demo chat IDs
+			if (demoChatIds.length > 0) {
+				const allDemoChatIds = [...existingDemoChatIds, ...demoChatIds];
+				sessionStorage.setItem('demo_chats', JSON.stringify(allDemoChatIds));
+				console.debug(`[Chats] Stored ${demoChatIds.length} new demo chats in sessionStorage`);
+			}
+
+			// Refresh chat list to show newly loaded demo chats
+			chatListCache.markDirty();
+			await updateChatListFromDB(true);
+
+			console.debug('[Chats] Finished loading demo chats from server');
+		} catch (error) {
+			console.error('[Chats] Error loading demo chats from server:', error);
+		}
+	}
 	
 	/**
 		* Initializes the local chatDB and loads the initial list of chats.
@@ -1346,25 +1517,29 @@ async function updateChatListFromDBInternal(force = false) {
 					throw initError;
 				}
 				
-				// Get shared chat IDs from sessionStorage
+				// Get shared chat IDs and demo chat IDs from sessionStorage
 				const sharedChatIds = JSON.parse(sessionStorage.getItem('shared_chats') || '[]');
+				const demoChatIds = JSON.parse(sessionStorage.getItem('demo_chats') || '[]');
 				
-				if (sharedChatIds.length > 0) {
-					// Load only the shared chats from IndexedDB
-					const sharedChats: ChatType[] = [];
-					for (const chatId of sharedChatIds) {
+				// Combine shared and demo chat IDs
+				const allChatIds = [...sharedChatIds, ...demoChatIds];
+				
+				if (allChatIds.length > 0) {
+					// Load shared and demo chats from IndexedDB
+					const loadedChats: ChatType[] = [];
+					for (const chatId of allChatIds) {
 						try {
 							const chat = await chatDB.getChat(chatId);
 							if (chat) {
-								sharedChats.push(chat);
+								loadedChats.push(chat);
 							}
 						} catch (error) {
-							console.warn(`[Chats] Error loading shared chat ${chatId}:`, error);
+							console.warn(`[Chats] Error loading chat ${chatId}:`, error);
 						}
 					}
-				allChatsFromDB = sharedChats;
-				chatListCache.setCache(sharedChats);
-				console.debug(`[Chats] Loaded ${sharedChats.length} shared chat(s) from IndexedDB`);
+				allChatsFromDB = loadedChats;
+				chatListCache.setCache(loadedChats);
+				console.debug(`[Chats] Loaded ${loadedChats.length} chat(s) from IndexedDB (${sharedChatIds.length} shared, ${demoChatIds.length} demo)`);
 			} else {
 				allChatsFromDB = [];
 				chatListCache.setCache([]);

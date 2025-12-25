@@ -8,6 +8,7 @@ check_ts=false
 check_svelte=false
 check_css=false
 check_html=false
+check_yml=false
 
 # Parse arguments
 for arg in "$@"; do
@@ -30,8 +31,11 @@ for arg in "$@"; do
     --html)
       check_html=true
       ;;
+    --yml)
+      check_yml=true
+      ;;
     --help|-h)
-      echo "Usage: $0 [full_repo] [--py] [--ts] [--svelte] [--css] [--html]"
+      echo "Usage: $0 [full_repo] [--py] [--ts] [--svelte] [--css] [--html] [--yml]"
       echo ""
       echo "Options:"
       echo "  full_repo    Check all files in the repository (default: only uncommitted changes)"
@@ -40,6 +44,7 @@ for arg in "$@"; do
       echo "  --svelte     Only check Svelte (.svelte) files"
       echo "  --css        Only check CSS (.css) files"
       echo "  --html       Only check HTML (.html) files"
+      echo "  --yml        Only check YAML (.yml, .yaml) files"
       echo ""
       echo "Examples:"
       echo "  $0                    # Check uncommitted changes, all file types"
@@ -47,6 +52,7 @@ for arg in "$@"; do
       echo "  $0 --py               # Check uncommitted .py files only"
       echo "  $0 full_repo --py     # Check all .py files"
       echo "  $0 --ts --svelte      # Check uncommitted .ts and .svelte files"
+      echo "  $0 --yml              # Check uncommitted .yml and .yaml files"
       exit 0
       ;;
     *)
@@ -58,12 +64,13 @@ for arg in "$@"; do
 done
 
 # If no file type filters are specified, check all types
-if ! ${check_py} && ! ${check_ts} && ! ${check_svelte} && ! ${check_css} && ! ${check_html}; then
+if ! ${check_py} && ! ${check_ts} && ! ${check_svelte} && ! ${check_css} && ! ${check_html} && ! ${check_yml}; then
   check_py=true
   check_ts=true
   check_svelte=true
   check_css=true
   check_html=true
+  check_yml=true
 fi
 
 repo_root="$(git rev-parse --show-toplevel 2>/dev/null || true)"
@@ -122,6 +129,7 @@ declare -a ts_files=()
 declare -a svelte_files=()
 declare -a css_files=()
 declare -a html_files=()
+declare -a yml_files=()
 
 # Separate files by type based on enabled checks
 for path in "${changed_files[@]}"; do
@@ -150,6 +158,11 @@ for path in "${changed_files[@]}"; do
     *.html)
       if ${check_html}; then
         html_files+=("${path}")
+      fi
+      ;;
+    *.yml|*.yaml)
+      if ${check_yml}; then
+        yml_files+=("${path}")
       fi
       ;;
   esac
@@ -342,7 +355,7 @@ run_tsc_check() {
         fi
         if [[ -n "${filtered_output}" ]]; then
           echo "TypeScript: errors in ${pkg#${repo_root}/} (changed files only)" >&2
-          echo "${filtered_output}" | head -20 >&2
+          echo "${filtered_output}" | head -50 >&2
           overall_status=1
         else
           echo "TypeScript: ok ${pkg#${repo_root}/} (no errors in changed files)"
@@ -362,7 +375,7 @@ run_tsc_check() {
         fi
         if [[ -n "${filtered_output}" ]]; then
           echo "TypeScript: errors in ${pkg#${repo_root}/} (changed files only)" >&2
-          echo "${filtered_output}" | head -20 >&2
+          echo "${filtered_output}" | head -50 >&2
           overall_status=1
         else
           echo "TypeScript: ok ${pkg#${repo_root}/} (no errors in changed files)"
@@ -441,15 +454,16 @@ run_svelte_check() {
         echo "Svelte: ok ${pkg#${repo_root}/}"
       else
         # Filter to only show errors in changed files
+        # Use -A 5 to include error messages and code snippets that appear after file paths
         local filtered_output
         if [[ -n "${changed_pattern}" ]]; then
-          filtered_output="$(echo "${check_output}" | grep -E "(${changed_pattern})" || true)"
+          filtered_output="$(echo "${check_output}" | grep -E -A 5 "(${changed_pattern})" || true)"
         else
           filtered_output="${check_output}"
         fi
         if [[ -n "${filtered_output}" ]]; then
           echo "Svelte: errors in ${pkg#${repo_root}/} (changed files only)" >&2
-          echo "${filtered_output}" | head -20 >&2
+          echo "${filtered_output}" | head -50 >&2
           overall_status=1
         else
           echo "Svelte: ok ${pkg#${repo_root}/} (no errors in changed files)"
@@ -466,15 +480,17 @@ run_svelte_check() {
       if [[ -z "${check_output}" ]] || echo "${check_output}" | grep -qi "no issues found\|no errors\|✓" >/dev/null 2>&1; then
         echo "Svelte: ok ${pkg#${repo_root}/}"
       else
+        # Filter to only show errors in changed files
+        # Use -A 5 to include error messages and code snippets that appear after file paths
         local filtered_output
         if [[ -n "${changed_pattern}" ]]; then
-          filtered_output="$(echo "${check_output}" | grep -E "(${changed_pattern})" || true)"
+          filtered_output="$(echo "${check_output}" | grep -E -A 5 "(${changed_pattern})" || true)"
         else
           filtered_output="${check_output}"
         fi
         if [[ -n "${filtered_output}" ]]; then
           echo "Svelte: errors in ${pkg#${repo_root}/} (changed files only)" >&2
-          echo "${filtered_output}" | head -20 >&2
+          echo "${filtered_output}" | head -50 >&2
           overall_status=1
         else
           echo "Svelte: ok ${pkg#${repo_root}/} (no errors in changed files)"
@@ -528,6 +544,59 @@ run_js_lint() {
   done
 }
 
+run_yml_lint() {
+  if (( ${#yml_files[@]} == 0 )); then
+    return 0
+  fi
+
+  local yaml_linter=""
+  # Try to find yamllint (Python-based YAML linter)
+  if command -v yamllint >/dev/null 2>&1; then
+    yaml_linter="yamllint_bin"
+  elif [[ -n "${python_cmd}" ]] && "${python_cmd}" -m yamllint --version >/dev/null 2>&1; then
+    yaml_linter="yamllint_module"
+  elif [[ -n "${python_cmd}" ]] && "${python_cmd}" -c "import yaml" >/dev/null 2>&1; then
+    yaml_linter="yaml_parse"
+    echo "YAML: no yamllint found; running basic syntax check instead." >&2
+  else
+    echo "YAML: no YAML linter found (tried: yamllint); skipping." >&2
+    return 0
+  fi
+
+  local file
+  for file in "${yml_files[@]}"; do
+    case "${yaml_linter}" in
+      yamllint_bin)
+        if yamllint "${file}" >/dev/null 2>&1; then
+          echo "YAML: ok ${file}"
+        else
+          echo "YAML: error ${file}" >&2
+          yamllint "${file}" >&2 || true
+          overall_status=1
+        fi
+        ;;
+      yamllint_module)
+        if "${python_cmd}" -m yamllint "${file}" >/dev/null 2>&1; then
+          echo "YAML: ok ${file}"
+        else
+          echo "YAML: error ${file}" >&2
+          "${python_cmd}" -m yamllint "${file}" >&2 || true
+          overall_status=1
+        fi
+        ;;
+      yaml_parse)
+        if "${python_cmd}" -c "import yaml; yaml.safe_load(open('${file}'))" >/dev/null 2>&1; then
+          echo "YAML: ok ${file}"
+        else
+          echo "YAML: error ${file}" >&2
+          "${python_cmd}" -c "import yaml; yaml.safe_load(open('${file}'))" >&2 || true
+          overall_status=1
+        fi
+        ;;
+    esac
+  done
+}
+
 run_python_lint
 
 # Run TypeScript and Svelte type checks first (these catch type errors that ESLint might miss)
@@ -536,6 +605,9 @@ run_svelte_check
 
 # Then run ESLint for linting rules
 run_js_lint
+
+# Run YAML linting
+run_yml_lint
 
 if (( overall_status == 0 )); then
   echo "Done."

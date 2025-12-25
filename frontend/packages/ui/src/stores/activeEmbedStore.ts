@@ -10,6 +10,7 @@
 
 import { writable } from 'svelte/store';
 import { browser } from '$app/environment';
+import { replaceState } from '$app/navigation';
 
 /**
  * Flag to prevent hashchange events from triggering when we programmatically update the hash
@@ -43,9 +44,9 @@ function updateUrlHash(embedId: string | null) {
 		window.location.hash = `embed-id=${embedId}`;
 	} else {
 		// Clear hash if no embed is selected
-		// Use replaceState to avoid adding to browser history
+		// Use SvelteKit's replaceState to avoid adding to browser history
 		if (window.location.hash.startsWith('#embed-id=')) {
-			window.history.replaceState(null, '', window.location.pathname + window.location.search);
+			replaceState(window.location.pathname + window.location.search, {});
 		}
 	}
 }
@@ -94,7 +95,7 @@ function readEmbedIdFromHash(): string | null {
 function createActiveEmbedStore() {
 	// Initialize with embed ID from URL hash if present
 	const initialEmbedId = readEmbedIdFromHash();
-	const { subscribe, set, update } = writable<string | null>(initialEmbedId);
+	const { subscribe, set } = writable<string | null>(initialEmbedId);
 
 	return {
 		subscribe,
@@ -137,6 +138,8 @@ function createActiveEmbedStore() {
 }
 
 export const activeEmbedStore = createActiveEmbedStore();
+
+
 
 
 

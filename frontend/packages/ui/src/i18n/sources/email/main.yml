@@ -3354,3 +3354,47 @@ community_share_notification.link_label:
   th: ลิงก์แชร์
   cs: Odkaz pro sdílení
   sv: Delningslänk
+community_share_notification.demo_button_text:
+  context: Text for the button to create demo chat
+  en: Make this a Demo Chat
+  de: Als Demo-Chat einrichten
+  zh: 设为演示聊天
+  es: Hacer que sea un chat de demostración
+  fr: En faire un chat de démonstration
+  pt: Tornar este um Chat de Demonstração
+  ru: Сделать демо-чатом
+  ja: デモチャットにする
+  ko: 데모 채팅으로 만들기
+  it: Rendi questo un Chat Demo
+  tr: Bunu Demo Sohbeti Yap
+  vi: Biến thành Chat Demo
+  id: Jadikan Chat Demo
+  pl: Uczyń z tego czat demonstracyjny
+  nl: Maak dit een Demo Chat
+  ar: اجعل هذا دردشة تجريبية
+  hi: इसे डेमो चैट बनाएं
+  th: ทำให้เป็นแชทสาธิต
+  cs: Udělejte z tohoto demo chat
+  sv: Gör detta till en demo-chatt
+community_share_notification.demo_button_description:
+  context: Description text explaining what the demo button does
+  en: This will make the chat available to non-authenticated users as an example of OpenMates capabilities.
+  de: Dadurch wird der Chat für nicht authentifizierte Benutzer als Beispiel für die Funktionen von OpenMates verfügbar.
+  zh: 这将使聊天对未认证用户可见，作为OpenMates功能的示例。
+  es: Esto hará que el chat esté disponible para usuarios no autenticados como ejemplo de las capacidades de OpenMates.
+  fr: Cela rendra le chat disponible pour les utilisateurs non authentifiés comme exemple des capacités d'OpenMates.
+  pt: Isso tornará o chat disponível para usuários não autenticados como exemplo das capacidades do OpenMates.
+  ru: Это сделает чат доступным для неаутентифицированных пользователей в качестве примера возможностей OpenMates.
+  ja: これにより、チャットはOpenMatesの機能の例として認証されていないユーザーも利用できるようになります。
+  ko: 이렇게 하면 인증되지 않은 사용자도 OpenMates 기능의 예시로 채팅을 사용할 수 있습니다.
+  it: Questo renderà la chat disponibile agli utenti non autenticati come esempio delle capacità di OpenMates.
+  tr: Bu, sohbeti kimlik doğrulaması yapılmamış kullanıcılar için OpenMates yeteneklerinin bir örneği olarak kullanılabilir hale getirecektir.
+  vi: Điều này sẽ làm cho cuộc trò chuyện có sẵn cho người dùng không xác thực như một ví dụ về khả năng của OpenMates.
+  id: Ini akan membuat chat tersedia untuk pengguna yang tidak terautentikasi sebagai contoh kemampuan OpenMates.
+  pl: Dzięki temu czat będzie dostępny dla nieuwierzytelnionych użytkowników jako przykład możliwości OpenMates.
+  nl: Hierdoor wordt de chat beschikbaar voor niet-geverifieerde gebruikers als voorbeeld van OpenMates-mogelijkheden.
+  ar: سيجعل هذا الدردشة متاحة للمستخدمين غير المعتمدين كمثال على قدرات OpenMates.
+  hi: यह चैट को गैर-प्रमाणित उपयोगकर्ताओं के लिए OpenMates क्षमताओं के उदाहरण के रूप में उपलब्ध कराएगा।
+  th: สิ่งนี้จะทำให้แชทพร้อมใช้งานสำหรับผู้ใช้ที่ไม่ได้รับการตรวจสอบสิทธิ์เป็นตัวอย่างของความสามารถของ OpenMates
+  cs: Díky tomu bude chat dostupný neověřeným uživatelům jako příklad schopností OpenMates.
+  sv: Detta kommer att göra chatten tillgänglig för icke-autentiserade användare som ett exempel på OpenMates kapacitet.

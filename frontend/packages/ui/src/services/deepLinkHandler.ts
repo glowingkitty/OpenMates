@@ -9,6 +9,8 @@
  * - #embed-id={id} / #embed_id={id} - Embed deep links
  */
 
+import { replaceState } from '$app/navigation';
+
 export type DeepLinkType = 
     | 'chat'
     | 'settings'
@@ -136,7 +138,7 @@ export async function processDeepLink(
                         }
                         // Clear hash to keep URL clean
                         if (typeof window !== 'undefined') {
-                            window.history.replaceState({}, '', window.location.pathname + window.location.search);
+                            replaceState(window.location.pathname + window.location.search, {});
                         }
                         return { type: 'settings', processed: false, requiresAuth: true };
                     }
@@ -212,14 +214,14 @@ export function processSettingsDeepLink(
         
         // Clear the hash after processing
         if (typeof window !== 'undefined') {
-            window.history.replaceState({}, '', window.location.pathname + window.location.search);
+            replaceState(window.location.pathname + window.location.search, {});
         }
     } else if (settingsPath === '') {
         handlers.setSettingsDeepLink('main');
         
         // Clear the hash after processing
         if (typeof window !== 'undefined') {
-            window.history.replaceState({}, '', window.location.pathname + window.location.search);
+            replaceState(window.location.pathname + window.location.search, {});
         }
     } else {
         console.warn(`[deepLinkHandler] Invalid settings deep link hash: ${hash}`);
@@ -227,7 +229,7 @@ export function processSettingsDeepLink(
         
         // Clear the hash after processing
         if (typeof window !== 'undefined') {
-            window.history.replaceState({}, '', window.location.pathname + window.location.search);
+            replaceState(window.location.pathname + window.location.search, {});
         }
     }
 }

@@ -2,7 +2,6 @@
     import { onMount } from 'svelte';
     import { text } from '@repo/ui';
     import { getApiEndpoint, apiEndpoints } from '../../config/api';
-    import { goto } from '$app/navigation';
     import Avatar from '../common/Avatar.svelte';
     
     // Props using Svelte 5 runes

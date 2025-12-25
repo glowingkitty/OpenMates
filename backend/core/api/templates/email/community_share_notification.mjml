@@ -38,10 +38,20 @@
           </mj-text>
           {% endif %}
           {% if share_link %}
-          <mj-text font-size="16px" padding-bottom="30px">
+          <mj-text font-size="16px" padding-bottom="20px">
             <strong>{{ t.email.community_share_notification.link_label.text }}:</strong><br/>
             <a href="{{ share_link }}" style="color: #6364FF; text-decoration: underline; word-break: break-all;">{{ share_link }}</a>
           </mj-text>
+
+          <!-- Demo Chat Section -->
+          <mj-text font-size="16px" padding-bottom="20px">
+            {{ t.email.community_share_notification.demo_button_description.text }}
+          </mj-text>
+
+          <!-- Demo Chat Button -->
+          <mj-button href="{{ demo_chat_url }}" background-color="#6364FF" color="white" font-size="16px" font-weight="bold" border-radius="8px" padding="15px 30px" css-class="demo-button">
+            {{ t.email.community_share_notification.demo_button_text.text }}
+          </mj-button>
           {% endif %}
         </mj-column>
       </mj-section>

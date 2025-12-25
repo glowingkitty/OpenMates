@@ -95,7 +95,7 @@ export class ChatSynchronizationService extends EventTarget {
                     }, this.CACHE_STATUS_REQUEST_DELAY);
                 }
             } else {
-                console.info("[ChatSyncService] WebSocket disconnected or error. Resetting sync state.");
+                console.debug("[ChatSyncService] WebSocket disconnected or error. Resetting sync state.");
                 this.cachePrimed = false;
                 this.isSyncing = false;
                 this.initialSyncAttempted = false;
