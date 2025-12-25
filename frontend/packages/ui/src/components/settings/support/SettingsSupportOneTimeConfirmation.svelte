@@ -5,12 +5,10 @@ Support One-Time Payment Confirmation - Success screen after one-time support pa
 <script lang="ts">
     import { createEventDispatcher } from 'svelte';
     import { text } from '@repo/ui';
-    import SettingsItem from '../../SettingsItem.svelte';
 
     const dispatch = createEventDispatcher();
 
-    export let amount: number = 0;
-    export let currency: string = 'EUR';
+    const { amount = 0, currency = 'EUR' }: { amount?: number; currency?: string } = $props();
 
     // Format currency
     function formatCurrency(amount: number, currency: string): string {
