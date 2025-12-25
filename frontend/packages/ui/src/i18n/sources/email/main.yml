@@ -676,6 +676,29 @@ purchase_confirmation:
   cs: ''
   sv: ''
   verified_by_human: []
+support_contribution_confirmation:
+  context: Email subject & header for support contribution confirmation
+  en: Thank you for supporting OpenMates (Receipt {receipt_id})
+  de: Danke für deine Unterstützung (Beleg {receipt_id})
+  zh: 感谢您支持 OpenMates（收据 {receipt_id}）
+  es: Gracias por apoyar a OpenMates (Recibo {receipt_id})
+  fr: Merci de soutenir OpenMates (Reçu {receipt_id})
+  pt: ''
+  ru: ''
+  ja: OpenMates へのご支援ありがとうございます（領収書 {receipt_id}）
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
 thanks_for_purchase:
   context: email subheader for purchase confirmation
   en: Thanks for your purchase!
@@ -686,6 +709,98 @@ thanks_for_purchase:
   pt: ''
   ru: ''
   ja: ご購入ありがとうございます！
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+thanks_for_support:
+  context: email subheader for support contribution confirmation
+  en: Thanks for supporting OpenMates.
+  de: Danke für deine Unterstützung von OpenMates.
+  zh: 感谢您支持 OpenMates。
+  es: Gracias por apoyar a OpenMates.
+  fr: Merci de soutenir OpenMates.
+  pt: ''
+  ru: ''
+  ja: OpenMates を支援していただきありがとうございます。
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+support_amount_line:
+  context: email line showing paid support amount
+  en: 'Support amount: {support_amount}'
+  de: 'Unterstützungsbetrag: {support_amount}'
+  zh: '支持金额：{support_amount}'
+  es: 'Importe de apoyo: {support_amount}'
+  fr: 'Montant du soutien : {support_amount}'
+  pt: ''
+  ru: ''
+  ja: '支援金額：{support_amount}'
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+receipt_id_line:
+  context: email line showing receipt id
+  en: 'Receipt ID: {receipt_id}'
+  de: 'Beleg-ID: {receipt_id}'
+  zh: '收据编号：{receipt_id}'
+  es: 'ID de recibo: {receipt_id}'
+  fr: 'ID du reçu : {receipt_id}'
+  pt: ''
+  ru: ''
+  ja: '領収書ID：{receipt_id}'
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+receipt_pdf_attached:
+  context: email body informing that receipt PDF is attached
+  en: Your receipt PDF is attached to this email.
+  de: Deine Beleg-PDF ist dieser E-Mail angehängt.
+  zh: 您的收据 PDF 已附在此电子邮件中。
+  es: Tu recibo en PDF está adjunto a este correo electrónico.
+  fr: Votre reçu PDF est joint à cet e-mail.
+  pt: ''
+  ru: ''
+  ja: 領収書PDFはこのメールに添付されています。
   ko: ''
   it: ''
   tr: ''
@@ -978,6 +1093,98 @@ milestone_message:
 milestone_date:
   context: Label for the date when milestone was reached
   en: Date Reached
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+newsletter_milestone:
+  context: Email subject & header for newsletter milestone notification
+  en: Newsletter Milestone Reached
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+newsletter_milestone_reached:
+  context: Congratulatory message for newsletter milestone
+  en: A newsletter subscription milestone has been reached!
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+newsletter_subscriber_count:
+  context: Label for displaying the total newsletter subscriber count in milestone email
+  en: Total Newsletter Subscribers
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+newsletter_milestone_message:
+  context: Message about newsletter growth in milestone email
+  en: Your newsletter is growing! This milestone indicates increasing subscriber engagement and reach.
   de: ''
   zh: ''
   es: ''

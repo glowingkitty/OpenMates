@@ -1,6 +1,71 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Parse command-line arguments
+full_repo_mode=false
+check_py=false
+check_ts=false
+check_svelte=false
+check_css=false
+check_html=false
+
+# Parse arguments
+for arg in "$@"; do
+  case "${arg}" in
+    full_repo)
+      full_repo_mode=true
+      ;;
+    --py)
+      check_py=true
+      ;;
+    --ts)
+      check_ts=true
+      ;;
+    --svelte)
+      check_svelte=true
+      ;;
+    --css)
+      check_css=true
+      ;;
+    --html)
+      check_html=true
+      ;;
+    --help|-h)
+      echo "Usage: $0 [full_repo] [--py] [--ts] [--svelte] [--css] [--html]"
+      echo ""
+      echo "Options:"
+      echo "  full_repo    Check all files in the repository (default: only uncommitted changes)"
+      echo "  --py         Only check Python (.py) files"
+      echo "  --ts         Only check TypeScript (.ts, .tsx) files"
+      echo "  --svelte     Only check Svelte (.svelte) files"
+      echo "  --css        Only check CSS (.css) files"
+      echo "  --html       Only check HTML (.html) files"
+      echo ""
+      echo "Examples:"
+      echo "  $0                    # Check uncommitted changes, all file types"
+      echo "  $0 full_repo          # Check all files, all file types"
+      echo "  $0 --py               # Check uncommitted .py files only"
+      echo "  $0 full_repo --py     # Check all .py files"
+      echo "  $0 --ts --svelte      # Check uncommitted .ts and .svelte files"
+      exit 0
+      ;;
+    *)
+      echo "Unknown argument: ${arg}" >&2
+      echo "Use --help for usage information" >&2
+      exit 1
+      ;;
+  esac
+done
+
+# If no file type filters are specified, check all types
+if ! ${check_py} && ! ${check_ts} && ! ${check_svelte} && ! ${check_css} && ! ${check_html}; then
+  check_py=true
+  check_ts=true
+  check_svelte=true
+  check_css=true
+  check_html=true
+fi
+
 repo_root="$(git rev-parse --show-toplevel 2>/dev/null || true)"
 if [[ -z "${repo_root}" ]]; then
   echo "error: must be run inside a git repo" >&2
@@ -26,29 +91,77 @@ fi
 
 overall_status=0
 
-mapfile -d '' changed_files < <(
-  {
-    git diff --name-only -z --diff-filter=ACMRTUXB
-    git diff --name-only -z --cached --diff-filter=ACMRTUXB
-    git ls-files -z --others --exclude-standard
-  } | awk 'BEGIN{RS="\0"; ORS="\0"} !seen[$0]++ {print}'
-)
+# Collect files based on mode
+if ${full_repo_mode}; then
+  # Get all tracked files in the repository
+  mapfile -d '' changed_files < <(
+    git ls-files -z
+  )
+else
+  # Get only uncommitted changes (default behavior)
+  mapfile -d '' changed_files < <(
+    {
+      git diff --name-only -z --diff-filter=ACMRTUXB
+      git diff --name-only -z --cached --diff-filter=ACMRTUXB
+      git ls-files -z --others --exclude-standard
+    } | awk 'BEGIN{RS="\0"; ORS="\0"} !seen[$0]++ {print}'
+  )
+fi
 
 if (( ${#changed_files[@]} == 0 )); then
-  echo "No uncommitted file changes."
+  if ${full_repo_mode}; then
+    echo "No files found in repository."
+  else
+    echo "No uncommitted file changes."
+  fi
   exit 0
 fi
 
 declare -a py_files=()
-declare -a js_files=()
+declare -a ts_files=()
+declare -a svelte_files=()
+declare -a css_files=()
+declare -a html_files=()
 
+# Separate files by type based on enabled checks
 for path in "${changed_files[@]}"; do
   [[ -f "${path}" ]] || continue
   case "${path}" in
-    *.py) py_files+=("${path}") ;;
-    *.ts|*.tsx|*.svelte) js_files+=("${path}") ;;
+    *.py)
+      if ${check_py}; then
+        py_files+=("${path}")
+      fi
+      ;;
+    *.ts|*.tsx)
+      if ${check_ts}; then
+        ts_files+=("${path}")
+      fi
+      ;;
+    *.svelte)
+      if ${check_svelte}; then
+        svelte_files+=("${path}")
+      fi
+      ;;
+    *.css)
+      if ${check_css}; then
+        css_files+=("${path}")
+      fi
+      ;;
+    *.html)
+      if ${check_html}; then
+        html_files+=("${path}")
+      fi
+      ;;
   esac
 done
+
+# Combine for ESLint (which handles TS, Svelte, CSS, and HTML)
+# Note: ESLint can lint TypeScript, Svelte, CSS, and HTML files
+declare -a js_files=()
+${check_ts} && js_files+=("${ts_files[@]}")
+${check_svelte} && js_files+=("${svelte_files[@]}")
+${check_css} && js_files+=("${css_files[@]}")
+${check_html} && js_files+=("${html_files[@]}")
 
 run_python_lint() {
   if (( ${#py_files[@]} == 0 )); then
@@ -161,6 +274,216 @@ run_eslint_file() {
   fi
 }
 
+# Run TypeScript compiler type checking on packages with changed TS files
+run_tsc_check() {
+  if (( ${#ts_files[@]} == 0 )); then
+    return 0
+  fi
+
+  local pnpm_cmd=""
+  if command -v pnpm >/dev/null 2>&1; then
+    pnpm_cmd="pnpm"
+  elif command -v npm >/dev/null 2>&1; then
+    pnpm_cmd="npm"
+  else
+    echo "TypeScript: no package manager found (pnpm/npm); skipping type check." >&2
+    return 0
+  fi
+
+  # Group files by package to run tsc once per package
+  declare -A pkg_ts_files
+  local file dir pkg
+  for file in "${ts_files[@]}"; do
+    dir="$(dirname "${repo_root}/${file}")"
+    pkg="$(find_pkg_root "${dir}" || true)"
+    if [[ -z "${pkg}" ]]; then
+      continue
+    fi
+    # Check if package has tsconfig.json
+    if [[ ! -f "${pkg}/tsconfig.json" ]]; then
+      continue
+    fi
+    pkg_ts_files["${pkg}"]=1
+  done
+
+  # Run tsc --noEmit for each package with changed TS files
+  # Note: We check the entire package (not just changed files) because type errors
+  # can appear in files that import the changed files. However, we filter output
+  # to only show errors in changed files to avoid noise from pre-existing issues.
+  local pkg
+  for pkg in "${!pkg_ts_files[@]}"; do
+    # Build a pattern to match changed files in this package
+    local pkg_rel="${pkg#${repo_root}/}"
+    local changed_pattern=""
+    local file
+    for file in "${ts_files[@]}"; do
+      if [[ "${file}" == "${pkg_rel}/"* ]] || [[ "${pkg}" == "${repo_root}" && "${file}" != *"/"* ]]; then
+        local rel_file="${file#${pkg_rel}/}"
+        if [[ -z "${changed_pattern}" ]]; then
+          changed_pattern="${rel_file}"
+        else
+          changed_pattern="${changed_pattern}|${rel_file}"
+        fi
+      fi
+    done
+
+    if [[ "${pnpm_cmd}" == "pnpm" ]]; then
+      local tsc_output
+      tsc_output="$(pnpm -C "${pkg}" exec tsc --noEmit 2>&1 || true)"
+      if [[ -z "${tsc_output}" ]]; then
+        echo "TypeScript: ok ${pkg#${repo_root}/}"
+      else
+        # Filter to only show errors in changed files
+        local filtered_output
+        if [[ -n "${changed_pattern}" ]]; then
+          filtered_output="$(echo "${tsc_output}" | grep -E "(${changed_pattern})" || true)"
+        else
+          filtered_output="${tsc_output}"
+        fi
+        if [[ -n "${filtered_output}" ]]; then
+          echo "TypeScript: errors in ${pkg#${repo_root}/} (changed files only)" >&2
+          echo "${filtered_output}" | head -20 >&2
+          overall_status=1
+        else
+          echo "TypeScript: ok ${pkg#${repo_root}/} (no errors in changed files)"
+        fi
+      fi
+    else
+      local tsc_output
+      tsc_output="$(npm --prefix "${pkg}" exec -- tsc --noEmit 2>&1 || true)"
+      if [[ -z "${tsc_output}" ]]; then
+        echo "TypeScript: ok ${pkg#${repo_root}/}"
+      else
+        local filtered_output
+        if [[ -n "${changed_pattern}" ]]; then
+          filtered_output="$(echo "${tsc_output}" | grep -E "(${changed_pattern})" || true)"
+        else
+          filtered_output="${tsc_output}"
+        fi
+        if [[ -n "${filtered_output}" ]]; then
+          echo "TypeScript: errors in ${pkg#${repo_root}/} (changed files only)" >&2
+          echo "${filtered_output}" | head -20 >&2
+          overall_status=1
+        else
+          echo "TypeScript: ok ${pkg#${repo_root}/} (no errors in changed files)"
+        fi
+      fi
+    fi
+  done
+}
+
+# Run Svelte type checking on packages with changed Svelte files
+run_svelte_check() {
+  if (( ${#svelte_files[@]} == 0 )); then
+    return 0
+  fi
+
+  local pnpm_cmd=""
+  if command -v pnpm >/dev/null 2>&1; then
+    pnpm_cmd="pnpm"
+  elif command -v npm >/dev/null 2>&1; then
+    pnpm_cmd="npm"
+  else
+    echo "Svelte: no package manager found (pnpm/npm); skipping type check." >&2
+    return 0
+  fi
+
+  # Group files by package
+  declare -A pkg_svelte_files
+  local file dir pkg
+  for file in "${svelte_files[@]}"; do
+    dir="$(dirname "${repo_root}/${file}")"
+    pkg="$(find_pkg_root "${dir}" || true)"
+    if [[ -z "${pkg}" ]]; then
+      continue
+    fi
+    # Check if package has svelte-check available (check package.json for svelte-check dependency)
+    if ! grep -q "svelte-check" "${pkg}/package.json" 2>/dev/null; then
+      continue
+    fi
+    pkg_svelte_files["${pkg}"]=1
+  done
+
+  # Run svelte-check for each package with changed Svelte files
+  # Note: We check the entire package but filter output to only show errors in changed files
+  local pkg
+  for pkg in "${!pkg_svelte_files[@]}"; do
+    # Check if package has tsconfig.json (required for svelte-check)
+    if [[ ! -f "${pkg}/tsconfig.json" ]]; then
+      continue
+    fi
+
+    # Build a pattern to match changed files in this package
+    local pkg_rel="${pkg#${repo_root}/}"
+    local changed_pattern=""
+    local file
+    for file in "${svelte_files[@]}"; do
+      if [[ "${file}" == "${pkg_rel}/"* ]] || [[ "${pkg}" == "${repo_root}" && "${file}" != *"/"* ]]; then
+        local rel_file="${file#${pkg_rel}/}"
+        if [[ -z "${changed_pattern}" ]]; then
+          changed_pattern="${rel_file}"
+        else
+          changed_pattern="${changed_pattern}|${rel_file}"
+        fi
+      fi
+    done
+
+    if [[ "${pnpm_cmd}" == "pnpm" ]]; then
+      local check_output=""
+      # Try the check script first (for SvelteKit apps), then fall back to svelte-check directly
+      if grep -q '"check"' "${pkg}/package.json" 2>/dev/null; then
+        check_output="$(pnpm -C "${pkg}" run check --if-present 2>&1 || true)"
+      else
+        check_output="$(pnpm -C "${pkg}" exec svelte-check --tsconfig "${pkg}/tsconfig.json" 2>&1 || true)"
+      fi
+      
+      if [[ -z "${check_output}" ]] || echo "${check_output}" | grep -qi "no issues found\|no errors\|✓" >/dev/null 2>&1; then
+        echo "Svelte: ok ${pkg#${repo_root}/}"
+      else
+        # Filter to only show errors in changed files
+        local filtered_output
+        if [[ -n "${changed_pattern}" ]]; then
+          filtered_output="$(echo "${check_output}" | grep -E "(${changed_pattern})" || true)"
+        else
+          filtered_output="${check_output}"
+        fi
+        if [[ -n "${filtered_output}" ]]; then
+          echo "Svelte: errors in ${pkg#${repo_root}/} (changed files only)" >&2
+          echo "${filtered_output}" | head -20 >&2
+          overall_status=1
+        else
+          echo "Svelte: ok ${pkg#${repo_root}/} (no errors in changed files)"
+        fi
+      fi
+    else
+      local check_output=""
+      if grep -q '"check"' "${pkg}/package.json" 2>/dev/null; then
+        check_output="$(npm --prefix "${pkg}" run check --if-present 2>&1 || true)"
+      else
+        check_output="$(npm --prefix "${pkg}" exec -- svelte-check --tsconfig "${pkg}/tsconfig.json" 2>&1 || true)"
+      fi
+      
+      if [[ -z "${check_output}" ]] || echo "${check_output}" | grep -qi "no issues found\|no errors\|✓" >/dev/null 2>&1; then
+        echo "Svelte: ok ${pkg#${repo_root}/}"
+      else
+        local filtered_output
+        if [[ -n "${changed_pattern}" ]]; then
+          filtered_output="$(echo "${check_output}" | grep -E "(${changed_pattern})" || true)"
+        else
+          filtered_output="${check_output}"
+        fi
+        if [[ -n "${filtered_output}" ]]; then
+          echo "Svelte: errors in ${pkg#${repo_root}/} (changed files only)" >&2
+          echo "${filtered_output}" | head -20 >&2
+          overall_status=1
+        else
+          echo "Svelte: ok ${pkg#${repo_root}/} (no errors in changed files)"
+        fi
+      fi
+    fi
+  done
+}
+
 run_js_lint() {
   if (( ${#js_files[@]} == 0 )); then
     return 0
@@ -172,7 +495,7 @@ run_js_lint() {
   elif command -v npm >/dev/null 2>&1; then
     pnpm_cmd="npm"
   else
-    echo "JS/TS/Svelte: no package manager found (pnpm/npm); skipping." >&2
+    echo "JS/TS/Svelte/CSS/HTML: no package manager found (pnpm/npm); skipping." >&2
     return 0
   fi
 
@@ -181,7 +504,7 @@ run_js_lint() {
     dir="$(dirname "${repo_root}/${file}")"
     pkg="$(find_pkg_root "${dir}" || true)"
     if [[ -z "${pkg}" ]]; then
-      echo "JS/TS/Svelte: no package.json found for ${file}; skipping." >&2
+      echo "JS/TS/Svelte/CSS/HTML: no package.json found for ${file}; skipping." >&2
       continue
     fi
 
@@ -190,7 +513,7 @@ run_js_lint() {
     else
       pkg_rel="${pkg#${repo_root}/}"
       if [[ "${file}" != "${pkg_rel}/"* ]]; then
-        echo "JS/TS/Svelte: could not map ${file} to ${pkg_rel}; skipping." >&2
+        echo "JS/TS/Svelte/CSS/HTML: could not map ${file} to ${pkg_rel}; skipping." >&2
         continue
       fi
       rel_in_pkg="${file#${pkg_rel}/}"
@@ -199,11 +522,19 @@ run_js_lint() {
     case "${file}" in
       *.svelte) run_eslint_file "${pnpm_cmd}" "${pkg}" "${rel_in_pkg}" "Svelte" ;;
       *.ts|*.tsx) run_eslint_file "${pnpm_cmd}" "${pkg}" "${rel_in_pkg}" "TS" ;;
+      *.css) run_eslint_file "${pnpm_cmd}" "${pkg}" "${rel_in_pkg}" "CSS" ;;
+      *.html) run_eslint_file "${pnpm_cmd}" "${pkg}" "${rel_in_pkg}" "HTML" ;;
     esac
   done
 }
 
 run_python_lint
+
+# Run TypeScript and Svelte type checks first (these catch type errors that ESLint might miss)
+run_tsc_check
+run_svelte_check
+
+# Then run ESLint for linting rules
 run_js_lint
 
 if (( overall_status == 0 )); then

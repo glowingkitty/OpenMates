@@ -52,6 +52,7 @@ class ChatInDB(BaseModel): # Represents the structure in Directus 'chats' table
     created_at: datetime
     updated_at: datetime
     last_message_timestamp: Optional[datetime] = None
+    pinned: Optional[bool] = None # Whether this chat is pinned
 
 # New DraftInDB model for the 'drafts' table
 class DraftInDB(BaseModel):
@@ -99,6 +100,7 @@ class CachedChatListItemData(BaseModel):
     encrypted_follow_up_request_suggestions: Optional[str] = None  # Encrypted array of 6 follow-up suggestions (encrypted as base64 string with chat-specific key)
     encrypted_active_focus_id: Optional[str] = None  # Encrypted ID of active focus (encrypted with chat-specific key)
     last_message_timestamp: Optional[int] = None  # Unix timestamp of most recent completed message
+    pinned: Optional[bool] = None  # Whether this chat is pinned
     # draft_json is removed as it's now user-specific and in a different cache key
 
 class CachedUserDraftData(BaseModel):
@@ -204,6 +206,7 @@ class ChatSyncData(BaseModel):
     # Sharing fields - synced from server to client for cross-device consistency
     is_shared: Optional[bool] = None # Whether this chat has been shared (share link generated)
     is_private: Optional[bool] = None # Whether this chat is private (not shared). Defaults to false (shareable) to enable offline sharing.
+    pinned: Optional[bool] = None # Whether this chat is pinned
 
 class InitialSyncResponsePayloadSchema(BaseModel):
     """Structure of the 'initial_sync_response' payload."""

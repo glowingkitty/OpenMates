@@ -5,11 +5,9 @@ import { webSocketService } from './websocketService';
 import { notificationStore } from '../stores/notificationStore';
 import { get } from 'svelte/store';
 import { websocketStatus } from '../stores/websocketStatusStore';
-import { encryptWithMasterKey } from './cryptoService';
 import { chatMetadataCache } from './chatMetadataCache';
 import type {
     Chat,
-    TiptapJSON,
     Message,
     OfflineChange,
     // Payloads for sending messages
@@ -17,7 +15,6 @@ import type {
     UpdateDraftPayload,
     DeleteDraftPayload,
     DeleteChatPayload,
-    SendChatMessagePayload,
     SetActiveChatPayload,
     CancelAITaskPayload,
     SyncOfflineChangesPayload, // Assuming this is used by a sender method if sendOfflineChanges is moved
@@ -119,7 +116,11 @@ export async function sendDeleteDraftImpl(
                 value: null,
                 version_before_edit: versionBeforeEdit,
             };
-            await (serviceInstance as any).queueOfflineChange(offlineChange); // queueOfflineChange might need to be public or passed
+            // Access public method for queueing offline changes
+            const queueMethod = (serviceInstance as ChatSynchronizationService & { queueOfflineChange?: (change: OfflineChange) => void }).queueOfflineChange;
+            if (queueMethod) {
+                queueMethod(offlineChange);
+            }
         }
     } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
@@ -159,8 +160,8 @@ export async function sendNewMessageImpl(
     message: Message,
     encryptedSuggestionToDelete?: string | null
 ): Promise<void> {
-    // Check WebSocket connection status
-    const isConnected = (serviceInstance as any).webSocketConnected; // Accessing private member
+    // Check WebSocket connection status using public getter
+    const isConnected = serviceInstance.webSocketConnected_FOR_SENDERS_ONLY;
     
     if (!isConnected) {
         console.warn("[ChatSyncService:Senders] WebSocket not connected. Message saved locally with 'waiting_for_internet' status.");
@@ -207,9 +208,9 @@ export async function sendNewMessageImpl(
         if (chat) {
             isIncognitoChat = true;
         }
-    } catch (error) {
-        // Not an incognito chat, continue to check IndexedDB
-    }
+        } catch {
+            // Not an incognito chat, continue to check IndexedDB
+        }
     
     // If not found in incognito service, check IndexedDB
     if (!chat) {
@@ -226,7 +227,17 @@ export async function sendNewMessageImpl(
     const embedRefs = extractEmbedReferences(message.content);
     
     // Load embeds from EmbedStore (decrypted, ready to send as cleartext)
-    const embeds: any[] = [];
+    interface EmbedForServer {
+        embed_id: string;
+        type: string;
+        status?: string;
+        content: string;
+        text_preview?: string;
+        embed_ids?: string[];
+        createdAt?: number;
+        updatedAt?: number;
+    }
+    const embeds: EmbedForServer[] = [];
     if (embedRefs.length > 0) {
         const embedIds = embedRefs.map(ref => ref.embed_id);
         const loadedEmbeds = await loadEmbeds(embedIds);
@@ -264,7 +275,22 @@ export async function sendNewMessageImpl(
     }
     
     // Phase 1 payload: ONLY fields needed for AI processing
-    const payload: any = {
+    interface SendMessagePayload {
+        chat_id: string;
+        message: {
+            message_id: string;
+            role: string;
+            content: string;
+            created_at: number;
+            sender_name?: string;
+            category?: string;
+            model_name?: string;
+        };
+        embeds?: EmbedForServer[];
+        message_history?: Message[];
+        encrypted_suggestion_to_delete?: string | null;
+    }
+    const payload: SendMessagePayload = {
         chat_id: message.chat_id,
         message: {
             message_id: message.message_id,
@@ -347,7 +373,7 @@ export async function sendCompletedAIResponseImpl(
     serviceInstance: ChatSynchronizationService,
     aiMessage: Message
 ): Promise<void> {
-    if (!(serviceInstance as any).webSocketConnected) { // Accessing private member
+    if (!serviceInstance.webSocketConnected_FOR_SENDERS_ONLY) {
         console.warn("[ChatSyncService:Senders] WebSocket not connected. AI response not sent to server.");
         return;
     }
@@ -676,6 +702,12 @@ export async function sendEncryptedStoragePackage(
             ? await encryptWithChatKey(plaintext_category, chatKey) 
             : null;
         
+        // Encrypt model_name if present on the user message
+        // The model_name indicates which AI model is being used to generate the response to this user message
+        const encryptedUserModelName = user_message.model_name 
+            ? await encryptWithChatKey(user_message.model_name, chatKey) 
+            : null;
+        
         // AI response is handled separately - not part of immediate storage
         
         // Encrypt title with chat-specific key (for chat-level metadata)
@@ -696,13 +728,30 @@ export async function sendEncryptedStoragePackage(
         // Create encrypted metadata payload for new handler
         // CRITICAL: Only include metadata fields if they're actually set (not null)
         // For follow-up messages, metadata fields should be undefined/null and NOT included
-        const metadataPayload: any = {
+        interface MetadataPayload {
+            chat_id: string;
+            message_id: string;
+            encrypted_content: string;
+            encrypted_sender_name?: string;
+            encrypted_category?: string;
+            encrypted_model_name?: string;
+            encrypted_title?: string;
+            encrypted_category_chat?: string;
+            encrypted_icon?: string;
+            encrypted_chat_summary?: string;
+            encrypted_chat_tags?: string;
+            encrypted_follow_up_suggestions?: string;
+            encrypted_new_chat_suggestions?: string;
+            encrypted_top_recommended_apps_for_chat?: string;
+        }
+        const metadataPayload: MetadataPayload = {
             chat_id,
             // User message fields (ALWAYS included)
             message_id: user_message.message_id,
             encrypted_content: encryptedUserContent,
             encrypted_sender_name: encryptedUserSenderName,
             encrypted_category: encryptedUserCategory,  // User message category
+            encrypted_model_name: encryptedUserModelName,  // Model name used for AI response to this user message
             created_at: user_message.created_at,
             // Chat key (ALWAYS included for new chats, may be undefined for follow-ups if already stored)
             encrypted_chat_key: encryptedChatKey,
@@ -825,7 +874,17 @@ export async function sendPostProcessingMetadataImpl(
     }
 
     try {
-        const payload: any = {
+        interface PostProcessingPayload {
+            chat_id: string;
+            encrypted_follow_up_suggestions?: string;
+            encrypted_new_chat_suggestions?: string[];
+            encrypted_chat_summary?: string;
+            encrypted_chat_tags?: string;
+            encrypted_top_recommended_apps_for_chat?: string;
+        }
+        
+        // Build payload with all the encrypted post-processing metadata
+        const payload: PostProcessingPayload = {
             chat_id,
             encrypted_follow_up_suggestions,
             encrypted_new_chat_suggestions,
@@ -991,6 +1050,64 @@ export async function sendStoreEmbedKeysImpl(
         console.info(`[ChatSyncService:Senders] Successfully sent embed key wrappers to server`);
     } catch (error) {
         console.error('[ChatSyncService:Senders] Error sending store_embed_keys:', error);
+        throw error;
+    }
+}
+
+/**
+ * Send delete new chat suggestion request to server
+ * This removes the suggestion from Directus
+ */
+export async function sendDeleteNewChatSuggestionImpl(
+    serviceInstance: ChatSynchronizationService,
+    encryptedSuggestion: string
+): Promise<void> {
+    if (!serviceInstance.webSocketConnected_FOR_SENDERS_ONLY) {
+        console.warn('[ChatSyncService:Senders] Cannot send delete_new_chat_suggestion - WebSocket not connected');
+        return;
+    }
+
+    // Final validation: reject empty strings (default suggestions cannot be deleted)
+    if (!encryptedSuggestion || encryptedSuggestion.trim() === '') {
+        console.error('[ChatSyncService:Senders] CRITICAL: Attempted to send empty encrypted_suggestion - rejecting request');
+        throw new Error('Cannot delete default suggestion: encrypted_suggestion is empty');
+    }
+
+    try {
+        console.debug('[ChatSyncService:Senders] Sending delete new chat suggestion request to server');
+        await webSocketService.sendMessage('delete_new_chat_suggestion', {
+            encrypted_suggestion: encryptedSuggestion
+        });
+        console.info('[ChatSyncService:Senders] Successfully sent delete suggestion request to server');
+    } catch (error) {
+        console.error('[ChatSyncService:Senders] Error sending delete_new_chat_suggestion:', error);
+        throw error;
+    }
+}
+
+export async function sendDeleteNewChatSuggestionByIdImpl(
+    serviceInstance: ChatSynchronizationService,
+    suggestionId: string
+): Promise<void> {
+    if (!serviceInstance.webSocketConnected_FOR_SENDERS_ONLY) {
+        console.warn('[ChatSyncService:Senders] Cannot send delete_new_chat_suggestion - WebSocket not connected');
+        return;
+    }
+
+    // Final validation: reject empty strings (default suggestions cannot be deleted)
+    if (!suggestionId || suggestionId.trim() === '') {
+        console.error('[ChatSyncService:Senders] CRITICAL: Attempted to send empty suggestion_id - rejecting request');
+        throw new Error('Cannot delete suggestion: suggestion_id is empty');
+    }
+
+    try {
+        console.debug('[ChatSyncService:Senders] Sending delete new chat suggestion by ID request to server');
+        await webSocketService.sendMessage('delete_new_chat_suggestion', {
+            suggestion_id: suggestionId
+        });
+        console.info('[ChatSyncService:Senders] Successfully sent delete suggestion by ID request to server');
+    } catch (error) {
+        console.error('[ChatSyncService:Senders] Error sending delete_new_chat_suggestion by ID:', error);
         throw error;
     }
 }

@@ -1,8 +1,10 @@
 // frontend/packages/ui/src/types/chat.ts
 // Defines the core data structures for chat, messages, and related entities.
 
+import type { EmbedKeyEntry } from '../services/embedStore';
+
 // Alias for Tiptap JSON content
-export type TiptapJSON = Record<string, any> | null;
+export type TiptapJSON = Record<string, unknown> | null;
 
 // Represents the state of a message on the client, aligned with chat_sync_architecture.md
 export type MessageStatus = 'sending' | 'synced' | 'failed' | 'waiting_for_internet' | 'streaming' | 'processing';
@@ -80,6 +82,9 @@ export interface Chat {
   
   // Incognito mode field
   is_incognito?: boolean; // True if this chat was created in incognito mode (not synced, not stored in Directus, cleared on tab close)
+
+  // Pin functionality
+  pinned?: boolean; // Whether this chat is pinned. Pinned chats appear at the top of the chat list and are prioritized in sync.
 }
 
 export interface ChatComponentVersions {
@@ -102,6 +107,7 @@ export interface NewChatSuggestion {
   encrypted_suggestion: string; // Encrypted suggestion text (encrypted with master key)
   chat_id: string; // Associated chat ID for deletion when chat is deleted
   created_at: number; // Unix timestamp
+  is_hidden?: boolean; // Whether this suggestion should be hidden (when associated chat is hidden)
 }
 
 export interface ChatListItem {
@@ -168,9 +174,8 @@ export interface SendChatMessagePayload {
     encrypted_chat_key?: string | null; // Encrypted chat key for server storage (device sync)
 }
 
-export interface RequestCacheStatusPayload { 
-    // No payload needed, just the type
-}
+// Request cache status payload - no fields needed, just the type
+export type RequestCacheStatusPayload = Record<string, never>;
 
 export interface SetActiveChatPayload { 
     chat_id: string | null;
@@ -363,6 +368,8 @@ export interface InitialSyncResponsePayload {
         encrypted_category?: string | null; // Encrypted category name
         unread_count?: number;
         messages?: Message[];
+        is_shared?: boolean; // Whether this chat has been shared (share link generated)
+        is_private?: boolean; // Whether this chat is private (not shared)
     }>;
     server_chat_order: string[];
     server_timestamp: number;
@@ -379,13 +386,28 @@ export interface SyncEmbed {
     status?: string;
     hashed_chat_id?: string;
     hashed_user_id?: string;
+    // Additional optional properties for full embed sync support
+    embed_ids?: string[]; // For composite embeds (app_skill_use)
+    parent_embed_id?: string; // For versioned embeds
+    version_number?: number; // For versioned embeds
+    encrypted_diff?: string; // CLIENT-ENCRYPTED diff for versioned embeds
+    file_path?: string; // For code/file embeds
+    content_hash?: string;
+    text_length_chars?: number; // Character count for text-based embeds
+    is_private?: boolean;
+    is_shared?: boolean;
+    createdAt?: number; // Alternative field name for created_at
+    created_at?: number; // Server-provided timestamp
+    updatedAt?: number; // Alternative field name for updated_at
+    updated_at?: number; // Server-provided timestamp
 }
 
 export interface Phase1LastChatPayload {
     chat_id: string;
-    chat_details: any;
+    chat_details: Partial<Chat>; // Partial Chat object from server (may not have all fields)
     messages: Message[];
     embeds?: SyncEmbed[];  // Embeds for the chat (client-encrypted)
+    embed_keys?: EmbedKeyEntry[];  // Embed keys needed to decrypt embed content
     new_chat_suggestions?: NewChatSuggestion[];  // New chat suggestions for Phase 1
     phase: 'phase1';
     already_synced?: boolean;  // Version-aware: true if client already has up-to-date version
@@ -457,7 +479,7 @@ export interface SyncStatusResponsePayload {
  * 2. Direct sync response: {chats: [...], chat_count: N, phase: 'phase2'} - Full data from WebSocket handler
  */
 export interface Phase2RecentChatsPayload {
-    chats?: any[];  // Optional - only present in direct sync response
+    chats?: Partial<Chat>[];  // Optional - only present in direct sync response
     chat_count: number;
     phase?: 'phase2';  // Optional - only present in direct sync response
 }
@@ -470,7 +492,7 @@ export interface Phase2RecentChatsPayload {
  * 2. Direct sync response: {chats: [...], chat_count: N, phase: 'phase3'} - Full data from WebSocket handler
  */
 export interface Phase3FullSyncPayload {
-  chats?: any[];  // Optional - only present in direct sync response
+  chats?: Partial<Chat>[];  // Optional - only present in direct sync response
   chat_count: number;
   new_chat_suggestions?: NewChatSuggestion[];
   phase?: 'phase3';  // Optional - only present in direct sync response

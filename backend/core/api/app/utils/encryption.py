@@ -21,6 +21,9 @@ CREATOR_INCOME_ENCRYPTION_KEY = "creator_income"
 # Vault transit key name for newsletter email encryption
 # This is a system-level key used to encrypt newsletter subscriber email addresses
 NEWSLETTER_ENCRYPTION_KEY = "newsletter_emails"
+# Vault transit key name for support payment receipt encryption
+# This is a system-level key used to wrap support receipt AES keys for archival in S3.
+SUPPORT_PAYMENTS_ENCRYPTION_KEY = "support_payments"
 # Note: All chat and draft encryption now happens client-side
 # Server-side encryption methods removed for zero-knowledge architecture
 
@@ -461,6 +464,51 @@ class EncryptionService:
         except Exception as e:
             logger.error(f"Failed to ensure newsletter encryption key exists: {str(e)}")
             raise Exception(f"Failed to initialize newsletter encryption key: {str(e)}")
+
+        # --- Ensure SUPPORT_PAYMENTS_ENCRYPTION_KEY exists in transit engine ---
+        # This key is used for encrypting support payment receipt archive keys (system-level, not user-specific).
+        try:
+            logger.debug(f"Checking for support payments encryption key '{SUPPORT_PAYMENTS_ENCRYPTION_KEY}' in transit engine...")
+            key_exists = False
+            try:
+                response = await self._vault_request("get", f"{self.transit_mount}/keys/{SUPPORT_PAYMENTS_ENCRYPTION_KEY}")
+                if response and response.get("data") and response["data"].get("name") == SUPPORT_PAYMENTS_ENCRYPTION_KEY:
+                    key_exists = True
+                    logger.debug(f"Support payments encryption key '{SUPPORT_PAYMENTS_ENCRYPTION_KEY}' already exists.")
+                else:
+                    logger.debug(f"Support payments encryption key '{SUPPORT_PAYMENTS_ENCRYPTION_KEY}' not found.")
+            except Exception as e:
+                logger.warning(
+                    f"Error checking for support payments encryption key '{SUPPORT_PAYMENTS_ENCRYPTION_KEY}': {str(e)}. "
+                    f"Assuming it might not exist."
+                )
+                key_exists = False
+
+            if not key_exists:
+                logger.debug(f"Attempting to create support payments encryption key '{SUPPORT_PAYMENTS_ENCRYPTION_KEY}'...")
+                try:
+                    await self._vault_request(
+                        "post",
+                        f"{self.transit_mount}/keys/{SUPPORT_PAYMENTS_ENCRYPTION_KEY}",
+                        {
+                            "type": "aes256-gcm96",
+                            "allow_plaintext_backup": False,
+                        },
+                    )
+                    logger.debug(f"Successfully created support payments encryption key '{SUPPORT_PAYMENTS_ENCRYPTION_KEY}'.")
+                except Exception as create_error:
+                    if "already exists" in str(create_error).lower():
+                        logger.debug(
+                            f"Support payments encryption key '{SUPPORT_PAYMENTS_ENCRYPTION_KEY}' was created by another process."
+                        )
+                    else:
+                        logger.error(
+                            f"Failed to create support payments encryption key '{SUPPORT_PAYMENTS_ENCRYPTION_KEY}': {str(create_error)}"
+                        )
+                        raise Exception(f"Failed to initialize support payments encryption key: {str(create_error)}")
+        except Exception as e:
+            logger.error(f"Failed to ensure support payments encryption key exists: {str(e)}")
+            raise Exception(f"Failed to initialize support payments encryption key: {str(e)}")
 
     # Removed get_email_hash_key method
 

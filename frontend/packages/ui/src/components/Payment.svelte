@@ -55,6 +55,8 @@
     let clientSecret: string | null = $state(null);
     let lastOrderId: string | null = $state(null);
     let paymentIntentId: string | null = $state(null); // Store actual payment_intent_id for delayed payments
+    let hostedInvoiceUrl: string | null = $state(null);
+    let customerPortalUrl: string | null = $state(null);
     let isLoading = $state(false);
     let isButtonCooldown = $state(false);
     let errorMessage: string | null = $state(null);
@@ -123,6 +125,8 @@
     async function createOrder() {
         isLoading = true;
         errorMessage = null;
+        hostedInvoiceUrl = null;
+        customerPortalUrl = null;
         try {
             // Get email encryption key for server to decrypt email
             const emailEncryptionKey = cryptoService.getEmailEncryptionKeyForApi();
@@ -132,13 +136,22 @@
             let requestBody: any;
 
             if (supportContribution) {
+                // Ensure we have an email for supporter contributions (even for authenticated users).
+                // Support payments are account-independent, so we submit plaintext support_email.
+                if (!supportEmail) {
+                    await getUserEmail();
+                }
+                const supportEmailToUse = (supportEmail || userEmail || '').trim();
+                if (!supportEmailToUse) {
+                    throw new Error('Email is required for supporter contributions.');
+                }
+
                 // For support contributions, use a dedicated endpoint
                 endpoint = apiEndpoints.payments.createSupportOrder;
                 requestBody = {
-                    amount: purchasePrice,
+                    amount: purchasePrice, // Already in cents from parent component
                     currency: currency,
-                    email_encryption_key: emailEncryptionKey,
-                    support_email: supportEmail,
+                    support_email: supportEmailToUse,
                     is_recurring: isRecurring
                 };
             } else if (isGiftCard) {
@@ -177,7 +190,19 @@
             }
             const order = await response.json();
             if (order.provider === 'stripe') {
-                if (!order.client_secret) throw new Error('Order created, but client_secret is missing.');
+                if (order.customer_portal_url) customerPortalUrl = order.customer_portal_url;
+                if (order.hosted_invoice_url) hostedInvoiceUrl = order.hosted_invoice_url;
+
+                if (!order.client_secret) {
+                    if (supportContribution && isRecurring && hostedInvoiceUrl) {
+                        errorMessage =
+                            'We could not initialize the embedded payment form. Continue on Stripe to complete your monthly support payment.';
+                        // No Stripe Elements initialization without a client_secret.
+                        lastOrderId = order.order_id;
+                        return;
+                    }
+                    throw new Error('Order created, but client_secret is missing.');
+                }
                 clientSecret = order.client_secret;
                 initializePaymentElement();
             }
@@ -286,8 +311,9 @@
     async function savePaymentMethod(intentId: string) {
         // Only save payment methods for regular credit purchases (not gift cards)
         // Gift cards may have different requirements
-        if (isGiftCard) {
-            console.log('[Payment] Skipping payment method save for gift card purchase');
+        // Supporter contributions can be made without authentication, and we don't reuse the payment method.
+        if (isGiftCard || supportContribution) {
+            console.log('[Payment] Skipping payment method save (gift card or support contribution)');
             return;
         }
 
@@ -359,6 +385,11 @@
             } else {
                 errorMessage = error.message;
             }
+
+            if (supportContribution) {
+                notificationStore.error(error.message || 'Support payment failed. Please try again.', 10000);
+                dispatch('paymentStateChange', { state: 'failure', error: error.message });
+            }
             isLoading = false;
         } else if (paymentIntent && paymentIntent.status === 'succeeded') {
             // Store payment_intent_id for later use (e.g., when webhook completes)
@@ -400,6 +431,9 @@
                 }, 20000); // 20 seconds
             } else {
                 paymentState = 'success';
+                if (supportContribution) {
+                    notificationStore.success('Support payment successful!', 6000);
+                }
                 // Dispatch state change with payment_intent_id for subscription setup
                 dispatch('paymentStateChange', { 
                     state: paymentState, 
@@ -445,6 +479,10 @@
             }, 20000); // 20 seconds (same as regular credit purchases)
         } else {
             errorMessage = 'An unexpected error occurred. Please try again.';
+            if (supportContribution) {
+                notificationStore.error('Support payment failed. Please try again.', 10000);
+                dispatch('paymentStateChange', { state: 'failure', error: errorMessage });
+            }
             isLoading = false;
         }
     }
@@ -651,6 +689,30 @@
             {showDelayedMessage}
         />
     {:else}
+        {#if hostedInvoiceUrl}
+            <div class="payment-form-overlay-wrapper">
+                <PaymentForm
+                    bind:this={paymentFormComponent}
+                    purchasePrice={purchasePrice}
+                    currency={currency}
+                    userEmail={userEmail}
+                    requireConsent={requireConsent}
+                    isSupportContribution={supportContribution}
+                    bind:isPaymentElementComplete={isPaymentElementComplete}
+                    hasConsentedToLimitedRefund={hasConsentedToLimitedRefund}
+                    validationErrors={validationErrors}
+                    paymentError={errorMessage}
+                    isLoading={isLoading}
+                    isButtonCooldown={isButtonCooldown}
+                    fallbackUrl={hostedInvoiceUrl}
+                    fallbackButtonLabel={'Continue on Stripe'}
+                    stripe={stripe}
+                    elements={elements}
+                    clientSecret={clientSecret}
+                    darkmode={darkmode}
+                />
+            </div>
+        {:else}
         <div class="payment-form-overlay-wrapper">
             <div id="payment-element"></div>
             <PaymentForm
@@ -685,6 +747,7 @@
                 </div>
             {/if}
         </div>
+        {/if}
     {/if}
 </div>
 

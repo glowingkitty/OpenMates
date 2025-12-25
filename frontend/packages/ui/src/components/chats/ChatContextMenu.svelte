@@ -30,7 +30,7 @@
     }: Props = $props();
 
     const dispatch: {
-        (e: 'close' | 'delete' | 'download' | 'copy' | 'hide' | 'unhide' | 'enterSelectMode' | 'unselect' | 'selectChat', detail: string): void;
+        (e: 'close' | 'delete' | 'download' | 'copy' | 'hide' | 'unhide' | 'enterSelectMode' | 'unselect' | 'selectChat' | 'pin' | 'unpin', detail: string): void;
     } = createEventDispatcher();
     let menuElement = $state<HTMLDivElement>();
     let adjustedX = $state(x);
@@ -381,6 +381,38 @@
                 </button>
             {/if}
 
+            {#if chat && !chat.is_incognito && !isPublicChat(chat.chat_id)}
+                {#if chat.pinned}
+                    <button
+                        class="menu-item unpin"
+                        class:disabled={!$authStore.isAuthenticated}
+                        disabled={!$authStore.isAuthenticated}
+                        onclick={(event) => {
+                            if ($authStore.isAuthenticated) {
+                                handleButtonClick('unpin', event);
+                            }
+                        }}
+                    >
+                        <div class="clickable-icon icon_pin_off"></div>
+                        {$text('chats.context_menu.unpin.text', { default: 'Unpin' })}
+                    </button>
+                {:else}
+                    <button
+                        class="menu-item pin"
+                        class:disabled={!$authStore.isAuthenticated}
+                        disabled={!$authStore.isAuthenticated}
+                        onclick={(event) => {
+                            if ($authStore.isAuthenticated) {
+                                handleButtonClick('pin', event);
+                            }
+                        }}
+                    >
+                        <div class="clickable-icon icon_pin"></div>
+                        {$text('chats.context_menu.pin.text', { default: 'Pin' })}
+                    </button>
+                {/if}
+            {/if}
+
             {#if !hideDelete && !(chat && (isDemoChat(chat.chat_id) || isLegalChat(chat.chat_id)) && !$authStore.isAuthenticated)}
                 <button
                     class="menu-item delete"
@@ -506,6 +538,22 @@
     }
 
     /* Hide and unhide buttons use default text and icon colors for better visibility */
+
+    .menu-item.pin {
+        color: var(--color-primary);
+    }
+
+    .menu-item.pin .clickable-icon {
+        background: var(--color-primary);
+    }
+
+    .menu-item.unpin {
+        color: var(--color-grey-60);
+    }
+
+    .menu-item.unpin .clickable-icon {
+        background: var(--color-grey-60);
+    }
 
     .menu-item.disabled {
         opacity: 0.5;

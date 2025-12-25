@@ -11,16 +11,15 @@ Security Requirements:
 - Server never sees PRF signature or master key in plaintext
 """
 
-from fastapi import APIRouter, Depends, Request, Response, HTTPException, Cookie
+from fastapi import APIRouter, Depends, Request, Response, HTTPException
 import logging
 import time
 import hashlib
 import os
 import base64
 import json
-from typing import Optional, Dict, Any
+from typing import Dict, Any
 import cbor2
-from datetime import datetime
 from webauthn import (
     generate_registration_options,
     verify_registration_response,
@@ -859,7 +858,7 @@ async def passkey_registration_complete(
         # Check if credential_id already exists (prevent duplicates)
         existing_passkey = await directus_service.get_passkey_by_credential_id(credential_id)
         if existing_passkey:
-            logger.warning(f"Attempted to register duplicate credential_id")
+            logger.warning("Attempted to register duplicate credential_id")
             return PasskeyRegistrationCompleteResponse(
                 success=False,
                 message="This passkey is already registered.",
@@ -913,7 +912,7 @@ async def passkey_registration_complete(
             # Check if user already exists
             exists_result, existing_user, _ = await directus_service.get_user_by_hashed_email(complete_request.hashed_email)
             if exists_result and existing_user:
-                logger.warning(f"Attempted to register with existing email")
+                logger.warning("Attempted to register with existing email")
                 return PasskeyRegistrationCompleteResponse(
                     success=False,
                     message="This email is already registered. Please log in instead.",
@@ -1403,6 +1402,49 @@ async def passkey_assertion_initiate(
                             "type": "public-key",
                             "id": passkey.get("credential_id")
                         })
+
+                    # Predictively warm user cache for instant login UX (similar to /lookup endpoint)
+                    # This loads phases 1-3 (last opened chat, recent chats, full sync) from Directus to Redis
+                    # All data remains encrypted - server cannot decrypt without user's master key
+                    cache_primed = await cache_service.is_user_cache_primed(user_id)
+
+                    if not cache_primed:
+                        # Check if warming already in progress to avoid duplicate work
+                        warming_flag = f"cache_warming_in_progress:{user_id}"
+                        is_warming = await cache_service.get(warming_flag)
+
+                        if not is_warming:
+                            # Set flag to prevent duplicate warming attempts (5 min TTL)
+                            await cache_service.set(warming_flag, "warming", ttl=300)
+
+                            # Get last_opened for cache warming task - fetch from user profile if needed
+                            last_opened_path = None
+                            try:
+                                # Try to get from cached profile first
+                                cached_profile = await cache_service.get_user_by_id(user_id)
+                                if cached_profile:
+                                    last_opened_path = cached_profile.get("last_opened")
+                                else:
+                                    # Fetch user profile to get last_opened
+                                    profile_success, user_profile, _ = await directus_service.get_user_profile(user_id)
+                                    if profile_success and user_profile:
+                                        last_opened_path = user_profile.get("last_opened")
+                            except Exception as e:
+                                logger.warning(f"Failed to get last_opened for passkey cache warming: {e}")
+
+                            logger.info(f"[PASSKEY] Pre-warming cache for user {user_id[:6]}... from /passkey/assertion/initiate endpoint")
+
+                            # Dispatch async - doesn't block assertion initiate response
+                            # By the time user completes passkey authentication, cache should be ready
+                            app.send_task(
+                                name='app.tasks.user_cache_tasks.warm_user_cache',
+                                kwargs={'user_id': user_id, 'last_opened_path_from_user_model': last_opened_path},
+                                queue='user_init'
+                            )
+                        else:
+                            logger.info(f"Cache warming already in progress for user {user_id[:6]}...")
+                    else:
+                        logger.info(f"User cache already primed for user {user_id[:6]}... (skipping predictive warming)")
         
         # Generate authentication options using py_webauthn
         # Convert allow_credentials to PublicKeyCredentialDescriptor format
@@ -1484,7 +1526,7 @@ async def passkey_assertion_verify(
         # Get passkey by credential_id
         passkey = await directus_service.get_passkey_by_credential_id(verify_request.credential_id)
         if not passkey:
-            logger.warning(f"Passkey not found for credential_id")
+            logger.warning("Passkey not found for credential_id")
             return PasskeyAssertionVerifyResponse(
                 success=False,
                 message="Invalid passkey. Please try again.",
@@ -1520,7 +1562,7 @@ async def passkey_assertion_verify(
         # Verify hashed_user_id matches user_id (safety check)
         expected_hashed_user_id = hashlib.sha256(user_id.encode()).hexdigest()
         if expected_hashed_user_id != hashed_user_id:
-            logger.error(f"hashed_user_id mismatch for passkey - possible data corruption")
+            logger.error("hashed_user_id mismatch for passkey - possible data corruption")
             return PasskeyAssertionVerifyResponse(
                 success=False,
                 message="Passkey verification failed.",
@@ -1540,7 +1582,7 @@ async def passkey_assertion_verify(
             if exists_result and user_data:
                 provided_user_id = user_data.get("id")
                 if provided_user_id != user_id:
-                    logger.error(f"User ID mismatch: passkey belongs to different user")
+                    logger.error("User ID mismatch: passkey belongs to different user")
                     return PasskeyAssertionVerifyResponse(
                         success=False,
                         message="Passkey verification failed.",
@@ -1871,41 +1913,8 @@ async def passkey_assertion_verify(
             else:
                 logger.error(f"Failed to fetch full profile for user {user_id} to obtain encrypted_email_with_master_key")
         
-        # Start cache warming for passkey login (similar to /lookup endpoint for password login)
-        # This ensures user data is ready when the frontend loads the main interface
-        cache_primed = await cache_service.is_user_cache_primed(user_id)
-        
-        if not cache_primed:
-            # Check if warming already in progress to avoid duplicate work
-            warming_flag = f"cache_warming_in_progress:{user_id}"
-            is_warming = await cache_service.get(warming_flag)
-            
-            if not is_warming:
-                # Set flag to prevent duplicate warming attempts (5 min TTL)
-                await cache_service.set(warming_flag, "warming", ttl=300)
-                
-                # Get last_opened for cache warming task
-                last_opened_path = user_profile.get("last_opened") if user_profile else None
-                
-                logger.info(f"[PASSKEY] Pre-warming cache for user {user_id[:6]}... from /passkey/assertion/verify endpoint")
-                
-                # Dispatch async - doesn't block passkey verification response
-                # By the time user completes authentication and frontend loads, cache should be ready
-                if app.conf.task_always_eager is False:  # Check if not running eagerly for tests
-                    app.send_task(
-                        name='app.tasks.user_cache_tasks.warm_user_cache',
-                        kwargs={'user_id': user_id, 'last_opened_path_from_user_model': last_opened_path},
-                        queue='user_init'
-                    )
-                    # CRITICAL: Don't set primed flag here - let the cache warming task set it when complete!
-                elif app.conf.task_always_eager:
-                    logger.info(f"Celery is in eager mode. warm_user_cache for user {user_id[:6]}... would run synchronously. Setting primed flag.")
-                    # In eager mode, the task would run here. We can set the flag.
-                    await cache_service.set_user_cache_primed_flag(user_id)
-            else:
-                logger.info(f"Cache warming already in progress for user {user_id[:6]}...")
-        else:
-            logger.info(f"User cache already primed for user {user_id[:6]}... (skipping passkey cache warming)")
+        # Cache warming is now handled earlier in /passkey/assertion/initiate endpoint
+        # This comment remains as documentation that cache warming should already be in progress
         
         # Get encryption key for passkey login method
         hashed_user_id = hashlib.sha256(user_id.encode()).hexdigest()

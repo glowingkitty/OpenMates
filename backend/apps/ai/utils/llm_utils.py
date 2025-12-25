@@ -21,13 +21,30 @@ from backend.apps.ai.llm_providers.google_client import UnifiedGoogleResponse, P
 from backend.apps.ai.llm_providers.anthropic_client import UnifiedAnthropicResponse, ParsedAnthropicToolCall
 from backend.apps.ai.llm_providers.openai_shared import UnifiedOpenAIResponse, ParsedOpenAIToolCall, OpenAIUsageMetadata, _sanitize_schema_for_llm_providers
 from backend.apps.ai.utils.stream_utils import aggregate_paragraphs
-from backend.apps.ai.utils.timeout_utils import stream_with_first_chunk_timeout, FIRST_CHUNK_TIMEOUT_SECONDS, PREPROCESSING_TIMEOUT_SECONDS
+from backend.apps.ai.utils.timeout_utils import (
+    stream_with_first_chunk_timeout,
+    FIRST_CHUNK_TIMEOUT_SECONDS,
+    PREPROCESSING_TIMEOUT_SECONDS,
+    get_first_chunk_timeout_seconds,
+)
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 from backend.core.api.app.utils.config_manager import config_manager
 from backend.core.api.app.services.cache import CacheService
 from toon_format import decode, encode
 
 logger = logging.getLogger(__name__)
+
+def _is_reasoning_model(model_id: str) -> bool:
+    if not model_id or "/" not in model_id:
+        return False
+    provider_id, model_suffix = model_id.split("/", 1)
+    provider_config = config_manager.get_provider_config(provider_id)
+    if not provider_config:
+        return False
+    for model in provider_config.get("models", []):
+        if isinstance(model, dict) and model.get("id") == model_suffix:
+            return bool(model.get("reasoning"))
+    return False
 
 
 def _discover_server_providers_from_modules() -> Dict[str, Any]:
@@ -801,7 +818,7 @@ async def call_preprocessing_llm(
                             tool_choice="required", 
                             stream=False
                         ),
-                        timeout=PREPROCESSING_TIMEOUT_SECONDS  # Use 5 second timeout for preprocessing
+                        timeout=PREPROCESSING_TIMEOUT_SECONDS  # Use 10 second timeout for preprocessing
                     )
                     return handle_response(response, expected_tool_name)
                 except asyncio.TimeoutError:
@@ -927,11 +944,12 @@ async def call_main_llm_stream(
 
     # Store original model_id for fallback resolution and provider override resolution (needed for openrouter)
     original_model_id = model_id
+    is_reasoning_model = _is_reasoning_model(original_model_id)
     
-    # Resolve fallback servers for models that support multiple servers (e.g., alibaba, openai)
+    # Resolve fallback servers from provider config (if any).
+    # This enables per-model fallbacks (e.g., Google AI Studio -> OpenRouter) configured in provider YAML.
     fallback_servers = []
-    if "/" in model_id and (model_id.startswith("alibaba/") or model_id.startswith("openai/")):
-        # Resolve fallback servers from provider config
+    if "/" in model_id:
         fallback_servers = resolve_fallback_servers_from_provider_config(model_id)
         if fallback_servers:
             logger.info(f"{log_prefix} Resolved {len(fallback_servers)} fallback server(s) for model '{model_id}': {fallback_servers}")
@@ -945,22 +963,20 @@ async def call_main_llm_stream(
         provider_prefix = parts[0]
         actual_model_id = parts[1]
         
-        # For providers that support multiple servers (e.g., alibaba, openai), resolve the default server
-        if provider_prefix in ["alibaba", "openai"]:
-            default_server_id, transformed_model_id = resolve_default_server_from_provider_config(model_id)
-            if default_server_id and transformed_model_id:
-                logger.info(f"{log_prefix} Resolved default server '{default_server_id}' for model '{model_id}'. Using transformed model_id: '{transformed_model_id}'")
-                # Update model_id to use the transformed version with server prefix
-                model_id = transformed_model_id
-                # Re-parse the transformed model_id
-                if "/" in model_id:
-                    parts = model_id.split("/", 1)
-                    provider_prefix = parts[0]
-                    actual_model_id = parts[1]
-                else:
-                    logger.warning(f"{log_prefix} Transformed model_id '{model_id}' does not contain a provider prefix.")
+        # Resolve default_server for any provider that defines it in provider YAML.
+        # This allows routing "provider/model" to a concrete server like "openrouter/*" or "google_ai_studio/*".
+        default_server_id, transformed_model_id = resolve_default_server_from_provider_config(model_id)
+        if default_server_id and transformed_model_id:
+            logger.info(f"{log_prefix} Resolved default server '{default_server_id}' for model '{model_id}'. Using transformed model_id: '{transformed_model_id}'")
+            model_id = transformed_model_id
+            if "/" in model_id:
+                parts = model_id.split("/", 1)
+                provider_prefix = parts[0]
+                actual_model_id = parts[1]
             else:
-                logger.warning(f"{log_prefix} Could not resolve default server for '{model_id}'. Falling back to original routing.")
+                logger.warning(f"{log_prefix} Transformed model_id '{model_id}' does not contain a provider prefix.")
+        else:
+            logger.debug(f"{log_prefix} No default_server resolution for '{model_id}'. Using provider routing.")
     else:
         logger.warning(f"{log_prefix} model_id '{model_id}' does not contain a provider prefix.")
 
@@ -1099,10 +1115,14 @@ async def call_main_llm_stream(
             
             if hasattr(raw_chunk_stream, '__aiter__'):
                 # Success! Wrap stream with timeout for first chunk
-                logger.info(f"{attempt_log_prefix} Successfully connected to provider. Streaming response with {FIRST_CHUNK_TIMEOUT_SECONDS}s timeout for first chunk...")
+                first_chunk_timeout_seconds = get_first_chunk_timeout_seconds(is_reasoning=is_reasoning_model)
+                logger.info(
+                    f"{attempt_log_prefix} Successfully connected to provider. "
+                    f"Streaming response with {first_chunk_timeout_seconds}s timeout for first chunk..."
+                )
                 try:
                     # Wrap stream with first chunk timeout
-                    timeout_stream = stream_with_first_chunk_timeout(raw_chunk_stream, FIRST_CHUNK_TIMEOUT_SECONDS)
+                    timeout_stream = stream_with_first_chunk_timeout(raw_chunk_stream, first_chunk_timeout_seconds)
                     async for paragraph in aggregate_paragraphs(timeout_stream):
                         yield paragraph
                     # Successfully completed - return from function

@@ -1,5 +1,4 @@
 import logging
-import time
 import hashlib
 import json
 import asyncio # Added asyncio
@@ -9,13 +8,6 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, status, 
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.utils.encryption import EncryptionService
-logger = logging.getLogger(__name__)
-
-router = APIRouter(
-    prefix="/v1/ws",
-    tags=["websockets"],
-)
-
 # Import ConnectionManager from the new module
 from .connection_manager import ConnectionManager
 from .auth_ws import get_current_user_ws
@@ -36,6 +28,14 @@ from .handlers.websocket_handlers.phased_sync_handler import handle_phased_sync_
 from .handlers.websocket_handlers.app_settings_memories_confirmed_handler import handle_app_settings_memories_confirmed # Handler for app settings/memories confirmations
 from .handlers.websocket_handlers.store_embed_handler import handle_store_embed # Handler for storing encrypted embeds
 from .handlers.websocket_handlers.store_embed_keys_handler import handle_store_embed_keys # Handler for storing embed key wrappers
+from .handlers.websocket_handlers.delete_new_chat_suggestion_handler import handle_delete_new_chat_suggestion # Handler for deleting new chat suggestions
+
+logger = logging.getLogger(__name__)
+
+router = APIRouter(
+    prefix="/v1/ws",
+    tags=["websockets"],
+)
 
 manager = ConnectionManager() # This is the correct manager instance for websockets
 
@@ -1060,6 +1060,18 @@ async def websocket_endpoint(
                     cache_service=cache_service,
                     directus_service=directus_service,
                     encryption_service=encryption_service,
+                    user_id=user_id,
+                    device_fingerprint_hash=device_fingerprint_hash,
+                    payload=payload
+                )
+
+            elif message_type == "delete_new_chat_suggestion":
+                logger.debug(f"Handling delete_new_chat_suggestion with payload: {payload}")
+                await handle_delete_new_chat_suggestion(
+                    websocket=websocket,
+                    manager=manager,
+                    cache_service=cache_service,
+                    directus_service=directus_service,
                     user_id=user_id,
                     device_fingerprint_hash=device_fingerprint_hash,
                     payload=payload

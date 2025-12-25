@@ -66,7 +66,109 @@ async function convertChatToMarkdown(chat: Chat, messages: Message[]): Promise<s
 }
 
 /**
- * Gets all code embeds from a chat
+ * Recursively loads all embeds and finds code embeds including nested ones
+ * @param embedIds - Array of embed IDs to load
+ * @param loadedEmbedIds - Set of already loaded embed IDs to avoid duplicates
+ * @returns Array of code embed data
+ */
+async function loadCodeEmbedsRecursively(embedIds: string[], loadedEmbedIds: Set<string> = new Set()): Promise<Array<{
+  embed_id: string;
+  language: string;
+  filename?: string;
+  content: string;
+  file_path?: string;
+}>> {
+  const codeEmbeds: Array<{
+    embed_id: string;
+    language: string;
+    filename?: string;
+    content: string;
+    file_path?: string;
+  }> = [];
+
+  // Filter out already loaded embeds
+  const newEmbedIds = embedIds.filter(id => !loadedEmbedIds.has(id));
+  if (newEmbedIds.length === 0) {
+    return codeEmbeds;
+  }
+
+  // Mark these as being loaded
+  newEmbedIds.forEach(id => loadedEmbedIds.add(id));
+
+  // Load embeds from EmbedStore
+  const loadedEmbeds = await loadEmbeds(newEmbedIds);
+
+  // Process each embed
+  for (const embed of loadedEmbeds) {
+    try {
+      if (!embed.content || typeof embed.content !== 'string') {
+        continue;
+      }
+
+      // Decode TOON content to get actual embed values
+      const decodedContent = await decodeToonContent(embed.content);
+
+      // If this is a code embed, process it
+      if (embed.type === 'code' && decodedContent && typeof decodedContent === 'object') {
+        const codeContent = decodedContent.code || decodedContent.content || '';
+        const language = decodedContent.language || decodedContent.lang || 'text';
+        const filename = decodedContent.filename || undefined;
+        const filePath = decodedContent.file_path || undefined;
+
+        if (codeContent) {
+          codeEmbeds.push({
+            embed_id: embed.embed_id,
+            language,
+            filename,
+            content: codeContent,
+            file_path: filePath
+          });
+        }
+      }
+
+      // Handle nested embeds (composite embeds like app_skill_use)
+      const childEmbedIds: string[] = [];
+
+      // Check for embed_ids in the decoded content (for composite embeds)
+      if (decodedContent && typeof decodedContent === 'object') {
+        // Check if decoded content has embed_ids (could be array or pipe-separated string)
+        if (Array.isArray(decodedContent.embed_ids)) {
+          childEmbedIds.push(...decodedContent.embed_ids);
+        } else if (typeof decodedContent.embed_ids === 'string') {
+          // Handle pipe-separated string format
+          childEmbedIds.push(...decodedContent.embed_ids.split('|').filter(id => id.trim()));
+        }
+      }
+
+      // Also check embed.embed_ids directly (from the embed metadata)
+      if (embed.embed_ids && Array.isArray(embed.embed_ids)) {
+        childEmbedIds.push(...embed.embed_ids);
+      }
+
+      // Remove duplicates
+      const uniqueChildEmbedIds = Array.from(new Set(childEmbedIds));
+
+      // Recursively load child embeds
+      if (uniqueChildEmbedIds.length > 0) {
+        console.debug('[ZipExportService] Loading nested embeds for code processing:', {
+          parentEmbedId: embed.embed_id,
+          childCount: uniqueChildEmbedIds.length,
+          childIds: uniqueChildEmbedIds
+        });
+
+        const childCodeEmbeds = await loadCodeEmbedsRecursively(uniqueChildEmbedIds, loadedEmbedIds);
+        codeEmbeds.push(...childCodeEmbeds);
+      }
+    } catch (error) {
+      console.warn('[ZipExportService] Error processing embed for code extraction:', embed.embed_id, error);
+    }
+  }
+
+  return codeEmbeds;
+}
+
+/**
+ * Gets all code embeds from a chat including nested embeds
  */
 async function getCodeEmbedsForChat(messages: Message[]): Promise<Array<{
   embed_id: string;
@@ -76,14 +178,6 @@ async function getCodeEmbedsForChat(messages: Message[]): Promise<Array<{
   file_path?: string;
 }>> {
   try {
-    const codeEmbeds: Array<{
-      embed_id: string;
-      language: string;
-      filename?: string;
-      content: string;
-      file_path?: string;
-    }> = [];
-
     // Extract all embed references from messages
     const embedRefs = new Map<string, { type: string; embed_id: string; version?: number }>();
 
@@ -97,52 +191,20 @@ async function getCodeEmbedsForChat(messages: Message[]): Promise<Array<{
 
       const refs = extractEmbedReferences(markdownContent);
       for (const ref of refs) {
-        if (ref.type === 'code' && !embedRefs.has(ref.embed_id)) {
+        // Include all embed types, not just code, since nested embeds might contain code
+        if (!embedRefs.has(ref.embed_id)) {
           embedRefs.set(ref.embed_id, ref);
         }
       }
     }
 
     if (embedRefs.size === 0) {
-      return codeEmbeds;
+      return [];
     }
 
-    // Load embeds
+    // Load embeds recursively to catch nested code embeds
     const embedIds = Array.from(embedRefs.keys());
-    const loadedEmbeds = await loadEmbeds(embedIds);
-
-    // Process code embeds
-    for (const embed of loadedEmbeds) {
-      if (embed.type !== 'code' || !embed.content) {
-        continue;
-      }
-
-      try {
-        const decodedContent = await decodeToonContent(embed.content);
-
-        // Extract code content and metadata
-        if (decodedContent && typeof decodedContent === 'object') {
-          const codeContent = decodedContent.code || decodedContent.content || '';
-          const language = decodedContent.language || decodedContent.lang || 'text';
-          const filename = decodedContent.filename || undefined;
-          const filePath = decodedContent.file_path || undefined;
-
-          if (codeContent) {
-            codeEmbeds.push({
-              embed_id: embed.embed_id,
-              language,
-              filename,
-              content: codeContent,
-              file_path: filePath
-            });
-          }
-        }
-      } catch (error) {
-        console.warn('[ZipExportService] Error processing code embed:', embed.embed_id, error);
-      }
-    }
-
-    return codeEmbeds;
+    return await loadCodeEmbedsRecursively(embedIds);
   } catch (error) {
     console.error('[ZipExportService] Error getting code embeds:', error);
     return [];
@@ -150,104 +212,79 @@ async function getCodeEmbedsForChat(messages: Message[]): Promise<Array<{
 }
 
 /**
- * Gets all video transcript embeds from a chat
- * Extracts video transcript embeds (app_skill_use with app_id='videos' and skill_id='get_transcript')
- * and formats them as markdown files similar to VideoTranscriptEmbedFullscreen handleDownload
+ * Recursively loads all embeds and finds video transcript embeds including nested ones
+ * @param embedIds - Array of embed IDs to load
+ * @param loadedEmbedIds - Set of already loaded embed IDs to avoid duplicates
+ * @returns Array of video transcript embed data
  */
-async function getVideoTranscriptEmbedsForChat(messages: Message[]): Promise<Array<{
+async function loadVideoTranscriptEmbedsRecursively(embedIds: string[], loadedEmbedIds: Set<string> = new Set()): Promise<Array<{
   embed_id: string;
   filename: string;
   content: string;
 }>> {
-  try {
-    const transcriptEmbeds: Array<{
-      embed_id: string;
-      filename: string;
-      content: string;
-    }> = [];
+  const transcriptEmbeds: Array<{
+    embed_id: string;
+    filename: string;
+    content: string;
+  }> = [];
 
-    // Extract all embed references from messages
-    const embedRefs = new Map<string, { type: string; embed_id: string; version?: number }>();
+  // Filter out already loaded embeds
+  const newEmbedIds = embedIds.filter(id => !loadedEmbedIds.has(id));
+  if (newEmbedIds.length === 0) {
+    return transcriptEmbeds;
+  }
 
-    for (const message of messages) {
-      let markdownContent = '';
-      if (typeof message.content === 'string') {
-        markdownContent = message.content;
-      } else if (message.content && typeof message.content === 'object') {
-        markdownContent = tipTapToCanonicalMarkdown(message.content);
-      }
+  // Mark these as being loaded
+  newEmbedIds.forEach(id => loadedEmbedIds.add(id));
 
-      const refs = extractEmbedReferences(markdownContent);
-      for (const ref of refs) {
-        // Look for app_skill_use embeds (video transcript embeds are of this type)
-        if (ref.type === 'app_skill_use' && !embedRefs.has(ref.embed_id)) {
-          embedRefs.set(ref.embed_id, ref);
-        }
-      }
-    }
+  // Load embeds from EmbedStore
+  const loadedEmbeds = await loadEmbeds(newEmbedIds);
 
-    if (embedRefs.size === 0) {
-      return transcriptEmbeds;
-    }
-
-    // Load embeds
-    const embedIds = Array.from(embedRefs.keys());
-    const loadedEmbeds = await loadEmbeds(embedIds);
-
-    // Process video transcript embeds
-    for (const embed of loadedEmbeds) {
-      // Only process app_skill_use embeds
-      if (embed.type !== 'app_skill_use' || !embed.content) {
+  // Process each embed
+  for (const embed of loadedEmbeds) {
+    try {
+      if (!embed.content || typeof embed.content !== 'string') {
         continue;
       }
 
-      try {
-        const decodedContent = await decodeToonContent(embed.content);
+      // Decode TOON content to get actual embed values
+      const decodedContent = await decodeToonContent(embed.content);
 
-        // Check if this is a video transcript embed (app_id='videos' and skill_id='get_transcript' or 'get-transcript')
-        if (
-          decodedContent &&
-          typeof decodedContent === 'object' &&
-          decodedContent.app_id === 'videos' &&
-          (decodedContent.skill_id === 'get_transcript' || decodedContent.skill_id === 'get-transcript')
-        ) {
-          // Extract results array from decoded content
-          // Results can be in various formats: results, data, or directly in the content
-          const results = decodedContent.results || decodedContent.data || [];
-          
-          if (!Array.isArray(results) || results.length === 0) {
-            console.debug('[ZipExportService] Video transcript embed has no results:', embed.embed_id);
-            continue;
-          }
+      // If this is a video transcript embed, process it
+      if (
+        embed.type === 'app_skill_use' &&
+        decodedContent &&
+        typeof decodedContent === 'object' &&
+        decodedContent.app_id === 'videos' &&
+        (decodedContent.skill_id === 'get_transcript' || decodedContent.skill_id === 'get-transcript')
+      ) {
+        // Extract results array from decoded content
+        const results = decodedContent.results || decodedContent.data || [];
 
-          // Format transcript as markdown (same format as VideoTranscriptEmbedFullscreen handleDownload)
+        if (Array.isArray(results) && results.length > 0) {
+          // Format transcript as markdown
           const transcriptText = results
             .filter((r: any) => {
-              // Check various possible field names for transcript
               return r.transcript || r.formatted_transcript || r.text || r.content;
             })
-            .map((r: any, index: number) => {
+            .map((r: any) => {
               let content = '';
-              
-              // Add title if available
+
               if (r.metadata?.title) {
                 content += `# ${r.metadata.title}\n\n`;
               }
-              
-              // Add source URL if available
+
               if (r.url) {
                 content += `Source: ${r.url}\n\n`;
               }
-              
-              // Add word count if available
+
               if (r.word_count) {
                 content += `Word count: ${r.word_count.toLocaleString()}\n\n`;
               }
-              
-              // Add transcript text (check various possible field names)
+
               const transcript = r.transcript || r.formatted_transcript || r.text || r.content || '';
               content += transcript;
-              
+
               return content;
             })
             .join('\n\n---\n\n');
@@ -259,13 +296,11 @@ async function getVideoTranscriptEmbedsForChat(messages: Message[]): Promise<Arr
             if (firstResult?.metadata?.title) {
               filename = `${firstResult.metadata.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_transcript.md`;
             } else if (firstResult?.url) {
-              // Extract video ID from URL for filename
               try {
                 const urlObj = new URL(firstResult.url);
                 const videoId = urlObj.searchParams.get('v') || urlObj.pathname.split('/').pop() || 'video';
                 filename = `${videoId}_transcript.md`;
               } catch (e) {
-                // If URL parsing fails, use embed_id
                 filename = `${embed.embed_id}_transcript.md`;
               }
             } else {
@@ -279,12 +314,87 @@ async function getVideoTranscriptEmbedsForChat(messages: Message[]): Promise<Arr
             });
           }
         }
-      } catch (error) {
-        console.warn('[ZipExportService] Error processing video transcript embed:', embed.embed_id, error);
+      }
+
+      // Handle nested embeds (composite embeds like app_skill_use)
+      const childEmbedIds: string[] = [];
+
+      // Check for embed_ids in the decoded content (for composite embeds)
+      if (decodedContent && typeof decodedContent === 'object') {
+        // Check if decoded content has embed_ids (could be array or pipe-separated string)
+        if (Array.isArray(decodedContent.embed_ids)) {
+          childEmbedIds.push(...decodedContent.embed_ids);
+        } else if (typeof decodedContent.embed_ids === 'string') {
+          // Handle pipe-separated string format
+          childEmbedIds.push(...decodedContent.embed_ids.split('|').filter(id => id.trim()));
+        }
+      }
+
+      // Also check embed.embed_ids directly (from the embed metadata)
+      if (embed.embed_ids && Array.isArray(embed.embed_ids)) {
+        childEmbedIds.push(...embed.embed_ids);
+      }
+
+      // Remove duplicates
+      const uniqueChildEmbedIds = Array.from(new Set(childEmbedIds));
+
+      // Recursively load child embeds
+      if (uniqueChildEmbedIds.length > 0) {
+        console.debug('[ZipExportService] Loading nested embeds for transcript processing:', {
+          parentEmbedId: embed.embed_id,
+          childCount: uniqueChildEmbedIds.length,
+          childIds: uniqueChildEmbedIds
+        });
+
+        const childTranscriptEmbeds = await loadVideoTranscriptEmbedsRecursively(uniqueChildEmbedIds, loadedEmbedIds);
+        transcriptEmbeds.push(...childTranscriptEmbeds);
+      }
+    } catch (error) {
+      console.warn('[ZipExportService] Error processing embed for transcript extraction:', embed.embed_id, error);
+    }
+  }
+
+  return transcriptEmbeds;
+}
+
+/**
+ * Gets all video transcript embeds from a chat including nested embeds
+ * Extracts video transcript embeds (app_skill_use with app_id='videos' and skill_id='get_transcript')
+ * and formats them as markdown files similar to VideoTranscriptEmbedFullscreen handleDownload
+ */
+async function getVideoTranscriptEmbedsForChat(messages: Message[]): Promise<Array<{
+  embed_id: string;
+  filename: string;
+  content: string;
+}>> {
+  try {
+    // Extract all embed references from messages
+    const embedRefs = new Map<string, { type: string; embed_id: string; version?: number }>();
+
+    for (const message of messages) {
+      let markdownContent = '';
+      if (typeof message.content === 'string') {
+        markdownContent = message.content;
+      } else if (message.content && typeof message.content === 'object') {
+        markdownContent = tipTapToCanonicalMarkdown(message.content);
+      }
+
+      const refs = extractEmbedReferences(markdownContent);
+      for (const ref of refs) {
+        // Include all embed types, not just app_skill_use, since nested embeds might contain transcripts
+        if (!embedRefs.has(ref.embed_id)) {
+          embedRefs.set(ref.embed_id, ref);
+        }
       }
     }
 
-    return transcriptEmbeds;
+    if (embedRefs.size === 0) {
+      return [];
+    }
+
+    // Load embeds recursively to catch nested transcript embeds
+    const embedIds = Array.from(embedRefs.keys());
+    return await loadVideoTranscriptEmbedsRecursively(embedIds);
   } catch (error) {
     console.error('[ZipExportService] Error getting video transcript embeds:', error);
     return [];

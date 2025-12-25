@@ -8,18 +8,16 @@ This module handles:
 - Checking ignored emails during signup
 """
 
-from fastapi import APIRouter, Depends, Request, Response
+from fastapi import APIRouter, Depends, Request
 import logging
-import os
 import secrets
 from datetime import datetime, timezone
-from typing import Optional
 from pydantic import BaseModel, EmailStr
 
 from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.limiter import limiter
-from backend.core.api.app.utils.encryption import EncryptionService, NEWSLETTER_ENCRYPTION_KEY
+from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.routes.auth_routes.auth_dependencies import (
     get_directus_service, get_cache_service, get_encryption_service
 )
@@ -32,6 +30,42 @@ router = APIRouter(
     tags=["Newsletter"]
 )
 logger = logging.getLogger(__name__)
+
+
+async def get_total_newsletter_subscribers_count(directus_service: DirectusService) -> int:
+    """
+    Get the total count of confirmed newsletter subscribers
+    Returns the count as an integer
+    """
+    try:
+        collection_name = "newsletter_subscribers"
+        url = f"{directus_service.base_url}/items/{collection_name}"
+        params = {
+            "limit": 1,
+            "meta": "filter_count",
+            "filter[confirmed_at][_nnull]": "true"  # Only count confirmed subscribers
+        }
+
+        response = await directus_service._make_api_request("GET", url, params=params)
+
+        if response.status_code == 200:
+            data = response.json()
+            meta = data.get("meta", {})
+            filter_count = meta.get("filter_count")
+            logger.debug(f"Total newsletter subscribers count: {filter_count}")
+
+            if filter_count is not None:
+                return int(filter_count)
+            else:
+                logger.warning("filter_count not found in meta response for newsletter subscribers")
+                return 0
+        else:
+            logger.error(f"Failed to get newsletter subscribers count: {response.status_code} - {response.text}")
+            return 0
+
+    except Exception as e:
+        logger.error(f"Error getting newsletter subscribers count: {str(e)}")
+        return 0
 
 
 # Request/Response models
@@ -176,7 +210,7 @@ async def newsletter_confirm(
         cache_data = await cache_service.get(cache_key)
         
         if not cache_data:
-            logger.warning(f"Newsletter confirmation attempted with invalid or expired token")
+            logger.warning("Newsletter confirmation attempted with invalid or expired token")
             return NewsletterConfirmResponse(
                 success=False,
                 message="Invalid or expired confirmation link. Please subscribe again."
@@ -188,7 +222,7 @@ async def newsletter_confirm(
         darkmode = cache_data.get("darkmode", False)
         
         if not email or not hashed_email:
-            logger.error(f"Invalid cache data for newsletter confirmation token")
+            logger.error("Invalid cache data for newsletter confirmation token")
             return NewsletterConfirmResponse(
                 success=False,
                 message="Invalid confirmation data. Please subscribe again."
@@ -262,7 +296,7 @@ async def newsletter_confirm(
         
         # Send confirmation success email
         logger.info(f"Submitting newsletter confirmed email task for {email[:2]}***")
-        task = celery_app.send_task(
+        celery_app.send_task(
             name='app.tasks.email_tasks.newsletter_email_task.send_newsletter_confirmed_email',
             kwargs={
                 'email': email,
@@ -271,7 +305,23 @@ async def newsletter_confirm(
             },
             queue='email'
         )
-        
+
+        # Check if we've reached a newsletter signup milestone
+        try:
+            # Get the total newsletter subscriber count after confirmation
+            total_subscribers = await get_total_newsletter_subscribers_count(directus_service)
+
+            # Dispatch milestone check task asynchronously
+            celery_app.send_task(
+                name='app.tasks.email_tasks.milestone_checker_task.check_and_notify_newsletter_milestone',
+                kwargs={"total_subscribers": total_subscribers},
+                queue='email'
+            )
+            logger.info(f"Dispatched newsletter milestone check task for {total_subscribers} subscribers")
+        except Exception as milestone_err:
+            logger.error(f"Error dispatching newsletter milestone check task: {milestone_err}", exc_info=True)
+            # Continue with confirmation even if milestone task dispatch fails
+
         return NewsletterConfirmResponse(
             success=True,
             message="You have been successfully subscribed to our newsletter!"
@@ -313,7 +363,7 @@ async def newsletter_unsubscribe(
         response = await directus_service._make_api_request("GET", url, params=params)
         
         if response.status_code != 200:
-            logger.warning(f"Newsletter unsubscribe attempted with invalid token")
+            logger.warning("Newsletter unsubscribe attempted with invalid token")
             return NewsletterUnsubscribeResponse(
                 success=False,
                 message="Invalid or expired unsubscribe link."
@@ -323,7 +373,7 @@ async def newsletter_unsubscribe(
         items = response_data.get("data", [])
         
         if not items:
-            logger.warning(f"Newsletter unsubscribe attempted with token not found in Directus")
+            logger.warning("Newsletter unsubscribe attempted with token not found in Directus")
             return NewsletterUnsubscribeResponse(
                 success=False,
                 message="Invalid or expired unsubscribe link."
@@ -334,7 +384,7 @@ async def newsletter_unsubscribe(
         hashed_email = subscriber.get("hashed_email")
         
         if not subscriber_id or not hashed_email:
-            logger.error(f"Invalid subscriber data for unsubscribe token")
+            logger.error("Invalid subscriber data for unsubscribe token")
             return NewsletterUnsubscribeResponse(
                 success=False,
                 message="Invalid unsubscribe data."

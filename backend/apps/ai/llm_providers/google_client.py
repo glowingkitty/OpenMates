@@ -14,7 +14,7 @@ import tiktoken
 from google import genai
 from google.genai import types
 from google.genai import errors as google_errors
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 
@@ -25,6 +25,11 @@ GOOGLE_PROJECT_ID: Optional[str] = None
 GOOGLE_LOCATION: Optional[str] = None
 _google_client_initialized = False
 _temp_credentials_file: Optional[str] = None
+
+# Google AI Studio (Gemini API) API key (optional; used for non-Vertex Gemini models)
+GOOGLE_AI_STUDIO_SECRET_PATH = "kv/data/providers/google_ai_studio"
+GOOGLE_AI_STUDIO_API_KEY_NAME = "api_key"
+_google_ai_studio_api_key: Optional[str] = None
 
 
 # --- Pydantic Models for Structured Google Response (remain compatible) ---
@@ -112,6 +117,51 @@ def _cleanup_google_client():
 atexit.register(_cleanup_google_client)
 
 
+def _get_non_empty_env(key: str) -> Optional[str]:
+    value = os.environ.get(key)
+    if not value:
+        return None
+    value = value.strip()
+    if not value or value == "IMPORTED_TO_VAULT":
+        return None
+    return value
+
+
+async def _get_google_ai_studio_api_key(secrets_manager: Optional[SecretsManager]) -> Optional[str]:
+    """
+    Retrieve Google AI Studio (Gemini API) key.
+
+    Priority:
+    1) `GEMINI_API_KEY` env var (matches Google AI Studio examples)
+    2) `SECRET__GOOGLE_AI_STUDIO__API_KEY` env var (for setups without Vault)
+    3) Vault: `kv/data/providers/google_ai_studio` key `api_key`
+    """
+    global _google_ai_studio_api_key
+
+    if _google_ai_studio_api_key:
+        return _google_ai_studio_api_key
+
+    env_key = _get_non_empty_env("GEMINI_API_KEY") or _get_non_empty_env("SECRET__GOOGLE_AI_STUDIO__API_KEY")
+    if env_key:
+        _google_ai_studio_api_key = env_key
+        return _google_ai_studio_api_key
+
+    if not secrets_manager:
+        return None
+
+    try:
+        api_key = await secrets_manager.get_secret(
+            secret_path=GOOGLE_AI_STUDIO_SECRET_PATH,
+            secret_key=GOOGLE_AI_STUDIO_API_KEY_NAME,
+        )
+        if api_key:
+            _google_ai_studio_api_key = api_key
+        return api_key
+    except Exception as e:
+        logger.error(f"Error retrieving Google AI Studio API key: {e}", exc_info=True)
+        return None
+
+
 def _map_tools_to_google_format(tools: List[Dict[str, Any]]) -> Optional[List[types.Tool]]:
     """
     Maps tools from internal format to Google's expected format.
@@ -174,6 +224,242 @@ def _normalize_google_model_id(model_id: str) -> str:
     return model_id
 
 
+async def invoke_google_ai_studio_chat_completions(
+    task_id: str,
+    model_id: str,
+    messages: List[Dict[str, str]],
+    secrets_manager: Optional[SecretsManager] = None,
+    temperature: float = 0.7,
+    max_tokens: Optional[int] = None,
+    tools: Optional[List[Dict[str, Any]]] = None,
+    tool_choice: Optional[str] = None,
+    stream: bool = False,
+) -> Union[UnifiedGoogleResponse, AsyncIterator[Union[str, ParsedGoogleToolCall, GoogleUsageMetadata]]]:
+    """
+    Google AI Studio (Gemini API) client using `google-genai` API-key auth.
+
+    Note: This is separate from `invoke_google_chat_completions`, which uses Vertex AI service-account auth.
+    """
+    api_key = await _get_google_ai_studio_api_key(secrets_manager)
+    if not api_key:
+        error_msg = (
+            "Google AI Studio API key not configured. "
+            "Add `SECRET__GOOGLE_AI_STUDIO__API_KEY` (or `GEMINI_API_KEY`) to your environment (see `.env.example`) so it can be imported into Vault."
+        )
+        logger.error(f"[{task_id}] {error_msg}")
+        if stream:
+            raise ValueError(error_msg)
+        return UnifiedGoogleResponse(task_id=task_id, model_id=model_id, success=False, error_message=error_msg)
+
+    try:
+        google_genai_client = genai.Client(api_key=api_key)
+    except Exception as e:
+        error_msg = f"Failed to create Google AI Studio GenAI client: {e}"
+        logger.error(f"[{task_id}] {error_msg}", exc_info=True)
+        if stream:
+            raise ValueError(error_msg)
+        return UnifiedGoogleResponse(task_id=task_id, model_id=model_id, success=False, error_message=error_msg)
+
+    normalized_model_id = _normalize_google_model_id(model_id)
+    log_prefix = f"[{task_id}] Google AI Studio Client ({normalized_model_id}):"
+    logger.info(f"{log_prefix} Attempting chat completion. Stream: {stream}. Tools: {'Yes' if tools else 'No'}. Choice: {tool_choice}")
+
+    try:
+        system_prompt, contents = _prepare_messages_and_system_prompt(messages)
+        if not contents:
+            err_msg = "Message history is empty after processing."
+            if stream:
+                raise ValueError(err_msg)
+            return UnifiedGoogleResponse(task_id=task_id, model_id=model_id, success=False, error_message=err_msg)
+
+        google_tools = _map_tools_to_google_format(tools)
+
+        tool_config_dict = {}
+        if google_tools:
+            mode_map = {"auto": "AUTO", "any": "ANY", "none": "NONE"}
+            selected_mode = mode_map.get((tool_choice or "auto").lower(), "AUTO")
+            tool_config_dict = {"function_calling_config": {"mode": selected_mode}}
+
+        generation_config = types.GenerateContentConfig(
+            thinking_config=types.ThinkingConfig(
+                thinking_budget=0  # Set to 0 to turn off thinking, or increase for more thinking
+            ),
+            temperature=temperature,
+            max_output_tokens=max_tokens,
+            system_instruction=system_prompt,
+            tools=google_tools,
+            tool_config=tool_config_dict if tool_config_dict else None,
+        )
+    except Exception as e:
+        err_msg = f"Error during request preparation: {e}"
+        logger.error(f"{log_prefix} {err_msg}", exc_info=True)
+        if stream:
+            raise ValueError(err_msg)
+        return UnifiedGoogleResponse(task_id=task_id, model_id=model_id, success=False, error_message=err_msg)
+
+    async def _process_non_stream_response(response: types.GenerateContentResponse) -> UnifiedGoogleResponse:
+        logger.info(f"{log_prefix} Received non-streamed response from API.")
+
+        usage_metadata_dict = None
+        if response.usage_metadata:
+            try:
+                usage_metadata_dict = {
+                    "prompt_token_count": getattr(response.usage_metadata, "prompt_token_count", 0),
+                    "candidates_token_count": getattr(response.usage_metadata, "candidates_token_count", 0),
+                    "total_token_count": getattr(response.usage_metadata, "total_token_count", 0),
+                }
+            except Exception as e:
+                logger.warning(f"{log_prefix} Failed to extract usage_metadata attributes: {e}")
+                usage_metadata_dict = None
+
+        raw_response_pydantic = RawGoogleChatCompletionResponse(
+            text=response.text,
+            function_calls=[fc.to_dict() for fc in response.function_calls] if response.function_calls else None,
+            usage_metadata=GoogleUsageMetadata.model_validate(usage_metadata_dict) if usage_metadata_dict else None,
+        )
+
+        unified_resp = UnifiedGoogleResponse(
+            task_id=task_id, model_id=model_id, success=True, raw_response=raw_response_pydantic, usage=raw_response_pydantic.usage_metadata
+        )
+
+        if response.function_calls:
+            unified_resp.tool_calls_made = []
+            for fc in response.function_calls:
+                args_dict = dict(fc.args)
+                unified_resp.tool_calls_made.append(
+                    ParsedGoogleToolCall(
+                        tool_call_id=f"{fc.name}-{uuid.uuid4().hex[:8]}",
+                        function_name=fc.name,
+                        function_arguments_parsed=args_dict,
+                        function_arguments_raw=json.dumps(args_dict),
+                    )
+                )
+            logger.info(f"{log_prefix} Call resulted in {len(unified_resp.tool_calls_made)} tool call(s).")
+
+        elif response.text:
+            unified_resp.direct_message_content = response.text
+            logger.info(f"{log_prefix} Call resulted in a direct message response.")
+
+        else:
+            unified_resp.error_message = "Response has no text or function calls."
+            logger.warning(f"{log_prefix} {unified_resp.error_message}")
+
+        return unified_resp
+
+    async def _iterate_stream_response() -> AsyncIterator[Union[str, ParsedGoogleToolCall, GoogleUsageMetadata]]:
+        logger.info(f"{log_prefix} Stream connection initiated.")
+        stream_iterator = None
+        output_buffer = ""
+        usage = None
+        stream_succeeded = False
+        try:
+            stream_iterator = await google_genai_client.aio.models.generate_content_stream(
+                model=normalized_model_id,
+                contents=contents,
+                config=generation_config,
+            )
+
+            async for chunk in stream_iterator:
+                if chunk.function_calls:
+                    for fc in chunk.function_calls:
+                        args_dict = dict(fc.args)
+                        parsed_tool_call = ParsedGoogleToolCall(
+                            tool_call_id=f"{fc.name}-{uuid.uuid4().hex[:8]}",
+                            function_name=fc.name,
+                            function_arguments_parsed=args_dict,
+                            function_arguments_raw=json.dumps(args_dict),
+                        )
+                        logger.info(f"{log_prefix} Yielding a tool call from stream: {fc.name}")
+                        yield parsed_tool_call
+                elif chunk.text:
+                    output_buffer += chunk.text
+                    yield chunk.text
+
+            try:
+                usage_metadata_obj = getattr(getattr(stream_iterator, "response", None), "usage_metadata", None)
+                if usage_metadata_obj:
+                    if hasattr(usage_metadata_obj, "to_dict"):
+                        usage_dict = usage_metadata_obj.to_dict()
+                    else:
+                        usage_dict = {
+                            "prompt_token_count": getattr(usage_metadata_obj, "prompt_token_count", 0),
+                            "candidates_token_count": getattr(usage_metadata_obj, "candidates_token_count", 0),
+                            "total_token_count": getattr(usage_metadata_obj, "total_token_count", 0),
+                        }
+
+                    if system_prompt:
+                        try:
+                            encoding = tiktoken.get_encoding("cl100k_base")
+                            system_prompt_tokens = len(encoding.encode(system_prompt))
+                            usage_dict["prompt_token_count"] += system_prompt_tokens
+                            usage_dict["total_token_count"] += system_prompt_tokens
+                            logger.info(f"{log_prefix} Manually added {system_prompt_tokens} system prompt tokens to usage metadata.")
+                        except Exception as e_tok:
+                            logger.error(f"{log_prefix} Could not encode system_prompt to add tokens manually: {e_tok}")
+
+                    usage = GoogleUsageMetadata.model_validate(usage_dict)
+                    yield usage
+            except Exception as e:
+                logger.warning(f"{log_prefix} Could not extract usage metadata after stream: {e}")
+
+            stream_succeeded = True
+            logger.info(f"{log_prefix} Stream finished.")
+
+        except google_errors.APIError as e_api:
+            error_str = str(e_api)
+            if "404" in error_str or "NOT_FOUND" in error_str or "not found" in error_str.lower():
+                logger.error(
+                    f"{log_prefix} Google API error: Model not found (404). "
+                    f"Model ID used: '{model_id}'. Original error: {e_api}",
+                    exc_info=True,
+                )
+            else:
+                err_msg = f"Google API error during streaming: {e_api}"
+                logger.error(f"{log_prefix} {err_msg}", exc_info=True)
+            raise IOError(f"Google API Error: {e_api}") from e_api
+        except Exception as e_stream:
+            err_msg = f"Unexpected error during streaming: {e_stream}"
+            logger.error(f"{log_prefix} {err_msg}", exc_info=True)
+            raise IOError(f"Google API Unexpected Streaming Error: {e_stream}") from e_stream
+        finally:
+            if not usage and stream_succeeded:
+                logger.warning(f"{log_prefix} Stream finished successfully but without usage data. Estimating tokens with tiktoken.")
+                try:
+                    encoding = tiktoken.get_encoding("cl100k_base")
+                    system_prompt_tokens = len(encoding.encode(system_prompt)) if system_prompt else 0
+                    prompt_tokens = sum(len(encoding.encode(part.text)) for content in contents for part in content.parts) + system_prompt_tokens
+                    completion_tokens = len(encoding.encode(output_buffer))
+                    usage = GoogleUsageMetadata(
+                        prompt_token_count=prompt_tokens,
+                        candidates_token_count=completion_tokens,
+                        total_token_count=prompt_tokens + completion_tokens,
+                    )
+                    yield usage
+                except Exception as e:
+                    logger.error(f"{log_prefix} Failed to estimate tokens with tiktoken: {e}", exc_info=True)
+            elif not usage and not stream_succeeded:
+                logger.info(f"{log_prefix} Stream failed with error. Not estimating usage - billing will be skipped.")
+
+    if stream:
+        return _iterate_stream_response()
+    else:
+        try:
+            response = await google_genai_client.aio.models.generate_content(
+                model=normalized_model_id,
+                contents=contents,
+                config=generation_config,
+            )
+            return await _process_non_stream_response(response)
+        except google_errors.APIError as e_api:
+            err_msg = f"Google API error calling API: {e_api}"
+            logger.error(f"{log_prefix} {err_msg}", exc_info=True)
+            return UnifiedGoogleResponse(task_id=task_id, model_id=model_id, success=False, error_message=str(e_api))
+        except Exception as e_gen:
+            err_msg = f"Unexpected error during API call: {e_gen}"
+            logger.error(f"{log_prefix} {err_msg}", exc_info=True)
+            return UnifiedGoogleResponse(task_id=task_id, model_id=model_id, success=False, error_message=str(e_gen))
+
+
 async def invoke_google_chat_completions(
     task_id: str,
     model_id: str,
@@ -191,13 +477,15 @@ async def invoke_google_chat_completions(
         else:
             error_msg = "SecretsManager not provided, and Google client is not initialized."
             logger.error(f"[{task_id}] {error_msg}")
-            if stream: raise ValueError(error_msg)
+            if stream:
+                raise ValueError(error_msg)
             return UnifiedGoogleResponse(task_id=task_id, model_id=model_id, success=False, error_message=error_msg)
 
     if not _google_client_initialized:
         error_msg = "Google client credential initialization failed. Check logs for details."
         logger.error(f"[{task_id}] {error_msg}")
-        if stream: raise ValueError(error_msg)
+        if stream:
+            raise ValueError(error_msg)
         return UnifiedGoogleResponse(task_id=task_id, model_id=model_id, success=False, error_message=error_msg)
 
     try:
@@ -205,7 +493,8 @@ async def invoke_google_chat_completions(
     except Exception as e:
         error_msg = f"Failed to create Google GenAI client: {e}"
         logger.error(f"[{task_id}] {error_msg}", exc_info=True)
-        if stream: raise ValueError(error_msg)
+        if stream:
+            raise ValueError(error_msg)
         return UnifiedGoogleResponse(task_id=task_id, model_id=model_id, success=False, error_message=error_msg)
 
     # Normalize model_id by stripping publisher prefixes if present
@@ -220,7 +509,8 @@ async def invoke_google_chat_completions(
         
         if not contents:
             err_msg = "Message history is empty after processing."
-            if stream: raise ValueError(err_msg)
+            if stream:
+                raise ValueError(err_msg)
             return UnifiedGoogleResponse(task_id=task_id, model_id=model_id, success=False, error_message=err_msg)
 
         google_tools = _map_tools_to_google_format(tools)
@@ -232,6 +522,9 @@ async def invoke_google_chat_completions(
             tool_config_dict = {"function_calling_config": {"mode": selected_mode}}
 
         generation_config = types.GenerateContentConfig(
+            thinking_config=types.ThinkingConfig(
+                include_thoughts=False
+            ),
             temperature=temperature,
             max_output_tokens=max_tokens,
             system_instruction=system_prompt,
@@ -242,7 +535,8 @@ async def invoke_google_chat_completions(
     except Exception as e:
         err_msg = f"Error during request preparation: {e}"
         logger.error(f"{log_prefix} {err_msg}", exc_info=True)
-        if stream: raise ValueError(err_msg)
+        if stream:
+            raise ValueError(err_msg)
         return UnifiedGoogleResponse(task_id=task_id, model_id=model_id, success=False, error_message=err_msg)
 
     async def _process_non_stream_response(response: types.GenerateContentResponse) -> UnifiedGoogleResponse:

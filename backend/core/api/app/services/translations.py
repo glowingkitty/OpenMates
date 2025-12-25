@@ -31,8 +31,12 @@ class TranslationService:
                 self.sources_dir = "/app/frontend/packages/ui/src/i18n/sources"
             else:
                 # Local environment: calculate relative to project root
-                # Go up 5 levels: services -> app -> api -> core -> backend -> project root
-                project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(current_file)))))
+                # Go up 6 levels: services -> app -> api -> core -> backend -> project root
+                project_root = os.path.dirname(
+                    os.path.dirname(
+                        os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(current_file))))
+                    )
+                )
                 self.sources_dir = os.path.join(
                     project_root,
                     "frontend", "packages", "ui", "src", "i18n", "sources"
@@ -168,8 +172,12 @@ class TranslationService:
             languages_json_path = "/app/frontend/packages/ui/src/i18n/languages.json"
         else:
             # Local environment: calculate relative to project root
-            # Go up 5 levels: services -> app -> api -> core -> backend -> project root
-            project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(current_file)))))
+            # Go up 6 levels: services -> app -> api -> core -> backend -> project root
+            project_root = os.path.dirname(
+                os.path.dirname(
+                    os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(current_file))))
+                )
+            )
             languages_json_path = os.path.join(
                 project_root,
                 "frontend", "packages", "ui", "src", "i18n", "languages.json"

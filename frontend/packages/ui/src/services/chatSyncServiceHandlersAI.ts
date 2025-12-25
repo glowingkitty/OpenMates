@@ -1,13 +1,13 @@
 // frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
 import type { ChatSynchronizationService } from './chatSyncService';
 import { aiTypingStore } from '../stores/aiTypingStore';
-import { notificationStore } from '../stores/notificationStore';
 import { chatDB } from './db'; // Import chatDB
 import { storeEmbed } from './embedResolver'; // Import storeEmbed
+import type { EmbedType } from '../message_parsing/types';
 
 // Safe TOON decoder for metadata extraction (local to avoid circular deps)
-let toonDecode: ((toonString: string) => any) | null = null;
-async function decodeToonContentSafe(toonContent: string | null | undefined): Promise<any> {
+let toonDecode: ((toonString: string) => unknown) | null = null;
+async function decodeToonContentSafe(toonContent: string | null | undefined): Promise<unknown> {
     if (!toonContent) return null;
     if (typeof toonContent !== 'string') {
         if (typeof toonContent === 'object') return toonContent;
@@ -121,8 +121,8 @@ export function handleAITaskInitiatedImpl(
     payload: AITaskInitiatedPayload
 ): void {
     console.info("[ChatSyncService:AI] Received 'ai_task_initiated':", payload);
-    // Accessing private member, ensure 'this' context is correct or pass necessary state/methods
-    (serviceInstance as any).activeAITasks.set(payload.chat_id, { taskId: payload.ai_task_id, userMessageId: payload.user_message_id });
+    // Accessing public member activeAITasks
+    serviceInstance.activeAITasks.set(payload.chat_id, { taskId: payload.ai_task_id, userMessageId: payload.user_message_id });
     serviceInstance.dispatchEvent(new CustomEvent('aiTaskInitiated', { detail: payload }));
 }
 
@@ -285,7 +285,7 @@ export async function handleAIBackgroundResponseCompletedImpl(
             if (chat) {
                 isIncognitoChat = true;
             }
-        } catch (error) {
+        } catch {
             // Not an incognito chat, continue to check IndexedDB
         }
         
@@ -387,9 +387,9 @@ export async function handleAIBackgroundResponseCompletedImpl(
         }
         
         // Clear AI task tracking
-        const taskInfo = (serviceInstance as any).activeAITasks.get(payload.chat_id);
+        const taskInfo = serviceInstance.activeAITasks.get(payload.chat_id);
         if (taskInfo && taskInfo.taskId === payload.task_id) {
-            (serviceInstance as any).activeAITasks.delete(payload.chat_id);
+            serviceInstance.activeAITasks.delete(payload.chat_id);
             console.info(`[ChatSyncService:AI] Cleared active AI task for chat ${payload.chat_id}`);
         }
         
@@ -401,7 +401,7 @@ export async function handleAIBackgroundResponseCompletedImpl(
         serviceInstance.dispatchEvent(new CustomEvent('chatUpdated', {
             detail: {
                 chat_id: payload.chat_id,
-                chat: updatedChat,
+                chat: chat,
                 newMessage: aiMessage,
                 type: 'background_ai_completion'
             }
@@ -464,7 +464,7 @@ export async function handleAITypingStartedImpl( // Changed to async
             if (chat) {
                 isIncognitoChat = true;
             }
-        } catch (error) {
+        } catch {
             // Not an incognito chat, continue to check IndexedDB
         }
         
@@ -735,6 +735,34 @@ export async function handleAITypingStartedImpl( // Changed to async
             contentLength: userMessage.content?.length || 0
         });
         
+        // CRITICAL: Store the model name on the user message that triggered this AI response
+        // The model_name indicates which AI model is being used to generate the response
+        // This is received in ai_typing_started and should be stored on the user message
+        if (payload.model_name) {
+            // Only update if model_name is not already set (to avoid overwriting)
+            if (!userMessage.model_name && !userMessage.encrypted_model_name) {
+                userMessage.model_name = payload.model_name;
+                console.info(`[ChatSyncService:AI] Storing model_name "${payload.model_name}" on user message ${userMessage.message_id}`);
+                
+                // Save the message to database - encryptMessageFields will encrypt model_name as encrypted_model_name
+                try {
+                    await chatDB.saveMessage(userMessage);
+                    console.info(`[ChatSyncService:AI] ✅ Successfully saved user message ${userMessage.message_id} with model_name`);
+                    
+                    // CRITICAL: Re-set plaintext model_name after saving because encryptMessageFields deletes it
+                    // We need it available for sendEncryptedStoragePackage to include in the server payload
+                    userMessage.model_name = payload.model_name;
+                } catch (error) {
+                    console.error(`[ChatSyncService:AI] ❌ Failed to save user message ${userMessage.message_id} with model_name:`, error);
+                    // Continue processing even if save fails - don't block the rest of the flow
+                }
+            } else {
+                console.debug(`[ChatSyncService:AI] User message ${userMessage.message_id} already has model_name, skipping update`);
+            }
+        } else {
+            console.debug(`[ChatSyncService:AI] No model_name in payload for user message ${userMessage.message_id}`);
+        }
+        
         // Get the updated chat object
         const updatedChat = await chatDB.getChat(payload.chat_id);
         if (!updatedChat) {
@@ -813,9 +841,9 @@ export function handleAIMessageReadyImpl(
 ): void {
     console.debug("[ChatSyncService:AI] Received 'ai_message_ready':", payload);
     serviceInstance.dispatchEvent(new CustomEvent('aiMessageCompletedOnServer', { detail: payload }));
-    const taskInfo = (serviceInstance as any).activeAITasks.get(payload.chat_id);
+    const taskInfo = serviceInstance.activeAITasks.get(payload.chat_id);
     if (taskInfo && taskInfo.taskId === payload.message_id) {
-        (serviceInstance as any).activeAITasks.delete(payload.chat_id);
+        serviceInstance.activeAITasks.delete(payload.chat_id);
         serviceInstance.dispatchEvent(new CustomEvent('aiTaskEnded', { detail: { chatId: payload.chat_id, taskId: payload.message_id, status: 'completed' } }));
         console.info(`[ChatSyncService:AI] AI Task ${payload.message_id} for chat ${payload.chat_id} considered ended due to 'ai_message_ready'.`);
     }
@@ -831,13 +859,13 @@ export function handleAITaskCancelRequestedImpl(
     // Clear activeAITasks for all statuses when cancellation is acknowledged
     // This ensures the frontend state matches the backend state
         const chatIdsToClear: string[] = [];
-        (serviceInstance as any).activeAITasks.forEach((value: { taskId: string; }, key: string) => {
+        serviceInstance.activeAITasks.forEach((value: { taskId: string; }, key: string) => {
             if (value.taskId === payload.task_id) {
                 chatIdsToClear.push(key);
             }
         });
         chatIdsToClear.forEach(chatId => {
-            (serviceInstance as any).activeAITasks.delete(chatId);
+            serviceInstance.activeAITasks.delete(chatId);
         // Clear typing status for this cancelled task
         aiTypingStore.clearTyping(chatId, payload.task_id);
         serviceInstance.dispatchEvent(new CustomEvent('aiTaskEnded', { detail: { chatId: chatId, taskId: payload.task_id, status: payload.status === 'revocation_sent' ? 'cancelled' : payload.status } }));
@@ -1297,7 +1325,8 @@ export async function handleSendEmbedDataImpl(
     serviceInstance: ChatSynchronizationService,
     payload: SendEmbedDataPayload
 ): Promise<void> {
-    const embedData = (payload as any)?.payload ?? payload;
+    // Extract the actual embed data from the nested payload structure
+    const embedData = payload.payload;
     if (!embedData?.embed_id) {
         console.warn('[ChatSyncService:AI] Received send_embed_data payload without embed_id', payload);
         return;
@@ -1330,6 +1359,7 @@ export async function handleSendEmbedDataImpl(
             try {
                 const { generateEmbedKey } = await import('./cryptoService');
                 const { computeSHA256 } = await import('../message_parsing/utils');
+                const { embedStore } = await import('./embedStore');
                 const hashedChatId = await computeSHA256(embedData.chat_id);
                 
                 // Only generate if not already in cache
@@ -1517,10 +1547,11 @@ export async function handleSendEmbedDataImpl(
             let preExtractedMetadata: { app_id?: string; skill_id?: string } | undefined;
             try {
                 const decoded = await decodeToonContentSafe(embedData.content);
-                if (decoded && typeof decoded === 'object') {
+                if (decoded && typeof decoded === 'object' && decoded !== null) {
+                    const decodedObj = decoded as Record<string, unknown>;
                     preExtractedMetadata = {
-                        app_id: typeof decoded.app_id === 'string' ? decoded.app_id : undefined,
-                        skill_id: typeof decoded.skill_id === 'string' ? decoded.skill_id : undefined
+                        app_id: typeof decodedObj.app_id === 'string' ? decodedObj.app_id : undefined,
+                        skill_id: typeof decodedObj.skill_id === 'string' ? decodedObj.skill_id : undefined
                     };
                     console.debug('[ChatSyncService:AI] Pre-extracted app metadata from plaintext:', preExtractedMetadata);
                 }
@@ -1552,7 +1583,7 @@ export async function handleSendEmbedDataImpl(
             await embedStore.putEncrypted(
                 embedRef,
                 encryptedEmbedForStorage,
-                embedData.type as any,
+                embedData.type as EmbedType,
                 embedData.content,
                 preExtractedMetadata
             );
@@ -1612,13 +1643,13 @@ export async function handleSendEmbedDataImpl(
 
             const sendersModule = await import('./chatSyncServiceSenders');
             const sendStoreFunction = sendersModule.sendStoreEmbedImpl ||
-                                      (sendersModule as any).default?.sendStoreEmbedImpl;
+                                      (sendersModule as { default?: { sendStoreEmbedImpl?: typeof sendersModule.sendStoreEmbedImpl } }).default?.sendStoreEmbedImpl;
 
             if (typeof sendStoreFunction !== 'function') {
                 throw new Error('sendStoreEmbedImpl function not found');
             }
             
-            await sendStoreFunction(serviceInstance as any, storePayload);
+            await sendStoreFunction(serviceInstance, storePayload);
             console.info(`[ChatSyncService:AI] Sent encrypted embed ${embedData.embed_id} to Directus`);
 
             // 10. Send key wrappers to server for embed_keys collection (ONLY for parent embeds)
@@ -1647,13 +1678,13 @@ export async function handleSendEmbedDataImpl(
                 const embedKeysPayload = { keys: embedKeysForStorage };
 
                 const sendStoreEmbedKeysFunction = sendersModule.sendStoreEmbedKeysImpl ||
-                                                  (sendersModule as any).default?.sendStoreEmbedKeysImpl;
+                                                  (sendersModule as { default?: { sendStoreEmbedKeysImpl?: typeof sendersModule.sendStoreEmbedKeysImpl } }).default?.sendStoreEmbedKeysImpl;
 
                 if (typeof sendStoreEmbedKeysFunction !== 'function') {
                     throw new Error('sendStoreEmbedKeysImpl function not found');
                 }
                 
-                await sendStoreEmbedKeysFunction(serviceInstance as any, embedKeysPayload);
+                await sendStoreEmbedKeysFunction(serviceInstance, embedKeysPayload);
                 console.info(
                     `[ChatSyncService:AI] [EMBED_EVENT] ✅ Sent key wrappers for parent embed ${embedData.embed_id} to Directus ` +
                     `(master + chat). This should only happen ONCE per finalized embed!`

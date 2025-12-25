@@ -167,7 +167,12 @@ class SecretsManager:
                 response.raise_for_status()
             return response.json() if response.text else {}
         except httpx.HTTPStatusError as e:
-            logger.error(f"HTTP error {e.response.status_code} in Vault request to {path}: {e.response.text}")
+            # 404 is expected when a secret path hasn't been created yet (e.g., env secrets not imported into Vault).
+            # Keep logs quiet for 404 to avoid noisy stack traces in normal setup flows.
+            if e.response.status_code == 404:
+                logger.debug(f"Vault path not found (404): {path}")
+            else:
+                logger.error(f"HTTP error {e.response.status_code} in Vault request to {path}: {e.response.text}")
             raise
         except Exception as e:
             logger.error(f"Error in Vault request to {path}: {str(e)}")
@@ -226,6 +231,34 @@ class SecretsManager:
             
             return None
 
+        except httpx.HTTPStatusError as e:
+            # Common setup case: the provider path doesn't exist yet.
+            if e.response.status_code == 404:
+                provider_id = None
+                if secret_path.startswith("kv/data/providers/"):
+                    provider_id = secret_path.split("kv/data/providers/", 1)[1].strip("/") or None
+
+                suggested_env = None
+                if provider_id:
+                    suggested_env = f"SECRET__{provider_id.upper()}__{secret_key.upper()}"
+
+                if suggested_env:
+                    logger.warning(
+                        f"Vault secret not found at '{secret_path}' (key '{secret_key}'). "
+                        f"Add `{suggested_env}` to your environment (see `.env.example`) so it can be imported into Vault."
+                    )
+                else:
+                    logger.warning(
+                        f"Vault secret not found at '{secret_path}' (key '{secret_key}'). "
+                        f"Add an appropriate `SECRET__...` env var (see `.env.example`) so it can be imported into Vault."
+                    )
+                return None
+
+            logger.error(
+                f"HTTP error {e.response.status_code} retrieving secret key '{secret_key}' from path '{secret_path}' in Vault: {e}",
+                exc_info=True,
+            )
+            return None
         except Exception as e:
             logger.error(f"Error retrieving secret key '{secret_key}' from path '{secret_path}' in Vault: {e}", exc_info=True)
             return None

@@ -137,32 +137,52 @@ async def _async_send_issue_report_email(
         # Collect Docker Compose logs from all containers via Loki
         logger.info("Collecting Docker Compose logs from all containers via Loki for issue report")
         from backend.core.api.app.services.loki_log_collector import loki_log_collector
-        backend_logs = await loki_log_collector.get_compose_logs(lines=100)
+        from datetime import datetime, timedelta, timezone
+        backend_logs = await loki_log_collector.get_compose_logs(
+            lines=50,
+            exclude_containers=["grafana", "promtail", "loki", "cadvisor", "prometheus"],
+            start_time=datetime.now(timezone.utc) - timedelta(minutes=5),
+        )
 
-        # Prepare log attachments
+        # Prepare consolidated YAML attachment
         attachments = []
 
-        # Create console logs attachment if available
-        if console_logs and console_logs.strip():
-            import base64
-            console_logs_b64 = base64.b64encode(console_logs.encode('utf-8')).decode('utf-8')
-            attachments.append({
-                'filename': f'console_logs_{timestamp.replace(" ", "_").replace(":", "-")}.txt',
-                'content': console_logs_b64
-            })
-            logger.info("Added console logs attachment to issue report")
+        # Create a consolidated YAML file with all issue report data
+        import yaml
+        import base64
+        from datetime import datetime, timezone
 
-        # Create Docker Compose logs attachment if available
-        if backend_logs and backend_logs.strip():
-            # Include all container logs from Loki - they might be useful for debugging
-            backend_logs_b64 = base64.b64encode(backend_logs.encode('utf-8')).decode('utf-8')
-            attachments.append({
-                'filename': f'docker_compose_logs_{timestamp.replace(" ", "_").replace(":", "-")}.txt',
-                'content': backend_logs_b64
-            })
-            logger.info("Added Docker Compose logs attachment from Loki to issue report")
-        else:
-            logger.warning("Docker Compose logs not available from Loki - skipping attachment")
+        issue_report_data = {
+            'issue_report': {
+                'metadata': {
+                    'generated_at': datetime.now(timezone.utc).isoformat(),
+                    'report_timestamp': timestamp,
+                    'title': issue_title,
+                    'description': issue_description,
+                    'estimated_location': estimated_location
+                },
+                'technical_details': {
+                    'chat_or_embed_url': chat_or_embed_url,
+                    'device_info': device_info if device_info else None
+                },
+                'logs': {
+                    'console_logs': console_logs.strip() if console_logs and console_logs.strip() else None,
+                    'docker_compose_logs': backend_logs.strip() if backend_logs and backend_logs.strip() else None
+                }
+            }
+        }
+
+        # Generate YAML content
+        yaml_content = yaml.dump(issue_report_data, default_flow_style=False, allow_unicode=True)
+        yaml_content_b64 = base64.b64encode(yaml_content.encode('utf-8')).decode('utf-8')
+
+        # Create single consolidated attachment
+        attachments.append({
+            'filename': f'issue_report_{timestamp.replace(" ", "_").replace(":", "-")}.yml',
+            'content': yaml_content_b64
+        })
+
+        logger.info("Created consolidated YAML attachment for issue report with all logs and metadata")
 
         # Prepare email context with sanitized data
         email_context = {
@@ -177,7 +197,7 @@ async def _async_send_issue_report_email(
         logger.info("Prepared email context for issue report")
         
         # Send issue report email
-        attachment_info = f" with {len(attachments)} attachment(s)" if attachments else " with no attachments"
+        attachment_info = " with consolidated YAML attachment" if attachments else " with no attachments"
         logger.info(
             f"Attempting to send issue report email to {admin_email} with template 'issue_report' "
             f"(title: '{issue_title[:50]}...'){attachment_info}"
@@ -206,4 +226,3 @@ async def _async_send_issue_report_email(
     except Exception as e:
         logger.error(f"Error sending issue report email: {str(e)}", exc_info=True)
         return False
-

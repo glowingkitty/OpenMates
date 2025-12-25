@@ -5066,21 +5066,21 @@ send_amount:
   zh: 发送 {amount} {currency}
   es: Enviar {amount} {currency}
   fr: Envoyer {amount} {currency}
-  pt: ''
-  ru: ''
+  pt: Enviar {amount} {currency}
+  ru: Отправить {amount} {currency}
   ja: '{amount} {currency}を送信'
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: '{amount} {currency} 보내기'
+  it: Invia {amount} {currency}
+  tr: Gönder {amount} {currency}
+  vi: Gửi {amount} {currency}
+  id: Kirim {amount} {currency}
+  pl: Wyślij {amount} {currency}
+  nl: Verstuur {amount} {currency}
+  ar: إرسال {amount} {currency}
+  hi: '{amount} {currency} भेजें'
+  th: ส่ง {amount} {currency}
+  cs: Odeslat {amount} {currency}
+  sv: Skicka {amount} {currency}
   verified_by_human: []
 secured_and_powered_by:
   context: Used in 'Secured & powered by mollie'

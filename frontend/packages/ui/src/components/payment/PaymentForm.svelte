@@ -20,6 +20,8 @@
         stripe = null,
         elements = null,
         clientSecret = null,
+        fallbackUrl = null,
+        fallbackButtonLabel = null,
         darkmode = false
     }: {
         purchasePrice?: number;
@@ -36,6 +38,8 @@
         stripe?: any;
         elements?: any;
         clientSecret?: string | null;
+        fallbackUrl?: string | null;
+        fallbackButtonLabel?: string | null;
         darkmode?: boolean;
     } = $props();
 
@@ -64,6 +68,7 @@
 
     // Derived state for button enable/disable using Svelte 5 runes
     let canSubmit = $derived(
+        !fallbackUrl &&
         (!requireConsent || hasConsentedToLimitedRefund) &&
         isPaymentElementComplete &&
         !validationErrors &&
@@ -90,22 +95,33 @@
             </div>
         {/if}
         
-        <button
-            type="submit"
-            class="buy-button"
-            disabled={!canSubmit || isLoading || isButtonCooldown}
-        >
-            {#if isLoading}
-                {$text('login.loading.text')}
-            {:else}
-                {(isSupportContribution ? $text('signup.send_amount.text') : $text('signup.buy_for.text'))
-                    .replace('{currency}', currency)
-                    .replace(
-                        '{amount}',
-                        (currency.toUpperCase() === 'JPY' ? purchasePrice : (purchasePrice / 100)).toString()
-                    )}
-            {/if}
-        </button>
+        {#if fallbackUrl}
+            <button
+                type="button"
+                class="buy-button"
+                disabled={isLoading || isButtonCooldown}
+                onclick={() => window.location.assign(fallbackUrl)}
+            >
+                {fallbackButtonLabel || 'Continue on Stripe'}
+            </button>
+        {:else}
+            <button
+                type="submit"
+                class="buy-button"
+                disabled={!canSubmit || isLoading || isButtonCooldown}
+            >
+                {#if isLoading}
+                    {$text('login.loading.text')}
+                {:else}
+                    {(isSupportContribution ? $text('signup.send_amount.text') : $text('signup.buy_for.text'))
+                        .replace('{currency}', currency)
+                        .replace(
+                            '{amount}',
+                            (currency.toUpperCase() === 'JPY' ? purchasePrice : (purchasePrice / 100)).toString()
+                        )}
+                {/if}
+            </button>
+        {/if}
         
         <p class="vat-info color-grey-60">
             {@html $text('signup.vat_info.text')}

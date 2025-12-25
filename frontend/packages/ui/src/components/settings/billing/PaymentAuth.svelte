@@ -76,36 +76,63 @@ PaymentAuth - Component for authenticating payment with passkey or 2FA
                 throw new Error(initiateData.message || 'Passkey authentication failed');
             }
 
-            // Get public key credential request options
-            const publicKey = initiateData.public_key;
-            if (!publicKey) {
-                throw new Error('Invalid passkey challenge');
-            }
-
-            // Convert base64url to ArrayBuffer for credential ID
-            const base64ToArrayBuffer = (base64: string) => {
-                const binary = atob(base64.replace(/-/g, '+').replace(/_/g, '/'));
+            // Helper function to convert base64url to ArrayBuffer
+            // This handles the base64url encoding used by WebAuthn
+            function base64UrlToArrayBuffer(base64url: string): ArrayBuffer {
+                let base64 = base64url.replace(/-/g, '+').replace(/_/g, '/');
+                // Add padding if needed
+                while (base64.length % 4) {
+                    base64 += '=';
+                }
+                const binary = window.atob(base64);
                 const bytes = new Uint8Array(binary.length);
                 for (let i = 0; i < binary.length; i++) {
                     bytes[i] = binary.charCodeAt(i);
                 }
                 return bytes.buffer;
-            };
-
-            // Convert allowCredentials if present
-            if (publicKey.allowCredentials) {
-                publicKey.allowCredentials = publicKey.allowCredentials.map((cred: any) => ({
-                    ...cred,
-                    id: base64ToArrayBuffer(cred.id)
-                }));
             }
 
-            // Convert challenge from base64url to ArrayBuffer
-            publicKey.challenge = base64ToArrayBuffer(publicKey.challenge);
+            // Validate required fields from response
+            if (!initiateData.challenge || !initiateData.rp?.id) {
+                throw new Error('Invalid passkey challenge response');
+            }
 
-            // Request passkey authentication
+            // Construct PublicKeyCredentialRequestOptions from response fields
+            // The backend returns individual fields (challenge, rp, timeout, allowCredentials, etc.)
+            // that need to be assembled into the WebAuthn request options format
+            const challenge = base64UrlToArrayBuffer(initiateData.challenge);
+
+            // Prepare PRF extension input if available
+            // Use the PRF eval.first from backend if provided, otherwise use challenge as fallback
+            const prfEvalFirst = initiateData.extensions?.prf?.eval?.first || initiateData.challenge;
+            const prfEvalFirstBuffer = base64UrlToArrayBuffer(prfEvalFirst);
+
+            // Build the public key credential request options
+            // Following the same pattern as Login.svelte for consistency
+            const publicKeyCredentialRequestOptions: PublicKeyCredentialRequestOptions = {
+                challenge: challenge,
+                rpId: initiateData.rp.id,
+                timeout: initiateData.timeout,
+                userVerification: initiateData.userVerification as UserVerificationRequirement,
+                allowCredentials: initiateData.allowCredentials?.length > 0
+                    ? initiateData.allowCredentials.map((cred: any) => ({
+                        type: cred.type,
+                        id: base64UrlToArrayBuffer(cred.id),
+                        transports: cred.transports
+                    }))
+                    : [],
+                extensions: {
+                    prf: {
+                        eval: {
+                            first: prfEvalFirstBuffer
+                        }
+                    }
+                } as AuthenticationExtensionsClientInputs
+            };
+
+            // Request passkey authentication using WebAuthn API
             const credential = await navigator.credentials.get({
-                publicKey: publicKey
+                publicKey: publicKeyCredentialRequestOptions
             }) as PublicKeyCredential;
 
             if (!credential) {

@@ -3222,6 +3222,286 @@ support.monthly.cancellation_details:
   cs: Měsíční podporu můžete kdykoli zrušit.
   sv: Du kan avsluta ditt månatliga stöd när som helst.
   verified_by_human: []
+support.subscription_successful:
+  context: Message shown when subscription is successfully created
+  en: Subscription successful! Thank you for your support.
+  de: Abonnement erfolgreich! Vielen Dank für deine Unterstützung.
+  zh: 订阅成功！感谢你的支持。
+  es: ¡Suscripción exitosa! Gracias por tu apoyo.
+  fr: Abonnement réussi ! Merci pour votre soutien.
+  pt: Assinatura bem-sucedida! Obrigado pelo seu apoio.
+  ru: Подписка успешно оформлена! Спасибо за вашу поддержку.
+  ja: サブスクリプションが成功しました！サポートありがとうございます。
+  ko: 구독이 성공적으로 완료되었습니다! 지원해 주셔서 감사합니다.
+  it: Abbonamento riuscito! Grazie per il tuo supporto.
+  tr: Abonelik başarılı! Desteğiniz için teşekkür ederiz.
+  vi: Đăng ký thành công! Cảm ơn bạn đã hỗ trợ.
+  id: Berlangganan berhasil! Terima kasih atas dukungan Anda.
+  pl: Subskrypcja pomyślna! Dziękujemy za wsparcie.
+  nl: Abonnement succesvol! Bedankt voor je steun.
+  ar: نجح الاشتراك! شكرا لدعمك.
+  hi: सदस्यता सफल! आपके समर्थन के लिए धन्यवाद।
+  th: สมัครสมาชิกสำเร็จ! ขอบคุณสำหรับการสนับสนุนของคุณ
+  cs: Předplatné bylo úspěšné! Děkujeme za vaši podporu.
+  sv: Prenumerationen lyckades! Tack för ditt stöd.
+  verified_by_human: []
+support.monthly_subscription_setup:
+  context: Message shown during monthly subscription setup
+  en: Setting up your monthly subscription...
+  de: Dein monatliches Abonnement wird eingerichtet...
+  zh: 正在设置你的每月订阅...
+  es: Configurando tu suscripción mensual...
+  fr: Configuration de votre abonnement mensuel...
+  pt: Configurando sua assinatura mensal...
+  ru: Настройка вашей ежемесячной подписки...
+  ja: 月額サブスクリプションをセットアップしています...
+  ko: 월간 구독을 설정하는 중입니다...
+  it: Configurazione del tuo abbonamento mensile...
+  tr: Aylık aboneliğiniz ayarlanıyor...
+  vi: Đang thiết lập đăng ký hàng tháng của bạn...
+  id: Menyiapkan langganan bulanan Anda...
+  pl: Konfigurowanie miesięcznej subskrypcji...
+  nl: Je maandelijkse abonnement instellen...
+  ar: جاري إعداد اشتراكك الشهري...
+  hi: आपकी मासिक सदस्यता सेट की जा रही है...
+  th: กำลังตั้งค่าการสมัครสมาชิกรายเดือนของคุณ...
+  cs: Nastavování vašeho měsíčního předplatného...
+  sv: Ställer in din månatliga prenumeration...
+  verified_by_human: []
+support.per_month:
+  context: Text indicating per month pricing
+  en: per month
+  de: pro Monat
+  zh: 每月
+  es: por mes
+  fr: par mois
+  pt: por mês
+  ru: в месяц
+  ja: /月
+  ko: 매월
+  it: al mese
+  tr: aylık
+  vi: mỗi tháng
+  id: per bulan
+  pl: miesięcznie
+  nl: per maand
+  ar: شهرياً
+  hi: प्रति माह
+  th: ต่อเดือน
+  cs: za měsíc
+  sv: per månad
+  verified_by_human: []
+support.recurring_monthly:
+  context: Text describing recurring monthly payment
+  en: Recurring monthly
+  de: Monatlich wiederkehrend
+  zh: 每月定期
+  es: Mensual recurrente
+  fr: Mensuel récurrent
+  pt: Mensal recorrente
+  ru: Ежемесячно
+  ja: 毎月の定期的な支払い
+  ko: 매월 반복
+  it: Ricorrente mensile
+  tr: Aylık yinelenen
+  vi: Định kỳ hàng tháng
+  id: Bulanan berulang
+  pl: Cyklicznie co miesiąc
+  nl: Maandelijks terugkerend
+  ar: متكرر شهرياً
+  hi: आवर्ती मासिक
+  th: รายเดือนที่เกิดขึ้นประจำ
+  cs: Opakující se měsíčně
+  sv: Återkommande månadsvis
+  verified_by_human: []
+support.email_sent:
+  context: Message confirming email has been sent
+  en: Email sent successfully.
+  de: E-Mail erfolgreich gesendet.
+  zh: 电子邮件已成功发送。
+  es: Correo electrónico enviado con éxito.
+  fr: E-mail envoyé avec succès.
+  pt: E-mail enviado com sucesso.
+  ru: Электронное письмо успешно отправлено.
+  ja: メールが正常に送信されました。
+  ko: 이메일이 성공적으로 전송되었습니다.
+  it: Email inviata con successo.
+  tr: E-posta başarıyla gönderildi.
+  vi: Email đã được gửi thành công.
+  id: Email berhasil terkirim.
+  pl: E-mail wysłany pomyślnie.
+  nl: E-mail succesvol verzonden.
+  ar: تم إرسال البريد الإلكتروني بنجاح.
+  hi: ईमेल सफलतापूर्वक भेजा गया।
+  th: ส่งอีเมลสำเร็จแล้ว
+  cs: E-mail byl успешно odeslán.
+  sv: E-postmeddelandet har skickats.
+  verified_by_human: []
+support.monthly_invoice_pdf_info:
+  context: Information about monthly invoice PDF delivery
+  en: You will receive monthly invoice PDFs via email.
+  de: Du erhältst monatliche Rechnungs-PDFs per E-Mail.
+  zh: 你将通过电子邮件收到每月的 PDF 发票。
+  es: Recibirás los PDF de las facturas mensuales por correo electrónico.
+  fr: Vous recevrez des factures PDF mensuelles par e-mail.
+  pt: Você receberá PDFs de faturas mensais por e-mail.
+  ru: Вы будете получать ежемесячные счета в формате PDF по электронной почте.
+  ja: 毎月の請求書PDFをメールで受け取ります。
+  ko: 매월 인보이스 PDF를 이메일로 받게 됩니다.
+  it: Riceverai le fatture mensili in formato PDF via email.
+  tr: Aylık fatura PDF'lerini e-posta yoluyla alacaksınız.
+  vi: Bạn sẽ nhận được bản sao hóa đơn PDF hàng tháng qua email.
+  id: Anda akan menerima PDF faktur bulanan melalui email.
+  pl: Będziesz otrzymywać miesięczne faktury PDF pocztą elektroniczną.
+  nl: Je ontvangt maandelijks factuur-PDF's via e-mail.
+  ar: ستتلقى فواتير PDF شهرية عبر البريد الإلكتروني.
+  hi: आपको ईमेल के माध्यम से मासिक चालान पीडीएफ प्राप्त होंगे।
+  th: คุณจะได้รับ PDF ใบแจ้งหนี้รายเดือนทางอีเมล
+  cs: Měsíční faktury v PDF obdržíte emailem.
+  sv: Du kommer att få månatliga faktura-PDF-filer via e-post.
+  verified_by_human: []
+support.subscription_management:
+  context: Title for subscription management section
+  en: Subscription Management
+  de: Abonnement-Verwaltung
+  zh: 订阅管理
+  es: Gestión de suscripciones
+  fr: Gestion de l'abonnement
+  pt: Gerenciamento de assinatura
+  ru: Управление подпиской
+  ja: サブスクリプション管理
+  ko: 구독 관리
+  it: Gestione abbonamento
+  tr: Abonelik Yönetimi
+  vi: Quản lý đăng ký
+  id: Manajemen Langganan
+  pl: Zarządzanie subskrypcją
+  nl: Abonnementenbeheer
+  ar: إدارة الاشتراك
+  hi: सदस्यता प्रबंधन
+  th: การจัดการการสมัครสมาชิก
+  cs: Správa předplatného
+  sv: Hantera prenumeration
+  verified_by_human: []
+support.subscription_management_info:
+  context: Information about managing subscription
+  en: Manage your subscription, view invoices, or cancel anytime.
+  de: Verwalte dein Abonnement, sieh dir Rechnungen an oder kündige jederzeit.
+  zh: 管理你的订阅、查看发票或随时取消。
+  es: Gestiona tu suscripción, consulta las facturas o cancéllala en cualquier momento.
+  fr: Gérez votre abonnement, consultez vos factures ou annulez à tout moment.
+  pt: Gerencie sua assinatura, visualize faturas ou cancele a qualquer momento.
+  ru: Управляйте своей подпиской, просматривайте счета или отменяйте ее в любое время.
+  ja: サブスクリプションの管理、請求書の表示、またはいつでもキャンセルできます。
+  ko: 구독을 관리하고 인보이스를 확인하거나 언제든지 취소할 수 있습니다.
+  it: Gestisci il tuo abbonamento, visualizza le fatture o annulla in qualsiasi momento.
+  tr: Aboneliğinizi yönetin, faturaları görüntüleyin oder istediğiniz zaman iptal edin.
+  vi: Quản lý đăng ký của bạn, xem hóa đơn hoặc hủy bất kỳ lúc nào.
+  id: Kelola langganan Anda, lihat faktur, atau batalkan kapan saja.
+  pl: Zarządzaj subskrypcją, przeglądaj faktury lub anuluj w dowolnym momencie.
+  nl: Beheer je abonnement, bekijk facturen of zeg op elk moment op.
+  ar: قم بإدارة اشتراكك أو عرض الفواتير أو الإلغاء في أي وقت.
+  hi: अपनी सदस्यता प्रबंधित करें, चालान देखें या कभी भी रद्द करें।
+  th: จัดการการสมัครสมาชิกของคุณ ดูใบแจ้งหนี้ หรือยกเลิกได้ทุกเมื่อ
+  cs: Spravujte své předplatné, prohlížejte si faktury nebo ho kdykoli zrušte.
+  sv: Hantera din prenumeration, visa fakturor eller avsluta när som helst.
+  verified_by_human: []
+support.monthly_confirmation_details:
+  context: Details text on the monthly support confirmation screen
+  en: You will receive an email with a link to Stripe for managing your Support Subscription, where you can modify or cancel it at any time.
+  verified_by_human: []
+support.payment_successful:
+  context: Message shown when one-time payment is successfully completed
+  en: Payment successful! Thank you for your support.
+  de: Zahlung erfolgreich! Vielen Dank für deine Unterstützung.
+  zh: 支付成功！感谢你的支持。
+  es: ¡Pago exitoso! Gracias por tu apoyo.
+  fr: Paiement réussi ! Merci pour votre soutien.
+  pt: Pagamento bem-sucedido! Obrigado pelo seu apoio.
+  ru: Платеж успешно выполнен! Спасибо за вашу поддержку.
+  ja: 支払いが成功しました！サポートありがとうございます。
+  ko: 결제가 성공적으로 완료되었습니다! 지원해 주셔서 감사합니다.
+  it: Pagamento riuscito! Grazie per il tuo supporto.
+  tr: Ödeme başarılı! Desteğiniz için teşekkür ederiz.
+  vi: Thanh toán thành công! Cảm ơn bạn đã hỗ trợ.
+  id: Pembayaran berhasil! Terima kasih atas dukungan Anda.
+  pl: Płatność pomyślna! Dziękujemy za wsparcie.
+  nl: Betaling succesvol! Bedankt voor je steun.
+  ar: نجح الدفع! شكرا لدعمك.
+  hi: भुगतान सफल! आपके समर्थन के लिए धन्यवाद।
+  th: การชำระเงินสำเร็จ! ขอบคุณสำหรับการสนับสนุนของคุณ
+  cs: Platba byla úspěšná! Děkujeme za vaši podporu.
+  sv: Betalningen lyckades! Tack för ditt stöd.
+  verified_by_human: []
+support.one_time_contribution:
+  context: Label for one-time contribution amount
+  en: one-time contribution
+  de: einmaliger Beitrag
+  zh: 一次性捐助
+  es: contribución única
+  fr: contribution unique
+  pt: contribuição única
+  ru: разовый взнос
+  ja: 一回限りの寄付
+  ko: 일회성 기부
+  it: contributo una tantum
+  tr: tek seferlik katkı
+  vi: đóng góp một lần
+  id: kontribusi satu kali
+  pl: jednorazowa wpłata
+  nl: eenmalige bijdrage
+  ar: مساهمة لمرة واحدة
+  hi: एक बार का योगदान
+  th: การสนับสนุนครั้งเดียว
+  cs: jednorázový příspěvek
+  sv: engångsbidrag
+  verified_by_human: []
+support.one_time_confirmation_details:
+  context: Details text on the one-time support confirmation screen
+  en: You will receive an email with your invoice.
+  de: Du erhältst eine E-Mail mit deiner Rechnung.
+  zh: 你将收到一封包含发票的电子邮件。
+  es: Recibirás un correo electrónico con tu factura.
+  fr: Vous recevrez un e-mail avec votre facture.
+  pt: Você receberá um e-mail com sua fatura.
+  ru: Вы получите электронное письмо с вашим счетом.
+  ja: 請求書を含むメールが届きます。
+  ko: 청구서가 포함된 이메일을 받게 됩니다.
+  it: Riceverai un'email con la tua fattura.
+  tr: Faturanızla birlikte bir e-posta alacaksınız.
+  vi: Bạn sẽ nhận được email chứa hóa đơn.
+  id: Anda akan menerima email dengan faktur Anda.
+  pl: Otrzymasz e-mail z fakturą.
+  nl: Je ontvangt een e-mail met je factuur.
+  ar: ستتلقى بريدًا إلكترونيًا يحتوي على فاتورتك.
+  hi: आपको अपना चालान के साथ एक ईमेल प्राप्त होगा।
+  th: คุณจะได้รับอีเมลพร้อมใบแจ้งหนี้ของคุณ
+  cs: Obdržíte e-mail s fakturou.
+  sv: Du kommer att få ett e-postmeddelande med din faktura.
+  verified_by_human: []
+support.done:
+  context: Text for done button or completion message
+  en: Done
+  de: Fertig
+  zh: 完成
+  es: Hecho
+  fr: Terminé
+  pt: Concluído
+  ru: Готово
+  ja: 完了
+  ko: 완료
+  it: Fatto
+  tr: Bitti
+  vi: Xong
+  id: Selesai
+  pl: Gotowe
+  nl: Klaar
+  ar: تم
+  hi: हो गया
+  th: เสร็จเรียบร้อย
+  cs: Hotovo
+  sv: Färdig
+  verified_by_human: []
 support_sponsor_github:
   context: Sponsor on GitHub menu item
   en: Sponsor on GitHub

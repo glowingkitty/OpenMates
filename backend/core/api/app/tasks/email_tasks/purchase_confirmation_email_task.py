@@ -162,11 +162,24 @@ async def _async_process_invoice_and_send_email(
 
         amount_paid = payment_order_details.get('amount') # Smallest unit
         currency_paid = payment_order_details.get('currency')
+        stripe_customer_id = payment_order_details.get('customer')
 
         if amount_paid is None or currency_paid is None:
             logger.error(f"Missing amount or currency in payment order details for {order_id}. Cannot generate invoice.")
             raise Exception("Missing amount/currency in payment order details")
         logger.info(f"Payment details extracted for {order_id}: Amount={amount_paid} {currency_paid}")
+
+        # Create customer portal link for subscription management if it's a Stripe payment and it's an auto top-up
+        customer_portal_url = None
+        if task.payment_service.provider_name == "stripe" and stripe_customer_id and is_auto_topup:
+            try:
+                customer_portal_url = await task.payment_service.get_customer_portal_url(
+                    customer_id=stripe_customer_id,
+                    return_url="https://openmates.org/settings/billing"
+                )
+                logger.info(f"Generated customer portal URL for auto top-up order {order_id}")
+            except Exception as portal_err:
+                logger.warning(f"Failed to generate customer portal URL for order {order_id}: {portal_err}")
 
         # 5. Generate Invoice Number using counter from user profile
         # Generate user_id_hash (deterministic)
@@ -197,6 +210,18 @@ async def _async_process_invoice_and_send_email(
         # 6. Prepare Invoice Data Dictionary (using service from BaseTask)
         # Decrypt email - different approach for auto top-up vs manual purchases
         decrypted_email = None
+
+        invoice_data = {
+            'invoice_number': invoice_number,
+            'date_of_issue': date_str_iso,
+            'date_due': date_str_iso,
+            'receiver_account_id': account_id,
+            'credits': credits_purchased,
+            'card_name': formatted_card_brand,
+            'card_last4': card_last_four if card_last_four else "xxxx",
+            'is_gift_card': is_gift_card,
+            'customer_portal_url': customer_portal_url  # Add management link to PDF
+        }
 
         if is_auto_topup:
             # Auto top-up: use server-side vault decryption
@@ -577,7 +602,8 @@ async def _async_process_invoice_and_send_email(
             "darkmode": user_darkmode,
             "invoice_id": invoice_number,  # Use invoice_id instead of account_id for email template
             "refund_deep_link_url": refund_deep_link_url,  # Deep link URL for refund button (for variable processor)
-            "refund_link": refund_deep_link_url  # Set refund_link directly to ensure it's used in email template
+            "refund_link": refund_deep_link_url,  # Set refund_link directly to ensure it's used in email template
+            "customer_portal_url": customer_portal_url  # Pass management link to email
         }
         logger.info(f"Prepared email context for invoice")
 
