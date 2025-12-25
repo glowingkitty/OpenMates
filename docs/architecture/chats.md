@@ -37,13 +37,13 @@ The chat context menu is accessible via right-click or press & hold on a chat it
   - Downloads as file with format: `YYYY-MM-DD_HH-MM-SS_[title].yaml`
   - Includes decrypted chat title, messages, and draft content
   - Implementation: `frontend/packages/ui/src/services/chatExportService.ts`
-  
+
 - **Copy**: ✅ Copy chat content to clipboard
   - Copies YAML format with embedded link
   - When pasted inside OpenMates, only the link is used
   - When pasted outside OpenMates, the full YAML is available
   - Implementation: `frontend/packages/ui/src/services/chatExportService.ts`
-  
+
 - **Delete**: ✅ Remove chat from IndexedDB and server
   - Deletes from local IndexedDB immediately
   - Sends delete request to server via WebSocket
@@ -55,6 +55,13 @@ The chat context menu is accessible via right-click or press & hold on a chat it
   - Implementation:
     - Frontend: `frontend/packages/ui/src/components/chats/Chat.svelte`
     - Backend: `backend/core/api/app/routes/handlers/websocket_handlers/delete_chat_handler.py`
+
+- **Pin/Unpin**: ✅ Pin chats to keep them at the top of the chat list
+  - Pinned chats are always shown at the top of the chats list
+  - Pinned chats are never excluded from the last used 100 chats
+  - Maximum 100 chats can be pinned
+  - Updates are synced across all connected devices via WebSocket
+  - Implementation: `frontend/packages/ui/src/components/chats/Chat.svelte`
 
 ### Planned Features (Not Yet Implemented)
 

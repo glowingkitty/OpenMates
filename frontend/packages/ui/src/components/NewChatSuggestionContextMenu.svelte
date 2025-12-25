@@ -8,7 +8,7 @@
         y?: number;
         show?: boolean;
         suggestionText?: string;
-        encryptedSuggestion?: string;
+        suggestionId?: string;
     }
 
     let {
@@ -16,7 +16,7 @@
         y = 0,
         show = false,
         suggestionText = '',
-        encryptedSuggestion = ''
+        suggestionId = ''
     }: Props = $props();
 
     const dispatch: {

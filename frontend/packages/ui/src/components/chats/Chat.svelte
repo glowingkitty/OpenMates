@@ -1255,9 +1255,9 @@
   }
 
   /**
-   * Pin chat handler
-   * Updates the pinned status to true and dispatches event to refresh the list
-   */
+  * Pin chat handler
+  * Updates the pinned status to true and dispatches event to refresh the list
+  */
   async function handlePinChat() {
     if (!chat) return;
 
@@ -1266,8 +1266,9 @@
     try {
       console.debug('[Chat] Pinning chat:', chatIdToPin);
 
-      // Update the chat in IndexedDB
-      await chatDB.updateChat(chatIdToPin, { pinned: true });
+      // Update the chat in IndexedDB - pass full chat object with updated pinned status
+      const updatedChat = { ...chat, pinned: true };
+      await chatDB.updateChat(updatedChat);
 
       // Update the local chat object
       chat.pinned = true;
@@ -1302,9 +1303,9 @@
   }
 
   /**
-   * Unpin chat handler
-   * Updates the pinned status to false and dispatches event to refresh the list
-   */
+  * Unpin chat handler
+  * Updates the pinned status to false and dispatches event to refresh the list
+  */
   async function handleUnpinChat() {
     if (!chat) return;
 
@@ -1313,8 +1314,9 @@
     try {
       console.debug('[Chat] Unpinning chat:', chatIdToUnpin);
 
-      // Update the chat in IndexedDB
-      await chatDB.updateChat(chatIdToUnpin, { pinned: false });
+      // Update the chat in IndexedDB - pass full chat object with updated pinned status
+      const updatedChat = { ...chat, pinned: false };
+      await chatDB.updateChat(updatedChat);
 
       // Update the local chat object
       chat.pinned = false;

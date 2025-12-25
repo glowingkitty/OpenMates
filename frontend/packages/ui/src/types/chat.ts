@@ -1,6 +1,8 @@
 // frontend/packages/ui/src/types/chat.ts
 // Defines the core data structures for chat, messages, and related entities.
 
+import type { EmbedKeyEntry } from '../services/embedStore';
+
 // Alias for Tiptap JSON content
 export type TiptapJSON = Record<string, any> | null;
 
@@ -367,6 +369,8 @@ export interface InitialSyncResponsePayload {
         encrypted_category?: string | null; // Encrypted category name
         unread_count?: number;
         messages?: Message[];
+        is_shared?: boolean; // Whether this chat has been shared (share link generated)
+        is_private?: boolean; // Whether this chat is private (not shared)
     }>;
     server_chat_order: string[];
     server_timestamp: number;
@@ -383,6 +387,20 @@ export interface SyncEmbed {
     status?: string;
     hashed_chat_id?: string;
     hashed_user_id?: string;
+    // Additional optional properties for full embed sync support
+    embed_ids?: string[]; // For composite embeds (app_skill_use)
+    parent_embed_id?: string; // For versioned embeds
+    version_number?: number; // For versioned embeds
+    encrypted_diff?: string; // CLIENT-ENCRYPTED diff for versioned embeds
+    file_path?: string; // For code/file embeds
+    content_hash?: string;
+    text_length_chars?: number; // Character count for text-based embeds
+    is_private?: boolean;
+    is_shared?: boolean;
+    createdAt?: number; // Alternative field name for created_at
+    created_at?: number; // Server-provided timestamp
+    updatedAt?: number; // Alternative field name for updated_at
+    updated_at?: number; // Server-provided timestamp
 }
 
 export interface Phase1LastChatPayload {
@@ -390,6 +408,7 @@ export interface Phase1LastChatPayload {
     chat_details: any;
     messages: Message[];
     embeds?: SyncEmbed[];  // Embeds for the chat (client-encrypted)
+    embed_keys?: EmbedKeyEntry[];  // Embed keys needed to decrypt embed content
     new_chat_suggestions?: NewChatSuggestion[];  // New chat suggestions for Phase 1
     phase: 'phase1';
     already_synced?: boolean;  // Version-aware: true if client already has up-to-date version

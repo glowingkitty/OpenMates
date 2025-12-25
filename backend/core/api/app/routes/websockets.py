@@ -1066,6 +1066,7 @@ async def websocket_endpoint(
                 )
 
             elif message_type == "delete_new_chat_suggestion":
+                logger.debug(f"Handling delete_new_chat_suggestion with payload: {payload}")
                 await handle_delete_new_chat_suggestion(
                     websocket=websocket,
                     manager=manager,

@@ -261,12 +261,11 @@ export async function handlePhase1LastChatImpl(
         if (payload.new_chat_suggestions && payload.new_chat_suggestions.length > 0) {
             console.info("[ChatSyncService:CoreSync] Saving", payload.new_chat_suggestions.length, "new chat suggestions to IndexedDB");
             try {
-                // Extract encrypted suggestions from NewChatSuggestion objects
-                const encryptedSuggestions = payload.new_chat_suggestions.map(s => s.encrypted_suggestion);
+                // Pass full NewChatSuggestion objects with IDs from server
                 // Use 'global' as chatId when no specific chat is associated (e.g., "new" section)
                 const chatIdForSuggestions = payload.chat_id || 'global';
-                await chatDB.saveEncryptedNewChatSuggestions(encryptedSuggestions, chatIdForSuggestions);
-                console.info("[ChatSyncService:CoreSync] ✅ Successfully saved", payload.new_chat_suggestions.length, "suggestions to IndexedDB");
+                await chatDB.saveEncryptedNewChatSuggestions(payload.new_chat_suggestions, chatIdForSuggestions);
+                console.info("[ChatSyncService:CoreSync] ✅ Successfully saved", payload.new_chat_suggestions.length, "suggestions to IndexedDB with IDs");
                 
                 // Dispatch event so NewChatSuggestions component can update
                 serviceInstance.dispatchEvent(new CustomEvent('newChatSuggestionsReady', { 

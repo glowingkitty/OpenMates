@@ -1,6 +1,5 @@
 import io
 import logging
-from datetime import datetime
 from typing import Dict, Any
 
 from reportlab.lib.pagesizes import A4
@@ -169,7 +168,25 @@ class SupportContributionReceiptTemplateService(BasePDFTemplateService):
         # Add subscription management link if provided
         customer_portal_url = receipt_data.get("customer_portal_url")
         if customer_portal_url:
-            manage_label = sanitize_html_for_reportlab(self.t["billing"]["manage_subscription"]["text"])
+            # Try to get manage_subscription translation (matching invoice.py pattern at line 499)
+            # Translation service may structure this as billing.manage_subscription or settings.billing.manage_subscription
+            manage_label_text = None
+            try:
+                # Try invoice.py pattern first: billing.manage_subscription
+                if "billing" in self.t and "manage_subscription" in self.t["billing"]:
+                    manage_label_text = self.t["billing"]["manage_subscription"].get("text")
+                # Fallback to settings.billing.manage_subscription
+                elif "settings" in self.t and "billing" in self.t["settings"] and "manage_subscription" in self.t["settings"]["billing"]:
+                    manage_label_text = self.t["settings"]["billing"]["manage_subscription"].get("text")
+            except (KeyError, TypeError):
+                pass
+            
+            # Fallback to English if translation not found
+            if not manage_label_text:
+                logger.warning("Translation 'manage_subscription' not found in expected paths, using fallback")
+                manage_label_text = "Manage Subscription"
+            
+            manage_label = sanitize_html_for_reportlab(manage_label_text)
             manage_info = sanitize_html_for_reportlab(self.t["settings"]["support"]["subscription_management_info"]["text"])
             
             elements.append(Paragraph(f"<b>{manage_label}</b>", self.styles["Bold"]))

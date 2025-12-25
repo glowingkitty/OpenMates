@@ -401,11 +401,12 @@ class ChatDatabase {
      */
     private async encryptChatForStorage(chat: Chat): Promise<Chat> {
         // Skip encryption entirely for public chats (demo + legal) - they're public content
-        if (chat.chat_id.startsWith('demo-') || chat.chat_id.startsWith('legal-')) {
+        // Add null check to prevent TypeError when chat.chat_id is undefined
+        if (chat.chat_id && (chat.chat_id.startsWith('demo-') || chat.chat_id.startsWith('legal-'))) {
             console.debug(`[ChatDatabase] Skipping encryption for public chat: ${chat.chat_id}`);
             return { ...chat }; // Return as-is without encryption
         }
-        
+
         const encryptedChat = { ...chat };
         
         // Title is already encrypted in the chat object (encrypted_title field)
@@ -429,6 +430,12 @@ class ChatDatabase {
         // Handle chat-specific encryption key
         // CRITICAL: If chat already has encrypted_chat_key from server, decrypt and cache it
         // Only generate new key if this is a brand new chat without a key
+        // Add null check for chat.chat_id to prevent errors
+        if (!chat.chat_id) {
+            console.error('[ChatDatabase] Cannot encrypt chat - chat_id is undefined');
+            return encryptedChat;
+        }
+
         let chatKey = this.getChatKey(chat.chat_id);
         if (!chatKey && chat.encrypted_chat_key) {
             // Decrypt the server-provided key and cache it
@@ -2558,29 +2565,46 @@ class ChatDatabase {
      * 5. Handle QuotaExceededError gracefully - save in smaller batches or skip
      * 6. Don't throw on transaction errors - log and continue (suggestions are non-critical)
      */
-    async saveEncryptedNewChatSuggestions(encryptedSuggestions: string[], chatId: string): Promise<void> {
+    async saveEncryptedNewChatSuggestions(suggestions: NewChatSuggestion[] | string[], chatId: string): Promise<void> {
         if (!this.db) throw new Error('[ChatDatabase] Database not initialized');
 
         try {
+            // Normalize input: convert string array to NewChatSuggestion array if needed (backward compatibility)
+            const normalizedSuggestions: NewChatSuggestion[] = suggestions.map(s => {
+                if (typeof s === 'string') {
+                    // Backward compatibility: generate ID for string-only input
+                    return {
+                        id: crypto.randomUUID(),
+                        encrypted_suggestion: s,
+                        chat_id: chatId,
+                        created_at: Math.floor(Date.now() / 1000)
+                    };
+                }
+                return s;
+            });
+
             // First, get existing suggestions to check for duplicates
             // CRITICAL: Wait for this transaction to fully complete before opening another
             const existingSuggestions = await this.getAllNewChatSuggestions();
+            const existingIdSet = new Set(existingSuggestions.map(s => s.id));
             const existingEncryptedSet = new Set(existingSuggestions.map(s => s.encrypted_suggestion));
             
-            // Filter out suggestions that already exist (deduplicate)
-            const newSuggestionsToAdd: string[] = [];
-            for (const encryptedSuggestion of encryptedSuggestions) {
-                if (encryptedSuggestion && !existingEncryptedSet.has(encryptedSuggestion)) {
-                    newSuggestionsToAdd.push(encryptedSuggestion);
+            // Filter out suggestions that already exist (deduplicate by ID or encrypted value)
+            const newSuggestionsToAdd: NewChatSuggestion[] = [];
+            for (const suggestion of normalizedSuggestions) {
+                // Check both ID and encrypted value to avoid duplicates
+                if (suggestion.id && !existingIdSet.has(suggestion.id) && 
+                    suggestion.encrypted_suggestion && !existingEncryptedSet.has(suggestion.encrypted_suggestion)) {
+                    newSuggestionsToAdd.push(suggestion);
                 }
             }
             
             if (newSuggestionsToAdd.length === 0) {
-                console.debug('[ChatDatabase] No new encrypted suggestions to add (all duplicates)');
+                console.debug('[ChatDatabase] No new suggestions to add (all duplicates)');
                 return;
             }
             
-            console.debug(`[ChatDatabase] Adding ${newSuggestionsToAdd.length}/${encryptedSuggestions.length} new encrypted suggestions (filtered ${encryptedSuggestions.length - newSuggestionsToAdd.length} duplicates)`);
+            console.debug(`[ChatDatabase] Adding ${newSuggestionsToAdd.length}/${normalizedSuggestions.length} new suggestions (filtered ${normalizedSuggestions.length - newSuggestionsToAdd.length} duplicates)`);
 
             // CRITICAL FIX: Trim to limit BEFORE adding new suggestions to prevent QuotaExceededError
             // Calculate how many we need to keep: limit - newSuggestionsToAdd.length
@@ -2602,13 +2626,12 @@ class ChatDatabase {
             const transaction = this.db.transaction([this.NEW_CHAT_SUGGESTIONS_STORE_NAME], 'readwrite');
             const store = transaction.objectStore(this.NEW_CHAT_SUGGESTIONS_STORE_NAME);
 
-            // Prepare all records first (synchronous)
-            const now = Math.floor(Date.now() / 1000);
-            const records: NewChatSuggestion[] = newSuggestionsToAdd.map(encryptedSuggestion => ({
-                id: crypto.randomUUID(),
-                encrypted_suggestion: encryptedSuggestion,
-                chat_id: chatId,
-                created_at: now
+            // Use the suggestions as-is (they already have IDs from the server)
+            const records: NewChatSuggestion[] = newSuggestionsToAdd.map(suggestion => ({
+                id: suggestion.id, // Use server-provided ID
+                encrypted_suggestion: suggestion.encrypted_suggestion,
+                chat_id: suggestion.chat_id || chatId, // Use suggestion's chat_id or fallback to provided chatId
+                created_at: suggestion.created_at || Math.floor(Date.now() / 1000) // Use server timestamp or current time
             }));
 
             // CRITICAL: Set up transaction handlers BEFORE starting any operations
@@ -2846,6 +2869,12 @@ class ChatDatabase {
      */
     async deleteNewChatSuggestionByEncrypted(encryptedSuggestion: string): Promise<boolean> {
         if (!this.db) throw new Error('[ChatDatabase] Database not initialized');
+
+        // Reject empty strings - these indicate default suggestions which don't exist in IndexedDB
+        if (!encryptedSuggestion || encryptedSuggestion.trim() === '') {
+            console.warn('[ChatDatabase] Cannot delete suggestion with empty encrypted value (default suggestions cannot be deleted)');
+            return false;
+        }
 
         try {
             const allSuggestions = await this.getAllNewChatSuggestions(true); // Include hidden suggestions for deletion

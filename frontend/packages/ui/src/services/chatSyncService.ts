@@ -300,6 +300,10 @@ export class ChatSynchronizationService extends EventTarget {
     public async sendDeleteNewChatSuggestion(encryptedSuggestion: string): Promise<void> {
         await senders.sendDeleteNewChatSuggestionImpl(this, encryptedSuggestion);
     }
+
+    public async sendDeleteNewChatSuggestionById(suggestionId: string): Promise<void> {
+        await senders.sendDeleteNewChatSuggestionByIdImpl(this, suggestionId);
+    }
     public async queueOfflineChange(change: Omit<OfflineChange, 'change_id'>): Promise<void> {
         // This one is tricky as it's called by senders. For now, keep it public or make senders pass `this` to it.
         // For simplicity, making it public for now.
@@ -495,9 +499,21 @@ export class ChatSynchronizationService extends EventTarget {
             // Store new chat suggestions if provided
             if (new_chat_suggestions && Array.isArray(new_chat_suggestions) && new_chat_suggestions.length > 0) {
                 console.log(`[ChatSyncService] Storing ${new_chat_suggestions.length} new chat suggestions`);
-                // Extract encrypted suggestions from server response (already encrypted from Directus)
-                const encryptedSuggestions = new_chat_suggestions.map(s => typeof s === 'string' ? s : s.encrypted_suggestion);
-                await chatDB.saveEncryptedNewChatSuggestions(encryptedSuggestions, 'global');
+                // Pass full NewChatSuggestion objects with IDs from server
+                // Normalize to NewChatSuggestion format if needed
+                const normalizedSuggestions = new_chat_suggestions.map(s => {
+                    if (typeof s === 'string') {
+                        // Backward compatibility: if string, create object with generated ID
+                        return {
+                            id: globalThis.crypto.randomUUID(),
+                            encrypted_suggestion: s,
+                            chat_id: 'global',
+                            created_at: Math.floor(Date.now() / 1000)
+                        };
+                    }
+                    return s;
+                });
+                await chatDB.saveEncryptedNewChatSuggestions(normalizedSuggestions, 'global');
             } else {
                 console.debug("[ChatSyncService] No new chat suggestions to store");
             }

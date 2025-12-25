@@ -67,15 +67,15 @@
     x: 0,
     y: 0,
     suggestionText: '',
-    encryptedSuggestion: ''
+    suggestionId: '' // Use ID instead of encrypted value for reliable deletion
   });
 
   // Touch handling for context menu
   let touchStartTime = $state(0);
   let touchTimer: number | undefined;
 
-  // Full suggestions pool with both encrypted and decrypted text
-  let fullSuggestionsWithEncrypted = $state<Array<{ text: string; encrypted: string }>>([]);
+  // Full suggestions pool with text, encrypted value, and ID
+  let fullSuggestionsWithEncrypted = $state<Array<{ text: string; encrypted: string; id: string }>>([]);
   // Full suggestions pool (decrypted only), used for filtering
   let fullSuggestions = $state<string[]>([]);
   let loading = $state(true);
@@ -102,10 +102,11 @@
           // Strip HTML tags from translated suggestions to display as plain text
           const plainTextSuggestions = translatedSuggestions.map(s => stripHtmlTags(s));
           
-          // Use default suggestions (no encrypted versions for non-auth users)
+          // Use default suggestions (no encrypted versions or IDs for non-auth users)
           const defaultSuggestionsWithEncrypted = plainTextSuggestions.map(text => ({
               text,
-              encrypted: '' // No encrypted version for default suggestions
+              encrypted: '', // No encrypted version for default suggestions
+              id: '' // No ID for default suggestions
           }));
           // Shuffle default suggestions for variety
           fullSuggestionsWithEncrypted = shuffleArray(defaultSuggestionsWithEncrypted);
@@ -123,7 +124,7 @@
           // Small delay to ensure upgrade completion
           await new Promise(resolve => setTimeout(resolve, 100));
 
-          // Load full pool and decrypt, keeping both encrypted and decrypted versions
+          // Load full pool and decrypt, keeping text, encrypted value, and ID
           const all: NewChatSuggestion[] = await chatDB.getAllNewChatSuggestions();
           const decryptedSuggestions = await Promise.all(
               all.map(async s => {
@@ -133,11 +134,12 @@
                   const plainText = stripHtmlTags(decrypted);
                   return {
                       text: plainText,
-                      encrypted: s.encrypted_suggestion
+                      encrypted: s.encrypted_suggestion,
+                      id: s.id // Include ID for reliable deletion
                   };
               })
           );
-          fullSuggestionsWithEncrypted = decryptedSuggestions.filter((s): s is { text: string; encrypted: string } => s !== null);
+          fullSuggestionsWithEncrypted = decryptedSuggestions.filter((s): s is { text: string; encrypted: string; id: string } => s !== null);
 
           // Shuffle suggestions to ensure random order (not always newest-first)
           // This provides variety in what users see each time suggestions are loaded
@@ -157,10 +159,11 @@
               // Strip HTML tags from translated suggestions to display as plain text
               const plainTextSuggestions = translatedSuggestions.map(s => stripHtmlTags(s));
               
-              // Use default suggestions (no encrypted versions for fallback)
+              // Use default suggestions (no encrypted versions or IDs for fallback)
               const defaultSuggestionsWithEncrypted = plainTextSuggestions.map(text => ({
                   text,
-                  encrypted: '' // No encrypted version for default suggestions
+                  encrypted: '', // No encrypted version for default suggestions
+                  id: '' // No ID for default suggestions
               }));
               // Shuffle default suggestions for variety
               fullSuggestionsWithEncrypted = shuffleArray(defaultSuggestionsWithEncrypted);
@@ -180,7 +183,8 @@
               const plainTextSuggestions = translatedSuggestions.map(s => stripHtmlTags(s));
               const defaultSuggestionsWithEncrypted = plainTextSuggestions.map(text => ({
                   text,
-                  encrypted: ''
+                  encrypted: '', // No encrypted version for default suggestions
+                  id: '' // No ID for default suggestions
               }));
               // Shuffle default suggestions for variety
               fullSuggestionsWithEncrypted = shuffleArray(defaultSuggestionsWithEncrypted);
@@ -194,7 +198,8 @@
               const plainTextSuggestions = translatedSuggestions.map(s => stripHtmlTags(s));
               const defaultSuggestionsWithEncrypted = plainTextSuggestions.map(text => ({
                   text,
-                  encrypted: ''
+                  encrypted: '', // No encrypted version for default suggestions
+                  id: '' // No ID for default suggestions
               }));
               // Shuffle default suggestions for variety
               fullSuggestionsWithEncrypted = shuffleArray(defaultSuggestionsWithEncrypted);
@@ -272,18 +277,29 @@
   });
 
   // Get all available suggestions (either all when empty, or filtered when searching)
+  // CRITICAL: Include encrypted value directly to avoid lookup failures
   let filteredSuggestions = $derived.by(() => {
     if (loading) return [];
 
     if (!messageInputContent || messageInputContent.trim() === '') {
       // When input is empty, return all suggestions (will be paginated)
-      // Suggestions are already shuffled when loaded, so we maintain that order
-      const uniqueSuggestions = Array.from(new Set(fullSuggestions));
-      return uniqueSuggestions.map(text => ({ 
-        text, 
-        matchIndex: -1, 
-        matchLength: 0 
-      }));
+      // Include encrypted value and ID directly from fullSuggestionsWithEncrypted
+      // Remove duplicates by text, keeping the first occurrence (which should have the encrypted value and ID)
+      const seen = new Set<string>();
+      const uniqueSuggestions = fullSuggestionsWithEncrypted
+        .filter(s => {
+          if (seen.has(s.text)) return false;
+          seen.add(s.text);
+          return true;
+        })
+        .map(s => ({ 
+          text: s.text, 
+          encrypted: s.encrypted,
+          id: s.id,
+          matchIndex: -1, 
+          matchLength: 0 
+        }));
+      return uniqueSuggestions;
     }
 
     const searchTerm = messageInputContent.trim();
@@ -292,19 +308,27 @@
     console.debug('[NewChatSuggestions] Filtering with search term:', {
       searchTerm,
       searchTermLower,
-      fullPoolSize: fullSuggestions.length
+      fullPoolSize: fullSuggestionsWithEncrypted.length
     });
 
-    // Exact substring match (case-insensitive) across FULL pool
-    // Remove duplicates first, then filter (return ALL matches, not limited to 3)
-    const uniqueSuggestions = Array.from(new Set(fullSuggestions));
+    // Exact substring match (case-insensitive) across FULL pool with encrypted values
+    // Remove duplicates by text, keeping the first occurrence
+    const seen = new Set<string>();
+    const uniqueSuggestions = fullSuggestionsWithEncrypted
+      .filter(s => {
+        if (seen.has(s.text)) return false;
+        seen.add(s.text);
+        return true;
+      });
     
     const filtered = uniqueSuggestions
-      .map(text => {
-        const lowerSuggestion = text.toLowerCase();
+      .map(s => {
+        const lowerSuggestion = s.text.toLowerCase();
         const matchIndex = lowerSuggestion.indexOf(searchTermLower);
         return {
-          text,
+          text: s.text,
+          encrypted: s.encrypted,
+          id: s.id,
           matchIndex,
           matchLength: searchTerm.length
         };
@@ -322,7 +346,7 @@
     return shuffledFiltered;
   });
 
-  function renderHighlightedText(suggestion: { text: string; matchIndex: number; matchLength: number }) {
+  function renderHighlightedText(suggestion: { text: string; encrypted?: string; id?: string; matchIndex: number; matchLength: number }) {
     if (suggestion.matchIndex === -1 || !messageInputContent || !messageInputContent.trim()) {
       return suggestion.text;
     }
@@ -337,17 +361,24 @@
   /**
    * Handle suggestion click - track it for deletion and pass to parent
    */
-  function handleSuggestionClickWithTracking(suggestionText: string) {
+  function handleSuggestionClickWithTracking(suggestionText: string, suggestionId?: string, encryptedSuggestion?: string) {
     console.debug('[NewChatSuggestions] Suggestion clicked:', suggestionText);
 
     // For authenticated users, track the suggestion for deletion after sending
     if ($authStore.isAuthenticated) {
-      // Find the encrypted version of this suggestion
-      const suggestionData = fullSuggestionsWithEncrypted.find(s => s.text === suggestionText);
+      // Use ID or encrypted value from parameter if provided, otherwise try to find it
+      let id = suggestionId;
+      let encrypted = encryptedSuggestion;
+      if (!id || !encrypted) {
+        const suggestionData = fullSuggestionsWithEncrypted.find(s => s.text === suggestionText);
+        id = id || suggestionData?.id;
+        encrypted = encrypted || suggestionData?.encrypted;
+      }
 
-      if (suggestionData && suggestionData.encrypted) {
+      if (encrypted && encrypted.trim() !== '') {
         // Track this suggestion (with encrypted text) so it can be deleted after the message is sent
-        setClickedSuggestion(suggestionData.text, suggestionData.encrypted);
+        // Note: We still use encrypted for backward compatibility with the tracking system
+        setClickedSuggestion(suggestionText, encrypted);
         console.debug('[NewChatSuggestions] Tracked suggestion for deletion');
       } else {
         console.warn('[NewChatSuggestions] Could not find encrypted version of clicked suggestion - skipping tracking');
@@ -363,7 +394,7 @@
   /**
    * Handle context menu (right-click or long touch)
    */
-  function handleContextMenu(event: MouseEvent | TouchEvent, suggestionText: string) {
+  function handleContextMenu(event: MouseEvent | TouchEvent, suggestionText: string, suggestionId?: string) {
     if (!$authStore.isAuthenticated) {
       return; // Only show context menu for authenticated users
     }
@@ -371,10 +402,20 @@
     event.preventDefault();
     event.stopPropagation();
 
-    // Find the encrypted version of this suggestion
-    const suggestionData = fullSuggestionsWithEncrypted.find(s => s.text === suggestionText);
-    if (!suggestionData || !suggestionData.encrypted) {
-      console.warn('[NewChatSuggestions] Could not find encrypted version of suggestion for context menu');
+    // Use ID from parameter if provided, otherwise try to find it
+    let id = suggestionId;
+    if (!id) {
+      const suggestionData = fullSuggestionsWithEncrypted.find(s => s.text === suggestionText);
+      id = suggestionData?.id;
+    }
+
+    // Validate that we have a non-empty ID
+    // Empty IDs indicate default suggestions which cannot be deleted
+    if (!id || id.trim() === '') {
+      console.warn('[NewChatSuggestions] Cannot show context menu for default suggestion (no ID)', {
+        suggestionText,
+        suggestionId: id || 'undefined'
+      });
       return;
     }
 
@@ -396,16 +437,19 @@
       x,
       y,
       suggestionText,
-      encryptedSuggestion: suggestionData.encrypted
+      suggestionId: id
     };
 
-    console.debug('[NewChatSuggestions] Context menu shown for suggestion:', suggestionText);
+    console.debug('[NewChatSuggestions] Context menu shown for suggestion:', {
+      suggestionText,
+      suggestionId: id
+    });
   }
 
   /**
    * Handle touch start for long-press detection
    */
-  function handleTouchStart(event: TouchEvent, suggestionText: string) {
+  function handleTouchStart(event: TouchEvent, suggestionText: string, suggestionId?: string) {
     touchStartTime = Date.now();
 
     // Clear any existing timer
@@ -415,14 +459,14 @@
 
     // Start timer for long press (500ms)
     touchTimer = window.setTimeout(() => {
-      handleContextMenu(event, suggestionText);
+      handleContextMenu(event, suggestionText, suggestionId);
     }, 500);
   }
 
   /**
    * Handle touch end - cancel long press if it's a quick tap
    */
-  function handleTouchEnd(event: TouchEvent, suggestionText: string) {
+  function handleTouchEnd(event: TouchEvent, suggestionText: string, suggestionId?: string, encryptedSuggestion?: string) {
     const touchDuration = Date.now() - touchStartTime;
 
     // Clear the timer
@@ -433,7 +477,7 @@
 
     // If it was a short tap (less than 500ms), handle as regular click
     if (touchDuration < 500) {
-      handleSuggestionClickWithTracking(suggestionText);
+      handleSuggestionClickWithTracking(suggestionText, suggestionId, encryptedSuggestion);
     }
 
     // Prevent default to avoid any unwanted behaviors
@@ -459,7 +503,7 @@
       x: 0,
       y: 0,
       suggestionText: '',
-      encryptedSuggestion: ''
+      suggestionId: ''
     };
   }
 
@@ -467,23 +511,30 @@
    * Handle context menu delete action
    */
   async function handleContextMenuDelete() {
-    if (!contextMenu.encryptedSuggestion) {
-      console.warn('[NewChatSuggestions] No encrypted suggestion to delete');
+    // Validate that we have a non-empty suggestion ID
+    // Empty IDs indicate default suggestions which cannot be deleted
+    if (!contextMenu.suggestionId || contextMenu.suggestionId.trim() === '') {
+      console.warn('[NewChatSuggestions] Cannot delete default suggestion (no ID)');
+      // Close context menu and return early
+      handleContextMenuClose();
       return;
     }
 
     try {
-      console.debug('[NewChatSuggestions] Deleting suggestion from IndexedDB and server:', contextMenu.suggestionText);
+      console.debug('[NewChatSuggestions] Deleting suggestion from IndexedDB and server:', {
+        suggestionText: contextMenu.suggestionText,
+        suggestionId: contextMenu.suggestionId
+      });
 
-      // Delete from IndexedDB
-      const deleteResult = await chatDB.deleteNewChatSuggestionByEncrypted(contextMenu.encryptedSuggestion);
+      // Delete from IndexedDB using ID (much more reliable than encrypted text matching)
+      const deleteResult = await chatDB.deleteNewChatSuggestionById(contextMenu.suggestionId);
 
       if (deleteResult) {
         console.debug('[NewChatSuggestions] Successfully deleted suggestion from IndexedDB');
 
-        // Delete from server
+        // Delete from server using ID
         try {
-          await chatSyncService.sendDeleteNewChatSuggestion(contextMenu.encryptedSuggestion);
+          await chatSyncService.sendDeleteNewChatSuggestionById(contextMenu.suggestionId);
           console.debug('[NewChatSuggestions] Successfully deleted suggestion from server');
         } catch (serverError) {
           console.warn('[NewChatSuggestions] Failed to delete suggestion from server:', serverError);
@@ -614,10 +665,10 @@
         {@const highlighted = renderHighlightedText(suggestion)}
         <button
           class="suggestion-item"
-          onclick={() => handleSuggestionClickWithTracking(suggestion.text)}
-          oncontextmenu={(event) => handleContextMenu(event, suggestion.text)}
-          ontouchstart={(event) => handleTouchStart(event, suggestion.text)}
-          ontouchend={(event) => handleTouchEnd(event, suggestion.text)}
+          onclick={() => handleSuggestionClickWithTracking(suggestion.text, suggestion.id, suggestion.encrypted)}
+          oncontextmenu={(event) => handleContextMenu(event, suggestion.text, suggestion.id)}
+          ontouchstart={(event) => handleTouchStart(event, suggestion.text, suggestion.id)}
+          ontouchend={(event) => handleTouchEnd(event, suggestion.text, suggestion.id, suggestion.encrypted)}
           ontouchmove={handleTouchMove}
         >
           {#if typeof highlighted === 'string'}
@@ -647,7 +698,7 @@
   x={contextMenu.x}
   y={contextMenu.y}
   suggestionText={contextMenu.suggestionText}
-  encryptedSuggestion={contextMenu.encryptedSuggestion}
+  suggestionId={contextMenu.suggestionId}
   on:close={handleContextMenuClose}
   on:delete={handleContextMenuDelete}
 />

@@ -401,7 +401,7 @@ export async function handleAIBackgroundResponseCompletedImpl(
         serviceInstance.dispatchEvent(new CustomEvent('chatUpdated', {
             detail: {
                 chat_id: payload.chat_id,
-                chat: updatedChat,
+                chat: chat,
                 newMessage: aiMessage,
                 type: 'background_ai_completion'
             }
@@ -734,6 +734,34 @@ export async function handleAITypingStartedImpl( // Changed to async
             hasEncryptedContent: !!userMessage.encrypted_content,
             contentLength: userMessage.content?.length || 0
         });
+        
+        // CRITICAL: Store the model name on the user message that triggered this AI response
+        // The model_name indicates which AI model is being used to generate the response
+        // This is received in ai_typing_started and should be stored on the user message
+        if (payload.model_name) {
+            // Only update if model_name is not already set (to avoid overwriting)
+            if (!userMessage.model_name && !userMessage.encrypted_model_name) {
+                userMessage.model_name = payload.model_name;
+                console.info(`[ChatSyncService:AI] Storing model_name "${payload.model_name}" on user message ${userMessage.message_id}`);
+                
+                // Save the message to database - encryptMessageFields will encrypt model_name as encrypted_model_name
+                try {
+                    await chatDB.saveMessage(userMessage);
+                    console.info(`[ChatSyncService:AI] ✅ Successfully saved user message ${userMessage.message_id} with model_name`);
+                    
+                    // CRITICAL: Re-set plaintext model_name after saving because encryptMessageFields deletes it
+                    // We need it available for sendEncryptedStoragePackage to include in the server payload
+                    userMessage.model_name = payload.model_name;
+                } catch (error) {
+                    console.error(`[ChatSyncService:AI] ❌ Failed to save user message ${userMessage.message_id} with model_name:`, error);
+                    // Continue processing even if save fails - don't block the rest of the flow
+                }
+            } else {
+                console.debug(`[ChatSyncService:AI] User message ${userMessage.message_id} already has model_name, skipping update`);
+            }
+        } else {
+            console.debug(`[ChatSyncService:AI] No model_name in payload for user message ${userMessage.message_id}`);
+        }
         
         // Get the updated chat object
         const updatedChat = await chatDB.getChat(payload.chat_id);
@@ -1330,6 +1358,7 @@ export async function handleSendEmbedDataImpl(
             try {
                 const { generateEmbedKey } = await import('./cryptoService');
                 const { computeSHA256 } = await import('../message_parsing/utils');
+                const { embedStore } = await import('./embedStore');
                 const hashedChatId = await computeSHA256(embedData.chat_id);
                 
                 // Only generate if not already in cache

@@ -8,7 +8,6 @@ from typing import Dict, Any
 from typing import Optional
 
 from backend.core.api.app.tasks.celery_config import app
-from backend.core.api.app.services.directus import chat_methods # Assuming this module will have the necessary functions
 from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.services.cache import CacheService
 
@@ -164,6 +163,7 @@ async def _async_persist_new_chat_message_task(
     role: str, # New: 'user', 'assistant', 'system'
     encrypted_sender_name: Optional[str], # Encrypted sender name
     encrypted_category: Optional[str], # Encrypted category
+    encrypted_model_name: Optional[str], # Encrypted model name used for AI response to this user message
     encrypted_content: str, # Zero-knowledge: only encrypted content stored
     created_at: int, # This is the client's original timestamp for the message
     new_chat_messages_version: int,
@@ -220,6 +220,7 @@ async def _async_persist_new_chat_message_task(
                     "role": role,
                     "encrypted_sender_name": encrypted_sender_name,
                     "encrypted_category": encrypted_category,
+                    "encrypted_model_name": encrypted_model_name,  # Model name used for AI response to this user message
                     "encrypted_content": encrypted_content,
                     "created_at": created_at,
                     "status": "delivered"  # Default status
@@ -259,6 +260,7 @@ async def _async_persist_new_chat_message_task(
             "role": role,
             "encrypted_sender_name": encrypted_sender_name,
             "encrypted_category": encrypted_category,
+            "encrypted_model_name": encrypted_model_name,  # Model name used for AI response to this user message
             "encrypted_content": encrypted_content,
             "created_at": created_at
         }
@@ -326,6 +328,7 @@ def persist_new_chat_message_task(
     role: str, # New
     encrypted_sender_name: Optional[str], # Encrypted sender name
     encrypted_category: Optional[str], # Encrypted category
+    encrypted_model_name: Optional[str], # Encrypted model name used for AI response to this user message
     encrypted_content: str, # Zero-knowledge: only encrypted content
     created_at: int,
     new_chat_messages_version: int,
@@ -345,7 +348,7 @@ def persist_new_chat_message_task(
         asyncio.set_event_loop(loop)
         loop.run_until_complete(_async_persist_new_chat_message_task(
             message_id, chat_id, hashed_user_id, 
-            role, encrypted_sender_name, encrypted_category, # Pass new encrypted params
+            role, encrypted_sender_name, encrypted_category, encrypted_model_name, # Pass new encrypted params including model_name
             encrypted_content, created_at,
             new_chat_messages_version, new_last_edited_overall_timestamp,
             task_id, encrypted_chat_key, user_id # Pass encrypted chat key and user_id for device sync
@@ -792,7 +795,6 @@ async def _async_persist_ai_response_to_directus(
             # This ensures the AI response is available for sync after logout/login
             try:
                 from backend.core.api.app.services.cache import CacheService
-                import json
                 cache_service = CacheService()
                 
                 # Get all client-encrypted messages from Directus (including the AI response we just stored)

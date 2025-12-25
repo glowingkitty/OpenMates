@@ -82,10 +82,10 @@ export function sortChats(chatsToSort: ChatType[], currentServerSortOrder: strin
             return 1;  // b comes first
         }
 
-        // Fallback to updatedAt if still tied (e.g., for purely local items not yet in server order)
-        // Ensure Date objects are valid before calling getTime()
-        const aUpdated = a.updatedAt instanceof Date ? a.updatedAt.getTime() : 0;
-        const bUpdated = b.updatedAt instanceof Date ? b.updatedAt.getTime() : 0;
-        return bUpdated - aUpdated; // Sort by most recent updatedAt descending
+        // Fallback to updated_at if still tied (e.g., for purely local items not yet in server order)
+        // Use timestamp (number) instead of Date object
+        const aUpdated = a.updated_at || 0;
+        const bUpdated = b.updated_at || 0;
+        return bUpdated - aUpdated; // Sort by most recent updated_at descending
     });
 }

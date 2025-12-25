@@ -676,6 +676,12 @@ export async function sendEncryptedStoragePackage(
             ? await encryptWithChatKey(plaintext_category, chatKey) 
             : null;
         
+        // Encrypt model_name if present on the user message
+        // The model_name indicates which AI model is being used to generate the response to this user message
+        const encryptedUserModelName = user_message.model_name 
+            ? await encryptWithChatKey(user_message.model_name, chatKey) 
+            : null;
+        
         // AI response is handled separately - not part of immediate storage
         
         // Encrypt title with chat-specific key (for chat-level metadata)
@@ -703,6 +709,7 @@ export async function sendEncryptedStoragePackage(
             encrypted_content: encryptedUserContent,
             encrypted_sender_name: encryptedUserSenderName,
             encrypted_category: encryptedUserCategory,  // User message category
+            encrypted_model_name: encryptedUserModelName,  // Model name used for AI response to this user message
             created_at: user_message.created_at,
             // Chat key (ALWAYS included for new chats, may be undefined for follow-ups if already stored)
             encrypted_chat_key: encryptedChatKey,
@@ -1008,6 +1015,12 @@ export async function sendDeleteNewChatSuggestionImpl(
         return;
     }
 
+    // Final validation: reject empty strings (default suggestions cannot be deleted)
+    if (!encryptedSuggestion || encryptedSuggestion.trim() === '') {
+        console.error('[ChatSyncService:Senders] CRITICAL: Attempted to send empty encrypted_suggestion - rejecting request');
+        throw new Error('Cannot delete default suggestion: encrypted_suggestion is empty');
+    }
+
     try {
         console.debug('[ChatSyncService:Senders] Sending delete new chat suggestion request to server');
         await webSocketService.sendMessage('delete_new_chat_suggestion', {
@@ -1016,6 +1029,33 @@ export async function sendDeleteNewChatSuggestionImpl(
         console.info('[ChatSyncService:Senders] Successfully sent delete suggestion request to server');
     } catch (error) {
         console.error('[ChatSyncService:Senders] Error sending delete_new_chat_suggestion:', error);
+        throw error;
+    }
+}
+
+export async function sendDeleteNewChatSuggestionByIdImpl(
+    serviceInstance: ChatSynchronizationService,
+    suggestionId: string
+): Promise<void> {
+    if (!serviceInstance.webSocketConnected_FOR_SENDERS_ONLY) {
+        console.warn('[ChatSyncService:Senders] Cannot send delete_new_chat_suggestion - WebSocket not connected');
+        return;
+    }
+
+    // Final validation: reject empty strings (default suggestions cannot be deleted)
+    if (!suggestionId || suggestionId.trim() === '') {
+        console.error('[ChatSyncService:Senders] CRITICAL: Attempted to send empty suggestion_id - rejecting request');
+        throw new Error('Cannot delete suggestion: suggestion_id is empty');
+    }
+
+    try {
+        console.debug('[ChatSyncService:Senders] Sending delete new chat suggestion by ID request to server');
+        await webSocketService.sendMessage('delete_new_chat_suggestion', {
+            suggestion_id: suggestionId
+        });
+        console.info('[ChatSyncService:Senders] Successfully sent delete suggestion by ID request to server');
+    } catch (error) {
+        console.error('[ChatSyncService:Senders] Error sending delete_new_chat_suggestion by ID:', error);
         throw error;
     }
 }
