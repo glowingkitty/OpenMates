@@ -5,7 +5,7 @@
 
 import { get } from 'svelte/store';
 import { getApiEndpoint, apiEndpoints } from '../config/api';
-import { currentSignupStep, isInSignupProcess, getStepFromPath, STEP_ONE_TIME_CODES, STEP_ALPHA_DISCLAIMER, isSignupPath } from './signupState';
+import { currentSignupStep, isInSignupProcess, getStepFromPath, STEP_ALPHA_DISCLAIMER, isSignupPath } from './signupState';
 import { requireInviteCode } from './signupRequirements';
 import { userDB } from '../services/userDB';
 import { chatDB } from '../services/db'; // Import chatDB
@@ -21,6 +21,7 @@ import { loginInterfaceOpen } from './uiStateStore'; // Import loginInterfaceOpe
 import { activeChatStore } from './activeChatStore'; // Import activeChatStore to navigate to demo-welcome on logout
 import { clearSignupData, clearIncompleteSignupData } from './signupStore'; // Import signup cleanup functions
 import { clearAllSessionStorageDrafts } from '../services/drafts/sessionStorageDraftService'; // Import sessionStorage draft cleanup
+import { isLoggingOut } from './signupState'; // Import isLoggingOut to track logout state during session expiration
 
 // Import core auth state and related flags
 import { authStore, isCheckingAuth, needsDeviceVerification } from './authState';
@@ -133,6 +134,12 @@ export async function checkAuth(deviceSignals?: Record<string, string | null>, f
                 // Show notification that user was logged out
                 notificationStore.warning("You have been logged out. Please log in again.", 5000);
                 
+                // CRITICAL: Set isLoggingOut flag to true BEFORE navigating to demo-welcome
+                // This ensures ActiveChat component knows we're explicitly logging out and should clear shared chats
+                // and load demo-welcome, even if the chat is a shared chat
+                isLoggingOut.set(true);
+                console.debug("[AuthSessionActions] Set isLoggingOut to true for missing master key logout");
+                
                 // CRITICAL: Navigate to demo-welcome chat to hide the previously open chat
                 // This ensures the previous chat is not visible after logout
                 // Small delay to ensure auth state changes are processed first
@@ -164,10 +171,20 @@ export async function checkAuth(deviceSignals?: Record<string, string | null>, f
                             } catch (dbError) {
                                 console.warn("[AuthSessionActions] Failed to delete chatDB database (may be blocked):", dbError);
                             }
+                            
+                            // CRITICAL: Reset isLoggingOut flag after logout cleanup completes
+                            // This ensures the flag is reset even if logout was triggered by missing master key
+                            // Use a small delay to ensure all logout handlers have finished processing
+                            setTimeout(() => {
+                                isLoggingOut.set(false);
+                                console.debug("[AuthSessionActions] Reset isLoggingOut flag after missing master key logout cleanup");
+                            }, 500);
                         }, 100);
                     }
                 }).catch(err => {
                     console.error("[AuthSessionActions] Logout failed:", err);
+                    // Reset isLoggingOut even if logout fails
+                    isLoggingOut.set(false);
                 });
 
                 deleteSessionId(); // Remove session_id on forced logout
@@ -315,6 +332,12 @@ export async function checkAuth(deviceSignals?: Record<string, string | null>, f
             if (hadMasterKey) {
                 console.debug("[AuthSessionActions] User was previously authenticated - showing logout notification and cleaning up.");
                 
+                // CRITICAL: Set isLoggingOut flag to true BEFORE dispatching logout event
+                // This ensures ActiveChat component knows we're explicitly logging out and should clear shared chats
+                // and load demo-welcome, even if the chat is a shared chat
+                isLoggingOut.set(true);
+                console.debug("[AuthSessionActions] Set isLoggingOut to true for session expiration logout");
+                
                 // CRITICAL: Dispatch logout event IMMEDIATELY to clear UI state (chats, etc.)
                 // This must happen before database deletion to ensure UI updates right away
                 console.debug("[AuthSessionActions] Dispatching userLoggingOut event to clear UI state immediately");
@@ -399,6 +422,14 @@ export async function checkAuth(deviceSignals?: Record<string, string | null>, f
                     } catch (dbError) {
                         console.warn("[AuthSessionActions] Failed to delete chatDB database (may be blocked by open connections):", dbError);
                     }
+                    
+                    // CRITICAL: Reset isLoggingOut flag after logout cleanup completes
+                    // This ensures the flag is reset even if logout was triggered by session expiration
+                    // Use a small delay to ensure all logout handlers have finished processing
+                    setTimeout(() => {
+                        isLoggingOut.set(false);
+                        console.debug("[AuthSessionActions] Reset isLoggingOut flag after session expiration logout cleanup");
+                    }, 500);
                 }, 100); // Small delay to allow current operations to complete
             } else {
                 console.debug("[AuthSessionActions] No master key found - user was not previously authenticated, skipping cleanup.");
