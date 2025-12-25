@@ -492,6 +492,33 @@ class InvoiceTemplateService(BasePDFTemplateService):
                 ('RIGHTPADDING', (0, 0), (-1, -1), 0),
             ]))
             elements.append(refund_table)
+
+        # Add subscription management link (if customer_portal_url is provided)
+        if invoice_data.get('customer_portal_url'):
+            elements.append(Spacer(1, 10))
+            manage_label = sanitize_html_for_reportlab(self.t["billing"]["manage_subscription"]["text"])
+            manage_info = sanitize_html_for_reportlab(self.t["settings"]["support"]["subscription_management_info"]["text"])
+            
+            manage_text = f"<b>{manage_label}:</b> {manage_info}"
+            manage_table = Table([[Spacer(self.left_indent, 0),
+                                 Paragraph(manage_text, self.styles['Normal'])]],
+                                 colWidths=[self.left_indent, doc.width-self.left_indent])
+            manage_table.setStyle(TableStyle([
+                ('LEFTPADDING', (0, 0), (-1, -1), 0),
+                ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+            ]))
+            elements.append(manage_table)
+            
+            elements.append(Spacer(1, 5))
+            portal_link_html = f"<a href='{invoice_data['customer_portal_url']}' color='#4867CD'>{invoice_data['customer_portal_url']}</a>"
+            portal_link_table = Table([[Spacer(self.left_indent, 0),
+                                      Paragraph(portal_link_html, self.styles['Normal'])]],
+                                      colWidths=[self.left_indent, doc.width-self.left_indent])
+            portal_link_table.setStyle(TableStyle([
+                ('LEFTPADDING', (0, 0), (-1, -1), 0),
+                ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+            ]))
+            elements.append(portal_link_table)
         
         # Add larger spacer before questions helper
         elements.append(Spacer(1, 40))

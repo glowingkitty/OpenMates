@@ -14,6 +14,7 @@
     import Payment from '../../Payment.svelte';
     import { authStore } from '../../../stores/authStore';
     import InputWarning from '../../common/InputWarning.svelte';
+    import SettingsSupportMonthlyConfirmation from './SettingsSupportMonthlyConfirmation.svelte';
 
     // Predefined monthly support amounts in EUR
     const monthlyTiers = [
@@ -27,6 +28,7 @@
 
     let selectedTier = $state<typeof monthlyTiers[0] | null>(null);
     let showPaymentForm = $state(false);
+    let showConfirmation = $state(false);
     let currency = $state('EUR');
     let paymentStarted = $state(false);
 
@@ -59,6 +61,7 @@
     // Handle going back to tier selection
     function backToTierSelection() {
         showPaymentForm = false;
+        showConfirmation = false;
         selectedTier = null;
         paymentStarted = false;
         emailTouched = false;
@@ -119,16 +122,25 @@
         const paymentState = event.detail?.state;
 
         if (paymentState === 'success') {
-            // Show success message and go back to tier selection
-            backToTierSelection();
-            // Could dispatch an event to show success notification
+            // Show confirmation screen
+            showPaymentForm = false;
+            showConfirmation = true;
+            paymentStarted = false;
         } else if (paymentState === 'failure') {
             // Keep the payment form open; Payment component shows the error.
         }
     }
 </script>
 
-{#if !showPaymentForm}
+{#if showConfirmation && selectedTier}
+    <!-- Confirmation Screen -->
+    <SettingsSupportMonthlyConfirmation
+        amount={selectedTier.amount}
+        currency={currency}
+        on:openSettings
+    />
+
+{:else if !showPaymentForm}
     <!-- Monthly Support Tier Selection -->
     <div class="disclaimer-container">
         <div class="disclaimer">

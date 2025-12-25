@@ -25,7 +25,8 @@ class ChatDatabase {
     private readonly PENDING_OG_METADATA_STORE_NAME = 'pending_og_metadata_updates'; // Store for pending OG metadata updates
     // Version incremented due to embed data model refactoring (storing fields separately instead of JSON string)
     // Migration converts old embeds with JSON string in data field to new separate fields format
-    private readonly VERSION = 14;
+    // Version 15: Added pinned field and index for chat pinning functionality
+    private readonly VERSION = 15;
     private initializationPromise: Promise<void> | null = null;
     
     // Flag to prevent new operations during database deletion
@@ -94,6 +95,7 @@ class ChatDatabase {
                     const chatStore = db.createObjectStore(this.CHATS_STORE_NAME, { keyPath: 'chat_id' });
                     chatStore.createIndex('last_edited_overall_timestamp', 'last_edited_overall_timestamp', { unique: false });
                     chatStore.createIndex('updated_at', 'updated_at', { unique: false });
+                    chatStore.createIndex('pinned', 'pinned', { unique: false });
                 } else {
                     // If chats store exists, ensure indexes are present (idempotent)
                     const chatStore = transaction?.objectStore(this.CHATS_STORE_NAME);
@@ -103,6 +105,9 @@ class ChatDatabase {
                         }
                         if (!chatStore.indexNames.contains('updated_at')) {
                              chatStore.createIndex('updated_at', 'updated_at', { unique: false });
+                        }
+                        if (!chatStore.indexNames.contains('pinned')) {
+                            chatStore.createIndex('pinned', 'pinned', { unique: false });
                         }
                         if (chatStore.indexNames.contains('updatedAt')) {
                             chatStore.deleteIndex('updatedAt');
@@ -2720,7 +2725,10 @@ class ChatDatabase {
     /**
      * Get all new chat suggestions (sorted by created_at, newest first)
      */
-    async getAllNewChatSuggestions(): Promise<NewChatSuggestion[]> {
+    /**
+     * Get all new chat suggestions (excluding hidden ones by default)
+     */
+    async getAllNewChatSuggestions(includeHidden: boolean = false): Promise<NewChatSuggestion[]> {
         if (!this.db) throw new Error('[ChatDatabase] Database not initialized');
 
         return new Promise((resolve, reject) => {
@@ -2733,7 +2741,11 @@ class ChatDatabase {
             request.onsuccess = (event) => {
                 const cursor = (event.target as IDBRequest<IDBCursorWithValue>).result;
                 if (cursor) {
-                    suggestions.push(cursor.value);
+                    const suggestion = cursor.value;
+                    // Only include suggestions that are not hidden (unless includeHidden is true)
+                    if (includeHidden || !suggestion.is_hidden) {
+                        suggestions.push(suggestion);
+                    }
                     cursor.continue();
                 } else {
                     resolve(suggestions);
@@ -2826,6 +2838,98 @@ class ChatDatabase {
         } catch (error) {
             console.error('[ChatDatabase] Error deleting new chat suggestion by ID:', error);
             return false;
+        }
+    }
+
+    /**
+     * Delete a new chat suggestion by its encrypted content (for context menu deletions)
+     */
+    async deleteNewChatSuggestionByEncrypted(encryptedSuggestion: string): Promise<boolean> {
+        if (!this.db) throw new Error('[ChatDatabase] Database not initialized');
+
+        try {
+            const allSuggestions = await this.getAllNewChatSuggestions(true); // Include hidden suggestions for deletion
+            const suggestionToDelete = allSuggestions.find(s => s.encrypted_suggestion === encryptedSuggestion);
+
+            if (!suggestionToDelete) {
+                console.warn('[ChatDatabase] Suggestion with encrypted content not found for deletion');
+                return false;
+            }
+
+            return await this.deleteNewChatSuggestionById(suggestionToDelete.id);
+        } catch (error) {
+            console.error('[ChatDatabase] Error deleting new chat suggestion by encrypted content:', error);
+            return false;
+        }
+    }
+
+    /**
+     * Hide new chat suggestions associated with a specific chat
+     * This marks suggestions so they're not displayed when the chat is hidden
+     */
+    async hideNewChatSuggestionsForChat(chatId: string): Promise<void> {
+        if (!this.db) throw new Error('[ChatDatabase] Database not initialized');
+
+        try {
+            const allSuggestions = await this.getAllNewChatSuggestions(true); // Include hidden suggestions
+            const suggestionsToUpdate = allSuggestions.filter(s => s.chat_id === chatId);
+
+            if (suggestionsToUpdate.length === 0) {
+                console.debug('[ChatDatabase] No suggestions found for chat to hide:', chatId);
+                return;
+            }
+
+            const transaction = this.db.transaction([this.NEW_CHAT_SUGGESTIONS_STORE_NAME], 'readwrite');
+            const store = transaction.objectStore(this.NEW_CHAT_SUGGESTIONS_STORE_NAME);
+
+            for (const suggestion of suggestionsToUpdate) {
+                const updatedSuggestion = { ...suggestion, is_hidden: true };
+                store.put(updatedSuggestion);
+            }
+
+            await new Promise<void>((resolve, reject) => {
+                transaction.oncomplete = () => resolve();
+                transaction.onerror = () => reject(transaction.error);
+            });
+
+            console.debug(`[ChatDatabase] Successfully hidden ${suggestionsToUpdate.length} suggestions for chat:`, chatId);
+        } catch (error) {
+            console.error('[ChatDatabase] Error hiding suggestions for chat:', error);
+        }
+    }
+
+    /**
+     * Unhide new chat suggestions associated with a specific chat
+     * This makes suggestions visible again when the chat is unhidden
+     */
+    async unhideNewChatSuggestionsForChat(chatId: string): Promise<void> {
+        if (!this.db) throw new Error('[ChatDatabase] Database not initialized');
+
+        try {
+            const allSuggestions = await this.getAllNewChatSuggestions(true); // Include hidden suggestions
+            const suggestionsToUpdate = allSuggestions.filter(s => s.chat_id === chatId);
+
+            if (suggestionsToUpdate.length === 0) {
+                console.debug('[ChatDatabase] No suggestions found for chat to unhide:', chatId);
+                return;
+            }
+
+            const transaction = this.db.transaction([this.NEW_CHAT_SUGGESTIONS_STORE_NAME], 'readwrite');
+            const store = transaction.objectStore(this.NEW_CHAT_SUGGESTIONS_STORE_NAME);
+
+            for (const suggestion of suggestionsToUpdate) {
+                const updatedSuggestion = { ...suggestion, is_hidden: false };
+                store.put(updatedSuggestion);
+            }
+
+            await new Promise<void>((resolve, reject) => {
+                transaction.oncomplete = () => resolve();
+                transaction.onerror = () => reject(transaction.error);
+            });
+
+            console.debug(`[ChatDatabase] Successfully unhidden ${suggestionsToUpdate.length} suggestions for chat:`, chatId);
+        } catch (error) {
+            console.error('[ChatDatabase] Error unhiding suggestions for chat:', error);
         }
     }
 

@@ -80,6 +80,9 @@ export interface Chat {
   
   // Incognito mode field
   is_incognito?: boolean; // True if this chat was created in incognito mode (not synced, not stored in Directus, cleared on tab close)
+
+  // Pin functionality
+  pinned?: boolean; // Whether this chat is pinned. Pinned chats appear at the top of the chat list and are prioritized in sync.
 }
 
 export interface ChatComponentVersions {
@@ -102,6 +105,7 @@ export interface NewChatSuggestion {
   encrypted_suggestion: string; // Encrypted suggestion text (encrypted with master key)
   chat_id: string; // Associated chat ID for deletion when chat is deleted
   created_at: number; // Unix timestamp
+  is_hidden?: boolean; // Whether this suggestion should be hidden (when associated chat is hidden)
 }
 
 export interface ChatListItem {

@@ -297,6 +297,9 @@ export class ChatSynchronizationService extends EventTarget {
     public async sendStoreEmbed(payload: StoreEmbedPayload): Promise<void> {
         await senders.sendStoreEmbedImpl(this, payload);
     }
+    public async sendDeleteNewChatSuggestion(encryptedSuggestion: string): Promise<void> {
+        await senders.sendDeleteNewChatSuggestionImpl(this, encryptedSuggestion);
+    }
     public async queueOfflineChange(change: Omit<OfflineChange, 'change_id'>): Promise<void> {
         // This one is tricky as it's called by senders. For now, keep it public or make senders pass `this` to it.
         // For simplicity, making it public for now.

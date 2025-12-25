@@ -164,6 +164,23 @@ class SupportContributionReceiptTemplateService(BasePDFTemplateService):
             )
         )
         elements.append(items_table)
+        elements.append(Spacer(1, 24))
+
+        # Add subscription management link if provided
+        customer_portal_url = receipt_data.get("customer_portal_url")
+        if customer_portal_url:
+            manage_label = sanitize_html_for_reportlab(self.t["billing"]["manage_subscription"]["text"])
+            manage_info = sanitize_html_for_reportlab(self.t["settings"]["support"]["subscription_management_info"]["text"])
+            
+            elements.append(Paragraph(f"<b>{manage_label}</b>", self.styles["Bold"]))
+            elements.append(Spacer(1, 6))
+            elements.append(Paragraph(manage_info, self.styles["Normal"]))
+            elements.append(Spacer(1, 6))
+            
+            # Use a blue link for the portal URL
+            link_text = f'<a href="{customer_portal_url}" color="#4867CD">{customer_portal_url}</a>'
+            elements.append(Paragraph(link_text, self.styles["Normal"]))
+            elements.append(Spacer(1, 18))
 
         def _draw(canvas, doc_obj):
             self._draw_header_footer(canvas, doc_obj)

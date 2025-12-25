@@ -17,11 +17,12 @@ function hasNonEmptyDraft(chat: ChatType): boolean {
 
 /**
  * Sorts an array of chats based on multiple criteria.
- * - Primary sort: Chats with non-empty drafts appear first (among themselves, sorted by last_edited_overall_timestamp)
- * - Secondary sort: Chats without drafts, sorted by `last_edited_overall_timestamp` in descending order
- * - Tertiary sort: Server's preferred order (`currentServerSortOrder`) if timestamps are equal or undefined
- * - Fallback sort: `updatedAt` timestamp in descending order if still tied
- * 
+ * - Primary sort: Pinned chats appear first (sorted by their own criteria)
+ * - Secondary sort: Chats with non-empty drafts appear next (among themselves, sorted by last_edited_overall_timestamp)
+ * - Tertiary sort: Regular chats without drafts, sorted by `last_edited_overall_timestamp` in descending order
+ * - Fallback sort: Server's preferred order (`currentServerSortOrder`) if timestamps are equal or undefined
+ * - Final fallback: `updatedAt` timestamp in descending order if still tied
+ *
  * CRITICAL: Only messages update `last_edited_overall_timestamp`. Drafts do NOT update this timestamp,
  * ensuring old chats don't appear as recent just because they have drafts.
  *
@@ -32,11 +33,24 @@ function hasNonEmptyDraft(chat: ChatType): boolean {
 export function sortChats(chatsToSort: ChatType[], currentServerSortOrder: string[]): ChatType[] {
     // Create a shallow copy to avoid mutating the original array
     return [...chatsToSort].sort((a, b) => {
+        // Check if chats are pinned
+        const aPinned = a.pinned || false;
+        const bPinned = b.pinned || false;
+
+        // Primary sort: Pinned chats come before non-pinned chats
+        if (aPinned && !bPinned) {
+            return -1; // a (pinned) comes first
+        }
+        if (!aPinned && bPinned) {
+            return 1; // b (pinned) comes first
+        }
+
+        // Both pinned or both not pinned - check drafts within their category
         // Check if chats have non-empty drafts
         const aHasDraft = hasNonEmptyDraft(a);
         const bHasDraft = hasNonEmptyDraft(b);
-        
-        // Primary sort: Chats with non-empty drafts appear before chats without drafts
+
+        // Secondary sort: Chats with non-empty drafts appear before chats without drafts (within pinned/unpinned category)
         if (aHasDraft && !bHasDraft) {
             return -1; // a (with draft) comes first
         }

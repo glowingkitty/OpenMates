@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Request, Body
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 import logging
 import os
@@ -366,7 +366,7 @@ async def create_payment_order(
     calculated_amount = get_price_for_credits(order_data.credits_amount, order_data.currency)
     if calculated_amount is None:
         logger.error(f"Could not determine price for {order_data.credits_amount} credits in {order_data.currency} for user {current_user.id}.")
-        raise HTTPException(status_code=400, detail=f"Invalid credit amount or currency combination.")
+        raise HTTPException(status_code=400, detail="Invalid credit amount or currency combination.")
     
     # Convert calculated_amount (in cents/smallest unit) to actual currency amount for tier checking
     # get_price_for_credits returns amount in smallest currency unit (cents for EUR/USD/GBP)
@@ -763,6 +763,30 @@ async def payment_webhook(
                     )
                     logger.info(f"Dispatched guest support contribution receipt task for order {webhook_order_id}.")
 
+                    # Check if this is a subscription setup payment and create the actual subscription
+                    if metadata.get("subscription_setup") == "true" and is_recurring:
+                        try:
+                            subscription_result = await payment_service.provider._create_subscription_from_payment_intent(webhook_order_id)
+                            if subscription_result:
+                                logger.info(f"Created subscription {subscription_result['subscription_id']} from support PaymentIntent {webhook_order_id}")
+                                # Update cache to include subscription information
+                                await cache_service.set_support_order(
+                                    order_id=webhook_order_id,
+                                    status="completed",
+                                    ttl=3600,
+                                    amount=amount_paid,
+                                    currency=currency_paid,
+                                    support_email=support_email,
+                                    user_id=user_id,
+                                    email_encryption_key=email_encryption_key,
+                                    is_recurring=is_recurring,
+                                    subscription_id=subscription_result.get("subscription_id")
+                                )
+                            else:
+                                logger.error(f"Failed to create subscription from support PaymentIntent {webhook_order_id}")
+                        except Exception as subscription_error:
+                            logger.error(f"Error creating subscription from support PaymentIntent {webhook_order_id}: {subscription_error}")
+
                     await cache_service.update_order_status(webhook_order_id, "completed")
                     return {"status": "supporter_contribution_processed"}
             
@@ -1044,7 +1068,7 @@ async def payment_webhook(
 
                     # Dispatch invoice task for both regular purchases and gift cards
                     # Fetch sender details for invoice via SecretsManager
-                    invoice_sender_path = f"kv/data/providers/invoice_sender"
+                    invoice_sender_path = "kv/data/providers/invoice_sender"
 
                     sender_addressline1 = await secrets_manager.get_secret(secret_path=invoice_sender_path, secret_key="addressline1")
                     sender_addressline2 = await secrets_manager.get_secret(secret_path=invoice_sender_path, secret_key="addressline2")
@@ -1164,7 +1188,7 @@ async def payment_webhook(
             subscription_id = invoice_data.get("subscription")
             
             if not subscription_id:
-                logger.warning(f"Invoice payment succeeded but no subscription_id found")
+                logger.warning("Invoice payment succeeded but no subscription_id found")
                 return {"status": "received_no_subscription"}
             
             # Get user by subscription_id
@@ -2051,7 +2075,7 @@ async def process_payment_with_saved_method(
             if payment_method.customer != current_user.stripe_customer_id:
                 logger.warning(f"Payment method {payment_request.payment_method_id} does not belong to user {current_user.id}")
                 raise HTTPException(status_code=403, detail="Payment method does not belong to your account")
-        except stripe.error.StripeError as e:
+        except stripe_lib.error.StripeError as e:
             logger.error(f"Error verifying payment method: {e.user_message}")
             raise HTTPException(status_code=400, detail="Invalid payment method")
         
@@ -2242,7 +2266,6 @@ async def update_billing_day_preference(
 
             # Calculate new billing cycle anchor based on preference
             from datetime import datetime, timezone
-            import calendar
 
             current_period_end = subscription.get('current_period_end')
             if current_period_end:
@@ -2268,7 +2291,7 @@ async def update_billing_day_preference(
                         # Note: Stripe's billing_cycle_anchor can only be set on creation
                         # For existing subscriptions, we use proration_behavior and trial_end
                         # to shift the billing date
-                        updated_subscription = stripe.Subscription.modify(
+                        stripe.Subscription.modify(
                             current_user.stripe_subscription_id,
                             proration_behavior='none',
                             billing_cycle_anchor='now',
@@ -2438,7 +2461,7 @@ async def redeem_gift_card(
             if not record_success:
                 logger.warning(f"Failed to record gift card redemption for code {code}, but continuing with deletion")
         else:
-            logger.warning(f"Vault key ID missing, cannot encrypt gift card code for redemption record")
+            logger.warning("Vault key ID missing, cannot encrypt gift card code for redemption record")
         
         # 10. Redeem (delete) the gift card from Directus and cache
         redeem_success = await directus_service.redeem_gift_card(code, user_id)
@@ -3066,7 +3089,7 @@ async def download_invoice(
             )
             raise HTTPException(
                 status_code=404,
-                detail=f"Invoice file not found in storage"
+                detail="Invoice file not found in storage"
             )
 
         # Decrypt the PDF content using AES
@@ -3269,7 +3292,7 @@ async def download_credit_note(
             )
             raise HTTPException(
                 status_code=404,
-                detail=f"Credit note file not found in storage"
+                detail="Credit note file not found in storage"
             )
 
         # Decrypt the PDF content using AES
@@ -3787,7 +3810,7 @@ async def request_refund(
             
             # Fallback: try to get invoice number from encrypted_custom_invoice_number if available
             if not referenced_invoice_number:
-                logger.warning(f"Could not extract invoice number from filename. Attempting to get from encrypted_custom_invoice_number field...")
+                logger.warning("Could not extract invoice number from filename. Attempting to get from encrypted_custom_invoice_number field...")
                 encrypted_custom_invoice_number = invoice.get("encrypted_custom_invoice_number")
                 if encrypted_custom_invoice_number and vault_key_id:
                     try:
@@ -3803,7 +3826,7 @@ async def request_refund(
 
             # Final check: fail if we still don't have a valid invoice number
             if not referenced_invoice_number:
-                logger.error(f"Could not determine invoice number for credit note. Cannot create credit note without valid invoice reference.")
+                logger.error("Could not determine invoice number for credit note. Cannot create credit note without valid invoice reference.")
                 raise HTTPException(
                     status_code=500,
                     detail="Failed to determine invoice number for credit note generation. Please contact support."
@@ -3814,7 +3837,7 @@ async def request_refund(
             # Use client-provided email encryption key (same as invoice task)
             # This is required for zero-knowledge email decryption in the credit note task
             email_encryption_key = refund_request.email_encryption_key
-            logger.info(f"Using client-provided email encryption key for credit note task")
+            logger.info("Using client-provided email encryption key for credit note task")
             
             # Dispatch credit note processing task
             task_payload = {

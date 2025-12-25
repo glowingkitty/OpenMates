@@ -74,6 +74,11 @@ chats:
       type: string
       note: "[Encrypted] Category name, generated during pre-processing, encrypted using chat-specific key"
 
+    pinned:
+      type: boolean
+      default: false
+      note: "Whether this chat is pinned. Pinned chats appear at the top of the chat list and are prioritized in sync to prevent exclusion from the last 100 synced chats."
+
     shared_with_user_hashes:
       type: json
       note: "Array of SHA-256 hashes of users allowed to access this chat. Initially contains hash(email) for lookup, which is upgraded to hash(user_id) after first access to allow access even after email changes. Format: ['hash1', 'hash2', ...]. Uses SHA256(user_id.encode()).hexdigest() for user_id hashing to match system convention."

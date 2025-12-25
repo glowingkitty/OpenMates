@@ -211,6 +211,54 @@ context_menu.unselect:
   sv: Avmarkera
   verified_by_human: []
 
+context_menu.pin:
+  context: Menu option to pin a chat to the top
+  en: Pin
+  de: Anheften
+  zh: 置顶
+  es: Fijar
+  fr: Épingler
+  pt: Fixar
+  ru: Закрепить
+  ja: 固定
+  ko: 고정
+  it: Fissa
+  tr: Sabitle
+  vi: Ghim
+  id: Sematkan
+  pl: Przypnij
+  nl: Vastmaken
+  ar: تثبيت
+  hi: पिन करें
+  th: ปักหมุด
+  cs: Připnout
+  sv: Fäst
+  verified_by_human: []
+
+context_menu.unpin:
+  context: Menu option to unpin a chat from the top
+  en: Unpin
+  de: Lösen
+  zh: 取消置顶
+  es: Desfijar
+  fr: Désépingler
+  pt: Desfixar
+  ru: Открепить
+  ja: 固定解除
+  ko: 고정 해제
+  it: Rimuovi
+  tr: Sabitlemeyi kaldır
+  vi: Bỏ ghim
+  id: Lepas sematan
+  pl: Odepnij
+  nl: Losmaken
+  ar: إلغاء التثبيت
+  hi: अनपिन करें
+  th: เลิกปักหมุด
+  cs: Odepnout
+  sv: Lossa
+  verified_by_human: []
+
 context_menu.hide:
   context: Menu option to hide a chat (make it a hidden chat)
   en: Hide

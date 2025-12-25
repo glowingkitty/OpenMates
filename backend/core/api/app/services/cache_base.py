@@ -4,7 +4,7 @@ import logging
 import asyncio # Add asyncio for CancelledError
 import redis.asyncio as redis
 from redis import exceptions as redis_exceptions # Import exceptions from the main redis library
-from typing import Any, Optional
+from typing import Any, Optional, List
 
 # Import constants from the new config file
 from . import cache_config
@@ -103,7 +103,7 @@ class CacheServiceBase:
                 logger.debug(f"Cache HIT for key: '{key}'")
                 try:
                     return json.loads(value)
-                except:
+                except (json.JSONDecodeError, TypeError, ValueError):
                     return value.decode('utf-8') if isinstance(value, bytes) else value
             logger.debug(f"Cache MISS for key: '{key}'")
             return None
@@ -180,7 +180,7 @@ class CacheServiceBase:
         try:
             client = await self.client
             if not client:
-                logger.debug(f"Cache CLEAR skipped: client not connected.")
+                logger.debug("Cache CLEAR skipped: client not connected.")
                 return False
 
             if prefix:
@@ -274,3 +274,87 @@ class CacheServiceBase:
                     await pubsub.close() # Ensure the pubsub connection is closed
                 except Exception as e_close:
                     logger.error(f"Error during pubsub close/unsubscribe for '{channel_pattern}': {e_close}")
+
+    async def execute_pipeline_operations(self, operations: List[tuple]) -> bool:
+        """
+        Execute multiple cache operations in a Redis pipeline for better performance.
+
+        Args:
+            operations: List of tuples (method_name, *args) representing cache operations
+
+        Returns:
+            bool: True if all operations succeeded, False otherwise
+        """
+        try:
+            client = await self.client
+            if not client:
+                logger.warning("Redis pipeline skipped: client not connected")
+                return False
+
+            # Create a pipeline
+            pipe = client.pipeline()
+
+            logger.debug(f"Executing {len(operations)} operations in Redis pipeline")
+
+            for operation in operations:
+                method_name = operation[0]
+                args = operation[1:]
+
+                # Map operation names to Redis commands based on cache service methods
+                if method_name == 'add_chat_to_ids_versions':
+                    # This is a sorted set operation: ZADD
+                    user_id, chat_id, timestamp = args
+                    key = f"{self.USER_CHATS_SET_PREFIX}:{user_id}"
+                    pipe.zadd(key, {chat_id: timestamp})
+
+                elif method_name == 'set_chat_versions':
+                    # This stores JSON data: HSET
+                    user_id, chat_id, versions = args
+                    key = f"chat_versions:{user_id}:{chat_id}"
+                    pipe.hset(key, mapping={
+                        "messages_v": versions.messages_v,
+                        "title_v": versions.title_v
+                    })
+
+                elif method_name == 'set_chat_version_component':
+                    # This stores a single field: HSET
+                    user_id, chat_id, component_key, version = args
+                    key = f"chat_versions:{user_id}:{chat_id}"
+                    pipe.hset(key, component_key, version)
+
+                elif method_name == 'set_chat_list_item' or method_name == 'set_chat_list_item_data':
+                    # This stores JSON data: SET
+                    user_id, chat_id, list_item = args
+                    key = f"chat_list:{user_id}:{chat_id}"
+                    pipe.set(key, json.dumps(list_item.model_dump()) if hasattr(list_item, 'model_dump') else json.dumps(list_item.__dict__))
+
+                elif method_name == 'update_user_draft_in_cache':
+                    # This stores draft data: HSET
+                    user_id, chat_id, content, version = args
+                    key = f"user_draft:{user_id}:{chat_id}"
+                    pipe.hset(key, mapping={
+                        "content": content or "",
+                        "version": version
+                    })
+
+                else:
+                    logger.warning(f"Unknown pipeline operation: {method_name}")
+                    continue
+
+            # Execute the pipeline
+            results = await pipe.execute()
+
+            # Check if all operations succeeded
+            success_count = sum(1 for result in results if result)
+            total_operations = len(operations)
+
+            if success_count == total_operations:
+                logger.debug(f"Redis pipeline completed successfully: {success_count}/{total_operations} operations")
+                return True
+            else:
+                logger.warning(f"Redis pipeline partial success: {success_count}/{total_operations} operations succeeded")
+                return False
+
+        except Exception as e:
+            logger.error(f"Redis pipeline execution error: {str(e)}", exc_info=True)
+            return False

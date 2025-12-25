@@ -14,7 +14,7 @@ import tiktoken
 from google import genai
 from google.genai import types
 from google.genai import errors as google_errors
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 
@@ -282,7 +282,7 @@ async def invoke_google_ai_studio_chat_completions(
 
         generation_config = types.GenerateContentConfig(
             thinking_config=types.ThinkingConfig(
-                include_thoughts=True,
+                thinking_budget=0  # Set to 0 to turn off thinking, or increase for more thinking
             ),
             temperature=temperature,
             max_output_tokens=max_tokens,
@@ -477,13 +477,15 @@ async def invoke_google_chat_completions(
         else:
             error_msg = "SecretsManager not provided, and Google client is not initialized."
             logger.error(f"[{task_id}] {error_msg}")
-            if stream: raise ValueError(error_msg)
+            if stream:
+                raise ValueError(error_msg)
             return UnifiedGoogleResponse(task_id=task_id, model_id=model_id, success=False, error_message=error_msg)
 
     if not _google_client_initialized:
         error_msg = "Google client credential initialization failed. Check logs for details."
         logger.error(f"[{task_id}] {error_msg}")
-        if stream: raise ValueError(error_msg)
+        if stream:
+            raise ValueError(error_msg)
         return UnifiedGoogleResponse(task_id=task_id, model_id=model_id, success=False, error_message=error_msg)
 
     try:
@@ -491,7 +493,8 @@ async def invoke_google_chat_completions(
     except Exception as e:
         error_msg = f"Failed to create Google GenAI client: {e}"
         logger.error(f"[{task_id}] {error_msg}", exc_info=True)
-        if stream: raise ValueError(error_msg)
+        if stream:
+            raise ValueError(error_msg)
         return UnifiedGoogleResponse(task_id=task_id, model_id=model_id, success=False, error_message=error_msg)
 
     # Normalize model_id by stripping publisher prefixes if present
@@ -506,7 +509,8 @@ async def invoke_google_chat_completions(
         
         if not contents:
             err_msg = "Message history is empty after processing."
-            if stream: raise ValueError(err_msg)
+            if stream:
+                raise ValueError(err_msg)
             return UnifiedGoogleResponse(task_id=task_id, model_id=model_id, success=False, error_message=err_msg)
 
         google_tools = _map_tools_to_google_format(tools)
@@ -519,7 +523,7 @@ async def invoke_google_chat_completions(
 
         generation_config = types.GenerateContentConfig(
             thinking_config=types.ThinkingConfig(
-                include_thoughts=True,
+                include_thoughts=False
             ),
             temperature=temperature,
             max_output_tokens=max_tokens,
@@ -531,7 +535,8 @@ async def invoke_google_chat_completions(
     except Exception as e:
         err_msg = f"Error during request preparation: {e}"
         logger.error(f"{log_prefix} {err_msg}", exc_info=True)
-        if stream: raise ValueError(err_msg)
+        if stream:
+            raise ValueError(err_msg)
         return UnifiedGoogleResponse(task_id=task_id, model_id=model_id, success=False, error_message=err_msg)
 
     async def _process_non_stream_response(response: types.GenerateContentResponse) -> UnifiedGoogleResponse:

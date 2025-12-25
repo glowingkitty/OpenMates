@@ -994,3 +994,28 @@ export async function sendStoreEmbedKeysImpl(
         throw error;
     }
 }
+
+/**
+ * Send delete new chat suggestion request to server
+ * This removes the suggestion from Directus
+ */
+export async function sendDeleteNewChatSuggestionImpl(
+    serviceInstance: ChatSynchronizationService,
+    encryptedSuggestion: string
+): Promise<void> {
+    if (!serviceInstance.webSocketConnected_FOR_SENDERS_ONLY) {
+        console.warn('[ChatSyncService:Senders] Cannot send delete_new_chat_suggestion - WebSocket not connected');
+        return;
+    }
+
+    try {
+        console.debug('[ChatSyncService:Senders] Sending delete new chat suggestion request to server');
+        await webSocketService.sendMessage('delete_new_chat_suggestion', {
+            encrypted_suggestion: encryptedSuggestion
+        });
+        console.info('[ChatSyncService:Senders] Successfully sent delete suggestion request to server');
+    } catch (error) {
+        console.error('[ChatSyncService:Senders] Error sending delete_new_chat_suggestion:', error);
+        throw error;
+    }
+}

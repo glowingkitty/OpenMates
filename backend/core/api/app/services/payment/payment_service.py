@@ -84,5 +84,14 @@ class PaymentService:
             logger.error(f"Refund not supported for provider {self.provider_name}")
             return None
 
+    async def get_customer_portal_url(self, customer_id: str, return_url: str = "https://openmates.org/settings/support") -> Optional[str]:
+        """
+        Delegates billing portal session creation to the active payment provider.
+        Only supported for Stripe.
+        """
+        if self.provider_name == "stripe" and hasattr(self.provider, 'get_customer_portal_url'):
+            return await self.provider.get_customer_portal_url(customer_id, return_url)
+        return None
+
     async def close(self):
         await self.provider.close()

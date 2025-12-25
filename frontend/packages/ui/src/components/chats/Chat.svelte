@@ -942,6 +942,12 @@
         }
         showContextMenu = false;
         break;
+      case 'pin':
+        handlePinChat();
+        break;
+      case 'unpin':
+        handleUnpinChat();
+        break;
       default:
         console.warn('[Chat] Unknown context menu action:', action);
     }
@@ -1180,7 +1186,16 @@
       console.debug('[Chat] Chat hidden successfully:', chatIdToHide);
       notificationStore.success('Chat hidden successfully');
       showContextMenu = false;
-      
+
+      // Hide associated new chat suggestions
+      try {
+        await chatDB.hideNewChatSuggestionsForChat(chatIdToHide);
+        console.debug('[Chat] Hidden associated chat suggestions for:', chatIdToHide);
+      } catch (error) {
+        console.warn('[Chat] Failed to hide chat suggestions:', error);
+        // Continue anyway - chat hiding succeeded
+      }
+
       // Dispatch event to update UI (chat will disappear from main list and move to hidden section)
       // Chats.svelte listens on `window` and will refresh the chat list
       if (typeof window !== 'undefined') {
@@ -1213,6 +1228,16 @@
       
       if (success) {
         console.debug('[Chat] Chat unhidden successfully:', chatIdToUnhide);
+
+        // Unhide associated new chat suggestions
+        try {
+          await chatDB.unhideNewChatSuggestionsForChat(chatIdToUnhide);
+          console.debug('[Chat] Unhidden associated chat suggestions for:', chatIdToUnhide);
+        } catch (error) {
+          console.warn('[Chat] Failed to unhide chat suggestions:', error);
+          // Continue anyway - chat unhiding succeeded
+        }
+
         // Mark chat list cache as dirty to force refresh
         chatListCache.markDirty();
         // Dispatch event to refresh chat list (chat will move from hidden section to regular list)
@@ -1226,6 +1251,100 @@
     } catch (error) {
       console.error('[Chat] Error unhiding chat:', error);
       notificationStore.error('Failed to unhide chat.');
+    }
+  }
+
+  /**
+   * Pin chat handler
+   * Updates the pinned status to true and dispatches event to refresh the list
+   */
+  async function handlePinChat() {
+    if (!chat) return;
+
+    const chatIdToPin = chat.chat_id;
+
+    try {
+      console.debug('[Chat] Pinning chat:', chatIdToPin);
+
+      // Update the chat in IndexedDB
+      await chatDB.updateChat(chatIdToPin, { pinned: true });
+
+      // Update the local chat object
+      chat.pinned = true;
+
+      // Mark cache as dirty and refresh the list
+      chatListCache.markDirty();
+
+      // Dispatch event to refresh the chat list so pinned chat moves to top
+      const { LOCAL_CHAT_LIST_CHANGED_EVENT } = await import('../../services/drafts/draftConstants');
+      window.dispatchEvent(new CustomEvent(LOCAL_CHAT_LIST_CHANGED_EVENT, {
+        detail: { chat_id: chatIdToPin, pinned: true }
+      }));
+
+      // Send update to server via chatSyncService
+      if (typeof window !== 'undefined') {
+        const { webSocketService } = await import('../../services/websocketService');
+        if (webSocketService.isConnected()) {
+          const updatePayload = {
+            chat_id: chatIdToPin,
+            pinned: true
+          };
+          webSocketService.sendMessage('update_chat', updatePayload);
+        }
+      }
+
+      console.debug('[Chat] Chat pinned successfully:', chatIdToPin);
+      showContextMenu = false;
+    } catch (error) {
+      console.error('[Chat] Error pinning chat:', error);
+      notificationStore.error('Failed to pin chat. Please try again.');
+    }
+  }
+
+  /**
+   * Unpin chat handler
+   * Updates the pinned status to false and dispatches event to refresh the list
+   */
+  async function handleUnpinChat() {
+    if (!chat) return;
+
+    const chatIdToUnpin = chat.chat_id;
+
+    try {
+      console.debug('[Chat] Unpinning chat:', chatIdToUnpin);
+
+      // Update the chat in IndexedDB
+      await chatDB.updateChat(chatIdToUnpin, { pinned: false });
+
+      // Update the local chat object
+      chat.pinned = false;
+
+      // Mark cache as dirty and refresh the list
+      chatListCache.markDirty();
+
+      // Dispatch event to refresh the chat list so unpinned chat moves from top
+      const { LOCAL_CHAT_LIST_CHANGED_EVENT } = await import('../../services/drafts/draftConstants');
+      window.dispatchEvent(new CustomEvent(LOCAL_CHAT_LIST_CHANGED_EVENT, {
+        detail: { chat_id: chatIdToUnpin, pinned: false }
+      }));
+
+      // Send update to server via chatSyncService
+      if (typeof window !== 'undefined') {
+        const { webSocketService } = await import('../../services/websocketService');
+        if (webSocketService.isConnected()) {
+          const updatePayload = {
+            chat_id: chatIdToUnpin,
+            pinned: false
+          };
+          webSocketService.sendMessage('update_chat', updatePayload);
+        }
+      }
+
+      console.debug('[Chat] Chat unpinned successfully:', chatIdToUnpin);
+      showContextMenu = false;
+    } catch (error) {
+      console.error('[Chat] Error unpinning chat:', error);
+      notificationStore.error('Failed to unpin chat. Please try again.');
     }
   }
 
@@ -1471,6 +1590,11 @@
                 <!-- Fallback: Only show "Untitled chat" if we're sure metadata is ready (shouldn't happen) -->
                 <span class="chat-title">{@html $text('chat.untitled_chat.text')}</span>
               {/if}
+              {#if chat.pinned}
+                <span class="pin-indicator">
+                  <span class="clickable-icon icon_pin" title="Pinned"></span>
+                </span>
+              {/if}
               {#if chat.is_incognito}
                 <span class="incognito-label">
                   <span class="icon icon_incognito"></span>
@@ -1511,6 +1635,8 @@
     on:copy={handleContextMenuAction}
     on:hide={handleContextMenuAction}
     on:unhide={handleContextMenuAction}
+    on:pin={handleContextMenuAction}
+    on:unpin={handleContextMenuAction}
     on:delete={handleContextMenuAction}
     on:enterSelectMode={handleContextMenuAction}
     on:unselect={handleContextMenuAction}
@@ -1581,6 +1707,21 @@
     font-weight: 500;
     color: var(--color-text);
     margin-bottom: 2px;
+  }
+
+  .pin-indicator {
+    display: flex;
+    align-items: center;
+    opacity: 0.7;
+  }
+
+  .pin-indicator .clickable-icon {
+    width: 14px;
+    height: 14px;
+    background: var(--color-primary);
+    border-radius: 2px;
+    position: relative;
+    flex-shrink: 0;
   }
 
 

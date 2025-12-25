@@ -117,8 +117,20 @@ async def _async_process_support_contribution_receipt_and_send_email(
 
         amount_paid = payment_order_details.get("amount")
         currency_paid = payment_order_details.get("currency")
+        stripe_customer_id = payment_order_details.get("customer")
         if amount_paid is None or not currency_paid:
             raise Exception("Missing amount/currency in payment order details")
+
+        # Create customer portal link for subscription management if it's a Stripe payment
+        customer_portal_url = None
+        if task.payment_service.provider_name == "stripe" and stripe_customer_id:
+            try:
+                customer_portal_url = await task.payment_service.get_customer_portal_url(
+                    customer_id=stripe_customer_id,
+                    return_url="https://openmates.org/settings/support"
+                )
+            except Exception as portal_err:
+                logger.warning(f"Failed to generate customer portal URL for order {order_id}: {portal_err}")
 
         # Invoice / receipt numbering: reuse the existing per-account invoice counter scheme.
         user_id_hash = hashlib.sha256(user_id.encode("utf-8")).hexdigest()
@@ -144,6 +156,7 @@ async def _async_process_support_contribution_receipt_and_send_email(
                 "sender_country": sender_country,
                 "sender_email": sender_email,
                 "sender_vat": sender_vat,
+                "customer_portal_url": customer_portal_url,  # Pass management link to PDF
             },
             lang=user_language,
         )
@@ -220,6 +233,7 @@ async def _async_process_support_contribution_receipt_and_send_email(
             "darkmode": user_darkmode,
             "receipt_id": receipt_number,
             "support_amount": _format_amount_display(int(amount_paid), str(currency_paid)),
+            "customer_portal_url": customer_portal_url,  # Pass management link to email
         }
 
         attachments = [
@@ -302,8 +316,21 @@ async def _async_process_guest_support_contribution_receipt_and_send_email(
 
         amount_paid = payment_order_details.get("amount")
         currency_paid = payment_order_details.get("currency")
+        stripe_customer_id = payment_order_details.get("customer")
         if amount_paid is None or not currency_paid:
             raise Exception("Missing amount/currency in payment order details")
+
+        # Create customer portal link for subscription management if it's a Stripe payment
+        customer_portal_url = None
+        if task.payment_service.provider_name == "stripe" and stripe_customer_id:
+            try:
+                # For guest support, use the generic support page as return URL
+                customer_portal_url = await task.payment_service.get_customer_portal_url(
+                    customer_id=stripe_customer_id,
+                    return_url="https://openmates.org/support"
+                )
+            except Exception as portal_err:
+                logger.warning(f"Failed to generate customer portal URL for guest order {order_id}: {portal_err}")
 
         now_utc = datetime.now(timezone.utc)
         date_str_iso = now_utc.strftime("%Y-%m-%d")
@@ -325,6 +352,7 @@ async def _async_process_guest_support_contribution_receipt_and_send_email(
                 "sender_country": sender_country,
                 "sender_email": sender_email,
                 "sender_vat": sender_vat,
+                "customer_portal_url": customer_portal_url,  # Pass management link to PDF
             },
             lang="en",
         )
@@ -368,6 +396,7 @@ async def _async_process_guest_support_contribution_receipt_and_send_email(
             "darkmode": False,
             "receipt_id": receipt_number,
             "support_amount": _format_amount_display(int(amount_paid), str(currency_paid)),
+            "customer_portal_url": customer_portal_url,  # Pass management link to email
         }
 
         attachments = [

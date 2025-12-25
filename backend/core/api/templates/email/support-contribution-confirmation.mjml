@@ -34,6 +34,19 @@
             {{ t.email.receipt_id_line.text }}
           </mj-text>
           {% endif %}
+
+          {% if customer_portal_url %}
+          <mj-text font-size="18px" padding-top="10px">
+              <strong>{{ t.settings.billing.manage_subscription.text }}:</strong>
+          </mj-text>
+          <mj-text font-size="14px" padding-bottom="10px" color="{{ '#cccccc' if darkmode else '#555555' }}">
+              {{ t.settings.support.subscription_management_info.text }}
+          </mj-text>
+          <mj-button background-color="#4867CD" color="white" href="{{ customer_portal_url }}" font-family="Arial, sans-serif" padding-bottom="30px" border-radius="20px">
+              {{ t.settings.billing.manage_subscription.text }}
+          </mj-button>
+          {% endif %}
+
           <mj-text padding-bottom="60px">
             {{ t.email.receipt_pdf_attached.text }}
           </mj-text>

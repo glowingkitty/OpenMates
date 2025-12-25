@@ -2340,14 +2340,15 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 }
                 
                 // For public chats (demo + legal), always scroll to top (user hasn't read them yet)
-                if (isPublicChat(currentChat.chat_id)) {
+                // Also scroll to top for shared chats on non-authenticated devices (they can't reuse scroll position)
+                if (isPublicChat(currentChat.chat_id) || !$authStore.isAuthenticated) {
                     chatHistoryRef.scrollToTop();
-                    console.debug('[ActiveChat] Public chat - scrolled to top (unread)');
+                    console.debug(`[ActiveChat] ${isPublicChat(currentChat.chat_id) ? 'Public chat' : 'Shared chat on non-authenticated device'} - scrolled to top (unread)`);
                     // After scrolling to top, explicitly set isAtBottom to false
                     // handleScrollPositionUI will confirm this after scroll completes
                     setTimeout(() => {
                         isAtBottom = false;
-                        console.debug('[ActiveChat] Set isAtBottom=false after scrolling demo chat to top');
+                        console.debug('[ActiveChat] Set isAtBottom=false after scrolling to top');
                     }, 200); // Slightly longer delay to ensure scroll completes
                 } else if (currentChat.last_visible_message_id) {
                     // Restore scroll position for real chats

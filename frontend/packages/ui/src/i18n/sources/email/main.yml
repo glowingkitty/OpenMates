@@ -1113,6 +1113,98 @@ milestone_date:
   cs: ''
   sv: ''
   verified_by_human: []
+newsletter_milestone:
+  context: Email subject & header for newsletter milestone notification
+  en: Newsletter Milestone Reached
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+newsletter_milestone_reached:
+  context: Congratulatory message for newsletter milestone
+  en: A newsletter subscription milestone has been reached!
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+newsletter_subscriber_count:
+  context: Label for displaying the total newsletter subscriber count in milestone email
+  en: Total Newsletter Subscribers
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+newsletter_milestone_message:
+  context: Message about newsletter growth in milestone email
+  en: Your newsletter is growing! This milestone indicates increasing subscriber engagement and reach.
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
 security_alert:
   context: Email pre-header for security alert
   en: Security Alert

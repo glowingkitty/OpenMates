@@ -18,6 +18,7 @@ class OrderCacheMixin:
         user_id: Optional[str] = None,
         email_encryption_key: Optional[str] = None,
         is_recurring: bool = False,
+        subscription_id: Optional[str] = None,
     ) -> bool:
         """
         Cache support contribution order metadata.
@@ -50,6 +51,8 @@ class OrderCacheMixin:
                 order_data["support_email"] = support_email
             if email_encryption_key:
                 order_data["email_encryption_key"] = email_encryption_key
+            if subscription_id:
+                order_data["subscription_id"] = subscription_id
 
             logger.debug(f"Setting support order in cache: {order_data}")
             return await self.set(order_cache_key, order_data, ttl=ttl)
