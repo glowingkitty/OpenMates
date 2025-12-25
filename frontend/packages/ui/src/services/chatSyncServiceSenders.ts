@@ -702,11 +702,9 @@ export async function sendEncryptedStoragePackage(
             ? await encryptWithChatKey(plaintext_category, chatKey) 
             : null;
         
-        // Encrypt model_name if present on the user message
-        // The model_name indicates which AI model is being used to generate the response to this user message
-        const encryptedUserModelName = user_message.model_name 
-            ? await encryptWithChatKey(user_message.model_name, chatKey) 
-            : null;
+        // NOTE: encrypted_model_name is NOT sent with user messages - it should only be stored on assistant messages
+        // The model_name indicates which AI model generated the assistant's response, not which model will respond
+        // The model_name will be sent when the assistant message is completed
         
         // AI response is handled separately - not part of immediate storage
         
@@ -734,15 +732,22 @@ export async function sendEncryptedStoragePackage(
             encrypted_content: string;
             encrypted_sender_name?: string;
             encrypted_category?: string;
-            encrypted_model_name?: string;
             encrypted_title?: string;
-            encrypted_category_chat?: string;
+            encrypted_chat_category?: string;
             encrypted_icon?: string;
             encrypted_chat_summary?: string;
             encrypted_chat_tags?: string;
             encrypted_follow_up_suggestions?: string;
             encrypted_new_chat_suggestions?: string;
             encrypted_top_recommended_apps_for_chat?: string;
+            created_at: number;
+            encrypted_chat_key?: string;
+            versions: {
+                messages_v: number;
+                title_v: number;
+                last_edited_overall_timestamp: number;
+            };
+            task_id?: string;
         }
         const metadataPayload: MetadataPayload = {
             chat_id,
@@ -751,7 +756,7 @@ export async function sendEncryptedStoragePackage(
             encrypted_content: encryptedUserContent,
             encrypted_sender_name: encryptedUserSenderName,
             encrypted_category: encryptedUserCategory,  // User message category
-            encrypted_model_name: encryptedUserModelName,  // Model name used for AI response to this user message
+            // NOTE: encrypted_model_name is NOT included for user messages - only for assistant messages
             created_at: user_message.created_at,
             // Chat key (ALWAYS included for new chats, may be undefined for follow-ups if already stored)
             encrypted_chat_key: encryptedChatKey,

@@ -36,7 +36,7 @@ changes to the documentation (to keep the documentation up to date).
     import { cubicOut } from 'svelte/easing';
     import { authStore, isCheckingAuth, logout } from '../stores/authStore'; // Import logout action
     import { isMenuOpen } from '../stores/menuState';
-    import { getWebsiteUrl, routes } from '../config/links';
+    // import { getWebsiteUrl, routes } from '../config/links'; // Unused - help button disabled
     import { tooltip } from '../actions/tooltip';
     import { isInSignupProcess, isLoggingOut, showSignupFooter } from '../stores/signupState';
     import { userProfile, updateProfile } from '../stores/userProfile';
@@ -46,7 +46,7 @@ changes to the documentation (to keep the documentation up to date).
     import { incognitoMode } from '../stores/incognitoModeStore'; // Import incognito mode store
     import { isMobileView } from '../stores/uiStateStore'; // Import global isMobileView store
     import { panelState } from '../stores/panelStateStore'; // Import panelState to sync with isSettingsOpen
-    import { isAdmin } from '../stores/adminStatusStore'; // Import admin status store
+    // Admin status is now read directly from userProfile.is_admin (synced during login)
     import { phasedSyncState } from '../stores/phasedSyncStateStore'; // Import phased sync state store
     
     // Import modular components
@@ -141,11 +141,9 @@ changes to the documentation (to keep the documentation up to date).
     let profileContainerWrapper: HTMLElement | undefined = $state(); // Add reference for the wrapper
 
     // Get help link from routes
-    const baseHelpLink = getWebsiteUrl(routes.docs.userGuide_settings || '/docs/userguide/settings');
-    
-    // Create a reactive help link that updates based on the active view
-    // Note: Used in template at line 1444 (help button href)
-    let currentHelpLink = $state(baseHelpLink);
+    // Note: Help button is currently commented out in template (line ~1452)
+    // const baseHelpLink = getWebsiteUrl(routes.docs.userGuide_settings || '/docs/userguide/settings');
+    // let currentHelpLink = $state(baseHelpLink);
 
     // Import account and security settings components
     import SettingsAccount from './settings/SettingsAccount.svelte';
@@ -303,7 +301,8 @@ changes to the documentation (to keep the documentation up to date).
                 // For authenticated users, include all non-server settings, or include server settings if user is admin
                 // Exception: 'server/become-admin' is accessible to all authenticated users (via direct link)
                 // Shared settings (including nested share chat) are available for authenticated users
-                if (!key.startsWith('server') || $isAdmin || key === 'server/become-admin') {
+                // Admin status is read from userProfile.is_admin (synced during login, no separate API call needed)
+                if (!key.startsWith('server') || $userProfile.is_admin || key === 'server/become-admin') {
                     filtered[key] = component;
                 }
             }
@@ -613,11 +612,11 @@ changes to the documentation (to keep the documentation up to date).
         showSubmenuInfo = false;
         navButtonLeft = false;
 
-            // Update help link based on the active settings view
+            // Update help link based on the active settings view (commented out - help button disabled)
         if (settingsPath !== 'main') {
             // Handle nested paths in help links (replace / with -)
-            const helpPath = settingsPath.replace('/', '-');
-            currentHelpLink = `${baseHelpLink}/${helpPath}`;
+            // const helpPath = settingsPath.replace('/', '-');
+            // currentHelpLink = `${baseHelpLink}/${helpPath}`;
             navButtonLeft = true;
 
             // Show left navigation and submenu info immediately for smooth transition
@@ -657,7 +656,7 @@ changes to the documentation (to keep the documentation up to date).
                 navButtonLeft = false;
                 navigationPath = [];
                 breadcrumbLabel = $text('settings.settings.text');
-                currentHelpLink = baseHelpLink;
+                // currentHelpLink = baseHelpLink; // Help button disabled
                 
                 if (profileContainer) {
                     profileContainer.classList.remove('submenu-active');
@@ -866,7 +865,7 @@ changes to the documentation (to keep the documentation up to date).
         	hideNavButton = false; // Reset hide nav button flag
 
         	// Reset help link to base
-        	currentHelpLink = baseHelpLink;
+        	// currentHelpLink = baseHelpLink; // Help button disabled
 
         	// Remove submenu-active class from profile container
         	if (profileContainer) {

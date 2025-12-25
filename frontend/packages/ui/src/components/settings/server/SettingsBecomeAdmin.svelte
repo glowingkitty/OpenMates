@@ -7,6 +7,7 @@
 <script lang="ts">
     import { createEventDispatcher, onMount } from 'svelte';
     import { getApiEndpoint } from '@repo/ui';
+    import { checkAuth } from '@repo/ui';
     // Use standard browser check for library compatibility (not SvelteKit-specific)
     const browser = typeof window !== 'undefined';
 
@@ -71,6 +72,16 @@
             }
 
             success = true;
+
+            // Refresh user profile to get updated admin status
+            // This will sync is_admin from the server to IndexedDB and userProfile store
+            try {
+                await checkAuth(undefined, true); // Force refresh
+                console.debug('[SettingsBecomeAdmin] User profile refreshed after becoming admin');
+            } catch (error) {
+                console.error('[SettingsBecomeAdmin] Failed to refresh user profile:', error);
+                // Continue anyway - admin status will be synced on next login
+            }
 
             // Show success and redirect after a delay
             setTimeout(() => {

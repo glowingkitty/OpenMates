@@ -47,40 +47,12 @@ class BecomeAdminRequest(BaseModel):
 class ApproveDemoChatRequest(BaseModel):
     """Request model for approving a demo chat"""
     chat_id: str
+    encryption_key: str  # Encryption key from share link - required for non-auth users to decrypt
     title: str
     summary: str = ""
     category: str = ""
 
 # --- Endpoints ---
-
-@router.get("/status")
-@limiter.limit("60/minute")  # Allow frequent checks
-async def get_admin_status(
-    request: Request,
-    current_user: User = Depends(get_current_user),
-    directus_service: DirectusService = Depends(get_directus_service)
-) -> Dict[str, Any]:
-    """
-    Check if the current user has admin privileges.
-
-    This endpoint is used by the frontend to determine whether to show
-    server settings and admin-only features.
-    """
-    try:
-        is_admin = await directus_service.admin.is_user_admin(current_user.id)
-
-        return {
-            "is_admin": is_admin,
-            "user_id": current_user.id
-        }
-
-    except Exception as e:
-        logger.error(f"Error checking admin status: {e}", exc_info=True)
-        # Default to non-admin on error for security
-        return {
-            "is_admin": False,
-            "user_id": current_user.id
-        }
 
 @router.post("/become-admin")
 @limiter.limit("5/minute")  # Strict rate limiting for admin creation
@@ -174,10 +146,13 @@ async def approve_demo_chat(
         if chat.get("is_private", True):
             raise HTTPException(status_code=400, detail="Chat is not publicly shared")
 
-        # Extract encryption key from the share link
-        # This would normally come from the email link or be passed separately
-        # For now, we'll use a placeholder
-        encryption_key = "placeholder_key"  # TODO: Extract from proper source
+        # Use the encryption key provided in the request
+        # This key comes from the share link and allows non-authenticated users to decrypt the chat
+        # SECURITY: Each chat has its own encryption key, so storing it for demo chats is safe
+        # - The key only decrypts this specific chat
+        # - Even if compromised, it only affects this one demo chat
+        # - Demo chats are public content by design (admin-approved for public display)
+        encryption_key = payload.encryption_key
 
         # Check current demo chat count and remove oldest if at limit
         current_demos = await directus_service.demo_chat.get_all_active_demo_chats(approved_only=True)

@@ -2273,6 +2273,33 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 }
             }
         }
+        
+        // CRITICAL: Preserve streaming messages when reloading the SAME chat
+        // During AI streaming, various events (chatUpdated, etc.) can trigger loadChat() calls
+        // which would wipe out the streaming message being rendered in real-time.
+        // We detect if there's an active streaming message for THIS chat and merge it into newMessages.
+        const isReloadingSameChat = currentChat?.chat_id === chat.chat_id;
+        const existingStreamingMessages = currentMessages.filter(m => m.status === 'streaming' && m.chat_id === chat.chat_id);
+        
+        if (isReloadingSameChat && existingStreamingMessages.length > 0) {
+            console.debug(`[ActiveChat] loadChat: Preserving ${existingStreamingMessages.length} streaming message(s) during reload of same chat ${chat.chat_id}`);
+            
+            // Merge streaming messages with messages from database
+            // The database won't have the latest streaming content, so we use our local copy
+            for (const streamingMsg of existingStreamingMessages) {
+                const dbMsgIndex = newMessages.findIndex(m => m.message_id === streamingMsg.message_id);
+                if (dbMsgIndex !== -1) {
+                    // Message exists in DB but our streaming version is more up-to-date
+                    newMessages[dbMsgIndex] = streamingMsg;
+                    console.debug(`[ActiveChat] loadChat: Replaced DB message ${streamingMsg.message_id} with streaming version (${streamingMsg.content?.length || 0} chars)`);
+                } else {
+                    // Streaming message not yet in DB - append it
+                    newMessages.push(streamingMsg);
+                    console.debug(`[ActiveChat] loadChat: Appended streaming message ${streamingMsg.message_id} (${streamingMsg.content?.length || 0} chars)`);
+                }
+            }
+        }
+        
         currentMessages = newMessages;
 
         // Hide welcome screen when we have messages to display
@@ -2734,14 +2761,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         window.addEventListener('closeLoginInterface', handleCloseLoginInterface);
         window.addEventListener('loadDemoChat', handleLoadDemoChat);
         
-        // Cleanup on destroy
-        return () => {
-            document.removeEventListener('embedfullscreen', embedFullscreenHandler as EventListener);
-            document.removeEventListener('videopip-restore-fullscreen', videoPipRestoreHandler as EventListener);
-            window.removeEventListener('openLoginInterface', handleOpenLoginInterface as EventListener);
-            window.removeEventListener('closeLoginInterface', handleCloseLoginInterface as EventListener);
-            window.removeEventListener('loadDemoChat', handleLoadDemoChat as EventListener);
-        };
+        // NOTE: Cleanup for embedFullscreenHandler, videoPipRestoreHandler, and login interface event listeners
+        // is done in the final return statement at the end of onMount (around line 3329).
+        // DO NOT add a return statement here as it would prevent the rest of onMount from executing,
+        // including critical event listener registrations like aiMessageChunk.
         
         // CRITICAL: Sync liveInputText with editor content after draft saves
         // This ensures the search in new chat suggestions stays in sync even after debounced draft saves
@@ -3327,6 +3350,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             window.removeEventListener('triggerNewChat', handleTriggerNewChat as EventListener);
             window.removeEventListener('hiddenChatsLocked', handleHiddenChatsLocked as EventListener);
             window.removeEventListener('hiddenChatsAutoLocked', handleHiddenChatsLocked as EventListener);
+            // Remove embed and video PiP fullscreen listeners
+            document.removeEventListener('embedfullscreen', embedFullscreenHandler as EventListener);
+            document.removeEventListener('videopip-restore-fullscreen', videoPipRestoreHandler as EventListener);
         };
     });
 

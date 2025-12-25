@@ -102,9 +102,23 @@
     /**
      * Approve a chat as demo chat
      */
-    async function approveDemoChat(suggestion: { chat_id: string; title?: string; summary?: string; category?: string }) {
+    async function approveDemoChat(suggestion: { chat_id: string; encryption_key?: string; title?: string; summary?: string; category?: string }) {
         try {
             isSubmitting = true;
+
+            // Get encryption key from suggestion (for email links) or extract from share_link
+            let encryptionKey = suggestion.encryption_key;
+            if (!encryptionKey && 'share_link' in suggestion) {
+                // Extract key from share link if not provided directly
+                const shareLink = (suggestion as any).share_link;
+                if (shareLink && shareLink.includes('#key=')) {
+                    encryptionKey = shareLink.split('#key=')[1];
+                }
+            }
+
+            if (!encryptionKey) {
+                throw new Error('Encryption key is required to approve demo chat');
+            }
 
             const response = await fetch(getApiEndpoint('/v1/admin/approve-demo-chat'), {
                 method: 'POST',
@@ -114,6 +128,7 @@
                 credentials: 'include',
                 body: JSON.stringify({
                     chat_id: suggestion.chat_id,
+                    encryption_key: encryptionKey,  // Pass encryption key to backend
                     title: suggestion.title || 'Demo Chat',
                     summary: suggestion.summary || '',
                     category: suggestion.category || 'General'
@@ -218,10 +233,43 @@
         dispatch('back');
     }
 
+    /**
+     * Open the chat in the main view when coming from email link
+     */
+    function openChatFromEmail() {
+        if (pendingSuggestion && pendingSuggestion.share_link) {
+            // Extract chat_id from share link (format: /share/chat/{chat_id}#key=...)
+            const shareLink = pendingSuggestion.share_link;
+            const match = shareLink.match(/\/share\/chat\/([^#]+)/);
+            if (match && match[1]) {
+                const chatId = match[1];
+                // Navigate to main app with chat loaded
+                // This will open the chat in the main view while keeping settings open
+                window.location.hash = `chat_id=${chatId}`;
+                // Also dispatch event to ensure chat loads
+                const event = new CustomEvent('globalChatSelected', {
+                    detail: { chat: { chat_id: chatId } },
+                    bubbles: true,
+                    composed: true
+                });
+                window.dispatchEvent(event);
+            }
+        }
+    }
+
     // Load data on mount
     onMount(() => {
         extractUrlParams();
         Promise.all([loadSuggestions(), loadCurrentDemoChats()]);
+        
+        // If we have a pending suggestion from email, open the chat automatically
+        // This allows admin to see the chat while reviewing it
+        if (pendingSuggestion) {
+            // Small delay to ensure settings are fully loaded
+            setTimeout(() => {
+                openChatFromEmail();
+            }, 500);
+        }
     });
 </script>
 

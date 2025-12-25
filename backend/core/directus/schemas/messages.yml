@@ -40,7 +40,7 @@ messages:
 
     encrypted_model_name:
       type: string
-      note: "[Encrypted] Model name used to generate this message, encrypted using chat-specific key"
+      note: "[Encrypted] Model name used to generate this message, encrypted using chat-specific key. ONLY for assistant messages (indicates which AI model generated the response)"
 
     # sender_name is removed as it's derived from category via translations in the UI.
 
