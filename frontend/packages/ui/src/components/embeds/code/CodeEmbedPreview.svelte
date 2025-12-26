@@ -72,15 +72,44 @@
   
   let {
     id,
-    language = '',
-    filename,
-    lineCount = 0,
-    status,
-    taskId,
+    language: languageProp = '',
+    filename: filenameProp,
+    lineCount: lineCountProp = 0,
+    status: statusProp,
+    taskId: taskIdProp,
     isMobile = false,
     onFullscreen,
-    codeContent = ''
+    codeContent: codeContentProp = ''
   }: Props = $props();
+  
+  // Local reactive state for embed data - these can be updated when embed data changes
+  // CRITICAL: Using $state allows us to update these values when we receive embed updates
+  // via the onEmbedDataUpdated callback from UnifiedEmbedPreview
+  // This enables real-time updates during streaming without requiring page reload
+  let localCodeContent = $state<string>('');
+  let localLanguage = $state<string>('');
+  let localFilename = $state<string | undefined>(undefined);
+  let localLineCount = $state<number>(0);
+  let localStatus = $state<'processing' | 'finished' | 'error'>('processing');
+  let localTaskId = $state<string | undefined>(undefined);
+  
+  // Initialize local state from props
+  $effect(() => {
+    localCodeContent = codeContentProp || '';
+    localLanguage = languageProp || '';
+    localFilename = filenameProp;
+    localLineCount = lineCountProp || 0;
+    localStatus = statusProp || 'processing';
+    localTaskId = taskIdProp;
+  });
+  
+  // Use local state as the source of truth (allows updates from embed events)
+  let codeContent = $derived(localCodeContent);
+  let language = $derived(localLanguage);
+  let filename = $derived(localFilename);
+  let lineCount = $derived(localLineCount);
+  let status = $derived(localStatus);
+  let taskId = $derived(localTaskId);
   
   // Maximum lines to show in preview
   const MAX_PREVIEW_LINES = 8;
@@ -189,6 +218,53 @@
     }
   }
   
+  /**
+   * Handle embed data updates from UnifiedEmbedPreview
+   * Called when the parent component receives and decodes updated embed data
+   * This enables real-time updates during streaming without requiring page reload
+   */
+  function handleEmbedDataUpdated(data: { status: string; decodedContent: any }) {
+    console.debug(`[CodeEmbedPreview] 🔄 Received embed data update for ${id}:`, {
+      status: data.status,
+      hasContent: !!data.decodedContent,
+      hasCode: !!data.decodedContent?.code
+    });
+    
+    // Update local state from decoded content
+    if (data.decodedContent) {
+      // Update code content if available
+      if (data.decodedContent.code !== undefined) {
+        localCodeContent = data.decodedContent.code || '';
+        console.debug(`[CodeEmbedPreview] Updated code content: ${localCodeContent.length} chars`);
+      }
+      
+      // Update language if available
+      if (data.decodedContent.language !== undefined) {
+        localLanguage = data.decodedContent.language || '';
+      }
+      
+      // Update filename if available
+      if (data.decodedContent.filename !== undefined) {
+        localFilename = data.decodedContent.filename;
+      }
+      
+      // Update line count if available
+      if (data.decodedContent.lineCount !== undefined) {
+        localLineCount = data.decodedContent.lineCount || 0;
+      }
+      
+      // Update task ID if available
+      if (data.decodedContent.task_id !== undefined) {
+        localTaskId = data.decodedContent.task_id;
+      }
+    }
+    
+    // Update status
+    if (data.status) {
+      localStatus = data.status as 'processing' | 'finished' | 'error';
+    }
+  }
+  
   // Handle stop button click (not applicable for code, but included for consistency)
   async function handleStop() {
     // Code embeds don't have cancellable tasks, but we include this for API consistency
@@ -210,6 +286,7 @@
   showStatus={true}
   customStatusText={statusText}
   showSkillIcon={false}
+  onEmbedDataUpdated={handleEmbedDataUpdated}
 >
 	  {#snippet details({ isMobile: isMobileLayout })}
 	    <div class="code-details" class:mobile={isMobileLayout}>
