@@ -461,6 +461,16 @@ div.clickable-icon {
   mask-image: url('@openmates/ui/static/icons/hidden.svg');
 }
 
+.clickable-icon.icon_pin {
+  -webkit-mask-image: url('@openmates/ui/static/icons/pin.svg');
+  mask-image: url('@openmates/ui/static/icons/pin.svg');
+}
+
+.clickable-icon.icon_unpin {
+  -webkit-mask-image: url('@openmates/ui/static/icons/pin.svg');
+  mask-image: url('@openmates/ui/static/icons/pin.svg');
+}
+
 .clickable-icon.icon_unhide {
   -webkit-mask-image: url('@openmates/ui/static/icons/visible.svg');
   mask-image: url('@openmates/ui/static/icons/visible.svg');

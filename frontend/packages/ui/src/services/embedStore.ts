@@ -254,12 +254,14 @@ export class EmbedStore {
     const appMetadata = await this.extractAppMetadata(dataToStore, type);
 
     // Store fields separately instead of JSON string in data field
-    // For put(), encrypted_content contains master-key-encrypted JSON (different from putEncrypted which uses embed_key)
+    // CRITICAL FIX: DO NOT set encrypted_content here - that field is reserved for embed-key encryption
+    // used by putEncrypted(). The put() method uses master-key encryption stored in the `data` field.
+    // If encrypted_content is set, getFromSeparateFields() will try to decrypt with embed key and fail!
     const entry: EmbedStoreEntry = {
       contentRef,
-      // DEPRECATED: data field kept for backward compatibility during migration
-      // New embeds should use encrypted_content field below
-      data: encryptedData || dataString, // Keep for backward compatibility
+      // Master-key encrypted data stored in `data` field
+      // The get() method's old format path handles decryption with master key
+      data: encryptedData || dataString,
       
       type,
       createdAt: Date.now(), // For put(), we don't have server timestamps
@@ -267,10 +269,10 @@ export class EmbedStore {
       
       // Store app metadata unencrypted in IndexedDB only (for efficient querying)
       app_id: appMetadata.app_id,
-      skill_id: appMetadata.skill_id,
+      skill_id: appMetadata.skill_id
       
-      // Store encrypted content separately (master-key-encrypted JSON string)
-      encrypted_content: encryptedData || dataString
+      // NOTE: encrypted_content is intentionally NOT set here
+      // encrypted_content is only for embed-key encryption (used by putEncrypted)
     };
 
     // Store in memory cache
