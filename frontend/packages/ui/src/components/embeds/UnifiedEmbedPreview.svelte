@@ -14,10 +14,23 @@
   Sizes:
   - Desktop: 300x200px
   - Mobile: 150x290px
+  
+  CRITICAL: This component subscribes to embedUpdated events to receive
+  real-time updates when embed status changes from 'processing' to 'finished'.
+  This is necessary because Svelte components mounted via mount() receive
+  static props - they don't automatically update when embed data changes.
+  
+  The component notifies child preview components of updates via the
+  onEmbedDataUpdated callback, allowing them to update their specific data
+  (like search results, query text, etc.).
 -->
 
 <script lang="ts">
+  import { onMount, onDestroy } from 'svelte';
   import BasicInfosBar from './BasicInfosBar.svelte';
+  import { chatSyncService } from '../../services/chatSyncService';
+  import { embedStore } from '../../services/embedStore';
+  import { decodeToonContent } from '../../services/embedResolver';
   
   /**
    * Props interface for unified embed preview
@@ -55,6 +68,8 @@
     showSkillIcon?: boolean;
     /** Whether the details content contains a full-width image (removes padding, adds negative margin) */
     hasFullWidthImage?: boolean;
+    /** Callback when embed data is updated - allows child components to update their specific data */
+    onEmbedDataUpdated?: (data: { status: string; decodedContent: any }) => void;
   }
   
   let {
@@ -62,7 +77,7 @@
     appId,
     skillId,
     skillIconName,
-    status,
+    status: statusProp,
     skillName,
     taskId,
     isMobile = false,
@@ -73,8 +88,105 @@
     faviconUrl,
     customStatusText,
     showSkillIcon = true,
-    hasFullWidthImage = false
+    hasFullWidthImage = false,
+    onEmbedDataUpdated
   }: Props = $props();
+  
+  // Local reactive state for status - can be updated when embedUpdated fires
+  // This overrides the prop when we receive updates from the server
+  let localStatus = $state<'processing' | 'finished' | 'error'>('processing');
+  
+  // Initialize local status from prop
+  $effect(() => {
+    localStatus = statusProp || 'processing';
+  });
+  
+  // Use local status as the source of truth (allows updates from embed events)
+  let status = $derived(localStatus);
+  
+  /**
+   * Handle embed updates from chatSyncService
+   * When an embedUpdated event fires for this embed ID, refetch data from store
+   */
+  function handleEmbedUpdate(event: CustomEvent) {
+    const { embed_id, status: newStatus } = event.detail;
+    
+    // Only process updates for this specific embed
+    if (embed_id !== id) {
+      return;
+    }
+    
+    console.debug(`[UnifiedEmbedPreview] 🔄 Received embedUpdated for ${id}:`, {
+      newStatus,
+      previousStatus: localStatus
+    });
+    
+    // Update status immediately from event if provided
+    if (newStatus && (newStatus === 'processing' || newStatus === 'finished' || newStatus === 'error')) {
+      localStatus = newStatus;
+    }
+    
+    // Refetch from store to get full data and notify child components
+    refetchFromStore();
+  }
+  
+  /**
+   * Refetch embed data from the store
+   * This ensures we have the latest data after an update
+   * and notifies child components via onEmbedDataUpdated callback
+   */
+  async function refetchFromStore() {
+    try {
+      const embedData = await embedStore.get(`embed:${id}`);
+      if (embedData) {
+        console.debug(`[UnifiedEmbedPreview] Refetched data from store for ${id}:`, {
+          status: embedData.status,
+          hasContent: !!embedData.content
+        });
+        
+        // Update status from fetched data
+        if (embedData.status && (embedData.status === 'processing' || embedData.status === 'finished' || embedData.status === 'error')) {
+          localStatus = embedData.status;
+        }
+        
+        // Decode content and notify child component if callback is provided
+        if (onEmbedDataUpdated && embedData.content) {
+          const decodedContent = await decodeToonContent(embedData.content);
+          if (decodedContent) {
+            onEmbedDataUpdated({
+              status: embedData.status || localStatus,
+              decodedContent
+            });
+          }
+        }
+      }
+    } catch (error) {
+      console.error(`[UnifiedEmbedPreview] Error refetching from store for ${id}:`, error);
+    }
+  }
+  
+  // Subscribe to embedUpdated events on mount
+  let embedUpdateListener: EventListener | null = null;
+  
+  onMount(() => {
+    console.debug(`[UnifiedEmbedPreview] Mounted component for embed ${id}`);
+    
+    // Subscribe to embedUpdated events from chatSyncService
+    embedUpdateListener = handleEmbedUpdate as EventListener;
+    chatSyncService.addEventListener('embedUpdated', embedUpdateListener);
+    
+    // Do an initial fetch to ensure we have the latest data
+    // (in case the embed was updated between render and mount)
+    refetchFromStore();
+  });
+  
+  onDestroy(() => {
+    // Clean up event listener
+    if (embedUpdateListener) {
+      chatSyncService.removeEventListener('embedUpdated', embedUpdateListener);
+      embedUpdateListener = null;
+    }
+  });
   
   // DEBUG: Log when details snippet is missing - this helps identify which embed is broken
   $effect(() => {

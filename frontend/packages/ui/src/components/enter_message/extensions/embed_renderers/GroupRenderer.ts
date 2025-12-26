@@ -123,6 +123,18 @@ export class GroupRenderer implements EmbedRenderer {
       return;
     }
     
+    // Code groups must render each item using CodeEmbedPreview component
+    // so sizing and interactions match single-item rendering.
+    if (baseType === 'code-code') {
+      await this.renderCodeGroup({
+        baseType,
+        groupDisplayName,
+        items: reversedItems,
+        content
+      });
+      return;
+    }
+    
     // Generate individual embed HTML for each grouped item (async)
     const groupItemsHtmlPromises = reversedItems.map(item => {
       return this.renderIndividualItem(item, baseType);
@@ -457,6 +469,138 @@ export class GroupRenderer implements EmbedRenderer {
     // Fallback: render the legacy HTML view (better than a blank group item)
     const fallbackHtml = await this.renderAppSkillUseItem(item, embedData, decodedContent);
     target.innerHTML = fallbackHtml;
+  }
+  
+  /**
+   * Render code embed group with horizontal scrolling
+   * Similar to renderAppSkillUseGroup but for code embeds
+   */
+  private async renderCodeGroup(args: {
+    baseType: string;
+    groupDisplayName: string;
+    items: EmbedNodeAttributes[];
+    content: HTMLElement;
+  }): Promise<void> {
+    const { baseType, groupDisplayName, items, content } = args;
+
+    // Cleanup any mounted components inside this node before re-rendering
+    this.unmountMountedComponentsInSubtree(content);
+
+    // Build group DOM (avoid innerHTML for item rendering so we can mount Svelte components)
+    content.innerHTML = '';
+
+    const groupWrapper = document.createElement('div');
+    groupWrapper.className = `${baseType}-preview-group`;
+
+    const header = document.createElement('div');
+    header.className = 'group-header';
+    header.textContent = groupDisplayName;
+
+    const scrollContainer = document.createElement('div');
+    scrollContainer.className = 'group-scroll-container';
+
+    groupWrapper.appendChild(header);
+    groupWrapper.appendChild(scrollContainer);
+    content.appendChild(groupWrapper);
+
+    for (const item of items) {
+      const itemWrapper = document.createElement('div');
+      itemWrapper.className = 'embed-group-item';
+      // Ensure items keep their intrinsic (fixed) preview size within the horizontal scroll container
+      itemWrapper.style.flex = '0 0 auto';
+
+      scrollContainer.appendChild(itemWrapper);
+
+      await this.mountCodePreview(item, itemWrapper);
+    }
+  }
+
+  /**
+   * Mount CodeEmbedPreview component for a single code embed item
+   */
+  private async mountCodePreview(item: EmbedNodeAttributes, target: HTMLElement): Promise<void> {
+    // Resolve content for this code item
+    const embedId = item.contentRef?.startsWith('embed:') ? item.contentRef.replace('embed:', '') : '';
+    const previewId = item.contentRef?.startsWith('preview:') ? item.contentRef.replace('preview:code:', '') : '';
+
+    let embedData: any = null;
+    let decodedContent: any = null;
+
+    if (embedId) {
+      try {
+        embedData = await resolveEmbed(embedId);
+        decodedContent = embedData?.content ? await decodeToonContent(embedData.content) : null;
+      } catch (error) {
+        console.error('[GroupRenderer] Error loading code embed for group item:', error);
+      }
+    }
+
+    // Use decoded content if available, otherwise fall back to item attributes
+    const language = decodedContent?.language || item.language || 'text';
+    const filename = decodedContent?.filename || item.filename;
+    const lineCount = decodedContent?.lineCount || item.lineCount || 0;
+    
+    // For preview embeds (contentRef starts with 'preview:'), get code from item attributes
+    // For real embeds, get code from decodedContent
+    let codeContent = '';
+    if (item.contentRef?.startsWith('preview:')) {
+      // Preview embed - code is stored temporarily in item attributes
+      codeContent = item.code || '';
+      console.debug('[GroupRenderer] Rendering preview code embed with inline code content');
+    } else {
+      // Real embed - code comes from decodedContent (loaded from EmbedStore)
+      codeContent = decodedContent?.code || '';
+    }
+    
+    // Determine status
+    const status = (decodedContent?.status || embedData?.status || item.status || 'finished') as 'processing' | 'finished' | 'error';
+    const taskId = decodedContent?.task_id;
+
+    // Cleanup any existing mounted component (in case this target is reused)
+    const existingComponent = mountedComponents.get(target);
+    if (existingComponent) {
+      try {
+        unmount(existingComponent);
+      } catch (e) {
+        console.warn('[GroupRenderer] Error unmounting existing component:', e);
+      }
+    }
+    target.innerHTML = '';
+
+    const handleFullscreen = () => {
+      this.openFullscreen(item, embedData, decodedContent);
+    };
+
+    try {
+      const component = mount(CodeEmbedPreview, {
+        target,
+        props: {
+          id: embedId || previewId || item.id || '',
+          language,
+          filename,
+          lineCount,
+          status,
+          taskId,
+          isMobile: false,
+          onFullscreen: handleFullscreen,
+          codeContent // Pass full code content - component handles preview extraction
+        }
+      });
+      mountedComponents.set(target, component);
+      
+      console.debug('[GroupRenderer] Mounted CodeEmbedPreview component in group:', {
+        embedId: embedId || previewId,
+        language,
+        filename,
+        lineCount,
+        status
+      });
+    } catch (error) {
+      console.error('[GroupRenderer] Error mounting CodeEmbedPreview component:', error);
+      // Fallback: render the legacy HTML view (better than a blank group item)
+      const fallbackHtml = await this.renderCodeItem(item, embedData, decodedContent);
+      target.innerHTML = fallbackHtml;
+    }
   }
   
   /**
