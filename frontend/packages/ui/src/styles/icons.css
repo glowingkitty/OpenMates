@@ -466,7 +466,7 @@ div.clickable-icon {
   mask-image: url('@openmates/ui/static/icons/pin.svg');
 }
 
-.clickable-icon.icon_unpin {
+.clickable-icon.icon_pin_off {
   -webkit-mask-image: url('@openmates/ui/static/icons/pin.svg');
   mask-image: url('@openmates/ui/static/icons/pin.svg');
 }
