@@ -659,7 +659,13 @@ export class EmbedStore {
     }
 
     if (typeof storedData !== 'string') {
-      console.warn('[EmbedStore] Stored embed is not a string; returning as-is');
+      // Memory-only entries (from setInMemoryOnly) store data as objects directly
+      // This is expected behavior for "processing" embeds that need immediate rendering
+      console.debug('[EmbedStore] ✅ Returning memory-only embed data (not encrypted):', contentRef, {
+        type: storedData?.type,
+        skill_id: storedData?.skill_id,
+        status: storedData?.status
+      });
       return storedData as any;
     }
 
@@ -863,6 +869,42 @@ export class EmbedStore {
       // TODO: Remove subscription
       console.debug('[EmbedStore] Unsubscribe from embed:', contentRef);
     };
+  }
+  
+  /**
+   * Store embed data in memory cache ONLY (not persisted to IndexedDB)
+   * Used for "processing" embeds that need to be rendered before finalization
+   * This allows `resolveEmbed()` to find the embed data during streaming
+   * @param contentRef - The embed reference key (e.g., embed:{embed_id})
+   * @param embedData - The embed data object (plaintext)
+   */
+  setInMemoryOnly(contentRef: string, embedData: any): void {
+    // CRITICAL FIX: Store the embed data as an OBJECT (not JSON string) so that
+    // get() can detect it's not encrypted and return it directly.
+    // When get() sees typeof storedData !== 'string', it returns the data as-is.
+    // This is essential for "processing" embeds that need immediate rendering.
+    const entry: EmbedStoreEntry = {
+      contentRef,
+      type: this.normalizeEmbedType(embedData.type || 'unknown') as EmbedType,
+      data: embedData, // Store as object directly - NOT stringified!
+      createdAt: embedData.createdAt || Date.now(),
+      updatedAt: embedData.updatedAt || Date.now(),
+      // Copy additional fields that might be present (for getRawEntry)
+      embed_id: embedData.embed_id,
+      status: embedData.status,
+      parent_embed_id: embedData.parent_embed_id,
+      embed_ids: embedData.embed_ids,
+    };
+    
+    embedCache.set(contentRef, entry);
+    console.info('[EmbedStore] 🔄 Set embed in memory cache only (not persisted):', contentRef, {
+      type: entry.type,
+      status: embedData.status,
+      skill_id: embedData.skill_id,
+      app_id: embedData.app_id,
+      query: embedData.query?.substring(0, 30),
+      hasContent: !!embedData.content
+    });
   }
   
   /**

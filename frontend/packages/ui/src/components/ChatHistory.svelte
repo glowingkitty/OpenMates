@@ -204,11 +204,15 @@
         // CRITICAL FIX: Skip content optimization for streaming messages AND when locale changes
         // Streaming messages need to re-render on every chunk update
         // When locale changes, we need to re-process content to get correct translations
+        // When embed updates occur (_embedUpdateTimestamp changes), force re-render so embeds display
         // If an old message exists and its content is identical to the new one,
         // reuse the old content object reference to prevent unnecessary re-renders
-        // of the ReadOnlyMessage component. BUT skip this for streaming messages and locale changes.
+        // of the ReadOnlyMessage component. BUT skip this for streaming messages, locale changes, and embed updates.
+        const hasEmbedUpdate = (newMessage as any)._embedUpdateTimestamp !== undefined;
+        
         if (oldMessage &&
             !localeChanged &&
+            !hasEmbedUpdate &&
             newMessage.status !== 'streaming') {
             // Compare content to see if it's actually different
             const oldContentStr = JSON.stringify(oldMessage.content);
@@ -220,6 +224,10 @@
                 // Content is different - log for debugging
                 console.debug('[ChatHistory] Message content changed for', newMessage.message_id);
             }
+        } else if (hasEmbedUpdate) {
+            // Embed was updated - force new content to re-render embed NodeViews
+            console.debug('[ChatHistory] Embed update detected - forcing new content for', newMessage.message_id);
+            newInternalMessage.content = JSON.parse(JSON.stringify(newInternalMessage.content));
         } else if (localeChanged) {
             // Locale changed - always use new content even if it appears identical
             // This ensures translations are refreshed

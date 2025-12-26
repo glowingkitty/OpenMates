@@ -10,6 +10,7 @@
     import '@repo/ui/src/styles/icons.css';
     import '@repo/ui/src/styles/auth.css';
     import '@repo/ui/src/styles/markdown.css';
+    // KaTeX CSS is imported via markdown.css
     import {
         // components
         MetaTags,

@@ -7,7 +7,7 @@
 // Chat keys are symmetric AES keys that are themselves encrypted with the user's
 // master key for zero-knowledge architecture.
 
-import type { Message } from '../../types/chat';
+import type { Message, Chat } from '../../types/chat';
 import { 
     generateChatKey, 
     encryptWithChatKey, 
@@ -24,7 +24,7 @@ interface ChatDatabaseInstance {
     db: IDBDatabase | null;
     chatKeys: Map<string, Uint8Array>;
     CHATS_STORE_NAME: string;
-    getChat(chatId: string, transaction?: IDBTransaction): Promise<any>;
+    getChat(chatId: string, transaction?: IDBTransaction): Promise<Chat | null>;
 }
 
 /**
@@ -475,6 +475,9 @@ export async function decryptMessageFields(
             console.error(`[ChatDatabase] Error decrypting model_name for message ${message.message_id}:`, error);
             decryptedMessage.model_name = message.model_name || undefined;
         }
+    } else if (message.role === 'assistant' && !decryptedMessage.model_name) {
+        // Fallback for existing assistant messages without model name
+        decryptedMessage.model_name = 'Qwen3';
     }
 
     return decryptedMessage;

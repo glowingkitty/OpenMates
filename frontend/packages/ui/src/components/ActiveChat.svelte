@@ -3177,6 +3177,49 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         chatSyncService.addEventListener('postProcessingCompleted', postProcessingHandler);
         console.debug('[ActiveChat] ✅ Registered postProcessingCompleted event listener');
         
+        // CRITICAL: Listen for embed updates to force re-render when embed data arrives
+        // During streaming, embed NodeViews are created with "processing" status before the
+        // actual embed data arrives. When `send_embed_data` stores the embed and dispatches
+        // `embedUpdated`, we need to force a re-render so the embed content is displayed.
+        const embedUpdatedHandler = ((event: CustomEvent) => {
+            const { chat_id, message_id, embed_id, status, isProcessing } = event.detail;
+            
+            // Only process if this embed is for the current chat
+            if (!currentChat || currentChat.chat_id !== chat_id) {
+                console.debug(`[ActiveChat] embedUpdated for different chat (${chat_id}), ignoring`);
+                return;
+            }
+            
+            console.info(`[ActiveChat] 🔄 embedUpdated received for embed ${embed_id} (status=${status}, isProcessing=${isProcessing})`);
+            
+            // Force a re-render of messages by updating the ChatHistory component
+            // This will cause Tiptap to re-render embed NodeViews, which will now find
+            // the embed data in the store and display the actual content instead of "Processing..."
+            if (chatHistoryRef && currentMessages.length > 0) {
+                // Create new message array references to force Svelte reactivity
+                // CRITICAL: We need to create NEW content objects to break reference equality
+                // so that ChatHistory detects the change and re-renders ReadOnlyMessage components
+                currentMessages = currentMessages.map(msg => {
+                    // Only update the specific message that contains this embed
+                    // For now, update all streaming/assistant messages to be safe
+                    if (msg.message_id === message_id || msg.status === 'streaming' || msg.role === 'assistant') {
+                        return {
+                            ...msg,
+                            // Add a timestamp to force content re-processing
+                            _embedUpdateTimestamp: Date.now()
+                        };
+                    }
+                    return msg;
+                });
+                
+                chatHistoryRef.updateMessages(currentMessages);
+                console.debug(`[ActiveChat] 🔄 Forced message re-render after embed update for ${embed_id}`);
+            }
+        }) as EventListener;
+        
+        chatSyncService.addEventListener('embedUpdated', embedUpdatedHandler);
+        console.debug('[ActiveChat] ✅ Registered embedUpdated event listener');
+        
         // Handle skill preview updates - add app cards to messages
         const handleSkillPreviewUpdate = async (event: CustomEvent) => {
             const { task_id, previewData, chat_id, message_id } = event.detail;
@@ -3334,6 +3377,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             chatSyncService.removeEventListener('aiTaskEnded', aiTaskEndedHandler);
             chatSyncService.removeEventListener('chatDeleted', chatDeletedHandler);
             chatSyncService.removeEventListener('postProcessingCompleted', handlePostProcessingCompleted as EventListener);
+            chatSyncService.removeEventListener('embedUpdated', embedUpdatedHandler);
             skillPreviewService.removeEventListener('skillPreviewUpdate', handleSkillPreviewUpdate as EventListener);
             // Remove language change listener
             window.removeEventListener('language-changed', handleLanguageChange);

@@ -1288,6 +1288,9 @@ export async function handleEmbedUpdateImpl(
     }
 }
 
+// Type alias for the inner embed data structure (used when WebSocket passes payload directly)
+type EmbedDataPayload = SendEmbedDataPayload['payload'];
+
 /**
  * Handle send_embed_data event from server
  * This receives plaintext TOON content, encrypts it client-side, stores in IndexedDB,
@@ -1297,10 +1300,19 @@ export async function handleSendEmbedDataImpl(
     serviceInstance: ChatSynchronizationService,
     payload: SendEmbedDataPayload
 ): Promise<void> {
-    // Extract the actual embed data from the nested payload structure
-    const embedData = payload.payload;
+    // FIX: The WebSocket service extracts rawMessage.payload and passes it to handlers,
+    // so 'payload' here is already the inner embed data object, NOT the full message structure.
+    // Handle both cases for backwards compatibility:
+    // 1. payload.embed_id exists: WebSocket passed inner payload directly (correct behavior)
+    // 2. payload.payload.embed_id exists: Full message structure was passed (legacy/edge case)
+    const payloadWithEmbedId = payload as unknown as EmbedDataPayload;
+    const payloadWithNestedData = payload as SendEmbedDataPayload;
+    const embedData: EmbedDataPayload | undefined = payloadWithEmbedId.embed_id 
+        ? payloadWithEmbedId 
+        : payloadWithNestedData.payload;
+    
     if (!embedData?.embed_id) {
-        console.warn('[ChatSyncService:AI] Received send_embed_data payload without embed_id', payload);
+        console.warn('[ChatSyncService:AI] Received send_embed_data payload without embed_id. Raw payload:', payload);
         return;
     }
     console.info(
@@ -1323,7 +1335,53 @@ export async function handleSendEmbedDataImpl(
             // ============================================================
             // "PROCESSING" STATUS: In-memory only, but generate key early for children
             // ============================================================
-            console.info(`[ChatSyncService:AI] Embed ${embedData.embed_id} is "processing" - dispatching for in-memory rendering and generating key early for children`);
+            console.info(`[ChatSyncService:AI] Embed ${embedData.embed_id} is "processing" - storing in memory cache for rendering`);
+            
+            // CRITICAL FIX: Store the processing embed in memory cache so resolveEmbed() can find it
+            // During streaming, the UI renders embed nodes which call resolveEmbed(). If the embed
+            // is not in memory cache, resolveEmbed() returns null and "Processing..." is shown.
+            // By storing here, the next render cycle will find the embed data.
+            try {
+                const { embedStore } = await import('./embedStore');
+                const embedRef = `embed:${embedData.embed_id}`;
+                
+                // Store in memory cache (not persisted to IndexedDB for processing embeds)
+                // CRITICAL: Include ALL fields needed for rendering, especially:
+                // - skill_id: Determines which component to render (news vs web search)
+                // - app_id: Parent app identifier  
+                // - query: Search query to display in the preview
+                // NOTE: Use type assertion for dynamic payload fields that aren't in the base type
+                const embedPayload = embedData as Record<string, unknown>;
+                embedStore.setInMemoryOnly(embedRef, {
+                    embed_id: embedData.embed_id,
+                    type: embedData.type,
+                    status: embedData.status,
+                    content: embedData.content, // Plaintext TOON content
+                    text_preview: embedData.text_preview,
+                    task_id: embedData.task_id,
+                    embed_ids: embedData.embed_ids,
+                    parent_embed_id: embedData.parent_embed_id,
+                    chat_id: embedData.chat_id,
+                    message_id: embedData.message_id,
+                    // CRITICAL: App skill metadata for rendering the correct component
+                    // These fields come from the server but aren't in the base type definition
+                    skill_id: embedPayload.skill_id as string | undefined,
+                    app_id: embedPayload.app_id as string | undefined,
+                    query: embedPayload.query as string | undefined, // Search query for search skills
+                    provider: embedPayload.provider as string | undefined, // Provider name (e.g., "Brave Search")
+                    results: embedPayload.results as unknown[] | undefined, // Results array if available
+                    createdAt: embedData.createdAt || Date.now(),
+                    updatedAt: embedData.updatedAt || Date.now()
+                });
+                const queryStr = embedPayload.query as string | undefined;
+                console.info(`[ChatSyncService:AI] ✅ Stored processing embed ${embedData.embed_id} in memory cache`, {
+                    skill_id: embedPayload.skill_id,
+                    app_id: embedPayload.app_id,
+                    query: queryStr?.substring(0, 30)
+                });
+            } catch (err) {
+                console.warn(`[ChatSyncService:AI] Failed to store processing embed in memory cache:`, err);
+            }
             
             // Generate embed-specific encryption key early (if not already exists)
             // This is CRITICAL for key inheritance: child embeds arrive while parent is still processing
