@@ -134,18 +134,30 @@ export async function sendDeleteDraftImpl(
  * before calling this function. This function only handles server communication.
  * NOTE: The chatDeleted event is now dispatched by the caller (Chat.svelte) after IndexedDB deletion
  * to ensure proper UI update timing.
+ * @param chat_id - The ID of the chat to delete
+ * @param embed_ids_to_delete - Optional array of embed IDs that were deleted from IndexedDB
+ *                              Server will verify these embeds are not used by other chats before deleting from Directus
  */
 export async function sendDeleteChatImpl(
     serviceInstance: ChatSynchronizationService,
-    chat_id: string
+    chat_id: string,
+    embed_ids_to_delete: string[] = []
 ): Promise<void> {
-    const payload: DeleteChatPayload = { chatId: chat_id };
+    // Include embed_ids in the payload for server-side cleanup
+    // Server will check if each embed is used by any other chat (not in last 100)
+    // before permanently deleting from Directus
+    const payload: DeleteChatPayload & { embed_ids_to_delete?: string[] } = { 
+        chatId: chat_id,
+        embed_ids_to_delete: embed_ids_to_delete.length > 0 ? embed_ids_to_delete : undefined
+    };
     
     try {
         // Send delete request to server
-        console.debug(`[ChatSyncService:Senders] Sending delete_chat request to server for chat ${chat_id}`);
+        console.debug(`[ChatSyncService:Senders] Sending delete_chat request to server for chat ${chat_id}`, {
+            embedIdsToDelete: embed_ids_to_delete.length
+        });
         await webSocketService.sendMessage('delete_chat', payload);
-        console.debug(`[ChatSyncService:Senders] Delete request sent successfully for chat ${chat_id}`);
+        console.debug(`[ChatSyncService:Senders] Delete request sent successfully for chat ${chat_id} with ${embed_ids_to_delete.length} embed deletions`);
         
         // NOTE: chatDeleted event is now dispatched by Chat.svelte after IndexedDB deletion
         // to ensure proper UI update timing. No need to dispatch it here.
@@ -285,7 +297,9 @@ export async function sendNewMessageImpl(
             sender_name?: string;
             category?: string;
             model_name?: string;
+            chat_has_title?: boolean;
         };
+        is_incognito?: boolean;
         embeds?: EmbedForServer[];
         message_history?: Message[];
         encrypted_suggestion_to_delete?: string | null;
@@ -313,7 +327,7 @@ export async function sendNewMessageImpl(
             content: typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content),
             created_at: msg.created_at,
             sender_name: msg.sender_name
-        }));
+        } as Message));
         console.debug(`[ChatSyncService:Senders] Including full message history for incognito chat: ${messageHistory.length} messages`);
     }
     

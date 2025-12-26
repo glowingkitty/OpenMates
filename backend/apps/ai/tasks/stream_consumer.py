@@ -378,11 +378,8 @@ async def _generate_fake_stream_for_harmful_content(
     log_prefix = f"[Task ID: {task_id}, ChatID: {request_data.chat_id}] _generate_fake_stream_for_harmful_content:"
     logger.info(f"{log_prefix} Generating fake stream for harmful content.")
 
-    # Use the friendly model name from preprocessing, fallback to extracting from model_id, then safe default
-    model_name = preprocessing_result.selected_main_llm_model_name
-    if not model_name:
-        selected_model_id = preprocessing_result.selected_main_llm_model_id or ""
-        model_name = selected_model_id.split("/", 1)[1] if isinstance(selected_model_id, str) and "/" in selected_model_id else (selected_model_id or "Qwen3")
+    # For harmful content, we don't show a model name as it's a predefined response
+    model_name = None
     
     # Check for revocation
     if celery_config.app.AsyncResult(task_id).state == TASK_STATE_REVOKED:
@@ -476,12 +473,9 @@ async def _generate_fake_stream_for_simple_message(
     log_prefix = f"[Task ID: {task_id}, ChatID: {request_data.chat_id}] _generate_fake_stream_for_simple_message:"
     logger.info(f"{log_prefix} Generating simple fake stream.")
 
-    # Use the friendly model name from preprocessing, fallback to extracting from model_id, then safe default
-    model_name = preprocessing_result.selected_main_llm_model_name
-    if not model_name:
-        selected_model_id = preprocessing_result.selected_main_llm_model_id or ""
-        model_name = selected_model_id.split("/", 1)[1] if isinstance(selected_model_id, str) and "/" in selected_model_id else (selected_model_id or "Qwen3")
-
+    # For simple messages (errors/insufficient credits), we don't show a model name
+    model_name = None
+    
     # Check for revocation
     if celery_config.app.AsyncResult(task_id).state == TASK_STATE_REVOKED:
         logger.warning(f"{log_prefix} Task was revoked before starting fake stream.")
@@ -714,8 +708,8 @@ async def _consume_main_processing_stream(
         if isinstance(selected_model_id, str) and selected_model_id:
             stream_model_name = selected_model_id.split("/", 1)[1] if "/" in selected_model_id else selected_model_id
         else:
-            # Final fallback for existing chats without model name
-            stream_model_name = "Qwen3"
+            # Final fallback: if no model name can be determined, don't show one
+            stream_model_name = None
     
     # URL validation tracking: collect all validation tasks and broken URLs
     # These are used to validate URLs during streaming and correct the full response after completion

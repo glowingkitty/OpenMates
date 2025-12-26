@@ -1140,8 +1140,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             // Use server name from provider config (falls back to "AI" if not provided)
             // The backend should provide the server name (e.g., "Cerebras", "OpenRouter", "Mistral") 
             // instead of generic "AI" - this comes from the provider config's server.name field
-            const modelName = currentTypingStatus.modelName || 'AI'; 
-            const providerName = currentTypingStatus.providerName || 'AI';
+            const modelName = currentTypingStatus.modelName || ''; 
+            const providerName = currentTypingStatus.providerName || '';
+            
+            // If we don't have model or provider name, just show the typing indicator without "Powered by"
+            if (!modelName && !providerName) {
+                return $text('enter_message.is_typing.text').replace('{mate}', mateName);
+            }
             
             // Use translation key with placeholders for model and provider names
             // Format: "{mate} is typing...<br>Powered by {model_name} via {provider_name}"

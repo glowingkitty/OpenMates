@@ -199,12 +199,23 @@ class BaseApp:
                 sig = inspect.signature(skill_instance.execute)
                 params = sig.parameters
 
-                # Look for a Pydantic BaseModel parameter (excluding self)
+                # Look for a Pydantic BaseModel parameter (excluding self and params with defaults)
                 # Also handle Union types that may contain Pydantic models
+                # 
+                # IMPORTANT: Skip parameters with default values (e.g., secrets_manager: Optional[SecretsManager] = None)
+                # These are optional dependency-injected parameters, not request body fields.
+                # Without this check, Optional[SecretsManager] would be detected as Union[SecretsManager, None]
+                # and the code would incorrectly try to validate the request body against SecretsManager.
                 request_model = None
                 union_types = None
                 for param_name, param in params.items():
                     if param_name == 'self':
+                        continue
+                    
+                    # Skip parameters with default values - these are not request body fields
+                    # They are typically dependency-injected (e.g., secrets_manager, cache_service)
+                    if param.default is not inspect.Parameter.empty:
+                        logger.debug(f"Skipping parameter '{param_name}' with default value for skill '{skill_definition.id}'")
                         continue
 
                     param_type = param.annotation

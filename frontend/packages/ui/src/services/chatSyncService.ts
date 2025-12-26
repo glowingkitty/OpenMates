@@ -272,8 +272,8 @@ export class ChatSynchronizationService extends EventTarget {
     public async sendDeleteDraft(chat_id: string) {
         await senders.sendDeleteDraftImpl(this, chat_id);
     }
-    public async sendDeleteChat(chat_id: string) {
-        await senders.sendDeleteChatImpl(this, chat_id);
+    public async sendDeleteChat(chat_id: string, embed_ids_to_delete: string[] = []) {
+        await senders.sendDeleteChatImpl(this, chat_id, embed_ids_to_delete);
     }
     public async sendNewMessage(message: Message, encryptedSuggestionToDelete?: string | null): Promise<void> {
         await senders.sendNewMessageImpl(this, message, encryptedSuggestionToDelete);

@@ -572,7 +572,7 @@ async def handle_main_processing(
             # If model name is missing, use the id's suffix (after provider prefix) as a reasonable display name
             derived_model_name: str = (
                 preprocessing_results.selected_main_llm_model_name
-                or (selected_model_id.split("/", 1)[-1] if selected_model_id else "AI")
+                or (selected_model_id.split("/", 1)[-1] if selected_model_id else "")
             )
 
             filled_instruction = creator_and_model_instruction_template.format(
@@ -1929,6 +1929,9 @@ async def handle_main_processing(
             except Exception as e:
                 logger.error(f"{log_prefix} Error executing tool '{tool_name}': {e}", exc_info=True)
                 tool_result_content_str = json.dumps({"error": "Skill execution failed.", "details": str(e)})
+                # Set ignore_fields_for_inference to None since skill execution failed
+                # This variable is used later when adding to message history
+                ignore_fields_for_inference = None
                 # Track error in tool calls info
                 try:
                     app_id, skill_id = tool_name.split('-', 1)

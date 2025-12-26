@@ -177,19 +177,19 @@ export async function clearCurrentDraft() { // Export this function
         if (chat && (!messages || messages.length === 0)) {
             console.info(`[DraftService] Chat ${currentChatId} has no messages after draft deletion. Attempting to delete chat.`);
             
-            // Delete from IndexedDB first
+            // Delete from IndexedDB first (also cleans up associated embeds)
             console.debug(`[DraftService] Deleting chat from IndexedDB: ${currentChatId}`);
-            await chatDB.deleteChat(currentChatId);
-            console.debug(`[DraftService] Chat deleted from IndexedDB: ${currentChatId}`);
+            const { deletedEmbedIds } = await chatDB.deleteChat(currentChatId);
+            console.debug(`[DraftService] Chat deleted from IndexedDB: ${currentChatId}, cleaned up ${deletedEmbedIds.length} embeds`);
             
             // Dispatch chatDeleted event AFTER deletion to update UI components
             console.debug(`[DraftService] Dispatching chatDeleted event for UI update: ${currentChatId}`);
             chatSyncService.dispatchEvent(new CustomEvent('chatDeleted', { detail: { chat_id: currentChatId } }));
             console.debug(`[DraftService] chatDeleted event dispatched for chat: ${currentChatId}`);
             
-            // Send delete request to server
-            await chatSyncService.sendDeleteChat(currentChatId);
-            console.info(`[DraftService] Initiated deletion of empty chat ${currentChatId}.`);
+            // Send delete request to server (includes embed IDs to delete)
+            await chatSyncService.sendDeleteChat(currentChatId, deletedEmbedIds);
+            console.info(`[DraftService] Initiated deletion of empty chat ${currentChatId} with ${deletedEmbedIds.length} embed deletions.`);
             
             // When chat is deleted, draft state (including currentChatId) should be fully reset.
             // The 'chatDeleted' event handler in UI (e.g., Chats.svelte) should manage selecting a new chat.
@@ -749,19 +749,19 @@ export async function deleteCurrentChat() {
         // clearEditorAndResetDraftState will set currentChatId to null.
         clearEditorAndResetDraftState(false); 
 
-        // Delete from IndexedDB first
+        // Delete from IndexedDB first (also cleans up associated embeds)
         console.debug(`[DraftService] Deleting chat from IndexedDB: ${chatIdToDelete}`);
-        await chatDB.deleteChat(chatIdToDelete);
-        console.debug(`[DraftService] Chat deleted from IndexedDB: ${chatIdToDelete}`);
+        const { deletedEmbedIds } = await chatDB.deleteChat(chatIdToDelete);
+        console.debug(`[DraftService] Chat deleted from IndexedDB: ${chatIdToDelete}, cleaned up ${deletedEmbedIds.length} embeds`);
         
         // Dispatch chatDeleted event AFTER deletion to update UI components
         console.debug(`[DraftService] Dispatching chatDeleted event for UI update: ${chatIdToDelete}`);
         chatSyncService.dispatchEvent(new CustomEvent('chatDeleted', { detail: { chat_id: chatIdToDelete } }));
         console.debug(`[DraftService] chatDeleted event dispatched for chat: ${chatIdToDelete}`);
         
-        // Send delete request to server
-        await chatSyncService.sendDeleteChat(chatIdToDelete);
-        console.info(`[DraftService] Sent delete_chat request for ${chatIdToDelete}.`);
+        // Send delete request to server (includes embed IDs to delete)
+        await chatSyncService.sendDeleteChat(chatIdToDelete, deletedEmbedIds);
+        console.info(`[DraftService] Sent delete_chat request for ${chatIdToDelete} with ${deletedEmbedIds.length} embed deletions.`);
         // UI list update is handled by chatDeleted event dispatched above
         
     } catch (error) {

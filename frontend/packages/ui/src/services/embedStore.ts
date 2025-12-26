@@ -1358,6 +1358,222 @@ export class EmbedStore {
     console.debug('[EmbedStore] Rekeyed stream to CID:', streamKey, '->', cid);
     return cid;
   }
+
+  /**
+   * Get all embeds for a specific chat (by hashed_chat_id)
+   * Used for embed cleanup when deleting a chat
+   * @param hashedChatId - SHA256 hash of the chat_id
+   * @returns Array of embed entries for the chat
+   */
+  async getEmbedsByHashedChatId(hashedChatId: string): Promise<EmbedStoreEntry[]> {
+    try {
+      const transaction = await chatDB.getTransaction([EMBEDS_STORE_NAME], 'readonly');
+      const store = transaction.objectStore(EMBEDS_STORE_NAME);
+      const index = store.index('hashed_chat_id');
+      
+      const result = await new Promise<EmbedStoreEntry[]>((resolve, reject) => {
+        const request = index.getAll(hashedChatId);
+        request.onsuccess = () => resolve(request.result || []);
+        request.onerror = () => reject(request.error);
+      });
+      
+      console.debug(`[EmbedStore] Found ${result.length} embeds for hashed_chat_id: ${hashedChatId.substring(0, 16)}...`);
+      return result;
+    } catch (error) {
+      console.error('[EmbedStore] Error querying embeds by hashed_chat_id:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Get all embed keys for a specific chat (by hashed_chat_id)
+   * Used to check if embeds are shared with other chats
+   * @param hashedChatId - SHA256 hash of the chat_id
+   * @returns Array of embed key entries for the chat
+   */
+  async getEmbedKeysByHashedChatId(hashedChatId: string): Promise<EmbedKeyEntry[]> {
+    try {
+      const transaction = await chatDB.getTransaction([EMBED_KEYS_STORE_NAME], 'readonly');
+      const store = transaction.objectStore(EMBED_KEYS_STORE_NAME);
+      const index = store.index('hashed_chat_id');
+      
+      const result = await new Promise<EmbedKeyEntry[]>((resolve, reject) => {
+        const request = index.getAll(hashedChatId);
+        request.onsuccess = () => resolve(request.result || []);
+        request.onerror = () => reject(request.error);
+      });
+      
+      console.debug(`[EmbedStore] Found ${result.length} embed keys for hashed_chat_id: ${hashedChatId.substring(0, 16)}...`);
+      return result;
+    } catch (error) {
+      console.error('[EmbedStore] Error querying embed keys by hashed_chat_id:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Check if an embed is used by any chat other than the specified one
+   * An embed is "shared" if it has key entries for multiple chats
+   * @param hashedEmbedId - SHA256 hash of the embed_id
+   * @param excludeHashedChatId - hashed_chat_id to exclude from the check
+   * @returns true if the embed is used by other chats
+   */
+  async isEmbedUsedByOtherChats(hashedEmbedId: string, excludeHashedChatId: string): Promise<boolean> {
+    try {
+      const transaction = await chatDB.getTransaction([EMBED_KEYS_STORE_NAME], 'readonly');
+      const store = transaction.objectStore(EMBED_KEYS_STORE_NAME);
+      const index = store.index('hashed_embed_id');
+      
+      const allKeys = await new Promise<EmbedKeyEntry[]>((resolve, reject) => {
+        const request = index.getAll(hashedEmbedId);
+        request.onsuccess = () => resolve(request.result || []);
+        request.onerror = () => reject(request.error);
+      });
+      
+      // Check if any key entry is for a different chat (has a hashed_chat_id different from excludeHashedChatId)
+      // Also check for 'master' key type which indicates the owner's cross-chat access
+      const hasOtherChatKeys = allKeys.some(key => 
+        key.key_type === 'chat' && 
+        key.hashed_chat_id && 
+        key.hashed_chat_id !== excludeHashedChatId
+      );
+      
+      console.debug(`[EmbedStore] Embed ${hashedEmbedId.substring(0, 16)}... used by other chats: ${hasOtherChatKeys}`);
+      return hasOtherChatKeys;
+    } catch (error) {
+      console.error('[EmbedStore] Error checking if embed is used by other chats:', error);
+      return false; // Default to not shared to be safe
+    }
+  }
+
+  /**
+   * Delete embed and its keys from IndexedDB
+   * @param embedId - The embed_id to delete
+   * @param hashedEmbedId - SHA256 hash of the embed_id (optional, will be computed if not provided)
+   */
+  async deleteEmbed(embedId: string, hashedEmbedId?: string): Promise<void> {
+    try {
+      const contentRef = `embed:${embedId}`;
+      const hashedId = hashedEmbedId || await computeSHA256(embedId);
+      
+      // Delete from embeds store
+      const embedTransaction = await chatDB.getTransaction([EMBEDS_STORE_NAME], 'readwrite');
+      const embedStore = embedTransaction.objectStore(EMBEDS_STORE_NAME);
+      await new Promise<void>((resolve, reject) => {
+        const request = embedStore.delete(contentRef);
+        request.onsuccess = () => resolve();
+        request.onerror = () => reject(request.error);
+      });
+      
+      // Delete from in-memory cache
+      embedCache.delete(contentRef);
+      
+      // Delete all keys for this embed from embed_keys store
+      const keysTransaction = await chatDB.getTransaction([EMBED_KEYS_STORE_NAME], 'readwrite');
+      const keysStore = keysTransaction.objectStore(EMBED_KEYS_STORE_NAME);
+      const keysIndex = keysStore.index('hashed_embed_id');
+      
+      const keysToDelete = await new Promise<EmbedKeyEntry[]>((resolve, reject) => {
+        const request = keysIndex.getAll(hashedId);
+        request.onsuccess = () => resolve(request.result || []);
+        request.onerror = () => reject(request.error);
+      });
+      
+      // Delete each key entry
+      for (const keyEntry of keysToDelete) {
+        const keyId = `${keyEntry.hashed_embed_id}:${keyEntry.key_type}:${keyEntry.hashed_chat_id || 'null'}`;
+        await new Promise<void>((resolve, reject) => {
+          const request = keysStore.delete(keyId);
+          request.onsuccess = () => resolve();
+          request.onerror = () => reject(request.error);
+        });
+        
+        // Also clear from key cache
+        embedKeyCache.delete(`${embedId}:${keyEntry.hashed_chat_id || 'master'}`);
+      }
+      
+      console.debug(`[EmbedStore] Deleted embed ${embedId} and ${keysToDelete.length} associated keys`);
+    } catch (error) {
+      console.error(`[EmbedStore] Error deleting embed ${embedId}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Delete all embeds for a chat that are not shared with other chats
+   * Also deletes associated embed keys
+   * @param chatId - The chat_id being deleted
+   * @returns Array of embed_ids that were deleted (for server notification)
+   */
+  async deleteEmbedsForChat(chatId: string): Promise<string[]> {
+    const deletedEmbedIds: string[] = [];
+    
+    try {
+      const hashedChatId = await computeSHA256(chatId);
+      
+      // Get all embeds for this chat
+      const chatEmbeds = await this.getEmbedsByHashedChatId(hashedChatId);
+      console.debug(`[EmbedStore] Found ${chatEmbeds.length} embeds for chat ${chatId}`);
+      
+      // Check each embed and delete if not shared with other chats
+      for (const embed of chatEmbeds) {
+        if (!embed.embed_id) {
+          console.warn('[EmbedStore] Embed has no embed_id, skipping:', embed.contentRef);
+          continue;
+        }
+        
+        const hashedEmbedId = await computeSHA256(embed.embed_id);
+        
+        // Check if this embed is used by other chats
+        const isShared = await this.isEmbedUsedByOtherChats(hashedEmbedId, hashedChatId);
+        
+        if (isShared) {
+          console.debug(`[EmbedStore] Embed ${embed.embed_id} is shared with other chats, only removing chat key`);
+          // Only remove the chat-specific key, not the embed itself
+          await this.deleteEmbedKeyForChat(hashedEmbedId, hashedChatId);
+        } else {
+          console.debug(`[EmbedStore] Embed ${embed.embed_id} is not shared, deleting completely`);
+          await this.deleteEmbed(embed.embed_id, hashedEmbedId);
+          deletedEmbedIds.push(embed.embed_id);
+        }
+      }
+      
+      console.info(`[EmbedStore] Deleted ${deletedEmbedIds.length} embeds for chat ${chatId}`);
+      return deletedEmbedIds;
+    } catch (error) {
+      console.error(`[EmbedStore] Error deleting embeds for chat ${chatId}:`, error);
+      return deletedEmbedIds;
+    }
+  }
+
+  /**
+   * Delete a specific chat's key for an embed (without deleting the embed itself)
+   * Used when an embed is shared with multiple chats
+   * @param hashedEmbedId - SHA256 hash of the embed_id
+   * @param hashedChatId - SHA256 hash of the chat_id
+   */
+  private async deleteEmbedKeyForChat(hashedEmbedId: string, hashedChatId: string): Promise<void> {
+    try {
+      const keyId = `${hashedEmbedId}:chat:${hashedChatId}`;
+      
+      const transaction = await chatDB.getTransaction([EMBED_KEYS_STORE_NAME], 'readwrite');
+      const store = transaction.objectStore(EMBED_KEYS_STORE_NAME);
+      
+      await new Promise<void>((resolve, reject) => {
+        const request = store.delete(keyId);
+        request.onsuccess = () => resolve();
+        request.onerror = () => reject(request.error);
+      });
+      
+      // Clear from cache
+      const cacheKey = `${hashedEmbedId}:${hashedChatId}`;
+      embedKeyCache.delete(cacheKey);
+      
+      console.debug(`[EmbedStore] Deleted chat key for embed ${hashedEmbedId.substring(0, 16)}... in chat ${hashedChatId.substring(0, 16)}...`);
+    } catch (error) {
+      console.error(`[EmbedStore] Error deleting embed key for chat:`, error);
+    }
+  }
 }
 
 // Export singleton instance
