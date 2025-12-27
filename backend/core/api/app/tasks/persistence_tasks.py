@@ -959,6 +959,18 @@ async def _update_chat_versions_if_needed(
         
         current_messages_v = chat.get("messages_v", 0)
         
+        # MESSAGES_V_TRACKING: Log the version comparison for persistence task
+        # This helps debug race conditions where client and server versions diverge
+        logger.info(
+            f"[MESSAGES_V_TRACKING] PERSISTENCE_CHECK: "
+            f"chat_id={chat_id}, "
+            f"client_v={new_messages_v}, "
+            f"current_directus_v={current_messages_v}, "
+            f"will_update={new_messages_v > current_messages_v}, "
+            f"source=_update_chat_versions_if_needed, "
+            f"task_id={task_id}"
+        )
+        
         # CRITICAL FIX: Use client-provided version (don't increment)
         # The client already increments messages_v before sending, so we should use that value
         # Only update if new version is greater (optimistic locking)

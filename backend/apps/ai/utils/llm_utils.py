@@ -26,6 +26,7 @@ from backend.apps.ai.utils.timeout_utils import (
     FIRST_CHUNK_TIMEOUT_SECONDS,
     PREPROCESSING_TIMEOUT_SECONDS,
     get_first_chunk_timeout_seconds,
+    get_inter_chunk_timeout_seconds,
 )
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 from backend.core.api.app.utils.config_manager import config_manager
@@ -1114,22 +1115,29 @@ async def call_main_llm_stream(
             raw_chunk_stream = await provider_client(secrets_manager=secrets_manager, **server_llm_input_details)
             
             if hasattr(raw_chunk_stream, '__aiter__'):
-                # Success! Wrap stream with timeout for first chunk
+                # Success! Wrap stream with timeout for first chunk AND inter-chunk timeout
                 first_chunk_timeout_seconds = get_first_chunk_timeout_seconds(is_reasoning=is_reasoning_model)
+                inter_chunk_timeout_seconds = get_inter_chunk_timeout_seconds(is_reasoning=is_reasoning_model)
                 logger.info(
                     f"{attempt_log_prefix} Successfully connected to provider. "
-                    f"Streaming response with {first_chunk_timeout_seconds}s timeout for first chunk..."
+                    f"Streaming response with {first_chunk_timeout_seconds}s first-chunk timeout, "
+                    f"{inter_chunk_timeout_seconds}s inter-chunk timeout..."
                 )
                 try:
-                    # Wrap stream with first chunk timeout
-                    timeout_stream = stream_with_first_chunk_timeout(raw_chunk_stream, first_chunk_timeout_seconds)
+                    # Wrap stream with first chunk AND inter-chunk timeout protection
+                    # This prevents both dead streams (never starts) and hung streams (stops mid-stream)
+                    timeout_stream = stream_with_first_chunk_timeout(
+                        raw_chunk_stream, 
+                        first_chunk_timeout_seconds,
+                        inter_chunk_timeout_seconds
+                    )
                     async for paragraph in aggregate_paragraphs(timeout_stream):
                         yield paragraph
                     # Successfully completed - return from function
                     return
                 except TimeoutError as timeout_err:
-                    # First chunk timeout - treat as retryable error
-                    error_msg = f"First chunk timeout: {str(timeout_err)}"
+                    # Timeout error (first chunk or inter-chunk) - treat as retryable
+                    error_msg = f"Stream timeout: {str(timeout_err)}"
                     logger.error(f"{attempt_log_prefix} {error_msg}")
                     last_error = error_msg
                     if len(attempted_servers) < len(servers_to_try):

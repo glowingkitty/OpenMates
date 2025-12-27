@@ -160,6 +160,17 @@ async def _update_chat_metadata(
         
     current_messages_v = chat_metadata.get("messages_v", 0)
     new_messages_version = current_messages_v + 1
+    
+    # MESSAGES_V_TRACKING: Log the version change for AI response
+    # This helps debug race conditions where messages_v gets incremented multiple times
+    logger.info(
+        f"{log_prefix} [MESSAGES_V_TRACKING] AI_RESPONSE: "
+        f"chat_id={request_data.chat_id}, "
+        f"current_directus_v={current_messages_v}, "
+        f"new_directus_v={new_messages_version}, "
+        f"source=stream_consumer._update_chat_metadata_and_save_response"
+    )
+    
     fields_to_update = {
         "messages_v": new_messages_version,
         "last_edited_overall_timestamp": timestamp,

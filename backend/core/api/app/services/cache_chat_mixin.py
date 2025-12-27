@@ -970,12 +970,26 @@ class ChatCacheMixin:
                 return None
             logger.debug(f"CACHE_OP_SUCCESS: Successfully saved vault-encrypted message to AI cache for user {user_id}, chat {chat_id}, msg_id {message_data.id}.")
 
-            # 2. Increment messages_v
+            # 2. Increment messages_v in cache
+            # NOTE: This increments the CACHE version, not Directus. Cache and Directus versions
+            # should stay in sync, but are tracked independently.
             new_messages_v = await self.increment_chat_component_version(user_id, chat_id, "messages_v")
             if new_messages_v is None:
                 logger.error(f"CACHE_OP_ERROR: Failed to increment messages_v for user {user_id}, chat {chat_id} after saving message {message_data.id}.")
                 # Potentially consider rollback or cleanup if critical, but for now, log and fail.
                 return None
+            
+            # MESSAGES_V_TRACKING: Log the cache version increment
+            # This helps debug cache vs Directus version drift
+            logger.info(
+                f"[MESSAGES_V_TRACKING] CACHE_INCREMENT: "
+                f"chat_id={chat_id}, "
+                f"new_cache_v={new_messages_v}, "
+                f"msg_id={message_data.id}, "
+                f"msg_role={message_data.role}, "
+                f"source=save_chat_message_and_update_versions"
+            )
+            
             logger.debug(f"CACHE_OP_SUCCESS: Incremented messages_v to {new_messages_v} for user {user_id}, chat {chat_id}.")
 
             # 3. Update last_edited_overall_timestamp
