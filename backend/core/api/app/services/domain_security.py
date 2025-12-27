@@ -437,13 +437,13 @@ class DomainSecurityService:
             logger.warning(f"Resilience check error: {e}")
             return False
     
-    def is_domain_restricted(self, domain: str, check_patterns: bool = True) -> Tuple[bool, Optional[str]]:
+    def is_domain_restricted(self, domain: str, check_patterns: bool = True, skip_platform_checks: bool = False) -> Tuple[bool, Optional[str]]:
         """
         Check if a domain is restricted by security policies.
         
         This method checks in order:
-        1. If domain contains platform name - only the allowed domain is permitted
-        2. Suspicious pattern detection (only applies if platform name is present)
+        1. If domain contains platform name - only the allowed domain is permitted (skipped if skip_platform_checks=True)
+        2. Suspicious pattern detection (only applies if platform name is present, skipped if skip_platform_checks=True)
         3. Domains in the encrypted restricted domains list (applies to all domains)
         
         Domains that have nothing to do with the platform name are only restricted
@@ -452,6 +452,7 @@ class DomainSecurityService:
         Args:
             domain: Domain to check
             check_patterns: Whether to check for suspicious patterns (default: True)
+            skip_platform_checks: If True, skip platform name and pattern checks (for signup validation)
             
         Returns:
             Tuple of (is_restricted: bool, reason: Optional[str])
@@ -480,20 +481,22 @@ class DomainSecurityService:
         normalized = self._normalize_domain(domain)
         
         # Check 1: Platform name variations - only the allowed domain is permitted
-        # Only check this if platform name and allowed domain are configured
-        if _PLATFORM_NAME and _ALLOWED_DOMAIN and self._contains_platform_name(normalized):
-            if normalized == _ALLOWED_DOMAIN:
-                # This is the allowed domain
-                return False, None
-            else:
-                # Contains platform name but isn't exactly the allowed domain
+        # Skip this check for signup validation (skip_platform_checks=True)
+        # Platform name checks are only for self-hosting validation, not signup emails
+        if not skip_platform_checks:
+            if _PLATFORM_NAME and _ALLOWED_DOMAIN and self._contains_platform_name(normalized):
+                if normalized == _ALLOWED_DOMAIN:
+                    # This is the allowed domain
+                    return False, None
+                else:
+                    # Contains platform name but isn't exactly the allowed domain
+                    return True, "Domain not supported"
+            
+            # Check 2: Suspicious pattern detection
+            if check_patterns and self._is_suspicious_pattern(normalized):
                 return True, "Domain not supported"
         
-        # Check 2: Suspicious pattern detection
-        if check_patterns and self._is_suspicious_pattern(normalized):
-            return True, "Domain not supported"
-        
-        # Check 3: Encrypted security configuration
+        # Check 3: Encrypted security configuration (always checked)
         if not self.config_loaded:
             logger.warning(
                 "Domain security configuration not loaded. Restricting all domains until configuration is loaded."
@@ -617,10 +620,13 @@ class DomainSecurityService:
         """
         Validate if an email domain is allowed for signup.
         
-        Behavior differs by environment:
-        - Development on localhost: All domains allowed (except restricted)
-        - Development on actual domain (e.g., app.dev.openmates.org): Only official domain allowed (except restricted)
-        - Production: All domains allowed (except restricted)
+        This method only checks against the encrypted restricted domains list.
+        Platform name checks are NOT applied here (they're for self-hosting validation only).
+        SIGNUP_DOMAIN_RESTRICTION is handled separately in the auth routes.
+        
+        Behavior:
+        - All domains are allowed EXCEPT those in the encrypted restricted domains list
+        - Platform name variations are NOT checked (unlike self-hosting validation)
         
         Args:
             email: Email address to validate
@@ -634,35 +640,15 @@ class DomainSecurityService:
         if not domain:
             return False, "Domain not supported"
         
-        normalized = self._normalize_domain(domain)
-        
-        # Check if domain is restricted (applies to all environments)
-        is_restricted, reason = self.is_domain_restricted(domain)
+        # For signup validation, only check the encrypted restricted domains list
+        # Skip platform name checks (those are for self-hosting validation only)
+        # SIGNUP_DOMAIN_RESTRICTION is handled separately in auth routes
+        is_restricted, reason = self.is_domain_restricted(domain, check_patterns=False, skip_platform_checks=True)
         if is_restricted:
             return False, reason or "Domain not supported"
         
-        # Check environment-specific rules
-        is_production = self._is_production_environment()
-        is_localhost = self._is_localhost_environment()
-        
-        if is_production:
-            # Production: Allow all domains (restricted ones already checked above)
-            return True, None
-        elif not is_localhost:
-            # Development on actual domain: Only allow official domain
-            # Example: app.dev.openmates.org → only openmates.org emails allowed
-            if _ALLOWED_DOMAIN and normalized == _ALLOWED_DOMAIN:
-                return True, None
-            else:
-                hosting_domain = self._get_hosting_domain()
-                logger.info(
-                    f"Development on domain ({hosting_domain}): Only official domain allowed. "
-                    f"Blocked: {email}"
-                )
-                return False, "Domain not supported"
-        else:
-            # Development on localhost: Allow all domains (restricted ones already checked above)
-            return True, None
+        # Domain is not in the restricted list - allow it
+        return True, None
     
     def validate_hosting_domain(self, domain: Optional[str] = None) -> Tuple[bool, Optional[str]]:
         """

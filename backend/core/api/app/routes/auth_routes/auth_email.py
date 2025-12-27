@@ -1,24 +1,20 @@
-from fastapi import APIRouter, Depends, Request, Response, Cookie
+from fastapi import APIRouter, Depends, Request, Response
 import logging
 import time
 import hashlib
-import urllib.parse
-import os
 import base64
-from typing import Optional, Tuple
 from backend.core.api.app.schemas.auth import RequestEmailCodeRequest, RequestEmailCodeResponse, CheckEmailCodeRequest, CheckEmailCodeResponse
 from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.metrics import MetricsService
 from backend.core.api.app.services.compliance import ComplianceService
 from backend.core.api.app.services.limiter import limiter
-from backend.core.api.app.utils.device_fingerprint import generate_device_fingerprint_hash, _extract_client_ip, get_geo_data_from_ip, parse_user_agent # Updated imports
 from backend.core.api.app.utils.invite_code import validate_invite_code, get_signup_requirements
 from backend.core.api.app.utils.newsletter_utils import hash_email, check_ignored_email
 # Import EncryptionService and its getter
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.routes.auth_routes.auth_dependencies import get_directus_service, get_cache_service, get_metrics_service, get_compliance_service, get_encryption_service
-from backend.core.api.app.routes.auth_routes.auth_utils import verify_allowed_origin, validate_username, validate_password
+from backend.core.api.app.routes.auth_routes.auth_utils import verify_allowed_origin, validate_username
 from backend.core.api.app.tasks.celery_config import app as celery_app
 
 router = APIRouter()
@@ -26,7 +22,7 @@ logger = logging.getLogger(__name__)
 event_logger = logging.getLogger("app.events")
 
 @router.post("/request_confirm_email_code", response_model=RequestEmailCodeResponse, dependencies=[Depends(verify_allowed_origin)])
-@limiter.limit("3/minute")
+@limiter.limit("5/minute")
 async def request_confirm_email_code(
     request: Request,
     email_request: RequestEmailCodeRequest,
@@ -84,71 +80,30 @@ async def request_confirm_email_code(
         else:
             logger.info(f"Invite code not required, skipping validation")
         
-        # Check domain security policies (validates domain compliance)
-        # Resilience: Always validate, even if service is missing from app state
-        # Try to use security service from app state (loaded at startup), otherwise create new instance
+        # Check domain security policies (validates against encrypted restricted domains list)
+        # Only check if domain security service is available (it's optional for signup validation)
+        # SIGNUP_DOMAIN_RESTRICTION is handled separately above (lines 54-63)
         domain_security_service = None
         if hasattr(request.app.state, 'domain_security_service'):
             domain_security_service = request.app.state.domain_security_service
-        else:
-            # Fallback: create new instance if not in app state
-            from backend.core.api.app.services.domain_security import DomainSecurityService
-            domain_security_service = DomainSecurityService()
-            
-            # Load security configuration if not already loaded
-            if not domain_security_service.config_loaded:
-                try:
-                    domain_security_service.load_security_config()
-                except SystemExit:
-                    # If configuration cannot be loaded, restrict all signups for security
-                    logger.critical("Domain security configuration cannot be loaded - restricting all signups")
-                    return RequestEmailCodeResponse(
-                        success=False,
-                        message="Domain not supported",
-                        error_code="DOMAIN_NOT_SUPPORTED"
-                    )
-                except Exception as e:
-                    logger.error(f"Error loading domain security configuration: {e} - restricting signup for security")
-                    return RequestEmailCodeResponse(
-                        success=False,
-                        message="Domain not supported",
-                        error_code="DOMAIN_NOT_SUPPORTED"
-                    )
         
-        # Resilience: Double-check service is properly initialized
-        if not domain_security_service or not domain_security_service.config_loaded:
-            logger.critical("Domain security service not properly initialized - restricting signup")
-            return RequestEmailCodeResponse(
-                success=False,
-                message="Domain not supported",
-                error_code="DOMAIN_NOT_SUPPORTED"
-            )
-        
-        # Validate email domain against security policies
-        is_allowed, error_message = domain_security_service.validate_email_domain(email_request.email)
-        if not is_allowed:
-            logger.warning(f"Email domain restricted: {email_request.email} - {error_message}")
-            return RequestEmailCodeResponse(
-                success=False,
-                message=error_message or "Domain not supported",
-                error_code="DOMAIN_NOT_SUPPORTED"
-            )
-        
-        # Resilience: Additional validation check (redundant but makes removal harder)
-        # Extract domain and check again directly - but use the same validation method
-        # to ensure consistency
-        email_parts = email_request.email.split('@')
-        if len(email_parts) == 2:
-            check_domain = email_parts[1].lower().strip()
-            # Use validate_email_domain for consistency (not is_domain_restricted directly)
-            is_allowed_redundant, error_redundant = domain_security_service.validate_email_domain(email_request.email)
-            if not is_allowed_redundant:
-                logger.warning(f"Email domain restricted (redundant check): {email_request.email} - {error_redundant}")
+        # Only validate against domain security service if it's available and loaded
+        # If service is not available, skip validation (allow all domains except those blocked by SIGNUP_DOMAIN_RESTRICTION)
+        if domain_security_service and domain_security_service.config_loaded:
+            # Validate email domain against encrypted restricted domains list
+            # This only checks the restricted domains list, not platform name variations
+            is_allowed, error_message = domain_security_service.validate_email_domain(email_request.email)
+            if not is_allowed:
+                logger.warning(f"Email domain restricted: {email_request.email} - {error_message}")
                 return RequestEmailCodeResponse(
                     success=False,
-                    message=error_redundant or "Domain not supported",
+                    message=error_message or "Domain not supported",
                     error_code="DOMAIN_NOT_SUPPORTED"
                 )
+        else:
+            # Domain security service not available or not loaded - log but don't block
+            # This allows signups when domain security config is not available
+            logger.debug("Domain security service not available or not loaded - skipping domain security validation")
         
         # Check if email is in ignored list (before checking if registered)
         hashed_email = hash_email(email_request.email)

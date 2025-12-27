@@ -66,13 +66,15 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
 
         # CRITICAL: For incognito chats, skip Directus operations (no persistence, no ownership checks)
         # Incognito chats are not stored in Directus and should not be synced to other devices
+        # Store chat_metadata for later use in determining if chat is existing (for history requests)
+        chat_metadata_from_db: Optional[Dict[str, Any]] = None
         if not is_incognito:
             # CRITICAL: Verify chat ownership before processing message
             # This prevents authenticated users from sending messages to shared chats they don't own
             # For now, shared chats are read-only for non-owners (group chat support will be added later)
             try:
-                chat_metadata = await directus_service.chat.get_chat_metadata(chat_id)
-                if chat_metadata:
+                chat_metadata_from_db = await directus_service.chat.get_chat_metadata(chat_id)
+                if chat_metadata_from_db:
                     # Check if user owns this chat
                     is_owner = await directus_service.chat.check_chat_ownership(chat_id, user_id)
                     if not is_owner:
@@ -122,6 +124,18 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
         # Get chat_has_title flag early (indicates if this is first message or follow-up)
         # This is used to determine if we should request history (only for existing chats, not new ones)
         chat_has_title_from_client = message_payload_from_client.get("chat_has_title", False)
+        
+        # Determine if this is an existing chat by checking Directus messages_v
+        # This is more reliable than client-provided chat_has_title, especially after server restarts
+        is_existing_chat = False
+        if chat_metadata_from_db:
+            messages_v_from_db = chat_metadata_from_db.get("messages_v", 0)
+            is_existing_chat = messages_v_from_db > 1  # > 1 means there are previous messages
+            logger.debug(f"Chat {chat_id} messages_v from DB: {messages_v_from_db}, is_existing_chat: {is_existing_chat}")
+        else:
+            # Fallback to client-provided flag if DB check failed
+            is_existing_chat = chat_has_title_from_client
+            logger.debug(f"Chat {chat_id} not found in DB, using client flag chat_has_title: {chat_has_title_from_client}")
 
         # Validate required fields
         if not message_id or not role or content_plain is None or not created_at:
@@ -857,13 +871,47 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                         f"Message roles: {[msg.role for msg in message_history_for_ai]}"
                     )
                     
-                    # If we have no successfully decrypted messages, or too many decryption failures, request history from client
-                    # For follow-up messages (chat_has_title=True), we need at least some context from previous messages
-                    # If cache is completely empty or all decryptions failed, we must request history
-                    # BUT: Only request history for existing chats (chat_has_title=True), not new chats
+                    # CRITICAL FIX: Validate chat history based on database messages_v vs cached messages
+                    # For existing chats, we should have historical context beyond just the current message
+                    messages_v_from_db = chat_metadata_from_db.get("messages_v", 0) if chat_metadata_from_db else 0
+                    expected_total_messages = messages_v_from_db if messages_v_from_db > 0 else 1
+
+                    # Count messages excluding the current message (which was just added to history at the end)
+                    # Current message gets appended later, so history should have (expected - 1) previous messages
+                    expected_previous_messages = max(0, expected_total_messages - 1)
+                    actual_previous_messages = len(message_history_for_ai)
+
+                    logger.debug(f"History validation for chat {chat_id}: expected_total={expected_total_messages}, expected_previous={expected_previous_messages}, actual_previous={actual_previous_messages}, decryption_failures={decryption_failures}")
+
+                    # For existing chats with expected history, validate we have sufficient context
+                    if is_existing_chat and expected_previous_messages > 0:
+                        # Check if we have significantly fewer messages than expected
+                        # Allow some tolerance for edge cases, but require at least 50% of expected messages
+                        minimum_required = max(1, expected_previous_messages // 2)
+
+                        if actual_previous_messages < minimum_required:
+                            # Insufficient history for existing chat - request from client
+                            logger.warning(f"Insufficient history for existing chat {chat_id}: expected {expected_previous_messages} previous messages, got {actual_previous_messages} (minimum required: {minimum_required}). Cache likely stale after server restart.")
+                            await manager.send_personal_message(
+                                {
+                                    "type": "request_chat_history",
+                                    "payload": {
+                                        "chat_id": chat_id,
+                                        "reason": "insufficient_cache_history",
+                                        "message": "Server cache missing chat history. Please resend your message with full chat history included",
+                                        "expected_messages": expected_total_messages,
+                                        "cached_messages": actual_previous_messages
+                                    }
+                                },
+                                user_id,
+                                device_fingerprint_hash
+                            )
+                            return  # Stop processing until client provides history
+
+                    # Legacy validation for complete cache failures
                     if len(message_history_for_ai) < 1:
-                        if chat_has_title_from_client:
-                            # Existing chat with no history - request it
+                        if is_existing_chat:
+                            # Existing chat with no history at all - request it
                             logger.warning(f"No messages successfully decrypted from cache for chat {chat_id} ({decryption_failures} decryption failures out of {len(cached_messages_str_list)} cached). Requesting full history from client.")
                             await manager.send_personal_message(
                                 {
@@ -881,34 +929,18 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                         else:
                             # New chat - no history exists, proceed with empty history
                             logger.info(f"New chat {chat_id} has no cached history (expected). Proceeding with empty history.")
-                    elif decryption_failures > 0 and len(message_history_for_ai) < 2:
-                        # Some decryptions failed and we have less than 2 messages - cache might be partially stale
-                        # For follow-up messages, we should have at least 2 messages (previous user + assistant)
-                        if chat_has_title_from_client:
-                            # Existing chat with stale cache - request history
-                            logger.warning(f"Cache appears partially stale for chat {chat_id} ({decryption_failures} decryption failures, only {len(message_history_for_ai)} messages decrypted). Requesting full history from client.")
-                            await manager.send_personal_message(
-                                {
-                                    "type": "request_chat_history",
-                                    "payload": {
-                                        "chat_id": chat_id,
-                                        "reason": "cache_stale",
-                                        "message": "Please resend your message with full chat history included"
-                                    }
-                                },
-                                user_id,
-                                device_fingerprint_hash
-                            )
-                            return  # Stop processing until client provides history
-                        else:
-                            # New chat - proceed with available history (even if partial)
-                            logger.info(f"New chat {chat_id} has partial cache (expected). Proceeding with available history.")
+
+                    # Log final validation result
+                    if is_existing_chat:
+                        logger.info(f"History validation passed for existing chat {chat_id}: using {actual_previous_messages} cached messages (expected {expected_previous_messages})")
+                    else:
+                        logger.info(f"New chat {chat_id} proceeding with {actual_previous_messages} cached messages")
                 else:
                     # Cache is completely empty - request full history from client
-                    # BUT: Only request history for existing chats (chat_has_title=True), not new chats
-                    if chat_has_title_from_client:
+                    # BUT: Only request history for existing chats (messages_v > 1), not new chats
+                    if is_existing_chat:
                         # Existing chat with empty cache - request history
-                        logger.info(f"AI cache is empty for existing chat {chat_id}. Requesting full chat history from client.")
+                        logger.info(f"AI cache is empty for existing chat {chat_id} (messages_v > 1). Requesting full chat history from client.")
                         await manager.send_personal_message(
                             {
                                 "type": "request_chat_history",
