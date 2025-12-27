@@ -1308,9 +1308,42 @@ async def _async_persist_encrypted_chat_metadata(
                     f"Successfully created chat {chat_id} with encrypted metadata (task_id: {task_id})"
                 )
             else:
-                logger.error(
-                    f"Failed to create chat {chat_id} with encrypted metadata (task_id: {task_id}). Response: {created_chat}"
+                # RACE CONDITION FIX: Chat creation might fail because another task (persist_new_chat_message_task)
+                # already created a minimal chat record. In this case, we should UPDATE the existing chat
+                # with the encrypted metadata instead of failing.
+                logger.warning(
+                    f"Chat {chat_id} creation failed (task_id: {task_id}). "
+                    f"This may be a race condition - checking if chat was created by another task..."
                 )
+                
+                # Re-check if chat now exists (another task might have created it)
+                existing_chat = await directus_service.chat.get_chat_metadata(chat_id)
+                if existing_chat:
+                    logger.info(
+                        f"✅ Chat {chat_id} was created by another task (race condition). "
+                        f"Updating with encrypted metadata instead. (task_id: {task_id})"
+                    )
+                    # Update the existing chat with our encrypted metadata
+                    # Remove the 'id' field as we're updating, not creating
+                    update_payload = {k: v for k, v in chat_creation_payload.items() if k != 'id' and v is not None}
+                    updated_chat = await directus_service.chat.update_chat_fields_in_directus(
+                        chat_id=chat_id,
+                        fields_to_update=update_payload
+                    )
+                    if updated_chat:
+                        logger.info(
+                            f"✅ Successfully updated chat {chat_id} with encrypted metadata after race condition (task_id: {task_id})"
+                        )
+                    else:
+                        logger.error(
+                            f"❌ Failed to update chat {chat_id} with encrypted metadata after race condition (task_id: {task_id})"
+                        )
+                else:
+                    # Chat truly doesn't exist and creation failed for another reason
+                    logger.error(
+                        f"❌ Failed to create chat {chat_id} with encrypted metadata (task_id: {task_id}). "
+                        f"Response: {created_chat}"
+                    )
 
     except Exception as e:
         logger.error(
