@@ -7,6 +7,9 @@
   Details content structure:
   - Processing: query text + "via {provider}"
   - Finished: query text + "via {provider}" + place count
+  
+  NOTE: Real-time updates are handled by UnifiedEmbedPreview via embedUpdated events.
+  This component implements onEmbedDataUpdated to update its specific data.
 -->
 
 <script lang="ts">
@@ -53,14 +56,57 @@
   
   let {
     id,
-    query,
-    provider,
-    status,
-    results = [],
-    taskId,
+    query: queryProp,
+    provider: providerProp,
+    status: statusProp,
+    results: resultsProp = [],
+    taskId: taskIdProp,
     isMobile = false,
     onFullscreen
   }: Props = $props();
+  
+  // Local reactive state for embed data
+  let localQuery = $state<string>('');
+  let localProvider = $state<string>('Google');
+  let localStatus = $state<'processing' | 'finished' | 'error'>('processing');
+  let localResults = $state<PlaceSearchResult[]>([]);
+  let localTaskId = $state<string | undefined>(undefined);
+  
+  // Initialize local state from props
+  $effect(() => {
+    localQuery = queryProp || '';
+    localProvider = providerProp || 'Google';
+    localStatus = statusProp || 'processing';
+    localResults = resultsProp || [];
+    localTaskId = taskIdProp;
+  });
+  
+  // Use local state as the source of truth
+  let query = $derived(localQuery);
+  let provider = $derived(localProvider);
+  let status = $derived(localStatus);
+  let results = $derived(localResults);
+  let taskId = $derived(localTaskId);
+  
+  /**
+   * Handle embed data updates from UnifiedEmbedPreview
+   */
+  function handleEmbedDataUpdated(data: { status: string; decodedContent: any }) {
+    console.debug(`[MapsSearchEmbedPreview] 🔄 Received embed data update for ${id}`);
+    
+    if (data.status === 'processing' || data.status === 'finished' || data.status === 'error') {
+      localStatus = data.status;
+    }
+    
+    const content = data.decodedContent;
+    if (content) {
+      if (content.query) localQuery = content.query;
+      if (content.provider) localProvider = content.provider;
+      if (content.results && Array.isArray(content.results)) {
+        localResults = content.results;
+      }
+    }
+  }
   
   // Get skill name from translations
   let skillName = $derived($text('embeds.search.text') || 'Search');
@@ -100,6 +146,7 @@
   {isMobile}
   {onFullscreen}
   onStop={handleStop}
+  onEmbedDataUpdated={handleEmbedDataUpdated}
 >
   {#snippet details({ isMobile: isMobileLayout })}
     <div class="maps-search-details" class:mobile={isMobileLayout}>

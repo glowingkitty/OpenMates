@@ -30,7 +30,7 @@ async def logout(
     and persisting cached drafts to Directus.
     """
     # Add clear request log at INFO level
-    logger.info(f"Processing logout request")
+    logger.info("Processing logout request")
     
     try:
         # Use either our renamed cookie or the original directus cookie
@@ -70,6 +70,7 @@ async def logout(
 
                 if is_last_device_logout:
                     logger.info(f"User {user_id[:6]}... logging out. Last active session. Persisting drafts.")
+                    draft_tasks = []
                     try:
                         all_user_chat_ids = await cache_service.get_chat_ids_versions(user_id)
                         if all_user_chat_ids:
@@ -86,7 +87,7 @@ async def logout(
                                 continue
 
                             logger.debug(f"Dispatching persistence task for user {user_id[:6]}..., chat {chat_id_to_check}, version {version} (last device).")
-                            celery_app.send_task(
+                            task_result = celery_app.send_task(
                                 name='app.tasks.persistence_tasks.persist_chat_and_draft_on_logout',
                                 kwargs={
                                     'hashed_user_id': hashlib.sha256(user_id.encode()).hexdigest(), # Hash user_id
@@ -96,11 +97,41 @@ async def logout(
                                 },
                                 queue='persistence'
                             )
-                            # Note: Cache deletion is now handled *inside* the Celery task upon successful persistence.
+                            draft_tasks.append(task_result)
+                            logger.debug(f"Queued draft persistence task {task_result.id} for chat {chat_id_to_check}")
                     except Exception as e_dispatch:
                         logger.error(f"Error dispatching draft persistence tasks for user {user_id[:6]}... on last device logout: {e_dispatch}", exc_info=True)
 
-                    # Last device cache cleanup
+                    # CRITICAL: Wait for draft persistence tasks to complete before deleting cache
+                    # This ensures drafts are persisted to Directus before cache deletion
+                    if draft_tasks:
+                        logger.info(f"Waiting for {len(draft_tasks)} draft persistence task(s) to complete before deleting cache...")
+                        import asyncio
+                        # Wait up to 10 seconds for tasks to complete
+                        max_wait_time = 10.0
+                        start_time = time.time()
+                        for task_result in draft_tasks:
+                            try:
+                                # Check task status with timeout
+                                elapsed = time.time() - start_time
+                                remaining_time = max(0, max_wait_time - elapsed)
+                                if remaining_time <= 0:
+                                    logger.warning("Timeout waiting for draft persistence tasks. Proceeding with cache deletion.")
+                                    break
+                                
+                                # Use asyncio.to_thread to run blocking get() call in thread pool
+                                # This allows us to wait for task completion without blocking the event loop
+                                await asyncio.to_thread(task_result.get, timeout=remaining_time)
+                                logger.debug(f"Draft persistence task {task_result.id} completed")
+                            except Exception as task_error:
+                                logger.warning(f"Draft persistence task {task_result.id} may not have completed: {task_error}")
+                        
+                        elapsed = time.time() - start_time
+                        logger.info(f"Waited {elapsed:.2f}s for draft persistence tasks. Proceeding with cache deletion.")
+                    else:
+                        logger.debug("No draft persistence tasks to wait for.")
+
+                    # Last device cache cleanup (AFTER drafts are persisted)
                     if await cache_service.has_pending_orders(user_id):
                         logger.warning(f"User {user_id[:6]}... has pending orders. Skipping user cache deletion on last device logout.")
                     else:
@@ -149,7 +180,7 @@ async def logout_all(
     """
     Log out all sessions for the current user
     """
-    logger.info(f"Processing logout-all request")
+    logger.info("Processing logout-all request")
     
     try:
         # Use either our renamed cookie or the original directus cookie
@@ -170,7 +201,7 @@ async def logout_all(
         user_id = await cache_service.get(user_key)
         
         if not user_id:
-            logger.warning(f"User ID not found in cache for logout-all request")
+            logger.warning("User ID not found in cache for logout-all request")
             
             # Try to get user information from Directus by refreshing the token
             success, auth_data, message = await directus_service.refresh_token(refresh_token)
@@ -239,7 +270,7 @@ async def policy_violation_logout(
         body = await request.json()
         reason = body.get("reason", "unknown")
         details = body.get("details", {})
-    except:
+    except Exception:
         reason = "unknown"
         details = {}
     

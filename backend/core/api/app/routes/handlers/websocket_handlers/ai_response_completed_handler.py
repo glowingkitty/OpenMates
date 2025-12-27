@@ -1,8 +1,6 @@
 # backend/core/api/app/routes/handlers/websocket_handlers/ai_response_completed_handler.py
 import logging
-import json
 from typing import Dict, Any
-from datetime import datetime, timezone
 
 from fastapi import WebSocket
 
@@ -85,6 +83,28 @@ async def handle_ai_response_completed(
             message_payload_from_client = {k: v for k, v in message_payload_from_client.items() if k != "content"}
 
         logger.info(f"Received completed AI response for storage: chat_id={chat_id}, message_id={message_id}, user_id={user_id}")
+
+        # CRITICAL: Check if this specific response ID was already processed or is being processed
+        # This prevents duplicate confirmations and redundant Celery tasks
+        lock_key = f"lock:ai_response_processed:{message_id}"
+        is_already_processed = await cache_service.get(lock_key)
+        if is_already_processed:
+            logger.info(f"⏭️ AI response {message_id} already being/was processed by another device or task, skipping duplicate handling.")
+            
+            # Still send confirmation to this device so it knows it's "synced"
+            await manager.send_personal_message(
+                {
+                    "type": "ai_response_storage_confirmed",
+                    "payload": {
+                        "message_id": message_id,
+                        "chat_id": chat_id,
+                        "task_id": "already_processed"
+                    }
+                },
+                user_id,
+                device_fingerprint_hash
+            )
+            return
 
         # Create message data for Directus storage (encrypted only)
         message_data_for_directus = {

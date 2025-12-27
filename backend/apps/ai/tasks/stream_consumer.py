@@ -2,7 +2,6 @@
 # Handles the consumption of the main processing stream for AI tasks.
 
 import logging
-import json
 import time
 import httpx
 import asyncio
@@ -135,7 +134,8 @@ async def _update_chat_metadata(
     encryption_service: EncryptionService,
     user_vault_key_id: str,
     task_id: str,
-    log_prefix: str
+    log_prefix: str,
+    model_name: Optional[str] = None
 ) -> None:
     """Update chat metadata and save assistant response to cache.
     
@@ -151,20 +151,26 @@ async def _update_chat_metadata(
         user_vault_key_id: User's vault key ID for encryption
         task_id: The AI task ID (also the message ID for the assistant's response)
         log_prefix: Logging prefix for this task
+        model_name: The AI model name used for the response
     """
     chat_metadata = await directus_service.chat.get_chat_metadata(request_data.chat_id)
     if not chat_metadata:
         logger.error(f"{log_prefix} Failed to fetch chat metadata for {request_data.chat_id}.")
         return
         
-    new_messages_version = chat_metadata.get("messages_v", 0) + 1
+    current_messages_v = chat_metadata.get("messages_v", 0)
+    new_messages_version = current_messages_v + 1
     fields_to_update = {
         "messages_v": new_messages_version,
         "last_edited_overall_timestamp": timestamp,
         "last_message_timestamp": timestamp,
-        "last_mate_category": category
+        "last_mate_category": category,
+        "updated_at": int(time.time())
     }
     
+    # CRITICAL: Always use optimistic locking or at least ensure we don't downgrade
+    # Directus doesn't support "update if >" natively via simple API, but we can do our best
+    # by using the value we just read.
     success = await directus_service.chat.update_chat_fields_in_directus(
         request_data.chat_id, fields_to_update
     )
@@ -173,7 +179,7 @@ async def _update_chat_metadata(
         logger.error(f"{log_prefix} Failed to update chat metadata for {request_data.chat_id}.")
         return
         
-    logger.info(f"{log_prefix} Updated chat metadata: version {new_messages_version}, timestamp {timestamp}.")
+    logger.info(f"{log_prefix} Updated chat metadata: version {new_messages_version} (was {current_messages_v}), timestamp {timestamp}.")
     
     # Save assistant response to cache and publish events
     # This ensures follow-up messages include assistant responses in the history
@@ -182,7 +188,8 @@ async def _update_chat_metadata(
             request_data, task_id, category, timestamp,
             new_messages_version, cache_service, 
             encryption_service, user_vault_key_id,
-            content_markdown, log_prefix
+            content_markdown, log_prefix,
+            model_name=model_name
         )
 
 async def _save_to_cache_and_publish(
@@ -195,7 +202,8 @@ async def _save_to_cache_and_publish(
     encryption_service: EncryptionService,
     user_vault_key_id: str,
     content_markdown: str,
-    log_prefix: str
+    log_prefix: str,
+    model_name: Optional[str] = None
 ) -> None:
     """Save message to cache and publish persistence event.
     
@@ -210,6 +218,7 @@ async def _save_to_cache_and_publish(
         user_vault_key_id: User's vault key ID for encryption
         content_markdown: The response content as markdown (to be encrypted for cache)
         log_prefix: Logging prefix for this task
+        model_name: The AI model name used for the response
     """
     try:
         from backend.core.api.app.schemas.chat import MessageInCache
@@ -236,7 +245,8 @@ async def _save_to_cache_and_publish(
             sender_name=None,  # Assistant doesn't have a sender_name
             encrypted_content=encrypted_content_for_cache,  # Server-side encrypted content
             created_at=timestamp,
-            status="synced"
+            status="synced",
+            model_name=model_name  # Ensure model_name is in cache object if schema supports it
         )
         
         await cache_service.save_chat_message_and_update_versions(
@@ -262,6 +272,7 @@ async def _save_to_cache_and_publish(
                 "content": content_markdown,  # Send markdown content to client
                 "created_at": timestamp,
                 "status": "synced",
+                "model_name": model_name  # CRITICAL: Send model_name to client for encryption/storage
             },
             "versions": {"messages_v": messages_version},
             "last_edited_overall_timestamp": timestamp
@@ -379,8 +390,8 @@ async def _generate_fake_stream_for_harmful_content(
     log_prefix = f"[Task ID: {task_id}, ChatID: {request_data.chat_id}] _generate_fake_stream_for_harmful_content:"
     logger.info(f"{log_prefix} Generating fake stream for harmful content.")
 
-    selected_model_id = preprocessing_result.selected_main_llm_model_id or ""
-    model_name = selected_model_id.split("/", 1)[1] if isinstance(selected_model_id, str) and "/" in selected_model_id else (selected_model_id or "harmful_content_filter")
+    # For harmful content, we don't show a model name as it's a predefined response
+    model_name = None
     
     # Check for revocation
     if celery_config.app.AsyncResult(task_id).state == TASK_STATE_REVOKED:
@@ -474,9 +485,9 @@ async def _generate_fake_stream_for_simple_message(
     log_prefix = f"[Task ID: {task_id}, ChatID: {request_data.chat_id}] _generate_fake_stream_for_simple_message:"
     logger.info(f"{log_prefix} Generating simple fake stream.")
 
-    selected_model_id = preprocessing_result.selected_main_llm_model_id or ""
-    model_name = selected_model_id.split("/", 1)[1] if isinstance(selected_model_id, str) and "/" in selected_model_id else (selected_model_id or "system")
-
+    # For simple messages (errors/insufficient credits), we don't show a model name
+    model_name = None
+    
     # Check for revocation
     if celery_config.app.AsyncResult(task_id).state == TASK_STATE_REVOKED:
         logger.warning(f"{log_prefix} Task was revoked before starting fake stream.")
@@ -524,7 +535,8 @@ async def _generate_fake_stream_for_simple_message(
                 encryption_service=encryption_service,
                 user_vault_key_id=user_vault_key_id,
                 task_id=task_id,
-                log_prefix=log_prefix
+                log_prefix=log_prefix,
+                model_name=None  # Model name not applicable for simple/error messages
             )
             logger.info(f"{log_prefix} Simple message response saved to cache for future follow-up context.")
         except Exception as e:
@@ -699,11 +711,18 @@ async def _consume_main_processing_stream(
     tool_calls_info: Optional[List[Dict[str, Any]]] = None  # Track tool calls for code block generation
 
     # Persist model identifier in stream payloads so clients can store it encrypted with the message.
-    # Prefer the canonical selected model id (provider/model) and fall back to a safe default.
-    selected_model_id = preprocessing_result.selected_main_llm_model_id or ""
+    # Prefer the friendly model name from preprocessing, fallback to extracting from model_id, then safe default.
     stream_model_name: Optional[str] = None
-    if isinstance(selected_model_id, str) and selected_model_id:
-        stream_model_name = selected_model_id.split("/", 1)[1] if "/" in selected_model_id else selected_model_id
+    if preprocessing_result.selected_main_llm_model_name:
+        stream_model_name = preprocessing_result.selected_main_llm_model_name
+    else:
+        # Fallback to extracting from model_id (for backward compatibility)
+        selected_model_id = preprocessing_result.selected_main_llm_model_id or ""
+        if isinstance(selected_model_id, str) and selected_model_id:
+            stream_model_name = selected_model_id.split("/", 1)[1] if "/" in selected_model_id else selected_model_id
+        else:
+            # Final fallback: if no model name can be determined, don't show one
+            stream_model_name = None
     
     # URL validation tracking: collect all validation tasks and broken URLs
     # These are used to validate URLs during streaming and correct the full response after completion
@@ -718,7 +737,7 @@ async def _consume_main_processing_stream(
     current_code_embed_id: Optional[str] = None
     # New state: when LLM streams ``` and language separately, wait for next chunk
     waiting_for_code_language = False
-    pending_code_fence_chunk = ""  # Store the original ``` chunk to replay if needed
+    # pending_code_fence_chunk = ""  # Store the original ``` chunk to replay if needed (currently unused)
 
     try:
         async for chunk in main_processing_stream:
@@ -944,7 +963,8 @@ async def _consume_main_processing_stream(
                         if not current_code_language and len(lines) == 1:
                             # Bare fence with no content - language might come in next chunk
                             waiting_for_code_language = True
-                            pending_code_fence_chunk = chunk  # Save original chunk
+                            # Save original chunk (currently unused but left for future potential use)
+                            # pending_code_fence_chunk = chunk
                             chunk = ""  # Don't emit anything yet
                             logger.info(f"{log_prefix} [CODE_BLOCK_DEBUG] Detected bare fence '```', waiting for potential language in next chunk")
                             continue  # Skip the rest of processing, wait for next chunk
@@ -1507,7 +1527,8 @@ async def _consume_main_processing_stream(
                 encryption_service=encryption_service,
                 user_vault_key_id=user_vault_key_id,
                 task_id=task_id,
-                log_prefix=log_prefix
+                log_prefix=log_prefix,
+                model_name=stream_model_name
             )
             logger.info(
                 f"{log_prefix} Assistant response saved to AI cache for future follow-up context. "

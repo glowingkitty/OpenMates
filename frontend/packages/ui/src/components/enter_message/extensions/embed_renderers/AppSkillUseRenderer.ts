@@ -30,21 +30,31 @@ export class AppSkillUseRenderer implements EmbedRenderer {
   async render(context: EmbedRenderContext): Promise<void> {
     const { attrs, content } = context;
     
+    // CRITICAL: Extract app_id and skill_id from attrs FIRST
+    // These are parsed from the JSON embed reference in embedParsing.ts
+    // and are available even before embed data arrives from the server
+    const attrsAppId = (attrs as any).app_id || '';
+    const attrsSkillId = (attrs as any).skill_id || '';
+    const attrsQuery = (attrs as any).query || '';
+    
     // Check if we have a contentRef to load embed data
+    let embedData: any = null;
+    let decodedContent: any = null;
+    
     if (attrs.contentRef && attrs.contentRef.startsWith('embed:')) {
       const embedId = attrs.contentRef.replace('embed:', '');
       
       // Load embed from EmbedStore (even if processing, so we can mount the correct component)
-      const embedData = await resolveEmbed(embedId);
+      embedData = await resolveEmbed(embedId);
       
       if (embedData) {
         // CRITICAL FIX: Filter out error embeds with "superseded" message
         // These are placeholder embeds that were replaced by multiple request-specific embeds
         // They should not be rendered to avoid showing confusing error messages
         if (embedData.status === 'error') {
-          const decodedContent = await decodeToonContent(embedData.content);
-          if (decodedContent && decodedContent.error) {
-            const errorMessage = decodedContent.error;
+          const errorContent = await decodeToonContent(embedData.content);
+          if (errorContent && errorContent.error) {
+            const errorMessage = errorContent.error;
             if (typeof errorMessage === 'string' && errorMessage.includes('superseded')) {
               console.debug('[AppSkillUseRenderer] Skipping superseded error embed:', embedId);
               // Don't render this embed - it was replaced by multiple specific embeds
@@ -56,63 +66,96 @@ export class AppSkillUseRenderer implements EmbedRenderer {
         
         // Decode TOON content (may be minimal for processing state)
         // Even in processing state, the content should have app_id and skill_id
-        let decodedContent = null;
         try {
           decodedContent = embedData.content ? await decodeToonContent(embedData.content) : null;
         } catch (error) {
           console.debug('[AppSkillUseRenderer] Error decoding content, may be processing state:', error);
-          // Continue with null decodedContent - we'll use fallback rendering
-        }
-        
-        // Determine status - use embedData status if available, otherwise use attrs.status
-        const status = embedData.status || attrs.status || 'processing';
-        
-        // Extract app_id and skill_id from decodedContent (even if minimal)
-        const skillId = decodedContent?.skill_id || '';
-        const appId = decodedContent?.app_id || '';
-        
-        // Render based on skill type (even if decodedContent is minimal/processing)
-        if (decodedContent || (appId && skillId)) {
-          // For web search, render using Svelte component
-          if (appId === 'web' && skillId === 'search') {
-            return this.renderWebSearchComponent(attrs, embedData, decodedContent || {}, content);
-          }
-          
-          // For news search, render using Svelte component
-          if (appId === 'news' && skillId === 'search') {
-            return this.renderNewsSearchComponent(attrs, embedData, decodedContent || {}, content);
-          }
-          
-          // For videos search, render using Svelte component
-          if (appId === 'videos' && skillId === 'search') {
-            return this.renderVideosSearchComponent(attrs, embedData, decodedContent || {}, content);
-          }
-          
-          // For maps search, render using Svelte component
-          if (appId === 'maps' && skillId === 'search') {
-            return this.renderMapsSearchComponent(attrs, embedData, decodedContent || {}, content);
-          }
-          
-          // For video transcript, render video transcript preview using Svelte component
-          // Check both 'get_transcript' and 'get-transcript' (hyphen variant)
-          if (appId === 'videos' && (skillId === 'get_transcript' || skillId === 'get-transcript')) {
-            console.debug('[AppSkillUseRenderer] Rendering video transcript for', { appId, skillId, decodedContent, status });
-            return this.renderVideoTranscriptComponent(attrs, embedData, decodedContent || {}, content);
-          }
-          
-          // For web read, render web read preview
-          if (appId === 'web' && skillId === 'read') {
-            return this.renderWebReadComponent(attrs, embedData, decodedContent || {}, content);
-          }
-          
-          // For other skills, render generic app skill preview
-          return this.renderGenericSkill(attrs, embedData, decodedContent || {}, content);
+          // Continue with null decodedContent - we'll use attrs for rendering
         }
       }
     }
     
-    // Fallback: Render processing state or error
-    content.innerHTML = this.renderProcessingState(attrs);
+    // Determine app_id and skill_id - check multiple sources in priority order:
+    // 1. decodedContent (from TOON content decoding) - most reliable for finished embeds
+    // 2. embedData directly (from memory cache for processing embeds)
+    // 3. attrs (from JSON embed reference parsing)
+    const appId = decodedContent?.app_id || embedData?.app_id || attrsAppId;
+    const skillId = decodedContent?.skill_id || embedData?.skill_id || attrsSkillId;
+    
+    // Determine status - prefer embedData status, then attrs.status, then 'processing'
+    const status = embedData?.status || attrs.status || 'processing';
+    
+    // CRITICAL: Merge query from multiple sources to ensure it's available for display
+    // Priority: decodedContent > embedData > attrs
+    if (!decodedContent) {
+      decodedContent = {};
+    }
+    if (!decodedContent.query) {
+      decodedContent.query = embedData?.query || attrsQuery;
+    }
+    // Also merge provider if not set
+    if (!decodedContent.provider) {
+      decodedContent.provider = embedData?.provider;
+    }
+    // Also merge results if not set (for processing -> finished transition)
+    if (!decodedContent.results && embedData?.results) {
+      decodedContent.results = embedData.results;
+    }
+    
+    console.debug('[AppSkillUseRenderer] Rendering embed:', {
+      appId,
+      skillId,
+      status,
+      hasEmbedData: !!embedData,
+      hasDecodedContent: !!decodedContent,
+      attrsAppId,
+      attrsSkillId,
+      attrsQuery
+    });
+    
+    // Render based on skill type - use Svelte components for ALL states (including processing)
+    // This ensures consistent styling and proper preview display during streaming
+    if (appId && skillId) {
+      // For web search, render using Svelte component
+      if (appId === 'web' && skillId === 'search') {
+        return this.renderWebSearchComponent(attrs, embedData, decodedContent, content);
+      }
+      
+      // For news search, render using Svelte component
+      if (appId === 'news' && skillId === 'search') {
+        return this.renderNewsSearchComponent(attrs, embedData, decodedContent, content);
+      }
+      
+      // For videos search, render using Svelte component
+      if (appId === 'videos' && skillId === 'search') {
+        return this.renderVideosSearchComponent(attrs, embedData, decodedContent, content);
+      }
+      
+      // For maps search, render using Svelte component
+      if (appId === 'maps' && skillId === 'search') {
+        return this.renderMapsSearchComponent(attrs, embedData, decodedContent, content);
+      }
+      
+      // For video transcript, render video transcript preview using Svelte component
+      // Check both 'get_transcript' and 'get-transcript' (hyphen variant)
+      if (appId === 'videos' && (skillId === 'get_transcript' || skillId === 'get-transcript')) {
+        console.debug('[AppSkillUseRenderer] Rendering video transcript for', { appId, skillId, decodedContent, status });
+        return this.renderVideoTranscriptComponent(attrs, embedData, decodedContent, content);
+      }
+      
+      // For web read, render web read preview
+      if (appId === 'web' && skillId === 'read') {
+        return this.renderWebReadComponent(attrs, embedData, decodedContent, content);
+      }
+      
+      // For other skills with known app_id/skill_id, render generic app skill preview
+      return this.renderGenericSkill(attrs, embedData, decodedContent, content);
+    }
+    
+    // LAST RESORT: If we truly don't know what type of embed this is, render generic processing
+    // This should rarely happen since attrs should have app_id/skill_id from the JSON reference
+    console.warn('[AppSkillUseRenderer] Unknown embed type, rendering generic processing state:', attrs);
+    return this.renderGenericProcessingState(attrs, content);
   }
   
   /**
@@ -125,21 +168,24 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     decodedContent: any,
     content: HTMLElement
   ): void {
-    const query = decodedContent.query || '';
-    const provider = decodedContent.provider || 'Brave Search';
-    const status = decodedContent.status || attrs.status || 'finished';
-    const taskId = decodedContent.task_id || '';
+    // CRITICAL: Handle null decodedContent and embedData gracefully
+    // During streaming, these may be null until embed data arrives from server
+    const query = decodedContent?.query || (attrs as any).query || '';
+    const provider = decodedContent?.provider || 'Brave Search';
+    const status = decodedContent?.status || embedData?.status || attrs.status || 'processing';
+    const taskId = decodedContent?.task_id || '';
     
     // Parse embed_ids to get results count (for display)
     // embed_ids may be a pipe-separated string OR an array
-    const rawEmbedIds = decodedContent.embed_ids || embedData.embed_ids || [];
+    // CRITICAL: Handle null embedData
+    const rawEmbedIds = decodedContent?.embed_ids || embedData?.embed_ids || [];
     const childEmbedIds: string[] = typeof rawEmbedIds === 'string' 
       ? rawEmbedIds.split('|').filter((id: string) => id.length > 0)
       : Array.isArray(rawEmbedIds) ? rawEmbedIds : [];
     
     // Create placeholder results with favicon URLs from the results data
     // These will be populated from the decoded content if available
-    const results = decodedContent.results || [];
+    const results = decodedContent?.results || [];
     
     // Cleanup any existing mounted component
     const existingComponent = mountedComponents.get(content);
@@ -204,11 +250,12 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     decodedContent: any,
     content: HTMLElement
   ): void {
-    const query = decodedContent.query || '';
-    const provider = decodedContent.provider || 'Brave Search';
-    const status = decodedContent.status || attrs.status || 'finished';
-    const taskId = decodedContent.task_id || '';
-    const results = decodedContent.results || [];
+    // CRITICAL: Handle null decodedContent and embedData gracefully
+    const query = decodedContent?.query || (attrs as any).query || '';
+    const provider = decodedContent?.provider || 'Brave Search';
+    const status = decodedContent?.status || embedData?.status || attrs.status || 'processing';
+    const taskId = decodedContent?.task_id || '';
+    const results = decodedContent?.results || [];
     
     // Cleanup any existing mounted component
     const existingComponent = mountedComponents.get(content);
@@ -259,11 +306,12 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     decodedContent: any,
     content: HTMLElement
   ): void {
-    const query = decodedContent.query || '';
-    const provider = decodedContent.provider || 'Brave Search';
-    const status = decodedContent.status || attrs.status || 'finished';
-    const taskId = decodedContent.task_id || '';
-    const results = decodedContent.results || [];
+    // CRITICAL: Handle null decodedContent and embedData gracefully
+    const query = decodedContent?.query || (attrs as any).query || '';
+    const provider = decodedContent?.provider || 'Brave Search';
+    const status = decodedContent?.status || embedData?.status || attrs.status || 'processing';
+    const taskId = decodedContent?.task_id || '';
+    const results = decodedContent?.results || [];
     
     // Cleanup any existing mounted component
     const existingComponent = mountedComponents.get(content);
@@ -314,11 +362,12 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     decodedContent: any,
     content: HTMLElement
   ): void {
-    const query = decodedContent.query || '';
-    const provider = decodedContent.provider || 'Google';
-    const status = decodedContent.status || attrs.status || 'finished';
-    const taskId = decodedContent.task_id || '';
-    const results = decodedContent.results || [];
+    // CRITICAL: Handle null decodedContent and embedData gracefully
+    const query = decodedContent?.query || (attrs as any).query || '';
+    const provider = decodedContent?.provider || 'Google';
+    const status = decodedContent?.status || embedData?.status || attrs.status || 'processing';
+    const taskId = decodedContent?.task_id || '';
+    const results = decodedContent?.results || [];
     
     // Cleanup any existing mounted component
     const existingComponent = mountedComponents.get(content);
@@ -369,16 +418,17 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     decodedContent: any,
     content: HTMLElement
   ): void {
-    const query = decodedContent.query || '';
-    const provider = decodedContent.provider || 'Brave Search';
+    // CRITICAL: Handle null decodedContent and embedData gracefully
+    const query = decodedContent?.query || (attrs as any).query || '';
+    const provider = decodedContent?.provider || 'Brave Search';
     
     // embed_ids may be a pipe-separated string OR an array - normalize and count
-    const rawEmbedIds = decodedContent.embed_ids || embedData.embed_ids || [];
+    const rawEmbedIds = decodedContent?.embed_ids || embedData?.embed_ids || [];
     const childEmbedIds: string[] = typeof rawEmbedIds === 'string' 
       ? rawEmbedIds.split('|').filter((id: string) => id.length > 0)
       : Array.isArray(rawEmbedIds) ? rawEmbedIds : [];
     
-    const status = decodedContent.status || attrs.status || 'finished';
+    const status = decodedContent?.status || embedData?.status || attrs.status || 'processing';
     const resultCount = childEmbedIds.length;
     
     // Render web search preview matching Figma design (300x200px desktop, 150x290px mobile)
@@ -450,9 +500,10 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     decodedContent: any,
     content: HTMLElement
   ): void {
-    const status = decodedContent.status || attrs.status || 'processing';
-    const taskId = decodedContent.task_id || '';
-    const results = decodedContent.results || [];
+    // CRITICAL: Handle null decodedContent and embedData gracefully
+    const status = decodedContent?.status || embedData?.status || attrs.status || 'processing';
+    const taskId = decodedContent?.task_id || '';
+    const results = decodedContent?.results || [];
     
     // Cleanup any existing mounted component
     const existingComponent = mountedComponents.get(content);
@@ -502,9 +553,10 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     decodedContent: any,
     content: HTMLElement
   ): void {
-    const results = decodedContent.results || [];
-    const status = decodedContent.status || attrs.status || 'finished';
-    const taskId = decodedContent.task_id || '';
+    // CRITICAL: Handle null decodedContent and embedData gracefully
+    const results = decodedContent?.results || [];
+    const status = decodedContent?.status || embedData?.status || attrs.status || 'processing';
+    const taskId = decodedContent?.task_id || '';
     
     // Cleanup any existing mounted component
     const existingComponent = mountedComponents.get(content);
@@ -565,12 +617,13 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     decodedContent: any,
     content: HTMLElement
   ): void {
-    const results = decodedContent.results || [];
+    // CRITICAL: Handle null decodedContent and embedData gracefully
+    const results = decodedContent?.results || [];
     const firstResult = results[0] || {};
     const videoTitle = firstResult.metadata?.title || firstResult.url || 'Video Transcript';
     const wordCount = firstResult.word_count || 0;
     const videoCount = results.length || 0;
-    const status = decodedContent.status || attrs.status || 'finished';
+    const status = decodedContent?.status || embedData?.status || attrs.status || 'processing';
     
     // Render video transcript preview - no need for embed-unified-container wrapper
     // The container is already provided by Embed.ts, just create the content directly
@@ -613,8 +666,9 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     decodedContent: any,
     content: HTMLElement
   ): void {
+    // CRITICAL: Handle null decodedContent gracefully
     // Extract results array - all skills return results as an array
-    const results = decodedContent.results || [];
+    const results = decodedContent?.results || [];
     const firstResult = results[0] || {};
     
     // Extract website information from first result
@@ -655,7 +709,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     content.innerHTML = html;
     
     // Add click handler for fullscreen
-    const status = decodedContent.status || attrs.status || 'finished';
+    const status = decodedContent?.status || embedData?.status || attrs.status || 'processing';
     if (status === 'finished') {
       content.style.cursor = 'pointer';
       content.addEventListener('click', () => {
@@ -670,10 +724,11 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     decodedContent: any,
     content: HTMLElement
   ): void {
-    const skillId = decodedContent.skill_id || '';
-    const appId = decodedContent.app_id || '';
+    // CRITICAL: Handle null decodedContent gracefully - use attrs as fallback
+    const skillId = decodedContent?.skill_id || (attrs as any).skill_id || '';
+    const appId = decodedContent?.app_id || (attrs as any).app_id || '';
     const title = attrs.title || `${appId} | ${skillId}`;
-    const status = decodedContent.status || attrs.status || 'finished';
+    const status = decodedContent?.status || embedData?.status || attrs.status || 'processing';
     
     // Log when generic skill is rendered (for debugging)
     console.debug('[AppSkillUseRenderer] Rendering generic skill:', { appId, skillId, decodedContent });
@@ -708,21 +763,61 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     }
   }
   
-  private renderProcessingState(attrs: EmbedNodeAttributes): string {
-    return `
-      <div class="embed-app-icon web">
-        <span class="icon icon_web"></span>
-      </div>
-      <div class="embed-text-content">
-        <div class="embed-text-line">Processing...</div>
-        <div class="embed-text-line">Please wait</div>
-      </div>
-      <div class="embed-extended-preview">
-        <div class="processing-indicator">
-          <div class="processing-dot"></div>
+  /**
+   * Render a generic processing state when we don't know the embed type
+   * Uses the WebSearchEmbedPreview component as a fallback with processing status
+   * This ensures consistent styling even when embed type is unknown
+   */
+  private renderGenericProcessingState(
+    attrs: EmbedNodeAttributes,
+    content: HTMLElement
+  ): void {
+    // Cleanup any existing mounted component
+    const existingComponent = mountedComponents.get(content);
+    if (existingComponent) {
+      try {
+        unmount(existingComponent);
+      } catch (e) {
+        console.warn('[AppSkillUseRenderer] Error unmounting existing component:', e);
+      }
+    }
+    
+    // Clear the content element
+    content.innerHTML = '';
+    
+    // Mount a generic WebSearchEmbedPreview with processing status as fallback
+    // This provides a consistent UI while we wait for more information
+    try {
+      const embedId = attrs.contentRef?.replace('embed:', '') || '';
+      
+      const component = mount(WebSearchEmbedPreview, {
+        target: content,
+        props: {
+          id: embedId,
+          query: 'Loading...',
+          provider: '',
+          status: 'processing' as const,
+          results: [],
+          taskId: '',
+          isMobile: false,
+          onFullscreen: undefined
+        }
+      });
+      
+      mountedComponents.set(content, component);
+      console.debug('[AppSkillUseRenderer] Mounted generic processing component');
+    } catch (error) {
+      console.error('[AppSkillUseRenderer] Error mounting generic processing component:', error);
+      // Ultimate fallback: simple HTML
+      content.innerHTML = `
+        <div class="embed-app-icon web">
+          <span class="icon icon_web"></span>
         </div>
-      </div>
-    `;
+        <div class="embed-text-content">
+          <div class="embed-text-line">Processing...</div>
+        </div>
+      `;
+    }
   }
   
   private async openFullscreen(

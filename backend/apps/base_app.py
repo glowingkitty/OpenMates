@@ -7,10 +7,9 @@
 import yaml
 import os
 import logging
-from typing import Dict, Any, List, Optional, Union
-from pydantic import Field, BaseModel
-from fastapi import FastAPI, HTTPException, Depends, Request, Body
-from fastapi.requests import Request
+from typing import Dict, Any, List, Optional, Union, get_origin, get_args
+from pydantic import BaseModel
+from fastapi import FastAPI, HTTPException, Request
 import httpx
 import importlib
 import json
@@ -20,13 +19,10 @@ from urllib.parse import quote
 
 from backend.shared.python_schemas.app_metadata_schemas import (
     AppYAML,
-    IconColorGradient,
-    AppPricing,
     AppSkillDefinition,
     AppFocusDefinition,
     AppMemoryFieldDefinition
 )
-from backend.core.api.app.utils.internal_auth import verify_internal_token
 from backend.core.api.app.services.translations import TranslationService
 from backend.apps.ai.processing.rate_limiting import RateLimitScheduledException
 
@@ -102,7 +98,7 @@ class BaseApp:
                 skill_id_for_route = skill_def.id
                 captured_skill_def = skill_def
                 captured_skill_class = skill_class_attr
-                
+
                 @self.fastapi_app.post(f"/skills/{skill_id_for_route}", tags=["Skills"], name=f"execute_skill_{skill_id_for_route}")
                 async def _dynamic_skill_executor(
                     request: Request,
@@ -111,186 +107,250 @@ class BaseApp:
                 ):
                     """
                     Dynamic skill executor endpoint.
-                    Manually parses request body as JSON to bypass FastAPI validation.
-                    This allows us to dynamically validate against the skill's request model.
+                    Supports both internal format and OpenAI-compatible format.
+                    Automatically detects the request format based on the skill's execute method signature.
                     """
-                    # Use the captured values from default parameters (evaluated at function definition time)
-                    
-                    logger.info(f"[SKILL_ROUTE] Received request for skill '{skill_definition.id}' at /skills/{skill_definition.id}")
-                    
-                    try:
-                        # Manually read and parse the request body to bypass FastAPI validation
-                        try:
-                            body_bytes = await request.body()
-                            if not body_bytes:
-                                raise HTTPException(status_code=400, detail="Request body is required")
-                            
-                            request_body = json.loads(body_bytes.decode('utf-8'))
-                            if not isinstance(request_body, dict):
-                                raise HTTPException(status_code=400, detail="Request body must be a JSON object")
-                            
-                            logger.debug(f"[SKILL_ROUTE] Parsed request body with keys: {list(request_body.keys())}")
-                        except json.JSONDecodeError as e:
-                            logger.error(f"[SKILL_ROUTE] Invalid JSON in request body: {e}")
-                            raise HTTPException(status_code=400, detail=f"Invalid JSON in request body: {str(e)}")
-                        except UnicodeDecodeError as e:
-                            logger.error(f"[SKILL_ROUTE] Invalid encoding in request body: {e}")
-                            raise HTTPException(status_code=400, detail="Invalid encoding in request body")
-                        
-                        logger.debug(f"Executing skill '{skill_definition.id}' with request body: {list(request_body.keys())}")
-                        
-                        # Extract metadata fields (_chat_id, _message_id) from request body if present
-                        # These are used for linking usage entries to chat sessions
-                        # We'll remove them from request_body before passing to skill to avoid validation errors
-                        chat_id = request_body.get("_chat_id")
-                        message_id = request_body.get("_message_id")
-                        
-                        # Initialize skill instance
-                        # Extract full_model_reference from default_config if present, otherwise use None
-                        # Note: AppSkillDefinition doesn't have full_model_reference field,
-                        # but BaseSkill.__init__ accepts it as an optional parameter
-                        full_model_ref = None
-                        if skill_definition.default_config and isinstance(skill_definition.default_config, dict):
-                            full_model_ref = skill_definition.default_config.get('full_model_reference')
-                        
-                        # Resolve translation keys to actual translated strings for BaseSkill initialization
-                        # BaseSkill expects skill_name and skill_description as strings, not translation keys
-                        skill_name = self._resolve_translation_key(skill_definition.name_translation_key)
-                        skill_description = self._resolve_translation_key(skill_definition.description_translation_key)
-                        
-                        skill_instance = captured_class(
-                            app=self,
-                            app_id=self.id,
-                            skill_id=skill_definition.id,
-                            skill_name=skill_name,
-                            skill_description=skill_description,
-                            stage=skill_definition.stage,
-                            full_model_reference=full_model_ref,
-                            pricing_config=skill_definition.pricing.model_dump(exclude_none=True) if skill_definition.pricing else None,
-                            celery_producer=self.celery_producer,
-                            skill_operational_defaults=skill_definition.default_config
-                        )
-                        
-                        # Set execution context (chat_id, message_id) on skill instance
-                        # This allows skills to use these values when recording usage via record_skill_usage
-                        if chat_id:
-                            skill_instance._current_chat_id = chat_id
-                        if message_id:
-                            skill_instance._current_message_id = message_id
-                    except HTTPException:
-                        raise
-                    except Exception as init_e:
-                        logger.error(f"Error initializing skill '{skill_definition.id}': {init_e}", exc_info=True)
-                        raise HTTPException(status_code=500, detail=f"Error initializing skill '{skill_definition.id}': {str(init_e)}")
-
-                    try:
-                        # Execute the skill - check if execute method expects a Pydantic model or keyword arguments
-                        if hasattr(skill_instance, 'execute') and callable(skill_instance.execute):
-                            import inspect
-                            from pydantic import BaseModel as PydanticBaseModel
-                            
-                            sig = inspect.signature(skill_instance.execute)
-                            params = sig.parameters
-                            
-                            # Look for a Pydantic BaseModel parameter (excluding self)
-                            request_model = None
-                            for param_name, param in params.items():
-                                if param_name == 'self':
-                                    continue
-                                
-                                param_type = param.annotation
-                                
-                                # Handle string annotations (forward references) by resolving them
-                                if isinstance(param_type, str):
-                                    # Try to resolve the annotation from the module
-                                    try:
-                                        module = inspect.getmodule(skill_instance)
-                                        if module:
-                                            param_type = getattr(module, param_type, None)
-                                    except Exception:
-                                        pass
-                                
-                                # Check if it's a Pydantic BaseModel
-                                if (inspect.isclass(param_type) and 
-                                    issubclass(param_type, PydanticBaseModel)):
-                                    request_model = param_type
-                                    logger.debug(f"Found Pydantic request model '{param_type.__name__}' for skill '{skill_definition.id}'")
-                                    break
-                            
-                            if request_model:
-                                # Remove metadata fields before instantiating Pydantic model
-                                # These fields are not part of the skill's schema
-                                clean_request_body = {k: v for k, v in request_body.items() if not k.startswith("_")}
-                                
-                                # Instantiate the Pydantic model from request body
-                                try:
-                                    logger.debug(f"Instantiating {request_model.__name__} from request body for skill '{skill_definition.id}'")
-                                    request_obj = request_model(**clean_request_body)
-                                    
-                                    # Check if the execute method expects the Pydantic model or just the requests list
-                                    # Most skills expect requests: List[Dict[str, Any]] directly, not the Pydantic wrapper
-                                    # Reuse the signature we already have
-                                    first_param = None
-                                    for param_name, param in params.items():
-                                        if param_name != 'self' and param_name != 'secrets_manager':
-                                            first_param = param
-                                            break
-                                    
-                                    # If execute() expects a list (requests), extract it from the Pydantic model
-                                    # Otherwise pass the Pydantic model directly
-                                    if first_param and 'List' in str(first_param.annotation):
-                                        # Execute method expects a list - extract requests from Pydantic model
-                                        if hasattr(request_obj, 'requests'):
-                                            response = await skill_instance.execute(request_obj.requests, secrets_manager=None)
-                                        else:
-                                            # Fallback: try to pass the model and let the skill handle it
-                                            response = await skill_instance.execute(request_obj)
-                                    else:
-                                        # Execute method expects the Pydantic model directly
-                                        response = await skill_instance.execute(request_obj)
-                                except Exception as validation_error:
-                                    logger.error(f"Validation error for skill '{skill_definition.id}': {validation_error}", exc_info=True)
-                                    # Format Pydantic validation errors properly
-                                    if hasattr(validation_error, 'errors'):
-                                        # Pydantic ValidationError
-                                        error_details = validation_error.errors()
-                                    else:
-                                        error_details = [{"msg": str(validation_error)}]
-                                    raise HTTPException(
-                                        status_code=422, 
-                                        detail=error_details
-                                    )
-                            else:
-                                # No Pydantic model found - try unpacking as keyword arguments
-                                # Remove metadata fields before passing to skill
-                                clean_request_body = {k: v for k, v in request_body.items() if not k.startswith("_")}
-                                logger.debug(f"No Pydantic model found for skill '{skill_definition.id}', using kwargs")
-                                response = await skill_instance.execute(**clean_request_body)
-                            
-                            return response
-                        else:
-                            raise HTTPException(status_code=500, detail=f"Skill '{skill_definition.id}' is not executable.")
-                    except RateLimitScheduledException as rate_limit_e:
-                        # Rate limit hit - task was scheduled via Celery
-                        # Return task_id response so client knows to wait for followup
-                        logger.info(
-                            f"Skill '{skill_definition.id}' execution scheduled via Celery due to rate limit. "
-                            f"Task ID: {rate_limit_e.task_id}, Wait time: {rate_limit_e.wait_time:.2f}s"
-                        )
-                        return {
-                            "task_id": rate_limit_e.task_id,
-                            "status": "scheduled",
-                            "message": "Request scheduled due to rate limit. I'll let you know once completed.",
-                            "wait_time_seconds": rate_limit_e.wait_time
-                        }
-                    except HTTPException:
-                        raise
-                    except Exception as exec_e:
-                        logger.error(f"Error executing skill '{skill_definition.id}': {exec_e}", exc_info=True)
-                        raise HTTPException(status_code=500, detail=f"Error executing skill '{skill_definition.id}': {str(exec_e)}")
+                    return await self._execute_skill_route(request, skill_definition, captured_class)
 
             except Exception as e:
                 logger.error(f"Unexpected error registering skill route for '{skill_def.id}': {e}", exc_info=True)
+
+    async def _execute_skill_route(self, request: Request, skill_definition, captured_class):
+        """
+        Dynamic skill executor endpoint.
+        Manually parses request body as JSON to bypass FastAPI validation.
+        This allows us to dynamically validate against the skill's request model.
+        """
+        # Use the captured values from default parameters (evaluated at function definition time)
+
+        logger.info(f"[SKILL_ROUTE] Received request for skill '{skill_definition.id}' at /skills/{skill_definition.id}")
+
+        try:
+            # Manually read and parse the request body to bypass FastAPI validation
+            try:
+                body_bytes = await request.body()
+                if not body_bytes:
+                    raise HTTPException(status_code=400, detail="Request body is required")
+
+                request_body = json.loads(body_bytes.decode('utf-8'))
+                if not isinstance(request_body, dict):
+                    raise HTTPException(status_code=400, detail="Request body must be a JSON object")
+
+                logger.debug(f"[SKILL_ROUTE] Parsed request body with keys: {list(request_body.keys())}")
+            except json.JSONDecodeError as e:
+                logger.error(f"[SKILL_ROUTE] Invalid JSON in request body: {e}")
+                raise HTTPException(status_code=400, detail=f"Invalid JSON in request body: {str(e)}")
+            except UnicodeDecodeError as e:
+                logger.error(f"[SKILL_ROUTE] Invalid encoding in request body: {e}")
+                raise HTTPException(status_code=400, detail="Invalid encoding in request body")
+
+            logger.debug(f"Executing skill '{skill_definition.id}' with request body: {list(request_body.keys())}")
+
+            # Extract metadata fields (_chat_id, _message_id) from request body if present
+            # These are used for linking usage entries to chat sessions
+            # We'll remove them from request_body before passing to skill to avoid validation errors
+            chat_id = request_body.get("_chat_id")
+            message_id = request_body.get("_message_id")
+
+            # Initialize skill instance
+            # Extract full_model_reference from default_config if present, otherwise use None
+            # Note: AppSkillDefinition doesn't have full_model_reference field,
+            # but BaseSkill.__init__ accepts it as an optional parameter
+            full_model_ref = None
+            if skill_definition.default_config and isinstance(skill_definition.default_config, dict):
+                full_model_ref = skill_definition.default_config.get('full_model_reference')
+
+            # Resolve translation keys to actual translated strings for BaseSkill initialization
+            # BaseSkill expects skill_name and skill_description as strings, not translation keys
+            skill_name = self._resolve_translation_key(skill_definition.name_translation_key)
+            skill_description = self._resolve_translation_key(skill_definition.description_translation_key)
+
+            skill_instance = captured_class(
+                app=self,
+                app_id=self.id,
+                skill_id=skill_definition.id,
+                skill_name=skill_name,
+                skill_description=skill_description,
+                stage=skill_definition.stage,
+                full_model_reference=full_model_ref,
+                pricing_config=skill_definition.pricing.model_dump(exclude_none=True) if skill_definition.pricing else None,
+                celery_producer=self.celery_producer,
+                skill_operational_defaults=skill_definition.default_config
+            )
+
+            # Set execution context (chat_id, message_id) on skill instance
+            # This allows skills to use these values when recording usage via record_skill_usage
+            if chat_id:
+                skill_instance._current_chat_id = chat_id
+            if message_id:
+                skill_instance._current_message_id = message_id
+        except HTTPException:
+            raise
+        except Exception as init_e:
+            logger.error(f"Error initializing skill '{skill_definition.id}': {init_e}", exc_info=True)
+            raise HTTPException(status_code=500, detail=f"Error initializing skill '{skill_definition.id}': {str(init_e)}")
+
+        try:
+            # Execute the skill - check if execute method expects a Pydantic model or keyword arguments
+            if hasattr(skill_instance, 'execute') and callable(skill_instance.execute):
+                import inspect
+                from pydantic import BaseModel as PydanticBaseModel
+
+                sig = inspect.signature(skill_instance.execute)
+                params = sig.parameters
+
+                # Look for a Pydantic BaseModel parameter (excluding self and params with defaults)
+                # Also handle Union types that may contain Pydantic models
+                # 
+                # IMPORTANT: Skip parameters with default values (e.g., secrets_manager: Optional[SecretsManager] = None)
+                # These are optional dependency-injected parameters, not request body fields.
+                # Without this check, Optional[SecretsManager] would be detected as Union[SecretsManager, None]
+                # and the code would incorrectly try to validate the request body against SecretsManager.
+                request_model = None
+                union_types = None
+                for param_name, param in params.items():
+                    if param_name == 'self':
+                        continue
+                    
+                    # Skip parameters with default values - these are not request body fields
+                    # They are typically dependency-injected (e.g., secrets_manager, cache_service)
+                    if param.default is not inspect.Parameter.empty:
+                        logger.debug(f"Skipping parameter '{param_name}' with default value for skill '{skill_definition.id}'")
+                        continue
+
+                    param_type = param.annotation
+
+                    # Handle string annotations (forward references) by resolving them
+                    if isinstance(param_type, str):
+                        # Try to resolve the annotation from the module
+                        try:
+                            module = inspect.getmodule(skill_instance)
+                            if module:
+                                param_type = getattr(module, param_type, None)
+                        except Exception:
+                            pass
+
+                    # Check if it's a Union type (e.g., Union[AskSkillRequest, OpenAICompletionRequest])
+                    if param_type is not None:
+                        origin = get_origin(param_type)
+                        if origin is Union:
+                            # Extract the types from the Union
+                            union_types = get_args(param_type)
+                            logger.debug(f"Found Union type for skill '{skill_definition.id}' with types: {[t.__name__ if hasattr(t, '__name__') else str(t) for t in union_types]}")
+                            # Check if any of the Union types are Pydantic models
+                            pydantic_types = [t for t in union_types if inspect.isclass(t) and issubclass(t, PydanticBaseModel)]
+                            if pydantic_types:
+                                union_types = pydantic_types
+                                break
+
+                    # Check if it's a Pydantic BaseModel
+                    if (inspect.isclass(param_type) and
+                        issubclass(param_type, PydanticBaseModel)):
+                        request_model = param_type
+                        logger.debug(f"Found Pydantic request model '{param_type.__name__}' for skill '{skill_definition.id}'")
+                        break
+
+                if request_model or union_types:
+                    # Remove metadata fields before instantiating Pydantic model
+                    # These fields are not part of the skill's schema
+                    clean_request_body = {k: v for k, v in request_body.items() if not k.startswith("_")}
+
+                    # Instantiate the Pydantic model from request body
+                    try:
+                        request_obj = None
+                        validation_errors = []
+                        
+                        if union_types:
+                            # Try each type in the Union until one succeeds
+                            # Order matters: try types in the order they appear in the Union
+                            for model_type in union_types:
+                                try:
+                                    logger.debug(f"Trying to instantiate {model_type.__name__} from request body for skill '{skill_definition.id}'")
+                                    request_obj = model_type(**clean_request_body)
+                                    logger.debug(f"Successfully instantiated {model_type.__name__} for skill '{skill_definition.id}'")
+                                    break
+                                except Exception as e:
+                                    # Store the error but continue trying other types
+                                    validation_errors.append(f"{model_type.__name__}: {str(e)}")
+                                    logger.debug(f"Failed to instantiate {model_type.__name__}: {e}")
+                                    continue
+                            
+                            if request_obj is None:
+                                # None of the Union types matched
+                                error_msg = f"Request body does not match any expected format. Tried: {', '.join([t.__name__ for t in union_types])}"
+                                logger.error(f"{error_msg}. Errors: {'; '.join(validation_errors)}")
+                                raise HTTPException(
+                                    status_code=422,
+                                    detail=error_msg
+                                )
+                        else:
+                            # Single Pydantic model
+                            logger.debug(f"Instantiating {request_model.__name__} from request body for skill '{skill_definition.id}'")
+                            request_obj = request_model(**clean_request_body)
+
+                        # Check if the execute method expects the Pydantic model or just the requests list
+                        # Most skills expect requests: List[Dict[str, Any]] directly, not the Pydantic wrapper
+                        # Reuse the signature we already have
+                        first_param = None
+                        for param_name, param in params.items():
+                            if param_name != 'self' and param_name != 'secrets_manager':
+                                first_param = param
+                                break
+
+                        # If execute() expects a list (requests), extract it from the Pydantic model
+                        # Otherwise pass the Pydantic model directly
+                        if first_param and 'List' in str(first_param.annotation):
+                            # Execute method expects a list - extract requests from Pydantic model
+                            if hasattr(request_obj, 'requests'):
+                                response = await skill_instance.execute(request_obj.requests, secrets_manager=None)
+                            else:
+                                # Fallback: try to pass the model and let the skill handle it
+                                response = await skill_instance.execute(request_obj)
+                        else:
+                            # Execute method expects the Pydantic model directly (or Union type)
+                            response = await skill_instance.execute(request_obj)
+                    except HTTPException:
+                        raise
+                    except Exception as validation_error:
+                        logger.error(f"Validation error for skill '{skill_definition.id}': {validation_error}", exc_info=True)
+                        # Format Pydantic validation errors properly
+                        if hasattr(validation_error, 'errors'):
+                            # Pydantic ValidationError
+                            error_details = validation_error.errors()
+                        else:
+                            error_details = [{"msg": str(validation_error)}]
+                        raise HTTPException(
+                            status_code=422,
+                            detail=error_details
+                        )
+                else:
+                    # No Pydantic model found - try unpacking as keyword arguments
+                    # Remove metadata fields before passing to skill
+                    clean_request_body = {k: v for k, v in request_body.items() if not k.startswith("_")}
+                    logger.debug(f"No Pydantic model found for skill '{skill_definition.id}', using kwargs")
+                    response = await skill_instance.execute(**clean_request_body)
+
+                return response
+            else:
+                raise HTTPException(status_code=500, detail=f"Skill '{skill_definition.id}' is not executable.")
+        except RateLimitScheduledException as rate_limit_e:
+            # Rate limit hit - task was scheduled via Celery
+            # Return task_id response so client knows to wait for followup
+            logger.info(
+                f"Skill '{skill_definition.id}' execution scheduled via Celery due to rate limit. "
+                f"Task ID: {rate_limit_e.task_id}, Wait time: {rate_limit_e.wait_time:.2f}s"
+            )
+            return {
+                "task_id": rate_limit_e.task_id,
+                "status": "scheduled",
+                "message": "Request scheduled due to rate limit. I'll let you know once completed.",
+                "wait_time_seconds": rate_limit_e.wait_time
+            }
+        except HTTPException:
+            raise
+        except Exception as exec_e:
+            logger.error(f"Error executing skill '{skill_definition.id}': {exec_e}", exc_info=True)
+            raise HTTPException(status_code=500, detail=f"Error executing skill '{skill_definition.id}': {str(exec_e)}")
 
     async def _make_internal_api_request(
         self,
@@ -555,7 +615,6 @@ class BaseApp:
             return translation_key
 
 if __name__ == '__main__':
-    import uvicorn
     import asyncio
 
     async def run_test_app():

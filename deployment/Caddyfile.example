@@ -79,14 +79,15 @@
 	# Note: OPTIONS handling is done by FastAPI's CORSMiddleware, not Caddy
 	# Includes /v1/settings/* so webapp requests with credentials get proper CORS handling
 	@webapp_general_options {
-		path /v1/auth/* /v1/settings/* /v1/share/* /v1/newsletter/* /v1/block-email
+		path /v1/auth/* /v1/settings/* /v1/share/* /v1/newsletter/* /v1/block-email /v1/admin/* /v1/demo/*
 		method OPTIONS
 	}
 
 	# Combined matcher for actual webapp requests (non-OPTIONS) from the correct origin
 	# Includes /v1/settings/* so webapp requests with credentials get proper CORS handling (FastAPI sets specific origin)
+	# Includes /v1/demo/* and /v1/admin/* for webapp-only access (Origin check required)
 	@webapp_actual {
-		path /v1/auth/* /v1/settings/* /v1/share/* /v1/newsletter/* /v1/block-email
+		path /v1/auth/* /v1/settings/* /v1/share/* /v1/newsletter/* /v1/block-email /v1/admin/* /v1/demo/*
 		not method OPTIONS
 	}
 

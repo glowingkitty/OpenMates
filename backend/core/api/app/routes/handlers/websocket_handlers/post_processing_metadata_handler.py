@@ -100,9 +100,10 @@ async def handle_post_processing_metadata(
         logger.info(f"Storing encrypted post-processing metadata for chat {chat_id}: {list(chat_update_fields.keys())}")
 
         # Queue task to update chat metadata in Directus
+        # CRITICAL: Pass user_id (not hashed) for cache updates
         celery_app.send_task(
             "app.tasks.persistence_tasks.persist_encrypted_chat_metadata",
-            args=[chat_id, chat_update_fields, user_id_hash],
+            args=[chat_id, chat_update_fields, user_id_hash, user_id],  # Added user_id for cache updates
             queue="persistence"
         )
         logger.info(f"Queued post-processing metadata update task for chat {chat_id}")

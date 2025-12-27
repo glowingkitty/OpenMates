@@ -53,6 +53,9 @@ async def handle_encrypted_chat_metadata(
         encrypted_content = payload.get("encrypted_content")
         encrypted_sender_name = payload.get("encrypted_sender_name")
         encrypted_category = payload.get("encrypted_category")
+        
+        logger.info(f"📥 RECEIVED encrypted_chat_metadata for chat {chat_id}: message_id={message_id}, has_content={bool(encrypted_content)}")
+        
         # NOTE: encrypted_model_name is NOT accepted for user messages - it should only be stored on assistant messages
         # The model_name indicates which AI model generated the assistant's response, not which model will respond
         # Get encrypted chat fields from preprocessing
@@ -107,26 +110,28 @@ async def handle_encrypted_chat_metadata(
             # Store encrypted user message in Directus
             # CRITICAL: Pass user_id (not hashed) for sync cache updates
             # Sync cache is updated FIRST (before Directus persistence) - cache has priority!
-            celery_app.send_task(
+            # DEBUG: Log task queuing attempt
+            logger.info(f"📤 ATTEMPTING to queue persist_new_chat_message task for message {message_id}, chat {chat_id}")
+            task_result = celery_app.send_task(
                 name='app.tasks.persistence_tasks.persist_new_chat_message',
-                kwargs={
-                    'message_id': message_id,
-                    'chat_id': chat_id,
-                    'hashed_user_id': user_id_hash,
-                    'role': 'user',  # This handler only stores user messages
-                    'encrypted_sender_name': encrypted_sender_name,
-                    'encrypted_category': encrypted_category,
-                    # NOTE: encrypted_model_name is NOT included for user messages - only for assistant messages
-                    'encrypted_content': encrypted_content,
-                    'created_at': created_at or int(datetime.now(timezone.utc).timestamp()),
-                    'new_chat_messages_version': versions.get("messages_v"),  # Frontend sends messages_v, server uses messages_v
-                    'new_last_edited_overall_timestamp': versions.get("last_edited_overall_timestamp", int(datetime.now(timezone.utc).timestamp())),
-                    'encrypted_chat_key': encrypted_chat_key,
-                    'user_id': user_id,  # Pass user_id for sync cache updates (cache has priority!)
-                },
+                args=[
+                    message_id,
+                    chat_id,
+                    user_id_hash,
+                    'user',  # role
+                    encrypted_sender_name,
+                    encrypted_category,
+                    None,    # encrypted_model_name (always None for user messages)
+                    encrypted_content,
+                    created_at or int(datetime.now(timezone.utc).timestamp()),
+                    versions.get("messages_v"),
+                    versions.get("last_edited_overall_timestamp", int(datetime.now(timezone.utc).timestamp())),
+                    encrypted_chat_key,
+                    user_id
+                ],
                 queue='persistence'
             )
-            logger.debug(f"Queued encrypted user message storage task for message {message_id}")
+            logger.info(f"✅ QUEUED persist_new_chat_message task for message {message_id}, task_id: {task_result.id}")
 
         # Store encrypted chat metadata from preprocessing
         chat_update_fields = {}
@@ -158,9 +163,10 @@ async def handle_encrypted_chat_metadata(
             
             # Send task to update/create chat metadata
             # Pass hashed_user_id so the task can create the chat if it doesn't exist
+            # CRITICAL: Pass user_id (not hashed) for cache updates
             celery_app.send_task(
                 "app.tasks.persistence_tasks.persist_encrypted_chat_metadata",
-                args=[chat_id, chat_update_fields, user_id_hash],
+                args=[chat_id, chat_update_fields, user_id_hash, user_id],  # Added user_id for cache updates
                 queue="persistence"
             )
             logger.info(f"Queued encrypted chat metadata update task for chat {chat_id}")
@@ -203,18 +209,27 @@ async def handle_encrypted_chat_metadata(
         logger.info(f"Confirmed encrypted metadata storage for chat {chat_id}")
         
         # CRITICAL: Broadcast encrypted_chat_metadata update to other devices
-        # This ensures that when a chat is hidden/unhidden on one device, other devices receive the update
-        # and can properly identify the chat as hidden/visible based on the new encrypted_chat_key
-        # Broadcast if encrypted_chat_key was provided (even if it's the only field being updated)
-        if encrypted_chat_key:
+        # This ensures that when a chat is hidden/unhidden, or when metadata (title, category, icon) is set
+        # on one device, other devices receive the update and keep their local state consistent.
+        # Broadcast if ANY metadata was updated
+        if chat_update_fields:
             broadcast_payload = {
                 "type": "encrypted_chat_metadata",
                 "payload": {
                     "chat_id": chat_id,
-                    "encrypted_chat_key": encrypted_chat_key,
                     "versions": versions if versions else {}
                 }
             }
+            # Add all updated fields to broadcast
+            if encrypted_chat_key:
+                broadcast_payload["payload"]["encrypted_chat_key"] = encrypted_chat_key
+            if encrypted_title:
+                broadcast_payload["payload"]["encrypted_title"] = encrypted_title
+            if encrypted_icon:
+                broadcast_payload["payload"]["encrypted_icon"] = encrypted_icon
+            if encrypted_chat_category:
+                broadcast_payload["payload"]["encrypted_category"] = encrypted_chat_category
+            
             try:
                 await manager.broadcast_to_user(
                     message=broadcast_payload,

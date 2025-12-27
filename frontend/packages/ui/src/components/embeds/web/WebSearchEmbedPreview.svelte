@@ -12,7 +12,10 @@
   - Processing: query text + "via {provider}"
   - Finished: query text + "via {provider}" + favicons (first 3) + "+ N more"
   
-  Future: Preview images placeholder (48px height) when images are available
+  NOTE: Real-time updates when embed status changes from 'processing' to 'finished'
+  are handled by UnifiedEmbedPreview, which subscribes to embedUpdated events.
+  This component implements the onEmbedDataUpdated callback to update its
+  specific data (query, provider, results) when notified by the parent.
 -->
 
 <script lang="ts">
@@ -70,12 +73,66 @@
     onFullscreen
   }: Props = $props();
   
-  // Extract values from either previewData (skill preview context) or direct props (embed context)
-  let query = $derived(previewData?.query || queryProp || '');
-  let provider = $derived(previewData?.provider || providerProp || 'Brave Search');
-  let status = $derived(previewData?.status || statusProp || 'processing');
-  let results = $derived(previewData?.results || resultsProp || []);
-  let taskId = $derived(previewData?.task_id || taskIdProp);
+  // Local reactive state for embed data - these can be updated when embed data changes
+  // CRITICAL: Using $state allows us to update these values when we receive embed updates
+  // via the onEmbedDataUpdated callback from UnifiedEmbedPreview
+  let localQuery = $state<string>('');
+  let localProvider = $state<string>('Brave Search');
+  let localStatus = $state<'processing' | 'finished' | 'error'>('processing');
+  let localResults = $state<WebSearchResult[]>([]);
+  let localTaskId = $state<string | undefined>(undefined);
+  
+  // Initialize local state from props
+  $effect(() => {
+    // Initialize from previewData or direct props
+    if (previewData) {
+      localQuery = previewData.query || '';
+      localProvider = previewData.provider || 'Brave Search';
+      localStatus = previewData.status || 'processing';
+      localResults = previewData.results || [];
+      localTaskId = previewData.task_id;
+    } else {
+      localQuery = queryProp || '';
+      localProvider = providerProp || 'Brave Search';
+      localStatus = statusProp || 'processing';
+      localResults = resultsProp || [];
+      localTaskId = taskIdProp;
+    }
+  });
+  
+  // Use local state as the source of truth (allows updates from embed events)
+  let query = $derived(localQuery);
+  let provider = $derived(localProvider);
+  let status = $derived(localStatus);
+  let results = $derived(localResults);
+  let taskId = $derived(localTaskId);
+  
+  /**
+   * Handle embed data updates from UnifiedEmbedPreview
+   * Called when the parent component receives and decodes updated embed data
+   */
+  function handleEmbedDataUpdated(data: { status: string; decodedContent: any }) {
+    console.debug(`[WebSearchEmbedPreview] 🔄 Received embed data update for ${id}:`, {
+      status: data.status,
+      hasContent: !!data.decodedContent
+    });
+    
+    // Update status
+    if (data.status === 'processing' || data.status === 'finished' || data.status === 'error') {
+      localStatus = data.status;
+    }
+    
+    // Update web-search-specific fields from decoded content
+    const content = data.decodedContent;
+    if (content) {
+      if (content.query) localQuery = content.query;
+      if (content.provider) localProvider = content.provider;
+      if (content.results && Array.isArray(content.results)) {
+        localResults = content.results;
+        console.debug(`[WebSearchEmbedPreview] Updated results from callback:`, localResults.length);
+      }
+    }
+  }
   
   // Get skill name from translations
   let skillName = $derived($text('embeds.search.text') || 'Search');
@@ -122,6 +179,7 @@
   {isMobile}
   {onFullscreen}
   onStop={handleStop}
+  onEmbedDataUpdated={handleEmbedDataUpdated}
 >
   {#snippet details({ isMobile: isMobileLayout })}
     <div class="web-search-details" class:mobile={isMobileLayout}>

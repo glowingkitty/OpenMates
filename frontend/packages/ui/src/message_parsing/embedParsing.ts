@@ -192,16 +192,37 @@ export function parseEmbedNodes(markdown: string, mode: 'write' | 'read'): Embed
               const id = generateUUID();
               const embedStatus = mode === 'write' ? 'processing' : 'finished';
               
-              embedNodes.push({
+              // CRITICAL: Extract app_id and skill_id from JSON reference
+              // These are needed by AppSkillUseRenderer to render the correct Svelte component
+              // even before the full embed data arrives from the server
+              const embedAttrs: EmbedNodeAttributes = {
                 id,
                 type: mapEmbedReferenceType(embedRef.type),
-                status: embedStatus,
+                status: embedRef.status || embedStatus,
                 contentRef: `embed:${embedRef.embed_id}`,
-              });
+              };
+              
+              // Copy app_id and skill_id if present (for app_skill_use embeds)
+              if (embedRef.app_id) {
+                embedAttrs.app_id = embedRef.app_id;
+              }
+              if (embedRef.skill_id) {
+                embedAttrs.skill_id = embedRef.skill_id;
+              }
+              
+              // Copy query if present (for search skills)
+              if (embedRef.query) {
+                (embedAttrs as any).query = embedRef.query;
+              }
+              
+              embedNodes.push(embedAttrs);
               console.debug('[parseEmbedNodes] Created embed from JSON reference:', {
                 type: embedRef.type,
                 embed_id: embedRef.embed_id,
-                status: embedStatus,
+                app_id: embedRef.app_id,
+                skill_id: embedRef.skill_id,
+                query: embedRef.query,
+                status: embedAttrs.status,
                 mode
               });
             }

@@ -1,5 +1,8 @@
 // Markdown Parser for converting markdown text to TipTap JSON
 import MarkdownIt from 'markdown-it';
+// Note: We don't use markdown-it-katex for rendering because we extract math formulas
+// ourselves and convert them to TipTap Mathematics nodes. This gives us better control
+// over the LaTeX formula preservation for TipTap's Mathematics extension.
 
 // Initialize markdown-it with options
 const md = new MarkdownIt({
@@ -33,10 +36,48 @@ md.renderer.rules.link_open = (tokens, idx, options, env, self) => {
   return defaultLinkRender(tokens, idx, options, env, self);
 };
 
+// Map to store extracted LaTeX formulas for TipTap Mathematics nodes
+// Key: placeholder ID, Value: { tex: LaTeX formula, display: boolean }
+const mathFormulas = new Map<string, { tex: string; display: boolean }>();
+
+// Helper function to extract math formulas from markdown and replace with placeholders
+// This preserves the LaTeX formula for TipTap Mathematics extension
+function extractMathFormulas(markdownText: string): { processed: string; formulas: Map<string, { tex: string; display: boolean }> } {
+  const formulas = new Map<string, { tex: string; display: boolean }>();
+  let processed = markdownText;
+  let placeholderCounter = 0;
+  
+  // Extract block math: $$...$$
+  // Use a regex that handles multi-line block math
+  processed = processed.replace(/\$\$([\s\S]*?)\$\$/g, (match, formula) => {
+    const placeholder = `<!-- MATH_BLOCK_${placeholderCounter} -->`;
+    formulas.set(placeholder, { tex: formula.trim(), display: true });
+    placeholderCounter++;
+    return placeholder;
+  });
+  
+  // Extract inline math: $...$ (but not $$...$$)
+  // Use negative lookahead/lookbehind to avoid matching block math
+  processed = processed.replace(/(?<!\$)\$(?!\$)([^$\n]+?)\$(?!\$)/g, (match, formula) => {
+    const placeholder = `<!-- MATH_INLINE_${placeholderCounter} -->`;
+    formulas.set(placeholder, { tex: formula.trim(), display: false });
+    placeholderCounter++;
+    return placeholder;
+  });
+  
+  return { processed, formulas };
+}
+
 // Helper function to pre-process markdown to ensure double newlines create empty paragraphs
 function preprocessMarkdown(markdownText: string): string {
+  // First extract math formulas
+  const { processed: textWithMathExtracted, formulas } = extractMathFormulas(markdownText);
+  // Store formulas globally for use in convertNodeToTiptap
+  mathFormulas.clear();
+  formulas.forEach((value, key) => mathFormulas.set(key, value));
+  
   // Split the text by double newlines and process each section
-  const sections = markdownText.split(/\n\n+/);
+  const sections = textWithMathExtracted.split(/\n\n+/);
   const processedSections: string[] = [];
   
   for (let i = 0; i < sections.length; i++) {
@@ -85,6 +126,25 @@ function convertNodeToTiptap(node: Node): any {
         content: []
       };
     }
+    // Check if this is a math formula placeholder
+    // Comment text content is just the text between <!-- and -->, so we need to match the pattern
+    if (comment && (comment.trim().startsWith('MATH_BLOCK_') || comment.trim().startsWith('MATH_INLINE_'))) {
+      const trimmedComment = comment.trim();
+      // Try to find the math data - the key includes the full comment syntax
+      const fullCommentKey = `<!-- ${trimmedComment} -->`;
+      const mathData = mathFormulas.get(fullCommentKey);
+      if (mathData) {
+        // Create TipTap Mathematics node
+        // TipTap Mathematics extension creates two node types: 'inlineMath' and 'blockMath'
+        // Both use 'latex' attribute (not 'tex')
+        return {
+          type: mathData.display ? 'blockMath' : 'inlineMath',
+          attrs: {
+            latex: mathData.tex
+          }
+        };
+      }
+    }
     return null;
   }
 
@@ -95,6 +155,41 @@ function convertNodeToTiptap(node: Node): any {
   const element = node as Element;
   const tagName = element.tagName.toLowerCase();
   const content: any[] = [];
+
+  // Handle KaTeX-rendered math elements before processing children
+  // This is a fallback in case comment nodes don't work
+  // markdown-it-katex renders math to <span class="katex"> or <div class="katex-display">
+  if (tagName === 'span' && element.classList.contains('katex') && !element.classList.contains('katex-display')) {
+    // Inline math - try to extract LaTeX from data attribute or aria-label
+    const latex = element.getAttribute('data-latex') || 
+                 element.getAttribute('data-tex') || 
+                 element.getAttribute('aria-label') ||
+                 element.textContent?.trim() || '';
+    if (latex) {
+      return {
+        type: 'inlineMath',
+        attrs: {
+          latex: latex
+        }
+      };
+    }
+  }
+  
+  if (tagName === 'div' && element.classList.contains('katex-display')) {
+    // Block math - try to extract LaTeX
+    const latex = element.getAttribute('data-latex') || 
+                 element.getAttribute('data-tex') || 
+                 element.getAttribute('aria-label') ||
+                 element.textContent?.trim() || '';
+    if (latex) {
+      return {
+        type: 'blockMath',
+        attrs: {
+          latex: latex
+        }
+      };
+    }
+  }
 
   // Process child nodes
   for (const child of Array.from(element.childNodes)) {

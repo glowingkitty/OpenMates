@@ -161,9 +161,9 @@ export function handleAIMessageUpdateImpl(
 
     if (payload.is_final_chunk) {
         console.log(`[ChatSyncService:AI] 🏁 FINAL CHUNK received (seq: ${payload.sequence}, total_length: ${contentLength} chars)`);
-        const taskInfo = (serviceInstance as any).activeAITasks.get(payload.chat_id);
+        const taskInfo = serviceInstance.activeAITasks.get(payload.chat_id);
         if (taskInfo && taskInfo.taskId === payload.task_id) {
-            (serviceInstance as any).activeAITasks.delete(payload.chat_id);
+            serviceInstance.activeAITasks.delete(payload.chat_id);
             // Clear typing status for this specific AI task
             aiTypingStore.clearTyping(payload.chat_id, payload.task_id);
             serviceInstance.dispatchEvent(new CustomEvent('aiTaskEnded', { detail: { chatId: payload.chat_id, taskId: payload.task_id, status: payload.interrupted_by_revocation ? 'cancelled' : (payload.interrupted_by_soft_limit ? 'timed_out' : 'completed') } }));
@@ -427,7 +427,7 @@ export async function handleAIBackgroundResponseCompletedImpl(
                     chatId: aiMessage.chat_id,
                     contentLength: aiMessage.content?.length || 0
                 });
-                await (serviceInstance as any).sendCompletedAIResponse(aiMessage);
+                await serviceInstance.sendCompletedAIResponse(aiMessage);
             } catch (error) {
                 console.error('[ChatSyncService:AI] Error sending completed background AI response to server:', error);
             }
@@ -873,6 +873,9 @@ export function handleAIResponseStorageConfirmedImpl(
 ): void {
     console.info("[ChatSyncService:AI] Received 'ai_response_storage_confirmed':", payload);
     
+    // Unmark message as syncing
+    serviceInstance.unmarkMessageSyncing(payload.message_id);
+    
     // Dispatch event to notify components that AI response storage is confirmed
     serviceInstance.dispatchEvent(new CustomEvent('aiResponseStorageConfirmed', { 
         detail: { 
@@ -894,6 +897,12 @@ export function handleEncryptedMetadataStoredImpl(
     payload: { chat_id: string; message_id: string; task_id?: string }
 ): void {
     console.debug(`[ChatSyncService:AI] Received 'encrypted_metadata_stored':`, payload);
+    
+    // Unmark message as syncing if message_id is provided
+    if (payload.message_id) {
+        serviceInstance.unmarkMessageSyncing(payload.message_id);
+    }
+    
     console.debug(`[ChatSyncService:AI] Encrypted metadata storage confirmed for chat ${payload.chat_id}`);
 }
 
@@ -1226,7 +1235,15 @@ export async function handleRequestChatHistoryImpl(
 
 /**
  * Handle embed_update event from server
- * This updates an existing "processing" embed with finished results
+ * This updates an existing "processing" embed with finished results.
+ * 
+ * CRITICAL: When transitioning from "processing" to "finished", we need to:
+ * 1. Encrypt the plaintext content that was stored during processing
+ * 2. Create and persist embed key wrappers (master + chat) to IndexedDB
+ * 3. Store the encrypted embed properly
+ * 
+ * Without this, the embed key stays only in memory cache and is lost on page refresh,
+ * causing fullscreen views to fail loading child embeds.
  */
 export async function handleEmbedUpdateImpl(
     serviceInstance: ChatSynchronizationService,
@@ -1235,25 +1252,244 @@ export async function handleEmbedUpdateImpl(
     console.info(`[ChatSyncService:AI] Received 'embed_update' for embed ${payload.embed_id}`);
 
     try {
-        // Load the existing embed from cache
+        // Load the existing embed from cache (may be in-memory only from processing stage)
         const { embedStore } = await import('./embedStore');
         const embedRef = `embed:${payload.embed_id}`;
 
-        // Update the embed status
+        // Get the existing embed (from memory cache or IndexedDB)
         const existingEmbed = await embedStore.get(embedRef);
         if (existingEmbed) {
+            // Check if this embed needs encryption + key storage
+            // Processing embeds have plaintext content and only in-memory keys
+            const wasProcessing = !existingEmbed.encrypted_content;
+            const isNowFinished = payload.status === 'finished' || payload.status === 'completed';
+            
             // Update status to finished
             existingEmbed.status = payload.status;
 
             // Store child embed IDs if provided (for composite embeds)
             if (payload.child_embed_ids && payload.child_embed_ids.length > 0) {
                 existingEmbed.embed_ids = payload.child_embed_ids;
+                console.debug(`[ChatSyncService:AI] embed_update added ${payload.child_embed_ids.length} child embed_ids`);
             }
 
             // Update timestamp
             existingEmbed.updatedAt = Date.now();
 
-            // Save updated embed
+            // CRITICAL FIX: If transitioning from processing to finished, we need to:
+            // 1. Encrypt the content and persist key wrappers
+            // 2. This ensures the key survives page refresh
+            if (wasProcessing && isNowFinished && existingEmbed.content) {
+                console.info(`[ChatSyncService:AI] embed_update: Transitioning ${payload.embed_id} from processing to finished - encrypting and persisting keys`);
+                
+                try {
+                    // Import crypto utilities
+                    const { computeSHA256 } = await import('../message_parsing/utils');
+                    const {
+                        generateEmbedKey,
+                        encryptWithEmbedKey,
+                        wrapEmbedKeyWithMasterKey,
+                        wrapEmbedKeyWithChatKey
+                    } = await import('./cryptoService');
+                    const { chatDB } = await import('./db');
+                    
+                    // Get chat_id from payload or existing embed
+                    const chatId = payload.chat_id || existingEmbed.chat_id;
+                    // Get user_id from payload (user_id_uuid) or existing embed
+                    const userId = payload.user_id_uuid || existingEmbed.user_id;
+                    
+                    if (!chatId) {
+                        console.warn(`[ChatSyncService:AI] embed_update: No chat_id available for ${payload.embed_id}, skipping key persistence`);
+                    } else {
+                        // Compute hashed IDs
+                        const hashedChatId = await computeSHA256(chatId);
+                        const hashedEmbedId = await computeSHA256(payload.embed_id);
+                        const hashedUserId = userId ? await computeSHA256(userId) : 'unknown';
+                        
+                        // Get or generate embed key (may already exist in memory cache from processing stage)
+                        let embedKey = await embedStore.getEmbedKey(payload.embed_id, hashedChatId);
+                        if (!embedKey) {
+                            // Key not in cache, generate a new one
+                            embedKey = generateEmbedKey();
+                            console.debug(`[ChatSyncService:AI] embed_update: Generated new embed key for ${payload.embed_id}`);
+                        } else {
+                            console.debug(`[ChatSyncService:AI] embed_update: Using cached embed key for ${payload.embed_id}`);
+                        }
+                        
+                        // Encrypt the content
+                        const plaintextContent = existingEmbed.content;
+                        const encryptedContent = await encryptWithEmbedKey(plaintextContent, embedKey);
+                        if (!encryptedContent) {
+                            throw new Error('Failed to encrypt embed content');
+                        }
+                        
+                        // Encrypt the type if available
+                        let encryptedType: string | undefined;
+                        if (existingEmbed.type) {
+                            encryptedType = await encryptWithEmbedKey(existingEmbed.type, embedKey) || undefined;
+                        }
+                        
+                        // Create key wrappers (only for parent embeds)
+                        const isChildEmbed = !!existingEmbed.parent_embed_id;
+                        
+                        if (!isChildEmbed) {
+                            // Create master key wrapper
+                            const wrappedMasterKey = await wrapEmbedKeyWithMasterKey(embedKey);
+                            if (!wrappedMasterKey) {
+                                throw new Error('Failed to wrap embed key with master key');
+                            }
+                            
+                            // Create chat key wrapper
+                            const chatKey = chatDB.getOrGenerateChatKey(chatId);
+                            if (!chatKey) {
+                                throw new Error('Failed to get chat key for wrapping');
+                            }
+                            const wrappedChatKey = await wrapEmbedKeyWithChatKey(embedKey, chatKey);
+                            if (!wrappedChatKey) {
+                                throw new Error('Failed to wrap embed key with chat key');
+                            }
+                            
+                            // Store key wrappers to IndexedDB
+                            const now = Math.floor(Date.now() / 1000);
+                            const embedKeysForStorage = [
+                                {
+                                    hashed_embed_id: hashedEmbedId,
+                                    key_type: 'master' as const,
+                                    hashed_chat_id: null,
+                                    encrypted_embed_key: wrappedMasterKey,
+                                    hashed_user_id: hashedUserId,
+                                    created_at: now
+                                },
+                                {
+                                    hashed_embed_id: hashedEmbedId,
+                                    key_type: 'chat' as const,
+                                    hashed_chat_id: hashedChatId,
+                                    encrypted_embed_key: wrappedChatKey,
+                                    hashed_user_id: hashedUserId,
+                                    created_at: now
+                                }
+                            ];
+                            
+                            await embedStore.storeEmbedKeys(embedKeysForStorage);
+                            console.info(`[ChatSyncService:AI] embed_update: ✅ Stored key wrappers for ${payload.embed_id} to IndexedDB`);
+                            
+                            // Also send key wrappers to server
+                            try {
+                                const sendersModule = await import('./chatSyncServiceSenders');
+                                const sendStoreEmbedKeysFunction = sendersModule.sendStoreEmbedKeysImpl ||
+                                    (sendersModule as { default?: { sendStoreEmbedKeysImpl?: typeof sendersModule.sendStoreEmbedKeysImpl } }).default?.sendStoreEmbedKeysImpl;
+                                
+                                if (typeof sendStoreEmbedKeysFunction === 'function') {
+                                    await sendStoreEmbedKeysFunction(serviceInstance, { keys: embedKeysForStorage });
+                                    console.debug(`[ChatSyncService:AI] embed_update: Sent key wrappers to server for ${payload.embed_id}`);
+                                }
+                            } catch (sendError) {
+                                // Non-fatal - keys are stored locally
+                                console.warn(`[ChatSyncService:AI] embed_update: Failed to send key wrappers to server:`, sendError);
+                            }
+                        }
+                        
+                        // Update the embed with encrypted content
+                        existingEmbed.encrypted_content = encryptedContent;
+                        existingEmbed.encrypted_type = encryptedType;
+                        existingEmbed.hashed_chat_id = hashedChatId;
+                        // Clear plaintext content (it's now encrypted)
+                        delete existingEmbed.content;
+                        
+                        // Cache the key for this embed
+                        embedStore.setEmbedKeyInCache(payload.embed_id, embedKey, hashedChatId);
+                        embedStore.setEmbedKeyInCache(payload.embed_id, embedKey, undefined); // master fallback
+                        
+                        // If this embed has child embed_ids, cache the key for children too
+                        if (existingEmbed.embed_ids && Array.isArray(existingEmbed.embed_ids)) {
+                            for (const childEmbedId of existingEmbed.embed_ids) {
+                                embedStore.setEmbedKeyInCache(childEmbedId, embedKey, hashedChatId);
+                                embedStore.setEmbedKeyInCache(childEmbedId, embedKey, undefined);
+                                console.debug(`[ChatSyncService:AI] embed_update: Cached parent key for child ${childEmbedId}`);
+                            }
+                        }
+                        
+                        // Build encrypted embed object for putEncrypted (new format with separate fields)
+                        // This is the same format used by handleSendEmbedDataImpl for finalized embeds
+                        const hashedMessageId = payload.message_id ? await computeSHA256(payload.message_id) : existingEmbed.hashed_message_id;
+                        
+                        const encryptedEmbedForStorage = {
+                            embed_id: payload.embed_id,
+                            encrypted_type: encryptedType,
+                            encrypted_content: encryptedContent,
+                            status: existingEmbed.status,
+                            hashed_chat_id: hashedChatId,
+                            hashed_message_id: hashedMessageId,
+                            hashed_task_id: existingEmbed.hashed_task_id,
+                            hashed_user_id: hashedUserId,
+                            embed_ids: existingEmbed.embed_ids,
+                            parent_embed_id: existingEmbed.parent_embed_id,
+                            version_number: existingEmbed.version_number,
+                            file_path: existingEmbed.file_path,
+                            content_hash: existingEmbed.content_hash,
+                            text_length_chars: existingEmbed.text_length_chars,
+                            is_private: existingEmbed.is_private ?? false,
+                            is_shared: existingEmbed.is_shared ?? false,
+                            createdAt: existingEmbed.createdAt,
+                            updatedAt: existingEmbed.updatedAt
+                        };
+                        
+                        // Extract app_id/skill_id from plaintext content for metadata
+                        const preExtractedMetadata = {
+                            app_id: existingEmbed.app_id,
+                            skill_id: existingEmbed.skill_id
+                        };
+                        
+                        // Use putEncrypted for proper separate field storage (instead of put)
+                        // This ensures embed_ids is stored as a separate field that can be queried
+                        await embedStore.putEncrypted(
+                            embedRef,
+                            encryptedEmbedForStorage,
+                            existingEmbed.type,
+                            plaintextContent,
+                            preExtractedMetadata
+                        );
+                        
+                        console.info(`[ChatSyncService:AI] embed_update: ✅ Encrypted and stored ${payload.embed_id} with putEncrypted`);
+                        
+                        // Send encrypted embed to server for Directus storage
+                        try {
+                            const sendersModule = await import('./chatSyncServiceSenders');
+                            const sendStoreFunction = sendersModule.sendStoreEmbedImpl ||
+                                (sendersModule as { default?: { sendStoreEmbedImpl?: typeof sendersModule.sendStoreEmbedImpl } }).default?.sendStoreEmbedImpl;
+                            
+                            if (typeof sendStoreFunction === 'function') {
+                                const storePayload = {
+                                    ...encryptedEmbedForStorage
+                                };
+                                await sendStoreFunction(serviceInstance, storePayload);
+                                console.debug(`[ChatSyncService:AI] embed_update: Sent encrypted embed to server for ${payload.embed_id}`);
+                            }
+                        } catch (sendError) {
+                            // Non-fatal - embed is stored locally
+                            console.warn(`[ChatSyncService:AI] embed_update: Failed to send encrypted embed to server:`, sendError);
+                        }
+                        
+                        // Skip the regular put() call since we've already stored via putEncrypted
+                        // Dispatch event for UI to refresh the embed preview
+                        serviceInstance.dispatchEvent(new CustomEvent('embedUpdated', {
+                            detail: {
+                                embed_id: payload.embed_id,
+                                chat_id: payload.chat_id,
+                                message_id: payload.message_id,
+                                status: payload.status,
+                                child_embed_ids: payload.child_embed_ids
+                            }
+                        }));
+                        return; // Early return - already handled storage and event dispatch
+                    }
+                } catch (encryptError) {
+                    console.error(`[ChatSyncService:AI] embed_update: Failed to encrypt/persist keys for ${payload.embed_id}:`, encryptError);
+                    // Continue anyway - embed will still be stored (unencrypted), just won't survive page refresh well
+                }
+            }
+
+            // Save updated embed (for non-encryption cases or fallback)
             await embedStore.put(embedRef, existingEmbed, existingEmbed.type);
 
             console.info(`[ChatSyncService:AI] Updated embed ${payload.embed_id} to status ${payload.status}`);
@@ -1288,6 +1524,9 @@ export async function handleEmbedUpdateImpl(
     }
 }
 
+// Type alias for the inner embed data structure (used when WebSocket passes payload directly)
+type EmbedDataPayload = SendEmbedDataPayload['payload'];
+
 /**
  * Handle send_embed_data event from server
  * This receives plaintext TOON content, encrypts it client-side, stores in IndexedDB,
@@ -1297,10 +1536,19 @@ export async function handleSendEmbedDataImpl(
     serviceInstance: ChatSynchronizationService,
     payload: SendEmbedDataPayload
 ): Promise<void> {
-    // Extract the actual embed data from the nested payload structure
-    const embedData = payload.payload;
+    // FIX: The WebSocket service extracts rawMessage.payload and passes it to handlers,
+    // so 'payload' here is already the inner embed data object, NOT the full message structure.
+    // Handle both cases for backwards compatibility:
+    // 1. payload.embed_id exists: WebSocket passed inner payload directly (correct behavior)
+    // 2. payload.payload.embed_id exists: Full message structure was passed (legacy/edge case)
+    const payloadWithEmbedId = payload as unknown as EmbedDataPayload;
+    const payloadWithNestedData = payload as SendEmbedDataPayload;
+    const embedData: EmbedDataPayload | undefined = payloadWithEmbedId.embed_id 
+        ? payloadWithEmbedId 
+        : payloadWithNestedData.payload;
+    
     if (!embedData?.embed_id) {
-        console.warn('[ChatSyncService:AI] Received send_embed_data payload without embed_id', payload);
+        console.warn('[ChatSyncService:AI] Received send_embed_data payload without embed_id. Raw payload:', payload);
         return;
     }
     console.info(
@@ -1323,7 +1571,53 @@ export async function handleSendEmbedDataImpl(
             // ============================================================
             // "PROCESSING" STATUS: In-memory only, but generate key early for children
             // ============================================================
-            console.info(`[ChatSyncService:AI] Embed ${embedData.embed_id} is "processing" - dispatching for in-memory rendering and generating key early for children`);
+            console.info(`[ChatSyncService:AI] Embed ${embedData.embed_id} is "processing" - storing in memory cache for rendering`);
+            
+            // CRITICAL FIX: Store the processing embed in memory cache so resolveEmbed() can find it
+            // During streaming, the UI renders embed nodes which call resolveEmbed(). If the embed
+            // is not in memory cache, resolveEmbed() returns null and "Processing..." is shown.
+            // By storing here, the next render cycle will find the embed data.
+            try {
+                const { embedStore } = await import('./embedStore');
+                const embedRef = `embed:${embedData.embed_id}`;
+                
+                // Store in memory cache (not persisted to IndexedDB for processing embeds)
+                // CRITICAL: Include ALL fields needed for rendering, especially:
+                // - skill_id: Determines which component to render (news vs web search)
+                // - app_id: Parent app identifier  
+                // - query: Search query to display in the preview
+                // NOTE: Use type assertion for dynamic payload fields that aren't in the base type
+                const embedPayload = embedData as Record<string, unknown>;
+                embedStore.setInMemoryOnly(embedRef, {
+                    embed_id: embedData.embed_id,
+                    type: embedData.type,
+                    status: embedData.status,
+                    content: embedData.content, // Plaintext TOON content
+                    text_preview: embedData.text_preview,
+                    task_id: embedData.task_id,
+                    embed_ids: embedData.embed_ids,
+                    parent_embed_id: embedData.parent_embed_id,
+                    chat_id: embedData.chat_id,
+                    message_id: embedData.message_id,
+                    // CRITICAL: App skill metadata for rendering the correct component
+                    // These fields come from the server but aren't in the base type definition
+                    skill_id: embedPayload.skill_id as string | undefined,
+                    app_id: embedPayload.app_id as string | undefined,
+                    query: embedPayload.query as string | undefined, // Search query for search skills
+                    provider: embedPayload.provider as string | undefined, // Provider name (e.g., "Brave Search")
+                    results: embedPayload.results as unknown[] | undefined, // Results array if available
+                    createdAt: embedData.createdAt || Date.now(),
+                    updatedAt: embedData.updatedAt || Date.now()
+                });
+                const queryStr = embedPayload.query as string | undefined;
+                console.info(`[ChatSyncService:AI] ✅ Stored processing embed ${embedData.embed_id} in memory cache`, {
+                    skill_id: embedPayload.skill_id,
+                    app_id: embedPayload.app_id,
+                    query: queryStr?.substring(0, 30)
+                });
+            } catch (err) {
+                console.warn(`[ChatSyncService:AI] Failed to store processing embed in memory cache:`, err);
+            }
             
             // Generate embed-specific encryption key early (if not already exists)
             // This is CRITICAL for key inheritance: child embeds arrive while parent is still processing

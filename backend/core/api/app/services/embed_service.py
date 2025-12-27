@@ -1064,11 +1064,10 @@ class EmbedService:
                     "updated_at": updated_at
                 }
 
-                # Update cache (overwrites placeholder)
-                await self._cache_embed(embed_id, updated_embed_data, chat_id, user_id_hash)
-
-                # SEND PLAINTEXT TOON TO CLIENT via WebSocket
-                # check_cache_status=True prevents duplicate "finished" events
+                # CRITICAL FIX: Send BEFORE updating cache to avoid duplicate prevention blocking
+                # The send_embed_data_to_client with check_cache_status=True will check if cache 
+                # already has status=finished and skip. We need to send first, then update cache.
+                # This ensures the client receives the parent embed data with embed_ids (child embeds)
                 await self.send_embed_data_to_client(
                     embed_id=embed_id,
                     embed_type="app_skill_use",
@@ -1084,8 +1083,11 @@ class EmbedService:
                     created_at=updated_at,
                     updated_at=updated_at,
                     log_prefix=log_prefix,
-                    check_cache_status=True  # Enable deduplication check
+                    check_cache_status=True  # Enable deduplication check (will pass since cache still has "processing")
                 )
+
+                # Update cache AFTER sending (overwrites placeholder with finished status)
+                await self._cache_embed(embed_id, updated_embed_data, chat_id, user_id_hash)
 
                 logger.info(f"{log_prefix} Updated embed {embed_id} with {len(child_embed_ids)} child embeds")
 
@@ -1155,10 +1157,8 @@ class EmbedService:
                     "updated_at": updated_at
                 }
 
-                # Update cache (overwrites placeholder)
-                await self._cache_embed(embed_id, updated_embed_data, chat_id, user_id_hash)
-
-                # SEND PLAINTEXT TOON TO CLIENT via WebSocket
+                # CRITICAL FIX: Send BEFORE updating cache to avoid duplicate prevention blocking
+                # This ensures the client receives the embed data before cache is marked as finished
                 await self.send_embed_data_to_client(
                     embed_id=embed_id,
                     embed_type="app_skill_use",
@@ -1174,6 +1174,9 @@ class EmbedService:
                     updated_at=updated_at,
                     log_prefix=log_prefix
                 )
+
+                # Update cache AFTER sending (overwrites placeholder with finished status)
+                await self._cache_embed(embed_id, updated_embed_data, chat_id, user_id_hash)
 
                 logger.info(f"{log_prefix} Updated single embed {embed_id}")
 
@@ -1543,6 +1546,10 @@ class EmbedService:
                 else:
                     child_type = "website"  # Default fallback
                 
+                # CRITICAL: Generate parent_embed_id FIRST so child embeds can reference it
+                # This enables key inheritance: child embeds use parent's encryption key
+                parent_embed_id = str(uuid.uuid4())
+                
                 for result in results:
                     # Generate embed_id for child
                     child_embed_id = str(uuid.uuid4())
@@ -1551,7 +1558,12 @@ class EmbedService:
                     flattened_result = _flatten_for_toon_tabular(result)
                     content_toon = encode(flattened_result)
                     
+                    # Calculate text length for child embed
+                    text_length_chars = len(content_toon)
+                    created_at = int(datetime.now().timestamp())
+                    
                     # Create child embed entry
+                    # CRITICAL: Include parent_embed_id for key inheritance
                     child_embed_data = {
                         "embed_id": child_embed_id,
                         "type": child_type,
@@ -1564,8 +1576,10 @@ class EmbedService:
                         "hashed_user_id": user_id_hash,
                         "is_private": False,
                         "is_shared": False,
-                        "created_at": int(datetime.now().timestamp()),
-                        "updated_at": int(datetime.now().timestamp())
+                        "parent_embed_id": parent_embed_id,  # CRITICAL: Set parent for key inheritance
+                        "text_length_chars": text_length_chars,
+                        "created_at": created_at,
+                        "updated_at": created_at
                     }
                     
                     # Encrypt with vault key for server-side cache
@@ -1578,11 +1592,30 @@ class EmbedService:
                     # Cache child embed (server-side, vault-encrypted)
                     await self._cache_embed(child_embed_id, child_embed_data, chat_id, user_id_hash)
                     
+                    # CRITICAL: Send child embed to client via WebSocket for client-side encryption and storage
+                    # Without this, child embeds only exist in server cache and won't be stored in Directus
+                    await self.send_embed_data_to_client(
+                        embed_id=child_embed_id,
+                        embed_type=child_type,
+                        content_toon=content_toon,  # PLAINTEXT TOON
+                        chat_id=chat_id,
+                        message_id=message_id,
+                        user_id=user_id,
+                        user_id_hash=user_id_hash,
+                        status="finished",
+                        task_id=task_id,
+                        text_length_chars=text_length_chars,
+                        created_at=created_at,
+                        updated_at=created_at,
+                        parent_embed_id=parent_embed_id,  # Set parent_embed_id so frontend can use parent key
+                        log_prefix=log_prefix
+                    )
+                    
                     child_embed_ids.append(child_embed_id)
-                    logger.debug(f"{log_prefix} Created child embed {child_embed_id} (type: {child_type})")
+                    logger.debug(f"{log_prefix} Created child embed {child_embed_id} (type: {child_type}, parent: {parent_embed_id})")
                 
                 # Create parent app_skill_use embed
-                parent_embed_id = str(uuid.uuid4())
+                # NOTE: parent_embed_id was already generated above (before child embeds)
                 
                 # Parent embed content: metadata about the skill execution
                 # Include request metadata (query, etc.) if provided for proper frontend rendering
@@ -1590,7 +1623,8 @@ class EmbedService:
                     "app_id": app_id,
                     "skill_id": skill_id,
                     "result_count": len(results),
-                    "embed_ids": child_embed_ids
+                    "embed_ids": child_embed_ids,
+                    "status": "finished"
                 }
                 
                 # Add request metadata (query, provider, etc.) if available
@@ -1607,6 +1641,10 @@ class EmbedService:
                 # Convert to TOON
                 flattened_parent = _flatten_for_toon_tabular(parent_content)
                 parent_content_toon = encode(flattened_parent)
+                
+                # Calculate text length for parent embed
+                parent_text_length_chars = len(parent_content_toon)
+                parent_created_at = int(datetime.now().timestamp())
                 
                 # Encrypt with vault key
                 encrypted_parent_content, _ = await self.encryption_service.encrypt_with_user_key(
@@ -1628,12 +1666,32 @@ class EmbedService:
                     "is_shared": False,
                     "embed_ids": child_embed_ids,  # JSON array
                     "encrypted_content": encrypted_parent_content,
-                    "created_at": int(datetime.now().timestamp()),
-                    "updated_at": int(datetime.now().timestamp())
+                    "text_length_chars": parent_text_length_chars,
+                    "created_at": parent_created_at,
+                    "updated_at": parent_created_at
                 }
                 
                 # Cache parent embed
                 await self._cache_embed(parent_embed_id, parent_embed_data, chat_id, user_id_hash)
+                
+                # CRITICAL: Send parent embed to client via WebSocket for client-side encryption and storage
+                # Without this, parent embed only exists in server cache and won't be stored in Directus
+                await self.send_embed_data_to_client(
+                    embed_id=parent_embed_id,
+                    embed_type="app_skill_use",
+                    content_toon=parent_content_toon,  # PLAINTEXT TOON
+                    chat_id=chat_id,
+                    message_id=message_id,
+                    user_id=user_id,
+                    user_id_hash=user_id_hash,
+                    status="finished",
+                    task_id=task_id,
+                    embed_ids=child_embed_ids,
+                    text_length_chars=parent_text_length_chars,
+                    created_at=parent_created_at,
+                    updated_at=parent_created_at,
+                    log_prefix=log_prefix
+                )
                 
                 logger.info(f"{log_prefix} Created parent embed {parent_embed_id} with {len(child_embed_ids)} child embeds")
                 
@@ -1665,9 +1723,21 @@ class EmbedService:
                     "app_id": app_id,
                     "skill_id": skill_id,
                     "results": flattened_results,
-                    "result_count": len(results)
+                    "result_count": len(results),
+                    "status": "finished"
                 }
+                
+                # Add request metadata if available
+                if request_metadata:
+                    for key in ["query", "provider", "url", "languages", "country", "search_lang", "safesearch"]:
+                        if key in request_metadata:
+                            content_with_metadata[key] = request_metadata[key]
+                
                 content_toon = encode(_flatten_for_toon_tabular(content_with_metadata))
+                
+                # Calculate text length for embed
+                single_text_length_chars = len(content_toon)
+                single_created_at = int(datetime.now().timestamp())
                 
                 # Encrypt with vault key
                 encrypted_content, _ = await self.encryption_service.encrypt_with_user_key(
@@ -1689,12 +1759,31 @@ class EmbedService:
                     "is_shared": False,
                     "embed_ids": None,  # No child embeds
                     "encrypted_content": encrypted_content,
-                    "created_at": int(datetime.now().timestamp()),
-                    "updated_at": int(datetime.now().timestamp())
+                    "text_length_chars": single_text_length_chars,
+                    "created_at": single_created_at,
+                    "updated_at": single_created_at
                 }
                 
                 # Cache embed
                 await self._cache_embed(embed_id, embed_data, chat_id, user_id_hash)
+                
+                # CRITICAL: Send embed to client via WebSocket for client-side encryption and storage
+                # Without this, the embed only exists in server cache and won't be stored in Directus
+                await self.send_embed_data_to_client(
+                    embed_id=embed_id,
+                    embed_type="app_skill_use",
+                    content_toon=content_toon,  # PLAINTEXT TOON
+                    chat_id=chat_id,
+                    message_id=message_id,
+                    user_id=user_id,
+                    user_id_hash=user_id_hash,
+                    status="finished",
+                    task_id=task_id,
+                    text_length_chars=single_text_length_chars,
+                    created_at=single_created_at,
+                    updated_at=single_created_at,
+                    log_prefix=log_prefix
+                )
                 
                 logger.info(f"{log_prefix} Created single embed {embed_id}")
                 

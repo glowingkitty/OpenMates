@@ -114,6 +114,18 @@ export async function handleInitialSyncResponseImpl(
         );
 
         // NOW create the transaction after all async preparation work
+        // CRITICAL: Clean up embeds for chats being deleted BEFORE starting the transaction
+        if (payload.chat_ids_to_delete && payload.chat_ids_to_delete.length > 0) {
+            try {
+                const { embedStore } = await import('./embedStore');
+                for (const chatId of payload.chat_ids_to_delete) {
+                    await embedStore.deleteEmbedsForChat(chatId);
+                }
+            } catch (error) {
+                console.error("[ChatSyncService:CoreSync] Error cleaning up embeds during sync delete:", error);
+            }
+        }
+
         transaction = await chatDB.getTransaction(
             [chatDB['CHATS_STORE_NAME'], chatDB['MESSAGES_STORE_NAME']],
             'readwrite'

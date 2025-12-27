@@ -216,7 +216,7 @@
         {#if paymentStarted}
             <div class="payment-component-container">
                 <Payment
-                    purchasePrice={selectedTier.amount * 100}
+                    purchasePrice={currency.toUpperCase() === 'JPY' ? selectedTier.amount : selectedTier.amount * 100}
                     currency={currency}
                     credits_amount={0}
                     requireConsent={false}

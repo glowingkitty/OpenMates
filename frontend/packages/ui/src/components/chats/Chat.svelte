@@ -676,8 +676,8 @@
         try {
           const freshChat = await chatDB.getChat(chat.chat_id);
           if (freshChat) {
-            // Update the chat prop with fresh data to trigger reactivity
-            chat = freshChat;
+            // Update display info with fresh data - the parent component will update the prop
+            // when it receives the event and refreshes from the database
             await updateDisplayInfo(freshChat);
             return;
           }
@@ -726,8 +726,8 @@
       try {
         const freshChat = await chatDB.getChat(chat.chat_id);
         if (freshChat) {
-          // Update the current chat data with fresh data and trigger display update
-          chat = freshChat;
+          // Update display info with fresh data - the parent component will update the prop
+          // when it receives the event and refreshes from the database
           await updateDisplayInfo(freshChat);
         }
       } catch (error: any) {
@@ -1272,8 +1272,8 @@
       const updatedChat = { ...chat, pinned: true };
       await chatDB.updateChat(updatedChat);
 
-      // Update the local chat object
-      chat.pinned = true;
+      // Note: We don't mutate the chat prop here - the parent component will update it
+      // when it receives the LOCAL_CHAT_LIST_CHANGED_EVENT and refreshes from the database
 
       // Mark cache as dirty and refresh the list
       chatListCache.markDirty();
@@ -1320,8 +1320,8 @@
       const updatedChat = { ...chat, pinned: false };
       await chatDB.updateChat(updatedChat);
 
-      // Update the local chat object
-      chat.pinned = false;
+      // Note: We don't mutate the chat prop here - the parent component will update it
+      // when it receives the LOCAL_CHAT_LIST_CHANGED_EVENT and refreshes from the database
 
       // Mark cache as dirty and refresh the list
       chatListCache.markDirty();

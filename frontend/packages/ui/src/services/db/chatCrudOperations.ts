@@ -537,14 +537,36 @@ export async function getChat(
 
 /**
  * Delete a chat and all its messages
+ * Also cleans up associated embeds (if not shared with other chats)
  */
 export async function deleteChat(
     dbInstance: ChatDatabaseInstance,
     chat_id: string,
     transaction?: IDBTransaction
-): Promise<void> {
+): Promise<{ deletedEmbedIds: string[] }> {
     await dbInstance.init();
     console.debug(`[ChatDatabase] Deleting chat ${chat_id} and its messages.`);
+
+    // CRITICAL: Clean up embeds associated with this chat
+    let deletedEmbedIds: string[] = [];
+    
+    // Only perform embed cleanup if NO transaction is provided.
+    // If a transaction is provided, we cannot safely await without risking transaction timeout (TransactionInactiveError).
+    // The caller of batch operations is responsible for pre-cleaning embeds if needed.
+    if (!transaction) {
+        // This must happen BEFORE the transaction starts to avoid transaction timeout
+        // which happens if we await between transaction creation and first request.
+        // Import embedStore dynamically to avoid circular dependencies
+        try {
+            const { embedStore } = await import('../embedStore');
+            deletedEmbedIds = await embedStore.deleteEmbedsForChat(chat_id);
+            console.debug(`[ChatDatabase] Cleaned up ${deletedEmbedIds.length} embeds for chat ${chat_id}`);
+        } catch (embedError) {
+            // Log but don't fail the entire deletion - embeds can be orphaned but chat must be deleted
+            console.error(`[ChatDatabase] Error cleaning up embeds for chat ${chat_id}:`, embedError);
+        }
+    }
+
     const currentTransaction = transaction || await dbInstance.getTransaction([dbInstance.CHATS_STORE_NAME, MESSAGES_STORE_NAME], 'readwrite');
     
     const chatStore = currentTransaction.objectStore(dbInstance.CHATS_STORE_NAME);
@@ -601,7 +623,7 @@ export async function deleteChat(
         if (!transaction) {
             currentTransaction.oncomplete = () => {
                 console.debug(`[ChatDatabase] Chat ${chat_id} and its messages deleted successfully.`);
-                resolve();
+                resolve({ deletedEmbedIds });
             };
             currentTransaction.onerror = () => {
                 console.error(`[ChatDatabase] Error in deleteChat transaction for ${chat_id}:`, currentTransaction.error);
@@ -613,7 +635,7 @@ export async function deleteChat(
             };
         } else {
             // If part of a larger transaction, let caller handle oncomplete/onerror
-            resolve();
+            resolve({ deletedEmbedIds });
         }
     });
 }

@@ -41,7 +41,8 @@ class ChatDatabase {
     
     // Version incremented for various schema changes
     // Version 15: Added pinned field and index for chat pinning functionality
-    private readonly VERSION = 15;
+    // Version 16: Added hashed_chat_id index to embeds store for embed cleanup on chat deletion
+    private readonly VERSION = 16;
     private initializationPromise: Promise<void> | null = null;
     
     // Flag to prevent new operations during database deletion
@@ -202,6 +203,7 @@ class ChatDatabase {
             embedsStore.createIndex('createdAt', 'createdAt', { unique: false });
             embedsStore.createIndex('app_id', 'app_id', { unique: false });
             embedsStore.createIndex('skill_id', 'skill_id', { unique: false });
+            embedsStore.createIndex('hashed_chat_id', 'hashed_chat_id', { unique: false });
             console.debug('[ChatDatabase] Created embeds store for unified parsing');
         } else if (transaction) {
             const embedsStore = transaction.objectStore(EMBEDS_STORE_NAME);
@@ -212,6 +214,11 @@ class ChatDatabase {
             if (!embedsStore.indexNames.contains('skill_id')) {
                 embedsStore.createIndex('skill_id', 'skill_id', { unique: false });
                 console.debug('[ChatDatabase] Added skill_id index to embeds store');
+            }
+            // Version 16: Add hashed_chat_id index for embed cleanup on chat deletion
+            if (!embedsStore.indexNames.contains('hashed_chat_id')) {
+                embedsStore.createIndex('hashed_chat_id', 'hashed_chat_id', { unique: false });
+                console.debug('[ChatDatabase] Added hashed_chat_id index to embeds store');
             }
         }
 
@@ -420,7 +427,7 @@ class ChatDatabase {
         return chatCrudOps.clearCurrentUserChatDraft(this, chat_id);
     }
 
-    async deleteChat(chat_id: string, transaction?: IDBTransaction): Promise<void> {
+    async deleteChat(chat_id: string, transaction?: IDBTransaction): Promise<{ deletedEmbedIds: string[] }> {
         return chatCrudOps.deleteChat(this, chat_id, transaction);
     }
     
@@ -493,7 +500,8 @@ class ChatDatabase {
         const chatStore = transaction.objectStore(this.CHATS_STORE_NAME);
         const messagesStore = transaction.objectStore(this.MESSAGES_STORE_NAME);
 
-        const promises: Promise<void>[] = [];
+        // Use Promise<unknown> to accommodate different return types (void, { deletedEmbedIds })
+        const promises: Promise<unknown>[] = [];
 
         // Process chat updates
         chatsToUpdate.forEach(chatToUpdate => {

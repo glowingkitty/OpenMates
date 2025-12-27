@@ -229,6 +229,9 @@
   background-color: var(--color-background-tertiary, #f8f9fa);
 }
 
+/* Import KaTeX CSS for math formula rendering */
+@import 'katex/dist/katex.min.css';
+
 /* Mathematics */
 .markdown-math {
   display: inline-block;

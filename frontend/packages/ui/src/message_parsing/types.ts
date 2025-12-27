@@ -45,6 +45,13 @@ export interface EmbedNodeAttributes {
   // Group-specific attributes
   groupedItems?: EmbedNodeAttributes[];
   groupCount?: number;
+  
+  // App skill metadata (extracted from JSON embed references during parsing)
+  // These are used by AppSkillUseRenderer to determine which Svelte component to render
+  // even before the full embed data arrives from the server
+  app_id?: string;
+  skill_id?: string;
+  query?: string;  // Search query for search skills
 }
 
 export interface ParseMessageOptions {

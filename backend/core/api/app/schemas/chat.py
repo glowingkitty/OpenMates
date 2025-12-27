@@ -122,6 +122,7 @@ class MessageInCache(BaseModel):
     category: Optional[str] = None
     sender_name: Optional[str] = None
     encrypted_content: str  # Content encrypted with encryption_key_user_server (Vault)
+    model_name: Optional[str] = None  # Added: AI model name for assistant messages
     status: Literal['sending', 'sent', 'error', 'streaming', 'delivered', 'synced']
     created_at: int
 

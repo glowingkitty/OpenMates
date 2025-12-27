@@ -707,7 +707,9 @@
   .generated-by {
     font-size: 14px;
     margin-top: 6px;
-    color: var(--color-grey-500);
+    margin-left: 12px;
+    margin-bottom: 10px;
+    color: var(--color-grey-60);
   }
 
   .chat-app-cards-container.scrollable {

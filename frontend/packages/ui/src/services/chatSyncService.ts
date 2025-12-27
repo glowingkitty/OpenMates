@@ -60,6 +60,7 @@ export class ChatSynchronizationService extends EventTarget {
     private cacheStatusRequestTimeout: NodeJS.Timeout | null = null;
     private readonly CACHE_STATUS_REQUEST_DELAY = 0; // INSTANT - cache is pre-warmed during /lookup
     public activeAITasks: Map<string, { taskId: string, userMessageId: string }> = new Map(); // Made public for handlers
+    private syncingMessageIds: Set<string> = new Set(); // Track message IDs being sent to server to prevent duplicates
 
     constructor() {
         super();
@@ -190,6 +191,19 @@ export class ChatSynchronizationService extends EventTarget {
     public set serverChatOrder_FOR_HANDLERS_ONLY(value: string[]) { this.serverChatOrder = value; }
     public get webSocketConnected_FOR_SENDERS_ONLY(): boolean { return this.webSocketConnected; }
 
+    // --- Syncing Message IDs Tracking ---
+    public isMessageSyncing(messageId: string): boolean {
+        return this.syncingMessageIds.has(messageId);
+    }
+
+    public markMessageSyncing(messageId: string): void {
+        this.syncingMessageIds.add(messageId);
+    }
+
+    public unmarkMessageSyncing(messageId: string): void {
+        this.syncingMessageIds.delete(messageId);
+    }
+
     // --- Core Sync Methods ---
     public attemptInitialSync_FOR_HANDLERS_ONLY(immediate_view_chat_id?: string) {
         this.attemptInitialSync(immediate_view_chat_id);
@@ -272,8 +286,8 @@ export class ChatSynchronizationService extends EventTarget {
     public async sendDeleteDraft(chat_id: string) {
         await senders.sendDeleteDraftImpl(this, chat_id);
     }
-    public async sendDeleteChat(chat_id: string) {
-        await senders.sendDeleteChatImpl(this, chat_id);
+    public async sendDeleteChat(chat_id: string, embed_ids_to_delete: string[] = []) {
+        await senders.sendDeleteChatImpl(this, chat_id, embed_ids_to_delete);
     }
     public async sendNewMessage(message: Message, encryptedSuggestionToDelete?: string | null): Promise<void> {
         await senders.sendNewMessageImpl(this, message, encryptedSuggestionToDelete);
@@ -303,7 +317,7 @@ export class ChatSynchronizationService extends EventTarget {
         await senders.queueOfflineChangeImpl(this, change);
     }
     public async sendOfflineChanges(): Promise<void> {
-        await senders.sendOfflineChangesImpl(this);
+        await senders.sendOfflineChangesImpl();
     }
 
     // Scroll position and read status sync methods

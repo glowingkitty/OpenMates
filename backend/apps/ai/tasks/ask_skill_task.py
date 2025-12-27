@@ -431,7 +431,8 @@ async def _async_process_ai_skill_ask_task(
             # Use category from preprocessing_result for typing indicator
             typing_category = preprocessing_result.category or "general_knowledge" # Default if category is None
             # Get model_name from preprocessing_result
-            model_name = preprocessing_result.selected_main_llm_model_name or "AI" # Default if not present
+            # CRITICAL: For error messages (e.g. insufficient credits), we don't show a model name
+            model_name = preprocessing_result.selected_main_llm_model_name if preprocessing_result.can_proceed else None
             
             # Extract provider from the selected_main_llm_model_id (format: "provider/model")
             # Then get the actual server (e.g., Cerebras) from the provider config
