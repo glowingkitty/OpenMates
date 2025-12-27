@@ -391,72 +391,77 @@ export async function sendCompletedAIResponseImpl(
         console.warn("[ChatSyncService:Senders] WebSocket not connected. AI response not sent to server.");
         return;
     }
-    
-    // For completed AI responses, we send encrypted content + updated messages_v for Directus storage
-    // The server should NOT process this as a new message or trigger AI processing
-    
-    // Get the chat to access the chat key for encryption and to increment messages_v
-    const chat = await chatDB.getChat(aiMessage.chat_id);
-    if (!chat) {
-        console.error(`[ChatSyncService:Senders] Chat ${aiMessage.chat_id} not found for AI response encryption`);
+
+    // CRITICAL: Prevent duplicate sends for the same message ID
+    if (serviceInstance.isMessageSyncing(aiMessage.message_id)) {
+        console.info(`[ChatSyncService:Senders] AI response ${aiMessage.message_id} is already being synced, skipping duplicate send.`);
         return;
     }
-    
-    // Increment messages_v for the AI response (client-side versioning, same as user messages)
-    const newMessagesV = (chat.messages_v || 1) + 1;
-    const newLastEdited = aiMessage.created_at;
-    
-    // Update chat in IndexedDB with new version
-    const updatedChat = {
-        ...chat,
-        messages_v: newMessagesV,
-        last_edited_overall_timestamp: newLastEdited,
-        updated_at: Math.floor(Date.now() / 1000)
-    };
+
+    // Mark as syncing
+    serviceInstance.markMessageSyncing(aiMessage.message_id);
     
     try {
+        // For completed AI responses, we send encrypted content + updated messages_v for Directus storage
+        // The server should NOT process this as a new message or trigger AI processing
+        
+        // Get the chat to access the chat key for encryption and to increment messages_v
+        const chat = await chatDB.getChat(aiMessage.chat_id);
+        if (!chat) {
+            console.error(`[ChatSyncService:Senders] Chat ${aiMessage.chat_id} not found for AI response encryption`);
+            serviceInstance.unmarkMessageSyncing(aiMessage.message_id);
+            return;
+        }
+        
+        // Increment messages_v for the AI response (client-side versioning, same as user messages)
+        const newMessagesV = (chat.messages_v || 1) + 1;
+        const newLastEdited = aiMessage.created_at;
+        
+        // Update chat in IndexedDB with new version
+        const updatedChat = {
+            ...chat,
+            messages_v: newMessagesV,
+            last_edited_overall_timestamp: newLastEdited,
+            updated_at: Math.floor(Date.now() / 1000)
+        };
+        
         await chatDB.addChat(updatedChat);
         console.debug(`[ChatSyncService:Senders] Incremented messages_v for chat ${chat.chat_id}: ${chat.messages_v} → ${newMessagesV}`);
-    } catch (error) {
-        console.error(`[ChatSyncService:Senders] Failed to update chat messages_v:`, error);
-        return;
-    }
-    
-    // Encrypt the completed AI response for storage
-    // CRITICAL FIX: await getEncryptedFields since it's now async to prevent storing Promises
-    const encryptedFields = await chatDB.getEncryptedFields(aiMessage, aiMessage.chat_id);
-    
-    // Create payload with encrypted content AND version info (like user messages)
-    const payload = { 
-        chat_id: aiMessage.chat_id, 
-        message: {
-            message_id: aiMessage.message_id,
-            chat_id: aiMessage.chat_id,
-            role: aiMessage.role, // 'assistant'
-            created_at: aiMessage.created_at,
-            status: aiMessage.status,
-            user_message_id: aiMessage.user_message_id,
-            // ONLY encrypted fields - no plaintext content
-            encrypted_content: encryptedFields.encrypted_content,
-            encrypted_category: encryptedFields.encrypted_category,
-            encrypted_model_name: encryptedFields.encrypted_model_name
-        },
-        // Version info for chat update (matches user message pattern)
-        versions: {
-            messages_v: newMessagesV,
-            last_edited_overall_timestamp: newLastEdited
-        }
-    };
-    
-    console.debug('[ChatSyncService:Senders] Sending completed AI response for Directus storage:', {
-        messageId: aiMessage.message_id,
-        chatId: aiMessage.chat_id,
-        hasEncryptedContent: !!encryptedFields.encrypted_content,
-        role: aiMessage.role,
-        newMessagesV: newMessagesV
-    });
-    
-    try {
+        
+        // Encrypt the completed AI response for storage
+        // CRITICAL FIX: await getEncryptedFields since it's now async to prevent storing Promises
+        const encryptedFields = await chatDB.getEncryptedFields(aiMessage, aiMessage.chat_id);
+        
+        // Create payload with encrypted content AND version info (like user messages)
+        const payload = { 
+            chat_id: aiMessage.chat_id, 
+            message: {
+                message_id: aiMessage.message_id,
+                chat_id: aiMessage.chat_id,
+                role: aiMessage.role, // 'assistant'
+                created_at: aiMessage.created_at,
+                status: aiMessage.status,
+                user_message_id: aiMessage.user_message_id,
+                // ONLY encrypted fields - no plaintext content
+                encrypted_content: encryptedFields.encrypted_content,
+                encrypted_category: encryptedFields.encrypted_category,
+                encrypted_model_name: encryptedFields.encrypted_model_name
+            },
+            // Version info for chat update (matches user message pattern)
+            versions: {
+                messages_v: newMessagesV,
+                last_edited_overall_timestamp: newLastEdited
+            }
+        };
+        
+        console.debug('[ChatSyncService:Senders] Sending completed AI response for Directus storage:', {
+            messageId: aiMessage.message_id,
+            chatId: aiMessage.chat_id,
+            hasEncryptedContent: !!encryptedFields.encrypted_content,
+            role: aiMessage.role,
+            newMessagesV: newMessagesV
+        });
+        
         // Use a different event type to avoid triggering AI processing
         await webSocketService.sendMessage('ai_response_completed', payload);
         
@@ -466,6 +471,8 @@ export async function sendCompletedAIResponseImpl(
         }));
     } catch (error) {
         console.error(`[ChatSyncService:Senders] Error sending completed AI response for message_id: ${aiMessage.message_id}:`, error);
+        // Ensure we unmark on error so it can be retried if needed
+        serviceInstance.unmarkMessageSyncing(aiMessage.message_id);
     }
 }
 
@@ -502,7 +509,7 @@ export async function sendSetActiveChatImpl(
     
     // Send to server via WebSocket (for cross-device sync and login scenarios)
     // Note: Server handles null chatId by not updating last_opened (per backend logic)
-    if (!(serviceInstance as any).webSocketConnected) {
+    if (!serviceInstance.webSocketConnected_FOR_SENDERS_ONLY) {
         console.warn("[ChatSyncService:Senders] WebSocket not connected. Cannot send 'set_active_chat'.");
         return;
     }
@@ -537,10 +544,10 @@ export async function sendAppSettingsMemoriesConfirmedImpl(
     appSettingsMemories: Array<{
         app_id: string;
         item_key: string;
-        content: any; // Decrypted content (will be JSON stringified by server)
+        content: unknown; // Decrypted content (will be JSON stringified by server)
     }>
 ): Promise<void> {
-    if (!(serviceInstance as any).webSocketConnected) {
+    if (!serviceInstance.webSocketConnected_FOR_SENDERS_ONLY) {
         console.warn("[ChatSyncService:Senders] WebSocket not connected. Cannot send 'app_settings_memories_confirmed'.");
         return;
     }
@@ -571,7 +578,7 @@ export async function sendCancelAiTaskImpl(
     serviceInstance: ChatSynchronizationService,
     taskId: string
 ): Promise<void> {
-    if (!(serviceInstance as any).webSocketConnected) {
+    if (!serviceInstance.webSocketConnected_FOR_SENDERS_ONLY) {
         notificationStore.error("Cannot cancel AI task: Not connected to server.");
         return;
     }
@@ -579,7 +586,7 @@ export async function sendCancelAiTaskImpl(
     const payload: CancelAITaskPayload = { task_id: taskId };
     try {
         await webSocketService.sendMessage('cancel_ai_task', payload);
-    } catch (error) {
+    } catch {
         notificationStore.error("Failed to send AI task cancellation request.");
     }
 }
@@ -593,9 +600,7 @@ export async function queueOfflineChangeImpl(
     notificationStore.info(`Change saved offline. Will sync when reconnected.`, 3000);
 }
 
-export async function sendOfflineChangesImpl(
-    serviceInstance: ChatSynchronizationService
-): Promise<void> {
+export async function sendOfflineChangesImpl(): Promise<void> {
     if (get(websocketStatus).status !== 'connected') {
         console.warn("[ChatSyncService:Senders] Cannot send offline changes, WebSocket not connected.");
         return;
@@ -624,7 +629,7 @@ export async function sendEncryptedStoragePackage(
         updated_chat?: Chat;  // Optional pre-fetched chat with updated versions
     }
 ): Promise<void> {
-    if (!(serviceInstance as any).webSocketConnected) {
+    if (!serviceInstance.webSocketConnected_FOR_SENDERS_ONLY) {
         console.warn("[ChatSyncService:Senders] Cannot send encrypted storage package, WebSocket not connected.");
         return;
     }
@@ -975,7 +980,7 @@ export async function sendUpdateChatKeyImpl(
         // Create payload for encrypted_chat_metadata handler
         // This handler accepts encrypted_chat_key and updates it in Directus
         // message_id is optional - we omit it since we're only updating metadata
-        const payload: any = {
+        const payload = {
             chat_id,
             encrypted_chat_key,
             // Include version info to preserve chat state

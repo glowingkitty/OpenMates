@@ -215,13 +215,6 @@ async def _async_persist_new_chat_message_task(
                 import json
                 cache_service = CacheService()
                 
-                # Get existing client-encrypted messages from Directus (if any)
-                # Zero-knowledge: keep encrypted with chat keys (decrypt_content=False)
-                existing_messages = await directus_service.chat.get_all_messages_for_chat(
-                    chat_id=chat_id, 
-                    decrypt_content=False  # Zero-knowledge: keep encrypted with chat keys
-                ) or []
-                
                 # Create the new message as a JSON string (matching Directus format)
                 new_message_dict = {
                     "id": message_id,
@@ -238,20 +231,17 @@ async def _async_persist_new_chat_message_task(
                     new_message_dict["encrypted_model_name"] = encrypted_model_name
                 new_message_json = json.dumps(new_message_dict)
                 
-                # Add the new message to the list (append to end for chronological order)
-                all_messages = existing_messages + [new_message_json]
-                
-                # Update sync cache with all messages (including the new one)
-                # This happens BEFORE Directus persistence - cache has priority!
-                await cache_service.set_sync_messages_history(
+                # ATOMIC CACHE UPDATE: Use append instead of read-modify-write
+                # This prevents race conditions where concurrent tasks overwrite each other
+                await cache_service.append_sync_message_to_history(
                     user_id=user_id, 
                     chat_id=chat_id, 
-                    encrypted_messages_json_list=all_messages, 
+                    encrypted_message_json=new_message_json, 
                     ttl=3600
                 )
                 logger.info(
-                    f"[SYNC_CACHE_UPDATE] ✅ Updated sync cache FIRST with {len(all_messages)} client-encrypted messages "
-                    f"(including new message {message_id}, role={role}) for chat {chat_id} (task_id: {task_id})"
+                    f"[SYNC_CACHE_UPDATE] ✅ Appended new message {message_id} (role={role}) to sync cache FIRST "
+                    f"for chat {chat_id} (task_id: {task_id})"
                 )
             except Exception as sync_cache_error:
                 # Non-critical error - sync cache will be populated during cache warming
@@ -808,25 +798,38 @@ async def _async_persist_ai_response_to_directus(
             # This ensures the AI response is available for sync after logout/login
             try:
                 from backend.core.api.app.services.cache import CacheService
+                import json
                 cache_service = CacheService()
                 
-                # Get all client-encrypted messages from Directus (including the AI response we just stored)
-                all_messages = await directus_service.chat.get_all_messages_for_chat(
-                    chat_id=chat_id, 
-                    decrypt_content=False  # Zero-knowledge: keep encrypted with chat keys
-                ) or []
+                # Create the message as a JSON string (matching Directus format)
+                # Use message_data which contains the AI response fields
+                new_message_dict = {
+                    "id": message_id,
+                    "chat_id": chat_id,
+                    "role": message_data.get("role", "assistant"),
+                    "encrypted_sender_name": message_data.get("encrypted_sender_name"),
+                    "encrypted_category": message_data.get("encrypted_category"),
+                    "encrypted_content": message_data.get("encrypted_content"),
+                    "created_at": message_data.get("created_at"),
+                    "status": "synced"
+                }
+                # Only include encrypted_model_name for assistant messages
+                if message_data.get("encrypted_model_name"):
+                    new_message_dict["encrypted_model_name"] = message_data.get("encrypted_model_name")
                 
-                # Update sync cache with all messages (including the new AI response)
-                await cache_service.set_sync_messages_history(
+                new_message_json = json.dumps(new_message_dict)
+                
+                # ATOMIC CACHE UPDATE: Use append instead of read-modify-write
+                # This prevents race conditions where concurrent tasks overwrite each other
+                await cache_service.append_sync_message_to_history(
                     user_id=user_id, 
                     chat_id=chat_id, 
-                    encrypted_messages_json_list=all_messages, 
+                    encrypted_message_json=new_message_json, 
                     ttl=3600
                 )
                 logger.info(
-                    f"[SYNC_CACHE_UPDATE] ✅ Updated sync cache with {len(all_messages)} messages "
-                    f"(including AI response {message_id}) for chat {chat_id} after AI response persistence "
-                    f"(task_id: {task_id})"
+                    f"[SYNC_CACHE_UPDATE] ✅ Appended AI response {message_id} to sync cache "
+                    f"for chat {chat_id} after persistence (task_id: {task_id})"
                 )
             except Exception as sync_cache_error:
                 # Non-critical error - sync cache will be populated during cache warming
@@ -995,17 +998,33 @@ async def _async_persist_encrypted_chat_metadata(
         if chat_metadata:
             # Chat exists - update with encrypted metadata
             logger.info(f"Chat {chat_id} exists, updating with encrypted metadata")
-            # Log if encrypted_chat_key is being updated
-            if "encrypted_chat_key" in encrypted_metadata:
-                eck = encrypted_metadata["encrypted_chat_key"]
-                if eck:
-                    logger.info(f"✅ Updating chat {chat_id} WITH encrypted_chat_key: {eck[:20]}... (length: {len(eck)})")
-                else:
-                    logger.warning(f"⚠️ Updating chat {chat_id} with EMPTY encrypted_chat_key")
+            
+            # OPTIMISTIC LOCKING: Don't downgrade versions or timestamps
+            current_messages_v = chat_metadata.get("messages_v", 0)
+            current_title_v = chat_metadata.get("title_v", 0)
+            
+            # Prepare update fields, excluding versions if they are not newer
+            update_fields = encrypted_metadata.copy()
+            
+            incoming_messages_v = update_fields.get("messages_v", 0)
+            if incoming_messages_v <= current_messages_v:
+                update_fields.pop("messages_v", None)
+                update_fields.pop("last_edited_overall_timestamp", None)
+                update_fields.pop("last_message_timestamp", None)
+                logger.debug(f"Skipping messages_v update for chat {chat_id}: incoming={incoming_messages_v}, current={current_messages_v}")
+            
+            incoming_title_v = update_fields.get("title_v", 0)
+            if incoming_title_v <= current_title_v:
+                update_fields.pop("title_v", None)
+                logger.debug(f"Skipping title_v update for chat {chat_id}: incoming={incoming_title_v}, current={current_title_v}")
+
+            if not update_fields:
+                logger.info(f"No fields need updating for chat {chat_id} (all versions current)")
+                return
 
             updated_chat = await directus_service.chat.update_chat_fields_in_directus(
                 chat_id=chat_id,
-                fields_to_update=encrypted_metadata
+                fields_to_update=update_fields
             )
 
             if updated_chat:

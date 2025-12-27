@@ -34,7 +34,7 @@ class ChatCacheMixin:
         """
         client = await self.client
         if not client:
-            logger.error(f"Redis client not available for set_new_chat_suggestions")
+            logger.error("Redis client not available for set_new_chat_suggestions")
             return False
         
         key = self._get_new_chat_suggestions_key(hashed_user_id)
@@ -61,7 +61,7 @@ class ChatCacheMixin:
         """
         client = await self.client
         if not client:
-            logger.error(f"Redis client not available for get_new_chat_suggestions")
+            logger.error("Redis client not available for get_new_chat_suggestions")
             return None
         
         key = self._get_new_chat_suggestions_key(hashed_user_id)
@@ -93,7 +93,7 @@ class ChatCacheMixin:
         """
         client = await self.client
         if not client:
-            logger.error(f"Redis client not available for delete_new_chat_suggestions")
+            logger.error("Redis client not available for delete_new_chat_suggestions")
             return False
         
         key = self._get_new_chat_suggestions_key(hashed_user_id)
@@ -117,7 +117,7 @@ class ChatCacheMixin:
         """Adds a chat_id to the sorted set, scored by its last_edited_overall_timestamp."""
         client = await self.client
         if not client:
-            logger.error(f"[REDIS_DEBUG] No Redis client available for add_chat_to_ids_versions")
+            logger.error("[REDIS_DEBUG] No Redis client available for add_chat_to_ids_versions")
             return False
         key = self._get_user_chat_ids_versions_key(user_id)
         try:
@@ -146,7 +146,8 @@ class ChatCacheMixin:
     async def remove_chat_from_ids_versions(self, user_id: str, chat_id: str) -> bool:
         """Removes a chat_id from the sorted set."""
         client = await self.client
-        if not client: return False
+        if not client:
+            return False
         key = self._get_user_chat_ids_versions_key(user_id)
         try:
             removed_count = await client.zrem(key, chat_id)
@@ -160,8 +161,8 @@ class ChatCacheMixin:
     ) -> Union[List[str], List[Tuple[str, float]]]:
         """Gets chat_ids from the sorted set, optionally with scores. Sorted by score descending (most recent first) by default."""
         client = await self.client
-        if not client: 
-            logger.error(f"[REDIS_DEBUG] No Redis client available for get_chat_ids_versions")
+        if not client:
+            logger.error("[REDIS_DEBUG] No Redis client available for get_chat_ids_versions")
             return []
         key = self._get_user_chat_ids_versions_key(user_id)
         logger.debug(f"[REDIS_DEBUG] Getting chat IDs from key: {key}, range: {start}-{end}, reverse: {reverse}")
@@ -226,7 +227,8 @@ class ChatCacheMixin:
     async def set_chat_versions(self, user_id: str, chat_id: str, versions: CachedChatVersions, ttl: Optional[int] = None) -> bool:
         """Sets the component versions for a chat."""
         client = await self.client
-        if not client: return False
+        if not client:
+            return False
         key = self._get_chat_versions_key(user_id, chat_id)
         data_to_set = versions.model_dump()
         final_ttl = ttl if ttl is not None else self.CHAT_VERSIONS_TTL
@@ -244,7 +246,8 @@ class ChatCacheMixin:
     async def get_chat_versions(self, user_id: str, chat_id: str) -> Optional[CachedChatVersions]:
         """Gets the component versions for a chat."""
         client = await self.client
-        if not client: return None
+        if not client:
+            return None
         key = self._get_chat_versions_key(user_id, chat_id)
         logger.debug(f"CACHE_OP: HGETALL for key '{key}'")
         try:
@@ -292,7 +295,8 @@ class ChatCacheMixin:
         The 'component' can be "messages_v", "title_v", or dynamic like f"user_draft_v:{specific_user_id}".
         """
         client = await self.client
-        if not client: return None
+        if not client:
+            return None
         key = self._get_chat_versions_key(user_id, chat_id)
         final_ttl = self.CHAT_VERSIONS_TTL
         try:
@@ -320,7 +324,8 @@ class ChatCacheMixin:
         The 'component' can be "messages_v", "title_v", or dynamic like f"user_draft_v:{specific_user_id}".
         """
         client = await self.client
-        if not client: return False
+        if not client:
+            return False
         key = self._get_chat_versions_key(user_id, chat_id)
         final_ttl = self.CHAT_VERSIONS_TTL
         try:
@@ -353,7 +358,8 @@ class ChatCacheMixin:
         Returns the new draft version or None on error.
         """
         client = await self.client
-        if not client: return None
+        if not client:
+            return None
 
         draft_key = self._get_user_chat_draft_key(user_id, chat_id)
         versions_key = self._get_chat_versions_key(user_id, chat_id)
@@ -410,7 +416,8 @@ class ChatCacheMixin:
         Sets TTL for the draft key.
         """
         client = await self.client
-        if not client: return False
+        if not client:
+            return False
         key = self._get_user_chat_draft_key(user_id, chat_id)
         try:
             payload = {"draft_v": draft_version}
@@ -434,7 +441,8 @@ class ChatCacheMixin:
         "null" string for encrypted_draft_md is converted back to None.
         """
         client = await self.client
-        if not client: return None
+        if not client:
+            return None
         key = self._get_user_chat_draft_key(user_id, chat_id)
         try:
             draft_data_bytes = await client.hgetall(key)
@@ -467,7 +475,8 @@ class ChatCacheMixin:
         Returns True if the key was deleted, False otherwise or on error.
         """
         client = await self.client
-        if not client: return False
+        if not client:
+            return False
         key = self._get_user_chat_draft_key(user_id, chat_id)
         try:
             deleted_count = await client.delete(key)
@@ -517,7 +526,8 @@ class ChatCacheMixin:
     async def set_chat_list_item_data(self, user_id: str, chat_id: str, data: CachedChatListItemData, ttl: Optional[int] = None) -> bool:
         """Sets the list item data for a chat."""
         client = await self.client
-        if not client: return False
+        if not client:
+            return False
         key = self._get_chat_list_item_data_key(user_id, chat_id)
         try:
             # Ensure draft_json is not part of the model_dump if CachedChatListItemData still has it
@@ -536,7 +546,8 @@ class ChatCacheMixin:
     async def get_chat_list_item_data(self, user_id: str, chat_id: str, refresh_ttl: bool = False) -> Optional[CachedChatListItemData]:
         """Gets the list item data for a chat. Optionally refreshes TTL on access."""
         client = await self.client
-        if not client: return None
+        if not client:
+            return None
         key = self._get_chat_list_item_data_key(user_id, chat_id)
         try:
             data_bytes = await client.hgetall(key)
@@ -566,7 +577,8 @@ class ChatCacheMixin:
         'draft_json' is no longer managed here.
         """
         client = await self.client
-        if not client: return False
+        if not client:
+            return False
         key = self._get_chat_list_item_data_key(user_id, chat_id)
         
         if field == "draft_json": # Should not be called for draft_json anymore
@@ -584,7 +596,8 @@ class ChatCacheMixin:
     async def increment_chat_list_item_unread_count(self, user_id: str, chat_id: str, increment_by: int = 1) -> Optional[int]:
         """Increments the unread_count for a chat. Refreshes TTL. Returns new count or None."""
         client = await self.client
-        if not client: return None
+        if not client:
+            return None
         key = self._get_chat_list_item_data_key(user_id, chat_id)
         try:
             new_count = await client.hincrby(key, "unread_count", increment_by)
@@ -597,7 +610,8 @@ class ChatCacheMixin:
     async def refresh_chat_list_item_data_ttl(self, user_id: str, chat_id: str) -> bool:
         """Refreshes the TTL for the chat's list_item_data key."""
         client = await self.client
-        if not client: return False
+        if not client:
+            return False
         key = self._get_chat_list_item_data_key(user_id, chat_id)
         try:
             return await client.expire(key, self.CHAT_LIST_ITEM_DATA_TTL)
@@ -633,7 +647,8 @@ class ChatCacheMixin:
     async def update_chat_scroll_position(self, user_id: str, chat_id: str, message_id: str) -> bool:
         """Updates the scroll position for a chat by storing the last visible message ID."""
         client = await self.client
-        if not client: return False
+        if not client:
+            return False
         key = self._get_chat_list_item_data_key(user_id, chat_id)
         try:
             await client.hset(key, "last_visible_message_id", message_id)
@@ -647,7 +662,8 @@ class ChatCacheMixin:
     async def update_chat_read_status(self, user_id: str, chat_id: str, unread_count: int) -> bool:
         """Updates the read status (unread count) for a chat."""
         client = await self.client
-        if not client: return False
+        if not client:
+            return False
         key = self._get_chat_list_item_data_key(user_id, chat_id)
         try:
             await client.hset(key, "unread_count", unread_count)
@@ -676,7 +692,8 @@ class ChatCacheMixin:
     async def add_message_to_chat_history(self, user_id: str, chat_id: str, encrypted_message_json: str, max_history_length: Optional[int] = None) -> bool:
         """Adds an encrypted message (JSON string) to the chat's history (prepends). Optionally trims list."""
         client = await self.client
-        if not client: return False
+        if not client:
+            return False
         key = self._get_chat_messages_key(user_id, chat_id)
         try:
             await client.lpush(key, encrypted_message_json)
@@ -691,7 +708,8 @@ class ChatCacheMixin:
     async def get_chat_messages_history(self, user_id: str, chat_id: str, start: int = 0, end: int = -1) -> List[str]:
         """Gets encrypted messages (JSON strings) from chat history. Returns newest first if LPUSHed."""
         client = await self.client
-        if not client: return []
+        if not client:
+            return []
         key = self._get_chat_messages_key(user_id, chat_id)
         try:
             messages_bytes = await client.lrange(key, start, end)
@@ -703,7 +721,8 @@ class ChatCacheMixin:
     async def set_chat_messages_history(self, user_id: str, chat_id: str, encrypted_messages_json_list: List[str], ttl: Optional[int] = None) -> bool:
         """Sets the entire message history for a chat. Overwrites existing history."""
         client = await self.client
-        if not client: return False
+        if not client:
+            return False
         key = self._get_chat_messages_key(user_id, chat_id)
         try:
             await client.delete(key)
@@ -718,7 +737,8 @@ class ChatCacheMixin:
     async def delete_chat_messages_history(self, user_id: str, chat_id: str) -> bool:
         """Deletes the message history for a specific chat."""
         client = await self.client
-        if not client: return False
+        if not client:
+            return False
         key = self._get_chat_messages_key(user_id, chat_id)
         try:
             deleted_count = await client.delete(key)
@@ -736,7 +756,8 @@ class ChatCacheMixin:
         Default TTL: 1 hour (cleared after successful sync).
         """
         client = await self.client
-        if not client: return False
+        if not client:
+            return False
         key = self._get_sync_messages_key(user_id, chat_id)
         try:
             await client.delete(key)
@@ -749,13 +770,60 @@ class ChatCacheMixin:
             logger.error(f"Error setting sync messages for {key}: {e}")
             return False
     
+    async def append_sync_message_to_history(self, user_id: str, chat_id: str, encrypted_message_json: str, ttl: int = 3600) -> bool:
+        """
+        Appends a single client-encrypted message to the sync cache (atomically-ish).
+        Used by persistence tasks to ensure messages are available for other devices.
+        
+        CRITICAL: Checks for duplicates by message ID before appending to prevent
+        double messages in client history after login.
+        """
+        client = await self.client
+        if not client:
+            return False
+        key = self._get_sync_messages_key(user_id, chat_id)
+        try:
+            # 1. Parse incoming message to get ID
+            import json
+            try:
+                new_msg = json.loads(encrypted_message_json)
+                new_msg_id = new_msg.get("id") or new_msg.get("message_id")
+            except Exception:
+                logger.error("Failed to parse encrypted_message_json for duplicate check")
+                new_msg_id = None
+
+            if new_msg_id:
+                # 2. Get existing history to check for duplicates
+                # Note: For small history (e.g. 100 msgs), LRANGE is fast enough
+                existing_msgs_bytes = await client.lrange(key, 0, -1)
+                for msg_bytes in existing_msgs_bytes:
+                    try:
+                        existing_msg = json.loads(msg_bytes.decode('utf-8'))
+                        existing_id = existing_msg.get("id") or existing_msg.get("message_id")
+                        if existing_id == new_msg_id:
+                            logger.info(f"[SYNC_CACHE] ⏭️ Message {new_msg_id} already in sync cache for chat {chat_id}, skipping duplicate append.")
+                            return True # Consider successful as it's already there
+                    except Exception:
+                        continue
+
+            # 3. Use RPUSH to append to the end of the list (chronological order)
+            await client.rpush(key, encrypted_message_json)
+            # Ensure TTL is refreshed or set if new
+            await client.expire(key, ttl)
+            logger.debug(f"Appended message {new_msg_id} to sync cache for chat {chat_id} (TTL: {ttl}s)")
+            return True
+        except Exception as e:
+            logger.error(f"Error appending sync message to {key}: {e}")
+            return False
+    
     async def get_sync_messages_history(self, user_id: str, chat_id: str, start: int = 0, end: int = -1) -> List[str]:
         """
         Gets client-encrypted messages (JSON strings) from sync cache.
         Used by Phase 1/2/3 sync handlers to send messages to client.
         """
         client = await self.client
-        if not client: return []
+        if not client:
+            return []
         key = self._get_sync_messages_key(user_id, chat_id)
         try:
             messages_bytes = await client.lrange(key, start, end)
@@ -769,7 +837,8 @@ class ChatCacheMixin:
     async def delete_sync_messages_history(self, user_id: str, chat_id: str) -> bool:
         """Deletes the sync message history for a specific chat."""
         client = await self.client
-        if not client: return False
+        if not client:
+            return False
         key = self._get_sync_messages_key(user_id, chat_id)
         try:
             deleted_count = await client.delete(key)
@@ -785,7 +854,8 @@ class ChatCacheMixin:
         Returns count of deleted keys.
         """
         client = await self.client
-        if not client: return 0
+        if not client:
+            return 0
         try:
             pattern = f"user:{user_id}:chat:*:messages:sync"
             cursor = 0
@@ -814,7 +884,8 @@ class ChatCacheMixin:
         Automatically limits to last 100 messages per chat.
         """
         client = await self.client
-        if not client: return False
+        if not client:
+            return False
         key = self._get_ai_messages_key(user_id, chat_id)
         try:
             await client.lpush(key, encrypted_message_json)
@@ -833,7 +904,8 @@ class ChatCacheMixin:
         Used by message_received_handler.py to build AI context.
         """
         client = await self.client
-        if not client: return []
+        if not client:
+            return []
         key = self._get_ai_messages_key(user_id, chat_id)
         try:
             messages_bytes = await client.lrange(key, start, end)
@@ -850,7 +922,8 @@ class ChatCacheMixin:
         Primarily used during AI inference cache warming (last 3 chats).
         """
         client = await self.client
-        if not client: return False
+        if not client:
+            return False
         key = self._get_ai_messages_key(user_id, chat_id)
         try:
             await client.delete(key)
@@ -968,7 +1041,7 @@ class ChatCacheMixin:
         """
         client = await self.client
         if not client:
-            logger.error(f"Redis client not available for set_active_ai_task")
+            logger.error("Redis client not available for set_active_ai_task")
             return False
         
         key = self._get_active_task_key(chat_id)
@@ -1040,7 +1113,7 @@ class ChatCacheMixin:
         """
         client = await self.client
         if not client:
-            logger.error(f"Redis client not available for queue_message")
+            logger.error("Redis client not available for queue_message")
             return False
         
         key = self._get_chat_queue_key(chat_id)

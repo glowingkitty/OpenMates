@@ -203,18 +203,27 @@ async def handle_encrypted_chat_metadata(
         logger.info(f"Confirmed encrypted metadata storage for chat {chat_id}")
         
         # CRITICAL: Broadcast encrypted_chat_metadata update to other devices
-        # This ensures that when a chat is hidden/unhidden on one device, other devices receive the update
-        # and can properly identify the chat as hidden/visible based on the new encrypted_chat_key
-        # Broadcast if encrypted_chat_key was provided (even if it's the only field being updated)
-        if encrypted_chat_key:
+        # This ensures that when a chat is hidden/unhidden, or when metadata (title, category, icon) is set
+        # on one device, other devices receive the update and keep their local state consistent.
+        # Broadcast if ANY metadata was updated
+        if chat_update_fields:
             broadcast_payload = {
                 "type": "encrypted_chat_metadata",
                 "payload": {
                     "chat_id": chat_id,
-                    "encrypted_chat_key": encrypted_chat_key,
                     "versions": versions if versions else {}
                 }
             }
+            # Add all updated fields to broadcast
+            if encrypted_chat_key:
+                broadcast_payload["payload"]["encrypted_chat_key"] = encrypted_chat_key
+            if encrypted_title:
+                broadcast_payload["payload"]["encrypted_title"] = encrypted_title
+            if encrypted_icon:
+                broadcast_payload["payload"]["encrypted_icon"] = encrypted_icon
+            if encrypted_chat_category:
+                broadcast_payload["payload"]["encrypted_category"] = encrypted_chat_category
+            
             try:
                 await manager.broadcast_to_user(
                     message=broadcast_payload,

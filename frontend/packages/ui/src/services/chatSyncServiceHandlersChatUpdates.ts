@@ -1,7 +1,6 @@
 // frontend/packages/ui/src/services/chatSyncServiceHandlersChatUpdates.ts
 import type { ChatSynchronizationService } from './chatSyncService';
 import { chatDB } from './db';
-import { decryptWithMasterKey } from './cryptoService';
 import { chatMetadataCache } from './chatMetadataCache';
 import { chatListCache } from './chatListCache';
 import type {
@@ -12,7 +11,7 @@ import type {
     ChatDeletedPayload,
     Message,
     Chat,
-    TiptapJSON
+    MessageRole
 } from '../types/chat';
 
 export async function handleChatTitleUpdatedImpl(
@@ -203,7 +202,17 @@ export async function handleDraftDeletedImpl(
  */
 export async function handleNewChatMessageImpl(
     serviceInstance: ChatSynchronizationService,
-    payload: any
+    payload: {
+        chat_id: string;
+        message_id: string;
+        content: string;
+        role?: string;
+        sender_name?: string;
+        created_at?: number;
+        messages_v?: number;
+        last_edited_overall_timestamp?: number;
+        encrypted_chat_key?: string;
+    }
 ): Promise<void> {
     console.info("[ChatSyncService:ChatUpdates] Received new_chat_message (user message from another device):", payload);
     
@@ -277,7 +286,7 @@ export async function handleNewChatMessageImpl(
         const newMessage: Message = {
             message_id: payload.message_id,
             chat_id: payload.chat_id,
-            role: payload.role || 'user',
+            role: (payload.role || 'user') as MessageRole,
             sender_name: payload.sender_name,
             content: payload.content, // This is plaintext from the broadcast
             created_at: payload.created_at || Math.floor(Date.now() / 1000),
@@ -346,18 +355,27 @@ export async function handleChatMessageReceivedImpl(
     // CRITICAL: For AI messages, send encrypted content back to server for Directus storage
     // This is part of the zero-knowledge architecture where the client encrypts and sends back
     // This handles the case where streaming events weren't processed (e.g., timing issues, component not ready)
-    if (incomingMessage.role === 'assistant') {
+    // FIX: Only send if status is NOT 'synced'. If it's already 'synced', the server already has it.
+    // This prevents duplicate 'ai_response_storage_confirmed' events and potential double messages.
+    if (incomingMessage.role === 'assistant' && incomingMessage.status !== 'synced') {
         try {
             console.debug('[ChatSyncService:ChatUpdates] Sending AI response to server for Directus storage:', {
                 messageId: incomingMessage.message_id,
                 chatId: incomingMessage.chat_id,
-                contentLength: incomingMessage.content?.length || 0
+                contentLength: incomingMessage.content?.length || 0,
+                status: incomingMessage.status
             });
             // Use type assertion to access the method
-            await (serviceInstance as any).sendCompletedAIResponse(incomingMessage);
+            await serviceInstance.sendCompletedAIResponse(incomingMessage);
         } catch (error) {
             console.error('[ChatSyncService:ChatUpdates] Error sending AI response to server:', error);
         }
+    } else if (incomingMessage.role === 'assistant') {
+        console.debug('[ChatSyncService:ChatUpdates] Skipping AI response storage - message already synced:', {
+            messageId: incomingMessage.message_id,
+            chatId: incomingMessage.chat_id,
+            status: incomingMessage.status
+        });
     }
 
     // CRITICAL FIX: Don't reuse a single transaction across multiple async operations
@@ -383,7 +401,7 @@ export async function handleChatMessageReceivedImpl(
             if (chat) {
                 isIncognitoChat = true;
             }
-        } catch (error) {
+        } catch {
             // Not an incognito chat, continue to check IndexedDB
         }
         
@@ -570,7 +588,13 @@ export async function handleChatDeletedImpl(
  */
 export async function handleChatMetadataForEncryptionImpl(
     serviceInstance: ChatSynchronizationService,
-    payload: any
+    payload: {
+        chat_id: string;
+        plaintext_title?: string;
+        plaintext_category?: string;
+        plaintext_icon?: string;
+        task_id?: string;
+    }
 ): Promise<void> {
     console.info("[ChatSyncService:ChatUpdates] Received chat_metadata_for_encryption:", payload);
     
@@ -688,9 +712,16 @@ export async function handleChatMetadataForEncryptionImpl(
  */
 export async function handleEncryptedChatMetadataImpl(
     serviceInstance: ChatSynchronizationService,
-    payload: { chat_id: string; encrypted_chat_key?: string; versions?: { messages_v?: number; title_v?: number; draft_v?: number } }
+    payload: { 
+        chat_id: string; 
+        encrypted_chat_key?: string; 
+        encrypted_title?: string;
+        encrypted_icon?: string;
+        encrypted_category?: string;
+        versions?: { messages_v?: number; title_v?: number; draft_v?: number } 
+    }
 ): Promise<void> {
-    console.info("[ChatSyncService:ChatUpdates] Received encrypted_chat_metadata:", payload);
+    console.info("[ChatSyncService:ChatUpdates] Received encrypted_chat_metadata (broadcast from other device):", payload);
     
     if (!payload || !payload.chat_id) {
         console.error("[ChatSyncService:ChatUpdates] Invalid payload in handleEncryptedChatMetadataImpl: missing chat_id", payload);
@@ -703,52 +734,75 @@ export async function handleEncryptedChatMetadataImpl(
         const chat = await chatDB.getChat(payload.chat_id, tx);
         
         if (!chat) {
-            console.warn(`[ChatSyncService:ChatUpdates] Chat ${payload.chat_id} not found for encrypted_chat_metadata update`);
+            console.warn(`[ChatSyncService:ChatUpdates] Chat ${payload.chat_id} not found for encrypted_chat_metadata update broadcast`);
             return;
         }
         
+        let changed = false;
+
         // Update encrypted_chat_key if provided
-        if (payload.encrypted_chat_key !== undefined) {
-            console.info(`[ChatSyncService:ChatUpdates] Updating encrypted_chat_key for chat ${payload.chat_id}`);
+        if (payload.encrypted_chat_key !== undefined && payload.encrypted_chat_key !== chat.encrypted_chat_key) {
+            console.info(`[ChatSyncService:ChatUpdates] Updating encrypted_chat_key for chat ${payload.chat_id} from broadcast`);
             
             // CRITICAL: Clear the cached chat key since it's now encrypted with a different secret
-            // The old key was encrypted with master_key, but the new one might be encrypted with combined_secret (hidden chat)
-            // or vice versa (unhiding). We need to clear the cache so it's re-decrypted with the correct method.
             chatDB.clearChatKey(payload.chat_id);
             
             // Update the encrypted_chat_key in the database
             chat.encrypted_chat_key = payload.encrypted_chat_key;
-            
-            // Update version info if provided
-            if (payload.versions) {
-                if (payload.versions.messages_v !== undefined) {
-                    chat.messages_v = payload.versions.messages_v;
-                }
-                if (payload.versions.title_v !== undefined) {
-                    chat.title_v = payload.versions.title_v;
-                }
-                if (payload.versions.draft_v !== undefined) {
-                    chat.draft_v = payload.versions.draft_v;
-                }
+            changed = true;
+        }
+
+        // Update other metadata fields from broadcast
+        if (payload.encrypted_title !== undefined && payload.encrypted_title !== chat.encrypted_title) {
+            chat.encrypted_title = payload.encrypted_title;
+            changed = true;
+        }
+        if (payload.encrypted_icon !== undefined && payload.encrypted_icon !== chat.encrypted_icon) {
+            chat.encrypted_icon = payload.encrypted_icon;
+            changed = true;
+        }
+        if (payload.encrypted_category !== undefined && payload.encrypted_category !== chat.encrypted_category) {
+            chat.encrypted_category = payload.encrypted_category;
+            changed = true;
+        }
+        
+        // Update version info if provided
+        if (payload.versions) {
+            if (payload.versions.messages_v !== undefined && payload.versions.messages_v > (chat.messages_v || 0)) {
+                chat.messages_v = payload.versions.messages_v;
+                changed = true;
             }
-            
+            if (payload.versions.title_v !== undefined && payload.versions.title_v > (chat.title_v || 0)) {
+                chat.title_v = payload.versions.title_v;
+                changed = true;
+            }
+            if (payload.versions.draft_v !== undefined && payload.versions.draft_v > (chat.draft_v || 0)) {
+                chat.draft_v = payload.versions.draft_v;
+                changed = true;
+            }
+        }
+        
+        if (changed) {
             chat.updated_at = Math.floor(Date.now() / 1000);
             await chatDB.updateChat(chat, tx);
-            
-            console.info(`[ChatSyncService:ChatUpdates] Successfully updated encrypted_chat_key for chat ${payload.chat_id}`);
+            console.info(`[ChatSyncService:ChatUpdates] Successfully updated metadata for chat ${payload.chat_id} from broadcast`);
+        } else {
+            console.debug(`[ChatSyncService:ChatUpdates] No changes needed for chat ${payload.chat_id} from broadcast`);
         }
         
         tx.oncomplete = async () => {
-            // Mark chat list cache as dirty to force refresh
-            // This ensures the chat is properly identified as hidden/visible based on the new encrypted_chat_key
-            chatListCache.markDirty();
-            
-            // Dispatch event to notify UI components (e.g., Chats.svelte) to refresh
-            if (typeof window !== 'undefined') {
-                window.dispatchEvent(new CustomEvent('chatHidden', { detail: { chat_id: payload.chat_id } }));
+            if (changed) {
+                // Mark chat list cache as dirty to force refresh
+                chatListCache.markDirty();
+                
+                // Dispatch event to notify UI components (e.g., Chats.svelte) to refresh
+                if (typeof window !== 'undefined') {
+                    window.dispatchEvent(new CustomEvent('chatHidden', { detail: { chat_id: payload.chat_id } }));
+                    window.dispatchEvent(new CustomEvent('chatUpdated', { detail: { chat_id: payload.chat_id, chat: chat } }));
+                }
+                
+                console.info(`[ChatSyncService:ChatUpdates] Chat list cache marked dirty and update events dispatched for ${payload.chat_id}`);
             }
-            
-            console.info(`[ChatSyncService:ChatUpdates] Chat list cache marked dirty after encrypted_chat_key update for ${payload.chat_id}`);
         };
         
     } catch (error) {

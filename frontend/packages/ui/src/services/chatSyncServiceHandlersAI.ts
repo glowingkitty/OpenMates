@@ -161,9 +161,9 @@ export function handleAIMessageUpdateImpl(
 
     if (payload.is_final_chunk) {
         console.log(`[ChatSyncService:AI] 🏁 FINAL CHUNK received (seq: ${payload.sequence}, total_length: ${contentLength} chars)`);
-        const taskInfo = (serviceInstance as any).activeAITasks.get(payload.chat_id);
+        const taskInfo = serviceInstance.activeAITasks.get(payload.chat_id);
         if (taskInfo && taskInfo.taskId === payload.task_id) {
-            (serviceInstance as any).activeAITasks.delete(payload.chat_id);
+            serviceInstance.activeAITasks.delete(payload.chat_id);
             // Clear typing status for this specific AI task
             aiTypingStore.clearTyping(payload.chat_id, payload.task_id);
             serviceInstance.dispatchEvent(new CustomEvent('aiTaskEnded', { detail: { chatId: payload.chat_id, taskId: payload.task_id, status: payload.interrupted_by_revocation ? 'cancelled' : (payload.interrupted_by_soft_limit ? 'timed_out' : 'completed') } }));
@@ -427,7 +427,7 @@ export async function handleAIBackgroundResponseCompletedImpl(
                     chatId: aiMessage.chat_id,
                     contentLength: aiMessage.content?.length || 0
                 });
-                await (serviceInstance as any).sendCompletedAIResponse(aiMessage);
+                await serviceInstance.sendCompletedAIResponse(aiMessage);
             } catch (error) {
                 console.error('[ChatSyncService:AI] Error sending completed background AI response to server:', error);
             }
@@ -873,6 +873,9 @@ export function handleAIResponseStorageConfirmedImpl(
 ): void {
     console.info("[ChatSyncService:AI] Received 'ai_response_storage_confirmed':", payload);
     
+    // Unmark message as syncing
+    serviceInstance.unmarkMessageSyncing(payload.message_id);
+    
     // Dispatch event to notify components that AI response storage is confirmed
     serviceInstance.dispatchEvent(new CustomEvent('aiResponseStorageConfirmed', { 
         detail: { 
@@ -894,6 +897,12 @@ export function handleEncryptedMetadataStoredImpl(
     payload: { chat_id: string; message_id: string; task_id?: string }
 ): void {
     console.debug(`[ChatSyncService:AI] Received 'encrypted_metadata_stored':`, payload);
+    
+    // Unmark message as syncing if message_id is provided
+    if (payload.message_id) {
+        serviceInstance.unmarkMessageSyncing(payload.message_id);
+    }
+    
     console.debug(`[ChatSyncService:AI] Encrypted metadata storage confirmed for chat ${payload.chat_id}`);
 }
 
