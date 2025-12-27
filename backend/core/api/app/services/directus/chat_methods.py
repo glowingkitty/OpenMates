@@ -283,7 +283,8 @@ class ChatMethods:
         """
         try:
             chat_id_val = message_data.get('chat_id')
-            message_id = message_data.get("id")
+            # Check both 'id' and 'message_id' for the client-side ID
+            message_id = message_data.get("id") or message_data.get("message_id")
             encrypted_content = message_data.get("encrypted_content")
             role = message_data.get("role", "user")
             

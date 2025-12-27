@@ -4,7 +4,7 @@ import json
 import hashlib # Import hashlib for hashing user_id
 import uuid
 import time # Import time for performance timing
-from typing import Dict, Any, Optional, Tuple, List
+from typing import Dict, Any, Optional, List
 from datetime import datetime, timezone
 import httpx
 
@@ -393,7 +393,7 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
         
         # Validate that client is NOT sending encrypted content (wrong handler)
         if message_payload_from_client.get("encrypted_content"):
-            logger.error(f"Client sent encrypted content to chat_message_added handler. This should go to encrypted_chat_metadata handler instead.")
+            logger.error("Client sent encrypted content to chat_message_added handler. This should go to encrypted_chat_metadata handler instead.")
             await manager.send_personal_message(
                 {"type": "error", "payload": {"message": "Encrypted content should be sent to encrypted_chat_metadata endpoint"}},
                 user_id,
@@ -401,7 +401,8 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             )
             return
         
-        logger.info(f"Processing cleartext message {message_id} for AI inference. No storage in this handler.")
+        logger.info(f"Processing cleartext message {message_id} for AI inference in chat {chat_id}. No storage in this handler.")
+        logger.info(f"DEBUG: content_plain length: {len(content_plain) if content_plain else 0}, chat_has_title: {chat_has_title_from_client}")
         
         # Process embeds if provided by client
         # Embeds are sent as cleartext (TOON-encoded) and will be encrypted server-side for cache
@@ -433,7 +434,7 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                     embed_ids = embed_data.get("embed_ids")  # For composite embeds
                     
                     if not embed_id or not embed_type or not embed_content:
-                        logger.warning(f"Invalid embed data from client: missing required fields")
+                        logger.warning("Invalid embed data from client: missing required fields")
                         continue
                     
                     # Encrypt embed content with vault key for server cache

@@ -605,7 +605,7 @@ export async function handleChatMetadataForEncryptionImpl(
     }
     
     try {
-        const { chat_id, plaintext_title, plaintext_category, task_id } = payload;
+        const { chat_id, plaintext_title, plaintext_category, plaintext_icon, task_id } = payload;
         
         // Get the current chat to access stored user message for encryption
         const chat = await chatDB.getChat(chat_id);
@@ -629,6 +629,7 @@ export async function handleChatMetadataForEncryptionImpl(
         console.info(`[ChatSyncService:ChatUpdates] Updating local chat with encrypted metadata for chat ${chat_id}:`, {
             hasTitle: !!plaintext_title,
             hasCategory: !!plaintext_category,
+            hasIcon: !!plaintext_icon,
             hasUserMessage: !!userMessage,
             taskId: task_id
         });
@@ -640,14 +641,20 @@ export async function handleChatMetadataForEncryptionImpl(
         // Import chat-specific encryption function
         const { encryptWithChatKey } = await import('./cryptoService');
         
-        // Encrypt title with chat-specific key for local storage
+        // Encrypt metadata with chat-specific key for local storage
         let encryptedTitle: string | null = null;
         if (plaintext_title) {
             encryptedTitle = await encryptWithChatKey(plaintext_title, chatKey);
-            if (!encryptedTitle) {
-                console.error(`[ChatSyncService:ChatUpdates] Failed to encrypt title for chat ${chat_id}`);
-                return;
-            }
+        }
+        
+        let encryptedIcon: string | null = null;
+        if (plaintext_icon) {
+            encryptedIcon = await encryptWithChatKey(plaintext_icon, chatKey);
+        }
+        
+        let encryptedCategory: string | null = null;
+        if (plaintext_category) {
+            encryptedCategory = await encryptWithChatKey(plaintext_category, chatKey);
         }
         
         // Update local chat with encrypted metadata
@@ -655,10 +662,18 @@ export async function handleChatMetadataForEncryptionImpl(
         try {
             const chatToUpdate = await chatDB.getChat(chat_id, tx);
             if (chatToUpdate) {
-                // Update chat with encrypted title
+                // Update chat with encrypted metadata
                 if (encryptedTitle) {
                     chatToUpdate.encrypted_title = encryptedTitle;
                     chatToUpdate.title_v = (chatToUpdate.title_v || 0) + 1; // Frontend increments title_v
+                }
+                
+                if (encryptedIcon) {
+                    chatToUpdate.encrypted_icon = encryptedIcon;
+                }
+                
+                if (encryptedCategory) {
+                    chatToUpdate.encrypted_category = encryptedCategory;
                 }
                 
                 // Update timestamps
@@ -693,6 +708,7 @@ export async function handleChatMetadataForEncryptionImpl(
                 chat_id,
                 plaintext_title,
                 plaintext_category,
+                plaintext_icon,
                 user_message: userMessage,
                 task_id
             }

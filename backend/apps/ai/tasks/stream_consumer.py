@@ -134,7 +134,8 @@ async def _update_chat_metadata(
     encryption_service: EncryptionService,
     user_vault_key_id: str,
     task_id: str,
-    log_prefix: str
+    log_prefix: str,
+    model_name: Optional[str] = None
 ) -> None:
     """Update chat metadata and save assistant response to cache.
     
@@ -150,20 +151,26 @@ async def _update_chat_metadata(
         user_vault_key_id: User's vault key ID for encryption
         task_id: The AI task ID (also the message ID for the assistant's response)
         log_prefix: Logging prefix for this task
+        model_name: The AI model name used for the response
     """
     chat_metadata = await directus_service.chat.get_chat_metadata(request_data.chat_id)
     if not chat_metadata:
         logger.error(f"{log_prefix} Failed to fetch chat metadata for {request_data.chat_id}.")
         return
         
-    new_messages_version = chat_metadata.get("messages_v", 0) + 1
+    current_messages_v = chat_metadata.get("messages_v", 0)
+    new_messages_version = current_messages_v + 1
     fields_to_update = {
         "messages_v": new_messages_version,
         "last_edited_overall_timestamp": timestamp,
         "last_message_timestamp": timestamp,
-        "last_mate_category": category
+        "last_mate_category": category,
+        "updated_at": int(time.time())
     }
     
+    # CRITICAL: Always use optimistic locking or at least ensure we don't downgrade
+    # Directus doesn't support "update if >" natively via simple API, but we can do our best
+    # by using the value we just read.
     success = await directus_service.chat.update_chat_fields_in_directus(
         request_data.chat_id, fields_to_update
     )
@@ -172,7 +179,7 @@ async def _update_chat_metadata(
         logger.error(f"{log_prefix} Failed to update chat metadata for {request_data.chat_id}.")
         return
         
-    logger.info(f"{log_prefix} Updated chat metadata: version {new_messages_version}, timestamp {timestamp}.")
+    logger.info(f"{log_prefix} Updated chat metadata: version {new_messages_version} (was {current_messages_v}), timestamp {timestamp}.")
     
     # Save assistant response to cache and publish events
     # This ensures follow-up messages include assistant responses in the history
@@ -181,7 +188,8 @@ async def _update_chat_metadata(
             request_data, task_id, category, timestamp,
             new_messages_version, cache_service, 
             encryption_service, user_vault_key_id,
-            content_markdown, log_prefix
+            content_markdown, log_prefix,
+            model_name=model_name
         )
 
 async def _save_to_cache_and_publish(
@@ -194,7 +202,8 @@ async def _save_to_cache_and_publish(
     encryption_service: EncryptionService,
     user_vault_key_id: str,
     content_markdown: str,
-    log_prefix: str
+    log_prefix: str,
+    model_name: Optional[str] = None
 ) -> None:
     """Save message to cache and publish persistence event.
     
@@ -209,6 +218,7 @@ async def _save_to_cache_and_publish(
         user_vault_key_id: User's vault key ID for encryption
         content_markdown: The response content as markdown (to be encrypted for cache)
         log_prefix: Logging prefix for this task
+        model_name: The AI model name used for the response
     """
     try:
         from backend.core.api.app.schemas.chat import MessageInCache
@@ -235,7 +245,8 @@ async def _save_to_cache_and_publish(
             sender_name=None,  # Assistant doesn't have a sender_name
             encrypted_content=encrypted_content_for_cache,  # Server-side encrypted content
             created_at=timestamp,
-            status="synced"
+            status="synced",
+            model_name=model_name  # Ensure model_name is in cache object if schema supports it
         )
         
         await cache_service.save_chat_message_and_update_versions(
@@ -261,6 +272,7 @@ async def _save_to_cache_and_publish(
                 "content": content_markdown,  # Send markdown content to client
                 "created_at": timestamp,
                 "status": "synced",
+                "model_name": model_name  # CRITICAL: Send model_name to client for encryption/storage
             },
             "versions": {"messages_v": messages_version},
             "last_edited_overall_timestamp": timestamp
@@ -523,7 +535,8 @@ async def _generate_fake_stream_for_simple_message(
                 encryption_service=encryption_service,
                 user_vault_key_id=user_vault_key_id,
                 task_id=task_id,
-                log_prefix=log_prefix
+                log_prefix=log_prefix,
+                model_name=None  # Model name not applicable for simple/error messages
             )
             logger.info(f"{log_prefix} Simple message response saved to cache for future follow-up context.")
         except Exception as e:
@@ -1514,7 +1527,8 @@ async def _consume_main_processing_stream(
                 encryption_service=encryption_service,
                 user_vault_key_id=user_vault_key_id,
                 task_id=task_id,
-                log_prefix=log_prefix
+                log_prefix=log_prefix,
+                model_name=stream_model_name
             )
             logger.info(
                 f"{log_prefix} Assistant response saved to AI cache for future follow-up context. "
