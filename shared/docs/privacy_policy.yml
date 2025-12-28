@@ -18,8 +18,8 @@ providers:
     provider_location: EU
     used_for:
       - IP address geolocation
-  mailjet:
-    privacy_policy: https://www.mailjet.com/privacy-policy
+  brevo:
+    privacy_policy: https://www.brevo.com/legal/privacypolicy
     provider_location: EU
     used_for:
       - email sending (transactional + newsletter)
