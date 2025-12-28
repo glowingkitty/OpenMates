@@ -3849,26 +3849,26 @@ report_issue.url_invalid:
   verified_by_human: []
 report_issue.email_label:
   context: Label for contact email input field
-  en: Contact Email (Optional)
-  de: Kontakt-E-Mail (Optional)
-  zh: 联系邮箱（可选）
-  es: Correo de contacto (Opcional)
-  fr: E-mail de contact (Optionnel)
-  pt: E-mail de contato (Opcional)
-  ru: Контактный e-mail (необязательно)
-  ja: 連絡先メール（オプション）
-  ko: 연락처 이메일 (선택사항)
-  it: Email di contatto (Opzionale)
-  tr: İletişim e-postası (İsteğe bağlı)
-  vi: Email liên hệ (Tùy chọn)
-  id: Email kontak (Opsional)
-  pl: E-mail kontaktowy (Opcjonalny)
-  nl: Contact e-mail (Optioneel)
-  ar: البريد الإلكتروني للاتصال (اختياري)
-  hi: संपर्क ईमेल (वैकल्पिक)
-  th: อีเมลติดต่อ (ไม่บังคับ)
-  cs: Kontaktní e-mail (Volitelné)
-  sv: Kontakt e-post (Valfritt)
+  en: Your Email Address (Optional)
+  de: Ihre E-Mail-Adresse (Optional)
+  zh: 您的邮箱地址（可选）
+  es: Tu dirección de correo (Opcional)
+  fr: Votre adresse e-mail (Optionnel)
+  pt: Seu endereço de e-mail (Opcional)
+  ru: Ваш адрес электронной почты (необязательно)
+  ja: あなたのメールアドレス（オプション）
+  ko: 귀하의 이메일 주소 (선택사항)
+  it: Il tuo indirizzo email (Opzionale)
+  tr: E-posta adresiniz (İsteğe bağlı)
+  vi: Địa chỉ email của bạn (Tùy chọn)
+  id: Alamat email Anda (Opsional)
+  pl: Twój adres e-mail (Opcjonalny)
+  nl: Uw e-mailadres (Optioneel)
+  ar: عنوان بريدك الإلكتروني (اختياري)
+  hi: आपका ईमेल पता (वैकल्पिक)
+  th: ที่อยู่อีเมลของคุณ (ไม่บังคับ)
+  cs: Vaše e-mailová adresa (Volitelné)
+  sv: Din e-postadress (Valfritt)
   verified_by_human: []
 report_issue.email_placeholder:
   context: Placeholder text for contact email input field
@@ -4079,26 +4079,26 @@ report_issue.device_info.privacy_label:
   verified_by_human: []
 report_issue.device_info.privacy_body:
   context: Privacy notice body text inside the device information notice
-  en: "This technical data is only used for debugging purposes to help resolve your issue. It is sent via Mailjet to our server admin and is not permanently stored on OpenMates servers. The data helps us understand technical context (browser compatibility, screen layout issues, touch vs desktop usage) to provide better support."
-  de: "Diese technischen Daten werden nur zu Debugging-Zwecken verwendet, um Ihr Problem zu lösen. Sie werden über Mailjet an unseren Serveradministrator gesendet und nicht dauerhaft auf OpenMates-Servern gespeichert. Die Daten helfen uns, den technischen Kontext (Browser-Kompatibilität, Bildschirmlayout-Probleme, Touch- vs. Desktop-Nutzung) zu verstehen, um besseren Support zu bieten."
-  zh: "这些技术数据仅用于调试目的，以帮助解决您的问题。它们通过Mailjet发送给我们的服务器管理员，不会永久存储在OpenMates服务器上。这些数据帮助我们了解技术背景（浏览器兼容性、屏幕布局问题、触摸与桌面使用）以提供更好的支持。"
-  es: "Estos datos técnicos solo se usan con fines de depuración para ayudar a resolver tu problema. Se envían a través de Mailjet a nuestro administrador del servidor y no se almacenan permanentemente en los servidores de OpenMates. Los datos nos ayudan a entender el contexto técnico (compatibilidad del navegador, problemas de diseño de pantalla, uso táctil vs escritorio) para brindar mejor soporte."
-  fr: "Ces données techniques ne sont utilisées qu'à des fins de débogage pour aider à résoudre votre problème. Elles sont envoyées via Mailjet à notre administrateur serveur et ne sont pas stockées de manière permanente sur les serveurs OpenMates. Les données nous aident à comprendre le contexte technique (compatibilité du navigateur, problèmes de mise en page d'écran, utilisation tactile vs bureau) pour fournir un meilleur support."
-  pt: "Estes dados técnicos são usados apenas para fins de depuração para ajudar a resolver seu problema. Eles são enviados via Mailjet para nosso administrador do servidor e não são armazenados permanentemente nos servidores OpenMates. Os dados nos ajudam a entender o contexto técnico (compatibilidade do navegador, problemas de layout de tela, uso tátil vs desktop) para fornecer melhor suporte."
-  ru: "Эти технические данные используются только в целях отладки для помощи в решении вашей проблемы. Они отправляются через Mailjet нашему администратору сервера и не хранятся постоянно на серверах OpenMates. Данные помогают нам понять технический контекст (совместимость браузера, проблемы с макетом экрана, использование сенсорного vs настольного) для предоставления лучшей поддержки."
-  ja: "これらの技術データは、お客様の問題解決を支援するためのデバッグ目的でのみ使用されます。Mailjetを通じてサーバー管理者に送信され、OpenMatesサーバーに永続的に保存されることはありません。このデータは、より良いサポートを提供するために技術的コンテキスト（ブラウザ互換性、画面レイアウトの問題、タッチ対デスクトップ使用）を理解するのに役立ちます。"
-  ko: "이 기술 데이터는 귀하의 문제를 해결하는 데 도움이 되는 디버깅 목적으로만 사용됩니다. Mailjet을 통해 서버 관리자에게 전송되며 OpenMates 서버에 영구적으로 저장되지 않습니다. 이 데이터는 더 나은 지원을 제공하기 위해 기술적 맥락(브라우저 호환성, 화면 레이아웃 문제, 터치 대 데스크톱 사용)을 이해하는 데 도움이 됩니다."
-  it: "Questi dati tecnici vengono utilizzati solo per scopi di debug per aiutare a risolvere il tuo problema. Vengono inviati tramite Mailjet al nostro amministratore del server e non sono archiviati permanentemente sui server OpenMates. I dati ci aiutano a comprendere il contesto tecnico (compatibilità del browser, problemi di layout dello schermo, uso touch vs desktop) per fornire un supporto migliore."
-  tr: "Bu teknik veriler yalnızca sorununuzu çözmemize yardımcı olmak için hata ayıklama amacıyla kullanılır. Mailjet aracılığıyla sunucu yöneticimize gönderilir ve OpenMates sunucularında kalıcı olarak saklanmaz. Veriler, daha iyi destek sağlamak için teknik bağlamı (tarayıcı uyumluluğu, ekran düzeni sorunları, dokunmatik vs masaüstü kullanımı) anlamamıza yardımcı olur."
-  vi: "Dữ liệu kỹ thuật này chỉ được sử dụng cho mục đích gỡ lỗi để giúp giải quyết vấn đề của bạn. Nó được gửi qua Mailjet tới quản trị viên máy chủ của chúng tôi và không được lưu trữ vĩnh viễn trên các máy chủ OpenMates. Dữ liệu giúp chúng tôi hiểu bối cảnh kỹ thuật (khả năng tương thích của trình duyệt, vấn đề bố cục màn hình, sử dụng cảm ứng so với máy tính để bàn) để cung cấp hỗ trợ tốt hơn."
-  id: "Data teknis ini hanya digunakan untuk tujuan debugging guna membantu menyelesaikan masalah Anda. Data dikirim melalui Mailjet ke admin server kami dan tidak disimpan secara permanen di server OpenMates. Data membantu kami memahami konteks teknis (kompatibilitas browser, masalah tata letak layar, penggunaan sentuh vs desktop) untuk memberikan dukungan yang lebih baik."
-  pl: "Te dane techniczne są używane wyłącznie w celach debugowania, aby pomóc rozwiązać Twój problem. Są wysyłane przez Mailjet do naszego administratora serwera i nie są trwale przechowywane na serwerach OpenMates. Dane pomagają nam zrozumieć kontekst techniczny (kompatybilność przeglądarki, problemy z układem ekranu, użycie dotykowe vs desktopowe), aby zapewnić lepsze wsparcie."
-  nl: "Deze technische gegevens worden alleen gebruikt voor debugging-doeleinden om uw probleem op te lossen. Ze worden via Mailjet verzonden naar onze serverbeheerder en niet permanent opgeslagen op OpenMates-servers. De gegevens helpen ons technische context te begrijpen (browsercompatibiliteit, schermindelingsproblemen, aanraak- vs desktopgebruik) om betere ondersteuning te bieden."
-  ar: "تُستخدم هذه البيانات التقنية فقط لأغراض التصحيح للمساعدة في حل مشكلتك. يتم إرسالها عبر Mailjet إلى مدير الخادم لدينا ولا يتم تخزينها بشكل دائم على خوادم OpenMates. تساعدنا البيانات في فهم السياق التقني (توافق المتصفح، مشاكل تخطيط الشاشة، الاستخدام اللمسي مقابل سطح المكتب) لتوفير دعم أفضل."
-  hi: "यह तकनीकी डेटा केवल आपकी समस्या को हल करने में मदद करने के लिए डिबगिंग उद्देश्यों के लिए उपयोग किया जाता है। यह Mailjet के माध्यम से हमारे सर्वर एडमिन को भेजा जाता है और OpenMates सर्वर पर स्थायी रूप से संग्रहीत नहीं किया जाता है। डेटा हमें तकनीकी संदर्भ (ब्राउज़र संगतता, स्क्रीन लेआउट समस्याएं, टच बनाम डेस्कटॉप उपयोग) समझने में मदद करता है ताकि बेहतर सहायता प्रदान की जा सके।"
-  th: "ข้อมูลเทคนิคนี้ใช้เฉพาะเพื่อการแก้ไขข้อบกพร่องเพื่อช่วยแก้ไขปัญหาของคุณ ข้อมูลจะถูกส่งผ่าน Mailjet ไปยังผู้ดูแลเซิร์ฟเวอร์ของเราและไม่ได้เก็บไว้อย่างถาวรบนเซิร์ฟเวอร์ OpenMates ข้อมูลช่วยให้เราเข้าใจบริบททางเทคนิค (ความเข้ากันได้ของเบราว์เซอร์ ปัญหาเลย์เอาต์หน้าจอ การใช้งานแบบสัมผัสเทียบกับเดสก์ท็อป) เพื่อให้การสนับสนุนที่ดีขึ้น"
-  cs: "Tato technická data se používají pouze pro účely ladění, aby pomohla vyřešit váš problém. Jsou odeslána prostřednictvím Mailjet našemu správci serveru a nejsou trvale uložena na serverech OpenMates. Data nám pomáhají pochopit technický kontext (kompatibilita prohlížeče, problémy s rozložením obrazovky, použití dotyku vs desktopu) pro poskytnutí lepší podpory."
-  sv: "Dessa tekniska data används endast för felsökningsändamål för att hjälpa till att lösa ditt problem. De skickas via Mailjet till vår serveradministratör och lagras inte permanent på OpenMates-servrar. Data hjälper oss att förstå teknisk kontext (webbläsarkompatibilitet, skärmlayoutproblem, touch- vs skrivbordsanvändning) för att ge bättre support."
+  en: "This technical data is only used for debugging purposes to help resolve your issue. It is sent via Brevo to our server admin and is not permanently stored on OpenMates servers. The data helps us understand technical context (browser compatibility, screen layout issues, touch vs desktop usage) to provide better support."
+  de: "Diese technischen Daten werden nur zu Debugging-Zwecken verwendet, um Ihr Problem zu lösen. Sie werden über Brevo an unseren Serveradministrator gesendet und nicht dauerhaft auf OpenMates-Servern gespeichert. Die Daten helfen uns, den technischen Kontext (Browser-Kompatibilität, Bildschirmlayout-Probleme, Touch- vs. Desktop-Nutzung) zu verstehen, um besseren Support zu bieten."
+  zh: "这些技术数据仅用于调试目的，以帮助解决您的问题。它们通过Brevo发送给我们的服务器管理员，不会永久存储在OpenMates服务器上。这些数据帮助我们了解技术背景（浏览器兼容性、屏幕布局问题、触摸与桌面使用）以提供更好的支持。"
+  es: "Estos datos técnicos solo se usan con fines de depuración para ayudar a resolver tu problema. Se envían a través de Brevo a nuestro administrador del servidor y no se almacenan permanentemente en los servidores de OpenMates. Los datos nos ayudan a entender el contexto técnico (compatibilidad del navegador, problemas de diseño de pantalla, uso táctil vs escritorio) para brindar mejor soporte."
+  fr: "Ces données techniques ne sont utilisées qu'à des fins de débogage pour aider à résoudre votre problème. Elles sont envoyées via Brevo à notre administrateur serveur et ne sont pas stockées de manière permanente sur les serveurs OpenMates. Les données nous aident à comprendre le contexte technique (compatibilité du navigateur, problèmes de mise en page d'écran, utilisation tactile vs bureau) pour fournir un meilleur support."
+  pt: "Estes dados técnicos são usados apenas para fins de depuração para ajudar a resolver seu problema. Eles são enviados via Brevo para nosso administrador do servidor e não são armazenados permanentemente nos servidores OpenMates. Os dados nos ajudam a entender o contexto técnico (compatibilidade do navegador, problemas de layout de tela, uso tátil vs desktop) para fornecer melhor suporte."
+  ru: "Эти технические данные используются только в целях отладки для помощи в решении вашей проблемы. Они отправляются через Brevo нашему администратору сервера и не хранятся постоянно на серверах OpenMates. Данные помогают нам понять технический контекст (совместимость браузера, проблемы с макетом экрана, использование сенсорного vs настольного) для предоставления лучшей поддержки."
+  ja: "これらの技術データは、お客様の問題解決を支援するためのデバッグ目的でのみ使用されます。Brevoを通じてサーバー管理者に送信され、OpenMatesサーバーに永続的に保存されることはありません。このデータは、より良いサポートを提供するために技術的コンテキスト（ブラウザ互換性、画面レイアウトの問題、タッチ対デスクトップ使用）を理解するのに役立ちます。"
+  ko: "이 기술 데이터는 귀하의 문제를 해결하는 데 도움이 되는 디버깅 목적으로만 사용됩니다. Brevo을 통해 서버 관리자에게 전송되며 OpenMates 서버에 영구적으로 저장되지 않습니다. 이 데이터는 더 나은 지원을 제공하기 위해 기술적 맥락(브라우저 호환성, 화면 레이아웃 문제, 터치 대 데스크톱 사용)을 이해하는 데 도움이 됩니다."
+  it: "Questi dati tecnici vengono utilizzati solo per scopi di debug per aiutare a risolvere il tuo problema. Vengono inviati tramite Brevo al nostro amministratore del server e non sono archiviati permanentemente sui server OpenMates. I dati ci aiutano a comprendere il contesto tecnico (compatibilità del browser, problemi di layout dello schermo, uso touch vs desktop) per fornire un supporto migliore."
+  tr: "Bu teknik veriler yalnızca sorununuzu çözmemize yardımcı olmak için hata ayıklama amacıyla kullanılır. Brevo aracılığıyla sunucu yöneticimize gönderilir ve OpenMates sunucularında kalıcı olarak saklanmaz. Veriler, daha iyi destek sağlamak için teknik bağlamı (tarayıcı uyumluluğu, ekran düzeni sorunları, dokunmatik vs masaüstü kullanımı) anlamamıza yardımcı olur."
+  vi: "Dữ liệu kỹ thuật này chỉ được sử dụng cho mục đích gỡ lỗi để giúp giải quyết vấn đề của bạn. Nó được gửi qua Brevo tới quản trị viên máy chủ của chúng tôi và không được lưu trữ vĩnh viễn trên các máy chủ OpenMates. Dữ liệu giúp chúng tôi hiểu bối cảnh kỹ thuật (khả năng tương thích của trình duyệt, vấn đề bố cục màn hình, sử dụng cảm ứng so với máy tính để bàn) để cung cấp hỗ trợ tốt hơn."
+  id: "Data teknis ini hanya digunakan untuk tujuan debugging guna membantu menyelesaikan masalah Anda. Data dikirim melalui Brevo ke admin server kami dan tidak disimpan secara permanen di server OpenMates. Data membantu kami memahami konteks teknis (kompatibilitas browser, masalah tata letak layar, penggunaan sentuh vs desktop) untuk memberikan dukungan yang lebih baik."
+  pl: "Te dane techniczne są używane wyłącznie w celach debugowania, aby pomóc rozwiązać Twój problem. Są wysyłane przez Brevo do naszego administratora serwera i nie są trwale przechowywane na serwerach OpenMates. Dane pomagają nam zrozumieć kontekst techniczny (kompatybilność przeglądarki, problemy z układem ekranu, użycie dotykowe vs desktopowe), aby zapewnić lepsze wsparcie."
+  nl: "Deze technische gegevens worden alleen gebruikt voor debugging-doeleinden om uw probleem op te lossen. Ze worden via Brevo verzonden naar onze serverbeheerder en niet permanent opgeslagen op OpenMates-servers. De gegevens helpen ons technische context te begrijpen (browsercompatibiliteit, schermindelingsproblemen, aanraak- vs desktopgebruik) om betere ondersteuning te bieden."
+  ar: "تُستخدم هذه البيانات التقنية فقط لأغراض التصحيح للمساعدة في حل مشكلتك. يتم إرسالها عبر Brevo إلى مدير الخادم لدينا ولا يتم تخزينها بشكل دائم على خوادم OpenMates. تساعدنا البيانات في فهم السياق التقني (توافق المتصفح، مشاكل تخطيط الشاشة، الاستخدام اللمسي مقابل سطح المكتب) لتوفير دعم أفضل."
+  hi: "यह तकनीकी डेटा केवल आपकी समस्या को हल करने में मदद करने के लिए डिबगिंग उद्देश्यों के लिए उपयोग किया जाता है। यह Brevo के माध्यम से हमारे सर्वर एडमिन को भेजा जाता है और OpenMates सर्वर पर स्थायी रूप से संग्रहीत नहीं किया जाता है। डेटा हमें तकनीकी संदर्भ (ब्राउज़र संगतता, स्क्रीन लेआउट समस्याएं, टच बनाम डेस्कटॉप उपयोग) समझने में मदद करता है ताकि बेहतर सहायता प्रदान की जा सके।"
+  th: "ข้อมูลเทคนิคนี้ใช้เฉพาะเพื่อการแก้ไขข้อบกพร่องเพื่อช่วยแก้ไขปัญหาของคุณ ข้อมูลจะถูกส่งผ่าน Brevo ไปยังผู้ดูแลเซิร์ฟเวอร์ของเราและไม่ได้เก็บไว้อย่างถาวรบนเซิร์ฟเวอร์ OpenMates ข้อมูลช่วยให้เราเข้าใจบริบททางเทคนิค (ความเข้ากันได้ของเบราว์เซอร์ ปัญหาเลย์เอาต์หน้าจอ การใช้งานแบบสัมผัสเทียบกับเดสก์ท็อป) เพื่อให้การสนับสนุนที่ดีขึ้น"
+  cs: "Tato technická data se používají pouze pro účely ladění, aby pomohla vyřešit váš problém. Jsou odeslána prostřednictvím Brevo našemu správci serveru a nejsou trvale uložena na serverech OpenMates. Data nám pomáhají pochopit technický kontext (kompatibilita prohlížeče, problémy s rozložením obrazovky, použití dotyku vs desktopu) pro poskytnutí lepší podpory."
+  sv: "Dessa tekniska data används endast för felsökningsändamål för att hjälpa till att lösa ditt problem. De skickas via Brevo till vår serveradministratör och lagras inte permanent på OpenMates-servrar. Data hjälper oss att förstå teknisk kontext (webbläsarkompatibilitet, skärmlayoutproblem, touch- vs skrivbordsanvändning) för att ge bättre support."
   verified_by_human: []
 report_issue.signal_reminder:
   context: Reminder text about Signal group for discussions or screenshots

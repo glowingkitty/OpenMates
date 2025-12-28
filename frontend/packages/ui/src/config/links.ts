@@ -107,13 +107,18 @@ export const privacyPolicyLinks = {
     vercel: 'https://vercel.com/legal/privacy-policy',
     hetzner: 'https://www.hetzner.com/legal/privacy-policy',
     ipApi: 'https://members.ip-api.com/privacy-policy',
-    mailjet: 'https://www.mailjet.com/privacy-policy',
+    brevo: 'https://www.brevo.com/legal/privacypolicy',
     sightengine: 'https://sightengine.com/policies/privacy',
     stripe: 'https://stripe.com/privacy',
     mistral: 'https://mistral.ai/privacy-policy',
     aws: 'https://aws.amazon.com/privacy/',
     openrouter: 'https://openrouter.ai/privacy',
     cerebras: 'https://www.cerebras.ai/privacy-policy',
+    brave: 'https://brave.com/privacy/',
+    webshare: 'https://www.webshare.io/privacy-policy',
+    google: 'https://policies.google.com/privacy',
+    firecrawl: 'https://www.firecrawl.dev/privacy-policy',
+    groq: 'https://groq.com/privacy-policy',
     discord: 'https://discord.com/privacy'
 } as const;
 

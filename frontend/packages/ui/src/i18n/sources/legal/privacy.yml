@@ -389,74 +389,74 @@ ip_api.privacy_policy_link:
   cs: Zásady ochrany osobních údajů IP-API
   sv: IP-API:s integritetspolicy
   verified_by_human: []
-mailjet.heading:
-  context: Section heading for Mailjet service
-  en: 3.3 Mailjet (Email Services)
-  de: 3.3 Mailjet (E-Mail-Dienste)
-  zh: 3.3 Mailjet（电子邮件服务）
-  es: 3.3 Mailjet (Servicios de Correo Electrónico)
-  fr: 3.3 Mailjet (Services de messagerie)
-  pt: 3.3 Mailjet (Serviços de E-mail)
-  ru: 3.3 Mailjet (Службы электронной почты)
-  ja: 3.3 Mailjet（メールサービス）
-  ko: 3.3 Mailjet(이메일 서비스)
-  it: 3.3 Mailjet (Servizi Email)
-  tr: 3.3 Mailjet (E-posta Hizmetleri)
-  vi: 3.3 Mailjet (Dịch vụ Email)
-  id: 3.3 Mailjet (Layanan Email)
-  pl: 3.3 Mailjet (Usługi E-mail)
-  nl: 3.3 Mailjet (E-maildiensten)
-  ar: 3.3 Mailjet (خدمات البريد الإلكتروني)
-  hi: 3.3 Mailjet (ईमेल सेवाएं)
-  th: 3.3 Mailjet (บริการอีเมล)
-  cs: 3.3 Mailjet (E-mailové služby)
-  sv: 3.3 Mailjet (E-posttjänster)
+brevo.heading:
+  context: Section heading for Brevo service
+  en: 3.3 Brevo (Email Services)
+  de: 3.3 Brevo (E-Mail-Dienste)
+  zh: 3.3 Brevo（电子邮件服务）
+  es: 3.3 Brevo (Servicios de Correo Electrónico)
+  fr: 3.3 Brevo (Services de messagerie)
+  pt: 3.3 Brevo (Serviços de E-mail)
+  ru: 3.3 Brevo (Службы электронной почты)
+  ja: 3.3 Brevo（メールサービス）
+  ko: 3.3 Brevo(이메일 서비스)
+  it: 3.3 Brevo (Servizi Email)
+  tr: 3.3 Brevo (E-posta Hizmetleri)
+  vi: 3.3 Brevo (Dịch vụ Email)
+  id: 3.3 Brevo (Layanan Email)
+  pl: 3.3 Brevo (Usługi E-mail)
+  nl: 3.3 Brevo (E-maildiensten)
+  ar: 3.3 Brevo (خدمات البريد الإلكتروني)
+  hi: 3.3 Brevo (ईमेल सेवाएं)
+  th: 3.3 Brevo (บริการอีเมล)
+  cs: 3.3 Brevo (E-mailové služby)
+  sv: 3.3 Brevo (E-posttjänster)
   verified_by_human: []
-mailjet.description:
-  context: Description of Mailjet service
-  en: We use Mailjet (EU company) to send emails. This includes account-related transactional emails (e.g., account verification, security alerts) and, if you subscribe, newsletter emails. Your email address and the email content are shared with Mailjet for delivery.
-  de: Wir verwenden Mailjet (EU-Unternehmen) zum Versenden von E-Mails. Dazu gehören transaktionale E-Mails rund um dein Konto (z. B. Kontoverifizierung, Sicherheitswarnungen) sowie – falls du dich anmeldest – Newsletter-E-Mails. Deine E-Mail-Adresse und der Inhalt der E-Mail werden zum Versand an Mailjet übermittelt.
-  zh: 我们使用 Mailjet（欧盟公司）发送电子邮件。这包括与账户相关的交易邮件（例如账户验证、安全警报）以及（如果你订阅）新闻通讯邮件。为实现投递，你的电子邮件地址和邮件内容会被提供给 Mailjet。
-  es: Utilizamos Mailjet (empresa de la UE) para enviar correos electrónicos. Esto incluye correos transaccionales relacionados con la cuenta (p. ej., verificación de cuenta, alertas de seguridad) y, si te suscribes, correos del boletín. Tu dirección de correo electrónico y el contenido del correo se comparten con Mailjet para su entrega.
-  fr: Nous utilisons Mailjet (entreprise de l'UE) pour envoyer des e-mails. Cela inclut des e-mails transactionnels liés au compte (p. ex. vérification de compte, alertes de sécurité) et, si vous vous abonnez, des e-mails de newsletter. Votre adresse e-mail et le contenu de l'e-mail sont partagés avec Mailjet pour la délivrance.
-  pt: Usamos a Mailjet (empresa da UE) para enviar e-mails. Isso inclui e-mails transacionais relacionados à conta (por exemplo, verificação de conta, alertas de segurança) e, se você assinar, e-mails de newsletter. Seu endereço de e-mail e o conteúdo do e-mail são compartilhados com a Mailjet para entrega.
-  ru: Мы используем Mailjet (компания ЕС) для отправки электронной почты. Это включает транзакционные письма, связанные с аккаунтом (например, подтверждение аккаунта, предупреждения безопасности), а также, если вы подписались, письма рассылки. Ваш адрес электронной почты и содержимое письма передаются Mailjet для доставки.
-  ja: 当社はメール送信にMailjet（EU企業）を利用しています。これにはアカウントに関するトランザクションメール（例：アカウント確認、セキュリティアラート）および（購読した場合）ニュースレターのメールが含まれます。配信のため、お客様のメールアドレスとメール内容はMailjetに共有されます。
-  ko: '당사는 이메일 발송을 위해 Mailjet(EU 회사)을 사용합니다. 여기에는 계정 관련 트랜잭션 이메일(예: 계정 확인, 보안 경고)과, 구독한 경우 뉴스레터 이메일이 포함됩니다. 발송을 위해 귀하의 이메일 주소와 이메일 내용이 Mailjet과 공유됩니다.'
-  it: Utilizziamo Mailjet (azienda UE) per inviare e-mail. Ciò include e-mail transazionali relative all'account (ad es. verifica dell'account, avvisi di sicurezza) e, se ti iscrivi, e-mail della newsletter. Il tuo indirizzo e-mail e il contenuto dell'e-mail vengono condivisi con Mailjet per la consegna.
-  tr: E-posta göndermek için Mailjet'i (AB şirketi) kullanıyoruz. Buna hesapla ilgili işlem e-postaları (ör. hesap doğrulama, güvenlik uyarıları) ve abone olmanız halinde bülten e-postaları dahildir. Teslimat için e-posta adresiniz ve e-posta içeriği Mailjet ile paylaşılır.
-  vi: 'Chúng tôi sử dụng Mailjet (công ty EU) để gửi email. Điều này bao gồm email giao dịch liên quan đến tài khoản (ví dụ: xác minh tài khoản, cảnh báo bảo mật) và, nếu bạn đăng ký, email bản tin. Địa chỉ email và nội dung email của bạn được chia sẻ với Mailjet để phục vụ việc gửi.'
-  id: Kami menggunakan Mailjet (perusahaan UE) untuk mengirim email. Ini mencakup email transaksional terkait akun (misalnya verifikasi akun, peringatan keamanan) dan, jika Anda berlangganan, email newsletter. Alamat email Anda dan konten email dibagikan kepada Mailjet untuk pengiriman.
-  pl: Używamy Mailjet (firma z UE) do wysyłania e-maili. Obejmuje to transakcyjne e-maile związane z kontem (np. weryfikacja konta, alerty bezpieczeństwa) oraz — jeśli się zapiszesz — e-maile newslettera. Twój adres e-mail i treść wiadomości są przekazywane do Mailjet w celu dostarczenia.
-  nl: We gebruiken Mailjet (EU-bedrijf) om e-mails te verzenden. Dit omvat transactionele e-mails die met je account te maken hebben (bijv. accountverificatie, beveiligingswaarschuwingen) en, als je je abonneert, nieuwsbrief-e-mails. Je e-mailadres en de inhoud van de e-mail worden gedeeld met Mailjet voor bezorging.
-  ar: نستخدم Mailjet (شركة في الاتحاد الأوروبي) لإرسال رسائل البريد الإلكتروني. يشمل ذلك رسائل البريد الإلكتروني المعاملاتية المتعلقة بالحساب (مثل التحقق من الحساب وتنبيهات الأمان) وكذلك رسائل النشرة البريدية إذا اشتركت. تتم مشاركة عنوان بريدك الإلكتروني ومحتوى الرسالة مع Mailjet لأغراض الإرسال.
-  hi: हम ईमेल भेजने के लिए Mailjet (EU कंपनी) का उपयोग करते हैं। इसमें खाते से संबंधित लेनदेन ईमेल (जैसे खाता सत्यापन, सुरक्षा अलर्ट) और, यदि आप सदस्यता लेते हैं, न्यूज़लेटर ईमेल शामिल हैं। डिलीवरी के लिए आपका ईमेल पता और ईमेल की सामग्री Mailjet के साथ साझा की जाती है।
-  th: เราใช้ Mailjet (บริษัทในสหภาพยุโรป) เพื่อส่งอีเมล ซึ่งรวมถึงอีเมลธุรกรรมที่เกี่ยวข้องกับบัญชี (เช่น การยืนยันบัญชี การแจ้งเตือนด้านความปลอดภัย) และหากคุณสมัครรับข่าวสาร อีเมลจดหมายข่าวด้วย เพื่อการจัดส่ง เราจะแชร์ที่อยู่อีเมลและเนื้อหาอีเมลของคุณกับ Mailjet
-  cs: Používáme Mailjet (společnost v EU) k odesílání e-mailů. To zahrnuje transakční e-maily související s účtem (např. ověření účtu, bezpečnostní upozornění) a také newsletterové e-maily, pokud se přihlásíte k odběru. Vaše e-mailová adresa a obsah e-mailu jsou pro doručení sdíleny se službou Mailjet.
-  sv: Vi använder Mailjet (EU-företag) för att skicka e-post. Detta inkluderar transaktionsmejl kopplade till kontot (t.ex. kontoverifiering, säkerhetsvarningar) och, om du prenumererar, nyhetsbrevsmejl. Din e-postadress och e-postens innehåll delas med Mailjet för leverans.
+brevo.description:
+  context: Description of Brevo service
+  en: We use Brevo (EU company) to send emails. This includes account-related transactional emails (e.g., account verification, security alerts) and, if you subscribe, newsletter emails. Your email address and the email content are shared with Brevo for delivery.
+  de: Wir verwenden Brevo (EU-Unternehmen) zum Versenden von E-Mails. Dazu gehören transaktionale E-Mails rund um dein Konto (z. B. Kontoverifizierung, Sicherheitswarnungen) sowie – falls du dich anmeldest – Newsletter-E-Mails. Deine E-Mail-Adresse und der Inhalt der E-Mail werden zum Versand an Brevo übermittelt.
+  zh: 我们使用 Brevo（欧盟公司）发送电子邮件。这包括与账户相关的交易邮件（例如账户验证、安全警报）以及（如果你订阅）新闻通讯邮件。为实现投递，你的电子邮件地址和邮件内容会被提供给 Brevo。
+  es: Utilizamos Brevo (empresa de la UE) para enviar correos electrónicos. Esto incluye correos transaccionales relacionados con la cuenta (p. ej., verificación de cuenta, alertas de seguridad) y, si te suscribes, correos del boletín. Tu dirección de correo electrónico y el contenido del correo se comparten con Brevo para su entrega.
+  fr: Nous utilisons Brevo (entreprise de l'UE) pour envoyer des e-mails. Cela inclut des e-mails transactionnels liés au compte (p. ex. vérification de compte, alertes de sécurité) et, si vous vous abonnez, des e-mails de newsletter. Votre adresse e-mail et le contenu de l'e-mail sont partagés avec Brevo pour la délivrance.
+  pt: Usamos a Brevo (empresa da UE) para enviar e-mails. Isso inclui e-mails transacionais relacionados à conta (por exemplo, verificação de conta, alertas de segurança) e, se você assinar, e-mails de newsletter. Seu endereço de e-mail e o conteúdo do e-mail são compartilhados com a Brevo para entrega.
+  ru: Мы используем Brevo (компания ЕС) для отправки электронной почты. Это включает транзакционные письма, связанные с аккаунтом (например, подтверждение аккаунта, предупреждения безопасности), а также, если вы подписались, письма рассылки. Ваш адрес электронной почты и содержимое письма передаются Brevo для доставки.
+  ja: 当社はメール送信にBrevo（EU企業）を利用しています。これにはアカウントに関するトランザクションメール（例：アカウント確認、セキュリティアラート）および（購読した場合）ニュースレターのメールが含まれます。配信のため、お客様のメールアドレスとメール内容はBrevoに共有されます。
+  ko: '당사는 이메일 발송을 위해 Brevo(EU 회사)을 사용합니다. 여기에는 계정 관련 트랜잭션 이메일(예: 계정 확인, 보안 경고)과, 구독한 경우 뉴스레터 이메일이 포함됩니다. 발송을 위해 귀하의 이메일 주소와 이메일 내용이 Brevo과 공유됩니다.'
+  it: Utilizziamo Brevo (azienda UE) per inviare e-mail. Ciò include e-mail transazionali relative all'account (ad es. verifica dell'account, avvisi di sicurezza) e, se ti iscrivi, e-mail della newsletter. Il tuo indirizzo e-mail e il contenuto dell'e-mail vengono condivisi con Brevo per la consegna.
+  tr: E-posta göndermek için Brevo'yu (AB şirketi) kullanıyoruz. Buna hesapla ilgili işlem e-postaları (ör. hesap doğrulama, güvenlik uyarıları) ve abone olmanız halinde bülten e-postaları dahildir. Teslimat için e-posta adresiniz ve e-posta içeriği Brevo ile paylaşılır.
+  vi: 'Chúng tôi sử dụng Brevo (công ty EU) để gửi email. Điều này bao gồm email giao dịch liên quan đến tài khoản (ví dụ: xác minh tài khoản, cảnh báo bảo mật) và, nếu bạn đăng ký, email bản tin. Địa chỉ email và nội dung email của bạn được chia sẻ với Brevo để phục vụ việc gửi.'
+  id: Kami menggunakan Brevo (perusahaan UE) untuk mengirim email. Ini mencakup email transaksional terkait akun (misalnya verifikasi akun, peringatan keamanan) dan, jika Anda berlangganan, email newsletter. Alamat email Anda dan konten email dibagikan kepada Brevo untuk pengiriman.
+  pl: Używamy Brevo (firma z UE) do wysyłania e-maili. Obejmuje to transakcyjne e-maile związane z kontem (np. weryfikacja konta, alerty bezpieczeństwa) oraz — jeśli się zapiszesz — e-maile newslettera. Twój adres e-mail i treść wiadomości są przekazywane do Brevo w celu dostarczenia.
+  nl: We gebruiken Brevo (EU-bedrijf) om e-mails te verzenden. Dit omvat transactionele e-mails die met je account te maken hebben (bijv. accountverificatie, beveiligingswaarschuwingen) en, als je je abonneert, nieuwsbrief-e-mails. Je e-mailadres en de inhoud van de e-mail worden gedeeld met Brevo voor bezorging.
+  ar: نستخدم Brevo (شركة في الاتحاد الأوروبي) لإرسال رسائل البريد الإلكتروني. يشمل ذلك رسائل البريد الإلكتروني المعاملاتية المتعلقة بالحساب (مثل التحقق من الحساب وتنبيهات الأمان) وكذلك رسائل النشرة البريدية إذا اشتركت. تتم مشاركة عنوان بريدك الإلكتروني ومحتوى الرسالة مع Brevo لأغراض الإرسال.
+  hi: हम ईमेल भेजने के लिए Brevo (EU कंपनी) का उपयोग करते हैं। इसमें खाते से संबंधित लेनदेन ईमेल (जैसे खाता सत्यापन, सुरक्षा अलर्ट) और, यदि आप सदस्यता लेते हैं, न्यूज़लेटर ईमेल शामिल हैं। डिलीवरी के लिए आपका ईमेल पता और ईमेल की सामग्री Brevo के साथ साझा की जाती है।
+  th: เราใช้ Brevo (บริษัทในสหภาพยุโรป) เพื่อส่งอีเมล ซึ่งรวมถึงอีเมลธุรกรรมที่เกี่ยวข้องกับบัญชี (เช่น การยืนยันบัญชี การแจ้งเตือนด้านความปลอดภัย) และหากคุณสมัครรับข่าวสาร อีเมลจดหมายข่าวด้วย เพื่อการจัดส่ง เราจะแชร์ที่อยู่อีเมลและเนื้อหาอีเมลของคุณกับ Brevo
+  cs: Používáme Brevo (společnost v EU) k odesílání e-mailů. To zahrnuje transakční e-maily související s účtem (např. ověření účtu, bezpečnostní upozornění) a také newsletterové e-maily, pokud se přihlásíte k odběru. Vaše e-mailová adresa a obsah e-mailu jsou pro doručení sdíleny se službou Brevo.
+  sv: Vi använder Brevo (EU-företag) för att skicka e-post. Detta inkluderar transaktionsmejl kopplade till kontot (t.ex. kontoverifiering, säkerhetsvarningar) och, om du prenumerar, nyhetsbrevsmejl. Din e-postadress och e-postens innehåll delas med Brevo för leverans.
   verified_by_human: []
-mailjet.privacy_policy_link:
-  context: Link text for Mailjet's privacy policy
-  en: Mailjet Privacy Policy
-  de: Mailjet Datenschutzerklärung
-  zh: Mailjet 隐私政策
-  es: Política de privacidad de Mailjet
-  fr: Politique de confidentialité de Mailjet
-  pt: Política de Privacidade do Mailjet
-  ru: Политика конфиденциальности Mailjet
-  ja: Mailjetプライバシーポリシー
-  ko: Mailjet 개인정보 보호정책
-  it: Informativa sulla Privacy di Mailjet
-  tr: Mailjet Gizlilik Politikası
-  vi: Chính sách Bảo mật của Mailjet
-  id: Kebijakan Privasi Mailjet
-  pl: Polityka Prywatności Mailjet
-  nl: Privacybeleid van Mailjet
-  ar: سياسة خصوصية Mailjet
-  hi: Mailjet गोपनीयता नीति
-  th: นโยบายความเป็นส่วนตัวของ Mailjet
-  cs: Zásady ochrany osobních údajů Mailjet
-  sv: Mailjets integritetspolicy
+brevo.privacy_policy_link:
+  context: Link text for Brevo's privacy policy
+  en: Brevo Privacy Policy
+  de: Brevo Datenschutzerklärung
+  zh: Brevo 隐私政策
+  es: Política de privacidad de Brevo
+  fr: Politique de confidentialité de Brevo
+  pt: Política de Privacidade do Brevo
+  ru: Политика конфиденциальности Brevo
+  ja: Brevoプライバシーポリシー
+  ko: Brevo 개인정보 보호정책
+  it: Informativa sulla Privacy di Brevo
+  tr: Brevo Gizlilik Politikası
+  vi: Chính sách Bảo mật của Brevo
+  id: Kebijakan Privasi Brevo
+  pl: Polityka Prywatności Brevo
+  nl: Privacybeleid van Brevo
+  ar: سياسة خصوصية Brevo
+  hi: Brevo गोपनीयता नीति
+  th: นโยบายความเป็นส่วนตัวของ Brevo
+  cs: Zásady ochrany osobních údajů Brevo
+  sv: Brevos integritetspolicy
   verified_by_human: []
 sightengine.heading:
   context: Section heading for Sightengine service
