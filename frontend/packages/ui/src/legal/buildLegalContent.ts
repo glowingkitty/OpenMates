@@ -39,7 +39,7 @@ export function buildPrivacyPolicyContent(t: TranslationFunction): string {
 	lines.push('');
 	lines.push(t('legal.privacy.vercel.description.text'));
 	lines.push('');
-	lines.push(`<a href="${privacyPolicyLinks.vercel}" target="_blank" rel="noopener noreferrer">${t('legal.privacy.vercel.privacy_policy_link.text')}</a>`);
+	lines.push(`${t('legal.privacy.vercel.privacy_policy_link.text')}: ${privacyPolicyLinks.vercel}`);
 	lines.push('');
 
 	// Section 3: Web Application Services
@@ -53,7 +53,7 @@ export function buildPrivacyPolicyContent(t: TranslationFunction): string {
 	lines.push('');
 	lines.push(t('legal.privacy.hetzner.description.text'));
 	lines.push('');
-	lines.push(`<a href="${privacyPolicyLinks.hetzner}" target="_blank" rel="noopener noreferrer">${t('legal.privacy.hetzner.privacy_policy_link.text')}</a>`);
+	lines.push(`${t('legal.privacy.hetzner.privacy_policy_link.text')}: ${privacyPolicyLinks.hetzner}`);
 	lines.push('');
 
 	// Section 3.2: IP-API
@@ -61,7 +61,7 @@ export function buildPrivacyPolicyContent(t: TranslationFunction): string {
 	lines.push('');
 	lines.push(t('legal.privacy.ip_api.description.text'));
 	lines.push('');
-	lines.push(`<a href="${privacyPolicyLinks.ipApi}" target="_blank" rel="noopener noreferrer">${t('legal.privacy.ip_api.privacy_policy_link.text')}</a>`);
+	lines.push(`${t('legal.privacy.ip_api.privacy_policy_link.text')}: ${privacyPolicyLinks.ipApi}`);
 	lines.push('');
 
 	// Section 3.3: Brevo
@@ -69,7 +69,7 @@ export function buildPrivacyPolicyContent(t: TranslationFunction): string {
 	lines.push('');
 	lines.push(t('legal.privacy.brevo.description.text'));
 	lines.push('');
-	lines.push(`<a href="${privacyPolicyLinks.brevo}" target="_blank" rel="noopener noreferrer">${t('legal.privacy.brevo.privacy_policy_link.text')}</a>`);
+	lines.push(`${t('legal.privacy.brevo.privacy_policy_link.text')}: ${privacyPolicyLinks.brevo}`);
 	lines.push('');
 
 	// Section 3.4: Sightengine
@@ -77,7 +77,7 @@ export function buildPrivacyPolicyContent(t: TranslationFunction): string {
 	lines.push('');
 	lines.push(t('legal.privacy.sightengine.description.text'));
 	lines.push('');
-	lines.push(`<a href="${privacyPolicyLinks.sightengine}" target="_blank" rel="noopener noreferrer">${t('legal.privacy.sightengine.privacy_policy_link.text')}</a>`);
+	lines.push(`${t('legal.privacy.sightengine.privacy_policy_link.text')}: ${privacyPolicyLinks.sightengine}`);
 	lines.push('');
 
 	// Section 3.5: Stripe
@@ -85,7 +85,7 @@ export function buildPrivacyPolicyContent(t: TranslationFunction): string {
 	lines.push('');
 	lines.push(t('legal.privacy.stripe.description.text'));
 	lines.push('');
-	lines.push(`<a href="${privacyPolicyLinks.stripe}" target="_blank" rel="noopener noreferrer">${t('legal.privacy.stripe.privacy_policy_link.text')}</a>`);
+	lines.push(`${t('legal.privacy.stripe.privacy_policy_link.text')}: ${privacyPolicyLinks.stripe}`);
 	lines.push('');
 
 	// Section 3.6: Mistral
@@ -93,7 +93,7 @@ export function buildPrivacyPolicyContent(t: TranslationFunction): string {
 	lines.push('');
 	lines.push(t('legal.privacy.mistral.description.text'));
 	lines.push('');
-	lines.push(`<a href="${privacyPolicyLinks.mistral}" target="_blank" rel="noopener noreferrer">${t('legal.privacy.mistral.privacy_policy_link.text')}</a>`);
+	lines.push(`${t('legal.privacy.mistral.privacy_policy_link.text')}: ${privacyPolicyLinks.mistral}`);
 	lines.push('');
 
 	// Section 3.7: AWS
@@ -101,7 +101,7 @@ export function buildPrivacyPolicyContent(t: TranslationFunction): string {
 	lines.push('');
 	lines.push(t('legal.privacy.aws.description.text'));
 	lines.push('');
-	lines.push(`<a href="${privacyPolicyLinks.aws}" target="_blank" rel="noopener noreferrer">${t('legal.privacy.aws.privacy_policy_link.text')}</a>`);
+	lines.push(`${t('legal.privacy.aws.privacy_policy_link.text')}: ${privacyPolicyLinks.aws}`);
 	lines.push('');
 
 	// Section 3.8: OpenRouter
@@ -109,7 +109,7 @@ export function buildPrivacyPolicyContent(t: TranslationFunction): string {
 	lines.push('');
 	lines.push(t('legal.privacy.openrouter.description.text'));
 	lines.push('');
-	lines.push(`<a href="${privacyPolicyLinks.openrouter}" target="_blank" rel="noopener noreferrer">${t('legal.privacy.openrouter.privacy_policy_link.text')}</a>`);
+	lines.push(`${t('legal.privacy.openrouter.privacy_policy_link.text')}: ${privacyPolicyLinks.openrouter}`);
 	lines.push('');
 
 	// Section 3.9: Cerebras
@@ -117,7 +117,7 @@ export function buildPrivacyPolicyContent(t: TranslationFunction): string {
 	lines.push('');
 	lines.push(t('legal.privacy.cerebras.description.text'));
 	lines.push('');
-	lines.push(`<a href="${privacyPolicyLinks.cerebras}" target="_blank" rel="noopener noreferrer">${t('legal.privacy.cerebras.privacy_policy_link.text')}</a>`);
+	lines.push(`${t('legal.privacy.cerebras.privacy_policy_link.text')}: ${privacyPolicyLinks.cerebras}`);
 	lines.push('');
 
 	// Section 3.10: Brave Search
@@ -125,7 +125,7 @@ export function buildPrivacyPolicyContent(t: TranslationFunction): string {
 	lines.push('');
 	lines.push(t('legal.privacy.brave.description.text'));
 	lines.push('');
-	lines.push(`<a href="${privacyPolicyLinks.brave}" target="_blank" rel="noopener noreferrer">${t('legal.privacy.brave.privacy_policy_link.text')}</a>`);
+	lines.push(`${t('legal.privacy.brave.privacy_policy_link.text')}: ${privacyPolicyLinks.brave}`);
 	lines.push('');
 
 	// Section 3.11: Webshare
@@ -133,7 +133,7 @@ export function buildPrivacyPolicyContent(t: TranslationFunction): string {
 	lines.push('');
 	lines.push(t('legal.privacy.webshare.description.text'));
 	lines.push('');
-	lines.push(`<a href="${privacyPolicyLinks.webshare}" target="_blank" rel="noopener noreferrer">${t('legal.privacy.webshare.privacy_policy_link.text')}</a>`);
+	lines.push(`${t('legal.privacy.webshare.privacy_policy_link.text')}: ${privacyPolicyLinks.webshare}`);
 	lines.push('');
 
 	// Section 3.12: Google
@@ -141,7 +141,7 @@ export function buildPrivacyPolicyContent(t: TranslationFunction): string {
 	lines.push('');
 	lines.push(t('legal.privacy.google.description.text'));
 	lines.push('');
-	lines.push(`<a href="${privacyPolicyLinks.google}" target="_blank" rel="noopener noreferrer">${t('legal.privacy.google.privacy_policy_link.text')}</a>`);
+	lines.push(`${t('legal.privacy.google.privacy_policy_link.text')}: ${privacyPolicyLinks.google}`);
 	lines.push('');
 
 	// Section 3.13: Firecrawl
@@ -149,7 +149,7 @@ export function buildPrivacyPolicyContent(t: TranslationFunction): string {
 	lines.push('');
 	lines.push(t('legal.privacy.firecrawl.description.text'));
 	lines.push('');
-	lines.push(`<a href="${privacyPolicyLinks.firecrawl}" target="_blank" rel="noopener noreferrer">${t('legal.privacy.firecrawl.privacy_policy_link.text')}</a>`);
+	lines.push(`${t('legal.privacy.firecrawl.privacy_policy_link.text')}: ${privacyPolicyLinks.firecrawl}`);
 	lines.push('');
 
 	// Section 3.14: Groq
@@ -157,7 +157,7 @@ export function buildPrivacyPolicyContent(t: TranslationFunction): string {
 	lines.push('');
 	lines.push(t('legal.privacy.groq.description.text'));
 	lines.push('');
-	lines.push(`<a href="${privacyPolicyLinks.groq}" target="_blank" rel="noopener noreferrer">${t('legal.privacy.groq.privacy_policy_link.text')}</a>`);
+	lines.push(`${t('legal.privacy.groq.privacy_policy_link.text')}: ${privacyPolicyLinks.groq}`);
 	lines.push('');
 
 	// Section 4: Security Measures
@@ -243,7 +243,7 @@ export function buildPrivacyPolicyContent(t: TranslationFunction): string {
 	lines.push('');
 	lines.push(t('legal.privacy.discord_integration.admin_access.text'));
 	lines.push('');
-	lines.push(`<a href="${privacyPolicyLinks.discord}" target="_blank" rel="noopener noreferrer">${t('legal.privacy.discord_integration.privacy_policy_link.text')}</a>`);
+	lines.push(`${t('legal.privacy.discord_integration.privacy_policy_link.text')}: ${privacyPolicyLinks.discord}`);
 	lines.push('');
 
 	// Section 10: Contact

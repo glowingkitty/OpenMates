@@ -1,21 +1,21 @@
 # OpenMates™
 
-[![OpenMates header image](./docs/images/openmates_header.png)](https://openmates.org)
+[![OpenMates header image](./docs/slides/openmates_pitch_slides/intro.jpg)](https://openmates.org)
 
 ## What is OpenMates?
 
-OpenMates™ aims to become an open source alternative to ChatGPT, Claude, Manus, etc. - focused on the best user experience, fulfilling your tasks using a wide range of apps, privacy & encryption by default and compatibility with a wide range of AI models - making it also independent of specific companies. Currently in an early alpha stage online. The perfect time for you to join in on the development with your feedback & contributions.
+OpenMates™ aims to become an open source alternative to ChatGPT, Claude, Manus, etc. - focused on the best user experience, fulfilling your tasks using a wide range of apps, zero-knowledge encryption by default and compatibility with a wide range of AI models - making it also independent of specific companies. Currently in an alpha stage online. The perfect time for you to join in on the development with your feedback & contributions.
 
 
 [Click to show project overview slides PDF](./docs/slides/openmates_overview_slides.pdf)
 
-> *The following documentation (as well as the code) are still in an early alpha stage. Keep in mind the current release of OpenMates is for developers and early testers only and many features are still missing.*
+> *The following documentation (as well as the code) are still in an early alpha stage. Keep in mind the current release of OpenMates is for developers and early testers only and some features are still missing.*
 
 ### Goal
 
 ![Goal header image](./docs/slides/openmates_pitch_slides/goal.jpg)
 
-OpenMates aims to be the most user-friendly, privacy-focused and provider-independent AI agent software. With the goal to be the super app for most daily tasks for average users - combining the ease of use of chat based interactions with optimized user interfaces for various media & tasks.
+OpenMates aims to be the most user-friendly, privacy-focused and provider-independent AI agent software. Beyond being a powerful tool for daily tasks, it is designed with a strong focus on **education and inspiration** — empowering users to learn and discover new ideas through interactive AI assistance.
 
 #### Apps
 
@@ -29,29 +29,27 @@ Apps are one of the core components of OpenMates. They allow your digital team m
 
 ![Completed header image](./docs/slides/openmates_pitch_slides/completed.jpg)
 
-An early [alpha release of OpenMates without Apps](https://openmates.org) is available. And while there is still a lot of work to do, some core features are implemented and ready to allow enthusiastic early testers to test the web app and provide feedback. And a more stable and feature rich release is planned to be ready within 2025.
+The [alpha release of OpenMates](https://openmates.org) is available and includes core features like:
+- **Apps & AI Agents**: Fulfill tasks using a wide range of integrated apps (Web search, Videos, Maps, News, etc.)
+- **Zero-Knowledge Encryption**: Privacy by default with client-side encryption for all your chats and data.
+- **Unified UI**: A modern interface that seamlessly integrates media previews and app skill details.
+- **Educational Support**: Auto-generated follow-up questions and new chat suggestions to help you explore topics more deeply.
+- **Auto AI Model Selection**: Automatically routes your requests to the best-suited AI model based on complexity.
+- **Developer API**: OpenAI-compatible REST API for external integrations and CLI tools.
+
+A more stable and feature-rich beta release is planned for 2026.
 
 ### What's next
 
 ![What's next header image](./docs/slides/openmates_pitch_slides/whats_next.jpg)
 
-As you can see based on the [docs](./docs/architecture/README.md) and [issues](https://github.com/glowingkitty/OpenMates/issues) pages, there is a lot of work to do. But these are the next core features that will be implemented next:
+While many core features are implemented, we are continuously improving OpenMates. Our next focus areas include:
 
-- unified UI to show media & app skill use details (work in progress)
-    - [docs/architecture/message_parsing.md](./docs/architecture/message_parsing.md)
-    - [docs/architecture/message_input_field.md](./docs/architecture/message_input_field.md)
-- Apps - the core of useful AI agents
-    - [docs/architecture/apps/README.md](./docs/architecture/apps/README.md)
-    - [docs/architecture/apps/app_skills.md](./docs/architecture/apps/app_skills.md)
-    - [docs/architecture/apps/app_settings_and_memories.md](./docs/architecture/apps/app_settings_and_memories.md)
-    - [docs/architecture/apps/videos.md](./docs/architecture/apps/videos.md)
-    - [docs/architecture/apps/web.md](./docs/architecture/apps/web.md)
-- auto select the best AI model for the task
-    - [docs/architecture/message_processing.md](./docs/architecture/message_processing.md#pre-processing)
-    - [docs/architecture/ai_model_selection.md](./docs/architecture/ai_model_selection.md)
-- separate docs page
-- CLI & API for developers
-
+- **Daily Inspirations**: Personalized daily prompts and insights to keep you learning and inspired.
+- **CLI & REST API**: Implementing a powerful CLI tool and improving the developer REST API.
+- **Expanded App Ecosystem**: Adding more specialized apps and deeper integrations.
+- **Improved AI Model Selection**: Refining the automated process for selecting the best-suited AI model based on task complexity.
+- **Separate documentation page**: A dedicated, searchable documentation site.
 
 ### How to contribute
 
@@ -165,9 +163,9 @@ Once the initial setup is complete, you can start the services. For a typical de
 For development, you typically want to restart the backend services (excluding the webapp container, since you're running the frontend with `pnpm dev` for hot-reloading) and start the frontend separately.
 
 **Restart backend services (for development):**
-This command stops all services, rebuilds all backend services (excluding webapp), and starts them again. The webapp container is excluded since you'll run the frontend with `pnpm dev` for better development experience.
+This command stops all services, rebuilds all backend services, and starts them again.
 ```bash
-docker compose --env-file .env -f backend/core/docker-compose.yml -f backend/core/docker-compose.override.yml down && docker volume rm openmates-cache-data && docker compose --env-file .env -f backend/core/docker-compose.yml -f backend/core/docker-compose.override.yml build api cms cms-database cms-setup task-worker task-scheduler app-ai app-web app-videos app-news app-maps app-ai-worker app-web-worker cache vault vault-setup prometheus cadvisor loki promtail grafana && docker compose --env-file .env -f backend/core/docker-compose.yml -f backend/core/docker-compose.override.yml up -d --scale webapp=0
+docker compose --env-file .env -f backend/core/docker-compose.yml -f backend/core/docker-compose.override.yml down && docker volume rm openmates-cache-data && docker compose --env-file .env -f backend/core/docker-compose.yml -f backend/core/docker-compose.override.yml build && docker compose --env-file .env -f backend/core/docker-compose.yml -f backend/core/docker-compose.override.yml up -d
 ```
 
 **Start the frontend (for development):**
@@ -241,7 +239,7 @@ A great UX & UI design that makes OpenMates accessible to everyone and not just 
 
 [![Architecture header image](./docs/images/architecture_header.png)](./docs/architecture/README.md)
 
-OpenMates is a web app, which is built with a privacy focus, separation of concerns, easy setup and scalability in mind. The code is currently still a bit of a work-in-progress mess. I am working on it.
+OpenMates is a web app built with a focus on privacy, separation of concerns, easy setup, and scalability. While the codebase is continuously being refined, it follows a modular architecture designed for high extensibility.
 
 [Show architecture](./docs/architecture/README.md)
 

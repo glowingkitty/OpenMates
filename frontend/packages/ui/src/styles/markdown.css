@@ -1,5 +1,8 @@
 /* Markdown Styles for ReadOnlyMessage */
 
+/* Import KaTeX CSS for math formula rendering */
+@import 'katex/dist/katex.min.css';
+
 /* Typography */
 .markdown-heading {
   font-weight: 600;
@@ -228,9 +231,6 @@
 .markdown-table-row:nth-child(even) .markdown-table-cell {
   background-color: var(--color-background-tertiary, #f8f9fa);
 }
-
-/* Import KaTeX CSS for math formula rendering */
-@import 'katex/dist/katex.min.css';
 
 /* Mathematics */
 .markdown-math {
