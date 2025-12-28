@@ -147,7 +147,7 @@
     // Filter out payment steps and email confirmation if self-hosted (use isSelfHosted from request-based validation)
     // This is more accurate than paymentEnabled alone, as paymentEnabled can be true for localhost in dev mode
     // But since backend now ensures payment_enabled = false when is_self_hosted = true, both work
-    // Email confirmation is also skipped in self-hosted mode since Mailjet is not required
+    // Email confirmation is also skipped in self-hosted mode since Brevo is not required
     const fullStepSequence = $derived(
         !isSelfHosted 
             ? fullStepSequenceBase 
