@@ -8,7 +8,6 @@ to the server owner/admin email address.
 
 import logging
 import asyncio
-import os
 from typing import Optional
 
 # Import the Celery app and Base Task
@@ -181,12 +180,14 @@ async def _async_send_issue_report_email(
         yaml_content_b64 = base64.b64encode(yaml_content.encode('utf-8')).decode('utf-8')
 
         # Create single consolidated attachment
+        # Note: Using .txt extension instead of .yml because Brevo API does not support .yml files
+        # The content is still valid YAML format, just with .txt extension for email compatibility
         attachments.append({
-            'filename': f'issue_report_{timestamp.replace(" ", "_").replace(":", "-")}.yml',
+            'filename': f'issue_report_{timestamp.replace(" ", "_").replace(":", "-")}.txt',
             'content': yaml_content_b64
         })
 
-        logger.info("Created consolidated YAML attachment for issue report with all logs and metadata")
+        logger.info("Created consolidated YAML attachment (as .txt) for issue report with all logs and metadata")
 
         # Process contact email if provided
         contact_email_formatted = contact_email if contact_email else "Not provided"
