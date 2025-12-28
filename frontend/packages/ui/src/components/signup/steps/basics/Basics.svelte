@@ -936,6 +936,13 @@
             </div>
 
             <div class="agreement-row">
+                <Toggle bind:checked={subscribeToNewsletter} id="newsletter-subscribe-toggle" />
+                <label for="newsletter-subscribe-toggle" class="agreement-text">
+                    {@html $text('signup.subscribe_to_newsletter.text')}
+                </label>
+            </div>
+
+            <div class="agreement-row">
                 <Toggle bind:checked={termsAgreed} id="terms-agreed-toggle" />
                 <label for="terms-agreed-toggle" class="agreement-text">
                     {$text('signup.agree_to.text')} 
@@ -952,13 +959,6 @@
                     <a href={getWebsiteUrl(externalLinks.legal.privacyPolicy)} target="_blank" rel="noopener noreferrer">
                         <mark>{@html $text('signup.privacy_policy.text')}</mark>
                     </a>
-                </label>
-            </div>
-
-            <div class="agreement-row">
-                <Toggle bind:checked={subscribeToNewsletter} id="newsletter-subscribe-toggle" />
-                <label for="newsletter-subscribe-toggle" class="agreement-text">
-                    {@html $text('signup.subscribe_to_newsletter.text')}
                 </label>
             </div>
         </form>
