@@ -6,6 +6,8 @@
     import { authStore, isCheckingAuth, needsDeviceVerification, login, checkAuth } from '../stores/authStore'; // Import login and checkAuth functions
     import { currentSignupStep, isInSignupProcess, STEP_ALPHA_DISCLAIMER, STEP_BASICS, getStepFromPath, STEP_ONE_TIME_CODES, isSignupPath, STEP_PAYMENT } from '../stores/signupState';
     import { clearIncompleteSignupData } from '../stores/signupStore';
+    import { requireInviteCode } from '../stores/signupRequirements';
+    import { get } from 'svelte/store';
     import { onMount, onDestroy } from 'svelte';
     import { MOBILE_BREAKPOINT } from '../styles/constants';
     import { tick } from 'svelte';
@@ -264,6 +266,22 @@
         showTfaView = false;
         tfaErrorMessage = null;
         loginFailedWarning = false; // Also clear general login errors
+
+        // CRITICAL: Check invite code requirement when switching to signup
+        // This ensures we have the latest requirement status even if user hasn't reloaded the page
+        // The requireInviteCode store is updated from the /session endpoint response
+        // We call checkAuth() to refresh the session and get the latest invite code requirement
+        console.debug('[Login] Checking invite code requirement before switching to signup...');
+        try {
+            // Call checkAuth to refresh session and update requireInviteCode store
+            // This is a lightweight call that just checks the session endpoint
+            await checkAuth();
+            const inviteCodeRequired = get(requireInviteCode);
+            console.debug(`[Login] Invite code requirement checked: ${inviteCodeRequired}`);
+        } catch (error) {
+            console.warn('[Login] Failed to check invite code requirement:', error);
+            // Continue with signup even if check fails - the Basics component will handle validation
+        }
 
         // Reset the signup step to alpha disclaimer when starting a new signup process
         // This ensures users see the alpha disclaimer before proceeding with signup

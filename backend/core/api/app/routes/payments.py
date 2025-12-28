@@ -1140,6 +1140,16 @@ async def payment_webhook(
                 
                 await cache_service.set_user(final_cache_data, user_id=user_id)
                 await cache_service.update_order_status(webhook_order_id, final_order_status)
+                
+                # Invalidate require_invite_code cache when user completes payment
+                # This ensures the signup limit check reflects the new completed signup immediately
+                if directus_update_success:
+                    try:
+                        await cache_service.delete("require_invite_code")
+                        logger.info(f"Invalidated require_invite_code cache after payment completion for user {user_id}")
+                    except Exception as cache_err:
+                        logger.warning(f"Failed to invalidate require_invite_code cache: {cache_err}")
+                        # Non-critical - cache will refresh on next check or expire after 48 hours
 
         elif (provider_name == "revolut" and event_type == "ORDER_CANCELLED") or \
              (provider_name == "stripe" and event_type == "payment_intent.payment_failed") or \

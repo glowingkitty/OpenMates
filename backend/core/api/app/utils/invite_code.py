@@ -86,17 +86,19 @@ async def get_signup_requirements(
         logger.info("SIGNUP_LIMIT is 0 - open signup enabled (invite codes not required)")
         return False, require_domain_restriction, domain_restriction if domain_restriction else None
     else:
-        # SIGNUP_LIMIT > 0: require invite codes when user count reaches the limit
+        # SIGNUP_LIMIT > 0: require invite codes when completed signups count reaches the limit
         # Check if we have this value cached
         cached_require_invite_code = await cache_service.get("require_invite_code")
         if cached_require_invite_code is not None:
             require_invite_code = cached_require_invite_code
         else:
-            # Get the total user count and compare with SIGNUP_LIMIT
-            total_users = await directus_service.get_total_users_count()
-            require_invite_code = total_users >= signup_limit
+            # Get the count of users who completed signup (not just registered)
+            # This counts users who completed payment/signup (last_opened is not a signup path)
+            completed_signups = await directus_service.get_completed_signups_count()
+            require_invite_code = completed_signups >= signup_limit
             # Cache this value for quick access
             await cache_service.set("require_invite_code", require_invite_code, ttl=172800)  # Cache for 48 hours
-            
+            logger.info(f"Completed signups count: {completed_signups}, signup limit: {signup_limit}, require_invite_code: {require_invite_code}")
+        
         logger.info(f"Invite code requirement check: limit={signup_limit}, required={require_invite_code}")
         return require_invite_code, require_domain_restriction, domain_restriction if domain_restriction else None

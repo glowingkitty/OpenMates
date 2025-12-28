@@ -360,6 +360,18 @@
             return;
         }
 
+        // CRITICAL: Check if invite code is required but not validated
+        // This prevents silent signup failures when invite codes are required
+        if ($requireInviteCode && !isValidated) {
+            console.error('[Basics] Cannot submit: invite code is required but not validated');
+            showWarning = true;
+            // Focus invite code input if available
+            if (inviteCodeInput && !isTouchDevice) {
+                inviteCodeInput.focus();
+            }
+            return;
+        }
+
         try {
             isLoading = true;
             

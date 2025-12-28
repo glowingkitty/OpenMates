@@ -108,6 +108,15 @@ async def accept_gift(
             logger.warning(f"Failed to update cache for user {user_id} after accepting gift. Directus was updated.")
         else:
              logger.info(f"Successfully updated cache for user {user_id}. New balance: {current_credits}, Last opened: /chat/new, Gift cleared.")
+        
+        # Invalidate require_invite_code cache when user accepts gift (completes signup)
+        # This ensures the signup limit check reflects the new completed signup immediately
+        try:
+            await cache_service.delete("require_invite_code")
+            logger.info(f"Invalidated require_invite_code cache after gift acceptance for user {user_id}")
+        except Exception as cache_err:
+            logger.warning(f"Failed to invalidate require_invite_code cache: {cache_err}")
+            # Non-critical - cache will refresh on next check or expire after 48 hours
 
         return AcceptGiftResponse(success=True, message="Gift accepted successfully.", current_credits=current_credits)
 

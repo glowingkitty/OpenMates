@@ -87,6 +87,88 @@ async def get_active_users_since(self, timestamp: int) -> int:
         logger.error(f"Error getting active users: {str(e)}")
         return 0
 
+async def get_completed_signups_count(self) -> int:
+    """
+    Get the count of users who have completed signup and payment processing.
+    
+    This counts users where last_opened indicates they completed signup:
+    - last_opened starts with '/chat/' (includes '/chat/new' after payment/signup completion)
+    - last_opened is a UUID (chat ID format, indicating they opened a chat)
+    
+    This excludes:
+    - Users still in signup flow (last_opened starts with '/signup/')
+    - Users with null/empty last_opened
+    - Users with special values like 'demo-welcome'
+    
+    This is more accurate than counting all registered users, as it excludes users who
+    abandoned signup before completing payment.
+    
+    Returns:
+        The count of users who completed signup as an integer
+    """
+    import re
+    
+    try:
+        # First, get all users with non-null last_opened that don't start with '/signup/'
+        # We can't use regex in Directus filters, so we'll filter in Python
+        url = f"{self.base_url}/users"
+        params = {
+            "limit": -1,  # Get all users (we'll filter in Python)
+            "fields": "id,last_opened,is_admin",
+            "filter": json.dumps({
+                "_and": [
+                    {
+                        "last_opened": {
+                            "_nnull": True  # last_opened is not null
+                        }
+                    },
+                    {
+                        "last_opened": {
+                            "_nstarts_with": "/signup/"  # Does not start with '/signup/'
+                        }
+                    }
+                ]
+            })
+        }
+        
+        response = await self._make_api_request("GET", url, params=params)
+        
+        if response.status_code == 200:
+            data = response.json()
+            users = data.get("data", [])
+            
+            # Filter users in Python to count only those who completed signup
+            # Count users where last_opened:
+            # - Starts with '/chat/' (includes '/chat/new')
+            # - OR is a UUID (chat ID format: 8-4-4-4-12 hex digits)
+            uuid_pattern = re.compile(r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$', re.IGNORECASE)
+            
+            completed_count = 0
+            for user in users:
+                # Skip admin users
+                if user.get("is_admin", False):
+                    continue
+                
+                last_opened = user.get("last_opened")
+                if not last_opened:
+                    continue
+                
+                # Count if it starts with '/chat/' or is a UUID
+                if last_opened.startswith("/chat/") or uuid_pattern.match(last_opened):
+                    completed_count += 1
+            
+            logger.debug(f"Completed signups count: {completed_count}")
+            return completed_count
+        else:
+            error_msg = f"Failed to get completed signups count: {response.status_code} - {response.text}"
+            logger.error(error_msg)
+            return 0
+            
+    except Exception as e:
+        error_msg = f"Error getting completed signups count: {str(e)}"
+        logger.error(error_msg, exc_info=True)
+        return 0
+
 
 async def get_user_by_hashed_email(self, hashed_email: str) -> Tuple[bool, Optional[Dict[str, Any]], str]:
     """
