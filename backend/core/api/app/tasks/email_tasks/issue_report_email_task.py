@@ -8,7 +8,6 @@ to the server owner/admin email address.
 
 import logging
 import asyncio
-import os
 from typing import Optional
 
 # Import the Celery app and Base Task
@@ -33,8 +32,9 @@ def send_issue_report_email(
     issue_title: str,
     issue_description: Optional[str],
     chat_or_embed_url: Optional[str],
-    timestamp: str,
-    estimated_location: str,
+    contact_email: Optional[str] = None,
+    timestamp: str = "",
+    estimated_location: str = "",
     device_info: Optional[str] = None,
     console_logs: Optional[str] = None
 ) -> bool:
@@ -46,6 +46,7 @@ def send_issue_report_email(
         issue_title: The title of the reported issue
         issue_description: The description of the reported issue
         chat_or_embed_url: Optional URL to a chat or embed related to the issue
+        contact_email: Optional contact email address for follow-up communication
         timestamp: Timestamp when the issue was reported (formatted string)
         estimated_location: Estimated geographic location based on IP address
         device_info: Optional device information for debugging (browser, screen size, touch support)
@@ -64,7 +65,7 @@ def send_issue_report_email(
         result = asyncio.run(
             _async_send_issue_report_email(
                 self, admin_email, issue_title, issue_description,
-                chat_or_embed_url, timestamp, estimated_location, device_info, console_logs
+                chat_or_embed_url, contact_email, timestamp, estimated_location, device_info, console_logs
             )
         )
         if result:
@@ -93,8 +94,9 @@ async def _async_send_issue_report_email(
     issue_title: str,
     issue_description: Optional[str],
     chat_or_embed_url: Optional[str],
-    timestamp: str,
-    estimated_location: str,
+    contact_email: Optional[str] = None,
+    timestamp: str = "",
+    estimated_location: str = "",
     device_info: Optional[str] = None,
     console_logs: Optional[str] = None
 ) -> bool:
@@ -159,6 +161,7 @@ async def _async_send_issue_report_email(
                     'report_timestamp': timestamp,
                     'title': issue_title,
                     'description': issue_description,
+                    'contact_email': contact_email,
                     'estimated_location': estimated_location
                 },
                 'technical_details': {
@@ -177,19 +180,25 @@ async def _async_send_issue_report_email(
         yaml_content_b64 = base64.b64encode(yaml_content.encode('utf-8')).decode('utf-8')
 
         # Create single consolidated attachment
+        # Note: Using .txt extension instead of .yml because Brevo API does not support .yml files
+        # The content is still valid YAML format, just with .txt extension for email compatibility
         attachments.append({
-            'filename': f'issue_report_{timestamp.replace(" ", "_").replace(":", "-")}.yml',
+            'filename': f'issue_report_{timestamp.replace(" ", "_").replace(":", "-")}.txt',
             'content': yaml_content_b64
         })
 
-        logger.info("Created consolidated YAML attachment for issue report with all logs and metadata")
+        logger.info("Created consolidated YAML attachment (as .txt) for issue report with all logs and metadata")
 
+        # Process contact email if provided
+        contact_email_formatted = contact_email if contact_email else "Not provided"
+        
         # Prepare email context with sanitized data
         email_context = {
             "darkmode": True,  # Default to dark mode for issue report emails
             "issue_title": sanitized_title,
             "issue_description": sanitized_description,
             "chat_or_embed_url": sanitized_url,
+            "contact_email": contact_email_formatted,
             "timestamp": timestamp,
             "estimated_location": estimated_location,
             "device_info": device_info_formatted

@@ -1795,6 +1795,7 @@ class IssueReportRequest(BaseModel):
     title: str = Field(..., min_length=3, max_length=200, description="Issue title (required, 3-200 characters)")
     description: Optional[str] = Field(None, min_length=10, max_length=5000, description="Issue description (optional, 10-5000 characters if provided)")
     chat_or_embed_url: Optional[str] = Field(None, max_length=500, description="Optional chat or embed URL related to the issue")
+    contact_email: Optional[str] = Field(None, max_length=255, description="Optional contact email address for follow-up communication")
     device_info: Optional[DeviceInfo] = Field(None, description="Device information for debugging purposes (browser, screen size, touch support)")
     console_logs: Optional[str] = Field(None, max_length=50000, description="Console logs from the client (last 100 lines)")
 
@@ -1886,6 +1887,20 @@ async def report_issue(
                 logger.warning(f"Error parsing URL in issue report: {str(e)}")
                 sanitized_url = None
         
+        # SECURITY: Validate and sanitize email if provided
+        sanitized_email = None
+        if issue_data.contact_email:
+            email_str = issue_data.contact_email.strip()
+            # Basic email validation - check for valid email format
+            import re
+            email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+            if re.match(email_pattern, email_str):
+                # Email is valid - escape it to prevent XSS (though emails shouldn't contain HTML, defense-in-depth)
+                sanitized_email = escape(email_str)
+            else:
+                logger.warning(f"Invalid email format in issue report: {email_str[:50]}")
+                sanitized_email = None
+        
         # Extract client IP address
         client_ip = _extract_client_ip(request.headers, request.client.host if request.client else None)
         
@@ -1942,6 +1957,7 @@ async def report_issue(
                 "issue_title": sanitized_title,
                 "issue_description": sanitized_description,
                 "chat_or_embed_url": sanitized_url,
+                "contact_email": sanitized_email,
                 "timestamp": current_time,
                 "estimated_location": estimated_location,
                 "device_info": device_info_str,

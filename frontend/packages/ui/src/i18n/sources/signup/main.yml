@@ -65,6 +65,28 @@ domain_not_allowed:
   hi: ई-मेल डोमेन की अनुमति नहीं है।
   th: ไม่อนุญาตโดเมนอีเมล
   cs: E-mailová doména není povolena.
+
+email_ignored:
+  context: Error message shown when the email address is on the ignored list
+  en: This email address cannot be used for signup. Please contact support if you believe this is an error.
+  de: Diese E-Mail-Adresse kann nicht für die Registrierung verwendet werden. Bitte kontaktiere den Support, wenn du glaubst, dass dies ein Fehler ist.
+  es: Esta dirección de correo electrónico no se puede utilizar para registrarse. Póngase en contacto con el soporte si cree que se trata de un error.
+  fr: Cette adresse e-mail ne peut pas être utilisée pour l'inscription. Veuillez contacter le support si vous pensez qu'il s'agit d'une erreur.
+  it: Questo indirizzo e-mail non può essere utilizzato per la registrazione. Contatta il supporto se ritieni che si tratti di un errore.
+  zh: 此电子邮件地址不能用于注册。如果您认为这是一个错误，请联系支持。
+  pt: Este endereço de e-mail não pode ser usado para inscrição. Entre em contato com o suporte se acreditar que isso é um erro.
+  ru: Этот адрес электронной почты не может быть использован для регистрации. Пожалуйста, свяжитесь с поддержкой, если вы считаете, что это ошибка.
+  ja: このメールアドレスは新規登録に使用できません。これがエラーであると思われる場合は、サポートにお問い合わせください。
+  ko: 이 이메일 주소는 가입에 사용할 수 없습니다. 이것이 오류라고 생각되면 지원팀에 문의하십시오.
+  tr: Bu e-posta adresi kayıt için kullanılamaz. Bunun bir hata olduğunu düşünüyorsanız lütfen destekle iletişime geçin.
+  vi: Địa chỉ e-mail này không thể được sử dụng để đăng ký. Vui lòng liên hệ với bộ phận hỗ trợ nếu bạn tin rằng đây là một lỗi.
+  id: Alamat email ini tidak dapat digunakan untuk mendaftar. Silakan hubungi dukungan jika Anda merasa ini adalah kesalahan.
+  pl: Ten adres e-mail nie może być użyty do rejestracji. Skontaktuj se z pomocą techniczną, jeśli uważasz, dass dies ein błąd jest.
+  nl: Dit e-mailadres kan niet worden gebruikt voor registratie. Neem contact op met de ondersteuning als u denkt dat dit een fout is.
+  ar: لا يمكن استخدام عنوان البريد الإلكتروني هذا للتسجيل. يرجى الاتصال بالدعم إذا كنت تعتقد أن هذا خطأ.
+  hi: इस ई-मेल पते का उपयोग पंजीकरण के लिए नहीं किया जा सकता है। यदि आपको लगता है कि यह एक त्रुटि है, तो कृपया समर्थन से संपर्क करें।
+  th: ไม่สามารถใช้ที่อยู่อีเมลนี้เพื่อลงทะเบียนได้ โปรดติดต่อฝ่ายสนับสนุนหากคุณเชื่อว่านี่เป็นข้อผิดพลาด
+  cs: Tato e-mailová adresa nemůže být použita pro registraci. Pokud si myslíte, že se jedná o chybu, kontaktujte prosím podporu.
   sv: ''
   verified_by_human: []
 is_alpha_disclaimer:

@@ -21,6 +21,7 @@
     let issueTitle = $state('');
     let issueDescription = $state('');
     let chatOrEmbedUrl = $state('');
+    let contactEmail = $state('');
     let isSubmitting = $state(false);
     let successMessage = $state('');
     let errorMessage = $state('');
@@ -37,14 +38,33 @@
     let titleInput = $state<HTMLInputElement>();
     let descriptionInput = $state<HTMLTextAreaElement>();
     let urlInput = $state<HTMLInputElement>();
+    let emailInput = $state<HTMLInputElement>();
     
     // Validation state
     let titleError = $state('');
     let descriptionError = $state('');
     let urlError = $state('');
+    let emailError = $state('');
     let showTitleWarning = $state(false);
     let showDescriptionWarning = $state(false);
     let showUrlWarning = $state(false);
+    let showEmailWarning = $state(false);
+    
+    /**
+     * Validate email format - must be a valid email address
+     * Email is optional, so empty string is valid
+     */
+    function validateEmail(email: string): boolean {
+        if (!email || !email.trim()) {
+            // Email is optional, so empty is valid
+            return true;
+        }
+        
+        const trimmedEmail = email.trim();
+        // Basic email validation regex
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        return emailRegex.test(trimmedEmail);
+    }
     
     /**
      * Validate URL format - must be a shared chat or embed URL
@@ -116,6 +136,21 @@
         } else {
             urlError = '';
             showUrlWarning = false;
+        }
+        
+        // Validate email if provided (optional field)
+        if (contactEmail && contactEmail.trim()) {
+            if (!validateEmail(contactEmail)) {
+                emailError = $text('settings.report_issue.email_invalid.text');
+                showEmailWarning = true;
+                isValid = false;
+            } else {
+                emailError = '';
+                showEmailWarning = false;
+            }
+        } else {
+            emailError = '';
+            showEmailWarning = false;
         }
         
         return isValid;
@@ -255,6 +290,8 @@
                 ? sanitizeTextInput(issueDescription)
                 : null;
             const sanitizedUrl = chatOrEmbedUrl.trim() || null;
+            // Email is optional - send null if empty, otherwise sanitize (email doesn't need HTML sanitization, but trim it)
+            const sanitizedEmail = contactEmail.trim() || null;
 
             // Collect current device information for debugging purposes
             const currentDeviceInfo = collectDeviceInfo();
@@ -273,6 +310,7 @@
                     title: sanitizedTitle,
                     description: sanitizedDescription,
                     chat_or_embed_url: sanitizedUrl,
+                    contact_email: sanitizedEmail,
                     device_info: currentDeviceInfo,
                     console_logs: consoleLogs
                 }),
@@ -295,10 +333,13 @@
                 issueTitle = '';
                 issueDescription = '';
                 chatOrEmbedUrl = '';
+                contactEmail = '';
                 titleError = '';
                 descriptionError = '';
+                emailError = '';
                 showTitleWarning = false;
                 showDescriptionWarning = false;
+                showEmailWarning = false;
             } else {
                 // Show error message from API or default error
                 errorMessage = data.message || data.detail || $text('settings.report_issue_error.text');
@@ -334,10 +375,12 @@
     /**
      * Check if form is valid
      * Description is optional with no minimum length requirement
+     * Email is optional but must be valid if provided
      */
     let isFormValid = $derived(
         issueTitle.trim().length >= 3 &&
         (!chatOrEmbedUrl.trim() || validateUrl(chatOrEmbedUrl)) &&
+        (!contactEmail.trim() || validateEmail(contactEmail)) &&
         !isSubmitting
     );
     
@@ -356,6 +399,24 @@
         } else {
             urlError = '';
             showUrlWarning = false;
+        }
+    }
+    
+    /**
+     * Validate email on input change
+     */
+    function handleEmailInput() {
+        if (contactEmail && contactEmail.trim()) {
+            if (!validateEmail(contactEmail)) {
+                emailError = $text('settings.report_issue.email_invalid.text');
+                showEmailWarning = true;
+            } else {
+                emailError = '';
+                showEmailWarning = false;
+            }
+        } else {
+            emailError = '';
+            showEmailWarning = false;
         }
     }
     
@@ -447,6 +508,31 @@
             </div>
         </div>
         
+        <!-- Contact Email Input (Optional) -->
+        <div class="input-group">
+            <label for="contact-email">{$text('settings.report_issue.email_label.text')}</label>
+            <div class="input-wrapper">
+                <input
+                    id="contact-email"
+                    bind:this={emailInput}
+                    type="email"
+                    placeholder={$text('settings.report_issue.email_placeholder.text')}
+                    bind:value={contactEmail}
+                    oninput={handleEmailInput}
+                    disabled={isSubmitting}
+                    class:error={!!emailError}
+                    aria-label={$text('settings.report_issue.email_label.text')}
+                />
+                {#if showEmailWarning && emailError}
+                    <InputWarning
+                        message={emailError}
+                        target={emailInput}
+                    />
+                {/if}
+            </div>
+            <p class="input-hint">{$text('settings.report_issue.email_hint.text')}</p>
+        </div>
+        
         <!-- Signal Group Reminder -->
         <div class="signal-reminder">
             <p class="reminder-text">
@@ -531,6 +617,13 @@
         font-size: 14px;
         font-weight: 500;
         color: var(--color-font-primary);
+    }
+    
+    .input-hint {
+        font-size: 12px;
+        color: var(--color-font-secondary, #666);
+        margin: 4px 0 0 0;
+        line-height: 1.4;
     }
     
     .input-wrapper {

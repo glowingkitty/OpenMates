@@ -311,6 +311,9 @@ task_routes = {
     "apps.ai.tasks.skill_ask": {'queue': 'app_ai'},
     "health_check.check_all_providers": {'queue': 'health_check'},  # Explicit routing for health check task
     "health_check.check_all_apps": {'queue': 'health_check'},  # Explicit routing for app health check task
+    # Email tasks use custom names like "app.tasks.email_tasks.*" instead of full module paths
+    # This pattern ensures all email tasks (verification, cleanup, notifications, etc.) route correctly
+    "app.tasks.email_tasks.*": {'queue': 'email'},
     # Add other explicitly named tasks here as needed
 }
 

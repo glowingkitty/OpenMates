@@ -3176,6 +3176,29 @@ issue_report.url_label:
   cs: Sdílený chat / vložení
   sv: Delad chatt / inbäddning
   verified_by_human: []
+issue_report.contact_email_label:
+  context: Label for contact email in email
+  en: Contact Email
+  de: Kontakt-E-Mail
+  zh: 联系邮箱
+  es: Correo de contacto
+  fr: E-mail de contact
+  pt: E-mail de contato
+  ru: Контактный e-mail
+  ja: 連絡先メール
+  ko: 연락처 이메일
+  it: Email di contatto
+  tr: İletişim e-postası
+  vi: Email liên hệ
+  id: Email kontak
+  pl: E-mail kontaktowy
+  nl: Contact e-mail
+  ar: البريد الإلكتروني للاتصال
+  hi: संपर्क ईमेल
+  th: อีเมลติดต่อ
+  cs: Kontaktní e-mail
+  sv: Kontakt e-post
+  verified_by_human: []
 issue_report.timestamp_label:
   context: Label for timestamp in email
   en: Timestamp
