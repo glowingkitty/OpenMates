@@ -878,6 +878,29 @@ privacy_policy:
   cs: Zásady ochrany osobních údajů
   sv: ''
   verified_by_human: []
+subscribe_to_newsletter:
+  context: Toggle label for subscribing to newsletter during signup
+  en: Subscribe to newsletter
+  de: Newsletter abonnieren
+  zh: 订阅新闻通讯
+  es: Suscribirse al boletín
+  fr: S'abonner à la newsletter
+  pt: Inscrever-se no boletim informativo
+  ru: Подписаться на рассылку
+  ja: ニュースレターに購読
+  ko: 뉴스레터 구독
+  it: Iscriviti alla newsletter
+  tr: Bültene abone ol
+  vi: Đăng ký nhận bản tin
+  id: Berlangganan newsletter
+  pl: Subskrybuj newsletter
+  nl: Abonneer op nieuwsbrief
+  ar: الاشتراك في النشرة الإخبارية
+  hi: न्यूज़लेटर की सदस्यता लें
+  th: สมัครรับจดหมายข่าว
+  cs: Přihlásit se k odběru newsletteru
+  sv: Prenumerera på nyhetsbrev
+  verified_by_human: []
 create_new_account:
   context: Button text for creating a new account
   en: Create new account

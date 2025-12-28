@@ -147,38 +147,10 @@ async def create_user(self,
             created_user = response.json().get("data")
             
             # Update the require_invite_code cache if needed
-            signup_limit = int(os.getenv("SIGNUP_LIMIT", "0"))
-            if signup_limit > 0:
-                try:
-                    # Get the total user count after creating this user
-                    total_users = await self.get_total_users_count()
-                    require_invite_code = total_users >= signup_limit
-                    
-                    # Update the cache with the new value
-                    from backend.core.api.app.services.cache import CacheService
-                    cache_service = CacheService()
-                    await cache_service.set("require_invite_code", require_invite_code, ttl=172800)  # Cache for 48 hours
-                    
-                    logger.info(f"Updated require_invite_code cache after user creation: limit={signup_limit}, users={total_users}, required={require_invite_code}")
-                    
-                    # Check if we've reached a user signup milestone
-                    try:
-                        # Import Celery app to dispatch milestone check task
-                        from backend.core.api.app.tasks.celery_config import app as celery_app
-                        
-                        # Dispatch milestone check task asynchronously
-                        celery_app.send_task(
-                            name='app.tasks.email_tasks.milestone_checker_task.check_and_notify_milestone',
-                            kwargs={"total_users": total_users},
-                            queue='email'
-                        )
-                        logger.info(f"Dispatched milestone check task for {total_users} users")
-                    except Exception as milestone_err:
-                        logger.error(f"Error dispatching milestone check task: {milestone_err}", exc_info=True)
-                        # Continue with user creation even if milestone task dispatch fails
-                        
-                except Exception as e:
-                    logger.error(f"Error updating require_invite_code cache after user creation: {e}")
+            # Note: We don't update the cache here because the user hasn't completed signup yet
+            # (last_opened is still a signup path). The cache will be updated when they complete
+            # payment/signup and last_opened is set to '/chat/new' or a chat ID.
+            # This ensures we only count completed signups, not just registered users.
             
             return True, created_user, "User created successfully"
         else:
