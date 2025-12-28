@@ -39,6 +39,7 @@
     let termsAgreed = $state(false);
     let privacyAgreed = $state(false);
     let stayLoggedIn = $state(false); // Add stay logged in toggle
+    let subscribeToNewsletter = $state(false); // Newsletter subscription toggle
 
     // Add reference for the input using Svelte 5 runes
     let inviteCodeInput = $state<HTMLInputElement>();
@@ -94,6 +95,7 @@
                 termsAgreed = false;
                 privacyAgreed = false;
                 stayLoggedIn = false;
+                subscribeToNewsletter = false;
                 // Clear any error states
                 showEmailWarning = false;
                 emailError = '';
@@ -160,6 +162,7 @@
         termsAgreed = false;
         privacyAgreed = false;
         stayLoggedIn = false;
+        subscribeToNewsletter = false;
         // Clear errors/warnings related to these fields
         showEmailWarning = false;
         emailError = '';
@@ -401,6 +404,37 @@
                     stayLoggedIn: stayLoggedIn
                 }));
                 
+                // Subscribe to newsletter if toggle is enabled
+                // This happens in the background and doesn't block the signup flow
+                if (subscribeToNewsletter) {
+                    console.debug('[Basics] Newsletter subscription toggle is enabled, subscribing to newsletter...');
+                    // Fire and forget - don't block signup flow if newsletter subscription fails
+                    fetch(getApiEndpoint(apiEndpoints.newsletter.subscribe), {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json',
+                            'Origin': window.location.origin
+                        },
+                        body: JSON.stringify({
+                            email: email.trim().toLowerCase(),
+                            language: currentLang,
+                            darkmode: darkModeEnabled
+                        }),
+                        credentials: 'include'
+                    }).then(async (response) => {
+                        const data = await response.json();
+                        if (response.ok && data.success) {
+                            console.debug('[Basics] Newsletter subscription request sent successfully');
+                        } else {
+                            console.warn('[Basics] Newsletter subscription failed:', data.message || 'Unknown error');
+                        }
+                    }).catch((error) => {
+                        console.warn('[Basics] Error subscribing to newsletter:', error);
+                        // Don't block signup flow if newsletter subscription fails
+                    });
+                }
+                
                 // Dispatch the next event to transition to secure_account (skipping email confirmation)
                 dispatch('next');
                 return;
@@ -442,6 +476,37 @@
                     darkmode: darkModeEnabled,
                     stayLoggedIn: stayLoggedIn
                 }));
+                
+                // Subscribe to newsletter if toggle is enabled
+                // This happens in the background and doesn't block the signup flow
+                if (subscribeToNewsletter) {
+                    console.debug('[Basics] Newsletter subscription toggle is enabled, subscribing to newsletter...');
+                    // Fire and forget - don't block signup flow if newsletter subscription fails
+                    fetch(getApiEndpoint(apiEndpoints.newsletter.subscribe), {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json',
+                            'Origin': window.location.origin
+                        },
+                        body: JSON.stringify({
+                            email: email.trim().toLowerCase(),
+                            language: currentLang,
+                            darkmode: darkModeEnabled
+                        }),
+                        credentials: 'include'
+                    }).then(async (response) => {
+                        const data = await response.json();
+                        if (response.ok && data.success) {
+                            console.debug('[Basics] Newsletter subscription request sent successfully');
+                        } else {
+                            console.warn('[Basics] Newsletter subscription failed:', data.message || 'Unknown error');
+                        }
+                    }).catch((error) => {
+                        console.warn('[Basics] Error subscribing to newsletter:', error);
+                        // Don't block signup flow if newsletter subscription fails
+                    });
+                }
                 
                 // Dispatch the next event to transition to step 2
                 dispatch('next');
@@ -887,6 +952,13 @@
                     <a href={getWebsiteUrl(externalLinks.legal.privacyPolicy)} target="_blank" rel="noopener noreferrer">
                         <mark>{@html $text('signup.privacy_policy.text')}</mark>
                     </a>
+                </label>
+            </div>
+
+            <div class="agreement-row">
+                <Toggle bind:checked={subscribeToNewsletter} id="newsletter-subscribe-toggle" />
+                <label for="newsletter-subscribe-toggle" class="agreement-text">
+                    {@html $text('signup.subscribe_to_newsletter.text')}
                 </label>
             </div>
         </form>
