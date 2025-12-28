@@ -3847,6 +3847,98 @@ report_issue.url_invalid:
   cs: Nejprve sdílejte chat nebo vložení, poté sem vložte URL.
   sv: Dela chatt eller inbäddning först, klistra sedan in URL:en här.
   verified_by_human: []
+report_issue.email_label:
+  context: Label for contact email input field
+  en: Contact Email (Optional)
+  de: Kontakt-E-Mail (Optional)
+  zh: 联系邮箱（可选）
+  es: Correo de contacto (Opcional)
+  fr: E-mail de contact (Optionnel)
+  pt: E-mail de contato (Opcional)
+  ru: Контактный e-mail (необязательно)
+  ja: 連絡先メール（オプション）
+  ko: 연락처 이메일 (선택사항)
+  it: Email di contatto (Opzionale)
+  tr: İletişim e-postası (İsteğe bağlı)
+  vi: Email liên hệ (Tùy chọn)
+  id: Email kontak (Opsional)
+  pl: E-mail kontaktowy (Opcjonalny)
+  nl: Contact e-mail (Optioneel)
+  ar: البريد الإلكتروني للاتصال (اختياري)
+  hi: संपर्क ईमेल (वैकल्पिक)
+  th: อีเมลติดต่อ (ไม่บังคับ)
+  cs: Kontaktní e-mail (Volitelné)
+  sv: Kontakt e-post (Valfritt)
+  verified_by_human: []
+report_issue.email_placeholder:
+  context: Placeholder text for contact email input field
+  en: your.email@example.com
+  de: deine.email@beispiel.de
+  zh: your.email@example.com
+  es: tu.correo@ejemplo.com
+  fr: votre.email@exemple.com
+  pt: seu.email@exemplo.com
+  ru: ваша.почта@пример.ru
+  ja: your.email@example.com
+  ko: your.email@example.com
+  it: tuo.email@esempio.com
+  tr: e-posta@ornek.com
+  vi: email.cua.ban@vi-du.com
+  id: email.anda@contoh.com
+  pl: twoj.email@przyklad.pl
+  nl: uw.email@voorbeeld.nl
+  ar: بريدك@مثال.com
+  hi: आपका.ईमेल@उदाहरण.com
+  th: your.email@example.com
+  cs: vas.email@priklad.cz
+  sv: din.email@exempel.com
+  verified_by_human: []
+report_issue.email_hint:
+  context: Hint text explaining the contact email field is optional and used for follow-up
+  en: Optional. Provide your email if you'd like us to contact you about this issue.
+  de: Optional. Gib deine E-Mail an, wenn du möchtest, dass wir dich zu diesem Problem kontaktieren.
+  zh: 可选。如果您希望我们就此问题与您联系，请提供您的邮箱。
+  es: Opcional. Proporciona tu correo si deseas que te contactemos sobre este problema.
+  fr: Optionnel. Fournissez votre e-mail si vous souhaitez que nous vous contactions concernant ce problème.
+  pt: Opcional. Forneça seu e-mail se desejar que entremos em contato sobre este problema.
+  ru: Необязательно. Укажите ваш e-mail, если хотите, чтобы мы связались с вами по этому вопросу.
+  ja: オプション。この問題について連絡を希望する場合は、メールアドレスを提供してください。
+  ko: 선택사항. 이 문제에 대해 연락을 받고 싶다면 이메일을 제공하세요.
+  it: Opzionale. Fornisci la tua email se desideri che ti contattiamo riguardo a questo problema.
+  tr: İsteğe bağlı. Bu sorun hakkında sizinle iletişime geçmemizi istiyorsanız e-postanızı sağlayın.
+  vi: Tùy chọn. Cung cấp email của bạn nếu bạn muốn chúng tôi liên hệ với bạn về vấn đề này.
+  id: Opsional. Berikan email Anda jika Anda ingin kami menghubungi Anda tentang masalah ini.
+  pl: Opcjonalne. Podaj swój e-mail, jeśli chcesz, abyśmy skontaktowali się z Tobą w sprawie tego problemu.
+  nl: Optioneel. Geef uw e-mail op als u wilt dat wij contact met u opnemen over dit probleem.
+  ar: اختياري. قدم بريدك الإلكتروني إذا كنت تريد أن نتصل بك بخصوص هذه المشكلة.
+  hi: वैकल्पिक। यदि आप चाहते हैं कि हम इस समस्या के बारे में आपसे संपर्क करें तो अपना ईमेल प्रदान करें।
+  th: ไม่บังคับ ให้อีเมลของคุณหากคุณต้องการให้เราติดต่อคุณเกี่ยวกับปัญหานี้
+  cs: Volitelné. Uveďte svůj e-mail, pokud chcete, abychom vás kontaktovali ohledně tohoto problému.
+  sv: Valfritt. Ange din e-post om du vill att vi kontaktar dig angående detta problem.
+  verified_by_human: []
+report_issue.email_invalid:
+  context: Error message when email format is invalid
+  en: Please enter a valid email address
+  de: Bitte gib eine gültige E-Mail-Adresse ein
+  zh: 请输入有效的邮箱地址
+  es: Por favor ingresa una dirección de correo válida
+  fr: Veuillez entrer une adresse e-mail valide
+  pt: Por favor, insira um endereço de e-mail válido
+  ru: Пожалуйста, введите действительный адрес электронной почты
+  ja: 有効なメールアドレスを入力してください
+  ko: 유효한 이메일 주소를 입력하세요
+  it: Inserisci un indirizzo email valido
+  tr: Lütfen geçerli bir e-posta adresi girin
+  vi: Vui lòng nhập địa chỉ email hợp lệ
+  id: Silakan masukkan alamat email yang valid
+  pl: Wprowadź prawidłowy adres e-mail
+  nl: Voer een geldig e-mailadres in
+  ar: يرجى إدخال عنوان بريد إلكتروني صالح
+  hi: कृपया एक वैध ईमेल पता दर्ज करें
+  th: กรุณากรอกที่อยู่อีเมลที่ถูกต้อง
+  cs: Zadejte prosím platnou e-mailovou adresu
+  sv: Ange en giltig e-postadress
+  verified_by_human: []
 report_issue.device_info.heading:
   context: Heading for the device information notice shown under the report issue submit button
   en: "Device Information for Debugging"

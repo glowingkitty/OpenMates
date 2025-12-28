@@ -17,13 +17,14 @@ from email.mime.multipart import MIMEMultipart
 import sys
 from html.parser import HTMLParser
 from urllib.parse import urlparse
-from urllib.parse import quote
 
 from backend.core.api.app.services.translations import TranslationService
 from backend.core.api.app.services.email.config_loader import load_shared_urls, add_shared_urls_to_context
 from backend.core.api.app.services.email.variable_processor import process_template_variables
 from backend.core.api.app.services.email.renderer import render_mjml_template
 from backend.core.api.app.services.email.mjml_processor import image_cache
+from backend.core.api.app.services.email.brevo_provider import BrevoProvider
+from backend.core.api.app.services.email.mailjet_provider import MailjetProvider
 from backend.core.api.app.utils.log_filters import SensitiveDataFilter  # Import the filter
 from backend.core.api.app.utils.secrets_manager import SecretsManager # Import SecretsManager
 
@@ -134,7 +135,13 @@ def html_to_plain_text(html_content: str) -> str:
         return text.strip()
 
 class EmailTemplateService:
-    """Service for rendering and sending email templates using Mailjet API."""
+    """
+    Service for rendering and sending email templates.
+    
+    Supports multiple email providers:
+    - Brevo (default, EU-based, GDPR-compliant)
+    - Mailjet (fallback option)
+    """
     
     def __init__(self, secrets_manager: SecretsManager):
         """Initialize the email template service with template directory and SecretsManager."""
@@ -154,19 +161,21 @@ class EmailTemplateService:
         # Load shared URL configuration
         self.shared_urls = load_shared_urls()
         
-        # Mailjet API keys will be fetched from SecretsManager in send_email method
-        # Mailjet API endpoint
-        self.mailjet_api_url = "https://api.mailjet.com/v3.1/send"
-        # Contact lookup uses v3 REST, GDPR deletion uses v4 endpoint.
-        # Mailjet GDPR deletion requires the numeric/string contact ID, not the email.
-        self.mailjet_contact_lookup_base_url = "https://api.mailjet.com/v3/REST/contact"
-        self.mailjet_gdpr_delete_base_url = "https://api.mailjet.com/v4/contacts"
+        # Email provider configuration
+        # Default provider: Brevo (EU-based, GDPR-compliant)
+        # Can be overridden via EMAIL_PROVIDER environment variable: "brevo" or "mailjet"
+        self.email_provider = os.getenv("EMAIL_PROVIDER", "brevo").lower()
+        
+        # Provider instances will be created in send_email method after fetching credentials
+        self._brevo_provider = None
+        self._mailjet_provider = None
         
         # Default sender info
         self.default_sender_name = os.getenv("EMAIL_SENDER_NAME", "OpenMates")
         self.default_sender_email = os.getenv("EMAIL_SENDER_EMAIL", "noreply@openmates.org")
         
         logger.info(f"Email template service initialized with templates directory: {self.templates_dir}")
+        logger.info(f"Default email provider: {self.email_provider.upper()}")
     
     def render_template(
         self, 
@@ -234,7 +243,7 @@ class EmailTemplateService:
         attachments: Optional[list] = None # Add attachments parameter
     ) -> bool:
         """
-        Send an email using the Mailjet API with a rendered template.
+        Send an email using Brevo (default) or Mailjet (fallback) with a rendered template.
         
         Args:
             template: Template name to use
@@ -250,12 +259,59 @@ class EmailTemplateService:
         Returns:
             True if email was sent successfully, False otherwise
         """
-        # Fetch Mailjet API keys from Secrets Manager
-        api_key = await self.secrets_manager.get_secret(secret_path="kv/data/providers/mailjet", secret_key="api_key")
-        api_secret = await self.secrets_manager.get_secret(secret_path="kv/data/providers/mailjet", secret_key="api_secret")
-
-        if not api_key or not api_secret:
-            logger.error("Cannot send email: Mailjet API key or secret not found in Secrets Manager")
+        # Determine which provider to use (default: Brevo)
+        provider = self.email_provider
+        
+        # Try to get Brevo API key first (default provider)
+        brevo_api_key = await self.secrets_manager.get_secret(
+            secret_path="kv/data/providers/brevo",
+            secret_key="api_key"
+        )
+        
+        # Try to get Mailjet credentials (fallback)
+        mailjet_api_key = await self.secrets_manager.get_secret(
+            secret_path="kv/data/providers/mailjet",
+            secret_key="api_key"
+        )
+        mailjet_api_secret = await self.secrets_manager.get_secret(
+            secret_path="kv/data/providers/mailjet",
+            secret_key="api_secret"
+        )
+        
+        # Determine which provider to actually use
+        use_brevo = False
+        use_mailjet = False
+        
+        if provider == "brevo" and brevo_api_key:
+            use_brevo = True
+            logger.debug("Using Brevo as email provider")
+        elif provider == "brevo" and not brevo_api_key:
+            logger.warning("Brevo selected but API key not found, falling back to Mailjet")
+            if mailjet_api_key and mailjet_api_secret:
+                use_mailjet = True
+            else:
+                logger.error("Cannot send email: Neither Brevo nor Mailjet credentials found")
+                return False
+        elif provider == "mailjet" and mailjet_api_key and mailjet_api_secret:
+            use_mailjet = True
+            logger.debug("Using Mailjet as email provider")
+        elif provider == "mailjet" and (not mailjet_api_key or not mailjet_api_secret):
+            logger.warning("Mailjet selected but credentials not found, trying Brevo fallback")
+            if brevo_api_key:
+                use_brevo = True
+            else:
+                logger.error("Cannot send email: Neither Mailjet nor Brevo credentials found")
+                return False
+        else:
+            # Default: try Brevo first, then Mailjet
+            if brevo_api_key:
+                use_brevo = True
+                logger.debug("Using Brevo as email provider (default)")
+            elif mailjet_api_key and mailjet_api_secret:
+                use_mailjet = True
+                logger.debug("Using Mailjet as email provider (Brevo not available)")
+            else:
+                logger.error("Cannot send email: No email provider credentials found (Brevo or Mailjet)")
             return False
         try:
             # Initialize default context if needed
@@ -433,204 +489,67 @@ class EmailTemplateService:
                 if has_http_unsubscribe:
                     email_headers["List-Unsubscribe-Post"] = "List-Unsubscribe=One-Click"
             
-            # Prepare the email data for Mailjet API with improved spam prevention
-            email_data = {
-                "Messages": [
-                    {
-                        "From": {
-                            "Name": sender_name,
-                            "Email": sender_email
-                        },
-                        "To": [
-                            {
-                                "Email": recipient_email,
-                                "Name": recipient_name or recipient_email
-                            }
-                        ],
-                        "Subject": subject,
-                        "HTMLPart": html_content,
-                        "TextPart": plain_text_content,  # Critical: plain text version reduces spam score
-                        # Add proper email headers for deliverability
-                        "Headers": email_headers,
-                        # Add attachments if provided
-                        "Attachments": [
-                            {
-                                "ContentType": "application/pdf", # Assuming PDF for now, might need adjustment
-                                "Filename": att["filename"],
-                                "Base64Content": att["content"]
-                            } for att in attachments
-                        ] if attachments else []
-                    }
-                ]
-            }
-            
             # Return the original log message - filter will redact the email
             log_message = f"Sending email to {recipient_email} using template {template} in language {lang}"
             if attachments:
                 log_message += f" with {len(attachments)} attachment(s)"
             logger.info(log_message)
             
-            # Send the email via Mailjet API
-            async with aiohttp.ClientSession() as session:
-                auth = aiohttp.BasicAuth(api_key, api_secret)
-                headers = {
-                    "Content-Type": "application/json"
-                }
+            # Log the exact time we're attempting to send (to diagnose 1AM issue)
+            from datetime import datetime, timezone
+            send_attempt_time = datetime.now(timezone.utc)
+            logger.info(f"[EMAIL_SEND_TIMING] Attempting to send email at {send_attempt_time.isoformat()} UTC")
+            
+            # Create provider instances and send email
+            if use_brevo:
+                if not self._brevo_provider or self._brevo_provider.api_key != brevo_api_key:
+                    self._brevo_provider = BrevoProvider(api_key=brevo_api_key)
                 
-                async with session.post(
-                    self.mailjet_api_url,
-                    auth=auth,
-                    headers=headers,
-                    data=json.dumps(email_data)
-                ) as response:
-                    response_text = await response.text()
-                    
-                    if response.status == 200:
-                        try:
-                            response_data = json.loads(response_text)
-                            logger.debug(f"Mailjet API response: {json.dumps(response_data)}")
-                            
-                            # Mailjet can return success with errors in the Messages array
-                            # Check for errors in the response
-                            messages = response_data.get('Messages', [])
-                            if not messages:
-                                logger.error(f"Mailjet returned 200 but no Messages in response: {response_data}")
-                                return False
-                            
-                            # Check each message for errors
-                            has_errors = False
-                            for msg in messages:
-                                errors = msg.get('Errors', [])
-                                if errors:
-                                    has_errors = True
-                                    for error in errors:
-                                        logger.error(f"Mailjet API error in message: {error.get('ErrorMessage', 'Unknown error')} (ErrorCode: {error.get('ErrorCode', 'unknown')})")
-                            
-                            if has_errors:
-                                logger.error(f"Mailjet API returned errors despite 200 status. Full response: {response_data}")
-                                return False
-                            
-                            # Extract message ID - Mailjet uses 'MessageID' in the Messages array
-                            message_id = messages[0].get('MessageID', 'unknown')
-                            
-                            if message_id == 'unknown':
-                                logger.warning(f"Mailjet response structure unexpected. Response: {response_data}")
-                                # Still return True if status is 200 and no errors, as Mailjet might have accepted it
-                                logger.info(f"Email sent successfully (Message ID not found in expected format, but status 200 and no errors)")
-                            else:
-                                logger.info(f"Email sent successfully. Message ID: {message_id}")
-
-                            # Schedule delayed contact cleanup task (30 second delay to allow Mailjet processing)
-                            self._schedule_mailjet_contact_cleanup(recipient_email)
-                            return True
-                        except json.JSONDecodeError as e:
-                            logger.error(f"Failed to parse Mailjet JSON response: {e}. Response text: {response_text[:500]}")
-                            return False
-                    else:
-                        logger.error(f"Failed to send email. Status: {response.status}, Response: {response_text[:1000]}")
-                        # Try to parse error response for more details
-                        try:
-                            error_data = json.loads(response_text)
-                            if 'Messages' in error_data:
-                                for msg in error_data.get('Messages', []):
-                                    for error in msg.get('Errors', []):
-                                        logger.error(f"Mailjet API error: {error.get('ErrorMessage', 'Unknown error')} (ErrorCode: {error.get('ErrorCode', 'unknown')})")
-                        except:
-                            pass
-                        return False
+                result = await self._brevo_provider.send_email(
+                    sender_name=sender_name,
+                    sender_email=sender_email,
+                    recipient_email=recipient_email,
+                    recipient_name=recipient_name,
+                    subject=subject,
+                    html_content=html_content,
+                    plain_text_content=plain_text_content,
+                    email_headers=email_headers,
+                    attachments=attachments
+                )
+                return result
+            elif use_mailjet:
+                if (not self._mailjet_provider or 
+                    self._mailjet_provider.api_key != mailjet_api_key or 
+                    self._mailjet_provider.api_secret != mailjet_api_secret):
+                    self._mailjet_provider = MailjetProvider(
+                        api_key=mailjet_api_key,
+                        api_secret=mailjet_api_secret
+                    )
+                
+                result = await self._mailjet_provider.send_email(
+                    sender_name=sender_name,
+                    sender_email=sender_email,
+                    recipient_email=recipient_email,
+                    recipient_name=recipient_name,
+                    subject=subject,
+                    html_content=html_content,
+                    plain_text_content=plain_text_content,
+                    email_headers=email_headers,
+                    attachments=attachments
+                )
+                
+                # Schedule Mailjet contact cleanup if email was sent successfully
+                if result:
+                    self._mailjet_provider.schedule_contact_cleanup(recipient_email)
+                
+                return result
+            else:
+                logger.error("No email provider selected - this should not happen")
+                return False
                         
         except Exception as e:
             logger.error(f"Error sending email: {str(e)}", exc_info=True)
             return False
-
-    def _schedule_mailjet_contact_cleanup(self, recipient_email: str) -> None:
-        """
-        Schedule a delayed Celery task to clean up Mailjet contact after email sending.
-
-        Uses a 30-second delay to allow Mailjet time to fully process the contact creation
-        before attempting deletion. This prevents timing issues where we try to delete
-        a contact that hasn't been fully created yet.
-
-        Args:
-            recipient_email: Email address of the contact to clean up
-        """
-        try:
-            # Import the task function directly
-            from backend.core.api.app.tasks.email_tasks.mailjet_contact_cleanup_task import cleanup_mailjet_contact
-
-            # Schedule task with 30-second delay using .delay()
-            cleanup_mailjet_contact.apply_async(
-                args=[recipient_email],
-                countdown=30  # 30-second delay
-            )
-            logger.info(f"Scheduled delayed Mailjet contact cleanup for {recipient_email[:3]}*** in 30 seconds")
-        except Exception as e:
-            logger.warning(f"Failed to schedule Mailjet contact cleanup task (non-fatal): {e}")
-
-    async def _best_effort_delete_mailjet_contact(
-        self,
-        session: aiohttp.ClientSession,
-        auth: aiohttp.BasicAuth,
-        recipient_email: str,
-    ) -> None:
-        """
-        Best-effort removal of the recipient from Mailjet Contacts after a successful send.
-
-        Notes:
-        - This is best-effort and must not impact delivery success.
-        - Mail providers can still keep addresses in delivery logs/suppression lists; this only targets Contacts.
-        """
-        try:
-            encoded_recipient = quote(recipient_email, safe="")
-            lookup_url = f"{self.mailjet_contact_lookup_base_url}/{encoded_recipient}"
-
-            async with session.get(lookup_url, auth=auth) as lookup_response:
-                if lookup_response.status == 404:
-                    logger.info("Mailjet contact cleanup: contact not found (non-fatal).")
-                    return
-                if lookup_response.status != 200:
-                    body = await lookup_response.text()
-                    logger.warning(
-                        f"Mailjet contact lookup returned status {lookup_response.status} (non-fatal). "
-                        f"Response: {body[:500]}"
-                    )
-                    return
-
-                body = await lookup_response.text()
-                try:
-                    lookup_data = json.loads(body)
-                except json.JSONDecodeError:
-                    logger.warning(
-                        "Mailjet contact lookup returned non-JSON body (non-fatal). "
-                        f"Response: {body[:500]}"
-                    )
-                    return
-
-                contact_id: Optional[Union[str, int]] = None
-                data = lookup_data.get("Data") or []
-                if data and isinstance(data, list) and isinstance(data[0], dict):
-                    contact_id = data[0].get("ID")
-
-                if not contact_id:
-                    logger.warning(
-                        f"Mailjet contact lookup did not return a contact ID for {recipient_email} (non-fatal). "
-                        f"Response: {str(lookup_data)[:500]}"
-                    )
-                    return
-
-            delete_url = f"{self.mailjet_gdpr_delete_base_url}/{contact_id}"
-            async with session.delete(delete_url, auth=auth) as delete_response:
-                # 200: anonymized, then removed after 30 days; 404: already missing; others warn.
-                if delete_response.status in (200, 404):
-                    logger.info("Mailjet contact cleanup attempted (non-fatal).")
-                    return
-                body = await delete_response.text()
-                logger.warning(
-                    f"Mailjet contact cleanup returned status {delete_response.status} (non-fatal). "
-                    f"Response: {body[:500]}"
-                )
-        except Exception as e:
-            logger.warning(f"Mailjet contact cleanup failed (non-fatal): {e}")
     
     def clear_cache(self) -> None:
         """Clear the image cache"""
