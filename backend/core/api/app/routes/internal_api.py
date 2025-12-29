@@ -5,10 +5,11 @@
 # internal service token.
 
 import logging
-from fastapi import APIRouter, HTTPException, Request, Depends, Body
+import os
+import yaml
+from fastapi import APIRouter, HTTPException, Request, Depends
 from typing import Dict, Any, Optional
 from pydantic import BaseModel # Ensure BaseModel is imported for Pydantic models
-import os # For os.urandom in simulated transaction ID
 import base64
 import hashlib
 import httpx
@@ -25,6 +26,7 @@ from backend.core.api.app.services.s3.service import S3UploadService
 from backend.core.api.app.services.email_template import EmailTemplateService
 from backend.core.api.app.services.invoiceninja.invoiceninja import InvoiceNinjaService
 from backend.core.api.app.services.payment.payment_service import PaymentService
+from typing import List
 
 logger = logging.getLogger(__name__)
 
@@ -405,7 +407,7 @@ async def reprocess_invoice(
             response.raise_for_status()
             encrypted_pdf_payload = response.content
 
-        logger.info(f"Successfully downloaded encrypted PDF from S3.")
+        logger.info("Successfully downloaded encrypted PDF from S3.")
 
         # 6. Decrypt the PDF file
         aesgcm = AESGCM(aes_key)
@@ -500,3 +502,258 @@ async def reprocess_invoice(
     except Exception as e:
         logger.error(f"An error occurred during invoice reprocessing: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# --- Issue Report Endpoints ---
+
+class IssueResponse(BaseModel):
+    """Response model for issue data"""
+    id: str
+    title: str
+    description: Optional[str]
+    chat_or_embed_url: Optional[str]  # Decrypted URL
+    contact_email: Optional[str]  # Decrypted email
+    timestamp: str
+    estimated_location: Optional[str]  # Decrypted location
+    device_info: Optional[str]  # Decrypted device info
+    console_logs: Optional[str] = None  # Decrypted logs (only included if include_logs=true)
+    created_at: str
+    updated_at: str
+
+
+@router.get("/issues", response_model=List[IssueResponse])
+async def get_issues(
+    search: Optional[str] = None,
+    limit: int = 100,
+    offset: int = 0,
+    directus_service: DirectusService = Depends(get_directus_service),
+    encryption_service: EncryptionService = Depends(get_encryption_service)
+) -> List[IssueResponse]:
+    """
+    Get issue reports with optional text search in title.
+    
+    This endpoint is only accessible from within the Docker network via internal service token.
+    It allows searching for text in the issue title and returns issues with decrypted contact emails.
+    
+    Args:
+        search: Optional text to search for in issue titles (case-insensitive partial match)
+        limit: Maximum number of issues to return (default: 100, max: 1000)
+        offset: Number of issues to skip for pagination (default: 0)
+        
+    Returns:
+        List of issue reports with decrypted contact emails
+    """
+    logger.info(f"Internal API: Getting issues (search='{search}', limit={limit}, offset={offset})")
+    
+    try:
+        # Build query parameters
+        params = {
+            "limit": min(limit, 1000),  # Cap at 1000 for performance
+            "offset": offset,
+            "sort": "-created_at"  # Sort by newest first
+        }
+        
+        # Add search filter if provided
+        if search:
+            # Use Directus filter for case-insensitive partial match on title
+            params["filter[title][_icontains]"] = search
+        
+        # Fetch issues from Directus
+        issues = await directus_service.get_items("issues", params)
+        
+        # Decrypt encrypted fields and format response
+        result = []
+        for issue in issues:
+            # Decrypt contact email if present
+            decrypted_email = None
+            if issue.get("encrypted_contact_email"):
+                try:
+                    decrypted_email = await encryption_service.decrypt_issue_report_email(
+                        issue["encrypted_contact_email"]
+                    )
+                except Exception as e:
+                    logger.warning(f"Failed to decrypt contact email for issue {issue.get('id')}: {str(e)}")
+            
+            # Decrypt chat or embed URL if present
+            decrypted_url = None
+            if issue.get("encrypted_chat_or_embed_url"):
+                try:
+                    decrypted_url = await encryption_service.decrypt_issue_report_data(
+                        issue["encrypted_chat_or_embed_url"]
+                    )
+                except Exception as e:
+                    logger.warning(f"Failed to decrypt chat or embed URL for issue {issue.get('id')}: {str(e)}")
+            
+            # Decrypt estimated location if present
+            decrypted_location = None
+            if issue.get("encrypted_estimated_location"):
+                try:
+                    decrypted_location = await encryption_service.decrypt_issue_report_data(
+                        issue["encrypted_estimated_location"]
+                    )
+                except Exception as e:
+                    logger.warning(f"Failed to decrypt estimated location for issue {issue.get('id')}: {str(e)}")
+            
+            # Decrypt device info if present
+            decrypted_device_info = None
+            if issue.get("encrypted_device_info"):
+                try:
+                    decrypted_device_info = await encryption_service.decrypt_issue_report_data(
+                        issue["encrypted_device_info"]
+                    )
+                except Exception as e:
+                    logger.warning(f"Failed to decrypt device info for issue {issue.get('id')}: {str(e)}")
+            
+            result.append(IssueResponse(
+                id=issue["id"],
+                title=issue["title"],
+                description=issue.get("description"),
+                chat_or_embed_url=decrypted_url,
+                contact_email=decrypted_email,
+                timestamp=issue.get("timestamp", ""),
+                estimated_location=decrypted_location,
+                device_info=decrypted_device_info,
+                created_at=issue.get("created_at", ""),
+                updated_at=issue.get("updated_at", "")
+            ))
+        
+        logger.info(f"Internal API: Retrieved {len(result)} issues")
+        return result
+        
+    except Exception as e:
+        logger.error(f"Error retrieving issues: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to retrieve issues: {str(e)}")
+
+
+@router.get("/issues/{issue_id}", response_model=IssueResponse)
+async def get_issue(
+    issue_id: str,
+    include_logs: bool = False,
+    directus_service: DirectusService = Depends(get_directus_service),
+    encryption_service: EncryptionService = Depends(get_encryption_service),
+    s3_service: S3UploadService = Depends(get_s3_service)
+) -> IssueResponse:
+    """
+    Get a specific issue report by ID.
+    
+    This endpoint is only accessible from within the Docker network via internal service token.
+    Returns the issue with decrypted fields. Console logs are only included if include_logs=true.
+    
+    Args:
+        issue_id: UUID of the issue to retrieve
+        include_logs: If True, fetch and decrypt console logs from S3 (default: False)
+        
+    Returns:
+        Issue report with decrypted fields (and optionally console logs)
+    """
+    logger.info(f"Internal API: Getting issue {issue_id}")
+    
+    try:
+        # Fetch issue from Directus using filter
+        params = {
+            "filter[id][_eq]": issue_id,
+            "limit": 1
+        }
+        issues = await directus_service.get_items("issues", params)
+        
+        if not issues or len(issues) == 0:
+            raise HTTPException(status_code=404, detail="Issue not found")
+        
+        issue = issues[0]
+        
+        # Decrypt contact email if present
+        decrypted_email = None
+        if issue.get("encrypted_contact_email"):
+            try:
+                decrypted_email = await encryption_service.decrypt_issue_report_email(
+                    issue["encrypted_contact_email"]
+                )
+            except Exception as e:
+                logger.warning(f"Failed to decrypt contact email for issue {issue_id}: {str(e)}")
+        
+        # Decrypt chat or embed URL if present
+        decrypted_url = None
+        if issue.get("encrypted_chat_or_embed_url"):
+            try:
+                decrypted_url = await encryption_service.decrypt_issue_report_data(
+                    issue["encrypted_chat_or_embed_url"]
+                )
+            except Exception as e:
+                logger.warning(f"Failed to decrypt chat or embed URL for issue {issue_id}: {str(e)}")
+        
+        # Decrypt estimated location if present
+        decrypted_location = None
+        if issue.get("encrypted_estimated_location"):
+            try:
+                decrypted_location = await encryption_service.decrypt_issue_report_data(
+                    issue["encrypted_estimated_location"]
+                )
+            except Exception as e:
+                logger.warning(f"Failed to decrypt estimated location for issue {issue_id}: {str(e)}")
+        
+        # Decrypt device info if present
+        decrypted_device_info = None
+        if issue.get("encrypted_device_info"):
+            try:
+                decrypted_device_info = await encryption_service.decrypt_issue_report_data(
+                    issue["encrypted_device_info"]
+                )
+            except Exception as e:
+                logger.warning(f"Failed to decrypt device info for issue {issue_id}: {str(e)}")
+        
+        # Optionally fetch and decrypt issue report YAML from S3
+        decrypted_console_logs = None
+        if include_logs and issue.get("encrypted_issue_report_yaml_s3_key"):
+            try:
+                # Decrypt the S3 object key
+                s3_object_key = await encryption_service.decrypt_issue_report_data(
+                    issue["encrypted_issue_report_yaml_s3_key"]
+                )
+                
+                if s3_object_key:
+                    # Get bucket name for issue_logs
+                    from backend.core.api.app.services.s3.config import get_bucket_name
+                    bucket_name = get_bucket_name('issue_logs', os.getenv('SERVER_ENVIRONMENT', 'development'))
+                    
+                    # Download encrypted YAML from S3
+                    encrypted_yaml_bytes = await s3_service.get_file(
+                        bucket_name=bucket_name,
+                        object_key=s3_object_key
+                    )
+                    
+                    if encrypted_yaml_bytes:
+                        # Decrypt the YAML
+                        encrypted_yaml_str = encrypted_yaml_bytes.decode('utf-8')
+                        decrypted_yaml = await encryption_service.decrypt_issue_report_data(
+                            encrypted_yaml_str
+                        )
+                        
+                        # Parse YAML to extract console logs
+                        yaml_data = yaml.safe_load(decrypted_yaml)
+                        if yaml_data and 'issue_report' in yaml_data and 'logs' in yaml_data['issue_report']:
+                            decrypted_console_logs = yaml_data['issue_report']['logs'].get('console_logs')
+                        logger.info(f"Successfully fetched and decrypted issue report YAML for issue {issue_id}")
+                    else:
+                        logger.warning(f"Issue report YAML file not found in S3 for issue {issue_id}: {s3_object_key}")
+            except Exception as e:
+                logger.warning(f"Failed to fetch issue report YAML for issue {issue_id}: {str(e)}", exc_info=True)
+        
+        return IssueResponse(
+            id=issue["id"],
+            title=issue["title"],
+            description=issue.get("description"),
+            chat_or_embed_url=decrypted_url,
+            contact_email=decrypted_email,
+            timestamp=issue.get("timestamp", ""),
+            estimated_location=decrypted_location,
+            device_info=decrypted_device_info,
+            console_logs=decrypted_console_logs,
+            created_at=issue.get("created_at", ""),
+            updated_at=issue.get("updated_at", "")
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error retrieving issue {issue_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to retrieve issue: {str(e)}")

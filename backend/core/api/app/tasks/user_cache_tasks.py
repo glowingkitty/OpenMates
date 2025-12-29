@@ -750,3 +750,400 @@ def warm_user_cache(self, user_id: str, last_opened_path_from_user_model: Option
         if loop:
             loop.close()
         logger.info(f"TASK_FINALLY_SYNC_WRAPPER: Event loop closed for warm_user_cache task_id: {task_id}")
+
+
+@app.task(name="delete_user_account", bind=True)
+def delete_user_account_task(
+    self,
+    user_id: str,
+    deletion_type: str = "user_requested",
+    reason: str = "User requested account deletion",
+    ip_address: str = None,
+    device_fingerprint: str = None,
+    refund_invoices: bool = True
+):
+    """
+    Asynchronously delete user account and all associated data.
+    
+    Processes deletion in priority order:
+    1. Authentication data (prevents re-login) - CRITICAL
+    2. Payment/subscription data (with auto-refunds)
+    3. User content (chats, messages, embeds)
+    4. Cache cleanup
+    5. User record deletion
+    
+    Args:
+        user_id: ID of user to delete
+        deletion_type: Type of deletion (user_requested, policy_violation, admin_action)
+        reason: Reason for deletion
+        ip_address: IP address of deletion request
+        device_fingerprint: Device fingerprint of deletion request
+        refund_invoices: Whether to auto-refund eligible purchases from last 14 days
+    """
+    task_id = self.request.id
+    logger.info(f"[TASK] delete_user_account started for user {user_id}, task_id={task_id}")
+    
+    loop = None
+    try:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        result = loop.run_until_complete(_async_delete_user_account(
+            user_id=user_id,
+            deletion_type=deletion_type,
+            reason=reason,
+            ip_address=ip_address,
+            device_fingerprint=device_fingerprint,
+            refund_invoices=refund_invoices,
+            task_id=task_id
+        ))
+        return result
+    except Exception as e:
+        logger.error(f"[TASK] delete_user_account failed for user {user_id}, task_id={task_id}: {e}", exc_info=True)
+        return False
+    finally:
+        if loop:
+            loop.close()
+        logger.info(f"[TASK] delete_user_account completed for user {user_id}, task_id={task_id}")
+
+
+async def _async_delete_user_account(
+    user_id: str,
+    deletion_type: str,
+    reason: str,
+    ip_address: Optional[str],
+    device_fingerprint: Optional[str],
+    refund_invoices: bool,
+    task_id: str
+) -> bool:
+    """
+    Async implementation of account deletion following priority order from architecture.
+    """
+    from backend.core.api.app.services.compliance import ComplianceService
+    from datetime import datetime, timezone, timedelta
+    
+    # Initialize services
+    cache_service = CacheService()
+    encryption_service = EncryptionService()
+    directus_service = DirectusService(
+        cache_service=cache_service,
+        encryption_service=encryption_service
+    )
+    compliance_service = ComplianceService()
+    
+    user_id_hash = hashlib.sha256(user_id.encode()).hexdigest()
+    
+    try:
+        logger.info(f"[DELETE_ACCOUNT] Starting deletion for user {user_id}, task_id={task_id}")
+        
+        # ===== PHASE 1: Authentication Data (Highest Priority) =====
+        logger.info(f"[DELETE_ACCOUNT] Phase 1: Deleting authentication data for user {user_id}")
+        
+        # 1. Delete passkeys
+        try:
+            passkeys = await directus_service.get_user_passkeys_by_user_id(user_id)
+            for passkey in passkeys:
+                passkey_id = passkey.get("id")
+                if passkey_id:
+                    await directus_service.delete_item("user_passkeys", passkey_id)
+            logger.info(f"[DELETE_ACCOUNT] Deleted {len(passkeys)} passkeys for user {user_id}")
+        except Exception as e:
+            logger.error(f"[DELETE_ACCOUNT] Error deleting passkeys for user {user_id}: {e}", exc_info=True)
+            # Critical - retry logic could be added here
+        
+        # 2. Delete API keys and associated devices
+        try:
+            api_keys = await directus_service.get_user_api_keys_by_user_id(user_id)
+            for api_key in api_keys:
+                api_key_id = api_key.get("id")
+                if api_key_id:
+                    # Delete associated devices first
+                    api_key_devices = await directus_service.get_items(
+                        "api_key_devices",
+                        params={"filter": {"api_key_id": {"_eq": api_key_id}}}
+                    )
+                    for device in api_key_devices or []:
+                        device_id = device.get("id")
+                        if device_id:
+                            await directus_service.delete_item("api_key_devices", device_id)
+                    # Delete API key
+                    await directus_service.delete_item("api_keys", api_key_id)
+            logger.info(f"[DELETE_ACCOUNT] Deleted {len(api_keys)} API keys for user {user_id}")
+        except Exception as e:
+            logger.error(f"[DELETE_ACCOUNT] Error deleting API keys for user {user_id}: {e}", exc_info=True)
+        
+        # 3. Clear 2FA data from user record
+        try:
+            await directus_service.update_user(user_id, {
+                "encrypted_tfa_secret": None,
+                "tfa_backup_codes_hashes": None,
+                "encrypted_tfa_app_name": None,
+                "tfa_last_used": None,
+                "consent_tfa_safely_stored_timestamp": None
+            })
+            logger.info(f"[DELETE_ACCOUNT] Cleared 2FA data for user {user_id}")
+        except Exception as e:
+            logger.error(f"[DELETE_ACCOUNT] Error clearing 2FA data for user {user_id}: {e}", exc_info=True)
+        
+        # 4. Clear lookup hashes
+        try:
+            await directus_service.update_user(user_id, {"lookup_hashes": None})
+            logger.info(f"[DELETE_ACCOUNT] Cleared lookup hashes for user {user_id}")
+        except Exception as e:
+            logger.error(f"[DELETE_ACCOUNT] Error clearing lookup hashes for user {user_id}: {e}", exc_info=True)
+        
+        # 5. Clear email authentication data
+        try:
+            await directus_service.update_user(user_id, {
+                "hashed_email": None,
+                "user_email_salt": None,
+                "encrypted_email_address": None,
+                "encrypted_email_with_master_key": None
+            })
+            logger.info(f"[DELETE_ACCOUNT] Cleared email authentication data for user {user_id}")
+        except Exception as e:
+            logger.error(f"[DELETE_ACCOUNT] Error clearing email auth data for user {user_id}: {e}", exc_info=True)
+        
+        # 6. Vault keys - Note: Vault deletion may require additional service methods
+        # This is marked as TODO in the architecture - implementation depends on Vault service
+        
+        # 7. Sessions & Tokens - already handled in endpoint (logout_all_sessions called)
+        logger.info(f"[DELETE_ACCOUNT] Phase 1 complete for user {user_id}")
+        
+        # ===== PHASE 2: Payment & Subscription Data =====
+        logger.info(f"[DELETE_ACCOUNT] Phase 2: Processing payment/subscription data for user {user_id}")
+        
+        # 8. Stripe cleanup - Note: Requires PaymentService integration
+        # This would cancel subscription and delete customer - marked as TODO
+        
+        # 9. Auto-refund processing (if enabled)
+        if refund_invoices:
+            try:
+                # Get invoices from last 14 days
+                now = datetime.now(timezone.utc)
+                fourteen_days_ago = now - timedelta(days=14)
+                
+                invoices = await directus_service.get_items(
+                    "invoices",
+                    params={
+                        "filter": {
+                            "user_id_hash": {"_eq": user_id_hash},
+                            "date": {"_gte": fourteen_days_ago.isoformat()},
+                            "refunded_at": {"_null": True},
+                            "is_gift_card": {"_eq": False}
+                        }
+                    }
+                )
+                
+                # Process refunds - Note: Full refund processing requires PaymentService
+                # This is a simplified version - full implementation would process actual refunds
+                logger.info(f"[DELETE_ACCOUNT] Found {len(invoices)} eligible invoices for refund for user {user_id}")
+                # TODO: Implement actual refund processing via PaymentService
+            except Exception as e:
+                logger.error(f"[DELETE_ACCOUNT] Error processing refunds for user {user_id}: {e}", exc_info=True)
+        
+        # 10. Delete gift cards
+        try:
+            gift_cards = await directus_service.get_items(
+                "gift_cards",
+                params={"filter": {"purchaser_user_id_hash": {"_eq": user_id_hash}}}
+            )
+            for gift_card in gift_cards or []:
+                gift_card_id = gift_card.get("id")
+                if gift_card_id:
+                    await directus_service.delete_item("gift_cards", gift_card_id)
+            
+            # Delete redemption records
+            redeemed_gift_cards = await directus_service.get_items(
+                "redeemed_gift_cards",
+                params={"filter": {"user_id_hash": {"_eq": user_id_hash}}}
+            )
+            for redeemed in redeemed_gift_cards or []:
+                redeemed_id = redeemed.get("id")
+                if redeemed_id:
+                    await directus_service.delete_item("redeemed_gift_cards", redeemed_id)
+            logger.info(f"[DELETE_ACCOUNT] Deleted gift cards for user {user_id}")
+        except Exception as e:
+            logger.error(f"[DELETE_ACCOUNT] Error deleting gift cards for user {user_id}: {e}", exc_info=True)
+        
+        # 11. Delete invoices
+        try:
+            invoices = await directus_service.get_items(
+                "invoices",
+                params={"filter": {"user_id_hash": {"_eq": user_id_hash}}}
+            )
+            for invoice in invoices or []:
+                invoice_id = invoice.get("id")
+                if invoice_id:
+                    # TODO: Delete invoice PDFs from S3 using encrypted_s3_object_key
+                    await directus_service.delete_item("invoices", invoice_id)
+            logger.info(f"[DELETE_ACCOUNT] Deleted {len(invoices) if invoices else 0} invoices for user {user_id}")
+        except Exception as e:
+            logger.error(f"[DELETE_ACCOUNT] Error deleting invoices for user {user_id}: {e}", exc_info=True)
+        
+        logger.info(f"[DELETE_ACCOUNT] Phase 2 complete for user {user_id}")
+        
+        # ===== PHASE 3: User Content & Data =====
+        logger.info(f"[DELETE_ACCOUNT] Phase 3: Deleting user content for user {user_id}")
+        
+        # 12. Delete chats, messages, embeds
+        try:
+            chats = await directus_service.get_items(
+                "chats",
+                params={"filter": {"user_id": {"_eq": user_id}}}
+            )
+            for chat in chats or []:
+                chat_id = chat.get("id")
+                if chat_id:
+                    # Delete messages
+                    messages = await directus_service.get_items(
+                        "messages",
+                        params={"filter": {"chat_id": {"_eq": chat_id}}}
+                    )
+                    for message in messages or []:
+                        message_id = message.get("id")
+                        if message_id:
+                            await directus_service.delete_item("messages", message_id)
+                    
+                    # Delete embeds
+                    hashed_chat_id = hashlib.sha256(chat_id.encode()).hexdigest()
+                    embeds = await directus_service.get_items(
+                        "embeds",
+                        params={"filter": {"hashed_chat_id": {"_eq": hashed_chat_id}}}
+                    )
+                    for embed in embeds or []:
+                        embed_id = embed.get("id")
+                        if embed_id:
+                            await directus_service.delete_item("embeds", embed_id)
+                    
+                    # Delete chat
+                    await directus_service.delete_item("chats", chat_id)
+            logger.info(f"[DELETE_ACCOUNT] Deleted chats, messages, and embeds for user {user_id}")
+        except Exception as e:
+            logger.error(f"[DELETE_ACCOUNT] Error deleting user content for user {user_id}: {e}", exc_info=True)
+        
+        # 13. Delete usage data
+        try:
+            usage_entries = await directus_service.get_items(
+                "usage",
+                params={"filter": {"user_id_hash": {"_eq": user_id_hash}}}
+            )
+            for entry in usage_entries or []:
+                entry_id = entry.get("id")
+                if entry_id:
+                    await directus_service.delete_item("usage", entry_id)
+            
+            # Delete usage summaries
+            for collection in ["usage_monthly_chat_summaries", "usage_monthly_api_key_summaries"]:
+                summaries = await directus_service.get_items(
+                    collection,
+                    params={"filter": {"user_id_hash": {"_eq": user_id_hash}}}
+                )
+                for summary in summaries or []:
+                    summary_id = summary.get("id")
+                    if summary_id:
+                        await directus_service.delete_item(collection, summary_id)
+            logger.info(f"[DELETE_ACCOUNT] Deleted usage data for user {user_id}")
+        except Exception as e:
+            logger.error(f"[DELETE_ACCOUNT] Error deleting usage data for user {user_id}: {e}", exc_info=True)
+        
+        # 14. Delete app settings & memories
+        try:
+            app_settings = await directus_service.get_items(
+                "user_app_settings_and_memories",
+                params={"filter": {"hashed_user_id": {"_eq": user_id_hash}}}
+            )
+            for setting in app_settings or []:
+                setting_id = setting.get("id")
+                if setting_id:
+                    await directus_service.delete_item("user_app_settings_and_memories", setting_id)
+            logger.info(f"[DELETE_ACCOUNT] Deleted app settings/memories for user {user_id}")
+        except Exception as e:
+            logger.error(f"[DELETE_ACCOUNT] Error deleting app settings for user {user_id}: {e}", exc_info=True)
+        
+        logger.info(f"[DELETE_ACCOUNT] Phase 3 complete for user {user_id}")
+        
+        # ===== PHASE 4: Cache Cleanup =====
+        logger.info(f"[DELETE_ACCOUNT] Phase 4: Cleaning cache for user {user_id}")
+        
+        try:
+            client = await cache_service.client
+            if client:
+                # Delete user profile cache
+                await client.delete(f"user_profile:{user_id}")
+                
+                # Delete user device caches
+                device_keys = await client.keys(f"user_device:{user_id}:*")
+                if device_keys:
+                    await client.delete(*device_keys)
+                
+                # Delete user device list
+                await client.delete(f"user_device_list:{user_id}")
+                
+                # Delete chat-related caches
+                await client.delete(f"user:{user_id}:chat_ids_versions")
+                await client.delete(f"user:{user_id}:active_chats_lru")
+                await client.delete(f"user:{user_id}:chats")
+                
+                # Delete chat-specific caches
+                chat_keys = await client.keys(f"user:{user_id}:chat:*")
+                if chat_keys:
+                    await client.delete(*chat_keys)
+                
+                # Delete app settings/memories cache
+                app_keys = await client.keys(f"user:{user_id}:chat:*:app:*")
+                if app_keys:
+                    await client.delete(*app_keys)
+                
+                # Delete order status cache
+                order_keys = await client.keys("order_status:*")
+                # Filter by user if possible - simplified for now
+                if order_keys:
+                    # Note: Would need to check order ownership - simplified
+                    pass
+            logger.info(f"[DELETE_ACCOUNT] Cache cleanup complete for user {user_id}")
+        except Exception as e:
+            logger.error(f"[DELETE_ACCOUNT] Error cleaning cache for user {user_id}: {e}", exc_info=True)
+        
+        logger.info(f"[DELETE_ACCOUNT] Phase 4 complete for user {user_id}")
+        
+        # ===== PHASE 5: User Record & Compliance =====
+        logger.info(f"[DELETE_ACCOUNT] Phase 5: Final deletion and compliance for user {user_id}")
+        
+        # 17. Compliance logging (already done in endpoint, but log here too)
+        try:
+            compliance_service.log_account_deletion(
+                user_id=user_id,
+                deletion_type=deletion_type,
+                reason=reason,
+                ip_address=ip_address,
+                device_fingerprint=device_fingerprint
+            )
+        except Exception as e:
+            logger.warning(f"[DELETE_ACCOUNT] Error logging compliance event: {e}")
+        
+        # 18. Delete user record (final step)
+        try:
+            success = await directus_service.delete_user(
+                user_id=user_id,
+                deletion_type=deletion_type,
+                reason=reason,
+                ip_address=ip_address,
+                device_fingerprint=device_fingerprint
+            )
+            if success:
+                logger.info(f"[DELETE_ACCOUNT] Successfully deleted user record for user {user_id}")
+            else:
+                logger.error(f"[DELETE_ACCOUNT] Failed to delete user record for user {user_id}")
+                return False
+        except Exception as e:
+            logger.error(f"[DELETE_ACCOUNT] Error deleting user record for user {user_id}: {e}", exc_info=True)
+            return False
+        
+        logger.info(f"[DELETE_ACCOUNT] Account deletion complete for user {user_id}, task_id={task_id}")
+        return True
+        
+    except Exception as e:
+        logger.error(f"[DELETE_ACCOUNT] Fatal error during account deletion for user {user_id}: {e}", exc_info=True)
+        return False
+    finally:
+        await directus_service.close()

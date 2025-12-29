@@ -1,35 +1,34 @@
-from fastapi import APIRouter, UploadFile, File, HTTPException, Depends, Cookie, Request, Security
+from fastapi import APIRouter, UploadFile, File, HTTPException, Depends, Request, Security
 from fastapi.responses import StreamingResponse
+from fastapi.security import HTTPBearer
 import logging
 import time
-from typing import Optional
+import os
+import random
+import string
+import hashlib
+from typing import Optional, Dict, Any
+from datetime import datetime, timezone, timedelta
 from pydantic import BaseModel, Field # Import BaseModel and Field for response models
+
 from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.models.user import User
 from backend.core.api.app.routes.auth_routes.auth_dependencies import get_directus_service, get_cache_service, get_compliance_service, get_current_user, get_encryption_service, get_current_user_or_api_key
-from backend.core.api.app.utils.api_key_auth import api_key_scheme
-from fastapi.security import HTTPBearer
-
-# Create an optional API key scheme that doesn't fail if missing (for endpoints that support both session and API key auth)
-optional_api_key_scheme = HTTPBearer(
-    scheme_name="API Key",
-    description="Enter your API key. API keys start with 'sk-api-'. Use format: Bearer sk-api-...",
-    auto_error=False  # Don't raise error if missing - allows session auth to work
-) 
-import os
-import random
-import string
 from backend.core.api.app.services.image_safety import ImageSafetyService
 from backend.core.api.app.services.s3 import S3UploadService
 from backend.core.api.app.services.compliance import ComplianceService
 from backend.core.api.app.services.limiter import limiter
 from backend.core.api.app.utils.device_fingerprint import generate_device_fingerprint_hash, _extract_client_ip # Updated imports
 from backend.core.api.app.schemas.settings import LanguageUpdateRequest, DarkModeUpdateRequest, AutoTopUpLowBalanceRequest, BillingOverviewResponse, InvoiceResponse # Import request/response models
-import hashlib  # For API key hashing and user ID hashing
-import secrets  # For secure API key generation
-from datetime import datetime, timezone
+
+# Create an optional API key scheme that doesn't fail if missing (for endpoints that support both session and API key auth)
+optional_api_key_scheme = HTTPBearer(
+    scheme_name="API Key",
+    description="Enter your API key. API keys start with 'sk-api-'. Use format: Bearer sk-api-...",
+    auto_error=False  # Don't raise error if missing - allows session auth to work
+)
 
 router = APIRouter(prefix="/v1/settings", tags=["Settings"])
 logger = logging.getLogger(__name__)
@@ -1236,7 +1235,7 @@ async def get_usage_details(
         try:
             year, month = map(int, year_month.split("-"))
             datetime(year, month, 1)  # Validate it's a valid date
-        except:
+        except Exception:
             raise HTTPException(status_code=400, detail="Invalid year_month format. Must be 'YYYY-MM'")
         
         logger.info(f"Fetching {type} usage details for user {current_user.id}, identifier '{identifier}', month '{year_month}'")
@@ -1723,7 +1722,6 @@ async def get_server_status(
         from backend.core.api.app.utils.server_mode import (
             is_payment_enabled,
             get_server_edition,
-            get_hosting_domain,
             validate_request_domain
         )
         
@@ -1840,7 +1838,6 @@ async def report_issue(
     try:
         # Import necessary utilities
         from backend.core.api.app.utils.device_fingerprint import _extract_client_ip, get_geo_data_from_ip
-        from datetime import datetime, timezone
         from html import escape
         from urllib.parse import urlparse, urlunparse
         
@@ -1948,16 +1945,102 @@ async def report_issue(
             console_logs_str = issue_data.console_logs.strip()
             logger.info(f"Console logs provided with issue report: {len(console_logs_str)} characters")
 
+        # Encrypt sensitive fields for database storage (server-side encryption)
+        encryption_service: EncryptionService = request.app.state.encryption_service
+        encrypted_contact_email = None
+        encrypted_chat_or_embed_url = None
+        encrypted_estimated_location = None
+        encrypted_device_info = None
+        encrypted_issue_report_yaml_s3_key = None
+        
+        try:
+            # Encrypt contact email if provided
+            if sanitized_email:
+                encrypted_contact_email = await encryption_service.encrypt_issue_report_email(sanitized_email)
+                logger.debug("Encrypted contact email for issue report database storage")
+            
+            # Encrypt chat or embed URL if provided
+            if sanitized_url:
+                encrypted_chat_or_embed_url = await encryption_service.encrypt_issue_report_data(sanitized_url)
+                logger.debug("Encrypted chat or embed URL for issue report database storage")
+            
+            # Encrypt estimated location if provided
+            if estimated_location:
+                encrypted_estimated_location = await encryption_service.encrypt_issue_report_data(estimated_location)
+                logger.debug("Encrypted estimated location for issue report database storage")
+            
+            # Encrypt device info if provided
+            if device_info_str:
+                encrypted_device_info = await encryption_service.encrypt_issue_report_data(device_info_str)
+                logger.debug("Encrypted device info for issue report database storage")
+            
+            # Note: The YAML file will be created and uploaded in the email task after it's generated
+            # We'll pass the issue_id to the email task so it can store the S3 key back to the database
+        except Exception as e:
+            logger.error(f"Failed to encrypt fields for issue report: {str(e)}", exc_info=True)
+            # Continue without encrypted fields - email task will still work with plaintext
+        
+        # Save issue report to database
+        try:
+            directus_service: DirectusService = request.app.state.directus_service
+            
+            # Parse timestamp string back to datetime for database
+            timestamp_dt = datetime.strptime(current_time, '%Y-%m-%d %H:%M:%S UTC').replace(tzinfo=timezone.utc)
+            current_timestamp = datetime.now(timezone.utc)
+            
+            issue_data_dict = {
+                "title": sanitized_title,
+                "description": sanitized_description,
+                "encrypted_chat_or_embed_url": encrypted_chat_or_embed_url,
+                "encrypted_contact_email": encrypted_contact_email,
+                "timestamp": timestamp_dt.isoformat(),
+                "encrypted_estimated_location": encrypted_estimated_location,
+                "encrypted_device_info": encrypted_device_info,
+                "encrypted_issue_report_yaml_s3_key": encrypted_issue_report_yaml_s3_key,
+                "created_at": current_timestamp.isoformat(),
+                "updated_at": current_timestamp.isoformat()
+            }
+            
+            # Remove None values to avoid database errors
+            issue_data_dict = {k: v for k, v in issue_data_dict.items() if v is not None}
+            
+            # Log the data being saved (without sensitive encrypted data)
+            logger.debug(f"Creating issue record in Directus with data keys: {list(issue_data_dict.keys())}")
+            
+            # Create issue record in Directus
+            # NOTE: create_item returns a tuple (success: bool, data: dict)
+            success, issue_record = await directus_service.create_item("issues", issue_data_dict)
+            
+            if not success:
+                # issue_record contains error details when success is False
+                error_msg = issue_record.get('text', str(issue_record)) if issue_record else 'Unknown error'
+                raise ValueError(f"Directus create_item failed: {error_msg}")
+            
+            if not issue_record:
+                raise ValueError("Directus create_item returned None - issue record was not created")
+            
+            issue_id = issue_record.get('id')
+            if not issue_id:
+                raise ValueError(f"Directus create_item returned record without 'id' field: {issue_record}")
+            
+            logger.info(f"Issue report saved to database with ID: {issue_id}")
+        except Exception as e:
+            logger.error(f"Failed to save issue report to database: {str(e)}", exc_info=True)
+            # Continue - email will still be sent even if database save fails
+            issue_id = None
+        
         # Dispatch the email task with sanitized data
+        # The email task will create the YAML file, encrypt it, upload to S3, and update the database with the S3 key
         from backend.core.api.app.tasks.celery_config import app
         task_result = app.send_task(
             name='app.tasks.email_tasks.issue_report_email_task.send_issue_report_email',
             kwargs={
                 "admin_email": admin_email,
+                "issue_id": issue_id,  # Pass issue ID so email task can update database with S3 key
                 "issue_title": sanitized_title,
                 "issue_description": sanitized_description,
                 "chat_or_embed_url": sanitized_url,
-                "contact_email": sanitized_email,
+                "contact_email": sanitized_email,  # Use plaintext for email (not encrypted)
                 "timestamp": current_time,
                 "estimated_location": estimated_location,
                 "device_info": device_info_str,
@@ -1980,3 +2063,352 @@ async def report_issue(
     except Exception as e:
         logger.error(f"Error processing issue report: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to submit issue report. Please try again later.")
+
+
+# --- Account Deletion Endpoints ---
+
+class DeleteAccountPreviewResponse(BaseModel):
+    """Response model for account deletion preview"""
+    credits_older_than_14_days: int
+    has_credits_older_than_14_days: bool
+    auto_refunds: Dict[str, Any]
+    has_auto_refunds: bool
+
+
+class DeleteAccountRequest(BaseModel):
+    """Request model for account deletion"""
+    confirm_credits_loss: bool
+    confirm_data_deletion: bool
+    auth_method: str  # "passkey" or "2fa_otp"
+    auth_code: Optional[str] = None  # OTP code for 2FA, or credential_id for passkey
+
+
+async def _calculate_delete_account_preview(
+    user_id: str,
+    user_id_hash: str,
+    vault_key_id: str,
+    directus_service: DirectusService,
+    encryption_service: EncryptionService,
+    cache_service: CacheService
+) -> DeleteAccountPreviewResponse:
+    """
+    Helper function to calculate account deletion preview data.
+    Extracted from endpoint handler for reuse.
+    """
+    # Get all invoices for user
+    invoices_data = await directus_service.get_items(
+        collection="invoices",
+        params={
+            "filter": {
+                "user_id_hash": {"_eq": user_id_hash}
+            },
+            "fields": "*"
+        }
+    )
+    
+    if not invoices_data:
+        invoices_data = []
+    
+    # Get current timestamp and calculate 14 days ago
+    now = datetime.now(timezone.utc)
+    fourteen_days_ago = now.replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(days=14)
+    fourteen_days_ago_timestamp = int(fourteen_days_ago.timestamp())
+    
+    # Get usage entries to calculate used credits
+    usage_entries = await directus_service.usage.get_user_usage_entries(
+        user_id_hash=user_id_hash,
+        user_vault_key_id=vault_key_id,
+        limit=None
+    )
+    
+    # Process invoices
+    credits_older_than_14_days = 0
+    eligible_invoices = []
+    total_refund_amount_cents = 0
+    total_unused_credits = 0
+    
+    for invoice in invoices_data:
+        # Parse invoice date
+        invoice_date_str = invoice.get("date")
+        if not invoice_date_str:
+            continue
+        
+        try:
+            if isinstance(invoice_date_str, str):
+                invoice_date = datetime.fromisoformat(invoice_date_str.replace('Z', '+00:00'))
+            else:
+                invoice_date = datetime.fromtimestamp(invoice_date_str, tz=timezone.utc)
+            invoice_timestamp = int(invoice_date.timestamp())
+        except Exception as e:
+            logger.warning(f"Could not parse invoice date: {invoice_date_str}, error: {e}")
+            continue
+        
+        # Decrypt invoice data
+        encrypted_amount = invoice.get("encrypted_amount")
+        encrypted_credits = invoice.get("encrypted_credits_purchased")
+        
+        if not encrypted_amount or not encrypted_credits:
+            continue
+        
+        try:
+            total_amount_cents = int(await encryption_service.decrypt_with_user_key(encrypted_amount, vault_key_id))
+            total_credits = int(await encryption_service.decrypt_with_user_key(encrypted_credits, vault_key_id))
+        except Exception as e:
+            logger.warning(f"Could not decrypt invoice data for invoice {invoice.get('id')}: {e}")
+            continue
+        
+        # Calculate used credits (usage entries created after invoice date)
+        used_credits = 0
+        for entry in usage_entries:
+            entry_created_at = entry.get("created_at", 0)
+            if entry_created_at >= invoice_timestamp:
+                credits = entry.get("credits", 0)
+                if credits:
+                    try:
+                        credits_int = int(float(str(credits)))
+                        used_credits += credits_int
+                    except (ValueError, TypeError):
+                        pass
+        
+        unused_credits = max(0, total_credits - used_credits)
+        is_gift_card = invoice.get("is_gift_card", False)
+        is_refunded = invoice.get("refunded_at") is not None
+        
+        # Check if invoice is older than 14 days
+        if invoice_timestamp < fourteen_days_ago_timestamp:
+            # Credits from older invoices will be lost
+            credits_older_than_14_days += unused_credits
+        else:
+            # Invoice is within 14 days - eligible for refund if not already refunded and not a gift card
+            if not is_refunded and not is_gift_card and unused_credits > 0:
+                # Calculate refund amount (proportional to unused credits)
+                unit_price_per_credit = total_amount_cents / total_credits if total_credits > 0 else 0
+                refund_amount_cents = int(unused_credits * unit_price_per_credit)
+                
+                total_refund_amount_cents += refund_amount_cents
+                total_unused_credits += unused_credits
+                
+                # Get currency from order cache or default to EUR
+                order_id = invoice.get("order_id")
+                currency = "eur"
+                if order_id:
+                    order_data = await cache_service.get_order(order_id)
+                    if order_data:
+                        currency = order_data.get("currency", "eur")
+                
+                eligible_invoices.append({
+                    "invoice_id": invoice.get("id"),
+                    "order_id": order_id,
+                    "date": invoice_date_str,
+                    "total_credits": total_credits,
+                    "unused_credits": unused_credits,
+                    "refund_amount_cents": refund_amount_cents,
+                    "currency": currency,
+                    "is_gift_card": False
+                })
+    
+    # Get gift card purchases
+    gift_cards_data = await directus_service.get_items(
+        collection="gift_cards",
+        params={
+            "filter": {
+                "purchaser_user_id_hash": {"_eq": user_id_hash}
+            },
+            "fields": "*"
+        }
+    )
+    
+    gift_card_purchases = []
+    if gift_cards_data:
+        for gift_card in gift_cards_data:
+            gift_card_purchases.append({
+                "gift_card_code": gift_card.get("code", ""),
+                "credits_value": gift_card.get("credits_value", 0),
+                "purchased_at": gift_card.get("created_at", ""),
+                "is_redeemed": gift_card.get("redeemed_at") is not None
+            })
+    
+    return DeleteAccountPreviewResponse(
+        credits_older_than_14_days=credits_older_than_14_days,
+        has_credits_older_than_14_days=credits_older_than_14_days > 0,
+        auto_refunds={
+            "total_refund_amount_cents": total_refund_amount_cents,
+            "total_refund_currency": "eur",  # Default, could be improved to support multiple currencies
+            "total_unused_credits": total_unused_credits,
+            "eligible_invoices": eligible_invoices,
+            "gift_card_purchases": gift_card_purchases
+        },
+        has_auto_refunds=len(eligible_invoices) > 0 or len(gift_card_purchases) > 0
+    )
+
+
+@router.get("/delete-account-preview", response_model=DeleteAccountPreviewResponse, include_in_schema=False)
+@limiter.limit("10/minute")
+async def get_delete_account_preview(
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    directus_service: DirectusService = Depends(get_directus_service),
+    encryption_service: EncryptionService = Depends(get_encryption_service),
+    cache_service: CacheService = Depends(get_cache_service)
+):
+    """
+    Get preview information about what will happen during account deletion.
+    Returns credits that will be lost, eligible refunds, and gift card information.
+    """
+    user_id = current_user.id
+    user_id_hash = hashlib.sha256(user_id.encode()).hexdigest()
+    vault_key_id = current_user.vault_key_id
+    
+    if not vault_key_id:
+        logger.error(f"Vault key ID missing for user {user_id}")
+        raise HTTPException(status_code=500, detail="User encryption key not found")
+    
+    logger.info(f"Fetching account deletion preview for user {user_id}")
+    
+    try:
+        return await _calculate_delete_account_preview(
+            user_id=user_id,
+            user_id_hash=user_id_hash,
+            vault_key_id=vault_key_id,
+            directus_service=directus_service,
+            encryption_service=encryption_service,
+            cache_service=cache_service
+        )
+    except Exception as e:
+        logger.error(f"Error fetching account deletion preview for user {user_id}: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to fetch deletion preview")
+
+
+@router.post("/delete-account", response_model=SimpleSuccessResponse, include_in_schema=False)
+@limiter.limit("3/minute")  # Very sensitive operation - strict rate limit
+async def delete_account(
+    request: Request,
+    delete_request: DeleteAccountRequest,
+    current_user: User = Depends(get_current_user),
+    directus_service: DirectusService = Depends(get_directus_service),
+    encryption_service: EncryptionService = Depends(get_encryption_service),
+    compliance_service: ComplianceService = Depends(get_compliance_service),
+    cache_service: CacheService = Depends(get_cache_service)
+):
+    """
+    Delete user account and all associated data.
+    Requires re-authentication (passkey or 2FA) and confirmation toggles.
+    """
+    user_id = current_user.id
+    client_ip = _extract_client_ip(request.headers, request.client.host if request.client else None)
+    device_fingerprint = generate_device_fingerprint_hash(request.headers, client_ip)
+    
+    logger.info(f"Account deletion request for user {user_id}")
+    
+    try:
+        # Get preview data to validate confirmations
+        user_id_hash = hashlib.sha256(user_id.encode()).hexdigest()
+        vault_key_id = current_user.vault_key_id
+        
+        if not vault_key_id:
+            logger.error(f"Vault key ID missing for user {user_id}")
+            raise HTTPException(status_code=500, detail="User encryption key not found")
+        
+        preview_response = await _calculate_delete_account_preview(
+            user_id=user_id,
+            user_id_hash=user_id_hash,
+            vault_key_id=vault_key_id,
+            directus_service=directus_service,
+            encryption_service=encryption_service,
+            cache_service=cache_service
+        )
+        preview_data = preview_response.dict()
+        
+        # Validate confirmations
+        if not delete_request.confirm_data_deletion:
+            raise HTTPException(status_code=400, detail="Data deletion confirmation is required")
+        
+        if preview_data["has_credits_older_than_14_days"] and not delete_request.confirm_credits_loss:
+            raise HTTPException(status_code=400, detail="Credits loss confirmation is required")
+        
+        # Validate authentication
+        if delete_request.auth_method == "passkey":
+            if not delete_request.auth_code:
+                raise HTTPException(status_code=400, detail="Passkey credential ID is required")
+            
+            # Verify passkey belongs to user
+            passkey = await directus_service.get_passkey_by_credential_id(delete_request.auth_code)
+            if not passkey or passkey.get("user_id") != user_id:
+                logger.warning(f"Invalid passkey verification for account deletion: user {user_id}")
+                raise HTTPException(status_code=401, detail="Invalid passkey authentication")
+            
+            logger.info(f"Passkey authentication verified for account deletion: user {user_id}")
+            
+        elif delete_request.auth_method == "2fa_otp":
+            if not delete_request.auth_code:
+                raise HTTPException(status_code=400, detail="2FA code is required")
+            
+            # Verify 2FA code
+            from backend.core.api.app.routes.auth_routes.auth_2fa_verify import verify_device_2fa
+            from backend.core.api.app.schemas.auth import VerifyDevice2FARequest
+            
+            verify_request = VerifyDevice2FARequest(tfa_code=delete_request.auth_code)
+            verify_response = await verify_device_2fa(
+                request=request,
+                verify_request=verify_request,
+                directus_service=directus_service,
+                cache_service=cache_service,
+                compliance_service=compliance_service,
+                encryption_service=encryption_service
+            )
+            
+            if not verify_response.success:
+                logger.warning(f"Invalid 2FA verification for account deletion: user {user_id}")
+                raise HTTPException(status_code=401, detail="Invalid 2FA code")
+            
+            logger.info(f"2FA authentication verified for account deletion: user {user_id}")
+        else:
+            raise HTTPException(status_code=400, detail="Invalid authentication method")
+        
+        # Trigger Celery task for account deletion
+        from backend.core.api.app.tasks.celery_config import app
+        task_result = app.send_task(
+            name="delete_user_account",
+            kwargs={
+                "user_id": user_id,
+                "deletion_type": "user_requested",
+                "reason": "User requested account deletion",
+                "ip_address": client_ip,
+                "device_fingerprint": device_fingerprint,
+                "refund_invoices": True
+            },
+            queue="user_init"  # Use user_init queue for account deletion
+        )
+        
+        logger.info(f"Account deletion task triggered for user {user_id}, task_id={task_result.id}")
+        
+        # Logout user immediately (delete sessions)
+        try:
+            await directus_service.logout_all_sessions(user_id)
+            # Clear cache
+            await cache_service.delete(f"user_profile:{user_id}")
+        except Exception as e:
+            logger.warning(f"Error during immediate logout for user {user_id}: {e}")
+        
+        # Log compliance event
+        try:
+            compliance_service.log_account_deletion(
+                user_id=user_id,
+                deletion_type="user_requested",
+                reason="User requested account deletion",
+                ip_address=client_ip,
+                device_fingerprint=device_fingerprint
+            )
+        except Exception as e:
+            logger.warning(f"Error logging account deletion compliance event: {e}")
+        
+        return SimpleSuccessResponse(
+            success=True,
+            message="Account deletion initiated. You will be logged out shortly."
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error processing account deletion request for user {user_id}: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to process account deletion request")

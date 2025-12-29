@@ -119,9 +119,21 @@
             showTitleWarning = false;
         }
         
-        // Validate description (optional - no validation needed, any length is acceptable)
-        descriptionError = '';
-        showDescriptionWarning = false;
+        // Validate description (optional - but if provided, must be at least 10 characters)
+        if (issueDescription && issueDescription.trim()) {
+            if (issueDescription.trim().length < 10) {
+                descriptionError = $text('settings.report_issue.description_too_short.text');
+                showDescriptionWarning = true;
+                isValid = false;
+            } else {
+                descriptionError = '';
+                showDescriptionWarning = false;
+            }
+        } else {
+            // Description is optional - empty is valid
+            descriptionError = '';
+            showDescriptionWarning = false;
+        }
         
         // Validate URL if provided
         if (chatOrEmbedUrl && chatOrEmbedUrl.trim()) {
@@ -275,6 +287,10 @@
                 titleInput.focus();
             } else if (descriptionError && descriptionInput) {
                 descriptionInput.focus();
+            } else if (urlError && urlInput) {
+                urlInput.focus();
+            } else if (emailError && emailInput) {
+                emailInput.focus();
             }
             return;
         }
@@ -317,7 +333,43 @@
                 credentials: 'include'
             });
             
-            const data = await response.json();
+            // Parse response - handle both JSON and non-JSON responses
+            // Define response data type
+            interface ApiResponse {
+                success?: boolean;
+                message?: string;
+                detail?: Array<{
+                    type: string;
+                    loc: (string | number)[];
+                    msg: string;
+                    input?: unknown;
+                    ctx?: Record<string, unknown>;
+                }> | string;
+            }
+            
+            let data: ApiResponse;
+            const defaultErrorMessage = $text('settings.report_issue_error.text');
+            
+            try {
+                const contentType = response.headers.get('content-type');
+                if (contentType && contentType.includes('application/json')) {
+                    data = await response.json();
+                } else {
+                    // Non-JSON response - create error object
+                    const text = await response.text();
+                    data = {
+                        success: false,
+                        message: text || defaultErrorMessage
+                    };
+                }
+            } catch (parseError) {
+                // Failed to parse response - create error object
+                console.error('[SettingsReportIssue] Failed to parse response:', parseError);
+                data = {
+                    success: false,
+                    message: defaultErrorMessage
+                };
+            }
             
             if (response.ok && data.success) {
                 // Show success message
@@ -336,17 +388,80 @@
                 contactEmail = '';
                 titleError = '';
                 descriptionError = '';
+                urlError = '';
                 emailError = '';
                 showTitleWarning = false;
                 showDescriptionWarning = false;
+                showUrlWarning = false;
                 showEmailWarning = false;
             } else {
-                // Show error message from API or default error
-                errorMessage = data.message || data.detail || $text('settings.report_issue_error.text');
-                notificationStore.error(
-                    errorMessage,
-                    10000
-                );
+                // Handle FastAPI validation errors (422 status)
+                // FastAPI returns validation errors in data.detail as an array
+                if (response.status === 422 && Array.isArray(data.detail)) {
+                    // Parse validation errors and map them to form fields
+                    let hasFieldErrors = false;
+                    
+                    for (const error of data.detail) {
+                        const fieldPath = error.loc || [];
+                        const fieldName = fieldPath[fieldPath.length - 1]; // Get last element (field name)
+                        const fieldErrorMessage = error.msg || '';
+                        
+                        // Map backend field names to frontend state
+                        if (fieldName === 'title') {
+                            titleError = fieldErrorMessage;
+                            showTitleWarning = true;
+                            hasFieldErrors = true;
+                            if (titleInput) {
+                                titleInput.focus();
+                            }
+                        } else if (fieldName === 'description') {
+                            descriptionError = fieldErrorMessage;
+                            showDescriptionWarning = true;
+                            hasFieldErrors = true;
+                            if (descriptionInput) {
+                                descriptionInput.focus();
+                            }
+                        } else if (fieldName === 'chat_or_embed_url') {
+                            urlError = fieldErrorMessage;
+                            showUrlWarning = true;
+                            hasFieldErrors = true;
+                            if (urlInput) {
+                                urlInput.focus();
+                            }
+                        } else if (fieldName === 'contact_email') {
+                            emailError = fieldErrorMessage;
+                            showEmailWarning = true;
+                            hasFieldErrors = true;
+                            if (emailInput) {
+                                emailInput.focus();
+                            }
+                        }
+                    }
+                    
+                    // If we mapped field errors, show a general error message too
+                    if (hasFieldErrors) {
+                        errorMessage = $text('settings.report_issue_error.text');
+                        notificationStore.error(
+                            errorMessage,
+                            10000
+                        );
+                    } else {
+                        // Fallback: show first error message
+                        errorMessage = data.detail[0]?.msg || $text('settings.report_issue_error.text');
+                        notificationStore.error(
+                            errorMessage,
+                            10000
+                        );
+                    }
+                } else {
+                    // Handle other API errors (non-validation errors)
+                    const apiErrorMessage = data.message || (typeof data.detail === 'string' ? data.detail : $text('settings.report_issue_error.text'));
+                    errorMessage = apiErrorMessage;
+                    notificationStore.error(
+                        errorMessage,
+                        10000
+                    );
+                }
             }
         } catch (error) {
             console.error('[SettingsReportIssue] Error submitting issue:', error);
@@ -374,11 +489,12 @@
     
     /**
      * Check if form is valid
-     * Description is optional with no minimum length requirement
+     * Description is optional but must be at least 10 characters if provided
      * Email is optional but must be valid if provided
      */
     let isFormValid = $derived(
         issueTitle.trim().length >= 3 &&
+        (!issueDescription.trim() || issueDescription.trim().length >= 10) &&
         (!chatOrEmbedUrl.trim() || validateUrl(chatOrEmbedUrl)) &&
         (!contactEmail.trim() || validateEmail(contactEmail)) &&
         !isSubmitting
@@ -399,6 +515,25 @@
         } else {
             urlError = '';
             showUrlWarning = false;
+        }
+    }
+    
+    /**
+     * Validate description on input change
+     */
+    function handleDescriptionInput() {
+        if (issueDescription && issueDescription.trim()) {
+            if (issueDescription.trim().length < 10) {
+                descriptionError = $text('settings.report_issue.description_too_short.text');
+                showDescriptionWarning = true;
+            } else {
+                descriptionError = '';
+                showDescriptionWarning = false;
+            }
+        } else {
+            // Description is optional - empty is valid
+            descriptionError = '';
+            showDescriptionWarning = false;
         }
     }
     
@@ -470,6 +605,7 @@
                     bind:this={descriptionInput}
                     placeholder={$text('settings.report_issue.description_placeholder.text')}
                     bind:value={issueDescription}
+                    oninput={handleDescriptionInput}
                     disabled={isSubmitting}
                     class:error={!!descriptionError}
                     aria-label={$text('settings.report_issue.description_label.text')}

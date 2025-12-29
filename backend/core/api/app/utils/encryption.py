@@ -5,11 +5,7 @@ import logging
 import uuid
 import time
 import hmac
-from typing import Tuple, Optional, Dict, Any, Union
-
-from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
-from cryptography.hazmat.backends import default_backend
-from cryptography.exceptions import InvalidTag
+from typing import Tuple, Optional, Dict, Any
 
 logger = logging.getLogger(__name__)
 
@@ -24,6 +20,9 @@ NEWSLETTER_ENCRYPTION_KEY = "newsletter_emails"
 # Vault transit key name for support payment receipt encryption
 # This is a system-level key used to wrap support receipt AES keys for archival in S3.
 SUPPORT_PAYMENTS_ENCRYPTION_KEY = "support_payments"
+# Vault transit key name for issue report email encryption
+# This is a system-level key used to encrypt issue report contact email addresses
+ISSUE_REPORT_ENCRYPTION_KEY = "issue_report_emails"
 # Note: All chat and draft encryption now happens client-side
 # Server-side encryption methods removed for zero-knowledge architecture
 
@@ -231,10 +230,10 @@ class EncryptionService:
                 logger.debug(f"Vault resource not found: {path}")
                 return {"data": {}}
             elif response.status_code == 401:
-                logger.warning(f"Vault token expired or invalid")
+                logger.warning("Vault token expired or invalid")
                 # Reset token validation cache
                 self._token_valid_until = 0
-                raise Exception(f"Vault token is expired or invalid")
+                raise Exception("Vault token is expired or invalid")
             elif response.status_code != 200:
                 logger.error(
                     f"Vault request failed: {response.status_code} for {method.upper()} {path}. Response: {response.text}"
@@ -285,11 +284,11 @@ class EncryptionService:
                         "type": "transit",
                         "description": "Encryption as a service for OpenMates"
                     })
-                    logger.debug(f"Successfully enabled transit engine")
+                    logger.debug("Successfully enabled transit engine")
                 except Exception as mount_error:
                     # Check if it's already mounted (race condition)
                     if "already in use" in str(mount_error).lower():
-                        logger.debug(f"Transit engine was already mounted by another process")
+                        logger.debug("Transit engine was already mounted by another process")
                     else:
                         raise
         except Exception as e:
@@ -510,6 +509,51 @@ class EncryptionService:
             logger.error(f"Failed to ensure support payments encryption key exists: {str(e)}")
             raise Exception(f"Failed to initialize support payments encryption key: {str(e)}")
 
+        # --- Ensure ISSUE_REPORT_ENCRYPTION_KEY exists in transit engine ---
+        # This key is used for encrypting issue report contact email addresses (system-level, not user-specific).
+        try:
+            logger.debug(f"Checking for issue report encryption key '{ISSUE_REPORT_ENCRYPTION_KEY}' in transit engine...")
+            key_exists = False
+            try:
+                response = await self._vault_request("get", f"{self.transit_mount}/keys/{ISSUE_REPORT_ENCRYPTION_KEY}")
+                if response and response.get("data") and response["data"].get("name") == ISSUE_REPORT_ENCRYPTION_KEY:
+                    key_exists = True
+                    logger.debug(f"Issue report encryption key '{ISSUE_REPORT_ENCRYPTION_KEY}' already exists.")
+                else:
+                    logger.debug(f"Issue report encryption key '{ISSUE_REPORT_ENCRYPTION_KEY}' not found.")
+            except Exception as e:
+                logger.warning(
+                    f"Error checking for issue report encryption key '{ISSUE_REPORT_ENCRYPTION_KEY}': {str(e)}. "
+                    f"Assuming it might not exist."
+                )
+                key_exists = False
+
+            if not key_exists:
+                logger.debug(f"Attempting to create issue report encryption key '{ISSUE_REPORT_ENCRYPTION_KEY}'...")
+                try:
+                    await self._vault_request(
+                        "post",
+                        f"{self.transit_mount}/keys/{ISSUE_REPORT_ENCRYPTION_KEY}",
+                        {
+                            "type": "aes256-gcm96",
+                            "allow_plaintext_backup": False,
+                        },
+                    )
+                    logger.debug(f"Successfully created issue report encryption key '{ISSUE_REPORT_ENCRYPTION_KEY}'.")
+                except Exception as create_error:
+                    if "already exists" in str(create_error).lower():
+                        logger.debug(
+                            f"Issue report encryption key '{ISSUE_REPORT_ENCRYPTION_KEY}' was created by another process."
+                        )
+                    else:
+                        logger.error(
+                            f"Failed to create issue report encryption key '{ISSUE_REPORT_ENCRYPTION_KEY}': {str(create_error)}"
+                        )
+                        raise Exception(f"Failed to initialize issue report encryption key: {str(create_error)}")
+        except Exception as e:
+            logger.error(f"Failed to ensure issue report encryption key exists: {str(e)}")
+            raise Exception(f"Failed to initialize issue report encryption key: {str(e)}")
+
     # Removed get_email_hash_key method
 
     async def create_user_key(self) -> str:
@@ -628,6 +672,68 @@ class EncryptionService:
             return None
         
         return await self.decrypt(encrypted_token, key_name=NEWSLETTER_ENCRYPTION_KEY)
+    
+    async def encrypt_issue_report_email(self, email: str) -> str:
+        """
+        Encrypt issue report contact email using the system-level issue report encryption key.
+        
+        Args:
+            email: Plaintext email address
+            
+        Returns:
+            Encrypted email address (ciphertext)
+        """
+        if not email:
+            return ""
+        
+        ciphertext, _ = await self.encrypt(email, key_name=ISSUE_REPORT_ENCRYPTION_KEY)
+        return ciphertext
+    
+    async def decrypt_issue_report_email(self, encrypted_email: str) -> Optional[str]:
+        """
+        Decrypt issue report contact email using the system-level issue report encryption key.
+        
+        Args:
+            encrypted_email: Encrypted email address (ciphertext)
+            
+        Returns:
+            Decrypted email address or None if decryption fails
+        """
+        if not encrypted_email:
+            return None
+        
+        return await self.decrypt(encrypted_email, key_name=ISSUE_REPORT_ENCRYPTION_KEY)
+    
+    async def encrypt_issue_report_data(self, data: str) -> str:
+        """
+        Encrypt issue report data (email, URL, location, device info, etc.) using the system-level issue report encryption key.
+        
+        Args:
+            data: Plaintext data to encrypt
+            
+        Returns:
+            Encrypted data (ciphertext)
+        """
+        if not data:
+            return ""
+        
+        ciphertext, _ = await self.encrypt(data, key_name=ISSUE_REPORT_ENCRYPTION_KEY)
+        return ciphertext
+    
+    async def decrypt_issue_report_data(self, encrypted_data: str) -> Optional[str]:
+        """
+        Decrypt issue report data using the system-level issue report encryption key.
+        
+        Args:
+            encrypted_data: Encrypted data (ciphertext)
+            
+        Returns:
+            Decrypted data or None if decryption fails
+        """
+        if not encrypted_data:
+            return None
+        
+        return await self.decrypt(encrypted_data, key_name=ISSUE_REPORT_ENCRYPTION_KEY)
     
     async def encrypt(self, plaintext: str, key_name: str = "user_data", context: str = None) -> Tuple[str, str]:
         """

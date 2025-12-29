@@ -39,7 +39,7 @@ def load_shared_urls() -> Dict[str, Any]:
                 logger.error("YAML is missing 'urls' key")
                 return {}
                 
-            logger.info(f"Successfully loaded shared URL configuration")
+            logger.info("Successfully loaded shared URL configuration")
             return config
             
     except yaml.YAMLError as e:
@@ -103,9 +103,16 @@ def add_shared_urls_to_context(context: Dict[Any, Any], shared_urls: Dict[str, A
         processed_context['discord_url'] = contact_urls.get('discord', '') or "https://openmates.org"
         
         # Ensure we have a support email for use in template variables
+        # CRITICAL: Only set contact_email if it's not already in context (e.g., from issue reports)
+        # This preserves user-provided contact emails in issue reports
         support_email = contact_urls.get('email', '') or "support@openmates.org"
-        processed_context['contact_email'] = support_email
-        logger.debug(f"Using support email: {support_email}")
+        if 'contact_email' not in processed_context or not processed_context.get('contact_email'):
+            processed_context['contact_email'] = support_email
+            logger.debug(f"Set contact_email to support email: {support_email}")
+        else:
+            logger.debug(f"Preserving existing contact_email from context: {processed_context.get('contact_email')[:50]}...")
+        # Also set support_email separately for templates that need the support contact
+        processed_context['support_email'] = support_email
         
     except Exception as e:
         logger.error(f"Error adding shared URLs to context: {str(e)}. Using fallback URL.")
@@ -114,6 +121,9 @@ def add_shared_urls_to_context(context: Dict[Any, Any], shared_urls: Dict[str, A
         processed_context['terms_url'] = "https://openmates.org" 
         processed_context['imprint_url'] = "https://openmates.org"
         processed_context['discord_url'] = "https://openmates.org"
-        processed_context['contact_email'] = "support@openmates.org"
+        # Only set contact_email if not already in context (preserve user-provided emails)
+        if 'contact_email' not in processed_context or not processed_context.get('contact_email'):
+            processed_context['contact_email'] = "support@openmates.org"
+        processed_context['support_email'] = "support@openmates.org"
     
     return processed_context

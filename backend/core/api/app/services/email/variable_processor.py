@@ -35,12 +35,12 @@ def process_template_variables(context: Dict[Any, Any]) -> Dict[Any, Any]:
             # Set header text and link URL for self-hosted
             processed_context['header_text'] = "OpenMates - Self-Hosted Edition"
             processed_context['header_link_url'] = "https://github.com/glowingkitty/OpenMates"
-            logger.debug(f"Set header_text and header_link_url for self-hosted instance")
+            logger.debug("Set header_text and header_link_url for self-hosted instance")
         else:
             # Regular header - use "#" as placeholder to avoid empty href
             processed_context['header_text'] = "OpenMates"
             processed_context['header_link_url'] = "#"
-            logger.debug(f"Set header_text and header_link_url for regular instance")
+            logger.debug("Set header_text and header_link_url for regular instance")
     except Exception as e:
         # If we can't determine server edition, default to False (not self-hosted)
         # This ensures regular templates are used by default
@@ -181,8 +181,6 @@ def process_template_variables(context: Dict[Any, Any]) -> Dict[Any, Any]:
             # Translations not loaded yet, will be processed in email_template.py
             # Set a flag so we know to process it later
             processed_context['_process_on_domain_text'] = True
-
-    logger.debug(f"Processed context: {processed_context}")
     
     # Set social media URLs if not provided
     # TODO adding the urls in footer.mjml or here broke the email processing. Need to fix this later. For now removed the urls from email footer.
