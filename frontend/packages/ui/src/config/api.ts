@@ -105,7 +105,9 @@ export const apiEndpoints = {
             check:                  '/v1/settings/software_update/check',       // Check for software updates
             install:                '/v1/settings/software_update/install',     // Install software update
             install_status:         '/v1/settings/software_update/install_status', // Get status of software update installation
-        }
+        },
+        deleteAccountPreview:      '/v1/settings/delete-account-preview',       // Get preview of account deletion consequences
+        deleteAccount:             '/v1/settings/delete-account',               // Delete user account
     },
     payments: {
         config:                     '/v1/payments/config',                      // Get public config for payment provider

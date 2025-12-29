@@ -1,0 +1,58 @@
+issues:
+  type: collection
+  fields:
+    id:
+      type: uuid
+      primary: true
+      
+    title:
+      type: string
+      length: 200
+      note: "Issue title (cleartext for text search)"
+      
+    description:
+      type: text
+      note: "Issue description (cleartext for text search)"
+      
+    encrypted_chat_or_embed_url:
+      type: text
+      nullable: true
+      note: "Encrypted chat or embed URL related to the issue (encrypted with issue report encryption key for server-side use). Uses TEXT type to accommodate Vault base64-encoded ciphertext."
+      
+    encrypted_contact_email:
+      type: text
+      nullable: true
+      note: "Encrypted contact email address (encrypted with issue report encryption key for server-side use). Uses TEXT type to accommodate Vault base64-encoded ciphertext."
+      
+    timestamp:
+      type: timestamp
+      note: "Timestamp when the issue was reported (set by application during creation)"
+      
+    encrypted_estimated_location:
+      type: text
+      nullable: true
+      note: "Encrypted estimated geo location based on IP address (encrypted with issue report encryption key for server-side use). Uses TEXT type to accommodate Vault base64-encoded ciphertext."
+      
+    encrypted_device_info:
+      type: text
+      nullable: true
+      note: "Encrypted device information for debugging (browser, screen size, touch support) (encrypted with issue report encryption key for server-side use). Uses TEXT type to accommodate Vault base64-encoded ciphertext."
+      
+    encrypted_issue_report_yaml_s3_key:
+      type: text
+      nullable: true
+      note: "Encrypted S3 object key for issue report YAML file (encrypted with issue report encryption key for server-side use). Uses TEXT type to accommodate Vault base64-encoded ciphertext. The YAML file contains all issue data including logs and is stored encrypted in S3 issue_logs bucket."
+      
+    created_at:
+      type: timestamp
+      note: "Timestamp when the issue record was created (set by application during creation)"
+      
+    updated_at:
+      type: timestamp
+      note: "Timestamp when the issue record was last updated (set by application during updates)"
+      
+    processed:
+      type: boolean
+      default_value: false
+      note: "Indicates whether the issue has been processed (e.g., email sent, YAML uploaded to S3). Defaults to false."
+

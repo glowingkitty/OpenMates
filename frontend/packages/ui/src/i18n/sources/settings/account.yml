@@ -67,4 +67,441 @@ passkeys:
   cs: Přístupové klíče
   sv: Åtkomstnycklar
   verified_by_human: []
+delete_account:
+  context: Delete Account submenu under Account settings
+  en: Delete Account
+  de: Konto löschen
+  zh: 删除账户
+  es: Eliminar cuenta
+  fr: Supprimer le compte
+  pt: Excluir conta
+  ru: Удалить аккаунт
+  ja: アカウントを削除
+  ko: 계정 삭제
+  it: Elimina account
+  tr: Hesabı sil
+  vi: Xóa tài khoản
+  id: Hapus akun
+  pl: Usuń konto
+  nl: Account verwijderen
+  ar: حذف الحساب
+  hi: खाता हटाएं
+  th: ลบบัญชี
+  cs: Smazat účet
+  sv: Ta bort konto
+  verified_by_human: []
+delete_account_title:
+  context: Title for delete account page
+  en: Delete Your Account
+  de: Konto löschen
+  zh: 删除您的账户
+  es: Eliminar tu cuenta
+  fr: Supprimer votre compte
+  pt: Excluir sua conta
+  ru: Удалить ваш аккаунт
+  ja: アカウントを削除
+  ko: 계정 삭제
+  it: Elimina il tuo account
+  tr: Hesabınızı silin
+  vi: Xóa tài khoản của bạn
+  id: Hapus akun Anda
+  pl: Usuń swoje konto
+  nl: Verwijder uw account
+  ar: حذف حسابك
+  hi: अपना खाता हटाएं
+  th: ลบบัญชีของคุณ
+  cs: Smazat váš účet
+  sv: Ta bort ditt konto
+  verified_by_human: []
+delete_account_loading_preview:
+  context: Loading message while fetching deletion preview
+  en: Loading deletion preview...
+  de: Löschanzeige wird geladen...
+  zh: 正在加载删除预览...
+  es: Cargando vista previa de eliminación...
+  fr: Chargement de l'aperçu de suppression...
+  pt: Carregando visualização de exclusão...
+  ru: Загрузка предварительного просмотра удаления...
+  ja: 削除プレビューを読み込み中...
+  ko: 삭제 미리보기 로드 중...
+  it: Caricamento anteprima eliminazione...
+  tr: Silme önizlemesi yükleniyor...
+  vi: Đang tải xem trước xóa...
+  id: Memuat pratinjau penghapusan...
+  pl: Ładowanie podglądu usuwania...
+  nl: Verwijderingsvoorvertoning laden...
+  ar: جاري تحميل معاينة الحذف...
+  hi: हटाने का पूर्वावलोकन लोड हो रहा है...
+  th: กำลังโหลดตัวอย่างการลบ...
+  cs: Načítání náhledu smazání...
+  sv: Laddar borttagningsförhandsvisning...
+  verified_by_human: []
+delete_account_credits_loss_warning_title:
+  context: Title for credits loss warning
+  en: Credits Loss Warning
+  de: Warnung vor Credits-Verlust
+  zh: 积分损失警告
+  es: Advertencia de pérdida de créditos
+  fr: Avertissement de perte de crédits
+  pt: Aviso de perda de créditos
+  ru: Предупреждение о потере кредитов
+  ja: クレジット損失の警告
+  ko: 크레딧 손실 경고
+  it: Avviso di perdita crediti
+  tr: Kredi kaybı uyarısı
+  vi: Cảnh báo mất tín dụng
+  id: Peringatan kehilangan kredit
+  pl: Ostrzeżenie o utracie kredytów
+  nl: Waarschuwing voor creditsverlies
+  ar: تحذير فقدان الرصيد
+  hi: क्रेडिट हानि चेतावनी
+  th: คำเตือนการสูญเสียเครดิต
+  cs: Varování před ztrátou kreditů
+  sv: Varning för kreditförlust
+  verified_by_human: []
+delete_account_credits_loss_warning_message:
+  context: Message about credits loss
+  en: You will lose {count} credits that are older than 14 days. These credits cannot be refunded.
+  de: Sie verlieren {count} Credits, die älter als 14 Tage sind. Diese Credits können nicht erstattet werden.
+  zh: 您将丢失超过 14 天的 {count} 个积分。这些积分无法退款。
+  es: Perderá {count} créditos que tienen más de 14 días. Estos créditos no se pueden reembolsar.
+  fr: Vous perdrez {count} crédits qui ont plus de 14 jours. Ces crédits ne peuvent pas être remboursés.
+  pt: Você perderá {count} créditos com mais de 14 dias. Esses créditos não podem ser reembolsados.
+  ru: Вы потеряете {count} кредитов, которым больше 14 дней. Эти кредиты не могут быть возвращены.
+  ja: 14日を超える {count} クレジットを失います。これらのクレジットは返金できません。
+  ko: 14일 이상 된 {count} 크레딧을 잃게 됩니다. 이러한 크레딧은 환불할 수 없습니다.
+  it: Perderai {count} crediti che hanno più di 14 giorni. Questi crediti non possono essere rimborsati.
+  tr: 14 günden eski {count} krediyi kaybedeceksiniz. Bu krediler iade edilemez.
+  vi: Bạn sẽ mất {count} tín dụng có hơn 14 ngày. Những tín dụng này không thể hoàn lại.
+  id: Anda akan kehilangan {count} kredit yang berusia lebih dari 14 hari. Kredit ini tidak dapat dikembalikan.
+  pl: Stracisz {count} kredytów, które mają więcej niż 14 dni. Te kredyty nie mogą być zwrócone.
+  nl: U verliest {count} credits die ouder zijn dan 14 dagen. Deze credits kunnen niet worden terugbetaald.
+  ar: ستفقد {count} رصيدًا أقدم من 14 يومًا. لا يمكن استرداد هذه الرصيد.
+  hi: आप 14 दिनों से अधिक पुराने {count} क्रेडिट खो देंगे। ये क्रेडिट वापस नहीं किए जा सकते।
+  th: คุณจะสูญเสีย {count} เครดิตที่มีอายุมากกว่า 14 วัน เครดิตเหล่านี้ไม่สามารถคืนเงินได้
+  cs: Ztratíte {count} kreditů, které jsou starší než 14 dní. Tyto kredity nelze vrátit.
+  sv: Du kommer att förlora {count} krediter som är äldre än 14 dagar. Dessa krediter kan inte återbetalas.
+  verified_by_human: []
+delete_account_credits_loss_warning_confirm:
+  context: Confirmation checkbox for credits loss
+  en: I understand that I will lose {count} credits older than 14 days
+  de: Ich verstehe, dass ich {count} Credits verlieren werde, die älter als 14 Tage sind
+  zh: 我理解我将丢失超过 14 天的 {count} 个积分
+  es: Entiendo que perderé {count} créditos con más de 14 días
+  fr: Je comprends que je perdrai {count} crédits de plus de 14 jours
+  pt: Entendo que perderei {count} créditos com mais de 14 dias
+  ru: Я понимаю, что потеряю {count} кредитов старше 14 дней
+  ja: 14日を超える {count} クレジットを失うことを理解しています
+  ko: 14일 이상 된 {count} 크레딧을 잃게 됨을 이해합니다
+  it: Capisco che perderò {count} crediti con più di 14 giorni
+  tr: 14 günden eski {count} krediyi kaybedeceğimi anlıyorum
+  vi: Tôi hiểu rằng tôi sẽ mất {count} tín dụng có hơn 14 ngày
+  id: Saya memahami bahwa saya akan kehilangan {count} kredit yang berusia lebih dari 14 hari
+  pl: Rozumiem, że stracę {count} kredytów starszych niż 14 dni
+  nl: Ik begrijp dat ik {count} credits ouder dan 14 dagen zal verliezen
+  ar: أفهم أنني سأفقد {count} رصيدًا أقدم من 14 يومًا
+  hi: मैं समझता हूं कि मैं 14 दिनों से अधिक पुराने {count} क्रेडिट खो दूंगा
+  th: ฉันเข้าใจว่าฉันจะสูญเสีย {count} เครดิตที่มีอายุมากกว่า 14 วัน
+  cs: Rozumím, že ztratím {count} kreditů starších než 14 dní
+  sv: Jag förstår att jag kommer att förlora {count} krediter som är äldre än 14 dagar
+  verified_by_human: []
+delete_account_auto_refund_title:
+  context: Title for auto-refund information
+  en: Automatic Refunds
+  de: Automatische Rückerstattungen
+  zh: 自动退款
+  es: Reembolsos automáticos
+  fr: Remboursements automatiques
+  pt: Reembolsos automáticos
+  ru: Автоматические возвраты
+  ja: 自動返金
+  ko: 자동 환불
+  it: Rimborsi automatici
+  tr: Otomatik iadeler
+  vi: Hoàn tiền tự động
+  id: Pengembalian dana otomatis
+  pl: Automatyczne zwroty
+  nl: Automatische terugbetalingen
+  ar: المبالغ المستردة التلقائية
+  hi: स्वचालित धनवापसी
+  th: การคืนเงินอัตโนมัติ
+  cs: Automatické vrácení peněz
+  sv: Automatiska återbetalningar
+  verified_by_human: []
+delete_account_auto_refund_description:
+  context: Description of auto-refund process
+  en: Purchases from the last 14 days with unused credits will be automatically refunded.
+  de: Käufe der letzten 14 Tage mit ungenutzten Credits werden automatisch erstattet.
+  zh: 过去 14 天内未使用积分的购买将自动退款。
+  es: Las compras de los últimos 14 días con créditos no utilizados se reembolsarán automáticamente.
+  fr: Les achats des 14 derniers jours avec des crédits non utilisés seront automatiquement remboursés.
+  pt: Compras dos últimos 14 dias com créditos não utilizados serão reembolsadas automaticamente.
+  ru: Покупки за последние 14 дней с неиспользованными кредитами будут автоматически возвращены.
+  ja: 未使用のクレジットがある過去14日間の購入は自動的に返金されます。
+  ko: 미사용 크레딧이 있는 지난 14일간의 구매는 자동으로 환불됩니다.
+  it: Gli acquisti degli ultimi 14 giorni con crediti non utilizzati verranno automaticamente rimborsati.
+  tr: Kullanılmayan kredileri olan son 14 günün satın alımları otomatik olarak iade edilecektir.
+  vi: Các giao dịch mua trong 14 ngày qua có tín dụng chưa sử dụng sẽ được hoàn tiền tự động.
+  id: Pembelian dari 14 hari terakhir dengan kredit yang tidak digunakan akan secara otomatis dikembalikan.
+  pl: Zakupy z ostatnich 14 dni z niewykorzystanymi kredytami zostaną automatycznie zwrócone.
+  nl: Aankopen van de afgelopen 14 dagen met ongebruikte credits worden automatisch terugbetaald.
+  ar: سيتم استرداد المشتريات من آخر 14 يومًا مع الرصيد غير المستخدم تلقائيًا.
+  hi: पिछले 14 दिनों की अप्रयुक्त क्रेडिट वाली खरीदारी स्वचालित रूप से वापस कर दी जाएगी।
+  th: การซื้อในช่วง 14 วันที่ผ่านมาพร้อมเครดิตที่ไม่ได้ใช้จะถูกคืนเงินอัตโนมัติ
+  cs: Nákupy z posledních 14 dnů s nevyužitými kredity budou automaticky vráceny.
+  sv: Köp från de senaste 14 dagarna med oanvända krediter kommer automatiskt att återbetalas.
+  verified_by_human: []
+delete_account_auto_refund_total_refund:
+  context: Label for total refund amount
+  en: Total Refund Amount
+  de: Gesamter Rückerstattungsbetrag
+  zh: 总退款金额
+  es: Importe total del reembolso
+  fr: Montant total du remboursement
+  pt: Valor total do reembolso
+  ru: Общая сумма возврата
+  ja: 返金総額
+  ko: 총 환불 금액
+  it: Importo totale del rimborso
+  tr: Toplam iade tutarı
+  vi: Tổng số tiền hoàn lại
+  id: Jumlah pengembalian dana total
+  pl: Całkowita kwota zwrotu
+  nl: Totaal terugbetalingsbedrag
+  ar: إجمالي مبلغ الاسترداد
+  hi: कुल धनवापसी राशि
+  th: จำนวนเงินคืนทั้งหมด
+  cs: Celková částka vrácení
+  sv: Totalt återbetalningsbelopp
+  verified_by_human: []
+delete_account_auto_refund_unused_credits:
+  context: Label for unused credits
+  en: Unused Credits
+  de: Ungenutzte Credits
+  zh: 未使用的积分
+  es: Créditos no utilizados
+  fr: Crédits non utilisés
+  pt: Créditos não utilizados
+  ru: Неиспользованные кредиты
+  ja: 未使用のクレジット
+  ko: 미사용 크레딧
+  it: Crediti non utilizzati
+  tr: Kullanılmayan krediler
+  vi: Tín dụng chưa sử dụng
+  id: Kredit yang tidak digunakan
+  pl: Niewykorzystane kredyty
+  nl: Ongebruikte credits
+  ar: الرصيد غير المستخدم
+  hi: अप्रयुक्त क्रेडिट
+  th: เครดิตที่ไม่ได้ใช้
+  cs: Nevyužité kredity
+  sv: Oanvända krediter
+  verified_by_human: []
+delete_account_auto_refund_eligible_invoices:
+  context: Label for eligible invoices count
+  en: Eligible Invoices
+  de: Berechtigte Rechnungen
+  zh: 符合条件的发票
+  es: Facturas elegibles
+  fr: Factures éligibles
+  pt: Faturas elegíveis
+  ru: Подходящие счета
+  ja: 対象となる請求書
+  ko: 자격이 있는 청구서
+  it: Fatture idonee
+  tr: Uygun faturalar
+  vi: Hóa đơn đủ điều kiện
+  id: Faktur yang memenuhi syarat
+  pl: Uprawnione faktury
+  nl: In aanmerking komende facturen
+  ar: الفواتير المؤهلة
+  hi: पात्र चालान
+  th: ใบแจ้งหนี้ที่เหมาะสม
+  cs: Oprávněné faktury
+  sv: Berättigade fakturor
+  verified_by_human: []
+delete_account_auto_refund_gift_cards:
+  context: Label for gift cards
+  en: Gift Cards
+  de: Geschenkkarten
+  zh: 礼品卡
+  es: Tarjetas de regalo
+  fr: Cartes cadeaux
+  pt: Cartões-presente
+  ru: Подарочные карты
+  ja: ギフトカード
+  ko: 기프트 카드
+  it: Carte regalo
+  tr: Hediye kartları
+  vi: Thẻ quà tặng
+  id: Kartu hadiah
+  pl: Karty podarunkowe
+  nl: Cadeaukaarten
+  ar: بطاقات الهدايا
+  hi: उपहार कार्ड
+  th: บัตรของขวัญ
+  cs: Dárkové karty
+  sv: Presentkort
+  verified_by_human: []
+delete_account_auto_refund_gift_cards_note:
+  context: Note about gift cards
+  en: (Cannot be refunded once used)
+  de: (Kann nicht erstattet werden, sobald verwendet)
+  zh: （使用后无法退款）
+  es: (No se puede reembolsar una vez usado)
+  fr: (Ne peut pas être remboursé une fois utilisé)
+  pt: (Não pode ser reembolsado após o uso)
+  ru: (Не может быть возвращен после использования)
+  ja: （使用後は返金できません）
+  ko: (사용 후 환불 불가)
+  it: (Non può essere rimborsato una volta utilizzato)
+  tr: (Kullanıldıktan sonra iade edilemez)
+  vi: (Không thể hoàn lại sau khi sử dụng)
+  id: (Tidak dapat dikembalikan setelah digunakan)
+  pl: (Nie można zwrócić po użyciu)
+  nl: (Kan niet worden terugbetaald zodra gebruikt)
+  ar: (لا يمكن استرداده بعد الاستخدام)
+  hi: (उपयोग के बाद वापस नहीं किया जा सकता)
+  th: (ไม่สามารถคืนเงินได้เมื่อใช้แล้ว)
+  cs: (Nelze vrátit po použití)
+  sv: (Kan inte återbetalas när den väl använts)
+  verified_by_human: []
+delete_account_data_deletion_warning_title:
+  context: Title for data deletion warning
+  en: Data Deletion Warning
+  de: Warnung vor Datenlöschung
+  zh: 数据删除警告
+  es: Advertencia de eliminación de datos
+  fr: Avertissement de suppression de données
+  pt: Aviso de exclusão de dados
+  ru: Предупреждение об удалении данных
+  ja: データ削除の警告
+  ko: 데이터 삭제 경고
+  it: Avviso di eliminazione dati
+  tr: Veri silme uyarısı
+  vi: Cảnh báo xóa dữ liệu
+  id: Peringatan penghapusan data
+  pl: Ostrzeżenie o usunięciu danych
+  nl: Waarschuwing voor gegevensverwijdering
+  ar: تحذير حذف البيانات
+  hi: डेटा हटाने की चेतावनी
+  th: คำเตือนการลบข้อมูล
+  cs: Varování před smazáním dat
+  sv: Varning för data borttagning
+  verified_by_human: []
+delete_account_data_deletion_warning_message:
+  context: Message about data deletion
+  en: All your data will be permanently deleted and cannot be recovered, including chats, embeds, uploaded files, settings, memories, etc.
+  de: Alle Ihre Daten werden dauerhaft gelöscht und können nicht wiederhergestellt werden, einschließlich Chats, Einbettungen, hochgeladener Dateien, Einstellungen, Erinnerungen usw.
+  zh: 您的所有数据将被永久删除且无法恢复，包括聊天、嵌入、上传的文件、设置、记忆等。
+  es: Todos sus datos se eliminarán permanentemente y no se podrán recuperar, incluidas conversaciones, incrustaciones, archivos cargados, configuraciones, recuerdos, etc.
+  fr: Toutes vos données seront définitivement supprimées et ne pourront pas être récupérées, y compris les chats, les intégrations, les fichiers téléchargés, les paramètres, les souvenirs, etc.
+  pt: Todos os seus dados serão excluídos permanentemente e não poderão ser recuperados, incluindo conversas, incorporações, arquivos enviados, configurações, memórias, etc.
+  ru: Все ваши данные будут навсегда удалены и не могут быть восстановлены, включая чаты, встраивания, загруженные файлы, настройки, воспоминания и т.д.
+  ja: チャット、埋め込み、アップロードされたファイル、設定、メモリなどを含むすべてのデータが永続的に削除され、復元できません。
+  ko: 채팅, 임베드, 업로드된 파일, 설정, 메모리 등을 포함한 모든 데이터가 영구적으로 삭제되며 복구할 수 없습니다.
+  it: Tutti i tuoi dati verranno eliminati permanentemente e non potranno essere recuperati, inclusi chat, incorporazioni, file caricati, impostazioni, ricordi, ecc.
+  tr: Tüm verileriniz kalıcı olarak silinecek ve kurtarılamayacak, sohbetler, gömülmeler, yüklenen dosyalar, ayarlar, anılar vb. dahil.
+  vi: Tất cả dữ liệu của bạn sẽ bị xóa vĩnh viễn và không thể khôi phục, bao gồm cuộc trò chuyện, nhúng, tệp đã tải lên, cài đặt, ký ức, v.v.
+  id: Semua data Anda akan dihapus secara permanen dan tidak dapat dipulihkan, termasuk obrolan, sematan, file yang diunggah, pengaturan, memori, dll.
+  pl: Wszystkie Twoje dane zostaną trwale usunięte i nie będą mogły zostać odzyskane, w tym czaty, osadzenia, przesłane pliki, ustawienia, wspomnienia itp.
+  nl: Al uw gegevens worden permanent verwijderd en kunnen niet worden hersteld, inclusief chats, embedments, geüploade bestanden, instellingen, herinneringen, enz.
+  ar: سيتم حذف جميع بياناتك بشكل دائم ولا يمكن استعادتها، بما في ذلك الدردشات والدمجات والملفات المرفوعة والإعدادات والذكريات وما إلى ذلك.
+  hi: आपका सभी डेटा स्थायी रूप से हटा दिया जाएगा और पुनर्प्राप्त नहीं किया जा सकता, जिसमें चैट, एम्बेड, अपलोड की गई फ़ाइलें, सेटिंग्स, यादें आदि शामिल हैं।
+  th: ข้อมูลทั้งหมดของคุณจะถูกลบอย่างถาวรและไม่สามารถกู้คืนได้ รวมถึงการแชท การฝัง ไฟล์ที่อัปโหลด การตั้งค่า ความทรงจำ ฯลฯ
+  cs: Všechna vaše data budou trvale smazána a nelze je obnovit, včetně chatů, vložení, nahraných souborů, nastavení, vzpomínek atd.
+  sv: All din data kommer att raderas permanent och kan inte återställas, inklusive chattar, inbäddningar, uppladdade filer, inställningar, minnen, etc.
+  verified_by_human: []
+delete_account_data_deletion_warning_confirm:
+  context: Confirmation checkbox for data deletion
+  en: I understand that all my data will be permanently deleted and cannot be recovered, including chats, embeds, uploaded files, settings, memories, etc.
+  de: Ich verstehe, dass alle meine Daten dauerhaft gelöscht werden und nicht wiederhergestellt werden können, einschließlich Chats, Einbettungen, hochgeladener Dateien, Einstellungen, Erinnerungen usw.
+  zh: 我理解我的所有数据将被永久删除且无法恢复，包括聊天、嵌入、上传的文件、设置、记忆等。
+  es: Entiendo que todos mis datos se eliminarán permanentemente y no se podrán recuperar, incluidas conversaciones, incrustaciones, archivos cargados, configuraciones, recuerdos, etc.
+  fr: Je comprends que toutes mes données seront définitivement supprimées et ne pourront pas être récupérées, y compris les chats, les intégrations, les fichiers téléchargés, les paramètres, les souvenirs, etc.
+  pt: Entendo que todos os meus dados serão excluídos permanentemente e não poderão ser recuperados, incluindo conversas, incorporações, arquivos enviados, configurações, memórias, etc.
+  ru: Я понимаю, что все мои данные будут навсегда удалены и не могут быть восстановлены, включая чаты, встраивания, загруженные файлы, настройки, воспоминания и т.д.
+  ja: チャット、埋め込み、アップロードされたファイル、設定、メモリなどを含むすべてのデータが永続的に削除され、復元できないことを理解しています。
+  ko: 채팅, 임베드, 업로드된 파일, 설정, 메모리 등을 포함한 모든 데이터가 영구적으로 삭제되며 복구할 수 없음을 이해합니다.
+  it: Capisco che tutti i miei dati verranno eliminati permanentemente e non potranno essere recuperati, inclusi chat, incorporazioni, file caricati, impostazioni, ricordi, ecc.
+  tr: Sohbetler, gömülmeler, yüklenen dosyalar, ayarlar, anılar vb. dahil olmak üzere tüm verilerimin kalıcı olarak silineceğini ve kurtarılamayacağını anlıyorum.
+  vi: Tôi hiểu rằng tất cả dữ liệu của tôi sẽ bị xóa vĩnh viễn và không thể khôi phục, bao gồm cuộc trò chuyện, nhúng, tệp đã tải lên, cài đặt, ký ức, v.v.
+  id: Saya memahami bahwa semua data saya akan dihapus secara permanen dan tidak dapat dipulihkan, termasuk obrolan, sematan, file yang diunggah, pengaturan, memori, dll.
+  pl: Rozumiem, że wszystkie moje dane zostaną trwale usunięte i nie będą mogły zostać odzyskane, w tym czaty, osadzenia, przesłane pliki, ustawienia, wspomnienia itp.
+  nl: Ik begrijp dat al mijn gegevens permanent worden verwijderd en niet kunnen worden hersteld, inclusief chats, embedments, geüploade bestanden, instellingen, herinneringen, enz.
+  ar: أفهم أن جميع بياناتي سيتم حذفها بشكل دائم ولا يمكن استعادتها، بما في ذلك الدردشات والدمجات والملفات المرفوعة والإعدادات والذكريات وما إلى ذلك.
+  hi: मैं समझता हूं कि मेरा सभी डेटा स्थायी रूप से हटा दिया जाएगा और पुनर्प्राप्त नहीं किया जा सकता, जिसमें चैट, एम्बेड, अपलोड की गई फ़ाइलें, सेटिंग्स, यादें आदि शामिल हैं।
+  th: ฉันเข้าใจว่าข้อมูลทั้งหมดของฉันจะถูกลบอย่างถาวรและไม่สามารถกู้คืนได้ รวมถึงการแชท การฝัง ไฟล์ที่อัปโหลด การตั้งค่า ความทรงจำ ฯลฯ
+  cs: Rozumím, že všechna má data budou trvale smazána a nelze je obnovit, včetně chatů, vložení, nahraných souborů, nastavení, vzpomínek atd.
+  sv: Jag förstår att all min data kommer att raderas permanent och inte kan återställas, inklusive chattar, inbäddningar, uppladdade filer, inställningar, minnen, etc.
+  verified_by_human: []
+delete_account_delete_button:
+  context: Delete account button text
+  en: Delete My Account
+  de: Mein Konto löschen
+  zh: 删除我的账户
+  es: Eliminar mi cuenta
+  fr: Supprimer mon compte
+  pt: Excluir minha conta
+  ru: Удалить мой аккаунт
+  ja: アカウントを削除
+  ko: 내 계정 삭제
+  it: Elimina il mio account
+  tr: Hesabımı sil
+  vi: Xóa tài khoản của tôi
+  id: Hapus akun saya
+  pl: Usuń moje konto
+  nl: Verwijder mijn account
+  ar: حذف حسابي
+  hi: मेरा खाता हटाएं
+  th: ลบบัญชีของฉัน
+  cs: Smazat můj účet
+  sv: Ta bort mitt konto
+  verified_by_human: []
+delete_account_deleting:
+  context: Deleting account in progress
+  en: Deleting Account...
+  de: Konto wird gelöscht...
+  zh: 正在删除账户...
+  es: Eliminando cuenta...
+  fr: Suppression du compte...
+  pt: Excluindo conta...
+  ru: Удаление аккаунта...
+  ja: アカウントを削除中...
+  ko: 계정 삭제 중...
+  it: Eliminazione account...
+  tr: Hesap siliniyor...
+  vi: Đang xóa tài khoản...
+  id: Menghapus akun...
+  pl: Usuwanie konta...
+  nl: Account verwijderen...
+  ar: جاري حذف الحساب...
+  hi: खाता हटाया जा रहा है...
+  th: กำลังลบบัญชี...
+  cs: Mazání účtu...
+  sv: Tar bort konto...
+  verified_by_human: []
+delete_account_retry:
+  context: Retry button text
+  en: Retry
+  de: Erneut versuchen
+  zh: 重试
+  es: Reintentar
+  fr: Réessayer
+  pt: Tentar novamente
+  ru: Повторить
+  ja: 再試行
+  ko: 다시 시도
+  it: Riprova
+  tr: Yeniden dene
+  vi: Thử lại
+  id: Coba lagi
+  pl: Spróbuj ponownie
+  nl: Opnieuw proberen
+  ar: إعادة المحاولة
+  hi: पुनः प्रयास करें
+  th: ลองอีกครั้ง
+  cs: Zkusit znovu
+  sv: Försök igen
+  verified_by_human: []
 

@@ -29,9 +29,10 @@ event_logger.addFilter(sensitive_filter)
 def send_issue_report_email(
     self: BaseServiceTask,
     admin_email: str,
-    issue_title: str,
-    issue_description: Optional[str],
-    chat_or_embed_url: Optional[str],
+    issue_id: Optional[str] = None,
+    issue_title: str = "",
+    issue_description: Optional[str] = None,
+    chat_or_embed_url: Optional[str] = None,
     contact_email: Optional[str] = None,
     timestamp: str = "",
     estimated_location: str = "",
@@ -64,7 +65,7 @@ def send_issue_report_email(
         # Use asyncio.run() which handles loop creation and cleanup properly
         result = asyncio.run(
             _async_send_issue_report_email(
-                self, admin_email, issue_title, issue_description,
+                self, admin_email, issue_id, issue_title, issue_description,
                 chat_or_embed_url, contact_email, timestamp, estimated_location, device_info, console_logs
             )
         )
@@ -91,9 +92,10 @@ def send_issue_report_email(
 async def _async_send_issue_report_email(
     task: BaseServiceTask,
     admin_email: str,
-    issue_title: str,
-    issue_description: Optional[str],
-    chat_or_embed_url: Optional[str],
+    issue_id: Optional[str] = None,
+    issue_title: str = "",
+    issue_description: Optional[str] = None,
+    chat_or_embed_url: Optional[str] = None,
     contact_email: Optional[str] = None,
     timestamp: str = "",
     estimated_location: str = "",
@@ -102,6 +104,9 @@ async def _async_send_issue_report_email(
 ) -> bool:
     """
     Async implementation for sending issue report email.
+    
+    Note: This function ensures proper cleanup of async resources (like httpx clients)
+    before the event loop closes to prevent "Event loop is closed" errors.
     """
     try:
         # Initialize services using the base task class method
@@ -188,6 +193,44 @@ async def _async_send_issue_report_email(
         })
 
         logger.info("Created consolidated YAML attachment (as .txt) for issue report with all logs and metadata")
+        
+        # Encrypt and upload YAML file to S3 if issue_id is provided
+        encrypted_yaml_s3_key = None
+        if issue_id:
+            try:
+                # Encrypt the YAML content
+                encrypted_yaml = await task.encryption_service.encrypt_issue_report_data(yaml_content)
+                encrypted_yaml_bytes = encrypted_yaml.encode('utf-8')
+                
+                # Generate unique S3 object key
+                import uuid
+                from datetime import datetime, timezone
+                timestamp_str = datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')
+                unique_id = uuid.uuid4().hex[:8]
+                s3_object_key = f"issue-reports/{timestamp_str}_{unique_id}.yaml.encrypted"
+                
+                # Upload encrypted YAML to S3
+                await task.s3_service.upload_file(
+                    bucket_key='issue_logs',
+                    file_key=s3_object_key,
+                    content=encrypted_yaml_bytes,
+                    content_type='application/octet-stream'
+                )
+                logger.info(f"Uploaded encrypted issue report YAML to S3: {s3_object_key}")
+                
+                # Encrypt the S3 object key for database storage
+                encrypted_yaml_s3_key = await task.encryption_service.encrypt_issue_report_data(s3_object_key)
+                
+                # Update the issue record in database with the S3 key
+                await task.directus_service.update_item(
+                    "issues",
+                    issue_id,
+                    {"encrypted_issue_report_yaml_s3_key": encrypted_yaml_s3_key}
+                )
+                logger.info(f"Updated issue {issue_id} with encrypted YAML S3 key")
+            except Exception as e:
+                logger.error(f"Failed to upload issue report YAML to S3: {str(e)}", exc_info=True)
+                # Continue - email will still be sent even if S3 upload fails
 
         # Process contact email if provided
         contact_email_formatted = contact_email if contact_email else "Not provided"
@@ -235,3 +278,20 @@ async def _async_send_issue_report_email(
     except Exception as e:
         logger.error(f"Error sending issue report email: {str(e)}", exc_info=True)
         return False
+    
+    finally:
+        # CRITICAL: Close async resources (like httpx clients) before the event loop closes
+        # This prevents "Event loop is closed" errors during cleanup
+        # DirectusService uses httpx.AsyncClient which must be properly closed
+        if hasattr(task, '_directus_service') and task._directus_service is not None:
+            try:
+                logger.debug("Closing DirectusService httpx client...")
+                await task._directus_service.close()
+                logger.debug("DirectusService httpx client closed successfully")
+            except Exception as cleanup_error:
+                # Log but don't raise - we're in cleanup and don't want to mask the original error
+                logger.warning(
+                    f"Error closing DirectusService during cleanup: {str(cleanup_error)}. "
+                    f"This is non-critical but should be investigated.",
+                    exc_info=True
+                )

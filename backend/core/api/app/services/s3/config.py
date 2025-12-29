@@ -5,7 +5,7 @@ import logging
 import os
 import yaml
 from pathlib import Path
-from typing import Dict, List
+from typing import List
 
 logger = logging.getLogger(__name__)
 
@@ -91,6 +91,14 @@ BUCKETS = {
         'max_size': 500 * 1024 * 1024,  # 500MB per archive
         'access': 'private',
         'lifecycle_policy': 2555,  # 7 years auto-delete (in days)
+    },
+    'issue_logs': {
+        'name': 'openmates-issue-logs',
+        'dev_name': 'dev-openmates-issue-logs',
+        'allowed_types': ['application/octet-stream'],  # Encrypted logs
+        'max_size': 10 * 1024 * 1024,  # 10MB per log file
+        'access': 'private',
+        'lifecycle_policy': 365,  # 1 year auto-delete (in days)
     }
 }
 
