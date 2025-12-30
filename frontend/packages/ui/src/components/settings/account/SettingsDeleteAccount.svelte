@@ -53,6 +53,7 @@ Delete Account Settings - Component for deleting user account with preview, conf
     // State for confirmations
     let confirmCreditsLoss = $state(false);
     let confirmDataDeletion = $state(false);
+    let confirmationText = $state('');
 
     /**
      * Fetch preview data when component mounts
@@ -131,6 +132,18 @@ Delete Account Settings - Component for deleting user account with preview, conf
     }
 
     /**
+     * Expected confirmation text (case-insensitive)
+     */
+    const EXPECTED_CONFIRMATION_TEXT = 'delete account';
+
+    /**
+     * Check if confirmation text matches expected value (case-insensitive)
+     */
+    let isConfirmationTextValid = $derived(() => {
+        return confirmationText.trim().toLowerCase() === EXPECTED_CONFIRMATION_TEXT.toLowerCase();
+    });
+
+    /**
      * Check if deletion can proceed (all required confirmations are checked)
      */
     let canProceed = $derived(() => {
@@ -141,6 +154,9 @@ Delete Account Settings - Component for deleting user account with preview, conf
         
         // Credits loss confirmation is only required if user has credits older than 14 days
         if (previewData.has_credits_older_than_14_days && !confirmCreditsLoss) return false;
+        
+        // Confirmation text must match exactly (case-insensitive)
+        if (!isConfirmationTextValid) return false;
         
         return true;
     });
@@ -470,6 +486,19 @@ Delete Account Settings - Component for deleting user account with preview, conf
             </label>
         </div>
 
+        <!-- Confirmation Text Input -->
+        <div class="warning-box confirmation-input-box">
+            <h3>{$text('settings.account.delete_account_confirmation_input_label.text')}</h3>
+            <input
+                type="text"
+                class="confirmation-input"
+                bind:value={confirmationText}
+                placeholder={$text('settings.account.delete_account_confirmation_input_placeholder.text')}
+                disabled={isLoadingDeletion}
+                autocomplete="off"
+            />
+        </div>
+
         <!-- Error Message -->
         {#if errorMessage}
             <div class="error-message">{errorMessage}</div>
@@ -650,6 +679,39 @@ Delete Account Settings - Component for deleting user account with preview, conf
 
     .retry-button:hover {
         background: var(--color-primary-dark);
+    }
+
+    .confirmation-input-box {
+        background: var(--color-warning-light);
+        border: 1px solid var(--color-warning);
+    }
+
+    .confirmation-input {
+        width: 100%;
+        padding: 12px 16px;
+        border: 2px solid var(--color-grey-30);
+        border-radius: 6px;
+        font-size: 16px;
+        font-family: inherit;
+        background: white;
+        color: var(--color-grey-80);
+        transition: border-color 0.2s;
+        box-sizing: border-box;
+    }
+
+    .confirmation-input:focus {
+        outline: none;
+        border-color: var(--color-primary);
+    }
+
+    .confirmation-input:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        background: var(--color-grey-10);
+    }
+
+    .confirmation-input:not(:disabled):invalid {
+        border-color: var(--color-danger);
     }
 </style>
 

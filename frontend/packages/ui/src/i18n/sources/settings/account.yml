@@ -435,6 +435,52 @@ delete_account_data_deletion_warning_confirm:
   cs: Rozumím, že všechna má data budou trvale smazána a nelze je obnovit, včetně chatů, vložení, nahraných souborů, nastavení, vzpomínek atd.
   sv: Jag förstår att all min data kommer att raderas permanent och inte kan återställas, inklusive chattar, inbäddningar, uppladdade filer, inställningar, minnen, etc.
   verified_by_human: []
+delete_account_confirmation_input_label:
+  context: Label for confirmation input field
+  en: Type "delete account" to confirm
+  de: Geben Sie "Konto löschen" ein, um zu bestätigen
+  zh: 输入"删除账户"以确认
+  es: Escriba "eliminar cuenta" para confirmar
+  fr: Tapez "supprimer compte" pour confirmer
+  pt: Digite "excluir conta" para confirmar
+  ru: Введите "удалить аккаунт" для подтверждения
+  ja: 「アカウントを削除」と入力して確認
+  ko: 계정 삭제를 입력하여 확인
+  it: Digita "elimina account" per confermare
+  tr: Onaylamak için "hesabı sil" yazın
+  vi: Nhập "xóa tài khoản" để xác nhận
+  id: Ketik "hapus akun" untuk mengonfirmasi
+  pl: Wpisz "usuń konto", aby potwierdzić
+  nl: Typ "account verwijderen" om te bevestigen
+  ar: اكتب "حذف الحساب" للتأكيد
+  hi: पुष्टि करने के लिए "खाता हटाएं" टाइप करें
+  th: พิมพ์ "ลบบัญชี" เพื่อยืนยัน
+  cs: Zadejte "smazat účet" pro potvrzení
+  sv: Skriv "ta bort konto" för att bekräfta
+  verified_by_human: []
+delete_account_confirmation_input_placeholder:
+  context: Placeholder for confirmation input field
+  en: delete account
+  de: Konto löschen
+  zh: 删除账户
+  es: eliminar cuenta
+  fr: supprimer compte
+  pt: excluir conta
+  ru: удалить аккаунт
+  ja: アカウントを削除
+  ko: 계정 삭제
+  it: elimina account
+  tr: hesabı sil
+  vi: xóa tài khoản
+  id: hapus akun
+  pl: usuń konto
+  nl: account verwijderen
+  ar: حذف الحساب
+  hi: खाता हटाएं
+  th: ลบบัญชี
+  cs: smazat účet
+  sv: ta bort konto
+  verified_by_human: []
 delete_account_delete_button:
   context: Delete account button text
   en: Delete My Account
@@ -506,30 +552,30 @@ delete_account_retry:
   verified_by_human: []
 
 # --- Export Account (GDPR Article 20 - Data Portability) ---
-export_data:
+export:
   context: Export Data submenu under Account settings
-  en: Export Data
-  de: Daten exportieren
-  zh: 导出数据
-  es: Exportar datos
-  fr: Exporter les données
-  pt: Exportar dados
-  ru: Экспорт данных
-  ja: データをエクスポート
-  ko: 데이터 내보내기
-  it: Esporta dati
-  tr: Verileri dışa aktar
-  vi: Xuất dữ liệu
-  id: Ekspor data
-  pl: Eksportuj dane
-  nl: Gegevens exporteren
-  ar: تصدير البيانات
-  hi: डेटा निर्यात करें
-  th: ส่งออกข้อมูล
-  cs: Exportovat data
-  sv: Exportera data
+  en: Export
+  de: Exportieren
+  zh: 导出
+  es: Exportar
+  fr: Exporter
+  pt: Exportar
+  ru: Экспорт
+  ja: エクスポート
+  ko: 내보내기
+  it: Esporta
+  tr: Dışa aktar
+  vi: Xuất
+  id: Ekspor
+  pl: Eksportuj
+  nl: Exporteren
+  ar: تصدير
+  hi: निर्यात
+  th: ส่งออก
+  cs: Exportovat
+  sv: Exportera
   verified_by_human: []
-export_data_title:
+export_title:
   context: Title for export data page
   en: Export Your Data
   de: Daten exportieren
@@ -552,7 +598,7 @@ export_data_title:
   cs: Exportovat vaše data
   sv: Exportera dina data
   verified_by_human: []
-export_data_description:
+export_description:
   context: Description for export data page
   en: Download all your data in a portable format. This includes your chats, messages, invoices, usage history, and settings.
   de: Laden Sie alle Ihre Daten in einem portablen Format herunter. Dies umfasst Ihre Chats, Nachrichten, Rechnungen, Nutzungsverlauf und Einstellungen.

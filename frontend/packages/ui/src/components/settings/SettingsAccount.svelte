@@ -29,10 +29,10 @@ Account Settings - Main menu for account-related settings including Security, Ex
      */
     function navigateToExportData() {
         dispatch('openSettings', {
-            settingsPath: 'account/export-data',
+            settingsPath: 'account/export',
             direction: 'forward',
             icon: 'download',
-            title: $text('settings.account.export_data.text')
+            title: $text('settings.account.export.text')
         });
     }
 
@@ -45,7 +45,7 @@ Account Settings - Main menu for account-related settings including Security, Ex
             settingsPath: 'account/delete',
             direction: 'forward',
             icon: 'delete',
-            title: $text('settings.account.delete_account.text')
+            title: $text('settings.account.delete.text')
         });
     }
 </script>
@@ -60,13 +60,13 @@ Account Settings - Main menu for account-related settings including Security, Ex
 <SettingsItem
     type="submenu"
     icon="download"
-    title={$text('settings.account.export_data.text')}
+    title={$text('settings.account.export.text')}
     onClick={navigateToExportData}
 />
 
 <SettingsItem
     type="submenu"
     icon="delete"
-    title={$text('settings.account.delete_account.text')}
+    title={$text('settings.account.delete.text')}
     onClick={navigateToDeleteAccount}
 />

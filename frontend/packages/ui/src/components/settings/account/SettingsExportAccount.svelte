@@ -105,8 +105,8 @@ Allows users to export all their data as a ZIP file with YML format
 <div class="export-account-container">
     <!-- Header -->
     <div class="export-header">
-        <h2>{$text('settings.account.export_data_title.text')}</h2>
-        <p class="description">{$text('settings.account.export_data_description.text')}</p>
+        <h2>{$text('settings.account.export_title.text')}</h2>
+        <p class="description">{$text('settings.account.export_description.text')}</p>
     </div>
 
     <!-- What's Included Section -->

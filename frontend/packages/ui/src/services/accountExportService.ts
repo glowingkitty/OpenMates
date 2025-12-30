@@ -108,8 +108,8 @@ interface InvoiceExport {
  * 
  * Field mapping from backend:
  * - account_status: User's account status from Directus (e.g., "active")
- * - consent_privacy_apps_timestamp: When user accepted privacy & apps settings
- * - consent_mates_timestamp: When user accepted mates settings
+ * - auto_topup_enabled: Whether auto-topup is enabled
+ * - auto_topup_threshold/amount: Only present if auto_topup_enabled is true
  */
 interface UserProfileExport {
     user_id: string;
@@ -125,11 +125,24 @@ interface UserProfileExport {
     tfa_enabled: boolean;
     has_passkey: boolean;
     passkey_count?: number;
-    auto_topup_low_balance_enabled: boolean;
-    auto_topup_low_balance_threshold?: number;
-    auto_topup_low_balance_amount?: number;
-    consent_privacy_apps_timestamp?: string;
-    consent_mates_timestamp?: string;
+    auto_topup_enabled: boolean;
+    auto_topup_threshold?: number;  // Only present if auto_topup_enabled
+    auto_topup_amount?: number;     // Only present if auto_topup_enabled
+}
+
+/**
+ * Compliance log entry from server
+ * Contains consent history and important account events
+ */
+interface ComplianceLogEntry {
+    timestamp: string;
+    event_type: string;          // "consent", "user_creation", "account_deletion_request"
+    user_id: string;
+    consent_type?: string;       // "privacy_policy", "terms_of_service", "withdrawal_waiver"
+    action?: string;             // "granted", "withdrawn", "updated"
+    version?: string;            // Version/timestamp of the policy
+    status?: string;
+    details?: Record<string, unknown>;
 }
 
 /**
@@ -155,6 +168,7 @@ interface ExportData {
     invoice_ids_for_pdf_download: string[];
     user_profile: UserProfileExport | null;
     app_settings_memories: AppSettingMemoryEntry[];
+    compliance_logs: ComplianceLogEntry[];  // Privacy/terms consent history
     usage_error?: string;
     invoice_error?: string;
 }
@@ -253,6 +267,7 @@ export async function exportAllUserData(
             invoicePDFs,
             userProfile: decryptedProfile,
             appSettings: decryptedSettings,
+            complianceLogs: exportData.compliance_logs || [],
             manifest
         }, onProgress);
         
@@ -600,6 +615,7 @@ interface ZipCreationData {
     invoicePDFs: Map<string, { data: ArrayBuffer; filename: string }>;
     userProfile: DecryptedUserProfile | null;
     appSettings: DecryptedAppSetting[];
+    complianceLogs: ComplianceLogEntry[];  // Privacy/terms consent history
     manifest: ExportManifest;
 }
 
@@ -707,6 +723,12 @@ async function createExportZip(
         settingsFolder.file('app_settings.yml', generateAppSettingsYml(data.appSettings));
     }
     
+    // Add compliance_logs.yml (consent history - privacy policy, terms of service)
+    // This is required for GDPR compliance to show when user consented
+    if (data.complianceLogs.length > 0) {
+        zip.file('compliance_logs.yml', generateComplianceLogsYml(data.complianceLogs));
+    }
+    
     // Generate ZIP blob
     const zipBlob = await zip.generateAsync({
         type: 'blob',
@@ -778,8 +800,19 @@ gdpr_compliance:
 function generateProfileYml(profile: DecryptedUserProfile): string {
     const email = profile.email || '[Encrypted]';
     
-    // Account status "active" with verified passkey indicates a fully verified account
-    const accountStatus = profile.account_status || 'Unknown';
+    // Account status from Directus (active, draft, invited, suspended, archived)
+    const accountStatus = profile.account_status || 'active';
+    
+    // Build auto-topup section only if enabled
+    let autoTopupSection = `auto_topup:
+  enabled: false`;
+    
+    if (profile.auto_topup_enabled) {
+        autoTopupSection = `auto_topup:
+  enabled: true
+  threshold: ${profile.auto_topup_threshold || 100}
+  amount: ${profile.auto_topup_amount || 21000}`;
+    }
     
     return `# User Profile
 export_schema_version: "1.0"
@@ -790,7 +823,7 @@ email_verified: ${profile.email_verified}
 
 account:
   status: "${accountStatus}"
-  last_access: "${profile.last_access || 'Unknown'}"
+  last_access: "${profile.last_access || 'Never'}"
 
 security:
   tfa_enabled: ${profile.tfa_enabled}
@@ -805,14 +838,9 @@ preferences:
 credits:
   current_balance: ${profile.credits}
 
-auto_topup:
-  enabled: ${profile.auto_topup_low_balance_enabled}
-  threshold: ${profile.auto_topup_low_balance_threshold || 'Not set'}
-  amount: ${profile.auto_topup_low_balance_amount || 'Not set'}
+${autoTopupSection}
 
-consent:
-  privacy_and_apps_accepted: "${profile.consent_privacy_apps_timestamp || 'Not recorded'}"
-  mates_settings_accepted: "${profile.consent_mates_timestamp || 'Not recorded'}"
+# Note: Consent history (privacy policy, terms of service) is in compliance_logs.yml
 `;
 }
 
@@ -895,6 +923,64 @@ entries:
     updated_at: "${new Date(entry.updated_at * 1000).toISOString()}"
     value: "${entry.value}"
 `;
+    }
+    
+    return yml;
+}
+
+/**
+ * Generate YAML for compliance logs (consent history)
+ * This includes privacy policy and terms of service consent records
+ */
+function generateComplianceLogsYml(logs: ComplianceLogEntry[]): string {
+    // Separate consent logs from other events
+    const consentLogs = logs.filter(log => log.event_type === 'consent');
+    const otherLogs = logs.filter(log => log.event_type !== 'consent');
+    
+    // Find the most recent privacy policy and terms of service consent
+    const privacyPolicyConsent = consentLogs.find(log => log.consent_type === 'privacy_policy');
+    const termsOfServiceConsent = consentLogs.find(log => log.consent_type === 'terms_of_service');
+    
+    let yml = `# Compliance Logs - Consent History
+export_schema_version: "1.0"
+
+# This file contains your consent history for GDPR compliance.
+# Privacy policy and terms of service consent are recorded when you create your account
+# and whenever you accept updated versions.
+
+current_consent_status:
+  privacy_policy:
+    accepted: ${privacyPolicyConsent ? 'true' : 'false'}
+    timestamp: "${privacyPolicyConsent?.timestamp || 'Not recorded'}"
+    action: "${privacyPolicyConsent?.action || 'N/A'}"
+  terms_of_service:
+    accepted: ${termsOfServiceConsent ? 'true' : 'false'}
+    timestamp: "${termsOfServiceConsent?.timestamp || 'Not recorded'}"
+    action: "${termsOfServiceConsent?.action || 'N/A'}"
+
+consent_history:
+`;
+    
+    // Add all consent events
+    for (const log of consentLogs) {
+        yml += `  - timestamp: "${log.timestamp}"
+    consent_type: "${log.consent_type || 'unknown'}"
+    action: "${log.action || 'granted'}"
+    status: "${log.status || 'success'}"
+`;
+    }
+    
+    // Add other relevant events (user creation, deletion requests)
+    if (otherLogs.length > 0) {
+        yml += `
+other_events:
+`;
+        for (const log of otherLogs) {
+            yml += `  - timestamp: "${log.timestamp}"
+    event_type: "${log.event_type}"
+    status: "${log.status || 'success'}"
+`;
+        }
     }
     
     return yml;

@@ -2735,12 +2735,7 @@ async def get_export_data(
             if user_profile_result and user_profile_result[0]:
                 user_profile = user_profile_result[1]
                 
-                # Fetch additional fields not in cached profile (created timestamp, email status)
-                # Using get_user_fields_direct to get these fields directly from Directus
-                additional_fields = await directus_service.get_user_fields_direct(
-                    user_id, 
-                    ["email", "status", "first_name", "last_name"]  # Directus built-in user fields
-                )
+                logger.debug(f"[EXPORT] User profile raw data: status={user_profile.get('status')}, keys={list(user_profile.keys())}")
                 
                 # Decrypt email if available (client needs to decrypt with master key)
                 email = None
@@ -2748,8 +2743,7 @@ async def get_export_data(
                     # This needs to be decrypted client-side with master key
                     email = user_profile.get("encrypted_email_with_master_key")
                 
-                # Determine email_verified based on status and having a verified passkey
-                # A fully created account with passkey should have verified email
+                # Determine passkey status
                 has_passkey = False
                 passkey_count = 0
                 try:
@@ -2766,15 +2760,17 @@ async def get_export_data(
                 except Exception as e:
                     logger.warning(f"[EXPORT] Error fetching passkeys for user {user_id}: {e}")
                 
-                # User status "active" indicates a verified account
-                user_status = user_profile.get("status") or (additional_fields.get("status") if additional_fields else None)
-                email_verified = user_status == "active" and has_passkey
+                # User status from profile
+                # Directus user status can be: 'active', 'draft', 'invited', 'suspended', 'archived'
+                user_status = user_profile.get("status")
                 
-                # Get consent timestamps - these are the actual field names in Directus
-                consent_privacy_apps = user_profile.get("consent_privacy_and_apps_default_settings")
-                consent_mates = user_profile.get("consent_mates_default_settings")
+                # Email verification is REQUIRED during signup - any existing user account
+                # has by definition verified their email (verification code sent to email
+                # must be entered before account creation can proceed)
+                email_verified = True
                 
-                export_data["user_profile"] = {
+                # Build user profile export data
+                profile_data = {
                     "user_id": user_id,
                     "username": user_profile.get("username", ""),
                     "encrypted_email_with_master_key": email,
@@ -2788,19 +2784,57 @@ async def get_export_data(
                     "tfa_enabled": user_profile.get("tfa_enabled", False),
                     "has_passkey": has_passkey,
                     "passkey_count": passkey_count,
-                    "auto_topup_low_balance_enabled": user_profile.get("auto_topup_low_balance_enabled", False),
-                    "auto_topup_low_balance_threshold": user_profile.get("auto_topup_low_balance_threshold"),
-                    "auto_topup_low_balance_amount": user_profile.get("auto_topup_low_balance_amount"),
-                    # Consent timestamps with proper field names
-                    "consent_privacy_apps_timestamp": consent_privacy_apps,
-                    "consent_mates_timestamp": consent_mates,
                 }
+                
+                # Only include auto_topup details if enabled
+                auto_topup_enabled = user_profile.get("auto_topup_low_balance_enabled", False)
+                profile_data["auto_topup_enabled"] = auto_topup_enabled
+                if auto_topup_enabled:
+                    profile_data["auto_topup_threshold"] = user_profile.get("auto_topup_low_balance_threshold")
+                    profile_data["auto_topup_amount"] = user_profile.get("auto_topup_low_balance_amount")
+                
+                export_data["user_profile"] = profile_data
                 
                 logger.info(f"[EXPORT] User profile compiled for user {user_id}: email_verified={email_verified}, status={user_status}, passkeys={passkey_count}")
                 
         except Exception as e:
             logger.error(f"[EXPORT] Error fetching user profile for export: {e}", exc_info=True)
             export_data["user_profile"] = None
+        
+        # === COMPLIANCE LOGS (consent history) ===
+        # Compliance logs contain privacy policy and terms of service consent records
+        # These are stored in /app/logs/compliance.log and need to be filtered for this user
+        try:
+            compliance_logs = []
+            log_file_path = os.path.join(os.getenv('LOG_DIR', '/app/logs'), 'compliance.log')
+            
+            if os.path.exists(log_file_path):
+                import json
+                with open(log_file_path, 'r', encoding='utf-8') as log_file:
+                    for line in log_file:
+                        try:
+                            log_entry = json.loads(line.strip())
+                            # Filter for this user's logs
+                            if log_entry.get("user_id") == user_id:
+                                # Only include consent and user_creation events
+                                event_type = log_entry.get("event_type", "")
+                                if event_type in ["consent", "user_creation", "account_deletion_request"]:
+                                    # Remove IP hash for export (privacy)
+                                    log_entry.pop("ip_address_hash", None)
+                                    log_entry.pop("ip_address", None)
+                                    compliance_logs.append(log_entry)
+                        except json.JSONDecodeError:
+                            continue
+                
+                logger.info(f"[EXPORT] Found {len(compliance_logs)} compliance log entries for user {user_id}")
+            else:
+                logger.warning(f"[EXPORT] Compliance log file not found at {log_file_path}")
+            
+            export_data["compliance_logs"] = compliance_logs
+            
+        except Exception as e:
+            logger.error(f"[EXPORT] Error reading compliance logs: {e}", exc_info=True)
+            export_data["compliance_logs"] = []
         
         # === APP SETTINGS & MEMORIES ===
         try:
