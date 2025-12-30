@@ -2414,3 +2414,419 @@ async def delete_account(
     except Exception as e:
         logger.error(f"Error processing account deletion request for user {user_id}: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to process account deletion request")
+
+
+# --- Account Data Export Endpoints (GDPR Article 20 - Right to Data Portability) ---
+
+class ExportManifestResponse(BaseModel):
+    """Response model for export manifest - lists all data IDs for client-side sync"""
+    success: bool
+    manifest: Dict[str, Any]
+
+
+class UsageEntryExport(BaseModel):
+    """Export format for a single usage entry"""
+    usage_id: str
+    timestamp: int
+    app_id: str
+    skill_id: str
+    usage_type: str
+    source: str  # "chat", "api_key", "direct"
+    credits_charged: int
+    model_used: Optional[str] = None
+    chat_id: Optional[str] = None
+    message_id: Optional[str] = None
+    cost_system_prompt_credits: Optional[int] = None
+    cost_history_credits: Optional[int] = None
+    cost_response_credits: Optional[int] = None
+    actual_input_tokens: Optional[int] = None
+    actual_output_tokens: Optional[int] = None
+
+
+class InvoiceExport(BaseModel):
+    """Export format for a single invoice"""
+    invoice_id: str
+    order_id: str
+    date: str
+    amount_cents: int
+    currency: str
+    credits_purchased: int
+    is_gift_card: bool
+    refunded_at: Optional[str] = None
+    refund_status: str = "none"
+
+
+class ExportDataResponse(BaseModel):
+    """Response model for export data - contains usage and invoice data"""
+    success: bool
+    data: Dict[str, Any]
+
+
+@router.get("/export-account-manifest", response_model=ExportManifestResponse, include_in_schema=False)
+@limiter.limit("10/minute")
+async def get_export_manifest(
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    directus_service: DirectusService = Depends(get_directus_service),
+    cache_service: CacheService = Depends(get_cache_service)
+):
+    """
+    Get export manifest - list of all data IDs the user has.
+    Used by client to determine what needs to be synced before export.
+    
+    GDPR Article 20 - Right to Data Portability:
+    This endpoint provides the client with information about all user data
+    available for export.
+    """
+    user_id = current_user.id
+    user_id_hash = hashlib.sha256(user_id.encode()).hexdigest()
+    
+    logger.info(f"[EXPORT] Fetching export manifest for user {user_id}")
+    
+    try:
+        # Get all chat IDs for the user (no limit - we need ALL chats for export)
+        # Try cache first
+        cached_chat_ids = await cache_service.get_chat_ids_versions(user_id, start=0, end=-1)
+        
+        if cached_chat_ids:
+            all_chat_ids = cached_chat_ids
+            logger.info(f"[EXPORT] Found {len(all_chat_ids)} chat IDs from cache for user {user_id}")
+        else:
+            # Fallback to Directus - get ALL chats (no limit)
+            chats = await directus_service.get_items(
+                "chats",
+                params={
+                    "filter": {"hashed_user_id": {"_eq": user_id_hash}},
+                    "fields": "id",
+                    "limit": -1,  # No limit - get ALL chats
+                    "sort": "-last_edited_overall_timestamp"
+                }
+            )
+            all_chat_ids = [chat["id"] for chat in (chats or [])]
+            logger.info(f"[EXPORT] Found {len(all_chat_ids)} chat IDs from Directus for user {user_id}")
+        
+        # Count other data types
+        # Count invoices
+        invoices = await directus_service.get_items(
+            "invoices",
+            params={
+                "filter": {"user_id_hash": {"_eq": user_id_hash}},
+                "fields": "id",
+                "limit": -1
+            }
+        )
+        invoice_count = len(invoices or [])
+        
+        # Count usage entries (just count, actual data fetched separately)
+        usage_entries = await directus_service.get_items(
+            "usage",
+            params={
+                "filter": {"user_id_hash": {"_eq": user_id_hash}},
+                "fields": "id",
+                "limit": -1
+            }
+        )
+        usage_count = len(usage_entries or [])
+        
+        # Check for app settings/memories
+        app_settings = await directus_service.get_items(
+            "user_app_settings_and_memories",
+            params={
+                "filter": {"hashed_user_id": {"_eq": user_id_hash}},
+                "fields": "id",
+                "limit": 1
+            }
+        )
+        has_app_settings = len(app_settings or []) > 0
+        
+        # Estimate export size (rough estimation)
+        # Average chat size: ~5KB, average invoice: ~2KB, average usage entry: ~0.5KB
+        estimated_size_mb = (len(all_chat_ids) * 5 + invoice_count * 2 + usage_count * 0.5) / 1024
+        
+        manifest = {
+            "all_chat_ids": all_chat_ids,
+            "total_chats": len(all_chat_ids),
+            "total_invoices": invoice_count,
+            "total_usage_entries": usage_count,
+            "has_app_settings": has_app_settings,
+            "has_memories": has_app_settings,  # Same collection
+            "has_usage_data": usage_count > 0,
+            "has_invoices": invoice_count > 0,
+            "estimated_size_mb": round(estimated_size_mb, 2)
+        }
+        
+        logger.info(f"[EXPORT] Manifest ready for user {user_id}: {len(all_chat_ids)} chats, {invoice_count} invoices, {usage_count} usage entries")
+        
+        return ExportManifestResponse(
+            success=True,
+            manifest=manifest
+        )
+        
+    except Exception as e:
+        logger.error(f"[EXPORT] Error fetching export manifest for user {user_id}: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to fetch export manifest")
+
+
+@router.get("/export-account-data", response_model=ExportDataResponse, include_in_schema=False)
+@limiter.limit("5/minute")  # Lower rate limit due to heavier processing
+async def get_export_data(
+    request: Request,
+    include_usage: bool = True,
+    include_invoices: bool = True,
+    current_user: User = Depends(get_current_user),
+    directus_service: DirectusService = Depends(get_directus_service),
+    encryption_service: EncryptionService = Depends(get_encryption_service),
+    cache_service: CacheService = Depends(get_cache_service)
+):
+    """
+    Get export data - usage records and invoices (data not in client IndexedDB).
+    
+    GDPR Article 20 - Right to Data Portability:
+    Returns encrypted data that needs to be decrypted client-side.
+    The client decrypts with master key and includes in export ZIP.
+    
+    Note: Chat data is already synced to client via WebSocket/IndexedDB.
+    This endpoint returns supplementary data not normally synced.
+    """
+    user_id = current_user.id
+    user_id_hash = hashlib.sha256(user_id.encode()).hexdigest()
+    vault_key_id = current_user.vault_key_id
+    
+    if not vault_key_id:
+        logger.error(f"[EXPORT] Vault key ID missing for user {user_id}")
+        raise HTTPException(status_code=500, detail="User encryption key not found")
+    
+    logger.info(f"[EXPORT] Fetching export data for user {user_id} (usage={include_usage}, invoices={include_invoices})")
+    
+    try:
+        export_data: Dict[str, Any] = {}
+        
+        # === USAGE DATA ===
+        if include_usage:
+            try:
+                # Fetch ALL usage entries (no limit for export)
+                usage_entries = await directus_service.usage.get_user_usage_entries(
+                    user_id_hash=user_id_hash,
+                    user_vault_key_id=vault_key_id,
+                    limit=-1,  # No limit - get ALL entries
+                    sort="-created_at"
+                )
+                
+                # Format usage entries for export (already decrypted by get_user_usage_entries)
+                export_data["usage_records"] = [
+                    {
+                        "usage_id": entry.get("id", ""),
+                        "timestamp": entry.get("created_at", 0),
+                        "app_id": entry.get("app_id", ""),
+                        "skill_id": entry.get("skill_id", ""),
+                        "usage_type": entry.get("usage_type", ""),
+                        "source": entry.get("source", "chat"),
+                        "credits_charged": entry.get("credits_charged", 0),
+                        "model_used": entry.get("model_used"),
+                        "chat_id": entry.get("chat_id"),
+                        "message_id": entry.get("message_id"),
+                        "cost_system_prompt_credits": entry.get("cost_system_prompt_credits"),
+                        "cost_history_credits": entry.get("cost_history_credits"),
+                        "cost_response_credits": entry.get("cost_response_credits"),
+                        "actual_input_tokens": entry.get("actual_input_tokens"),
+                        "actual_output_tokens": entry.get("actual_output_tokens"),
+                    }
+                    for entry in (usage_entries or [])
+                ]
+                
+                logger.info(f"[EXPORT] Fetched {len(export_data['usage_records'])} usage entries for user {user_id}")
+                
+            except Exception as e:
+                logger.error(f"[EXPORT] Error fetching usage data for user {user_id}: {e}", exc_info=True)
+                export_data["usage_records"] = []
+                export_data["usage_error"] = str(e)
+        
+        # === INVOICE DATA ===
+        if include_invoices:
+            try:
+                # Fetch all invoices
+                invoices_data = await directus_service.get_items(
+                    collection="invoices",
+                    params={
+                        "filter": {"user_id_hash": {"_eq": user_id_hash}},
+                        "sort": "-date",
+                        "limit": -1  # No limit - get ALL invoices
+                    }
+                )
+                
+                processed_invoices = []
+                invoice_ids_for_download = []
+                
+                for invoice in (invoices_data or []):
+                    try:
+                        # Decrypt invoice data
+                        if not invoice.get("encrypted_amount") or not invoice.get("encrypted_credits_purchased"):
+                            logger.warning(f"[EXPORT] Invoice {invoice.get('id')} missing encrypted fields, skipping")
+                            continue
+                        
+                        amount = await encryption_service.decrypt_with_user_key(
+                            invoice["encrypted_amount"],
+                            vault_key_id
+                        )
+                        
+                        credits_purchased = await encryption_service.decrypt_with_user_key(
+                            invoice["encrypted_credits_purchased"],
+                            vault_key_id
+                        )
+                        
+                        if not amount or not credits_purchased:
+                            logger.warning(f"[EXPORT] Failed to decrypt invoice {invoice.get('id')}")
+                            continue
+                        
+                        # Parse amount to cents (it's stored as formatted string like "€20.00")
+                        try:
+                            # Remove currency symbol and convert to cents
+                            amount_str = str(amount).replace('€', '').replace('$', '').replace(',', '.').strip()
+                            amount_cents = int(float(amount_str) * 100)
+                        except (ValueError, TypeError):
+                            amount_cents = 0
+                        
+                        # Format date
+                        invoice_date = invoice.get("date")
+                        formatted_date = ""
+                        if invoice_date:
+                            if isinstance(invoice_date, str):
+                                formatted_date = invoice_date
+                            elif hasattr(invoice_date, 'isoformat'):
+                                formatted_date = invoice_date.isoformat()
+                        
+                        processed_invoices.append({
+                            "invoice_id": invoice["id"],
+                            "order_id": invoice.get("order_id", ""),
+                            "date": formatted_date,
+                            "amount_cents": amount_cents,
+                            "currency": "eur",  # Default currency
+                            "credits_purchased": int(credits_purchased),
+                            "is_gift_card": invoice.get("is_gift_card", False),
+                            "refunded_at": invoice.get("refunded_at"),
+                            "refund_status": invoice.get("refund_status", "none"),
+                            # Include S3 info for PDF download (encrypted, client will decrypt)
+                            "encrypted_s3_object_key": invoice.get("encrypted_s3_object_key"),
+                            "encrypted_aes_key": invoice.get("encrypted_aes_key"),
+                            "aes_nonce": invoice.get("aes_nonce"),
+                            "encrypted_filename": invoice.get("encrypted_filename")
+                        })
+                        
+                        invoice_ids_for_download.append(invoice["id"])
+                        
+                    except Exception as e:
+                        logger.error(f"[EXPORT] Error processing invoice {invoice.get('id')}: {e}", exc_info=True)
+                        continue
+                
+                export_data["invoices"] = processed_invoices
+                export_data["invoice_ids_for_pdf_download"] = invoice_ids_for_download
+                
+                logger.info(f"[EXPORT] Fetched {len(processed_invoices)} invoices for user {user_id}")
+                
+            except Exception as e:
+                logger.error(f"[EXPORT] Error fetching invoice data for user {user_id}: {e}", exc_info=True)
+                export_data["invoices"] = []
+                export_data["invoice_error"] = str(e)
+        
+        # === USER PROFILE DATA ===
+        try:
+            # Get user profile info from cache/Directus
+            user_profile_result = await directus_service.get_user_profile(user_id)
+            if user_profile_result and user_profile_result[0]:
+                user_profile = user_profile_result[1]
+                
+                # Fetch additional fields not in cached profile (created timestamp, email status)
+                # Using get_user_fields_direct to get these fields directly from Directus
+                additional_fields = await directus_service.get_user_fields_direct(
+                    user_id, 
+                    ["email", "status", "first_name", "last_name"]  # Directus built-in user fields
+                )
+                
+                # Decrypt email if available (client needs to decrypt with master key)
+                email = None
+                if user_profile.get("encrypted_email_with_master_key"):
+                    # This needs to be decrypted client-side with master key
+                    email = user_profile.get("encrypted_email_with_master_key")
+                
+                # Determine email_verified based on status and having a verified passkey
+                # A fully created account with passkey should have verified email
+                has_passkey = False
+                passkey_count = 0
+                try:
+                    passkeys = await directus_service.get_items(
+                        "user_passkeys",
+                        params={
+                            "filter": {"user_id": {"_eq": user_id}},
+                            "fields": "id",
+                            "limit": -1
+                        }
+                    )
+                    has_passkey = len(passkeys or []) > 0
+                    passkey_count = len(passkeys or [])
+                except Exception as e:
+                    logger.warning(f"[EXPORT] Error fetching passkeys for user {user_id}: {e}")
+                
+                # User status "active" indicates a verified account
+                user_status = user_profile.get("status") or (additional_fields.get("status") if additional_fields else None)
+                email_verified = user_status == "active" and has_passkey
+                
+                # Get consent timestamps - these are the actual field names in Directus
+                consent_privacy_apps = user_profile.get("consent_privacy_and_apps_default_settings")
+                consent_mates = user_profile.get("consent_mates_default_settings")
+                
+                export_data["user_profile"] = {
+                    "user_id": user_id,
+                    "username": user_profile.get("username", ""),
+                    "encrypted_email_with_master_key": email,
+                    "email_verified": email_verified,
+                    "account_status": user_status,
+                    "last_access": user_profile.get("last_access"),
+                    "language": user_profile.get("language", "en"),
+                    "darkmode": user_profile.get("darkmode", False),
+                    "currency": user_profile.get("auto_topup_low_balance_currency", "eur"),
+                    "credits": user_profile.get("credits", 0),
+                    "tfa_enabled": user_profile.get("tfa_enabled", False),
+                    "has_passkey": has_passkey,
+                    "passkey_count": passkey_count,
+                    "auto_topup_low_balance_enabled": user_profile.get("auto_topup_low_balance_enabled", False),
+                    "auto_topup_low_balance_threshold": user_profile.get("auto_topup_low_balance_threshold"),
+                    "auto_topup_low_balance_amount": user_profile.get("auto_topup_low_balance_amount"),
+                    # Consent timestamps with proper field names
+                    "consent_privacy_apps_timestamp": consent_privacy_apps,
+                    "consent_mates_timestamp": consent_mates,
+                }
+                
+                logger.info(f"[EXPORT] User profile compiled for user {user_id}: email_verified={email_verified}, status={user_status}, passkeys={passkey_count}")
+                
+        except Exception as e:
+            logger.error(f"[EXPORT] Error fetching user profile for export: {e}", exc_info=True)
+            export_data["user_profile"] = None
+        
+        # === APP SETTINGS & MEMORIES ===
+        try:
+            app_settings = await directus_service.get_items(
+                "user_app_settings_and_memories",
+                params={
+                    "filter": {"hashed_user_id": {"_eq": user_id_hash}},
+                    "limit": -1
+                }
+            )
+            
+            # These are encrypted - pass through for client-side decryption
+            export_data["app_settings_memories"] = app_settings or []
+            logger.info(f"[EXPORT] Fetched {len(app_settings or [])} app settings/memories for user {user_id}")
+            
+        except Exception as e:
+            logger.error(f"[EXPORT] Error fetching app settings/memories: {e}", exc_info=True)
+            export_data["app_settings_memories"] = []
+        
+        return ExportDataResponse(
+            success=True,
+            data=export_data
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"[EXPORT] Error fetching export data for user {user_id}: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to fetch export data")

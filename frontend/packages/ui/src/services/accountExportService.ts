@@ -104,14 +104,19 @@ interface InvoiceExport {
 }
 
 /**
- * User profile from server
+ * User profile from server export endpoint
+ * 
+ * Field mapping from backend:
+ * - account_status: User's account status from Directus (e.g., "active")
+ * - consent_privacy_apps_timestamp: When user accepted privacy & apps settings
+ * - consent_mates_timestamp: When user accepted mates settings
  */
 interface UserProfileExport {
     user_id: string;
     username: string;
     encrypted_email_with_master_key?: string;
     email_verified: boolean;
-    created_at?: string;
+    account_status?: string;
     last_access?: string;
     language: string;
     darkmode: boolean;
@@ -123,8 +128,8 @@ interface UserProfileExport {
     auto_topup_low_balance_enabled: boolean;
     auto_topup_low_balance_threshold?: number;
     auto_topup_low_balance_amount?: number;
-    consent_terms_timestamp?: string;
-    consent_privacy_timestamp?: string;
+    consent_privacy_apps_timestamp?: string;
+    consent_mates_timestamp?: string;
 }
 
 /**
@@ -773,6 +778,9 @@ gdpr_compliance:
 function generateProfileYml(profile: DecryptedUserProfile): string {
     const email = profile.email || '[Encrypted]';
     
+    // Account status "active" with verified passkey indicates a fully verified account
+    const accountStatus = profile.account_status || 'Unknown';
+    
     return `# User Profile
 export_schema_version: "1.0"
 user_id: "${profile.user_id}"
@@ -781,7 +789,7 @@ email: "${email}"
 email_verified: ${profile.email_verified}
 
 account:
-  created_at: "${profile.created_at || 'Unknown'}"
+  status: "${accountStatus}"
   last_access: "${profile.last_access || 'Unknown'}"
 
 security:
@@ -803,8 +811,8 @@ auto_topup:
   amount: ${profile.auto_topup_low_balance_amount || 'Not set'}
 
 consent:
-  terms_accepted: "${profile.consent_terms_timestamp || 'Not recorded'}"
-  privacy_accepted: "${profile.consent_privacy_timestamp || 'Not recorded'}"
+  privacy_and_apps_accepted: "${profile.consent_privacy_apps_timestamp || 'Not recorded'}"
+  mates_settings_accepted: "${profile.consent_mates_timestamp || 'Not recorded'}"
 `;
 }
 

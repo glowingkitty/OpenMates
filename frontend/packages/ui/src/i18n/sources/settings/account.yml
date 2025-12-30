@@ -67,7 +67,7 @@ passkeys:
   cs: Přístupové klíče
   sv: Åtkomstnycklar
   verified_by_human: []
-delete_account:
+delete:
   context: Delete Account submenu under Account settings
   en: Delete
   de: Löschen

@@ -215,28 +215,53 @@ async def logout_user(self, refresh_token: str = None) -> Tuple[bool, str]:
 
 async def logout_all_sessions(self, user_id: str) -> Tuple[bool, str]:
     """
-    Log out all sessions for a user
+    Log out all sessions for a user by deleting all sessions from directus_sessions collection.
+    
+    Directus doesn't have a native /auth/logout/all endpoint, so we need to:
+    1. Query all sessions for the user from directus_sessions collection
+    2. Delete all those sessions using bulk delete
+    
     - Returns (success, message)
     """
     try:
-        # Get token first
-        token = await self.ensure_auth_token()
+        # Ensure we have admin token for accessing directus_sessions collection
+        token = await self.ensure_auth_token(admin_required=True)
         if not token:
             return False, "Failed to get admin token"
         
-        # Make request to Directus logout-all endpoint
-        async with httpx.AsyncClient() as client:
-            response = await client.post(
-                f"{self.base_url}/auth/logout/all",
-                headers={"Authorization": f"Bearer {token}"},
-                json={"user": user_id}
-            )
+        logger.info(f"Logging out all sessions for user {user_id}")
         
-        if response.status_code == 200:
-            logger.info(f"All sessions logged out for user {user_id}")
-            return True, "All sessions logged out"
+        # Query all sessions for this user from directus_sessions collection
+        # The 'user' field in directus_sessions references the user ID (relation to directus_users)
+        session_params = {
+            "filter[user][_eq]": user_id,
+            "fields": "id",
+            "limit": -1  # Get all sessions
+        }
+        
+        sessions = await self.get_items("directus_sessions", params=session_params)
+        
+        if not sessions:
+            logger.info(f"No active sessions found for user {user_id}")
+            return True, "No active sessions to logout"
+        
+        # Extract session IDs
+        session_ids = [session.get("id") for session in sessions if session.get("id")]
+        
+        if not session_ids:
+            logger.warning(f"Found {len(sessions)} sessions but none had valid IDs for user {user_id}")
+            return False, "Failed to extract session IDs"
+        
+        logger.info(f"Found {len(session_ids)} active sessions to delete for user {user_id}")
+        
+        # Delete all sessions using bulk delete
+        success = await self.bulk_delete_items("directus_sessions", session_ids)
+        
+        if success:
+            logger.info(f"Successfully logged out all {len(session_ids)} sessions for user {user_id}")
+            return True, f"All {len(session_ids)} sessions logged out"
         else:
-            error_msg = f"Logout all failed: {response.status_code}: {response.text}"
+            error_msg = f"Failed to delete sessions for user {user_id}"
             logger.warning(error_msg)
             return False, error_msg
             
