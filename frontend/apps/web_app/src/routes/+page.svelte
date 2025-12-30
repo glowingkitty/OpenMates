@@ -533,11 +533,39 @@
 		const originalHash = browser ? window.location.hash : '';
 		console.debug('[+page.svelte] [INIT] Original hash from URL:', originalHash);
 		
+		// SECURITY: Check if master key should be cleared (if stayLoggedIn was false)
+		// This must happen BEFORE loading user data to ensure key is cleared if needed
+		// This handles cases where user closed tab/browser with stayLoggedIn=false
+		await checkAndClearMasterKeyOnLoad();
+		
 		// PRIORITY 1: Check last_opened for signup step BEFORE processing hash
 		// Load user profile first to check last_opened
 		await loadUserProfileFromDB();
 		const initialProfile = $userProfile;
 		const hasSignupInLastOpened = initialProfile?.last_opened && isSignupPath(initialProfile.last_opened);
+		
+		// CRITICAL: Set optimistic auth state BEFORE processing deep links
+		// This ensures settings deep links that require auth (like account/delete) work correctly in new tabs
+		// Without this, $authStore.isAuthenticated would be false during deep link processing,
+		// causing authenticated settings pages to be blocked and redirect to login
+		const masterKey = await getKeyFromStorage();
+		const localProfile = $userProfile;
+		const hasLocalAuthData = masterKey && localProfile && localProfile.username;
+		
+		if (hasLocalAuthData) {
+			// User has local data - optimistically set as authenticated
+			console.debug('[+page.svelte] ✅ Local auth data found - setting optimistic auth state BEFORE deep link processing');
+			authStore.update(state => ({
+				...state,
+				isAuthenticated: true,
+				isInitialized: true // Mark as initialized so UI updates immediately
+			}));
+		} else {
+			console.debug('[+page.svelte] No local auth data found - user will remain unauthenticated');
+		}
+		
+		// Now check auth state after optimistic loading (used throughout onMount)
+		const isAuth = $authStore.isAuthenticated;
 		
 		if (hasSignupInLastOpened) {
 			// PRIORITY 1: last_opened signup step takes absolute priority - skip hash processing
@@ -569,6 +597,7 @@
 			}
 
 			// Process through unified deep link handler
+			// NOTE: Auth state is now set above, so isAuthenticated() will return correct value
 			const handlers = createDeepLinkHandlers();
 			await processDeepLink(originalHash || '', handlers);
 			deepLinkProcessed = true; // Mark that processing was completed
@@ -604,35 +633,6 @@
 				replaceState(newUrl.toString(), {});
 			}
 		}
-		
-		// SECURITY: Check if master key should be cleared (if stayLoggedIn was false)
-		// This must happen BEFORE loading user data to ensure key is cleared if needed
-		// This handles cases where user closed tab/browser with stayLoggedIn=false
-		await checkAndClearMasterKeyOnLoad();
-		
-		// CRITICAL OFFLINE-FIRST: User profile already loaded above for priority checking
-		// This ensures user appears logged in immediately if they have local data, even if server is unreachable
-		console.debug('[+page.svelte] User profile already loaded for priority checking');
-		
-		// Check if we have local authentication data (master key + user profile)
-		const masterKey = await getKeyFromStorage();
-		const localProfile = $userProfile;
-		const hasLocalAuthData = masterKey && localProfile && localProfile.username;
-		
-		if (hasLocalAuthData) {
-			// User has local data - optimistically set as authenticated
-			console.debug('[+page.svelte] ✅ Local auth data found - setting optimistic auth state');
-			authStore.update(state => ({
-				...state,
-				isAuthenticated: true,
-				isInitialized: true // Mark as initialized so UI updates immediately
-			}));
-		} else {
-			console.debug('[+page.svelte] No local auth data found - user will remain unauthenticated');
-		}
-		
-		// Now check auth state after optimistic loading
-		const isAuth = $authStore.isAuthenticated;
 		
 		// FALLBACK: Cleanup shared chats on page load (if unload events didn't fire)
 		// This handles cases where browser crashed, force quit, or events didn't fire
