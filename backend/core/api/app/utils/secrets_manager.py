@@ -11,6 +11,7 @@ import logging
 import httpx
 from typing import Optional, Dict, Any
 import asyncio
+import time
 
 logger = logging.getLogger(__name__)
 
@@ -55,6 +56,11 @@ class SecretsManager:
         self._cache_ttl = 300  # 5 minutes
         # Cache structure: { "vault_path/secret_key": {"value": "...", "expires": ...} }
         self._secrets_cache = {}
+        
+        # Token validation cache settings (similar to EncryptionService)
+        self._token_valid_until = 0  # Token validation expiry timestamp
+        self._token_validation_ttl = 300  # Cache token validation for 5 minutes
+        
         self._initialized = True
             
     def _get_token_from_file(self) -> Optional[str]:
@@ -130,9 +136,102 @@ class SecretsManager:
             logger.error(f"Failed to connect to Vault: {str(e)}", exc_info=True)
             return False
     
+    async def _validate_token(self) -> bool:
+        """
+        Validate if the current token is valid and has the necessary permissions.
+        Attempts to refresh token from file if validation fails.
+        
+        Returns:
+            True if token is valid, False otherwise
+        """
+        # Check if we have a cached validation result
+        current_time = time.time()
+        if self._token_valid_until > current_time:
+            logger.debug("Using cached token validation result")
+            return True
+        
+        try:
+            # Always try to get the token from file first in case it was just created/updated
+            file_token = self._get_token_from_file()
+            if file_token and file_token != self.vault_token:
+                logger.debug("Found newer token in file, updating")
+                self.vault_token = file_token
+            
+            if not self.vault_token:
+                logger.warning("No Vault token available for validation")
+                return False
+            
+            url = f"{self.vault_url}/v1/auth/token/lookup-self"
+            headers = {"X-Vault-Token": self.vault_token}
+            
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.get(url, headers=headers)
+            
+            if response.status_code == 200:
+                token_info = response.json().get("data", {})
+                current_token_display = f"{self.vault_token[:4]}...{self.vault_token[-4:]}" if self.vault_token and len(self.vault_token) >= 8 else "****"
+                logger.debug(f"_validate_token: Current token {current_token_display} is valid. Policies: {token_info.get('policies', [])}")
+                # Cache the validation result
+                self._token_valid_until = current_time + self._token_validation_ttl
+                return True
+            
+            current_token_display = f"{self.vault_token[:4]}...{self.vault_token[-4:]}" if self.vault_token and len(self.vault_token) >= 8 else "****"
+            logger.warning(f"_validate_token: Current token {current_token_display} validation failed: {response.status_code} - {response.text}")
+            
+            # If the current token failed, try to get a fresh one from the file
+            logger.debug("_validate_token: Attempting to refresh token from file.")
+            file_token = self._get_token_from_file()
+            if file_token and file_token != self.vault_token:
+                logger.debug("_validate_token: Found different token in file. Updating and retrying validation.")
+                self.vault_token = file_token
+                
+                # Try again with the new token
+                new_token_display = f"{self.vault_token[:4]}...{self.vault_token[-4:]}" if self.vault_token and len(self.vault_token) >= 8 else "****"
+                headers = {"X-Vault-Token": self.vault_token}
+                async with httpx.AsyncClient(timeout=30.0) as client:
+                    response = await client.get(url, headers=headers)
+                if response.status_code == 200:
+                    token_info = response.json().get("data", {})
+                    logger.debug(f"_validate_token: Token from file {new_token_display} is now valid. Policies: {token_info.get('policies', [])}")
+                    # Cache the validation result
+                    self._token_valid_until = current_time + self._token_validation_ttl
+                    return True
+                
+                logger.warning(f"_validate_token: Token from file {new_token_display} also failed validation: {response.status_code} - {response.text}")
+            elif file_token and file_token == self.vault_token:
+                logger.debug("_validate_token: Token from file is the same as current token, which failed validation.")
+            elif not file_token:
+                logger.warning("_validate_token: Could not retrieve any token from file to retry.")
+            
+            # Reset the validation timestamp
+            self._token_valid_until = 0
+            return False
+        except Exception as e:
+            logger.error(f"Error validating Vault token: {str(e)}")
+            # Reset the validation timestamp
+            self._token_valid_until = 0
+            return False
+    
+    async def _refresh_token_on_error(self) -> bool:
+        """
+        Attempt to refresh the token from file when an authentication error occurs.
+        
+        Returns:
+            True if token was refreshed, False otherwise
+        """
+        logger.debug("Attempting to refresh token from file due to authentication error")
+        file_token = self._get_token_from_file()
+        if file_token and file_token != self.vault_token:
+            logger.info("Found updated token in file, refreshing")
+            self.vault_token = file_token
+            # Reset validation cache to force re-validation
+            self._token_valid_until = 0
+            return True
+        return False
+    
     async def _vault_request(self, method: str, path: str, data: Dict[str, Any] = None) -> Dict[str, Any]:
         """
-        Make a request to the Vault API.
+        Make a request to the Vault API with automatic token refresh on 403 errors.
         
         Args:
             method: HTTP method (get, post, etc.)
@@ -152,6 +251,12 @@ class SecretsManager:
         if not self.vault_url:
             raise ValueError("VAULT_URL environment variable not set. Cannot make Vault requests.")
         
+        # Validate token before making request (uses cached result if available)
+        current_time = time.time()
+        if self._token_valid_until <= current_time:
+            if not await self._validate_token():
+                raise ValueError("Vault token is invalid. Cannot make Vault requests.")
+        
         url = f"{self.vault_url}/v1/{path}"
         headers = {"X-Vault-Token": self.vault_token}
         
@@ -167,9 +272,30 @@ class SecretsManager:
                 response.raise_for_status()
             return response.json() if response.text else {}
         except httpx.HTTPStatusError as e:
+            # Handle 403 (Forbidden) - token might be expired or invalid
+            if e.response.status_code == 403:
+                logger.warning(f"Vault returned 403 Forbidden for {path}. Attempting to refresh token...")
+                # Reset validation cache
+                self._token_valid_until = 0
+                # Try to refresh token from file
+                if await self._refresh_token_on_error():
+                    # Retry the request once with the new token
+                    logger.debug(f"Retrying Vault request to {path} with refreshed token")
+                    headers = {"X-Vault-Token": self.vault_token}
+                    async with httpx.AsyncClient(timeout=30.0) as client:
+                        if method.lower() == "get":
+                            response = await client.get(url, headers=headers)
+                        elif method.lower() == "post":
+                            response = await client.post(url, headers=headers, json=data)
+                        else:
+                            response = await getattr(client, method.lower())(url, headers=headers, json=data)
+                        response.raise_for_status()
+                    return response.json() if response.text else {}
+                else:
+                    logger.error(f"HTTP error 403 in Vault request to {path}: {e.response.text}")
             # 404 is expected when a secret path hasn't been created yet (e.g., env secrets not imported into Vault).
             # Keep logs quiet for 404 to avoid noisy stack traces in normal setup flows.
-            if e.response.status_code == 404:
+            elif e.response.status_code == 404:
                 logger.debug(f"Vault path not found (404): {path}")
             else:
                 logger.error(f"HTTP error {e.response.status_code} in Vault request to {path}: {e.response.text}")
