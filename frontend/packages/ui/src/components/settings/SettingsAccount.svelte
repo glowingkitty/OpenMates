@@ -1,5 +1,5 @@
 <!--
-Account Settings - Main menu for account-related settings including Security
+Account Settings - Main menu for account-related settings including Security and Delete Account
 -->
 
 <script lang="ts">
@@ -21,6 +21,19 @@ Account Settings - Main menu for account-related settings including Security
             title: $text('settings.account.security.text')
         });
     }
+
+    /**
+     * Navigate to Delete Account submenu.
+     * Dispatches navigation event to parent Settings component.
+     */
+    function navigateToDeleteAccount() {
+        dispatch('openSettings', {
+            settingsPath: 'account/delete-account',
+            direction: 'forward',
+            icon: 'delete',
+            title: $text('settings.account.delete_account.text')
+        });
+    }
 </script>
 
 <SettingsItem
@@ -28,4 +41,11 @@ Account Settings - Main menu for account-related settings including Security
     icon="security"
     title={$text('settings.account.security.text')}
     onClick={navigateToSecurity}
+/>
+
+<SettingsItem
+    type="submenu"
+    icon="delete"
+    title={$text('settings.account.delete_account.text')}
+    onClick={navigateToDeleteAccount}
 />

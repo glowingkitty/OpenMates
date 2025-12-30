@@ -2296,7 +2296,9 @@ async def delete_account(
     """
     user_id = current_user.id
     client_ip = _extract_client_ip(request.headers, request.client.host if request.client else None)
-    device_fingerprint = generate_device_fingerprint_hash(request.headers, client_ip)
+    # Generate device fingerprint hash for compliance logging
+    device_hash, _, _, _, _, _, _, _ = generate_device_fingerprint_hash(request, user_id=user_id)
+    device_fingerprint = device_hash  # Use device_hash for compliance logging
     
     logger.info(f"Account deletion request for user {user_id}")
     

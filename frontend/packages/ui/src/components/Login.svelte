@@ -5,7 +5,7 @@
     import { createEventDispatcher } from 'svelte';
     import { authStore, isCheckingAuth, needsDeviceVerification, login, checkAuth } from '../stores/authStore'; // Import login and checkAuth functions
     import { currentSignupStep, isInSignupProcess, STEP_ALPHA_DISCLAIMER, STEP_BASICS, getStepFromPath, STEP_ONE_TIME_CODES, isSignupPath, STEP_PAYMENT } from '../stores/signupState';
-    import { clearIncompleteSignupData } from '../stores/signupStore';
+    import { clearIncompleteSignupData, clearSignupData } from '../stores/signupStore';
     import { requireInviteCode } from '../stores/signupRequirements';
     import { get } from 'svelte/store';
     import { onMount, onDestroy } from 'svelte';
@@ -309,6 +309,10 @@
     
     async function switchToLogin() {
         console.log('[Login] switchToLogin called - resetting signup process');
+
+        // PRIVACY: Clear signup data (email and username) when switching to login
+        // This ensures sensitive data is removed if user switches views
+        clearSignupData();
 
         // Reset the signup process flag, which will reactively change the view
         isInSignupProcess.set(false);
@@ -1898,6 +1902,9 @@
                         onlogout={handleSignupNavLogout}
                         onDemoClick={() => {
                             console.log('[Login] Demo back button clicked - closing login interface and returning to demo');
+                            // PRIVACY: Clear signup data (email and username) when returning to demo
+                            // This ensures sensitive data is removed if user abandons signup
+                            clearSignupData();
                             // Clear email encryption key and salt when interrupting login to go back to demo
                             // This ensures sensitive data is removed if user abandons login attempt
                             cryptoService.clearAllEmailData();

@@ -1107,6 +1107,13 @@ div.clickable-icon {
   }
 }
 
+.icon.delete {
+  background: var(--color-primary);
+  &::before {
+      background-image: url('@openmates/ui/static/icons/delete.svg');
+  }
+}
+
 .icon.passkeys {
   background: var(--color-primary);
 

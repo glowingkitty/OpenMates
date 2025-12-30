@@ -903,10 +903,24 @@ async def _async_delete_user_account(
         except Exception as e:
             logger.error(f"[DELETE_ACCOUNT] Error clearing email auth data for user {user_id}: {e}", exc_info=True)
         
-        # 6. Vault keys - Note: Vault deletion may require additional service methods
+        # 6. Delete encryption keys (master keys encrypted with different login methods)
+        try:
+            encryption_keys = await directus_service.get_items(
+                "encryption_keys",
+                params={"filter": {"hashed_user_id": {"_eq": user_id_hash}}}
+            )
+            for key in encryption_keys or []:
+                key_id = key.get("id")
+                if key_id:
+                    await directus_service.delete_item("encryption_keys", key_id)
+            logger.info(f"[DELETE_ACCOUNT] Deleted {len(encryption_keys) if encryption_keys else 0} encryption keys for user {user_id}")
+        except Exception as e:
+            logger.error(f"[DELETE_ACCOUNT] Error deleting encryption keys for user {user_id}: {e}", exc_info=True)
+        
+        # 7. Vault keys - Note: Vault deletion may require additional service methods
         # This is marked as TODO in the architecture - implementation depends on Vault service
         
-        # 7. Sessions & Tokens - already handled in endpoint (logout_all_sessions called)
+        # 8. Sessions & Tokens - already handled in endpoint (logout_all_sessions called)
         logger.info(f"[DELETE_ACCOUNT] Phase 1 complete for user {user_id}")
         
         # ===== PHASE 2: Payment & Subscription Data =====
@@ -986,15 +1000,22 @@ async def _async_delete_user_account(
         logger.info(f"[DELETE_ACCOUNT] Phase 3: Deleting user content for user {user_id}")
         
         # 12. Delete chats, messages, embeds
+        # Note: chats uses hashed_user_id, not user_id
         try:
+            deleted_chats = 0
+            deleted_messages = 0
+            deleted_embeds = 0
+            
+            # Get all chats for this user (using hashed_user_id)
             chats = await directus_service.get_items(
                 "chats",
-                params={"filter": {"user_id": {"_eq": user_id}}}
+                params={"filter": {"hashed_user_id": {"_eq": user_id_hash}}}
             )
+            
             for chat in chats or []:
                 chat_id = chat.get("id")
                 if chat_id:
-                    # Delete messages
+                    # Delete messages for this chat
                     messages = await directus_service.get_items(
                         "messages",
                         params={"filter": {"chat_id": {"_eq": chat_id}}}
@@ -1003,8 +1024,9 @@ async def _async_delete_user_account(
                         message_id = message.get("id")
                         if message_id:
                             await directus_service.delete_item("messages", message_id)
+                            deleted_messages += 1
                     
-                    # Delete embeds
+                    # Delete embeds for this chat (using hashed_chat_id)
                     hashed_chat_id = hashlib.sha256(chat_id.encode()).hexdigest()
                     embeds = await directus_service.get_items(
                         "embeds",
@@ -1014,10 +1036,24 @@ async def _async_delete_user_account(
                         embed_id = embed.get("id")
                         if embed_id:
                             await directus_service.delete_item("embeds", embed_id)
+                            deleted_embeds += 1
                     
                     # Delete chat
                     await directus_service.delete_item("chats", chat_id)
-            logger.info(f"[DELETE_ACCOUNT] Deleted chats, messages, and embeds for user {user_id}")
+                    deleted_chats += 1
+            
+            # Also delete any orphaned embeds by hashed_user_id (embeds not linked to a chat)
+            orphaned_embeds = await directus_service.get_items(
+                "embeds",
+                params={"filter": {"hashed_user_id": {"_eq": user_id_hash}}}
+            )
+            for embed in orphaned_embeds or []:
+                embed_id = embed.get("id")
+                if embed_id:
+                    await directus_service.delete_item("embeds", embed_id)
+                    deleted_embeds += 1
+            
+            logger.info(f"[DELETE_ACCOUNT] Deleted {deleted_chats} chats, {deleted_messages} messages, and {deleted_embeds} embeds for user {user_id}")
         except Exception as e:
             logger.error(f"[DELETE_ACCOUNT] Error deleting user content for user {user_id}: {e}", exc_info=True)
         
@@ -1032,8 +1068,8 @@ async def _async_delete_user_account(
                 if entry_id:
                     await directus_service.delete_item("usage", entry_id)
             
-            # Delete usage summaries
-            for collection in ["usage_monthly_chat_summaries", "usage_monthly_api_key_summaries"]:
+            # Delete usage summaries (including app summaries)
+            for collection in ["usage_monthly_chat_summaries", "usage_monthly_api_key_summaries", "usage_monthly_app_summaries"]:
                 summaries = await directus_service.get_items(
                     collection,
                     params={"filter": {"user_id_hash": {"_eq": user_id_hash}}}
@@ -1059,6 +1095,77 @@ async def _async_delete_user_account(
             logger.info(f"[DELETE_ACCOUNT] Deleted app settings/memories for user {user_id}")
         except Exception as e:
             logger.error(f"[DELETE_ACCOUNT] Error deleting app settings for user {user_id}: {e}", exc_info=True)
+        
+        # 15. Delete drafts
+        try:
+            drafts = await directus_service.get_items(
+                "drafts",
+                params={"filter": {"hashed_user_id": {"_eq": user_id_hash}}}
+            )
+            for draft in drafts or []:
+                draft_id = draft.get("id")
+                if draft_id:
+                    await directus_service.delete_item("drafts", draft_id)
+            logger.info(f"[DELETE_ACCOUNT] Deleted {len(drafts) if drafts else 0} drafts for user {user_id}")
+        except Exception as e:
+            logger.error(f"[DELETE_ACCOUNT] Error deleting drafts for user {user_id}: {e}", exc_info=True)
+        
+        # 16. Delete new chat suggestions
+        try:
+            suggestions = await directus_service.get_items(
+                "new_chat_suggestions",
+                params={"filter": {"hashed_user_id": {"_eq": user_id_hash}}}
+            )
+            for suggestion in suggestions or []:
+                suggestion_id = suggestion.get("id")
+                if suggestion_id:
+                    await directus_service.delete_item("new_chat_suggestions", suggestion_id)
+            logger.info(f"[DELETE_ACCOUNT] Deleted {len(suggestions) if suggestions else 0} new chat suggestions for user {user_id}")
+        except Exception as e:
+            logger.error(f"[DELETE_ACCOUNT] Error deleting new chat suggestions for user {user_id}: {e}", exc_info=True)
+        
+        # 17. Delete embed keys
+        try:
+            embed_keys = await directus_service.get_items(
+                "embed_keys",
+                params={"filter": {"hashed_user_id": {"_eq": user_id_hash}}}
+            )
+            for embed_key in embed_keys or []:
+                embed_key_id = embed_key.get("id")
+                if embed_key_id:
+                    await directus_service.delete_item("embed_keys", embed_key_id)
+            logger.info(f"[DELETE_ACCOUNT] Deleted {len(embed_keys) if embed_keys else 0} embed keys for user {user_id}")
+        except Exception as e:
+            logger.error(f"[DELETE_ACCOUNT] Error deleting embed keys for user {user_id}: {e}", exc_info=True)
+        
+        # 18. Delete credit notes
+        try:
+            credit_notes = await directus_service.get_items(
+                "credit_notes",
+                params={"filter": {"user_id_hash": {"_eq": user_id_hash}}}
+            )
+            for credit_note in credit_notes or []:
+                credit_note_id = credit_note.get("id")
+                if credit_note_id:
+                    # TODO: Delete credit note PDFs from S3 using encrypted_s3_object_key
+                    await directus_service.delete_item("credit_notes", credit_note_id)
+            logger.info(f"[DELETE_ACCOUNT] Deleted {len(credit_notes) if credit_notes else 0} credit notes for user {user_id}")
+        except Exception as e:
+            logger.error(f"[DELETE_ACCOUNT] Error deleting credit notes for user {user_id}: {e}", exc_info=True)
+        
+        # 19. Delete creator income records (if user was a creator)
+        try:
+            creator_income = await directus_service.get_items(
+                "creator_income",
+                params={"filter": {"hashed_creator_user_id": {"_eq": user_id_hash}}}
+            )
+            for income in creator_income or []:
+                income_id = income.get("id")
+                if income_id:
+                    await directus_service.delete_item("creator_income", income_id)
+            logger.info(f"[DELETE_ACCOUNT] Deleted {len(creator_income) if creator_income else 0} creator income records for user {user_id}")
+        except Exception as e:
+            logger.error(f"[DELETE_ACCOUNT] Error deleting creator income for user {user_id}: {e}", exc_info=True)
         
         logger.info(f"[DELETE_ACCOUNT] Phase 3 complete for user {user_id}")
         
