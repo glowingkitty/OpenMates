@@ -194,8 +194,6 @@ changes to the documentation (to keep the documentation up to date).
         'account/security/passkeys': SettingsPasskeys,
         'account/export-data': SettingsExportAccount, // GDPR Article 20 - Data Portability
         'account/export_data': SettingsExportAccount, // Alias with underscore (for deep link normalization)
-        'account/delete-account': SettingsDeleteAccount,
-        'account/delete_account': SettingsDeleteAccount, // Alias with underscore (for deep link normalization)
         'account/delete': SettingsDeleteAccount, // Alias for account/delete-account (maps to account/delete_account after normalization)
         // 'server/software-update': SettingsSoftwareUpdate,
         // Share chat settings - allows users to share the current chat

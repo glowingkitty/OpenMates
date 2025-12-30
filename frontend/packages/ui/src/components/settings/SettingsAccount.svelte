@@ -42,7 +42,7 @@ Account Settings - Main menu for account-related settings including Security, Ex
      */
     function navigateToDeleteAccount() {
         dispatch('openSettings', {
-            settingsPath: 'account/delete-account',
+            settingsPath: 'account/delete',
             direction: 'forward',
             icon: 'delete',
             title: $text('settings.account.delete_account.text')
