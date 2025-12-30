@@ -4,11 +4,14 @@ Delete Account Settings - Component for deleting user account with preview, conf
 
 <script lang="ts">
     import { onMount } from 'svelte';
-    import { text } from '@repo/ui';
+    import { text, activeChatStore } from '@repo/ui';
     import { getApiEndpoint, apiEndpoints } from '../../../config/api';
     import { authStore } from '../../../stores/authStore';
     import * as cryptoService from '../../../services/cryptoService';
     import { getSessionId } from '../../../utils/sessionId';
+    import { panelState } from '../../../stores/panelStateStore';
+    import { settingsMenuVisible } from '../../Settings.svelte';
+    import { phasedSyncState } from '../../../stores/phasedSyncStateStore';
 
     // State for preview data
     let previewData = $state<{
@@ -341,8 +344,42 @@ Delete Account Settings - Component for deleting user account with preview, conf
             const data = await response.json();
             if (data.success) {
                 successMessage = data.message || 'Account deletion initiated successfully';
-                // Logout user after a short delay
-                setTimeout(() => {
+                
+                // Perform logout actions after a short delay to show success message
+                setTimeout(async () => {
+                    // CRITICAL: Close settings menu first
+                    // This ensures the menu closes before logout clears state
+                    settingsMenuVisible.set(false);
+                    panelState.closeSettings();
+                    console.debug('[SettingsDeleteAccount] Closed settings menu before logout');
+                    
+                    // CRITICAL: Dispatch logout event to clear user chats and load demo chat
+                    // This must happen before database deletion to ensure UI updates right away
+                    console.debug('[SettingsDeleteAccount] Dispatching userLoggingOut event to clear chats and load demo');
+                    window.dispatchEvent(new CustomEvent('userLoggingOut'));
+                    
+                    // CRITICAL: Force ActiveChat to load demo-welcome by setting activeChatStore directly
+                    // This ensures demo-welcome loads even if event handlers have timing issues
+                    // Small delay to ensure auth state changes are processed first
+                    await new Promise(resolve => setTimeout(resolve, 50));
+                    activeChatStore.setActiveChat('demo-welcome');
+                    console.debug('[SettingsDeleteAccount] Directly set activeChatStore to demo-welcome during account deletion');
+                    
+                    // CRITICAL: Ensure URL hash is set to demo-welcome
+                    if (typeof window !== 'undefined') {
+                        window.location.hash = 'chat-id=demo-welcome';
+                        console.debug('[SettingsDeleteAccount] Set URL hash to demo-welcome during account deletion');
+                    }
+                    
+                    // CRITICAL: Mark phased sync as completed for non-authenticated users
+                    // This prevents "Loading chats..." from showing after logout
+                    phasedSyncState.markSyncCompleted();
+                    console.debug('[SettingsDeleteAccount] Marked phased sync as completed after account deletion (non-auth user)');
+                    
+                    // Small delay to allow settings menu to close visually and state to clear
+                    await new Promise(resolve => setTimeout(resolve, 200));
+                    
+                    // Now perform the actual logout
                     authStore.logout();
                 }, 2000);
             } else {
