@@ -11,13 +11,13 @@
     import { onMount, onDestroy } from 'svelte';
     import { get } from 'svelte/store';
     import { updateUsername } from '../../../../stores/userProfile';
-    import { signupStore } from '../../../../stores/signupStore';
+    import { signupStore, clearSignupData } from '../../../../stores/signupStore';
     import * as cryptoService from '../../../../services/cryptoService';
 
     const dispatch = createEventDispatcher();
 
     // --- Inactivity Timer ---
-    const SIGNUP_INACTIVITY_TIMEOUT_MS = 120000; // 2 minutes
+    const SIGNUP_INACTIVITY_TIMEOUT_MS = 30000; // 30 seconds
     let signupTimer: ReturnType<typeof setTimeout> | null = null;
     let isSignupTimerActive = false;
     // --- End Inactivity Timer ---
@@ -102,6 +102,8 @@
                 emailAlreadyInUse = false;
                 showUsernameWarning = false;
                 usernameError = '';
+                // Stop the inactivity timer when fields are cleared
+                stopSignupTimer();
             }
         });
 
@@ -155,7 +157,7 @@
 
     // --- Inactivity Timer Functions ---
     function handleSignupTimeout() {
-        console.debug("Signup Step Basics inactivity timeout triggered.");
+        console.debug("Signup Step Basics inactivity timeout triggered - clearing email and username fields.");
         // Clear local state
         username = '';
         email = '';
@@ -172,8 +174,8 @@
 
         stopSignupTimer(); // Stop the timer state
 
-        // Dispatch event to request switch back to login
-        dispatch('requestSwitchToLogin');
+        // Clear signup store to ensure fields are cleared across components
+        clearSignupData();
     }
 
     function resetSignupTimer() {
