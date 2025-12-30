@@ -208,6 +208,10 @@ export function processSettingsDeepLink(
         if (path === 'appstore') {
             path = 'app_store';
         }
+        // Map account/delete to account/delete-account before normalization
+        if (path === 'account/delete') {
+            path = 'account/delete-account';
+        }
         // Normalize hyphens to underscores for consistency (e.g., report-issue -> report_issue)
         path = path.replace(/-/g, '_');
         handlers.setSettingsDeepLink(path);

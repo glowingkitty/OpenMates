@@ -69,26 +69,26 @@ passkeys:
   verified_by_human: []
 delete_account:
   context: Delete Account submenu under Account settings
-  en: Delete Account
-  de: Konto löschen
-  zh: 删除账户
-  es: Eliminar cuenta
-  fr: Supprimer le compte
-  pt: Excluir conta
-  ru: Удалить аккаунт
-  ja: アカウントを削除
-  ko: 계정 삭제
-  it: Elimina account
-  tr: Hesabı sil
-  vi: Xóa tài khoản
-  id: Hapus akun
-  pl: Usuń konto
-  nl: Account verwijderen
-  ar: حذف الحساب
-  hi: खाता हटाएं
-  th: ลบบัญชี
-  cs: Smazat účet
-  sv: Ta bort konto
+  en: Delete
+  de: Löschen
+  zh: 删除
+  es: Eliminar
+  fr: Supprimer
+  pt: Excluir
+  ru: Удалить
+  ja: 削除
+  ko: 삭제
+  it: Elimina
+  tr: Sil
+  vi: Xóa
+  id: Hapus
+  pl: Usuń
+  nl: Verwijderen
+  ar: حذف
+  hi: हटाएं
+  th: ลบ
+  cs: Smazat
+  sv: Radera
   verified_by_human: []
 delete_account_title:
   context: Title for delete account page
@@ -503,5 +503,398 @@ delete_account_retry:
   th: ลองอีกครั้ง
   cs: Zkusit znovu
   sv: Försök igen
+  verified_by_human: []
+
+# --- Export Account (GDPR Article 20 - Data Portability) ---
+export_data:
+  context: Export Data submenu under Account settings
+  en: Export Data
+  de: Daten exportieren
+  zh: 导出数据
+  es: Exportar datos
+  fr: Exporter les données
+  pt: Exportar dados
+  ru: Экспорт данных
+  ja: データをエクスポート
+  ko: 데이터 내보내기
+  it: Esporta dati
+  tr: Verileri dışa aktar
+  vi: Xuất dữ liệu
+  id: Ekspor data
+  pl: Eksportuj dane
+  nl: Gegevens exporteren
+  ar: تصدير البيانات
+  hi: डेटा निर्यात करें
+  th: ส่งออกข้อมูล
+  cs: Exportovat data
+  sv: Exportera data
+  verified_by_human: []
+export_data_title:
+  context: Title for export data page
+  en: Export Your Data
+  de: Daten exportieren
+  zh: 导出您的数据
+  es: Exportar tus datos
+  fr: Exporter vos données
+  pt: Exportar seus dados
+  ru: Экспортировать ваши данные
+  ja: データをエクスポート
+  ko: 데이터 내보내기
+  it: Esporta i tuoi dati
+  tr: Verilerinizi dışa aktarın
+  vi: Xuất dữ liệu của bạn
+  id: Ekspor data Anda
+  pl: Eksportuj swoje dane
+  nl: Uw gegevens exporteren
+  ar: تصدير بياناتك
+  hi: अपना डेटा निर्यात करें
+  th: ส่งออกข้อมูลของคุณ
+  cs: Exportovat vaše data
+  sv: Exportera dina data
+  verified_by_human: []
+export_data_description:
+  context: Description for export data page
+  en: Download all your data in a portable format. This includes your chats, messages, invoices, usage history, and settings.
+  de: Laden Sie alle Ihre Daten in einem portablen Format herunter. Dies umfasst Ihre Chats, Nachrichten, Rechnungen, Nutzungsverlauf und Einstellungen.
+  zh: 以可移植格式下载您的所有数据。包括您的聊天、消息、发票、使用记录和设置。
+  es: Descarga todos tus datos en un formato portable. Esto incluye tus conversaciones, mensajes, facturas, historial de uso y configuraciones.
+  fr: Téléchargez toutes vos données dans un format portable. Cela inclut vos chats, messages, factures, historique d'utilisation et paramètres.
+  pt: Baixe todos os seus dados em um formato portátil. Isso inclui suas conversas, mensagens, faturas, histórico de uso e configurações.
+  ru: Загрузите все ваши данные в переносимом формате. Это включает ваши чаты, сообщения, счета, историю использования и настройки.
+  ja: すべてのデータをポータブルな形式でダウンロードします。チャット、メッセージ、請求書、使用履歴、設定が含まれます。
+  ko: 모든 데이터를 휴대용 형식으로 다운로드합니다. 채팅, 메시지, 청구서, 사용 기록 및 설정이 포함됩니다.
+  it: Scarica tutti i tuoi dati in un formato portabile. Include chat, messaggi, fatture, cronologia di utilizzo e impostazioni.
+  tr: Tüm verilerinizi taşınabilir bir formatta indirin. Sohbetlerinizi, mesajlarınızı, faturalarınızı, kullanım geçmişinizi ve ayarlarınızı içerir.
+  vi: Tải xuống tất cả dữ liệu của bạn ở định dạng di động. Bao gồm cuộc trò chuyện, tin nhắn, hóa đơn, lịch sử sử dụng và cài đặt.
+  id: Unduh semua data Anda dalam format portabel. Ini termasuk obrolan, pesan, faktur, riwayat penggunaan, dan pengaturan Anda.
+  pl: Pobierz wszystkie swoje dane w przenośnym formacie. Obejmuje to Twoje czaty, wiadomości, faktury, historię użytkowania i ustawienia.
+  nl: Download al uw gegevens in een draagbaar formaat. Dit omvat uw chats, berichten, facturen, gebruiksgeschiedenis en instellingen.
+  ar: قم بتنزيل جميع بياناتك بتنسيق قابل للنقل. يتضمن ذلك محادثاتك ورسائلك وفواتيرك وسجل الاستخدام والإعدادات.
+  hi: अपने सभी डेटा को पोर्टेबल प्रारूप में डाउनलोड करें। इसमें आपकी चैट, संदेश, चालान, उपयोग इतिहास और सेटिंग्स शामिल हैं।
+  th: ดาวน์โหลดข้อมูลทั้งหมดของคุณในรูปแบบที่พกพาได้ รวมถึงการแชท ข้อความ ใบแจ้งหนี้ ประวัติการใช้งาน และการตั้งค่า
+  cs: Stáhněte si všechna svá data v přenosném formátu. Zahrnuje vaše chaty, zprávy, faktury, historii použití a nastavení.
+  sv: Ladda ner all din data i ett portabelt format. Detta inkluderar dina chattar, meddelanden, fakturor, användningshistorik och inställningar.
+  verified_by_human: []
+export_includes_title:
+  context: Title for what's included section
+  en: What's Included
+  de: Was enthalten ist
+  zh: 包含内容
+  es: Qué incluye
+  fr: Ce qui est inclus
+  pt: O que está incluído
+  ru: Что включено
+  ja: 含まれる内容
+  ko: 포함 내용
+  it: Cosa è incluso
+  tr: Neler dahil
+  vi: Bao gồm những gì
+  id: Apa yang termasuk
+  pl: Co zawiera
+  nl: Wat is inbegrepen
+  ar: ما هو مشمول
+  hi: क्या शामिल है
+  th: สิ่งที่รวมอยู่
+  cs: Co je zahrnuto
+  sv: Vad som ingår
+  verified_by_human: []
+export_includes_chats:
+  context: Chats included in export
+  en: All your chats and conversations
+  de: Alle Ihre Chats und Gespräche
+  zh: 您所有的聊天和对话
+  es: Todos tus chats y conversaciones
+  fr: Tous vos chats et conversations
+  pt: Todas as suas conversas
+  ru: Все ваши чаты и беседы
+  ja: すべてのチャットと会話
+  ko: 모든 채팅과 대화
+  it: Tutte le tue chat e conversazioni
+  tr: Tüm sohbetleriniz ve konuşmalarınız
+  vi: Tất cả cuộc trò chuyện của bạn
+  id: Semua obrolan dan percakapan Anda
+  pl: Wszystkie Twoje czaty i rozmowy
+  nl: Al uw chats en gesprekken
+  ar: جميع محادثاتك ومحادثاتك
+  hi: आपकी सभी चैट और बातचीत
+  th: การแชทและการสนทนาทั้งหมดของคุณ
+  cs: Všechny vaše chaty a konverzace
+  sv: Alla dina chattar och konversationer
+  verified_by_human: []
+export_includes_invoices:
+  context: Invoices included in export
+  en: Invoice history and PDF files
+  de: Rechnungsverlauf und PDF-Dateien
+  zh: 发票历史和PDF文件
+  es: Historial de facturas y archivos PDF
+  fr: Historique des factures et fichiers PDF
+  pt: Histórico de faturas e arquivos PDF
+  ru: История счетов и PDF-файлы
+  ja: 請求書履歴とPDFファイル
+  ko: 청구서 기록 및 PDF 파일
+  it: Cronologia fatture e file PDF
+  tr: Fatura geçmişi ve PDF dosyaları
+  vi: Lịch sử hóa đơn và tệp PDF
+  id: Riwayat faktur dan file PDF
+  pl: Historia faktur i pliki PDF
+  nl: Factuurgeschiedenis en PDF-bestanden
+  ar: تاريخ الفواتير وملفات PDF
+  hi: चालान इतिहास और PDF फाइलें
+  th: ประวัติใบแจ้งหนี้และไฟล์ PDF
+  cs: Historie faktur a PDF soubory
+  sv: Fakturahistorik och PDF-filer
+  verified_by_human: []
+export_includes_usage:
+  context: Usage history included in export
+  en: Usage history and credit transactions
+  de: Nutzungsverlauf und Kredittransaktionen
+  zh: 使用历史和积分交易
+  es: Historial de uso y transacciones de créditos
+  fr: Historique d'utilisation et transactions de crédits
+  pt: Histórico de uso e transações de créditos
+  ru: История использования и кредитные транзакции
+  ja: 使用履歴とクレジット取引
+  ko: 사용 기록 및 크레딧 거래
+  it: Cronologia di utilizzo e transazioni di crediti
+  tr: Kullanım geçmişi ve kredi işlemleri
+  vi: Lịch sử sử dụng và giao dịch tín dụng
+  id: Riwayat penggunaan dan transaksi kredit
+  pl: Historia użytkowania i transakcje kredytowe
+  nl: Gebruiksgeschiedenis en creditransacties
+  ar: تاريخ الاستخدام ومعاملات الرصيد
+  hi: उपयोग इतिहास और क्रेडिट लेनदेन
+  th: ประวัติการใช้งานและการทำธุรกรรมเครดิต
+  cs: Historie použití a kreditové transakce
+  sv: Användningshistorik och kredittransaktioner
+  verified_by_human: []
+export_includes_settings:
+  context: Settings included in export
+  en: App settings and AI memories
+  de: App-Einstellungen und KI-Erinnerungen
+  zh: 应用设置和AI记忆
+  es: Configuraciones de aplicación y memorias de IA
+  fr: Paramètres d'application et mémoires d'IA
+  pt: Configurações de aplicativo e memórias de IA
+  ru: Настройки приложения и память ИИ
+  ja: アプリ設定とAIメモリ
+  ko: 앱 설정 및 AI 기억
+  it: Impostazioni app e memorie IA
+  tr: Uygulama ayarları ve AI anıları
+  vi: Cài đặt ứng dụng và bộ nhớ AI
+  id: Pengaturan aplikasi dan memori AI
+  pl: Ustawienia aplikacji i pamięć AI
+  nl: App-instellingen en AI-herinneringen
+  ar: إعدادات التطبيق وذكريات الذكاء الاصطناعي
+  hi: ऐप सेटिंग्स और AI मेमोरीज
+  th: การตั้งค่าแอปและความทรงจำ AI
+  cs: Nastavení aplikací a AI vzpomínky
+  sv: Appinställningar och AI-minnen
+  verified_by_human: []
+export_includes_profile:
+  context: Profile included in export
+  en: Your profile and preferences
+  de: Ihr Profil und Ihre Einstellungen
+  zh: 您的个人资料和偏好设置
+  es: Tu perfil y preferencias
+  fr: Votre profil et préférences
+  pt: Seu perfil e preferências
+  ru: Ваш профиль и настройки
+  ja: プロフィールと設定
+  ko: 프로필 및 환경 설정
+  it: Il tuo profilo e preferenze
+  tr: Profiliniz ve tercihleriniz
+  vi: Hồ sơ và tùy chọn của bạn
+  id: Profil dan preferensi Anda
+  pl: Twój profil i preferencje
+  nl: Uw profiel en voorkeuren
+  ar: ملفك الشخصي وتفضيلاتك
+  hi: आपकी प्रोफ़ाइल और प्राथमिकताएं
+  th: โปรไฟล์และการตั้งค่าของคุณ
+  cs: Váš profil a preference
+  sv: Din profil och preferenser
+  verified_by_human: []
+export_gdpr_notice:
+  context: GDPR compliance notice
+  en: This export is provided in accordance with GDPR Article 20 (Right to Data Portability). Your data is exported in a structured, machine-readable format.
+  de: Dieser Export erfolgt gemäß DSGVO Artikel 20 (Recht auf Datenübertragbarkeit). Ihre Daten werden in einem strukturierten, maschinenlesbaren Format exportiert.
+  zh: 此导出符合GDPR第20条（数据可携带权）。您的数据以结构化、机器可读的格式导出。
+  es: Esta exportación se proporciona de acuerdo con el Artículo 20 del RGPD (Derecho a la portabilidad de datos). Sus datos se exportan en un formato estructurado y legible por máquina.
+  fr: Cette exportation est fournie conformément à l'article 20 du RGPD (Droit à la portabilité des données). Vos données sont exportées dans un format structuré et lisible par machine.
+  pt: Esta exportação é fornecida de acordo com o Artigo 20 do GDPR (Direito à Portabilidade de Dados). Seus dados são exportados em um formato estruturado e legível por máquina.
+  ru: Этот экспорт предоставляется в соответствии со статьей 20 GDPR (Право на перенос данных). Ваши данные экспортируются в структурированном, машиночитаемом формате.
+  ja: このエクスポートはGDPR第20条（データポータビリティの権利）に従って提供されます。データは構造化された機械読み取り可能な形式でエクスポートされます。
+  ko: 이 내보내기는 GDPR 제20조(데이터 이동권)에 따라 제공됩니다. 데이터는 구조화된 기계 판독 가능 형식으로 내보내집니다.
+  it: Questa esportazione è fornita in conformità con l'Articolo 20 del GDPR (Diritto alla portabilità dei dati). I tuoi dati sono esportati in un formato strutturato e leggibile dalla macchina.
+  tr: Bu dışa aktarım, GDPR Madde 20 (Veri Taşınabilirliği Hakkı) uyarınca sağlanmaktadır. Verileriniz yapılandırılmış, makine tarafından okunabilir bir formatta dışa aktarılır.
+  vi: Bản xuất này được cung cấp theo Điều 20 GDPR (Quyền Chuyển Dữ Liệu). Dữ liệu của bạn được xuất ở định dạng có cấu trúc, máy có thể đọc được.
+  id: Ekspor ini disediakan sesuai dengan Pasal 20 GDPR (Hak Portabilitas Data). Data Anda diekspor dalam format terstruktur yang dapat dibaca mesin.
+  pl: Ten eksport jest dostarczany zgodnie z art. 20 RODO (Prawo do przenoszenia danych). Twoje dane są eksportowane w ustrukturyzowanym, czytelnym maszynowo formacie.
+  nl: Deze export wordt verstrekt in overeenstemming met AVG Artikel 20 (Recht op dataportabiliteit). Uw gegevens worden geëxporteerd in een gestructureerd, machine-leesbaar formaat.
+  ar: يتم توفير هذا التصدير وفقًا للمادة 20 من GDPR (الحق في قابلية نقل البيانات). يتم تصدير بياناتك بتنسيق منظم وقابل للقراءة آليًا.
+  hi: यह निर्यात GDPR अनुच्छेद 20 (डेटा पोर्टेबिलिटी का अधिकार) के अनुसार प्रदान किया गया है। आपका डेटा संरचित, मशीन-पठनीय प्रारूप में निर्यात किया जाता है।
+  th: การส่งออกนี้จัดทำตามมาตรา 20 ของ GDPR (สิทธิ์ในการพกพาข้อมูล) ข้อมูลของคุณถูกส่งออกในรูปแบบที่มีโครงสร้างและเครื่องสามารถอ่านได้
+  cs: Tento export je poskytován v souladu s článkem 20 GDPR (Právo na přenositelnost údajů). Vaše data jsou exportována ve strukturovaném, strojově čitelném formátu.
+  sv: Denna export tillhandahålls i enlighet med GDPR artikel 20 (Rätt till dataportabilitet). Din data exporteras i ett strukturerat, maskinläsbart format.
+  verified_by_human: []
+export_button:
+  context: Export button text
+  en: Export My Data
+  de: Meine Daten exportieren
+  zh: 导出我的数据
+  es: Exportar mis datos
+  fr: Exporter mes données
+  pt: Exportar meus dados
+  ru: Экспортировать мои данные
+  ja: データをエクスポート
+  ko: 내 데이터 내보내기
+  it: Esporta i miei dati
+  tr: Verilerimi dışa aktar
+  vi: Xuất dữ liệu của tôi
+  id: Ekspor data saya
+  pl: Eksportuj moje dane
+  nl: Mijn gegevens exporteren
+  ar: تصدير بياناتي
+  hi: मेरा डेटा निर्यात करें
+  th: ส่งออกข้อมูลของฉัน
+  cs: Exportovat má data
+  sv: Exportera mina data
+  verified_by_human: []
+exporting:
+  context: Exporting in progress
+  en: Exporting...
+  de: Wird exportiert...
+  zh: 正在导出...
+  es: Exportando...
+  fr: Exportation...
+  pt: Exportando...
+  ru: Экспорт...
+  ja: エクスポート中...
+  ko: 내보내는 중...
+  it: Esportazione...
+  tr: Dışa aktarılıyor...
+  vi: Đang xuất...
+  id: Mengekspor...
+  pl: Eksportowanie...
+  nl: Exporteren...
+  ar: جاري التصدير...
+  hi: निर्यात हो रहा है...
+  th: กำลังส่งออก...
+  cs: Exportování...
+  sv: Exporterar...
+  verified_by_human: []
+export_success:
+  context: Export completed successfully
+  en: Export completed! Your download should start automatically.
+  de: Export abgeschlossen! Ihr Download sollte automatisch starten.
+  zh: 导出完成！您的下载应该会自动开始。
+  es: ¡Exportación completada! Tu descarga debería comenzar automáticamente.
+  fr: Exportation terminée ! Votre téléchargement devrait démarrer automatiquement.
+  pt: Exportação concluída! Seu download deve começar automaticamente.
+  ru: Экспорт завершен! Загрузка должна начаться автоматически.
+  ja: エクスポート完了！ダウンロードが自動的に開始されます。
+  ko: 내보내기 완료! 다운로드가 자동으로 시작됩니다.
+  it: Esportazione completata! Il download dovrebbe avviarsi automaticamente.
+  tr: Dışa aktarım tamamlandı! İndirmeniz otomatik olarak başlamalıdır.
+  vi: Xuất hoàn tất! Tải xuống của bạn sẽ tự động bắt đầu.
+  id: Ekspor selesai! Unduhan Anda harus dimulai secara otomatis.
+  pl: Eksport zakończony! Pobieranie powinno rozpocząć się automatycznie.
+  nl: Export voltooid! Uw download zou automatisch moeten starten.
+  ar: اكتمل التصدير! يجب أن يبدأ التنزيل تلقائيًا.
+  hi: निर्यात पूर्ण! आपका डाउनलोड स्वचालित रूप से शुरू होना चाहिए।
+  th: ส่งออกเสร็จสมบูรณ์! การดาวน์โหลดของคุณควรเริ่มต้นโดยอัตโนมัติ
+  cs: Export dokončen! Stahování by mělo začít automaticky.
+  sv: Export slutförd! Din nedladdning bör starta automatiskt.
+  verified_by_human: []
+export_failed:
+  context: Export failed message
+  en: Export failed. Please try again.
+  de: Export fehlgeschlagen. Bitte versuchen Sie es erneut.
+  zh: 导出失败。请重试。
+  es: Error en la exportación. Por favor, inténtalo de nuevo.
+  fr: Échec de l'exportation. Veuillez réessayer.
+  pt: Falha na exportação. Por favor, tente novamente.
+  ru: Ошибка экспорта. Пожалуйста, попробуйте снова.
+  ja: エクスポートに失敗しました。もう一度お試しください。
+  ko: 내보내기 실패. 다시 시도해 주세요.
+  it: Esportazione fallita. Per favore riprova.
+  tr: Dışa aktarım başarısız. Lütfen tekrar deneyin.
+  vi: Xuất thất bại. Vui lòng thử lại.
+  id: Ekspor gagal. Silakan coba lagi.
+  pl: Eksport nie powiódł się. Proszę spróbować ponownie.
+  nl: Export mislukt. Probeer het opnieuw.
+  ar: فشل التصدير. يرجى المحاولة مرة أخرى.
+  hi: निर्यात विफल। कृपया पुनः प्रयास करें।
+  th: ส่งออกล้มเหลว กรุณาลองอีกครั้ง
+  cs: Export selhal. Zkuste to prosím znovu.
+  sv: Export misslyckades. Försök igen.
+  verified_by_human: []
+export_another:
+  context: Button to start another export
+  en: Export Again
+  de: Erneut exportieren
+  zh: 再次导出
+  es: Exportar de nuevo
+  fr: Exporter à nouveau
+  pt: Exportar novamente
+  ru: Экспортировать снова
+  ja: 再度エクスポート
+  ko: 다시 내보내기
+  it: Esporta di nuovo
+  tr: Tekrar dışa aktar
+  vi: Xuất lại
+  id: Ekspor lagi
+  pl: Eksportuj ponownie
+  nl: Opnieuw exporteren
+  ar: تصدير مرة أخرى
+  hi: फिर से निर्यात करें
+  th: ส่งออกอีกครั้ง
+  cs: Exportovat znovu
+  sv: Exportera igen
+  verified_by_human: []
+export_requires_login:
+  context: Message when user needs to log in
+  en: Please log in to export your data.
+  de: Bitte melden Sie sich an, um Ihre Daten zu exportieren.
+  zh: 请登录以导出您的数据。
+  es: Por favor, inicia sesión para exportar tus datos.
+  fr: Veuillez vous connecter pour exporter vos données.
+  pt: Por favor, faça login para exportar seus dados.
+  ru: Пожалуйста, войдите, чтобы экспортировать ваши данные.
+  ja: データをエクスポートするにはログインしてください。
+  ko: 데이터를 내보내려면 로그인하세요.
+  it: Accedi per esportare i tuoi dati.
+  tr: Verilerinizi dışa aktarmak için lütfen giriş yapın.
+  vi: Vui lòng đăng nhập để xuất dữ liệu của bạn.
+  id: Silakan masuk untuk mengekspor data Anda.
+  pl: Zaloguj się, aby wyeksportować swoje dane.
+  nl: Log in om uw gegevens te exporteren.
+  ar: يرجى تسجيل الدخول لتصدير بياناتك.
+  hi: अपना डेटा निर्यात करने के लिए कृपया लॉगिन करें।
+  th: กรุณาเข้าสู่ระบบเพื่อส่งออกข้อมูลของคุณ
+  cs: Pro export dat se prosím přihlaste.
+  sv: Logga in för att exportera dina data.
+  verified_by_human: []
+export_login_required:
+  context: Notice for non-authenticated users
+  en: You must be logged in to export your data.
+  de: Sie müssen angemeldet sein, um Ihre Daten zu exportieren.
+  zh: 您必须登录才能导出数据。
+  es: Debes iniciar sesión para exportar tus datos.
+  fr: Vous devez être connecté pour exporter vos données.
+  pt: Você deve estar conectado para exportar seus dados.
+  ru: Вы должны войти в систему, чтобы экспортировать свои данные.
+  ja: データをエクスポートするにはログインが必要です。
+  ko: 데이터를 내보내려면 로그인해야 합니다.
+  it: Devi essere connesso per esportare i tuoi dati.
+  tr: Verilerinizi dışa aktarmak için giriş yapmalısınız.
+  vi: Bạn phải đăng nhập để xuất dữ liệu.
+  id: Anda harus masuk untuk mengekspor data Anda.
+  pl: Musisz być zalogowany, aby wyeksportować swoje dane.
+  nl: U moet ingelogd zijn om uw gegevens te exporteren.
+  ar: يجب أن تسجل الدخول لتصدير بياناتك.
+  hi: अपना डेटा निर्यात करने के लिए आपको लॉगिन होना चाहिए।
+  th: คุณต้องเข้าสู่ระบบเพื่อส่งออกข้อมูลของคุณ
+  cs: Pro export dat musíte být přihlášeni.
+  sv: Du måste vara inloggad för att exportera dina data.
   verified_by_human: []
 
