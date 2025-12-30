@@ -108,6 +108,8 @@ export const apiEndpoints = {
         },
         deleteAccountPreview:      '/v1/settings/delete-account-preview',       // Get preview of account deletion consequences
         deleteAccount:             '/v1/settings/delete-account',               // Delete user account
+        exportAccountManifest:     '/v1/settings/export-account-manifest',      // Get export manifest (list of all data IDs)
+        exportAccountData:         '/v1/settings/export-account-data',          // Get export data (usage, invoices, profile)
     },
     payments: {
         config:                     '/v1/payments/config',                      // Get public config for payment provider

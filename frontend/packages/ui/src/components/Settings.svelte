@@ -150,6 +150,7 @@ changes to the documentation (to keep the documentation up to date).
     import SettingsSecurity from './settings/SettingsSecurity.svelte';
     import SettingsPasskeys from './settings/SettingsPasskeys.svelte';
     import SettingsDeleteAccount from './settings/account/SettingsDeleteAccount.svelte';
+    import SettingsExportAccount from './settings/account/SettingsExportAccount.svelte'; // GDPR Article 20 - Data Portability
     
     // Define base settingsViews map for component mapping
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -191,7 +192,8 @@ changes to the documentation (to keep the documentation up to date).
         'account': SettingsAccount,
         'account/security': SettingsSecurity,
         'account/security/passkeys': SettingsPasskeys,
-        'account/delete-account': SettingsDeleteAccount,
+        'account/export': SettingsExportAccount, // GDPR Article 20 - Data Portability
+        'account/delete': SettingsDeleteAccount, // Alias for account/delete-account (maps to account/delete_account after normalization)
         // 'server/software-update': SettingsSoftwareUpdate,
         // Share chat settings - allows users to share the current chat
         'shared/share': SettingsShare,

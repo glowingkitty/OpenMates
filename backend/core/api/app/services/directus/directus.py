@@ -107,7 +107,8 @@ class DirectusService:
         # For sensitive collections like directus_users, ensure we use admin token
         # user_passkeys contains user_id which requires admin permissions
         # usage collection contains encrypted user data and requires admin permissions
-        sensitive_collections = ['directus_users', 'directus_roles', 'directus_permissions', 'user_passkeys', 'usage']
+        # directus_sessions is a system collection that requires admin permissions
+        sensitive_collections = ['directus_users', 'directus_roles', 'directus_permissions', 'user_passkeys', 'usage', 'directus_sessions']
         
         if collection in sensitive_collections:
             # Ensure we have a valid admin token for sensitive collections

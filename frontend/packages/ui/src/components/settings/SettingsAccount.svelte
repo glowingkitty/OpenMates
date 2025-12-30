@@ -1,5 +1,5 @@
 <!--
-Account Settings - Main menu for account-related settings including Security and Delete Account
+Account Settings - Main menu for account-related settings including Security, Export Data, and Delete Account
 -->
 
 <script lang="ts">
@@ -23,15 +23,29 @@ Account Settings - Main menu for account-related settings including Security and
     }
 
     /**
+     * Navigate to Export Data submenu.
+     * Dispatches navigation event to parent Settings component.
+     * GDPR Article 20 - Right to Data Portability
+     */
+    function navigateToExportData() {
+        dispatch('openSettings', {
+            settingsPath: 'account/export',
+            direction: 'forward',
+            icon: 'download',
+            title: $text('settings.account.export.text')
+        });
+    }
+
+    /**
      * Navigate to Delete Account submenu.
      * Dispatches navigation event to parent Settings component.
      */
     function navigateToDeleteAccount() {
         dispatch('openSettings', {
-            settingsPath: 'account/delete-account',
+            settingsPath: 'account/delete',
             direction: 'forward',
             icon: 'delete',
-            title: $text('settings.account.delete_account.text')
+            title: $text('settings.account.delete.text')
         });
     }
 </script>
@@ -45,7 +59,14 @@ Account Settings - Main menu for account-related settings including Security and
 
 <SettingsItem
     type="submenu"
+    icon="download"
+    title={$text('settings.account.export.text')}
+    onClick={navigateToExportData}
+/>
+
+<SettingsItem
+    type="submenu"
     icon="delete"
-    title={$text('settings.account.delete_account.text')}
+    title={$text('settings.account.delete.text')}
     onClick={navigateToDeleteAccount}
 />
