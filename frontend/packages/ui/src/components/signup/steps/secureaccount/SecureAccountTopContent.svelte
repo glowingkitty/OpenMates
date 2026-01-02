@@ -17,12 +17,15 @@
     import { generateDeviceName } from '../../../../utils/deviceName';
     import { checkAuth, authStore } from '../../../../stores/authStore';
     import { userProfile } from '../../../../stores/userProfile';
+    import { notificationStore } from '../../../../stores/notificationStore';
     
     const dispatch = createEventDispatcher();
     
     // Login method selection using Svelte 5 runes
     let selectedOption = $state<string | null>(null);
     let isRegisteringPasskey = $state(false);
+    // Error message state for displaying registration errors to user
+    let errorMessage = $state<string | null>(null);
     
     /**
      * Converts ArrayBuffer to base64url (WebAuthn format)
@@ -125,7 +128,10 @@
             // Validate required data
             if (!storeData.email || !storeData.username || (requireInviteCodeValue && !storeData.inviteCode)) {
                 console.error('Missing required signup data');
+                errorMessage = 'Missing required signup information. Please go back and try again.';
+                notificationStore.error(errorMessage, 8000);
                 isRegisteringPasskey = false;
+                selectedOption = null;
                 return;
             }
             
@@ -149,7 +155,10 @@
             if (!initiateResponse.ok) {
                 const errorData = await initiateResponse.json();
                 console.error('Passkey registration initiation failed:', errorData);
+                errorMessage = errorData?.message || 'Failed to start passkey registration. Please try again.';
+                notificationStore.error(errorMessage, 8000);
                 isRegisteringPasskey = false;
+                selectedOption = null;
                 return;
             }
             
@@ -157,7 +166,10 @@
             
             if (!initiateData.success) {
                 console.error('Passkey registration initiation failed:', initiateData.message);
+                errorMessage = initiateData.message || 'Failed to start passkey registration. Please try again.';
+                notificationStore.error(errorMessage, 8000);
                 isRegisteringPasskey = false;
+                selectedOption = null;
                 return;
             }
             
@@ -206,16 +218,31 @@
                     });
                     dispatch('step', { step: 'passkey_prf_error' });
                     isRegisteringPasskey = false;
+                    selectedOption = null;
                     return;
                 }
-                // Other errors (user cancellation, etc.)
+                // Check for user cancellation (NotAllowedError)
+                if (error.name === 'NotAllowedError') {
+                    console.log('[Signup] User cancelled passkey creation');
+                    // Don't show error notification for user cancellation - just reset state
+                    isRegisteringPasskey = false;
+                    selectedOption = null;
+                    return;
+                }
+                // Other errors - show notification
+                errorMessage = 'Failed to create passkey. Please try again.';
+                notificationStore.error(errorMessage, 8000);
                 isRegisteringPasskey = false;
+                selectedOption = null;
                 return;
             }
             
             if (!credential || !(credential instanceof PublicKeyCredential)) {
                 console.error('Invalid credential created');
+                errorMessage = 'Failed to create passkey - invalid response. Please try again.';
+                notificationStore.error(errorMessage, 8000);
                 isRegisteringPasskey = false;
+                selectedOption = null;
                 return;
             }
             
@@ -235,6 +262,7 @@
                 });
                 dispatch('step', { step: 'passkey_prf_error' });
                 isRegisteringPasskey = false;
+                selectedOption = null;
                 return;
             }
             
@@ -246,6 +274,7 @@
                 });
                 dispatch('step', { step: 'passkey_prf_error' });
                 isRegisteringPasskey = false;
+                selectedOption = null;
                 return;
             }
             
@@ -259,6 +288,7 @@
                 });
                 dispatch('step', { step: 'passkey_prf_error' });
                 isRegisteringPasskey = false;
+                selectedOption = null;
                 return;
             }
             
@@ -285,6 +315,7 @@
                 });
                 dispatch('step', { step: 'passkey_prf_error' });
                 isRegisteringPasskey = false;
+                selectedOption = null;
                 return;
             }
             
@@ -296,6 +327,7 @@
                 });
                 dispatch('step', { step: 'passkey_prf_error' });
                 isRegisteringPasskey = false;
+                selectedOption = null;
                 return;
             }
             
@@ -338,7 +370,10 @@
             const encryptedEmailWithMasterKey = await encryptWithMasterKeyDirect(storeData.email, masterKey);
             if (!encryptedEmailWithMasterKey) {
                 console.error('Failed to encrypt email with master key for server storage');
+                errorMessage = 'Failed to encrypt your data. Please try again.';
+                notificationStore.error(errorMessage, 8000);
                 isRegisteringPasskey = false;
+                selectedOption = null;
                 return;
             }
             
@@ -353,7 +388,10 @@
             const emailStoredSuccessfully = await cryptoService.saveEmailEncryptedWithMasterKey(storeData.email, storeData.stayLoggedIn);
             if (!emailStoredSuccessfully) {
                 console.error('Failed to encrypt and store email with master key');
+                errorMessage = 'Failed to store encrypted data. Please try again.';
+                notificationStore.error(errorMessage, 8000);
                 isRegisteringPasskey = false;
+                selectedOption = null;
                 return;
             }
             
@@ -403,7 +441,10 @@
             if (!completeResponse.ok) {
                 const errorData = await completeResponse.json();
                 console.error('Passkey registration completion failed:', errorData);
+                errorMessage = errorData?.message || 'Failed to complete account creation. Please try again.';
+                notificationStore.error(errorMessage, 8000);
                 isRegisteringPasskey = false;
+                selectedOption = null;
                 return;
             }
             
@@ -411,16 +452,33 @@
             
             if (!completeData.success) {
                 console.error('Passkey registration failed:', completeData.message);
+                errorMessage = completeData.message || 'Failed to create your account. Please try again.';
+                notificationStore.error(errorMessage, 8000);
                 isRegisteringPasskey = false;
+                selectedOption = null;
                 return;
             }
+            
+            // CRITICAL: Verify that we received a valid user ID from the server
+            // Without a user ID, the signup cannot continue as we can't establish the user session
+            const newUserId = completeData.user?.id;
+            if (!newUserId) {
+                console.error('Passkey registration succeeded but no user ID returned');
+                errorMessage = 'Account creation incomplete - please try again or contact support.';
+                notificationStore.error(errorMessage, 8000);
+                isRegisteringPasskey = false;
+                selectedOption = null;
+                return;
+            }
+            
+            console.log(`[Signup] Passkey registration successful, user ID: ${newUserId.substring(0, 8)}...`);
             
             // Step 16: Update signup store and clear sensitive data
             signupStore.update(store => ({
                 ...store,
                 encryptedMasterKey: encryptedMasterKey,
                 salt: emailSaltB64,
-                userId: completeData.user?.id,
+                userId: newUserId,
                 loginMethod: 'passkey'
             }));
 
@@ -439,26 +497,45 @@
             console.debug('[SecureAccountTopContent] Updating auth state after passkey account creation...');
             try {
                 // Poll to verify authentication and user data is loaded
-                const authSuccess = await pollAuthState(5, 2000); // 5 attempts, 2 seconds total
+                // CRITICAL: We MUST verify auth state before advancing to prevent "false positive" signups
+                // where the user thinks they're signed up but authentication wasn't established
+                const authSuccess = await pollAuthState(10, 4000); // 10 attempts, 4 seconds total (increased for reliability)
                 if (authSuccess) {
-                    console.debug('[SecureAccountTopContent] Auth state updated successfully');
+                    console.debug('[SecureAccountTopContent] Auth state confirmed successfully');
                 } else {
-                    console.warn('[SecureAccountTopContent] Auth state not confirmed after polling - user data may not be fully loaded');
-                    // Still continue - user data will be loaded on next checkAuth call or page reload
+                    // Auth state not confirmed - this is now a CRITICAL error
+                    // Don't advance to next step as the user might not be properly logged in
+                    console.error('[SecureAccountTopContent] Auth state not confirmed after polling - blocking step advancement');
+                    errorMessage = 'Account created but login failed. Please try logging in manually.';
+                    notificationStore.error(errorMessage, 10000);
+                    isRegisteringPasskey = false;
+                    selectedOption = null;
+                    // User will need to try logging in manually or retry signup
+                    return;
                 }
             } catch (error) {
-                console.warn('[SecureAccountTopContent] Failed to update auth state:', error);
-                // Continue even if checkAuth fails - the step change will still work
-                // User data will be loaded on next checkAuth call or page reload
+                // Auth check failed - this is a CRITICAL error
+                console.error('[SecureAccountTopContent] Failed to verify auth state:', error);
+                errorMessage = 'Account may have been created but we could not verify login. Please try logging in.';
+                notificationStore.error(errorMessage, 10000);
+                isRegisteringPasskey = false;
+                selectedOption = null;
+                return;
             }
 
+            // All validations passed - safe to advance to next step
+            console.log('[SecureAccountTopContent] All validations passed, advancing to recovery_key step');
+            
             // Continue to next step (skip to recovery key for passkeys)
             // The Signup component will update last_opened when this step change is processed
             dispatch('step', { step: 'recovery_key' });
             
         } catch (error) {
             console.error('Error registering passkey:', error);
+            errorMessage = 'An unexpected error occurred during signup. Please try again.';
+            notificationStore.error(errorMessage, 8000);
             isRegisteringPasskey = false;
+            selectedOption = null;
         }
     }
     
