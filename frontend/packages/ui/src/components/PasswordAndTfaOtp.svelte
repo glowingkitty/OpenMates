@@ -13,8 +13,12 @@
     import * as cryptoService from '../services/cryptoService';
     import { updateProfile } from '../stores/userProfile';
     import { getSessionId } from '../utils/sessionId';
+    import AccountRecovery from './AccountRecovery.svelte';
 
     const dispatch = createEventDispatcher();
+    
+    // State for account recovery view
+    let showAccountRecovery = $state(false);
 
     // Props using Svelte 5 runes mode
     let { 
@@ -620,7 +624,22 @@
 </script>
 
 <div class="password-tfa-login" in:fade={{ duration: 300 }}>
-    {#if isRateLimited}
+    {#if showAccountRecovery}
+        <!-- Account Recovery UI - replaces the login form -->
+        <AccountRecovery
+            {email}
+            on:back={() => {
+                showAccountRecovery = false;
+            }}
+            on:resetComplete={(e) => {
+                showAccountRecovery = false;
+                dispatch('loginSuccess', {
+                    user: { username: e.detail?.username },
+                    inSignupFlow: false
+                });
+            }}
+        />
+    {:else if isRateLimited}
         <div class="rate-limit-message" in:fade={{ duration: 200 }}>
             {$text('signup.too_many_requests.text')}
         </div>
@@ -740,8 +759,9 @@
             {/if}
         </button>
     </form>
+    {/if}
 
-    <!-- Login options container -->
+    <!-- Login options container - always visible -->
     <div class="login-options-container">
         <!-- Back to email button -->
         <div id="login-with-another-account" style={getStyle('login-with-another-account')}>
@@ -751,8 +771,8 @@
             </button>
         </div>
 
-        <!-- Toggle Button - only if TFA is required -->
-        {#if tfaRequiredState}
+        <!-- Toggle Button - only if TFA is required and not in account recovery mode -->
+        {#if tfaRequiredState && !showAccountRecovery}
         <div id="login-with-backup-code" style={getStyle('login-with-backup-code')}>
             <button class="login-option-button" onclick={toggleBackupMode} disabled={isLoading}>
                 {#if isBackupMode}
@@ -765,15 +785,27 @@
         </div>
         {/if}
 
-        <!-- Login options -->
+        <!-- Login with recovery key -->
         <div id="login-with-recoverykey" style={getStyle('login-with-recoverykey')}>
             <button class="login-option-button" onclick={handleSwitchToRecoveryKey}>
                 <span class="clickable-icon icon_warning"></span>
                 <mark>{$text('login.login_with_recovery_key.text')}</mark>
             </button>
         </div>
+        
+        <!-- Can't login to account? - only show when NOT in account recovery mode -->
+        {#if !showAccountRecovery}
+        <div class="cant-login-divider">
+            <hr />
+        </div>
+        <div id="cant-login">
+            <button class="login-option-button cant-login-button" onclick={() => showAccountRecovery = true}>
+                <span class="clickable-icon icon_warning"></span>
+                <mark>{$text('login.cant_login.text')}</mark>
+            </button>
+        </div>
+        {/if}
     </div>
-    {/if}
 </div>
 
 <style>
@@ -855,5 +887,14 @@
         background-color: var(--color-error-light);
         border-radius: 8px;
         margin: 24px 0;
+    }
+    
+    .cant-login-divider {
+        width: 100%;
+    }
+    
+    .cant-login-divider hr {
+        border: none;
+        border-top: 1px solid var(--color-grey-30);
     }
 </style>

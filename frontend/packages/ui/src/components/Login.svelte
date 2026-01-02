@@ -2087,7 +2087,7 @@
                                                     // Handle switch to backup code
                                                     currentLoginStep = 'backup_code';
                                                 }}
-                                                on:switchToRecoveryKey={(e) => {
+                                                on:switchToRecoveryKey={() => {
                                                     // Handle switch to recovery key
                                                     currentLoginStep = 'recovery_key';
                                                 }}

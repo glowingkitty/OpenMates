@@ -1,6 +1,6 @@
 import logging
 import hashlib
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict
 
 logger = logging.getLogger(__name__)
 
@@ -226,6 +226,51 @@ class UserCacheMixin:
             return delete_user_success
         except Exception as e:
             logger.error(f"Error deleting cached user data for user '{user_id}': {str(e)}")
+            return False
+
+    async def delete_user_sessions(self, user_id: str) -> bool:
+        """
+        Delete only session tokens for a user (invalidates all active sessions).
+        Used during account recovery to force re-login with new credentials.
+        Unlike delete_user_cache, this preserves other cached data.
+        
+        Args:
+            user_id: The user's UUID
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            if not user_id:
+                return False
+            
+            logger.debug(f"Attempting to delete all sessions for user ID: {user_id}")
+            
+            # Find and delete all session tokens for this user
+            session_pattern = f"{self.SESSION_KEY_PREFIX}*"
+            session_keys = await self.get_keys_by_pattern(session_pattern)
+            
+            sessions_deleted_count = 0
+            for key in session_keys:
+                session_link_data = await self.get(key)
+                linked_user_id = None
+                
+                if isinstance(session_link_data, dict):
+                    linked_user_id = session_link_data.get("user_id")
+                elif isinstance(session_link_data, str):
+                    linked_user_id = session_link_data
+                
+                if linked_user_id == user_id:
+                    delete_success = await self.delete(key)
+                    if delete_success:
+                        sessions_deleted_count += 1
+                    logger.debug(f"Deleted session key '{key}' for user {user_id[:8]}...")
+            
+            logger.info(f"Deleted {sessions_deleted_count} sessions for user {user_id[:8]}...")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error deleting sessions for user '{user_id}': {str(e)}", exc_info=True)
             return False
 
     # --- User App Settings and Memories Caching Methods (Combined) ---

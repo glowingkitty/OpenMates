@@ -403,6 +403,9 @@ class EmailTemplateService:
                         subject = subject_template.format(chat_title=context["chat_title"])
                     else:
                         subject = self.translation_service.get_nested_translation(subject_key, lang, context)
+                elif template == "account-recovery":
+                    subject_key = "email.account_recovery_title.text"
+                    subject = self.translation_service.get_nested_translation(subject_key, lang, context)
                 else:
                     subject_key = f"email.{template}.subject"
                     subject = self.translation_service.get_nested_translation(subject_key, lang, context)

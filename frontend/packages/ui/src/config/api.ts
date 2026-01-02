@@ -82,6 +82,11 @@ export const apiEndpoints = {
         // Gifted credits endpoints
         checkGift:                  '/v1/auth/check-gift',                     // Check if user has gifted signup credits
         acceptGift:                 '/v1/auth/accept-gift',                    // Accept gifted signup credits
+        
+        // Account recovery endpoints (for users who lost all login methods including recovery key)
+        recovery_request:           '/v1/auth/recovery/request-code',          // Request account recovery code via email
+        recovery_verify:            '/v1/auth/recovery/verify-code',           // Verify recovery code and get verification token
+        recovery_full_reset:        '/v1/auth/recovery/reset-account',         // Full account reset (deletes all data)
     },
     chat: {
         sendMessage:                '/v1/chat/message',                         // Send a message to a chat (or create a new chat if it doesn't exist)

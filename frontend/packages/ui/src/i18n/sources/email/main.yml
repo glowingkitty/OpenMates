@@ -3421,3 +3421,72 @@ community_share_notification.demo_button_description:
   th: สิ่งนี้จะทำให้แชทพร้อมใช้งานสำหรับผู้ใช้ที่ไม่ได้รับการตรวจสอบสิทธิ์เป็นตัวอย่างของความสามารถของ OpenMates
   cs: Díky tomu bude chat dostupný neověřeným uživatelům jako příklad schopností OpenMates.
   sv: Detta kommer att göra chatten tillgänglig för icke-autentiserade användare som ett exempel på OpenMates kapacitet.
+account_recovery_title:
+  context: Email subject & header for account recovery
+  en: Account Reset
+  de: Konto-Reset
+  zh: 账户重置
+  es: Restablecer cuenta
+  fr: Réinitialisation du compte
+  pt: ''
+  ru: ''
+  ja: アカウントリセット
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+account_recovery_description:
+  context: Email description for account recovery
+  en: 'You requested to reset your account. WARNING: This will permanently delete all your chats, settings, and memories.'
+  de: 'Du hast eine Kontozurücksetzung angefordert. WARNUNG: Dadurch werden alle deine Chats, Einstellungen und Erinnerungen dauerhaft gelöscht.'
+  zh: '您请求重置账户。警告：这将永久删除您的所有聊天记录、设置和回忆。'
+  es: 'Has solicitado restablecer tu cuenta. ADVERTENCIA: Esto eliminará permanentemente todos tus chats, configuraciones y recuerdos.'
+  fr: 'Vous avez demandé la réinitialisation de votre compte. AVERTISSEMENT : Cela supprimera définitivement tous vos chats, paramètres et souvenirs.'
+  pt: ''
+  ru: ''
+  ja: 'アカウントのリセットをリクエストしました。警告：すべてのチャット、設定、メモリーが永久に削除されます。'
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+code_valid_15_minutes:
+  context: Information about code validity in recovery email
+  en: This code is valid for 15 minutes.
+  de: Dieser Code ist 15 Minuten gültig.
+  zh: 此代码在15分钟内有效。
+  es: Este código es válido durante 15 minutos.
+  fr: Ce code est valide pendant 15 minutes.
+  pt: ''
+  ru: ''
+  ja: このコードは15分間有効です。
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []

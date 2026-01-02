@@ -1,0 +1,90 @@
+<mjml>
+  <mj-head>
+    <mj-title>{{ t.email.account_recovery_title.text }}</mj-title>
+    <mj-attributes>
+      <mj-all font-family="Arial, Helvetica, sans-serif" font-size="16px" align="center" font-weight="bold" line-height="1.3"/>
+      {% if darkmode %}
+      <mj-text color="#e6e6e6" />
+      {% else %}
+      <mj-text color="#000000" />
+      {% endif %}
+    </mj-attributes>
+    
+    <!-- Include styles from separate file -->
+    <mj-include path="./components/email-styles.mjml" />
+  </mj-head>
+  <mj-body css-class="{% if darkmode == False %}light-mode{% else %}dark-mode{% endif %}">
+    <!-- Header -->
+    <mj-include path="./components/header.mjml" />
+    
+    <!-- Main Content -->
+    <mj-wrapper css-class="content-box" padding="20px" padding-bottom="0">
+      <mj-section padding-bottom="10px">
+        <mj-column>
+          <mj-image width="50px" height="50px" src="icons/warning_large.png" align="center" alt="Warning icon" css-class="email-icon-50" />
+          <mj-text font-size="30px">
+            <mark>{{ t.email.account_recovery_title.text }}</mark>
+          </mj-text>
+          <mj-text font-size="18px" padding-bottom="30px">
+            {{ t.email.account_recovery_description.text }}
+          </mj-text>
+          <mj-text padding-bottom="0">
+            {{ t.email.enter_this_code.text }}
+          </mj-text>
+        </mj-column>
+      </mj-section>
+      
+      <!-- Code container with improved email client compatibility -->
+      {% if darkmode %}
+      <mj-section css-class="code-container" padding="0" background-color="#171717" border-radius="24px">
+        <mj-group css-class="code-container-inner">
+          <mj-column width="30%" vertical-align="middle" css-class="code-icon">
+            <mj-image width="28px" height="28px" src="icons/2fa_small.png" align="left" padding-left="15px" alt="Verification code icon" css-class="email-icon-28" />
+          </mj-column>
+          <mj-column width="70%" vertical-align="middle" css-class="code-text">
+            <mj-text font-size="25px" font-weight="regular" align="center" padding-right="70px">
+              {{ code }}
+            </mj-text>
+          </mj-column>
+        </mj-group>
+      </mj-section>
+      {% else %}
+      <mj-section css-class="code-container" padding="0" background-color="#ffffff" border-radius="24px">
+        <mj-group css-class="code-container-inner">
+          <mj-column width="30%" vertical-align="middle" css-class="code-icon">
+            <mj-image width="28px" height="28px" src="icons/2fa_small.png" align="left" padding-left="15px" alt="Verification code icon" css-class="email-icon-28" />
+          </mj-column>
+          <mj-column width="70%" vertical-align="middle" css-class="code-text">
+            <mj-text font-size="25px" font-weight="regular" align="center" padding-right="70px">
+              {{ code }}
+            </mj-text>
+          </mj-column>
+        </mj-group>
+      </mj-section>
+      {% endif %}
+      
+      <mj-section padding-top="10px">
+        <mj-column>
+          {% if darkmode %}
+          <mj-text font-size="14px" color="#808080" padding-bottom="20px" padding-top="0px">
+          {% else %}
+          <mj-text font-size="14px" color="#808080" padding-bottom="20px" padding-top="0px">
+          {% endif %}
+            {{ t.email.code_valid_15_minutes.text }}
+          </mj-text>
+          {% if darkmode %}
+          <mj-text font-size="14px" color="#808080">
+          {% else %}
+          <mj-text font-size="14px" color="#808080">
+          {% endif %}
+            {{ t.email.did_not_request_email.text }}
+          </mj-text>
+        </mj-column>
+      </mj-section>
+    </mj-wrapper>
+    
+    <!-- Footer -->
+    <mj-include path="./components/footer.mjml" />
+  </mj-body>
+</mjml>
+

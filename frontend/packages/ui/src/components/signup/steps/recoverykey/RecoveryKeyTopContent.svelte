@@ -1,33 +1,47 @@
+<!--
+Recovery Key Top Content - MANDATORY Setup
+==========================================
+This component automatically generates and downloads a recovery key during signup.
+Recovery keys are now mandatory - they provide the only way to recover an account
+if the user loses access to their password or passkey.
+
+Flow:
+1. Component mounts → auto-generates recovery key
+2. Auto-downloads recovery key file
+3. User must confirm they saved it before continuing
+
+Security Notes:
+- Recovery key is generated client-side using cryptoService
+- Recovery key wraps the master key for account recovery
+- Server stores only the wrapped key + lookup hash (zero-knowledge)
+-->
 
 <script lang="ts">
     import { text } from '@repo/ui';
-    import { onMount, createEventDispatcher } from 'svelte';
-    import { fade, fly } from 'svelte/transition';
+    import { onMount } from 'svelte';
+    import { fade } from 'svelte/transition';
     import { tooltip } from '../../../../actions/tooltip';
-    import { getApiEndpoint, apiEndpoints } from '../../../../config/api';
     import { setRecoveryKeyLoaded, setRecoveryKeyData } from '../../../../stores/recoveryKeyState';
     import { setRecoveryKeyCreationActive } from '../../../../stores/recoveryKeyUIState';
     import * as cryptoService from '../../../../services/cryptoService';
-    import { userDB } from '../../../../services/userDB'; // Import userDB service
+    import { userDB } from '../../../../services/userDB';
 
-    const dispatch = createEventDispatcher();
-    
+    // State using Svelte 5 runes
     let loading = $state(true);
     let keyDownloaded = $state(false);
     let recoveryKey: string = $state('');
-    let showOptions = $state(true);
-    let showDownloadContent = $state(false);
-    let loginMethod: string = $state('password'); // Default to password if not found
-    let loginSecretText: string = $state(''); // Will hold the translated text for the login method
+    let loginMethod: string = $state('password');
+    let loginSecretText: string = $state('');
+    let errorMessage: string = $state('');
     
     // Store the lookup hash and wrapped key for later use in RecoveryKeyBottomContent
     let recoveryKeyLookupHash: string = '';
-    let wrappedMasterKey: string = '';
     
     onMount(async () => {
-        // Don't automatically request backup codes until user chooses to create them
+        // Set recovery key creation as active immediately
+        setRecoveryKeyCreationActive(true);
         
-        // Retrieve the login method from IndexedDB
+        // Get the login method for display purposes
         try {
             await userDB.init();
             const userData = await userDB.getUserData();
@@ -43,86 +57,98 @@
             } else if (loginMethod === 'security_key') {
                 loginSecretText = $text('signup.security_key.text');
             } else {
-                // Default fallback
                 loginSecretText = $text('signup.password.text');
             }
         } catch (error) {
             console.error("Error retrieving login method:", error);
-            // Default fallback
             loginSecretText = $text('signup.password.text');
         }
+        
+        // Auto-generate recovery key immediately on mount
+        await generateAndDownloadRecoveryKey();
     });
     
-    async function requestRecoveryKey() {
+    /**
+     * Generate the recovery key and automatically trigger download.
+     * This is the main function that handles the mandatory recovery key setup.
+     */
+    async function generateAndDownloadRecoveryKey() {
         loading = true;
-        // Reset recovery key loaded state
+        errorMessage = '';
         setRecoveryKeyLoaded(false);
         
         try {
-            // Generate recovery key locally
+            // Step 1: Generate recovery key locally
             recoveryKey = cryptoService.generateSecureRecoveryKey();
+            console.log('[RECOVERY_KEY] Generated secure recovery key');
             
-            // Get the user's email to create the lookup hash
+            // Step 2: Get the user's email (needed for lookup hash context)
             const email = cryptoService.getEmailDecryptedWithMasterKey();
             if (!email) {
-                console.error('Could not retrieve email for recovery key generation');
+                errorMessage = 'Could not retrieve email for recovery key generation. Please try again.';
+                console.error('[RECOVERY_KEY] Could not retrieve email');
                 loading = false;
                 return;
             }
             
-            // Get the master key that needs to be wrapped (Web Crypto API)
+            // Step 3: Get the master key that needs to be wrapped
             const masterKey = await cryptoService.getKeyFromStorage();
             if (!masterKey) {
-                console.error('Could not retrieve master key for wrapping');
+                errorMessage = 'Could not retrieve encryption key. Please try again.';
+                console.error('[RECOVERY_KEY] Could not retrieve master key');
                 loading = false;
                 return;
             }
 
-            // Get the user's email salt to use for lookup hash generation
-            let userEmailSalt = cryptoService.getEmailSalt();
-
+            // Step 4: Get the user's email salt for lookup hash generation
+            const userEmailSalt = cryptoService.getEmailSalt();
             if (!userEmailSalt) {
-                console.error('Email salt is required for recovery key generation');
+                errorMessage = 'Missing encryption data. Please try again.';
+                console.error('[RECOVERY_KEY] Email salt is required');
                 loading = false;
                 return;
             }
 
-            // Create a hash of the recovery key for lookup using the user's email salt
+            // Step 5: Create a hash of the recovery key for server-side lookup
             recoveryKeyLookupHash = await cryptoService.hashKey(recoveryKey, userEmailSalt);
 
-            // Generate salt for key derivation (for wrapping the master key)
+            // Step 6: Generate salt for key derivation (wrapping the master key)
             const salt = cryptoService.generateSalt();
             const saltB64 = cryptoService.uint8ArrayToBase64(salt);
 
-            // Derive wrapping key from recovery key
+            // Step 7: Derive wrapping key from recovery key
             const wrappingKey = await cryptoService.deriveKeyFromPassword(recoveryKey, salt);
 
-            // Wrap the master key with the recovery key (Web Crypto API)
+            // Step 8: Wrap the master key with the recovery key
             const { wrapped: wrappedMasterKey, iv: keyIv } = await cryptoService.encryptKey(masterKey, wrappingKey);
 
-            // Store the data in the recoveryKeyData store for RecoveryKeyBottomContent to use
+            // Step 9: Store the data for RecoveryKeyBottomContent to send to server
             setRecoveryKeyData(recoveryKeyLookupHash, wrappedMasterKey, saltB64, keyIv);
             
-            // Update recovery key loaded state
+            // Mark as loaded and ready
             loading = false;
             setRecoveryKeyLoaded(true);
             
-            // Auto download immediately if user hasn't downloaded manually
-            if (!keyDownloaded && recoveryKey) {
-                downloadRecoveryKey();
-            }
+            console.log('[RECOVERY_KEY] Recovery key generated successfully, triggering download');
+            
+            // Step 10: Auto-download the recovery key file
+            downloadRecoveryKey();
+            
         } catch (err) {
-            console.error('Error getting recovery key:', err);
+            console.error('[RECOVERY_KEY] Error generating recovery key:', err);
+            errorMessage = 'An error occurred while generating your recovery key. Please try again.';
             loading = false;
         }
     }
-    
-    // confirmCodesStored function removed - now handled in Step5BottomContent.svelte
 
+    /**
+     * Download the recovery key as a text file.
+     * Called automatically after generation and available for manual re-download.
+     */
     function downloadRecoveryKey() {
         if (!recoveryKey) {
-            // If no recovery key available, try fetching it again
-            requestRecoveryKey();
+            // If no recovery key available, try generating again
+            generateAndDownloadRecoveryKey();
             return;
         }
         
@@ -137,19 +163,16 @@
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
+        
+        console.log('[RECOVERY_KEY] Recovery key file downloaded');
     }
     
-    function handleCreateRecoveryKey() {
-        showOptions = false;
-        showDownloadContent = true;
-        setRecoveryKeyCreationActive(true);
-        requestRecoveryKey();
-    }
-    
-    function handleSkip() {
-        setRecoveryKeyCreationActive(false);
-        // Navigate to credits step (profile_picture was moved to settings)
-        dispatch('step', { step: 'credits' }); // Skip to next step
+    /**
+     * Retry generation if there was an error
+     */
+    function handleRetry() {
+        errorMessage = '';
+        generateAndDownloadRecoveryKey();
     }
 </script>
 
@@ -159,71 +182,64 @@
         <h2 class="signup-menu-title">{@html $text('signup.recovery_key.text')}</h2>
     </div>
 
-    {#if showOptions}
-        <div class="options-container" in:fade>
-            <p class="instruction-text">{@html $text('signup.click_on_an_option.text')}</p>
-            
-            <!-- Create Recovery Key Option -->
-            <button
-                class="option-button recommended"
-                onclick={handleCreateRecoveryKey}
-            >
-                <div class="recommended-badge">
-                    <div class="thumbs-up-icon"></div>
-                    <span>{@html $text('signup.recommended.text')}</span>
-                </div>
-                <div class="option-header">
-                    <div class="option-icon">
-                        <div class="clickable-icon icon_create" style="width: 25px; height: 25px"></div>
-                    </div>
-                    <div class="option-content">
-                        <h3 class="option-title">{@html $text('signup.create_recovery_key.text')}</h3>
-                    </div>
-                </div>
-                <p class="option-description">{@html $text('signup.create_recovery_key_description.text').replace('{login_secret}',loginSecretText)}</p>
-            </button>
-
-            <!-- Skip Option -->
-            <button 
-                class="option-button"
-                onclick={handleSkip}
-            >
-                <div class="option-header">
-                    <div class="option-icon">
-                        <div class="clickable-icon icon_back" style="width: 25px; height: 25px; transform: rotate(180deg);"></div>
-                    </div>
-                    <div class="option-content">
-                        <h3 class="option-title">{@html $text('signup.skip.text')}</h3>
-                    </div>
-                </div>
-                <p class="option-description">{@html $text('signup.accept_lockedout_risk.text')}</p>
-            </button>
-            
-            <p class="warning-text">{@html $text('signup.we_cant_help_you.text')}</p>
-        </div>
-    {/if}
-
-    {#if showDownloadContent}
-        <div class="download-content" in:fade>
+    <div class="recovery-content" in:fade>
+        {#if loading}
+            <!-- Loading state while generating -->
+            <div class="loading-container">
+                <div class="spinner"></div>
+                <p class="loading-text">{$text('signup.generating_recovery_key.text') || 'Generating your recovery key...'}</p>
+            </div>
+        {:else if errorMessage}
+            <!-- Error state with retry option -->
+            <div class="error-container">
+                <p class="error-text">{errorMessage}</p>
+                <button class="retry-button" onclick={handleRetry}>
+                    {$text('common.retry.text') || 'Try Again'}
+                </button>
+            </div>
+        {:else}
+            <!-- Success state - show download option and instructions -->
             <div class="text-block">
-                {@html $text('signup.create_recovery_key_description.text').replace('{login_secret}',loginSecretText)}
+                {@html $text('signup.recovery_key_mandatory_description.text') || $text('signup.create_recovery_key_description.text').replace('{login_secret}', loginSecretText)}
             </div>
 
-            <mark>
-                {$text('signup.store_recovery_key_safely.text')}
-            </mark>
+            <div class="warning-box">
+                <div class="warning-icon"></div>
+                <mark>
+                    {$text('signup.store_recovery_key_safely.text')}
+                </mark>
+            </div>
 
-            {#if !loading && recoveryKey}
-            <button
-                class="clickable-icon icon_download download-button"
-                onclick={downloadRecoveryKey}
-                aria-label={$text('enter_message.press_and_hold_menu.download.text')}
-                use:tooltip
-                transition:fade
-            ></button>
-            {/if}
-        </div>
-    {/if}
+            <div class="download-section">
+                {#if keyDownloaded}
+                    <div class="download-success">
+                        <div class="checkmark-icon"></div>
+                        <p class="download-instruction success">
+                            {$text('signup.recovery_key_downloaded.text') || 'Your recovery key has been downloaded.'}
+                        </p>
+                    </div>
+                {:else}
+                    <p class="download-instruction">
+                        {$text('signup.generating_recovery_key.text') || 'Generating your recovery key...'}
+                    </p>
+                {/if}
+                
+                <button
+                    class="download-button"
+                    onclick={downloadRecoveryKey}
+                    aria-label={$text('enter_message.press_and_hold_menu.download.text')}
+                    use:tooltip
+                >
+                    <div class="clickable-icon icon_download" style="width: 30px; height: 30px"></div>
+                    <span>{$text('signup.download_again.text') || 'Download Again'}</span>
+                </button>
+            </div>
+
+            <div class="important-notice">
+                <p>{@html $text('signup.recovery_key_only_way.text') || '<strong>Important:</strong> This recovery key is the only way to recover your account if you lose access to your ' + loginSecretText + '.'}</p>
+            </div>
+        {/if}
+    </div>
 </div>
 
 <style>
@@ -240,151 +256,184 @@
         align-items: center;
         justify-content: center;
         gap: 16px;
+        margin-bottom: 24px;
     }
 
-    .text-block {
-        margin: 20px 0 20px 0;
-        text-align: center;
-    }
-
-    .download-button {
-        width: 60px;
-        height: 60px;
-        transition: transform 0.2s;
-        margin-top: 30px;
-    }
-
-    .download-button:hover {
-        transform: scale(1.05);
-    }
-
-    .download-button:active {
-        transform: scale(0.95);
-    }
-    
-    /* Options styling */
-    .options-container {
+    .recovery-content {
         width: 100%;
         max-width: 400px;
         display: flex;
         flex-direction: column;
-        gap: 16px;
-        height: 100%;
-        position: relative;
+        align-items: center;
+        gap: 20px;
     }
-    
-    .instruction-text {
-        color: var(--color-grey-60);
-        font-size: 16px;
+
+    .text-block {
         text-align: center;
-        margin-bottom: 8px;
+        color: var(--color-grey-70);
+        line-height: 1.5;
     }
-    
-    .option-button {
-        display: flex;
-        flex-direction: column;
-        gap: 5px;
-        padding: 15px;
-        background: var(--color-grey-20);
-        border-radius: 16px;
-        cursor: pointer;
-        transition: all 0.2s ease;
-        text-align: left;
-        width: 100%;
-        height: auto;
-        position: relative;
-    }
-    
-    .option-button.recommended {
-        border: 3px solid transparent;
-        background: linear-gradient(var(--color-grey-20), var(--color-grey-20)) padding-box,
-                    var(--color-primary) border-box;
-    }
-    
-    .option-header {
+
+    .warning-box {
         display: flex;
         align-items: center;
-        gap: 16px;
+        gap: 12px;
+        padding: 16px;
+        background: var(--color-warning-bg, rgba(255, 193, 7, 0.1));
+        border-radius: 12px;
+        border: 1px solid var(--color-warning, #ffc107);
     }
-    
-    .option-icon {
+
+    .warning-box mark {
+        background: transparent;
+        color: var(--color-grey-80);
+        font-weight: 500;
+    }
+
+    .warning-icon {
+        width: 24px;
+        height: 24px;
+        background-image: url('@openmates/ui/static/icons/warning.svg');
+        background-size: contain;
+        background-repeat: no-repeat;
         flex-shrink: 0;
+    }
+
+    .download-section {
         display: flex;
+        flex-direction: column;
         align-items: center;
-        justify-content: center;
-        width: 38px;
-        height: 38px;
+        gap: 16px;
+        padding: 20px;
         background: var(--color-grey-15);
-        border-radius: 8px;
-    }
-    
-    .option-content {
-        flex: 1;
-        display: flex;
-        flex-direction: column;
-        gap: 4px;
-    }
-    
-    .option-title {
-        font-size: 16px;
-        font-weight: 600;
-        color: var(--color-grey-80);
-        margin: 0;
-    }
-    
-    .option-description {
-        font-size: 14px;
-        color: var(--color-grey-60);
-        margin: 0;
-        line-height: 1.4;
-        text-align: center;
-    }
-    
-    .warning-text {
-        font-size: 14px;
-        color: var(--color-grey-80);
-        text-align: center;
-        margin-top: auto;
-        position: absolute;
-        bottom: 5px;
-        left: 0;
-        right: 0;
-        padding-bottom: 16px;
-    }
-    
-    .download-content {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
+        border-radius: 16px;
         width: 100%;
     }
 
-    .recommended-badge {
-        position: absolute;
-        top: 0;
-        transform: translateY(-50%);
-        background: var(--color-primary);
-        border-radius: 19px;
-        padding: 6px 12px;
+    .download-instruction {
+        color: var(--color-grey-60);
+        font-size: 14px;
+        text-align: center;
+    }
+
+    .download-instruction.success {
+        color: var(--color-success, #22c55e);
+        font-weight: 500;
+    }
+
+    .download-success {
         display: flex;
         align-items: center;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-        z-index: 2;
+        gap: 8px;
     }
-    
-    .thumbs-up-icon {
-        width: 13px;
-        height: 13px;
-        background-image: url('@openmates/ui/static/icons/thumbsup.svg');;
-        background-size: contain;
-        background-repeat: no-repeat;
-        filter: invert(1);
-        margin-right: 6px;
+
+    .checkmark-icon {
+        width: 20px;
+        height: 20px;
+        background-color: var(--color-success, #22c55e);
+        mask-image: url('@openmates/ui/static/icons/check.svg');
+        mask-size: contain;
+        mask-repeat: no-repeat;
+        -webkit-mask-image: url('@openmates/ui/static/icons/check.svg');
+        -webkit-mask-size: contain;
+        -webkit-mask-repeat: no-repeat;
     }
-    
-    .recommended-badge span {
+
+    .download-button {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 12px 24px;
+        background: var(--color-primary);
         color: white;
-        font-size: 14px;
+        border: none;
+        border-radius: 12px;
+        cursor: pointer;
+        font-size: 16px;
         font-weight: 500;
+        transition: transform 0.2s, opacity 0.2s;
+    }
+
+    .download-button:hover {
+        opacity: 0.9;
+        transform: scale(1.02);
+    }
+
+    .download-button:active {
+        transform: scale(0.98);
+    }
+
+    .important-notice {
+        padding: 16px;
+        background: var(--color-grey-20);
+        border-radius: 12px;
+        width: 100%;
+    }
+
+    .important-notice p {
+        color: var(--color-grey-70);
+        font-size: 14px;
+        line-height: 1.5;
+        text-align: center;
+        margin: 0;
+    }
+
+    /* Loading state styles */
+    .loading-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 16px;
+        padding: 40px 20px;
+    }
+
+    .spinner {
+        width: 40px;
+        height: 40px;
+        border: 3px solid var(--color-grey-30);
+        border-top-color: var(--color-primary);
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+        to {
+            transform: rotate(360deg);
+        }
+    }
+
+    .loading-text {
+        color: var(--color-grey-60);
+        font-size: 16px;
+    }
+
+    /* Error state styles */
+    .error-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 16px;
+        padding: 20px;
+    }
+
+    .error-text {
+        color: var(--color-error, #ef4444);
+        text-align: center;
+    }
+
+    .retry-button {
+        padding: 12px 24px;
+        background: var(--color-primary);
+        color: white;
+        border: none;
+        border-radius: 12px;
+        cursor: pointer;
+        font-size: 16px;
+        font-weight: 500;
+        transition: transform 0.2s;
+    }
+
+    .retry-button:hover {
+        transform: scale(1.02);
     }
 </style>

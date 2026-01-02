@@ -13,6 +13,7 @@ from . import credit_note_email_task
 from . import milestone_checker_task
 from . import signup_milestone_email_task
 from . import recovery_key_email_task
+from . import recovery_account_email_task  # Import account recovery email task
 from . import newsletter_email_task  # Import newsletter email task
 from . import issue_report_email_task  # Import issue report email task
 from . import community_share_email_task  # Import community share notification task
@@ -32,6 +33,7 @@ __all__ = [
     'milestone_checker_task',
     'signup_milestone_email_task',
     'recovery_key_email_task',
+    'recovery_account_email_task',
     'newsletter_email_task',
     'issue_report_email_task',
     'community_share_email_task',

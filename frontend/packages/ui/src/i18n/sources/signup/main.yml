@@ -5610,3 +5610,118 @@ newsletter.invalid_email:
   cs: Zadejte prosím platnou e-mailovou adresu
   sv: Ange en giltig e-postadress
   verified_by_human: []
+generating_recovery_key:
+  context: Loading text shown while generating the recovery key during signup
+  en: Generating your recovery key...
+  de: Ihr Wiederherstellungsschlüssel wird erstellt...
+  zh: 正在生成您的恢复密钥...
+  es: Generando tu clave de recuperación...
+  fr: Génération de votre clé de récupération...
+  pt: Gerando sua chave de recuperação...
+  ru: Создание ключа восстановления...
+  ja: 回復キーを生成中...
+  ko: 복구 키를 생성하는 중...
+  it: Generazione della chiave di recupero...
+  tr: Kurtarma anahtarınız oluşturuluyor...
+  vi: Đang tạo khóa khôi phục của bạn...
+  id: Membuat kunci pemulihan Anda...
+  pl: Generowanie klucza odzyskiwania...
+  nl: Je herstelsleutel wordt gegenereerd...
+  ar: جارٍ إنشاء مفتاح الاسترداد الخاص بك...
+  hi: आपकी पुनर्प्राप्ति कुंजी बनाई जा रही है...
+  th: กำลังสร้างคีย์กู้คืนของคุณ...
+  cs: Generování vašeho klíče pro obnovení...
+  sv: Genererar din återställningsnyckel...
+  verified_by_human: []
+recovery_key_mandatory_description:
+  context: Description explaining that recovery key is mandatory and its purpose
+  en: Your recovery key is being automatically generated and downloaded. This key is essential for account recovery if you ever lose access to your login method.
+  de: Ihr Wiederherstellungsschlüssel wird automatisch erstellt und heruntergeladen. Dieser Schlüssel ist wichtig für die Kontowiederherstellung, falls Sie den Zugang zu Ihrer Anmeldemethode verlieren.
+  zh: 您的恢复密钥正在自动生成并下载。如果您丢失了登录方式的访问权限，此密钥对于帐户恢复至关重要。
+  es: Tu clave de recuperación se está generando y descargando automáticamente. Esta clave es esencial para recuperar tu cuenta si alguna vez pierdes el acceso a tu método de inicio de sesión.
+  fr: Votre clé de récupération est en cours de génération et de téléchargement automatique. Cette clé est essentielle pour la récupération de votre compte si vous perdez l'accès à votre méthode de connexion.
+  pt: Sua chave de recuperação está sendo gerada e baixada automaticamente. Esta chave é essencial para a recuperação da conta caso você perca o acesso ao seu método de login.
+  ru: Ваш ключ восстановления автоматически генерируется и загружается. Этот ключ необходим для восстановления учётной записи, если вы потеряете доступ к способу входа.
+  ja: 回復キーが自動的に生成およびダウンロードされています。このキーは、ログイン方法へのアクセスを失った場合のアカウント回復に不可欠です。
+  ko: 복구 키가 자동으로 생성되어 다운로드됩니다. 이 키는 로그인 방법에 대한 액세스 권한을 잃어버린 경우 계정 복구에 필수적입니다.
+  it: La tua chiave di recupero viene generata e scaricata automaticamente. Questa chiave è essenziale per il recupero dell'account in caso di perdita dell'accesso al metodo di accesso.
+  tr: Kurtarma anahtarınız otomatik olarak oluşturuluyor ve indiriliyor. Bu anahtar, giriş yönteminize erişiminizi kaybetmeniz durumunda hesap kurtarma için gereklidir.
+  vi: Khóa khôi phục của bạn đang được tạo và tải xuống tự động. Khóa này rất cần thiết để khôi phục tài khoản nếu bạn mất quyền truy cập vào phương thức đăng nhập.
+  id: Kunci pemulihan Anda sedang dibuat dan diunduh secara otomatis. Kunci ini penting untuk pemulihan akun jika Anda kehilangan akses ke metode login Anda.
+  pl: Twój klucz odzyskiwania jest automatycznie generowany i pobierany. Ten klucz jest niezbędny do odzyskania konta, jeśli utracisz dostęp do metody logowania.
+  nl: Je herstelsleutel wordt automatisch gegenereerd en gedownload. Deze sleutel is essentieel voor accountherstel als je ooit de toegang tot je inlogmethode verliest.
+  ar: يتم إنشاء مفتاح الاسترداد الخاص بك وتنزيله تلقائيًا. هذا المفتاح ضروري لاسترداد الحساب إذا فقدت الوصول إلى طريقة تسجيل الدخول الخاصة بك.
+  hi: आपकी पुनर्प्राप्ति कुंजी स्वचालित रूप से बनाई और डाउनलोड की जा रही है। यदि आप अपनी लॉगिन विधि तक पहुंच खो देते हैं तो खाता पुनर्प्राप्ति के लिए यह कुंजी आवश्यक है।
+  th: คีย์กู้คืนของคุณกำลังถูกสร้างและดาวน์โหลดโดยอัตโนมัติ คีย์นี้มีความจำเป็นสำหรับการกู้คืนบัญชีหากคุณสูญเสียการเข้าถึงวิธีการเข้าสู่ระบบของคุณ
+  cs: Váš klíč pro obnovení je automaticky generován a stahován. Tento klíč je nezbytný pro obnovení účtu, pokud ztratíte přístup ke své přihlašovací metodě.
+  sv: Din återställningsnyckel genereras och laddas ner automatiskt. Denna nyckel är nödvändig för kontoåterställning om du förlorar åtkomst till din inloggningsmetod.
+  verified_by_human: []
+recovery_key_downloaded:
+  context: Message shown after recovery key file has been downloaded
+  en: Your recovery key has been downloaded.
+  de: Ihr Wiederherstellungsschlüssel wurde heruntergeladen.
+  zh: 您的恢复密钥已下载。
+  es: Tu clave de recuperación ha sido descargada.
+  fr: Votre clé de récupération a été téléchargée.
+  pt: Sua chave de recuperação foi baixada.
+  ru: Ваш ключ восстановления загружен.
+  ja: 回復キーがダウンロードされました。
+  ko: 복구 키가 다운로드되었습니다.
+  it: La tua chiave di recupero è stata scaricata.
+  tr: Kurtarma anahtarınız indirildi.
+  vi: Khóa khôi phục của bạn đã được tải xuống.
+  id: Kunci pemulihan Anda telah diunduh.
+  pl: Twój klucz odzyskiwania został pobrany.
+  nl: Je herstelsleutel is gedownload.
+  ar: تم تنزيل مفتاح الاسترداد الخاص بك.
+  hi: आपकी पुनर्प्राप्ति कुंजी डाउनलोड हो गई है।
+  th: คีย์กู้คืนของคุณถูกดาวน์โหลดแล้ว
+  cs: Váš klíč pro obnovení byl stažen.
+  sv: Din återställningsnyckel har laddats ner.
+  verified_by_human: []
+download_again:
+  context: Button text to re-download the recovery key file
+  en: Download Again
+  de: Erneut herunterladen
+  zh: 再次下载
+  es: Descargar de nuevo
+  fr: Télécharger à nouveau
+  pt: Baixar novamente
+  ru: Скачать снова
+  ja: 再度ダウンロード
+  ko: 다시 다운로드
+  it: Scarica di nuovo
+  tr: Tekrar İndir
+  vi: Tải xuống lại
+  id: Unduh Lagi
+  pl: Pobierz ponownie
+  nl: Opnieuw downloaden
+  ar: تنزيل مرة أخرى
+  hi: फिर से डाउनलोड करें
+  th: ดาวน์โหลดอีกครั้ง
+  cs: Stáhnout znovu
+  sv: Ladda ner igen
+  verified_by_human: []
+recovery_key_only_way:
+  context: Important notice explaining recovery key is the only way to recover account
+  en: <strong>Important:</strong> This recovery key is the only way to recover your account if you lose access to your login method. Store it securely.
+  de: <strong>Wichtig:</strong> Dieser Wiederherstellungsschlüssel ist die einzige Möglichkeit, Ihr Konto wiederherzustellen, wenn Sie den Zugang zu Ihrer Anmeldemethode verlieren. Bewahren Sie ihn sicher auf.
+  zh: <strong>重要：</strong>如果您丢失了登录方式的访问权限，此恢复密钥是恢复您帐户的唯一方法。请妥善保管。
+  es: <strong>Importante:</strong> Esta clave de recuperación es la única forma de recuperar tu cuenta si pierdes el acceso a tu método de inicio de sesión. Guárdala de forma segura.
+  fr: <strong>Important :</strong> Cette clé de récupération est le seul moyen de récupérer votre compte si vous perdez l'accès à votre méthode de connexion. Conservez-la en lieu sûr.
+  pt: <strong>Importante:</strong> Esta chave de recuperação é a única forma de recuperar sua conta se você perder o acesso ao seu método de login. Armazene-a com segurança.
+  ru: <strong>Важно:</strong> Этот ключ восстановления — единственный способ восстановить вашу учётную запись, если вы потеряете доступ к способу входа. Храните его надёжно.
+  ja: <strong>重要：</strong>この回復キーは、ログイン方法へのアクセスを失った場合にアカウントを回復する唯一の方法です。安全に保管してください。
+  ko: <strong>중요:</strong> 이 복구 키는 로그인 방법에 대한 액세스 권한을 잃어버린 경우 계정을 복구할 수 있는 유일한 방법입니다. 안전하게 보관하세요.
+  it: <strong>Importante:</strong> Questa chiave di recupero è l'unico modo per recuperare il tuo account se perdi l'accesso al tuo metodo di accesso. Conservala in modo sicuro.
+  tr: <strong>Önemli:</strong> Bu kurtarma anahtarı, giriş yönteminize erişiminizi kaybetmeniz durumunda hesabınızı kurtarmanın tek yoludur. Güvenli bir şekilde saklayın.
+  vi: <strong>Quan trọng:</strong> Khóa khôi phục này là cách duy nhất để khôi phục tài khoản của bạn nếu bạn mất quyền truy cập vào phương thức đăng nhập. Hãy lưu trữ nó một cách an toàn.
+  id: <strong>Penting:</strong> Kunci pemulihan ini adalah satu-satunya cara untuk memulihkan akun Anda jika Anda kehilangan akses ke metode login Anda. Simpan dengan aman.
+  pl: <strong>Ważne:</strong> Ten klucz odzyskiwania jest jedynym sposobem na odzyskanie konta, jeśli utracisz dostęp do metody logowania. Przechowuj go bezpiecznie.
+  nl: <strong>Belangrijk:</strong> Deze herstelsleutel is de enige manier om je account te herstellen als je de toegang tot je inlogmethode verliest. Bewaar hem veilig.
+  ar: <strong>مهم:</strong> مفتاح الاسترداد هذا هو الطريقة الوحيدة لاسترداد حسابك إذا فقدت الوصول إلى طريقة تسجيل الدخول الخاصة بك. احتفظ به بأمان.
+  hi: <strong>महत्वपूर्ण:</strong> यदि आप अपनी लॉगिन विधि तक पहुंच खो देते हैं तो यह पुनर्प्राप्ति कुंजी आपके खाते को पुनर्प्राप्त करने का एकमात्र तरीका है। इसे सुरक्षित रूप से स्टोर करें।
+  th: <strong>สำคัญ:</strong> คีย์กู้คืนนี้เป็นวิธีเดียวในการกู้คืนบัญชีของคุณหากคุณสูญเสียการเข้าถึงวิธีการเข้าสู่ระบบของคุณ เก็บรักษาอย่างปลอดภัย
+  cs: <strong>Důležité:</strong> Tento klíč pro obnovení je jediný způsob, jak obnovit váš účet, pokud ztratíte přístup ke své přihlašovací metodě. Uložte jej bezpečně.
+  sv: <strong>Viktigt:</strong> Denna återställningsnyckel är det enda sättet att återställa ditt konto om du förlorar åtkomst till din inloggningsmetod. Förvara den säkert.
+  verified_by_human: []

@@ -1,0 +1,468 @@
+"""
+Account Recovery Endpoints
+
+Handles account recovery for users who lose access to ALL login methods
+(password, passkey, AND recovery key).
+
+This is a LAST RESORT that performs a full account reset, deleting all
+client-encrypted data (chats, settings, memories, embeds) while preserving
+server-encrypted data (credits, username, subscription).
+
+Users who have their recovery key should use "Login with recovery key" instead,
+which preserves ALL data.
+
+Security:
+- Email verification required before any recovery action
+- Rate limited to prevent abuse
+- All actions logged for audit trail
+"""
+
+from fastapi import APIRouter, Depends, Request
+import logging
+import hashlib
+import base64
+
+from backend.core.api.app.schemas.auth_recovery import (
+    RecoveryRequestRequest,
+    RecoveryRequestResponse,
+    RecoveryFullResetRequest,
+    RecoveryCompleteResponse
+)
+from backend.core.api.app.services.directus import DirectusService
+from backend.core.api.app.services.cache import CacheService
+from backend.core.api.app.services.compliance import ComplianceService
+from backend.core.api.app.utils.encryption import EncryptionService
+from backend.core.api.app.services.limiter import limiter
+from backend.core.api.app.routes.auth_routes.auth_dependencies import (
+    get_directus_service,
+    get_cache_service,
+    get_compliance_service,
+    get_encryption_service
+)
+from backend.core.api.app.routes.auth_routes.auth_utils import verify_allowed_origin
+from backend.core.api.app.utils.device_fingerprint import _extract_client_ip
+from backend.core.api.app.tasks.celery_config import app as celery_app
+
+
+# Router setup
+router = APIRouter(
+    prefix="/recovery",
+    tags=["Auth - Account Recovery"],
+    dependencies=[Depends(verify_allowed_origin)]
+)
+
+logger = logging.getLogger(__name__)
+
+
+# ============================================================================
+# Helper Functions
+# ============================================================================
+
+def _hash_email(email: str) -> str:
+    """
+    Hash email address using SHA256 for lookup.
+    Must match the client-side hashing.
+    """
+    email_bytes = email.lower().strip().encode('utf-8')
+    hashed = hashlib.sha256(email_bytes).digest()
+    return base64.b64encode(hashed).decode('utf-8')
+
+
+async def _delete_user_client_data(
+    user_id: str,
+    user_id_hash: str,
+    directus_service: DirectusService,
+    cache_service: CacheService
+) -> bool:
+    """
+    Delete all client-encrypted data for a user (chats, settings, memories, embeds).
+    Reuses the same logic from account deletion task.
+    
+    Args:
+        user_id: User UUID
+        user_id_hash: SHA256 hash of user_id
+        directus_service: DirectusService instance
+        cache_service: CacheService instance
+        
+    Returns:
+        True if successful, False otherwise
+    """
+    try:
+        logger.info(f"[ACCOUNT_RESET] Deleting client data for user {user_id[:8]}...")
+        
+        # 1. Delete all chats, messages, and embeds
+        deleted_chats = 0
+        deleted_messages = 0
+        deleted_embeds = 0
+        
+        try:
+            # Get all chats for this user (using hashed_user_id)
+            chats = await directus_service.get_items(
+                "chats",
+                params={"filter": {"hashed_user_id": {"_eq": user_id_hash}}}
+            )
+            
+            for chat in chats or []:
+                chat_id = chat.get("id")
+                if chat_id:
+                    # Delete messages for this chat
+                    messages = await directus_service.get_items(
+                        "messages",
+                        params={"filter": {"chat_id": {"_eq": chat_id}}}
+                    )
+                    for message in messages or []:
+                        message_id = message.get("id")
+                        if message_id:
+                            await directus_service.delete_item("messages", message_id)
+                            deleted_messages += 1
+                    
+                    # Delete embeds for this chat (using hashed_chat_id)
+                    hashed_chat_id = hashlib.sha256(chat_id.encode()).hexdigest()
+                    embeds = await directus_service.get_items(
+                        "embeds",
+                        params={"filter": {"hashed_chat_id": {"_eq": hashed_chat_id}}}
+                    )
+                    for embed in embeds or []:
+                        embed_id = embed.get("id")
+                        if embed_id:
+                            await directus_service.delete_item("embeds", embed_id)
+                            deleted_embeds += 1
+                    
+                    # Delete chat
+                    await directus_service.delete_item("chats", chat_id)
+                    deleted_chats += 1
+            
+            # Also delete any orphaned embeds by hashed_user_id
+            orphaned_embeds = await directus_service.get_items(
+                "embeds",
+                params={"filter": {"hashed_user_id": {"_eq": user_id_hash}}}
+            )
+            for embed in orphaned_embeds or []:
+                embed_id = embed.get("id")
+                if embed_id:
+                    await directus_service.delete_item("embeds", embed_id)
+                    deleted_embeds += 1
+            
+            logger.info(f"[ACCOUNT_RESET] Deleted {deleted_chats} chats, {deleted_messages} messages, {deleted_embeds} embeds")
+        except Exception as e:
+            logger.error(f"[ACCOUNT_RESET] Error deleting chats/messages/embeds: {e}", exc_info=True)
+        
+        # 2. Delete app settings and memories
+        deleted_app_data = 0
+        try:
+            app_settings = await directus_service.get_items(
+                "app_settings_and_memories",
+                params={"filter": {"hashed_user_id": {"_eq": user_id_hash}}}
+            )
+            for setting in app_settings or []:
+                setting_id = setting.get("id")
+                if setting_id:
+                    await directus_service.delete_item("app_settings_and_memories", setting_id)
+                    deleted_app_data += 1
+            
+            logger.info(f"[ACCOUNT_RESET] Deleted {deleted_app_data} app settings/memories")
+        except Exception as e:
+            logger.error(f"[ACCOUNT_RESET] Error deleting app settings/memories: {e}", exc_info=True)
+        
+        # 3. Delete all encryption keys (password, passkey, recovery key wrapped keys)
+        try:
+            encryption_keys = await directus_service.get_items(
+                "encryption_keys",
+                params={"filter": {"hashed_user_id": {"_eq": user_id_hash}}}
+            )
+            for key in encryption_keys or []:
+                key_id = key.get("id")
+                if key_id:
+                    await directus_service.delete_item("encryption_keys", key_id)
+            logger.info(f"[ACCOUNT_RESET] Deleted {len(encryption_keys) if encryption_keys else 0} encryption keys")
+        except Exception as e:
+            logger.error(f"[ACCOUNT_RESET] Error deleting encryption keys: {e}", exc_info=True)
+        
+        # 4. Delete all passkeys
+        try:
+            passkeys = await directus_service.get_user_passkeys_by_user_id(user_id)
+            for passkey in passkeys or []:
+                passkey_id = passkey.get("id")
+                if passkey_id:
+                    await directus_service.delete_item("user_passkeys", passkey_id)
+            logger.info(f"[ACCOUNT_RESET] Deleted {len(passkeys) if passkeys else 0} passkeys")
+        except Exception as e:
+            logger.error(f"[ACCOUNT_RESET] Error deleting passkeys: {e}", exc_info=True)
+        
+        # 5. Clear cache for user
+        try:
+            await cache_service.delete_user_cache(user_id)
+            await cache_service.delete_user_sessions(user_id)
+            logger.info(f"[ACCOUNT_RESET] Cleared cache and sessions for user {user_id[:8]}...")
+        except Exception as e:
+            logger.error(f"[ACCOUNT_RESET] Error clearing cache: {e}", exc_info=True)
+        
+        logger.info(f"[ACCOUNT_RESET] Client data deletion complete for user {user_id[:8]}...")
+        return True
+        
+    except Exception as e:
+        logger.error(f"[ACCOUNT_RESET] Error deleting client data: {e}", exc_info=True)
+        return False
+
+
+# ============================================================================
+# Endpoints
+# ============================================================================
+
+@router.post("/request-code", response_model=RecoveryRequestResponse)
+@limiter.limit("3/hour")
+async def request_recovery_code(
+    request: Request,
+    recovery_request: RecoveryRequestRequest,
+    directus_service: DirectusService = Depends(get_directus_service),
+    cache_service: CacheService = Depends(get_cache_service),
+    compliance_service: ComplianceService = Depends(get_compliance_service)
+):
+    """
+    Request account reset by email.
+    Sends a verification code to the email if the account exists.
+    
+    Rate limited: 3 requests per email per hour.
+    
+    Security: Always returns success to prevent email enumeration.
+    """
+    logger.info("Processing /recovery/request")
+    
+    try:
+        email = recovery_request.email.lower().strip()
+        hashed_email = _hash_email(email)
+        
+        # Check if user exists
+        exists, user_data, error_msg = await directus_service.get_user_by_hashed_email(hashed_email)
+        
+        # Log the attempt (for audit trail)
+        client_ip = _extract_client_ip(request.headers, request.client.host if request.client else None)
+        
+        if not exists or not user_data:
+            # User doesn't exist, but we return success to prevent enumeration
+            logger.info("Recovery requested for non-existent account")
+            compliance_service.log_auth_event(
+                event_type="recovery_requested",
+                user_id=None,
+                ip_address=client_ip,
+                status="account_not_found",
+                details={"hashed_email": hashed_email[:16] + "..."}
+            )
+            # Return success to prevent email enumeration
+            return RecoveryRequestResponse(
+                success=True,
+                message="If an account exists with this email, a verification code will be sent."
+            )
+        
+        user_id = user_data.get("id")
+        
+        # Log the recovery request
+        compliance_service.log_auth_event(
+            event_type="recovery_requested",
+            user_id=user_id,
+            ip_address=client_ip,
+            status="code_sent"
+        )
+        
+        # Send recovery email via Celery task
+        # Reuses the confirm-email template with a different cache key
+        try:
+            celery_app.send_task(
+                name='app.tasks.email_tasks.recovery_email_task.send_account_recovery_email',
+                kwargs={
+                    'email': email,
+                    'language': recovery_request.language,
+                    'darkmode': recovery_request.darkmode
+                },
+                queue='email'
+            )
+            logger.info(f"Recovery email task dispatched for user {user_id[:8]}...")
+        except Exception as e:
+            logger.error(f"Failed to dispatch recovery email task: {e}", exc_info=True)
+            # Don't reveal the error to the user
+        
+        return RecoveryRequestResponse(
+            success=True,
+            message="If an account exists with this email, a verification code will be sent."
+        )
+        
+    except Exception as e:
+        logger.error(f"Error in recovery request: {e}", exc_info=True)
+        return RecoveryRequestResponse(
+            success=False,
+            message="An error occurred. Please try again later.",
+            error_code="SERVER_ERROR"
+        )
+
+
+@router.post("/reset-account", response_model=RecoveryCompleteResponse)
+@limiter.limit("1/day")
+async def reset_account(
+    request: Request,
+    reset_request: RecoveryFullResetRequest,
+    directus_service: DirectusService = Depends(get_directus_service),
+    cache_service: CacheService = Depends(get_cache_service),
+    encryption_service: EncryptionService = Depends(get_encryption_service),
+    compliance_service: ComplianceService = Depends(get_compliance_service)
+):
+    """
+    Complete account reset with verification code.
+    
+    This is a LAST RESORT for users who lost all login methods AND their recovery key.
+    
+    WARNING: This permanently deletes all client-encrypted data:
+    - All chats and messages
+    - All app settings and memories
+    - All embeds
+    
+    Server-encrypted data (credits, username, subscription) is preserved.
+    
+    Rate limited: 1 per account per 24 hours.
+    """
+    logger.info("Processing /recovery/full-reset")
+    
+    try:
+        # 1. Verify user acknowledged data loss
+        if not reset_request.acknowledge_data_loss:
+            return RecoveryCompleteResponse(
+                success=False,
+                message="You must acknowledge that all chats, settings, and memories will be permanently deleted.",
+                error_code="DATA_LOSS_NOT_ACKNOWLEDGED"
+            )
+        
+        email = reset_request.email.lower().strip()
+        hashed_email = _hash_email(email)
+        
+        # 2. Verify the code from cache
+        cache_key = f"account_recovery:{email}"
+        stored_code = await cache_service.get(cache_key)
+        
+        if not stored_code:
+            logger.warning("Recovery attempted with no code on record")
+            return RecoveryCompleteResponse(
+                success=False,
+                message="No reset code found or code expired. Please request a new code.",
+                error_code="CODE_EXPIRED"
+            )
+        
+        if str(stored_code) != str(reset_request.code):
+            logger.warning("Invalid recovery verification code")
+            return RecoveryCompleteResponse(
+                success=False,
+                message="Invalid verification code. Please try again.",
+                error_code="INVALID_CODE"
+            )
+        
+        # 3. Get user data
+        exists, user_data, _ = await directus_service.get_user_by_hashed_email(hashed_email)
+        
+        if not exists or not user_data:
+            logger.error("User not found after code verification")
+            return RecoveryCompleteResponse(
+                success=False,
+                message="Account not found. Please contact support.",
+                error_code="ACCOUNT_NOT_FOUND"
+            )
+        
+        user_id = user_data.get("id")
+        user_id_hash = hashlib.sha256(user_id.encode()).hexdigest()
+        vault_key_id = user_data.get("vault_key_id")
+        
+        # 4. Get username for response (before we delete data)
+        username = None
+        if vault_key_id and user_data.get("encrypted_username"):
+            try:
+                username = await encryption_service.decrypt_with_user_key(
+                    user_data["encrypted_username"], vault_key_id
+                )
+            except Exception as e:
+                logger.warning(f"Could not decrypt username: {e}")
+        
+        # 5. Delete all client-encrypted data
+        logger.info(f"[ACCOUNT_RESET] Starting full reset for user {user_id[:8]}...")
+        
+        delete_success = await _delete_user_client_data(
+            user_id=user_id,
+            user_id_hash=user_id_hash,
+            directus_service=directus_service,
+            cache_service=cache_service
+        )
+        
+        if not delete_success:
+            logger.error(f"Failed to delete client data for user {user_id[:8]}...")
+            # Continue anyway - we want to reset the account even if some data couldn't be deleted
+        
+        # 6. Update user with new credentials and clear client-encrypted fields
+        update_data = {
+            # New authentication data
+            "hashed_email": reset_request.hashed_email,
+            "encrypted_email_address": reset_request.encrypted_email,
+            "encrypted_email_with_master_key": reset_request.encrypted_email_with_master_key,
+            "user_email_salt": reset_request.user_email_salt,
+            "lookup_hashes": [reset_request.lookup_hash],
+            
+            # Clear client-encrypted fields that are now inaccessible
+            "encrypted_settings": None,
+            "encrypted_hidden_demo_chats": None,
+            "encrypted_top_recommended_apps": None,
+            
+            # Reset recovery key confirmation (user will need to set up new one)
+            "consent_recovery_key_stored_timestamp": None,
+        }
+        
+        update_success = await directus_service.update_user(user_id, update_data)
+        if not update_success:
+            logger.error(f"Failed to update user during recovery: {user_id[:8]}...")
+            return RecoveryCompleteResponse(
+                success=False,
+                message="Failed to update account. Please try again.",
+                error_code="UPDATE_FAILED"
+            )
+        
+        # 7. Create new encryption key record
+        try:
+            await directus_service.create_encryption_key(
+                hashed_user_id=user_id_hash,
+                login_method=reset_request.new_login_method,
+                encrypted_key=reset_request.encrypted_master_key,
+                salt=reset_request.salt,
+                key_iv=reset_request.key_iv
+            )
+            logger.info(f"Created new encryption key for user {user_id[:8]}...")
+        except Exception as e:
+            logger.error(f"Error creating encryption key: {e}", exc_info=True)
+            return RecoveryCompleteResponse(
+                success=False,
+                message="Failed to set up new credentials. Please try again.",
+                error_code="KEY_CREATION_FAILED"
+            )
+        
+        # 8. Delete the verification code (one-time use)
+        await cache_service.delete(cache_key)
+        
+        # 9. Log the recovery completion
+        client_ip = _extract_client_ip(request.headers, request.client.host if request.client else None)
+        compliance_service.log_auth_event(
+            event_type="recovery_full_reset",
+            user_id=user_id,
+            ip_address=client_ip,
+            status="success",
+            details={"new_login_method": reset_request.new_login_method}
+        )
+        
+        logger.info(f"[ACCOUNT_RESET] Full reset completed for user {user_id[:8]}...")
+        
+        return RecoveryCompleteResponse(
+            success=True,
+            message="Account reset successfully. Please log in with your new credentials.",
+            user_id=user_id,
+            username=username
+        )
+        
+    except Exception as e:
+        logger.error(f"Error in full reset recovery: {e}", exc_info=True)
+        return RecoveryCompleteResponse(
+            success=False,
+            message="An error occurred during account reset. Please try again.",
+            error_code="SERVER_ERROR"
+        )
