@@ -27,7 +27,7 @@ class RecoveryRequestRequest(BaseModel):
 
 class RecoveryFullResetRequest(BaseModel):
     """
-    Complete account reset with verification code.
+    Complete account reset with verification token.
     
     IMPORTANT: This permanently deletes all client-encrypted data:
     - All chats and messages
@@ -36,10 +36,11 @@ class RecoveryFullResetRequest(BaseModel):
     
     Server-encrypted data (credits, username, subscription) is preserved.
     
-    User must explicitly acknowledge data loss AND provide the verification code.
+    User must explicitly acknowledge data loss AND provide the verification token
+    obtained from the verify-code endpoint.
     """
     email: str = Field(..., description="Email address")
-    code: str = Field(..., description="6-digit verification code from email")
+    verification_token: str = Field(..., description="Token from verify-code endpoint")
     acknowledge_data_loss: bool = Field(
         ..., 
         description="User must confirm they understand ALL data will be permanently deleted"
@@ -70,10 +71,29 @@ class RecoveryFullResetRequest(BaseModel):
 # Response Schemas
 # ============================================================================
 
+class RecoveryVerifyRequest(BaseModel):
+    """
+    Verify the recovery code before showing login method selection.
+    """
+    email: str = Field(..., description="Email address associated with the account")
+    code: str = Field(..., description="6-digit verification code from email")
+
+
 class RecoveryRequestResponse(BaseModel):
     """Response after requesting account reset code."""
     success: bool
     message: str
+    error_code: Optional[str] = None
+
+
+class RecoveryVerifyResponse(BaseModel):
+    """Response after verifying recovery code."""
+    success: bool
+    message: str
+    verification_token: Optional[str] = Field(
+        default=None,
+        description="One-time token to use for the reset request (valid 10 minutes)"
+    )
     error_code: Optional[str] = None
 
 

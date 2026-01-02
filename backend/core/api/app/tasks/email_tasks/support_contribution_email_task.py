@@ -269,6 +269,14 @@ async def _async_process_support_contribution_receipt_and_send_email(
     except Exception as e:
         logger.error(f"Error in support contribution receipt task for order {order_id}: {str(e)}", exc_info=True)
         return False
+    finally:
+        # CRITICAL: Close async resources (like httpx clients) before the event loop closes
+        # This prevents "Event loop is closed" errors during cleanup
+        try:
+            await task.cleanup_services()
+            logger.debug("Task services cleaned up successfully for support contribution receipt task")
+        except Exception as cleanup_error:
+            logger.warning(f"Error during task cleanup for support contribution receipt: {cleanup_error}")
 
 
 @app.task(
@@ -443,3 +451,11 @@ async def _async_process_guest_support_contribution_receipt_and_send_email(
     except Exception as e:
         logger.error(f"Error in guest support contribution receipt task for order {order_id}: {str(e)}", exc_info=True)
         return False
+    finally:
+        # CRITICAL: Close async resources (like httpx clients) before the event loop closes
+        # This prevents "Event loop is closed" errors during cleanup
+        try:
+            await task.cleanup_services()
+            logger.debug("Task services cleaned up successfully for guest support contribution receipt task")
+        except Exception as cleanup_error:
+            logger.warning(f"Error during task cleanup for guest support contribution receipt: {cleanup_error}")

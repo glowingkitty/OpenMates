@@ -282,16 +282,14 @@ async def _async_send_issue_report_email(
     finally:
         # CRITICAL: Close async resources (like httpx clients) before the event loop closes
         # This prevents "Event loop is closed" errors during cleanup
-        # DirectusService uses httpx.AsyncClient which must be properly closed
-        if hasattr(task, '_directus_service') and task._directus_service is not None:
-            try:
-                logger.debug("Closing DirectusService httpx client...")
-                await task._directus_service.close()
-                logger.debug("DirectusService httpx client closed successfully")
-            except Exception as cleanup_error:
-                # Log but don't raise - we're in cleanup and don't want to mask the original error
-                logger.warning(
-                    f"Error closing DirectusService during cleanup: {str(cleanup_error)}. "
-                    f"This is non-critical but should be investigated.",
-                    exc_info=True
-                )
+        # Use the cleanup_services method from BaseServiceTask which handles SecretsManager and DirectusService
+        try:
+            await task.cleanup_services()
+            logger.debug("Task services cleaned up successfully")
+        except Exception as cleanup_error:
+            # Log but don't raise - we're in cleanup and don't want to mask the original error
+            logger.warning(
+                f"Error during task cleanup: {str(cleanup_error)}. "
+                f"This is non-critical but should be investigated.",
+                exc_info=True
+            )

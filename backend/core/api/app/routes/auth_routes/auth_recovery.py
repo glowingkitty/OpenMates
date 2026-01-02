@@ -21,10 +21,13 @@ from fastapi import APIRouter, Depends, Request
 import logging
 import hashlib
 import base64
+import secrets
 
 from backend.core.api.app.schemas.auth_recovery import (
     RecoveryRequestRequest,
     RecoveryRequestResponse,
+    RecoveryVerifyRequest,
+    RecoveryVerifyResponse,
     RecoveryFullResetRequest,
     RecoveryCompleteResponse
 )
@@ -295,6 +298,84 @@ async def request_recovery_code(
         )
 
 
+@router.post("/verify-code", response_model=RecoveryVerifyResponse)
+@limiter.limit("5/hour")
+async def verify_recovery_code(
+    request: Request,
+    verify_request: RecoveryVerifyRequest,
+    directus_service: DirectusService = Depends(get_directus_service),
+    cache_service: CacheService = Depends(get_cache_service),
+    compliance_service: ComplianceService = Depends(get_compliance_service)
+):
+    """
+    Verify the recovery code before proceeding to account reset.
+    
+    Returns a one-time verification token that must be used within 10 minutes
+    to complete the account reset. This allows the frontend to show the login
+    method selection UI without storing the verification code client-side.
+    
+    Rate limited: 5 attempts per hour (to prevent brute force).
+    """
+    logger.info("Processing /recovery/verify-code")
+    
+    try:
+        email = verify_request.email.lower().strip()
+        
+        # Verify the code from cache
+        cache_key = f"account_recovery:{email}"
+        stored_code = await cache_service.get(cache_key)
+        
+        if not stored_code:
+            logger.warning("Recovery code verification attempted with no code on record")
+            return RecoveryVerifyResponse(
+                success=False,
+                message="No reset code found or code expired. Please request a new code.",
+                error_code="CODE_EXPIRED"
+            )
+        
+        if str(stored_code) != str(verify_request.code):
+            logger.warning("Invalid recovery verification code")
+            # Log failed attempt
+            client_ip = _extract_client_ip(request.headers, request.client.host if request.client else None)
+            compliance_service.log_auth_event(
+                event_type="recovery_verify_failed",
+                user_id=None,
+                ip_address=client_ip,
+                status="invalid_code"
+            )
+            return RecoveryVerifyResponse(
+                success=False,
+                message="Invalid verification code. Please try again.",
+                error_code="INVALID_CODE"
+            )
+        
+        # Code is valid! Generate a one-time verification token
+        verification_token = secrets.token_urlsafe(32)
+        
+        # Store token in cache (10 minutes expiry)
+        token_cache_key = f"recovery_verify_token:{email}"
+        await cache_service.set(token_cache_key, verification_token, ttl=600)  # 10 minutes
+        
+        # Delete the verification code (one-time use)
+        await cache_service.delete(cache_key)
+        
+        logger.info(f"Recovery code verified successfully for {email[:2]}***")
+        
+        return RecoveryVerifyResponse(
+            success=True,
+            message="Verification successful. Please set up your new login method.",
+            verification_token=verification_token
+        )
+        
+    except Exception as e:
+        logger.error(f"Error in recovery verify: {e}", exc_info=True)
+        return RecoveryVerifyResponse(
+            success=False,
+            message="An error occurred. Please try again.",
+            error_code="SERVER_ERROR"
+        )
+
+
 @router.post("/reset-account", response_model=RecoveryCompleteResponse)
 @limiter.limit("1/day")
 async def reset_account(
@@ -306,7 +387,7 @@ async def reset_account(
     compliance_service: ComplianceService = Depends(get_compliance_service)
 ):
     """
-    Complete account reset with verification code.
+    Complete account reset with verification token.
     
     This is a LAST RESORT for users who lost all login methods AND their recovery key.
     
@@ -318,8 +399,10 @@ async def reset_account(
     Server-encrypted data (credits, username, subscription) is preserved.
     
     Rate limited: 1 per account per 24 hours.
+    
+    Requires verification_token from verify-code endpoint.
     """
-    logger.info("Processing /recovery/full-reset")
+    logger.info("Processing /recovery/reset-account")
     
     try:
         # 1. Verify user acknowledged data loss
@@ -333,25 +416,28 @@ async def reset_account(
         email = reset_request.email.lower().strip()
         hashed_email = _hash_email(email)
         
-        # 2. Verify the code from cache
-        cache_key = f"account_recovery:{email}"
-        stored_code = await cache_service.get(cache_key)
+        # 2. Verify the verification token from cache
+        token_cache_key = f"recovery_verify_token:{email}"
+        stored_token = await cache_service.get(token_cache_key)
         
-        if not stored_code:
-            logger.warning("Recovery attempted with no code on record")
+        if not stored_token:
+            logger.warning("Recovery attempted with no verification token on record")
             return RecoveryCompleteResponse(
                 success=False,
-                message="No reset code found or code expired. Please request a new code.",
-                error_code="CODE_EXPIRED"
+                message="Verification expired. Please verify your code again.",
+                error_code="TOKEN_EXPIRED"
             )
         
-        if str(stored_code) != str(reset_request.code):
-            logger.warning("Invalid recovery verification code")
+        if str(stored_token) != str(reset_request.verification_token):
+            logger.warning("Invalid recovery verification token")
             return RecoveryCompleteResponse(
                 success=False,
-                message="Invalid verification code. Please try again.",
-                error_code="INVALID_CODE"
+                message="Invalid verification. Please start the recovery process again.",
+                error_code="INVALID_TOKEN"
             )
+        
+        # Delete the token (one-time use)
+        await cache_service.delete(token_cache_key)
         
         # 3. Get user data
         exists, user_data, _ = await directus_service.get_user_by_hashed_email(hashed_email)
@@ -437,10 +523,7 @@ async def reset_account(
                 error_code="KEY_CREATION_FAILED"
             )
         
-        # 8. Delete the verification code (one-time use)
-        await cache_service.delete(cache_key)
-        
-        # 9. Log the recovery completion
+        # 8. Log the recovery completion
         client_ip = _extract_client_ip(request.headers, request.client.host if request.client else None)
         compliance_service.log_auth_event(
             event_type="recovery_full_reset",

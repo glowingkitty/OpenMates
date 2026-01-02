@@ -222,3 +222,37 @@ class BaseServiceTask(Task):
             logger.error(f"PaymentService accessed before initialization in task {self.request.id}")
             raise RuntimeError("PaymentService not initialized. Call initialize_services first.")
         return self._payment_service
+    
+    async def cleanup_services(self):
+        """
+        Cleanup async resources before the event loop closes.
+        
+        CRITICAL: Call this method in a finally block before returning from async functions
+        that are executed with asyncio.run() (e.g., in Celery tasks). This ensures the httpx
+        client's cleanup tasks complete while the event loop is still running, preventing
+        "Event loop is closed" errors.
+        
+        Example usage:
+            async def _async_task(task: BaseServiceTask):
+                try:
+                    await task.initialize_services()
+                    # ... do work ...
+                finally:
+                    await task.cleanup_services()
+        """
+        # Close SecretsManager's httpx client
+        if self._secrets_manager is not None:
+            try:
+                await self._secrets_manager.aclose()
+                logger.debug(f"SecretsManager httpx client closed for task {self.request.id}")
+            except Exception as e:
+                # Log but don't raise - cleanup errors shouldn't break the task
+                logger.warning(f"Error closing SecretsManager in task {self.request.id}: {e}")
+        
+        # Close DirectusService's httpx client if it has one
+        if self._directus_service is not None and hasattr(self._directus_service, 'close'):
+            try:
+                await self._directus_service.close()
+                logger.debug(f"DirectusService httpx client closed for task {self.request.id}")
+            except Exception as e:
+                logger.warning(f"Error closing DirectusService in task {self.request.id}: {e}")

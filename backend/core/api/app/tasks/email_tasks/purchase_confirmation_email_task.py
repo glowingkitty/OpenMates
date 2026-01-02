@@ -723,3 +723,11 @@ async def _async_process_invoice_and_send_email(
         logger.error(f"Error in _async_process_invoice_and_send_email task for order: {str(e)}", exc_info=True)
         # Re-raise the exception so Celery knows the task failed
         raise e
+    finally:
+        # CRITICAL: Close async resources (like httpx clients) before the event loop closes
+        # This prevents "Event loop is closed" errors during cleanup
+        try:
+            await task.cleanup_services()
+            logger.debug("Task services cleaned up successfully for invoice task")
+        except Exception as cleanup_error:
+            logger.warning(f"Error during task cleanup: {str(cleanup_error)}")

@@ -1560,3 +1560,49 @@ email_not_found:
   cs: Zadejte prosím platnou e-mailovou adresu
   sv: Ange en giltig e-postadress
   verified_by_human: []
+resend_code:
+  context: Button label to resend verification code
+  en: Resend code
+  de: Code erneut senden
+  zh: 重新发送验证码
+  es: Reenviar código
+  fr: Renvoyer le code
+  pt: Reenviar código
+  ru: Отправить код повторно
+  ja: コードを再送信
+  ko: 코드 재전송
+  it: Reinvia codice
+  tr: Kodu tekrar gönder
+  vi: Gửi lại mã
+  id: Kirim ulang kode
+  pl: Wyślij kod ponownie
+  nl: Code opnieuw verzenden
+  ar: إعادة إرسال الرمز
+  hi: कोड पुनः भेजें
+  th: ส่งรหัสอีกครั้ง
+  cs: Znovu odeslat kód
+  sv: Skicka koden igen
+  verified_by_human: []
+too_many_requests:
+  context: Error message when user has sent too many requests (rate limited)
+  en: Too many requests. Please wait a few minutes before trying again.
+  de: Zu viele Anfragen. Bitte warte einige Minuten, bevor du es erneut versuchst.
+  zh: 请求过多。请等待几分钟后再试。
+  es: Demasiadas solicitudes. Por favor espera unos minutos antes de intentarlo de nuevo.
+  fr: Trop de demandes. Veuillez patienter quelques minutes avant de réessayer.
+  pt: Muitas solicitações. Por favor, aguarde alguns minutos antes de tentar novamente.
+  ru: Слишком много запросов. Пожалуйста, подождите несколько минут перед повторной попыткой.
+  ja: リクエストが多すぎます。数分待ってから再度お試しください。
+  ko: 요청이 너무 많습니다. 몇 분 후에 다시 시도해 주세요.
+  it: Troppe richieste. Attendi qualche minuto prima di riprovare.
+  tr: Çok fazla istek. Lütfen birkaç dakika bekleyip tekrar deneyin.
+  vi: Quá nhiều yêu cầu. Vui lòng đợi vài phút trước khi thử lại.
+  id: Terlalu banyak permintaan. Mohon tunggu beberapa menit sebelum mencoba lagi.
+  pl: Za dużo żądań. Proszę poczekać kilka minut przed ponowną próbą.
+  nl: Te veel verzoeken. Wacht een paar minuten voordat u het opnieuw probeert.
+  ar: طلبات كثيرة جداً. يرجى الانتظار بضع دقائق قبل المحاولة مرة أخرى.
+  hi: बहुत अधिक अनुरोध। कृपया फिर से प्रयास करने से पहले कुछ मिनट प्रतीक्षा करें।
+  th: คำขอมากเกินไป กรุณารอสักครู่ก่อนลองอีกครั้ง
+  cs: Příliš mnoho požadavků. Počkejte prosím několik minut a zkuste to znovu.
+  sv: För många förfrågningar. Vänta några minuter innan du försöker igen.
+  verified_by_human: []

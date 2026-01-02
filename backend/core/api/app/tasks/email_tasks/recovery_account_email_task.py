@@ -58,11 +58,17 @@ async def _async_send_account_recovery_email(
     Async implementation of the account recovery email task.
     
     Generates a 6-digit code, stores it in cache, and sends the email.
+    
+    IMPORTANT: Uses try/finally to ensure SecretsManager's httpx client is
+    properly closed before returning. This prevents "Event loop is closed" 
+    errors when asyncio.run() closes the event loop in Celery tasks.
     """
+    # Create services outside try block so they're available in finally
+    secrets_manager = SecretsManager()
+    
     try:
         # Create standalone services for this task
         cache_service = CacheService()
-        secrets_manager = SecretsManager()
         await secrets_manager.initialize()
         email_template_service = EmailTemplateService(secrets_manager=secrets_manager)
 
@@ -106,4 +112,8 @@ async def _async_send_account_recovery_email(
     except Exception as e:
         logger.error(f"Error in account recovery email task for {email[:2]}***: {str(e)}", exc_info=True)
         return False
+    finally:
+        # CRITICAL: Close the httpx client before asyncio.run() closes the event loop
+        # This prevents "Event loop is closed" errors during httpx cleanup
+        await secrets_manager.aclose()
 

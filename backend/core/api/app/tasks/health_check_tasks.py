@@ -491,104 +491,113 @@ async def _check_provider_health(provider_id: str, health_endpoint: Optional[str
     """
     logger.info(f"Health check: Checking provider '{provider_id}'...")
     
-    # Initialize services
+    # Initialize services outside try block so they're available in finally
     cache_service = CacheService()
     secrets_manager = SecretsManager()
-    await secrets_manager.initialize()
-    
-    # Determine check method
-    use_health_endpoint = health_endpoint is not None
-    
-    # Single attempt (no retry to avoid duplicate requests)
-    success = False
-    error = None
-    response_time_ms = None
-    
-    if use_health_endpoint:
-        success, error, response_time_ms = await _check_provider_health_endpoint(provider_id, health_endpoint)
-    else:
-        # Use test request - need to find cheapest model
-        # Note: provider_id is actually a server_id from the registry (e.g., "cerebras", "openrouter")
-        # TODO: OpenRouter health check - verify requests are actually reaching OpenRouter and appearing in their activity logs
-        model_id = _get_cheapest_model_for_server(provider_id)
-        if model_id:
-            success, error, response_time_ms = await _check_provider_via_test_request(provider_id, model_id, secrets_manager)
-        else:
-            error = "No available models for test request"
-            logger.warning(f"Health check: Server '{provider_id}' has no models configured that use this server. Cannot perform health check.")
-    
-    # Determine status based on single attempt
-    if success:
-        status = "healthy"
-        last_error = None
-        logger.info(f"Health check: Provider '{provider_id}' is healthy ({response_time_ms:.1f}ms)" if response_time_ms else f"Health check: Provider '{provider_id}' is healthy")
-    else:
-        status = "unhealthy"
-        last_error_raw = error
-        last_error = _sanitize_error_message(last_error_raw)
-        
-        # Log with additional context for credential errors
-        if _is_credential_error(last_error_raw):
-            logger.error(
-                f"Health check: Provider '{provider_id}' is unhealthy due to credential/authentication error. "
-                f"Error: {last_error_raw}"
-            )
-            logger.warning(
-                f"Health check: Provider '{provider_id}' requires valid credentials to be configured. "
-                f"Please verify the credentials in the secrets manager. Health checks will continue to fail until this is resolved."
-            )
-        else:
-            logger.error(f"Health check: Provider '{provider_id}' is unhealthy. Error: {last_error_raw}")
-    
-    # Get existing health data to preserve response_times_ms
-    cache_key = f"{HEALTH_CHECK_CACHE_KEY_PREFIX}{provider_id}"
-    existing_health_data = {}
-    try:
-        client = await cache_service.client
-        if client:
-            existing_data_json = await client.get(cache_key)
-            if existing_data_json:
-                if isinstance(existing_data_json, bytes):
-                    existing_data_json = existing_data_json.decode('utf-8')
-                existing_health_data = json.loads(existing_data_json)
-    except Exception as e:
-        logger.debug(f"Could not retrieve existing health data for '{provider_id}': {e}")
-    
-    # Update response_times_ms array (keep last 5)
-    response_times_ms = existing_health_data.get("response_times_ms", {})
-    current_timestamp = int(time.time())
-    
-    # Add new response time if we have one
-    if response_time_ms is not None:
-        response_times_ms[str(current_timestamp)] = round(response_time_ms, 2)
-        
-        # Keep only last 5 entries (sorted by timestamp, newest first)
-        sorted_times = sorted(response_times_ms.items(), key=lambda x: int(x[0]), reverse=True)
-        response_times_ms = dict(sorted_times[:5])
-    
-    # Store result in cache
-    health_data = {
-        "status": status,
-        "last_check": current_timestamp,
-        "last_error": last_error,
-        "response_times_ms": response_times_ms
-    }
     
     try:
-        client = await cache_service.client
-        if client:
-            await client.set(
-                cache_key,
-                json.dumps(health_data),
-                ex=HEALTH_CHECK_CACHE_TTL
-            )
-            logger.debug(f"Health check: Stored health status for '{provider_id}' in cache: {status}")
+        await secrets_manager.initialize()
+        
+        # Determine check method
+        use_health_endpoint = health_endpoint is not None
+        
+        # Single attempt (no retry to avoid duplicate requests)
+        success = False
+        error = None
+        response_time_ms = None
+        
+        if use_health_endpoint:
+            success, error, response_time_ms = await _check_provider_health_endpoint(provider_id, health_endpoint)
         else:
-            logger.warning(f"Health check: Cache client not available, cannot store health status for '{provider_id}'")
-    except Exception as e:
-        logger.error(f"Health check: Failed to store health status for '{provider_id}' in cache: {e}", exc_info=True)
-    
-    return health_data
+            # Use test request - need to find cheapest model
+            # Note: provider_id is actually a server_id from the registry (e.g., "cerebras", "openrouter")
+            # TODO: OpenRouter health check - verify requests are actually reaching OpenRouter and appearing in their activity logs
+            model_id = _get_cheapest_model_for_server(provider_id)
+            if model_id:
+                success, error, response_time_ms = await _check_provider_via_test_request(provider_id, model_id, secrets_manager)
+            else:
+                error = "No available models for test request"
+                logger.warning(f"Health check: Server '{provider_id}' has no models configured that use this server. Cannot perform health check.")
+        
+        # Determine status based on single attempt
+        if success:
+            status = "healthy"
+            last_error = None
+            logger.info(f"Health check: Provider '{provider_id}' is healthy ({response_time_ms:.1f}ms)" if response_time_ms else f"Health check: Provider '{provider_id}' is healthy")
+        else:
+            status = "unhealthy"
+            last_error_raw = error
+            last_error = _sanitize_error_message(last_error_raw)
+            
+            # Log with additional context for credential errors
+            if _is_credential_error(last_error_raw):
+                logger.error(
+                    f"Health check: Provider '{provider_id}' is unhealthy due to credential/authentication error. "
+                    f"Error: {last_error_raw}"
+                )
+                logger.warning(
+                    f"Health check: Provider '{provider_id}' requires valid credentials to be configured. "
+                    f"Please verify the credentials in the secrets manager. Health checks will continue to fail until this is resolved."
+                )
+            else:
+                logger.error(f"Health check: Provider '{provider_id}' is unhealthy. Error: {last_error_raw}")
+        
+        # Get existing health data to preserve response_times_ms
+        cache_key = f"{HEALTH_CHECK_CACHE_KEY_PREFIX}{provider_id}"
+        existing_health_data = {}
+        try:
+            client = await cache_service.client
+            if client:
+                existing_data_json = await client.get(cache_key)
+                if existing_data_json:
+                    if isinstance(existing_data_json, bytes):
+                        existing_data_json = existing_data_json.decode('utf-8')
+                    existing_health_data = json.loads(existing_data_json)
+        except Exception as e:
+            logger.debug(f"Could not retrieve existing health data for '{provider_id}': {e}")
+        
+        # Update response_times_ms array (keep last 5)
+        response_times_ms = existing_health_data.get("response_times_ms", {})
+        current_timestamp = int(time.time())
+        
+        # Add new response time if we have one
+        if response_time_ms is not None:
+            response_times_ms[str(current_timestamp)] = round(response_time_ms, 2)
+            
+            # Keep only last 5 entries (sorted by timestamp, newest first)
+            sorted_times = sorted(response_times_ms.items(), key=lambda x: int(x[0]), reverse=True)
+            response_times_ms = dict(sorted_times[:5])
+        
+        # Store result in cache
+        health_data = {
+            "status": status,
+            "last_check": current_timestamp,
+            "last_error": last_error,
+            "response_times_ms": response_times_ms
+        }
+        
+        try:
+            client = await cache_service.client
+            if client:
+                await client.set(
+                    cache_key,
+                    json.dumps(health_data),
+                    ex=HEALTH_CHECK_CACHE_TTL
+                )
+                logger.debug(f"Health check: Stored health status for '{provider_id}' in cache: {status}")
+            else:
+                logger.warning(f"Health check: Cache client not available, cannot store health status for '{provider_id}'")
+        except Exception as e:
+            logger.error(f"Health check: Failed to store health status for '{provider_id}' in cache: {e}", exc_info=True)
+        
+        return health_data
+    finally:
+        # CRITICAL: Close async resources (like httpx clients) before the event loop closes
+        # This prevents "Event loop is closed" errors during cleanup
+        try:
+            await secrets_manager.aclose()
+        except Exception as cleanup_error:
+            logger.warning(f"Error closing SecretsManager during provider health check: {cleanup_error}")
 
 
 async def _check_brave_search_health(secrets_manager: SecretsManager) -> Dict[str, Any]:
@@ -1519,47 +1528,57 @@ def check_all_providers_health(self):
             
             # Run async health checks
             async def run_checks():
-                tasks = []
-                
-                # Check all LLM providers
-                for provider_id in providers:
-                    # For now, all providers use test requests (no health endpoints configured yet)
-                    # In the future, we can check if provider has health_endpoint configured
-                    task = _check_provider_health(provider_id, health_endpoint=None)
-                    tasks.append(task)
-                
-                # Also check Brave Search (not an LLM provider, so not in registry)
+                # Initialize SecretsManager outside try block so it's available in finally
                 secrets_manager = SecretsManager()
-                await secrets_manager.initialize()
-                brave_task = _check_brave_search_health(secrets_manager)
-                tasks.append(brave_task)
                 
-                # Run all checks concurrently
-                logger.info(f"Health check: Executing {len(tasks)} health check(s) concurrently...")
-                results = await asyncio.gather(*tasks, return_exceptions=True)
-                
-                # Log results
-                healthy_count = sum(1 for r in results if isinstance(r, dict) and r.get("status") == "healthy")
-                unhealthy_count = sum(1 for r in results if isinstance(r, dict) and r.get("status") == "unhealthy")
-                error_count = sum(1 for r in results if isinstance(r, Exception))
-                
-                logger.info("=" * 80)
-                logger.info(
-                    f"Health check: Completed. "
-                    f"Healthy: {healthy_count}, Unhealthy: {unhealthy_count}, Errors: {error_count}"
-                )
-                logger.info("=" * 80)
-                
-                # Log details for unhealthy providers
-                if unhealthy_count > 0:
-                    all_provider_ids = list(providers) + ["brave"]
-                    for i, result in enumerate(results):
-                        if isinstance(result, dict) and result.get("status") == "unhealthy":
-                            provider_id = all_provider_ids[i] if i < len(all_provider_ids) else f"unknown_{i}"
-                            logger.warning(
-                                f"Health check: Provider '{provider_id}' is unhealthy. "
-                                f"Last error: {result.get('last_error', 'Unknown')}"
-                            )
+                try:
+                    tasks = []
+                    
+                    # Check all LLM providers
+                    for provider_id in providers:
+                        # For now, all providers use test requests (no health endpoints configured yet)
+                        # In the future, we can check if provider has health_endpoint configured
+                        task = _check_provider_health(provider_id, health_endpoint=None)
+                        tasks.append(task)
+                    
+                    # Also check Brave Search (not an LLM provider, so not in registry)
+                    await secrets_manager.initialize()
+                    brave_task = _check_brave_search_health(secrets_manager)
+                    tasks.append(brave_task)
+                    
+                    # Run all checks concurrently
+                    logger.info(f"Health check: Executing {len(tasks)} health check(s) concurrently...")
+                    results = await asyncio.gather(*tasks, return_exceptions=True)
+                    
+                    # Log results
+                    healthy_count = sum(1 for r in results if isinstance(r, dict) and r.get("status") == "healthy")
+                    unhealthy_count = sum(1 for r in results if isinstance(r, dict) and r.get("status") == "unhealthy")
+                    error_count = sum(1 for r in results if isinstance(r, Exception))
+                    
+                    logger.info("=" * 80)
+                    logger.info(
+                        f"Health check: Completed. "
+                        f"Healthy: {healthy_count}, Unhealthy: {unhealthy_count}, Errors: {error_count}"
+                    )
+                    logger.info("=" * 80)
+                    
+                    # Log details for unhealthy providers
+                    if unhealthy_count > 0:
+                        all_provider_ids = list(providers) + ["brave"]
+                        for i, result in enumerate(results):
+                            if isinstance(result, dict) and result.get("status") == "unhealthy":
+                                provider_id = all_provider_ids[i] if i < len(all_provider_ids) else f"unknown_{i}"
+                                logger.warning(
+                                    f"Health check: Provider '{provider_id}' is unhealthy. "
+                                    f"Last error: {result.get('last_error', 'Unknown')}"
+                                )
+                finally:
+                    # CRITICAL: Close async resources (like httpx clients) before the event loop closes
+                    # This prevents "Event loop is closed" errors during cleanup
+                    try:
+                        await secrets_manager.aclose()
+                    except Exception as cleanup_error:
+                        logger.warning(f"Error closing SecretsManager during provider health checks: {cleanup_error}")
             
             # Run async checks
             try:
@@ -1598,60 +1617,70 @@ def check_external_services_health(self):
     logger.info("=" * 80)
 
     async def run_checks():
+        # Initialize SecretsManager outside try block so it's available in finally
         secrets_manager = SecretsManager()
-        await secrets_manager.initialize()
-
-        tasks = []
-
-        # Check Stripe (only if payment is enabled)
-        from backend.core.api.app.utils.server_mode import is_payment_enabled
-        payment_enabled = is_payment_enabled()
         
-        if payment_enabled:
-            tasks.append(_check_stripe_health(secrets_manager))
-            logger.info("Health check: Including Stripe health check (payment enabled)")
-        else:
-            logger.info("Health check: Skipping Stripe health check (payment disabled - self-hosted mode)")
+        try:
+            await secrets_manager.initialize()
 
-        # Check Sightengine
-        tasks.append(_check_sightengine_health(secrets_manager))
+            tasks = []
 
-        # Check Mailjet
-        tasks.append(_check_mailjet_health(secrets_manager))
+            # Check Stripe (only if payment is enabled)
+            from backend.core.api.app.utils.server_mode import is_payment_enabled
+            payment_enabled = is_payment_enabled()
+            
+            if payment_enabled:
+                tasks.append(_check_stripe_health(secrets_manager))
+                logger.info("Health check: Including Stripe health check (payment enabled)")
+            else:
+                logger.info("Health check: Skipping Stripe health check (payment disabled - self-hosted mode)")
 
-        # Check AWS Bedrock
-        tasks.append(_check_aws_bedrock_health(secrets_manager))
+            # Check Sightengine
+            tasks.append(_check_sightengine_health(secrets_manager))
 
-        # Check Vercel domain
-        vercel_domain = os.getenv("VERCEL_DOMAIN", "")
-        tasks.append(_check_vercel_domain_health(vercel_domain))
+            # Check Mailjet
+            tasks.append(_check_mailjet_health(secrets_manager))
 
-        # Run all checks concurrently
-        logger.info(f"Health check: Executing {len(tasks)} external service health check(s) concurrently...")
-        results = await asyncio.gather(*tasks, return_exceptions=True)
+            # Check AWS Bedrock
+            tasks.append(_check_aws_bedrock_health(secrets_manager))
 
-        # Log results
-        healthy_count = sum(1 for r in results if isinstance(r, dict) and r.get("status") == "healthy")
-        unhealthy_count = sum(1 for r in results if isinstance(r, dict) and r.get("status") == "unhealthy")
-        error_count = sum(1 for r in results if isinstance(r, Exception))
+            # Check Vercel domain
+            vercel_domain = os.getenv("VERCEL_DOMAIN", "")
+            tasks.append(_check_vercel_domain_health(vercel_domain))
 
-        logger.info("=" * 80)
-        logger.info(
-            f"Health check: External services checks completed. "
-            f"Healthy: {healthy_count}, Unhealthy: {unhealthy_count}, Errors: {error_count}"
-        )
-        logger.info("=" * 80)
+            # Run all checks concurrently
+            logger.info(f"Health check: Executing {len(tasks)} external service health check(s) concurrently...")
+            results = await asyncio.gather(*tasks, return_exceptions=True)
 
-        # Log details for unhealthy services
-        if unhealthy_count > 0:
-            service_names = ["stripe", "sightengine", "mailjet", "bedrock", "vercel"]
-            for i, result in enumerate(results):
-                if isinstance(result, dict) and result.get("status") == "unhealthy":
-                    service_name = service_names[i] if i < len(service_names) else f"unknown_{i}"
-                    logger.warning(
-                        f"Health check: External service '{service_name}' is unhealthy. "
-                        f"Last error: {result.get('last_error', 'Unknown')}"
-                    )
+            # Log results
+            healthy_count = sum(1 for r in results if isinstance(r, dict) and r.get("status") == "healthy")
+            unhealthy_count = sum(1 for r in results if isinstance(r, dict) and r.get("status") == "unhealthy")
+            error_count = sum(1 for r in results if isinstance(r, Exception))
+
+            logger.info("=" * 80)
+            logger.info(
+                f"Health check: External services checks completed. "
+                f"Healthy: {healthy_count}, Unhealthy: {unhealthy_count}, Errors: {error_count}"
+            )
+            logger.info("=" * 80)
+
+            # Log details for unhealthy services
+            if unhealthy_count > 0:
+                service_names = ["stripe", "sightengine", "mailjet", "bedrock", "vercel"]
+                for i, result in enumerate(results):
+                    if isinstance(result, dict) and result.get("status") == "unhealthy":
+                        service_name = service_names[i] if i < len(service_names) else f"unknown_{i}"
+                        logger.warning(
+                            f"Health check: External service '{service_name}' is unhealthy. "
+                            f"Last error: {result.get('last_error', 'Unknown')}"
+                        )
+        finally:
+            # CRITICAL: Close async resources (like httpx clients) before the event loop closes
+            # This prevents "Event loop is closed" errors during cleanup
+            try:
+                await secrets_manager.aclose()
+            except Exception as cleanup_error:
+                logger.warning(f"Error closing SecretsManager during external service health checks: {cleanup_error}")
 
     # Run async checks
     try:

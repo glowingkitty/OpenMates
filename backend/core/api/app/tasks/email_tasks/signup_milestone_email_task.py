@@ -113,6 +113,14 @@ async def _async_send_milestone_notification(
         logger.error(f"Error in _async_send_milestone_notification task: {str(e)}", exc_info=True)
         # Re-raise the exception so Celery knows the task failed
         raise e
+    finally:
+        # CRITICAL: Close async resources (like httpx clients) before the event loop closes
+        # This prevents "Event loop is closed" errors during cleanup
+        try:
+            await task.cleanup_services()
+            logger.debug("Task services cleaned up successfully for milestone notification task")
+        except Exception as cleanup_error:
+            logger.warning(f"Error during task cleanup for milestone notification: {cleanup_error}")
 
 
 @app.task(name='app.tasks.email_tasks.signup_milestone_email_task.send_newsletter_milestone_notification', base=BaseServiceTask, bind=True)
@@ -211,3 +219,11 @@ async def _async_send_newsletter_milestone_notification(
         logger.error(f"Error in _async_send_newsletter_milestone_notification task: {str(e)}", exc_info=True)
         # Re-raise the exception so Celery knows the task failed
         raise e
+    finally:
+        # CRITICAL: Close async resources (like httpx clients) before the event loop closes
+        # This prevents "Event loop is closed" errors during cleanup
+        try:
+            await task.cleanup_services()
+            logger.debug("Task services cleaned up successfully for newsletter milestone notification task")
+        except Exception as cleanup_error:
+            logger.warning(f"Error during task cleanup for newsletter milestone notification: {cleanup_error}")
