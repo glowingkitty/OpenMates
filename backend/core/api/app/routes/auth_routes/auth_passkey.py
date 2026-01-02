@@ -1093,6 +1093,14 @@ async def passkey_registration_complete(
         # No need to store it in the database - it's deterministic and computed on-the-fly
         # Security: Each passkey has a unique credential_secret, so PRF output is still unique per user
         
+        # Log credential_id format for debugging passkey lookup issues
+        # IMPORTANT: This MUST match the format sent during login (base64url, no padding)
+        logger.info(
+            f"Storing passkey with credential_id: {credential_id[:30]}... "
+            f"(length={len(credential_id)}, has_padding={'=' in credential_id}, "
+            f"has_url_safe_chars={'_' in credential_id or '-' in credential_id})"
+        )
+        
         passkey_success = await directus_service.create_passkey(
             hashed_user_id=hashed_user_id,
             user_id=user_id,  # Include user_id for efficient lookups
@@ -1110,6 +1118,8 @@ async def passkey_registration_complete(
                 message="Failed to store passkey. Please try again.",
                 user=None
             )
+        
+        logger.info(f"Successfully stored passkey for user {user_id[:8]}... with credential_id prefix {credential_id[:20]}...")
         
         # Create encryption key record (same pattern as password)
         try:
@@ -1146,6 +1156,7 @@ async def passkey_registration_complete(
         # For existing users, update encrypted_email_with_master_key to match the master key used for passkey
         # This ensures that when they login with passkey, they can decrypt the email with the unwrapped master key
         # CRITICAL: The email must be encrypted with the same master key that's wrapped for the passkey
+        # NOTE: If this update fails, passkey login will NOT work because we can't decrypt the email
         if is_existing_user:
             if complete_request.encrypted_email_with_master_key:
                 try:
@@ -1156,11 +1167,34 @@ async def passkey_registration_complete(
                     if update_success:
                         logger.info(f"Successfully updated encrypted_email_with_master_key for existing user {user_id}")
                     else:
-                        logger.warning(f"Failed to update encrypted_email_with_master_key for user {user_id}, but continuing")
-                        # Don't fail the registration if this update fails - the user can still use password login
+                        # CRITICAL: This is now a failure condition - passkey login won't work without this
+                        logger.error(
+                            f"Failed to update encrypted_email_with_master_key for user {user_id}. "
+                            "Passkey registration succeeded but login will fail without this field."
+                        )
+                        return PasskeyRegistrationCompleteResponse(
+                            success=False,
+                            message="Passkey was registered but account setup incomplete. Please try again or use password login.",
+                            user=None
+                        )
                 except Exception as e:
                     logger.error(f"Error updating encrypted_email_with_master_key for user {user_id}: {e}", exc_info=True)
-                    # Don't fail the registration if this update fails - the user can still use password login
+                    return PasskeyRegistrationCompleteResponse(
+                        success=False,
+                        message="Passkey was registered but account setup failed. Please try again or use password login.",
+                        user=None
+                    )
+            else:
+                # Client didn't send encrypted_email_with_master_key - this is required for passkey login
+                logger.error(
+                    f"Existing user {user_id} adding passkey but encrypted_email_with_master_key not provided. "
+                    "Passkey login will not work without this."
+                )
+                return PasskeyRegistrationCompleteResponse(
+                    success=False,
+                    message="Passkey registration failed: missing required encryption data. Please try again.",
+                    user=None
+                )
 
             # Also add the new lookup_hash to the user's list of valid lookup hashes
             # This is required for authentication with the new passkey
@@ -1524,12 +1558,24 @@ async def passkey_assertion_verify(
     
     try:
         # Get passkey by credential_id
-        passkey = await directus_service.get_passkey_by_credential_id(verify_request.credential_id)
+        # IMPORTANT: credential_id must match exactly what was stored during registration
+        # Both registration and login should use base64url encoding (URL-safe, no padding)
+        credential_id = verify_request.credential_id
+        logger.info(f"Looking up passkey with credential_id: {credential_id[:20]}... (length={len(credential_id)})")
+        
+        passkey = await directus_service.get_passkey_by_credential_id(credential_id)
         if not passkey:
-            logger.warning("Passkey not found for credential_id")
+            # Log more details to help diagnose mismatches
+            logger.warning(
+                f"Passkey not found for credential_id. "
+                f"credential_id_prefix={credential_id[:30]}..., "
+                f"length={len(credential_id)}, "
+                f"has_padding={'=' in credential_id}, "
+                f"has_url_safe_chars={'_' in credential_id or '-' in credential_id}"
+            )
             return PasskeyAssertionVerifyResponse(
                 success=False,
-                message="Invalid passkey. Please try again.",
+                message="Invalid passkey. The passkey may have been deleted or was not registered correctly. Please try registering a new passkey.",
                 user_id=None,
                 hashed_email=None,
                 encrypted_email=None,
@@ -1949,13 +1995,18 @@ async def passkey_assertion_verify(
         # This allows client to decrypt email using master key derived from PRF signature
         encrypted_email_with_master_key = user_profile.get("encrypted_email_with_master_key")
         if not encrypted_email_with_master_key:
+            # This can happen if:
+            # 1. User registered before encrypted_email_with_master_key was implemented
+            # 2. User added passkey via settings but the update to encrypted_email_with_master_key failed
+            # 3. Data migration issue
             logger.error(
                 f"encrypted_email_with_master_key not available for user {user_id}. "
-                "Cannot complete passwordless passkey login."
+                f"Cannot complete passwordless passkey login. "
+                f"User may need to delete and re-add their passkey via Settings."
             )
             return PasskeyAssertionVerifyResponse(
                 success=False,
-                message="Passkey login is not fully set up for this account (missing encrypted email). Please re-register your passkey or contact support.",
+                message="Your passkey needs to be updated. Please log in with your password, then go to Settings > Passkeys to delete and re-add your passkey. This will enable passwordless login.",
                 user_id=None,
                 hashed_email=None,
                 encrypted_email=None,
