@@ -850,12 +850,62 @@ async def handle_preprocessing(
     # For now, if not provided by LLM, we'll set to None (meaning all skills available)
     relevant_app_skills_val = llm_analysis_args.get("relevant_app_skills")
     if relevant_app_skills_val and isinstance(relevant_app_skills_val, list):
-        # Validate that all skill identifiers exist in available_skills_list
-        validated_relevant_skills = [skill for skill in relevant_app_skills_val if skill in available_skills_list]
-        invalid_skills = [skill for skill in relevant_app_skills_val if skill not in available_skills_list]
+        # Build a robust skill name resolver to handle common LLM hallucinations
+        # This mirrors the tool_resolver_map pattern in main_processor.py
+        # Maps hallucinated skill names to valid skill identifiers
+        skill_resolver_map: Dict[str, str] = {}
+        
+        for valid_skill in available_skills_list:
+            # Add exact match
+            skill_resolver_map[valid_skill] = valid_skill
+            
+            # Handle underscore variant: app_skill -> app-skill
+            underscore_variant = valid_skill.replace("-", "_")
+            skill_resolver_map[underscore_variant] = valid_skill
+            
+            # Handle duplicated segment pattern: app-skill-skill -> app-skill
+            # Example: web-search-search -> web-search
+            parts = valid_skill.split("-")
+            if len(parts) >= 2:
+                # Create duplicated variant: web-search -> web-search-search
+                duplicated = f"{valid_skill}-{parts[-1]}"
+                skill_resolver_map[duplicated] = valid_skill
+                
+                # Also handle underscore with duplication: web_search_search -> web-search
+                underscore_duplicated = f"{underscore_variant}_{parts[-1].replace('-', '_')}"
+                skill_resolver_map[underscore_duplicated] = valid_skill
+        
+        logger.debug(f"{log_prefix} Built skill resolver map with {len(skill_resolver_map)} entries for handling hallucinated skill names")
+        
+        # Validate and correct skill identifiers
+        validated_relevant_skills = []
+        corrected_skills = []
+        invalid_skills = []
+        
+        for skill in relevant_app_skills_val:
+            if skill in available_skills_list:
+                # Exact match - no correction needed
+                validated_relevant_skills.append(skill)
+            elif skill in skill_resolver_map:
+                # Hallucinated name that we can correct
+                corrected_skill = skill_resolver_map[skill]
+                validated_relevant_skills.append(corrected_skill)
+                corrected_skills.append(f"{skill} -> {corrected_skill}")
+            else:
+                # Could not resolve - truly invalid
+                invalid_skills.append(skill)
+        
+        # Remove duplicates while preserving order
+        validated_relevant_skills = list(dict.fromkeys(validated_relevant_skills))
+        
+        if corrected_skills:
+            logger.info(
+                f"{log_prefix} Corrected {len(corrected_skills)} hallucinated skill name(s): {corrected_skills}"
+            )
+        
         if invalid_skills:
             logger.warning(
-                f"{log_prefix} LLM returned {len(invalid_skills)} invalid skill identifier(s) that don't exist: {invalid_skills}. "
+                f"{log_prefix} LLM returned {len(invalid_skills)} invalid skill identifier(s) that couldn't be resolved: {invalid_skills}. "
                 f"Filtered out. Available skills: {available_skills_list if available_skills_list else 'None'}. "
                 f"This may indicate that the app for these skills is not discovered or the skill identifier format is incorrect."
             )

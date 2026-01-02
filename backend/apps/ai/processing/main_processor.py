@@ -615,6 +615,9 @@ async def handle_main_processing(
     
     prompt_parts.append(base_instructions.get("follow_up_instruction", ""))
     prompt_parts.append(base_instructions.get("base_link_encouragement_instruction", ""))
+    # Add proactive skill usage instruction to encourage using web search BEFORE answering time-sensitive queries
+    # This ensures the chatbot gathers current information instead of relying on potentially outdated training data
+    prompt_parts.append(base_instructions.get("base_proactive_skill_usage_instruction", ""))
     prompt_parts.append(base_instructions.get("base_url_sourcing_instruction", ""))
     # Add code block formatting instruction to ensure proper language and filename syntax
     # This helps with consistent parsing and rendering of code embeds
