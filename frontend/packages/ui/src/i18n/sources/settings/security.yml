@@ -2354,3 +2354,119 @@ recovery_key_success:
   cs: Klíč pro obnovení byl úspěšně uložen!
   sv: Återställningsnyckel sparad framgångsrikt!
   verified_by_human: []
+
+# Password + 2FA combined setup flow translations
+tfa_setup_required:
+  context: Title when 2FA setup is required after adding password
+  en: Set Up Two-Factor Authentication
+  de: Zwei-Faktor-Authentifizierung einrichten
+  es: Configurar autenticación de dos factores
+  fr: Configurer l'authentification à deux facteurs
+  pt: Configurar autenticação de dois fatores
+  ru: Настройка двухфакторной аутентификации
+  ja: 二要素認証を設定
+  ko: 이중 인증 설정
+  it: Configura l'autenticazione a due fattori
+  tr: İki faktörlü kimlik doğrulamayı ayarla
+  vi: Thiết lập xác thực hai yếu tố
+  id: Atur autentikasi dua faktor
+  pl: Skonfiguruj uwierzytelnianie dwuskładnikowe
+  nl: Tweestapsverificatie instellen
+  ar: إعداد المصادقة الثنائية
+  hi: दो-कारक प्रमाणीकरण सेट करें
+  th: ตั้งค่าการยืนยันตัวตนสองขั้นตอน
+  cs: Nastavit dvoufázové ověření
+  sv: Konfigurera tvåfaktorsautentisering
+  verified_by_human: []
+
+tfa_setup_required_description:
+  context: Description explaining why 2FA is required after adding password
+  en: To complete your password setup, you need to enable two-factor authentication for additional security.
+  de: Um Ihre Passwort-Einrichtung abzuschließen, müssen Sie die Zwei-Faktor-Authentifizierung für zusätzliche Sicherheit aktivieren.
+  es: Para completar la configuración de tu contraseña, necesitas habilitar la autenticación de dos factores para mayor seguridad.
+  fr: Pour terminer la configuration de votre mot de passe, vous devez activer l'authentification à deux facteurs pour une sécurité supplémentaire.
+  pt: Para concluir a configuração da sua senha, você precisa ativar a autenticação de dois fatores para segurança adicional.
+  ru: Чтобы завершить настройку пароля, вам необходимо включить двухфакторную аутентификацию для дополнительной безопасности.
+  ja: パスワードの設定を完了するには、追加のセキュリティのために二要素認証を有効にする必要があります。
+  ko: 비밀번호 설정을 완료하려면 추가 보안을 위해 이중 인증을 활성화해야 합니다.
+  it: Per completare la configurazione della password, devi abilitare l'autenticazione a due fattori per una maggiore sicurezza.
+  tr: Şifre kurulumunuzu tamamlamak için ek güvenlik için iki faktörlü kimlik doğrulamayı etkinleştirmeniz gerekir.
+  vi: Để hoàn tất thiết lập mật khẩu, bạn cần bật xác thực hai yếu tố để tăng cường bảo mật.
+  id: Untuk menyelesaikan pengaturan kata sandi Anda, Anda perlu mengaktifkan autentikasi dua faktor untuk keamanan tambahan.
+  pl: Aby zakończyć konfigurację hasła, musisz włączyć uwierzytelnianie dwuskładnikowe dla dodatkowego bezpieczeństwa.
+  nl: Om uw wachtwoordinstellingen te voltooien, moet u tweestapsverificatie inschakelen voor extra beveiliging.
+  ar: لإكمال إعداد كلمة المرور، تحتاج إلى تمكين المصادقة الثنائية لمزيد من الأمان.
+  hi: अपना पासवर्ड सेटअप पूरा करने के लिए, आपको अतिरिक्त सुरक्षा के लिए दो-कारक प्रमाणीकरण सक्षम करना होगा।
+  th: เพื่อทำการตั้งค่ารหัสผ่านให้เสร็จสมบูรณ์ คุณต้องเปิดใช้งานการยืนยันตัวตนสองขั้นตอนเพื่อความปลอดภัยเพิ่มเติม
+  cs: Pro dokončení nastavení hesla musíte povolit dvoufázové ověření pro další zabezpečení.
+  sv: För att slutföra din lösenordsinställning måste du aktivera tvåfaktorsautentisering för extra säkerhet.
+  verified_by_human: []
+
+password_needs_tfa:
+  context: Info banner explaining that password login requires 2FA
+  en: Password login requires two-factor authentication. Complete the setup below to secure your account.
+  de: Passwort-Anmeldung erfordert Zwei-Faktor-Authentifizierung. Schließen Sie die Einrichtung unten ab, um Ihr Konto zu sichern.
+  es: El inicio de sesión con contraseña requiere autenticación de dos factores. Complete la configuración a continuación para asegurar su cuenta.
+  fr: La connexion par mot de passe nécessite une authentification à deux facteurs. Complétez la configuration ci-dessous pour sécuriser votre compte.
+  pt: O login com senha requer autenticação de dois fatores. Complete a configuração abaixo para proteger sua conta.
+  ru: Вход по паролю требует двухфакторной аутентификации. Завершите настройку ниже, чтобы защитить свою учетную запись.
+  ja: パスワードログインには二要素認証が必要です。以下の設定を完了してアカウントを保護してください。
+  ko: 비밀번호 로그인에는 이중 인증이 필요합니다. 아래 설정을 완료하여 계정을 보호하세요.
+  it: L'accesso con password richiede l'autenticazione a due fattori. Completa la configurazione qui sotto per proteggere il tuo account.
+  tr: Şifre ile giriş, iki faktörlü kimlik doğrulaması gerektirir. Hesabınızı güvence altına almak için aşağıdaki kurulumu tamamlayın.
+  vi: Đăng nhập bằng mật khẩu yêu cầu xác thực hai yếu tố. Hoàn tất thiết lập bên dưới để bảo mật tài khoản của bạn.
+  id: Login dengan kata sandi memerlukan autentikasi dua faktor. Selesaikan pengaturan di bawah untuk mengamankan akun Anda.
+  pl: Logowanie hasłem wymaga uwierzytelniania dwuskładnikowego. Ukończ konfigurację poniżej, aby zabezpieczyć swoje konto.
+  nl: Inloggen met wachtwoord vereist tweestapsverificatie. Voltooi de onderstaande installatie om uw account te beveiligen.
+  ar: يتطلب تسجيل الدخول بكلمة المرور المصادقة الثنائية. أكمل الإعداد أدناه لتأمين حسابك.
+  hi: पासवर्ड लॉगिन के लिए दो-कारक प्रमाणीकरण आवश्यक है। अपना खाता सुरक्षित करने के लिए नीचे सेटअप पूरा करें।
+  th: การเข้าสู่ระบบด้วยรหัสผ่านต้องใช้การยืนยันตัวตนสองขั้นตอน ทำการตั้งค่าด้านล่างให้เสร็จสมบูรณ์เพื่อรักษาความปลอดภัยของบัญชีของคุณ
+  cs: Přihlášení heslem vyžaduje dvoufázové ověření. Dokončete níže uvedené nastavení pro zabezpečení svého účtu.
+  sv: Lösenordsinloggning kräver tvåfaktorsautentisering. Slutför installationen nedan för att säkra ditt konto.
+  verified_by_human: []
+
+password_and_tfa_success:
+  context: Success message after both password and 2FA setup are complete
+  en: Your password and two-factor authentication have been set up successfully. Your account is now fully secured.
+  de: Ihr Passwort und die Zwei-Faktor-Authentifizierung wurden erfolgreich eingerichtet. Ihr Konto ist jetzt vollständig gesichert.
+  es: Tu contraseña y la autenticación de dos factores se han configurado correctamente. Tu cuenta ahora está completamente protegida.
+  fr: Votre mot de passe et l'authentification à deux facteurs ont été configurés avec succès. Votre compte est maintenant entièrement sécurisé.
+  pt: Sua senha e autenticação de dois fatores foram configuradas com sucesso. Sua conta agora está totalmente protegida.
+  ru: Ваш пароль и двухфакторная аутентификация успешно настроены. Ваша учетная запись теперь полностью защищена.
+  ja: パスワードと二要素認証が正常に設定されました。アカウントは完全に保護されています。
+  ko: 비밀번호와 이중 인증이 성공적으로 설정되었습니다. 계정이 이제 완전히 보호됩니다.
+  it: La tua password e l'autenticazione a due fattori sono state configurate con successo. Il tuo account è ora completamente protetto.
+  tr: Şifreniz ve iki faktörlü kimlik doğrulamanız başarıyla ayarlandı. Hesabınız artık tamamen güvende.
+  vi: Mật khẩu và xác thực hai yếu tố của bạn đã được thiết lập thành công. Tài khoản của bạn giờ đã được bảo mật hoàn toàn.
+  id: Kata sandi dan autentikasi dua faktor Anda telah berhasil diatur. Akun Anda sekarang sepenuhnya aman.
+  pl: Twoje hasło i uwierzytelnianie dwuskładnikowe zostały pomyślnie skonfigurowane. Twoje konto jest teraz w pełni zabezpieczone.
+  nl: Uw wachtwoord en tweestapsverificatie zijn succesvol ingesteld. Uw account is nu volledig beveiligd.
+  ar: تم إعداد كلمة المرور والمصادقة الثنائية بنجاح. حسابك الآن مؤمن بالكامل.
+  hi: आपका पासवर्ड और दो-कारक प्रमाणीकरण सफलतापूर्वक सेट हो गए हैं। आपका खाता अब पूरी तरह से सुरक्षित है।
+  th: รหัสผ่านและการยืนยันตัวตนสองขั้นตอนของคุณได้รับการตั้งค่าเรียบร้อยแล้ว บัญชีของคุณได้รับการรักษาความปลอดภัยอย่างสมบูรณ์แล้ว
+  cs: Vaše heslo a dvoufázové ověření byly úspěšně nastaveny. Váš účet je nyní plně zabezpečen.
+  sv: Ditt lösenord och tvåfaktorsautentisering har konfigurerats framgångsrikt. Ditt konto är nu helt säkrat.
+  verified_by_human: []
+
+tfa_required_for_password:
+  context: Error message shown when user cancels 2FA setup during password setup
+  en: Two-factor authentication is required to set up a password. Please complete 2FA setup to continue.
+  de: Die Zwei-Faktor-Authentifizierung ist erforderlich, um ein Passwort einzurichten. Bitte schließen Sie die 2FA-Einrichtung ab, um fortzufahren.
+  es: Se requiere autenticación de dos factores para configurar una contraseña. Por favor, complete la configuración de 2FA para continuar.
+  fr: L'authentification à deux facteurs est requise pour configurer un mot de passe. Veuillez terminer la configuration 2FA pour continuer.
+  pt: A autenticação de dois fatores é necessária para configurar uma senha. Por favor, complete a configuração do 2FA para continuar.
+  ru: Для установки пароля требуется двухфакторная аутентификация. Пожалуйста, завершите настройку 2FA, чтобы продолжить.
+  ja: パスワードを設定するには二要素認証が必要です。続行するには2FA設定を完了してください。
+  ko: 비밀번호를 설정하려면 이중 인증이 필요합니다. 계속하려면 2FA 설정을 완료하세요.
+  it: L'autenticazione a due fattori è necessaria per impostare una password. Completare la configurazione 2FA per continuare.
+  tr: Şifre ayarlamak için iki faktörlü kimlik doğrulama gereklidir. Devam etmek için lütfen 2FA kurulumunu tamamlayın.
+  vi: Xác thực hai yếu tố là bắt buộc để thiết lập mật khẩu. Vui lòng hoàn tất thiết lập 2FA để tiếp tục.
+  id: Autentikasi dua faktor diperlukan untuk mengatur kata sandi. Silakan selesaikan pengaturan 2FA untuk melanjutkan.
+  pl: Uwierzytelnianie dwuskładnikowe jest wymagane do ustawienia hasła. Proszę zakończyć konfigurację 2FA, aby kontynuować.
+  nl: Tweestapsverificatie is vereist om een wachtwoord in te stellen. Voltooi de 2FA-installatie om door te gaan.
+  ar: المصادقة الثنائية مطلوبة لإعداد كلمة مرور. يرجى إكمال إعداد المصادقة الثنائية للمتابعة.
+  hi: पासवर्ड सेट करने के लिए दो-कारक प्रमाणीकरण आवश्यक है। जारी रखने के लिए कृपया 2FA सेटअप पूरा करें।
+  th: ต้องใช้การยืนยันตัวตนสองขั้นตอนเพื่อตั้งค่ารหัสผ่าน กรุณาทำการตั้งค่า 2FA ให้เสร็จสมบูรณ์เพื่อดำเนินการต่อ
+  cs: Pro nastavení hesla je vyžadováno dvoufázové ověření. Pro pokračování prosím dokončete nastavení 2FA.
+  sv: Tvåfaktorsautentisering krävs för att ställa in ett lösenord. Slutför 2FA-installationen för att fortsätta.
+  verified_by_human: []

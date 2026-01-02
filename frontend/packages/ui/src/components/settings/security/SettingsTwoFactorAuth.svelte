@@ -6,6 +6,12 @@ Allows users to:
 
 Note: 2FA CANNOT be disabled once enabled - this is by design for security.
 Users can only change their 2FA app by going through the setup flow again.
+
+Props:
+- autoStartSetup: Skip overview and auth, go directly to setup (used when embedded after password setup)
+- skipAuth: Skip the auth step (user already authenticated in parent flow)
+- onSetupComplete: Callback when 2FA setup is successfully completed
+- embedded: Whether component is embedded in another flow (hides back buttons, modifies layout)
 -->
 
 <script lang="ts">
@@ -18,6 +24,31 @@ Users can only change their 2FA app by going through the setup flow again.
     import * as cryptoService from '../../../services/cryptoService';
     import QRCode from 'qrcode-svg';
     import SecurityAuth from './SecurityAuth.svelte';
+
+    // ========================================================================
+    // PROPS
+    // ========================================================================
+    
+    interface Props {
+        /** Skip overview and go directly to setup (for embedding after password setup) */
+        autoStartSetup?: boolean;
+        /** Skip auth step (user already authenticated in parent flow) */
+        skipAuth?: boolean;
+        /** Callback when 2FA setup is successfully completed */
+        onSetupComplete?: () => void;
+        /** Callback when user cancels 2FA setup (only relevant when embedded) */
+        onCancel?: () => void;
+        /** Whether component is embedded in another flow */
+        embedded?: boolean;
+    }
+    
+    let { 
+        autoStartSetup = false, 
+        skipAuth = false, 
+        onSetupComplete,
+        onCancel,
+        embedded = false 
+    }: Props = $props();
 
     // ========================================================================
     // STATE
@@ -71,6 +102,20 @@ Users can only change their 2FA app by going through the setup flow again.
     
     onMount(async () => {
         await fetchAuthMethods();
+        
+        // If autoStartSetup is enabled, skip overview and go directly to setup
+        // This is used when embedding after password setup where user is already authenticated
+        if (autoStartSetup) {
+            console.log('[SettingsTwoFactorAuth] Auto-starting setup (embedded mode)');
+            if (skipAuth) {
+                // User already authenticated, go directly to setup
+                currentStep = 'setup';
+                await initiate2FASetup();
+            } else {
+                // Need authentication first
+                currentStep = 'auth';
+            }
+        }
     });
 
     // ========================================================================
@@ -354,6 +399,12 @@ Users can only change their 2FA app by going through the setup flow again.
                 currentStep = 'success';
                 successMessage = $text('settings.security.tfa_setup_complete.text');
                 console.log('[SettingsTwoFactorAuth] 2FA setup complete');
+                
+                // Call the completion callback if provided (for embedded mode)
+                if (onSetupComplete) {
+                    console.log('[SettingsTwoFactorAuth] Calling onSetupComplete callback');
+                    onSetupComplete();
+                }
             } else {
                 errorMessage = data.message || $text('settings.security.tfa_confirm_failed.text');
             }
@@ -395,30 +446,6 @@ Users can only change their 2FA app by going through the setup flow again.
         setTimeout(() => {
             showCopiedText = false;
         }, 2000);
-    }
-    
-    /**
-     * Go back to previous step.
-     */
-    function goBack() {
-        switch (currentStep) {
-            case 'auth':
-            case 'success':
-                currentStep = 'overview';
-                break;
-            case 'setup':
-                currentStep = 'overview';
-                break;
-            case 'select-app':
-                currentStep = 'setup';
-                break;
-            case 'backup-codes':
-                currentStep = 'select-app';
-                break;
-            default:
-                currentStep = 'overview';
-        }
-        errorMessage = null;
     }
     
     /**
@@ -553,6 +580,13 @@ Users can only change their 2FA app by going through the setup flow again.
                     {$text('settings.security.tfa_find_apps.text')}
                 </a>
             </div>
+
+            <!-- Cancel button only shown when embedded (e.g., during password setup) -->
+            {#if embedded && onCancel}
+                <button class="btn-cancel" onclick={onCancel}>
+                    {$text('common.cancel.text')}
+                </button>
+            {/if}
         </div>
         
     {:else if currentStep === 'select-app'}
@@ -591,6 +625,13 @@ Users can only change their 2FA app by going through the setup flow again.
                 {/if}
                 {$text('common.continue.text')}
             </button>
+
+            <!-- Cancel button only shown when embedded -->
+            {#if embedded && onCancel}
+                <button class="btn-cancel" onclick={onCancel}>
+                    {$text('common.cancel.text')}
+                </button>
+            {/if}
         </div>
         
     {:else if currentStep === 'backup-codes'}
@@ -644,9 +685,12 @@ Users can only change their 2FA app by going through the setup flow again.
             <h3>{$text('settings.security.tfa_setup_complete.text')}</h3>
             <p class="description">{$text('settings.security.tfa_setup_complete_description.text')}</p>
             
-            <button class="btn-primary" onclick={returnToOverview}>
-                {$text('common.done.text')}
-            </button>
+            <!-- Only show done button when not embedded - parent handles navigation in embedded mode -->
+            {#if !embedded}
+                <button class="btn-primary" onclick={returnToOverview}>
+                    {$text('common.done.text')}
+                </button>
+            {/if}
         </div>
         
     {/if}
@@ -726,23 +770,6 @@ Users can only change their 2FA app by going through the setup flow again.
         color: var(--color-grey-60);
         text-align: center;
         margin: 0;
-    }
-
-    .back-btn {
-        align-self: flex-start;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        background: none;
-        border: none;
-        color: var(--color-grey-70);
-        cursor: pointer;
-        padding: 8px 0;
-        font-size: 14px;
-    }
-
-    .back-btn:hover {
-        color: var(--color-grey-100);
     }
 
     h3 {
@@ -1010,6 +1037,24 @@ Users can only change their 2FA app by going through the setup flow again.
 
     .btn-secondary:hover {
         background: var(--color-grey-30);
+    }
+
+    .btn-cancel {
+        padding: 12px 24px;
+        background: transparent;
+        border: 1px solid var(--color-grey-40);
+        border-radius: 8px;
+        font-size: 14px;
+        color: var(--color-grey-70);
+        cursor: pointer;
+        transition: all 0.2s;
+        margin-top: 8px;
+    }
+
+    .btn-cancel:hover {
+        background: var(--color-grey-10);
+        border-color: var(--color-grey-50);
+        color: var(--color-grey-90);
     }
 
     /* Messages */

@@ -55,23 +55,35 @@ User must:
 
 Only when BOTH conditions are met can the "Reset account" button be clicked.
 
-### Step 3: Account Reset Execution
+### Step 3: Verify Code
 
-When reset is triggered:
-1. Verify code is valid
-2. Delete all client-encrypted data (chats, settings, memories, embeds)
-3. Clear all encryption keys and passkeys
-4. Invalidate all sessions
-5. Show login method setup (password)
+Server verifies the code and returns a one-time verification token (valid for 10 minutes).
 
-### Step 4: Set Up New Login
+### Step 4: Select Login Method
 
-User sets up new login credentials:
-- **Password** - new password for the account
+User chooses between:
+- **Passkey** (Recommended) - Register a new passkey with PRF extension
+- **Password** - Set up a new password
 
-After setup, user is logged in but with a fresh account (preserved data only).
+### Step 5: Set Up New Credentials
 
-**Note**: Passkey setup during account recovery is not supported. Users can add a passkey later via account settings after logging in with their new password.
+#### Passkey Flow
+1. WebAuthn registration is initiated with PRF extension
+2. New master key is generated
+3. Master key is wrapped with PRF-derived key
+4. Account is reset (all client-encrypted data deleted)
+5. New encryption keys and passkey are stored
+6. User is logged in
+
+#### Password Flow
+1. User enters new password (+ confirmation)
+2. New master key is generated
+3. Master key is wrapped with password-derived key
+4. Account is reset (all client-encrypted data deleted)
+5. New encryption key is stored
+6. User is logged in
+
+**Note on 2FA**: If 2FA was previously configured, the encrypted 2FA secret is preserved server-side (vault encrypted). Users will be prompted for 2FA on their next login.
 
 ## Data Preservation
 

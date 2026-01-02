@@ -2,6 +2,15 @@
 SettingsPassword - Password Management Settings
 Allows users to add a new password (for passkey users) or change existing password.
 Requires authentication (passkey or current password) before allowing password changes.
+
+IMPORTANT SECURITY FLOW:
+Password and 2FA must ALWAYS be set together. The flow is:
+1. User enters new password
+2. If user doesn't have 2FA, they MUST complete 2FA setup BEFORE password is saved
+3. Password is only saved to server AFTER 2FA setup is confirmed
+4. If user cancels 2FA setup, password is NOT saved - both must succeed together
+
+This ensures users can never have a password without 2FA enabled.
 -->
 
 <script lang="ts">
@@ -11,6 +20,7 @@ Requires authentication (passkey or current password) before allowing password c
     import * as cryptoService from '../../../services/cryptoService';
     import { getMasterKeyFromIndexedDB } from '../../../services/cryptoKeyStorage';
     import SecurityAuth from './SecurityAuth.svelte';
+    import SettingsTwoFactorAuth from './SettingsTwoFactorAuth.svelte';
 
     // ========================================================================
     // STATE
@@ -25,8 +35,14 @@ Requires authentication (passkey or current password) before allowing password c
     /** Whether user has 2FA enabled */
     let has2FA = $state(false);
     
-    /** Current step in the password change process */
-    let currentStep = $state<'loading' | 'auth' | 'form' | 'success'>('loading');
+    /** Current step in the password change process
+     * - loading: Initial loading state
+     * - auth: Authentication required before changes
+     * - form: Password entry form
+     * - tfa-setup: 2FA setup (required after adding new password if 2FA not enabled)
+     * - success: Final success state
+     */
+    let currentStep = $state<'loading' | 'auth' | 'form' | 'tfa-setup' | 'success'>('loading');
     
     /** Loading state for initial data fetch */
     let isLoading = $state(true);
@@ -45,6 +61,21 @@ Requires authentication (passkey or current password) before allowing password c
     let confirmPassword = $state('');
     let passwordStrengthError = $state('');
     let showPasswordStrengthWarning = $state(false);
+
+    /**
+     * Pending password data - stored when 2FA setup is required.
+     * Password is NOT saved to server until 2FA setup completes.
+     * This ensures password and 2FA are always set together.
+     */
+    interface PendingPasswordData {
+        hashedEmail: string;
+        lookupHash: string;
+        encryptedMasterKey: string;
+        salt: string;
+        keyIv: string;
+        isNewPassword: boolean;
+    }
+    let pendingPasswordData = $state<PendingPasswordData | null>(null);
 
     // ========================================================================
     // COMPUTED
@@ -197,8 +228,9 @@ Requires authentication (passkey or current password) before allowing password c
     }
 
     /**
-     * Submit new password.
-     * Creates new encryption key with password-derived wrapping.
+     * Prepare password data and check if 2FA setup is required.
+     * If 2FA is not set up, stores password data as pending and redirects to 2FA setup.
+     * Password is ONLY saved after 2FA setup completes (if 2FA was needed).
      */
     async function submitPassword() {
         if (!isFormValid || isSubmitting) {
@@ -243,18 +275,55 @@ Requires authentication (passkey or current password) before allowing password c
             // Generate lookup hash from new password (for authentication)
             const lookupHash = await cryptoService.hashKey(newPassword, emailSalt);
 
-            // Call backend to update/add password
+            // Prepare password data
+            const passwordData: PendingPasswordData = {
+                hashedEmail,
+                lookupHash,
+                encryptedMasterKey,
+                salt: passwordSaltB64,
+                keyIv,
+                isNewPassword: !hasPassword
+            };
+
+            // Check if 2FA setup is required BEFORE saving password
+            // Password and 2FA must ALWAYS be set together
+            if (!has2FA) {
+                console.log('[SettingsPassword] 2FA not set up, storing password data pending and starting 2FA setup');
+                // Store password data - will be saved only after 2FA setup completes
+                pendingPasswordData = passwordData;
+                // Transition to 2FA setup step
+                currentStep = 'tfa-setup';
+            } else {
+                // User already has 2FA, safe to save password immediately
+                console.log('[SettingsPassword] 2FA already enabled, saving password directly');
+                await savePasswordToServer(passwordData);
+            }
+
+        } catch (error) {
+            console.error('[SettingsPassword] Error preparing password:', error);
+            errorMessage = error instanceof Error ? error.message : 'Failed to prepare password';
+        } finally {
+            isSubmitting = false;
+        }
+    }
+
+    /**
+     * Save password data to server.
+     * Called directly if 2FA is already set up, or after 2FA setup completes.
+     */
+    async function savePasswordToServer(passwordData: PendingPasswordData) {
+        try {
             const response = await fetch(getApiEndpoint(apiEndpoints.settings.updatePassword), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 credentials: 'include',
                 body: JSON.stringify({
-                    hashed_email: hashedEmail,
-                    lookup_hash: lookupHash,
-                    encrypted_master_key: encryptedMasterKey,
-                    salt: passwordSaltB64,
-                    key_iv: keyIv,
-                    is_new_password: !hasPassword
+                    hashed_email: passwordData.hashedEmail,
+                    lookup_hash: passwordData.lookupHash,
+                    encrypted_master_key: passwordData.encryptedMasterKey,
+                    salt: passwordData.salt,
+                    key_iv: passwordData.keyIv,
+                    is_new_password: passwordData.isNewPassword
                 })
             });
 
@@ -268,21 +337,20 @@ Requires authentication (passkey or current password) before allowing password c
                 throw new Error(data.message || 'Password update failed');
             }
 
-            // Success!
-            console.log('[SettingsPassword] Password updated successfully');
-            successMessage = hasPassword 
-                ? $text('settings.security.password_changed_success.text')
-                : $text('settings.security.password_added_success.text');
-            currentStep = 'success';
+            console.log('[SettingsPassword] Password saved to server successfully');
             
             // Update local state
             hasPassword = true;
+            
+            // Show success
+            successMessage = passwordData.isNewPassword 
+                ? $text('settings.security.password_added_success.text')
+                : $text('settings.security.password_changed_success.text');
+            currentStep = 'success';
 
         } catch (error) {
-            console.error('[SettingsPassword] Error updating password:', error);
-            errorMessage = error instanceof Error ? error.message : 'Failed to update password';
-        } finally {
-            isSubmitting = false;
+            console.error('[SettingsPassword] Error saving password to server:', error);
+            throw error;
         }
     }
 
@@ -297,6 +365,51 @@ Requires authentication (passkey or current password) before allowing password c
         errorMessage = null;
         successMessage = null;
         currentStep = 'auth';
+    }
+
+    /**
+     * Handle 2FA setup completion.
+     * Called when the embedded SettingsTwoFactorAuth component completes setup.
+     * NOW we can save the pending password data since 2FA is confirmed.
+     */
+    async function handleTfaSetupComplete() {
+        console.log('[SettingsPassword] 2FA setup complete');
+        has2FA = true;
+
+        // Now save the pending password data
+        if (pendingPasswordData) {
+            console.log('[SettingsPassword] Saving pending password data after 2FA setup');
+            try {
+                await savePasswordToServer(pendingPasswordData);
+                // Clear pending data
+                pendingPasswordData = null;
+                // Success message is set by savePasswordToServer, but override for combined success
+                successMessage = $text('settings.security.password_and_tfa_success.text');
+            } catch (error) {
+                console.error('[SettingsPassword] Failed to save password after 2FA setup:', error);
+                errorMessage = error instanceof Error ? error.message : 'Failed to save password';
+                // Stay on current step to show error
+                // User might need to try again
+            }
+        } else {
+            console.error('[SettingsPassword] No pending password data after 2FA setup - this should not happen');
+            successMessage = $text('settings.security.tfa_setup_complete.text');
+            currentStep = 'success';
+        }
+    }
+
+    /**
+     * Handle 2FA setup cancellation.
+     * Password is NOT saved - user must complete both password and 2FA together.
+     */
+    function handleTfaSetupCancel() {
+        console.log('[SettingsPassword] 2FA setup cancelled, discarding pending password data');
+        // Clear pending password data - password will NOT be saved
+        pendingPasswordData = null;
+        // Show a message explaining why we're going back
+        errorMessage = $text('settings.security.tfa_required_for_password.text');
+        // Go back to password form
+        currentStep = 'form';
     }
 </script>
 
@@ -413,6 +526,29 @@ Requires authentication (passkey or current password) before allowing password c
                         : $text('settings.security.add_password_button.text')}
                 </button>
             </div>
+        </div>
+    {:else if currentStep === 'tfa-setup'}
+        <!-- 2FA Setup Step - Required after adding new password -->
+        <div class="tfa-setup-step">
+            <div class="step-header">
+                <h2>{$text('settings.security.tfa_setup_required.text')}</h2>
+                <p class="description">{$text('settings.security.tfa_setup_required_description.text')}</p>
+            </div>
+
+            <div class="tfa-info-banner">
+                <div class="info-icon">🔐</div>
+                <p>{$text('settings.security.password_needs_tfa.text')}</p>
+            </div>
+
+            <!-- Embedded 2FA setup component - auto-starts setup, skips auth (already authenticated) -->
+            <!-- If user cancels, password is NOT saved - both must be set together -->
+            <SettingsTwoFactorAuth
+                autoStartSetup={true}
+                skipAuth={true}
+                embedded={true}
+                onSetupComplete={handleTfaSetupComplete}
+                onCancel={handleTfaSetupCancel}
+            />
         </div>
     {:else if currentStep === 'success'}
         <!-- Success Step -->
@@ -649,20 +785,6 @@ Requires authentication (passkey or current password) before allowing password c
         cursor: not-allowed;
     }
 
-    .cancel-link {
-        background: none;
-        border: none;
-        color: var(--color-grey-60);
-        font-size: 14px;
-        cursor: pointer;
-        padding: 8px;
-        text-align: center;
-    }
-
-    .cancel-link:hover {
-        color: var(--color-grey-80);
-    }
-
     .success-step {
         display: flex;
         flex-direction: column;
@@ -710,6 +832,40 @@ Requires authentication (passkey or current password) before allowing password c
 
     .done-btn:hover {
         background: var(--color-grey-30);
+    }
+
+    /* 2FA Setup Step */
+    .tfa-setup-step {
+        display: flex;
+        flex-direction: column;
+        gap: 24px;
+    }
+
+    .tfa-info-banner {
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        padding: 16px;
+        background: var(--color-primary-light);
+        border: 1px solid var(--color-primary);
+        border-radius: 8px;
+    }
+
+    .tfa-info-banner .info-icon {
+        font-size: 24px;
+        line-height: 1;
+    }
+
+    .tfa-info-banner p {
+        color: var(--color-grey-90);
+        font-size: 14px;
+        line-height: 1.5;
+        margin: 0;
+    }
+
+    /* Style adjustments for embedded 2FA component */
+    .tfa-setup-step :global(.tfa-settings) {
+        padding: 0;
     }
 
     /* Hide auth modal from SecurityAuth when in auth step - we don't want overlay */
