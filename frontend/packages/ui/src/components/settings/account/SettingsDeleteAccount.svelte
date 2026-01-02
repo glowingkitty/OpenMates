@@ -148,7 +148,16 @@ Delete Account Settings - Component for deleting user account with preview, conf
      * Note: Currently only passkey authentication is supported for account deletion.
      */
     function startDeletion() {
-        if (!canProceed) return;
+        // CRITICAL: Prevent deletion if confirmation toggle is not checked
+        if (!confirmDataDeletion) {
+            console.log('[SettingsDeleteAccount] Deletion blocked - confirmation toggle not checked');
+            return;
+        }
+        
+        if (!canProceed) {
+            console.log('[SettingsDeleteAccount] Deletion blocked - canProceed is false');
+            return;
+        }
         
         // Check if user has passkey set up (required for account deletion)
         if (!hasPasskey) {
@@ -460,7 +469,8 @@ Delete Account Settings - Component for deleting user account with preview, conf
     <!-- Delete Button - disabled when confirmation toggle is off or deletion is in progress -->
     <div class="action-buttons">
         <button
-            class:button-disabled={!confirmDataDeletion || isLoadingDeletion}
+            class="delete-button"
+            class:disabled={!confirmDataDeletion || isLoadingDeletion}
             onclick={startDeletion}
             disabled={!confirmDataDeletion || isLoadingDeletion}
         >
@@ -591,7 +601,7 @@ Delete Account Settings - Component for deleting user account with preview, conf
     }
 
     .delete-button:disabled,
-    .delete-button.button-disabled {
+    .delete-button.disabled {
         opacity: 0.4 !important;
         cursor: not-allowed !important;
         background: var(--color-grey-50) !important;
