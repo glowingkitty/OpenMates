@@ -14,7 +14,12 @@
      * 2. Enter verification code + Confirm data loss via Toggle
      * 3. Verify code with backend (get verification token)
      * 4. Select login method (password or passkey)
-     * 5. Set up new credentials and complete reset
+     * 5. Set up new credentials and complete reset:
+     *    - Password: Set up new password (2FA config is preserved server-side)
+     *    - Passkey: Register new passkey with PRF extension
+     * 
+     * The new login method creates a new master encryption key and wraps it
+     * appropriately (password-derived key or PRF-derived key).
      */
     import { text } from '@repo/ui';
     import { createEventDispatcher, onMount } from 'svelte';
@@ -26,14 +31,15 @@
     import * as cryptoService from '../services/cryptoService';
     import { checkAuth } from '../stores/authStore';
     import { userDB } from '../services/userDB';
+    import { generateDeviceName } from '../utils/deviceName';
     
     const dispatch = createEventDispatcher();
     
     // Props - email is passed from the login form
     let { email: initialEmail = '' }: { email?: string } = $props();
     
-    // Step states
-    type RecoveryStep = 'code' | 'setup' | 'password' | 'complete';
+    // Step states - 'passkey' step added for passkey registration
+    type RecoveryStep = 'code' | 'setup' | 'password' | 'passkey' | 'complete';
     let currentStep = $state<RecoveryStep>('code');
     
     // Form data
@@ -46,9 +52,11 @@
     let isRequestingCode = $state(false);
     let isVerifying = $state(false);
     let isSettingUp = $state(false);
+    let isRegisteringPasskey = $state(false);
     
     // Error states
     let codeError = $state('');
+    let passkeyError = $state('');
     
     // Auto-request the code when component mounts
     onMount(() => {
@@ -62,6 +70,45 @@
         verificationCode.length === 6 && acknowledgeDataLoss && !isVerifying
     );
     
+    // ============================================================================
+    // Helper Functions for WebAuthn
+    // ============================================================================
+    
+    /**
+     * Converts ArrayBuffer to base64url (WebAuthn format)
+     */
+    function arrayBufferToBase64Url(buffer: ArrayBuffer): string {
+        const bytes = new Uint8Array(buffer);
+        let binary = '';
+        for (let i = 0; i < bytes.byteLength; i++) {
+            binary += String.fromCharCode(bytes[i]);
+        }
+        return window.btoa(binary)
+            .replace(/\+/g, '-')
+            .replace(/\//g, '_')
+            .replace(/=/g, '');
+    }
+    
+    /**
+     * Converts base64url to ArrayBuffer (WebAuthn format)
+     */
+    function base64UrlToArrayBuffer(base64url: string): ArrayBuffer {
+        let base64 = base64url.replace(/-/g, '+').replace(/_/g, '/');
+        while (base64.length % 4) {
+            base64 += '=';
+        }
+        const binary = window.atob(base64);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) {
+            bytes[i] = binary.charCodeAt(i);
+        }
+        return bytes.buffer;
+    }
+    
+    // ============================================================================
+    // Code Request and Verification
+    // ============================================================================
+    
     /**
      * Request reset code to be sent to email
      * Handles rate limiting (429) responses with clear user feedback
@@ -73,7 +120,6 @@
         
         try {
             // Get dark mode setting from localStorage or system preference
-            // This matches the approach used in other components like Basics.svelte
             const prefersDarkMode = window.matchMedia && 
                 window.matchMedia('(prefers-color-scheme: dark)').matches;
             const darkModeEnabled = localStorage.getItem('darkMode') === 'true' || prefersDarkMode;
@@ -102,7 +148,6 @@
             }
             
             // Always show success message to prevent email enumeration
-            // (even for non-429 error responses, to avoid revealing account existence)
             notificationStore.success(
                 $text('login.recovery_code_sent.text'),
                 6000
@@ -151,12 +196,16 @@
             }
         } catch (error) {
             console.error('Error verifying code:', error);
-            codeError = $text('login.error_occurred.text') || 'An error occurred. Please try again.';
+            codeError = $text('login.error_occurred.text');
             notificationStore.error(codeError, 5000);
         } finally {
             isVerifying = false;
         }
     }
+    
+    // ============================================================================
+    // Login Method Selection
+    // ============================================================================
     
     /**
      * Handle login method selection
@@ -167,19 +216,42 @@
         if (method === 'password') {
             currentStep = 'password';
         } else if (method === 'passkey') {
-            // For account recovery, we recommend password first for simplicity
-            // Passkey can be added later via settings
-            notificationStore.info(
-                $text('login.passkey_after_reset.text') || 
-                'For security, please set up a password first. You can add a passkey in settings after login.',
-                8000
-            );
-            currentStep = 'password';
+            // Start passkey registration immediately
+            registerPasskey();
         }
+    }
+    
+    // ============================================================================
+    // Password Reset Flow
+    // ============================================================================
+    
+    // Password setup state
+    let newPassword = $state('');
+    let confirmPassword = $state('');
+    let passwordError = $state('');
+    
+    /**
+     * Submit password setup
+     */
+    async function submitPassword() {
+        passwordError = '';
+        
+        if (newPassword.length < 8) {
+            passwordError = $text('signup.password_too_short.text');
+            return;
+        }
+        
+        if (newPassword !== confirmPassword) {
+            passwordError = $text('signup.passwords_do_not_match.text');
+            return;
+        }
+        
+        await resetWithPassword(newPassword);
     }
     
     /**
      * Reset account and set up password login
+     * Generates new master key, wraps with password-derived key, and resets account
      */
     async function resetWithPassword(password: string) {
         if (isSettingUp || !verificationToken) return;
@@ -263,15 +335,7 @@
                 await checkAuth(undefined, true);
                 dispatch('resetComplete', { username: data.username });
             } else {
-                codeError = data.message || 'Failed to reset account. Please try again.';
-                notificationStore.error(codeError, 6000);
-                
-                // If token expired, go back to code step
-                if (data.error_code === 'TOKEN_EXPIRED' || data.error_code === 'INVALID_TOKEN') {
-                    currentStep = 'code';
-                    verificationToken = '';
-                    verificationCode = '';
-                }
+                handleResetError(data);
             }
         } catch (error) {
             console.error('Error resetting account with password:', error);
@@ -284,6 +348,362 @@
         }
     }
     
+    // ============================================================================
+    // Passkey Registration Flow
+    // ============================================================================
+    
+    /**
+     * Register a new passkey for account recovery
+     * This is similar to the signup passkey flow in SecureAccountTopContent.svelte
+     * but uses the recovery endpoint instead of the signup endpoint
+     */
+    async function registerPasskey() {
+        if (isRegisteringPasskey || !verificationToken) return;
+        
+        isRegisteringPasskey = true;
+        passkeyError = '';
+        currentStep = 'passkey';
+        
+        try {
+            // Generate hashed email for lookup
+            const hashedEmail = await cryptoService.hashEmail(email);
+            
+            // Step 1: Initiate passkey registration with backend
+            // For recovery, we use a special mode that doesn't require existing authentication
+            const initiateResponse = await fetch(getApiEndpoint(apiEndpoints.auth.passkey_registration_initiate), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    hashed_email: hashedEmail,
+                    user_id: null, // No existing user session for recovery
+                    username: null, // Username will be fetched from server
+                    recovery_mode: true // Indicate this is for account recovery
+                }),
+                credentials: 'include'
+            });
+            
+            if (!initiateResponse.ok) {
+                const errorData = await initiateResponse.json();
+                console.error('Passkey registration initiation failed:', errorData);
+                passkeyError = errorData?.message || 'Failed to start passkey registration. Please try again.';
+                notificationStore.error(passkeyError, 8000);
+                currentStep = 'setup';
+                isRegisteringPasskey = false;
+                return;
+            }
+            
+            const initiateData = await initiateResponse.json();
+            
+            if (!initiateData.success) {
+                console.error('Passkey registration initiation failed:', initiateData.message);
+                passkeyError = initiateData.message || 'Failed to start passkey registration. Please try again.';
+                notificationStore.error(passkeyError, 8000);
+                currentStep = 'setup';
+                isRegisteringPasskey = false;
+                return;
+            }
+            
+            // Step 2: Prepare WebAuthn creation options
+            const challenge = base64UrlToArrayBuffer(initiateData.challenge);
+            const userId = base64UrlToArrayBuffer(initiateData.user.id);
+            
+            const publicKeyCredentialCreationOptions: PublicKeyCredentialCreationOptions = {
+                challenge: challenge,
+                rp: initiateData.rp,
+                user: {
+                    id: userId,
+                    name: initiateData.user.name,
+                    displayName: initiateData.user.displayName
+                },
+                pubKeyCredParams: initiateData.pubKeyCredParams,
+                timeout: initiateData.timeout,
+                attestation: initiateData.attestation as AttestationConveyancePreference,
+                authenticatorSelection: initiateData.authenticatorSelection,
+                extensions: {
+                    prf: {
+                        eval: {
+                            first: base64UrlToArrayBuffer(initiateData.extensions?.prf?.eval?.first || initiateData.challenge)
+                        }
+                    }
+                } as AuthenticationExtensionsClientInputs
+            };
+            
+            // Step 3: Create passkey using WebAuthn API
+            let credential: PublicKeyCredential;
+            try {
+                credential = await navigator.credentials.create({
+                    publicKey: publicKeyCredentialCreationOptions
+                }) as PublicKeyCredential;
+            } catch (error: any) {
+                console.error('[AccountRecovery] WebAuthn credential creation failed:', error);
+                
+                // Check if it's a PRF-related error
+                if (error.name === 'NotSupportedError' || 
+                    error.message?.includes('PRF') || 
+                    error.message?.includes('prf') ||
+                    error.message?.toLowerCase().includes('extension')) {
+                    passkeyError = $text('signup.passkey_prf_not_supported.text');
+                    notificationStore.error(passkeyError, 10000);
+                    currentStep = 'setup';
+                    isRegisteringPasskey = false;
+                    return;
+                }
+                
+                // Check for user cancellation
+                if (error.name === 'NotAllowedError') {
+                    console.log('[AccountRecovery] User cancelled passkey creation');
+                    currentStep = 'setup';
+                    isRegisteringPasskey = false;
+                    return;
+                }
+                
+                // Other errors
+                passkeyError = 'Failed to create passkey. Please try again.';
+                notificationStore.error(passkeyError, 8000);
+                currentStep = 'setup';
+                isRegisteringPasskey = false;
+                return;
+            }
+            
+            if (!credential || !(credential instanceof PublicKeyCredential)) {
+                console.error('Invalid credential created');
+                passkeyError = 'Failed to create passkey - invalid response. Please try again.';
+                notificationStore.error(passkeyError, 8000);
+                currentStep = 'setup';
+                isRegisteringPasskey = false;
+                return;
+            }
+            
+            const response = credential.response as AuthenticatorAttestationResponse;
+            
+            // Step 4: Check PRF extension support (CRITICAL for zero-knowledge encryption)
+            const clientExtensionResults = credential.getClientExtensionResults();
+            console.log('[AccountRecovery] Client extension results:', clientExtensionResults);
+            const prfResults = clientExtensionResults?.prf as any;
+            console.log('[AccountRecovery] PRF results:', prfResults);
+            
+            // Validate PRF results
+            if (!prfResults) {
+                console.error('[AccountRecovery] PRF extension not found in client extension results');
+                passkeyError = $text('signup.passkey_prf_not_supported.text') || 
+                    'Your device does not support the required passkey security features. Please use password instead.';
+                notificationStore.error(passkeyError, 10000);
+                currentStep = 'setup';
+                isRegisteringPasskey = false;
+                return;
+            }
+            
+            if (prfResults.enabled === false) {
+                console.error('[AccountRecovery] PRF extension explicitly disabled');
+                passkeyError = $text('signup.passkey_prf_not_supported.text') || 
+                    'Your device does not support the required passkey security features. Please use password instead.';
+                notificationStore.error(passkeyError, 10000);
+                currentStep = 'setup';
+                isRegisteringPasskey = false;
+                return;
+            }
+            
+            // Extract PRF signature
+            const prfSignatureBuffer = prfResults.results?.first;
+            if (!prfSignatureBuffer) {
+                console.error('[AccountRecovery] PRF signature not found in results');
+                passkeyError = $text('signup.passkey_prf_not_supported.text') || 
+                    'Your device does not support the required passkey security features. Please use password instead.';
+                notificationStore.error(passkeyError, 10000);
+                currentStep = 'setup';
+                isRegisteringPasskey = false;
+                return;
+            }
+            
+            // Convert PRF signature to Uint8Array - handle multiple formats
+            let prfSignature: Uint8Array;
+            if (typeof prfSignatureBuffer === 'string') {
+                console.log('[AccountRecovery] PRF signature is hex string, converting to Uint8Array');
+                const hexString = prfSignatureBuffer;
+                prfSignature = new Uint8Array(hexString.match(/.{1,2}/g)!.map(byte => parseInt(byte, 16)));
+            } else if (prfSignatureBuffer instanceof ArrayBuffer) {
+                console.log('[AccountRecovery] PRF signature is ArrayBuffer, converting to Uint8Array');
+                prfSignature = new Uint8Array(prfSignatureBuffer);
+            } else if (ArrayBuffer.isView(prfSignatureBuffer)) {
+                console.log('[AccountRecovery] PRF signature is TypedArray, converting to Uint8Array');
+                prfSignature = new Uint8Array(prfSignatureBuffer.buffer, prfSignatureBuffer.byteOffset, prfSignatureBuffer.byteLength);
+            } else {
+                console.error('[AccountRecovery] PRF signature is in unknown format');
+                passkeyError = 'Unexpected error during passkey creation. Please try again.';
+                notificationStore.error(passkeyError, 8000);
+                currentStep = 'setup';
+                isRegisteringPasskey = false;
+                return;
+            }
+            
+            // Validate PRF signature length
+            if (prfSignature.length < 16 || prfSignature.length > 64) {
+                console.error('[AccountRecovery] PRF signature has invalid length:', prfSignature.length);
+                passkeyError = 'Unexpected error during passkey creation. Please try again.';
+                notificationStore.error(passkeyError, 8000);
+                currentStep = 'setup';
+                isRegisteringPasskey = false;
+                return;
+            }
+            
+            console.log('[AccountRecovery] PRF signature validated successfully', {
+                length: prfSignature.length,
+                enabled: prfResults.enabled,
+                firstBytes: Array.from(prfSignature.slice(0, 4))
+            });
+            
+            // Step 5: Generate master key and email salt
+            const masterKey = await cryptoService.generateExtractableMasterKey();
+            const emailSalt = cryptoService.generateEmailSalt();
+            const emailSaltB64 = cryptoService.uint8ArrayToBase64(emailSalt);
+            
+            // Step 6: Derive wrapping key from PRF signature using HKDF
+            const wrappingKey = await cryptoService.deriveWrappingKeyFromPRF(prfSignature, emailSalt);
+            
+            // Step 7: Wrap the master key for server storage
+            const { wrapped: encryptedMasterKey, iv: keyIv } = await cryptoService.encryptKey(masterKey, wrappingKey);
+            
+            // Step 8: Save master key
+            await cryptoService.saveKeyToSession(masterKey, true);
+            
+            // Step 9: Generate lookup hash from PRF signature (for authentication)
+            const lookupHash = await cryptoService.hashKeyFromPRF(prfSignature, emailSalt);
+            
+            // Step 10: Derive email encryption key
+            const emailEncryptionKey = await cryptoService.deriveEmailEncryptionKey(email, emailSalt);
+            
+            // Step 11: Store email encryption key and salt
+            cryptoService.saveEmailEncryptionKey(emailEncryptionKey, true);
+            cryptoService.saveEmailSalt(emailSalt, true);
+            
+            // Step 12: Encrypt email for server storage
+            const encryptedEmailForServer = await cryptoService.encryptEmail(email, emailEncryptionKey);
+            
+            // Step 13: Encrypt email with master key for passwordless login
+            const { encryptWithMasterKeyDirect } = await import('../services/cryptoService');
+            const encryptedEmailWithMasterKey = await encryptWithMasterKeyDirect(email, masterKey);
+            if (!encryptedEmailWithMasterKey) {
+                console.error('Failed to encrypt email with master key');
+                passkeyError = 'Failed to encrypt your data. Please try again.';
+                notificationStore.error(passkeyError, 8000);
+                currentStep = 'setup';
+                isRegisteringPasskey = false;
+                return;
+            }
+            
+            // Step 14: Generate and encrypt device name
+            const deviceName = generateDeviceName();
+            const encryptedDeviceName = await encryptWithMasterKeyDirect(deviceName, masterKey);
+            
+            // Step 15: Save email encrypted with master key for client storage
+            const emailStoredSuccessfully = await cryptoService.saveEmailEncryptedWithMasterKey(email, true);
+            if (!emailStoredSuccessfully) {
+                console.error('Failed to store encrypted email');
+                passkeyError = 'Failed to store encrypted data. Please try again.';
+                notificationStore.error(passkeyError, 8000);
+                currentStep = 'setup';
+                isRegisteringPasskey = false;
+                return;
+            }
+            
+            // Step 16: Extract credential data for backend
+            const credentialId = arrayBufferToBase64Url(credential.rawId);
+            const clientDataJSONB64 = cryptoService.uint8ArrayToBase64(new Uint8Array(response.clientDataJSON));
+            const attestationObject = new Uint8Array(response.attestationObject);
+            const attestationObjectB64 = cryptoService.uint8ArrayToBase64(attestationObject);
+            const authenticatorData = attestationObject.slice(0, 37);
+            const authenticatorDataB64 = cryptoService.uint8ArrayToBase64(authenticatorData);
+            
+            // Step 17: Call the recovery reset endpoint with passkey credential
+            const resetResponse = await fetch(getApiEndpoint(apiEndpoints.auth.recovery_full_reset), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    email: email,
+                    verification_token: verificationToken,
+                    acknowledge_data_loss: true,
+                    new_login_method: 'passkey',
+                    hashed_email: hashedEmail,
+                    encrypted_email: encryptedEmailForServer,
+                    encrypted_email_with_master_key: encryptedEmailWithMasterKey,
+                    user_email_salt: emailSaltB64,
+                    lookup_hash: lookupHash,
+                    encrypted_master_key: encryptedMasterKey,
+                    salt: emailSaltB64, // Same as user_email_salt for passkeys
+                    key_iv: keyIv,
+                    // Passkey-specific credential data
+                    passkey_credential: {
+                        credential_id: credentialId,
+                        attestation_response: {
+                            attestationObject: attestationObjectB64,
+                            publicKey: {}
+                        },
+                        client_data_json: clientDataJSONB64,
+                        authenticator_data: authenticatorDataB64,
+                        encrypted_device_name: encryptedDeviceName || null,
+                        prf_enabled: true
+                    }
+                }),
+                credentials: 'include'
+            });
+            
+            const resetData = await resetResponse.json();
+            
+            if (resetData.success) {
+                // Store login method
+                await userDB.init();
+                await userDB.updateUserData({ login_method: 'passkey' });
+                
+                notificationStore.success(
+                    $text('login.account_reset_success.text'),
+                    5000
+                );
+                
+                currentStep = 'complete';
+                
+                // Check auth and redirect
+                await checkAuth(undefined, true);
+                dispatch('resetComplete', { username: resetData.username });
+            } else {
+                handleResetError(resetData);
+            }
+            
+        } catch (error) {
+            console.error('Error registering passkey:', error);
+            passkeyError = 'An unexpected error occurred. Please try again.';
+            notificationStore.error(passkeyError, 8000);
+            currentStep = 'setup';
+        } finally {
+            isRegisteringPasskey = false;
+        }
+    }
+    
+    // ============================================================================
+    // Error Handling
+    // ============================================================================
+    
+    /**
+     * Handle reset errors from the backend
+     */
+    function handleResetError(data: any) {
+        codeError = data.message || 'Failed to reset account. Please try again.';
+        notificationStore.error(codeError, 6000);
+        
+        // If token expired, go back to code step
+        if (data.error_code === 'TOKEN_EXPIRED' || data.error_code === 'INVALID_TOKEN') {
+            currentStep = 'code';
+            verificationToken = '';
+            verificationCode = '';
+        } else {
+            // For other errors, go back to login method selection
+            currentStep = 'setup';
+        }
+    }
+    
     /**
      * Go back to login
      */
@@ -291,28 +711,15 @@
         dispatch('back');
     }
     
-    // Password setup state
-    let newPassword = $state('');
-    let confirmPassword = $state('');
-    let passwordError = $state('');
-    
     /**
-     * Submit password setup
+     * Go back to login method selection
      */
-    async function submitPassword() {
+    function backToMethodSelection() {
+        currentStep = 'setup';
+        newPassword = '';
+        confirmPassword = '';
         passwordError = '';
-        
-        if (newPassword.length < 8) {
-            passwordError = $text('signup.password_too_short.text');
-            return;
-        }
-        
-        if (newPassword !== confirmPassword) {
-            passwordError = $text('signup.passwords_do_not_match.text');
-            return;
-        }
-        
-        await resetWithPassword(newPassword);
+        passkeyError = '';
     }
 </script>
 
@@ -384,16 +791,42 @@
                 <span>{$text('login.code_verified.text')}</span>
             </div>
             
+            <!-- Show both passkey and password options -->
             <LoginMethodSelector
-                showPasskey={false}
-                showRecommendedBadge={false}
-                isLoading={isSettingUp}
+                showPasskey={true}
+                showRecommendedBadge={true}
+                isLoading={isSettingUp || isRegisteringPasskey}
                 on:select={handleMethodSelect}
             />
         </div>
         
+    {:else if currentStep === 'passkey'}
+        <div class="step-content" transition:slide>
+            <div class="passkey-loading">
+                <div class="passkey-icon">
+                    <div class="clickable-icon icon_passkey" style="width: 64px; height: 64px;"></div>
+                </div>
+                <p class="info-text">
+                    {$text('login.registering_passkey.text')}
+                </p>
+                <p class="info-text-secondary">
+                    {$text('login.follow_passkey_prompts.text')}
+                </p>
+                {#if passkeyError}
+                    <span class="error-text">{passkeyError}</span>
+                    <button class="secondary-button" onclick={backToMethodSelection}>
+                        {$text('login.try_another_method.text')}
+                    </button>
+                {/if}
+            </div>
+        </div>
+        
     {:else if currentStep === 'password'}
         <div class="step-content" transition:slide>
+            <button class="back-button" onclick={backToMethodSelection}>
+                ← {$text('login.back.text')}
+            </button>
+            
             <p class="info-text">
                 {$text('signup.create_password.text')}
             </p>
@@ -408,6 +841,7 @@
                         placeholder={$text('login.password_placeholder.text')}
                         disabled={isSettingUp}
                         minlength="8"
+                        autocomplete="new-password"
                     />
                 </div>
             </div>
@@ -421,6 +855,7 @@
                         bind:value={confirmPassword}
                         placeholder={$text('signup.confirm_password.text')}
                         disabled={isSettingUp}
+                        autocomplete="new-password"
                         onkeydown={(e) => e.key === 'Enter' && submitPassword()}
                     />
                 </div>
@@ -476,7 +911,13 @@
         text-align: center;
     }
     
-    /* Input styles use global CSS classes from shared styles */
+    .info-text-secondary {
+        color: var(--color-grey-50);
+        font-size: 13px;
+        line-height: 1.4;
+        text-align: center;
+        margin-top: -8px;
+    }
     
     .error-text {
         color: var(--color-red-50);
@@ -501,6 +942,35 @@
     .resend-button:disabled {
         opacity: 0.5;
         cursor: not-allowed;
+    }
+    
+    .back-button {
+        all: unset;
+        color: var(--color-grey-60);
+        font-size: 14px;
+        cursor: pointer;
+        padding: 4px 0;
+        align-self: flex-start;
+    }
+    
+    .back-button:hover {
+        color: var(--color-grey-80);
+    }
+    
+    .secondary-button {
+        padding: 10px 20px;
+        background: var(--color-grey-20);
+        color: var(--color-grey-70);
+        border: none;
+        border-radius: 8px;
+        font-size: 14px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+    
+    .secondary-button:hover {
+        background: var(--color-grey-25);
+        color: var(--color-grey-80);
     }
     
     .confirmation-section {
@@ -578,5 +1048,24 @@
         text-align: center;
         margin: 0 0 8px;
         color: var(--color-grey-80);
+    }
+    
+    /* Passkey loading state */
+    .passkey-loading {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 16px;
+        padding: 24px;
+    }
+    
+    .passkey-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 80px;
+        height: 80px;
+        background: var(--color-primary-10);
+        border-radius: 16px;
     }
 </style>

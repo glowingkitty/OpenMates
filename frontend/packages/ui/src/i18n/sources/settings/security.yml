@@ -1,0 +1,2356 @@
+# Security Settings Translations
+# Used in SecurityAuth.svelte and SettingsPassword.svelte
+
+# --- SecurityAuth Component ---
+auth_title:
+  context: Title for security authentication modal
+  en: Verify Your Identity
+  de: Identität bestätigen
+  zh: 验证您的身份
+  es: Verifica tu identidad
+  fr: Vérifiez votre identité
+  pt: Verifique sua identidade
+  ru: Подтвердите свою личность
+  ja: 本人確認
+  ko: 신원 확인
+  it: Verifica la tua identità
+  tr: Kimliğinizi doğrulayın
+  vi: Xác minh danh tính của bạn
+  id: Verifikasi identitas Anda
+  pl: Zweryfikuj swoją tożsamość
+  nl: Verifieer uw identiteit
+  ar: تحقق من هويتك
+  hi: अपनी पहचान सत्यापित करें
+  th: ยืนยันตัวตนของคุณ
+  cs: Ověřte svou totožnost
+  sv: Verifiera din identitet
+  verified_by_human: []
+auth_description:
+  context: Description for security authentication modal
+  en: Please authenticate to continue with this security-sensitive operation.
+  de: Bitte authentifizieren Sie sich, um mit dieser sicherheitskritischen Operation fortzufahren.
+  zh: 请进行身份验证以继续此安全敏感操作。
+  es: Por favor autentícate para continuar con esta operación sensible de seguridad.
+  fr: Veuillez vous authentifier pour continuer cette opération sensible à la sécurité.
+  pt: Por favor, autentique-se para continuar com esta operação sensível à segurança.
+  ru: Пожалуйста, авторизуйтесь, чтобы продолжить эту операцию, связанную с безопасностью.
+  ja: このセキュリティ関連の操作を続行するには、認証してください。
+  ko: 이 보안 관련 작업을 계속하려면 인증해 주세요.
+  it: Autenticati per continuare con questa operazione sensibile alla sicurezza.
+  tr: Bu güvenlik açısından hassas işleme devam etmek için lütfen kimlik doğrulaması yapın.
+  vi: Vui lòng xác thực để tiếp tục với thao tác nhạy cảm về bảo mật này.
+  id: Silakan autentikasi untuk melanjutkan operasi sensitif keamanan ini.
+  pl: Proszę uwierzytelnić się, aby kontynuować tę operację związaną z bezpieczeństwem.
+  nl: Authenticeer om door te gaan met deze beveiligingsgevoelige operatie.
+  ar: يرجى المصادقة للمتابعة مع هذه العملية الحساسة أمنياً.
+  hi: इस सुरक्षा-संवेदनशील ऑपरेशन को जारी रखने के लिए कृपया प्रमाणित करें।
+  th: กรุณายืนยันตัวตนเพื่อดำเนินการต่อกับการดำเนินการที่มีความละเอียดอ่อนด้านความปลอดภัยนี้
+  cs: Pro pokračování v této bezpečnostní operaci se prosím ověřte.
+  sv: Autentisera för att fortsätta med denna säkerhetskänsliga operation.
+  verified_by_human: []
+passkey_authenticating:
+  context: Loading message during passkey authentication
+  en: Authenticating with passkey...
+  de: Authentifizierung mit Passkey...
+  zh: 正在使用通行密钥进行身份验证...
+  es: Autenticando con clave de acceso...
+  fr: Authentification avec la clé d'accès...
+  pt: Autenticando com chave de acesso...
+  ru: Аутентификация с помощью ключа доступа...
+  ja: パスキーで認証中...
+  ko: 패스키로 인증 중...
+  it: Autenticazione con chiave di accesso...
+  tr: Erişim anahtarı ile kimlik doğrulanıyor...
+  vi: Đang xác thực bằng khóa truy cập...
+  id: Mengautentikasi dengan kunci akses...
+  pl: Uwierzytelnianie kluczem dostępu...
+  nl: Authenticeren met toegangssleutel...
+  ar: جاري المصادقة بمفتاح الوصول...
+  hi: पासकी से प्रमाणित हो रहा है...
+  th: กำลังยืนยันตัวตนด้วยคีย์การเข้าถึง...
+  cs: Ověřování přístupovým klíčem...
+  sv: Autentiserar med åtkomstnyckel...
+  verified_by_human: []
+enter_password:
+  context: Prompt to enter password
+  en: Enter your current password
+  de: Geben Sie Ihr aktuelles Passwort ein
+  zh: 输入您的当前密码
+  es: Ingresa tu contraseña actual
+  fr: Entrez votre mot de passe actuel
+  pt: Digite sua senha atual
+  ru: Введите текущий пароль
+  ja: 現在のパスワードを入力
+  ko: 현재 비밀번호를 입력하세요
+  it: Inserisci la tua password attuale
+  tr: Mevcut şifrenizi girin
+  vi: Nhập mật khẩu hiện tại của bạn
+  id: Masukkan kata sandi Anda saat ini
+  pl: Wprowadź swoje obecne hasło
+  nl: Voer uw huidige wachtwoord in
+  ar: أدخل كلمة المرور الحالية
+  hi: अपना वर्तमान पासवर्ड दर्ज करें
+  th: ป้อนรหัสผ่านปัจจุบันของคุณ
+  cs: Zadejte své aktuální heslo
+  sv: Ange ditt nuvarande lösenord
+  verified_by_human: []
+password_placeholder:
+  context: Placeholder for password input
+  en: Password
+  de: Passwort
+  zh: 密码
+  es: Contraseña
+  fr: Mot de passe
+  pt: Senha
+  ru: Пароль
+  ja: パスワード
+  ko: 비밀번호
+  it: Password
+  tr: Şifre
+  vi: Mật khẩu
+  id: Kata sandi
+  pl: Hasło
+  nl: Wachtwoord
+  ar: كلمة المرور
+  hi: पासवर्ड
+  th: รหัสผ่าน
+  cs: Heslo
+  sv: Lösenord
+  verified_by_human: []
+verify_password:
+  context: Button to verify password
+  en: Verify Password
+  de: Passwort bestätigen
+  zh: 验证密码
+  es: Verificar contraseña
+  fr: Vérifier le mot de passe
+  pt: Verificar senha
+  ru: Подтвердить пароль
+  ja: パスワードを確認
+  ko: 비밀번호 확인
+  it: Verifica password
+  tr: Şifreyi doğrula
+  vi: Xác minh mật khẩu
+  id: Verifikasi kata sandi
+  pl: Zweryfikuj hasło
+  nl: Wachtwoord verifiëren
+  ar: تحقق من كلمة المرور
+  hi: पासवर्ड सत्यापित करें
+  th: ยืนยันรหัสผ่าน
+  cs: Ověřit heslo
+  sv: Verifiera lösenord
+  verified_by_human: []
+use_passkey_instead:
+  context: Link to switch to passkey authentication
+  en: Use passkey instead
+  de: Stattdessen Passkey verwenden
+  zh: 改用通行密钥
+  es: Usar clave de acceso en su lugar
+  fr: Utiliser la clé d'accès à la place
+  pt: Usar chave de acesso em vez disso
+  ru: Использовать ключ доступа вместо этого
+  ja: 代わりにパスキーを使用
+  ko: 대신 패스키 사용
+  it: Usa invece la chiave di accesso
+  tr: Bunun yerine erişim anahtarı kullan
+  vi: Sử dụng khóa truy cập thay thế
+  id: Gunakan kunci akses sebagai gantinya
+  pl: Użyj zamiast tego klucza dostępu
+  nl: Gebruik in plaats daarvan toegangssleutel
+  ar: استخدم مفتاح الوصول بدلاً من ذلك
+  hi: इसके बजाय पासकी का उपयोग करें
+  th: ใช้คีย์การเข้าถึงแทน
+  cs: Použijte místo toho přístupový klíč
+  sv: Använd åtkomstnyckel istället
+  verified_by_human: []
+use_password_instead:
+  context: Link to switch to password authentication
+  en: Use password instead
+  de: Stattdessen Passwort verwenden
+  zh: 改用密码
+  es: Usar contraseña en su lugar
+  fr: Utiliser le mot de passe à la place
+  pt: Usar senha em vez disso
+  ru: Использовать пароль вместо этого
+  ja: 代わりにパスワードを使用
+  ko: 대신 비밀번호 사용
+  it: Usa invece la password
+  tr: Bunun yerine şifre kullan
+  vi: Sử dụng mật khẩu thay thế
+  id: Gunakan kata sandi sebagai gantinya
+  pl: Użyj zamiast tego hasła
+  nl: Gebruik in plaats daarvan wachtwoord
+  ar: استخدم كلمة المرور بدلاً من ذلك
+  hi: इसके बजाय पासवर्ड का उपयोग करें
+  th: ใช้รหัสผ่านแทน
+  cs: Použijte místo toho heslo
+  sv: Använd lösenord istället
+  verified_by_human: []
+enter_2fa_code:
+  context: Prompt to enter 2FA code
+  en: Enter your 2FA code
+  de: Geben Sie Ihren 2FA-Code ein
+  zh: 输入您的双因素认证码
+  es: Ingresa tu código 2FA
+  fr: Entrez votre code 2FA
+  pt: Digite seu código 2FA
+  ru: Введите код 2FA
+  ja: 2FAコードを入力
+  ko: 2FA 코드를 입력하세요
+  it: Inserisci il tuo codice 2FA
+  tr: 2FA kodunuzu girin
+  vi: Nhập mã 2FA của bạn
+  id: Masukkan kode 2FA Anda
+  pl: Wprowadź swój kod 2FA
+  nl: Voer uw 2FA-code in
+  ar: أدخل رمز المصادقة الثنائية
+  hi: अपना 2FA कोड दर्ज करें
+  th: ป้อนรหัส 2FA ของคุณ
+  cs: Zadejte svůj 2FA kód
+  sv: Ange din 2FA-kod
+  verified_by_human: []
+passkey_prompt:
+  context: Prompt for passkey authentication
+  en: Use your passkey to authenticate
+  de: Verwenden Sie Ihren Passkey zur Authentifizierung
+  zh: 使用您的通行密钥进行身份验证
+  es: Usa tu clave de acceso para autenticarte
+  fr: Utilisez votre clé d'accès pour vous authentifier
+  pt: Use sua chave de acesso para autenticar
+  ru: Используйте ключ доступа для аутентификации
+  ja: パスキーを使用して認証してください
+  ko: 패스키를 사용하여 인증하세요
+  it: Usa la tua chiave di accesso per autenticarti
+  tr: Kimlik doğrulaması için erişim anahtarınızı kullanın
+  vi: Sử dụng khóa truy cập của bạn để xác thực
+  id: Gunakan kunci akses Anda untuk mengautentikasi
+  pl: Użyj swojego klucza dostępu, aby się uwierzytelnić
+  nl: Gebruik uw toegangssleutel om te authenticeren
+  ar: استخدم مفتاح الوصول الخاص بك للمصادقة
+  hi: प्रमाणित करने के लिए अपने पासकी का उपयोग करें
+  th: ใช้คีย์การเข้าถึงของคุณเพื่อยืนยันตัวตน
+  cs: K ověření použijte svůj přístupový klíč
+  sv: Använd din åtkomstnyckel för att autentisera
+  verified_by_human: []
+authenticate_with_passkey:
+  context: Button to authenticate with passkey
+  en: Authenticate with Passkey
+  de: Mit Passkey authentifizieren
+  zh: 使用通行密钥进行身份验证
+  es: Autenticar con clave de acceso
+  fr: S'authentifier avec la clé d'accès
+  pt: Autenticar com chave de acesso
+  ru: Аутентифицироваться с помощью ключа доступа
+  ja: パスキーで認証
+  ko: 패스키로 인증
+  it: Autenticati con chiave di accesso
+  tr: Erişim anahtarı ile kimlik doğrula
+  vi: Xác thực bằng khóa truy cập
+  id: Autentikasi dengan kunci akses
+  pl: Uwierzytelnij się kluczem dostępu
+  nl: Authenticeer met toegangssleutel
+  ar: المصادقة بمفتاح الوصول
+  hi: पासकी से प्रमाणित करें
+  th: ยืนยันตัวตนด้วยคีย์การเข้าถึง
+  cs: Ověřit přístupovým klíčem
+  sv: Autentisera med åtkomstnyckel
+  verified_by_human: []
+no_auth_method:
+  context: Error when no authentication method is available
+  en: No authentication method available. Please contact support.
+  de: Keine Authentifizierungsmethode verfügbar. Bitte kontaktieren Sie den Support.
+  zh: 没有可用的身份验证方法。请联系支持。
+  es: No hay método de autenticación disponible. Por favor contacte al soporte.
+  fr: Aucune méthode d'authentification disponible. Veuillez contacter le support.
+  pt: Nenhum método de autenticação disponível. Entre em contato com o suporte.
+  ru: Метод аутентификации недоступен. Пожалуйста, свяжитесь с поддержкой.
+  ja: 認証方法がありません。サポートにお問い合わせください。
+  ko: 사용 가능한 인증 방법이 없습니다. 지원팀에 문의하세요.
+  it: Nessun metodo di autenticazione disponibile. Contatta il supporto.
+  tr: Kimlik doğrulama yöntemi mevcut değil. Lütfen destek ile iletişime geçin.
+  vi: Không có phương thức xác thực khả dụng. Vui lòng liên hệ hỗ trợ.
+  id: Tidak ada metode autentikasi yang tersedia. Silakan hubungi dukungan.
+  pl: Brak dostępnej metody uwierzytelniania. Skontaktuj się z pomocą techniczną.
+  nl: Geen authenticatiemethode beschikbaar. Neem contact op met ondersteuning.
+  ar: لا تتوفر طريقة مصادقة. يرجى الاتصال بالدعم.
+  hi: कोई प्रमाणीकरण विधि उपलब्ध नहीं है। कृपया सहायता से संपर्क करें।
+  th: ไม่มีวิธีการยืนยันตัวตนที่พร้อมใช้งาน กรุณาติดต่อฝ่ายสนับสนุน
+  cs: Žádná metoda ověření není k dispozici. Kontaktujte prosím podporu.
+  sv: Ingen autentiseringsmetod tillgänglig. Kontakta supporten.
+  verified_by_human: []
+
+# --- SettingsPassword Component ---
+loading:
+  context: Loading message
+  en: Loading...
+  de: Wird geladen...
+  zh: 加载中...
+  es: Cargando...
+  fr: Chargement...
+  pt: Carregando...
+  ru: Загрузка...
+  ja: 読み込み中...
+  ko: 로딩 중...
+  it: Caricamento...
+  tr: Yükleniyor...
+  vi: Đang tải...
+  id: Memuat...
+  pl: Ładowanie...
+  nl: Laden...
+  ar: جاري التحميل...
+  hi: लोड हो रहा है...
+  th: กำลังโหลด...
+  cs: Načítání...
+  sv: Laddar...
+  verified_by_human: []
+change_password:
+  context: Title for change password page
+  en: Change Password
+  de: Passwort ändern
+  zh: 更改密码
+  es: Cambiar contraseña
+  fr: Changer le mot de passe
+  pt: Alterar senha
+  ru: Изменить пароль
+  ja: パスワードを変更
+  ko: 비밀번호 변경
+  it: Cambia password
+  tr: Şifreyi değiştir
+  vi: Đổi mật khẩu
+  id: Ubah kata sandi
+  pl: Zmień hasło
+  nl: Wachtwoord wijzigen
+  ar: تغيير كلمة المرور
+  hi: पासवर्ड बदलें
+  th: เปลี่ยนรหัสผ่าน
+  cs: Změnit heslo
+  sv: Ändra lösenord
+  verified_by_human: []
+add_password:
+  context: Title for add password page
+  en: Add Password
+  de: Passwort hinzufügen
+  zh: 添加密码
+  es: Agregar contraseña
+  fr: Ajouter un mot de passe
+  pt: Adicionar senha
+  ru: Добавить пароль
+  ja: パスワードを追加
+  ko: 비밀번호 추가
+  it: Aggiungi password
+  tr: Şifre ekle
+  vi: Thêm mật khẩu
+  id: Tambahkan kata sandi
+  pl: Dodaj hasło
+  nl: Wachtwoord toevoegen
+  ar: إضافة كلمة المرور
+  hi: पासवर्ड जोड़ें
+  th: เพิ่มรหัสผ่าน
+  cs: Přidat heslo
+  sv: Lägg till lösenord
+  verified_by_human: []
+change_password_description:
+  context: Description for change password page
+  en: Change your password to a new one. You'll need to verify your identity first.
+  de: Ändern Sie Ihr Passwort in ein neues. Sie müssen zuerst Ihre Identität bestätigen.
+  zh: 将您的密码更改为新密码。您需要先验证您的身份。
+  es: Cambia tu contraseña por una nueva. Primero deberás verificar tu identidad.
+  fr: Changez votre mot de passe pour un nouveau. Vous devrez d'abord vérifier votre identité.
+  pt: Altere sua senha para uma nova. Você precisará verificar sua identidade primeiro.
+  ru: Измените свой пароль на новый. Сначала вам нужно подтвердить свою личность.
+  ja: パスワードを新しいものに変更します。まず本人確認が必要です。
+  ko: 비밀번호를 새 것으로 변경하세요. 먼저 신원을 확인해야 합니다.
+  it: Cambia la tua password con una nuova. Dovrai prima verificare la tua identità.
+  tr: Şifrenizi yenisiyle değiştirin. Önce kimliğinizi doğrulamanız gerekecek.
+  vi: Đổi mật khẩu của bạn sang mật khẩu mới. Bạn cần xác minh danh tính trước.
+  id: Ubah kata sandi Anda ke yang baru. Anda perlu memverifikasi identitas Anda terlebih dahulu.
+  pl: Zmień swoje hasło na nowe. Najpierw musisz zweryfikować swoją tożsamość.
+  nl: Wijzig uw wachtwoord naar een nieuw. U moet eerst uw identiteit verifiëren.
+  ar: قم بتغيير كلمة المرور إلى كلمة جديدة. ستحتاج إلى التحقق من هويتك أولاً.
+  hi: अपना पासवर्ड नए में बदलें। आपको पहले अपनी पहचान सत्यापित करनी होगी।
+  th: เปลี่ยนรหัสผ่านของคุณเป็นรหัสใหม่ คุณจะต้องยืนยันตัวตนก่อน
+  cs: Změňte své heslo na nové. Nejprve budete muset ověřit svou totožnost.
+  sv: Ändra ditt lösenord till ett nytt. Du måste först verifiera din identitet.
+  verified_by_human: []
+add_password_description:
+  context: Description for add password page
+  en: Add a password to your account as an alternative login method. You'll need to verify your identity first.
+  de: Fügen Sie Ihrem Konto ein Passwort als alternative Anmeldemethode hinzu. Sie müssen zuerst Ihre Identität bestätigen.
+  zh: 为您的账户添加密码作为备选登录方式。您需要先验证您的身份。
+  es: Agrega una contraseña a tu cuenta como método de inicio de sesión alternativo. Primero deberás verificar tu identidad.
+  fr: Ajoutez un mot de passe à votre compte comme méthode de connexion alternative. Vous devrez d'abord vérifier votre identité.
+  pt: Adicione uma senha à sua conta como método de login alternativo. Você precisará verificar sua identidade primeiro.
+  ru: Добавьте пароль к своей учетной записи в качестве альтернативного способа входа. Сначала вам нужно подтвердить свою личность.
+  ja: 代替ログイン方法としてアカウントにパスワードを追加します。まず本人確認が必要です。
+  ko: 대체 로그인 방법으로 계정에 비밀번호를 추가하세요. 먼저 신원을 확인해야 합니다.
+  it: Aggiungi una password al tuo account come metodo di accesso alternativo. Dovrai prima verificare la tua identità.
+  tr: Alternatif bir giriş yöntemi olarak hesabınıza bir şifre ekleyin. Önce kimliğinizi doğrulamanız gerekecek.
+  vi: Thêm mật khẩu vào tài khoản của bạn như một phương thức đăng nhập thay thế. Bạn cần xác minh danh tính trước.
+  id: Tambahkan kata sandi ke akun Anda sebagai metode login alternatif. Anda perlu memverifikasi identitas Anda terlebih dahulu.
+  pl: Dodaj hasło do swojego konta jako alternatywną metodę logowania. Najpierw musisz zweryfikować swoją tożsamość.
+  nl: Voeg een wachtwoord toe aan uw account als alternatieve inlogmethode. U moet eerst uw identiteit verifiëren.
+  ar: أضف كلمة مرور إلى حسابك كطريقة تسجيل دخول بديلة. ستحتاج إلى التحقق من هويتك أولاً.
+  hi: वैकल्पिक लॉगिन विधि के रूप में अपने खाते में पासवर्ड जोड़ें। आपको पहले अपनी पहचान सत्यापित करनी होगी।
+  th: เพิ่มรหัสผ่านในบัญชีของคุณเป็นวิธีการเข้าสู่ระบบทางเลือก คุณจะต้องยืนยันตัวตนก่อน
+  cs: Přidejte ke svému účtu heslo jako alternativní způsob přihlášení. Nejprve budete muset ověřit svou totožnost.
+  sv: Lägg till ett lösenord till ditt konto som en alternativ inloggningsmetod. Du måste först verifiera din identitet.
+  verified_by_human: []
+auth_required_for_password:
+  context: Message explaining authentication is required
+  en: For your security, please verify your identity before changing your password.
+  de: Zu Ihrer Sicherheit bestätigen Sie bitte Ihre Identität, bevor Sie Ihr Passwort ändern.
+  zh: 为了您的安全，请在更改密码之前验证您的身份。
+  es: Por tu seguridad, verifica tu identidad antes de cambiar tu contraseña.
+  fr: Pour votre sécurité, veuillez vérifier votre identité avant de changer votre mot de passe.
+  pt: Para sua segurança, verifique sua identidade antes de alterar sua senha.
+  ru: В целях безопасности, пожалуйста, подтвердите свою личность перед сменой пароля.
+  ja: セキュリティのため、パスワードを変更する前に本人確認を行ってください。
+  ko: 보안을 위해 비밀번호를 변경하기 전에 신원을 확인해 주세요.
+  it: Per la tua sicurezza, verifica la tua identità prima di cambiare la password.
+  tr: Güvenliğiniz için, şifrenizi değiştirmeden önce kimliğinizi doğrulayın.
+  vi: Vì an toàn của bạn, vui lòng xác minh danh tính trước khi thay đổi mật khẩu.
+  id: Demi keamanan Anda, verifikasi identitas Anda sebelum mengubah kata sandi.
+  pl: Dla Twojego bezpieczeństwa, zweryfikuj swoją tożsamość przed zmianą hasła.
+  nl: Verifieer voor uw veiligheid uw identiteit voordat u uw wachtwoord wijzigt.
+  ar: من أجل أمانك، يرجى التحقق من هويتك قبل تغيير كلمة المرور.
+  hi: आपकी सुरक्षा के लिए, कृपया अपना पासवर्ड बदलने से पहले अपनी पहचान सत्यापित करें।
+  th: เพื่อความปลอดภัยของคุณ กรุณายืนยันตัวตนก่อนเปลี่ยนรหัสผ่าน
+  cs: Pro vaši bezpečnost ověřte svou totožnost před změnou hesla.
+  sv: För din säkerhet, verifiera din identitet innan du ändrar ditt lösenord.
+  verified_by_human: []
+verify_identity:
+  context: Title for verify identity section
+  en: Verify Your Identity
+  de: Identität bestätigen
+  zh: 验证身份
+  es: Verifica tu identidad
+  fr: Vérifiez votre identité
+  pt: Verifique sua identidade
+  ru: Подтвердите свою личность
+  ja: 本人確認
+  ko: 신원 확인
+  it: Verifica la tua identità
+  tr: Kimliğinizi doğrulayın
+  vi: Xác minh danh tính
+  id: Verifikasi identitas Anda
+  pl: Zweryfikuj swoją tożsamość
+  nl: Verifieer uw identiteit
+  ar: تحقق من هويتك
+  hi: अपनी पहचान सत्यापित करें
+  th: ยืนยันตัวตน
+  cs: Ověřte svou totožnost
+  sv: Verifiera din identitet
+  verified_by_human: []
+verify_identity_description:
+  context: Description for verify identity section
+  en: Use your passkey or password to verify it's you.
+  de: Verwenden Sie Ihren Passkey oder Ihr Passwort, um zu bestätigen, dass Sie es sind.
+  zh: 使用您的通行密钥或密码来验证是您本人。
+  es: Usa tu clave de acceso o contraseña para verificar que eres tú.
+  fr: Utilisez votre clé d'accès ou mot de passe pour vérifier que c'est bien vous.
+  pt: Use sua chave de acesso ou senha para verificar que é você.
+  ru: Используйте ключ доступа или пароль, чтобы подтвердить, что это вы.
+  ja: パスキーまたはパスワードを使用して本人確認を行ってください。
+  ko: 패스키 또는 비밀번호를 사용하여 본인 확인을 해주세요.
+  it: Usa la tua chiave di accesso o password per verificare che sei tu.
+  tr: Siz olduğunuzu doğrulamak için erişim anahtarınızı veya şifrenizi kullanın.
+  vi: Sử dụng khóa truy cập hoặc mật khẩu để xác minh đó là bạn.
+  id: Gunakan kunci akses atau kata sandi Anda untuk memverifikasi bahwa itu Anda.
+  pl: Użyj swojego klucza dostępu lub hasła, aby potwierdzić, że to Ty.
+  nl: Gebruik uw toegangssleutel of wachtwoord om te verifiëren dat u het bent.
+  ar: استخدم مفتاح الوصول أو كلمة المرور للتحقق من أنك أنت.
+  hi: यह आप हैं इसकी पुष्टि करने के लिए अपने पासकी या पासवर्ड का उपयोग करें।
+  th: ใช้คีย์การเข้าถึงหรือรหัสผ่านของคุณเพื่อยืนยันว่าเป็นคุณ
+  cs: K ověření, že jste to vy, použijte svůj přístupový klíč nebo heslo.
+  sv: Använd din åtkomstnyckel eller lösenord för att verifiera att det är du.
+  verified_by_human: []
+new_password:
+  context: Label for new password input
+  en: New Password
+  de: Neues Passwort
+  zh: 新密码
+  es: Nueva contraseña
+  fr: Nouveau mot de passe
+  pt: Nova senha
+  ru: Новый пароль
+  ja: 新しいパスワード
+  ko: 새 비밀번호
+  it: Nuova password
+  tr: Yeni şifre
+  vi: Mật khẩu mới
+  id: Kata sandi baru
+  pl: Nowe hasło
+  nl: Nieuw wachtwoord
+  ar: كلمة المرور الجديدة
+  hi: नया पासवर्ड
+  th: รหัสผ่านใหม่
+  cs: Nové heslo
+  sv: Nytt lösenord
+  verified_by_human: []
+new_password_placeholder:
+  context: Placeholder for new password input
+  en: Enter your new password
+  de: Geben Sie Ihr neues Passwort ein
+  zh: 输入您的新密码
+  es: Ingresa tu nueva contraseña
+  fr: Entrez votre nouveau mot de passe
+  pt: Digite sua nova senha
+  ru: Введите новый пароль
+  ja: 新しいパスワードを入力
+  ko: 새 비밀번호를 입력하세요
+  it: Inserisci la tua nuova password
+  tr: Yeni şifrenizi girin
+  vi: Nhập mật khẩu mới của bạn
+  id: Masukkan kata sandi baru Anda
+  pl: Wprowadź nowe hasło
+  nl: Voer uw nieuwe wachtwoord in
+  ar: أدخل كلمة المرور الجديدة
+  hi: अपना नया पासवर्ड दर्ज करें
+  th: ป้อนรหัสผ่านใหม่ของคุณ
+  cs: Zadejte nové heslo
+  sv: Ange ditt nya lösenord
+  verified_by_human: []
+confirm_password:
+  context: Label for confirm password input
+  en: Confirm Password
+  de: Passwort bestätigen
+  zh: 确认密码
+  es: Confirmar contraseña
+  fr: Confirmer le mot de passe
+  pt: Confirmar senha
+  ru: Подтвердить пароль
+  ja: パスワードを確認
+  ko: 비밀번호 확인
+  it: Conferma password
+  tr: Şifreyi onayla
+  vi: Xác nhận mật khẩu
+  id: Konfirmasi kata sandi
+  pl: Potwierdź hasło
+  nl: Bevestig wachtwoord
+  ar: تأكيد كلمة المرور
+  hi: पासवर्ड की पुष्टि करें
+  th: ยืนยันรหัสผ่าน
+  cs: Potvrdit heslo
+  sv: Bekräfta lösenord
+  verified_by_human: []
+confirm_password_placeholder:
+  context: Placeholder for confirm password input
+  en: Re-enter your new password
+  de: Geben Sie Ihr neues Passwort erneut ein
+  zh: 重新输入您的新密码
+  es: Vuelve a ingresar tu nueva contraseña
+  fr: Saisissez à nouveau votre nouveau mot de passe
+  pt: Digite novamente sua nova senha
+  ru: Повторите новый пароль
+  ja: 新しいパスワードを再入力
+  ko: 새 비밀번호를 다시 입력하세요
+  it: Reinserisci la tua nuova password
+  tr: Yeni şifrenizi tekrar girin
+  vi: Nhập lại mật khẩu mới của bạn
+  id: Masukkan kembali kata sandi baru Anda
+  pl: Wprowadź ponownie nowe hasło
+  nl: Voer uw nieuwe wachtwoord opnieuw in
+  ar: أعد إدخال كلمة المرور الجديدة
+  hi: अपना नया पासवर्ड फिर से दर्ज करें
+  th: ป้อนรหัสผ่านใหม่ของคุณอีกครั้ง
+  cs: Zadejte znovu nové heslo
+  sv: Ange ditt nya lösenord igen
+  verified_by_human: []
+password_requirements:
+  context: Title for password requirements list
+  en: Password Requirements
+  de: Passwortanforderungen
+  zh: 密码要求
+  es: Requisitos de contraseña
+  fr: Exigences du mot de passe
+  pt: Requisitos da senha
+  ru: Требования к паролю
+  ja: パスワード要件
+  ko: 비밀번호 요구사항
+  it: Requisiti della password
+  tr: Şifre gereksinimleri
+  vi: Yêu cầu mật khẩu
+  id: Persyaratan kata sandi
+  pl: Wymagania dotyczące hasła
+  nl: Wachtwoordvereisten
+  ar: متطلبات كلمة المرور
+  hi: पासवर्ड आवश्यकताएं
+  th: ข้อกำหนดรหัสผ่าน
+  cs: Požadavky na heslo
+  sv: Lösenordskrav
+  verified_by_human: []
+password_req_length:
+  context: Password requirement - minimum length
+  en: At least 8 characters
+  de: Mindestens 8 Zeichen
+  zh: 至少8个字符
+  es: Al menos 8 caracteres
+  fr: Au moins 8 caractères
+  pt: Pelo menos 8 caracteres
+  ru: Минимум 8 символов
+  ja: 8文字以上
+  ko: 최소 8자
+  it: Almeno 8 caratteri
+  tr: En az 8 karakter
+  vi: Ít nhất 8 ký tự
+  id: Minimal 8 karakter
+  pl: Co najmniej 8 znaków
+  nl: Minimaal 8 tekens
+  ar: 8 أحرف على الأقل
+  hi: कम से कम 8 वर्ण
+  th: อย่างน้อย 8 ตัวอักษร
+  cs: Alespoň 8 znaků
+  sv: Minst 8 tecken
+  verified_by_human: []
+password_req_case:
+  context: Password requirement - mixed case
+  en: Upper and lowercase letters
+  de: Groß- und Kleinbuchstaben
+  zh: 大写和小写字母
+  es: Letras mayúsculas y minúsculas
+  fr: Lettres majuscules et minuscules
+  pt: Letras maiúsculas e minúsculas
+  ru: Заглавные и строчные буквы
+  ja: 大文字と小文字
+  ko: 대문자와 소문자
+  it: Lettere maiuscole e minuscole
+  tr: Büyük ve küçük harfler
+  vi: Chữ hoa và chữ thường
+  id: Huruf besar dan kecil
+  pl: Wielkie i małe litery
+  nl: Hoofdletters en kleine letters
+  ar: أحرف كبيرة وصغيرة
+  hi: बड़े और छोटे अक्षर
+  th: ตัวพิมพ์ใหญ่และตัวพิมพ์เล็ก
+  cs: Velká a malá písmena
+  sv: Stora och små bokstäver
+  verified_by_human: []
+password_req_number:
+  context: Password requirement - contains number
+  en: At least one number
+  de: Mindestens eine Zahl
+  zh: 至少一个数字
+  es: Al menos un número
+  fr: Au moins un chiffre
+  pt: Pelo menos um número
+  ru: Минимум одна цифра
+  ja: 1つ以上の数字
+  ko: 최소 1개의 숫자
+  it: Almeno un numero
+  tr: En az bir rakam
+  vi: Ít nhất một số
+  id: Minimal satu angka
+  pl: Co najmniej jedna cyfra
+  nl: Minimaal één nummer
+  ar: رقم واحد على الأقل
+  hi: कम से कम एक संख्या
+  th: อย่างน้อยหนึ่งตัวเลข
+  cs: Alespoň jedno číslo
+  sv: Minst en siffra
+  verified_by_human: []
+password_strength_warning:
+  context: Warning for weak but acceptable password
+  en: Consider adding special characters for a stronger password
+  de: Erwägen Sie, Sonderzeichen für ein stärkeres Passwort hinzuzufügen
+  zh: 考虑添加特殊字符以获得更强的密码
+  es: Considera agregar caracteres especiales para una contraseña más fuerte
+  fr: Envisagez d'ajouter des caractères spéciaux pour un mot de passe plus fort
+  pt: Considere adicionar caracteres especiais para uma senha mais forte
+  ru: Рассмотрите возможность добавления специальных символов для более надежного пароля
+  ja: より強力なパスワードのために特殊文字の追加を検討してください
+  ko: 더 강력한 비밀번호를 위해 특수 문자를 추가하는 것을 고려하세요
+  it: Considera l'aggiunta di caratteri speciali per una password più forte
+  tr: Daha güçlü bir şifre için özel karakterler eklemeyi düşünün
+  vi: Hãy xem xét thêm ký tự đặc biệt để có mật khẩu mạnh hơn
+  id: Pertimbangkan untuk menambahkan karakter khusus untuk kata sandi yang lebih kuat
+  pl: Rozważ dodanie znaków specjalnych dla silniejszego hasła
+  nl: Overweeg speciale tekens toe te voegen voor een sterker wachtwoord
+  ar: فكر في إضافة أحرف خاصة لكلمة مرور أقوى
+  hi: मजबूत पासवर्ड के लिए विशेष वर्ण जोड़ने पर विचार करें
+  th: พิจารณาเพิ่มอักขระพิเศษเพื่อรหัสผ่านที่แข็งแกร่งขึ้น
+  cs: Zvažte přidání speciálních znaků pro silnější heslo
+  sv: Överväg att lägga till specialtecken för ett starkare lösenord
+  verified_by_human: []
+change_password_button:
+  context: Button to submit password change
+  en: Change Password
+  de: Passwort ändern
+  zh: 更改密码
+  es: Cambiar contraseña
+  fr: Changer le mot de passe
+  pt: Alterar senha
+  ru: Изменить пароль
+  ja: パスワードを変更
+  ko: 비밀번호 변경
+  it: Cambia password
+  tr: Şifreyi değiştir
+  vi: Đổi mật khẩu
+  id: Ubah kata sandi
+  pl: Zmień hasło
+  nl: Wachtwoord wijzigen
+  ar: تغيير كلمة المرور
+  hi: पासवर्ड बदलें
+  th: เปลี่ยนรหัสผ่าน
+  cs: Změnit heslo
+  sv: Ändra lösenord
+  verified_by_human: []
+add_password_button:
+  context: Button to submit new password
+  en: Add Password
+  de: Passwort hinzufügen
+  zh: 添加密码
+  es: Agregar contraseña
+  fr: Ajouter un mot de passe
+  pt: Adicionar senha
+  ru: Добавить пароль
+  ja: パスワードを追加
+  ko: 비밀번호 추가
+  it: Aggiungi password
+  tr: Şifre ekle
+  vi: Thêm mật khẩu
+  id: Tambahkan kata sandi
+  pl: Dodaj hasło
+  nl: Wachtwoord toevoegen
+  ar: إضافة كلمة المرور
+  hi: पासवर्ड जोड़ें
+  th: เพิ่มรหัสผ่าน
+  cs: Přidat heslo
+  sv: Lägg till lösenord
+  verified_by_human: []
+password_updated:
+  context: Title after successful password update
+  en: Password Updated
+  de: Passwort aktualisiert
+  zh: 密码已更新
+  es: Contraseña actualizada
+  fr: Mot de passe mis à jour
+  pt: Senha atualizada
+  ru: Пароль обновлен
+  ja: パスワードが更新されました
+  ko: 비밀번호 업데이트됨
+  it: Password aggiornata
+  tr: Şifre güncellendi
+  vi: Mật khẩu đã được cập nhật
+  id: Kata sandi diperbarui
+  pl: Hasło zaktualizowane
+  nl: Wachtwoord bijgewerkt
+  ar: تم تحديث كلمة المرور
+  hi: पासवर्ड अपडेट किया गया
+  th: อัปเดตรหัสผ่านแล้ว
+  cs: Heslo aktualizováno
+  sv: Lösenord uppdaterat
+  verified_by_human: []
+password_changed_success:
+  context: Success message after changing password
+  en: Your password has been changed successfully.
+  de: Ihr Passwort wurde erfolgreich geändert.
+  zh: 您的密码已成功更改。
+  es: Tu contraseña ha sido cambiada exitosamente.
+  fr: Votre mot de passe a été changé avec succès.
+  pt: Sua senha foi alterada com sucesso.
+  ru: Ваш пароль был успешно изменен.
+  ja: パスワードが正常に変更されました。
+  ko: 비밀번호가 성공적으로 변경되었습니다.
+  it: La tua password è stata cambiata con successo.
+  tr: Şifreniz başarıyla değiştirildi.
+  vi: Mật khẩu của bạn đã được thay đổi thành công.
+  id: Kata sandi Anda telah berhasil diubah.
+  pl: Twoje hasło zostało pomyślnie zmienione.
+  nl: Uw wachtwoord is succesvol gewijzigd.
+  ar: تم تغيير كلمة المرور بنجاح.
+  hi: आपका पासवर्ड सफलतापूर्वक बदल दिया गया है।
+  th: รหัสผ่านของคุณถูกเปลี่ยนเรียบร้อยแล้ว
+  cs: Vaše heslo bylo úspěšně změněno.
+  sv: Ditt lösenord har ändrats framgångsrikt.
+  verified_by_human: []
+password_added_success:
+  context: Success message after adding password
+  en: Password has been added to your account successfully.
+  de: Passwort wurde erfolgreich zu Ihrem Konto hinzugefügt.
+  zh: 密码已成功添加到您的账户。
+  es: La contraseña ha sido agregada a tu cuenta exitosamente.
+  fr: Le mot de passe a été ajouté à votre compte avec succès.
+  pt: A senha foi adicionada à sua conta com sucesso.
+  ru: Пароль был успешно добавлен к вашей учетной записи.
+  ja: パスワードがアカウントに正常に追加されました。
+  ko: 비밀번호가 계정에 성공적으로 추가되었습니다.
+  it: La password è stata aggiunta al tuo account con successo.
+  tr: Şifre hesabınıza başarıyla eklendi.
+  vi: Mật khẩu đã được thêm vào tài khoản của bạn thành công.
+  id: Kata sandi telah berhasil ditambahkan ke akun Anda.
+  pl: Hasło zostało pomyślnie dodane do Twojego konta.
+  nl: Wachtwoord is succesvol aan uw account toegevoegd.
+  ar: تمت إضافة كلمة المرور إلى حسابك بنجاح.
+  hi: पासवर्ड आपके खाते में सफलतापूर्वक जोड़ दिया गया है।
+  th: เพิ่มรหัสผ่านในบัญชีของคุณเรียบร้อยแล้ว
+  cs: Heslo bylo úspěšně přidáno k vašemu účtu.
+  sv: Lösenord har lagts till ditt konto framgångsrikt.
+  verified_by_human: []
+change_password_again:
+  context: Button to change password again after success
+  en: Change Password Again
+  de: Passwort erneut ändern
+  zh: 再次更改密码
+  es: Cambiar contraseña de nuevo
+  fr: Changer le mot de passe à nouveau
+  pt: Alterar senha novamente
+  ru: Изменить пароль снова
+  ja: 再度パスワードを変更
+  ko: 비밀번호 다시 변경
+  it: Cambia password di nuovo
+  tr: Şifreyi tekrar değiştir
+  vi: Đổi mật khẩu lần nữa
+  id: Ubah kata sandi lagi
+  pl: Zmień hasło ponownie
+  nl: Wachtwoord opnieuw wijzigen
+  ar: تغيير كلمة المرور مرة أخرى
+  hi: पासवर्ड फिर से बदलें
+  th: เปลี่ยนรหัสผ่านอีกครั้ง
+  cs: Změnit heslo znovu
+  sv: Ändra lösenord igen
+  verified_by_human: []
+
+# --- Two-Factor Authentication (2FA) Settings ---
+tfa_title:
+  context: Title for 2FA settings menu
+  en: Two-Factor Authentication
+  de: Zwei-Faktor-Authentifizierung
+  zh: 双因素认证
+  es: Autenticación de dos factores
+  fr: Authentification à deux facteurs
+  pt: Autenticação de dois fatores
+  ru: Двухфакторная аутентификация
+  ja: 二要素認証
+  ko: 2단계 인증
+  it: Autenticazione a due fattori
+  tr: İki faktörlü kimlik doğrulama
+  vi: Xác thực hai yếu tố
+  id: Autentikasi dua faktor
+  pl: Uwierzytelnianie dwuskładnikowe
+  nl: Tweefactorauthenticatie
+  ar: المصادقة الثنائية
+  hi: दो-कारक प्रमाणीकरण
+  th: การยืนยันตัวตนสองขั้นตอน
+  cs: Dvoufaktorové ověření
+  sv: Tvåfaktorsautentisering
+  verified_by_human: []
+tfa_enabled:
+  context: Status when 2FA is enabled
+  en: 2FA Enabled
+  de: 2FA aktiviert
+  zh: 双因素认证已启用
+  es: 2FA habilitado
+  fr: 2FA activé
+  pt: 2FA ativado
+  ru: 2FA включена
+  ja: 2FAが有効
+  ko: 2FA 활성화됨
+  it: 2FA abilitato
+  tr: 2FA etkin
+  vi: 2FA đã bật
+  id: 2FA diaktifkan
+  pl: 2FA włączone
+  nl: 2FA ingeschakeld
+  ar: المصادقة الثنائية مفعلة
+  hi: 2FA सक्षम
+  th: เปิดใช้งาน 2FA แล้ว
+  cs: 2FA povoleno
+  sv: 2FA aktiverat
+  verified_by_human: []
+tfa_enabled_short:
+  context: Short status when 2FA is enabled
+  en: Enabled
+  de: Aktiviert
+  zh: 已启用
+  es: Habilitado
+  fr: Activé
+  pt: Ativado
+  ru: Включена
+  ja: 有効
+  ko: 활성화됨
+  it: Abilitato
+  tr: Etkin
+  vi: Đã bật
+  id: Diaktifkan
+  pl: Włączone
+  nl: Ingeschakeld
+  ar: مفعل
+  hi: सक्षम
+  th: เปิดใช้งาน
+  cs: Povoleno
+  sv: Aktiverat
+  verified_by_human: []
+tfa_disabled:
+  context: Status when 2FA is disabled
+  en: 2FA Not Enabled
+  de: 2FA nicht aktiviert
+  zh: 双因素认证未启用
+  es: 2FA no habilitado
+  fr: 2FA non activé
+  pt: 2FA não ativado
+  ru: 2FA не включена
+  ja: 2FAが無効
+  ko: 2FA 비활성화됨
+  it: 2FA non abilitato
+  tr: 2FA etkin değil
+  vi: 2FA chưa bật
+  id: 2FA tidak diaktifkan
+  pl: 2FA nieaktywne
+  nl: 2FA niet ingeschakeld
+  ar: المصادقة الثنائية غير مفعلة
+  hi: 2FA सक्षम नहीं
+  th: ยังไม่เปิดใช้งาน 2FA
+  cs: 2FA není povoleno
+  sv: 2FA inte aktiverat
+  verified_by_human: []
+tfa_disabled_short:
+  context: Short status when 2FA is disabled
+  en: Not enabled
+  de: Nicht aktiviert
+  zh: 未启用
+  es: No habilitado
+  fr: Non activé
+  pt: Não ativado
+  ru: Не включена
+  ja: 無効
+  ko: 비활성화됨
+  it: Non abilitato
+  tr: Etkin değil
+  vi: Chưa bật
+  id: Tidak aktif
+  pl: Nieaktywne
+  nl: Niet ingeschakeld
+  ar: غير مفعل
+  hi: सक्षम नहीं
+  th: ไม่ได้เปิดใช้งาน
+  cs: Není povoleno
+  sv: Inte aktiverat
+  verified_by_human: []
+tfa_disabled_description:
+  context: Description when 2FA is disabled
+  en: Add an extra layer of security to your account with a 2FA app.
+  de: Fügen Sie Ihrem Konto mit einer 2FA-App eine zusätzliche Sicherheitsebene hinzu.
+  zh: 使用2FA应用为您的账户添加额外的安全层。
+  es: Agrega una capa extra de seguridad a tu cuenta con una app 2FA.
+  fr: Ajoutez une couche de sécurité supplémentaire à votre compte avec une application 2FA.
+  pt: Adicione uma camada extra de segurança à sua conta com um app 2FA.
+  ru: Добавьте дополнительный уровень безопасности с помощью приложения 2FA.
+  ja: 2FAアプリでアカウントに追加のセキュリティレイヤーを追加してください。
+  ko: 2FA 앱으로 계정에 추가 보안 계층을 추가하세요.
+  it: Aggiungi un ulteriore livello di sicurezza al tuo account con un'app 2FA.
+  tr: 2FA uygulamasıyla hesabınıza ekstra güvenlik katmanı ekleyin.
+  vi: Thêm lớp bảo mật bổ sung cho tài khoản của bạn bằng ứng dụng 2FA.
+  id: Tambahkan lapisan keamanan ekstra ke akun Anda dengan aplikasi 2FA.
+  pl: Dodaj dodatkową warstwę bezpieczeństwa do swojego konta za pomocą aplikacji 2FA.
+  nl: Voeg een extra beveiligingslaag toe aan uw account met een 2FA-app.
+  ar: أضف طبقة إضافية من الأمان إلى حسابك باستخدام تطبيق المصادقة الثنائية.
+  hi: 2FA ऐप के साथ अपने खाते में सुरक्षा की एक अतिरिक्त परत जोड़ें।
+  th: เพิ่มชั้นความปลอดภัยพิเศษให้กับบัญชีของคุณด้วยแอป 2FA
+  cs: Přidejte ke svému účtu další vrstvu zabezpečení pomocí aplikace 2FA.
+  sv: Lägg till ett extra säkerhetslager till ditt konto med en 2FA-app.
+  verified_by_human: []
+tfa_app_used:
+  context: Label showing which app is used
+  en: App used
+  de: Verwendete App
+  zh: 使用的应用
+  es: App utilizada
+  fr: Application utilisée
+  pt: App utilizado
+  ru: Используемое приложение
+  ja: 使用アプリ
+  ko: 사용 앱
+  it: App utilizzata
+  tr: Kullanılan uygulama
+  vi: Ứng dụng đã dùng
+  id: Aplikasi yang digunakan
+  pl: Używana aplikacja
+  nl: Gebruikte app
+  ar: التطبيق المستخدم
+  hi: उपयोग किया गया ऐप
+  th: แอปที่ใช้
+  cs: Použitá aplikace
+  sv: Använd app
+  verified_by_human: []
+tfa_app_unknown:
+  context: Status when 2FA app name is not saved
+  en: Authenticator app configured
+  de: Authentifizierungs-App konfiguriert
+  zh: 已配置验证器应用
+  es: App de autenticación configurada
+  fr: Application d'authentification configurée
+  pt: App de autenticação configurado
+  ru: Приложение для аутентификации настроено
+  ja: 認証アプリが設定済み
+  ko: 인증 앱 구성됨
+  it: App di autenticazione configurata
+  tr: Kimlik doğrulama uygulaması yapılandırıldı
+  vi: Ứng dụng xác thực đã được cấu hình
+  id: Aplikasi autentikasi dikonfigurasi
+  pl: Aplikacja uwierzytelniająca skonfigurowana
+  nl: Authenticator-app geconfigureerd
+  ar: تم تكوين تطبيق المصادقة
+  hi: प्रमाणक ऐप कॉन्फ़िगर किया गया
+  th: กำหนดค่าแอปยืนยันตัวตนแล้ว
+  cs: Autentizační aplikace nakonfigurována
+  sv: Autentiseringsapp konfigurerad
+  verified_by_human: []
+tfa_enable:
+  context: Button to enable 2FA
+  en: Enable 2FA
+  de: 2FA aktivieren
+  zh: 启用双因素认证
+  es: Habilitar 2FA
+  fr: Activer 2FA
+  pt: Ativar 2FA
+  ru: Включить 2FA
+  ja: 2FAを有効にする
+  ko: 2FA 활성화
+  it: Abilita 2FA
+  tr: 2FA'yı etkinleştir
+  vi: Bật 2FA
+  id: Aktifkan 2FA
+  pl: Włącz 2FA
+  nl: 2FA inschakelen
+  ar: تفعيل المصادقة الثنائية
+  hi: 2FA सक्षम करें
+  th: เปิดใช้งาน 2FA
+  cs: Povolit 2FA
+  sv: Aktivera 2FA
+  verified_by_human: []
+tfa_disable:
+  context: Button to disable 2FA
+  en: Disable 2FA
+  de: 2FA deaktivieren
+  zh: 禁用双因素认证
+  es: Deshabilitar 2FA
+  fr: Désactiver 2FA
+  pt: Desativar 2FA
+  ru: Отключить 2FA
+  ja: 2FAを無効にする
+  ko: 2FA 비활성화
+  it: Disabilita 2FA
+  tr: 2FA'yı devre dışı bırak
+  vi: Tắt 2FA
+  id: Nonaktifkan 2FA
+  pl: Wyłącz 2FA
+  nl: 2FA uitschakelen
+  ar: تعطيل المصادقة الثنائية
+  hi: 2FA अक्षम करें
+  th: ปิดใช้งาน 2FA
+  cs: Zakázat 2FA
+  sv: Inaktivera 2FA
+  verified_by_human: []
+tfa_change_app:
+  context: Button to change 2FA app
+  en: Change App
+  de: App ändern
+  zh: 更改应用
+  es: Cambiar app
+  fr: Changer d'application
+  pt: Mudar app
+  ru: Сменить приложение
+  ja: アプリを変更
+  ko: 앱 변경
+  it: Cambia app
+  tr: Uygulamayı değiştir
+  vi: Đổi ứng dụng
+  id: Ubah aplikasi
+  pl: Zmień aplikację
+  nl: App wijzigen
+  ar: تغيير التطبيق
+  hi: ऐप बदलें
+  th: เปลี่ยนแอป
+  cs: Změnit aplikaci
+  sv: Byt app
+  verified_by_human: []
+tfa_cannot_disable:
+  context: Info message explaining that 2FA cannot be disabled for security reasons
+  en: For security reasons, two-factor authentication cannot be disabled. You can change your authenticator app at any time.
+  de: Aus Sicherheitsgründen kann die Zwei-Faktor-Authentifizierung nicht deaktiviert werden. Sie können Ihre Authentifizierungs-App jederzeit ändern.
+  zh: 出于安全原因，双因素认证无法被禁用。您可以随时更改您的验证器应用。
+  es: Por razones de seguridad, la autenticación de dos factores no se puede desactivar. Puedes cambiar tu app de autenticación en cualquier momento.
+  fr: Pour des raisons de sécurité, l'authentification à deux facteurs ne peut pas être désactivée. Vous pouvez changer votre application d'authentification à tout moment.
+  pt: Por razões de segurança, a autenticação de dois fatores não pode ser desativada. Você pode mudar seu app de autenticação a qualquer momento.
+  ru: По соображениям безопасности двухфакторную аутентификацию нельзя отключить. Вы можете изменить приложение-аутентификатор в любое время.
+  ja: セキュリティ上の理由から、二要素認証を無効にすることはできません。認証アプリはいつでも変更できます。
+  ko: 보안상의 이유로 2단계 인증은 비활성화할 수 없습니다. 인증 앱은 언제든지 변경할 수 있습니다.
+  it: Per motivi di sicurezza, l'autenticazione a due fattori non può essere disattivata. Puoi cambiare la tua app di autenticazione in qualsiasi momento.
+  tr: Güvenlik nedenleriyle iki faktörlü kimlik doğrulama devre dışı bırakılamaz. Kimlik doğrulama uygulamanızı istediğiniz zaman değiştirebilirsiniz.
+  vi: Vì lý do bảo mật, xác thực hai yếu tố không thể bị vô hiệu hóa. Bạn có thể thay đổi ứng dụng xác thực bất cứ lúc nào.
+  id: Demi keamanan, autentikasi dua faktor tidak dapat dinonaktifkan. Anda dapat mengubah aplikasi autentikator kapan saja.
+  pl: Ze względów bezpieczeństwa uwierzytelnianie dwuskładnikowe nie może być wyłączone. Możesz zmienić aplikację uwierzytelniającą w dowolnym momencie.
+  nl: Om veiligheidsredenen kan tweefactorauthenticatie niet worden uitgeschakeld. U kunt uw authenticator-app op elk moment wijzigen.
+  ar: لأسباب أمنية، لا يمكن تعطيل المصادقة الثنائية. يمكنك تغيير تطبيق المصادقة في أي وقت.
+  hi: सुरक्षा कारणों से, दो-कारक प्रमाणीकरण को अक्षम नहीं किया जा सकता। आप किसी भी समय अपना प्रमाणक ऐप बदल सकते हैं।
+  th: ด้วยเหตุผลด้านความปลอดภัย การยืนยันตัวตนสองขั้นตอนไม่สามารถปิดได้ คุณสามารถเปลี่ยนแอปยืนยันตัวตนได้ตลอดเวลา
+  cs: Z bezpečnostních důvodů nelze dvoufaktorové ověřování deaktivovat. Autentizační aplikaci můžete kdykoli změnit.
+  sv: Av säkerhetsskäl kan tvåfaktorsautentisering inte inaktiveras. Du kan byta autentiseringsapp när som helst.
+  verified_by_human: []
+tfa_auth_required:
+  context: Description for 2FA auth requirement
+  en: Please verify your identity to manage 2FA settings.
+  de: Bitte bestätigen Sie Ihre Identität, um 2FA-Einstellungen zu verwalten.
+  zh: 请验证您的身份以管理双因素认证设置。
+  es: Por favor verifica tu identidad para gestionar la configuración 2FA.
+  fr: Veuillez vérifier votre identité pour gérer les paramètres 2FA.
+  pt: Verifique sua identidade para gerenciar as configurações 2FA.
+  ru: Подтвердите свою личность для управления настройками 2FA.
+  ja: 2FA設定を管理するには本人確認を行ってください。
+  ko: 2FA 설정을 관리하려면 신원을 확인해 주세요.
+  it: Verifica la tua identità per gestire le impostazioni 2FA.
+  tr: 2FA ayarlarını yönetmek için kimliğinizi doğrulayın.
+  vi: Vui lòng xác minh danh tính để quản lý cài đặt 2FA.
+  id: Verifikasi identitas Anda untuk mengelola pengaturan 2FA.
+  pl: Zweryfikuj swoją tożsamość, aby zarządzać ustawieniami 2FA.
+  nl: Verifieer uw identiteit om 2FA-instellingen te beheren.
+  ar: يرجى التحقق من هويتك لإدارة إعدادات المصادقة الثنائية.
+  hi: 2FA सेटिंग्स प्रबंधित करने के लिए कृपया अपनी पहचान सत्यापित करें।
+  th: กรุณายืนยันตัวตนเพื่อจัดการการตั้งค่า 2FA
+  cs: Ověřte svou totožnost pro správu nastavení 2FA.
+  sv: Verifiera din identitet för att hantera 2FA-inställningar.
+  verified_by_human: []
+tfa_scan_qr:
+  context: Title for QR code scan step
+  en: Scan QR Code
+  de: QR-Code scannen
+  zh: 扫描二维码
+  es: Escanear código QR
+  fr: Scanner le code QR
+  pt: Escanear código QR
+  ru: Сканировать QR-код
+  ja: QRコードをスキャン
+  ko: QR 코드 스캔
+  it: Scansiona codice QR
+  tr: QR kodunu tara
+  vi: Quét mã QR
+  id: Pindai kode QR
+  pl: Zeskanuj kod QR
+  nl: QR-code scannen
+  ar: امسح رمز QR
+  hi: QR कोड स्कैन करें
+  th: สแกน QR โค้ด
+  cs: Naskenujte QR kód
+  sv: Skanna QR-kod
+  verified_by_human: []
+tfa_scan_instructions:
+  context: Instructions for scanning QR code
+  en: Open your authenticator app and scan this QR code to add your account.
+  de: Öffnen Sie Ihre Authentifizierungs-App und scannen Sie diesen QR-Code, um Ihr Konto hinzuzufügen.
+  zh: 打开您的验证器应用并扫描此二维码以添加您的账户。
+  es: Abre tu app de autenticación y escanea este código QR para agregar tu cuenta.
+  fr: Ouvrez votre application d'authentification et scannez ce code QR pour ajouter votre compte.
+  pt: Abra seu app de autenticação e escaneie este código QR para adicionar sua conta.
+  ru: Откройте приложение для аутентификации и отсканируйте этот QR-код, чтобы добавить свою учетную запись.
+  ja: 認証アプリを開き、このQRコードをスキャンしてアカウントを追加してください。
+  ko: 인증 앱을 열고 이 QR 코드를 스캔하여 계정을 추가하세요.
+  it: Apri la tua app di autenticazione e scansiona questo codice QR per aggiungere il tuo account.
+  tr: Kimlik doğrulama uygulamanızı açın ve hesabınızı eklemek için bu QR kodunu tarayın.
+  vi: Mở ứng dụng xác thực và quét mã QR này để thêm tài khoản của bạn.
+  id: Buka aplikasi autentikasi Anda dan pindai kode QR ini untuk menambahkan akun Anda.
+  pl: Otwórz aplikację uwierzytelniającą i zeskanuj ten kod QR, aby dodać swoje konto.
+  nl: Open uw authenticator-app en scan deze QR-code om uw account toe te voegen.
+  ar: افتح تطبيق المصادقة وامسح رمز QR هذا لإضافة حسابك.
+  hi: अपना प्रमाणक ऐप खोलें और अपना खाता जोड़ने के लिए इस QR कोड को स्कैन करें।
+  th: เปิดแอปยืนยันตัวตนและสแกน QR โค้ดนี้เพื่อเพิ่มบัญชีของคุณ
+  cs: Otevřete autentizační aplikaci a naskenujte tento QR kód pro přidání účtu.
+  sv: Öppna din autentiseringsapp och skanna denna QR-kod för att lägga till ditt konto.
+  verified_by_human: []
+tfa_secret_key:
+  context: Label for secret key
+  en: Or enter this key manually
+  de: Oder geben Sie diesen Schlüssel manuell ein
+  zh: 或手动输入此密钥
+  es: O ingresa esta clave manualmente
+  fr: Ou entrez cette clé manuellement
+  pt: Ou insira esta chave manualmente
+  ru: Или введите этот ключ вручную
+  ja: または、このキーを手動で入力
+  ko: 또는 이 키를 수동으로 입력
+  it: Oppure inserisci questa chiave manualmente
+  tr: Veya bu anahtarı manuel olarak girin
+  vi: Hoặc nhập khóa này thủ công
+  id: Atau masukkan kunci ini secara manual
+  pl: Lub wprowadź ten klucz ręcznie
+  nl: Of voer deze sleutel handmatig in
+  ar: أو أدخل هذا المفتاح يدوياً
+  hi: या इस कुंजी को मैन्युअल रूप से दर्ज करें
+  th: หรือป้อนคีย์นี้ด้วยตนเอง
+  cs: Nebo zadejte tento klíč ručně
+  sv: Eller ange denna nyckel manuellt
+  verified_by_human: []
+tfa_enter_code:
+  context: Prompt to enter verification code
+  en: Enter the 6-digit code from your app
+  de: Geben Sie den 6-stelligen Code aus Ihrer App ein
+  zh: 输入您应用中的6位数代码
+  es: Ingresa el código de 6 dígitos de tu app
+  fr: Entrez le code à 6 chiffres de votre application
+  pt: Digite o código de 6 dígitos do seu app
+  ru: Введите 6-значный код из вашего приложения
+  ja: アプリの6桁のコードを入力してください
+  ko: 앱의 6자리 코드를 입력하세요
+  it: Inserisci il codice a 6 cifre dalla tua app
+  tr: Uygulamanızdan 6 haneli kodu girin
+  vi: Nhập mã 6 chữ số từ ứng dụng của bạn
+  id: Masukkan kode 6 digit dari aplikasi Anda
+  pl: Wprowadź 6-cyfrowy kod z aplikacji
+  nl: Voer de 6-cijferige code van uw app in
+  ar: أدخل الرمز المكون من 6 أرقام من تطبيقك
+  hi: अपने ऐप से 6 अंकों का कोड दर्ज करें
+  th: ป้อนรหัส 6 หลักจากแอปของคุณ
+  cs: Zadejte 6místný kód z vaší aplikace
+  sv: Ange den 6-siffriga koden från din app
+  verified_by_human: []
+tfa_no_app:
+  context: Question about not having an app
+  en: Don't have an authenticator app?
+  de: Haben Sie keine Authentifizierungs-App?
+  zh: 没有验证器应用？
+  es: ¿No tienes una app de autenticación?
+  fr: Vous n'avez pas d'application d'authentification?
+  pt: Não tem um app de autenticação?
+  ru: Нет приложения для аутентификации?
+  ja: 認証アプリがありませんか？
+  ko: 인증 앱이 없으신가요?
+  it: Non hai un'app di autenticazione?
+  tr: Kimlik doğrulama uygulamanız yok mu?
+  vi: Bạn chưa có ứng dụng xác thực?
+  id: Tidak punya aplikasi autentikasi?
+  pl: Nie masz aplikacji uwierzytelniającej?
+  nl: Geen authenticator-app?
+  ar: ليس لديك تطبيق مصادقة؟
+  hi: कोई प्रमाणक ऐप नहीं है?
+  th: ไม่มีแอปยืนยันตัวตน?
+  cs: Nemáte autentizační aplikaci?
+  sv: Har du ingen autentiseringsapp?
+  verified_by_human: []
+tfa_find_apps:
+  context: Link to find 2FA apps
+  en: Find free 2FA apps
+  de: Kostenlose 2FA-Apps finden
+  zh: 查找免费的2FA应用
+  es: Encontrar apps 2FA gratuitas
+  fr: Trouver des applications 2FA gratuites
+  pt: Encontrar apps 2FA gratuitos
+  ru: Найти бесплатные приложения 2FA
+  ja: 無料の2FAアプリを探す
+  ko: 무료 2FA 앱 찾기
+  it: Trova app 2FA gratuite
+  tr: Ücretsiz 2FA uygulamaları bul
+  vi: Tìm ứng dụng 2FA miễn phí
+  id: Temukan aplikasi 2FA gratis
+  pl: Znajdź darmowe aplikacje 2FA
+  nl: Vind gratis 2FA-apps
+  ar: البحث عن تطبيقات مصادقة ثنائية مجانية
+  hi: मुफ्त 2FA ऐप खोजें
+  th: ค้นหาแอป 2FA ฟรี
+  cs: Najít bezplatné 2FA aplikace
+  sv: Hitta gratis 2FA-appar
+  verified_by_human: []
+tfa_select_app:
+  context: Title for app selection step
+  en: Which app did you use?
+  de: Welche App haben Sie verwendet?
+  zh: 您使用了哪个应用？
+  es: ¿Qué app usaste?
+  fr: Quelle application avez-vous utilisée?
+  pt: Qual app você usou?
+  ru: Какое приложение вы использовали?
+  ja: どのアプリを使用しましたか？
+  ko: 어떤 앱을 사용하셨나요?
+  it: Quale app hai usato?
+  tr: Hangi uygulamayı kullandınız?
+  vi: Bạn đã sử dụng ứng dụng nào?
+  id: Aplikasi mana yang Anda gunakan?
+  pl: Jakiej aplikacji użyłeś?
+  nl: Welke app heeft u gebruikt?
+  ar: ما هو التطبيق الذي استخدمته؟
+  hi: आपने कौन सा ऐप इस्तेमाल किया?
+  th: คุณใช้แอปไหน?
+  cs: Kterou aplikaci jste použili?
+  sv: Vilken app använde du?
+  verified_by_human: []
+tfa_select_app_description:
+  context: Description for app selection step
+  en: This helps us remind you which app to use when logging in.
+  de: Dies hilft uns, Sie daran zu erinnern, welche App Sie bei der Anmeldung verwenden sollen.
+  zh: 这有助于我们在您登录时提醒您使用哪个应用。
+  es: Esto nos ayuda a recordarte qué app usar al iniciar sesión.
+  fr: Cela nous aide à vous rappeler quelle application utiliser lors de la connexion.
+  pt: Isso nos ajuda a lembrar qual app usar ao fazer login.
+  ru: Это поможет напомнить вам, какое приложение использовать при входе.
+  ja: これにより、ログイン時にどのアプリを使用するかをお知らせできます。
+  ko: 로그인할 때 어떤 앱을 사용해야 하는지 알려드립니다.
+  it: Questo ci aiuta a ricordarti quale app usare per accedere.
+  tr: Bu, giriş yaparken hangi uygulamayı kullanacağınızı hatırlatmamıza yardımcı olur.
+  vi: Điều này giúp chúng tôi nhắc bạn sử dụng ứng dụng nào khi đăng nhập.
+  id: Ini membantu kami mengingatkan Anda aplikasi mana yang harus digunakan saat masuk.
+  pl: Pomoże to przypomnieć Ci, której aplikacji użyć podczas logowania.
+  nl: Dit helpt ons u te herinneren welke app u moet gebruiken bij het inloggen.
+  ar: هذا يساعدنا على تذكيرك بالتطبيق الذي يجب استخدامه عند تسجيل الدخول.
+  hi: इससे हमें लॉगिन करते समय कौन सा ऐप इस्तेमाल करना है याद दिलाने में मदद मिलती है।
+  th: สิ่งนี้ช่วยให้เราเตือนคุณว่าควรใช้แอปไหนเมื่อเข้าสู่ระบบ
+  cs: To nám pomůže připomenout vám, kterou aplikaci použít při přihlášení.
+  sv: Detta hjälper oss att påminna dig vilken app du ska använda vid inloggning.
+  verified_by_human: []
+tfa_backup_codes:
+  context: Title for backup codes step
+  en: Save Your Backup Codes
+  de: Speichern Sie Ihre Backup-Codes
+  zh: 保存您的备用码
+  es: Guarda tus códigos de respaldo
+  fr: Enregistrez vos codes de secours
+  pt: Salve seus códigos de backup
+  ru: Сохраните резервные коды
+  ja: バックアップコードを保存
+  ko: 백업 코드 저장
+  it: Salva i tuoi codici di backup
+  tr: Yedek kodlarınızı kaydedin
+  vi: Lưu mã dự phòng của bạn
+  id: Simpan kode cadangan Anda
+  pl: Zapisz swoje kody zapasowe
+  nl: Bewaar uw back-upcodes
+  ar: احفظ رموز النسخ الاحتياطي
+  hi: अपने बैकअप कोड सहेजें
+  th: บันทึกรหัสสำรองของคุณ
+  cs: Uložte si záložní kódy
+  sv: Spara dina reservkoder
+  verified_by_human: []
+tfa_backup_codes_description:
+  context: Description for backup codes
+  en: These codes can be used to access your account if you lose your 2FA device. Each code can only be used once. Store them safely.
+  de: Diese Codes können verwendet werden, um auf Ihr Konto zuzugreifen, wenn Sie Ihr 2FA-Gerät verlieren. Jeder Code kann nur einmal verwendet werden. Bewahren Sie sie sicher auf.
+  zh: 如果您丢失了2FA设备，可以使用这些代码访问您的账户。每个代码只能使用一次。请安全保存。
+  es: Estos códigos se pueden usar para acceder a tu cuenta si pierdes tu dispositivo 2FA. Cada código solo se puede usar una vez. Guárdalos de forma segura.
+  fr: Ces codes peuvent être utilisés pour accéder à votre compte si vous perdez votre appareil 2FA. Chaque code ne peut être utilisé qu'une seule fois. Conservez-les en sécurité.
+  pt: Esses códigos podem ser usados para acessar sua conta se você perder seu dispositivo 2FA. Cada código só pode ser usado uma vez. Guarde-os com segurança.
+  ru: Эти коды можно использовать для доступа к вашей учетной записи, если вы потеряете устройство 2FA. Каждый код можно использовать только один раз. Храните их в безопасном месте.
+  ja: これらのコードは、2FAデバイスを紛失した場合にアカウントにアクセスするために使用できます。各コードは1回のみ使用可能です。安全に保管してください。
+  ko: 2FA 기기를 분실한 경우 이 코드를 사용하여 계정에 접근할 수 있습니다. 각 코드는 한 번만 사용할 수 있습니다. 안전하게 보관하세요.
+  it: Questi codici possono essere usati per accedere al tuo account se perdi il tuo dispositivo 2FA. Ogni codice può essere usato solo una volta. Conservali in modo sicuro.
+  tr: Bu kodlar 2FA cihazınızı kaybederseniz hesabınıza erişmek için kullanılabilir. Her kod yalnızca bir kez kullanılabilir. Güvenli bir şekilde saklayın.
+  vi: Những mã này có thể được sử dụng để truy cập tài khoản của bạn nếu bạn mất thiết bị 2FA. Mỗi mã chỉ có thể sử dụng một lần. Lưu trữ chúng một cách an toàn.
+  id: Kode-kode ini dapat digunakan untuk mengakses akun Anda jika Anda kehilangan perangkat 2FA. Setiap kode hanya dapat digunakan sekali. Simpan dengan aman.
+  pl: Te kody mogą być użyte do uzyskania dostępu do konta, jeśli zgubisz urządzenie 2FA. Każdy kod może być użyty tylko raz. Przechowuj je bezpiecznie.
+  nl: Deze codes kunnen worden gebruikt om toegang te krijgen tot uw account als u uw 2FA-apparaat kwijtraakt. Elke code kan slechts één keer worden gebruikt. Bewaar ze veilig.
+  ar: يمكن استخدام هذه الرموز للوصول إلى حسابك إذا فقدت جهاز المصادقة الثنائية. يمكن استخدام كل رمز مرة واحدة فقط. احفظها بأمان.
+  hi: ये कोड आपके खाते तक पहुंचने के लिए उपयोग किए जा सकते हैं यदि आप अपना 2FA डिवाइस खो देते हैं। प्रत्येक कोड केवल एक बार उपयोग किया जा सकता है। इन्हें सुरक्षित रखें।
+  th: รหัสเหล่านี้สามารถใช้เพื่อเข้าถึงบัญชีของคุณหากคุณสูญเสียอุปกรณ์ 2FA แต่ละรหัสสามารถใช้ได้เพียงครั้งเดียว เก็บรักษาไว้อย่างปลอดภัย
+  cs: Tyto kódy lze použít pro přístup k účtu, pokud ztratíte 2FA zařízení. Každý kód lze použít pouze jednou. Uložte je bezpečně.
+  sv: Dessa koder kan användas för att komma åt ditt konto om du tappar bort din 2FA-enhet. Varje kod kan endast användas en gång. Förvara dem säkert.
+  verified_by_human: []
+tfa_copy_codes:
+  context: Button to copy backup codes
+  en: Copy Codes
+  de: Codes kopieren
+  zh: 复制代码
+  es: Copiar códigos
+  fr: Copier les codes
+  pt: Copiar códigos
+  ru: Скопировать коды
+  ja: コードをコピー
+  ko: 코드 복사
+  it: Copia codici
+  tr: Kodları kopyala
+  vi: Sao chép mã
+  id: Salin kode
+  pl: Kopiuj kody
+  nl: Codes kopiëren
+  ar: نسخ الرموز
+  hi: कोड कॉपी करें
+  th: คัดลอกรหัส
+  cs: Kopírovat kódy
+  sv: Kopiera koder
+  verified_by_human: []
+tfa_confirm_codes_stored:
+  context: Checkbox to confirm codes are stored
+  en: I have saved my backup codes in a safe place
+  de: Ich habe meine Backup-Codes an einem sicheren Ort gespeichert
+  zh: 我已将备用码保存在安全的地方
+  es: He guardado mis códigos de respaldo en un lugar seguro
+  fr: J'ai enregistré mes codes de secours dans un endroit sûr
+  pt: Salvei meus códigos de backup em um local seguro
+  ru: Я сохранил свои резервные коды в безопасном месте
+  ja: バックアップコードを安全な場所に保存しました
+  ko: 백업 코드를 안전한 곳에 저장했습니다
+  it: Ho salvato i miei codici di backup in un posto sicuro
+  tr: Yedek kodlarımı güvenli bir yere kaydettim
+  vi: Tôi đã lưu mã dự phòng ở nơi an toàn
+  id: Saya telah menyimpan kode cadangan saya di tempat yang aman
+  pl: Zapisałem swoje kody zapasowe w bezpiecznym miejscu
+  nl: Ik heb mijn back-upcodes op een veilige plaats opgeslagen
+  ar: لقد حفظت رموز النسخ الاحتياطي في مكان آمن
+  hi: मैंने अपने बैकअप कोड सुरक्षित जगह पर सहेज लिए हैं
+  th: ฉันได้บันทึกรหัสสำรองไว้ในที่ปลอดภัยแล้ว
+  cs: Uložil jsem své záložní kódy na bezpečné místo
+  sv: Jag har sparat mina reservkoder på en säker plats
+  verified_by_human: []
+tfa_complete_setup:
+  context: Button to complete 2FA setup
+  en: Complete Setup
+  de: Einrichtung abschließen
+  zh: 完成设置
+  es: Completar configuración
+  fr: Terminer la configuration
+  pt: Concluir configuração
+  ru: Завершить настройку
+  ja: セットアップを完了
+  ko: 설정 완료
+  it: Completa configurazione
+  tr: Kurulumu tamamla
+  vi: Hoàn tất thiết lập
+  id: Selesaikan pengaturan
+  pl: Zakończ konfigurację
+  nl: Installatie voltooien
+  ar: إكمال الإعداد
+  hi: सेटअप पूरा करें
+  th: ตั้งค่าเสร็จสิ้น
+  cs: Dokončit nastavení
+  sv: Slutför installation
+  verified_by_human: []
+tfa_setup_complete:
+  context: Title for setup completion
+  en: 2FA Enabled Successfully!
+  de: 2FA erfolgreich aktiviert!
+  zh: 双因素认证已成功启用！
+  es: ¡2FA habilitado exitosamente!
+  fr: 2FA activé avec succès!
+  pt: 2FA ativado com sucesso!
+  ru: 2FA успешно включена!
+  ja: 2FAが正常に有効化されました！
+  ko: 2FA가 성공적으로 활성화되었습니다!
+  it: 2FA abilitato con successo!
+  tr: 2FA başarıyla etkinleştirildi!
+  vi: Đã bật 2FA thành công!
+  id: 2FA berhasil diaktifkan!
+  pl: 2FA zostało pomyślnie włączone!
+  nl: 2FA succesvol ingeschakeld!
+  ar: تم تفعيل المصادقة الثنائية بنجاح!
+  hi: 2FA सफलतापूर्वक सक्षम किया गया!
+  th: เปิดใช้งาน 2FA สำเร็จ!
+  cs: 2FA úspěšně povoleno!
+  sv: 2FA aktiverat framgångsrikt!
+  verified_by_human: []
+tfa_setup_complete_description:
+  context: Description for setup completion
+  en: Your account is now protected with two-factor authentication. You'll need to enter a code from your app each time you log in.
+  de: Ihr Konto ist jetzt mit Zwei-Faktor-Authentifizierung geschützt. Sie müssen bei jeder Anmeldung einen Code aus Ihrer App eingeben.
+  zh: 您的账户现在受到双因素认证的保护。每次登录时，您需要从应用中输入一个代码。
+  es: Tu cuenta ahora está protegida con autenticación de dos factores. Necesitarás ingresar un código de tu app cada vez que inicies sesión.
+  fr: Votre compte est maintenant protégé par l'authentification à deux facteurs. Vous devrez entrer un code de votre application à chaque connexion.
+  pt: Sua conta agora está protegida com autenticação de dois fatores. Você precisará inserir um código do seu app cada vez que fizer login.
+  ru: Ваша учетная запись теперь защищена двухфакторной аутентификацией. При каждом входе вам нужно будет вводить код из приложения.
+  ja: アカウントは二要素認証で保護されるようになりました。ログインするたびにアプリからコードを入力する必要があります。
+  ko: 이제 계정이 2단계 인증으로 보호됩니다. 로그인할 때마다 앱에서 코드를 입력해야 합니다.
+  it: Il tuo account è ora protetto con l'autenticazione a due fattori. Dovrai inserire un codice dalla tua app ogni volta che accedi.
+  tr: Hesabınız artık iki faktörlü kimlik doğrulama ile korunuyor. Her giriş yaptığınızda uygulamanızdan bir kod girmeniz gerekecek.
+  vi: Tài khoản của bạn hiện được bảo vệ bằng xác thực hai yếu tố. Bạn sẽ cần nhập mã từ ứng dụng mỗi khi đăng nhập.
+  id: Akun Anda sekarang dilindungi dengan autentikasi dua faktor. Anda perlu memasukkan kode dari aplikasi Anda setiap kali masuk.
+  pl: Twoje konto jest teraz chronione uwierzytelnianiem dwuskładnikowym. Przy każdym logowaniu musisz wprowadzić kod z aplikacji.
+  nl: Uw account is nu beveiligd met tweefactorauthenticatie. U moet bij elke aanmelding een code uit uw app invoeren.
+  ar: حسابك الآن محمي بالمصادقة الثنائية. ستحتاج إلى إدخال رمز من تطبيقك في كل مرة تسجل فيها الدخول.
+  hi: आपका खाता अब दो-कारक प्रमाणीकरण से सुरक्षित है। हर बार लॉगिन करते समय आपको अपने ऐप से एक कोड दर्ज करना होगा।
+  th: บัญชีของคุณได้รับการปกป้องด้วยการยืนยันตัวตนสองขั้นตอนแล้ว คุณจะต้องป้อนรหัสจากแอปทุกครั้งที่เข้าสู่ระบบ
+  cs: Váš účet je nyní chráněn dvoufaktorovým ověřením. Při každém přihlášení budete muset zadat kód z aplikace.
+  sv: Ditt konto är nu skyddat med tvåfaktorsautentisering. Du behöver ange en kod från din app varje gång du loggar in.
+  verified_by_human: []
+tfa_disable_confirm_title:
+  context: Title for disable confirmation
+  en: Disable Two-Factor Authentication?
+  de: Zwei-Faktor-Authentifizierung deaktivieren?
+  zh: 禁用双因素认证？
+  es: ¿Deshabilitar autenticación de dos factores?
+  fr: Désactiver l'authentification à deux facteurs?
+  pt: Desativar autenticação de dois fatores?
+  ru: Отключить двухфакторную аутентификацию?
+  ja: 二要素認証を無効にしますか？
+  ko: 2단계 인증을 비활성화하시겠습니까?
+  it: Disabilitare l'autenticazione a due fattori?
+  tr: İki faktörlü kimlik doğrulamayı devre dışı bırak?
+  vi: Tắt xác thực hai yếu tố?
+  id: Nonaktifkan autentikasi dua faktor?
+  pl: Wyłączyć uwierzytelnianie dwuskładnikowe?
+  nl: Tweefactorauthenticatie uitschakelen?
+  ar: تعطيل المصادقة الثنائية؟
+  hi: दो-कारक प्रमाणीकरण अक्षम करें?
+  th: ปิดใช้งานการยืนยันตัวตนสองขั้นตอน?
+  cs: Zakázat dvoufaktorové ověření?
+  sv: Inaktivera tvåfaktorsautentisering?
+  verified_by_human: []
+tfa_disable_confirm_description:
+  context: Warning for disabling 2FA
+  en: Disabling 2FA will make your account less secure. You won't need a code to log in, but your account will be more vulnerable to unauthorized access.
+  de: Das Deaktivieren von 2FA macht Ihr Konto weniger sicher. Sie benötigen keinen Code zum Anmelden, aber Ihr Konto ist anfälliger für unbefugten Zugriff.
+  zh: 禁用双因素认证会降低您账户的安全性。您登录时不需要代码，但您的账户更容易受到未经授权的访问。
+  es: Deshabilitar 2FA hará que tu cuenta sea menos segura. No necesitarás un código para iniciar sesión, pero tu cuenta será más vulnerable a accesos no autorizados.
+  fr: Désactiver le 2FA rendra votre compte moins sécurisé. Vous n'aurez plus besoin d'un code pour vous connecter, mais votre compte sera plus vulnérable aux accès non autorisés.
+  pt: Desativar o 2FA tornará sua conta menos segura. Você não precisará de um código para fazer login, mas sua conta será mais vulnerável a acessos não autorizados.
+  ru: Отключение 2FA сделает вашу учетную запись менее безопасной. Вам не понадобится код для входа, но ваша учетная запись станет более уязвимой для несанкционированного доступа.
+  ja: 2FAを無効にすると、アカウントの安全性が低下します。ログインにコードは不要になりますが、不正アクセスに対してより脆弱になります。
+  ko: 2FA를 비활성화하면 계정의 보안이 약해집니다. 로그인할 때 코드가 필요 없어지지만, 무단 접근에 더 취약해집니다.
+  it: Disabilitare il 2FA renderà il tuo account meno sicuro. Non avrai bisogno di un codice per accedere, ma il tuo account sarà più vulnerabile agli accessi non autorizzati.
+  tr: 2FA'yı devre dışı bırakmak hesabınızı daha az güvenli hale getirecektir. Giriş yapmak için koda ihtiyacınız olmayacak, ancak hesabınız yetkisiz erişime karşı daha savunmasız olacak.
+  vi: Việc tắt 2FA sẽ làm cho tài khoản của bạn kém an toàn hơn. Bạn sẽ không cần mã để đăng nhập, nhưng tài khoản của bạn sẽ dễ bị truy cập trái phép hơn.
+  id: Menonaktifkan 2FA akan membuat akun Anda kurang aman. Anda tidak memerlukan kode untuk masuk, tetapi akun Anda akan lebih rentan terhadap akses tidak sah.
+  pl: Wyłączenie 2FA sprawi, że Twoje konto będzie mniej bezpieczne. Nie będziesz potrzebować kodu do logowania, ale Twoje konto będzie bardziej narażone na nieautoryzowany dostęp.
+  nl: Het uitschakelen van 2FA maakt uw account minder veilig. U heeft geen code nodig om in te loggen, maar uw account is kwetsbaarder voor ongeoorloofde toegang.
+  ar: سيجعل تعطيل المصادقة الثنائية حسابك أقل أماناً. لن تحتاج إلى رمز لتسجيل الدخول، لكن حسابك سيكون أكثر عرضة للوصول غير المصرح به.
+  hi: 2FA अक्षम करने से आपका खाता कम सुरक्षित हो जाएगा। आपको लॉगिन के लिए कोड की आवश्यकता नहीं होगी, लेकिन आपका खाता अनधिकृत पहुंच के प्रति अधिक संवेदनशील होगा।
+  th: การปิดใช้งาน 2FA จะทำให้บัญชีของคุณมีความปลอดภัยน้อยลง คุณไม่จำเป็นต้องใช้รหัสเพื่อเข้าสู่ระบบ แต่บัญชีของคุณจะเสี่ยงต่อการเข้าถึงโดยไม่ได้รับอนุญาตมากขึ้น
+  cs: Zakázání 2FA učiní váš účet méně bezpečným. Nebudete potřebovat kód k přihlášení, ale váš účet bude zranitelnější vůči neoprávněnému přístupu.
+  sv: Att inaktivera 2FA gör ditt konto mindre säkert. Du behöver ingen kod för att logga in, men ditt konto blir mer sårbart för obehörig åtkomst.
+  verified_by_human: []
+tfa_disable_confirm:
+  context: Button to confirm disabling 2FA
+  en: Disable 2FA
+  de: 2FA deaktivieren
+  zh: 禁用双因素认证
+  es: Deshabilitar 2FA
+  fr: Désactiver 2FA
+  pt: Desativar 2FA
+  ru: Отключить 2FA
+  ja: 2FAを無効にする
+  ko: 2FA 비활성화
+  it: Disabilita 2FA
+  tr: 2FA'yı devre dışı bırak
+  vi: Tắt 2FA
+  id: Nonaktifkan 2FA
+  pl: Wyłącz 2FA
+  nl: 2FA uitschakelen
+  ar: تعطيل المصادقة الثنائية
+  hi: 2FA अक्षम करें
+  th: ปิดใช้งาน 2FA
+  cs: Zakázat 2FA
+  sv: Inaktivera 2FA
+  verified_by_human: []
+tfa_disabled_success:
+  context: Success message after disabling 2FA
+  en: Two-Factor Authentication has been disabled.
+  de: Zwei-Faktor-Authentifizierung wurde deaktiviert.
+  zh: 双因素认证已被禁用。
+  es: La autenticación de dos factores ha sido deshabilitada.
+  fr: L'authentification à deux facteurs a été désactivée.
+  pt: A autenticação de dois fatores foi desativada.
+  ru: Двухфакторная аутентификация отключена.
+  ja: 二要素認証が無効になりました。
+  ko: 2단계 인증이 비활성화되었습니다.
+  it: L'autenticazione a due fattori è stata disabilitata.
+  tr: İki faktörlü kimlik doğrulama devre dışı bırakıldı.
+  vi: Xác thực hai yếu tố đã bị tắt.
+  id: Autentikasi dua faktor telah dinonaktifkan.
+  pl: Uwierzytelnianie dwuskładnikowe zostało wyłączone.
+  nl: Tweefactorauthenticatie is uitgeschakeld.
+  ar: تم تعطيل المصادقة الثنائية.
+  hi: दो-कारक प्रमाणीकरण अक्षम कर दिया गया है।
+  th: การยืนยันตัวตนสองขั้นตอนถูกปิดใช้งานแล้ว
+  cs: Dvoufaktorové ověření bylo zakázáno.
+  sv: Tvåfaktorsautentisering har inaktiverats.
+  verified_by_human: []
+tfa_setup_failed:
+  context: Error when 2FA setup fails
+  en: Failed to set up 2FA. Please try again.
+  de: 2FA-Einrichtung fehlgeschlagen. Bitte versuchen Sie es erneut.
+  zh: 设置双因素认证失败。请重试。
+  es: Error al configurar 2FA. Por favor, inténtalo de nuevo.
+  fr: Échec de la configuration de 2FA. Veuillez réessayer.
+  pt: Falha ao configurar 2FA. Por favor, tente novamente.
+  ru: Не удалось настроить 2FA. Пожалуйста, попробуйте снова.
+  ja: 2FAの設定に失敗しました。もう一度お試しください。
+  ko: 2FA 설정에 실패했습니다. 다시 시도해 주세요.
+  it: Configurazione 2FA fallita. Riprova.
+  tr: 2FA kurulumu başarısız. Lütfen tekrar deneyin.
+  vi: Không thể thiết lập 2FA. Vui lòng thử lại.
+  id: Gagal mengatur 2FA. Silakan coba lagi.
+  pl: Nie udało się skonfigurować 2FA. Spróbuj ponownie.
+  nl: 2FA instellen mislukt. Probeer het opnieuw.
+  ar: فشل إعداد المصادقة الثنائية. يرجى المحاولة مرة أخرى.
+  hi: 2FA सेट करने में विफल। कृपया पुनः प्रयास करें।
+  th: ไม่สามารถตั้งค่า 2FA ได้ กรุณาลองอีกครั้ง
+  cs: Nastavení 2FA selhalo. Zkuste to prosím znovu.
+  sv: Misslyckades med att konfigurera 2FA. Försök igen.
+  verified_by_human: []
+tfa_setup_error:
+  context: Generic error during 2FA setup
+  en: An error occurred. Please try again later.
+  de: Ein Fehler ist aufgetreten. Bitte versuchen Sie es später erneut.
+  zh: 发生错误。请稍后再试。
+  es: Ocurrió un error. Por favor, inténtalo más tarde.
+  fr: Une erreur s'est produite. Veuillez réessayer plus tard.
+  pt: Ocorreu um erro. Por favor, tente novamente mais tarde.
+  ru: Произошла ошибка. Пожалуйста, попробуйте позже.
+  ja: エラーが発生しました。後でもう一度お試しください。
+  ko: 오류가 발생했습니다. 나중에 다시 시도해 주세요.
+  it: Si è verificato un errore. Riprova più tardi.
+  tr: Bir hata oluştu. Lütfen daha sonra tekrar deneyin.
+  vi: Đã xảy ra lỗi. Vui lòng thử lại sau.
+  id: Terjadi kesalahan. Silakan coba lagi nanti.
+  pl: Wystąpił błąd. Spróbuj ponownie później.
+  nl: Er is een fout opgetreden. Probeer het later opnieuw.
+  ar: حدث خطأ. يرجى المحاولة مرة أخرى لاحقاً.
+  hi: एक त्रुटि हुई। कृपया बाद में पुनः प्रयास करें।
+  th: เกิดข้อผิดพลาด กรุณาลองอีกครั้งในภายหลัง
+  cs: Došlo k chybě. Zkuste to prosím později.
+  sv: Ett fel uppstod. Försök igen senare.
+  verified_by_human: []
+tfa_invalid_code:
+  context: Error for invalid verification code
+  en: Invalid code. Please try again.
+  de: Ungültiger Code. Bitte versuchen Sie es erneut.
+  zh: 无效代码。请重试。
+  es: Código inválido. Por favor, inténtalo de nuevo.
+  fr: Code invalide. Veuillez réessayer.
+  pt: Código inválido. Por favor, tente novamente.
+  ru: Неверный код. Пожалуйста, попробуйте снова.
+  ja: 無効なコードです。もう一度お試しください。
+  ko: 잘못된 코드입니다. 다시 시도해 주세요.
+  it: Codice non valido. Riprova.
+  tr: Geçersiz kod. Lütfen tekrar deneyin.
+  vi: Mã không hợp lệ. Vui lòng thử lại.
+  id: Kode tidak valid. Silakan coba lagi.
+  pl: Nieprawidłowy kod. Spróbuj ponownie.
+  nl: Ongeldige code. Probeer het opnieuw.
+  ar: رمز غير صالح. يرجى المحاولة مرة أخرى.
+  hi: अमान्य कोड। कृपया पुनः प्रयास करें।
+  th: รหัสไม่ถูกต้อง กรุณาลองอีกครั้ง
+  cs: Neplatný kód. Zkuste to prosím znovu.
+  sv: Ogiltig kod. Försök igen.
+  verified_by_human: []
+tfa_verify_error:
+  context: Error during code verification
+  en: Failed to verify code. Please try again.
+  de: Code konnte nicht verifiziert werden. Bitte versuchen Sie es erneut.
+  zh: 验证代码失败。请重试。
+  es: Error al verificar el código. Por favor, inténtalo de nuevo.
+  fr: Échec de la vérification du code. Veuillez réessayer.
+  pt: Falha ao verificar o código. Por favor, tente novamente.
+  ru: Не удалось проверить код. Пожалуйста, попробуйте снова.
+  ja: コードの確認に失敗しました。もう一度お試しください。
+  ko: 코드 확인에 실패했습니다. 다시 시도해 주세요.
+  it: Verifica del codice fallita. Riprova.
+  tr: Kod doğrulanamadı. Lütfen tekrar deneyin.
+  vi: Không thể xác minh mã. Vui lòng thử lại.
+  id: Gagal memverifikasi kode. Silakan coba lagi.
+  pl: Weryfikacja kodu nie powiodła się. Spróbuj ponownie.
+  nl: Code verifiëren mislukt. Probeer het opnieuw.
+  ar: فشل التحقق من الرمز. يرجى المحاولة مرة أخرى.
+  hi: कोड सत्यापित करने में विफल। कृपया पुनः प्रयास करें।
+  th: ไม่สามารถตรวจสอบรหัสได้ กรุณาลองอีกครั้ง
+  cs: Ověření kódu selhalo. Zkuste to prosím znovu.
+  sv: Misslyckades med att verifiera koden. Försök igen.
+  verified_by_human: []
+tfa_save_app_failed:
+  context: Error when saving app selection fails
+  en: Failed to save app selection.
+  de: App-Auswahl konnte nicht gespeichert werden.
+  zh: 保存应用选择失败。
+  es: Error al guardar la selección de app.
+  fr: Échec de l'enregistrement de la sélection d'application.
+  pt: Falha ao salvar a seleção do app.
+  ru: Не удалось сохранить выбор приложения.
+  ja: アプリの選択を保存できませんでした。
+  ko: 앱 선택 저장에 실패했습니다.
+  it: Salvataggio della selezione dell'app fallito.
+  tr: Uygulama seçimi kaydedilemedi.
+  vi: Không thể lưu lựa chọn ứng dụng.
+  id: Gagal menyimpan pilihan aplikasi.
+  pl: Nie udało się zapisać wyboru aplikacji.
+  nl: App-selectie opslaan mislukt.
+  ar: فشل حفظ اختيار التطبيق.
+  hi: ऐप चयन सहेजने में विफल।
+  th: บันทึกการเลือกแอปไม่สำเร็จ
+  cs: Uložení výběru aplikace selhalo.
+  sv: Misslyckades med att spara appval.
+  verified_by_human: []
+tfa_save_app_error:
+  context: Generic error when saving app
+  en: An error occurred while saving.
+  de: Beim Speichern ist ein Fehler aufgetreten.
+  zh: 保存时发生错误。
+  es: Ocurrió un error al guardar.
+  fr: Une erreur s'est produite lors de l'enregistrement.
+  pt: Ocorreu um erro ao salvar.
+  ru: Произошла ошибка при сохранении.
+  ja: 保存中にエラーが発生しました。
+  ko: 저장 중 오류가 발생했습니다.
+  it: Si è verificato un errore durante il salvataggio.
+  tr: Kaydederken bir hata oluştu.
+  vi: Đã xảy ra lỗi khi lưu.
+  id: Terjadi kesalahan saat menyimpan.
+  pl: Wystąpił błąd podczas zapisywania.
+  nl: Er is een fout opgetreden tijdens het opslaan.
+  ar: حدث خطأ أثناء الحفظ.
+  hi: सहेजते समय एक त्रुटि हुई।
+  th: เกิดข้อผิดพลาดขณะบันทึก
+  cs: Při ukládání došlo k chybě.
+  sv: Ett fel uppstod vid sparande.
+  verified_by_human: []
+tfa_backup_codes_failed:
+  context: Error when requesting backup codes fails
+  en: Failed to generate backup codes.
+  de: Backup-Codes konnten nicht generiert werden.
+  zh: 无法生成备用码。
+  es: Error al generar códigos de respaldo.
+  fr: Échec de la génération des codes de secours.
+  pt: Falha ao gerar códigos de backup.
+  ru: Не удалось сгенерировать резервные коды.
+  ja: バックアップコードの生成に失敗しました。
+  ko: 백업 코드 생성에 실패했습니다.
+  it: Generazione dei codici di backup fallita.
+  tr: Yedek kodlar oluşturulamadı.
+  vi: Không thể tạo mã dự phòng.
+  id: Gagal membuat kode cadangan.
+  pl: Nie udało się wygenerować kodów zapasowych.
+  nl: Back-upcodes genereren mislukt.
+  ar: فشل إنشاء رموز النسخ الاحتياطي.
+  hi: बैकअप कोड जनरेट करने में विफल।
+  th: ไม่สามารถสร้างรหัสสำรองได้
+  cs: Generování záložních kódů selhalo.
+  sv: Misslyckades med att generera reservkoder.
+  verified_by_human: []
+tfa_backup_codes_error:
+  context: Generic error for backup codes
+  en: An error occurred while generating backup codes.
+  de: Beim Generieren der Backup-Codes ist ein Fehler aufgetreten.
+  zh: 生成备用码时发生错误。
+  es: Ocurrió un error al generar los códigos de respaldo.
+  fr: Une erreur s'est produite lors de la génération des codes de secours.
+  pt: Ocorreu um erro ao gerar os códigos de backup.
+  ru: Произошла ошибка при генерации резервных кодов.
+  ja: バックアップコードの生成中にエラーが発生しました。
+  ko: 백업 코드 생성 중 오류가 발생했습니다.
+  it: Si è verificato un errore durante la generazione dei codici di backup.
+  tr: Yedek kodlar oluşturulurken bir hata oluştu.
+  vi: Đã xảy ra lỗi khi tạo mã dự phòng.
+  id: Terjadi kesalahan saat membuat kode cadangan.
+  pl: Wystąpił błąd podczas generowania kodów zapasowych.
+  nl: Er is een fout opgetreden bij het genereren van back-upcodes.
+  ar: حدث خطأ أثناء إنشاء رموز النسخ الاحتياطي.
+  hi: बैकअप कोड जनरेट करते समय एक त्रुटि हुई।
+  th: เกิดข้อผิดพลาดขณะสร้างรหัสสำรอง
+  cs: Při generování záložních kódů došlo k chybě.
+  sv: Ett fel uppstod vid generering av reservkoder.
+  verified_by_human: []
+tfa_confirm_failed:
+  context: Error when confirmation fails
+  en: Failed to confirm. Please try again.
+  de: Bestätigung fehlgeschlagen. Bitte versuchen Sie es erneut.
+  zh: 确认失败。请重试。
+  es: Error al confirmar. Por favor, inténtalo de nuevo.
+  fr: Échec de la confirmation. Veuillez réessayer.
+  pt: Falha ao confirmar. Por favor, tente novamente.
+  ru: Не удалось подтвердить. Пожалуйста, попробуйте снова.
+  ja: 確認に失敗しました。もう一度お試しください。
+  ko: 확인에 실패했습니다. 다시 시도해 주세요.
+  it: Conferma fallita. Riprova.
+  tr: Onaylama başarısız. Lütfen tekrar deneyin.
+  vi: Xác nhận không thành công. Vui lòng thử lại.
+  id: Gagal mengonfirmasi. Silakan coba lagi.
+  pl: Potwierdzenie nie powiodło się. Spróbuj ponownie.
+  nl: Bevestiging mislukt. Probeer het opnieuw.
+  ar: فشل التأكيد. يرجى المحاولة مرة أخرى.
+  hi: पुष्टि करने में विफल। कृपया पुनः प्रयास करें।
+  th: การยืนยันล้มเหลว กรุณาลองอีกครั้ง
+  cs: Potvrzení selhalo. Zkuste to prosím znovu.
+  sv: Bekräftelse misslyckades. Försök igen.
+  verified_by_human: []
+tfa_confirm_error:
+  context: Generic error during confirmation
+  en: An error occurred during confirmation.
+  de: Während der Bestätigung ist ein Fehler aufgetreten.
+  zh: 确认过程中发生错误。
+  es: Ocurrió un error durante la confirmación.
+  fr: Une erreur s'est produite lors de la confirmation.
+  pt: Ocorreu um erro durante a confirmação.
+  ru: Произошла ошибка во время подтверждения.
+  ja: 確認中にエラーが発生しました。
+  ko: 확인 중 오류가 발생했습니다.
+  it: Si è verificato un errore durante la conferma.
+  tr: Onaylama sırasında bir hata oluştu.
+  vi: Đã xảy ra lỗi trong quá trình xác nhận.
+  id: Terjadi kesalahan saat konfirmasi.
+  pl: Wystąpił błąd podczas potwierdzania.
+  nl: Er is een fout opgetreden tijdens de bevestiging.
+  ar: حدث خطأ أثناء التأكيد.
+  hi: पुष्टि के दौरान एक त्रुटि हुई।
+  th: เกิดข้อผิดพลาดระหว่างการยืนยัน
+  cs: Během potvrzení došlo k chybě.
+  sv: Ett fel uppstod vid bekräftelse.
+  verified_by_human: []
+tfa_disable_failed:
+  context: Error when disabling 2FA fails
+  en: Failed to disable 2FA.
+  de: 2FA konnte nicht deaktiviert werden.
+  zh: 无法禁用双因素认证。
+  es: Error al deshabilitar 2FA.
+  fr: Échec de la désactivation de 2FA.
+  pt: Falha ao desativar 2FA.
+  ru: Не удалось отключить 2FA.
+  ja: 2FAを無効にできませんでした。
+  ko: 2FA 비활성화에 실패했습니다.
+  it: Disabilitazione 2FA fallita.
+  tr: 2FA devre dışı bırakılamadı.
+  vi: Không thể tắt 2FA.
+  id: Gagal menonaktifkan 2FA.
+  pl: Nie udało się wyłączyć 2FA.
+  nl: 2FA uitschakelen mislukt.
+  ar: فشل تعطيل المصادقة الثنائية.
+  hi: 2FA अक्षम करने में विफल।
+  th: ไม่สามารถปิดใช้งาน 2FA ได้
+  cs: Zakázání 2FA selhalo.
+  sv: Misslyckades med att inaktivera 2FA.
+  verified_by_human: []
+tfa_disable_error:
+  context: Generic error when disabling 2FA
+  en: An error occurred while disabling 2FA.
+  de: Beim Deaktivieren von 2FA ist ein Fehler aufgetreten.
+  zh: 禁用双因素认证时发生错误。
+  es: Ocurrió un error al deshabilitar 2FA.
+  fr: Une erreur s'est produite lors de la désactivation de 2FA.
+  pt: Ocorreu um erro ao desativar 2FA.
+  ru: Произошла ошибка при отключении 2FA.
+  ja: 2FAを無効にする際にエラーが発生しました。
+  ko: 2FA 비활성화 중 오류가 발생했습니다.
+  it: Si è verificato un errore durante la disabilitazione di 2FA.
+  tr: 2FA devre dışı bırakılırken bir hata oluştu.
+  vi: Đã xảy ra lỗi khi tắt 2FA.
+  id: Terjadi kesalahan saat menonaktifkan 2FA.
+  pl: Wystąpił błąd podczas wyłączania 2FA.
+  nl: Er is een fout opgetreden bij het uitschakelen van 2FA.
+  ar: حدث خطأ أثناء تعطيل المصادقة الثنائية.
+  hi: 2FA अक्षम करते समय एक त्रुटि हुई।
+  th: เกิดข้อผิดพลาดขณะปิดใช้งาน 2FA
+  cs: Při zakázání 2FA došlo k chybě.
+  sv: Ett fel uppstod vid inaktivering av 2FA.
+  verified_by_human: []
+
+# --- Recovery Key Settings ---
+recovery_key_title:
+  context: Title for recovery key settings submenu
+  en: Recovery Key
+  de: Wiederherstellungsschlüssel
+  zh: 恢复密钥
+  es: Clave de recuperación
+  fr: Clé de récupération
+  pt: Chave de recuperação
+  ru: Ключ восстановления
+  ja: 回復キー
+  ko: 복구 키
+  it: Chiave di recupero
+  tr: Kurtarma Anahtarı
+  vi: Khóa khôi phục
+  id: Kunci Pemulihan
+  pl: Klucz odzyskiwania
+  nl: Herstelsleutel
+  ar: مفتاح الاسترداد
+  hi: पुनर्प्राप्ति कुंजी
+  th: คีย์กู้คืน
+  cs: Klíč pro obnovení
+  sv: Återställningsnyckel
+  verified_by_human: []
+recovery_key_set:
+  context: Subtitle when recovery key is configured
+  en: Configured
+  de: Konfiguriert
+  zh: 已配置
+  es: Configurado
+  fr: Configuré
+  pt: Configurado
+  ru: Настроен
+  ja: 設定済み
+  ko: 구성됨
+  it: Configurato
+  tr: Yapılandırıldı
+  vi: Đã cấu hình
+  id: Dikonfigurasi
+  pl: Skonfigurowany
+  nl: Geconfigureerd
+  ar: تم التكوين
+  hi: कॉन्फ़िगर किया गया
+  th: กำหนดค่าแล้ว
+  cs: Nakonfigurováno
+  sv: Konfigurerad
+  verified_by_human: []
+recovery_key_not_set:
+  context: Subtitle when recovery key is not configured
+  en: Not configured
+  de: Nicht konfiguriert
+  zh: 未配置
+  es: No configurado
+  fr: Non configuré
+  pt: Não configurado
+  ru: Не настроен
+  ja: 未設定
+  ko: 구성되지 않음
+  it: Non configurato
+  tr: Yapılandırılmadı
+  vi: Chưa cấu hình
+  id: Tidak dikonfigurasi
+  pl: Nie skonfigurowany
+  nl: Niet geconfigureerd
+  ar: غير مكون
+  hi: कॉन्फ़िगर नहीं किया गया
+  th: ไม่ได้กำหนดค่า
+  cs: Nenakonfigurováno
+  sv: Ej konfigurerad
+  verified_by_human: []
+recovery_key_description:
+  context: Description for recovery key settings page
+  en: Your recovery key is the only way to recover your account if you lose access to all your login methods. Keep it stored safely offline, such as in a password manager or printed copy.
+  de: Ihr Wiederherstellungsschlüssel ist der einzige Weg, Ihr Konto wiederherzustellen, wenn Sie den Zugang zu allen Ihren Anmeldemethoden verlieren. Bewahren Sie ihn sicher offline auf, z.B. in einem Passwort-Manager oder als gedruckte Kopie.
+  zh: 如果您失去所有登录方式的访问权限，恢复密钥是恢复账户的唯一方式。请将其安全地离线存储，例如在密码管理器中或作为打印副本。
+  es: Tu clave de recuperación es la única forma de recuperar tu cuenta si pierdes el acceso a todos tus métodos de inicio de sesión. Guárdala de forma segura sin conexión, como en un gestor de contraseñas o una copia impresa.
+  fr: Votre clé de récupération est le seul moyen de récupérer votre compte si vous perdez l'accès à toutes vos méthodes de connexion. Conservez-la en sécurité hors ligne, par exemple dans un gestionnaire de mots de passe ou une copie imprimée.
+  pt: Sua chave de recuperação é a única maneira de recuperar sua conta se você perder o acesso a todos os seus métodos de login. Mantenha-a armazenada com segurança offline, como em um gerenciador de senhas ou cópia impressa.
+  ru: Ключ восстановления — единственный способ восстановить вашу учетную запись, если вы потеряете доступ ко всем методам входа. Храните его безопасно в автономном режиме, например в менеджере паролей или в распечатанном виде.
+  ja: 回復キーは、すべてのログイン方法へのアクセスを失った場合にアカウントを回復する唯一の方法です。パスワードマネージャーや印刷したコピーなど、オフラインで安全に保管してください。
+  ko: 복구 키는 모든 로그인 방법에 대한 액세스를 잃어버린 경우 계정을 복구할 수 있는 유일한 방법입니다. 비밀번호 관리자나 인쇄된 사본과 같이 오프라인에서 안전하게 보관하세요.
+  it: La tua chiave di recupero è l'unico modo per recuperare il tuo account se perdi l'accesso a tutti i tuoi metodi di accesso. Conservala in modo sicuro offline, ad esempio in un gestore di password o una copia stampata.
+  tr: Kurtarma anahtarınız, tüm giriş yöntemlerinize erişiminizi kaybederseniz hesabınızı kurtarmanın tek yoludur. Bir şifre yöneticisi veya basılı kopya gibi çevrimdışı güvenli bir şekilde saklayın.
+  vi: Khóa khôi phục là cách duy nhất để khôi phục tài khoản nếu bạn mất quyền truy cập vào tất cả các phương thức đăng nhập. Hãy lưu trữ nó an toàn ngoại tuyến, chẳng hạn như trong trình quản lý mật khẩu hoặc bản in.
+  id: Kunci pemulihan Anda adalah satu-satunya cara untuk memulihkan akun jika Anda kehilangan akses ke semua metode login. Simpan dengan aman secara offline, seperti di pengelola kata sandi atau salinan cetak.
+  pl: Klucz odzyskiwania to jedyny sposób na odzyskanie konta, jeśli stracisz dostęp do wszystkich metod logowania. Przechowuj go bezpiecznie w trybie offline, na przykład w menedżerze haseł lub jako wydrukowaną kopię.
+  nl: Uw herstelsleutel is de enige manier om uw account te herstellen als u de toegang tot al uw inlogmethoden verliest. Bewaar deze veilig offline, bijvoorbeeld in een wachtwoordbeheerder of afgedrukte kopie.
+  ar: مفتاح الاسترداد هو الطريقة الوحيدة لاستعادة حسابك إذا فقدت الوصول إلى جميع طرق تسجيل الدخول. احتفظ به بشكل آمن دون اتصال بالإنترنت، مثل في مدير كلمات المرور أو نسخة مطبوعة.
+  hi: आपकी पुनर्प्राप्ति कुंजी आपके खाते को पुनर्प्राप्त करने का एकमात्र तरीका है यदि आप अपने सभी लॉगिन तरीकों तक पहुंच खो देते हैं। इसे सुरक्षित रूप से ऑफलाइन संग्रहीत रखें, जैसे पासवर्ड मैनेजर या मुद्रित प्रति में।
+  th: คีย์กู้คืนของคุณเป็นวิธีเดียวในการกู้คืนบัญชีหากคุณสูญเสียการเข้าถึงวิธีการเข้าสู่ระบบทั้งหมด เก็บรักษาไว้อย่างปลอดภัยแบบออฟไลน์ เช่น ในตัวจัดการรหัสผ่านหรือสำเนาที่พิมพ์ออกมา
+  cs: Klíč pro obnovení je jediný způsob, jak obnovit svůj účet, pokud ztratíte přístup ke všem přihlašovacím metodám. Uchovávejte jej bezpečně offline, například ve správci hesel nebo vytištěné kopii.
+  sv: Din återställningsnyckel är det enda sättet att återställa ditt konto om du förlorar åtkomsten till alla dina inloggningsmetoder. Förvara den säkert offline, till exempel i en lösenordshanterare eller utskriven kopia.
+  verified_by_human: []
+recovery_key_status:
+  context: Label for recovery key status
+  en: Status
+  de: Status
+  zh: 状态
+  es: Estado
+  fr: Statut
+  pt: Status
+  ru: Статус
+  ja: ステータス
+  ko: 상태
+  it: Stato
+  tr: Durum
+  vi: Trạng thái
+  id: Status
+  pl: Status
+  nl: Status
+  ar: الحالة
+  hi: स्थिति
+  th: สถานะ
+  cs: Stav
+  sv: Status
+  verified_by_human: []
+recovery_key_last_updated:
+  context: Label for when recovery key was last updated
+  en: Last Updated
+  de: Zuletzt aktualisiert
+  zh: 上次更新
+  es: Última actualización
+  fr: Dernière mise à jour
+  pt: Última atualização
+  ru: Последнее обновление
+  ja: 最終更新
+  ko: 마지막 업데이트
+  it: Ultimo aggiornamento
+  tr: Son güncelleme
+  vi: Cập nhật lần cuối
+  id: Terakhir diperbarui
+  pl: Ostatnia aktualizacja
+  nl: Laatst bijgewerkt
+  ar: آخر تحديث
+  hi: अंतिम अपडेट
+  th: อัปเดตล่าสุด
+  cs: Naposledy aktualizováno
+  sv: Senast uppdaterad
+  verified_by_human: []
+recovery_key_regenerate_button:
+  context: Button to regenerate recovery key
+  en: Generate New Recovery Key
+  de: Neuen Wiederherstellungsschlüssel generieren
+  zh: 生成新的恢复密钥
+  es: Generar nueva clave de recuperación
+  fr: Générer une nouvelle clé de récupération
+  pt: Gerar nova chave de recuperação
+  ru: Сгенерировать новый ключ восстановления
+  ja: 新しい回復キーを生成
+  ko: 새 복구 키 생성
+  it: Genera nuova chiave di recupero
+  tr: Yeni Kurtarma Anahtarı Oluştur
+  vi: Tạo khóa khôi phục mới
+  id: Buat Kunci Pemulihan Baru
+  pl: Wygeneruj nowy klucz odzyskiwania
+  nl: Nieuwe herstelsleutel genereren
+  ar: إنشاء مفتاح استرداد جديد
+  hi: नई पुनर्प्राप्ति कुंजी बनाएं
+  th: สร้างคีย์กู้คืนใหม่
+  cs: Vygenerovat nový klíč pro obnovení
+  sv: Generera ny återställningsnyckel
+  verified_by_human: []
+recovery_key_create_button:
+  context: Button to create recovery key (when none exists)
+  en: Create Recovery Key
+  de: Wiederherstellungsschlüssel erstellen
+  zh: 创建恢复密钥
+  es: Crear clave de recuperación
+  fr: Créer une clé de récupération
+  pt: Criar chave de recuperação
+  ru: Создать ключ восстановления
+  ja: 回復キーを作成
+  ko: 복구 키 생성
+  it: Crea chiave di recupero
+  tr: Kurtarma Anahtarı Oluştur
+  vi: Tạo khóa khôi phục
+  id: Buat Kunci Pemulihan
+  pl: Utwórz klucz odzyskiwania
+  nl: Herstelsleutel maken
+  ar: إنشاء مفتاح استرداد
+  hi: पुनर्प्राप्ति कुंजी बनाएं
+  th: สร้างคีย์กู้คืน
+  cs: Vytvořit klíč pro obnovení
+  sv: Skapa återställningsnyckel
+  verified_by_human: []
+recovery_key_regenerate_hint:
+  context: Hint text for regenerate button
+  en: This will invalidate your current recovery key
+  de: Dies macht Ihren aktuellen Wiederherstellungsschlüssel ungültig
+  zh: 这将使您当前的恢复密钥失效
+  es: Esto invalidará tu clave de recuperación actual
+  fr: Cela invalidera votre clé de récupération actuelle
+  pt: Isso invalidará sua chave de recuperação atual
+  ru: Это сделает ваш текущий ключ восстановления недействительным
+  ja: これにより現在の回復キーが無効になります
+  ko: 이렇게 하면 현재 복구 키가 무효화됩니다
+  it: Questo invaliderà la tua chiave di recupero attuale
+  tr: Bu, mevcut kurtarma anahtarınızı geçersiz kılacaktır
+  vi: Điều này sẽ làm vô hiệu khóa khôi phục hiện tại của bạn
+  id: Ini akan membatalkan kunci pemulihan Anda saat ini
+  pl: Spowoduje to unieważnienie bieżącego klucza odzyskiwania
+  nl: Dit maakt uw huidige herstelsleutel ongeldig
+  ar: سيؤدي هذا إلى إبطال مفتاح الاسترداد الحالي
+  hi: यह आपकी वर्तमान पुनर्प्राप्ति कुंजी को अमान्य कर देगा
+  th: การดำเนินการนี้จะทำให้คีย์กู้คืนปัจจุบันของคุณเป็นโมฆะ
+  cs: Tím se zneplatní váš aktuální klíč pro obnovení
+  sv: Detta ogiltigförklarar din nuvarande återställningsnyckel
+  verified_by_human: []
+recovery_key_create_hint:
+  context: Hint text for create button
+  en: Strongly recommended for account security
+  de: Dringend empfohlen für die Kontosicherheit
+  zh: 强烈建议用于账户安全
+  es: Muy recomendado para la seguridad de la cuenta
+  fr: Fortement recommandé pour la sécurité du compte
+  pt: Altamente recomendado para segurança da conta
+  ru: Настоятельно рекомендуется для безопасности аккаунта
+  ja: アカウントセキュリティのために強くお勧めします
+  ko: 계정 보안을 위해 강력히 권장됨
+  it: Fortemente consigliato per la sicurezza dell'account
+  tr: Hesap güvenliği için şiddetle tavsiye edilir
+  vi: Rất khuyến khích cho bảo mật tài khoản
+  id: Sangat disarankan untuk keamanan akun
+  pl: Zdecydowanie zalecane dla bezpieczeństwa konta
+  nl: Sterk aanbevolen voor accountbeveiliging
+  ar: موصى به بشدة لأمان الحساب
+  hi: खाता सुरक्षा के लिए दृढ़ता से अनुशंसित
+  th: แนะนำอย่างยิ่งสำหรับความปลอดภัยของบัญชี
+  cs: Důrazně doporučeno pro zabezpečení účtu
+  sv: Starkt rekommenderat för kontosäkerhet
+  verified_by_human: []
+recovery_key_auth_title:
+  context: Title for authentication step when regenerating recovery key
+  en: Verify Your Identity
+  de: Identität bestätigen
+  zh: 验证您的身份
+  es: Verifica tu identidad
+  fr: Vérifiez votre identité
+  pt: Verifique sua identidade
+  ru: Подтвердите свою личность
+  ja: 本人確認
+  ko: 신원 확인
+  it: Verifica la tua identità
+  tr: Kimliğinizi doğrulayın
+  vi: Xác minh danh tính của bạn
+  id: Verifikasi identitas Anda
+  pl: Zweryfikuj swoją tożsamość
+  nl: Verifieer uw identiteit
+  ar: تحقق من هويتك
+  hi: अपनी पहचान सत्यापित करें
+  th: ยืนยันตัวตนของคุณ
+  cs: Ověřte svou totožnost
+  sv: Verifiera din identitet
+  verified_by_human: []
+recovery_key_auth_description:
+  context: Description for authentication step when regenerating recovery key
+  en: Please authenticate to generate a new recovery key.
+  de: Bitte authentifizieren Sie sich, um einen neuen Wiederherstellungsschlüssel zu generieren.
+  zh: 请进行身份验证以生成新的恢复密钥。
+  es: Por favor autentícate para generar una nueva clave de recuperación.
+  fr: Veuillez vous authentifier pour générer une nouvelle clé de récupération.
+  pt: Por favor, autentique-se para gerar uma nova chave de recuperação.
+  ru: Пожалуйста, авторизуйтесь, чтобы сгенерировать новый ключ восстановления.
+  ja: 新しい回復キーを生成するには、認証してください。
+  ko: 새 복구 키를 생성하려면 인증해 주세요.
+  it: Autenticati per generare una nuova chiave di recupero.
+  tr: Yeni bir kurtarma anahtarı oluşturmak için lütfen kimlik doğrulaması yapın.
+  vi: Vui lòng xác thực để tạo khóa khôi phục mới.
+  id: Silakan autentikasi untuk membuat kunci pemulihan baru.
+  pl: Proszę uwierzytelnić się, aby wygenerować nowy klucz odzyskiwania.
+  nl: Authenticeer om een nieuwe herstelsleutel te genereren.
+  ar: يرجى المصادقة لإنشاء مفتاح استرداد جديد.
+  hi: नई पुनर्प्राप्ति कुंजी बनाने के लिए कृपया प्रमाणित करें।
+  th: กรุณายืนยันตัวตนเพื่อสร้างคีย์กู้คืนใหม่
+  cs: Pro vygenerování nového klíče pro obnovení se prosím ověřte.
+  sv: Autentisera för att generera en ny återställningsnyckel.
+  verified_by_human: []
+recovery_key_auth_failed:
+  context: Error when authentication fails
+  en: Authentication failed. Please try again.
+  de: Authentifizierung fehlgeschlagen. Bitte versuchen Sie es erneut.
+  zh: 身份验证失败。请重试。
+  es: Autenticación fallida. Por favor, inténtalo de nuevo.
+  fr: Échec de l'authentification. Veuillez réessayer.
+  pt: Autenticação falhou. Por favor, tente novamente.
+  ru: Ошибка аутентификации. Пожалуйста, попробуйте снова.
+  ja: 認証に失敗しました。もう一度お試しください。
+  ko: 인증에 실패했습니다. 다시 시도해 주세요.
+  it: Autenticazione fallita. Per favore riprova.
+  tr: Kimlik doğrulama başarısız oldu. Lütfen tekrar deneyin.
+  vi: Xác thực thất bại. Vui lòng thử lại.
+  id: Autentikasi gagal. Silakan coba lagi.
+  pl: Uwierzytelnianie nie powiodło się. Spróbuj ponownie.
+  nl: Authenticatie mislukt. Probeer het opnieuw.
+  ar: فشلت المصادقة. يرجى المحاولة مرة أخرى.
+  hi: प्रमाणीकरण विफल रहा। कृपया पुनः प्रयास करें।
+  th: การยืนยันตัวตนล้มเหลว กรุณาลองอีกครั้ง
+  cs: Ověření selhalo. Zkuste to prosím znovu.
+  sv: Autentisering misslyckades. Försök igen.
+  verified_by_human: []
+recovery_key_generating:
+  context: Message while generating recovery key
+  en: Generating your new recovery key...
+  de: Ihr neuer Wiederherstellungsschlüssel wird generiert...
+  zh: 正在生成您的新恢复密钥...
+  es: Generando tu nueva clave de recuperación...
+  fr: Génération de votre nouvelle clé de récupération...
+  pt: Gerando sua nova chave de recuperação...
+  ru: Генерация нового ключа восстановления...
+  ja: 新しい回復キーを生成しています...
+  ko: 새 복구 키를 생성하는 중...
+  it: Generazione della nuova chiave di recupero...
+  tr: Yeni kurtarma anahtarınız oluşturuluyor...
+  vi: Đang tạo khóa khôi phục mới của bạn...
+  id: Membuat kunci pemulihan baru Anda...
+  pl: Generowanie nowego klucza odzyskiwania...
+  nl: Uw nieuwe herstelsleutel wordt gegenereerd...
+  ar: جارٍ إنشاء مفتاح الاسترداد الجديد...
+  hi: आपकी नई पुनर्प्राप्ति कुंजी बनाई जा रही है...
+  th: กำลังสร้างคีย์กู้คืนใหม่ของคุณ...
+  cs: Generování nového klíče pro obnovení...
+  sv: Genererar din nya återställningsnyckel...
+  verified_by_human: []
+recovery_key_download_title:
+  context: Title for download step
+  en: Save Your Recovery Key
+  de: Speichern Sie Ihren Wiederherstellungsschlüssel
+  zh: 保存您的恢复密钥
+  es: Guarda tu clave de recuperación
+  fr: Enregistrez votre clé de récupération
+  pt: Salve sua chave de recuperação
+  ru: Сохраните ваш ключ восстановления
+  ja: 回復キーを保存
+  ko: 복구 키 저장
+  it: Salva la tua chiave di recupero
+  tr: Kurtarma Anahtarınızı Kaydedin
+  vi: Lưu khóa khôi phục của bạn
+  id: Simpan Kunci Pemulihan Anda
+  pl: Zapisz swój klucz odzyskiwania
+  nl: Sla uw herstelsleutel op
+  ar: احفظ مفتاح الاسترداد
+  hi: अपनी पुनर्प्राप्ति कुंजी सहेजें
+  th: บันทึกคีย์กู้คืนของคุณ
+  cs: Uložte svůj klíč pro obnovení
+  sv: Spara din återställningsnyckel
+  verified_by_human: []
+recovery_key_warning:
+  context: Warning about recovery key importance
+  en: Store this recovery key safely. It cannot be recovered if lost.
+  de: Bewahren Sie diesen Wiederherstellungsschlüssel sicher auf. Er kann bei Verlust nicht wiederhergestellt werden.
+  zh: 请安全存储此恢复密钥。如果丢失将无法恢复。
+  es: Guarda esta clave de recuperación de forma segura. No se puede recuperar si se pierde.
+  fr: Conservez cette clé de récupération en sécurité. Elle ne peut pas être récupérée en cas de perte.
+  pt: Armazene esta chave de recuperação com segurança. Ela não pode ser recuperada se perdida.
+  ru: Храните этот ключ восстановления в безопасности. Его нельзя восстановить в случае утери.
+  ja: この回復キーを安全に保管してください。紛失した場合は復元できません。
+  ko: 이 복구 키를 안전하게 보관하세요. 분실하면 복구할 수 없습니다.
+  it: Conserva questa chiave di recupero in modo sicuro. Non può essere recuperata se persa.
+  tr: Bu kurtarma anahtarını güvenli bir şekilde saklayın. Kaybolursa kurtarılamaz.
+  vi: Lưu trữ khóa khôi phục này một cách an toàn. Không thể khôi phục nếu bị mất.
+  id: Simpan kunci pemulihan ini dengan aman. Tidak dapat dipulihkan jika hilang.
+  pl: Przechowuj ten klucz odzyskiwania bezpiecznie. Nie można go odzyskać w przypadku utraty.
+  nl: Bewaar deze herstelsleutel veilig. Deze kan niet worden hersteld als deze verloren gaat.
+  ar: احفظ مفتاح الاسترداد هذا بشكل آمن. لا يمكن استرداده إذا فقد.
+  hi: इस पुनर्प्राप्ति कुंजी को सुरक्षित रूप से संग्रहीत करें। खो जाने पर इसे पुनर्प्राप्त नहीं किया जा सकता।
+  th: เก็บรักษาคีย์กู้คืนนี้อย่างปลอดภัย ไม่สามารถกู้คืนได้หากสูญหาย
+  cs: Uložte tento klíč pro obnovení bezpečně. V případě ztráty jej nelze obnovit.
+  sv: Förvara denna återställningsnyckel säkert. Den kan inte återställas om den förloras.
+  verified_by_human: []
+recovery_key_downloaded:
+  context: Message when recovery key has been downloaded
+  en: Recovery key downloaded
+  de: Wiederherstellungsschlüssel heruntergeladen
+  zh: 恢复密钥已下载
+  es: Clave de recuperación descargada
+  fr: Clé de récupération téléchargée
+  pt: Chave de recuperação baixada
+  ru: Ключ восстановления загружен
+  ja: 回復キーがダウンロードされました
+  ko: 복구 키 다운로드됨
+  it: Chiave di recupero scaricata
+  tr: Kurtarma anahtarı indirildi
+  vi: Đã tải xuống khóa khôi phục
+  id: Kunci pemulihan diunduh
+  pl: Klucz odzyskiwania pobrany
+  nl: Herstelsleutel gedownload
+  ar: تم تنزيل مفتاح الاسترداد
+  hi: पुनर्प्राप्ति कुंजी डाउनलोड हो गई
+  th: ดาวน์โหลดคีย์กู้คืนแล้ว
+  cs: Klíč pro obnovení stažen
+  sv: Återställningsnyckel nedladdad
+  verified_by_human: []
+recovery_key_download_button:
+  context: Button to download recovery key
+  en: Download Recovery Key
+  de: Wiederherstellungsschlüssel herunterladen
+  zh: 下载恢复密钥
+  es: Descargar clave de recuperación
+  fr: Télécharger la clé de récupération
+  pt: Baixar chave de recuperação
+  ru: Скачать ключ восстановления
+  ja: 回復キーをダウンロード
+  ko: 복구 키 다운로드
+  it: Scarica chiave di recupero
+  tr: Kurtarma Anahtarını İndir
+  vi: Tải xuống khóa khôi phục
+  id: Unduh Kunci Pemulihan
+  pl: Pobierz klucz odzyskiwania
+  nl: Herstelsleutel downloaden
+  ar: تنزيل مفتاح الاسترداد
+  hi: पुनर्प्राप्ति कुंजी डाउनलोड करें
+  th: ดาวน์โหลดคีย์กู้คืน
+  cs: Stáhnout klíč pro obnovení
+  sv: Ladda ner återställningsnyckel
+  verified_by_human: []
+recovery_key_important:
+  context: Important notice about recovery key
+  en: <strong>Important:</strong> This is the only way to recover your account if you lose access to all your login methods. Store it somewhere safe.
+  de: <strong>Wichtig:</strong> Dies ist der einzige Weg, Ihr Konto wiederherzustellen, wenn Sie den Zugang zu allen Ihren Anmeldemethoden verlieren. Bewahren Sie ihn an einem sicheren Ort auf.
+  zh: <strong>重要：</strong>如果您失去所有登录方式的访问权限，这是恢复账户的唯一方式。请将其存放在安全的地方。
+  es: <strong>Importante:</strong> Esta es la única forma de recuperar tu cuenta si pierdes el acceso a todos tus métodos de inicio de sesión. Guárdala en un lugar seguro.
+  fr: <strong>Important:</strong> C'est le seul moyen de récupérer votre compte si vous perdez l'accès à toutes vos méthodes de connexion. Conservez-la dans un endroit sûr.
+  pt: <strong>Importante:</strong> Esta é a única maneira de recuperar sua conta se você perder o acesso a todos os seus métodos de login. Guarde-a em algum lugar seguro.
+  ru: <strong>Важно:</strong> Это единственный способ восстановить вашу учетную запись, если вы потеряете доступ ко всем методам входа. Храните его в безопасном месте.
+  ja: <strong>重要：</strong>すべてのログイン方法へのアクセスを失った場合、これがアカウントを回復する唯一の方法です。安全な場所に保管してください。
+  ko: <strong>중요:</strong> 모든 로그인 방법에 대한 액세스를 잃어버린 경우 계정을 복구할 수 있는 유일한 방법입니다. 안전한 곳에 보관하세요.
+  it: <strong>Importante:</strong> Questo è l'unico modo per recuperare il tuo account se perdi l'accesso a tutti i tuoi metodi di accesso. Conservalo in un posto sicuro.
+  tr: <strong>Önemli:</strong> Tüm giriş yöntemlerinize erişiminizi kaybederseniz hesabınızı kurtarmanın tek yolu budur. Güvenli bir yerde saklayın.
+  vi: <strong>Quan trọng:</strong> Đây là cách duy nhất để khôi phục tài khoản nếu bạn mất quyền truy cập vào tất cả các phương thức đăng nhập. Hãy lưu trữ ở nơi an toàn.
+  id: <strong>Penting:</strong> Ini adalah satu-satunya cara untuk memulihkan akun jika Anda kehilangan akses ke semua metode login. Simpan di tempat yang aman.
+  pl: <strong>Ważne:</strong> To jedyny sposób na odzyskanie konta, jeśli stracisz dostęp do wszystkich metod logowania. Przechowuj go w bezpiecznym miejscu.
+  nl: <strong>Belangrijk:</strong> Dit is de enige manier om uw account te herstellen als u de toegang tot al uw inlogmethoden verliest. Bewaar het op een veilige plaats.
+  ar: <strong>مهم:</strong> هذه هي الطريقة الوحيدة لاستعادة حسابك إذا فقدت الوصول إلى جميع طرق تسجيل الدخول. احفظه في مكان آمن.
+  hi: <strong>महत्वपूर्ण:</strong> यदि आप अपने सभी लॉगिन तरीकों तक पहुंच खो देते हैं तो यह आपके खाते को पुनर्प्राप्त करने का एकमात्र तरीका है। इसे किसी सुरक्षित स्थान पर संग्रहीत करें।
+  th: <strong>สำคัญ:</strong> นี่เป็นวิธีเดียวในการกู้คืนบัญชีของคุณหากคุณสูญเสียการเข้าถึงวิธีการเข้าสู่ระบบทั้งหมด เก็บไว้ในที่ปลอดภัย
+  cs: <strong>Důležité:</strong> Toto je jediný způsob, jak obnovit svůj účet, pokud ztratíte přístup ke všem přihlašovacím metodám. Uložte jej na bezpečné místo.
+  sv: <strong>Viktigt:</strong> Detta är det enda sättet att återställa ditt konto om du förlorar åtkomsten till alla dina inloggningsmetoder. Förvara den på ett säkert ställe.
+  verified_by_human: []
+recovery_key_confirm_title:
+  context: Title for confirmation step
+  en: Confirm Recovery Key Saved
+  de: Bestätigen Sie, dass der Wiederherstellungsschlüssel gespeichert wurde
+  zh: 确认恢复密钥已保存
+  es: Confirmar que la clave de recuperación está guardada
+  fr: Confirmer que la clé de récupération est enregistrée
+  pt: Confirmar que a chave de recuperação foi salva
+  ru: Подтвердите сохранение ключа восстановления
+  ja: 回復キーの保存を確認
+  ko: 복구 키 저장 확인
+  it: Conferma salvataggio chiave di recupero
+  tr: Kurtarma Anahtarının Kaydedildiğini Onaylayın
+  vi: Xác nhận đã lưu khóa khôi phục
+  id: Konfirmasi Kunci Pemulihan Tersimpan
+  pl: Potwierdź zapisanie klucza odzyskiwania
+  nl: Bevestig dat herstelsleutel is opgeslagen
+  ar: تأكيد حفظ مفتاح الاسترداد
+  hi: पुनर्प्राप्ति कुंजी सहेजे जाने की पुष्टि करें
+  th: ยืนยันว่าบันทึกคีย์กู้คืนแล้ว
+  cs: Potvrďte uložení klíče pro obnovení
+  sv: Bekräfta att återställningsnyckeln har sparats
+  verified_by_human: []
+recovery_key_confirm_description:
+  context: Description for confirmation step
+  en: By clicking confirm, you acknowledge that you have saved your recovery key in a safe place. Your old recovery key will be invalidated.
+  de: Durch Klicken auf Bestätigen bestätigen Sie, dass Sie Ihren Wiederherstellungsschlüssel an einem sicheren Ort gespeichert haben. Ihr alter Wiederherstellungsschlüssel wird ungültig.
+  zh: 点击确认，表示您确认已将恢复密钥保存在安全的地方。您的旧恢复密钥将失效。
+  es: Al hacer clic en confirmar, reconoces que has guardado tu clave de recuperación en un lugar seguro. Tu antigua clave de recuperación quedará invalidada.
+  fr: En cliquant sur confirmer, vous reconnaissez avoir enregistré votre clé de récupération dans un endroit sûr. Votre ancienne clé de récupération sera invalidée.
+  pt: Ao clicar em confirmar, você reconhece que salvou sua chave de recuperação em um local seguro. Sua chave de recuperação antiga será invalidada.
+  ru: Нажимая подтвердить, вы подтверждаете, что сохранили ключ восстановления в безопасном месте. Ваш старый ключ восстановления будет недействителен.
+  ja: 確認をクリックすると、回復キーを安全な場所に保存したことを確認したことになります。古い回復キーは無効になります。
+  ko: 확인을 클릭하면 복구 키를 안전한 장소에 저장했음을 인정하게 됩니다. 이전 복구 키는 무효화됩니다.
+  it: Cliccando su conferma, riconosci di aver salvato la tua chiave di recupero in un posto sicuro. La tua vecchia chiave di recupero sarà invalidata.
+  tr: Onayla'ya tıklayarak, kurtarma anahtarınızı güvenli bir yere kaydettiğinizi kabul ediyorsunuz. Eski kurtarma anahtarınız geçersiz kılınacaktır.
+  vi: Bằng cách nhấp xác nhận, bạn thừa nhận rằng bạn đã lưu khóa khôi phục ở nơi an toàn. Khóa khôi phục cũ của bạn sẽ bị vô hiệu.
+  id: Dengan mengklik konfirmasi, Anda mengakui bahwa Anda telah menyimpan kunci pemulihan di tempat yang aman. Kunci pemulihan lama Anda akan dibatalkan.
+  pl: Klikając potwierdź, potwierdzasz, że zapisałeś klucz odzyskiwania w bezpiecznym miejscu. Twój stary klucz odzyskiwania zostanie unieważniony.
+  nl: Door op bevestigen te klikken, erkent u dat u uw herstelsleutel op een veilige plaats hebt opgeslagen. Uw oude herstelsleutel wordt ongeldig gemaakt.
+  ar: بالنقر على تأكيد، فإنك تقر بأنك قد حفظت مفتاح الاسترداد في مكان آمن. سيتم إبطال مفتاح الاسترداد القديم.
+  hi: पुष्टि पर क्लिक करके, आप स्वीकार करते हैं कि आपने अपनी पुनर्प्राप्ति कुंजी को सुरक्षित स्थान पर सहेज लिया है। आपकी पुरानी पुनर्प्राप्ति कुंजी अमान्य हो जाएगी।
+  th: การคลิกยืนยันแสดงว่าคุณรับทราบว่าคุณได้บันทึกคีย์กู้คืนไว้ในที่ปลอดภัยแล้ว คีย์กู้คืนเก่าของคุณจะถูกยกเลิก
+  cs: Kliknutím na potvrdit potvrzujete, že jste uložili klíč pro obnovení na bezpečné místo. Váš starý klíč pro obnovení bude zneplatněn.
+  sv: Genom att klicka på bekräfta bekräftar du att du har sparat din återställningsnyckel på en säker plats. Din gamla återställningsnyckel blir ogiltig.
+  verified_by_human: []
+recovery_key_confirm_button:
+  context: Button to confirm recovery key saved
+  en: I've Saved My Recovery Key
+  de: Ich habe meinen Wiederherstellungsschlüssel gespeichert
+  zh: 我已保存恢复密钥
+  es: He guardado mi clave de recuperación
+  fr: J'ai enregistré ma clé de récupération
+  pt: Eu salvei minha chave de recuperação
+  ru: Я сохранил ключ восстановления
+  ja: 回復キーを保存しました
+  ko: 복구 키를 저장했습니다
+  it: Ho salvato la mia chiave di recupero
+  tr: Kurtarma Anahtarımı Kaydettim
+  vi: Tôi đã lưu khóa khôi phục
+  id: Saya Sudah Menyimpan Kunci Pemulihan
+  pl: Zapisałem mój klucz odzyskiwania
+  nl: Ik heb mijn herstelsleutel opgeslagen
+  ar: لقد حفظت مفتاح الاسترداد
+  hi: मैंने अपनी पुनर्प्राप्ति कुंजी सहेज ली है
+  th: ฉันได้บันทึกคีย์กู้คืนของฉันแล้ว
+  cs: Uložil jsem si klíč pro obnovení
+  sv: Jag har sparat min återställningsnyckel
+  verified_by_human: []
+recovery_key_success:
+  context: Success message after recovery key is saved
+  en: Recovery key saved successfully!
+  de: Wiederherstellungsschlüssel erfolgreich gespeichert!
+  zh: 恢复密钥保存成功！
+  es: ¡Clave de recuperación guardada correctamente!
+  fr: Clé de récupération enregistrée avec succès !
+  pt: Chave de recuperação salva com sucesso!
+  ru: Ключ восстановления успешно сохранен!
+  ja: 回復キーが正常に保存されました！
+  ko: 복구 키가 성공적으로 저장되었습니다!
+  it: Chiave di recupero salvata con successo!
+  tr: Kurtarma anahtarı başarıyla kaydedildi!
+  vi: Khóa khôi phục đã được lưu thành công!
+  id: Kunci pemulihan berhasil disimpan!
+  pl: Klucz odzyskiwania zapisany pomyślnie!
+  nl: Herstelsleutel succesvol opgeslagen!
+  ar: تم حفظ مفتاح الاسترداد بنجاح!
+  hi: पुनर्प्राप्ति कुंजी सफलतापूर्वक सहेजी गई!
+  th: บันทึกคีย์กู้คืนสำเร็จแล้ว!
+  cs: Klíč pro obnovení byl úspěšně uložen!
+  sv: Återställningsnyckel sparad framgångsrikt!
+  verified_by_human: []

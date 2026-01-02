@@ -1606,3 +1606,118 @@ too_many_requests:
   cs: Příliš mnoho požadavků. Počkejte prosím několik minut a zkuste to znovu.
   sv: För många förfrågningar. Vänta några minuter innan du försöker igen.
   verified_by_human: []
+code_verified:
+  context: Success message after verification code is verified
+  en: Code verified!
+  de: Code bestätigt!
+  zh: 验证码已验证！
+  es: ¡Código verificado!
+  fr: Code vérifié !
+  pt: Código verificado!
+  ru: Код подтвержден!
+  ja: コードが確認されました！
+  ko: 코드가 확인되었습니다!
+  it: Codice verificato!
+  tr: Kod doğrulandı!
+  vi: Mã đã được xác minh!
+  id: Kode terverifikasi!
+  pl: Kod zweryfikowany!
+  nl: Code geverifieerd!
+  ar: تم التحقق من الرمز!
+  hi: कोड सत्यापित!
+  th: ยืนยันรหัสแล้ว!
+  cs: Kód ověřen!
+  sv: Kod verifierad!
+  verified_by_human: []
+registering_passkey:
+  context: Loading message shown when passkey registration is in progress
+  en: Registering your passkey...
+  de: Passkey wird registriert...
+  zh: 正在注册您的通行密钥...
+  es: Registrando tu passkey...
+  fr: Enregistrement de votre clé d'accès...
+  pt: Registrando sua chave de acesso...
+  ru: Регистрация вашего ключа доступа...
+  ja: パスキーを登録中...
+  ko: 패스키 등록 중...
+  it: Registrazione della chiave di accesso...
+  tr: Erişim anahtarınız kaydediliyor...
+  vi: Đang đăng ký khóa truy cập của bạn...
+  id: Mendaftarkan kunci akses Anda...
+  pl: Rejestrowanie klucza dostępu...
+  nl: Uw toegangssleutel wordt geregistreerd...
+  ar: جاري تسجيل مفتاح الوصول الخاص بك...
+  hi: आपकी पासकी पंजीकृत की जा रही है...
+  th: กำลังลงทะเบียนคีย์ผ่านของคุณ...
+  cs: Registrace vašeho přístupového klíče...
+  sv: Registrerar din åtkomstnyckel...
+  verified_by_human: []
+follow_passkey_prompts:
+  context: Instruction to follow device prompts during passkey registration
+  en: Please follow the prompts on your device.
+  de: Bitte folge den Anweisungen auf deinem Gerät.
+  zh: 请按照设备上的提示操作。
+  es: Por favor sigue las instrucciones en tu dispositivo.
+  fr: Veuillez suivre les instructions sur votre appareil.
+  pt: Por favor, siga as instruções no seu dispositivo.
+  ru: Пожалуйста, следуйте подсказкам на вашем устройстве.
+  ja: デバイスの指示に従ってください。
+  ko: 기기의 안내에 따라주세요.
+  it: Segui le istruzioni sul tuo dispositivo.
+  tr: Lütfen cihazınızdaki yönergeleri izleyin.
+  vi: Vui lòng làm theo hướng dẫn trên thiết bị của bạn.
+  id: Silakan ikuti petunjuk di perangkat Anda.
+  pl: Proszę postępować zgodnie z instrukcjami na urządzeniu.
+  nl: Volg de instructies op uw apparaat.
+  ar: يرجى اتباع التعليمات على جهازك.
+  hi: कृपया अपने डिवाइस पर दिए गए निर्देशों का पालन करें।
+  th: กรุณาทำตามคำแนะนำบนอุปกรณ์ของคุณ
+  cs: Postupujte podle pokynů na vašem zařízení.
+  sv: Följ anvisningarna på din enhet.
+  verified_by_human: []
+try_another_method:
+  context: Button text to try a different login method
+  en: Try another method
+  de: Andere Methode versuchen
+  zh: 尝试其他方式
+  es: Probar otro método
+  fr: Essayer une autre méthode
+  pt: Tentar outro método
+  ru: Попробовать другой способ
+  ja: 別の方法を試す
+  ko: 다른 방법 시도
+  it: Prova un altro metodo
+  tr: Başka bir yöntem dene
+  vi: Thử phương pháp khác
+  id: Coba metode lain
+  pl: Wypróbuj inną metodę
+  nl: Probeer een andere methode
+  ar: جرب طريقة أخرى
+  hi: कोई अन्य विधि आज़माएं
+  th: ลองวิธีอื่น
+  cs: Zkusit jinou metodu
+  sv: Prova en annan metod
+  verified_by_human: []
+back:
+  context: Button text to go back to previous step
+  en: Back
+  de: Zurück
+  zh: 返回
+  es: Atrás
+  fr: Retour
+  pt: Voltar
+  ru: Назад
+  ja: 戻る
+  ko: 뒤로
+  it: Indietro
+  tr: Geri
+  vi: Quay lại
+  id: Kembali
+  pl: Wstecz
+  nl: Terug
+  ar: رجوع
+  hi: वापस
+  th: ย้อนกลับ
+  cs: Zpět
+  sv: Tillbaka
+  verified_by_human: []

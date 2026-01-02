@@ -463,6 +463,11 @@ class SecretsManager:
         executed with asyncio.run() (e.g., in Celery tasks). This ensures the httpx
         client's cleanup tasks complete while the event loop is still running.
         
+        The method includes a small sleep after closing to allow httpx's internal
+        connection pool cleanup tasks to complete before asyncio.run() closes the
+        event loop. Without this, background cleanup tasks can fail with
+        "Event loop is closed" errors.
+        
         Example usage in a Celery task:
             async def _async_task():
                 secrets_manager = SecretsManager()
@@ -476,6 +481,12 @@ class SecretsManager:
             try:
                 await self._http_client.aclose()
                 logger.debug("Closed shared httpx client for Vault requests")
+                # CRITICAL: Allow pending httpx cleanup tasks to complete
+                # httpx.AsyncClient.aclose() schedules background tasks for connection
+                # pool cleanup. If we return immediately, asyncio.run() closes the event
+                # loop before these tasks finish, causing "Event loop is closed" errors.
+                # A small sleep ensures these background tasks have time to complete.
+                await asyncio.sleep(0.1)
             except Exception as e:
                 # Log but don't raise - cleanup errors shouldn't break the task
                 logger.warning(f"Error closing httpx client: {e}")

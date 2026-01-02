@@ -75,6 +75,7 @@ export const apiEndpoints = {
         request_backup_codes:       '/v1/auth/2fa/setup/request-backup-codes', // Get backup codes after verifying 2FA
         confirm_codes_stored:       '/v1/auth/2fa/setup/confirm-codes-stored', // Confirm backup codes are stored by user
         confirm_recoverykey_stored: '/v1/auth/recovery-key/confirm-stored',   // Confirm recovery key is stored by user
+        regenerate_recovery_key:    '/v1/auth/recovery-key/regenerate',       // Regenerate recovery key (requires auth)
         setup_2fa_provider:         '/v1/auth/2fa/setup/provider',             // Save which 2FA provider was used
         verify_2fa_code:            '/v1/auth/2fa/setup/verify-signup',        // Verify 2FA OTP code during login
         verifyDevice2FA:            '/v1/auth/2fa/verify/device',              // Verify 2FA OTP code for new device
@@ -115,6 +116,7 @@ export const apiEndpoints = {
         deleteAccount:             '/v1/settings/delete-account',               // Delete user account
         exportAccountManifest:     '/v1/settings/export-account-manifest',      // Get export manifest (list of all data IDs)
         exportAccountData:         '/v1/settings/export-account-data',          // Get export data (usage, invoices, profile)
+        updatePassword:            '/v1/settings/update-password',              // Add or change user password
     },
     payments: {
         config:                     '/v1/payments/config',                      // Get public config for payment provider

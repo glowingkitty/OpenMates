@@ -19,6 +19,11 @@
     
     // State for account recovery view
     let showAccountRecovery = $state(false);
+    
+    // Notify parent when account recovery mode changes (for inactivity timer management)
+    $effect(() => {
+        dispatch('accountRecoveryModeChanged', { active: showAccountRecovery });
+    });
 
     // Props using Svelte 5 runes mode
     let { 
