@@ -203,27 +203,7 @@ Security Notes:
                 {@html $text('signup.recovery_key_mandatory_description.text') || $text('signup.create_recovery_key_description.text').replace('{login_secret}', loginSecretText)}
             </div>
 
-            <div class="warning-box">
-                <div class="warning-icon"></div>
-                <mark>
-                    {$text('signup.store_recovery_key_safely.text')}
-                </mark>
-            </div>
-
             <div class="download-section">
-                {#if keyDownloaded}
-                    <div class="download-success">
-                        <div class="checkmark-icon"></div>
-                        <p class="download-instruction success">
-                            {$text('signup.recovery_key_downloaded.text') || 'Your recovery key has been downloaded.'}
-                        </p>
-                    </div>
-                {:else}
-                    <p class="download-instruction">
-                        {$text('signup.generating_recovery_key.text') || 'Generating your recovery key...'}
-                    </p>
-                {/if}
-                
                 <button
                     class="download-button"
                     onclick={downloadRecoveryKey}
@@ -233,10 +213,6 @@ Security Notes:
                     <div class="clickable-icon icon_download" style="width: 30px; height: 30px"></div>
                     <span>{$text('signup.download_again.text') || 'Download Again'}</span>
                 </button>
-            </div>
-
-            <div class="important-notice">
-                <p>{@html $text('signup.recovery_key_only_way.text') || '<strong>Important:</strong> This recovery key is the only way to recover your account if you lose access to your ' + loginSecretText + '.'}</p>
             </div>
         {/if}
     </div>
