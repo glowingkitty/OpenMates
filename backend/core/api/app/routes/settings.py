@@ -7,6 +7,8 @@ import os
 import random
 import string
 import hashlib
+import json
+import glob
 from typing import Optional, Dict, Any
 from datetime import datetime, timezone, timedelta
 from pydantic import BaseModel, Field # Import BaseModel and Field for response models
@@ -2803,32 +2805,65 @@ async def get_export_data(
         
         # === COMPLIANCE LOGS (consent history) ===
         # Compliance logs contain privacy policy and terms of service consent records
-        # These are stored in /app/logs/compliance.log and need to be filtered for this user
+        # These are stored in /app/logs/compliance.log and rotated files (compliance.log.YYYY-MM-DD)
+        # We need to read ALL log files to capture the full history (including user creation/consent from past days)
         try:
             compliance_logs = []
-            log_file_path = os.path.join(os.getenv('LOG_DIR', '/app/logs'), 'compliance.log')
+            log_dir = os.getenv('LOG_DIR', '/app/logs')
             
-            if os.path.exists(log_file_path):
-                import json
-                with open(log_file_path, 'r', encoding='utf-8') as log_file:
-                    for line in log_file:
-                        try:
-                            log_entry = json.loads(line.strip())
-                            # Filter for this user's logs
-                            if log_entry.get("user_id") == user_id:
-                                # Only include consent and user_creation events
-                                event_type = log_entry.get("event_type", "")
-                                if event_type in ["consent", "user_creation", "account_deletion_request"]:
-                                    # Remove IP hash for export (privacy)
-                                    log_entry.pop("ip_address_hash", None)
-                                    log_entry.pop("ip_address", None)
-                                    compliance_logs.append(log_entry)
-                        except json.JSONDecodeError:
-                            continue
-                
-                logger.info(f"[EXPORT] Found {len(compliance_logs)} compliance log entries for user {user_id}")
-            else:
-                logger.warning(f"[EXPORT] Compliance log file not found at {log_file_path}")
+            # Find all compliance log files (main file and rotated files)
+            # Pattern matches: compliance.log, compliance.log.2025-12-28, etc.
+            log_pattern = os.path.join(log_dir, 'compliance.log*')
+            log_files = glob.glob(log_pattern)
+            
+            # Sort log files to ensure consistent ordering (oldest first)
+            log_files.sort()
+            
+            logger.info(f"[EXPORT] Found {len(log_files)} compliance log files to search: {[os.path.basename(f) for f in log_files]}")
+            
+            # Event types to include in export:
+            # - consent: Privacy policy and terms of service acceptances
+            # - user_creation: Account creation timestamp
+            # - account_deletion: Account deletion (user requested)
+            # - account_deletion_request: Account deletion request (legacy/alternative name)
+            # - recovery_key_setup_complete: Recovery key setup for account security
+            exportable_event_types = [
+                "consent", 
+                "user_creation", 
+                "account_deletion",  # The actual event type used in logs
+                "account_deletion_request",  # Legacy/alternative name
+                "recovery_key_setup_complete"  # Important for user to know when they set up recovery
+            ]
+            
+            for log_file_path in log_files:
+                if os.path.exists(log_file_path):
+                    try:
+                        with open(log_file_path, 'r', encoding='utf-8') as log_file:
+                            for line in log_file:
+                                try:
+                                    log_entry = json.loads(line.strip())
+                                    # Filter for this user's logs
+                                    if log_entry.get("user_id") == user_id:
+                                        event_type = log_entry.get("event_type", "")
+                                        if event_type in exportable_event_types:
+                                            # Remove IP-related fields for export (privacy)
+                                            log_entry.pop("ip_address_hash", None)
+                                            log_entry.pop("ip_address", None)
+                                            log_entry.pop("device_fingerprint", None)
+                                            compliance_logs.append(log_entry)
+                                except json.JSONDecodeError:
+                                    continue
+                    except Exception as e:
+                        logger.warning(f"[EXPORT] Error reading compliance log file {log_file_path}: {e}")
+                        continue
+            
+            # Sort by timestamp to ensure chronological order
+            compliance_logs.sort(key=lambda x: x.get("timestamp", ""))
+            
+            logger.info(f"[EXPORT] Found {len(compliance_logs)} compliance log entries for user {user_id}")
+            
+            if len(compliance_logs) == 0:
+                logger.warning(f"[EXPORT] No compliance logs found for user {user_id} - this is unexpected for an active user")
             
             export_data["compliance_logs"] = compliance_logs
             
