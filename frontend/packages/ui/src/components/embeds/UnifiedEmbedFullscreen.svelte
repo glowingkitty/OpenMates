@@ -9,18 +9,26 @@
   - Main content area (scrollable) with skill-specific content via snippet
   - Bottom preview bar with app icon and title
   
+  Animations:
+  - Opening: Scale up from 0.5 to 1.0 with opacity fade (originates from preview position)
+  - Closing: Scale down to 0.5 with opacity fade (back to preview position)
+  - CSS variables --preview-center-x and --preview-center-y set by UnifiedEmbedPreview
+    determine the transform-origin for smooth origin-based animations
+  
   Similar to UnifiedEmbedPreview but for fullscreen views.
 -->
 
 <script lang="ts">
-  import { scale } from 'svelte/transition';
-  import { cubicOut } from 'svelte/easing';
   import { onMount, onDestroy } from 'svelte';
   // @ts-ignore - @repo/ui module exists at runtime
   import { text } from '@repo/ui';
   import BasicInfosBar from './BasicInfosBar.svelte';
   import { panelState } from '../../stores/panelStateStore';
   import { settingsDeepLink } from '../../stores/settingsDeepLinkStore';
+  
+  // Track whether the opening animation has completed
+  // Start as false (collapsed state), then animate to true (expanded state)
+  let isAnimatingIn = $state(false);
   
   /**
    * Props interface for unified embed fullscreen
@@ -171,6 +179,14 @@
   onMount(() => {
     // Listen for chat selection events to close fullscreen
     window.addEventListener('globalChatSelected', handleChatSelected);
+    
+    // Trigger opening animation after a brief delay to ensure initial styles are applied
+    // This creates a smooth scale-up animation from the preview position
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        isAnimatingIn = true;
+      });
+    });
   });
   
   onDestroy(() => {
@@ -180,13 +196,7 @@
 
 <div
   class="unified-embed-fullscreen-overlay"
-  in:scale={{
-    duration: 300,
-    delay: 0,
-    opacity: 0.5,
-    start: 0.5,
-    easing: cubicOut
-  }}
+  class:animating-in={isAnimatingIn}
   style="--preview-center-x: var(--preview-center-x, 50vw); --preview-center-y: var(--preview-center-y, 50vh);"
 >
   <div class="fullscreen-container">
@@ -352,10 +362,24 @@
     z-index: 100;
     display: flex;
     flex-direction: column;
-    transform-origin: center center;
+    /* Use CSS variables from preview click position for origin-based animations */
+    /* These are set by UnifiedEmbedPreview when opening fullscreen */
+    transform-origin: var(--preview-center-x, 50%) var(--preview-center-y, 50%);
     transition: transform 300ms cubic-bezier(0.4, 0, 0.2, 1),
                 opacity 300ms cubic-bezier(0.4, 0, 0.2, 1);
     overflow: hidden;
+    
+    /* Initial state: collapsed and slightly transparent */
+    /* This creates the starting point for the opening animation */
+    transform: scale(0.5);
+    opacity: 0.5;
+  }
+  
+  /* Animated-in state: fully expanded and opaque */
+  /* Applied after mount via JS to trigger the opening transition */
+  .unified-embed-fullscreen-overlay.animating-in {
+    transform: scale(1);
+    opacity: 1;
   }
   
   .fullscreen-container {
