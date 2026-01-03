@@ -39,7 +39,7 @@ import c from 'highlight.js/lib/languages/c';
 import cpp from 'highlight.js/lib/languages/cpp';
 import rust from 'highlight.js/lib/languages/rust';
 import go from 'highlight.js/lib/languages/go';
-import zig from 'highlight.js/lib/languages/zig';
+// Note: Zig requires 3rd party package 'highlightjs-zig', not included
 
 // --- Scripting & General Purpose ---
 import python from 'highlight.js/lib/languages/python';
@@ -105,8 +105,8 @@ import diff from 'highlight.js/lib/languages/diff';
 
 // --- Assembly & Low-level ---
 import x86asm from 'highlight.js/lib/languages/x86asm';
-import wasm from 'highlight.js/lib/languages/wasm';
-import llvm from 'highlight.js/lib/languages/llvm';
+import armasm from 'highlight.js/lib/languages/armasm';
+// Note: WASM/LLVM require 3rd party packages, not included
 
 // --- Other Notable Languages ---
 import vim from 'highlight.js/lib/languages/vim';
@@ -114,8 +114,8 @@ import nix from 'highlight.js/lib/languages/nix';
 import http from 'highlight.js/lib/languages/http';
 import awk from 'highlight.js/lib/languages/awk';
 import fortran from 'highlight.js/lib/languages/fortran';
-import cobol from 'highlight.js/lib/languages/cobol';
 import basic from 'highlight.js/lib/languages/basic';
+// Note: COBOL requires 3rd party package 'highlightjs-cobol', not included
 import verilog from 'highlight.js/lib/languages/verilog';
 import vhdl from 'highlight.js/lib/languages/vhdl';
 import glsl from 'highlight.js/lib/languages/glsl';          // OpenGL Shading Language
@@ -145,7 +145,6 @@ hljs.registerLanguage('c', c);
 hljs.registerLanguage('cpp', cpp);
 hljs.registerLanguage('rust', rust);
 hljs.registerLanguage('go', go);
-hljs.registerLanguage('zig', zig);
 
 // Scripting & General Purpose
 hljs.registerLanguage('python', python);
@@ -211,8 +210,7 @@ hljs.registerLanguage('diff', diff);
 
 // Assembly & Low-level
 hljs.registerLanguage('x86asm', x86asm);
-hljs.registerLanguage('wasm', wasm);
-hljs.registerLanguage('llvm', llvm);
+hljs.registerLanguage('armasm', armasm);
 
 // Other Notable Languages
 hljs.registerLanguage('vim', vim);
@@ -220,7 +218,6 @@ hljs.registerLanguage('nix', nix);
 hljs.registerLanguage('http', http);
 hljs.registerLanguage('awk', awk);
 hljs.registerLanguage('fortran', fortran);
-hljs.registerLanguage('cobol', cobol);
 hljs.registerLanguage('basic', basic);
 hljs.registerLanguage('verilog', verilog);
 hljs.registerLanguage('vhdl', vhdl);
@@ -284,8 +281,8 @@ hljs.registerAliases(['asm', 'assembly'], { languageName: 'x86asm' });
 hljs.registerAliases(['pl', 'pm'], { languageName: 'perl' });
 hljs.registerAliases(['jl'], { languageName: 'julia' });
 hljs.registerAliases(['f90', 'f95', 'f03', 'f08'], { languageName: 'fortran' });
-hljs.registerAliases(['cbl', 'cob'], { languageName: 'cobol' });
 hljs.registerAliases(['v', 'vh'], { languageName: 'verilog' });
+hljs.registerAliases(['arm'], { languageName: 'armasm' });
 hljs.registerAliases(['vhd'], { languageName: 'vhdl' });
 hljs.registerAliases(['frag', 'vert'], { languageName: 'glsl' });
 
