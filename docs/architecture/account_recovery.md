@@ -6,7 +6,7 @@
 
 Account recovery allows users to regain access to their accounts when they've lost their password, passkey, AND recovery key. Given OpenMates' zero-knowledge architecture, this requires a **full account reset** that deletes all client-encrypted data.
 
-**Status**: ✅ **IMPLEMENTED**
+**Status**: ✅ **IMPLEMENTED** (including mandatory 2FA for password users)
 
 ## Important: Recovery Key vs Account Reset
 
@@ -71,19 +71,42 @@ User chooses between:
 1. WebAuthn registration is initiated with PRF extension
 2. New master key is generated
 3. Master key is wrapped with PRF-derived key
-4. Account is reset (all client-encrypted data deleted)
-5. New encryption keys and passkey are stored
-6. User is logged in
+4. Loading screen shown during reset process
+5. Account is reset (all client-encrypted data deleted)
+6. New encryption keys and passkey are stored
+7. User is redirected to login page with success notification
 
 #### Password Flow
 1. User enters new password (+ confirmation)
-2. New master key is generated
-3. Master key is wrapped with password-derived key
-4. Account is reset (all client-encrypted data deleted)
-5. New encryption key is stored
-6. User is logged in
+2. **If user doesn't have 2FA configured**:
+   - User must set up 2FA before reset can complete (per security policy)
+   - QR code + secret shown for 2FA app
+   - User selects their 2FA app from a dropdown
+   - User enters verification code from their 2FA app
+3. New master key is generated
+4. Master key is wrapped with password-derived key
+5. Loading screen shown during reset process
+6. Account is reset (all client-encrypted data deleted)
+7. New encryption key is stored
+8. If 2FA was set up: 2FA secret + app name saved (vault encrypted)
+9. User is redirected to login page with success notification
 
-**Note on 2FA**: If 2FA was previously configured, the encrypted 2FA secret is preserved server-side (vault encrypted). Users will be prompted for 2FA on their next login.
+**Security Note**: Password-based authentication always requires 2FA. If a user didn't have 2FA configured previously, they must set it up during the recovery flow before the reset can proceed.
+
+### Step 6: Login with New Credentials
+
+After reset completes:
+- User is **NOT** automatically logged in
+- User sees a success notification: "Account reset complete! Please login with your new credentials."
+- User must manually login with their new password or passkey
+
+**Note on 2FA**: 
+- If 2FA was previously configured, the encrypted 2FA secret is preserved server-side (vault encrypted). Users will be prompted for 2FA on their next login.
+- If 2FA was NOT previously configured and user chooses password login, they MUST set up 2FA during the recovery flow (enforced by security policy that password + 2FA are inseparable).
+
+### Planned Improvements (TODO)
+
+1. **Confirmation Email**: After successful account reset, a confirmation email should be sent to the user to inform them that their account was reset.
 
 ## Data Preservation
 
@@ -147,15 +170,59 @@ Request account reset by providing email. Sends a 6-digit verification code via 
 }
 ```
 
-### POST `/auth/recovery/reset-account`
+### POST `/auth/recovery/verify-code`
 
-Execute account reset with verification code and new credentials.
+Verify the recovery code and get a verification token for subsequent requests.
 
 **Request:**
 ```json
 {
   "email": "user@example.com",
-  "code": "123456",
+  "code": "123456"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Verification successful. Please set up your new login method.",
+  "verification_token": "...",
+  "has_2fa": false
+}
+```
+
+### POST `/auth/recovery/setup-2fa`
+
+Generate 2FA setup data during recovery (for users without 2FA).
+
+**Request:**
+```json
+{
+  "email": "user@example.com",
+  "verification_token": "..."
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "2FA setup data generated. Please scan the QR code and enter the verification code.",
+  "secret": "ABCD1234...",
+  "otpauth_url": "otpauth://totp/OpenMates:user@example.com?..."
+}
+```
+
+### POST `/auth/recovery/reset-account`
+
+Execute account reset with verification token and new credentials.
+
+**Request:**
+```json
+{
+  "email": "user@example.com",
+  "verification_token": "...",
   "acknowledge_data_loss": true,
   "new_login_method": "password",
   "hashed_email": "...",
@@ -165,9 +232,16 @@ Execute account reset with verification code and new credentials.
   "lookup_hash": "...",
   "encrypted_master_key": "...",
   "salt": "...",
-  "key_iv": "..."
+  "key_iv": "...",
+  "tfa_secret": "...",
+  "tfa_verification_code": "123456",
+  "tfa_app_name": "Google Authenticator"
 }
 ```
+
+**Note**: `tfa_secret`, `tfa_verification_code`, and `tfa_app_name` are required if:
+- `new_login_method` is `password`, AND
+- User doesn't already have 2FA configured
 
 **Response:**
 ```json
@@ -184,8 +258,9 @@ Execute account reset with verification code and new credentials.
 ### Rate Limiting
 
 - Reset code request: 3 per email per hour
-- Code verification: 5 attempts per code
-- Full reset: 1 per account per 24 hours
+- Code verification: 5 attempts per hour
+- 2FA setup during recovery: 10 per hour
+- Full reset: 10 per account per 24 hours (email verification provides main security)
 
 ### Email Verification
 

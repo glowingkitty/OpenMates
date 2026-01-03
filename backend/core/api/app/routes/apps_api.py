@@ -2,6 +2,11 @@
 #
 # External API endpoints for accessing apps and their skills with API key authentication
 # This router provides a RESTful API for external clients to interact with app skills
+#
+# SECURITY: This module includes ASCII smuggling protection via the text_sanitization module.
+# ASCII smuggling attacks use invisible Unicode characters to embed hidden instructions
+# that bypass prompt injection detection but are processed by LLMs.
+# See: docs/architecture/prompt_injection_protection.md
 
 import logging
 import httpx
@@ -21,6 +26,10 @@ from backend.core.api.app.utils.config_manager import ConfigManager
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 from backend.shared.python_schemas.app_metadata_schemas import AppYAML, AppSkillDefinition
 from backend.shared.python_utils.billing_utils import calculate_total_credits, PricingConfig
+
+# Import comprehensive ASCII smuggling sanitization
+# This module protects against invisible Unicode characters used to embed hidden instructions
+from backend.core.api.app.utils.text_sanitization import sanitize_text_simple
 
 logger = logging.getLogger(__name__)
 
@@ -146,6 +155,35 @@ def get_config_manager(request: Request) -> ConfigManager:
         return request.app.state.config_manager
     # Fallback to singleton instance if not in app state
     return ConfigManager()
+
+
+def _sanitize_dict_recursively(data: Any, log_prefix: str = "") -> Any:
+    """
+    Recursively sanitize all string values in a dictionary or list for ASCII smuggling.
+    
+    This function walks through nested data structures (dicts, lists) and sanitizes
+    all string values to remove invisible Unicode characters that could be used for
+    ASCII smuggling attacks.
+    
+    SECURITY: This is critical for API endpoints where input_data can contain
+    arbitrary nested structures with text that will be processed by LLMs.
+    
+    Args:
+        data: The data structure to sanitize (dict, list, or primitive)
+        log_prefix: Prefix for log messages
+    
+    Returns:
+        A copy of the data with all strings sanitized
+    """
+    if isinstance(data, dict):
+        return {key: _sanitize_dict_recursively(value, log_prefix) for key, value in data.items()}
+    elif isinstance(data, list):
+        return [_sanitize_dict_recursively(item, log_prefix) for item in data]
+    elif isinstance(data, str):
+        return sanitize_text_simple(data, log_prefix=log_prefix)
+    else:
+        # Primitives (int, float, bool, None) pass through unchanged
+        return data
 
 
 def resolve_translation(translation_service, translation_key: str, namespace: str, fallback: str = "") -> str:
@@ -504,6 +542,11 @@ async def call_app_skill(
     """
     Call an app skill via internal service communication.
     
+    SECURITY: Input data is sanitized for ASCII smuggling attacks before processing.
+    ASCII smuggling uses invisible Unicode characters to embed hidden instructions
+    that bypass prompt injection detection but are processed by LLMs.
+    See: docs/architecture/prompt_injection_protection.md
+    
     Args:
         app_id: The ID of the app
         skill_id: The ID of the skill to execute
@@ -526,11 +569,20 @@ async def call_app_skill(
             'X-External-User-ID': user_info['user_id'],
             'X-API-Key-Name': user_info.get('api_key_encrypted_name', ''),  # Encrypted name (for logging, client decrypts)
         }
+        
+        # SECURITY: Sanitize all text in input_data to prevent ASCII smuggling attacks
+        # This removes invisible Unicode characters that could embed hidden instructions
+        user_id_short = user_info['user_id'][:8] if user_info.get('user_id') else 'unknown'
+        log_prefix = f"[API {app_id}/{skill_id}][User {user_id_short}...] "
+        sanitized_input_data = _sanitize_dict_recursively(input_data, log_prefix=log_prefix)
+        # Note: parameters are also sanitized but currently not passed separately to skills
+        # They're merged into the payload via context fields. If parameters are added as
+        # separate payload in the future, use _sanitize_dict_recursively(parameters, log_prefix)
 
-        # Send input_data directly as the request body to the skill
+        # Send sanitized input_data directly as the request body to the skill
         # The skill expects the tool_schema structure directly (e.g., {"requests": [...]})
         # Context is added as metadata fields prefixed with _ so they don't interfere with the skill's schema
-        request_payload = input_data.copy() if isinstance(input_data, dict) else input_data
+        request_payload = sanitized_input_data.copy() if isinstance(sanitized_input_data, dict) else sanitized_input_data
         if not isinstance(request_payload, dict):
             request_payload = {}
         

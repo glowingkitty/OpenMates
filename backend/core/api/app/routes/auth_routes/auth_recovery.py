@@ -29,8 +29,12 @@ from backend.core.api.app.schemas.auth_recovery import (
     RecoveryVerifyRequest,
     RecoveryVerifyResponse,
     RecoveryFullResetRequest,
-    RecoveryCompleteResponse
+    RecoveryCompleteResponse,
+    Recovery2FASetupRequest,
+    Recovery2FASetupResponse
 )
+from backend.core.api.app.routes.auth_routes.auth_2fa_utils import generate_2fa_secret
+import pyotp
 from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.compliance import ComplianceService
@@ -359,12 +363,28 @@ async def verify_recovery_code(
         # Delete the verification code (one-time use)
         await cache_service.delete(cache_key)
         
-        logger.info(f"Recovery code verified successfully for {email[:2]}***")
+        # Look up user to check if they have 2FA configured
+        # This info is needed by frontend to determine if 2FA setup is required
+        hashed_email = _hash_email(email)
+        has_2fa = False
+        try:
+            exists, user_data, _ = await directus_service.get_user_by_hashed_email(hashed_email)
+            if exists and user_data:
+                # tfa_enabled indicates if user has 2FA secret configured (vault encrypted)
+                has_2fa = bool(user_data.get("tfa_enabled", False))
+                logger.info(f"User 2FA status: {has_2fa}")
+        except Exception as e:
+            logger.warning(f"Could not check user 2FA status: {e}")
+            # Default to requiring 2FA setup if we can't determine status
+            has_2fa = False
+        
+        logger.info(f"Recovery code verified successfully for {email[:2]}***, has_2fa={has_2fa}")
         
         return RecoveryVerifyResponse(
             success=True,
             message="Verification successful. Please set up your new login method.",
-            verification_token=verification_token
+            verification_token=verification_token,
+            has_2fa=has_2fa
         )
         
     except Exception as e:
@@ -376,8 +396,87 @@ async def verify_recovery_code(
         )
 
 
+@router.post("/setup-2fa", response_model=Recovery2FASetupResponse)
+@limiter.limit("10/hour")
+async def setup_2fa_for_recovery(
+    request: Request,
+    setup_request: Recovery2FASetupRequest,
+    directus_service: DirectusService = Depends(get_directus_service),
+    cache_service: CacheService = Depends(get_cache_service)
+):
+    """
+    Generate 2FA setup data during account recovery.
+    
+    This endpoint is for users who don't have 2FA configured and are using
+    password as their new login method. 2FA is mandatory for password-based accounts.
+    
+    Uses the verification token from verify-code endpoint for authorization.
+    
+    Returns the 2FA secret and otpauth URL for QR code generation.
+    The secret is NOT stored yet - it will be encrypted and stored during the
+    reset-account step after the user verifies their code.
+    
+    Rate limited: 10 per hour.
+    """
+    logger.info("Processing /recovery/setup-2fa")
+    
+    try:
+        email = setup_request.email.lower().strip()
+        
+        # Verify the verification token from cache
+        token_cache_key = f"recovery_verify_token:{email}"
+        stored_token = await cache_service.get(token_cache_key)
+        
+        if not stored_token:
+            logger.warning("2FA setup attempted with no verification token on record")
+            return Recovery2FASetupResponse(
+                success=False,
+                message="Verification expired. Please verify your code again.",
+                error_code="TOKEN_EXPIRED"
+            )
+        
+        if str(stored_token) != str(setup_request.verification_token):
+            logger.warning("Invalid verification token for 2FA setup")
+            return Recovery2FASetupResponse(
+                success=False,
+                message="Invalid verification. Please start the recovery process again.",
+                error_code="INVALID_TOKEN"
+            )
+        
+        # Get user's email for the 2FA display name
+        hashed_email = _hash_email(email)
+        username = "User"
+        try:
+            exists, user_data, _ = await directus_service.get_user_by_hashed_email(hashed_email)
+            if exists and user_data and user_data.get("encrypted_username"):
+                # We can't decrypt username without vault key here, so just use email prefix
+                username = email.split("@")[0] if "@" in email else "User"
+        except Exception as e:
+            logger.warning(f"Could not get username for 2FA setup: {e}")
+        
+        # Generate 2FA secret and otpauth URL
+        secret, otpauth_url, _ = generate_2fa_secret(app_name="OpenMates", username=username)
+        
+        logger.info(f"Generated 2FA setup data for recovery user {email[:2]}***")
+        
+        return Recovery2FASetupResponse(
+            success=True,
+            message="2FA setup data generated. Please scan the QR code and enter the verification code.",
+            secret=secret,
+            otpauth_url=otpauth_url
+        )
+        
+    except Exception as e:
+        logger.error(f"Error in recovery 2FA setup: {e}", exc_info=True)
+        return Recovery2FASetupResponse(
+            success=False,
+            message="An error occurred. Please try again.",
+            error_code="SERVER_ERROR"
+        )
+
+
 @router.post("/reset-account", response_model=RecoveryCompleteResponse)
-@limiter.limit("1/day")
+@limiter.limit("10/day")
 async def reset_account(
     request: Request,
     reset_request: RecoveryFullResetRequest,
@@ -398,7 +497,9 @@ async def reset_account(
     
     Server-encrypted data (credits, username, subscription) is preserved.
     
-    Rate limited: 1 per account per 24 hours.
+    Rate limited: 10 per account per 24 hours (allows for testing/retry scenarios
+    while still preventing abuse - the email verification code provides the main
+    security layer).
     
     Requires verification_token from verify-code endpoint.
     """
@@ -464,6 +565,59 @@ async def reset_account(
             except Exception as e:
                 logger.warning(f"Could not decrypt username: {e}")
         
+        # 4.5. Check if 2FA setup is required
+        # Users with password login method MUST have 2FA configured
+        has_existing_2fa = bool(user_data.get("tfa_enabled", False))
+        encrypted_tfa_secret = None
+        encrypted_tfa_app_name = None
+        
+        if reset_request.new_login_method == "password" and not has_existing_2fa:
+            # Password users without existing 2FA must set up 2FA during recovery
+            if not reset_request.tfa_secret or not reset_request.tfa_verification_code:
+                logger.warning("Password recovery attempted without 2FA setup")
+                return RecoveryCompleteResponse(
+                    success=False,
+                    message="2FA setup is required for password-based accounts. Please set up 2FA first.",
+                    error_code="2FA_REQUIRED"
+                )
+            
+            # Verify the 2FA code
+            try:
+                totp = pyotp.TOTP(reset_request.tfa_secret)
+                if not totp.verify(reset_request.tfa_verification_code, valid_window=1):
+                    logger.warning("Invalid 2FA verification code during recovery")
+                    return RecoveryCompleteResponse(
+                        success=False,
+                        message="Invalid verification code. Please check your 2FA app and try again.",
+                        error_code="INVALID_2FA_CODE"
+                    )
+            except Exception as e:
+                logger.error(f"Error verifying 2FA code: {e}")
+                return RecoveryCompleteResponse(
+                    success=False,
+                    message="Failed to verify 2FA code. Please try again.",
+                    error_code="2FA_VERIFICATION_FAILED"
+                )
+            
+            # Encrypt the 2FA secret for storage using vault
+            # encrypt_with_user_key returns (ciphertext, key_version) tuple
+            try:
+                encrypted_tfa_secret, _ = await encryption_service.encrypt_with_user_key(
+                    reset_request.tfa_secret, vault_key_id
+                )
+                if reset_request.tfa_app_name:
+                    encrypted_tfa_app_name, _ = await encryption_service.encrypt_with_user_key(
+                        reset_request.tfa_app_name, vault_key_id
+                    )
+                logger.info(f"Encrypted new 2FA secret for user {user_id[:8]}... (has vault: prefix: {encrypted_tfa_secret.startswith('vault:')})")
+            except Exception as e:
+                logger.error(f"Failed to encrypt 2FA secret: {e}")
+                return RecoveryCompleteResponse(
+                    success=False,
+                    message="Failed to secure 2FA data. Please try again.",
+                    error_code="ENCRYPTION_FAILED"
+                )
+        
         # 5. Delete all client-encrypted data
         logger.info(f"[ACCOUNT_RESET] Starting full reset for user {user_id[:8]}...")
         
@@ -495,6 +649,14 @@ async def reset_account(
             # Reset recovery key confirmation (user will need to set up new one)
             "consent_recovery_key_stored_timestamp": None,
         }
+        
+        # Add 2FA data if it was set up during recovery
+        if encrypted_tfa_secret:
+            update_data["encrypted_tfa_secret"] = encrypted_tfa_secret
+            update_data["tfa_enabled"] = True
+            logger.info(f"Including new 2FA secret in user update for {user_id[:8]}...")
+        if encrypted_tfa_app_name:
+            update_data["encrypted_tfa_app_name"] = encrypted_tfa_app_name
         
         update_success = await directus_service.update_user(user_id, update_data)
         if not update_success:

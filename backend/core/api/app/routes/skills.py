@@ -1,6 +1,11 @@
 # backend/core/api/app/routes/skills.py
 #
 # External API endpoints for accessing app skills with API key authentication
+#
+# SECURITY: This module includes ASCII smuggling protection via the text_sanitization module.
+# ASCII smuggling attacks use invisible Unicode characters to embed hidden instructions
+# that bypass prompt injection detection but are processed by LLMs.
+# See: docs/architecture/prompt_injection_protection.md
 
 import logging
 import httpx
@@ -11,6 +16,10 @@ from pydantic import BaseModel
 from backend.core.api.app.utils.api_key_auth import ApiKeyAuth
 from backend.core.api.app.services.limiter import limiter
 from backend.core.api.app.services.cache import CacheService
+
+# Import comprehensive ASCII smuggling sanitization
+# This module protects against invisible Unicode characters used to embed hidden instructions
+from backend.core.api.app.utils.text_sanitization import sanitize_text_simple
 
 logger = logging.getLogger(__name__)
 
@@ -58,6 +67,35 @@ class AppsListResponse(BaseModel):
 async def get_cache_service(request: Request) -> CacheService:
     """Get cache service from app state"""
     return request.app.state.cache_service
+
+
+def _sanitize_dict_recursively(data: Any, log_prefix: str = "") -> Any:
+    """
+    Recursively sanitize all string values in a dictionary or list for ASCII smuggling.
+    
+    This function walks through nested data structures (dicts, lists) and sanitizes
+    all string values to remove invisible Unicode characters that could be used for
+    ASCII smuggling attacks.
+    
+    SECURITY: This is critical for API endpoints where input_data can contain
+    arbitrary nested structures with text that will be processed by LLMs.
+    
+    Args:
+        data: The data structure to sanitize (dict, list, or primitive)
+        log_prefix: Prefix for log messages
+    
+    Returns:
+        A copy of the data with all strings sanitized
+    """
+    if isinstance(data, dict):
+        return {key: _sanitize_dict_recursively(value, log_prefix) for key, value in data.items()}
+    elif isinstance(data, list):
+        return [_sanitize_dict_recursively(item, log_prefix) for item in data]
+    elif isinstance(data, str):
+        return sanitize_text_simple(data, log_prefix=log_prefix)
+    else:
+        # Primitives (int, float, bool, None) pass through unchanged
+        return data
 
 
 async def get_app_metadata(cache_service: CacheService) -> Dict[str, Any]:
@@ -253,15 +291,26 @@ async def execute_skill(
 
     Requires API key authentication.
     Rate limited to 30 requests per minute per API key.
+    
+    SECURITY: Input data is sanitized for ASCII smuggling attacks before processing.
+    ASCII smuggling uses invisible Unicode characters to embed hidden instructions
+    that bypass prompt injection detection but are processed by LLMs.
+    See: docs/architecture/prompt_injection_protection.md
     """
     try:
         logger.info(f"External API: User {user_info['user_id']} executing {app_id}/{skill_id}")
+        
+        # SECURITY: Sanitize all text in input_data to prevent ASCII smuggling attacks
+        # This removes invisible Unicode characters that could embed hidden instructions
+        log_prefix = f"[API {app_id}/{skill_id}][User {user_info['user_id'][:8]}...] "
+        sanitized_input_data = _sanitize_dict_recursively(request_data.input_data, log_prefix=log_prefix)
+        sanitized_parameters = _sanitize_dict_recursively(request_data.parameters or {}, log_prefix=log_prefix)
 
         result = await call_app_skill(
             app_id=app_id,
             skill_id=skill_id,
-            input_data=request_data.input_data,
-            parameters=request_data.parameters or {},
+            input_data=sanitized_input_data,
+            parameters=sanitized_parameters,
             user_info=user_info
         )
 

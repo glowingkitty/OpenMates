@@ -3,6 +3,15 @@
 # Content sanitization for prompt injection protection.
 # Implements mandatory sanitization of external data from app skills before
 # returning results to the main processing system.
+#
+# TWO-LAYER DEFENSE:
+# 1. ASCII Smuggling Protection (character-level) - removes invisible Unicode characters
+# 2. LLM-Based Detection (semantic-level) - detects malicious instructions in visible text
+#
+# ASCII smuggling protection runs FIRST to ensure the LLM sees clean text without
+# hidden instructions embedded via invisible characters.
+#
+# See: docs/architecture/prompt_injection_protection.md
 
 import logging
 import yaml
@@ -12,6 +21,10 @@ from typing import Dict, Any, List, Optional
 
 from backend.apps.ai.utils.llm_utils import call_preprocessing_llm, LLMPreprocessingCallResult
 from backend.core.api.app.utils.secrets_manager import SecretsManager
+
+# Import ASCII smuggling sanitization
+# This must run BEFORE LLM-based detection to remove invisible characters
+from backend.core.api.app.utils.text_sanitization import sanitize_text_for_ascii_smuggling
 
 logger = logging.getLogger(__name__)
 
@@ -172,7 +185,7 @@ def _load_prompt_injection_detection_config() -> Optional[Dict[str, Any]]:
         with open(config_path, 'r', encoding='utf-8') as f:
             config = yaml.safe_load(f)
         if not config:
-            logger.error(f"Prompt injection detection config is empty or malformed")
+            logger.error("Prompt injection detection config is empty or malformed")
             return None
         logger.debug(f"Successfully loaded prompt injection detection config from {config_path}")
         return config
@@ -384,12 +397,19 @@ async def sanitize_external_content(
     that access external APIs or gather external data. See docs/architecture/apps/app_skills.md
     for detailed requirements.
     
-    Process:
-    1. For images: Return empty string (image processing comes later)
-    2. For text: Split long text into chunks of 50,000 tokens maximum
-    3. Detect prompt injection attacks using LLM function call
-    4. Sanitize text content by replacing detected injection strings with '[PROMPT INJECTION DETECTED & REMOVED]'
-    5. Combine sanitized chunks back together
+    TWO-LAYER DEFENSE PROCESS:
+    
+    Layer 1 - ASCII Smuggling Protection (Character-Level):
+    1. Remove invisible Unicode characters that could hide malicious instructions
+    2. This includes: Unicode Tags, Variant Selectors, Zero-Width chars, BiDi controls, etc.
+    3. Log security alerts if hidden content is detected
+    
+    Layer 2 - LLM-Based Detection (Semantic-Level):
+    4. For images: Return empty string (image processing comes later)
+    5. For text: Split long text into chunks of 50,000 tokens maximum
+    6. Detect prompt injection attacks using LLM function call
+    7. Sanitize text content by replacing detected injection strings with '[PROMPT INJECTION DETECTED & REMOVED]'
+    8. Combine sanitized chunks back together
     
     Args:
         content: The content to sanitize (text or image data)
@@ -415,6 +435,57 @@ async def sanitize_external_content(
         return content
     
     try:
+        # =========================================================================
+        # LAYER 1: ASCII SMUGGLING PROTECTION (Character-Level)
+        # =========================================================================
+        # Remove invisible Unicode characters BEFORE LLM-based detection.
+        # External APIs could return content with hidden instructions encoded via:
+        # - Unicode Tags (U+E0000-U+E007F) - maps to hidden ASCII
+        # - Variant Selectors (U+FE00-U+FE0F, U+E0100-U+E01EF)
+        # - Zero-Width Characters (ZWSP, ZWNJ, ZWJ, Word Joiner, BOM)
+        # - Bidirectional Controls (LRO, RLO, LRE, RLE, etc.)
+        # - Other invisible/formatting characters
+        #
+        # This ensures the LLM sees clean text without hidden instructions.
+        # =========================================================================
+        
+        ascii_smuggling_log_prefix = f"[{task_id}][EXTERNAL] "
+        content, ascii_stats = sanitize_text_for_ascii_smuggling(
+            content,
+            log_prefix=ascii_smuggling_log_prefix,
+            include_stats=True
+        )
+        
+        # Log security alert if hidden content was detected (potential attack from external source)
+        if ascii_stats.get("hidden_ascii_detected"):
+            logger.warning(
+                f"[{task_id}][SECURITY ALERT] ASCII smuggling detected in EXTERNAL content! "
+                f"Hidden Unicode Tags content found and removed. This may indicate a compromised external source. "
+                f"Removed {ascii_stats['removed_count']} invisible characters: "
+                f"Unicode Tags={ascii_stats['unicode_tags_count']}, "
+                f"Zero-Width={ascii_stats['zero_width_count']}, "
+                f"BiDi Controls={ascii_stats['bidi_control_count']}"
+            )
+        elif ascii_stats.get("removed_count", 0) > 0:
+            logger.info(
+                f"[{task_id}][ASCII SANITIZATION] Removed {ascii_stats['removed_count']} "
+                f"invisible characters from external content before LLM detection"
+            )
+        
+        # If content became empty after ASCII sanitization, it was likely all hidden chars
+        if not content.strip():
+            logger.warning(
+                f"[{task_id}] External content became empty after ASCII smuggling removal. "
+                f"Original may have been entirely hidden characters (attack attempt)."
+            )
+            return ""
+        
+        # =========================================================================
+        # LAYER 2: LLM-BASED PROMPT INJECTION DETECTION (Semantic-Level)
+        # =========================================================================
+        # Now that invisible characters are removed, the LLM can analyze the
+        # visible text for semantic prompt injection patterns.
+        # =========================================================================
         # Load prompt injection detection configuration from cache (preloaded by main API server at startup)
         # The main API server preloads this into the shared Dragonfly cache during startup.
         # Fallback to disk loading if cache is empty (e.g., cache expired or server restarted).

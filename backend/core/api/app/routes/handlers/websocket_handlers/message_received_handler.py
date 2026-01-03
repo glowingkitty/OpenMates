@@ -1,4 +1,10 @@
 # backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py
+#
+# SECURITY: This module includes ASCII smuggling protection via the text_sanitization module.
+# ASCII smuggling attacks use invisible Unicode characters to embed hidden instructions
+# that bypass prompt injection detection but are processed by LLMs.
+# See: docs/architecture/prompt_injection_protection.md
+
 import logging
 import json
 import hashlib # Import hashlib for hashing user_id
@@ -16,6 +22,10 @@ from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.routes.connection_manager import ConnectionManager
 from backend.core.api.app.schemas.chat import MessageInCache, AIHistoryMessage
 from backend.core.api.app.schemas.ai_skill_schemas import AskSkillRequest as AskSkillRequestSchema
+
+# Import comprehensive ASCII smuggling sanitization
+# This module protects against invisible Unicode characters used to embed hidden instructions
+from backend.core.api.app.utils.text_sanitization import sanitize_text_for_ascii_smuggling
 
 logger = logging.getLogger(__name__)
 
@@ -119,11 +129,41 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
 
         message_id = message_payload_from_client.get("message_id")
         role = message_payload_from_client.get("role") 
-        content_plain = message_payload_from_client.get("content") # Markdown content for AI processing
+        content_plain_raw = message_payload_from_client.get("content") # Markdown content for AI processing (raw, unsanitized)
         created_at = message_payload_from_client.get("created_at") # Unix timestamp (int/float)
         # Get chat_has_title flag early (indicates if this is first message or follow-up)
         # This is used to determine if we should request history (only for existing chats, not new ones)
         chat_has_title_from_client = message_payload_from_client.get("chat_has_title", False)
+        
+        # SECURITY: Sanitize content to protect against ASCII smuggling attacks
+        # ASCII smuggling uses invisible Unicode characters to embed hidden instructions
+        # that bypass prompt injection detection but are processed by LLMs.
+        # This sanitization runs BEFORE any processing or storage of user content.
+        # See: docs/architecture/prompt_injection_protection.md
+        log_prefix_for_sanitization = f"[Chat {chat_id}][Msg {message_id}] "
+        if isinstance(content_plain_raw, str) and content_plain_raw:
+            content_plain, sanitization_stats = sanitize_text_for_ascii_smuggling(
+                content_plain_raw,
+                log_prefix=log_prefix_for_sanitization,
+                include_stats=True
+            )
+            
+            # Log security alert if hidden content was detected (potential attack)
+            if sanitization_stats.get("hidden_ascii_detected"):
+                logger.warning(
+                    f"{log_prefix_for_sanitization}[SECURITY ALERT] ASCII smuggling attack detected! "
+                    f"Removed {sanitization_stats['removed_count']} invisible characters from user message. "
+                    f"Unicode Tags: {sanitization_stats['unicode_tags_count']}, "
+                    f"Zero-Width: {sanitization_stats['zero_width_count']}, "
+                    f"BiDi Controls: {sanitization_stats['bidi_control_count']}"
+                )
+            elif sanitization_stats.get("removed_count", 0) > 0:
+                logger.info(
+                    f"{log_prefix_for_sanitization}[ASCII SANITIZATION] "
+                    f"Removed {sanitization_stats['removed_count']} invisible characters from user message"
+                )
+        else:
+            content_plain = content_plain_raw
         
         # Determine if this is an existing chat by checking Directus messages_v
         # This is more reliable than client-provided chat_has_title, especially after server restarts
