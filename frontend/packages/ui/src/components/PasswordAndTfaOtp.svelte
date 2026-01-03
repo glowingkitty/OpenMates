@@ -645,6 +645,15 @@
                 console.log('[PasswordAndTfaOtp] Account reset completed, returning to login');
                 showAccountRecovery = false;
                 
+                // CRITICAL: Clear the old email salt from storage!
+                // After recovery, the server has a NEW user_email_salt.
+                // We must clear the old one so the /lookup endpoint returns the new salt.
+                // Otherwise, login will fail with "Invalid lookup hash" because
+                // the client would compute lookup_hash with the old salt.
+                cryptoService.clearEmailSalt();
+                cryptoService.clearEmailEncryptionKey();
+                console.log('[PasswordAndTfaOtp] Cleared old email salt and encryption key after account reset');
+                
                 // Show success notification with instructions to login
                 notificationStore.success(
                     $text('login.account_reset_complete_login_now.text'),
