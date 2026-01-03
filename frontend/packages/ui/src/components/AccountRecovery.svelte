@@ -38,6 +38,7 @@
     import { notificationStore } from '../stores/notificationStore';
     import * as cryptoService from '../services/cryptoService';
     import { generateDeviceName } from '../utils/deviceName';
+    import { tfaApps, tfaAppIcons } from '../config/tfa';
     
     // ========================================================================
     // WebAuthn PRF Extension Types
@@ -1059,23 +1060,31 @@
                 {/if}
             </div>
             
-            <!-- App Name Input (optional) -->
-            <div class="input-group">
-                <label for="tfa-app-name" class="input-label">{$text('signup.which_2fa_app.text')}</label>
-                <div class="input-wrapper">
-                    <input
-                        id="tfa-app-name"
-                        type="text"
-                        bind:value={tfaAppName}
-                        placeholder="Google Authenticator, Authy, etc."
-                        disabled={isVerifying2FA}
-                    />
+            <!-- 2FA App Selection -->
+            <div class="app-selection-section">
+                <span class="input-label">{$text('signup.which_2fa_app.text')}</span>
+                <div class="app-list" role="radiogroup" aria-label="Select 2FA app">
+                    {#each tfaApps as app}
+                        <button
+                            type="button"
+                            class="app-item"
+                            class:selected={tfaAppName === app}
+                            onclick={() => tfaAppName = app}
+                            disabled={isVerifying2FA}
+                        >
+                            <span class="app-icon icon_{tfaAppIcons[app]}"></span>
+                            <span class="app-name">{app}</span>
+                            {#if tfaAppName === app}
+                                <span class="check-icon">✓</span>
+                            {/if}
+                        </button>
+                    {/each}
                 </div>
             </div>
             
             <button
                 onclick={verify2FAAndReset}
-                disabled={isVerifying2FA || tfaVerificationCode.length !== 6}
+                disabled={isVerifying2FA || tfaVerificationCode.length !== 6 || !tfaAppName}
             >
                 {#if isVerifying2FA}
                     <span class="loading-spinner"></span>
@@ -1378,5 +1387,66 @@
         font-size: 13px;
         color: var(--color-grey-60);
         margin-bottom: 6px;
+    }
+    
+    /* 2FA App Selection Styles */
+    .app-selection-section {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+    
+    .app-list {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 8px;
+    }
+    
+    .app-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 12px;
+        background: var(--color-grey-10);
+        border: 1px solid var(--color-grey-20);
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        text-align: left;
+    }
+    
+    .app-item:hover:not(:disabled) {
+        background: var(--color-grey-15);
+        border-color: var(--color-grey-30);
+    }
+    
+    .app-item.selected {
+        background: var(--color-primary-10);
+        border-color: var(--color-primary-50);
+    }
+    
+    .app-item:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+    
+    .app-item .app-icon {
+        width: 24px;
+        height: 24px;
+        flex-shrink: 0;
+    }
+    
+    .app-item .app-name {
+        flex: 1;
+        font-size: 13px;
+        color: var(--color-grey-80);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    
+    .app-item .check-icon {
+        color: var(--color-primary-50);
+        font-weight: bold;
     }
 </style>
