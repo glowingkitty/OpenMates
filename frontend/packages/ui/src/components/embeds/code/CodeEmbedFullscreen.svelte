@@ -13,32 +13,10 @@
 
 <script lang="ts">
   import { onMount } from 'svelte';
-  import hljs from 'highlight.js';
-  import DOMPurify from 'dompurify';
   // Import highlight.js theme - using github-dark for dark mode compatibility
   import 'highlight.js/styles/github-dark.css';
-  // Import language definitions for syntax highlighting
-  import 'highlight.js/lib/languages/javascript';
-  import 'highlight.js/lib/languages/typescript';
-  import 'highlight.js/lib/languages/python';
-  import 'highlight.js/lib/languages/java';
-  import 'highlight.js/lib/languages/cpp';
-  import 'highlight.js/lib/languages/c';
-  import 'highlight.js/lib/languages/rust';
-  import 'highlight.js/lib/languages/go';
-  import 'highlight.js/lib/languages/ruby';
-  import 'highlight.js/lib/languages/php';
-  import 'highlight.js/lib/languages/swift';
-  import 'highlight.js/lib/languages/kotlin';
-  import 'highlight.js/lib/languages/yaml';
-  import 'highlight.js/lib/languages/xml';
-  import 'highlight.js/lib/languages/markdown';
-  import 'highlight.js/lib/languages/bash';
-  import 'highlight.js/lib/languages/shell';
-  import 'highlight.js/lib/languages/sql';
-  import 'highlight.js/lib/languages/json';
-  import 'highlight.js/lib/languages/css';
-  import 'highlight.js/lib/languages/dockerfile';
+  // Import shared highlighting utilities (includes all language support + Svelte)
+  import { highlightToElement } from './codeHighlighting';
   import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
   import BasicInfosBar from '../BasicInfosBar.svelte';
   import { text } from '@repo/ui';
@@ -76,6 +54,7 @@
   // Reference to the code element for syntax highlighting
   let codeElement: HTMLElement | null = $state(null);
 
+  // Parse code content to extract language, filename, and actual code
   let parsedContent = $derived.by(() => parseCodeEmbedContent(codeContent, { language, filename }));
   let renderCodeContent = $derived(parsedContent.code);
   let renderLanguage = $derived(parsedContent.language || '');
@@ -123,49 +102,13 @@
   
   // Apply syntax highlighting after mount and when content changes
   onMount(() => {
-    highlightCode(renderCodeContent, renderLanguage);
+    highlightToElement(codeElement, renderCodeContent, renderLanguage);
   });
   
   // Re-highlight when code content changes
   $effect(() => {
-    highlightCode(renderCodeContent, renderLanguage);
+    highlightToElement(codeElement, renderCodeContent, renderLanguage);
   });
-  
-  /**
-   * Apply syntax highlighting using highlight.js
-   * Uses auto-detection if language is not specified
-   */
-  function highlightCode(content: string, language: string) {
-    if (!codeElement || !content) return;
-    
-    try {
-      let highlighted: string;
-      
-      if (language && language !== 'text' && language !== 'plaintext') {
-        // Try to highlight with specified language
-        try {
-          highlighted = hljs.highlight(content, { language }).value;
-        } catch {
-          // Fallback to auto-detection if language not supported
-          console.debug(`[CodeEmbedFullscreen] Language '${language}' not supported, using auto-detection`);
-          highlighted = hljs.highlightAuto(content).value;
-        }
-      } else {
-        // Auto-detect language
-        highlighted = hljs.highlightAuto(content).value;
-      }
-      
-      // Sanitize the highlighted HTML to prevent XSS
-      codeElement.innerHTML = DOMPurify.sanitize(highlighted, {
-        ALLOWED_TAGS: ['span'],
-        ALLOWED_ATTR: ['class']
-      });
-    } catch (error) {
-      console.warn('[CodeEmbedFullscreen] Error highlighting code:', error);
-      // Fallback to plain text
-      codeElement.textContent = renderCodeContent;
-    }
-  }
   
   // Handle copy code to clipboard
   async function handleCopy() {

@@ -61,6 +61,12 @@ export class ChatSynchronizationService extends EventTarget {
     private readonly CACHE_STATUS_REQUEST_DELAY = 0; // INSTANT - cache is pre-warmed during /lookup
     public activeAITasks: Map<string, { taskId: string, userMessageId: string }> = new Map(); // Made public for handlers
     private syncingMessageIds: Set<string> = new Set(); // Track message IDs being sent to server to prevent duplicates
+    
+    // CRITICAL: Sync timeout mechanism to prevent UI from being stuck in "Loading chats..." state
+    // This handles cases where the server never sends phased_sync_complete or events are missed
+    private phasedSyncTimeout: NodeJS.Timeout | null = null;
+    private readonly PHASED_SYNC_TIMEOUT_MS = 30000; // 30 seconds timeout for phased sync
+    private syncCompletedViaTimeout = false; // Track if completion was via timeout (for debugging)
 
     constructor() {
         super();
@@ -104,6 +110,10 @@ export class ChatSynchronizationService extends EventTarget {
                     clearTimeout(this.cacheStatusRequestTimeout);
                     this.cacheStatusRequestTimeout = null;
                 }
+                
+                // CRITICAL: Clear the phased sync timeout on disconnect to prevent stale timeouts
+                // A new timeout will be started when connection is restored and sync starts again
+                this.clearPhasedSyncTimeout();
                 
                 // Start periodic retry for pending messages when connection is lost
                 // This ensures messages are automatically retried every few seconds
@@ -334,6 +344,10 @@ export class ChatSynchronizationService extends EventTarget {
     /**
      * Start the new 3-phase sync process with version-aware delta checking.
      * Sends client version data to avoid receiving data that's already up-to-date.
+     * 
+     * CRITICAL: This method now includes a timeout mechanism to prevent the UI from
+     * being stuck in "Loading chats..." state if the server never sends phased_sync_complete
+     * or if events are missed due to timing issues.
      */
     public async startPhasedSync(): Promise<void> {
         if (!this.webSocketConnected) {
@@ -343,6 +357,11 @@ export class ChatSynchronizationService extends EventTarget {
         
         try {
             console.log("[ChatSyncService] 1/4: Starting phased sync...");
+            
+            // CRITICAL: Start timeout for sync completion
+            // If the server doesn't respond within the timeout, we'll mark sync as complete
+            // to prevent the UI from being stuck forever in "Loading chats..." state
+            this.startPhasedSyncTimeout();
             
             // Get client version data for delta checking
             const allChats = await chatDB.getAllChats();
@@ -379,7 +398,59 @@ export class ChatSynchronizationService extends EventTarget {
         } catch (error) {
             console.error("[ChatSyncService] ❌ CRITICAL: Error during startPhasedSync:", error);
             notificationStore.error("Failed to start chat synchronization.");
+            // Clear timeout on error and dispatch a synthetic complete event to unblock UI
+            this.clearPhasedSyncTimeout();
+            this.dispatchSyncTimeoutComplete('error');
         }
+    }
+    
+    /**
+     * Start the timeout timer for phased sync.
+     * If the server doesn't respond with phased_sync_complete within the timeout,
+     * we'll dispatch a synthetic completion event to prevent UI from being stuck.
+     */
+    private startPhasedSyncTimeout(): void {
+        // Clear any existing timeout first
+        this.clearPhasedSyncTimeout();
+        
+        console.debug(`[ChatSyncService] Starting phased sync timeout (${this.PHASED_SYNC_TIMEOUT_MS}ms)`);
+        
+        this.phasedSyncTimeout = setTimeout(() => {
+            console.warn(`[ChatSyncService] ⚠️ Phased sync timeout reached (${this.PHASED_SYNC_TIMEOUT_MS}ms) - dispatching synthetic completion event`);
+            this.syncCompletedViaTimeout = true;
+            this.dispatchSyncTimeoutComplete('timeout');
+        }, this.PHASED_SYNC_TIMEOUT_MS);
+    }
+    
+    /**
+     * Clear the phased sync timeout.
+     * Should be called when sync completes successfully or when disconnecting.
+     */
+    public clearPhasedSyncTimeout(): void {
+        if (this.phasedSyncTimeout) {
+            clearTimeout(this.phasedSyncTimeout);
+            this.phasedSyncTimeout = null;
+            console.debug('[ChatSyncService] Cleared phased sync timeout');
+        }
+    }
+    
+    /**
+     * Dispatch a synthetic phasedSyncComplete event when timeout is reached.
+     * This ensures the UI doesn't stay stuck in "Loading chats..." state forever.
+     * 
+     * @param reason - The reason for the synthetic completion ('timeout' or 'error')
+     */
+    private dispatchSyncTimeoutComplete(reason: 'timeout' | 'error'): void {
+        console.info(`[ChatSyncService] Dispatching synthetic phasedSyncComplete event (reason: ${reason})`);
+        
+        // Dispatch the event so +page.svelte and Chats.svelte can mark sync as complete
+        this.dispatchEvent(new CustomEvent('phasedSyncComplete', {
+            detail: {
+                status: 'completed_via_' + reason,
+                synthetic: true,
+                reason
+            }
+        }));
     }
 
     /**
