@@ -507,6 +507,35 @@ class EmbedService:
             filename = match.group(2).strip() if match.group(2) else None
             code_content = match.group(3)
             
+            # FIX: If language/filename not in fence line, check first content line
+            # LLMs sometimes put "python:backend/main.py" in content instead of fence line
+            # This handles code blocks like:
+            # ```
+            # python:backend/main.py
+            # from fastapi import FastAPI
+            # ```
+            if (not language or not filename) and code_content:
+                lines = code_content.split('\n')
+                if lines:
+                    first_line = lines[0].strip()
+                    # Check if first line matches language:filename pattern
+                    if ':' in first_line and not first_line.startswith('#'):
+                        lang_file_pattern = r'^([a-zA-Z0-9_+\-#.]+):([^\s:]+)$'
+                        lang_file_match = re.match(lang_file_pattern, first_line)
+                        if lang_file_match:
+                            potential_lang = lang_file_match.group(1)
+                            potential_filename = lang_file_match.group(2)
+                            # Use extracted values if we don't already have them
+                            if not language:
+                                language = potential_lang
+                                logger.debug(f"{log_prefix} Extracted language from first content line: {language}")
+                            if not filename:
+                                filename = potential_filename
+                                logger.debug(f"{log_prefix} Extracted filename from first content line: {filename}")
+                            # Remove the first line from code content since it's metadata
+                            code_content = '\n'.join(lines[1:])
+                            logger.info(f"{log_prefix} Removed language:filename line from code content")
+            
             # Skip JSON blocks that are already embed references
             if language.lower() in ('json', 'json_embed'):
                 try:
@@ -515,7 +544,7 @@ class EmbedService:
                     if 'embed_id' in json_data or 'embed_ids' in json_data:
                         logger.debug(f"{log_prefix} Skipping existing embed reference JSON block")
                         return full_match  # Keep as-is
-                except:
+                except (json.JSONDecodeError, ValueError):
                     pass  # Not valid JSON, treat as code block
             
             # Generate embed ID
@@ -534,11 +563,9 @@ class EmbedService:
             # Encode to TOON format
             toon_content = encode(embed_content)
             
-            # Hash IDs for privacy
-            hashed_chat_id = hashlib.sha256(chat_id.encode()).hexdigest()
-            hashed_message_id = hashlib.sha256(message_id.encode()).hexdigest()
-            
             # Create embed data for client storage
+            # NOTE: Hashed IDs (hashed_chat_id, hashed_message_id) are computed by the 
+            # websocket handler when sending the embed to the client, not here
             embed_data = {
                 "embed_id": embed_id,
                 "type": "code",
