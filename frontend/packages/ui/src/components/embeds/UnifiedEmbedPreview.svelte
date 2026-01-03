@@ -17,10 +17,11 @@
   
   Interactive States (finished embeds only):
   - Clickable cursor (pointer) on hover
-  - 3D tilt effect: tilts towards mouse position (max 6 degrees)
-  - Scale down to 98% on hover, 96% on active/click
+  - 3D tilt effect: tilts towards mouse position (max 3 degrees, subtle)
+  - Scale down to 98.5% on hover, 96% on active/click
   - Enhanced box-shadow on hover for depth effect
   - Smooth transitions for all hover effects
+  - Mouse-only: does not apply on touch devices (no hover concept)
   
   CRITICAL: This component subscribes to embedUpdated events to receive
   real-time updates when embed status changes from 'processing' to 'finished'.
@@ -230,9 +231,10 @@
   let mouseY = $state(0); // Normalized -1 to 1 (center = 0)
   
   // Configuration for the tilt effect
-  const TILT_MAX_ANGLE = 6; // Maximum tilt angle in degrees
-  const TILT_PERSPECTIVE = 600; // Perspective distance in pixels
-  const TILT_SCALE = 0.98; // Scale on hover
+  // NOTE: Keep values subtle for a polished feel without being distracting
+  const TILT_MAX_ANGLE = 3; // Maximum tilt angle in degrees (subtle effect)
+  const TILT_PERSPECTIVE = 800; // Perspective distance in pixels (higher = more subtle)
+  const TILT_SCALE = 0.985; // Scale on hover (closer to 1 = more subtle)
   
   /**
    * Calculate CSS transform string for the 3D tilt effect
@@ -648,8 +650,6 @@
     -webkit-touch-callout: none;
     /* Performance hint for transform animations */
     will-change: transform;
-    /* Ensure 3D transforms work properly */
-    transform-style: preserve-3d;
   }
   
   /* Prevent image drag/callouts */

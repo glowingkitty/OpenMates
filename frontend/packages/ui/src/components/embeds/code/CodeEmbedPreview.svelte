@@ -321,6 +321,8 @@
     flex-direction: column;
     gap: 4px;
     height: 100%;
+    /* Ensure no background shows through during 3D transforms */
+    background: transparent;
   }
   
   /* Desktop layout: vertically centered content */
@@ -341,6 +343,8 @@
     overflow: hidden;
     display: flex;
     flex-direction: column;
+    /* Ensure no background shows through during 3D transforms */
+    background: transparent;
   }
   
   .code-preview {
@@ -351,7 +355,8 @@
     overflow: hidden;
     white-space: pre;
     font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Mono', 'Consolas', monospace;
-    background: transparent;
+    /* Force transparent background - override any inherited styles */
+    background: transparent !important;
     color: var(--color-font-primary);
     width: 100%;
     height: 100%;
@@ -368,12 +373,17 @@
   .code-preview code {
     display: block;
     color: var(--color-font-primary);
-    background: transparent;
+    background: transparent !important;
     padding: 0;
     margin: 0;
     font-size: inherit;
     line-height: inherit;
     font-family: inherit;
+  }
+  
+  /* Override highlight.js theme backgrounds - embeds use parent background */
+  .code-preview code:global(.hljs) {
+    background: transparent !important;
   }
   
   /* Syntax highlighting colors - basic support */
