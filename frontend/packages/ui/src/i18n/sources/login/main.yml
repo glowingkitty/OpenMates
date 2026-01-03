@@ -1583,6 +1583,29 @@ go_to_login:
   cs: Přejít na přihlášení
   sv: Gå till inloggning
   verified_by_human: []
+continue:
+  context: Button text to continue to next step
+  en: Continue
+  de: Weiter
+  zh: 继续
+  es: Continuar
+  fr: Continuer
+  pt: Continuar
+  ru: Продолжить
+  ja: 続ける
+  ko: 계속
+  it: Continua
+  tr: Devam et
+  vi: Tiếp tục
+  id: Lanjutkan
+  pl: Kontynuuj
+  nl: Doorgaan
+  ar: استمر
+  hi: जारी रखें
+  th: ดำเนินการต่อ
+  cs: Pokračovat
+  sv: Fortsätt
+  verified_by_human: []
 complete_reset:
   context: Button text to complete account reset with new password
   en: Complete reset

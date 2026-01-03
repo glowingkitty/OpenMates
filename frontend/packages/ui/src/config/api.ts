@@ -87,6 +87,7 @@ export const apiEndpoints = {
         // Account recovery endpoints (for users who lost all login methods including recovery key)
         recovery_request:           '/v1/auth/recovery/request-code',          // Request account recovery code via email
         recovery_verify:            '/v1/auth/recovery/verify-code',           // Verify recovery code and get verification token
+        recovery_setup_2fa:         '/v1/auth/recovery/setup-2fa',             // Generate 2FA setup data during recovery
         recovery_full_reset:        '/v1/auth/recovery/reset-account',         // Full account reset (deletes all data)
     },
     chat: {

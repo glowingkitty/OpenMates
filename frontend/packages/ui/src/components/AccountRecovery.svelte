@@ -39,6 +39,31 @@
     import * as cryptoService from '../services/cryptoService';
     import { generateDeviceName } from '../utils/deviceName';
     
+    // ========================================================================
+    // WebAuthn PRF Extension Types
+    // ========================================================================
+    // TypeScript's DOM types don't include PRF extension, so we define custom types.
+    // PRF (Pseudorandom Function) extension is critical for zero-knowledge encryption
+    // - it allows deriving a stable key from passkey authentication.
+    // 
+    // Note: We use 'unknown' and type assertions to avoid ESLint 'no-undef' errors
+    // for DOM types like PublicKeyCredentialRpEntity that aren't available at lint time.
+    
+    /** PRF extension output from credential operation */
+    interface PRFExtensionOutputs {
+        enabled?: boolean;
+        results?: {
+            first: ArrayBuffer;
+            second?: ArrayBuffer;
+        };
+    }
+    
+    /** Client extension results with PRF support */
+    interface WebAuthnResultsWithPRF {
+        prf?: PRFExtensionOutputs;
+        [key: string]: unknown;
+    }
+    
     const dispatch = createEventDispatcher();
     
     // Props - email is passed from the login form
@@ -48,10 +73,11 @@
     // - 'code': Enter verification code
     // - 'setup': Select login method (password or passkey)
     // - 'password': Set up new password
+    // - '2fa_setup': Set up 2FA (required for password method if user doesn't have 2FA)
     // - 'passkey': Register passkey (shows loading while WebAuthn prompt is active)
     // - 'resetting': Loading screen while account is being reset
     // - 'complete': Reset complete, redirect to login
-    type RecoveryStep = 'code' | 'setup' | 'password' | 'passkey' | 'resetting' | 'complete';
+    type RecoveryStep = 'code' | 'setup' | 'password' | '2fa_setup' | 'passkey' | 'resetting' | 'complete';
     let currentStep = $state<RecoveryStep>('code');
     
     // Form data
@@ -60,15 +86,27 @@
     let acknowledgeDataLoss = $state(false);
     let verificationToken = $state(''); // Token from verify-code endpoint
     
+    // User 2FA status from verify response
+    let userHas2FA = $state(false);
+    
+    // 2FA setup data
+    let tfaSecret = $state('');
+    let tfaVerificationCode = $state('');
+    let tfaAppName = $state('');
+    let tfaQrCodeSvg = $state('');
+    
     // Loading states
     let isRequestingCode = $state(false);
     let isVerifying = $state(false);
     let isSettingUp = $state(false);
     let isRegisteringPasskey = $state(false);
+    let isSettingUp2FA = $state(false);
+    let isVerifying2FA = $state(false);
     
     // Error states
     let codeError = $state('');
     let passkeyError = $state('');
+    let tfaError = $state('');
     
     // Auto-request the code when component mounts
     onMount(() => {
@@ -201,6 +239,9 @@
             
             if (data.success && data.verification_token) {
                 verificationToken = data.verification_token;
+                // Store whether user already has 2FA configured
+                userHas2FA = data.has_2fa === true;
+                console.log('[AccountRecovery] User has 2FA:', userHas2FA);
                 currentStep = 'setup';
             } else {
                 codeError = data.message || 'Invalid verification code. Please try again.';
@@ -244,6 +285,8 @@
     
     /**
      * Submit password setup
+     * If user doesn't have 2FA, proceed to 2FA setup step first
+     * If user already has 2FA, proceed directly to reset
      */
     async function submitPassword() {
         passwordError = '';
@@ -258,7 +301,95 @@
             return;
         }
         
+        // If user doesn't have 2FA, they need to set it up first
+        if (!userHas2FA) {
+            console.log('[AccountRecovery] User needs to set up 2FA before reset');
+            await setup2FA();
+        } else {
+            // User already has 2FA, proceed directly to reset
+            await resetWithPassword(newPassword);
+        }
+    }
+    
+    // ============================================================================
+    // 2FA Setup Flow
+    // ============================================================================
+    
+    /**
+     * Request 2FA setup data from the server
+     * Called when user submits password and doesn't have 2FA configured
+     */
+    async function setup2FA() {
+        if (isSettingUp2FA || !verificationToken) return;
+        
+        isSettingUp2FA = true;
+        tfaError = '';
+        
+        try {
+            const response = await fetch(getApiEndpoint(apiEndpoints.auth.recovery_setup_2fa), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    email: email,
+                    verification_token: verificationToken
+                }),
+                credentials: 'include'
+            });
+            
+            const data = await response.json();
+            
+            if (data.success && data.secret && data.otpauth_url) {
+                tfaSecret = data.secret;
+                
+                // Generate QR code SVG
+                try {
+                    const QRCode = (await import('qrcode-svg')).default;
+                    const qr = new QRCode({
+                        content: data.otpauth_url,
+                        padding: 0,
+                        width: 180,
+                        height: 180,
+                        color: 'currentColor',
+                        background: 'transparent',
+                        ecl: 'M'
+                    });
+                    tfaQrCodeSvg = qr.svg();
+                } catch (qrError) {
+                    console.error('[AccountRecovery] Failed to generate QR code:', qrError);
+                }
+                
+                // Move to 2FA setup step
+                currentStep = '2fa_setup';
+            } else {
+                tfaError = data.message || 'Failed to set up 2FA. Please try again.';
+                notificationStore.error(tfaError, 5000);
+            }
+        } catch (error) {
+            console.error('[AccountRecovery] Error setting up 2FA:', error);
+            tfaError = 'An error occurred while setting up 2FA. Please try again.';
+            notificationStore.error(tfaError, 5000);
+        } finally {
+            isSettingUp2FA = false;
+        }
+    }
+    
+    /**
+     * Verify 2FA code and proceed to reset
+     * Called from 2FA setup step after user enters the code from their app
+     */
+    async function verify2FAAndReset() {
+        if (isVerifying2FA || !tfaSecret || tfaVerificationCode.length !== 6) return;
+        
+        isVerifying2FA = true;
+        tfaError = '';
+        
+        // Proceed to reset with the 2FA data
+        // The server will verify the code
         await resetWithPassword(newPassword);
+        
+        isVerifying2FA = false;
     }
     
     /**
@@ -304,26 +435,37 @@
             // Hash email for server lookup
             const hashedEmail = await cryptoService.hashEmail(email);
             
+            // Build request body
+            const requestBody: Record<string, unknown> = {
+                email: email,
+                verification_token: verificationToken,
+                acknowledge_data_loss: true,
+                new_login_method: 'password',
+                hashed_email: hashedEmail,
+                encrypted_email: encryptedEmailForServer,
+                encrypted_email_with_master_key: encryptedEmailWithMasterKey,
+                user_email_salt: emailSaltB64,
+                lookup_hash: lookupHash,
+                encrypted_master_key: encryptedMasterKey,
+                salt: saltB64,
+                key_iv: keyIv
+            };
+            
+            // Include 2FA data if it was set up during recovery
+            if (tfaSecret && tfaVerificationCode) {
+                requestBody.tfa_secret = tfaSecret;
+                requestBody.tfa_verification_code = tfaVerificationCode;
+                requestBody.tfa_app_name = tfaAppName || '2FA App';
+                console.log('[AccountRecovery] Including 2FA data in reset request');
+            }
+            
             // Call the reset endpoint with verification token
             const response = await fetch(getApiEndpoint(apiEndpoints.auth.recovery_full_reset), {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({
-                    email: email,
-                    verification_token: verificationToken,
-                    acknowledge_data_loss: true,
-                    new_login_method: 'password',
-                    hashed_email: hashedEmail,
-                    encrypted_email: encryptedEmailForServer,
-                    encrypted_email_with_master_key: encryptedEmailWithMasterKey,
-                    user_email_salt: emailSaltB64,
-                    lookup_hash: lookupHash,
-                    encrypted_master_key: encryptedMasterKey,
-                    salt: saltB64,
-                    key_iv: keyIv
-                }),
+                body: JSON.stringify(requestBody),
                 credentials: 'include'
             });
             
@@ -415,7 +557,12 @@
             const challenge = base64UrlToArrayBuffer(initiateData.challenge);
             const userId = base64UrlToArrayBuffer(initiateData.user.id);
             
-            const publicKeyCredentialCreationOptions: PublicKeyCredentialCreationOptions = {
+            // Build creation options with PRF extension
+            // PRF extension is critical for zero-knowledge encryption - it generates
+            // a stable cryptographic key from passkey authentication.
+            // We cast to 'unknown' first then to the DOM type to satisfy TypeScript
+            // while including the PRF extension that's not in standard types.
+            const publicKeyCredentialCreationOptions = {
                 challenge: challenge,
                 rp: initiateData.rp,
                 user: {
@@ -425,7 +572,7 @@
                 },
                 pubKeyCredParams: initiateData.pubKeyCredParams,
                 timeout: initiateData.timeout,
-                attestation: initiateData.attestation as AttestationConveyancePreference,
+                attestation: initiateData.attestation,
                 authenticatorSelection: initiateData.authenticatorSelection,
                 extensions: {
                     prf: {
@@ -433,8 +580,9 @@
                             first: base64UrlToArrayBuffer(initiateData.extensions?.prf?.eval?.first || initiateData.challenge)
                         }
                     }
-                } as AuthenticationExtensionsClientInputs
-            };
+                }
+            // eslint-disable-next-line no-undef -- DOM type available at runtime
+            } as unknown as PublicKeyCredentialCreationOptions;
             
             // Step 3: Create passkey using WebAuthn API
             let credential: PublicKeyCredential;
@@ -442,14 +590,15 @@
                 credential = await navigator.credentials.create({
                     publicKey: publicKeyCredentialCreationOptions
                 }) as PublicKeyCredential;
-            } catch (error: any) {
+            } catch (error: unknown) {
                 console.error('[AccountRecovery] WebAuthn credential creation failed:', error);
+                const webauthnError = error as Error & { name: string };
                 
                 // Check if it's a PRF-related error
-                if (error.name === 'NotSupportedError' || 
-                    error.message?.includes('PRF') || 
-                    error.message?.includes('prf') ||
-                    error.message?.toLowerCase().includes('extension')) {
+                if (webauthnError.name === 'NotSupportedError' || 
+                    webauthnError.message?.includes('PRF') || 
+                    webauthnError.message?.includes('prf') ||
+                    webauthnError.message?.toLowerCase().includes('extension')) {
                     passkeyError = $text('signup.passkey_prf_not_supported.text');
                     notificationStore.error(passkeyError, 10000);
                     currentStep = 'setup';
@@ -458,7 +607,7 @@
                 }
                 
                 // Check for user cancellation
-                if (error.name === 'NotAllowedError') {
+                if (webauthnError.name === 'NotAllowedError') {
                     console.log('[AccountRecovery] User cancelled passkey creation');
                     currentStep = 'setup';
                     isRegisteringPasskey = false;
@@ -485,9 +634,9 @@
             const response = credential.response as AuthenticatorAttestationResponse;
             
             // Step 4: Check PRF extension support (CRITICAL for zero-knowledge encryption)
-            const clientExtensionResults = credential.getClientExtensionResults();
+            const clientExtensionResults = credential.getClientExtensionResults() as WebAuthnResultsWithPRF;
             console.log('[AccountRecovery] Client extension results:', clientExtensionResults);
-            const prfResults = clientExtensionResults?.prf as any;
+            const prfResults = clientExtensionResults?.prf;
             console.log('[AccountRecovery] PRF results:', prfResults);
             
             // Validate PRF results
@@ -511,9 +660,9 @@
                 return;
             }
             
-            // Extract PRF signature
-            const prfSignatureBuffer = prfResults.results?.first;
-            if (!prfSignatureBuffer) {
+            // Extract PRF signature - this is the key material for encryption
+            const prfSignatureRaw = prfResults.results?.first;
+            if (!prfSignatureRaw) {
                 console.error('[AccountRecovery] PRF signature not found in results');
                 passkeyError = $text('signup.passkey_prf_not_supported.text') || 
                     'Your device does not support the required passkey security features. Please use password instead.';
@@ -523,26 +672,10 @@
                 return;
             }
             
-            // Convert PRF signature to Uint8Array - handle multiple formats
-            let prfSignature: Uint8Array;
-            if (typeof prfSignatureBuffer === 'string') {
-                console.log('[AccountRecovery] PRF signature is hex string, converting to Uint8Array');
-                const hexString = prfSignatureBuffer;
-                prfSignature = new Uint8Array(hexString.match(/.{1,2}/g)!.map(byte => parseInt(byte, 16)));
-            } else if (prfSignatureBuffer instanceof ArrayBuffer) {
-                console.log('[AccountRecovery] PRF signature is ArrayBuffer, converting to Uint8Array');
-                prfSignature = new Uint8Array(prfSignatureBuffer);
-            } else if (ArrayBuffer.isView(prfSignatureBuffer)) {
-                console.log('[AccountRecovery] PRF signature is TypedArray, converting to Uint8Array');
-                prfSignature = new Uint8Array(prfSignatureBuffer.buffer, prfSignatureBuffer.byteOffset, prfSignatureBuffer.byteLength);
-            } else {
-                console.error('[AccountRecovery] PRF signature is in unknown format');
-                passkeyError = 'Unexpected error during passkey creation. Please try again.';
-                notificationStore.error(passkeyError, 8000);
-                currentStep = 'setup';
-                isRegisteringPasskey = false;
-                return;
-            }
+            // Convert PRF signature to Uint8Array
+            // PRF result is always an ArrayBuffer per WebAuthn spec
+            console.log('[AccountRecovery] Converting PRF signature to Uint8Array');
+            const prfSignature = new Uint8Array(prfSignatureRaw);
             
             // Validate PRF signature length
             if (prfSignature.length < 16 || prfSignature.length > 64) {
@@ -672,10 +805,17 @@
     // Error Handling
     // ============================================================================
     
+    /** Backend error response type */
+    interface ResetErrorResponse {
+        success: boolean;
+        message?: string;
+        error_code?: string;
+    }
+    
     /**
      * Handle reset errors from the backend
      */
-    function handleResetError(data: any) {
+    function handleResetError(data: ResetErrorResponse) {
         codeError = data.message || 'Failed to reset account. Please try again.';
         notificationStore.error(codeError, 6000);
         
@@ -852,9 +992,92 @@
             
             <button
                 onclick={submitPassword}
-                disabled={isSettingUp || !newPassword || !confirmPassword}
+                disabled={isSettingUp || isSettingUp2FA || !newPassword || !confirmPassword}
             >
-                {#if isSettingUp}
+                {#if isSettingUp || isSettingUp2FA}
+                    <span class="loading-spinner"></span>
+                {:else if !userHas2FA}
+                    <!-- User needs to set up 2FA next -->
+                    {$text('login.continue.text')}
+                {:else}
+                    {$text('login.complete_reset.text')}
+                {/if}
+            </button>
+        </div>
+        
+    {:else if currentStep === '2fa_setup'}
+        <!-- 2FA Setup Step - Required for password users without existing 2FA -->
+        <div class="step-content" transition:slide>
+            <button class="back-button" onclick={() => currentStep = 'password'}>
+                ← {$text('login.back.text')}
+            </button>
+            
+            <div class="tfa-setup-header">
+                <div class="icon header_size tfa"></div>
+                <h3>{$text('signup.one_time_codes.text')}</h3>
+            </div>
+            
+            <p class="info-text">
+                {$text('signup.prevent_access.text')}
+            </p>
+            
+            <!-- QR Code Section -->
+            {#if tfaQrCodeSvg}
+                <div class="qr-code-container">
+                    <!-- eslint-disable-next-line svelte/no-at-html-tags -- SVG is generated locally from trusted otpauth URL -->
+                    {@html tfaQrCodeSvg}
+                </div>
+            {/if}
+            
+            <!-- Secret Key (for manual entry) -->
+            {#if tfaSecret}
+                <div class="secret-key-container">
+                    <span class="secret-label">{$text('signup.or_enter_manually.text')}</span>
+                    <code class="secret-key">{tfaSecret}</code>
+                </div>
+            {/if}
+            
+            <!-- 2FA Code Input -->
+            <div class="input-group">
+                <label for="tfa-code" class="input-label">{$text('signup.enter_one_time_code.text')}</label>
+                <div class="input-wrapper">
+                    <span class="clickable-icon icon_2fa"></span>
+                    <input
+                        id="tfa-code"
+                        type="text"
+                        bind:value={tfaVerificationCode}
+                        placeholder="123456"
+                        maxlength="6"
+                        pattern="[0-9]*"
+                        inputmode="numeric"
+                        disabled={isVerifying2FA}
+                        onkeydown={(e) => e.key === 'Enter' && tfaVerificationCode.length === 6 && verify2FAAndReset()}
+                    />
+                </div>
+                {#if tfaError}
+                    <span class="error-text">{tfaError}</span>
+                {/if}
+            </div>
+            
+            <!-- App Name Input (optional) -->
+            <div class="input-group">
+                <label for="tfa-app-name" class="input-label">{$text('signup.which_2fa_app.text')}</label>
+                <div class="input-wrapper">
+                    <input
+                        id="tfa-app-name"
+                        type="text"
+                        bind:value={tfaAppName}
+                        placeholder="Google Authenticator, Authy, etc."
+                        disabled={isVerifying2FA}
+                    />
+                </div>
+            </div>
+            
+            <button
+                onclick={verify2FAAndReset}
+                disabled={isVerifying2FA || tfaVerificationCode.length !== 6}
+            >
+                {#if isVerifying2FA}
                     <span class="loading-spinner"></span>
                 {:else}
                     {$text('login.complete_reset.text')}
@@ -1101,5 +1324,59 @@
         border-width: 3px;
         border-color: var(--color-primary-50);
         border-top-color: transparent;
+    }
+    
+    /* 2FA Setup Step Styles */
+    .tfa-setup-header {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+        margin-bottom: 8px;
+    }
+    
+    .tfa-setup-header h3 {
+        margin: 0;
+        color: var(--color-grey-80);
+    }
+    
+    .qr-code-container {
+        display: flex;
+        justify-content: center;
+        padding: 16px;
+        background: var(--color-grey-10);
+        border-radius: 12px;
+        color: var(--color-grey-80);
+    }
+    
+    .secret-key-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+        padding: 12px;
+        background: var(--color-grey-10);
+        border-radius: 8px;
+    }
+    
+    .secret-label {
+        font-size: 12px;
+        color: var(--color-grey-50);
+    }
+    
+    .secret-key {
+        font-family: monospace;
+        font-size: 14px;
+        color: var(--color-grey-70);
+        word-break: break-all;
+        text-align: center;
+        user-select: all;
+    }
+    
+    .input-label {
+        display: block;
+        font-size: 13px;
+        color: var(--color-grey-60);
+        margin-bottom: 6px;
     }
 </style>

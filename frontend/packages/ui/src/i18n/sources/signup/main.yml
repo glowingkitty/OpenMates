@@ -2574,6 +2574,52 @@ copy_secret:
   cs: Kopírovat tajný klíč
   sv: Kopiera hemlighet
   verified_by_human: []
+or_enter_manually:
+  context: Label for manual 2FA secret entry option
+  en: Or enter manually
+  de: Oder manuell eingeben
+  zh: 或手动输入
+  es: O ingresar manualmente
+  fr: Ou entrer manuellement
+  pt: Ou digite manualmente
+  ru: Или введите вручную
+  ja: または手動で入力
+  ko: 또는 수동으로 입력
+  it: O inserisci manualmente
+  tr: Veya manuel olarak girin
+  vi: Hoặc nhập thủ công
+  id: Atau masukkan secara manual
+  pl: Lub wprowadź ręcznie
+  nl: Of handmatig invoeren
+  ar: أو أدخل يدويًا
+  hi: या मैन्युअल रूप से दर्ज करें
+  th: หรือป้อนด้วยตนเอง
+  cs: Nebo zadejte ručně
+  sv: Eller ange manuellt
+  verified_by_human: []
+which_2fa_app:
+  context: Label asking which 2FA app the user is using
+  en: Which 2FA app are you using?
+  de: Welche 2FA-App verwendest du?
+  zh: 您使用的是哪个2FA应用？
+  es: ¿Qué aplicación 2FA estás usando?
+  fr: Quelle application 2FA utilisez-vous ?
+  pt: Qual aplicativo 2FA você está usando?
+  ru: Какое 2FA приложение вы используете?
+  ja: どの2FAアプリを使用していますか？
+  ko: 어떤 2FA 앱을 사용하고 있나요?
+  it: Quale app 2FA stai usando?
+  tr: Hangi 2FA uygulamasını kullanıyorsunuz?
+  vi: Bạn đang sử dụng ứng dụng 2FA nào?
+  id: Aplikasi 2FA mana yang Anda gunakan?
+  pl: Której aplikacji 2FA używasz?
+  nl: Welke 2FA-app gebruikt u?
+  ar: ما هو تطبيق 2FA الذي تستخدمه؟
+  hi: आप कौन सा 2FA ऐप इस्तेमाल कर रहे हैं?
+  th: คุณใช้แอป 2FA อันไหน?
+  cs: Jakou 2FA aplikaci používáte?
+  sv: Vilken 2FA-app använder du?
+  verified_by_human: []
 dont_have_2fa_app:
   context: Asking the user if they don't have a 2FA app yet
   en: Don't have a 2FA app yet?
