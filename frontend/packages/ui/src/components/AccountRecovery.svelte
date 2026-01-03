@@ -15,8 +15,16 @@
      * 3. Verify code with backend (get verification token)
      * 4. Select login method (password or passkey)
      * 5. Set up new credentials and complete reset:
-     *    - Password: Set up new password (2FA config is preserved server-side)
+     *    - Password: Set up new password
      *    - Passkey: Register new passkey with PRF extension
+     * 6. Show loading screen during reset
+     * 7. On success, redirect to login page with success notification
+     * 
+     * CRITICAL: After reset, user is NOT automatically logged in.
+     * They must login with their new credentials.
+     * 
+     * NOTE: If the user previously had 2FA configured, it is preserved server-side
+     * (vault encrypted). They will be prompted for 2FA on next login.
      * 
      * The new login method creates a new master encryption key and wraps it
      * appropriately (password-derived key or PRF-derived key).
@@ -29,8 +37,6 @@
     import { getApiEndpoint, apiEndpoints } from '../config/api';
     import { notificationStore } from '../stores/notificationStore';
     import * as cryptoService from '../services/cryptoService';
-    import { checkAuth } from '../stores/authStore';
-    import { userDB } from '../services/userDB';
     import { generateDeviceName } from '../utils/deviceName';
     
     const dispatch = createEventDispatcher();
@@ -38,8 +44,14 @@
     // Props - email is passed from the login form
     let { email: initialEmail = '' }: { email?: string } = $props();
     
-    // Step states - 'passkey' step added for passkey registration
-    type RecoveryStep = 'code' | 'setup' | 'password' | 'passkey' | 'complete';
+    // Step states:
+    // - 'code': Enter verification code
+    // - 'setup': Select login method (password or passkey)
+    // - 'password': Set up new password
+    // - 'passkey': Register passkey (shows loading while WebAuthn prompt is active)
+    // - 'resetting': Loading screen while account is being reset
+    // - 'complete': Reset complete, redirect to login
+    type RecoveryStep = 'code' | 'setup' | 'password' | 'passkey' | 'resetting' | 'complete';
     let currentStep = $state<RecoveryStep>('code');
     
     // Form data
@@ -251,12 +263,18 @@
     
     /**
      * Reset account and set up password login
-     * Generates new master key, wraps with password-derived key, and resets account
+     * Generates new master key, wraps with password-derived key, and resets account.
+     * 
+     * CRITICAL: After reset completes, the user is NOT automatically logged in.
+     * The backend creates the new credentials but does NOT create a session.
+     * User must login with their new credentials after reset.
      */
     async function resetWithPassword(password: string) {
         if (isSettingUp || !verificationToken) return;
         
         isSettingUp = true;
+        // Show dedicated loading screen during the reset process
+        currentStep = 'resetting';
         
         try {
             // Generate all cryptographic material (same as signup)
@@ -264,12 +282,8 @@
             const emailSalt = cryptoService.generateEmailSalt();
             const emailSaltB64 = cryptoService.uint8ArrayToBase64(emailSalt);
             
-            // Derive email encryption key
+            // Derive email encryption key (needed for server to encrypt email)
             const emailEncryptionKey = await cryptoService.deriveEmailEncryptionKey(email, emailSalt);
-            
-            // Save email encryption key and salt
-            cryptoService.saveEmailEncryptionKey(emailEncryptionKey, true);
-            cryptoService.saveEmailSalt(emailSalt, true);
             
             // Encrypt email for server
             const encryptedEmailForServer = await cryptoService.encryptEmail(email, emailEncryptionKey);
@@ -316,24 +330,16 @@
             const data = await response.json();
             
             if (data.success) {
-                // Save master key for session
-                await cryptoService.saveKeyToSession(masterKey, true);
-                await cryptoService.saveEmailEncryptedWithMasterKey(email, true);
+                // CRITICAL: Do NOT save master key or try to auto-login!
+                // The backend does NOT create a session - user must login with new credentials.
+                // Clear any crypto data that was generated during this process to ensure clean state.
+                console.log('[AccountRecovery] Password reset successful, clearing temp crypto data');
                 
-                // Store login method
-                await userDB.init();
-                await userDB.updateUserData({ login_method: 'password' });
-                
-                notificationStore.success(
-                    $text('login.account_reset_success.text'),
-                    5000
-                );
-                
+                // Show success state
                 currentStep = 'complete';
                 
-                // Check auth and redirect
-                await checkAuth(undefined, true);
-                dispatch('resetComplete', { username: data.username });
+                // Dispatch completion - parent will show notification and reset to login
+                dispatch('resetComplete', { username: data.username, success: true });
             } else {
                 handleResetError(data);
             }
@@ -565,23 +571,16 @@
             // Step 7: Wrap the master key for server storage
             const { wrapped: encryptedMasterKey, iv: keyIv } = await cryptoService.encryptKey(masterKey, wrappingKey);
             
-            // Step 8: Save master key
-            await cryptoService.saveKeyToSession(masterKey, true);
-            
-            // Step 9: Generate lookup hash from PRF signature (for authentication)
+            // Step 8: Generate lookup hash from PRF signature (for authentication)
             const lookupHash = await cryptoService.hashKeyFromPRF(prfSignature, emailSalt);
             
-            // Step 10: Derive email encryption key
+            // Step 9: Derive email encryption key (needed for server to encrypt email)
             const emailEncryptionKey = await cryptoService.deriveEmailEncryptionKey(email, emailSalt);
             
-            // Step 11: Store email encryption key and salt
-            cryptoService.saveEmailEncryptionKey(emailEncryptionKey, true);
-            cryptoService.saveEmailSalt(emailSalt, true);
-            
-            // Step 12: Encrypt email for server storage
+            // Step 10: Encrypt email for server storage
             const encryptedEmailForServer = await cryptoService.encryptEmail(email, emailEncryptionKey);
             
-            // Step 13: Encrypt email with master key for passwordless login
+            // Step 11: Encrypt email with master key for passwordless login
             const { encryptWithMasterKeyDirect } = await import('../services/cryptoService');
             const encryptedEmailWithMasterKey = await encryptWithMasterKeyDirect(email, masterKey);
             if (!encryptedEmailWithMasterKey) {
@@ -593,22 +592,11 @@
                 return;
             }
             
-            // Step 14: Generate and encrypt device name
+            // Step 12: Generate and encrypt device name
             const deviceName = generateDeviceName();
             const encryptedDeviceName = await encryptWithMasterKeyDirect(deviceName, masterKey);
             
-            // Step 15: Save email encrypted with master key for client storage
-            const emailStoredSuccessfully = await cryptoService.saveEmailEncryptedWithMasterKey(email, true);
-            if (!emailStoredSuccessfully) {
-                console.error('Failed to store encrypted email');
-                passkeyError = 'Failed to store encrypted data. Please try again.';
-                notificationStore.error(passkeyError, 8000);
-                currentStep = 'setup';
-                isRegisteringPasskey = false;
-                return;
-            }
-            
-            // Step 16: Extract credential data for backend
+            // Step 13: Extract credential data for backend
             const credentialId = arrayBufferToBase64Url(credential.rawId);
             const clientDataJSONB64 = cryptoService.uint8ArrayToBase64(new Uint8Array(response.clientDataJSON));
             const attestationObject = new Uint8Array(response.attestationObject);
@@ -616,7 +604,10 @@
             const authenticatorData = attestationObject.slice(0, 37);
             const authenticatorDataB64 = cryptoService.uint8ArrayToBase64(authenticatorData);
             
-            // Step 17: Call the recovery reset endpoint with passkey credential
+            // Step 14: Show loading screen while resetting account
+            currentStep = 'resetting';
+            
+            // Step 15: Call the recovery reset endpoint with passkey credential
             const resetResponse = await fetch(getApiEndpoint(apiEndpoints.auth.recovery_full_reset), {
                 method: 'POST',
                 headers: {
@@ -654,20 +645,15 @@
             const resetData = await resetResponse.json();
             
             if (resetData.success) {
-                // Store login method
-                await userDB.init();
-                await userDB.updateUserData({ login_method: 'passkey' });
+                // CRITICAL: Do NOT save master key or try to auto-login!
+                // The backend does NOT create a session - user must login with new credentials.
+                console.log('[AccountRecovery] Passkey reset successful, showing completion');
                 
-                notificationStore.success(
-                    $text('login.account_reset_success.text'),
-                    5000
-                );
-                
+                // Show success state
                 currentStep = 'complete';
                 
-                // Check auth and redirect
-                await checkAuth(undefined, true);
-                dispatch('resetComplete', { username: resetData.username });
+                // Dispatch completion - parent will show notification and reset to login
+                dispatch('resetComplete', { username: resetData.username, success: true });
             } else {
                 handleResetError(resetData);
             }
@@ -876,6 +862,20 @@
             </button>
         </div>
         
+    {:else if currentStep === 'resetting'}
+        <!-- Dedicated loading screen during account reset process -->
+        <div class="step-content resetting-step" transition:slide>
+            <div class="resetting-animation">
+                <div class="resetting-icon">
+                    <div class="loading-spinner large"></div>
+                </div>
+                <h3>{$text('login.resetting_account.text')}</h3>
+                <p class="info-text">
+                    {$text('login.resetting_account_description.text')}
+                </p>
+            </div>
+        </div>
+        
     {:else if currentStep === 'complete'}
         <div class="step-content" transition:slide>
             <div class="success-icon">✓</div>
@@ -1067,5 +1067,39 @@
         height: 80px;
         background: var(--color-primary-10);
         border-radius: 16px;
+    }
+    
+    /* Resetting account loading state */
+    .resetting-step {
+        min-height: 200px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .resetting-animation {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 20px;
+        padding: 32px;
+    }
+    
+    .resetting-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 80px;
+        height: 80px;
+        background: var(--color-primary-10);
+        border-radius: 50%;
+    }
+    
+    .loading-spinner.large {
+        width: 40px;
+        height: 40px;
+        border-width: 3px;
+        border-color: var(--color-primary-50);
+        border-top-color: transparent;
     }
 </style>

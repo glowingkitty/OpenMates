@@ -13,6 +13,7 @@
     import * as cryptoService from '../services/cryptoService';
     import { updateProfile } from '../stores/userProfile';
     import { getSessionId } from '../utils/sessionId';
+    import { notificationStore } from '../stores/notificationStore';
     import AccountRecovery from './AccountRecovery.svelte';
 
     const dispatch = createEventDispatcher();
@@ -636,12 +637,22 @@
             on:back={() => {
                 showAccountRecovery = false;
             }}
-            on:resetComplete={(e) => {
+            on:resetComplete={() => {
+                // Account reset completed successfully
+                // CRITICAL: Do NOT dispatch loginSuccess - user is NOT logged in!
+                // The backend resets credentials but does NOT create a session.
+                // User must login with their new credentials.
+                console.log('[PasswordAndTfaOtp] Account reset completed, returning to login');
                 showAccountRecovery = false;
-                dispatch('loginSuccess', {
-                    user: { username: e.detail?.username },
-                    inSignupFlow: false
-                });
+                
+                // Show success notification with instructions to login
+                notificationStore.success(
+                    $text('login.account_reset_complete_login_now.text'),
+                    8000
+                );
+                
+                // Dispatch back event to return to email step for fresh login
+                dispatch('back');
             }}
         />
     {:else if isRateLimited}

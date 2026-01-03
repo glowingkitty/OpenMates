@@ -1468,6 +1468,75 @@ account_reset_complete:
   cs: Reset účtu dokončen!
   sv: Kontoåterställning klar!
   verified_by_human: []
+account_reset_complete_login_now:
+  context: Notification message after account reset is complete, instructing user to login with new credentials
+  en: Account reset complete! Please login with your new credentials.
+  de: Kontozurücksetzung abgeschlossen! Bitte melde dich mit deinen neuen Zugangsdaten an.
+  zh: 账户重置完成！请使用新凭据登录。
+  es: ¡Restablecimiento de cuenta completado! Por favor inicia sesión con tus nuevas credenciales.
+  fr: Réinitialisation du compte terminée ! Veuillez vous connecter avec vos nouveaux identifiants.
+  pt: Redefinição de conta concluída! Por favor, faça login com suas novas credenciais.
+  ru: Сброс аккаунта завершен! Пожалуйста, войдите с новыми учетными данными.
+  ja: アカウントリセット完了！新しい認証情報でログインしてください。
+  ko: 계정 재설정 완료! 새 자격 증명으로 로그인해 주세요.
+  it: Reset dell'account completato! Accedi con le tue nuove credenziali.
+  tr: Hesap sıfırlama tamamlandı! Lütfen yeni kimlik bilgilerinizle giriş yapın.
+  vi: Đặt lại tài khoản hoàn tất! Vui lòng đăng nhập bằng thông tin đăng nhập mới.
+  id: Reset akun selesai! Silakan masuk dengan kredensial baru Anda.
+  pl: Resetowanie konta zakończone! Zaloguj się nowymi danymi.
+  nl: Account reset voltooid! Log in met uw nieuwe inloggegevens.
+  ar: اكتملت إعادة تعيين الحساب! يرجى تسجيل الدخول ببيانات الاعتماد الجديدة.
+  hi: खाता रीसेट पूर्ण! कृपया अपने नए क्रेडेंशियल से लॉग इन करें।
+  th: การรีเซ็ตบัญชีเสร็จสมบูรณ์! กรุณาเข้าสู่ระบบด้วยข้อมูลประจำตัวใหม่ของคุณ
+  cs: Reset účtu dokončen! Přihlaste se prosím s novými přihlašovacími údaji.
+  sv: Kontoåterställning klar! Logga in med dina nya inloggningsuppgifter.
+  verified_by_human: []
+resetting_account:
+  context: Loading screen title while account is being reset
+  en: Resetting your account...
+  de: Dein Konto wird zurückgesetzt...
+  zh: 正在重置您的账户...
+  es: Restableciendo tu cuenta...
+  fr: Réinitialisation de votre compte...
+  pt: Redefinindo sua conta...
+  ru: Сброс вашего аккаунта...
+  ja: アカウントをリセット中...
+  ko: 계정 재설정 중...
+  it: Reimpostazione del tuo account...
+  tr: Hesabınız sıfırlanıyor...
+  vi: Đang đặt lại tài khoản của bạn...
+  id: Mengatur ulang akun Anda...
+  pl: Resetowanie konta...
+  nl: Uw account wordt gereset...
+  ar: جاري إعادة تعيين حسابك...
+  hi: आपका खाता रीसेट हो रहा है...
+  th: กำลังรีเซ็ตบัญชีของคุณ...
+  cs: Resetování vašeho účtu...
+  sv: Återställer ditt konto...
+  verified_by_human: []
+resetting_account_description:
+  context: Loading screen description while account is being reset
+  en: This may take a moment. Please don't close this window.
+  de: Dies kann einen Moment dauern. Bitte schließe dieses Fenster nicht.
+  zh: 这可能需要一点时间。请不要关闭此窗口。
+  es: Esto puede tardar un momento. Por favor no cierres esta ventana.
+  fr: Cela peut prendre un moment. Veuillez ne pas fermer cette fenêtre.
+  pt: Isso pode demorar um momento. Por favor, não feche esta janela.
+  ru: Это может занять некоторое время. Пожалуйста, не закрывайте это окно.
+  ja: しばらくお待ちください。このウィンドウを閉じないでください。
+  ko: 잠시 시간이 걸릴 수 있습니다. 이 창을 닫지 마세요.
+  it: Potrebbe richiedere un momento. Per favore non chiudere questa finestra.
+  tr: Bu biraz zaman alabilir. Lütfen bu pencereyi kapatmayın.
+  vi: Quá trình này có thể mất một chút thời gian. Vui lòng không đóng cửa sổ này.
+  id: Ini mungkin memakan waktu sebentar. Mohon jangan tutup jendela ini.
+  pl: To może chwilę potrwać. Proszę nie zamykać tego okna.
+  nl: Dit kan even duren. Sluit dit venster niet.
+  ar: قد يستغرق هذا بعض الوقت. يرجى عدم إغلاق هذه النافذة.
+  hi: इसमें कुछ समय लग सकता है। कृपया इस विंडो को बंद न करें।
+  th: อาจใช้เวลาสักครู่ กรุณาอย่าปิดหน้าต่างนี้
+  cs: Může to chvíli trvat. Prosím nezavírejte toto okno.
+  sv: Detta kan ta en stund. Stäng inte det här fönstret.
+  verified_by_human: []
 you_can_now_login:
   context: Message after account reset explaining user can login
   en: You can now login with your new credentials.

@@ -671,6 +671,52 @@ repeat_password:
   cs: Zopakujte heslo
   sv: ''
   verified_by_human: []
+create_password:
+  context: Instruction text for creating a new password during account recovery
+  en: Create your new password
+  de: Erstelle dein neues Passwort
+  zh: 创建您的新密码
+  es: Crea tu nueva contraseña
+  fr: Créez votre nouveau mot de passe
+  pt: Crie sua nova senha
+  ru: Создайте новый пароль
+  ja: 新しいパスワードを作成
+  ko: 새 비밀번호를 만드세요
+  it: Crea la tua nuova password
+  tr: Yeni şifrenizi oluşturun
+  vi: Tạo mật khẩu mới của bạn
+  id: Buat kata sandi baru Anda
+  pl: Utwórz nowe hasło
+  nl: Maak je nieuwe wachtwoord aan
+  ar: أنشئ كلمة مرورك الجديدة
+  hi: अपना नया पासवर्ड बनाएं
+  th: สร้างรหัสผ่านใหม่ของคุณ
+  cs: Vytvořte si nové heslo
+  sv: ''
+  verified_by_human: []
+confirm_password:
+  context: Placeholder text for confirm password input field during account recovery
+  en: Confirm password
+  de: Passwort bestätigen
+  zh: 确认密码
+  es: Confirmar contraseña
+  fr: Confirmer le mot de passe
+  pt: Confirmar senha
+  ru: Подтвердите пароль
+  ja: パスワードを確認
+  ko: 비밀번호 확인
+  it: Conferma password
+  tr: Şifreyi onayla
+  vi: Xác nhận mật khẩu
+  id: Konfirmasi kata sandi
+  pl: Potwierdź hasło
+  nl: Bevestig wachtwoord
+  ar: تأكيد كلمة المرور
+  hi: पासवर्ड की पुष्टि करें
+  th: ยืนยันรหัสผ่าน
+  cs: Potvrďte heslo
+  sv: ''
+  verified_by_human: []
 passwords_do_not_match:
   context: Error message shown when passwords do not match
   en: Passwords do not match
