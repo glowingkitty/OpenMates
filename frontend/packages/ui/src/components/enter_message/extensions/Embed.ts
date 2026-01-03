@@ -310,13 +310,23 @@ export const Embed = Node.create<EmbedOptions>({
         wrapper.style.marginBottom = '8px';
       }
       
-      // For app-skill-use embeds, mount Svelte component directly into wrapper (no intermediate container)
-      // For other embeds, create container element
+      // For embed types that render Svelte components with their own UnifiedEmbedPreview,
+      // mount directly into wrapper (no intermediate container)
+      // These types already have their own container styling (background, border-radius, box-shadow, tilt effect)
+      // Adding an extra embed-unified-container would cause visual artifacts during 3D transforms
       let container: HTMLElement;
       let mountTarget: HTMLElement;
       
-      if (attrs.type === 'app-skill-use') {
-        // For app-skill-use, mount directly into wrapper - Svelte component creates unified-embed-preview
+      // Embed types that use Svelte components with UnifiedEmbedPreview - no wrapper needed
+      const svelteComponentEmbedTypes = [
+        'app-skill-use',
+        'code-code',       // CodeEmbedPreview uses UnifiedEmbedPreview
+        'web-website',     // WebsiteEmbedPreview uses UnifiedEmbedPreview
+        'videos-video'     // VideoEmbedPreview uses UnifiedEmbedPreview
+      ];
+      
+      if (svelteComponentEmbedTypes.includes(attrs.type)) {
+        // Mount directly into wrapper - Svelte component creates its own unified-embed-preview
         // NO intermediate container - wrapper is used directly
         container = wrapper;
         mountTarget = wrapper;
@@ -383,8 +393,9 @@ export const Embed = Node.create<EmbedOptions>({
       
       // Make the node selectable and add basic interaction
       // BUT: Skip click handlers for image embeds (they should not be clickable)
-      // For app-skill-use, the Svelte component handles its own click events
-      if (attrs.type !== 'image' && attrs.type !== 'app-skill-use') {
+      // For Svelte component embeds, they handle their own click events
+      const skipClickHandler = attrs.type === 'image' || svelteComponentEmbedTypes.includes(attrs.type);
+      if (!skipClickHandler) {
         container.addEventListener('click', () => {
           if (typeof getPos === 'function') {
             const pos = getPos();
@@ -395,8 +406,8 @@ export const Embed = Node.create<EmbedOptions>({
 
       // Prevent cursor from being positioned before the embed
       // BUT: Skip this for image embeds (they should not be interactive)
-      // For app-skill-use, the Svelte component handles its own interactions
-      if (attrs.type !== 'image' && attrs.type !== 'app-skill-use') {
+      // For Svelte component embeds, they handle their own interactions
+      if (!skipClickHandler) {
         container.addEventListener('mousedown', (event) => {
           // If clicking at the start of the embed, move cursor to after it
           const rect = container.getBoundingClientRect();
