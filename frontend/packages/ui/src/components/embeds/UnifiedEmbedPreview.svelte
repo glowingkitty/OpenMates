@@ -15,6 +15,13 @@
   - Desktop: 300x200px
   - Mobile: 150x290px
   
+  Interactive States (finished embeds only):
+  - Clickable cursor (pointer) on hover
+  - 3D tilt effect: tilts towards mouse position (max 6 degrees)
+  - Scale down to 98% on hover, 96% on active/click
+  - Enhanced box-shadow on hover for depth effect
+  - Smooth transitions for all hover effects
+  
   CRITICAL: This component subscribes to embedUpdated events to receive
   real-time updates when embed status changes from 'processing' to 'finished'.
   This is necessary because Svelte components mounted via mount() receive
@@ -212,6 +219,79 @@
   
   // Track if we're handling a context menu to prevent normal click from firing
   let isContextMenuHandled = $state(false);
+  
+  // ===========================================
+  // Mouse tracking for tilt effect (3D hover)
+  // ===========================================
+  
+  // Track hover state and mouse position for tilt effect
+  let isHovering = $state(false);
+  let mouseX = $state(0); // Normalized -1 to 1 (center = 0)
+  let mouseY = $state(0); // Normalized -1 to 1 (center = 0)
+  
+  // Configuration for the tilt effect
+  const TILT_MAX_ANGLE = 6; // Maximum tilt angle in degrees
+  const TILT_PERSPECTIVE = 600; // Perspective distance in pixels
+  const TILT_SCALE = 0.98; // Scale on hover
+  
+  /**
+   * Calculate CSS transform string for the 3D tilt effect
+   * Only applies when hovering over a finished embed
+   */
+  let tiltTransform = $derived.by(() => {
+    // Only apply tilt to finished embeds that are being hovered
+    if (!isHovering || status !== 'finished') {
+      return '';
+    }
+    
+    // Calculate rotation angles based on mouse position
+    // mouseX/Y are normalized to -1 to 1, where center is 0
+    // Positive mouseX (right side) -> rotate Y positive (tilt right edge away)
+    // Positive mouseY (bottom) -> rotate X negative (tilt bottom edge away)
+    const rotateY = mouseX * TILT_MAX_ANGLE;
+    const rotateX = -mouseY * TILT_MAX_ANGLE;
+    
+    return `perspective(${TILT_PERSPECTIVE}px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale(${TILT_SCALE})`;
+  });
+  
+  /**
+   * Handle mouse enter - start tracking for tilt effect
+   */
+  function handleMouseEnter(e: MouseEvent) {
+    if (status !== 'finished') return;
+    isHovering = true;
+    updateMousePosition(e);
+  }
+  
+  /**
+   * Handle mouse move - update tilt position
+   */
+  function handleMouseMove(e: MouseEvent) {
+    if (!isHovering || status !== 'finished' || !previewElement) return;
+    updateMousePosition(e);
+  }
+  
+  /**
+   * Handle mouse leave - reset tilt effect
+   */
+  function handleMouseLeave() {
+    isHovering = false;
+    mouseX = 0;
+    mouseY = 0;
+  }
+  
+  /**
+   * Update mouse position normalized to -1 to 1 range
+   * Center of element = (0, 0), edges = (-1/-1 to 1/1)
+   */
+  function updateMousePosition(e: MouseEvent) {
+    if (!previewElement) return;
+    
+    const rect = previewElement.getBoundingClientRect();
+    // Normalize to -1 to 1 range (center = 0)
+    mouseX = ((e.clientX - rect.left) / rect.width - 0.5) * 2;
+    mouseY = ((e.clientY - rect.top) / rect.height - 0.5) * 2;
+  }
   
   // Touch event handlers for long-press detection (mobile support)
   const LONG_PRESS_DURATION = 500; // milliseconds
@@ -454,11 +534,13 @@
   class:desktop={!useMobileLayout}
   class:processing={status === 'processing'}
   class:finished={status === 'finished'}
+  class:hovering={isHovering && status === 'finished'}
   class:error={status === 'error'}
   data-embed-id={id}
   data-app-id={appId}
   data-skill-id={skillId}
   data-status={status}
+  style={tiltTransform ? `transform: ${tiltTransform};` : ''}
   {...(status === 'finished' ? {
     role: 'button',
     tabindex: 0,
@@ -469,6 +551,9 @@
   })}
   onpointerdown={handlePointerDown}
   onmousedown={handleMouseDown}
+  onmouseenter={handleMouseEnter}
+  onmousemove={handleMouseMove}
+  onmouseleave={handleMouseLeave}
   oncontextmenu={handleContextMenu}
   ontouchstart={handleTouchStart}
   ontouchmove={handleTouchMove}
@@ -549,13 +634,22 @@
     background-color: var(--color-grey-30);
     border-radius: 30px;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-    transition: background-color 0.2s, transform 0.2s, box-shadow 0.2s;
+    /* Smooth transition for transform (tilt effect) and box-shadow (hover glow) */
+    /* Using ease-out for snappy response on hover start, smooth return on leave */
+    transition: 
+      transform 0.15s ease-out,
+      box-shadow 0.2s ease-out,
+      background-color 0.2s ease;
     overflow: hidden;
     box-sizing: border-box;
     /* Prevent selection/callouts inside embeds; embeds behave as one interactive element. */
     user-select: none;
     -webkit-user-select: none;
     -webkit-touch-callout: none;
+    /* Performance hint for transform animations */
+    will-change: transform;
+    /* Ensure 3D transforms work properly */
+    transform-style: preserve-3d;
   }
   
   /* Prevent image drag/callouts */
@@ -592,10 +686,20 @@
   
   /* Interactive state for finished previews */
   .unified-embed-preview.finished {
-    cursor: pointer;
+    /* Ensure clickable cursor is always shown */
+    cursor: pointer !important;
   }
   
-  .unified-embed-preview.finished:hover {
+  /* Hovering state (controlled by JS for tilt effect) */
+  .unified-embed-preview.finished.hovering {
+    /* Enhanced shadow on hover for depth effect */
+    box-shadow: 
+      0 8px 20px rgba(0, 0, 0, 0.2),
+      0 2px 6px rgba(0, 0, 0, 0.1);
+  }
+  
+  /* CSS fallback hover for non-JS scenarios (shouldn't normally apply) */
+  .unified-embed-preview.finished:hover:not(.hovering) {
     transform: scale(0.98);
     box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
   }
@@ -603,6 +707,12 @@
   .unified-embed-preview.finished:focus {
     outline: 2px solid var(--color-primary);
     outline-offset: 2px;
+  }
+  
+  /* Active/pressed state */
+  .unified-embed-preview.finished:active {
+    transform: scale(0.96) !important;
+    transition: transform 0.05s ease-out;
   }
   
   /* Error state */

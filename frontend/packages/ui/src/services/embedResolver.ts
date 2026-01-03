@@ -40,6 +40,7 @@ interface EmbedData {
   content: string; // TOON-encoded string
   text_preview?: string;
   embed_ids?: string[]; // For composite embeds (app_skill_use)
+  file_path?: string; // For code embeds: relative file path (e.g., "src/components/Button.tsx")
   createdAt: number;
   updatedAt: number;
 }
