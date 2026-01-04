@@ -314,6 +314,9 @@ task_routes = {
     # Email tasks use custom names like "app.tasks.email_tasks.*" instead of full module paths
     # This pattern ensures all email tasks (verification, cleanup, notifications, etc.) route correctly
     "app.tasks.email_tasks.*": {'queue': 'email'},
+    # Persistence tasks use custom names like "app.tasks.persistence_tasks.*" instead of full module paths
+    # This pattern ensures all persistence tasks (user messages, chat metadata, AI responses, etc.) route correctly
+    "app.tasks.persistence_tasks.*": {'queue': 'persistence'},
     # Add other explicitly named tasks here as needed
 }
 
