@@ -267,7 +267,6 @@
                 {#if errorMessage}
                     <InputWarning
                         message={errorMessage}
-                        target={recoveryKeyInput}
                     />
                 {/if}
             </div>

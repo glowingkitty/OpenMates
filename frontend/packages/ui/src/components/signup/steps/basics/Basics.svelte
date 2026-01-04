@@ -863,7 +863,6 @@
                         {#if showWarning}
                             <InputWarning 
                                 message={$text('signup.code_is_invalid.text')}
-                                target={inviteCodeInput}
                                 autoHideDelay={0}
                             />
                         {/if}
@@ -909,14 +908,12 @@
                     {#if showEmailWarning && emailError}
                         <InputWarning
                             message={emailError}
-                            target={emailInput}
                             autoHideDelay={0}
                         />
                     {/if}
                     {#if emailAlreadyInUse}
                         <InputWarning 
                             message={$text('signup.email_address_already_in_use.text')}
-                            target={emailInput}
                             autoHideDelay={0}
                         />
                     {/if}
@@ -938,7 +935,6 @@
                     {#if showUsernameWarning && usernameError}
                         <InputWarning
                             message={usernameError}
-                            target={usernameInput}
                             autoHideDelay={0}
                         />
                     {/if}
@@ -1009,7 +1005,6 @@
                     {#if showNewsletterEmailWarning && newsletterEmailError}
                         <InputWarning
                             message={newsletterEmailError}
-                            target={newsletterEmailInput}
                             autoHideDelay={0}
                         />
                     {/if}

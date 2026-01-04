@@ -188,7 +188,6 @@
         {#if showWarning && errorMessage && !showLastWarning}
             <InputWarning 
                 message={errorMessage}
-                target={fileInput}
             />
         {/if}
     {:else if showLastWarning}

@@ -705,7 +705,6 @@
                 {#if errorMessage}
                     <InputWarning
                         message={errorMessage}
-                        target={passwordInput}
                     />
                 {/if}
             </div>
@@ -765,7 +764,6 @@
                     {#if tfaErrorMessage}
                         <InputWarning
                             message={tfaErrorMessage}
-                            target={tfaInput}
                         />
                     {/if}
                 </div>

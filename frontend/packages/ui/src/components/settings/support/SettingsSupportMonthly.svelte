@@ -201,7 +201,6 @@
                     {#if emailTouched && emailError}
                         <InputWarning
                             message={emailError}
-                            target={emailInput}
                         />
                     {/if}
                 </div>

@@ -1517,7 +1517,9 @@ changes to the documentation (to keep the documentation up to date).
 
         <!-- Show footer for both authenticated and non-authenticated users -->
         <!-- This displays social links and legal information -->
+        <!-- isSelfHosted prop hides legal docs for self-hosted (personal/internal team use doesn't need them) -->
         <SettingsFooter
+            {isSelfHosted}
             on:chatSelected={(e) => {
                 // Forward chatSelected event to parent (+page.svelte)
                 dispatch('chatSelected', e.detail);

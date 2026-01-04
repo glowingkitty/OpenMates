@@ -74,11 +74,20 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 	// Scroll state for ensuring scroll can reach 0 when hidden chats are unlocked
 	let activityHistoryElement: HTMLDivElement | null = $state(null); // Reference to scrollable container
 	let currentScrollTop = $state(0); // Track current scroll position for reactivity
+	
+	// Self-hosted mode state
+	// When true, legal chats (privacy, terms, imprint) are hidden from the sidebar.
+	// The self-hosted edition is for personal/internal team use only, so legal docs aren't needed:
+	// - No imprint: only required for commercial/public-facing websites
+	// - No privacy policy: GDPR "household exemption" applies to personal/private use
+	// - No terms of service: no third-party service relationship exists
+	let isSelfHosted = $state(false);
 
 	// --- Reactive Computations for Display ---
 
 	// Get filtered public chats (demo + legal) - exclude hidden ones for authenticated users
-	// Legal chats are always shown (like demo chats) - they're public content and should be easily accessible
+	// Legal chats are shown only for non-self-hosted instances - they're OpenMates-specific documents
+	// For self-hosted instances, legal chats are excluded because operators should provide their own legal docs
 	// Translates demo chats to the user's locale before converting to Chat format
 	// Legal chats skip translation (they use plain text)
 	let visiblePublicChats = $derived((() => {
@@ -104,13 +113,20 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 				.map(demo => convertDemoChatToChat(demo));
 		}
 		
-		// Always include legal chats for all users (they're public content and should be easily accessible)
-		// Filter out hidden legal chats for authenticated users (uses same hidden_demo_chats mechanism)
-		// Legal chats skip translation (they use plain text, not translation keys)
-		const legalChats: ChatType[] = LEGAL_CHATS
-			.filter(legal => !hiddenIds.includes(legal.chat_id)) // Filter out hidden legal chats too
-			.map(legal => translateDemoChat(legal)) // Legal chats skip translation but still go through function
-			.map(legal => convertDemoChatToChat(legal));
+		// Include legal chats ONLY for non-self-hosted instances
+		// Self-hosted edition is for personal/internal team use only, so legal docs aren't needed:
+		// - No imprint: only required for commercial/public-facing websites
+		// - No privacy policy: GDPR "household exemption" applies to personal/private use
+		// - No terms of service: no third-party service relationship exists
+		let legalChats: ChatType[] = [];
+		if (!isSelfHosted) {
+			// Filter out hidden legal chats for authenticated users (uses same hidden_demo_chats mechanism)
+			// Legal chats skip translation (they use plain text, not translation keys)
+			legalChats = LEGAL_CHATS
+				.filter(legal => !hiddenIds.includes(legal.chat_id)) // Filter out hidden legal chats too
+				.map(legal => translateDemoChat(legal)) // Legal chats skip translation but still go through function
+				.map(legal => convertDemoChatToChat(legal));
+		}
 		
 		return [...demoChats, ...legalChats];
 	})());
@@ -652,6 +668,23 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 	}
 
 	onMount(async () => {
+		// Check server status to determine if this is a self-hosted instance
+		// This affects whether legal chats (imprint, privacy, terms) are shown
+		try {
+			const serverStatusResponse = await fetch(getApiEndpoint('/v1/settings/server-status'));
+			if (serverStatusResponse.ok) {
+				const serverStatus = await serverStatusResponse.json();
+				isSelfHosted = serverStatus.is_self_hosted || false;
+				console.debug(`[Chats] Server status: isSelfHosted=${isSelfHosted}`);
+			} else {
+				console.warn('[Chats] Failed to fetch server status, defaulting to non-self-hosted');
+				isSelfHosted = false;
+			}
+		} catch (error) {
+			console.error('[Chats] Error fetching server status:', error);
+			isSelfHosted = false;
+		}
+		
 		// CRITICAL: Check auth state FIRST before loading chats
 		// If user is not authenticated, clear any stale chat data immediately
 		if (!$authStore.isAuthenticated) {

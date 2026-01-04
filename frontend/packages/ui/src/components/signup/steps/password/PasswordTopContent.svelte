@@ -187,7 +187,6 @@
                     {#if showPasswordStrengthWarning && passwordStrengthError}
                         <InputWarning
                             message={passwordStrengthError}
-                            target={passwordInput}
                         />
                     {/if}
                 </div>
@@ -209,7 +208,6 @@
                     {#if showPasswordMatchWarning && passwordError && passwordRepeat}
                         <InputWarning
                             message={passwordError}
-                            target={passwordRepeatInput}
                         />
                     {/if}
                 </div>
