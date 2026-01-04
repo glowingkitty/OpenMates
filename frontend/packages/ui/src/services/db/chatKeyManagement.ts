@@ -14,6 +14,8 @@ import {
     decryptWithChatKey,
     decryptChatKeyWithMasterKey
 } from '../cryptoService';
+import { get } from 'svelte/store';
+import { forcedLogoutInProgress } from '../../stores/signupState';
 
 /**
  * Type for ChatDatabase instance to avoid circular import.
@@ -115,6 +117,13 @@ export function getOrGenerateChatKey(dbInstance: ChatDatabaseInstance, chatId: s
  * @param dbInstance - Reference to the ChatDatabase instance
  */
 export async function loadChatKeysFromDatabase(dbInstance: ChatDatabaseInstance): Promise<void> {
+    // CRITICAL: Skip loading chat keys during forced logout (missing master key scenario)
+    // This prevents errors when trying to decrypt chat keys without a master key
+    if (get(forcedLogoutInProgress)) {
+        console.debug('[ChatDatabase] Skipping chat key loading during forced logout');
+        return;
+    }
+    
     // Don't call getAllChats() here as it calls init(), causing a circular dependency!
     // Instead, directly access the database that's already initialized
     if (!dbInstance.db) {
@@ -348,6 +357,14 @@ export async function decryptMessageFields(
     message: Message, 
     chatId: string
 ): Promise<Message> {
+    // CRITICAL: Skip decryption entirely during forced logout (missing master key scenario)
+    // This prevents errors when the app tries to decrypt chats that can't be decrypted anymore
+    // because the master key is gone. The forced logout will navigate to demo-welcome.
+    if (get(forcedLogoutInProgress)) {
+        console.debug(`[ChatDatabase] Skipping message decryption during forced logout for chat: ${chatId}`);
+        return { ...message };
+    }
+    
     // Skip decryption entirely for public chat messages (demo + legal) - they're stored as plaintext
     if (chatId.startsWith('demo-') || chatId.startsWith('legal-')) {
         console.debug(`[ChatDatabase] Skipping message decryption for public chat: ${chatId}`);
