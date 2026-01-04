@@ -278,7 +278,6 @@
                     {#if errorMessage}
                         <InputWarning 
                             message={errorMessage} 
-                            target={backupCodeInput} 
                         />
                     {/if}
                 </div>

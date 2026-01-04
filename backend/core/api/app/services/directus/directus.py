@@ -561,6 +561,110 @@ class DirectusService:
             logger.error(f"Exception getting user_id from hashed_user_id {hashed_user_id[:8]}...: {e}", exc_info=True)
             return None
 
+    # =========================================================================
+    # Account Recovery Helper Methods
+    # =========================================================================
+    
+    async def get_encryption_keys_by_user(self, hashed_user_id: str) -> List[Dict[str, Any]]:
+        """
+        Retrieves all encryption keys for a user by hashed_user_id.
+        Used during account recovery to check what login methods exist.
+        
+        Args:
+            hashed_user_id: SHA256 hash of the user's UUID
+            
+        Returns:
+            List of encryption key records with login_method info
+        """
+        params = {
+            "filter[hashed_user_id][_eq]": hashed_user_id,
+            "fields": "id,login_method,salt"
+        }
+        try:
+            items = await self.get_items("encryption_keys", params)
+            return items if items else []
+        except Exception as e:
+            logger.error(f"Exception getting encryption keys for hashed_user_id {hashed_user_id[:8]}...: {e}", exc_info=True)
+            return []
+    
+    async def delete_encryption_keys_by_user(self, hashed_user_id: str) -> bool:
+        """
+        Deletes ALL encryption keys for a user.
+        Used during full account reset to clear old login methods.
+        
+        Args:
+            hashed_user_id: SHA256 hash of the user's UUID
+            
+        Returns:
+            True if all deletions successful, False if any failed
+        """
+        try:
+            # Get all encryption keys for this user
+            encryption_keys = await self.get_encryption_keys_by_user(hashed_user_id)
+            
+            if not encryption_keys:
+                logger.info(f"No encryption keys found to delete for hashed_user_id: {hashed_user_id[:8]}...")
+                return True
+            
+            # Delete each encryption key
+            success_count = 0
+            for key in encryption_keys:
+                key_id = key.get("id")
+                if key_id:
+                    try:
+                        deleted = await self.delete_item("encryption_keys", key_id)
+                        if deleted:
+                            success_count += 1
+                            logger.debug(f"Deleted encryption key {key_id} for hashed_user_id: {hashed_user_id[:8]}...")
+                    except Exception as e:
+                        logger.error(f"Failed to delete encryption key {key_id}: {e}")
+            
+            logger.info(f"Deleted {success_count}/{len(encryption_keys)} encryption keys for hashed_user_id: {hashed_user_id[:8]}...")
+            return success_count == len(encryption_keys)
+            
+        except Exception as e:
+            logger.error(f"Exception deleting encryption keys for hashed_user_id {hashed_user_id[:8]}...: {e}", exc_info=True)
+            return False
+    
+    async def delete_all_passkeys_by_user(self, hashed_user_id: str) -> bool:
+        """
+        Deletes ALL passkeys for a user.
+        Used during full account reset to clear old passkey credentials.
+        
+        Args:
+            hashed_user_id: SHA256 hash of the user's UUID
+            
+        Returns:
+            True if all deletions successful, False if any failed
+        """
+        try:
+            # Get all passkeys for this user
+            passkeys = await self.get_user_passkeys(hashed_user_id)
+            
+            if not passkeys:
+                logger.info(f"No passkeys found to delete for hashed_user_id: {hashed_user_id[:8]}...")
+                return True
+            
+            # Delete each passkey
+            success_count = 0
+            for passkey in passkeys:
+                passkey_id = passkey.get("id")
+                if passkey_id:
+                    try:
+                        deleted = await self.delete_item("user_passkeys", passkey_id)
+                        if deleted:
+                            success_count += 1
+                            logger.debug(f"Deleted passkey {passkey_id} for hashed_user_id: {hashed_user_id[:8]}...")
+                    except Exception as e:
+                        logger.error(f"Failed to delete passkey {passkey_id}: {e}")
+            
+            logger.info(f"Deleted {success_count}/{len(passkeys)} passkeys for hashed_user_id: {hashed_user_id[:8]}...")
+            return success_count == len(passkeys)
+            
+        except Exception as e:
+            logger.error(f"Exception deleting passkeys for hashed_user_id {hashed_user_id[:8]}...: {e}", exc_info=True)
+            return False
+
     async def get_user_api_keys_by_user_id(self, user_id: str) -> List[Dict[str, Any]]:
         """
         Retrieves all API keys for a user by user_id (UUID).

@@ -1222,6 +1222,15 @@ div.clickable-icon {
   }
 }
 
+/* Recovery key icon - used in security settings for backup recovery options */
+.icon.recovery_key {
+  background: var(--color-primary);
+
+  &::before {
+      background-image: url('@openmates/ui/static/icons/warning.svg');
+  }
+}
+
 .icon.secret {
   background: var(--color-primary);
 

@@ -554,8 +554,12 @@
     }
 
 
-    // Modify email validation check
-    const debouncedCheckEmail = debounce((email: string) => {
+    /**
+     * Validates email format immediately (no debounce) so warnings stay visible
+     * as long as the input is invalid. This ensures users see feedback right away.
+     * @param email - The email address to validate
+     */
+    function validateEmailFormat(email: string): void {
         if (!email) {
             emailError = '';
             showEmailWarning = false;
@@ -580,7 +584,7 @@
         emailError = '';
         showEmailWarning = false;
         isEmailValidationPending = false;
-    }, 800);
+    }
 
     // Update username validation function
     const checkUsername = (username: string): boolean => {
@@ -624,8 +628,12 @@
         return true;
     };
 
-    // Update debounced username check to clear warnings when empty
-    const debouncedCheckUsername = debounce((username: string) => {
+    /**
+     * Validates username immediately (no debounce) so warnings stay visible
+     * as long as the input is invalid. Wrapper around checkUsername for consistency.
+     * @param username - The username to validate
+     */
+    function validateUsernameFormat(username: string): void {
         if (!username) {
             usernameError = '';
             showUsernameWarning = false;
@@ -634,7 +642,7 @@
         }
         isUsernameValidationPending = false;
         checkUsername(username);
-    }, 500);
+    }
 
     // Helper function to check if form is valid using Svelte 5 runes
     let isFormValid = $derived(username && 
@@ -648,11 +656,11 @@
                      privacyAgreed);
 
     // Update reactive statements to include email validation using Svelte 5 runes
+    // Email validation runs immediately so warnings stay visible as long as input is invalid
     $effect(() => {
         if (email) {
-            isEmailValidationPending = true;
             emailAlreadyInUse = false; // Reset the already in use warning when email changes
-            debouncedCheckEmail(email);
+            validateEmailFormat(email); // Immediate validation - no debounce delay
         } else {
             emailError = '';
             showEmailWarning = false;
@@ -662,14 +670,14 @@
     });
 
     // Update reactive statements to include username validation using Svelte 5 runes
+    // Username validation runs immediately so warnings stay visible as long as input is invalid
     $effect(() => {
         if (!username) {
             usernameError = '';
             showUsernameWarning = false;
             isUsernameValidationPending = false;
         } else {
-            isUsernameValidationPending = true;
-            debouncedCheckUsername(username);
+            validateUsernameFormat(username); // Immediate validation - no debounce delay
         }
     });
 
@@ -855,7 +863,7 @@
                         {#if showWarning}
                             <InputWarning 
                                 message={$text('signup.code_is_invalid.text')}
-                                target={inviteCodeInput}
+                                autoHideDelay={0}
                             />
                         {/if}
                     </div>
@@ -883,24 +891,30 @@
                         required
                         autocomplete="email"
                         class:error={!!emailError || emailAlreadyInUse}
-                        oninput={(e) => {
+                        oninput={() => {
                             checkSignupActivityAndManageTimer();
                             // Auto-fill username based on email if username is empty
                             if (!username && email.includes('@')) {
                                 const emailParts = email.split('@');
-                                username = emailParts[0];
+                                // Sanitize username: replace invalid characters (like '-') with underscore
+                                // Valid chars are: letters (including international), numbers, dots, underscores
+                                let sanitizedUsername = emailParts[0]
+                                    .replace(/[^\p{L}\p{M}0-9._]/gu, '_') // Replace invalid chars with _
+                                    .replace(/_+/g, '_') // Collapse multiple underscores to single
+                                    .replace(/^_+|_+$/g, ''); // Trim leading/trailing underscores
+                                username = sanitizedUsername;
                             }
                         }} />
                     {#if showEmailWarning && emailError}
                         <InputWarning
                             message={emailError}
-                            target={emailInput}
+                            autoHideDelay={0}
                         />
                     {/if}
                     {#if emailAlreadyInUse}
                         <InputWarning 
                             message={$text('signup.email_address_already_in_use.text')}
-                            target={emailInput}
+                            autoHideDelay={0}
                         />
                     {/if}
                 </div>
@@ -921,7 +935,7 @@
                     {#if showUsernameWarning && usernameError}
                         <InputWarning
                             message={usernameError}
-                            target={usernameInput}
+                            autoHideDelay={0}
                         />
                     {/if}
                 </div>
@@ -991,7 +1005,7 @@
                     {#if showNewsletterEmailWarning && newsletterEmailError}
                         <InputWarning
                             message={newsletterEmailError}
-                            target={newsletterEmailInput}
+                            autoHideDelay={0}
                         />
                     {/if}
                 </div>

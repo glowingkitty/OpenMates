@@ -149,6 +149,9 @@ changes to the documentation (to keep the documentation up to date).
     import SettingsAccount from './settings/SettingsAccount.svelte';
     import SettingsSecurity from './settings/SettingsSecurity.svelte';
     import SettingsPasskeys from './settings/SettingsPasskeys.svelte';
+    import SettingsPassword from './settings/security/SettingsPassword.svelte';
+    import SettingsTwoFactorAuth from './settings/security/SettingsTwoFactorAuth.svelte';
+    import SettingsRecoveryKey from './settings/security/SettingsRecoveryKey.svelte';
     import SettingsDeleteAccount from './settings/account/SettingsDeleteAccount.svelte';
     import SettingsExportAccount from './settings/account/SettingsExportAccount.svelte'; // GDPR Article 20 - Data Portability
     
@@ -192,6 +195,9 @@ changes to the documentation (to keep the documentation up to date).
         'account': SettingsAccount,
         'account/security': SettingsSecurity,
         'account/security/passkeys': SettingsPasskeys,
+        'account/security/password': SettingsPassword,
+        'account/security/2fa': SettingsTwoFactorAuth,
+        'account/security/recovery-key': SettingsRecoveryKey,
         'account/export': SettingsExportAccount, // GDPR Article 20 - Data Portability
         'account/delete': SettingsDeleteAccount, // Alias for account/delete-account (maps to account/delete_account after normalization)
         // 'server/software-update': SettingsSoftwareUpdate,
@@ -590,9 +596,18 @@ changes to the documentation (to keep the documentation up to date).
             // For other routes, use the provided icon and build translation key from path
             activeSubMenuIcon = icon || '';
             // Store the translation key instead of the translated text
-            // Special handling for passkeys - skip "security" segment in translation key
+            // Special handling for security sub-routes - skip "security" segment in translation key
             if (settingsPath === 'account/security/passkeys') {
                 activeSubMenuTitleKey = 'settings.account.passkeys.text';
+            } else if (settingsPath === 'account/security/2fa') {
+                // Use security.yml translations for 2FA
+                activeSubMenuTitleKey = 'settings.security.tfa_title.text';
+            } else if (settingsPath === 'account/security/password') {
+                // Use account.yml translations for password
+                activeSubMenuTitleKey = 'settings.account.password.text';
+            } else if (settingsPath === 'account/security/recovery-key') {
+                // Use security.yml translations for recovery key
+                activeSubMenuTitleKey = 'settings.security.recovery_key_title.text';
             } else if (settingsPath === 'shared/share') {
                 // Special case: 'shared/share' uses 'settings.share.text' (share is at root level, not nested)
                 activeSubMenuTitleKey = 'settings.share.text';
@@ -1502,7 +1517,9 @@ changes to the documentation (to keep the documentation up to date).
 
         <!-- Show footer for both authenticated and non-authenticated users -->
         <!-- This displays social links and legal information -->
+        <!-- isSelfHosted prop hides legal docs for self-hosted (personal/internal team use doesn't need them) -->
         <SettingsFooter
+            {isSelfHosted}
             on:chatSelected={(e) => {
                 // Forward chatSelected event to parent (+page.svelte)
                 dispatch('chatSelected', e.detail);

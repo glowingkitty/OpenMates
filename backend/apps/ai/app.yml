@@ -139,3 +139,9 @@ skills:
       preprocessing_thresholds:
         harmful_content_score: 7
         misuse_risk_score: 8
+      # ALWAYS-INCLUDE SKILLS:
+      # Skills that are ALWAYS available to the main LLM, regardless of
+      # whether preprocessing preselected them. Safety net for follow-ups.
+      # Note: Keep this list minimal to avoid token waste.
+      always_include_skills:
+        - web-search

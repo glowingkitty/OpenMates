@@ -12,24 +12,25 @@ Delete Account Settings - Component for deleting user account with preview, conf
     import { panelState } from '../../../stores/panelStateStore';
     import { settingsMenuVisible } from '../../Settings.svelte';
     import { phasedSyncState } from '../../../stores/phasedSyncStateStore';
+    import Toggle from '../../Toggle.svelte';
 
     // State for preview data
+    // Policy: All unused credits are refunded EXCEPT credits from gift card redemptions
     let previewData = $state<{
-        credits_older_than_14_days: number;
-        has_credits_older_than_14_days: boolean;
+        total_credits: number;  // User's current total credit balance
+        refundable_credits: number;  // Credits that will be refunded (excludes gift card credits)
+        credits_from_gift_cards: number;  // Credits from gift card redemptions (not refundable)
+        has_refundable_credits: boolean;  // Whether there are credits to refund
         auto_refunds: {
             total_refund_amount_cents: number;
             total_refund_currency: string;
-            total_unused_credits: number;
             eligible_invoices: Array<{
                 invoice_id: string;
                 order_id: string;
                 date: string;
                 total_credits: number;
-                unused_credits: number;
-                refund_amount_cents: number;
+                amount_cents: number;
                 currency: string;
-                is_gift_card: boolean;
             }>;
             gift_card_purchases: Array<{
                 gift_card_code: string;
@@ -38,7 +39,6 @@ Delete Account Settings - Component for deleting user account with preview, conf
                 is_redeemed: boolean;
             }>;
         };
-        has_auto_refunds: boolean;
     } | null>(null);
 
     // State for loading and errors
@@ -51,9 +51,8 @@ Delete Account Settings - Component for deleting user account with preview, conf
     let hasPasskey = $state(false);
 
     // State for confirmations
-    let confirmCreditsLoss = $state(false);
+    // Note: No credits loss confirmation needed - all unused credits are refunded (except gift card credits)
     let confirmDataDeletion = $state(false);
-    let confirmationText = $state('');
 
     /**
      * Fetch preview data when component mounts
@@ -132,33 +131,16 @@ Delete Account Settings - Component for deleting user account with preview, conf
     }
 
     /**
-     * Expected confirmation text (case-insensitive)
+     * Check if deletion can proceed (data deletion confirmation must be toggled on)
+     * Note: No credits loss confirmation needed - all unused credits are refunded (except gift card credits)
+     * Using $derived.by() to compute the boolean value from a function
      */
-    const EXPECTED_CONFIRMATION_TEXT = 'delete account';
-
-    /**
-     * Check if confirmation text matches expected value (case-insensitive)
-     */
-    let isConfirmationTextValid = $derived(() => {
-        return confirmationText.trim().toLowerCase() === EXPECTED_CONFIRMATION_TEXT.toLowerCase();
-    });
-
-    /**
-     * Check if deletion can proceed (all required confirmations are checked)
-     */
-    let canProceed = $derived(() => {
-        if (!previewData) return false;
-        
-        // Data deletion confirmation is always required
-        if (!confirmDataDeletion) return false;
-        
-        // Credits loss confirmation is only required if user has credits older than 14 days
-        if (previewData.has_credits_older_than_14_days && !confirmCreditsLoss) return false;
-        
-        // Confirmation text must match exactly (case-insensitive)
-        if (!isConfirmationTextValid) return false;
-        
-        return true;
+    let canProceed = $derived.by(() => {
+        const hasPreviewData = !!previewData;
+        const hasConfirmation = confirmDataDeletion;
+        const result = hasPreviewData && hasConfirmation;
+        console.log('[SettingsDeleteAccount] canProceed check:', { hasPreviewData, hasConfirmation, result });
+        return result;
     });
 
     /**
@@ -166,7 +148,16 @@ Delete Account Settings - Component for deleting user account with preview, conf
      * Note: Currently only passkey authentication is supported for account deletion.
      */
     function startDeletion() {
-        if (!canProceed) return;
+        // CRITICAL: Prevent deletion if confirmation toggle is not checked
+        if (!confirmDataDeletion) {
+            console.log('[SettingsDeleteAccount] Deletion blocked - confirmation toggle not checked');
+            return;
+        }
+        
+        if (!canProceed) {
+            console.log('[SettingsDeleteAccount] Deletion blocked - canProceed is false');
+            return;
+        }
         
         // Check if user has passkey set up (required for account deletion)
         if (!hasPasskey) {
@@ -340,12 +331,12 @@ Delete Account Settings - Component for deleting user account with preview, conf
             const authMethod = 'passkey';
 
             // Submit deletion request
+            // Note: All unused credits are automatically refunded (except gift card credits)
             const response = await fetch(getApiEndpoint(apiEndpoints.settings.deleteAccount), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 credentials: 'include',
                 body: JSON.stringify({
-                    confirm_credits_loss: confirmCreditsLoss,
                     confirm_data_deletion: confirmDataDeletion,
                     auth_method: authMethod,
                     auth_code: authCode
@@ -417,43 +408,19 @@ Delete Account Settings - Component for deleting user account with preview, conf
             <p>{$text('settings.account.delete_account_loading_preview.text')}</p>
         </div>
     {:else if previewData}
-        <!-- Credits Loss Warning -->
-        {#if previewData.has_credits_older_than_14_days}
-            <div class="warning-box credits-warning">
-                <h3>{$text('settings.account.delete_account_credits_loss_warning_title.text')}</h3>
-                <p>
-                    {$text('settings.account.delete_account_credits_loss_warning_message.text', {
-                        count: formatCredits(previewData.credits_older_than_14_days)
-                    })}
-                </p>
-                <label class="checkbox-label">
-                    <input
-                        type="checkbox"
-                        bind:checked={confirmCreditsLoss}
-                        disabled={isLoadingDeletion}
-                    />
-                    <span>
-                        {$text('settings.account.delete_account_credits_loss_warning_confirm.text', {
-                            count: formatCredits(previewData.credits_older_than_14_days)
-                        })}
-                    </span>
-                </label>
-            </div>
-        {/if}
-
-        <!-- Auto-Refund Information -->
-        {#if previewData.has_auto_refunds}
+        <!-- Refund Information - All unused credits are refunded (except gift card credits) -->
+        {#if previewData.has_refundable_credits}
             <div class="info-box refund-info">
                 <h3>{$text('settings.account.delete_account_auto_refund_title.text')}</h3>
-                <p>{$text('settings.account.delete_account_auto_refund_description.text')}</p>
+                <p>{$text('settings.account.delete_account_refund_all_description.text')}</p>
                 <ul class="refund-details">
                     <li>
                         <strong>{$text('settings.account.delete_account_auto_refund_total_refund.text')}:</strong>
                         {formatCurrency(previewData.auto_refunds.total_refund_amount_cents, previewData.auto_refunds.total_refund_currency)}
                     </li>
                     <li>
-                        <strong>{$text('settings.account.delete_account_auto_refund_unused_credits.text')}:</strong>
-                        {formatCredits(previewData.auto_refunds.total_unused_credits)}
+                        <strong>{$text('settings.account.delete_account_refundable_credits.text')}:</strong>
+                        {formatCredits(previewData.refundable_credits)}
                     </li>
                     {#if previewData.auto_refunds.eligible_invoices.length > 0}
                         <li>
@@ -461,69 +428,60 @@ Delete Account Settings - Component for deleting user account with preview, conf
                             {previewData.auto_refunds.eligible_invoices.length}
                         </li>
                     {/if}
-                    {#if previewData.auto_refunds.gift_card_purchases.length > 0}
-                        <li>
-                            <strong>{$text('settings.account.delete_account_auto_refund_gift_cards.text')}:</strong>
-                            {previewData.auto_refunds.gift_card_purchases.length}
-                            <span class="note">{$text('settings.account.delete_account_auto_refund_gift_cards_note.text')}</span>
-                        </li>
-                    {/if}
                 </ul>
             </div>
         {/if}
 
-        <!-- Data Deletion Warning -->
-        <div class="warning-box data-warning">
-            <h3>{$text('settings.account.delete_account_data_deletion_warning_title.text')}</h3>
-            <p>{$text('settings.account.delete_account_data_deletion_warning_message.text')}</p>
-            <label class="checkbox-label">
-                <input
-                    type="checkbox"
-                    bind:checked={confirmDataDeletion}
-                    disabled={isLoadingDeletion}
-                />
-                <span>{$text('settings.account.delete_account_data_deletion_warning_confirm.text')}</span>
-            </label>
-        </div>
+        <!-- Gift Card Credits Notice - These credits are not refundable -->
+        {#if previewData.credits_from_gift_cards > 0}
+            <div class="info-box gift-card-notice">
+                <h3>{$text('settings.account.delete_account_gift_card_credits_title.text')}</h3>
+                <p>
+                    {$text('settings.account.delete_account_gift_card_credits_message.text').replace('{count}', formatCredits(previewData.credits_from_gift_cards))}
+                </p>
+            </div>
+        {/if}
 
-        <!-- Confirmation Text Input -->
-        <div class="warning-box confirmation-input-box">
-            <h3>{$text('settings.account.delete_account_confirmation_input_label.text')}</h3>
-            <input
-                type="text"
-                class="confirmation-input"
-                bind:value={confirmationText}
-                placeholder={$text('settings.account.delete_account_confirmation_input_placeholder.text')}
+        <!-- Data Deletion Warning with Toggle -->
+    <div class="warning-box data-warning">
+        <h3>{$text('settings.account.delete_account_data_deletion_warning_title.text')}</h3>
+        <p>{$text('settings.account.delete_account_data_deletion_warning_message.text')}</p>
+        <div class="toggle-label">
+            <Toggle 
+                bind:checked={confirmDataDeletion}
                 disabled={isLoadingDeletion}
-                autocomplete="off"
+                ariaLabel={$text('settings.account.delete_account_data_deletion_warning_confirm.text')}
             />
+            <span>{$text('settings.account.delete_account_data_deletion_warning_confirm.text')}</span>
         </div>
+    </div>
 
-        <!-- Error Message -->
-        {#if errorMessage}
-            <div class="error-message">{errorMessage}</div>
-        {/if}
+    <!-- Error Message -->
+    {#if errorMessage}
+        <div class="error-message">{errorMessage}</div>
+    {/if}
 
-        <!-- Success Message -->
-        {#if successMessage}
-            <div class="success-message">{successMessage}</div>
-        {/if}
+    <!-- Success Message -->
+    {#if successMessage}
+        <div class="success-message">{successMessage}</div>
+    {/if}
 
-        <!-- Delete Button -->
-        <div class="action-buttons">
-            <button
-                class="delete-button"
-                onclick={startDeletion}
-                disabled={!canProceed || isLoadingDeletion}
-            >
-                {#if isLoadingDeletion}
-                    {$text('settings.account.delete_account_deleting.text')}
-                {:else}
-                    {$text('settings.account.delete_account_delete_button.text')}
-                {/if}
-            </button>
-        </div>
-    {:else if errorMessage}
+    <!-- Delete Button - disabled when confirmation toggle is off or deletion is in progress -->
+    <div class="action-buttons">
+        <button
+            class="delete-button"
+            class:disabled={!confirmDataDeletion || isLoadingDeletion}
+            onclick={startDeletion}
+            disabled={!confirmDataDeletion || isLoadingDeletion}
+        >
+            {#if isLoadingDeletion}
+                {$text('settings.account.delete_account_deleting.text')}
+            {:else}
+                {$text('settings.account.delete_account_delete_button.text')}
+            {/if}
+        </button>
+    </div>
+{:else if errorMessage}
         <div class="error-message">{errorMessage}</div>
         <button class="retry-button" onclick={fetchPreview}>
             {$text('settings.account.delete_account_retry.text')}
@@ -532,10 +490,6 @@ Delete Account Settings - Component for deleting user account with preview, conf
 </div>
 
 <style>
-    .delete-account-container {
-        padding: 24px;
-        max-width: 600px;
-    }
 
     .loading-message {
         text-align: center;
@@ -575,20 +529,14 @@ Delete Account Settings - Component for deleting user account with preview, conf
         line-height: 1.5;
     }
 
-    .checkbox-label {
+    .toggle-label {
         display: flex;
-        align-items: flex-start;
+        align-items: center;
         gap: 12px;
-        cursor: pointer;
         user-select: none;
     }
 
-    .checkbox-label input[type="checkbox"] {
-        margin-top: 4px;
-        cursor: pointer;
-    }
-
-    .checkbox-label span {
+    .toggle-label span {
         flex: 1;
         color: var(--color-grey-80);
         line-height: 1.5;
@@ -611,14 +559,6 @@ Delete Account Settings - Component for deleting user account with preview, conf
 
     .refund-details strong {
         color: var(--color-grey-80);
-    }
-
-    .refund-details .note {
-        display: block;
-        font-size: 13px;
-        color: var(--color-grey-60);
-        margin-top: 4px;
-        font-style: italic;
     }
 
     .error-message {
@@ -653,16 +593,19 @@ Delete Account Settings - Component for deleting user account with preview, conf
         font-size: 16px;
         font-weight: 600;
         cursor: pointer;
-        transition: background 0.2s;
+        transition: background 0.2s, opacity 0.2s;
     }
 
     .delete-button:hover:not(:disabled) {
         background: var(--color-danger-dark);
     }
 
-    .delete-button:disabled {
-        opacity: 0.5;
-        cursor: not-allowed;
+    .delete-button:disabled,
+    .delete-button.disabled {
+        opacity: 0.4 !important;
+        cursor: not-allowed !important;
+        background: var(--color-grey-50) !important;
+        pointer-events: none;
     }
 
     .retry-button {
@@ -681,38 +624,6 @@ Delete Account Settings - Component for deleting user account with preview, conf
         background: var(--color-primary-dark);
     }
 
-    .confirmation-input-box {
-        background: var(--color-warning-light);
-        border: 1px solid var(--color-warning);
-    }
-
-    .confirmation-input {
-        width: 100%;
-        padding: 12px 16px;
-        border: 2px solid var(--color-grey-30);
-        border-radius: 6px;
-        font-size: 16px;
-        font-family: inherit;
-        background: white;
-        color: var(--color-grey-80);
-        transition: border-color 0.2s;
-        box-sizing: border-box;
-    }
-
-    .confirmation-input:focus {
-        outline: none;
-        border-color: var(--color-primary);
-    }
-
-    .confirmation-input:disabled {
-        opacity: 0.6;
-        cursor: not-allowed;
-        background: var(--color-grey-10);
-    }
-
-    .confirmation-input:not(:disabled):invalid {
-        border-color: var(--color-danger);
-    }
 </style>
 
 

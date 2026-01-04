@@ -28,9 +28,61 @@
     import * as cryptoService from '../../../../services/cryptoService';
     import { get } from 'svelte/store';
     import { replace } from 'lodash-es';
-    import { checkAuth } from '../../../../stores/authStore';
+    import { checkAuth, authStore } from '../../../../stores/authStore';
+    import { userProfile } from '../../../../stores/userProfile';
+    import { notificationStore } from '../../../../stores/notificationStore';
     
     const dispatch = createEventDispatcher();
+    
+    /**
+     * Poll to verify user is authenticated and user data is loaded.
+     * Retries with exponential backoff until auth state is confirmed or max attempts reached.
+     * @param maxAttempts Maximum number of polling attempts
+     * @param maxTimeoutMs Maximum total time to wait in milliseconds
+     * @returns true if user is authenticated and data is loaded, false otherwise
+     */
+    async function pollAuthState(maxAttempts: number = 5, maxTimeoutMs: number = 2000): Promise<boolean> {
+        const startTime = Date.now();
+        const delayBetweenAttempts = Math.min(200, maxTimeoutMs / maxAttempts); // Adaptive delay
+        
+        for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+            // Check if we've exceeded max timeout
+            if (Date.now() - startTime > maxTimeoutMs) {
+                console.warn(`[PasswordBottomContent] Auth state polling timeout after ${maxTimeoutMs}ms`);
+                return false;
+            }
+            
+            try {
+                // Force auth check to ensure we get fresh data
+                const authSuccess = await checkAuth(undefined, true);
+                
+                if (authSuccess) {
+                    // Verify user data is actually loaded (check if username exists)
+                    const currentAuth = get(authStore);
+                    const currentProfile = get(userProfile);
+                    
+                    if (currentAuth.isAuthenticated && currentProfile.username) {
+                        console.debug(`[PasswordBottomContent] Auth state confirmed after ${attempt} attempt(s)`);
+                        return true;
+                    }
+                }
+                
+                // If not authenticated yet, wait before next attempt (except on last attempt)
+                if (attempt < maxAttempts) {
+                    await new Promise(resolve => setTimeout(resolve, delayBetweenAttempts));
+                }
+            } catch (error) {
+                console.warn(`[PasswordBottomContent] Error checking auth state (attempt ${attempt}/${maxAttempts}):`, error);
+                // Wait before retrying (except on last attempt)
+                if (attempt < maxAttempts) {
+                    await new Promise(resolve => setTimeout(resolve, delayBetweenAttempts));
+                }
+            }
+        }
+        
+        console.warn(`[PasswordBottomContent] Auth state not confirmed after ${maxAttempts} attempts`);
+        return false;
+    }
     
     // Get password data from parent component using Svelte 5 runes
     let { 
@@ -63,6 +115,7 @@
             // Only check for inviteCode if it's required
             if (!storeData.email || !storeData.username || (requireInviteCodeValue && !storeData.inviteCode)) {
                 console.error('Missing required signup data');
+                notificationStore.error('Missing required signup information. Please go back and try again.', 8000);
                 return;
             }
             
@@ -117,6 +170,7 @@
             
             if (!emailStoredSuccessfully) {
                 console.error('Failed to encrypt and store email with master key');
+                notificationStore.error('Failed to store encrypted data. Please try again.', 8000);
                 return;
             }
             
@@ -145,13 +199,17 @@
             if (!response.ok) {
                 const errorData = await response.json();
                 console.error('Password setup failed:', errorData);
-                // Handle specific error cases
+                // Handle specific error cases with user-friendly messages
                 if (response.status === 400) {
                     // Handle validation errors
                     console.error('Validation error:', errorData.message);
+                    notificationStore.error(errorData.message || 'Invalid data provided. Please check your information and try again.', 8000);
                 } else if (response.status === 409) {
                     // Handle conflicts (e.g., email already exists)
                     console.error('Conflict error:', errorData.message);
+                    notificationStore.error(errorData.message || 'This email is already registered. Please try logging in instead.', 8000);
+                } else {
+                    notificationStore.error(errorData.message || 'Failed to create account. Please try again.', 8000);
                 }
                 return;
             }
@@ -159,13 +217,24 @@
             const data = await response.json();
             
             if (data.success) {
+                // CRITICAL: Verify that we received a valid user ID from the server
+                // Without a user ID, the signup cannot continue as we can't establish the user session
+                const newUserId = data.user?.id;
+                if (!newUserId) {
+                    console.error('Password setup succeeded but no user ID returned');
+                    notificationStore.error('Account creation incomplete - please try again or contact support.', 8000);
+                    return;
+                }
+                
+                console.log(`[PasswordBottomContent] Account created successfully, user ID: ${newUserId.substring(0, 8)}...`);
+                
                 // Update the signup store with encrypted data and user info
                 signupStore.update(store => ({
                     ...store,
                     password, // Store temporarily for the signup process
                     encryptedMasterKey: encryptedMasterKey,
                     salt: saltB64,
-                    userId: data.user?.id
+                    userId: newUserId
                 }));
                 
                 // Clear sensitive data from local variables
@@ -184,25 +253,42 @@
                 // CRITICAL: Update authentication state after account creation
                 // This ensures that when we move to the next step, last_opened will be updated
                 // both client-side and server-side (via WebSocket)
-                console.debug('[PasswordBottomContent] Updating auth state after account creation...');
+                // We MUST verify auth state before advancing to prevent "false positive" signups
+                console.debug('[PasswordBottomContent] Verifying auth state after account creation...');
                 try {
-                    await checkAuth();
-                    console.debug('[PasswordBottomContent] Auth state updated successfully');
+                    // Poll to verify authentication and user data is loaded
+                    const authSuccess = await pollAuthState(10, 4000); // 10 attempts, 4 seconds total
+                    if (authSuccess) {
+                        console.debug('[PasswordBottomContent] Auth state confirmed successfully');
+                    } else {
+                        // Auth state not confirmed - this is a CRITICAL error
+                        // Don't advance to next step as the user might not be properly logged in
+                        console.error('[PasswordBottomContent] Auth state not confirmed after polling - blocking step advancement');
+                        notificationStore.error('Account created but login failed. Please try logging in manually.', 10000);
+                        // User will need to try logging in manually or retry signup
+                        return;
+                    }
                 } catch (error) {
-                    console.warn('[PasswordBottomContent] Failed to update auth state:', error);
-                    // Continue even if checkAuth fails - the step change will still work
+                    // Auth check failed - this is a CRITICAL error
+                    console.error('[PasswordBottomContent] Failed to verify auth state:', error);
+                    notificationStore.error('Account may have been created but we could not verify login. Please try logging in.', 10000);
+                    return;
                 }
+                
+                // All validations passed - safe to advance to next step
+                console.log('[PasswordBottomContent] All validations passed, advancing to one_time_codes step');
                 
                 // Continue to next step (OTP setup)
                 // The Signup component will update last_opened when this step change is processed
                 dispatch('step', { step: 'one_time_codes' });
             } else {
                 console.error('Password setup failed:', data.message);
+                notificationStore.error(data.message || 'Failed to create account. Please try again.', 8000);
             }
             
         } catch (error) {
             console.error('Error setting up password:', error);
-            // Handle network or other errors appropriately
+            notificationStore.error('An unexpected error occurred during signup. Please try again.', 8000);
         } finally {
             isLoading = false;
         }

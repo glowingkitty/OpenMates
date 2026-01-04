@@ -15,6 +15,8 @@ from backend.core.api.app.routes.auth_routes.auth_gift import router as gift_rou
 from backend.core.api.app.routes.auth_routes.auth_recoverykey import router as recoverykey_router
 # Import passkey router
 from backend.core.api.app.routes.auth_routes.auth_passkey import router as passkey_router
+# Import account recovery router
+from backend.core.api.app.routes.auth_routes.auth_recovery import router as recovery_router
 
 # IMPORTANT INSTRUCTION START (DO NOT DELETE/MODIFY)
 #
@@ -77,3 +79,5 @@ router.include_router(gift_router)
 router.include_router(recoverykey_router)
 # Include passkey router
 router.include_router(passkey_router)
+# Include account recovery router
+router.include_router(recovery_router)

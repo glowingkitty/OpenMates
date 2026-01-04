@@ -281,6 +281,69 @@ Searches code repositories and uploaded code files for patterns, functions, vari
 
 This multi-step approach ensures sed can be used safely for large-scale code replacements without introducing bugs or breaking the codebase.
 
+### Get code
+
+> **Status:** Planned feature - to be implemented
+
+**Functionality:** Automatically fetches code from external repository URLs (GitHub, GitLab, Bitbucket, etc.) when a file link is pasted, with mandatory prompt injection protection.
+
+**Description:**
+When a user pastes a URL pointing to a specific file in a code repository (e.g., `https://github.com/user/repo/blob/main/src/file.py`), this skill automatically triggers to:
+1. Fetch the raw code content from the repository
+2. Detect the programming language from file extension and content
+3. **Sanitize the code for prompt injection attacks** before returning to the assistant
+4. Display the code in the chat with proper syntax highlighting
+5. Show the skill usage in the usage entries (like other skills)
+
+**Supported Repository Platforms:**
+- GitHub (github.com)
+- GitLab (gitlab.com and self-hosted instances)
+- Bitbucket (bitbucket.org)
+- Other Git hosting platforms with accessible raw file URLs
+
+**Auto-Trigger Patterns:**
+The skill auto-triggers when URLs match patterns like:
+- `https://github.com/{owner}/{repo}/blob/{branch}/{path/to/file}`
+- `https://gitlab.com/{owner}/{repo}/-/blob/{branch}/{path/to/file}`
+- `https://bitbucket.org/{owner}/{repo}/src/{branch}/{path/to/file}`
+
+**Input Parameters:**
+- `url`: The repository file URL
+- `branch`: Optional branch override (defaults to branch in URL or main/master)
+- `line_start`: Optional start line for partial file fetch
+- `line_end`: Optional end line for partial file fetch
+
+**Output:**
+- Code content with syntax highlighting
+- File metadata (filename, language, line count, repository info)
+- Permalink to the source file
+
+**Security Requirements (CRITICAL):**
+
+⚠️ **Prompt Injection Protection is MANDATORY for this skill.**
+
+Code fetched from external repositories **must** be treated as potentially malicious and scanned for prompt injection attacks before being returned to the assistant. This is because:
+
+1. **Untrusted Source**: Code from public repositories can contain hidden malicious instructions targeting AI assistants
+2. **Hidden Content**: Comments, strings, or documentation within code could contain prompt injection attempts
+3. **Obfuscated Attacks**: Malicious instructions can be encoded or obfuscated within seemingly legitimate code
+
+**Sanitization Process:**
+1. Fetch raw code content from the repository URL
+2. Split long files into chunks of **50,000 tokens maximum**
+3. Process each chunk through the prompt injection detection system (see [Prompt Injection Protection](../prompt_injection_protection.md))
+4. Replace detected injection patterns with `[PROMPT INJECTION DETECTED & REMOVED]` placeholder
+5. Combine sanitized chunks and return to the assistant
+6. This sanitization is the **final step** before the skill returns data
+
+**Implementation Notes:**
+- Uses the same sanitization pipeline as other external data skills (web search, video transcripts, etc.)
+- Detection uses the configuration from [`backend/apps/ai/prompt_injection_detection.yml`](../../../backend/apps/ai/prompt_injection_detection.yml)
+- Skill usage appears in the standard usage entries, providing transparency about when external code is fetched
+- Supports authentication for private repositories (requires user to configure repository access tokens)
+
+See also: [App Skills - Prompt Injection Protection for External Data](./app_skills.md#prompt-injection-protection-for-external-data)
+
 ### Get docs
 
 Use Context7 API to get docs for the code. For OpenMates API documentation, retrieve directly from OpenMates docs/openapi.json (bypassing Context7 for internal APIs). If no docs found via Context7, use web search + web read to get docs.

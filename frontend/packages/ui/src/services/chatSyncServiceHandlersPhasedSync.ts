@@ -176,12 +176,19 @@ export async function handlePhase3FullSyncImpl(
 
 /**
  * Handle phased sync completion
+ * 
+ * CRITICAL: This is called when the server sends the phased_sync_complete message.
+ * We must clear the timeout to prevent the synthetic completion event from firing.
  */
 export async function handlePhasedSyncCompleteImpl(
     serviceInstance: ChatSynchronizationService,
     payload: PhasedSyncCompletePayload
 ): Promise<void> {
     console.log("[ChatSyncService] Phased sync complete:", payload);
+    
+    // CRITICAL: Clear the timeout since sync completed successfully
+    // This prevents the synthetic timeout event from firing after real completion
+    serviceInstance.clearPhasedSyncTimeout();
     
     serviceInstance.dispatchEvent(new CustomEvent('phasedSyncComplete', {
         detail: payload
@@ -570,7 +577,13 @@ function mergeServerChatWithLocal(serverChat: Partial<Chat> & { id: string }, lo
             encrypted_icon: serverChat.encrypted_icon,
             encrypted_category: serverChat.encrypted_category,
             last_visible_message_id: serverChat.last_visible_message_id,
-            pinned: serverChat.pinned
+            pinned: serverChat.pinned,
+            // CRITICAL: Include post-processing metadata fields
+            // These fields are populated after AI post-processing and should be preserved during sync
+            encrypted_follow_up_request_suggestions: serverChat.encrypted_follow_up_request_suggestions,
+            encrypted_chat_summary: serverChat.encrypted_chat_summary,
+            encrypted_chat_tags: serverChat.encrypted_chat_tags,
+            encrypted_top_recommended_apps_for_chat: serverChat.encrypted_top_recommended_apps_for_chat
         };
     }
     
@@ -591,7 +604,14 @@ function mergeServerChatWithLocal(serverChat: Partial<Chat> & { id: string }, lo
         encrypted_icon: serverChat.encrypted_icon ?? localChat.encrypted_icon,
         encrypted_category: serverChat.encrypted_category ?? localChat.encrypted_category,
         last_visible_message_id: serverChat.last_visible_message_id ?? localChat.last_visible_message_id,
-        pinned: serverChat.pinned ?? localChat.pinned
+        pinned: serverChat.pinned ?? localChat.pinned,
+        // CRITICAL: Include post-processing metadata fields
+        // Server data takes precedence, but fall back to local if server data is missing
+        // This ensures suggestions synced from another device are preserved
+        encrypted_follow_up_request_suggestions: serverChat.encrypted_follow_up_request_suggestions ?? localChat.encrypted_follow_up_request_suggestions,
+        encrypted_chat_summary: serverChat.encrypted_chat_summary ?? localChat.encrypted_chat_summary,
+        encrypted_chat_tags: serverChat.encrypted_chat_tags ?? localChat.encrypted_chat_tags,
+        encrypted_top_recommended_apps_for_chat: serverChat.encrypted_top_recommended_apps_for_chat ?? localChat.encrypted_top_recommended_apps_for_chat
     };
     
     // Preserve local encrypted_title if local title_v is higher or equal

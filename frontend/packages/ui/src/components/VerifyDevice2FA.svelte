@@ -205,7 +205,6 @@ login_2fa_svelte:
              {#if errorMessage}
                 <InputWarning 
                     message={errorMessage} 
-                    target={otpInput} 
                 />
             {/if}
         </div>

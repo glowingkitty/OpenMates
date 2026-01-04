@@ -63,11 +63,16 @@ async def _async_send_newsletter_confirmation_email(
     darkmode: bool = False
 ) -> bool:
     """
-    Async implementation of the newsletter confirmation email task
+    Async implementation of the newsletter confirmation email task.
+    
+    IMPORTANT: Uses try/finally to ensure SecretsManager's httpx client is
+    properly closed before returning. This prevents "Event loop is closed" 
+    errors when asyncio.run() closes the event loop in Celery tasks.
     """
+    # Create services outside try block so they're available in finally
+    secrets_manager = SecretsManager()
+    
     try:
-        # Create standalone services for this task
-        secrets_manager = SecretsManager()
         await secrets_manager.initialize()
         email_template_service = EmailTemplateService(secrets_manager=secrets_manager)
         
@@ -127,6 +132,10 @@ async def _async_send_newsletter_confirmation_email(
     except Exception as e:
         logger.error(f"Error sending newsletter confirmation email to {email[:2]}***: {str(e)}", exc_info=True)
         return False
+    finally:
+        # CRITICAL: Close the httpx client before asyncio.run() closes the event loop
+        # This prevents "Event loop is closed" errors during httpx cleanup
+        await secrets_manager.aclose()
 
 
 @app.task(name='app.tasks.email_tasks.newsletter_email_task.send_newsletter_confirmed_email', bind=True)
@@ -166,10 +175,15 @@ async def _async_send_newsletter_confirmed_email(
     This email is sent after a user confirms their newsletter subscription.
     It includes the persistent unsubscribe token that allows users to unsubscribe
     even weeks or months after subscribing.
+    
+    IMPORTANT: Uses try/finally to ensure SecretsManager's httpx client is
+    properly closed before returning. This prevents "Event loop is closed" 
+    errors when asyncio.run() closes the event loop in Celery tasks.
     """
+    # Create services outside try block so they're available in finally
+    secrets_manager = SecretsManager()
+    
     try:
-        # Create standalone services for this task
-        secrets_manager = SecretsManager()
         await secrets_manager.initialize()
         email_template_service = EmailTemplateService(secrets_manager=secrets_manager)
         directus_service = DirectusService()
@@ -254,3 +268,7 @@ async def _async_send_newsletter_confirmed_email(
     except Exception as e:
         logger.error(f"Error sending newsletter confirmed email to {email[:2]}***: {str(e)}", exc_info=True)
         return False
+    finally:
+        # CRITICAL: Close the httpx client before asyncio.run() closes the event loop
+        # This prevents "Event loop is closed" errors during httpx cleanup
+        await secrets_manager.aclose()

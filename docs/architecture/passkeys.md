@@ -238,8 +238,8 @@ If user's device doesn't support PRF, they can:
    - Force user back to password-only signup
 
 2. **User loses passkey**
-   - Only recovery key works (no password reset for passkey-only accounts)
-   - Consider: Email-based account recovery flow
+   - Recovery key is the primary recovery method (mandatory during signup)
+   - Email-based account recovery available (see [Account Recovery](./account_recovery.md))
 
 3. **Passkey login fails**
    - Fall back to password login (if password exists)

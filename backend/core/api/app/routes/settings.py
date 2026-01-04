@@ -7,8 +7,10 @@ import os
 import random
 import string
 import hashlib
+import json
+import glob
 from typing import Optional, Dict, Any
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
 from pydantic import BaseModel, Field # Import BaseModel and Field for response models
 
 from backend.core.api.app.services.directus import DirectusService
@@ -327,6 +329,71 @@ async def update_user_darkmode(
     except Exception as e:
         logger.error(f"Error updating dark mode for user {user_id}: {str(e)}")
         raise HTTPException(status_code=500, detail="An error occurred while updating dark mode setting")
+
+
+# --- Endpoint for disabling 2FA ---
+@router.post("/user/disable-2fa", response_model=SimpleSuccessResponse, include_in_schema=False)
+@limiter.limit("5/minute")  # Sensitive security operation - strict rate limit
+async def disable_2fa(
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    directus_service: DirectusService = Depends(get_directus_service),
+    cache_service: CacheService = Depends(get_cache_service),
+    compliance_service: ComplianceService = Depends(get_compliance_service)
+):
+    """
+    Disable Two-Factor Authentication for the user.
+    This endpoint requires prior authentication (passkey or current password).
+    Clears the encrypted 2FA secret and backup codes.
+    """
+    user_id = current_user.id
+    client_ip = _extract_client_ip(request.headers, request.client.host if request.client else None)
+    
+    logger.info(f"[2FA] User {user_id} requesting to disable 2FA")
+
+    try:
+        # Clear 2FA-related fields
+        update_data = {
+            "encrypted_tfa_secret": None,
+            "encrypted_tfa_app_name": None,
+            "tfa_backup_codes_hashes": None,
+            "tfa_last_used": None
+        }
+
+        # Update Directus
+        success_directus = await directus_service.update_user(user_id, update_data)
+        if not success_directus:
+            logger.error(f"[2FA] Failed to update Directus to disable 2FA for user {user_id}")
+            raise HTTPException(status_code=500, detail="Failed to disable 2FA")
+
+        # Update Cache - only update the fields that exist in cache
+        cache_update_data = {
+            "tfa_enabled": False,
+            "tfa_app_name": None
+        }
+        cache_update_success = await cache_service.update_user(user_id, cache_update_data)
+        if not cache_update_success:
+            logger.warning(f"[2FA] Failed to update cache for user {user_id} after disabling 2FA")
+        else:
+            logger.info(f"[2FA] Successfully updated cache for user {user_id} after disabling 2FA")
+
+        # Log compliance event
+        compliance_service.log_auth_event(
+            event_type="2fa_disabled",
+            user_id=user_id,
+            ip_address=client_ip,
+            status="success"
+        )
+
+        logger.info(f"[2FA] Successfully disabled 2FA for user {user_id}")
+        return SimpleSuccessResponse(success=True, message="Two-Factor Authentication disabled successfully")
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"[2FA] Error disabling 2FA for user {user_id}: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail="An error occurred while disabling 2FA")
+
 
 # --- Endpoint for Mates Settings Consent ---
 @router.post("/user/consent/mates", response_model=SimpleSuccessResponse, include_in_schema=False)  # Exclude from schema - not in whitelist
@@ -2068,17 +2135,22 @@ async def report_issue(
 # --- Account Deletion Endpoints ---
 
 class DeleteAccountPreviewResponse(BaseModel):
-    """Response model for account deletion preview"""
-    credits_older_than_14_days: int
-    has_credits_older_than_14_days: bool
-    auto_refunds: Dict[str, Any]
-    has_auto_refunds: bool
+    """
+    Response model for account deletion preview.
+    
+    Policy: All unused credits are refunded EXCEPT credits from gift card redemptions.
+    This is user-friendly and reduces chargeback risk.
+    """
+    total_credits: int  # User's current total credit balance
+    refundable_credits: int  # Credits that will be refunded (excludes gift card credits)
+    credits_from_gift_cards: int  # Credits from gift card redemptions (not refundable)
+    has_refundable_credits: bool  # Whether there are credits to refund
+    auto_refunds: Dict[str, Any]  # Details about the refund (amount, invoices, etc.)
 
 
 class DeleteAccountRequest(BaseModel):
     """Request model for account deletion"""
-    confirm_credits_loss: bool
-    confirm_data_deletion: bool
+    confirm_data_deletion: bool  # User must confirm they understand data will be deleted
     auth_method: str  # "passkey" or "2fa_otp"
     auth_code: Optional[str] = None  # OTP code for 2FA, or credential_id for passkey
 
@@ -2093,14 +2165,37 @@ async def _calculate_delete_account_preview(
 ) -> DeleteAccountPreviewResponse:
     """
     Helper function to calculate account deletion preview data.
-    Extracted from endpoint handler for reuse.
+    
+    Policy: Refund ALL unused credits EXCEPT credits from gift card redemptions.
+    This is user-friendly and reduces chargeback risk.
+    
+    Approach:
+    1. Get user's total credits from cache
+    2. Get all non-refunded invoices for the user
+    3. Calculate credits from gift card redemptions (not refundable)
+    4. Calculate refundable credits = total credits - gift card credits
+    5. Calculate proportional refund amount based on invoices
     """
-    # Get all invoices for user
+    # Step 1: Get user's current total credits from cache
+    user_data = await cache_service.get_user_by_id(user_id)
+    if not user_data:
+        logger.warning(f"User not found in cache for deletion preview: {user_id}")
+        total_credits = 0
+    else:
+        total_credits = int(user_data.get("credits", 0))
+    
+    logger.debug(f"[DeletePreview] User {user_id} has {total_credits} total credits")
+    
+    # Step 2: Get all non-refunded invoices for the user
+    # We need all invoices to calculate the refund proportionally
     invoices_data = await directus_service.get_items(
         collection="invoices",
         params={
             "filter": {
-                "user_id_hash": {"_eq": user_id_hash}
+                "_and": [
+                    {"user_id_hash": {"_eq": user_id_hash}},
+                    {"refunded_at": {"_null": True}}  # Only non-refunded invoices
+                ]
             },
             "fields": "*"
         }
@@ -2109,105 +2204,83 @@ async def _calculate_delete_account_preview(
     if not invoices_data:
         invoices_data = []
     
-    # Get current timestamp and calculate 14 days ago
-    now = datetime.now(timezone.utc)
-    fourteen_days_ago = now.replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(days=14)
-    fourteen_days_ago_timestamp = int(fourteen_days_ago.timestamp())
+    logger.debug(f"[DeletePreview] Found {len(invoices_data)} non-refunded invoices")
     
-    # Get usage entries to calculate used credits
-    usage_entries = await directus_service.usage.get_user_usage_entries(
-        user_id_hash=user_id_hash,
-        user_vault_key_id=vault_key_id,
-        limit=None
-    )
-    
-    # Process invoices
-    credits_older_than_14_days = 0
-    eligible_invoices = []
-    total_refund_amount_cents = 0
-    total_unused_credits = 0
+    # Step 3: Process invoices to separate regular purchases from gift card redemptions
+    eligible_invoices = []  # Invoices eligible for refund (regular purchases)
+    total_credits_from_purchases = 0  # Credits from regular purchases
+    total_credits_from_gift_cards = 0  # Credits from gift card redemptions
+    total_purchase_amount_cents = 0  # Total amount paid for regular purchases
     
     for invoice in invoices_data:
-        # Parse invoice date
-        invoice_date_str = invoice.get("date")
-        if not invoice_date_str:
-            continue
-        
-        try:
-            if isinstance(invoice_date_str, str):
-                invoice_date = datetime.fromisoformat(invoice_date_str.replace('Z', '+00:00'))
-            else:
-                invoice_date = datetime.fromtimestamp(invoice_date_str, tz=timezone.utc)
-            invoice_timestamp = int(invoice_date.timestamp())
-        except Exception as e:
-            logger.warning(f"Could not parse invoice date: {invoice_date_str}, error: {e}")
-            continue
-        
         # Decrypt invoice data
         encrypted_amount = invoice.get("encrypted_amount")
         encrypted_credits = invoice.get("encrypted_credits_purchased")
         
         if not encrypted_amount or not encrypted_credits:
+            logger.debug(f"[DeletePreview] Invoice missing encrypted data: {invoice.get('id')}")
             continue
         
         try:
-            total_amount_cents = int(await encryption_service.decrypt_with_user_key(encrypted_amount, vault_key_id))
-            total_credits = int(await encryption_service.decrypt_with_user_key(encrypted_credits, vault_key_id))
+            invoice_amount_cents = int(await encryption_service.decrypt_with_user_key(encrypted_amount, vault_key_id))
+            invoice_credits = int(await encryption_service.decrypt_with_user_key(encrypted_credits, vault_key_id))
         except Exception as e:
             logger.warning(f"Could not decrypt invoice data for invoice {invoice.get('id')}: {e}")
             continue
         
-        # Calculate used credits (usage entries created after invoice date)
-        used_credits = 0
-        for entry in usage_entries:
-            entry_created_at = entry.get("created_at", 0)
-            if entry_created_at >= invoice_timestamp:
-                credits = entry.get("credits", 0)
-                if credits:
-                    try:
-                        credits_int = int(float(str(credits)))
-                        used_credits += credits_int
-                    except (ValueError, TypeError):
-                        pass
-        
-        unused_credits = max(0, total_credits - used_credits)
         is_gift_card = invoice.get("is_gift_card", False)
-        is_refunded = invoice.get("refunded_at") is not None
         
-        # Check if invoice is older than 14 days
-        if invoice_timestamp < fourteen_days_ago_timestamp:
-            # Credits from older invoices will be lost
-            credits_older_than_14_days += unused_credits
+        if is_gift_card:
+            # Gift card redemption - credits are NOT refundable
+            total_credits_from_gift_cards += invoice_credits
+            logger.debug(f"[DeletePreview] Gift card invoice {invoice.get('id')}: {invoice_credits} credits (not refundable)")
         else:
-            # Invoice is within 14 days - eligible for refund if not already refunded and not a gift card
-            if not is_refunded and not is_gift_card and unused_credits > 0:
-                # Calculate refund amount (proportional to unused credits)
-                unit_price_per_credit = total_amount_cents / total_credits if total_credits > 0 else 0
-                refund_amount_cents = int(unused_credits * unit_price_per_credit)
-                
-                total_refund_amount_cents += refund_amount_cents
-                total_unused_credits += unused_credits
-                
-                # Get currency from order cache or default to EUR
-                order_id = invoice.get("order_id")
-                currency = "eur"
-                if order_id:
-                    order_data = await cache_service.get_order(order_id)
-                    if order_data:
-                        currency = order_data.get("currency", "eur")
-                
-                eligible_invoices.append({
-                    "invoice_id": invoice.get("id"),
-                    "order_id": order_id,
-                    "date": invoice_date_str,
-                    "total_credits": total_credits,
-                    "unused_credits": unused_credits,
-                    "refund_amount_cents": refund_amount_cents,
-                    "currency": currency,
-                    "is_gift_card": False
-                })
+            # Regular purchase - credits ARE refundable
+            total_credits_from_purchases += invoice_credits
+            total_purchase_amount_cents += invoice_amount_cents
+            
+            # Get currency from order cache or default to EUR
+            order_id = invoice.get("order_id")
+            currency = "eur"
+            if order_id:
+                order_data = await cache_service.get_order(order_id)
+                if order_data:
+                    currency = order_data.get("currency", "eur")
+            
+            invoice_date_str = invoice.get("date", "")
+            eligible_invoices.append({
+                "invoice_id": invoice.get("id"),
+                "order_id": order_id,
+                "date": invoice_date_str,
+                "total_credits": invoice_credits,
+                "amount_cents": invoice_amount_cents,
+                "currency": currency
+            })
     
-    # Get gift card purchases
+    # Step 4: Calculate refundable credits
+    # Refundable = total credits - credits from gift cards
+    # But cap at actual credits from purchases (can't refund more than purchased)
+    refundable_credits = max(0, min(total_credits - total_credits_from_gift_cards, total_credits_from_purchases))
+    
+    # Step 5: Calculate refund amount proportionally
+    # If user has used some credits, refund is proportional to remaining credits
+    if total_credits_from_purchases > 0 and refundable_credits > 0:
+        # Calculate average price per credit from all purchases
+        price_per_credit = total_purchase_amount_cents / total_credits_from_purchases
+        total_refund_amount_cents = int(refundable_credits * price_per_credit)
+    else:
+        total_refund_amount_cents = 0
+    
+    logger.debug(
+        f"[DeletePreview] Total credits: {total_credits}, "
+        f"From purchases: {total_credits_from_purchases}, "
+        f"From gift cards: {total_credits_from_gift_cards}, "
+        f"Refundable: {refundable_credits}, "
+        f"Refund amount: {total_refund_amount_cents} cents"
+    )
+    
+    # Step 6: Get gift card purchases made BY the user (for informational purposes)
+    # These are gift cards the user bought for others, not redeemed gift cards
     gift_cards_data = await directus_service.get_items(
         collection="gift_cards",
         params={
@@ -2229,16 +2302,16 @@ async def _calculate_delete_account_preview(
             })
     
     return DeleteAccountPreviewResponse(
-        credits_older_than_14_days=credits_older_than_14_days,
-        has_credits_older_than_14_days=credits_older_than_14_days > 0,
+        total_credits=total_credits,
+        refundable_credits=refundable_credits,
+        credits_from_gift_cards=total_credits_from_gift_cards,
+        has_refundable_credits=refundable_credits > 0,
         auto_refunds={
             "total_refund_amount_cents": total_refund_amount_cents,
-            "total_refund_currency": "eur",  # Default, could be improved to support multiple currencies
-            "total_unused_credits": total_unused_credits,
+            "total_refund_currency": "eur",  # Default currency
             "eligible_invoices": eligible_invoices,
             "gift_card_purchases": gift_card_purchases
-        },
-        has_auto_refunds=len(eligible_invoices) > 0 or len(gift_card_purchases) > 0
+        }
     )
 
 
@@ -2311,7 +2384,10 @@ async def delete_account(
             logger.error(f"Vault key ID missing for user {user_id}")
             raise HTTPException(status_code=500, detail="User encryption key not found")
         
-        preview_response = await _calculate_delete_account_preview(
+        # Note: We call _calculate_delete_account_preview here to validate the user exists
+        # and has proper encryption keys before proceeding. The actual refund calculation
+        # is done during the deletion task.
+        await _calculate_delete_account_preview(
             user_id=user_id,
             user_id_hash=user_id_hash,
             vault_key_id=vault_key_id,
@@ -2319,14 +2395,11 @@ async def delete_account(
             encryption_service=encryption_service,
             cache_service=cache_service
         )
-        preview_data = preview_response.dict()
         
-        # Validate confirmations
+        # Validate confirmations - only data deletion confirmation is required
+        # Credits are automatically refunded (except gift card credits), so no separate confirmation needed
         if not delete_request.confirm_data_deletion:
             raise HTTPException(status_code=400, detail="Data deletion confirmation is required")
-        
-        if preview_data["has_credits_older_than_14_days"] and not delete_request.confirm_credits_loss:
-            raise HTTPException(status_code=400, detail="Credits loss confirmation is required")
         
         # Validate authentication
         if delete_request.auth_method == "passkey":
@@ -2803,32 +2876,65 @@ async def get_export_data(
         
         # === COMPLIANCE LOGS (consent history) ===
         # Compliance logs contain privacy policy and terms of service consent records
-        # These are stored in /app/logs/compliance.log and need to be filtered for this user
+        # These are stored in /app/logs/compliance.log and rotated files (compliance.log.YYYY-MM-DD)
+        # We need to read ALL log files to capture the full history (including user creation/consent from past days)
         try:
             compliance_logs = []
-            log_file_path = os.path.join(os.getenv('LOG_DIR', '/app/logs'), 'compliance.log')
+            log_dir = os.getenv('LOG_DIR', '/app/logs')
             
-            if os.path.exists(log_file_path):
-                import json
-                with open(log_file_path, 'r', encoding='utf-8') as log_file:
-                    for line in log_file:
-                        try:
-                            log_entry = json.loads(line.strip())
-                            # Filter for this user's logs
-                            if log_entry.get("user_id") == user_id:
-                                # Only include consent and user_creation events
-                                event_type = log_entry.get("event_type", "")
-                                if event_type in ["consent", "user_creation", "account_deletion_request"]:
-                                    # Remove IP hash for export (privacy)
-                                    log_entry.pop("ip_address_hash", None)
-                                    log_entry.pop("ip_address", None)
-                                    compliance_logs.append(log_entry)
-                        except json.JSONDecodeError:
-                            continue
-                
-                logger.info(f"[EXPORT] Found {len(compliance_logs)} compliance log entries for user {user_id}")
-            else:
-                logger.warning(f"[EXPORT] Compliance log file not found at {log_file_path}")
+            # Find all compliance log files (main file and rotated files)
+            # Pattern matches: compliance.log, compliance.log.2025-12-28, etc.
+            log_pattern = os.path.join(log_dir, 'compliance.log*')
+            log_files = glob.glob(log_pattern)
+            
+            # Sort log files to ensure consistent ordering (oldest first)
+            log_files.sort()
+            
+            logger.info(f"[EXPORT] Found {len(log_files)} compliance log files to search: {[os.path.basename(f) for f in log_files]}")
+            
+            # Event types to include in export:
+            # - consent: Privacy policy and terms of service acceptances
+            # - user_creation: Account creation timestamp
+            # - account_deletion: Account deletion (user requested)
+            # - account_deletion_request: Account deletion request (legacy/alternative name)
+            # - recovery_key_setup_complete: Recovery key setup for account security
+            exportable_event_types = [
+                "consent", 
+                "user_creation", 
+                "account_deletion",  # The actual event type used in logs
+                "account_deletion_request",  # Legacy/alternative name
+                "recovery_key_setup_complete"  # Important for user to know when they set up recovery
+            ]
+            
+            for log_file_path in log_files:
+                if os.path.exists(log_file_path):
+                    try:
+                        with open(log_file_path, 'r', encoding='utf-8') as log_file:
+                            for line in log_file:
+                                try:
+                                    log_entry = json.loads(line.strip())
+                                    # Filter for this user's logs
+                                    if log_entry.get("user_id") == user_id:
+                                        event_type = log_entry.get("event_type", "")
+                                        if event_type in exportable_event_types:
+                                            # Remove IP-related fields for export (privacy)
+                                            log_entry.pop("ip_address_hash", None)
+                                            log_entry.pop("ip_address", None)
+                                            log_entry.pop("device_fingerprint", None)
+                                            compliance_logs.append(log_entry)
+                                except json.JSONDecodeError:
+                                    continue
+                    except Exception as e:
+                        logger.warning(f"[EXPORT] Error reading compliance log file {log_file_path}: {e}")
+                        continue
+            
+            # Sort by timestamp to ensure chronological order
+            compliance_logs.sort(key=lambda x: x.get("timestamp", ""))
+            
+            logger.info(f"[EXPORT] Found {len(compliance_logs)} compliance log entries for user {user_id}")
+            
+            if len(compliance_logs) == 0:
+                logger.warning(f"[EXPORT] No compliance logs found for user {user_id} - this is unexpected for an active user")
             
             export_data["compliance_logs"] = compliance_logs
             
@@ -2864,3 +2970,155 @@ async def get_export_data(
     except Exception as e:
         logger.error(f"[EXPORT] Error fetching export data for user {user_id}: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to fetch export data")
+
+
+# ============================================================================
+# PASSWORD MANAGEMENT ENDPOINTS
+# ============================================================================
+
+class UpdatePasswordRequest(BaseModel):
+    """Request model for adding or changing password."""
+    hashed_email: str = Field(..., description="SHA256 hash of user's email for lookup")
+    lookup_hash: str = Field(..., description="Hash derived from new password for authentication")
+    encrypted_master_key: str = Field(..., description="Master key encrypted with password-derived key")
+    salt: str = Field(..., description="Salt used for password key derivation")
+    key_iv: str = Field(..., description="IV used for master key encryption")
+    is_new_password: bool = Field(..., description="True if adding new password, False if changing existing")
+
+class UpdatePasswordResponse(BaseModel):
+    """Response model for password update."""
+    success: bool
+    message: str
+
+
+@router.post("/update-password", response_model=UpdatePasswordResponse)
+@limiter.limit("5/minute")  # Sensitive operation - prevent abuse
+async def update_password(
+    request: Request,
+    password_request: UpdatePasswordRequest,
+    current_user: User = Depends(get_current_user),
+    directus_service: DirectusService = Depends(get_directus_service),
+    cache_service: CacheService = Depends(get_cache_service)
+):
+    """
+    Add or change user password.
+    
+    This endpoint allows users to:
+    - Add a new password login method (for passkey-only users)
+    - Change their existing password
+    
+    The frontend must authenticate the user first (via passkey or current password)
+    before calling this endpoint.
+    
+    The client-side encryption works as follows:
+    1. User enters new password
+    2. Client generates salt and derives wrapping key from password
+    3. Client wraps existing master key with the new wrapping key
+    4. Client generates lookup_hash from password + email_salt
+    5. Client sends encrypted_master_key, salt, key_iv, and lookup_hash to server
+    
+    The server stores:
+    - lookup_hash: For password authentication (indexed for fast lookup)
+    - encrypted_master_key: User's encrypted master key
+    - salt: For deriving wrapping key during login
+    - key_iv: IV used for encryption
+    """
+    logger.info(f"[PASSWORD] Processing password update for user {current_user.id}")
+    
+    try:
+        user_id = current_user.id
+        hashed_user_id = hashlib.sha256(user_id.encode()).hexdigest()
+        
+        # Check if user already has a password
+        existing_password_key = await directus_service.get_encryption_key(hashed_user_id, "password")
+        has_existing_password = existing_password_key is not None
+        
+        # Validate the request
+        if password_request.is_new_password and has_existing_password:
+            logger.warning(f"[PASSWORD] User {user_id} tried to add password but already has one")
+            return UpdatePasswordResponse(
+                success=False,
+                message="You already have a password. Use 'Change Password' instead."
+            )
+        
+        if not password_request.is_new_password and not has_existing_password:
+            logger.warning(f"[PASSWORD] User {user_id} tried to change password but doesn't have one")
+            return UpdatePasswordResponse(
+                success=False,
+                message="No existing password found. Use 'Add Password' instead."
+            )
+        
+        # If changing password, delete the old encryption key first
+        if has_existing_password:
+            logger.info(f"[PASSWORD] Deleting existing password key for user {user_id}")
+            delete_success = await directus_service.delete_encryption_key(hashed_user_id, "password")
+            if not delete_success:
+                logger.error(f"[PASSWORD] Failed to delete existing password key for user {user_id}")
+                return UpdatePasswordResponse(
+                    success=False,
+                    message="Failed to update password. Please try again."
+                )
+        
+        # Create the new password encryption key
+        # First, create lookup hash entry in the user_lookup_hashes table or similar
+        # The lookup_hash is used for fast authentication during login
+        logger.info(f"[PASSWORD] Creating new password key for user {user_id}")
+        
+        # Store the new encryption key with password as login_method
+        success = await directus_service.create_encryption_key(
+            hashed_user_id=hashed_user_id,
+            login_method="password",
+            encrypted_key=password_request.encrypted_master_key,
+            salt=password_request.salt,
+            key_iv=password_request.key_iv
+        )
+        
+        if not success:
+            logger.error(f"[PASSWORD] Failed to create encryption key for user {user_id}")
+            return UpdatePasswordResponse(
+                success=False,
+                message="Failed to save password. Please try again."
+            )
+        
+        # Update lookup_hashes in the users table
+        # The lookup_hash allows the user to authenticate with password during login
+        try:
+            # Get existing lookup hashes
+            user_data = await directus_service.get_user_fields_direct(user_id, ["lookup_hashes"])
+            existing_hashes = user_data.get("lookup_hashes", []) if user_data else []
+            
+            if not isinstance(existing_hashes, list):
+                existing_hashes = []
+            
+            # Add new lookup hash if not already present
+            if password_request.lookup_hash not in existing_hashes:
+                existing_hashes.append(password_request.lookup_hash)
+                
+                # Update the user record with new lookup hashes
+                await directus_service.update_user(user_id, {"lookup_hashes": existing_hashes})
+                logger.info(f"[PASSWORD] Added lookup hash for user {user_id}")
+            
+        except Exception as e:
+            logger.error(f"[PASSWORD] Error updating lookup hashes for user {user_id}: {e}", exc_info=True)
+            # Don't fail the request - the encryption key is already stored
+            # The user might need to re-add password if lookup hash update failed
+        
+        # Invalidate login methods cache
+        login_methods_cache_key = f"login_methods:{user_id}"
+        await cache_service.delete(login_methods_cache_key)
+        logger.info(f"[PASSWORD] Invalidated login methods cache for user {user_id}")
+        
+        action = "added" if password_request.is_new_password else "changed"
+        logger.info(f"[PASSWORD] Password {action} successfully for user {user_id}")
+        
+        return UpdatePasswordResponse(
+            success=True,
+            message=f"Password {action} successfully"
+        )
+        
+    except Exception as e:
+        logger.error(f"[PASSWORD] Error updating password for user {current_user.id}: {str(e)}", exc_info=True)
+        return UpdatePasswordResponse(
+            success=False,
+            message="An error occurred while updating password. Please try again."
+        )

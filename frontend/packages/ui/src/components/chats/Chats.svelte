@@ -32,6 +32,7 @@
 	import { hiddenChatService } from '../../services/hiddenChatService'; // Import hidden chat service
 	import HiddenChatUnlock from './HiddenChatUnlock.svelte'; // Import hidden chat unlock component
 	import { getApiEndpoint } from '../../config/api'; // For API calls
+	import { isSelfHosted } from '../../stores/serverStatusStore'; // For self-hosted detection (initialized once at app load)
 
 	const dispatch = createEventDispatcher();
 
@@ -74,11 +75,34 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 	// Scroll state for ensuring scroll can reach 0 when hidden chats are unlocked
 	let activityHistoryElement: HTMLDivElement | null = $state(null); // Reference to scrollable container
 	let currentScrollTop = $state(0); // Track current scroll position for reactivity
+	
+	// Self-hosted mode state is now managed by serverStatusStore
+	// isSelfHosted is imported from the store (initialized once at app load to prevent UI flashing)
+	// When true, legal chats (privacy, terms, imprint) are hidden from the sidebar.
+
+	// --- Reactive Effects ---
+	
+	// Reactive sync: Update selectedChatId when activeChatStore changes (e.g., from deep links)
+	// This ensures the chat gets highlighted when loaded via deep link after component mount
+	// IMPORTANT: $effect must be at the top level, not inside onMount (Svelte 5 requirement)
+	$effect(() => {
+		const activeChat = $activeChatStore;
+		console.debug('[Chats] $effect triggered - activeChat:', activeChat, 'selectedChatId:', selectedChatId);
+		if (activeChat && activeChat !== selectedChatId) {
+			console.debug('[Chats] Syncing selectedChatId with activeChatStore:', activeChat);
+			selectedChatId = activeChat;
+		} else if (activeChat && activeChat === selectedChatId) {
+			console.debug('[Chats] selectedChatId already matches activeChat:', activeChat);
+		} else if (!activeChat) {
+			console.debug('[Chats] activeChat is null/empty');
+		}
+	});
 
 	// --- Reactive Computations for Display ---
 
 	// Get filtered public chats (demo + legal) - exclude hidden ones for authenticated users
-	// Legal chats are always shown (like demo chats) - they're public content and should be easily accessible
+	// Legal chats are shown only for non-self-hosted instances - they're OpenMates-specific documents
+	// For self-hosted instances, legal chats are excluded because operators should provide their own legal docs
 	// Translates demo chats to the user's locale before converting to Chat format
 	// Legal chats skip translation (they use plain text)
 	let visiblePublicChats = $derived((() => {
@@ -104,13 +128,20 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 				.map(demo => convertDemoChatToChat(demo));
 		}
 		
-		// Always include legal chats for all users (they're public content and should be easily accessible)
-		// Filter out hidden legal chats for authenticated users (uses same hidden_demo_chats mechanism)
-		// Legal chats skip translation (they use plain text, not translation keys)
-		const legalChats: ChatType[] = LEGAL_CHATS
-			.filter(legal => !hiddenIds.includes(legal.chat_id)) // Filter out hidden legal chats too
-			.map(legal => translateDemoChat(legal)) // Legal chats skip translation but still go through function
-			.map(legal => convertDemoChatToChat(legal));
+		// Include legal chats ONLY for non-self-hosted instances
+		// Self-hosted edition is for personal/internal team use only, so legal docs aren't needed:
+		// - No imprint: only required for commercial/public-facing websites
+		// - No privacy policy: GDPR "household exemption" applies to personal/private use
+		// - No terms of service: no third-party service relationship exists
+		let legalChats: ChatType[] = [];
+		if (!$isSelfHosted) {
+			// Filter out hidden legal chats for authenticated users (uses same hidden_demo_chats mechanism)
+			// Legal chats skip translation (they use plain text, not translation keys)
+			legalChats = LEGAL_CHATS
+				.filter(legal => !hiddenIds.includes(legal.chat_id)) // Filter out hidden legal chats too
+				.map(legal => translateDemoChat(legal)) // Legal chats skip translation but still go through function
+				.map(legal => convertDemoChatToChat(legal));
+		}
 		
 		return [...demoChats, ...legalChats];
 	})());
@@ -652,6 +683,9 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 	}
 
 	onMount(async () => {
+		// NOTE: Server status (isSelfHosted) is now managed by serverStatusStore
+		// and initialized once at app load in +layout.svelte to prevent UI flashing
+		
 		// CRITICAL: Check auth state FIRST before loading chats
 		// If user is not authenticated, clear any stale chat data immediately
 		if (!$authStore.isAuthenticated) {
@@ -688,20 +722,8 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 			console.debug('[Chats] Restored active chat from store:', currentActiveChat);
 		}
 
-		// Reactive sync: Update selectedChatId when activeChatStore changes (e.g., from deep links)
-		// This ensures the chat gets highlighted when loaded via deep link after component mount
-		$effect(() => {
-			const activeChat = $activeChatStore;
-			console.debug('[Chats] $effect triggered - activeChat:', activeChat, 'selectedChatId:', selectedChatId);
-			if (activeChat && activeChat !== selectedChatId) {
-				console.debug('[Chats] Syncing selectedChatId with activeChatStore:', activeChat);
-				selectedChatId = activeChat;
-			} else if (activeChat && activeChat === selectedChatId) {
-				console.debug('[Chats] selectedChatId already matches activeChat:', activeChat);
-			} else if (!activeChat) {
-				console.debug('[Chats] activeChat is null/empty');
-			}
-		});
+		// NOTE: Reactive sync of selectedChatId with activeChatStore is handled by
+		// the $effect at the top level of the script (Svelte 5 requires $effect at top level)
 		
 		// CHANGED: For non-authenticated users, don't show syncing indicator
 		// Demo chats are loaded synchronously, no sync needed

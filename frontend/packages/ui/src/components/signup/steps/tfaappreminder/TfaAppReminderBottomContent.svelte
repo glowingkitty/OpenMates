@@ -278,7 +278,7 @@ step_6_bottom_content_svelte:
         </div>
     </div>
     {#if errorMessage}
-        <InputWarning message={errorMessage} target={continueButtonElement} />
+        <InputWarning message={errorMessage} />
     {/if}
     {#if showContinueButton}
         <button bind:this={continueButtonElement} class="continue-button" onclick={handleContinue} disabled={isLoading}>

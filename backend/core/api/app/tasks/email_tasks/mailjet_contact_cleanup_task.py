@@ -54,9 +54,9 @@ async def _async_cleanup_mailjet_contact(recipient_email: str) -> bool:
     Follows the same logic as EmailTemplateService._best_effort_delete_mailjet_contact
     but runs as a separate delayed task to avoid timing issues.
     """
+    # Initialize SecretsManager outside try block so it's available in finally
+    secrets_manager = SecretsManager()
     try:
-        # Initialize SecretsManager
-        secrets_manager = SecretsManager()
         await secrets_manager.initialize()
 
         # Fetch Mailjet API keys
@@ -135,3 +135,11 @@ async def _async_cleanup_mailjet_contact(recipient_email: str) -> bool:
     except Exception as e:
         logger.warning(f"Mailjet contact cleanup failed (non-fatal): {e}")
         return True
+    finally:
+        # CRITICAL: Close async resources (like httpx clients) before the event loop closes
+        # This prevents "Event loop is closed" errors during cleanup
+        try:
+            await secrets_manager.aclose()
+            logger.debug("SecretsManager closed successfully for Mailjet contact cleanup task")
+        except Exception as cleanup_error:
+            logger.warning(f"Error closing SecretsManager during Mailjet cleanup: {cleanup_error}")

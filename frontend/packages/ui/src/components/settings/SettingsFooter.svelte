@@ -11,6 +11,15 @@
     
     const dispatch = createEventDispatcher();
     
+    // Props using Svelte 5 runes
+    // isSelfHosted: When true, hides the legal section (imprint, privacy, terms)
+    // because the self-hosted edition is for personal/internal team use only.
+    // For such use cases, legal documents (imprint, privacy policy, terms) are not required:
+    // - No imprint: only required for commercial/public-facing websites
+    // - No privacy policy: GDPR "household exemption" applies to personal/private use
+    // - No terms of service: no third-party service relationship exists
+    let { isSelfHosted = false }: { isSelfHosted?: boolean } = $props();
+    
     /**
      * Get the API documentation URL.
      * Returns the API domain with /docs path appended.
@@ -189,24 +198,31 @@
         >{@html $text('settings.email.text')}</a>
     </div>
 
-    <div class="submenu-group">
-        <h3>{@html $text('settings.legal.text')}</h3>
-        <a 
-            href={getWebsiteUrl(externalLinks.legal.imprint)} 
-            class="submenu-link" 
-            onclick={(e) => handleLegalLinkClick(e, 'imprint')}
-        >{@html $text('settings.imprint.text')}</a>
-        <a 
-            href={getWebsiteUrl(externalLinks.legal.privacyPolicy)} 
-            class="submenu-link" 
-            onclick={(e) => handleLegalLinkClick(e, 'privacy')}
-        >{@html $text('settings.privacy.text')}</a>
-        <a 
-            href={getWebsiteUrl(externalLinks.legal.terms)} 
-            class="submenu-link" 
-            onclick={(e) => handleLegalLinkClick(e, 'terms')}
-        >{@html $text('settings.terms_and_conditions.text')}</a>
-    </div>
+    <!-- Legal section: Only show for non-self-hosted instances -->
+    <!-- Self-hosted edition is for personal/internal team use only, so legal docs aren't needed: -->
+    <!-- - No imprint: only required for commercial/public-facing websites -->
+    <!-- - No privacy policy: GDPR "household exemption" applies to personal/private use -->
+    <!-- - No terms of service: no third-party service relationship exists -->
+    {#if !isSelfHosted}
+        <div class="submenu-group">
+            <h3>{@html $text('settings.legal.text')}</h3>
+            <a 
+                href={getWebsiteUrl(externalLinks.legal.imprint)} 
+                class="submenu-link" 
+                onclick={(e) => handleLegalLinkClick(e, 'imprint')}
+            >{@html $text('settings.imprint.text')}</a>
+            <a 
+                href={getWebsiteUrl(externalLinks.legal.privacyPolicy)} 
+                class="submenu-link" 
+                onclick={(e) => handleLegalLinkClick(e, 'privacy')}
+            >{@html $text('settings.privacy.text')}</a>
+            <a 
+                href={getWebsiteUrl(externalLinks.legal.terms)} 
+                class="submenu-link" 
+                onclick={(e) => handleLegalLinkClick(e, 'terms')}
+            >{@html $text('settings.terms_and_conditions.text')}</a>
+        </div>
+    {/if}
 
     <div class="submenu-group">
         <h3>Web app version</h3>

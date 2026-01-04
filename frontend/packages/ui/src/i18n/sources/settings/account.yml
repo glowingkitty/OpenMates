@@ -366,6 +366,98 @@ delete_account_auto_refund_gift_cards_note:
   cs: (Nelze vrátit po použití)
   sv: (Kan inte återbetalas när den väl använts)
   verified_by_human: []
+delete_account_refund_all_description:
+  context: Description explaining all unused credits will be refunded (except gift card credits)
+  en: All your unused credits will be automatically refunded to your original payment method.
+  de: Alle Ihre ungenutzten Credits werden automatisch auf Ihre ursprüngliche Zahlungsmethode zurückerstattet.
+  zh: 您所有未使用的积分将自动退还到您的原始支付方式。
+  es: Todos tus créditos no utilizados se reembolsarán automáticamente a tu método de pago original.
+  fr: Tous vos crédits non utilisés seront automatiquement remboursés sur votre méthode de paiement d'origine.
+  pt: Todos os seus créditos não utilizados serão reembolsados automaticamente para o seu método de pagamento original.
+  ru: Все ваши неиспользованные кредиты будут автоматически возвращены на ваш первоначальный способ оплаты.
+  ja: 未使用のクレジットはすべて、元のお支払い方法に自動的に返金されます。
+  ko: 모든 미사용 크레딧은 원래 결제 수단으로 자동 환불됩니다.
+  it: Tutti i tuoi crediti non utilizzati verranno automaticamente rimborsati sul tuo metodo di pagamento originale.
+  tr: Tüm kullanılmayan kredileriniz orijinal ödeme yönteminize otomatik olarak iade edilecektir.
+  vi: Tất cả tín dụng chưa sử dụng của bạn sẽ được tự động hoàn trả vào phương thức thanh toán ban đầu.
+  id: Semua kredit Anda yang tidak digunakan akan dikembalikan secara otomatis ke metode pembayaran asli Anda.
+  pl: Wszystkie Twoje niewykorzystane kredyty zostaną automatycznie zwrócone na oryginalną metodę płatności.
+  nl: Al uw ongebruikte credits worden automatisch teruggestort op uw oorspronkelijke betaalmethode.
+  ar: سيتم استرداد جميع رصيدك غير المستخدم تلقائيًا إلى طريقة الدفع الأصلية.
+  hi: आपके सभी अप्रयुक्त क्रेडिट स्वचालित रूप से आपकी मूल भुगतान विधि पर वापस कर दिए जाएंगे।
+  th: เครดิตที่ไม่ได้ใช้ทั้งหมดของคุณจะถูกคืนเงินโดยอัตโนมัติไปยังวิธีการชำระเงินเดิมของคุณ
+  cs: Všechny vaše nevyužité kredity budou automaticky vráceny na vaši původní platební metodu.
+  sv: Alla dina oanvända krediter kommer automatiskt att återbetalas till din ursprungliga betalningsmetod.
+  verified_by_human: []
+delete_account_refundable_credits:
+  context: Label for refundable credits count
+  en: Refundable Credits
+  de: Erstattungsfähige Credits
+  zh: 可退款积分
+  es: Créditos reembolsables
+  fr: Crédits remboursables
+  pt: Créditos reembolsáveis
+  ru: Возвратные кредиты
+  ja: 払い戻し可能なクレジット
+  ko: 환불 가능한 크레딧
+  it: Crediti rimborsabili
+  tr: İade edilebilir krediler
+  vi: Tín dụng có thể hoàn lại
+  id: Kredit yang dapat dikembalikan
+  pl: Kredyty podlegające zwrotowi
+  nl: Terugbetaalbare credits
+  ar: الرصيد القابل للاسترداد
+  hi: वापसी योग्य क्रेडिट
+  th: เครดิตที่สามารถคืนเงินได้
+  cs: Vratné kredity
+  sv: Återbetalningsbara krediter
+  verified_by_human: []
+delete_account_gift_card_credits_title:
+  context: Title for gift card credits notice section
+  en: Gift Card Credits
+  de: Geschenkkarten-Credits
+  zh: 礼品卡积分
+  es: Créditos de tarjeta de regalo
+  fr: Crédits de carte cadeau
+  pt: Créditos de cartão presente
+  ru: Кредиты подарочной карты
+  ja: ギフトカードクレジット
+  ko: 기프트 카드 크레딧
+  it: Crediti carta regalo
+  tr: Hediye kartı kredileri
+  vi: Tín dụng thẻ quà tặng
+  id: Kredit kartu hadiah
+  pl: Kredyty z karty podarunkowej
+  nl: Cadeaukaart credits
+  ar: رصيد بطاقة الهدايا
+  hi: उपहार कार्ड क्रेडिट
+  th: เครดิตบัตรของขวัญ
+  cs: Kredity z dárkové karty
+  sv: Presentkortskrediter
+  verified_by_human: []
+delete_account_gift_card_credits_message:
+  context: Message explaining gift card credits are not refundable
+  en: You have {count} credits from redeemed gift cards. These credits cannot be refunded as they were a gift.
+  de: Sie haben {count} Credits aus eingelösten Geschenkkarten. Diese Credits können nicht erstattet werden, da sie ein Geschenk waren.
+  zh: 您有 {count} 个来自已兑换礼品卡的积分。这些积分因为是礼物无法退款。
+  es: Tienes {count} créditos de tarjetas de regalo canjeadas. Estos créditos no se pueden reembolsar ya que fueron un regalo.
+  fr: Vous avez {count} crédits provenant de cartes cadeaux échangées. Ces crédits ne peuvent pas être remboursés car ils étaient un cadeau.
+  pt: Você tem {count} créditos de cartões presente resgatados. Esses créditos não podem ser reembolsados pois foram um presente.
+  ru: У вас {count} кредитов от погашенных подарочных карт. Эти кредиты не могут быть возвращены, так как они были подарком.
+  ja: 引き換えたギフトカードから {count} クレジットがあります。これらのクレジットはギフトだったため返金できません。
+  ko: 사용한 기프트 카드에서 {count} 크레딧이 있습니다. 이 크레딧은 선물이었으므로 환불할 수 없습니다.
+  it: Hai {count} crediti da carte regalo riscattate. Questi crediti non possono essere rimborsati perché erano un regalo.
+  tr: Kullandığınız hediye kartlarından {count} krediniz var. Bu krediler hediye olduğu için iade edilemez.
+  vi: Bạn có {count} tín dụng từ thẻ quà tặng đã đổi. Những tín dụng này không thể hoàn lại vì chúng là quà tặng.
+  id: Anda memiliki {count} kredit dari kartu hadiah yang ditukarkan. Kredit ini tidak dapat dikembalikan karena merupakan hadiah.
+  pl: Masz {count} kredytów z zrealizowanych kart podarunkowych. Te kredyty nie mogą zostać zwrócone, ponieważ były prezentem.
+  nl: U heeft {count} credits van ingewisselde cadeaukaarten. Deze credits kunnen niet worden terugbetaald omdat ze een cadeau waren.
+  ar: لديك {count} رصيد من بطاقات الهدايا المستردة. لا يمكن استرداد هذا الرصيد لأنه كان هدية.
+  hi: आपके पास भुनाए गए उपहार कार्ड से {count} क्रेडिट हैं। ये क्रेडिट वापस नहीं किए जा सकते क्योंकि वे उपहार थे।
+  th: คุณมี {count} เครดิตจากบัตรของขวัญที่แลกแล้ว เครดิตเหล่านี้ไม่สามารถคืนเงินได้เนื่องจากเป็นของขวัญ
+  cs: Máte {count} kreditů z uplatněných dárkových karet. Tyto kredity nelze vrátit, protože byly dárkem.
+  sv: Du har {count} krediter från inlösta presentkort. Dessa krediter kan inte återbetalas eftersom de var en gåva.
+  verified_by_human: []
 delete_account_data_deletion_warning_title:
   context: Title for data deletion warning
   en: Data Deletion Warning
@@ -942,5 +1034,122 @@ export_login_required:
   th: คุณต้องเข้าสู่ระบบเพื่อส่งออกข้อมูลของคุณ
   cs: Pro export dat musíte být přihlášeni.
   sv: Du måste vara inloggad för att exportera dina data.
+  verified_by_human: []
+
+# --- Password Settings ---
+password:
+  context: Password submenu under Security settings
+  en: Password
+  de: Passwort
+  zh: 密码
+  es: Contraseña
+  fr: Mot de passe
+  pt: Senha
+  ru: Пароль
+  ja: パスワード
+  ko: 비밀번호
+  it: Password
+  tr: Şifre
+  vi: Mật khẩu
+  id: Kata sandi
+  pl: Hasło
+  nl: Wachtwoord
+  ar: كلمة المرور
+  hi: पासवर्ड
+  th: รหัสผ่าน
+  cs: Heslo
+  sv: Lösenord
+  verified_by_human: []
+password_add:
+  context: Subtitle when user needs to add password
+  en: Add password login
+  de: Passwort-Login hinzufügen
+  zh: 添加密码登录
+  es: Agregar inicio de sesión con contraseña
+  fr: Ajouter connexion par mot de passe
+  pt: Adicionar login com senha
+  ru: Добавить вход по паролю
+  ja: パスワードログインを追加
+  ko: 비밀번호 로그인 추가
+  it: Aggiungi accesso con password
+  tr: Şifre ile giriş ekle
+  vi: Thêm đăng nhập bằng mật khẩu
+  id: Tambahkan login kata sandi
+  pl: Dodaj logowanie hasłem
+  nl: Wachtwoord login toevoegen
+  ar: إضافة تسجيل الدخول بكلمة المرور
+  hi: पासवर्ड लॉगिन जोड़ें
+  th: เพิ่มการเข้าสู่ระบบด้วยรหัสผ่าน
+  cs: Přidat přihlášení heslem
+  sv: Lägg till lösenordsinloggning
+  verified_by_human: []
+password_change:
+  context: Subtitle when user already has password
+  en: Change your password
+  de: Passwort ändern
+  zh: 更改密码
+  es: Cambiar tu contraseña
+  fr: Changer votre mot de passe
+  pt: Alterar sua senha
+  ru: Изменить пароль
+  ja: パスワードを変更
+  ko: 비밀번호 변경
+  it: Cambia la tua password
+  tr: Şifrenizi değiştirin
+  vi: Đổi mật khẩu
+  id: Ubah kata sandi Anda
+  pl: Zmień hasło
+  nl: Wachtwoord wijzigen
+  ar: تغيير كلمة المرور
+  hi: अपना पासवर्ड बदलें
+  th: เปลี่ยนรหัสผ่าน
+  cs: Změnit heslo
+  sv: Ändra lösenord
+  verified_by_human: []
+add_password:
+  context: Title for add password page
+  en: Add Password
+  de: Passwort hinzufügen
+  zh: 添加密码
+  es: Agregar contraseña
+  fr: Ajouter un mot de passe
+  pt: Adicionar senha
+  ru: Добавить пароль
+  ja: パスワードを追加
+  ko: 비밀번호 추가
+  it: Aggiungi password
+  tr: Şifre ekle
+  vi: Thêm mật khẩu
+  id: Tambahkan kata sandi
+  pl: Dodaj hasło
+  nl: Wachtwoord toevoegen
+  ar: إضافة كلمة المرور
+  hi: पासवर्ड जोड़ें
+  th: เพิ่มรหัสผ่าน
+  cs: Přidat heslo
+  sv: Lägg till lösenord
+  verified_by_human: []
+change_password:
+  context: Title for change password page
+  en: Change Password
+  de: Passwort ändern
+  zh: 更改密码
+  es: Cambiar contraseña
+  fr: Changer le mot de passe
+  pt: Alterar senha
+  ru: Изменить пароль
+  ja: パスワードを変更
+  ko: 비밀번호 변경
+  it: Cambia password
+  tr: Şifreyi değiştir
+  vi: Đổi mật khẩu
+  id: Ubah kata sandi
+  pl: Zmień hasło
+  nl: Wachtwoord wijzigen
+  ar: تغيير كلمة المرور
+  hi: पासवर्ड बदलें
+  th: เปลี่ยนรหัสผ่าน
+  cs: Změnit heslo
+  sv: Ändra lösenord
   verified_by_human: []
 

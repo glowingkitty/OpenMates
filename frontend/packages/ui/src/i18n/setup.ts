@@ -105,13 +105,19 @@ LANGUAGE_CODES.forEach(locale => {
 // Initialize i18n immediately when module loads (synchronous)
 // This MUST happen before any component tries to use $_ or other i18n functions
 // The init() call sets up the locale store and makes waitLocale() work properly
+const initialLocale = browser ? getCurrentLanguage() : 'en';
 init({
     fallbackLocale: 'en',
-    initialLocale: browser 
-        ? getCurrentLanguage() // Use getCurrentLanguage to determine initial locale
-        : 'en',
+    initialLocale: initialLocale,
     warnOnMissingMessages: true
 });
+
+// Update HTML lang attribute to match the initial locale
+// This prevents browser auto-translate from activating when the app already provides translations
+// Browser translate can cause rendering bugs with dynamic text (e.g., repeating/scrolling text)
+if (browser && typeof document !== 'undefined') {
+    document.documentElement.setAttribute('lang', initialLocale);
+}
 
 // Async function for explicit initialization if needed
 // This is mainly for backwards compatibility - the init() above already ran

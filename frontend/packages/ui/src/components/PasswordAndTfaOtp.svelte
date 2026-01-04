@@ -13,8 +13,18 @@
     import * as cryptoService from '../services/cryptoService';
     import { updateProfile } from '../stores/userProfile';
     import { getSessionId } from '../utils/sessionId';
+    import { notificationStore } from '../stores/notificationStore';
+    import AccountRecovery from './AccountRecovery.svelte';
 
     const dispatch = createEventDispatcher();
+    
+    // State for account recovery view
+    let showAccountRecovery = $state(false);
+    
+    // Notify parent when account recovery mode changes (for inactivity timer management)
+    $effect(() => {
+        dispatch('accountRecoveryModeChanged', { active: showAccountRecovery });
+    });
 
     // Props using Svelte 5 runes mode
     let { 
@@ -620,7 +630,43 @@
 </script>
 
 <div class="password-tfa-login" in:fade={{ duration: 300 }}>
-    {#if isRateLimited}
+    {#if showAccountRecovery}
+        <!-- Account Recovery UI - replaces the login form -->
+        <AccountRecovery
+            {email}
+            on:back={() => {
+                showAccountRecovery = false;
+            }}
+            on:resetComplete={() => {
+                // Account reset completed successfully
+                // CRITICAL: Do NOT dispatch loginSuccess - user is NOT logged in!
+                // The backend resets credentials but does NOT create a session.
+                // User must login with their new credentials.
+                console.log('[PasswordAndTfaOtp] Account reset completed, returning to login');
+                
+                // CRITICAL: Clear the old email salt from storage!
+                // After recovery, the server has a NEW user_email_salt.
+                // We must clear the old one so the /lookup endpoint returns the new salt.
+                // Otherwise, login will fail with "Invalid lookup hash" because
+                // the client would compute lookup_hash with the old salt.
+                cryptoService.clearEmailSalt();
+                cryptoService.clearEmailEncryptionKey();
+                console.log('[PasswordAndTfaOtp] Cleared old email salt and encryption key after account reset');
+                
+                // Show success notification with instructions to login
+                notificationStore.success(
+                    $text('login.account_reset_complete_login_now.text'),
+                    8000
+                );
+                
+                // Dispatch backToEmail event to FULLY RESET the login interface
+                // This clears the email and returns to the initial login state where
+                // the user must either click "Login with passkey" or enter their email.
+                // NOTE: We use 'backToEmail' (not 'back') because Login.svelte listens for this event.
+                dispatch('backToEmail');
+            }}
+        />
+    {:else if isRateLimited}
         <div class="rate-limit-message" in:fade={{ duration: 200 }}>
             {$text('signup.too_many_requests.text')}
         </div>
@@ -660,7 +706,6 @@
                 {#if errorMessage}
                     <InputWarning
                         message={errorMessage}
-                        target={passwordInput}
                     />
                 {/if}
             </div>
@@ -720,7 +765,6 @@
                     {#if tfaErrorMessage}
                         <InputWarning
                             message={tfaErrorMessage}
-                            target={tfaInput}
                         />
                     {/if}
                 </div>
@@ -740,8 +784,9 @@
             {/if}
         </button>
     </form>
+    {/if}
 
-    <!-- Login options container -->
+    <!-- Login options container - always visible -->
     <div class="login-options-container">
         <!-- Back to email button -->
         <div id="login-with-another-account" style={getStyle('login-with-another-account')}>
@@ -751,8 +796,8 @@
             </button>
         </div>
 
-        <!-- Toggle Button - only if TFA is required -->
-        {#if tfaRequiredState}
+        <!-- Toggle Button - only if TFA is required and not in account recovery mode -->
+        {#if tfaRequiredState && !showAccountRecovery}
         <div id="login-with-backup-code" style={getStyle('login-with-backup-code')}>
             <button class="login-option-button" onclick={toggleBackupMode} disabled={isLoading}>
                 {#if isBackupMode}
@@ -765,15 +810,27 @@
         </div>
         {/if}
 
-        <!-- Login options -->
+        <!-- Login with recovery key -->
         <div id="login-with-recoverykey" style={getStyle('login-with-recoverykey')}>
             <button class="login-option-button" onclick={handleSwitchToRecoveryKey}>
                 <span class="clickable-icon icon_warning"></span>
                 <mark>{$text('login.login_with_recovery_key.text')}</mark>
             </button>
         </div>
+        
+        <!-- Can't login to account? - only show when NOT in account recovery mode -->
+        {#if !showAccountRecovery}
+        <div class="cant-login-divider">
+            <hr />
+        </div>
+        <div id="cant-login">
+            <button class="login-option-button cant-login-button" onclick={() => showAccountRecovery = true}>
+                <span class="clickable-icon icon_warning"></span>
+                <mark>{$text('login.cant_login.text')}</mark>
+            </button>
+        </div>
+        {/if}
     </div>
-    {/if}
 </div>
 
 <style>
@@ -855,5 +912,14 @@
         background-color: var(--color-error-light);
         border-radius: 8px;
         margin: 24px 0;
+    }
+    
+    .cant-login-divider {
+        width: 100%;
+    }
+    
+    .cant-login-divider hr {
+        border: none;
+        border-top: 1px solid var(--color-grey-30);
     }
 </style>

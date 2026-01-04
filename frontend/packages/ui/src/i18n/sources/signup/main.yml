@@ -671,6 +671,52 @@ repeat_password:
   cs: Zopakujte heslo
   sv: ''
   verified_by_human: []
+create_password:
+  context: Instruction text for creating a new password during account recovery
+  en: Create your new password
+  de: Erstelle dein neues Passwort
+  zh: 创建您的新密码
+  es: Crea tu nueva contraseña
+  fr: Créez votre nouveau mot de passe
+  pt: Crie sua nova senha
+  ru: Создайте новый пароль
+  ja: 新しいパスワードを作成
+  ko: 새 비밀번호를 만드세요
+  it: Crea la tua nuova password
+  tr: Yeni şifrenizi oluşturun
+  vi: Tạo mật khẩu mới của bạn
+  id: Buat kata sandi baru Anda
+  pl: Utwórz nowe hasło
+  nl: Maak je nieuwe wachtwoord aan
+  ar: أنشئ كلمة مرورك الجديدة
+  hi: अपना नया पासवर्ड बनाएं
+  th: สร้างรหัสผ่านใหม่ของคุณ
+  cs: Vytvořte si nové heslo
+  sv: ''
+  verified_by_human: []
+confirm_password:
+  context: Placeholder text for confirm password input field during account recovery
+  en: Confirm password
+  de: Passwort bestätigen
+  zh: 确认密码
+  es: Confirmar contraseña
+  fr: Confirmer le mot de passe
+  pt: Confirmar senha
+  ru: Подтвердите пароль
+  ja: パスワードを確認
+  ko: 비밀번호 확인
+  it: Conferma password
+  tr: Şifreyi onayla
+  vi: Xác nhận mật khẩu
+  id: Konfirmasi kata sandi
+  pl: Potwierdź hasło
+  nl: Bevestig wachtwoord
+  ar: تأكيد كلمة المرور
+  hi: पासवर्ड की पुष्टि करें
+  th: ยืนยันรหัสผ่าน
+  cs: Potvrďte heslo
+  sv: ''
+  verified_by_human: []
 passwords_do_not_match:
   context: Error message shown when passwords do not match
   en: Passwords do not match
@@ -2527,6 +2573,52 @@ copy_secret:
   th: คัดลอกคีย์ลับ
   cs: Kopírovat tajný klíč
   sv: Kopiera hemlighet
+  verified_by_human: []
+or_enter_manually:
+  context: Label for manual 2FA secret entry option
+  en: Or enter manually
+  de: Oder manuell eingeben
+  zh: 或手动输入
+  es: O ingresar manualmente
+  fr: Ou entrer manuellement
+  pt: Ou digite manualmente
+  ru: Или введите вручную
+  ja: または手動で入力
+  ko: 또는 수동으로 입력
+  it: O inserisci manualmente
+  tr: Veya manuel olarak girin
+  vi: Hoặc nhập thủ công
+  id: Atau masukkan secara manual
+  pl: Lub wprowadź ręcznie
+  nl: Of handmatig invoeren
+  ar: أو أدخل يدويًا
+  hi: या मैन्युअल रूप से दर्ज करें
+  th: หรือป้อนด้วยตนเอง
+  cs: Nebo zadejte ručně
+  sv: Eller ange manuellt
+  verified_by_human: []
+which_2fa_app:
+  context: Label asking which 2FA app the user is using
+  en: Which 2FA app are you using?
+  de: Welche 2FA-App verwendest du?
+  zh: 您使用的是哪个2FA应用？
+  es: ¿Qué aplicación 2FA estás usando?
+  fr: Quelle application 2FA utilisez-vous ?
+  pt: Qual aplicativo 2FA você está usando?
+  ru: Какое 2FA приложение вы используете?
+  ja: どの2FAアプリを使用していますか？
+  ko: 어떤 2FA 앱을 사용하고 있나요?
+  it: Quale app 2FA stai usando?
+  tr: Hangi 2FA uygulamasını kullanıyorsunuz?
+  vi: Bạn đang sử dụng ứng dụng 2FA nào?
+  id: Aplikasi 2FA mana yang Anda gunakan?
+  pl: Której aplikacji 2FA używasz?
+  nl: Welke 2FA-app gebruikt u?
+  ar: ما هو تطبيق 2FA الذي تستخدمه؟
+  hi: आप कौन सा 2FA ऐप इस्तेमाल कर रहे हैं?
+  th: คุณใช้แอป 2FA อันไหน?
+  cs: Jakou 2FA aplikaci používáte?
+  sv: Vilken 2FA-app använder du?
   verified_by_human: []
 dont_have_2fa_app:
   context: Asking the user if they don't have a 2FA app yet
@@ -5609,4 +5701,533 @@ newsletter.invalid_email:
   th: กรุณากรอกที่อยู่อีเมลที่ถูกต้อง
   cs: Zadejte prosím platnou e-mailovou adresu
   sv: Ange en giltig e-postadress
+  verified_by_human: []
+generating_recovery_key:
+  context: Loading text shown while generating the recovery key during signup
+  en: Generating your recovery key...
+  de: Ihr Wiederherstellungsschlüssel wird erstellt...
+  zh: 正在生成您的恢复密钥...
+  es: Generando tu clave de recuperación...
+  fr: Génération de votre clé de récupération...
+  pt: Gerando sua chave de recuperação...
+  ru: Создание ключа восстановления...
+  ja: 回復キーを生成中...
+  ko: 복구 키를 생성하는 중...
+  it: Generazione della chiave di recupero...
+  tr: Kurtarma anahtarınız oluşturuluyor...
+  vi: Đang tạo khóa khôi phục của bạn...
+  id: Membuat kunci pemulihan Anda...
+  pl: Generowanie klucza odzyskiwania...
+  nl: Je herstelsleutel wordt gegenereerd...
+  ar: جارٍ إنشاء مفتاح الاسترداد الخاص بك...
+  hi: आपकी पुनर्प्राप्ति कुंजी बनाई जा रही है...
+  th: กำลังสร้างคีย์กู้คืนของคุณ...
+  cs: Generování vašeho klíče pro obnovení...
+  sv: Genererar din återställningsnyckel...
+  verified_by_human: []
+recovery_key_mandatory_description:
+  context: Description explaining that recovery key is mandatory and its purpose
+  en: Your recovery key is being automatically generated and downloaded. This key is essential for account recovery if you ever lose access to your login method.
+  de: Ihr Wiederherstellungsschlüssel wird automatisch erstellt und heruntergeladen. Dieser Schlüssel ist wichtig für die Kontowiederherstellung, falls Sie den Zugang zu Ihrer Anmeldemethode verlieren.
+  zh: 您的恢复密钥正在自动生成并下载。如果您丢失了登录方式的访问权限，此密钥对于帐户恢复至关重要。
+  es: Tu clave de recuperación se está generando y descargando automáticamente. Esta clave es esencial para recuperar tu cuenta si alguna vez pierdes el acceso a tu método de inicio de sesión.
+  fr: Votre clé de récupération est en cours de génération et de téléchargement automatique. Cette clé est essentielle pour la récupération de votre compte si vous perdez l'accès à votre méthode de connexion.
+  pt: Sua chave de recuperação está sendo gerada e baixada automaticamente. Esta chave é essencial para a recuperação da conta caso você perca o acesso ao seu método de login.
+  ru: Ваш ключ восстановления автоматически генерируется и загружается. Этот ключ необходим для восстановления учётной записи, если вы потеряете доступ к способу входа.
+  ja: 回復キーが自動的に生成およびダウンロードされています。このキーは、ログイン方法へのアクセスを失った場合のアカウント回復に不可欠です。
+  ko: 복구 키가 자동으로 생성되어 다운로드됩니다. 이 키는 로그인 방법에 대한 액세스 권한을 잃어버린 경우 계정 복구에 필수적입니다.
+  it: La tua chiave di recupero viene generata e scaricata automaticamente. Questa chiave è essenziale per il recupero dell'account in caso di perdita dell'accesso al metodo di accesso.
+  tr: Kurtarma anahtarınız otomatik olarak oluşturuluyor ve indiriliyor. Bu anahtar, giriş yönteminize erişiminizi kaybetmeniz durumunda hesap kurtarma için gereklidir.
+  vi: Khóa khôi phục của bạn đang được tạo và tải xuống tự động. Khóa này rất cần thiết để khôi phục tài khoản nếu bạn mất quyền truy cập vào phương thức đăng nhập.
+  id: Kunci pemulihan Anda sedang dibuat dan diunduh secara otomatis. Kunci ini penting untuk pemulihan akun jika Anda kehilangan akses ke metode login Anda.
+  pl: Twój klucz odzyskiwania jest automatycznie generowany i pobierany. Ten klucz jest niezbędny do odzyskania konta, jeśli utracisz dostęp do metody logowania.
+  nl: Je herstelsleutel wordt automatisch gegenereerd en gedownload. Deze sleutel is essentieel voor accountherstel als je ooit de toegang tot je inlogmethode verliest.
+  ar: يتم إنشاء مفتاح الاسترداد الخاص بك وتنزيله تلقائيًا. هذا المفتاح ضروري لاسترداد الحساب إذا فقدت الوصول إلى طريقة تسجيل الدخول الخاصة بك.
+  hi: आपकी पुनर्प्राप्ति कुंजी स्वचालित रूप से बनाई और डाउनलोड की जा रही है। यदि आप अपनी लॉगिन विधि तक पहुंच खो देते हैं तो खाता पुनर्प्राप्ति के लिए यह कुंजी आवश्यक है।
+  th: คีย์กู้คืนของคุณกำลังถูกสร้างและดาวน์โหลดโดยอัตโนมัติ คีย์นี้มีความจำเป็นสำหรับการกู้คืนบัญชีหากคุณสูญเสียการเข้าถึงวิธีการเข้าสู่ระบบของคุณ
+  cs: Váš klíč pro obnovení je automaticky generován a stahován. Tento klíč je nezbytný pro obnovení účtu, pokud ztratíte přístup ke své přihlašovací metodě.
+  sv: Din återställningsnyckel genereras och laddas ner automatiskt. Denna nyckel är nödvändig för kontoåterställning om du förlorar åtkomst till din inloggningsmetod.
+  verified_by_human: []
+recovery_key_downloaded:
+  context: Message shown after recovery key file has been downloaded
+  en: Your recovery key has been downloaded.
+  de: Ihr Wiederherstellungsschlüssel wurde heruntergeladen.
+  zh: 您的恢复密钥已下载。
+  es: Tu clave de recuperación ha sido descargada.
+  fr: Votre clé de récupération a été téléchargée.
+  pt: Sua chave de recuperação foi baixada.
+  ru: Ваш ключ восстановления загружен.
+  ja: 回復キーがダウンロードされました。
+  ko: 복구 키가 다운로드되었습니다.
+  it: La tua chiave di recupero è stata scaricata.
+  tr: Kurtarma anahtarınız indirildi.
+  vi: Khóa khôi phục của bạn đã được tải xuống.
+  id: Kunci pemulihan Anda telah diunduh.
+  pl: Twój klucz odzyskiwania został pobrany.
+  nl: Je herstelsleutel is gedownload.
+  ar: تم تنزيل مفتاح الاسترداد الخاص بك.
+  hi: आपकी पुनर्प्राप्ति कुंजी डाउनलोड हो गई है।
+  th: คีย์กู้คืนของคุณถูกดาวน์โหลดแล้ว
+  cs: Váš klíč pro obnovení byl stažen.
+  sv: Din återställningsnyckel har laddats ner.
+  verified_by_human: []
+download_again:
+  context: Button text to re-download the recovery key file
+  en: Download Again
+  de: Erneut herunterladen
+  zh: 再次下载
+  es: Descargar de nuevo
+  fr: Télécharger à nouveau
+  pt: Baixar novamente
+  ru: Скачать снова
+  ja: 再度ダウンロード
+  ko: 다시 다운로드
+  it: Scarica di nuovo
+  tr: Tekrar İndir
+  vi: Tải xuống lại
+  id: Unduh Lagi
+  pl: Pobierz ponownie
+  nl: Opnieuw downloaden
+  ar: تنزيل مرة أخرى
+  hi: फिर से डाउनलोड करें
+  th: ดาวน์โหลดอีกครั้ง
+  cs: Stáhnout znovu
+  sv: Ladda ner igen
+  verified_by_human: []
+recovery_key_only_way:
+  context: Important notice explaining recovery key is the only way to recover account
+  en: <strong>Important:</strong> This recovery key is the only way to recover your account if you lose access to your login method. Store it securely.
+  de: <strong>Wichtig:</strong> Dieser Wiederherstellungsschlüssel ist die einzige Möglichkeit, Ihr Konto wiederherzustellen, wenn Sie den Zugang zu Ihrer Anmeldemethode verlieren. Bewahren Sie ihn sicher auf.
+  zh: <strong>重要：</strong>如果您丢失了登录方式的访问权限，此恢复密钥是恢复您帐户的唯一方法。请妥善保管。
+  es: <strong>Importante:</strong> Esta clave de recuperación es la única forma de recuperar tu cuenta si pierdes el acceso a tu método de inicio de sesión. Guárdala de forma segura.
+  fr: <strong>Important :</strong> Cette clé de récupération est le seul moyen de récupérer votre compte si vous perdez l'accès à votre méthode de connexion. Conservez-la en lieu sûr.
+  pt: <strong>Importante:</strong> Esta chave de recuperação é a única forma de recuperar sua conta se você perder o acesso ao seu método de login. Armazene-a com segurança.
+  ru: <strong>Важно:</strong> Этот ключ восстановления — единственный способ восстановить вашу учётную запись, если вы потеряете доступ к способу входа. Храните его надёжно.
+  ja: <strong>重要：</strong>この回復キーは、ログイン方法へのアクセスを失った場合にアカウントを回復する唯一の方法です。安全に保管してください。
+  ko: <strong>중요:</strong> 이 복구 키는 로그인 방법에 대한 액세스 권한을 잃어버린 경우 계정을 복구할 수 있는 유일한 방법입니다. 안전하게 보관하세요.
+  it: <strong>Importante:</strong> Questa chiave di recupero è l'unico modo per recuperare il tuo account se perdi l'accesso al tuo metodo di accesso. Conservala in modo sicuro.
+  tr: <strong>Önemli:</strong> Bu kurtarma anahtarı, giriş yönteminize erişiminizi kaybetmeniz durumunda hesabınızı kurtarmanın tek yoludur. Güvenli bir şekilde saklayın.
+  vi: <strong>Quan trọng:</strong> Khóa khôi phục này là cách duy nhất để khôi phục tài khoản của bạn nếu bạn mất quyền truy cập vào phương thức đăng nhập. Hãy lưu trữ nó một cách an toàn.
+  id: <strong>Penting:</strong> Kunci pemulihan ini adalah satu-satunya cara untuk memulihkan akun Anda jika Anda kehilangan akses ke metode login Anda. Simpan dengan aman.
+  pl: <strong>Ważne:</strong> Ten klucz odzyskiwania jest jedynym sposobem na odzyskanie konta, jeśli utracisz dostęp do metody logowania. Przechowuj go bezpiecznie.
+  nl: <strong>Belangrijk:</strong> Deze herstelsleutel is de enige manier om je account te herstellen als je de toegang tot je inlogmethode verliest. Bewaar hem veilig.
+  ar: <strong>مهم:</strong> مفتاح الاسترداد هذا هو الطريقة الوحيدة لاسترداد حسابك إذا فقدت الوصول إلى طريقة تسجيل الدخول الخاصة بك. احتفظ به بأمان.
+  hi: <strong>महत्वपूर्ण:</strong> यदि आप अपनी लॉगिन विधि तक पहुंच खो देते हैं तो यह पुनर्प्राप्ति कुंजी आपके खाते को पुनर्प्राप्त करने का एकमात्र तरीका है। इसे सुरक्षित रूप से स्टोर करें।
+  th: <strong>สำคัญ:</strong> คีย์กู้คืนนี้เป็นวิธีเดียวในการกู้คืนบัญชีของคุณหากคุณสูญเสียการเข้าถึงวิธีการเข้าสู่ระบบของคุณ เก็บรักษาอย่างปลอดภัย
+  cs: <strong>Důležité:</strong> Tento klíč pro obnovení je jediný způsob, jak obnovit váš účet, pokud ztratíte přístup ke své přihlašovací metodě. Uložte jej bezpečně.
+  sv: <strong>Viktigt:</strong> Denna återställningsnyckel är det enda sättet att återställa ditt konto om du förlorar åtkomst till din inloggningsmetod. Förvara den säkert.
+  verified_by_human: []
+choose_how_to_save:
+  context: Instruction text asking user to choose how to save their recovery key
+  en: "Choose how to save your recovery key:"
+  de: "Wählen Sie, wie Sie Ihren Wiederherstellungsschlüssel speichern möchten:"
+  zh: "选择如何保存您的恢复密钥："
+  es: "Elige cómo guardar tu clave de recuperación:"
+  fr: "Choisissez comment sauvegarder votre clé de récupération :"
+  pt: "Escolha como salvar sua chave de recuperação:"
+  ru: "Выберите способ сохранения ключа восстановления:"
+  ja: "回復キーの保存方法を選択してください："
+  ko: "복구 키를 저장할 방법을 선택하세요:"
+  it: "Scegli come salvare la tua chiave di recupero:"
+  tr: "Kurtarma anahtarınızı nasıl kaydedeceğinizi seçin:"
+  vi: "Chọn cách lưu khóa khôi phục của bạn:"
+  id: "Pilih cara menyimpan kunci pemulihan Anda:"
+  pl: "Wybierz sposób zapisania klucza odzyskiwania:" 
+  nl: "Kies hoe je je herstelsleutel wilt opslaan:"
+  ar: "اختر كيفية حفظ مفتاح الاسترداد الخاص بك:"  
+  hi: "अपनी पुनर्प्राप्ति कुंजी को सहेजने का तरीका चुनें:"
+  th: "เลือกวิธีบันทึกคีย์กู้คืนของคุณ:"
+  cs: "Zvolte způsob uložení klíče pro obnovení:"
+  sv: "Välj hur du vill spara din återställningsnyckel:"
+  verified_by_human: []
+recovery_key_save_description:
+  context: Description explaining that the recovery key allows account recovery
+  en: This recovery key allows you to recover your account if you lose access to your {login_secret}. Save it securely before continuing.
+  de: Dieser Wiederherstellungsschlüssel ermöglicht es Ihnen, Ihr Konto wiederherzustellen, wenn Sie den Zugang zu Ihrem {login_secret} verlieren. Speichern Sie ihn sicher, bevor Sie fortfahren.
+  zh: 如果您丢失了 {login_secret} 的访问权限，此恢复密钥可让您恢复帐户。请在继续之前安全保存。
+  es: Esta clave de recuperación te permite recuperar tu cuenta si pierdes el acceso a tu {login_secret}. Guárdala de forma segura antes de continuar.
+  fr: Cette clé de récupération vous permet de récupérer votre compte si vous perdez l'accès à votre {login_secret}. Sauvegardez-la en lieu sûr avant de continuer.
+  pt: Esta chave de recuperação permite recuperar sua conta se você perder o acesso ao seu {login_secret}. Salve-a com segurança antes de continuar.
+  ru: Этот ключ восстановления позволяет восстановить вашу учётную запись, если вы потеряете доступ к {login_secret}. Сохраните его надёжно перед продолжением.
+  ja: この回復キーは、{login_secret}へのアクセスを失った場合にアカウントを回復できます。続行する前に安全に保存してください。
+  ko: 이 복구 키를 사용하면 {login_secret}에 대한 액세스 권한을 잃어버린 경우 계정을 복구할 수 있습니다. 계속하기 전에 안전하게 저장하세요.
+  it: Questa chiave di recupero ti permette di recuperare il tuo account se perdi l'accesso al tuo {login_secret}. Salvala in modo sicuro prima di continuare.
+  tr: Bu kurtarma anahtarı, {login_secret} erişiminizi kaybetmeniz durumunda hesabınızı kurtarmanızı sağlar. Devam etmeden önce güvenli bir şekilde kaydedin.
+  vi: Khóa khôi phục này cho phép bạn khôi phục tài khoản nếu bạn mất quyền truy cập vào {login_secret}. Hãy lưu nó an toàn trước khi tiếp tục.
+  id: Kunci pemulihan ini memungkinkan Anda memulihkan akun jika kehilangan akses ke {login_secret}. Simpan dengan aman sebelum melanjutkan.
+  pl: Ten klucz odzyskiwania umożliwia odzyskanie konta w przypadku utraty dostępu do {login_secret}. Zapisz go bezpiecznie przed kontynuowaniem.
+  nl: Met deze herstelsleutel kun je je account herstellen als je de toegang tot je {login_secret} verliest. Bewaar deze veilig voordat je verdergaat.
+  ar: يتيح لك مفتاح الاسترداد هذا استرداد حسابك إذا فقدت الوصول إلى {login_secret}. احفظه بأمان قبل المتابعة.
+  hi: यह पुनर्प्राप्ति कुंजी आपको अपना खाता पुनर्प्राप्त करने की अनुमति देती है यदि आप अपने {login_secret} तक पहुंच खो देते हैं। जारी रखने से पहले इसे सुरक्षित रूप से सहेजें।
+  th: คีย์กู้คืนนี้ช่วยให้คุณกู้คืนบัญชีได้หากคุณสูญเสียการเข้าถึง {login_secret} บันทึกอย่างปลอดภัยก่อนดำเนินการต่อ
+  cs: Tento klíč pro obnovení vám umožní obnovit účet, pokud ztratíte přístup k {login_secret}. Uložte jej bezpečně, než budete pokračovat.
+  sv: Denna återställningsnyckel låter dig återställa ditt konto om du förlorar åtkomst till din {login_secret}. Spara den säkert innan du fortsätter.
+  verified_by_human: []
+recovery_key_loss_warning:
+  context: Warning about permanent data loss if recovery key is lost
+  en: If you lose this key and cannot access your account, <strong>your data will be permanently lost</strong>. We cannot recover it for you.
+  de: Wenn Sie diesen Schlüssel verlieren und nicht auf Ihr Konto zugreifen können, <strong>gehen Ihre Daten unwiderruflich verloren</strong>. Wir können sie nicht für Sie wiederherstellen.
+  zh: 如果您丢失此密钥且无法访问您的帐户，<strong>您的数据将永久丢失</strong>。我们无法为您恢复。
+  es: Si pierdes esta clave y no puedes acceder a tu cuenta, <strong>tus datos se perderán permanentemente</strong>. No podemos recuperarlos por ti.
+  fr: Si vous perdez cette clé et ne pouvez pas accéder à votre compte, <strong>vos données seront définitivement perdues</strong>. Nous ne pouvons pas les récupérer pour vous.
+  pt: Se você perder esta chave e não puder acessar sua conta, <strong>seus dados serão perdidos permanentemente</strong>. Não podemos recuperá-los para você.
+  ru: Если вы потеряете этот ключ и не сможете получить доступ к своей учётной записи, <strong>ваши данные будут безвозвратно утеряны</strong>. Мы не сможем их восстановить.
+  ja: このキーを紛失してアカウントにアクセスできなくなった場合、<strong>データは永久に失われます</strong>。私たちはそれを回復することができません。
+  ko: 이 키를 분실하고 계정에 액세스할 수 없는 경우, <strong>데이터가 영구적으로 손실됩니다</strong>. 저희가 복구해 드릴 수 없습니다.
+  it: Se perdi questa chiave e non riesci ad accedere al tuo account, <strong>i tuoi dati andranno persi in modo permanente</strong>. Non possiamo recuperarli per te.
+  tr: Bu anahtarı kaybederseniz ve hesabınıza erişemezseniz, <strong>verileriniz kalıcı olarak kaybolacaktır</strong>. Sizin için kurtaramayız.
+  vi: Nếu bạn mất khóa này và không thể truy cập tài khoản, <strong>dữ liệu của bạn sẽ bị mất vĩnh viễn</strong>. Chúng tôi không thể khôi phục cho bạn.
+  id: Jika Anda kehilangan kunci ini dan tidak dapat mengakses akun Anda, <strong>data Anda akan hilang secara permanen</strong>. Kami tidak dapat memulihkannya untuk Anda.
+  pl: Jeśli zgubisz ten klucz i nie będziesz mógł uzyskać dostępu do swojego konta, <strong>Twoje dane zostaną trwale utracone</strong>. Nie możemy ich dla Ciebie odzyskać.
+  nl: Als je deze sleutel verliest en geen toegang hebt tot je account, <strong>gaan je gegevens permanent verloren</strong>. We kunnen ze niet voor je herstellen.
+  ar: إذا فقدت هذا المفتاح ولم تتمكن من الوصول إلى حسابك، <strong>ستفقد بياناتك بشكل دائم</strong>. لا يمكننا استردادها لك.
+  hi: यदि आप इस कुंजी को खो देते हैं और अपने खाते तक नहीं पहुंच सकते हैं, तो <strong>आपका डेटा स्थायी रूप से खो जाएगा</strong>। हम इसे आपके लिए पुनर्प्राप्त नहीं कर सकते।
+  th: หากคุณทำคีย์นี้หายและไม่สามารถเข้าถึงบัญชีได้ <strong>ข้อมูลของคุณจะสูญหายอย่างถาวร</strong> เราไม่สามารถกู้คืนให้คุณได้
+  cs: Pokud tento klíč ztratíte a nebudete moci přistupovat ke svému účtu, <strong>vaše data budou trvale ztracena</strong>. Nemůžeme je za vás obnovit.
+  sv: Om du tappar bort denna nyckel och inte kan komma åt ditt konto, <strong>kommer dina data att gå förlorade permanent</strong>. Vi kan inte återställa dem åt dig.
+  verified_by_human: []
+recovery_key_error_email:
+  context: Error message when email cannot be retrieved for recovery key generation
+  en: Could not retrieve email for recovery key generation. Please try again.
+  de: E-Mail für die Erstellung des Wiederherstellungsschlüssels konnte nicht abgerufen werden. Bitte versuchen Sie es erneut.
+  zh: 无法获取用于生成恢复密钥的电子邮件。请重试。
+  es: No se pudo recuperar el correo electrónico para la generación de la clave de recuperación. Por favor, inténtalo de nuevo.
+  fr: Impossible de récupérer l'e-mail pour la génération de la clé de récupération. Veuillez réessayer.
+  pt: Não foi possível recuperar o e-mail para a geração da chave de recuperação. Por favor, tente novamente.
+  ru: Не удалось получить адрес электронной почты для создания ключа восстановления. Пожалуйста, попробуйте снова.
+  ja: 回復キー生成用のメールを取得できませんでした。もう一度お試しください。
+  ko: 복구 키 생성을 위한 이메일을 가져올 수 없습니다. 다시 시도해 주세요.
+  it: Impossibile recuperare l'email per la generazione della chiave di recupero. Riprova.
+  tr: Kurtarma anahtarı oluşturmak için e-posta alınamadı. Lütfen tekrar deneyin.
+  vi: Không thể lấy email để tạo khóa khôi phục. Vui lòng thử lại.
+  id: Tidak dapat mengambil email untuk pembuatan kunci pemulihan. Silakan coba lagi.
+  pl: Nie można pobrać adresu e-mail do wygenerowania klucza odzyskiwania. Spróbuj ponownie.
+  nl: Kon e-mail niet ophalen voor het genereren van de herstelsleutel. Probeer het opnieuw.
+  ar: تعذر استرداد البريد الإلكتروني لإنشاء مفتاح الاسترداد. يرجى المحاولة مرة أخرى.
+  hi: पुनर्प्राप्ति कुंजी जनरेशन के लिए ईमेल प्राप्त नहीं किया जा सका। कृपया पुनः प्रयास करें।
+  th: ไม่สามารถดึงอีเมลสำหรับการสร้างคีย์กู้คืน กรุณาลองอีกครั้ง
+  cs: Nepodařilo se získat e-mail pro vygenerování klíče pro obnovení. Zkuste to prosím znovu.
+  sv: Kunde inte hämta e-post för generering av återställningsnyckel. Försök igen.
+  verified_by_human: []
+recovery_key_error_encryption_key:
+  context: Error message when encryption key cannot be retrieved
+  en: Could not retrieve encryption key. Please try again.
+  de: Verschlüsselungsschlüssel konnte nicht abgerufen werden. Bitte versuchen Sie es erneut.
+  zh: 无法获取加密密钥。请重试。
+  es: No se pudo recuperar la clave de cifrado. Por favor, inténtalo de nuevo.
+  fr: Impossible de récupérer la clé de chiffrement. Veuillez réessayer.
+  pt: Não foi possível recuperar a chave de criptografia. Por favor, tente novamente.
+  ru: Не удалось получить ключ шифрования. Пожалуйста, попробуйте снова.
+  ja: 暗号化キーを取得できませんでした。もう一度お試しください。
+  ko: 암호화 키를 가져올 수 없습니다. 다시 시도해 주세요.
+  it: Impossibile recuperare la chiave di crittografia. Riprova.
+  tr: Şifreleme anahtarı alınamadı. Lütfen tekrar deneyin.
+  vi: Không thể lấy khóa mã hóa. Vui lòng thử lại.
+  id: Tidak dapat mengambil kunci enkripsi. Silakan coba lagi.
+  pl: Nie można pobrać klucza szyfrowania. Spróbuj ponownie.
+  nl: Kon encryptiesleutel niet ophalen. Probeer het opnieuw.
+  ar: تعذر استرداد مفتاح التشفير. يرجى المحاولة مرة أخرى.
+  hi: एन्क्रिप्शन कुंजी प्राप्त नहीं की जा सकी। कृपया पुनः प्रयास करें।
+  th: ไม่สามารถดึงคีย์เข้ารหัส กรุณาลองอีกครั้ง
+  cs: Nepodařilo se získat šifrovací klíč. Zkuste to prosím znovu.
+  sv: Kunde inte hämta krypteringsnyckel. Försök igen.
+  verified_by_human: []
+recovery_key_error_encryption_data:
+  context: Error message when encryption data is missing
+  en: Missing encryption data. Please try again.
+  de: Verschlüsselungsdaten fehlen. Bitte versuchen Sie es erneut.
+  zh: 缺少加密数据。请重试。
+  es: Faltan datos de cifrado. Por favor, inténtalo de nuevo.
+  fr: Données de chiffrement manquantes. Veuillez réessayer.
+  pt: Dados de criptografia ausentes. Por favor, tente novamente.
+  ru: Отсутствуют данные шифрования. Пожалуйста, попробуйте снова.
+  ja: 暗号化データがありません。もう一度お試しください。
+  ko: 암호화 데이터가 없습니다. 다시 시도해 주세요.
+  it: Dati di crittografia mancanti. Riprova.
+  tr: Şifreleme verileri eksik. Lütfen tekrar deneyin.
+  vi: Thiếu dữ liệu mã hóa. Vui lòng thử lại.
+  id: Data enkripsi hilang. Silakan coba lagi.
+  pl: Brak danych szyfrowania. Spróbuj ponownie.
+  nl: Ontbrekende encryptiegegevens. Probeer het opnieuw.
+  ar: بيانات التشفير مفقودة. يرجى المحاولة مرة أخرى.
+  hi: एन्क्रिप्शन डेटा गायब है। कृपया पुनः प्रयास करें।
+  th: ข้อมูลเข้ารหัสหายไป กรุณาลองอีกครั้ง
+  cs: Chybí šifrovací data. Zkuste to prosím znovu.
+  sv: Krypteringsdata saknas. Försök igen.
+  verified_by_human: []
+recovery_key_error_generic:
+  context: Generic error message for recovery key generation failure
+  en: An error occurred while generating your recovery key. Please try again.
+  de: Beim Erstellen Ihres Wiederherstellungsschlüssels ist ein Fehler aufgetreten. Bitte versuchen Sie es erneut.
+  zh: 生成恢复密钥时发生错误。请重试。
+  es: Se produjo un error al generar tu clave de recuperación. Por favor, inténtalo de nuevo.
+  fr: Une erreur s'est produite lors de la génération de votre clé de récupération. Veuillez réessayer.
+  pt: Ocorreu um erro ao gerar sua chave de recuperação. Por favor, tente novamente.
+  ru: При создании ключа восстановления произошла ошибка. Пожалуйста, попробуйте снова.
+  ja: 回復キーの生成中にエラーが発生しました。もう一度お試しください。
+  ko: 복구 키를 생성하는 중 오류가 발생했습니다. 다시 시도해 주세요.
+  it: Si è verificato un errore durante la generazione della chiave di recupero. Riprova.
+  tr: Kurtarma anahtarınız oluşturulurken bir hata oluştu. Lütfen tekrar deneyin.
+  vi: Đã xảy ra lỗi khi tạo khóa khôi phục của bạn. Vui lòng thử lại.
+  id: Terjadi kesalahan saat membuat kunci pemulihan Anda. Silakan coba lagi.
+  pl: Wystąpił błąd podczas generowania klucza odzyskiwania. Spróbuj ponownie.
+  nl: Er is een fout opgetreden bij het genereren van je herstelsleutel. Probeer het opnieuw.
+  ar: حدث خطأ أثناء إنشاء مفتاح الاسترداد الخاص بك. يرجى المحاولة مرة أخرى.
+  hi: आपकी पुनर्प्राप्ति कुंजी बनाते समय एक त्रुटि हुई। कृपया पुनः प्रयास करें।
+  th: เกิดข้อผิดพลาดขณะสร้างคีย์กู้คืนของคุณ กรุณาลองอีกครั้ง
+  cs: Při generování klíče pro obnovení došlo k chybě. Zkuste to prosím znovu.
+  sv: Ett fel uppstod när din återställningsnyckel genererades. Försök igen.
+  verified_by_human: []
+download:
+  context: Button text to download the recovery key file
+  en: Download
+  de: Herunterladen
+  zh: 下载
+  es: Descargar
+  fr: Télécharger
+  pt: Baixar
+  ru: Скачать
+  ja: ダウンロード
+  ko: 다운로드
+  it: Scarica
+  tr: İndir
+  vi: Tải xuống
+  id: Unduh
+  pl: Pobierz
+  nl: Downloaden
+  ar: تنزيل
+  hi: डाउनलोड
+  th: ดาวน์โหลด
+  cs: Stáhnout
+  sv: Ladda ner
+  verified_by_human: []
+copy:
+  context: Button text to copy recovery key to clipboard
+  en: Copy
+  de: Kopieren
+  zh: 复制
+  es: Copiar
+  fr: Copier
+  pt: Copiar
+  ru: Копировать
+  ja: コピー
+  ko: 복사
+  it: Copia
+  tr: Kopyala
+  vi: Sao chép
+  id: Salin
+  pl: Kopiuj
+  nl: Kopiëren
+  ar: نسخ
+  hi: कॉपी करें
+  th: คัดลอก
+  cs: Kopírovat
+  sv: Kopiera
+  verified_by_human: []
+print:
+  context: Button text to print recovery key
+  en: Print
+  de: Drucken
+  zh: 打印
+  es: Imprimir
+  fr: Imprimer
+  pt: Imprimir
+  ru: Печать
+  ja: 印刷
+  ko: 인쇄
+  it: Stampa
+  tr: Yazdır
+  vi: In
+  id: Cetak
+  pl: Drukuj
+  nl: Afdrukken
+  ar: طباعة
+  hi: प्रिंट करें
+  th: พิมพ์
+  cs: Tisk
+  sv: Skriv ut
+  verified_by_human: []
+copy_failed:
+  context: Error message when copy to clipboard fails
+  en: Failed to copy. Please try again.
+  de: Kopieren fehlgeschlagen. Bitte versuchen Sie es erneut.
+  zh: 复制失败。请重试。
+  es: Error al copiar. Por favor, inténtalo de nuevo.
+  fr: Échec de la copie. Veuillez réessayer.
+  pt: Falha ao copiar. Por favor, tente novamente.
+  ru: Не удалось скопировать. Пожалуйста, попробуйте снова.
+  ja: コピーに失敗しました。もう一度お試しください。
+  ko: 복사하지 못했습니다. 다시 시도해 주세요.
+  it: Copia non riuscita. Riprova.
+  tr: Kopyalama başarısız oldu. Lütfen tekrar deneyin.
+  vi: Sao chép thất bại. Vui lòng thử lại.
+  id: Gagal menyalin. Silakan coba lagi.
+  pl: Nie udało się skopiować. Spróbuj ponownie.
+  nl: Kopiëren mislukt. Probeer het opnieuw.
+  ar: فشل النسخ. يرجى المحاولة مرة أخرى.
+  hi: कॉपी करने में विफल। कृपया पुनः प्रयास करें।
+  th: การคัดลอกล้มเหลว กรุณาลองอีกครั้ง
+  cs: Kopírování se nezdařilo. Zkuste to prosím znovu.
+  sv: Kopiering misslyckades. Försök igen.
+  verified_by_human: []
+recovery_key_print_title:
+  context: Title shown on printed recovery key page
+  en: OpenMates Recovery Key
+  de: OpenMates Wiederherstellungsschlüssel
+  zh: OpenMates 恢复密钥
+  es: Clave de Recuperación de OpenMates
+  fr: Clé de Récupération OpenMates
+  pt: Chave de Recuperação OpenMates
+  ru: Ключ Восстановления OpenMates
+  ja: OpenMates 回復キー
+  ko: OpenMates 복구 키
+  it: Chiave di Recupero OpenMates
+  tr: OpenMates Kurtarma Anahtarı
+  vi: Khóa Khôi Phục OpenMates
+  id: Kunci Pemulihan OpenMates
+  pl: Klucz Odzyskiwania OpenMates
+  nl: OpenMates Herstelsleutel
+  ar: مفتاح استرداد OpenMates
+  hi: OpenMates पुनर्प्राप्ति कुंजी
+  th: คีย์กู้คืน OpenMates
+  cs: Klíč pro Obnovení OpenMates
+  sv: OpenMates Återställningsnyckel
+  verified_by_human: []
+recovery_key_print_warning:
+  context: Warning shown on printed recovery key page
+  en: Keep this safe! This is your only way to recover your account if you lose access to your password or passkey.
+  de: Bewahren Sie dies sicher auf! Dies ist Ihre einzige Möglichkeit, Ihr Konto wiederherzustellen, wenn Sie den Zugang zu Ihrem Passwort oder Passkey verlieren.
+  zh: 请妥善保管！如果您丢失了密码或通行密钥的访问权限，这是恢复帐户的唯一方法。
+  es: ¡Guárdala en un lugar seguro! Esta es tu única forma de recuperar tu cuenta si pierdes el acceso a tu contraseña o passkey.
+  fr: Gardez ceci en lieu sûr ! C'est votre seul moyen de récupérer votre compte si vous perdez l'accès à votre mot de passe ou passkey.
+  pt: Guarde isso em segurança! Esta é sua única forma de recuperar sua conta se você perder o acesso à sua senha ou passkey.
+  ru: Храните это в безопасности! Это единственный способ восстановить вашу учётную запись, если вы потеряете доступ к паролю или ключу доступа.
+  ja: 安全に保管してください！パスワードまたはパスキーへのアクセスを失った場合、これがアカウントを回復する唯一の方法です。
+  ko: 안전하게 보관하세요! 비밀번호 또는 패스키에 대한 액세스 권한을 잃어버린 경우 계정을 복구할 수 있는 유일한 방법입니다.
+  it: Conservalo al sicuro! Questo è l'unico modo per recuperare il tuo account se perdi l'accesso alla tua password o passkey.
+  tr: Bunu güvenli bir yerde saklayın! Şifrenize veya passkey'inize erişiminizi kaybederseniz hesabınızı kurtarmanın tek yolu budur.
+  vi: Giữ nó an toàn! Đây là cách duy nhất để khôi phục tài khoản nếu bạn mất quyền truy cập vào mật khẩu hoặc passkey.
+  id: Simpan dengan aman! Ini adalah satu-satunya cara untuk memulihkan akun Anda jika kehilangan akses ke kata sandi atau passkey Anda.
+  pl: Przechowuj to bezpiecznie! To jedyny sposób na odzyskanie konta, jeśli utracisz dostęp do hasła lub klucza dostępu.
+  nl: Bewaar dit veilig! Dit is je enige manier om je account te herstellen als je de toegang tot je wachtwoord of passkey verliest.
+  ar: احتفظ بهذا في مكان آمن! هذه هي الطريقة الوحيدة لاسترداد حسابك إذا فقدت الوصول إلى كلمة المرور أو مفتاح المرور الخاص بك.
+  hi: इसे सुरक्षित रखें! यदि आप अपना पासवर्ड या पासकी खो देते हैं तो यह आपके खाते को पुनर्प्राप्त करने का एकमात्र तरीका है।
+  th: เก็บรักษาอย่างปลอดภัย! นี่คือวิธีเดียวในการกู้คืนบัญชีหากคุณสูญเสียการเข้าถึงรหัสผ่านหรือ passkey
+  cs: Uchovejte to v bezpečí! Toto je jediný způsob, jak obnovit váš účet, pokud ztratíte přístup k heslu nebo klíči.
+  sv: Förvara detta säkert! Detta är ditt enda sätt att återställa ditt konto om du förlorar åtkomst till ditt lösenord eller passkey.
+  verified_by_human: []
+recovery_key_print_storage_title:
+  context: Title for storage recommendations on printed page
+  en: "Storage recommendations:"
+  de: "Speicherempfehlungen:"
+  zh: "存储建议："
+  es: "Recomendaciones de almacenamiento:"
+  fr: "Recommandations de stockage :"
+  pt: "Recomendações de armazenamento:"
+  ru: "Рекомендации по хранению:"
+  ja: "保管に関する推奨事項："
+  ko: "보관 권장 사항:"
+  it: "Raccomandazioni per la conservazione:"
+  tr: "Saklama önerileri:"
+  vi: "Khuyến nghị lưu trữ:"
+  id: "Rekomendasi penyimpanan:"
+  pl: "Zalecenia dotyczące przechowywania:"
+  nl: "Aanbevelingen voor opslag:"
+  ar: "توصيات التخزين:"
+  hi: "भंडारण अनुशंसाएं:"
+  th: "คำแนะนำในการจัดเก็บ:"
+  cs: "Doporučení pro uložení:"
+  sv: "Förvaringsrekommendationer:"
+  verified_by_human: []
+recovery_key_print_storage_1:
+  context: Storage recommendation item 1
+  en: Store in a secure location (safe, lockbox)
+  de: An einem sicheren Ort aufbewahren (Tresor, Schließfach)
+  zh: 存放在安全位置（保险箱、储物柜）
+  es: Guárdalo en un lugar seguro (caja fuerte, caja de seguridad)
+  fr: Stockez dans un endroit sécurisé (coffre-fort, boîte verrouillée)
+  pt: Armazene em um local seguro (cofre, caixa de segurança)
+  ru: Храните в безопасном месте (сейф, ящик с замком)
+  ja: 安全な場所に保管してください（金庫、ロックボックス）
+  ko: 안전한 장소에 보관하세요 (금고, 잠금 상자)
+  it: Conserva in un luogo sicuro (cassaforte, cassetta di sicurezza)
+  tr: Güvenli bir yerde saklayın (kasa, kilitli kutu)
+  vi: Lưu trữ ở nơi an toàn (két sắt, hộp khóa)
+  id: Simpan di lokasi yang aman (brankas, kotak terkunci)
+  pl: Przechowuj w bezpiecznym miejscu (sejf, skrytka)
+  nl: Bewaar op een veilige locatie (kluis, kluisje)
+  ar: احفظ في مكان آمن (خزنة، صندوق قفل)
+  hi: सुरक्षित स्थान पर रखें (तिजोरी, लॉकबॉक्स)
+  th: เก็บในที่ปลอดภัย (ตู้นิรภัย กล่องล็อค)
+  cs: Uložte na bezpečném místě (trezor, uzamykatelná schránka)
+  sv: Förvara på en säker plats (kassaskåp, låsbar låda)
+  verified_by_human: []
+recovery_key_print_storage_2:
+  context: Storage recommendation item 2
+  en: Keep offline if possible
+  de: Wenn möglich offline aufbewahren
+  zh: 如果可能，请离线保存
+  es: Mantenlo sin conexión si es posible
+  fr: Gardez hors ligne si possible
+  pt: Mantenha offline se possível
+  ru: По возможности храните офлайн
+  ja: 可能であればオフラインで保管してください
+  ko: 가능하면 오프라인으로 보관하세요
+  it: Mantienilo offline se possibile
+  tr: Mümkünse çevrimdışı tutun
+  vi: Giữ ngoại tuyến nếu có thể
+  id: Simpan secara offline jika memungkinkan
+  pl: W miarę możliwości przechowuj offline
+  nl: Bewaar offline indien mogelijk
+  ar: احتفظ به دون اتصال إن أمكن
+  hi: यदि संभव हो तो ऑफ़लाइन रखें
+  th: เก็บแบบออฟไลน์ถ้าเป็นไปได้
+  cs: Pokud možno uchovávejte offline
+  sv: Förvara offline om möjligt
+  verified_by_human: []
+recovery_key_print_storage_3:
+  context: Storage recommendation item 3
+  en: Consider making a backup copy
+  de: Erwägen Sie eine Sicherungskopie
+  zh: 考虑制作备份副本
+  es: Considera hacer una copia de seguridad
+  fr: Pensez à faire une copie de sauvegarde
+  pt: Considere fazer uma cópia de backup
+  ru: Рассмотрите возможность создания резервной копии
+  ja: バックアップコピーの作成を検討してください
+  ko: 백업 복사본을 만드는 것을 고려하세요
+  it: Considera di fare una copia di backup
+  tr: Yedek kopya yapmayı düşünün
+  vi: Cân nhắc tạo bản sao lưu
+  id: Pertimbangkan untuk membuat salinan cadangan
+  pl: Rozważ wykonanie kopii zapasowej
+  nl: Overweeg een reservekopie te maken
+  ar: فكر في عمل نسخة احتياطية
+  hi: बैकअप कॉपी बनाने पर विचार करें
+  th: พิจารณาทำสำเนาสำรอง
+  cs: Zvažte vytvoření záložní kopie
+  sv: Överväg att göra en säkerhetskopia
+  verified_by_human: []
+recovery_key_print_storage_4:
+  context: Storage recommendation item 4
+  en: Do NOT store with your password
+  de: NICHT zusammen mit Ihrem Passwort aufbewahren
+  zh: 切勿与密码一起存储
+  es: NO lo guardes junto con tu contraseña
+  fr: NE PAS stocker avec votre mot de passe
+  pt: NÃO armazene junto com sua senha
+  ru: НЕ храните вместе с паролем
+  ja: パスワードと一緒に保管しないでください
+  ko: 비밀번호와 함께 보관하지 마세요
+  it: NON conservare insieme alla password
+  tr: Şifrenizle birlikte SAKLAMAYIN
+  vi: KHÔNG lưu trữ cùng với mật khẩu
+  id: JANGAN simpan bersama kata sandi Anda
+  pl: NIE przechowuj razem z hasłem
+  nl: Bewaar NIET samen met je wachtwoord
+  ar: لا تحفظه مع كلمة المرور الخاصة بك
+  hi: अपने पासवर्ड के साथ स्टोर न करें
+  th: อย่าเก็บรวมกับรหัสผ่านของคุณ
+  cs: NEUKLÁDEJTE společně s heslem
+  sv: Förvara INTE tillsammans med ditt lösenord
   verified_by_human: []

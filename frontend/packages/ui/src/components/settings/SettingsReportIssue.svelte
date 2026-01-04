@@ -590,7 +590,6 @@
                 {#if showTitleWarning && titleError}
                     <InputWarning
                         message={titleError}
-                        target={titleInput}
                     />
                 {/if}
             </div>
@@ -614,7 +613,6 @@
                 {#if showDescriptionWarning && descriptionError}
                     <InputWarning
                         message={descriptionError}
-                        target={descriptionInput}
                     />
                 {/if}
             </div>
@@ -638,7 +636,6 @@
                 {#if showUrlWarning && urlError}
                     <InputWarning
                         message={urlError}
-                        target={urlInput}
                     />
                 {/if}
             </div>
@@ -662,7 +659,6 @@
                 {#if showEmailWarning && emailError}
                     <InputWarning
                         message={emailError}
-                        target={emailInput}
                     />
                 {/if}
             </div>

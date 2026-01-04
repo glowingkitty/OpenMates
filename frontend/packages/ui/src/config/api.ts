@@ -75,6 +75,7 @@ export const apiEndpoints = {
         request_backup_codes:       '/v1/auth/2fa/setup/request-backup-codes', // Get backup codes after verifying 2FA
         confirm_codes_stored:       '/v1/auth/2fa/setup/confirm-codes-stored', // Confirm backup codes are stored by user
         confirm_recoverykey_stored: '/v1/auth/recovery-key/confirm-stored',   // Confirm recovery key is stored by user
+        regenerate_recovery_key:    '/v1/auth/recovery-key/regenerate',       // Regenerate recovery key (requires auth)
         setup_2fa_provider:         '/v1/auth/2fa/setup/provider',             // Save which 2FA provider was used
         verify_2fa_code:            '/v1/auth/2fa/setup/verify-signup',        // Verify 2FA OTP code during login
         verifyDevice2FA:            '/v1/auth/2fa/verify/device',              // Verify 2FA OTP code for new device
@@ -82,6 +83,12 @@ export const apiEndpoints = {
         // Gifted credits endpoints
         checkGift:                  '/v1/auth/check-gift',                     // Check if user has gifted signup credits
         acceptGift:                 '/v1/auth/accept-gift',                    // Accept gifted signup credits
+        
+        // Account recovery endpoints (for users who lost all login methods including recovery key)
+        recovery_request:           '/v1/auth/recovery/request-code',          // Request account recovery code via email
+        recovery_verify:            '/v1/auth/recovery/verify-code',           // Verify recovery code and get verification token
+        recovery_setup_2fa:         '/v1/auth/recovery/setup-2fa',             // Generate 2FA setup data during recovery
+        recovery_full_reset:        '/v1/auth/recovery/reset-account',         // Full account reset (deletes all data)
     },
     chat: {
         sendMessage:                '/v1/chat/message',                         // Send a message to a chat (or create a new chat if it doesn't exist)
@@ -110,6 +117,7 @@ export const apiEndpoints = {
         deleteAccount:             '/v1/settings/delete-account',               // Delete user account
         exportAccountManifest:     '/v1/settings/export-account-manifest',      // Get export manifest (list of all data IDs)
         exportAccountData:         '/v1/settings/export-account-data',          // Get export data (usage, invoices, profile)
+        updatePassword:            '/v1/settings/update-password',              // Add or change user password
     },
     payments: {
         config:                     '/v1/payments/config',                      // Get public config for payment provider

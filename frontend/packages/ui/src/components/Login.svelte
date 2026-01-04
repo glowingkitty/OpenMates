@@ -104,6 +104,10 @@
 
     // Add state for tracking account deletion during the current session using $state (Svelte 5 runes mode)
     let accountJustDeleted = $state(false);
+    
+    // Add state for tracking account recovery mode (from PasswordAndTfaOtp component)
+    // When true, the inactivity timer should NOT reset the login interface
+    let isInAccountRecoveryMode = $state(false);
 
     // Derive device verification view state using $derived (Svelte 5 runes mode)
     let showVerifyDeviceView = $derived($needsDeviceVerification);
@@ -1598,6 +1602,16 @@
 
     // --- Inactivity Timer Functions (Login/2FA/Device Verify) ---
     function handleInactivityTimeout() {
+        // IMPORTANT: Do NOT reset the login interface if user is in account recovery mode
+        // Account recovery is a multi-step process that requires verification code from email
+        // and users need time to complete it without being interrupted
+        if (isInAccountRecoveryMode) {
+            console.debug("Login inactivity timeout triggered but user is in account recovery mode - NOT resetting.");
+            // Just reset the timer, don't clear the form
+            resetInactivityTimer();
+            return;
+        }
+        
         console.debug("Login inactivity timeout triggered - resetting to email step for privacy/security.");
         
         // Clear all form data
@@ -2073,6 +2087,8 @@
                                                     
                                                     email = '';
                                                     currentLoginStep = 'email';
+                                                    // Reset account recovery mode on successful login
+                                                    isInAccountRecoveryMode = false;
                                                     dispatch('loginSuccess', {
                                                         user: e.detail.user,
                                                         isMobile,
@@ -2082,14 +2098,25 @@
                                                 on:backToEmail={() => {
                                                     email = ''; // Clear email when going back to email step
                                                     currentLoginStep = 'email';
+                                                    // Reset account recovery mode when going back to email
+                                                    isInAccountRecoveryMode = false;
                                                 }}
                                                 on:switchToBackupCode={(e) => {
                                                     // Handle switch to backup code
                                                     currentLoginStep = 'backup_code';
                                                 }}
-                                                on:switchToRecoveryKey={(e) => {
+                                                on:switchToRecoveryKey={() => {
                                                     // Handle switch to recovery key
                                                     currentLoginStep = 'recovery_key';
+                                                }}
+                                                on:accountRecoveryModeChanged={(e) => {
+                                                    // Track account recovery mode to prevent inactivity timer from resetting
+                                                    isInAccountRecoveryMode = e.detail.active;
+                                                    console.debug('[Login] Account recovery mode changed:', e.detail.active);
+                                                    // Reset inactivity timer when entering/exiting account recovery
+                                                    if (e.detail.active) {
+                                                        resetInactivityTimer();
+                                                    }
                                                 }}
                                                 on:tfaActivity={resetInactivityTimer}
                                                 on:userActivity={resetInactivityTimer}

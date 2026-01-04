@@ -1,39 +1,35 @@
 <script lang="ts">
+    /**
+     * InputWarning Component
+     * 
+     * Displays a warning tooltip above an input element.
+     * Uses position: absolute relative to the parent .input-wrapper,
+     * which avoids issues with CSS transforms on ancestor elements
+     * (like Svelte's in:scale transition on .login-box).
+     * 
+     * IMPORTANT: This component expects to be rendered inside an element
+     * with position: relative (like .input-wrapper in fields.css).
+     */
     import { fade } from 'svelte/transition';
     import { onMount } from 'svelte';
     
     // Props using Svelte 5 runes mode
+    // Note: 'target' prop was removed - positioning is now done via CSS
+    // relative to the parent .input-wrapper element
     let { 
         message, 
-        target, 
         autoHideDelay = 3000 
     }: { 
         message: string, 
-        target: HTMLElement, 
         autoHideDelay?: number 
     } = $props();
     
     // State variables using Svelte 5 runes
     let warning = $state<HTMLElement>();
-    let position = $state({ top: 0, left: 0 });
     let hideTimer = $state<ReturnType<typeof setTimeout>>();
     let visible = $state(true);
     
-    function updatePosition() {
-        if (!target) return;
-        const rect = target.getBoundingClientRect();
-        position = {
-            top: rect.top - 8,
-            left: rect.left + (rect.width / 2)
-        };
-    }
-    
     onMount(() => {
-        updatePosition();
-        // Update position on scroll and resize
-        window.addEventListener('scroll', updatePosition);
-        window.addEventListener('resize', updatePosition);
-        
         // Set auto-hide timer
         if (autoHideDelay > 0) {
             hideTimer = setTimeout(() => {
@@ -42,15 +38,8 @@
         }
         
         return () => {
-            window.removeEventListener('scroll', updatePosition);
-            window.removeEventListener('resize', updatePosition);
             if (hideTimer) clearTimeout(hideTimer);
         };
-    });
-    
-    // Watch for target changes using Svelte 5 runes
-    $effect(() => {
-        if (target) updatePosition();
     });
 </script>
 
@@ -58,7 +47,6 @@
     <div
         bind:this={warning}
         class="warning"
-        style="left: {position.left}px; top: {position.top}px"
         transition:fade
     >
         {@html message}
@@ -67,9 +55,22 @@
 {/if}
 
 <style>
+    /**
+     * Warning tooltip positioned absolutely above the input.
+     * Uses position: absolute instead of position: fixed to avoid
+     * issues with CSS transforms on ancestor elements creating
+     * new containing blocks that break fixed positioning.
+     * 
+     * The parent element (.input-wrapper) has position: relative,
+     * so this positions relative to that wrapper.
+     */
     .warning {
-        position: fixed;
-        transform: translateX(-50%) translateY(-100%);
+        position: absolute;
+        /* Position above the input: move up by 100% of own height plus 8px gap */
+        bottom: calc(100% + 8px);
+        /* Center horizontally */
+        left: 50%;
+        transform: translateX(-50%);
         background-color: #E00000;
         color: white;
         padding: 8px 12px;

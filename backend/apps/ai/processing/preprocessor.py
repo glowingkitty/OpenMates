@@ -1,10 +1,13 @@
 # backend/apps/ai/processing/preprocessor.py
 # Handles the preprocessing stage of AI skill requests.
+#
+# SECURITY: This module includes ASCII smuggling protection via the text_sanitization module.
+# ASCII smuggling attacks use invisible Unicode characters to embed hidden instructions
+# that bypass prompt injection detection but are processed by LLMs.
+# See: docs/architecture/prompt_injection_protection.md
 
 import logging
 from typing import Dict, Any, List, Optional
-import unicodedata # For Unicode normalization
-import re # For removing non-printable characters
 import datetime # For current date/time in system prompt
 
 from backend.core.api.app.services.cache import CacheService # Corrected import path
@@ -21,6 +24,10 @@ from backend.apps.ai.utils.mate_utils import load_mates_config, MateConfig
 from backend.apps.ai.skills.ask_skill import AskSkillRequest, AskSkillDefaultConfig
 from pydantic import BaseModel, Field # For PreprocessingResult model
 from backend.shared.python_schemas.app_metadata_schemas import AppYAML  # For type hinting
+
+# Import comprehensive ASCII smuggling sanitization
+# This module protects against invisible Unicode characters used to embed hidden instructions
+from backend.core.api.app.utils.text_sanitization import sanitize_text_simple
 
 logger = logging.getLogger(__name__)
 
@@ -52,27 +59,36 @@ class PreprocessingResult(BaseModel):
     error_message: Optional[str] = None
 
 
-def _sanitize_text_content(text: str) -> str:
+def _sanitize_text_content(text: str, log_prefix: str = "") -> str:
     """
-    Sanitizes text content by:
-    1. Normalizing Unicode to NFC form.
-    2. Removing non-printable characters (excluding common whitespace like space, tab, newline).
-    """
-    if not isinstance(text, str):
-        return text # Return as is if not a string
-
-    # Normalize Unicode
-    normalized_text = unicodedata.normalize('NFC', text)
-
-    # Remove non-printable characters, allowing common whitespace (space, tab, newline, carriage return)
-    # \x00-\x08: Null to Backspace
-    # \x0B-\x0C: Vertical Tab, Form Feed
-    # \x0E-\x1F: Shift Out to Unit Separator
-    # \x7F: Delete
-    # We keep \t (tab), \n (newline), \r (carriage return)
-    sanitized_text = re.sub(r'[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]', '', normalized_text)
+    Sanitizes text content to protect against ASCII smuggling attacks.
     
-    return sanitized_text
+    This function is a wrapper around the comprehensive text_sanitization module.
+    It removes all invisible Unicode characters that could be used to embed hidden
+    instructions, including:
+    
+    1. Unicode Tags (U+E0000-U+E007F) - Primary ASCII smuggling vector
+    2. Variant Selectors (U+FE00-U+FE0F, U+E0100-U+E01EF)
+    3. Zero-Width Characters (ZWSP, ZWNJ, ZWJ, Word Joiner, etc.)
+    4. Bidirectional Text Controls (LRO, RLO, LRE, RLE, etc.)
+    5. Other invisible/formatting characters
+    6. ASCII control characters (except common whitespace)
+    7. Unicode NFC normalization
+    
+    SECURITY: This sanitization runs BEFORE LLM-based prompt injection detection.
+    The LLM detection handles semantic attacks; this handles character-level attacks.
+    
+    See: docs/architecture/prompt_injection_protection.md
+    See: backend/core/api/app/utils/text_sanitization.py for full implementation details
+    
+    Args:
+        text: The input text to sanitize
+        log_prefix: Optional prefix for log messages (e.g., task_id)
+    
+    Returns:
+        Sanitized text with all invisible characters removed
+    """
+    return sanitize_text_simple(text, log_prefix=log_prefix)
 
 
 def _get_insufficient_credits_error_message() -> str:
@@ -323,13 +339,17 @@ async def handle_preprocessing(
     # --- End Credit Check ---
  
     # Sanitize user messages in the history
+    # SECURITY: This sanitization protects against ASCII smuggling attacks
+    # which use invisible Unicode characters to embed hidden instructions.
+    # See: docs/architecture/prompt_injection_protection.md
     sanitized_message_history = []
     for msg in request_data.message_history: # msg is AIHistoryMessage
         msg_dict = msg.model_dump() # Convert Pydantic model to dict
         if msg.role == "user":
             original_content = msg.content # Accessing attribute from original msg Pydantic object
             if isinstance(original_content, str):
-                sanitized_content = _sanitize_text_content(original_content)
+                # Use comprehensive ASCII smuggling sanitization
+                sanitized_content = _sanitize_text_content(original_content, log_prefix=log_prefix)
                 # Update the 'content' in the dictionary representation
                 msg_dict["content"] = sanitized_content
                 if original_content != sanitized_content: # Log only if changed
@@ -850,12 +870,62 @@ async def handle_preprocessing(
     # For now, if not provided by LLM, we'll set to None (meaning all skills available)
     relevant_app_skills_val = llm_analysis_args.get("relevant_app_skills")
     if relevant_app_skills_val and isinstance(relevant_app_skills_val, list):
-        # Validate that all skill identifiers exist in available_skills_list
-        validated_relevant_skills = [skill for skill in relevant_app_skills_val if skill in available_skills_list]
-        invalid_skills = [skill for skill in relevant_app_skills_val if skill not in available_skills_list]
+        # Build a robust skill name resolver to handle common LLM hallucinations
+        # This mirrors the tool_resolver_map pattern in main_processor.py
+        # Maps hallucinated skill names to valid skill identifiers
+        skill_resolver_map: Dict[str, str] = {}
+        
+        for valid_skill in available_skills_list:
+            # Add exact match
+            skill_resolver_map[valid_skill] = valid_skill
+            
+            # Handle underscore variant: app_skill -> app-skill
+            underscore_variant = valid_skill.replace("-", "_")
+            skill_resolver_map[underscore_variant] = valid_skill
+            
+            # Handle duplicated segment pattern: app-skill-skill -> app-skill
+            # Example: web-search-search -> web-search
+            parts = valid_skill.split("-")
+            if len(parts) >= 2:
+                # Create duplicated variant: web-search -> web-search-search
+                duplicated = f"{valid_skill}-{parts[-1]}"
+                skill_resolver_map[duplicated] = valid_skill
+                
+                # Also handle underscore with duplication: web_search_search -> web-search
+                underscore_duplicated = f"{underscore_variant}_{parts[-1].replace('-', '_')}"
+                skill_resolver_map[underscore_duplicated] = valid_skill
+        
+        logger.debug(f"{log_prefix} Built skill resolver map with {len(skill_resolver_map)} entries for handling hallucinated skill names")
+        
+        # Validate and correct skill identifiers
+        validated_relevant_skills = []
+        corrected_skills = []
+        invalid_skills = []
+        
+        for skill in relevant_app_skills_val:
+            if skill in available_skills_list:
+                # Exact match - no correction needed
+                validated_relevant_skills.append(skill)
+            elif skill in skill_resolver_map:
+                # Hallucinated name that we can correct
+                corrected_skill = skill_resolver_map[skill]
+                validated_relevant_skills.append(corrected_skill)
+                corrected_skills.append(f"{skill} -> {corrected_skill}")
+            else:
+                # Could not resolve - truly invalid
+                invalid_skills.append(skill)
+        
+        # Remove duplicates while preserving order
+        validated_relevant_skills = list(dict.fromkeys(validated_relevant_skills))
+        
+        if corrected_skills:
+            logger.info(
+                f"{log_prefix} Corrected {len(corrected_skills)} hallucinated skill name(s): {corrected_skills}"
+            )
+        
         if invalid_skills:
             logger.warning(
-                f"{log_prefix} LLM returned {len(invalid_skills)} invalid skill identifier(s) that don't exist: {invalid_skills}. "
+                f"{log_prefix} LLM returned {len(invalid_skills)} invalid skill identifier(s) that couldn't be resolved: {invalid_skills}. "
                 f"Filtered out. Available skills: {available_skills_list if available_skills_list else 'None'}. "
                 f"This may indicate that the app for these skills is not discovered or the skill identifier format is incorrect."
             )

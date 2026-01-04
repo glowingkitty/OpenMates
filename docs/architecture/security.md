@@ -8,6 +8,7 @@
 - **Client-side encryption**: All sensitive data encrypted before leaving user's device
 - **Multiple login methods**: Password, passkey, recovery key support with individual wrapped keys
 - **Granular key isolation**: Separate encryption keys for chats, apps, emails, embeds
+- **Password requires 2FA**: Password authentication always requires two-factor authentication - they are set up together and cannot exist independently
 
 ## Security Controls Summary
 
@@ -43,6 +44,17 @@ Even if servers are compromised, attackers only get useless hashes without acces
 - Email addresses (encrypted with user keys)
 - Chat content (encrypted with user keys)
 - Master encryption keys (never transmitted)
+
+### Password + 2FA Requirement
+Password authentication **always requires 2FA** to be enabled. When a user sets up a password:
+1. User enters and confirms new password
+2. If 2FA is not already enabled, user MUST complete 2FA setup first
+3. Password is ONLY saved to server AFTER 2FA setup completes successfully
+4. If user cancels 2FA setup, password is NOT saved - both must succeed together
+
+This ensures that password-based authentication is always protected by a second factor, preventing unauthorized access even if the password is compromised.
+
+**Implementation**: [`frontend/packages/ui/src/components/settings/security/SettingsPassword.svelte`](../../frontend/packages/ui/src/components/settings/security/SettingsPassword.svelte)
 
 **Implementation**: [`backend/core/api/app/routes/auth_routes/auth_login.py`](../../backend/core/api/app/routes/auth_routes/auth_login.py) and [`frontend/packages/ui/src/services/cryptoService.ts`](../../frontend/packages/ui/src/services/cryptoService.ts)
 

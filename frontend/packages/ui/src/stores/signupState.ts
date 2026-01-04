@@ -1,4 +1,4 @@
-import { writable, derived } from 'svelte/store';
+import { writable } from 'svelte/store';
 
 // Step name constants
 export const STEP_ALPHA_DISCLAIMER = 'alpha_disclaimer';
@@ -40,6 +40,24 @@ export const STEP_SEQUENCE = [
 // Make the isInSignupProcess store more responsive by marking it as needing immediate update
 export const isInSignupProcess = writable<boolean>(false);
 export const isLoggingOut = writable(false);
+
+/**
+ * Flag to track when a forced logout is in progress due to missing master key.
+ * 
+ * CRITICAL: This flag must be set SYNCHRONOUSLY at the very start of the forced logout handling,
+ * BEFORE any auth state changes. This prevents race conditions where other components try to
+ * load and decrypt encrypted chats that can no longer be decrypted (because master key is missing).
+ * 
+ * When this flag is true:
+ * - Chat loading should skip encrypted chats and load demo-welcome instead
+ * - Decryption operations should be skipped to avoid errors
+ * - The flag is reset after the forced logout completes
+ * 
+ * This is different from `isLoggingOut` which is set slightly later in the logout flow.
+ * `forcedLogoutInProgress` specifically handles the case where we detect the master key
+ * is missing and need to immediately prevent any decryption attempts.
+ */
+export const forcedLogoutInProgress = writable(false);
 
 // Store to track current signup step
 // Initialize to null/empty so that Signup.svelte can properly detect new signups and show alpha disclaimer

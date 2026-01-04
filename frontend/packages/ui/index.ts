@@ -53,6 +53,7 @@ export * from "./src/stores/i18n"; // Export i18n stores (i18nLoaded, waitForTra
 export * from "./src/stores/notificationStore"; // Export notification store for displaying notifications
 export * from "./src/stores/mostUsedAppsStore"; // Export most used apps store for App Store
 export * from "./src/stores/newsletterActionStore"; // Export newsletter action store for email link actions
+export * from "./src/stores/serverStatusStore"; // Export server status store for self-hosted detection
 // loginOverlayStore removed - not needed
 
 // Demo Chats

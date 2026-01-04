@@ -14,6 +14,8 @@ import {
     encryptChatKeyWithMasterKey,
     decryptChatKeyWithMasterKey
 } from '../cryptoService';
+import { get } from 'svelte/store';
+import { forcedLogoutInProgress } from '../../stores/signupState';
 
 // Type for ChatDatabase instance to avoid circular import
 // Only includes properties/methods needed by this module
@@ -507,6 +509,14 @@ export async function getChat(
     chat_id: string,
     transaction?: IDBTransaction
 ): Promise<Chat | null> {
+    // CRITICAL: During forced logout (missing master key), only allow loading public chats (demo/legal)
+    // Encrypted user chats cannot be decrypted without the master key, so return null to prevent errors
+    const isPublicChat = chat_id.startsWith('demo-') || chat_id.startsWith('legal-');
+    if (get(forcedLogoutInProgress) && !isPublicChat) {
+        console.debug(`[ChatDatabase] Skipping getChat for encrypted chat ${chat_id} during forced logout - returning null`);
+        return null;
+    }
+    
     await dbInstance.init();
     return new Promise(async (resolve, reject) => {
         try {

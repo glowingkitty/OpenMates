@@ -476,21 +476,42 @@
         
         const { embedId, embedData, decodedContent, embedType, attrs } = event.detail;
         
-        // If embedData is not provided, load it from EmbedStore
+        // ALWAYS reload from EmbedStore when embedId is provided to ensure we get the latest data
+        // The embed might have been updated since the preview was rendered (e.g., processing -> finished)
+        // The event's embedData/decodedContent might be stale (captured at render time before skill results arrived)
         let finalEmbedData = embedData;
         let finalDecodedContent = decodedContent;
         
-        if (!finalEmbedData && embedId) {
+        if (embedId) {
             try {
                 const { resolveEmbed, decodeToonContent } = await import('../services/embedResolver');
-                finalEmbedData = await resolveEmbed(embedId);
+                const freshEmbedData = await resolveEmbed(embedId);
                 
-                if (finalEmbedData && finalEmbedData.content) {
-                    finalDecodedContent = await decodeToonContent(finalEmbedData.content);
+                if (freshEmbedData) {
+                    // Use fresh data from EmbedStore
+                    finalEmbedData = freshEmbedData;
+                    
+                    if (freshEmbedData.content) {
+                        finalDecodedContent = await decodeToonContent(freshEmbedData.content);
+                    }
+                    
+                    console.debug('[ActiveChat] Loaded fresh embed data from EmbedStore:', {
+                        embedId,
+                        status: freshEmbedData.status,
+                        hasResults: !!finalDecodedContent?.results,
+                        resultsCount: finalDecodedContent?.results?.length || 0
+                    });
+                } else if (!finalEmbedData) {
+                    // Only error if we have no data at all
+                    console.error('[ActiveChat] Embed not found in EmbedStore and no fallback data:', embedId);
+                    return;
                 }
             } catch (error) {
                 console.error('[ActiveChat] Error loading embed for fullscreen:', error);
-                return;
+                // Fall back to event data if available
+                if (!finalEmbedData) {
+                    return;
+                }
             }
         }
         

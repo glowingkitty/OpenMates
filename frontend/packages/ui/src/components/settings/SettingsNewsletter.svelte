@@ -376,7 +376,6 @@ changes to the documentation (to keep the documentation up to date).
                 {#if showEmailWarning && emailError}
                     <InputWarning
                         message={emailError}
-                        target={emailInput}
                     />
                 {/if}
             </div>

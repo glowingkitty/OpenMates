@@ -838,36 +838,38 @@ async def _async_delete_user_account(
         # ===== PHASE 1: Authentication Data (Highest Priority) =====
         logger.info(f"[DELETE_ACCOUNT] Phase 1: Deleting authentication data for user {user_id}")
         
-        # 1. Delete passkeys
+        # 1. Delete passkeys (using bulk delete for efficiency)
         try:
             passkeys = await directus_service.get_user_passkeys_by_user_id(user_id)
-            for passkey in passkeys:
-                passkey_id = passkey.get("id")
-                if passkey_id:
-                    await directus_service.delete_item("user_passkeys", passkey_id)
-            logger.info(f"[DELETE_ACCOUNT] Deleted {len(passkeys)} passkeys for user {user_id}")
+            passkey_ids = [p.get("id") for p in passkeys if p.get("id")]
+            if passkey_ids:
+                await directus_service.bulk_delete_items("user_passkeys", passkey_ids)
+            logger.info(f"[DELETE_ACCOUNT] Deleted {len(passkey_ids)} passkeys for user {user_id}")
         except Exception as e:
             logger.error(f"[DELETE_ACCOUNT] Error deleting passkeys for user {user_id}: {e}", exc_info=True)
             # Critical - retry logic could be added here
         
-        # 2. Delete API keys and associated devices
+        # 2. Delete API keys and associated devices (using bulk delete for efficiency)
         try:
             api_keys = await directus_service.get_user_api_keys_by_user_id(user_id)
-            for api_key in api_keys:
-                api_key_id = api_key.get("id")
-                if api_key_id:
-                    # Delete associated devices first
-                    api_key_devices = await directus_service.get_items(
-                        "api_key_devices",
-                        params={"filter": {"api_key_id": {"_eq": api_key_id}}}
-                    )
-                    for device in api_key_devices or []:
-                        device_id = device.get("id")
-                        if device_id:
-                            await directus_service.delete_item("api_key_devices", device_id)
-                    # Delete API key
-                    await directus_service.delete_item("api_keys", api_key_id)
-            logger.info(f"[DELETE_ACCOUNT] Deleted {len(api_keys)} API keys for user {user_id}")
+            api_key_ids = [k.get("id") for k in api_keys if k.get("id")]
+            
+            # Collect all device IDs for all API keys in one batch
+            all_device_ids = []
+            for api_key_id in api_key_ids:
+                api_key_devices = await directus_service.get_items(
+                    "api_key_devices",
+                    params={"filter": {"api_key_id": {"_eq": api_key_id}}}
+                )
+                device_ids = [d.get("id") for d in (api_key_devices or []) if d.get("id")]
+                all_device_ids.extend(device_ids)
+            
+            # Bulk delete all devices first, then all API keys
+            if all_device_ids:
+                await directus_service.bulk_delete_items("api_key_devices", all_device_ids)
+            if api_key_ids:
+                await directus_service.bulk_delete_items("api_keys", api_key_ids)
+            logger.info(f"[DELETE_ACCOUNT] Deleted {len(api_key_ids)} API keys and {len(all_device_ids)} devices for user {user_id}")
         except Exception as e:
             logger.error(f"[DELETE_ACCOUNT] Error deleting API keys for user {user_id}: {e}", exc_info=True)
         
@@ -903,17 +905,16 @@ async def _async_delete_user_account(
         except Exception as e:
             logger.error(f"[DELETE_ACCOUNT] Error clearing email auth data for user {user_id}: {e}", exc_info=True)
         
-        # 6. Delete encryption keys (master keys encrypted with different login methods)
+        # 6. Delete encryption keys (master keys encrypted with different login methods) - using bulk delete
         try:
             encryption_keys = await directus_service.get_items(
                 "encryption_keys",
                 params={"filter": {"hashed_user_id": {"_eq": user_id_hash}}}
             )
-            for key in encryption_keys or []:
-                key_id = key.get("id")
-                if key_id:
-                    await directus_service.delete_item("encryption_keys", key_id)
-            logger.info(f"[DELETE_ACCOUNT] Deleted {len(encryption_keys) if encryption_keys else 0} encryption keys for user {user_id}")
+            key_ids = [k.get("id") for k in (encryption_keys or []) if k.get("id")]
+            if key_ids:
+                await directus_service.bulk_delete_items("encryption_keys", key_ids)
+            logger.info(f"[DELETE_ACCOUNT] Deleted {len(key_ids)} encryption keys for user {user_id}")
         except Exception as e:
             logger.error(f"[DELETE_ACCOUNT] Error deleting encryption keys for user {user_id}: {e}", exc_info=True)
         
@@ -955,42 +956,39 @@ async def _async_delete_user_account(
             except Exception as e:
                 logger.error(f"[DELETE_ACCOUNT] Error processing refunds for user {user_id}: {e}", exc_info=True)
         
-        # 10. Delete gift cards
+        # 10. Delete gift cards (using bulk delete for efficiency)
         try:
             gift_cards = await directus_service.get_items(
                 "gift_cards",
                 params={"filter": {"purchaser_user_id_hash": {"_eq": user_id_hash}}}
             )
-            for gift_card in gift_cards or []:
-                gift_card_id = gift_card.get("id")
-                if gift_card_id:
-                    await directus_service.delete_item("gift_cards", gift_card_id)
+            gift_card_ids = [g.get("id") for g in (gift_cards or []) if g.get("id")]
+            if gift_card_ids:
+                await directus_service.bulk_delete_items("gift_cards", gift_card_ids)
             
             # Delete redemption records
             redeemed_gift_cards = await directus_service.get_items(
                 "redeemed_gift_cards",
                 params={"filter": {"user_id_hash": {"_eq": user_id_hash}}}
             )
-            for redeemed in redeemed_gift_cards or []:
-                redeemed_id = redeemed.get("id")
-                if redeemed_id:
-                    await directus_service.delete_item("redeemed_gift_cards", redeemed_id)
-            logger.info(f"[DELETE_ACCOUNT] Deleted gift cards for user {user_id}")
+            redeemed_ids = [r.get("id") for r in (redeemed_gift_cards or []) if r.get("id")]
+            if redeemed_ids:
+                await directus_service.bulk_delete_items("redeemed_gift_cards", redeemed_ids)
+            logger.info(f"[DELETE_ACCOUNT] Deleted {len(gift_card_ids)} gift cards and {len(redeemed_ids)} redemption records for user {user_id}")
         except Exception as e:
             logger.error(f"[DELETE_ACCOUNT] Error deleting gift cards for user {user_id}: {e}", exc_info=True)
         
-        # 11. Delete invoices
+        # 11. Delete invoices (using bulk delete for efficiency)
         try:
             invoices = await directus_service.get_items(
                 "invoices",
                 params={"filter": {"user_id_hash": {"_eq": user_id_hash}}}
             )
-            for invoice in invoices or []:
-                invoice_id = invoice.get("id")
-                if invoice_id:
-                    # TODO: Delete invoice PDFs from S3 using encrypted_s3_object_key
-                    await directus_service.delete_item("invoices", invoice_id)
-            logger.info(f"[DELETE_ACCOUNT] Deleted {len(invoices) if invoices else 0} invoices for user {user_id}")
+            # TODO: Delete invoice PDFs from S3 using encrypted_s3_object_key for each invoice
+            invoice_ids = [i.get("id") for i in (invoices or []) if i.get("id")]
+            if invoice_ids:
+                await directus_service.bulk_delete_items("invoices", invoice_ids)
+            logger.info(f"[DELETE_ACCOUNT] Deleted {len(invoice_ids)} invoices for user {user_id}")
         except Exception as e:
             logger.error(f"[DELETE_ACCOUNT] Error deleting invoices for user {user_id}: {e}", exc_info=True)
         
@@ -999,171 +997,160 @@ async def _async_delete_user_account(
         # ===== PHASE 3: User Content & Data =====
         logger.info(f"[DELETE_ACCOUNT] Phase 3: Deleting user content for user {user_id}")
         
-        # 12. Delete chats, messages, embeds
+        # 12. Delete chats, messages, embeds (using bulk delete for efficiency)
         # Note: chats uses hashed_user_id, not user_id
         try:
-            deleted_chats = 0
-            deleted_messages = 0
-            deleted_embeds = 0
-            
             # Get all chats for this user (using hashed_user_id)
             chats = await directus_service.get_items(
                 "chats",
                 params={"filter": {"hashed_user_id": {"_eq": user_id_hash}}}
             )
             
-            for chat in chats or []:
-                chat_id = chat.get("id")
-                if chat_id:
-                    # Delete messages for this chat
-                    messages = await directus_service.get_items(
-                        "messages",
-                        params={"filter": {"chat_id": {"_eq": chat_id}}}
-                    )
-                    for message in messages or []:
-                        message_id = message.get("id")
-                        if message_id:
-                            await directus_service.delete_item("messages", message_id)
-                            deleted_messages += 1
-                    
-                    # Delete embeds for this chat (using hashed_chat_id)
-                    hashed_chat_id = hashlib.sha256(chat_id.encode()).hexdigest()
-                    embeds = await directus_service.get_items(
-                        "embeds",
-                        params={"filter": {"hashed_chat_id": {"_eq": hashed_chat_id}}}
-                    )
-                    for embed in embeds or []:
-                        embed_id = embed.get("id")
-                        if embed_id:
-                            await directus_service.delete_item("embeds", embed_id)
-                            deleted_embeds += 1
-                    
-                    # Delete chat
-                    await directus_service.delete_item("chats", chat_id)
-                    deleted_chats += 1
+            chat_ids = [c.get("id") for c in (chats or []) if c.get("id")]
+            all_message_ids = []
+            all_embed_ids = []
             
-            # Also delete any orphaned embeds by hashed_user_id (embeds not linked to a chat)
+            # Collect all message and embed IDs for all chats
+            for chat_id in chat_ids:
+                # Collect messages for this chat
+                messages = await directus_service.get_items(
+                    "messages",
+                    params={"filter": {"chat_id": {"_eq": chat_id}}}
+                )
+                message_ids = [m.get("id") for m in (messages or []) if m.get("id")]
+                all_message_ids.extend(message_ids)
+                
+                # Collect embeds for this chat (using hashed_chat_id)
+                hashed_chat_id = hashlib.sha256(chat_id.encode()).hexdigest()
+                embeds = await directus_service.get_items(
+                    "embeds",
+                    params={"filter": {"hashed_chat_id": {"_eq": hashed_chat_id}}}
+                )
+                embed_ids = [e.get("id") for e in (embeds or []) if e.get("id")]
+                all_embed_ids.extend(embed_ids)
+            
+            # Also collect any orphaned embeds by hashed_user_id (embeds not linked to a chat)
             orphaned_embeds = await directus_service.get_items(
                 "embeds",
                 params={"filter": {"hashed_user_id": {"_eq": user_id_hash}}}
             )
-            for embed in orphaned_embeds or []:
-                embed_id = embed.get("id")
-                if embed_id:
-                    await directus_service.delete_item("embeds", embed_id)
-                    deleted_embeds += 1
+            orphaned_embed_ids = [e.get("id") for e in (orphaned_embeds or []) if e.get("id")]
+            all_embed_ids.extend(orphaned_embed_ids)
             
-            logger.info(f"[DELETE_ACCOUNT] Deleted {deleted_chats} chats, {deleted_messages} messages, and {deleted_embeds} embeds for user {user_id}")
+            # Remove duplicates from embed IDs (in case of overlap between chat embeds and orphaned embeds)
+            all_embed_ids = list(set(all_embed_ids))
+            
+            # Bulk delete: messages first, then embeds, then chats (respecting foreign key constraints)
+            if all_message_ids:
+                await directus_service.bulk_delete_items("messages", all_message_ids)
+            if all_embed_ids:
+                await directus_service.bulk_delete_items("embeds", all_embed_ids)
+            if chat_ids:
+                await directus_service.bulk_delete_items("chats", chat_ids)
+            
+            logger.info(f"[DELETE_ACCOUNT] Deleted {len(chat_ids)} chats, {len(all_message_ids)} messages, and {len(all_embed_ids)} embeds for user {user_id}")
         except Exception as e:
             logger.error(f"[DELETE_ACCOUNT] Error deleting user content for user {user_id}: {e}", exc_info=True)
         
-        # 13. Delete usage data
+        # 13. Delete usage data (using bulk delete for efficiency)
         try:
             usage_entries = await directus_service.get_items(
                 "usage",
                 params={"filter": {"user_id_hash": {"_eq": user_id_hash}}}
             )
-            for entry in usage_entries or []:
-                entry_id = entry.get("id")
-                if entry_id:
-                    await directus_service.delete_item("usage", entry_id)
+            usage_ids = [e.get("id") for e in (usage_entries or []) if e.get("id")]
+            if usage_ids:
+                await directus_service.bulk_delete_items("usage", usage_ids)
             
-            # Delete usage summaries (including app summaries)
+            # Delete usage summaries (including app summaries) - bulk delete each collection
             for collection in ["usage_monthly_chat_summaries", "usage_monthly_api_key_summaries", "usage_monthly_app_summaries"]:
                 summaries = await directus_service.get_items(
                     collection,
                     params={"filter": {"user_id_hash": {"_eq": user_id_hash}}}
                 )
-                for summary in summaries or []:
-                    summary_id = summary.get("id")
-                    if summary_id:
-                        await directus_service.delete_item(collection, summary_id)
+                summary_ids = [s.get("id") for s in (summaries or []) if s.get("id")]
+                if summary_ids:
+                    await directus_service.bulk_delete_items(collection, summary_ids)
             logger.info(f"[DELETE_ACCOUNT] Deleted usage data for user {user_id}")
         except Exception as e:
             logger.error(f"[DELETE_ACCOUNT] Error deleting usage data for user {user_id}: {e}", exc_info=True)
         
-        # 14. Delete app settings & memories
+        # 14. Delete app settings & memories (using bulk delete for efficiency)
         try:
             app_settings = await directus_service.get_items(
                 "user_app_settings_and_memories",
                 params={"filter": {"hashed_user_id": {"_eq": user_id_hash}}}
             )
-            for setting in app_settings or []:
-                setting_id = setting.get("id")
-                if setting_id:
-                    await directus_service.delete_item("user_app_settings_and_memories", setting_id)
+            setting_ids = [s.get("id") for s in (app_settings or []) if s.get("id")]
+            if setting_ids:
+                await directus_service.bulk_delete_items("user_app_settings_and_memories", setting_ids)
             logger.info(f"[DELETE_ACCOUNT] Deleted app settings/memories for user {user_id}")
         except Exception as e:
             logger.error(f"[DELETE_ACCOUNT] Error deleting app settings for user {user_id}: {e}", exc_info=True)
         
-        # 15. Delete drafts
+        # 15. Delete drafts (using bulk delete for efficiency)
         try:
             drafts = await directus_service.get_items(
                 "drafts",
                 params={"filter": {"hashed_user_id": {"_eq": user_id_hash}}}
             )
-            for draft in drafts or []:
-                draft_id = draft.get("id")
-                if draft_id:
-                    await directus_service.delete_item("drafts", draft_id)
-            logger.info(f"[DELETE_ACCOUNT] Deleted {len(drafts) if drafts else 0} drafts for user {user_id}")
+            draft_ids = [d.get("id") for d in (drafts or []) if d.get("id")]
+            if draft_ids:
+                await directus_service.bulk_delete_items("drafts", draft_ids)
+            logger.info(f"[DELETE_ACCOUNT] Deleted {len(draft_ids)} drafts for user {user_id}")
         except Exception as e:
             logger.error(f"[DELETE_ACCOUNT] Error deleting drafts for user {user_id}: {e}", exc_info=True)
         
-        # 16. Delete new chat suggestions
+        # 16. Delete new chat suggestions (using bulk delete for efficiency)
         try:
             suggestions = await directus_service.get_items(
                 "new_chat_suggestions",
                 params={"filter": {"hashed_user_id": {"_eq": user_id_hash}}}
             )
-            for suggestion in suggestions or []:
-                suggestion_id = suggestion.get("id")
-                if suggestion_id:
-                    await directus_service.delete_item("new_chat_suggestions", suggestion_id)
-            logger.info(f"[DELETE_ACCOUNT] Deleted {len(suggestions) if suggestions else 0} new chat suggestions for user {user_id}")
+            suggestion_ids = [s.get("id") for s in (suggestions or []) if s.get("id")]
+            if suggestion_ids:
+                await directus_service.bulk_delete_items("new_chat_suggestions", suggestion_ids)
+            logger.info(f"[DELETE_ACCOUNT] Deleted {len(suggestion_ids)} new chat suggestions for user {user_id}")
         except Exception as e:
             logger.error(f"[DELETE_ACCOUNT] Error deleting new chat suggestions for user {user_id}: {e}", exc_info=True)
         
-        # 17. Delete embed keys
+        # 17. Delete embed keys (using bulk delete for efficiency)
         try:
             embed_keys = await directus_service.get_items(
                 "embed_keys",
                 params={"filter": {"hashed_user_id": {"_eq": user_id_hash}}}
             )
-            for embed_key in embed_keys or []:
-                embed_key_id = embed_key.get("id")
-                if embed_key_id:
-                    await directus_service.delete_item("embed_keys", embed_key_id)
-            logger.info(f"[DELETE_ACCOUNT] Deleted {len(embed_keys) if embed_keys else 0} embed keys for user {user_id}")
+            embed_key_ids = [k.get("id") for k in (embed_keys or []) if k.get("id")]
+            if embed_key_ids:
+                await directus_service.bulk_delete_items("embed_keys", embed_key_ids)
+            logger.info(f"[DELETE_ACCOUNT] Deleted {len(embed_key_ids)} embed keys for user {user_id}")
         except Exception as e:
             logger.error(f"[DELETE_ACCOUNT] Error deleting embed keys for user {user_id}: {e}", exc_info=True)
         
-        # 18. Delete credit notes
+        # 18. Delete credit notes (using bulk delete for efficiency)
         try:
             credit_notes = await directus_service.get_items(
                 "credit_notes",
                 params={"filter": {"user_id_hash": {"_eq": user_id_hash}}}
             )
-            for credit_note in credit_notes or []:
-                credit_note_id = credit_note.get("id")
-                if credit_note_id:
-                    # TODO: Delete credit note PDFs from S3 using encrypted_s3_object_key
-                    await directus_service.delete_item("credit_notes", credit_note_id)
-            logger.info(f"[DELETE_ACCOUNT] Deleted {len(credit_notes) if credit_notes else 0} credit notes for user {user_id}")
+            # TODO: Delete credit note PDFs from S3 using encrypted_s3_object_key for each credit note
+            credit_note_ids = [c.get("id") for c in (credit_notes or []) if c.get("id")]
+            if credit_note_ids:
+                await directus_service.bulk_delete_items("credit_notes", credit_note_ids)
+            logger.info(f"[DELETE_ACCOUNT] Deleted {len(credit_note_ids)} credit notes for user {user_id}")
         except Exception as e:
             logger.error(f"[DELETE_ACCOUNT] Error deleting credit notes for user {user_id}: {e}", exc_info=True)
         
-        # 19. Delete creator income records (if user was a creator)
+        # 19. Delete creator income records (if user was a creator) - using bulk delete
         try:
             creator_income = await directus_service.get_items(
                 "creator_income",
                 params={"filter": {"hashed_creator_user_id": {"_eq": user_id_hash}}}
             )
-            for income in creator_income or []:
-                income_id = income.get("id")
-                if income_id:
-                    await directus_service.delete_item("creator_income", income_id)
-            logger.info(f"[DELETE_ACCOUNT] Deleted {len(creator_income) if creator_income else 0} creator income records for user {user_id}")
+            income_ids = [i.get("id") for i in (creator_income or []) if i.get("id")]
+            if income_ids:
+                await directus_service.bulk_delete_items("creator_income", income_ids)
+            logger.info(f"[DELETE_ACCOUNT] Deleted {len(income_ids)} creator income records for user {user_id}")
         except Exception as e:
             logger.error(f"[DELETE_ACCOUNT] Error deleting creator income for user {user_id}: {e}", exc_info=True)
         

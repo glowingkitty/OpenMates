@@ -13,6 +13,7 @@ export interface UserProfile {
   // Use boolean flags received from backend
   consent_privacy_and_apps_default_settings?: boolean;
   consent_mates_default_settings?: boolean;
+  consent_recovery_key_stored_timestamp?: number; // Timestamp when user confirmed they stored recovery key
   language: string | null; // User's preferred language
   darkmode: boolean; // User's dark mode preference
   currency: string | null; // User's preferred currency

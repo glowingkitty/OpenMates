@@ -112,8 +112,17 @@ async function loadCodeEmbedsRecursively(embedIds: string[], loadedEmbedIds: Set
       if (embed.type === 'code' && decodedContent && typeof decodedContent === 'object') {
         const codeContent = decodedContent.code || decodedContent.content || '';
         const language = decodedContent.language || decodedContent.lang || 'text';
+        // Get filename from TOON content (inside the code block)
         const filename = decodedContent.filename || undefined;
-        const filePath = decodedContent.file_path || undefined;
+        // Get file_path from embed-level field (stored in EmbedStore) OR TOON content OR filename
+        // Priority: embed.file_path > decodedContent.file_path > filename (if it contains path separator)
+        // The filename can be a full path when specified as `language:path/to/file.ext` in markdown
+        let filePath = embed.file_path || decodedContent.file_path || undefined;
+        
+        // If no explicit file_path but filename contains path separators, use filename as path
+        if (!filePath && filename && (filename.includes('/') || filename.includes('\\'))) {
+          filePath = filename;
+        }
 
         if (codeContent) {
           codeEmbeds.push({

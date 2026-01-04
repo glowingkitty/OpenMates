@@ -358,17 +358,14 @@
                     {#if showEmailWarning && emailError}
                         <InputWarning
                             message={emailError}
-                            target={emailInput}
                         />
                     {:else if loginFailedWarning}
                         <InputWarning
                             message={$text('login.login_failed.text')}
-                            target={emailInput}
                         />
                     {:else if $sessionExpiredWarning}
                         <InputWarning
                             message={$text('login.session_expired.text')}
-                            target={emailInput}
                         />
                     {/if}
                 </div>

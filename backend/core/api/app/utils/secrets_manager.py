@@ -24,6 +24,10 @@ class SecretsManager:
     
     Uses singleton pattern per process to avoid redundant initialization
     and reduce memory usage across multiple tasks in the same worker process.
+    
+    IMPORTANT: When used in Celery tasks with asyncio.run(), call aclose() 
+    before the async function returns to prevent "Event loop is closed" errors
+    during httpx client cleanup.
     """
     _instance = None
     _initialized = False
@@ -60,6 +64,10 @@ class SecretsManager:
         # Token validation cache settings (similar to EncryptionService)
         self._token_valid_until = 0  # Token validation expiry timestamp
         self._token_validation_ttl = 300  # Cache token validation for 5 minutes
+        
+        # Shared httpx client for Vault requests - prevents "Event loop is closed" errors
+        # by keeping a single client that can be explicitly closed with aclose()
+        self._http_client: Optional[httpx.AsyncClient] = None
         
         self._initialized = True
             
@@ -116,13 +124,13 @@ class SecretsManager:
             logger.warning("VAULT_URL environment variable not set. Vault operations will fail. This is expected if Vault is not configured.")
             return False
         
-        # Try to validate connection to Vault
+        # Try to validate connection to Vault using the shared httpx client
         try:
-            async with httpx.AsyncClient(timeout=30.0) as client:
-                response = await client.get(
-                    f"{self.vault_url}/v1/sys/health",
-                    headers={"X-Vault-Token": self.vault_token}
-                )
+            client = await self._get_http_client()
+            response = await client.get(
+                f"{self.vault_url}/v1/sys/health",
+                headers={"X-Vault-Token": self.vault_token}
+            )
             
             if response.status_code == 200:
                 logger.info("Successfully connected to Vault and Vault is healthy.")
@@ -164,8 +172,9 @@ class SecretsManager:
             url = f"{self.vault_url}/v1/auth/token/lookup-self"
             headers = {"X-Vault-Token": self.vault_token}
             
-            async with httpx.AsyncClient(timeout=30.0) as client:
-                response = await client.get(url, headers=headers)
+            # Use the shared httpx client to prevent "Event loop is closed" errors
+            client = await self._get_http_client()
+            response = await client.get(url, headers=headers)
             
             if response.status_code == 200:
                 token_info = response.json().get("data", {})
@@ -185,11 +194,10 @@ class SecretsManager:
                 logger.debug("_validate_token: Found different token in file. Updating and retrying validation.")
                 self.vault_token = file_token
                 
-                # Try again with the new token
+                # Try again with the new token using the shared client
                 new_token_display = f"{self.vault_token[:4]}...{self.vault_token[-4:]}" if self.vault_token and len(self.vault_token) >= 8 else "****"
                 headers = {"X-Vault-Token": self.vault_token}
-                async with httpx.AsyncClient(timeout=30.0) as client:
-                    response = await client.get(url, headers=headers)
+                response = await client.get(url, headers=headers)
                 if response.status_code == 200:
                     token_info = response.json().get("data", {})
                     logger.debug(f"_validate_token: Token from file {new_token_display} is now valid. Policies: {token_info.get('policies', [])}")
@@ -261,15 +269,17 @@ class SecretsManager:
         headers = {"X-Vault-Token": self.vault_token}
         
         try:
-            async with httpx.AsyncClient(timeout=30.0) as client:
-                if method.lower() == "get":
-                    response = await client.get(url, headers=headers)
-                elif method.lower() == "post":
-                    response = await client.post(url, headers=headers, json=data)
-                else:
-                    response = await getattr(client, method.lower())(url, headers=headers, json=data)
-                    
-                response.raise_for_status()
+            # Use the shared httpx client to prevent "Event loop is closed" errors
+            # when using asyncio.run() in Celery tasks
+            client = await self._get_http_client()
+            if method.lower() == "get":
+                response = await client.get(url, headers=headers)
+            elif method.lower() == "post":
+                response = await client.post(url, headers=headers, json=data)
+            else:
+                response = await getattr(client, method.lower())(url, headers=headers, json=data)
+                
+            response.raise_for_status()
             return response.json() if response.text else {}
         except httpx.HTTPStatusError as e:
             # Handle 403 (Forbidden) - token might be expired or invalid
@@ -279,17 +289,17 @@ class SecretsManager:
                 self._token_valid_until = 0
                 # Try to refresh token from file
                 if await self._refresh_token_on_error():
-                    # Retry the request once with the new token
+                    # Retry the request once with the new token using the shared client
                     logger.debug(f"Retrying Vault request to {path} with refreshed token")
                     headers = {"X-Vault-Token": self.vault_token}
-                    async with httpx.AsyncClient(timeout=30.0) as client:
-                        if method.lower() == "get":
-                            response = await client.get(url, headers=headers)
-                        elif method.lower() == "post":
-                            response = await client.post(url, headers=headers, json=data)
-                        else:
-                            response = await getattr(client, method.lower())(url, headers=headers, json=data)
-                        response.raise_for_status()
+                    client = await self._get_http_client()
+                    if method.lower() == "get":
+                        response = await client.get(url, headers=headers)
+                    elif method.lower() == "post":
+                        response = await client.post(url, headers=headers, json=data)
+                    else:
+                        response = await getattr(client, method.lower())(url, headers=headers, json=data)
+                    response.raise_for_status()
                     return response.json() if response.text else {}
                 else:
                     logger.error(f"HTTP error 403 in Vault request to {path}: {e.response.text}")
@@ -428,6 +438,65 @@ class SecretsManager:
             logger.error(f"Error retrieving all secrets from path '{secret_path}' in Vault: {e}", exc_info=True)
             return None
             
+    async def _get_http_client(self) -> httpx.AsyncClient:
+        """
+        Get or create the shared httpx client for Vault requests.
+        
+        Using a shared client instead of creating new ones for each request
+        prevents "Event loop is closed" errors when using asyncio.run() in
+        Celery tasks. The client is kept alive for the duration of the async
+        context and should be explicitly closed with aclose() before returning.
+        
+        Returns:
+            httpx.AsyncClient: The shared HTTP client instance
+        """
+        if self._http_client is None or self._http_client.is_closed:
+            self._http_client = httpx.AsyncClient(timeout=30.0)
+            logger.debug("Created new shared httpx client for Vault requests")
+        return self._http_client
+    
+    async def aclose(self):
+        """
+        Explicitly close the httpx client to prevent "Event loop is closed" errors.
+        
+        IMPORTANT: Call this method before returning from async functions that are
+        executed with asyncio.run() (e.g., in Celery tasks). This ensures the httpx
+        client's cleanup tasks complete while the event loop is still running.
+        
+        The method includes a small sleep after closing to allow httpx's internal
+        connection pool cleanup tasks to complete before asyncio.run() closes the
+        event loop. Without this, background cleanup tasks can fail with
+        "Event loop is closed" errors.
+        
+        Example usage in a Celery task:
+            async def _async_task():
+                secrets_manager = SecretsManager()
+                await secrets_manager.initialize()
+                try:
+                    # ... do work ...
+                finally:
+                    await secrets_manager.aclose()
+        """
+        if self._http_client is not None and not self._http_client.is_closed:
+            try:
+                await self._http_client.aclose()
+                logger.debug("Closed shared httpx client for Vault requests")
+                # CRITICAL: Allow pending httpx cleanup tasks to complete
+                # httpx.AsyncClient.aclose() schedules background tasks for connection
+                # pool cleanup. If we return immediately, asyncio.run() closes the event
+                # loop before these tasks finish, causing "Event loop is closed" errors.
+                # A small sleep ensures these background tasks have time to complete.
+                await asyncio.sleep(0.1)
+            except Exception as e:
+                # Log but don't raise - cleanup errors shouldn't break the task
+                logger.warning(f"Error closing httpx client: {e}")
+            finally:
+                self._http_client = None
+    
     async def close(self):
-        """Close the HTTP client."""
-        pass
+        """
+        Close the HTTP client. Alias for aclose() for backwards compatibility.
+        
+        Deprecated: Use aclose() instead for explicit async cleanup.
+        """
+        await self.aclose()
