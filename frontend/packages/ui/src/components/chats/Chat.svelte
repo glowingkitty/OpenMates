@@ -1414,9 +1414,37 @@
         return;
       }
       
-      // CRITICAL: Handle sessionStorage-only chats for non-authenticated users
-      // These are drafts-only chats that don't exist in IndexedDB
+      // CRITICAL: Handle chats for non-authenticated users
+      // There are two types:
+      // 1. Shared chats - stored in IndexedDB with keys in sharedChatKeyStorage (from share links)
+      // 2. Draft-only chats - only exist in sessionStorage
       if (!$authStore.isAuthenticated) {
+        // Check if this is a shared chat (has a key in sharedChatKeyStorage)
+        const { getSharedChatKey, deleteSharedChatKey } = await import('../../services/sharedChatKeyStorage');
+        const sharedKey = await getSharedChatKey(chatIdToDelete);
+        
+        if (sharedKey) {
+          // This is a shared chat - delete from IndexedDB and remove the stored key
+          console.debug('[Chat] Deleting shared chat from IndexedDB:', chatIdToDelete);
+          
+          // Delete from IndexedDB
+          await chatDB.deleteChat(chatIdToDelete);
+          
+          // Delete the shared chat key from storage
+          await deleteSharedChatKey(chatIdToDelete);
+          
+          // Clear from memory cache
+          chatDB.clearChatKey(chatIdToDelete);
+          
+          // Dispatch event to update UI
+          chatSyncService.dispatchEvent(new CustomEvent('chatDeleted', { detail: { chat_id: chatIdToDelete } }));
+          
+          console.debug('[Chat] Shared chat and key deleted:', chatIdToDelete);
+          notificationStore.success('Chat deleted successfully');
+          return;
+        }
+        
+        // Draft-only chat - only delete from sessionStorage
         console.debug('[Chat] Deleting sessionStorage-only chat (draft-only):', chatIdToDelete);
         
         // Delete draft from sessionStorage

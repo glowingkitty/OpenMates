@@ -684,64 +684,15 @@
 			}
 		}
 		
-		// FALLBACK: Cleanup shared chats on page load (if unload events didn't fire)
-		// This handles cases where browser crashed, force quit, or events didn't fire
-		// Only run for non-authenticated users (authenticated users' chats should persist)
-		if (!isAuth) {
-			try {
-				// Check if this is a new session (sessionStorage doesn't have shared_chats)
-				// sessionStorage is cleared when tab/window closes, so empty = new session
-				const hasSharedChatsInSession = sessionStorage.getItem('shared_chats') !== null;
-				
-				if (!hasSharedChatsInSession) {
-					// This is a new session - cleanup any leftover shared chats from previous session
-					console.debug('[+page.svelte] New session detected - cleaning up any leftover shared chats from IndexedDB');
-					
-					try {
-						// Initialize DB if needed (non-blocking, may fail if DB is unavailable)
-						await chatDB.init();
-						
-						// Get all chats from IndexedDB
-						const allChats = await chatDB.getAllChats();
-						
-						// Import isPublicChat helper
-						const { isPublicChat } = await import('@repo/ui');
-						
-						// Delete all chats that aren't demo/legal chats (these are leftover shared chats)
-						let deletedCount = 0;
-						for (const chat of allChats) {
-							if (!isPublicChat(chat.chat_id)) {
-								try {
-									await chatDB.deleteChat(chat.chat_id);
-									deletedCount++;
-									console.debug('[+page.svelte] Deleted leftover shared chat:', chat.chat_id);
-								} catch (error) {
-									console.warn('[+page.svelte] Error deleting leftover shared chat:', chat.chat_id, error);
-								}
-							}
-						}
-						
-						if (deletedCount > 0) {
-							console.info(`[+page.svelte] Cleaned up ${deletedCount} leftover shared chat(s) from previous session`);
-						}
-					} catch (dbError: unknown) {
-						// If DB is being deleted (e.g., during logout) or unavailable, skip cleanup
-						const errorMessage = dbError instanceof Error ? dbError.message : String(dbError);
-						if (errorMessage?.includes('being deleted') || errorMessage?.includes('cannot be initialized')) {
-							console.debug('[+page.svelte] Database unavailable during shared chat cleanup - skipping (likely during logout)');
-						} else {
-							console.warn('[+page.svelte] Error accessing database during shared chat cleanup:', dbError);
-						}
-					}
-				} else {
-					// Session has shared chats - they're still valid, don't delete
-					console.debug('[+page.svelte] Existing session with shared chats - skipping cleanup');
-				}
-			} catch (error) {
-				console.warn('[+page.svelte] Error during shared chat cleanup on load:', error);
-				// Don't fail the whole app if cleanup fails
-			}
-		}
+		// NOTE: Shared chat cleanup for unauthenticated users
+		// Shared chats are now intentionally persisted in IndexedDB (with keys in sharedChatKeyStorage)
+		// so that users can explore multiple shared chats across tab reloads and closures before signup.
+		// Cleanup only happens when users explicitly delete a shared chat via the chat context menu.
+		// The old session-based cleanup (using sessionStorage) has been removed to support this behavior.
+		// 
+		// If we ever need to clean up orphaned chats (chats without keys), we could add logic here
+		// that compares IndexedDB chats against sharedChatKeyStorage to find mismatches.
+		console.debug('[+page.svelte] Shared chat cleanup skipped - shared chats persist until explicitly deleted');
 		
 		// CRITICAL: Check for signup hash in URL BEFORE initialize() to ensure hash-based signup state takes precedence
 		// This ensures signup flow opens immediately on page reload if URL has #signup/ hash
@@ -874,62 +825,11 @@
 			console.debug('[+page.svelte] Skipping payment handler registration during signup');
 		}
 		
-		// CRITICAL: Setup cleanup for shared chats on session close (non-authenticated users only)
-		// Shared chats are stored in IndexedDB but should be deleted when the session ends
-		// This ensures shared chats don't persist long-term for non-authenticated users
-		// IMPORTANT: Only delete on actual tab close, not during navigation
-		const cleanupSharedChats = async () => {
-			// Only cleanup if user is not authenticated
-			if (!$authStore.isAuthenticated) {
-				try {
-					const sharedChatIds = JSON.parse(sessionStorage.getItem('shared_chats') || '[]');
-					if (sharedChatIds.length > 0) {
-						console.debug('[+page.svelte] Cleaning up shared chats on session close:', sharedChatIds);
-						
-						// Delete chats from IndexedDB
-						for (const chatId of sharedChatIds) {
-							try {
-								await chatDB.deleteChat(chatId);
-								console.debug('[+page.svelte] Deleted shared chat from IndexedDB:', chatId);
-							} catch (error) {
-								console.warn('[+page.svelte] Error deleting shared chat:', chatId, error);
-							}
-						}
-						
-						// Clear sessionStorage tracking
-						sessionStorage.removeItem('shared_chats');
-						console.debug('[+page.svelte] Cleaned up shared chats on session close');
-					}
-				} catch (error) {
-					console.warn('[+page.svelte] Error cleaning up shared chats:', error);
-				}
-			}
-		};
-		
-		// Use pagehide for better mobile browser support (fires on tab close, browser close, navigation)
-		// This is more reliable than beforeunload for detecting actual tab close
-		// The 'persisted' property tells us if the page is being cached (navigation) or unloaded (tab close)
-		window.addEventListener('pagehide', (event) => {
-			// Check if this is a navigation (persisted) or actual unload
-			// If persisted is true, the page is being cached (e.g., back/forward navigation, SPA navigation)
-			// If persisted is false, the page is being unloaded (tab close, browser close)
-			if (!event.persisted) {
-				// Page is being unloaded (not cached) - this is actual tab/browser close
-				// Use non-blocking approach - initiate cleanup (may not complete if page closes immediately)
-				cleanupSharedChats().catch(() => {
-					// Ignore errors - cleanup will happen on next page load if needed
-					console.debug('[+page.svelte] Shared chat cleanup on unload incomplete (will be handled on next page load)');
-				});
-			} else {
-				console.debug('[+page.svelte] Page is being cached (navigation), not closing. Skipping cleanup.');
-			}
-		});
-		
-		// Note: We primarily rely on pagehide.persisted for accurate detection
-		// Most modern browsers support this, so beforeunload is rarely needed
-		// If a browser doesn't support pagehide.persisted, cleanup will happen on next page load anyway
-		
-		console.debug('[+page.svelte] Registered shared chat cleanup handlers');
+		// NOTE: Shared chat automatic cleanup has been removed.
+		// Shared chats now persist in IndexedDB across browser sessions (with keys in sharedChatKeyStorage)
+		// so that unauthenticated users can explore multiple shared chats before deciding to sign up.
+		// Users can delete shared chats explicitly via the chat context menu.
+		// See: sharedChatKeyStorage.ts for how shared chat keys are persisted.
 
 		// CRITICAL: Register sync event listeners FIRST, before initialization
 		// chatSyncService can auto-start sync when WebSocket connects during initialize()
