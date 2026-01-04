@@ -4,10 +4,10 @@
  * These utilities are exposed to the global window object for debugging via the browser console.
  * They allow inspecting IndexedDB chat data, messages, and sync status.
  * 
- * Usage in browser console:
- *   await window.debugChat('02c083ce-32ce-4ce5-ac04-2ef25e263be3')
- *   await window.debugAllChats()
- *   await window.debugSyncStatus()
+ * Usage in browser console (all read-only):
+ *   await window.debugChat('chat-id')      - Inspect a specific chat
+ *   await window.debugAllChats()           - List all chats with consistency check
+ *   await window.debugGetMessage('msg-id') - Get raw message data
  * 
  * IMPORTANT: These utilities are for development/debugging only.
  * They should not be used in production code paths.
@@ -324,80 +324,6 @@ export async function debugAllChats(): Promise<{
 }
 
 /**
- * Force re-sync a specific chat by resetting its messages_v to 0
- * This will cause the next sync to fetch all messages from the server
- * 
- * ⚠️ USE WITH CAUTION - This modifies IndexedDB data
- * 
- * Usage in console:
- *   await window.debugForceResyncChat('your-chat-id-here')
- */
-export async function debugForceResyncChat(chatId: string): Promise<boolean> {
-    console.log(`⚠️ Force re-sync requested for chat: ${chatId}`);
-    console.log('This will reset messages_v to 0 and clear local messages');
-    
-    const db = await openDB();
-    
-    try {
-        // Get current chat metadata
-        const chatMeta = await getFromStore<Record<string, unknown>>(db, CHATS_STORE, chatId);
-        if (!chatMeta) {
-            console.error('❌ Chat not found in IndexedDB');
-            db.close();
-            return false;
-        }
-        
-        const oldMessagesV = chatMeta.messages_v;
-        console.log(`Current messages_v: ${oldMessagesV}`);
-        
-        // Update chat with messages_v = 0
-        const updatedChat = {
-            ...chatMeta,
-            messages_v: 0
-        };
-        
-        // Create transaction for updates
-        const tx = db.transaction([CHATS_STORE, MESSAGES_STORE], 'readwrite');
-        
-        // Update chat metadata
-        const chatsStore = tx.objectStore(CHATS_STORE);
-        chatsStore.put(updatedChat);
-        
-        // Delete all messages for this chat
-        const messagesStore = tx.objectStore(MESSAGES_STORE);
-        const messageIndex = messagesStore.index('chat_id');
-        const messageRequest = messageIndex.openCursor(IDBKeyRange.only(chatId));
-        
-        let deletedCount = 0;
-        messageRequest.onsuccess = () => {
-            const cursor = messageRequest.result;
-            if (cursor) {
-                cursor.delete();
-                deletedCount++;
-                cursor.continue();
-            }
-        };
-        
-        await new Promise<void>((resolve, reject) => {
-            tx.oncomplete = () => {
-                console.log(`✅ Reset messages_v from ${oldMessagesV} to 0`);
-                console.log(`✅ Deleted ${deletedCount} local messages`);
-                console.log('💡 Reload the page to trigger a fresh sync');
-                resolve();
-            };
-            tx.onerror = () => reject(tx.error);
-        });
-        
-        db.close();
-        return true;
-    } catch (error) {
-        console.error('❌ Error during force re-sync:', error);
-        db.close();
-        return false;
-    }
-}
-
-/**
  * Get raw message data for a specific message ID
  * 
  * Usage in console:
@@ -427,18 +353,16 @@ export async function debugGetMessage(messageId: string): Promise<Record<string,
  */
 export function initDebugUtils(): void {
     if (typeof window !== 'undefined') {
-        // Expose functions to window for console access
+        // Expose read-only debug functions to window for console access
         (window as unknown as Record<string, unknown>).debugChat = debugChat;
         (window as unknown as Record<string, unknown>).debugAllChats = debugAllChats;
-        (window as unknown as Record<string, unknown>).debugForceResyncChat = debugForceResyncChat;
         (window as unknown as Record<string, unknown>).debugGetMessage = debugGetMessage;
         
         console.info(
             '%c🔧 Debug utilities loaded!%c\n' +
-            'Available commands:\n' +
+            'Available commands (read-only):\n' +
             '  • await window.debugChat("chat-id") - Inspect a specific chat\n' +
             '  • await window.debugAllChats() - List all chats with consistency check\n' +
-            '  • await window.debugForceResyncChat("chat-id") - Reset chat for re-sync\n' +
             '  • await window.debugGetMessage("message-id") - Get raw message data',
             'color: #4CAF50; font-weight: bold; font-size: 14px;',
             'color: #888; font-size: 12px;'
