@@ -42,6 +42,17 @@ preprocess_request_tool:
           - Available app skills (format: `app_id-skill_id`) will be dynamically provided in: {AVAILABLE_APP_SKILLS}.
           - Select skill identifiers that could be useful for fulfilling the user's request (e.g., `web-search` for web searches, `images-generate` for image generation, `videos-get_transcript` for YouTube transcripts).
           
+          **CRITICAL: Prefer specific skills over general-purpose ones:**
+          - When the user's request can be fulfilled by BOTH a specific skill AND a general-purpose skill (like `web-search`), ALWAYS include BOTH:
+            - Include the specific skill for best results
+            - Include `web-search` as a fallback/supplement
+          - Example: "Find documentaries about NYC" → select BOTH `videos-search` (specific) AND `web-search` (general)
+          
+          **CRITICAL: Select `videos-search` for video/media content queries:**
+          - Use `videos-search` when users ask for videos, documentaries, tutorials, clips, films, shows, or any video content
+          - Trigger phrases: "find videos", "documentaries about", "watch", "tutorial video", "YouTube videos", "video about", "show me videos", "recommend videos"
+          - For video content discovery, ALWAYS include `videos-search` even if `web-search` might also help
+          
           **CRITICAL: Select `web-search` for time-sensitive queries:**
           - News, current events, prices, product info, stock/crypto data, sports scores, software versions, weather, recent research
           - Trigger words: "current", "latest", "recent", "now", "today", "price of", "how much", "who won"

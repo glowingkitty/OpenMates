@@ -21,19 +21,25 @@ Base instructions include an ethics layer and explicit rules that discourage fab
 
 Related system-prompt composition is documented in `docs/architecture/message_processing.md`.
 
-### 2) Automatic URL validation + response correction (404 / 4xx)
+### 2) Automatic URL validation + Brave search replacement (404 / 4xx)
 
-OpenMates validates markdown links during streaming and fixes responses containing broken links:
+OpenMates validates markdown links during streaming and replaces broken links with Brave search URLs:
 
 - URL extraction/validation: `backend/apps/ai/processing/url_validator.py`
-- Full-response correction (LLM removes broken links, may ask to web-search): `backend/apps/ai/processing/url_corrector.py`
 - Streaming integration + correction publish: `backend/apps/ai/tasks/stream_consumer.py`
 
-Behavior summary:
+**Anti-detection features** (to avoid datacenter IP blocking):
+- Webshare rotating residential proxy for URL validation requests
+- Random User-Agent generation (via `user-agents` library)
+- Randomized HTTP headers (Accept-Language, DNT, etc.)
+
+**Behavior summary:**
 - Only **markdown links** like `[text](https://...)` are extracted/validated.
-- URLs are checked via `HEAD` (fallback to `GET`) with redirects enabled.
-- **4xx** links are treated as broken and collected; **5xx/timeouts** are treated as temporary (not auto-removed).
-- After streaming completes and validations finish, a single correction pass may update the final response shown to the user.
+- URLs are checked via `HEAD` (fallback to `GET`) with redirects enabled, routed through Webshare proxy.
+- **4xx** links (401, 403, 404, etc.) are treated as broken and collected; **5xx/timeouts** are treated as temporary (not auto-removed).
+- After streaming completes, broken URLs are replaced with Brave search links using the original link text.
+  - Example: `[Python docs](https://broken-link.com)` → `[Python docs](https://search.brave.com/search?q=Python%20docs)`
+- This approach is simple, reliable (can't fail), zero-cost (no LLM call), and preserves the user's ability to find the intended content.
 
 ### 3) Tool preselection (reduce irrelevant tools → fewer “wrong tool” paths)
 
@@ -75,3 +81,4 @@ Expand and harden focus modes that guide the model into multi-step research/veri
 - URL validation currently targets markdown links; plain-text URLs may not be validated.
 - This mitigates *broken* URLs and URL fabrication patterns, but does not fully verify factual claims without explicit retrieval/verification steps.
 - Temporary network/server issues (timeouts/5xx) are intentionally treated as non-broken to avoid overcorrecting valid links.
+- Brave search replacement preserves the link but redirects to search results; the user must still verify they found the correct resource.

@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 """
-Script to inspect chat data including metadata, messages, embeds, and cache status.
+Script to inspect chat data including metadata, messages, embeds, usage entries, and cache status.
 
 This script:
 1. Takes a chat ID as argument
 2. Fetches chat metadata from Directus
 3. Fetches all messages for the chat from Directus
 4. Fetches all embeds for the chat from Directus
-5. Checks Redis cache status for the chat and its components
+5. Fetches all usage entries (credit usage) for the chat from Directus
+6. Checks Redis cache status for the chat and its components
 
 Usage:
     docker exec -it api python /app/backend/scripts/inspect_chat.py <chat_id>
@@ -16,6 +17,7 @@ Usage:
 Options:
     --messages-limit N  Limit number of messages to display (default: 20)
     --embeds-limit N    Limit number of embeds to display (default: 20)
+    --usage-limit N     Limit number of usage entries to display (default: 20)
     --json              Output as JSON instead of formatted text
     --no-cache          Skip cache checks (faster if Redis is down)
 """
@@ -190,6 +192,40 @@ async def get_chat_embeds(directus_service: DirectusService, chat_id: str, limit
         return []
 
 
+async def get_chat_usage_entries(directus_service: DirectusService, chat_id: str, limit: int = 100) -> List[Dict[str, Any]]:
+    """
+    Fetch all usage entries for a chat from Directus.
+    
+    Usage entries are stored with chat_id in cleartext for easy client-side matching.
+    This function queries usage entries by chat_id to show credit usage for a specific chat.
+    
+    Args:
+        directus_service: DirectusService instance
+        chat_id: The chat ID
+        limit: Maximum number of usage entries to fetch
+        
+    Returns:
+        List of usage entry dictionaries, sorted by created_at descending (newest first)
+    """
+    script_logger.debug(f"Fetching usage entries for chat_id: {chat_id}")
+    
+    params = {
+        'filter[chat_id][_eq]': chat_id,
+        'fields': '*',  # Get all fields
+        'sort': '-created_at',  # Newest first
+        'limit': limit
+    }
+    
+    try:
+        response = await directus_service.get_items('usage', params=params, no_cache=True)
+        if response and isinstance(response, list):
+            return response
+        return []
+    except Exception as e:
+        script_logger.error(f"Error fetching usage entries: {e}")
+        return []
+
+
 async def check_cache_status(cache_service: CacheService, chat_id: str, hashed_user_id: Optional[str] = None) -> Dict[str, Any]:
     """
     Check Redis cache status for a chat and its components.
@@ -295,9 +331,11 @@ def format_output_text(
     chat_metadata: Optional[Dict[str, Any]],
     messages: List[Dict[str, Any]],
     embeds: List[Dict[str, Any]],
+    usage_entries: List[Dict[str, Any]],
     cache_info: Dict[str, Any],
     messages_limit: int,
-    embeds_limit: int
+    embeds_limit: int,
+    usage_limit: int
 ) -> str:
     """
     Format the inspection results as human-readable text.
@@ -307,9 +345,11 @@ def format_output_text(
         chat_metadata: Chat metadata from Directus
         messages: List of messages from Directus
         embeds: List of embeds from Directus
+        usage_entries: List of usage entries from Directus
         cache_info: Cache status information
         messages_limit: Limit for messages display
         embeds_limit: Limit for embeds display
+        usage_limit: Limit for usage entries display
         
     Returns:
         Formatted string for display
@@ -476,6 +516,57 @@ def format_output_text(
         if len(embeds) > embeds_limit:
             lines.append(f"\n  ... and {len(embeds) - embeds_limit} more embed(s)")
     
+    # ===================== USAGE ENTRIES =====================
+    lines.append("")
+    lines.append("-" * 100)
+    lines.append(f"USAGE ENTRIES (from Directus) - Total: {len(usage_entries)}")
+    lines.append("-" * 100)
+    
+    if not usage_entries:
+        lines.append("  No usage entries found for this chat.")
+    else:
+        # Show summary by app_id and skill_id
+        app_skill_count = {}
+        for entry in usage_entries:
+            app_id = entry.get('app_id', 'unknown')
+            skill_id = entry.get('skill_id', 'unknown')
+            key = f"{app_id}.{skill_id}"
+            app_skill_count[key] = app_skill_count.get(key, 0) + 1
+        
+        lines.append(f"  App.Skill Distribution: {app_skill_count}")
+        lines.append("")
+        
+        # Show usage entry list (limited)
+        display_usage = usage_entries[:usage_limit]
+        lines.append(f"  Showing {len(display_usage)} of {len(usage_entries)} usage entries:")
+        lines.append("")
+        
+        for i, entry in enumerate(display_usage, 1):
+            usage_id = entry.get('id', 'N/A')
+            app_id = entry.get('app_id', 'N/A')
+            skill_id = entry.get('skill_id', 'N/A')
+            source = entry.get('source', 'N/A')
+            message_id = entry.get('message_id', 'N/A')
+            created_at = format_timestamp(entry.get('created_at'))
+            
+            # Encrypted fields presence
+            has_model = "✓" if entry.get('encrypted_model_used') else "✗"
+            has_credits = "✓" if entry.get('encrypted_credits_costs_total') else "✗"
+            has_input_tokens = "✓" if entry.get('encrypted_input_tokens') else "✗"
+            has_output_tokens = "✓" if entry.get('encrypted_output_tokens') else "✗"
+            
+            # Source indicator
+            source_emoji = {"chat": "💬", "api_key": "🔑", "direct": "📡"}.get(source, "❓")
+            
+            lines.append(f"  {i:3}. {source_emoji} [{app_id}.{skill_id:12}] {created_at}")
+            lines.append(f"       Usage ID: {usage_id[:8]}...")
+            lines.append(f"       Message ID: {truncate_string(message_id, 40)}")
+            lines.append(f"       Source: {source}")
+            lines.append(f"       Encrypted: Model={has_model}  Credits={has_credits}  Input={has_input_tokens}  Output={has_output_tokens}")
+        
+        if len(usage_entries) > usage_limit:
+            lines.append(f"\n  ... and {len(usage_entries) - usage_limit} more usage entry(ies)")
+    
     # ===================== CACHE STATUS =====================
     lines.append("")
     lines.append("-" * 100)
@@ -572,6 +663,7 @@ def format_output_json(
     chat_metadata: Optional[Dict[str, Any]],
     messages: List[Dict[str, Any]],
     embeds: List[Dict[str, Any]],
+    usage_entries: List[Dict[str, Any]],
     cache_info: Dict[str, Any]
 ) -> str:
     """
@@ -582,6 +674,7 @@ def format_output_json(
         chat_metadata: Chat metadata from Directus
         messages: List of messages from Directus
         embeds: List of embeds from Directus
+        usage_entries: List of usage entries from Directus
         cache_info: Cache status information
         
     Returns:
@@ -598,6 +691,10 @@ def format_output_json(
         'embeds': {
             'count': len(embeds),
             'items': embeds
+        },
+        'usage': {
+            'count': len(usage_entries),
+            'items': usage_entries
         },
         'cache': cache_info
     }
@@ -626,6 +723,12 @@ async def main():
         type=int,
         default=20,
         help='Limit number of embeds to display (default: 20)'
+    )
+    parser.add_argument(
+        '--usage-limit',
+        type=int,
+        default=20,
+        help='Limit number of usage entries to display (default: 20)'
     )
     parser.add_argument(
         '--json',
@@ -668,24 +771,33 @@ async def main():
             limit=args.embeds_limit + 100 if not args.json else 10000  # Get more for count
         )
         
-        # 4. Check cache status (if not skipped)
+        # 4. Fetch usage entries
+        usage_entries = await get_chat_usage_entries(
+            directus_service,
+            args.chat_id,
+            limit=args.usage_limit + 100 if not args.json else 10000  # Get more for count
+        )
+        
+        # 5. Check cache status (if not skipped)
         cache_info = {}
         if not args.no_cache:
             hashed_user_id = chat_metadata.get('hashed_user_id') if chat_metadata else None
             cache_info = await check_cache_status(cache_service, args.chat_id, hashed_user_id)
         
-        # 5. Format and output results
+        # 6. Format and output results
         if args.json:
-            output = format_output_json(args.chat_id, chat_metadata, messages, embeds, cache_info)
+            output = format_output_json(args.chat_id, chat_metadata, messages, embeds, usage_entries, cache_info)
         else:
             output = format_output_text(
                 args.chat_id,
                 chat_metadata,
                 messages,
                 embeds,
+                usage_entries,
                 cache_info,
                 args.messages_limit,
-                args.embeds_limit
+                args.embeds_limit,
+                args.usage_limit
             )
         
         print(output)
