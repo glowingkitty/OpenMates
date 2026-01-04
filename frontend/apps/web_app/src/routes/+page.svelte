@@ -34,7 +34,7 @@
         processSettingsDeepLink as processSettingsDeepLinkUnified,
         type DeepLinkHandlers,
     } from '@repo/ui';
-    import { notificationStore, getKeyFromStorage, text, LANGUAGE_CODES } from '@repo/ui';
+    import { notificationStore, getKeyFromStorage, text, LANGUAGE_CODES, forcedLogoutInProgress, isPublicChat } from '@repo/ui';
     import { checkAndClearMasterKeyOnLoad } from '@repo/ui';
     import { onMount, onDestroy, untrack } from 'svelte';
     import { locale, waitLocale } from 'svelte-i18n';
@@ -562,6 +562,42 @@
 			}));
 		} else {
 			console.debug('[+page.svelte] No local auth data found - user will remain unauthenticated');
+			
+			// CRITICAL FIX: Detect "stayLoggedIn=false reload" scenario
+			// If user profile exists with username but master key is missing, this means:
+			// 1. User was logged in with stayLoggedIn=false (master key in memory only)
+			// 2. Page was reloaded, clearing the memory-stored master key
+			// 3. IndexedDB user profile still exists from the session
+			// In this case, we must:
+			// - Set forcedLogoutInProgress to prevent any encrypted chat loading attempts
+			// - Clear the URL hash if it points to an encrypted chat
+			// - Ensure demo-welcome loads instead of the previous chat
+			if (localProfile && localProfile.username) {
+				console.warn('[+page.svelte] ⚠️ User profile exists but master key is missing (stayLoggedIn=false reload)');
+				console.debug('[+page.svelte] Setting forcedLogoutInProgress=true IMMEDIATELY to prevent encrypted chat loading');
+				forcedLogoutInProgress.set(true);
+				
+				// Check if URL hash points to an encrypted chat (not demo-/legal-)
+				// If so, clear the hash and navigate to demo-welcome to prevent loading broken chat
+				if (originalHash) {
+					let hashChatId: string | null = null;
+					if (originalHash.startsWith('#chat-id=')) {
+						hashChatId = originalHash.substring('#chat-id='.length);
+					} else if (originalHash.startsWith('#chat_id=')) {
+						hashChatId = originalHash.substring('#chat_id='.length);
+					}
+					
+					if (hashChatId && !isPublicChat(hashChatId)) {
+						console.debug(`[+page.svelte] URL hash points to encrypted chat ${hashChatId} - clearing hash and loading demo-welcome`);
+						// Clear the hash to prevent deep link handler from trying to load it
+						window.location.hash = '';
+						// Clear the stored original hash so deep link handler doesn't use it
+						// Note: We can't reassign originalHash (const), but we'll handle this in deep link processing
+						// by setting activeChatStore to demo-welcome explicitly
+						activeChatStore.setActiveChat('demo-welcome');
+					}
+				}
+			}
 		}
 		
 		// Now check auth state after optimistic loading (used throughout onMount)
@@ -584,22 +620,36 @@
 			const { deepLinkProcessing } = await import('@repo/ui');
 			deepLinkProcessing.set(true);
 
+			// CRITICAL: Check if forced logout is in progress (stayLoggedIn=false reload scenario)
+			// If so, skip processing encrypted chat hashes - they can't be decrypted
+			const isForcedLogout = get(forcedLogoutInProgress);
+			
 			// Extract originalHashChatId for chat hashes (needed for other logic)
 			if (originalHash && (originalHash.startsWith('#chat-id=') || originalHash.startsWith('#chat_id='))) {
 				originalHashChatId = originalHash.startsWith('#chat-id=')
 					? originalHash.substring('#chat-id='.length)
 					: originalHash.substring('#chat_id='.length);
 
-				// Set active chat store immediately to prevent race conditions
-				activeChatStore.setActiveChat(originalHashChatId);
+				// CRITICAL: Don't set active chat to encrypted chat ID during forced logout
+				// The encrypted chat can't be decrypted without master key
+				if (isForcedLogout && !isPublicChat(originalHashChatId)) {
+					console.debug(`[+page.svelte] Forced logout in progress - skipping encrypted chat hash ${originalHashChatId}, using demo-welcome`);
+					originalHashChatId = 'demo-welcome';
+					activeChatStore.setActiveChat('demo-welcome');
+				} else {
+					// Set active chat store immediately to prevent race conditions
+					activeChatStore.setActiveChat(originalHashChatId);
+				}
 			} else {
 				originalHashChatId = null;
 			}
 
 			// Process through unified deep link handler
 			// NOTE: Auth state is now set above, so isAuthenticated() will return correct value
+			// During forced logout, the handler will load demo-welcome for empty/null hash
 			const handlers = createDeepLinkHandlers();
-			await processDeepLink(originalHash || '', handlers);
+			const hashToProcess = isForcedLogout && originalHashChatId === 'demo-welcome' ? '' : (originalHash || '');
+			await processDeepLink(hashToProcess, handlers);
 			deepLinkProcessed = true; // Mark that processing was completed
 
 			// Clear the deep link processing flag
