@@ -1,0 +1,341 @@
+# frontend/packages/ui/src/i18n/sources/disclaimers.yml
+# Hardcoded advice disclaimers for legally sensitive topics
+# These are appended to AI responses by the backend (NOT dependent on LLM following instructions)
+# The disclaimer injection is deterministic based on category detection in preprocessing
+
+financial:
+  context: Disclaimer appended to financial advice responses (ETFs, investments, taxes, etc.)
+  en: |
+
+    ---
+    *⚠️ This is educational information only and not financial advice. Consult a qualified financial professional or tax advisor for financial decisions.*
+  de: |
+
+    ---
+    *⚠️ Dies sind nur Bildungsinformationen und keine Finanzberatung. Konsultieren Sie einen qualifizierten Finanzexperten oder Steuerberater für finanzielle Entscheidungen.*
+  zh: |
+
+    ---
+    *⚠️ 这仅供教育参考，不构成财务建议。请咨询专业的财务顾问或税务顾问以获取财务决策。*
+  es: |
+
+    ---
+    *⚠️ Esta es información educativa únicamente y no constituye asesoramiento financiero. Consulte a un profesional financiero o asesor fiscal cualificado para tomar decisiones financieras.*
+  fr: |
+
+    ---
+    *⚠️ Ces informations sont à but éducatif uniquement et ne constituent pas un conseil financier. Consultez un professionnel financier ou un conseiller fiscal qualifié pour vos décisions financières.*
+  pt: |
+
+    ---
+    *⚠️ Esta é apenas informação educacional e não aconselhamento financeiro. Consulte um profissional financeiro ou consultor fiscal qualificado para decisões financeiras.*
+  ru: |
+
+    ---
+    *⚠️ Это только образовательная информация, а не финансовая консультация. Обратитесь к квалифицированному финансовому специалисту или налоговому консультанту для принятия финансовых решений.*
+  ja: |
+
+    ---
+    *⚠️ これは教育目的の情報であり、財務アドバイスではありません。財務上の決定については、資格を持つ金融専門家または税理士にご相談ください。*
+  ko: |
+
+    ---
+    *⚠️ 이것은 교육 목적의 정보일 뿐 재정 조언이 아닙니다. 재정 결정은 자격을 갖춘 금융 전문가 또는 세무사와 상담하세요.*
+  it: |
+
+    ---
+    *⚠️ Queste sono solo informazioni educative e non costituiscono consulenza finanziaria. Consulta un professionista finanziario o un consulente fiscale qualificato per decisioni finanziarie.*
+  tr: |
+
+    ---
+    *⚠️ Bu yalnızca eğitim amaçlı bilgidir ve finansal tavsiye niteliğinde değildir. Finansal kararlar için nitelikli bir finans uzmanına veya vergi danışmanına başvurun.*
+  vi: |
+
+    ---
+    *⚠️ Đây chỉ là thông tin mang tính giáo dục và không phải là tư vấn tài chính. Hãy tham khảo ý kiến chuyên gia tài chính hoặc cố vấn thuế có trình độ cho các quyết định tài chính.*
+  id: |
+
+    ---
+    *⚠️ Ini hanya informasi edukatif dan bukan nasihat keuangan. Konsultasikan dengan profesional keuangan atau penasihat pajak yang berkualifikasi untuk keputusan keuangan.*
+  pl: |
+
+    ---
+    *⚠️ To są informacje edukacyjne, a nie porady finansowe. Skonsultuj się z wykwalifikowanym specjalistą finansowym lub doradcą podatkowym w sprawie decyzji finansowych.*
+  nl: |
+
+    ---
+    *⚠️ Dit is alleen educatieve informatie en geen financieel advies. Raadpleeg een gekwalificeerde financieel adviseur of belastingadviseur voor financiële beslissingen.*
+  ar: |
+
+    ---
+    *⚠️ هذه معلومات تعليمية فقط وليست نصيحة مالية. استشر متخصصًا ماليًا مؤهلاً أو مستشار ضرائب لاتخاذ القرارات المالية.*
+  hi: |
+
+    ---
+    *⚠️ यह केवल शैक्षिक जानकारी है और वित्तीय सलाह नहीं है। वित्तीय निर्णयों के लिए किसी योग्य वित्तीय पेशेवर या कर सलाहकार से परामर्श करें।*
+  th: |
+
+    ---
+    *⚠️ ข้อมูลนี้มีวัตถุประสงค์เพื่อการศึกษาเท่านั้น ไม่ใช่คำแนะนำทางการเงิน โปรดปรึกษาผู้เชี่ยวชาญทางการเงินหรือที่ปรึกษาด้านภาษีที่มีคุณสมบัติสำหรับการตัดสินใจทางการเงิน*
+  cs: |
+
+    ---
+    *⚠️ Toto jsou pouze vzdělávací informace, nikoli finanční poradenství. Ohledně finančních rozhodnutí se poraďte s kvalifikovaným finančním odborníkem nebo daňovým poradcem.*
+  sv: |
+
+    ---
+    *⚠️ Detta är endast utbildningsinformation och inte finansiell rådgivning. Konsultera en kvalificerad finansiell expert eller skatterådgivare för ekonomiska beslut.*
+  verified_by_human: []
+
+medical:
+  context: Disclaimer appended to medical/health advice responses (symptoms, treatments, diagnoses, etc.)
+  en: |
+
+    ---
+    *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
+  de: |
+
+    ---
+    *⚠️ Dies sind nur Bildungsinformationen und keine medizinische Beratung. Konsultieren Sie Ihren Arzt für medizinische Entscheidungen.*
+  zh: |
+
+    ---
+    *⚠️ 这仅供教育参考，不构成医疗建议。请咨询您的医生以获取医疗决策。*
+  es: |
+
+    ---
+    *⚠️ Esta es información educativa únicamente y no constituye asesoramiento médico. Consulte a su médico para tomar decisiones médicas.*
+  fr: |
+
+    ---
+    *⚠️ Ces informations sont à but éducatif uniquement et ne constituent pas un avis médical. Consultez votre médecin pour les décisions médicales.*
+  pt: |
+
+    ---
+    *⚠️ Esta é apenas informação educacional e não aconselhamento médico. Consulte seu médico para decisões médicas.*
+  ru: |
+
+    ---
+    *⚠️ Это только образовательная информация, а не медицинская консультация. Обратитесь к врачу для принятия медицинских решений.*
+  ja: |
+
+    ---
+    *⚠️ これは教育目的の情報であり、医療アドバイスではありません。医療上の決定については、医師にご相談ください。*
+  ko: |
+
+    ---
+    *⚠️ 이것은 교육 목적의 정보일 뿐 의료 조언이 아닙니다. 의료 결정은 의사와 상담하세요.*
+  it: |
+
+    ---
+    *⚠️ Queste sono solo informazioni educative e non costituiscono consulenza medica. Consulta il tuo medico per decisioni mediche.*
+  tr: |
+
+    ---
+    *⚠️ Bu yalnızca eğitim amaçlı bilgidir ve tıbbi tavsiye niteliğinde değildir. Tıbbi kararlar için doktorunuza danışın.*
+  vi: |
+
+    ---
+    *⚠️ Đây chỉ là thông tin mang tính giáo dục và không phải là tư vấn y tế. Hãy tham khảo ý kiến bác sĩ cho các quyết định y tế.*
+  id: |
+
+    ---
+    *⚠️ Ini hanya informasi edukatif dan bukan nasihat medis. Konsultasikan dengan dokter Anda untuk keputusan medis.*
+  pl: |
+
+    ---
+    *⚠️ To są informacje edukacyjne, a nie porady medyczne. Skonsultuj się z lekarzem w sprawie decyzji medycznych.*
+  nl: |
+
+    ---
+    *⚠️ Dit is alleen educatieve informatie en geen medisch advies. Raadpleeg uw arts voor medische beslissingen.*
+  ar: |
+
+    ---
+    *⚠️ هذه معلومات تعليمية فقط وليست نصيحة طبية. استشر طبيبك لاتخاذ القرارات الطبية.*
+  hi: |
+
+    ---
+    *⚠️ यह केवल शैक्षिक जानकारी है और चिकित्सा सलाह नहीं है। चिकित्सा निर्णयों के लिए अपने डॉक्टर से परामर्श करें।*
+  th: |
+
+    ---
+    *⚠️ ข้อมูลนี้มีวัตถุประสงค์เพื่อการศึกษาเท่านั้น ไม่ใช่คำแนะนำทางการแพทย์ โปรดปรึกษาแพทย์สำหรับการตัดสินใจทางการแพทย์*
+  cs: |
+
+    ---
+    *⚠️ Toto jsou pouze vzdělávací informace, nikoli lékařské poradenství. Ohledně lékařských rozhodnutí se poraďte s lékařem.*
+  sv: |
+
+    ---
+    *⚠️ Detta är endast utbildningsinformation och inte medicinsk rådgivning. Konsultera din läkare för medicinska beslut.*
+  verified_by_human: []
+
+legal:
+  context: Disclaimer appended to legal advice responses (contracts, lawsuits, regulations, etc.)
+  en: |
+
+    ---
+    *⚠️ This is educational information only and not legal advice. Consult a lawyer for legal advice.*
+  de: |
+
+    ---
+    *⚠️ Dies sind nur Bildungsinformationen und keine Rechtsberatung. Konsultieren Sie einen Anwalt für rechtliche Beratung.*
+  zh: |
+
+    ---
+    *⚠️ 这仅供教育参考，不构成法律建议。请咨询律师以获取法律建议。*
+  es: |
+
+    ---
+    *⚠️ Esta es información educativa únicamente y no constituye asesoramiento legal. Consulte a un abogado para obtener asesoramiento legal.*
+  fr: |
+
+    ---
+    *⚠️ Ces informations sont à but éducatif uniquement et ne constituent pas un avis juridique. Consultez un avocat pour des conseils juridiques.*
+  pt: |
+
+    ---
+    *⚠️ Esta é apenas informação educacional e não aconselhamento jurídico. Consulte um advogado para aconselhamento jurídico.*
+  ru: |
+
+    ---
+    *⚠️ Это только образовательная информация, а не юридическая консультация. Обратитесь к юристу за юридической консультацией.*
+  ja: |
+
+    ---
+    *⚠️ これは教育目的の情報であり、法的アドバイスではありません。法的なアドバイスについては、弁護士にご相談ください。*
+  ko: |
+
+    ---
+    *⚠️ 이것은 교육 목적의 정보일 뿐 법적 조언이 아닙니다. 법적 조언은 변호사와 상담하세요.*
+  it: |
+
+    ---
+    *⚠️ Queste sono solo informazioni educative e non costituiscono consulenza legale. Consulta un avvocato per consulenza legale.*
+  tr: |
+
+    ---
+    *⚠️ Bu yalnızca eğitim amaçlı bilgidir ve hukuki tavsiye niteliğinde değildir. Hukuki tavsiye için bir avukata danışın.*
+  vi: |
+
+    ---
+    *⚠️ Đây chỉ là thông tin mang tính giáo dục và không phải là tư vấn pháp lý. Hãy tham khảo ý kiến luật sư cho tư vấn pháp lý.*
+  id: |
+
+    ---
+    *⚠️ Ini hanya informasi edukatif dan bukan nasihat hukum. Konsultasikan dengan pengacara untuk nasihat hukum.*
+  pl: |
+
+    ---
+    *⚠️ To są informacje edukacyjne, a nie porady prawne. Skonsultuj się z prawnikiem w sprawie porad prawnych.*
+  nl: |
+
+    ---
+    *⚠️ Dit is alleen educatieve informatie en geen juridisch advies. Raadpleeg een advocaat voor juridisch advies.*
+  ar: |
+
+    ---
+    *⚠️ هذه معلومات تعليمية فقط وليست نصيحة قانونية. استشر محاميًا للحصول على نصيحة قانونية.*
+  hi: |
+
+    ---
+    *⚠️ यह केवल शैक्षिक जानकारी है और कानूनी सलाह नहीं है। कानूनी सलाह के लिए किसी वकील से परामर्श करें।*
+  th: |
+
+    ---
+    *⚠️ ข้อมูลนี้มีวัตถุประสงค์เพื่อการศึกษาเท่านั้น ไม่ใช่คำแนะนำทางกฎหมาย โปรดปรึกษาทนายความสำหรับคำแนะนำทางกฎหมาย*
+  cs: |
+
+    ---
+    *⚠️ Toto jsou pouze vzdělávací informace, nikoli právní poradenství. Ohledně právního poradenství se poraďte s právníkem.*
+  sv: |
+
+    ---
+    *⚠️ Detta är endast utbildningsinformation och inte juridisk rådgivning. Konsultera en advokat för juridisk rådgivning.*
+  verified_by_human: []
+
+mental_health:
+  context: Disclaimer appended to mental health/psychology advice responses (therapy, crisis, anxiety, depression, etc.)
+  en: |
+
+    ---
+    *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
+  de: |
+
+    ---
+    *⚠️ Dies sind nur Bildungsinformationen und keine professionelle psychologische Beratung. Bei psychischen Problemen wenden Sie sich bitte an einen qualifizierten Therapeuten oder Berater. Bei einer Krise kontaktieren Sie sofort den Notdienst oder eine Krisenhotline.*
+  zh: |
+
+    ---
+    *⚠️ 这仅供教育参考，不构成专业心理建议。如有心理健康问题，请咨询专业的治疗师或咨询师。如果您正处于危机中，请立即联系紧急服务或危机热线。*
+  es: |
+
+    ---
+    *⚠️ Esta es información educativa únicamente y no constituye asesoramiento psicológico profesional. Para problemas de salud mental, consulte a un terapeuta o consejero cualificado. Si está experimentando una crisis, contacte los servicios de emergencia o una línea de crisis inmediatamente.*
+  fr: |
+
+    ---
+    *⚠️ Ces informations sont à but éducatif uniquement et ne constituent pas un avis psychologique professionnel. Pour des problèmes de santé mentale, veuillez consulter un thérapeute ou conseiller qualifié. Si vous êtes en crise, contactez immédiatement les services d'urgence ou une ligne de crise.*
+  pt: |
+
+    ---
+    *⚠️ Esta é apenas informação educacional e não aconselhamento psicológico profissional. Para preocupações de saúde mental, consulte um terapeuta ou conselheiro qualificado. Se estiver em crise, contacte imediatamente os serviços de emergência ou uma linha de crise.*
+  ru: |
+
+    ---
+    *⚠️ Это только образовательная информация, а не профессиональная психологическая консультация. По вопросам психического здоровья обратитесь к квалифицированному терапевту или консультанту. Если вы переживаете кризис, немедленно свяжитесь со службой экстренной помощи или горячей линией помощи.*
+  ja: |
+
+    ---
+    *⚠️ これは教育目的の情報であり、専門的な心理学的アドバイスではありません。メンタルヘルスの問題については、資格を持つセラピストまたはカウンセラーにご相談ください。危機的状況にある場合は、すぐに緊急サービスまたは危機対応ホットラインに連絡してください。*
+  ko: |
+
+    ---
+    *⚠️ 이것은 교육 목적의 정보일 뿐 전문적인 심리 상담이 아닙니다. 정신 건강 문제는 자격을 갖춘 치료사나 상담사와 상담하세요. 위기 상황이라면 즉시 응급 서비스나 위기 상담 전화에 연락하세요.*
+  it: |
+
+    ---
+    *⚠️ Queste sono solo informazioni educative e non costituiscono consulenza psicologica professionale. Per problemi di salute mentale, consulta un terapeuta o counselor qualificato. Se stai vivendo una crisi, contatta immediatamente i servizi di emergenza o una linea di crisi.*
+  tr: |
+
+    ---
+    *⚠️ Bu yalnızca eğitim amaçlı bilgidir ve profesyonel psikolojik tavsiye niteliğinde değildir. Ruh sağlığı sorunları için nitelikli bir terapist veya danışmana başvurun. Bir kriz yaşıyorsanız, derhal acil servisleri veya kriz hattını arayın.*
+  vi: |
+
+    ---
+    *⚠️ Đây chỉ là thông tin mang tính giáo dục và không phải là tư vấn tâm lý chuyên nghiệp. Đối với các vấn đề sức khỏe tâm thần, vui lòng tham khảo ý kiến nhà trị liệu hoặc tư vấn viên có trình độ. Nếu bạn đang trong tình trạng khủng hoảng, hãy liên hệ dịch vụ cấp cứu hoặc đường dây nóng khủng hoảng ngay lập tức.*
+  id: |
+
+    ---
+    *⚠️ Ini hanya informasi edukatif dan bukan nasihat psikologis profesional. Untuk masalah kesehatan mental, silakan konsultasikan dengan terapis atau konselor yang berkualifikasi. Jika Anda mengalami krisis, segera hubungi layanan darurat atau hotline krisis.*
+  pl: |
+
+    ---
+    *⚠️ To są informacje edukacyjne, a nie profesjonalne porady psychologiczne. W przypadku problemów ze zdrowiem psychicznym skonsultuj się z wykwalifikowanym terapeutą lub doradcą. Jeśli przeżywasz kryzys, natychmiast skontaktuj się ze służbami ratunkowymi lub telefonem zaufania.*
+  nl: |
+
+    ---
+    *⚠️ Dit is alleen educatieve informatie en geen professioneel psychologisch advies. Voor mentale gezondheidsproblemen raadpleeg een gekwalificeerde therapeut of counselor. Als u een crisis ervaart, neem onmiddellijk contact op met hulpdiensten of een crisislijn.*
+  ar: |
+
+    ---
+    *⚠️ هذه معلومات تعليمية فقط وليست نصيحة نفسية مهنية. للمخاوف المتعلقة بالصحة النفسية، يرجى استشارة معالج أو مستشار مؤهل. إذا كنت تمر بأزمة، اتصل بخدمات الطوارئ أو خط المساعدة للأزمات فورًا.*
+  hi: |
+
+    ---
+    *⚠️ यह केवल शैक्षिक जानकारी है और पेशेवर मनोवैज्ञानिक सलाह नहीं है। मानसिक स्वास्थ्य संबंधी चिंताओं के लिए, कृपया किसी योग्य चिकित्सक या परामर्शदाता से परामर्श करें। यदि आप किसी संकट का अनुभव कर रहे हैं, तो तुरंत आपातकालीन सेवाओं या संकट हेल्पलाइन से संपर्क करें।*
+  th: |
+
+    ---
+    *⚠️ ข้อมูลนี้มีวัตถุประสงค์เพื่อการศึกษาเท่านั้น ไม่ใช่คำแนะนำทางจิตวิทยาจากผู้เชี่ยวชาญ สำหรับปัญหาสุขภาพจิต โปรดปรึกษานักจิตวิทยาหรือที่ปรึกษาที่มีคุณสมบัติ หากคุณกำลังประสบวิกฤต โปรดติดต่อบริการฉุกเฉินหรือสายด่วนวิกฤตทันที*
+  cs: |
+
+    ---
+    *⚠️ Toto jsou pouze vzdělávací informace, nikoli profesionální psychologické poradenství. V případě problémů s duševním zdravím se obraťte na kvalifikovaného terapeuta nebo poradce. Pokud prožíváte krizi, okamžitě kontaktujte záchrannou službu nebo krizovou linku.*
+  sv: |
+
+    ---
+    *⚠️ Detta är endast utbildningsinformation och inte professionell psykologisk rådgivning. För mentala hälsoproblem, vänligen konsultera en kvalificerad terapeut eller rådgivare. Om du upplever en kris, kontakta omedelbart akuttjänster eller en krislinje.*
+  verified_by_human: []
+

@@ -2,7 +2,8 @@ import { chatDB } from './services/db';
 import { userDB } from './services/userDB';
 import { loadUserProfileFromDB } from './stores/userProfile';
 import { authStore } from './stores/authStore';
-import { logCollector } from './services/logCollector';
+import { logCollector } from './services/logCollector'; 
+import { initDebugUtils } from './services/debugUtils';
 
 /**
  * Initialize all application services
@@ -15,6 +16,10 @@ export async function initializeApp(options = { skipAuthInitialization: false })
   try {
     // Initialize console log collector for issue reporting (non-blocking)
     console.debug("Console log collector initialized for issue debugging");
+    
+    // Initialize debug utilities for browser console access
+    // These allow inspecting IndexedDB data via window.debugChat(), etc.
+    initDebugUtils();
 
     // Initialize databases
     await chatDB.init();

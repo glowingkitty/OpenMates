@@ -75,7 +75,10 @@ async function initializeRegistry(): Promise<void> {
         component,
         props: {
           query: data.decodedContent?.query || '',
-          provider: data.decodedContent?.provider || 'Brave',
+          provider: data.decodedContent?.provider || 'Brave Search',
+          // Pass embed_ids for loading child video embeds from embedStore
+          embedIds: data.decodedContent?.embed_ids || '',
+          // Fallback: legacy results prop
           results: data.decodedContent?.results || [],
           onClose: data.onClose,
           embedId: data.embedId // Add embedId for sharing functionality

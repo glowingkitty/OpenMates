@@ -89,6 +89,16 @@ export {
 } from "./src/services/embedShareEncryption"; // Export embed share encryption utilities
 export { embedStore } from "./src/services/embedStore"; // Export embed store
 export { shareMetadataQueue } from "./src/services/shareMetadataQueue"; // Export share metadata queue service
+export { 
+    saveSharedChatKey, 
+    getSharedChatKey, 
+    getAllSharedChatKeys, 
+    deleteSharedChatKey, 
+    clearAllSharedChatKeys,
+    getStoredSharedChatIds,
+    hasSharedChatKeys,
+    deleteSharedKeysDatabase
+} from "./src/services/sharedChatKeyStorage"; // Export shared chat key storage for unauthenticated users
 
 // Utils - export computeSHA256 for hashing
 export { computeSHA256 } from "./src/message_parsing/utils";

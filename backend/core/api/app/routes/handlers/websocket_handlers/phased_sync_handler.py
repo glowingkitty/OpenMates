@@ -1,7 +1,6 @@
 # backend/core/api/app/routes/handlers/websocket_handlers/phased_sync_handler.py
-import json
 import logging
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List
 from datetime import datetime, timezone
 
 from fastapi import WebSocket
@@ -388,16 +387,29 @@ async def _handle_phase1_sync(
                 # No version data available at all - fetch from Directus to be safe
                 server_messages_v = None
             
+            # Track server message count for client-side validation
+            # This helps detect data inconsistencies where version matches but messages are missing
+            server_message_count = None
+            
             if server_messages_v is not None and client_versions:
                 client_messages_v = client_versions.get("messages_v", 0)
                 
                 # If client already has up-to-date messages, skip fetching from Directus
                 # Client will use messages from IndexedDB
+                # IMPORTANT: We still need to send the message count so client can validate
                 if client_messages_v >= server_messages_v:
-                    logger.info(
-                        f"[PHASE1_MESSAGES] ⏭️ Skipping message fetch for chat {chat_id} - client already has up-to-date messages "
-                        f"(client: m={client_messages_v}, server: m={server_messages_v}). Client will use IndexedDB."
-                    )
+                    # Get message count from Directus for validation
+                    # This is a lightweight query that helps detect data corruption
+                    try:
+                        server_message_count = await directus_service.chat.get_message_count_for_chat(chat_id)
+                        logger.info(
+                            f"[PHASE1_MESSAGES] ⏭️ Skipping message fetch for chat {chat_id} - client already has up-to-date messages "
+                            f"(client: m={client_messages_v}, server: m={server_messages_v}, server_count={server_message_count}). "
+                            f"Client will use IndexedDB and validate count."
+                        )
+                    except Exception as count_err:
+                        logger.warning(f"[PHASE1_MESSAGES] Failed to get message count for {chat_id}: {count_err}")
+                        # Continue without count - client will have to trust version
                     messages_data = []  # Empty list - client should use local data
                 else:
                     logger.info(
@@ -478,6 +490,7 @@ async def _handle_phase1_sync(
         )
         
         # Send Phase 1 data to client WITH suggestions, embeds, AND embed_keys
+        # Include server_message_count for client-side validation of data consistency
         await manager.send_personal_message(
             {
                 "type": "phase_1_last_chat_ready",
@@ -485,6 +498,7 @@ async def _handle_phase1_sync(
                     "chat_id": chat_id,
                     "chat_details": chat_details,
                     "messages": messages_data or [],
+                    "server_message_count": server_message_count,  # For client-side validation
                     "embeds": embeds_data or [],  # Include embeds for client-side storage
                     "embed_keys": embed_keys_data or [],  # Include embed_keys for decryption
                     "new_chat_suggestions": new_chat_suggestions,  # Always include suggestions

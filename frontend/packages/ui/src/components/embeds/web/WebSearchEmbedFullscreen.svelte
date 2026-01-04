@@ -2,32 +2,33 @@
   frontend/packages/ui/src/components/embeds/web/WebSearchEmbedFullscreen.svelte
   
   Fullscreen view for Web Search skill embeds.
-  Uses UnifiedEmbedFullscreen as base and provides skill-specific content.
-  
-  Supports both contexts:
-  - Skill preview context: receives previewData from skillPreviewService
-  - Embed context: receives query, provider, results directly
+  Uses UnifiedEmbedFullscreen as base with unified child embed loading.
   
   Shows:
-  - Search query and provider
-  - Website embeds in a grid (3 per row on desktop, stacked on mobile)
-  - Each website uses WebsiteEmbedPreview component (300x200px)
-  - Basic infos bar at the bottom
-  - Top bar with open, copy, and minimize buttons
+  - Header with search query and "via {provider}" formatting (60px top margin, 40px bottom margin)
+  - Website embeds in a grid (auto-responsive columns)
+  - Consistent BasicInfosBar at the bottom (matches preview - "Search" + "Completed")
+  - Top bar with share, copy, and minimize buttons
+  
+  Child embeds are automatically loaded by UnifiedEmbedFullscreen from embedIds prop.
+  
+  Supports both contexts:
+  - Embed context: receives embedIds for child embed loading
+  - Skill preview context: receives previewData from skillPreviewService (legacy)
+  - Direct results: receives results array directly (legacy fallback)
 -->
 
 <script lang="ts">
-  import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
+  import UnifiedEmbedFullscreen, { type ChildEmbedContext } from '../UnifiedEmbedFullscreen.svelte';
   import WebsiteEmbedPreview from './WebsiteEmbedPreview.svelte';
-  import BasicInfosBar from '../BasicInfosBar.svelte';
-  // @ts-ignore - @repo/ui module exists at runtime
   import { text } from '@repo/ui';
   import type { WebSearchSkillPreviewData } from '../../../types/appSkills';
   
   /**
-   * Web search result interface
+   * Web search result interface (transformed from child embeds)
    */
   interface WebSearchResult {
+    embed_id: string;
     title?: string;
     url: string;
     favicon_url?: string;
@@ -37,16 +38,18 @@
   
   /**
    * Props for web search embed fullscreen
-   * Supports both skill preview data format and direct embed format
+   * Child embeds are loaded automatically via UnifiedEmbedFullscreen
    */
   interface Props {
     /** Search query (direct format) */
     query?: string;
     /** Search provider (e.g., 'Brave Search') (direct format) */
     provider?: string;
-    /** Search results (direct format) */
+    /** Pipe-separated embed IDs or array of embed IDs for child website embeds */
+    embedIds?: string | string[];
+    /** Legacy: Search results (direct format, used if embedIds not provided) */
     results?: WebSearchResult[];
-    /** Skill preview data (skill preview context) */
+    /** Legacy: Skill preview data (skill preview context) */
     previewData?: WebSearchSkillPreviewData;
     /** Close handler */
     onClose: () => void;
@@ -57,6 +60,7 @@
   let {
     query: queryProp,
     provider: providerProp,
+    embedIds,
     results: resultsProp,
     previewData,
     onClose,
@@ -66,15 +70,66 @@
   // Extract values from either previewData (skill preview context) or direct props (embed context)
   let query = $derived(previewData?.query || queryProp || '');
   let provider = $derived(previewData?.provider || providerProp || 'Brave Search');
-  let results = $derived(previewData?.results || resultsProp || []);
+  // Legacy results from previewData or direct results prop (used as fallback)
+  let legacyResults = $derived(previewData?.results || resultsProp || []);
   
   // Determine if mobile layout
   let isMobile = $derived(
     typeof window !== 'undefined' && window.innerWidth <= 500
   );
   
-  // Format the search query with provider name for title
-  let displayTitle = $derived(`${query} via ${provider}`);
+  // Get skill name from translations (matches preview)
+  let skillName = $derived($text('embeds.search.text') || 'Search');
+  
+  // Get "via {provider}" text from translations
+  let viaProvider = $derived(
+    `${$text('embeds.via.text') || 'via'} ${provider}`
+  );
+  
+  /**
+   * Transform raw embed content to WebSearchResult format
+   * Used by UnifiedEmbedFullscreen's childEmbedTransformer
+   */
+  function transformToWebResult(embedId: string, content: Record<string, unknown>): WebSearchResult {
+    return {
+      embed_id: embedId,
+      title: content.title as string | undefined,
+      url: content.url as string,
+      favicon_url: content.favicon_url as string | undefined,
+      preview_image_url: content.preview_image_url as string | undefined,
+      snippet: (content.snippet as string) || (content.description as string)
+    };
+  }
+  
+  /**
+   * Transform legacy results to WebSearchResult format (for backwards compatibility)
+   */
+  function transformLegacyResults(results: unknown[]): WebSearchResult[] {
+    return (results as Array<Record<string, unknown>>).map((r, i) => ({
+      embed_id: `legacy-${i}`,
+      title: r.title as string | undefined,
+      url: r.url as string,
+      favicon_url: r.favicon_url as string | undefined,
+      preview_image_url: r.preview_image_url as string | undefined,
+      snippet: (r.snippet as string) || (r.description as string)
+    }));
+  }
+  
+  /**
+   * Get web results from context (children or legacy)
+   * Children are cast to WebSearchResult[] since we pass transformToWebResult as transformer
+   */
+  function getWebResults(ctx: ChildEmbedContext): WebSearchResult[] {
+    // Use loaded children if available (cast since transformer returns WebSearchResult)
+    if (ctx.children && ctx.children.length > 0) {
+      return ctx.children as WebSearchResult[];
+    }
+    // Fallback to legacy results
+    if (ctx.legacyResults && ctx.legacyResults.length > 0) {
+      return transformLegacyResults(ctx.legacyResults);
+    }
+    return [];
+  }
   
   // Handle opening search in provider
   function handleOpenInProvider() {
@@ -82,41 +137,8 @@
     window.open(searchUrl, '_blank', 'noopener,noreferrer');
   }
   
-  // Handle copy YAML of search results
-  async function handleCopyYAML() {
-    try {
-      const yamlData = {
-        query: query,
-        provider: provider,
-        results: results.map(r => ({
-          title: r.title,
-          url: r.url,
-          snippet: r.snippet
-        }))
-      };
-      
-      // Convert to YAML format
-      let yaml = `query: "${query}"\n`;
-      yaml += `provider: "${provider}"\n`;
-      yaml += `results:\n`;
-      
-      results.forEach((result, index) => {
-        yaml += `  - title: "${result.title || ''}"\n`;
-        yaml += `    url: "${result.url}"\n`;
-        if (result.snippet) {
-          yaml += `    snippet: "${result.snippet.replace(/"/g, '\\"')}"\n`;
-        }
-      });
-      
-      await navigator.clipboard.writeText(yaml);
-      console.debug('[WebSearchEmbedFullscreen] Copied YAML to clipboard');
-    } catch (error) {
-      console.error('[WebSearchEmbedFullscreen] Failed to copy YAML:', error);
-    }
-  }
-  
   // Handle website fullscreen (from WebsiteEmbedPreview)
-  function handleWebsiteFullscreen(websiteData: any) {
+  function handleWebsiteFullscreen(websiteData: WebSearchResult) {
     // For now, just open the website in a new tab
     // In the future, we could show a website fullscreen view
     if (websiteData.url) {
@@ -130,8 +152,7 @@
       console.debug('[WebSearchEmbedFullscreen] Opening share settings for web search embed:', {
         embedId,
         query,
-        provider,
-        resultsCount: results.length
+        provider
       });
 
       // Check if we have embed_id for proper sharing
@@ -152,12 +173,11 @@
         type: 'web_search',
         embed_id: embedId,
         query: query,
-        provider: provider,
-        results_count: results.length
+        provider: provider
       };
 
       // Store embed context for SettingsShare
-      (window as any).__embedShareContext = embedContext;
+      (window as unknown as { __embedShareContext?: unknown }).__embedShareContext = embedContext;
 
       // Navigate to share settings
       navigateToSettings('shared/share', 'Share Web Search', 'share', 'settings.share.share_web_search.text');
@@ -177,26 +197,51 @@
   }
 </script>
 
+<!-- 
+  Pass skillName and showStatus to UnifiedEmbedFullscreen for consistent BasicInfosBar
+  that matches the embed preview (shows "Search" + "Completed", not the query)
+  
+  Child embeds are loaded automatically via embedIds prop and passed to content snippet
+  The childEmbedTransformer converts raw embed data to WebSearchResult format
+-->
 <UnifiedEmbedFullscreen
   appId="web"
   skillId="search"
-  title={displayTitle}
+  title=""
   {onClose}
   onOpen={handleOpenInProvider}
-  onCopy={handleCopyYAML}
   onShare={handleShare}
+  skillIconName="search"
+  status="finished"
+  {skillName}
+  showStatus={true}
+  {embedIds}
+  childEmbedTransformer={transformToWebResult}
+  legacyResults={legacyResults}
 >
-  {#snippet content()}
-    {#if results.length === 0}
+  {#snippet content(ctx)}
+    {@const webResults = getWebResults(ctx)}
+    
+    <!-- Header with search query and provider - 60px top margin, 40px bottom margin -->
+    <div class="fullscreen-header">
+      <div class="search-query">{query}</div>
+      <div class="search-provider">{viaProvider}</div>
+    </div>
+    
+    {#if ctx.isLoadingChildren}
+      <div class="loading-state">
+        <p>{$text('embeds.loading.text') || 'Loading...'}</p>
+      </div>
+    {:else if webResults.length === 0}
       <div class="no-results">
-        <p>No search results available.</p>
+        <p>{$text('embeds.no_results.text') || 'No search results available.'}</p>
       </div>
     {:else}
-      <!-- Website embeds grid -->
+      <!-- Website embeds grid - responsive auto-fill columns -->
       <div class="website-embeds-grid" class:mobile={isMobile}>
-        {#each results as result, index}
+        {#each webResults as result}
           <WebsiteEmbedPreview
-            id={`website-${index}`}
+            id={result.embed_id}
             url={result.url}
             title={result.title}
             description={result.snippet}
@@ -204,52 +249,73 @@
             image={result.preview_image_url}
             status="finished"
             isMobile={false}
-            onFullscreen={() => handleWebsiteFullscreen({
-              url: result.url,
-              title: result.title,
-              description: result.snippet,
-              favicon: result.favicon_url,
-              image: result.preview_image_url
-            })}
+            onFullscreen={() => handleWebsiteFullscreen(result)}
           />
         {/each}
       </div>
     {/if}
   {/snippet}
-  
-  {#snippet bottomBar()}
-    <div class="bottom-bar-wrapper">
-      <BasicInfosBar
-        appId="web"
-        skillId="search"
-        skillIconName="search"
-        status="finished"
-        skillName={query}
-        showStatus={false}
-        isMobile={isMobile}
-      />
-    </div>
-  {/snippet}
 </UnifiedEmbedFullscreen>
 
 <style>
-  /* No results message */
+  /* ===========================================
+     Fullscreen Header - Query and Provider
+     =========================================== */
+  
+  .fullscreen-header {
+    margin-top: 60px;
+    margin-bottom: 40px;
+    padding: 0 16px;
+    text-align: center;
+  }
+  
+  .search-query {
+    font-size: 24px;
+    font-weight: 600;
+    color: var(--color-font-primary);
+    line-height: 1.3;
+    word-break: break-word;
+    /* Limit to 3 lines with ellipsis */
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  
+  .search-provider {
+    font-size: 16px;
+    color: var(--color-font-secondary);
+    margin-top: 8px;
+  }
+  
+  /* ===========================================
+     Loading and No Results States
+     =========================================== */
+  
+  .loading-state,
   .no-results {
     display: flex;
     align-items: center;
     justify-content: center;
     height: 200px;
     color: var(--color-font-secondary);
+    font-size: 16px;
   }
   
-  /* Website embeds grid - responsive with auto-fill */
+  /* ===========================================
+     Website Embeds Grid - Responsive Layout
+     =========================================== */
+  
   .website-embeds-grid {
     display: grid;
     gap: 16px;
-    width: 100%;
+    width: calc(100% - 20px);
     max-width: 1000px;
     margin: 0 auto;
-    padding-bottom: 100px; /* Space for bottom bar + gradient */
+    padding: 0 10px;
+    padding-bottom: 120px; /* Space for bottom bar + gradient */
     /* Responsive: auto-fit columns with minimum 280px width */
     grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   }

@@ -268,6 +268,13 @@
             // This allows the chat to be decrypted when stored
             chatDB.setChatKey(chatId, keyBytes);
             
+            // CRITICAL: Persist the shared chat key to IndexedDB so it survives page reloads
+            // This is essential for unauthenticated users who can't derive keys from a master key.
+            // Without this, the key would be lost on reload since it's only in memory.
+            const { saveSharedChatKey } = await import('@repo/ui');
+            await saveSharedChatKey(chatId, keyBytes);
+            console.debug('[ShareChat] Persisted shared chat key to IndexedDB for chat:', chatId);
+            
             // Store chat and messages in IndexedDB
             console.debug('[ShareChat] Storing chat and messages in IndexedDB...');
             await chatDB.init();
@@ -353,21 +360,10 @@
                 console.debug(`[ShareChat] Stored ${fetchedEmbeds.length} embeds`);
             }
             
-            // Mark chat as shared for non-authenticated users (for cleanup on session close)
-            // We'll use a custom property that we can check later
-            // For authenticated users, the chat will sync normally and persist
-            const { authStore } = await import('@repo/ui');
-            const { get } = await import('svelte/store');
-            const isAuthenticated = get(authStore).isAuthenticated;
-            if (!isAuthenticated) {
-                // Store a flag in sessionStorage to track shared chats for cleanup
-                const sharedChats = JSON.parse(sessionStorage.getItem('shared_chats') || '[]');
-                if (!sharedChats.includes(chatId)) {
-                    sharedChats.push(chatId);
-                    sessionStorage.setItem('shared_chats', JSON.stringify(sharedChats));
-                    console.debug('[ShareChat] Marked chat as shared for session cleanup:', chatId);
-                }
-            }
+            // NOTE: Shared chat keys are now persisted in IndexedDB via sharedChatKeyStorage
+            // This allows unauthenticated users to reload the tab and still access the chat.
+            // The sessionStorage tracking has been removed since keys persist until explicitly deleted.
+            // For authenticated users, the chat will sync normally via the regular chat sync mechanism.
             
             console.debug('[ShareChat] Successfully stored chat in IndexedDB');
             

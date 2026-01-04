@@ -94,6 +94,16 @@ class ChatDatabase {
                     console.error("[ChatDatabase] Error loading chat keys during initialization:", error);
                 }
                 
+                // Load shared chat keys from IndexedDB into memory cache
+                // This enables shared chats to survive page reloads for unauthenticated users.
+                // Shared chat keys are stored separately in openmates_shared_keys DB since they're
+                // not wrapped with a master key (unauthenticated users have no master key).
+                try {
+                    await this.loadSharedChatKeysFromStorage();
+                } catch (error) {
+                    console.error("[ChatDatabase] Error loading shared chat keys during initialization:", error);
+                }
+                
                 // Clean up duplicate messages on initialization
                 try {
                     await messageOps.cleanupDuplicateMessages(this);
@@ -681,6 +691,42 @@ class ChatDatabase {
 
     public clearAllChatKeys(): void {
         chatKeyManagementOps.clearAllChatKeys(this);
+    }
+
+    /**
+     * Load shared chat keys from IndexedDB into memory cache.
+     * 
+     * This enables shared chats to survive page reloads for unauthenticated users.
+     * Shared chat keys are stored separately from regular chat keys because:
+     * - Regular chat keys are wrapped with the user's master key (requires authentication)
+     * - Shared chat keys are stored as raw key bytes (no master key for unauthenticated users)
+     * 
+     * The keys are loaded into the same chatKeys Map used for regular chats,
+     * allowing seamless decryption of both owned and shared chats.
+     */
+    public async loadSharedChatKeysFromStorage(): Promise<void> {
+        try {
+            const { getAllSharedChatKeys } = await import('./sharedChatKeyStorage');
+            const sharedKeys = await getAllSharedChatKeys();
+            
+            if (sharedKeys.size > 0) {
+                // Merge shared keys into the chat keys cache
+                // Don't overwrite existing keys (from master key decryption)
+                let loadedCount = 0;
+                // Use Array.from() for compatibility with older TypeScript targets
+                const entries = Array.from(sharedKeys.entries());
+                for (const [chatId, keyBytes] of entries) {
+                    if (!this.chatKeys.has(chatId)) {
+                        this.chatKeys.set(chatId, keyBytes);
+                        loadedCount++;
+                    }
+                }
+                console.debug(`[ChatDatabase] Loaded ${loadedCount} shared chat keys from storage`);
+            }
+        } catch (error) {
+            // Non-critical: shared key storage might not exist yet (first visit)
+            console.debug('[ChatDatabase] Could not load shared chat keys (may not exist yet):', error);
+        }
     }
 
     public getOrGenerateChatKey(chatId: string): Uint8Array {

@@ -2,49 +2,47 @@
   frontend/packages/ui/src/components/embeds/VideosSearchEmbedFullscreen.svelte
   
   Fullscreen view for Videos Search skill embeds.
-  Uses UnifiedEmbedFullscreen as base and provides skill-specific content.
+  Uses UnifiedEmbedFullscreen as base with unified child embed loading.
   
   Shows:
-  - Search query and provider
-  - Video embeds in a grid (3 per row on desktop, stacked on mobile)
-  - Each video uses WebsiteEmbedPreview component (300x200px)
-  - Basic infos bar at the bottom
-  - Top bar with open, copy, and minimize buttons
+  - Header with search query and "via {provider}" formatting (60px top margin, 40px bottom margin)
+  - Video embeds in a grid (auto-responsive columns)
+  - Each video uses WebsiteEmbedPreview component
+  - Consistent BasicInfosBar at the bottom (matches preview - "Search" + "Completed")
+  - Top bar with share, copy, and minimize buttons
+  
+  Child embeds are automatically loaded by UnifiedEmbedFullscreen from embedIds prop.
 -->
 
 <script lang="ts">
-  import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
+  import UnifiedEmbedFullscreen, { type ChildEmbedContext } from '../UnifiedEmbedFullscreen.svelte';
   import WebsiteEmbedPreview from '../web/WebsiteEmbedPreview.svelte';
-  import BasicInfosBar from '../BasicInfosBar.svelte';
-  // @ts-ignore - @repo/ui module exists at runtime
   import { text } from '@repo/ui';
   
   /**
-   * Video search result interface
+   * Video search result interface (transformed from child embeds)
    */
   interface VideoSearchResult {
+    embed_id: string;
     title?: string;
     url: string;
-    thumbnail?: {
-      src?: string;
-      original?: string;
-    };
-    meta_url?: {
-      favicon?: string;
-    };
+    thumbnail?: string;
+    favicon?: string;
     description?: string;
-    snippet?: string;
   }
   
   /**
    * Props for videos search embed fullscreen
+   * Child embeds are loaded automatically via UnifiedEmbedFullscreen
    */
   interface Props {
     /** Search query */
     query: string;
     /** Search provider (e.g., 'Brave Search') */
     provider: string;
-    /** Search results */
+    /** Pipe-separated embed IDs or array of embed IDs for child video embeds */
+    embedIds?: string | string[];
+    /** Legacy: Direct results (fallback if embedIds not provided) */
     results?: VideoSearchResult[];
     /** Close handler */
     onClose: () => void;
@@ -55,7 +53,8 @@
   let {
     query,
     provider,
-    results = [],
+    embedIds,
+    results: resultsProp = [],
     onClose,
     embedId
   }: Props = $props();
@@ -65,8 +64,67 @@
     typeof window !== 'undefined' && window.innerWidth <= 500
   );
   
-  // Format the search query with provider name for title
-  let displayTitle = $derived(`${query} via ${provider}`);
+  // Get skill name from translations (matches preview)
+  let skillName = $derived($text('embeds.search.text') || 'Search');
+  
+  // Get "via {provider}" text from translations
+  let viaProvider = $derived(
+    `${$text('embeds.via.text') || 'via'} ${provider}`
+  );
+  
+  /**
+   * Transform raw embed content to VideoSearchResult format
+   * Used by UnifiedEmbedFullscreen's childEmbedTransformer
+   */
+  function transformToVideoResult(embedId: string, content: Record<string, unknown>): VideoSearchResult {
+    // Handle nested thumbnail and meta_url objects
+    const thumbnail = content.thumbnail as Record<string, string> | undefined;
+    const metaUrl = content.meta_url as Record<string, string> | undefined;
+    
+    return {
+      embed_id: embedId,
+      title: content.title as string | undefined,
+      url: content.url as string,
+      thumbnail: (content.thumbnail_original as string) || thumbnail?.original || thumbnail?.src,
+      favicon: (content.meta_url_favicon as string) || metaUrl?.favicon,
+      description: (content.description as string) || (content.snippet as string)
+    };
+  }
+  
+  /**
+   * Transform legacy results to VideoSearchResult format (for backwards compatibility)
+   */
+  function transformLegacyResults(results: unknown[]): VideoSearchResult[] {
+    return (results as Array<Record<string, unknown>>).map((r, i) => {
+      const thumbnail = r.thumbnail as Record<string, string> | undefined;
+      const metaUrl = r.meta_url as Record<string, string> | undefined;
+      
+      return {
+        embed_id: `legacy-${i}`,
+        title: r.title as string | undefined,
+        url: r.url as string,
+        thumbnail: thumbnail?.original || thumbnail?.src,
+        favicon: metaUrl?.favicon,
+        description: (r.description as string) || (r.snippet as string)
+      };
+    });
+  }
+  
+  /**
+   * Get video results from context (children or legacy)
+   * Children are cast to VideoSearchResult[] since we pass transformToVideoResult as transformer
+   */
+  function getVideoResults(ctx: ChildEmbedContext): VideoSearchResult[] {
+    // Use loaded children if available (cast since transformer returns VideoSearchResult)
+    if (ctx.children && ctx.children.length > 0) {
+      return ctx.children as VideoSearchResult[];
+    }
+    // Fallback to legacy results
+    if (ctx.legacyResults && ctx.legacyResults.length > 0) {
+      return transformLegacyResults(ctx.legacyResults);
+    }
+    return [];
+  }
   
   // Handle share - opens share settings menu for this specific videos search embed
   async function handleShare() {
@@ -74,8 +132,7 @@
       console.debug('[VideosSearchEmbedFullscreen] Opening share settings for videos search embed:', {
         embedId,
         query,
-        provider,
-        resultsCount: results.length
+        provider
       });
 
       // Check if we have embed_id for proper sharing
@@ -96,12 +153,11 @@
         type: 'videos_search',
         embed_id: embedId,
         query: query,
-        provider: provider,
-        results_count: results.length
+        provider: provider
       };
 
       // Store embed context for SettingsShare
-      (window as any).__embedShareContext = embedContext;
+      (window as unknown as { __embedShareContext?: unknown }).__embedShareContext = embedContext;
 
       // Navigate to share settings
       navigateToSettings('shared/share', 'Share Videos Search', 'share', 'settings.share.share_videos_search.text');
@@ -126,42 +182,9 @@
     window.open(searchUrl, '_blank', 'noopener,noreferrer');
   }
   
-  // Handle copy YAML of search results
-  async function handleCopyYAML() {
-    try {
-      const yamlData = {
-        query: query,
-        provider: provider,
-        results: results.map(r => ({
-          title: r.title,
-          url: r.url,
-          description: r.description || r.snippet
-        }))
-      };
-      
-      // Convert to YAML format
-      let yaml = `query: "${query}"\n`;
-      yaml += `provider: "${provider}"\n`;
-      yaml += `results:\n`;
-      
-      results.forEach((result) => {
-        yaml += `  - title: "${result.title || ''}"\n`;
-        yaml += `    url: "${result.url}"\n`;
-        const desc = result.description || result.snippet;
-        if (desc) {
-          yaml += `    description: "${desc.replace(/"/g, '\\"')}"\n`;
-        }
-      });
-      
-      await navigator.clipboard.writeText(yaml);
-      console.debug('[VideosSearchEmbedFullscreen] Copied YAML to clipboard');
-    } catch (error) {
-      console.error('[VideosSearchEmbedFullscreen] Failed to copy YAML:', error);
-    }
-  }
   
   // Handle video fullscreen (from WebsiteEmbedPreview)
-  function handleVideoFullscreen(videoData: any) {
+  function handleVideoFullscreen(videoData: VideoSearchResult) {
     // For now, just open the video in a new tab
     // In the future, we could show a video player fullscreen view
     if (videoData.url) {
@@ -170,82 +193,125 @@
   }
 </script>
 
+<!-- 
+  Pass skillName and showStatus to UnifiedEmbedFullscreen for consistent BasicInfosBar
+  that matches the embed preview (shows "Search" + "Completed", not the query)
+  
+  Child embeds are loaded automatically via embedIds prop and passed to content snippet
+  The childEmbedTransformer converts raw embed data to VideoSearchResult format
+-->
 <UnifiedEmbedFullscreen
   onShare={handleShare}
   appId="videos"
   skillId="search"
-  title={displayTitle}
+  title=""
   {onClose}
   onOpen={handleOpenInProvider}
-  onCopy={handleCopyYAML}
+  skillIconName="search"
+  status="finished"
+  {skillName}
+  showStatus={true}
+  {embedIds}
+  childEmbedTransformer={transformToVideoResult}
+  legacyResults={resultsProp}
 >
-  {#snippet content()}
-    {#if results.length === 0}
+  {#snippet content(ctx)}
+    {@const videoResults = getVideoResults(ctx)}
+    
+    <!-- Header with search query and provider - 60px top margin, 40px bottom margin -->
+    <div class="fullscreen-header">
+      <div class="search-query">{query}</div>
+      <div class="search-provider">{viaProvider}</div>
+    </div>
+    
+    {#if ctx.isLoadingChildren}
+      <div class="loading-state">
+        <p>{$text('embeds.loading.text') || 'Loading...'}</p>
+      </div>
+    {:else if videoResults.length === 0}
       <div class="no-results">
-        <p>No search results available.</p>
+        <p>{$text('embeds.no_results.text') || 'No search results available.'}</p>
       </div>
     {:else}
-      <!-- Video embeds grid -->
+      <!-- Video embeds grid - responsive auto-fill columns -->
       <div class="video-embeds-grid" class:mobile={isMobile}>
-        {#each results as result, index}
-          {@const thumbnailUrl = result.thumbnail?.original || result.thumbnail?.src}
-          {@const faviconUrl = result.meta_url?.favicon}
-          {@const description = result.description || result.snippet}
+        {#each videoResults as result}
           <WebsiteEmbedPreview
-            id={`video-${index}`}
+            id={result.embed_id}
             url={result.url}
             title={result.title}
-            description={description}
-            favicon={faviconUrl}
-            image={thumbnailUrl}
+            description={result.description}
+            favicon={result.favicon}
+            image={result.thumbnail}
             status="finished"
             isMobile={false}
-            onFullscreen={() => handleVideoFullscreen({
-              url: result.url,
-              title: result.title,
-              description: description,
-              favicon: faviconUrl,
-              image: thumbnailUrl
-            })}
+            onFullscreen={() => handleVideoFullscreen(result)}
           />
         {/each}
       </div>
     {/if}
   {/snippet}
-  
-  {#snippet bottomBar()}
-    <div class="bottom-bar-wrapper">
-      <BasicInfosBar
-        appId="videos"
-        skillId="search"
-        skillIconName="search"
-        status="finished"
-        skillName={query}
-        showStatus={false}
-        {isMobile}
-      />
-    </div>
-  {/snippet}
 </UnifiedEmbedFullscreen>
 
 <style>
-  /* No results message */
+  /* ===========================================
+     Fullscreen Header - Query and Provider
+     =========================================== */
+  
+  .fullscreen-header {
+    margin-top: 60px;
+    margin-bottom: 40px;
+    padding: 0 16px;
+    text-align: center;
+  }
+  
+  .search-query {
+    font-size: 24px;
+    font-weight: 600;
+    color: var(--color-font-primary);
+    line-height: 1.3;
+    word-break: break-word;
+    /* Limit to 3 lines with ellipsis */
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  
+  .search-provider {
+    font-size: 16px;
+    color: var(--color-font-secondary);
+    margin-top: 8px;
+  }
+  
+  /* ===========================================
+     Loading and No Results States
+     =========================================== */
+  
+  .loading-state,
   .no-results {
     display: flex;
     align-items: center;
     justify-content: center;
     height: 200px;
     color: var(--color-font-secondary);
+    font-size: 16px;
   }
   
-  /* Video embeds grid - responsive with auto-fill */
+  /* ===========================================
+     Video Embeds Grid - Responsive Layout
+     =========================================== */
+  
   .video-embeds-grid {
     display: grid;
     gap: 16px;
-    width: 100%;
+    width: calc(100% - 20px);
     max-width: 1000px;
     margin: 0 auto;
-    padding-bottom: 100px; /* Space for bottom bar + gradient */
+    padding: 0 10px;
+    padding-bottom: 120px; /* Space for bottom bar + gradient */
     /* Responsive: auto-fit columns with minimum 280px width */
     grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   }

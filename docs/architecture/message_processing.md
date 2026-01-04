@@ -397,15 +397,13 @@ For detailed documentation on how function calling works, see [Function Calling 
    - **5xx status codes**: Server errors - treated as potentially temporary (not corrected)
    - **Timeouts/Connection errors**: Treated as potentially temporary (not corrected)
 
-4. **Full Response Correction** (after streaming completes):
+4. **Brave Search Replacement** (after streaming completes):
    - After the full response is streamed, the system waits for all URL validations to complete
-   - If broken URLs are found, the entire response is corrected in one LLM call
-   - Uses the same main processing model for consistency (not a cheaper model)
-   - Removes broken links completely
-   - When appropriate, adds natural language questions asking if the user wants the chatbot to search for that topic
-   - Only asks about search when the link was to valuable information (documentation, articles, resources)
-   - If link wasn't essential, just removes it without adding a question
-   - Maintains the same response structure, tone, and content
+   - If broken URLs are found, they are replaced with Brave search URLs
+   - Example: `[Python docs](https://broken-link.com)` → `[Python docs](https://search.brave.com/search?q=Python%20docs)`
+   - Simple string replacement - no LLM call needed (zero cost, zero latency, can't fail)
+   - Preserves the original link text so user sees what was intended
+   - User can click to search for the topic the broken link was about
 
 5. **Response Update**: The corrected response replaces the original:
    - Client is notified via Redis Pub/Sub (user sees text update)
@@ -414,34 +412,26 @@ For detailed documentation on how function calling works, see [Function Calling 
 
 **Key Benefits**:
 - **No streaming delay**: URL validation happens in background, doesn't slow down response streaming
-- **Efficient correction**: Single LLM call corrects entire response (not per-paragraph)
-- **Model consistency**: Uses same main processing model for correction
+- **Simple & reliable**: String replacement can't fail (unlike LLM-based correction)
+- **Zero cost**: No additional LLM call for correction
+- **User-friendly**: Preserves link text and provides search fallback
 - **Complete update**: Both client display and server cache are updated with corrected response
 
-**Configuration**:
-- URL validation timeout: 5 seconds per URL
-- Validation runs in background (doesn't block response streaming)
-- Correction uses the same main processing model (from preprocessing result)
-- Tool definition: [`backend/apps/ai/base_instructions.yml`](../../backend/apps/ai/base_instructions.yml) - `url_correction_tool`
-- Uses HEAD requests by default (more efficient, ~1.46 KB per URL vs ~217 KB with GET)
-- Includes User-Agent header to avoid bot detection
+**Anti-Detection Features**:
+- **Webshare Proxy**: Uses rotating residential proxy to avoid datacenter IP blocking
+- **Random User-Agents**: Dynamic generation via `user-agents` library (falls back to static list)
+- **Randomized Headers**: Accept-Language, DNT, etc. to avoid fingerprinting
+- **Fresh Connections**: `Connection: close` ensures IP rotation with proxy
 
-**Monitoring for Datacenter Blocking**:
-- **Current Approach**: Direct connection with User-Agent header (no proxy)
-- **Traffic**: Minimal (~129 MB/month for 30k messages with HEAD requests)
-- **Monitoring Point**: If broken URLs are not being removed from assistant responses, this may indicate datacenter IP blocking
-  - Check logs for high rates of `connection_error` or `timeout` errors
-  - Monitor if valid URLs are incorrectly marked as broken
-- **Oxylabs Proxy Option**: If blocking becomes an issue, Oxylabs proxy can be added (similar to YouTube transcript skill)
-  - HEAD requests work through Oxylabs (standard HTTP method)
-  - Implementation: See [`backend/apps/videos/skills/transcript_skill.py`](../../backend/apps/videos/skills/transcript_skill.py) for Oxylabs integration pattern
-  - Cost: ~$0.08/month (datacenter) or ~$1/month (residential) for typical usage
-  - Traffic remains minimal with HEAD requests (~0.13 GB/month)
+**Configuration**:
+- URL validation timeout: 8 seconds per URL (increased for proxy routing)
+- Validation runs in background (doesn't block response streaming)
+- Uses HEAD requests by default (more efficient, ~1.46 KB per URL vs ~217 KB with GET)
+- Webshare credentials from secrets manager: `kv/data/providers/webshare`
 
 **Implementation Files**:
-- URL extraction and validation: [`backend/apps/ai/processing/url_validator.py`](../../backend/apps/ai/processing/url_validator.py)
-- URL correction: [`backend/apps/ai/processing/url_corrector.py`](../../backend/apps/ai/processing/url_corrector.py)
-- Integration: [`backend/apps/ai/tasks/stream_consumer.py`](../../backend/apps/ai/tasks/stream_consumer.py) - validates during streaming, corrects after completion
+- URL extraction, validation, and Brave search replacement: [`backend/apps/ai/processing/url_validator.py`](../../backend/apps/ai/processing/url_validator.py)
+- Integration: [`backend/apps/ai/tasks/stream_consumer.py`](../../backend/apps/ai/tasks/stream_consumer.py) - validates during streaming, replaces after completion
 
 > **Note from dev meetup (2025-10-08)**: How to implement harm detection with pre-processing and post-processing without overreacting - what parameters to include? Consider balancing false positives vs. false negatives, defining clear thresholds, and establishing criteria for when to flag vs. block vs. redirect responses.
 > **Note from dev meetup (2025-10-08)**: Implement 'compress conversation history' functionality, to reduce the size of the conversation history for the LLM? But if so, we need to show user the compresses conversation by default and show a 'Show full conversation' button to show the full conversation from before, with the clear dislaimer that the conversation history is not used anymore when the user asks a new question. Althought we can consider implementing a functionality that allows the chatbot to search in the full chat history of that chat and include matches again into the conversation - a "Remember" functionality?

@@ -55,6 +55,13 @@ class PreprocessingResult(BaseModel):
     selected_main_llm_model_id: Optional[str] = None
     selected_main_llm_model_name: Optional[str] = None # Added
 
+    # Hardcoded disclaimer injection - ensures legal disclaimers are always shown for sensitive topics
+    # This is NOT LLM-dependent; the disclaimer will be appended by stream_consumer after response completes
+    requires_advice_disclaimer: Optional[str] = Field(
+        None, 
+        description="Disclaimer type to inject: 'financial', 'medical', 'legal', or 'mental_health'. Set if category is sensitive AND no disclaimer was recently shown."
+    )
+
     raw_llm_response: Optional[Dict[str, Any]] = Field(None, description="Raw arguments from the LLM tool call.")
     error_message: Optional[str] = None
 
@@ -89,6 +96,104 @@ def _sanitize_text_content(text: str, log_prefix: str = "") -> str:
         Sanitized text with all invisible characters removed
     """
     return sanitize_text_simple(text, log_prefix=log_prefix)
+
+
+# Mapping from category (Mate categories) to disclaimer types
+# These categories trigger hardcoded disclaimer injection to ensure legal compliance
+SENSITIVE_CATEGORY_TO_DISCLAIMER = {
+    "finance": "financial",
+    "medical_health": "medical",
+    "legal_law": "legal",
+    "life_coach_psychology": "mental_health"
+}
+
+# Minimum time (in seconds) before showing the same disclaimer type again
+# Even if talking about the same topic, we re-show every 30 minutes
+DISCLAIMER_COOLDOWN_SECONDS = 30 * 60  # 30 minutes
+
+
+async def _check_if_disclaimer_needed(
+    chat_id: str,
+    disclaimer_type: str,
+    cache_service: CacheService,
+    log_prefix: str
+) -> bool:
+    """
+    Check if a disclaimer of the given type should be injected.
+    
+    We inject a disclaimer if:
+    1. No disclaimer of this type was shown recently, OR
+    2. The cooldown period (30 minutes) has passed since the last disclaimer
+    
+    This prevents spamming disclaimers while ensuring legal compliance.
+    
+    Args:
+        chat_id: The chat ID to check
+        disclaimer_type: The disclaimer type ("financial", "medical", "legal", "mental_health")
+        cache_service: Cache service for reading chat metadata
+        log_prefix: Logging prefix for debug messages
+        
+    Returns:
+        True if a disclaimer should be injected, False otherwise
+    """
+    import time
+    
+    try:
+        # Try to get the chat's cached list item data which contains disclaimer tracking
+        cache_key = f"chat:{chat_id}:list_item_data"
+        cached_data = await cache_service.get(cache_key)
+        
+        if not cached_data:
+            logger.debug(f"{log_prefix} No cached chat data found for {chat_id}, disclaimer needed")
+            return True
+        
+        # Parse the cached data
+        import json
+        if isinstance(cached_data, str):
+            cached_data = json.loads(cached_data)
+        
+        last_disclaimer_type = cached_data.get("last_disclaimer_type")
+        last_disclaimer_timestamp = cached_data.get("last_disclaimer_timestamp")
+        
+        # If different disclaimer type, we need to show it
+        if last_disclaimer_type != disclaimer_type:
+            logger.info(
+                f"{log_prefix} Different disclaimer type needed. "
+                f"Last: {last_disclaimer_type}, Current: {disclaimer_type}"
+            )
+            return True
+        
+        # Same type - check if cooldown period has passed
+        if last_disclaimer_timestamp:
+            current_time = int(time.time())
+            time_since_last = current_time - last_disclaimer_timestamp
+            
+            if time_since_last >= DISCLAIMER_COOLDOWN_SECONDS:
+                logger.info(
+                    f"{log_prefix} Disclaimer cooldown expired. "
+                    f"Last shown {time_since_last}s ago, cooldown is {DISCLAIMER_COOLDOWN_SECONDS}s"
+                )
+                return True
+            else:
+                logger.debug(
+                    f"{log_prefix} Disclaimer {disclaimer_type} was shown recently "
+                    f"({time_since_last}s ago), skipping"
+                )
+                return False
+        
+        # No timestamp but same type - shouldn't happen, but inject to be safe
+        logger.warning(
+            f"{log_prefix} Same disclaimer type but no timestamp - injecting for safety"
+        )
+        return True
+        
+    except Exception as e:
+        # On any error, default to showing the disclaimer (fail-safe for legal compliance)
+        logger.warning(
+            f"{log_prefix} Error checking disclaimer state: {e}. "
+            f"Defaulting to inject disclaimer for legal compliance."
+        )
+        return True
 
 
 def _get_insufficient_credits_error_message() -> str:
@@ -942,6 +1047,36 @@ async def handle_preprocessing(
         validated_relevant_skills = []  # Keep as empty list, not None - this ensures only preselected skills are forwarded
         logger.info(f"{log_prefix} No skill preselection from preprocessing. No skills will be provided to main processing (architecture: only preselected skills are forwarded).")
     
+    # --- Determine if hardcoded disclaimer injection is required ---
+    # This is a HARDCODED safety mechanism for legal compliance.
+    # We do NOT rely on LLM instructions to include disclaimers for sensitive topics.
+    # The disclaimer will be appended by stream_consumer AFTER the response completes.
+    requires_disclaimer: Optional[str] = None
+    final_category = validated_category or "general_knowledge"
+    
+    if final_category in SENSITIVE_CATEGORY_TO_DISCLAIMER:
+        disclaimer_type = SENSITIVE_CATEGORY_TO_DISCLAIMER[final_category]
+        
+        # Check if we need to show this disclaimer (not shown recently for this type)
+        needs_disclaimer = await _check_if_disclaimer_needed(
+            chat_id=request_data.chat_id,
+            disclaimer_type=disclaimer_type,
+            cache_service=cache_service,
+            log_prefix=log_prefix
+        )
+        
+        if needs_disclaimer:
+            requires_disclaimer = disclaimer_type
+            logger.info(
+                f"{log_prefix} [DISCLAIMER] Category '{final_category}' requires "
+                f"'{disclaimer_type}' disclaimer injection"
+            )
+        else:
+            logger.debug(
+                f"{log_prefix} [DISCLAIMER] Category '{final_category}' is sensitive but "
+                f"disclaimer was shown recently, skipping"
+            )
+    
     # Use validated values instead of raw llm_analysis_args values
     # This ensures all fields meet their constraints and prevents downstream errors
     final_result = PreprocessingResult(
@@ -959,6 +1094,7 @@ async def handle_preprocessing(
         chat_summary=chat_summary_val,  # Use validated chat_summary (validated above - may be None if LLM didn't provide it)
         chat_tags=chat_tags_val,  # Use validated chat tags (maxItems: 10)
         relevant_app_skills=validated_relevant_skills,  # Use validated relevant skills (filtered against available skills)
+        requires_advice_disclaimer=requires_disclaimer,  # Hardcoded disclaimer type to inject (or None if not needed)
         selected_main_llm_model_id=selected_llm_for_main_id,
         selected_main_llm_model_name=selected_llm_for_main_name,
         selected_mate_id=selected_mate_id,

@@ -2,49 +2,46 @@
   frontend/packages/ui/src/components/embeds/NewsSearchEmbedFullscreen.svelte
   
   Fullscreen view for News Search skill embeds.
-  Uses UnifiedEmbedFullscreen as base and provides skill-specific content.
+  Uses UnifiedEmbedFullscreen as base with unified child embed loading.
   
   Shows:
-  - Search query and provider
-  - News article embeds in a grid (3 per row on desktop, stacked on mobile)
-  - Each article uses WebsiteEmbedPreview component (300x200px)
-  - Basic infos bar at the bottom
-  - Top bar with open, copy, and minimize buttons
+  - Header with search query and "via {provider}" formatting (60px top margin, 40px bottom margin)
+  - News article embeds in a grid (auto-responsive columns)
+  - Consistent BasicInfosBar at the bottom (matches preview - "Search" + "Completed")
+  - Top bar with share, copy, and minimize buttons
+  
+  Child embeds are automatically loaded by UnifiedEmbedFullscreen from embedIds prop.
 -->
 
 <script lang="ts">
-  import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
+  import UnifiedEmbedFullscreen, { type ChildEmbedContext } from '../UnifiedEmbedFullscreen.svelte';
   import WebsiteEmbedPreview from '../web/WebsiteEmbedPreview.svelte';
-  import BasicInfosBar from '../BasicInfosBar.svelte';
-  // @ts-ignore - @repo/ui module exists at runtime
   import { text } from '@repo/ui';
   
   /**
-   * News search result interface
+   * News search result interface (transformed from child embeds)
    */
   interface NewsSearchResult {
+    embed_id: string;
     title?: string;
     url: string;
     favicon_url?: string;
-    meta_url?: {
-      favicon?: string;
-    };
-    thumbnail?: {
-      original?: string;
-    };
+    thumbnail?: string;
     description?: string;
-    snippet?: string;
   }
   
   /**
    * Props for news search embed fullscreen
+   * Child embeds are loaded automatically via UnifiedEmbedFullscreen
    */
   interface Props {
     /** Search query */
     query: string;
     /** Search provider (e.g., 'Brave Search') */
     provider: string;
-    /** Search results */
+    /** Pipe-separated embed IDs or array of embed IDs for child news embeds */
+    embedIds?: string | string[];
+    /** Legacy: Search results (fallback if embedIds not provided) */
     results?: NewsSearchResult[];
     /** Close handler */
     onClose: () => void;
@@ -55,7 +52,8 @@
   let {
     query,
     provider,
-    results = [],
+    embedIds,
+    results: resultsProp = [],
     onClose,
     embedId
   }: Props = $props();
@@ -65,8 +63,67 @@
     typeof window !== 'undefined' && window.innerWidth <= 500
   );
   
-  // Format the search query with provider name for title
-  let displayTitle = $derived(`${query} via ${provider}`);
+  // Get skill name from translations (matches preview)
+  let skillName = $derived($text('embeds.search.text') || 'Search');
+  
+  // Get "via {provider}" text from translations
+  let viaProvider = $derived(
+    `${$text('embeds.via.text') || 'via'} ${provider}`
+  );
+  
+  /**
+   * Transform raw embed content to NewsSearchResult format
+   * Used by UnifiedEmbedFullscreen's childEmbedTransformer
+   */
+  function transformToNewsResult(embedId: string, content: Record<string, unknown>): NewsSearchResult {
+    // Handle nested meta_url and thumbnail objects
+    const metaUrl = content.meta_url as Record<string, string> | undefined;
+    const thumbnail = content.thumbnail as Record<string, string> | undefined;
+    
+    return {
+      embed_id: embedId,
+      title: content.title as string | undefined,
+      url: content.url as string,
+      favicon_url: (content.favicon_url as string) || metaUrl?.favicon,
+      thumbnail: thumbnail?.original,
+      description: (content.description as string) || (content.snippet as string)
+    };
+  }
+  
+  /**
+   * Transform legacy results to NewsSearchResult format (for backwards compatibility)
+   */
+  function transformLegacyResults(results: unknown[]): NewsSearchResult[] {
+    return (results as Array<Record<string, unknown>>).map((r, i) => {
+      const metaUrl = r.meta_url as Record<string, string> | undefined;
+      const thumbnail = r.thumbnail as Record<string, string> | undefined;
+      
+      return {
+        embed_id: `legacy-${i}`,
+        title: r.title as string | undefined,
+        url: r.url as string,
+        favicon_url: (r.favicon_url as string) || metaUrl?.favicon,
+        thumbnail: thumbnail?.original,
+        description: (r.description as string) || (r.snippet as string)
+      };
+    });
+  }
+  
+  /**
+   * Get news results from context (children or legacy)
+   * Children are cast to NewsSearchResult[] since we pass transformToNewsResult as transformer
+   */
+  function getNewsResults(ctx: ChildEmbedContext): NewsSearchResult[] {
+    // Use loaded children if available (cast since transformer returns NewsSearchResult)
+    if (ctx.children && ctx.children.length > 0) {
+      return ctx.children as NewsSearchResult[];
+    }
+    // Fallback to legacy results
+    if (ctx.legacyResults && ctx.legacyResults.length > 0) {
+      return transformLegacyResults(ctx.legacyResults);
+    }
+    return [];
+  }
   
   // Handle share - opens share settings menu for this specific news search embed
   async function handleShare() {
@@ -74,8 +131,7 @@
       console.debug('[NewsSearchEmbedFullscreen] Opening share settings for news search embed:', {
         embedId,
         query,
-        provider,
-        resultsCount: results.length
+        provider
       });
 
       // Check if we have embed_id for proper sharing
@@ -96,12 +152,11 @@
         type: 'news_search',
         embed_id: embedId,
         query: query,
-        provider: provider,
-        results_count: results.length
+        provider: provider
       };
 
       // Store embed context for SettingsShare
-      (window as any).__embedShareContext = embedContext;
+      (window as unknown as { __embedShareContext?: unknown }).__embedShareContext = embedContext;
 
       // Navigate to share settings
       navigateToSettings('shared/share', 'Share News Search', 'share', 'settings.share.share_news_search.text');
@@ -126,126 +181,135 @@
     window.open(searchUrl, '_blank', 'noopener,noreferrer');
   }
   
-  // Handle copy YAML of search results
-  async function handleCopyYAML() {
-    try {
-      const yamlData = {
-        query: query,
-        provider: provider,
-        results: results.map(r => ({
-          title: r.title,
-          url: r.url,
-          description: r.description || r.snippet
-        }))
-      };
-      
-      // Convert to YAML format
-      let yaml = `query: "${query}"\n`;
-      yaml += `provider: "${provider}"\n`;
-      yaml += `results:\n`;
-      
-      results.forEach((result) => {
-        yaml += `  - title: "${result.title || ''}"\n`;
-        yaml += `    url: "${result.url}"\n`;
-        const desc = result.description || result.snippet;
-        if (desc) {
-          yaml += `    description: "${desc.replace(/"/g, '\\"')}"\n`;
-        }
-      });
-      
-      await navigator.clipboard.writeText(yaml);
-      console.debug('[NewsSearchEmbedFullscreen] Copied YAML to clipboard');
-    } catch (error) {
-      console.error('[NewsSearchEmbedFullscreen] Failed to copy YAML:', error);
-    }
-  }
-  
-  // Handle website fullscreen (from WebsiteEmbedPreview)
-  function handleWebsiteFullscreen(websiteData: any) {
-    // For now, just open the website in a new tab
-    // In the future, we could show a website fullscreen view
-    if (websiteData.url) {
-      window.open(websiteData.url, '_blank', 'noopener,noreferrer');
+  // Handle article fullscreen (from WebsiteEmbedPreview)
+  function handleArticleFullscreen(articleData: NewsSearchResult) {
+    // For now, just open the article in a new tab
+    // In the future, we could show a reader view fullscreen
+    if (articleData.url) {
+      window.open(articleData.url, '_blank', 'noopener,noreferrer');
     }
   }
 </script>
 
+<!-- 
+  Pass skillName and showStatus to UnifiedEmbedFullscreen for consistent BasicInfosBar
+  that matches the embed preview (shows "Search" + "Completed", not the query)
+  
+  Child embeds are loaded automatically via embedIds prop and passed to content snippet
+  The childEmbedTransformer converts raw embed data to NewsSearchResult format
+-->
 <UnifiedEmbedFullscreen
   onShare={handleShare}
   appId="news"
   skillId="search"
-  title={displayTitle}
+  title=""
   {onClose}
   onOpen={handleOpenInProvider}
-  onCopy={handleCopyYAML}
+  skillIconName="search"
+  status="finished"
+  {skillName}
+  showStatus={true}
+  {embedIds}
+  childEmbedTransformer={transformToNewsResult}
+  legacyResults={resultsProp}
 >
-  {#snippet content()}
-    {#if results.length === 0}
+  {#snippet content(ctx)}
+    {@const newsResults = getNewsResults(ctx)}
+    
+    <!-- Header with search query and provider - 60px top margin, 40px bottom margin -->
+    <div class="fullscreen-header">
+      <div class="search-query">{query}</div>
+      <div class="search-provider">{viaProvider}</div>
+    </div>
+    
+    {#if ctx.isLoadingChildren}
+      <div class="loading-state">
+        <p>{$text('embeds.loading.text') || 'Loading...'}</p>
+      </div>
+    {:else if newsResults.length === 0}
       <div class="no-results">
-        <p>No search results available.</p>
+        <p>{$text('embeds.no_results.text') || 'No search results available.'}</p>
       </div>
     {:else}
-      <!-- News article embeds grid -->
+      <!-- News article embeds grid - responsive auto-fill columns -->
       <div class="article-embeds-grid" class:mobile={isMobile}>
-        {#each results as result, index}
-          {@const faviconUrl = result.meta_url?.favicon || result.favicon_url}
-          {@const imageUrl = result.thumbnail?.original}
-          {@const description = result.description || result.snippet}
+        {#each newsResults as result}
           <WebsiteEmbedPreview
-            id={`news-article-${index}`}
+            id={result.embed_id}
             url={result.url}
             title={result.title}
-            description={description}
-            favicon={faviconUrl}
-            image={imageUrl}
+            description={result.description}
+            favicon={result.favicon_url}
+            image={result.thumbnail}
             status="finished"
             isMobile={false}
-            onFullscreen={() => handleWebsiteFullscreen({
-              url: result.url,
-              title: result.title,
-              description: description,
-              favicon: faviconUrl,
-              image: imageUrl
-            })}
+            onFullscreen={() => handleArticleFullscreen(result)}
           />
         {/each}
       </div>
     {/if}
   {/snippet}
-  
-  {#snippet bottomBar()}
-    <div class="bottom-bar-wrapper">
-      <BasicInfosBar
-        appId="news"
-        skillId="search"
-        skillIconName="search"
-        status="finished"
-        skillName={query}
-        showStatus={false}
-        {isMobile}
-      />
-    </div>
-  {/snippet}
 </UnifiedEmbedFullscreen>
 
 <style>
-  /* No results message */
+  /* ===========================================
+     Fullscreen Header - Query and Provider
+     =========================================== */
+  
+  .fullscreen-header {
+    margin-top: 60px;
+    margin-bottom: 40px;
+    padding: 0 16px;
+    text-align: center;
+  }
+  
+  .search-query {
+    font-size: 24px;
+    font-weight: 600;
+    color: var(--color-font-primary);
+    line-height: 1.3;
+    word-break: break-word;
+    /* Limit to 3 lines with ellipsis */
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  
+  .search-provider {
+    font-size: 16px;
+    color: var(--color-font-secondary);
+    margin-top: 8px;
+  }
+  
+  /* ===========================================
+     Loading and No Results States
+     =========================================== */
+  
+  .loading-state,
   .no-results {
     display: flex;
     align-items: center;
     justify-content: center;
     height: 200px;
     color: var(--color-font-secondary);
+    font-size: 16px;
   }
   
-  /* Article embeds grid - responsive with auto-fill */
+  /* ===========================================
+     Article Embeds Grid - Responsive Layout
+     =========================================== */
+  
   .article-embeds-grid {
     display: grid;
     gap: 16px;
-    width: 100%;
+    width: calc(100% - 20px);
     max-width: 1000px;
     margin: 0 auto;
-    padding-bottom: 100px; /* Space for bottom bar + gradient */
+    padding: 0 10px;
+    padding-bottom: 120px; /* Space for bottom bar + gradient */
     /* Responsive: auto-fit columns with minimum 280px width */
     grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   }

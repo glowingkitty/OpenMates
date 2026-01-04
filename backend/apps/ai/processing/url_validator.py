@@ -1,19 +1,148 @@
 # backend/apps/ai/processing/url_validator.py
 # URL extraction and validation for assistant responses.
 # Validates URLs paragraph-by-paragraph as responses are streamed.
+#
+# Uses Webshare rotating residential proxy and random user agents to avoid
+# datacenter IP blocking and bot detection by websites.
 
 import re
 import httpx
 import asyncio
 import logging
+import random
 from typing import List, Dict, Any, Optional
+from urllib.parse import quote_plus
 
 from backend.shared.python_utils.url_normalizer import sanitize_url_remove_fragment
+from backend.core.api.app.utils.secrets_manager import SecretsManager
 
 logger = logging.getLogger(__name__)
 
-# URL validation timeout (seconds)
-URL_VALIDATION_TIMEOUT = 5.0
+# URL validation timeout (seconds) - increased slightly to account for proxy routing
+URL_VALIDATION_TIMEOUT = 8.0
+
+# Check if user-agents library is available for dynamic User-Agent generation
+try:
+    from user_agents import UserAgent
+    USER_AGENTS_AVAILABLE = True
+except ImportError:
+    USER_AGENTS_AVAILABLE = False
+    logger.warning("user-agents library not available. Using static fallback User-Agents.")
+
+# Fallback user agents list (updated periodically to match current browser versions)
+# Used if user-agents library is not available or fails
+FALLBACK_USER_AGENTS = [
+    # Chrome on Windows (most common)
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
+    # Chrome on macOS
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    # Firefox on Windows
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/121.0",
+    # Safari on macOS
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Safari/605.1.15",
+    # Edge on Windows
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Edg/120.0.0.0",
+]
+
+# Randomized Accept-Language headers to avoid fingerprinting
+ACCEPT_LANGUAGES = [
+    "en-US,en;q=0.9",
+    "en-US,en;q=0.8",
+    "en-US,en;q=0.9,es;q=0.8",
+    "en-GB,en;q=0.9",
+    "en-US,en;q=0.9,de;q=0.8",
+    "de-DE,de;q=0.9,en;q=0.8",
+]
+
+
+def _generate_random_user_agent() -> str:
+    """
+    Generate a realistic, up-to-date User-Agent to avoid fingerprinting.
+    
+    Uses the user-agents library to generate current, realistic browser User-Agents
+    that automatically stay up-to-date with actual browser versions and distributions.
+    Falls back to hardcoded agents if library is unavailable.
+    
+    Returns:
+        Random User-Agent string
+    """
+    if USER_AGENTS_AVAILABLE:
+        try:
+            # Generate a random UserAgent that mimics real browser distribution
+            # This automatically includes current browser versions and realistic OS combinations
+            user_agent = UserAgent()
+            ua_string = user_agent.random
+            logger.debug(f"Generated dynamic User-Agent: {ua_string[:50]}...")
+            return ua_string
+        except Exception as e:
+            logger.warning(f"Failed to generate dynamic User-Agent: {e}. Falling back to static list.")
+    
+    # Fallback to static list if library fails or unavailable
+    return random.choice(FALLBACK_USER_AGENTS)
+
+
+def _generate_randomized_headers() -> Dict[str, str]:
+    """
+    Generate randomized HTTP headers to avoid fingerprinting.
+    
+    Includes:
+    - Random User-Agent (via user-agents library or fallback)
+    - Random Accept-Language
+    - Random DNT (Do Not Track) value
+    - Standard browser headers
+    
+    Returns:
+        Dict of HTTP headers
+    """
+    return {
+        "User-Agent": _generate_random_user_agent(),
+        "Accept-Language": random.choice(ACCEPT_LANGUAGES),
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+        "Accept-Encoding": "gzip, deflate, br",
+        "DNT": random.choice(["1", "0"]),  # Do Not Track header variation
+        "Upgrade-Insecure-Requests": "1",
+        "Connection": "close",  # Force connection close to ensure IP rotation with proxy
+    }
+
+
+async def _get_webshare_proxy_url(secrets_manager: SecretsManager) -> Optional[str]:
+    """
+    Get Webshare proxy URL from secrets manager.
+    
+    Webshare uses rotating residential proxies to avoid IP blocks.
+    The proxy automatically rotates through residential IP pool.
+    
+    Args:
+        secrets_manager: SecretsManager instance to get Webshare credentials
+        
+    Returns:
+        Proxy URL string (http://user:pass@host:port) if credentials available, None otherwise
+    """
+    try:
+        # Get Webshare credentials from secrets manager
+        ws_username = await secrets_manager.get_secret(
+            secret_path="kv/data/providers/webshare",
+            secret_key="proxy_username"
+        )
+        ws_password = await secrets_manager.get_secret(
+            secret_path="kv/data/providers/webshare",
+            secret_key="proxy_password"
+        )
+        
+        if not ws_username or not ws_password:
+            logger.debug("Webshare credentials not found - URL validation will use direct connection")
+            return None
+        
+        # Webshare proxy endpoint (rotating residential)
+        # Format: http://username:password@proxy.webshare.io:80
+        proxy_url = f"http://{ws_username}:{ws_password}@proxy.webshare.io:80"
+        logger.debug("Webshare proxy configured for URL validation")
+        return proxy_url
+        
+    except Exception as e:
+        logger.warning(f"Error getting Webshare proxy config: {e}")
+        return None
 
 
 async def extract_urls_from_markdown(markdown: str) -> List[Dict[str, str]]:
@@ -42,7 +171,11 @@ async def extract_urls_from_markdown(markdown: str) -> List[Dict[str, str]]:
     return matches
 
 
-async def check_url_status(url: str, timeout: float = URL_VALIDATION_TIMEOUT) -> Dict[str, Any]:
+async def check_url_status(
+    url: str,
+    timeout: float = URL_VALIDATION_TIMEOUT,
+    secrets_manager: Optional[SecretsManager] = None
+) -> Dict[str, Any]:
     """
     Check if URL is accessible. Returns status dict with:
     - is_valid: bool (True if 2xx status)
@@ -51,25 +184,20 @@ async def check_url_status(url: str, timeout: float = URL_VALIDATION_TIMEOUT) ->
     - is_temporary: bool (True for 5xx/timeouts - might be temporary)
     
     Uses HEAD request first (more efficient), falls back to GET if HEAD not supported.
-    Includes User-Agent header to avoid bot detection/datacenter blocking.
+    
+    **Anti-Detection Features:**
+    - Random User-Agent generation (via 'user-agents' library for current browser versions)
+    - Randomized HTTP headers (Accept-Language, DNT, etc.)
+    - Webshare rotating residential proxy (if secrets_manager provided)
+    - Each request gets fresh connection for IP rotation
     
     **Security**: URL fragments (#{text}) are removed before validation as a security measure.
     Fragments can contain malicious content and are not needed for URL validation.
     
-    **Monitoring for Datacenter Blocking:**
-    If broken URLs are not being removed from assistant responses, this may indicate
-    that providers are blocking requests from datacenter IPs. In such cases:
-    - Monitor logs for high rates of 'connection_error' or 'timeout' errors
-    - Check if valid URLs are incorrectly marked as broken
-    - Consider adding Oxylabs proxy support (similar to YouTube transcript skill)
-      - See backend/apps/videos/skills/transcript_skill.py for Oxylabs implementation
-      - HEAD requests work through Oxylabs proxy (standard HTTP method)
-      - Traffic is minimal (~1.46 KB per URL with HEAD, ~129 MB/month for 30k messages)
-      - Cost would be ~$0.08/month (datacenter) or ~$1/month (residential)
-    
     Args:
         url: URL to check
         timeout: Timeout in seconds for the HTTP request
+        secrets_manager: Optional SecretsManager for Webshare proxy credentials
         
     Returns:
         Dict with validation results
@@ -89,22 +217,36 @@ async def check_url_status(url: str, timeout: float = URL_VALIDATION_TIMEOUT) ->
     # Use sanitized URL for validation
     url = sanitized_url
     
+    # Get proxy URL if secrets_manager is available
+    proxy_url = None
+    if secrets_manager:
+        proxy_url = await _get_webshare_proxy_url(secrets_manager)
+    
     try:
-        # Use a user agent to appear more like a browser and avoid datacenter detection
-        # Some providers block requests that look like bots/scrapers
-        # If we notice broken URLs aren't being removed, this may indicate datacenter blocking
-        # See docstring above for monitoring and Oxylabs proxy option
-        headers = {
-            'User-Agent': 'Mozilla/5.0 (compatible; OpenMates/1.0; +https://openmates.org)'
+        # Generate randomized headers to avoid fingerprinting
+        headers = _generate_randomized_headers()
+        
+        # Configure httpx client with optional proxy
+        # proxy parameter accepts a URL string for all requests
+        client_kwargs = {
+            "timeout": timeout,
+            "follow_redirects": True,
+            "headers": headers,
         }
-        async with httpx.AsyncClient(timeout=timeout, follow_redirects=True, headers=headers) as client:
+        
+        if proxy_url:
+            # httpx uses 'proxy' parameter (single proxy for all protocols)
+            client_kwargs["proxy"] = proxy_url
+            logger.debug(f"URL validation using Webshare proxy for: {url[:50]}...")
+        else:
+            logger.debug(f"URL validation using direct connection for: {url[:50]}...")
+        
+        async with httpx.AsyncClient(**client_kwargs) as client:
             # Use HEAD request first (faster), fallback to GET if HEAD not supported
             # HEAD is more efficient - only returns headers, not body
             # Fallback to GET only if HEAD returns 405 (Method Not Allowed) or 501 (Not Implemented)
             response = None
             try:
-                # Note: follow_redirects is already set to True on the client (line 80)
-                # so we don't need to pass it again, but removing allow_redirects which was incorrect
                 response = await client.head(url)
                 # If HEAD succeeds, use it (even if status is 404/500 - that's valid info)
             except httpx.HTTPStatusError as e:
@@ -112,7 +254,6 @@ async def check_url_status(url: str, timeout: float = URL_VALIDATION_TIMEOUT) ->
                 if e.response.status_code in [405, 501]:
                     # HEAD method not allowed/implemented - fallback to GET
                     try:
-                        # Note: follow_redirects is already set to True on the client (line 80)
                         response = await client.get(url)
                     except Exception:
                         # If GET also fails, re-raise to be handled by outer handlers
@@ -125,6 +266,9 @@ async def check_url_status(url: str, timeout: float = URL_VALIDATION_TIMEOUT) ->
             
             status_code = response.status_code
             
+            # Log the result for debugging
+            logger.debug(f"URL validation result for {url[:50]}...: status={status_code}")
+            
             # 2xx = valid
             if 200 <= status_code < 300:
                 return {
@@ -136,6 +280,7 @@ async def check_url_status(url: str, timeout: float = URL_VALIDATION_TIMEOUT) ->
             
             # 4xx = broken (not found, forbidden, etc.)
             elif 400 <= status_code < 500:
+                logger.info(f"URL validation: broken URL detected (status {status_code}): {url}")
                 return {
                     'is_valid': False,
                     'status_code': status_code,
@@ -177,6 +322,15 @@ async def check_url_status(url: str, timeout: float = URL_VALIDATION_TIMEOUT) ->
             'error_type': 'connection_error',
             'is_temporary': True
         }
+    except httpx.ProxyError as e:
+        # Proxy-specific errors - log and treat as temporary
+        logger.warning(f"Proxy error checking URL {url}: {e}")
+        return {
+            'is_valid': False,
+            'status_code': None,
+            'error_type': 'proxy_error',
+            'is_temporary': True
+        }
     except httpx.RequestError as e:
         # RequestError is a base class for request-related errors
         logger.warning(f"Request error checking URL {url}: {e}")
@@ -208,15 +362,20 @@ async def check_url_status(url: str, timeout: float = URL_VALIDATION_TIMEOUT) ->
 
 async def validate_urls_in_paragraph(
     paragraph: str,
-    task_id: str
+    task_id: str,
+    secrets_manager: Optional[SecretsManager] = None
 ) -> List[Dict[str, Any]]:
     """
     Extract and validate all URLs from a paragraph in background.
     Returns list of validation results for each URL found.
     
+    Uses Webshare proxy and random user agents for anti-detection if secrets_manager
+    is provided.
+    
     Args:
         paragraph: Paragraph text to validate URLs in
         task_id: Task ID for logging
+        secrets_manager: Optional SecretsManager for Webshare proxy credentials
         
     Returns:
         List of validation results, each containing URL info and validation status
@@ -228,8 +387,11 @@ async def validate_urls_in_paragraph(
     
     logger.debug(f"[{task_id}] Validating {len(urls)} URL(s) in paragraph")
     
-    # Check all URLs in parallel
-    validation_tasks = [check_url_status(url_info['url']) for url_info in urls]
+    # Check all URLs in parallel, passing secrets_manager for proxy support
+    validation_tasks = [
+        check_url_status(url_info['url'], secrets_manager=secrets_manager) 
+        for url_info in urls
+    ]
     results = await asyncio.gather(*validation_tasks, return_exceptions=True)
     
     # Combine URL info with validation results
@@ -251,7 +413,7 @@ async def validate_urls_in_paragraph(
                 **result
             })
     
-    # Log broken URLs
+    # Log broken URLs (4xx errors, not temporary)
     broken_urls = [r for r in validation_results if not r.get('is_valid') and not r.get('is_temporary')]
     if broken_urls:
         logger.info(
@@ -261,3 +423,64 @@ async def validate_urls_in_paragraph(
     
     return validation_results
 
+
+def replace_broken_urls_with_search(
+    response: str,
+    broken_urls: List[Dict[str, Any]]
+) -> str:
+    """
+    Replace broken URLs in response with Brave search URLs.
+    
+    This is a simple, reliable approach that:
+    - Preserves the original link text so user sees what was intended
+    - Replaces the broken URL with a Brave search for that topic
+    - No LLM call needed (zero cost, zero latency, can't fail)
+    
+    Example:
+        Before: [Python docs](https://broken-link.com/python)
+        After:  [Python docs](https://search.brave.com/search?q=Python%20docs)
+    
+    Args:
+        response: Original response text with markdown links
+        broken_urls: List of broken URL info dicts (must contain 'full_match' and 'text' keys)
+        
+    Returns:
+        Response with broken URLs replaced with Brave search URLs
+    """
+    corrected = response
+    replacements_made = 0
+    
+    for url_info in broken_urls:
+        full_match = url_info.get('full_match', '')
+        link_text = url_info.get('text', '')
+        original_url = url_info.get('url', '')
+        
+        if not full_match or not link_text:
+            logger.warning(f"Skipping broken URL replacement - missing full_match or text: {url_info}")
+            continue
+        
+        if full_match not in corrected:
+            logger.debug(f"Broken URL not found in response (may have been in different chunk): {full_match[:50]}...")
+            continue
+        
+        # Create Brave search URL from the link text
+        # URL encode the search query to handle special characters
+        search_query = quote_plus(link_text)
+        brave_search_url = f"https://search.brave.com/search?q={search_query}"
+        
+        # Create new markdown link with Brave search URL
+        new_link = f"[{link_text}]({brave_search_url})"
+        
+        # Replace the broken link with the search link
+        corrected = corrected.replace(full_match, new_link)
+        replacements_made += 1
+        
+        logger.info(
+            f"Replaced broken URL with Brave search: "
+            f"'{original_url[:50]}...' -> search for '{link_text}'"
+        )
+    
+    if replacements_made > 0:
+        logger.info(f"Replaced {replacements_made} broken URL(s) with Brave search links")
+    
+    return corrected

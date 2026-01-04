@@ -15,23 +15,54 @@
   - CSS variables --preview-center-x and --preview-center-y set by UnifiedEmbedPreview
     determine the transform-origin for smooth origin-based animations
   
+  Child Embed Loading:
+  - For fullscreens that display multiple child embeds (e.g., search results)
+  - Pass embedIds prop (pipe-separated string or array) to auto-load children
+  - Child embeds are fetched from embedStore and TOON content is decoded
+  - Optional childEmbedTransformer function to transform raw embed data
+  - Children are passed to content snippet as { children, isLoadingChildren }
+  
   Similar to UnifiedEmbedPreview but for fullscreen views.
 -->
 
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
-  // @ts-ignore - @repo/ui module exists at runtime
+  // @ts-expect-error - @repo/ui module exists at runtime
   import { text } from '@repo/ui';
   import BasicInfosBar from './BasicInfosBar.svelte';
   import { panelState } from '../../stores/panelStateStore';
   import { settingsDeepLink } from '../../stores/settingsDeepLinkStore';
+  import { embedStore } from '../../services/embedStore';
+  import { decodeToonContent } from '../../services/embedResolver';
   
   // Track whether the opening animation has completed
   // Start as false (collapsed state), then animate to true (expanded state)
   let isAnimatingIn = $state(false);
   
   /**
+   * Context passed to the content snippet when child embeds are used
+   * Provides loaded children and loading state
+   * 
+   * Note: children is typed as unknown[] because Svelte props don't support
+   * TypeScript generics properly. Each fullscreen component should cast
+   * children to their specific result type.
+   */
+  export interface ChildEmbedContext {
+    /** Array of loaded child embeds (transformed if transformer provided) */
+    children: unknown[];
+    /** Whether child embeds are still loading */
+    isLoadingChildren: boolean;
+    /** Legacy results prop for backwards compatibility */
+    legacyResults?: unknown[];
+  }
+  
+  /**
    * Props interface for unified embed fullscreen
+   * 
+   * Child Embed Loading:
+   * - Pass embedIds to automatically load child embeds from embedStore
+   * - Optionally provide childEmbedTransformer to transform raw embed data
+   * - Children are available in content snippet via context parameter
    */
   interface Props {
     /** App identifier (e.g., 'web', 'videos', 'code') - used for icon display */
@@ -52,11 +83,42 @@
     onShare?: () => void;
     /** Snippet for header extra content (optional) */
     headerExtra?: import('svelte').Snippet<[]>;
-    /** Snippet for main content - REQUIRED but made optional for defensive programming */
-    content?: import('svelte').Snippet<[]>;
+    /** 
+     * Snippet for main content
+     * When embedIds is provided, receives ChildEmbedContext with loaded children
+     * Otherwise receives empty context for backwards compatibility
+     */
+    content?: import('svelte').Snippet<[ChildEmbedContext]>;
     /** Snippet for bottom bar (optional, defaults to basic infos bar) */
     bottomBar?: import('svelte').Snippet<[]>;
-    /** BasicInfosBar props - used when bottomBar snippet is not provided */
+    
+    /* ============================================
+       Child Embed Loading Props
+       ============================================ */
+    
+    /** 
+     * Pipe-separated embed IDs or array of child embed IDs to load
+     * When provided, child embeds are automatically fetched from embedStore
+     */
+    embedIds?: string | string[];
+    
+    /**
+     * Optional transformer function to convert raw embed data to desired format
+     * Receives embed_id and decoded content, returns transformed object
+     * If not provided, returns raw { embed_id, content, embed_type } objects
+     */
+    childEmbedTransformer?: (embedId: string, content: Record<string, unknown>) => unknown;
+    
+    /**
+     * Legacy results prop for backwards compatibility
+     * If embedIds not provided, these are passed through to content snippet
+     */
+    legacyResults?: unknown[];
+    
+    /* ============================================
+       BasicInfosBar Props (when bottomBar not provided)
+       ============================================ */
+    
     /** Skill icon name for BasicInfosBar */
     skillIconName?: string;
     /** Processing status for BasicInfosBar */
@@ -89,6 +151,11 @@
     headerExtra,
     content,
     bottomBar,
+    // Child embed loading props
+    embedIds,
+    childEmbedTransformer,
+    legacyResults,
+    // BasicInfosBar props
     skillIconName = '',
     status = 'finished',
     skillName,
@@ -99,6 +166,105 @@
     customStatusText,
     showStatus = true
   }: Props = $props();
+  
+  // ============================================
+  // Child Embed Loading State
+  // ============================================
+  
+  /** Loaded child embeds (transformed if transformer provided) */
+  let loadedChildren = $state<unknown[]>([]);
+  
+  /** Whether child embeds are currently being loaded */
+  let isLoadingChildren = $state(false);
+  
+  /**
+   * Load child embeds from embedStore
+   * Parses embedIds, fetches each embed, decodes TOON content, and optionally transforms
+   */
+  async function loadChildEmbeds() {
+    // Parse embed_ids - can be pipe-separated string or array
+    let embedIdList: string[] = [];
+    if (typeof embedIds === 'string' && embedIds.trim()) {
+      embedIdList = embedIds.split('|').filter(id => id.trim());
+    } else if (Array.isArray(embedIds)) {
+      embedIdList = embedIds.filter(id => id && typeof id === 'string');
+    }
+    
+    // If no embed IDs, skip loading (use legacyResults if provided)
+    if (embedIdList.length === 0) {
+      console.debug('[UnifiedEmbedFullscreen] No embedIds to load, using legacyResults if available:', {
+        appId,
+        skillId,
+        legacyResultsCount: legacyResults?.length || 0
+      });
+      isLoadingChildren = false;
+      return;
+    }
+    
+    isLoadingChildren = true;
+    console.debug('[UnifiedEmbedFullscreen] Loading child embeds:', {
+      appId,
+      skillId,
+      embedIdCount: embedIdList.length
+    });
+    
+    const children: unknown[] = [];
+    
+    for (const childEmbedId of embedIdList) {
+      try {
+        // Fetch embed from store
+        const embedData = await embedStore.get(`embed:${childEmbedId}`);
+        if (!embedData) {
+          console.warn('[UnifiedEmbedFullscreen] Child embed not found:', childEmbedId);
+          continue;
+        }
+        
+        // Decode TOON content if needed
+        let decodedContent = embedData.content;
+        if (typeof decodedContent === 'string') {
+          decodedContent = await decodeToonContent(decodedContent);
+        }
+        
+        if (!decodedContent) {
+          console.warn('[UnifiedEmbedFullscreen] Failed to decode child embed content:', childEmbedId);
+          continue;
+        }
+        
+        // Transform or create raw ChildEmbed
+        if (childEmbedTransformer) {
+          // Use custom transformer
+          const transformed = childEmbedTransformer(childEmbedId, decodedContent as Record<string, unknown>);
+          children.push(transformed);
+        } else {
+          // Return raw embed data object
+          const childEmbed = {
+            embed_id: childEmbedId,
+            content: decodedContent as Record<string, unknown>,
+            embed_type: embedData.embed_type
+          };
+          children.push(childEmbed);
+        }
+        
+        console.debug('[UnifiedEmbedFullscreen] Loaded child embed:', childEmbedId);
+      } catch (error) {
+        console.error('[UnifiedEmbedFullscreen] Error loading child embed:', childEmbedId, error);
+      }
+    }
+    
+    loadedChildren = children;
+    isLoadingChildren = false;
+    console.debug('[UnifiedEmbedFullscreen] Finished loading', children.length, 'child embeds');
+  }
+  
+  /**
+   * Context object passed to content snippet
+   * Contains loaded children and loading state
+   */
+  let childEmbedContext = $derived<ChildEmbedContext>({
+    children: loadedChildren,
+    isLoadingChildren,
+    legacyResults
+  });
   
   // DEBUG: Log when content snippet is missing - this helps identify which embed is broken
   $effect(() => {
@@ -180,6 +346,11 @@
     // Listen for chat selection events to close fullscreen
     window.addEventListener('globalChatSelected', handleChatSelected);
     
+    // Load child embeds if embedIds is provided
+    if (embedIds) {
+      loadChildEmbeds();
+    }
+    
     // Trigger opening animation after a brief delay to ensure initial styles are applied
     // This creates a smooth scale-up animation from the preview position
     requestAnimationFrame(() => {
@@ -202,7 +373,7 @@
   <div class="fullscreen-container">
     <!-- Top bar with action buttons -->
     <div class="top-bar">
-      <!-- Left side: Share, Report Issue, Copy, and Download buttons -->
+      <!-- Left side: Share, Open, Report Issue, Copy, and Download buttons -->
       <div class="top-bar-left">
         <!-- Share button - always shown -->
         <div class="button-wrapper">
@@ -215,6 +386,19 @@
             <span class="clickable-icon icon_share"></span>
           </button>
         </div>
+        <!-- Open in external button - only shown if onOpen is provided -->
+        {#if onOpen}
+          <div class="button-wrapper">
+            <button
+              class="action-button open-button"
+              onclick={onOpen}
+              aria-label={$text('embeds.open_external.text') || 'Open in browser'}
+              title={$text('embeds.open_external.text') || 'Open in browser'}
+            >
+              <span class="clickable-icon icon_external_link"></span>
+            </button>
+          </div>
+        {/if}
         <!-- Copy button -->
         {#if onCopy}
           <div class="button-wrapper">
@@ -284,7 +468,8 @@
     <!-- Main content area (scrollable) - with defensive guard -->
     <div class="content-area">
       {#if content}
-        {@render content()}
+        <!-- Pass child embed context to content snippet -->
+        {@render content(childEmbedContext)}
       {:else}
         <!-- Fallback when content snippet is missing -->
         <div class="missing-content-fallback">
@@ -534,7 +719,7 @@
     pointer-events: none;
   }
   
-  /* Bottom bar container - centered, positioned at absolute bottom */
+  /* Bottom bar container - centered, full width with 10px padding on each side */
   .bottom-bar-container {
     position: absolute;
     bottom: 0;
@@ -543,22 +728,23 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    padding: 16px;
+    padding: 16px 10px;
     pointer-events: auto;
   }
   
-  /* BasicInfosBar wrapper - max-width 300px as required */
+  /* BasicInfosBar wrapper - max-width 300px, centered, full viewport width - 20px */
   .basic-infos-bar-wrapper {
+    width: calc(100% - 0px); /* Account for parent padding of 10px on each side */
     max-width: 300px;
-    width: 100%;
     border: none;
     background: transparent;
     padding: 0;
     cursor: default;
   }
   
-  /* Ensure BasicInfosBar inside wrapper respects max-width */
+  /* Ensure BasicInfosBar inside wrapper respects max-width and has proper styling */
   .basic-infos-bar-wrapper :global(.basic-infos-bar) {
+    width: 100%;
     max-width: 300px;
   }
   

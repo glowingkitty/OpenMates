@@ -201,6 +201,43 @@ app.conf.update(
     redis_socket_timeout=redis_socket_timeout,
     redis_socket_connect_timeout=redis_socket_connect_timeout,
     redis_retry_on_timeout=redis_retry_on_timeout,
+    
+    # ===========================================================================
+    # RELIABILITY SETTINGS - Ensures tasks are not lost
+    # ===========================================================================
+    
+    # task_acks_late: Acknowledge tasks AFTER execution completes (not before)
+    # This prevents task loss if worker crashes during execution
+    # The task will be re-queued if the worker dies before acknowledging
+    task_acks_late=True,
+    
+    # task_reject_on_worker_lost: Re-queue tasks if worker process dies abruptly
+    # (e.g., SIGKILL, OOM kill, or container restart)
+    # Combined with task_acks_late, ensures tasks are never lost
+    # WARNING: Can cause message loops for tasks that always fail - ensure proper retry limits
+    task_reject_on_worker_lost=True,
+    
+    # task_acks_on_failure_or_timeout: When True (default), tasks are ACKed even on failure
+    # Set to False to re-queue failed tasks (useful with dead-letter queues)
+    # We keep True because we handle retries explicitly per-task with max_retries
+    task_acks_on_failure_or_timeout=True,
+    
+    # task_track_started: Track when tasks start execution (enables STARTED state)
+    # Useful for monitoring - shows tasks that are currently being executed
+    task_track_started=True,
+    
+    # worker_prefetch_multiplier: Number of messages to prefetch per worker process
+    # Set to 1 for fair task distribution (prevents one worker from hogging tasks)
+    # Important for long-running tasks like AI processing
+    worker_prefetch_multiplier=1,
+    
+    # task_time_limit: Hard time limit in seconds (worker will be killed)
+    # task_soft_time_limit: Soft time limit (raises SoftTimeLimitExceeded exception)
+    # These are set per-task via decorators for more control
+    
+    # task_ignore_result: Whether to store task results
+    # We want results for tracking and debugging
+    task_ignore_result=False,
 )
 
 def _worker_needs_invoice_services():
@@ -277,6 +314,132 @@ async def initialize_services():
         logger.info("InvoiceTemplateService already initialized for this worker process.")
 
 
+# ===========================================================================
+# CELERY SIGNAL HANDLERS - Task lifecycle monitoring for reliability
+# ===========================================================================
+# These signal handlers provide visibility into task processing, ensuring
+# we can detect and debug any issues with task routing or execution.
+
+@signals.task_prerun.connect
+def task_prerun_handler(task_id, task, args, kwargs, **kw):
+    """
+    Called immediately before a task is executed.
+    Logs task start with routing information for debugging.
+    """
+    queue = getattr(task.request, 'delivery_info', {}).get('routing_key', 'UNKNOWN_QUEUE')
+    worker = getattr(task.request, 'hostname', 'UNKNOWN_WORKER')
+    logger.info(
+        f"[TASK_LIFECYCLE] TASK_STARTED: task_id={task_id}, "
+        f"task_name={task.name}, queue={queue}, worker={worker}"
+    )
+
+@signals.task_postrun.connect
+def task_postrun_handler(task_id, task, args, kwargs, retval, state, **kw):
+    """
+    Called after a task has been executed (success or failure).
+    Logs task completion with state for monitoring.
+    """
+    queue = getattr(task.request, 'delivery_info', {}).get('routing_key', 'UNKNOWN_QUEUE')
+    worker = getattr(task.request, 'hostname', 'UNKNOWN_WORKER')
+    logger.info(
+        f"[TASK_LIFECYCLE] TASK_COMPLETED: task_id={task_id}, "
+        f"task_name={task.name}, state={state}, queue={queue}, worker={worker}"
+    )
+
+@signals.task_failure.connect
+def task_failure_handler(task_id, exception, args, kwargs, traceback, einfo, **kw):
+    """
+    Called when a task fails.
+    Logs detailed failure information for debugging and alerting.
+    CRITICAL: This helps identify tasks that are failing without being processed.
+    """
+    sender = kw.get('sender')
+    task_name = sender.name if sender else 'UNKNOWN_TASK'
+    queue = 'UNKNOWN_QUEUE'
+    worker = 'UNKNOWN_WORKER'
+    if sender and hasattr(sender, 'request'):
+        queue = getattr(sender.request, 'delivery_info', {}).get('routing_key', 'UNKNOWN_QUEUE')
+        worker = getattr(sender.request, 'hostname', 'UNKNOWN_WORKER')
+    
+    logger.error(
+        f"[TASK_LIFECYCLE] TASK_FAILED: task_id={task_id}, "
+        f"task_name={task_name}, queue={queue}, worker={worker}, "
+        f"exception_type={type(exception).__name__}, exception_msg={str(exception)[:200]}"
+    )
+
+@signals.task_success.connect
+def task_success_handler(sender, result, **kwargs):
+    """
+    Called when a task completes successfully.
+    Logs success for monitoring task throughput.
+    """
+    task_name = sender.name if sender else 'UNKNOWN_TASK'
+    task_id = sender.request.id if sender and hasattr(sender, 'request') else 'UNKNOWN'
+    queue = 'UNKNOWN_QUEUE'
+    if sender and hasattr(sender, 'request'):
+        queue = getattr(sender.request, 'delivery_info', {}).get('routing_key', 'UNKNOWN_QUEUE')
+    
+    logger.info(
+        f"[TASK_LIFECYCLE] TASK_SUCCESS: task_id={task_id}, "
+        f"task_name={task_name}, queue={queue}"
+    )
+
+@signals.task_rejected.connect
+def task_rejected_handler(message, exc, **kwargs):
+    """
+    Called when a task is rejected (e.g., unknown task, routing failure).
+    CRITICAL: This catches tasks that could NOT be processed!
+    This is the key signal to detect unrouted or unknown tasks.
+    """
+    logger.error(
+        f"[TASK_LIFECYCLE] TASK_REJECTED: message={message}, "
+        f"exception_type={type(exc).__name__}, exception_msg={str(exc)[:200]}. "
+        f"This task was NOT processed! Check task routing and worker queues."
+    )
+
+@signals.task_revoked.connect
+def task_revoked_handler(request, terminated, signum, expired, **kwargs):
+    """
+    Called when a task is revoked (cancelled).
+    Logs revocation for tracking cancelled tasks.
+    """
+    task_id = request.id if hasattr(request, 'id') else 'UNKNOWN'
+    task_name = request.name if hasattr(request, 'name') else 'UNKNOWN'
+    logger.warning(
+        f"[TASK_LIFECYCLE] TASK_REVOKED: task_id={task_id}, "
+        f"task_name={task_name}, terminated={terminated}, "
+        f"signum={signum}, expired={expired}"
+    )
+
+@signals.task_retry.connect
+def task_retry_handler(request, reason, einfo, **kwargs):
+    """
+    Called when a task is being retried.
+    Logs retry attempts for monitoring retry behavior.
+    """
+    sender = kwargs.get('sender')
+    task_name = sender.name if sender else (request.name if hasattr(request, 'name') else 'UNKNOWN')
+    task_id = request.id if hasattr(request, 'id') else 'UNKNOWN'
+    
+    logger.warning(
+        f"[TASK_LIFECYCLE] TASK_RETRY: task_id={task_id}, "
+        f"task_name={task_name}, reason={str(reason)[:200]}"
+    )
+
+@signals.task_unknown.connect
+def task_unknown_handler(message, exc, name, id, **kwargs):
+    """
+    Called when an unknown task is received.
+    CRITICAL: This means a task was sent but no worker knows how to execute it!
+    This could indicate a misconfiguration or missing task registration.
+    """
+    logger.error(
+        f"[TASK_LIFECYCLE] TASK_UNKNOWN: task_id={id}, "
+        f"task_name={name}, exception={exc}. "
+        f"CRITICAL: No worker can process this task! Check task registration and routing."
+    )
+
+
 # Configure logging on worker start as well
 @signals.worker_process_init.connect
 def init_worker_process(*args, **kwargs):
@@ -335,6 +498,160 @@ from datetime import timedelta
 # Health check runs every 5 minutes (for providers without health endpoints)
 # Providers with health endpoints can be checked more frequently (1 minute) in the future
 # IMPORTANT: Explicitly specify queue in Beat schedule to ensure tasks go to task-worker
+# ===========================================================================
+# TASK ROUTING VALIDATION HELPER
+# ===========================================================================
+# Helper function to validate that tasks are sent to the correct queue.
+# This prevents silent failures where tasks are sent but never processed.
+
+# Build a mapping of task name patterns to queues for validation
+_TASK_QUEUE_MAPPING = {}
+for config in TASK_CONFIG:
+    queue_name = config['name']
+    module_prefix = config['module']
+    _TASK_QUEUE_MAPPING[module_prefix] = queue_name
+
+# Add explicit task routes for custom-named tasks
+# This comprehensive list ensures all tasks have known routing
+_EXPLICIT_TASK_ROUTES = {
+    # AI App tasks
+    "apps.ai.tasks.skill_ask": "app_ai",
+    "apps.ai.tasks.rate_limit_followup": "app_ai",
+    
+    # Health check tasks
+    "health_check.check_all_providers": "health_check",
+    "health_check.check_all_apps": "health_check",
+    "health_check.check_external_services": "health_check",
+    
+    # Usage archive tasks
+    "usage.archive_old_entries": "persistence",
+    
+    # Email tasks (custom names starting with app.tasks.email_tasks.*)
+    "app.tasks.email_tasks.verification_email_task.generate_and_send_verification_email": "email",
+    "app.tasks.email_tasks.new_device_email_task.send_new_device_email": "email",
+    "app.tasks.email_tasks.backup_code_email_task.send_backup_code_used_email": "email",
+    "app.tasks.email_tasks.recovery_key_email_task.send_recovery_key_used_email": "email",
+    "app.tasks.email_tasks.recovery_email_task.send_account_recovery_email": "email",
+    "app.tasks.email_tasks.purchase_confirmation_email_task.process_invoice_and_send_email": "email",
+    "app.tasks.email_tasks.credit_note_email_task.process_credit_note_and_send_email": "email",
+    "app.tasks.email_tasks.issue_report_email_task.send_issue_report_email": "email",
+    "app.tasks.email_tasks.support_contribution_email_task.process_guest_support_contribution_receipt_and_send_email": "email",
+    
+    # Persistence tasks (custom names starting with app.tasks.persistence_tasks.*)
+    "app.tasks.persistence_tasks.persist_chat_title": "persistence",
+    "app.tasks.persistence_tasks.persist_user_draft": "persistence",
+    "app.tasks.persistence_tasks.persist_new_chat_message": "persistence",
+    "app.tasks.persistence_tasks.persist_chat_and_draft_on_logout": "persistence",
+    "app.tasks.persistence_tasks.persist_delete_chat": "persistence",
+    "app.tasks.persistence_tasks.persist_ai_response_to_directus": "persistence",
+    "app.tasks.persistence_tasks.persist_encrypted_chat_metadata": "persistence",
+    "app.tasks.persistence_tasks.persist_new_chat_suggestions": "persistence",
+    
+    # User cache tasks
+    "app.tasks.user_cache_tasks.warm_user_cache": "user_init",
+    "delete_user_account": "user_init",
+}
+
+def get_expected_queue_for_task(task_name: str) -> Optional[str]:
+    """
+    Determine the expected queue for a task based on its name.
+    
+    Returns the queue name if a route is found, None otherwise.
+    This is used to validate task routing and detect misconfigured tasks.
+    
+    Args:
+        task_name: The full task name (e.g., 'app.tasks.persistence_tasks.persist_chat_title')
+    
+    Returns:
+        Queue name (e.g., 'persistence') or None if no route found
+    """
+    # Check explicit routes first
+    if task_name in _EXPLICIT_TASK_ROUTES:
+        return _EXPLICIT_TASK_ROUTES[task_name]
+    
+    # Check pattern-based routes
+    for route_pattern, route_config in task_routes.items():
+        if route_pattern.endswith('.*'):
+            prefix = route_pattern[:-2]  # Remove '.*'
+            if task_name.startswith(prefix):
+                return route_config['queue']
+        elif route_pattern == task_name:
+            return route_config['queue']
+    
+    return None
+
+
+def send_task_validated(
+    task_name: str,
+    args: Optional[tuple] = None,
+    kwargs: Optional[dict] = None,
+    queue: Optional[str] = None,
+    **options
+):
+    """
+    Send a Celery task with routing validation.
+    
+    This wrapper ensures that:
+    1. Tasks are always sent to a valid queue
+    2. If no queue is specified, the expected queue is determined from routing rules
+    3. A warning is logged if the specified queue doesn't match the expected queue
+    4. An error is logged if no valid queue can be determined
+    
+    This prevents the silent failure mode where tasks are sent but never processed
+    because they end up in a queue that no worker is consuming.
+    
+    Args:
+        task_name: The full task name
+        args: Positional arguments for the task
+        kwargs: Keyword arguments for the task
+        queue: Explicit queue name (optional - will be determined from routes if not provided)
+        **options: Additional options for send_task (e.g., countdown, eta)
+    
+    Returns:
+        AsyncResult from send_task
+    
+    Raises:
+        ValueError: If no valid queue can be determined and none is specified
+    """
+    expected_queue = get_expected_queue_for_task(task_name)
+    
+    if queue is None:
+        # No queue specified - use expected queue from routing
+        if expected_queue is None:
+            # CRITICAL: Task has no valid route!
+            logger.error(
+                f"[TASK_ROUTING] UNROUTED_TASK: task_name={task_name}. "
+                f"No queue specified and no route found! This task will NOT be processed. "
+                f"Add an explicit route in celery_config.py or specify a queue."
+            )
+            raise ValueError(
+                f"Cannot send task '{task_name}': no queue specified and no route found. "
+                f"Either specify queue= parameter or add a route in celery_config.py"
+            )
+        queue = expected_queue
+        logger.debug(f"[TASK_ROUTING] Using expected queue '{queue}' for task '{task_name}'")
+    elif expected_queue is not None and queue != expected_queue:
+        # Queue specified but doesn't match expected - log warning
+        logger.warning(
+            f"[TASK_ROUTING] QUEUE_MISMATCH: task_name={task_name}, "
+            f"specified_queue={queue}, expected_queue={expected_queue}. "
+            f"Using specified queue, but verify this is intentional."
+        )
+    
+    # Log the task dispatch for traceability
+    logger.info(
+        f"[TASK_ROUTING] TASK_DISPATCHED: task_name={task_name}, queue={queue}"
+    )
+    
+    return app.send_task(
+        name=task_name,
+        args=args,
+        kwargs=kwargs,
+        queue=queue,
+        **options
+    )
+
+
 app.conf.beat_schedule = {
     'health-check-all-providers': {
         'task': 'health_check.check_all_providers',

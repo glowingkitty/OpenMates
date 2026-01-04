@@ -391,6 +391,38 @@ class ChatMethods:
             logger.warning(f"Error checking if messages exist for chat {chat_id}: {e}")
             return False
 
+    async def get_message_count_for_chat(self, chat_id: str) -> Optional[int]:
+        """
+        Get the count of messages for a chat.
+        
+        This is a lightweight query that only requests message IDs to count them,
+        avoiding the overhead of fetching encrypted content.
+        
+        Used for client-side validation to detect data inconsistencies where
+        version numbers match but message counts don't (indicating missing messages).
+        
+        Args:
+            chat_id: The chat ID to count messages for
+            
+        Returns:
+            The number of messages in the chat, or None if an error occurs
+        """
+        try:
+            params = {
+                'filter[chat_id][_eq]': chat_id,
+                'fields': 'id',  # Only request ID field for minimal data transfer
+                'limit': -1  # Get all messages to count them
+            }
+            messages_from_db = await self.directus_service.get_items('messages', params=params)
+            if messages_from_db is None:
+                return 0
+            count = len(messages_from_db) if isinstance(messages_from_db, list) else 0
+            logger.debug(f"Message count for chat {chat_id}: {count}")
+            return count
+        except Exception as e:
+            logger.warning(f"Error getting message count for chat {chat_id}: {e}")
+            return None
+
     async def get_messages_for_chats(
         self,
         chat_ids: List[str],
