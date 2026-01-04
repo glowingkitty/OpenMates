@@ -315,57 +315,6 @@ Security Notes:
         font-size: 15px;
     }
 
-    .warning-box {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        padding: 14px 16px;
-        background: var(--color-warning-bg, rgba(255, 193, 7, 0.1));
-        border-radius: 12px;
-        border: 1px solid var(--color-warning, #ffc107);
-        width: 100%;
-    }
-
-    .warning-box mark {
-        background: transparent;
-        color: var(--color-grey-80);
-        font-weight: 500;
-        font-size: 14px;
-    }
-
-    .warning-icon {
-        width: 24px;
-        height: 24px;
-        min-width: 24px;
-        background-image: url('@openmates/ui/static/icons/warning.svg');
-        background-size: contain;
-        background-repeat: no-repeat;
-        flex-shrink: 0;
-    }
-
-    .key-display-section {
-        width: 100%;
-    }
-
-    .key-container {
-        background: var(--color-grey-15);
-        border: 2px dashed var(--color-grey-40);
-        border-radius: 12px;
-        padding: 16px;
-        text-align: center;
-    }
-
-    .recovery-key-text {
-        font-family: 'Courier New', Monaco, monospace;
-        font-size: 16px;
-        font-weight: 600;
-        letter-spacing: 1.5px;
-        word-break: break-all;
-        color: var(--color-grey-90);
-        user-select: all;
-        line-height: 1.6;
-    }
-
     .save-options {
         width: 100%;
         display: flex;
@@ -427,21 +376,6 @@ Security Notes:
     .print-icon {
         font-size: 18px;
         line-height: 1;
-    }
-
-    .important-notice {
-        padding: 14px;
-        background: var(--color-grey-15);
-        border-radius: 12px;
-        width: 100%;
-    }
-
-    .important-notice p {
-        color: var(--color-grey-60);
-        font-size: 13px;
-        line-height: 1.5;
-        text-align: center;
-        margin: 0;
     }
 
     /* Loading state styles */
