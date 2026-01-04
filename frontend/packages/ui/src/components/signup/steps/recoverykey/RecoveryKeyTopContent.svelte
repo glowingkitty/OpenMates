@@ -323,19 +323,6 @@ Security Notes:
                 {@html $text('signup.recovery_key_save_description.text').replace('{login_secret}', loginSecretText)}
             </div>
 
-            <!-- Warning box -->
-            <div class="warning-box">
-                <div class="warning-icon"></div>
-                <mark>{$text('signup.store_recovery_key_safely.text')}</mark>
-            </div>
-
-            <!-- Recovery key display -->
-            <div class="key-display-section">
-                <div class="key-container">
-                    <code class="recovery-key-text">{recoveryKey}</code>
-                </div>
-            </div>
-
             <!-- Save options -->
             <div class="save-options">
                 <p class="save-instruction">{$text('signup.choose_how_to_save.text')}</p>
@@ -386,11 +373,6 @@ Security Notes:
                         {/if}
                     </button>
                 </div>
-            </div>
-
-            <!-- Important notice -->
-            <div class="important-notice">
-                <p>{@html $text('signup.recovery_key_loss_warning.text')}</p>
             </div>
         {/if}
     </div>
