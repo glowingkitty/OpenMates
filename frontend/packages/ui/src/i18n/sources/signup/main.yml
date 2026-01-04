@@ -5819,26 +5819,26 @@ recovery_key_only_way:
   verified_by_human: []
 choose_how_to_save:
   context: Instruction text asking user to choose how to save their recovery key
-  en: Choose how to save your recovery key:
-  de: Wählen Sie, wie Sie Ihren Wiederherstellungsschlüssel speichern möchten:
-  zh: 选择如何保存您的恢复密钥：
-  es: Elige cómo guardar tu clave de recuperación:
-  fr: Choisissez comment sauvegarder votre clé de récupération :
-  pt: Escolha como salvar sua chave de recuperação:
-  ru: Выберите способ сохранения ключа восстановления:
-  ja: 回復キーの保存方法を選択してください：
-  ko: 복구 키를 저장할 방법을 선택하세요:
-  it: Scegli come salvare la tua chiave di recupero:
-  tr: Kurtarma anahtarınızı nasıl kaydedeceğinizi seçin:
-  vi: Chọn cách lưu khóa khôi phục của bạn:
-  id: Pilih cara menyimpan kunci pemulihan Anda:
-  pl: Wybierz sposób zapisania klucza odzyskiwania:
-  nl: Kies hoe je je herstelsleutel wilt opslaan:
-  ar: اختر كيفية حفظ مفتاح الاسترداد الخاص بك:
-  hi: अपनी पुनर्प्राप्ति कुंजी को सहेजने का तरीका चुनें:
-  th: เลือกวิธีบันทึกคีย์กู้คืนของคุณ:
-  cs: Zvolte způsob uložení klíče pro obnovení:
-  sv: Välj hur du vill spara din återställningsnyckel:
+  en: "Choose how to save your recovery key:"
+  de: "Wählen Sie, wie Sie Ihren Wiederherstellungsschlüssel speichern möchten:"
+  zh: "选择如何保存您的恢复密钥："
+  es: "Elige cómo guardar tu clave de recuperación:"
+  fr: "Choisissez comment sauvegarder votre clé de récupération :"
+  pt: "Escolha como salvar sua chave de recuperação:"
+  ru: "Выберите способ сохранения ключа восстановления:"
+  ja: "回復キーの保存方法を選択してください："
+  ko: "복구 키를 저장할 방법을 선택하세요:"
+  it: "Scegli come salvare la tua chiave di recupero:"
+  tr: "Kurtarma anahtarınızı nasıl kaydedeceğinizi seçin:"
+  vi: "Chọn cách lưu khóa khôi phục của bạn:"
+  id: "Pilih cara menyimpan kunci pemulihan Anda:"
+  pl: "Wybierz sposób zapisania klucza odzyskiwania:" 
+  nl: "Kies hoe je je herstelsleutel wilt opslaan:"
+  ar: "اختر كيفية حفظ مفتاح الاسترداد الخاص بك:"  
+  hi: "अपनी पुनर्प्राप्ति कुंजी को सहेजने का तरीका चुनें:"
+  th: "เลือกวิธีบันทึกคีย์กู้คืนของคุณ:"
+  cs: "Zvolte způsob uložení klíče pro obnovení:"
+  sv: "Välj hur du vill spara din återställningsnyckel:"
   verified_by_human: []
 recovery_key_save_description:
   context: Description explaining that the recovery key allows account recovery
@@ -6118,26 +6118,26 @@ recovery_key_print_warning:
   verified_by_human: []
 recovery_key_print_storage_title:
   context: Title for storage recommendations on printed page
-  en: Storage recommendations:
-  de: Speicherempfehlungen:
-  zh: 存储建议：
-  es: Recomendaciones de almacenamiento:
-  fr: Recommandations de stockage :
-  pt: Recomendações de armazenamento:
-  ru: Рекомендации по хранению:
-  ja: 保管に関する推奨事項：
-  ko: 보관 권장 사항:
-  it: Raccomandazioni per la conservazione:
-  tr: Saklama önerileri:
-  vi: Khuyến nghị lưu trữ:
-  id: Rekomendasi penyimpanan:
-  pl: Zalecenia dotyczące przechowywania:
-  nl: Aanbevelingen voor opslag:
-  ar: توصيات التخزين:
-  hi: भंडारण अनुशंसाएं:
-  th: คำแนะนำในการจัดเก็บ:
-  cs: Doporučení pro uložení:
-  sv: Förvaringsrekommendationer:
+  en: "Storage recommendations:"
+  de: "Speicherempfehlungen:"
+  zh: "存储建议："
+  es: "Recomendaciones de almacenamiento:"
+  fr: "Recommandations de stockage :"
+  pt: "Recomendações de armazenamento:"
+  ru: "Рекомендации по хранению:"
+  ja: "保管に関する推奨事項："
+  ko: "보관 권장 사항:"
+  it: "Raccomandazioni per la conservazione:"
+  tr: "Saklama önerileri:"
+  vi: "Khuyến nghị lưu trữ:"
+  id: "Rekomendasi penyimpanan:"
+  pl: "Zalecenia dotyczące przechowywania:"
+  nl: "Aanbevelingen voor opslag:"
+  ar: "توصيات التخزين:"
+  hi: "भंडारण अनुशंसाएं:"
+  th: "คำแนะนำในการจัดเก็บ:"
+  cs: "Doporučení pro uložení:"
+  sv: "Förvaringsrekommendationer:"
   verified_by_human: []
 recovery_key_print_storage_1:
   context: Storage recommendation item 1
