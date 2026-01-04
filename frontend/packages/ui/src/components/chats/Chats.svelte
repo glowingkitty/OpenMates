@@ -32,6 +32,7 @@
 	import { hiddenChatService } from '../../services/hiddenChatService'; // Import hidden chat service
 	import HiddenChatUnlock from './HiddenChatUnlock.svelte'; // Import hidden chat unlock component
 	import { getApiEndpoint } from '../../config/api'; // For API calls
+	import { isSelfHosted } from '../../stores/serverStatusStore'; // For self-hosted detection (initialized once at app load)
 
 	const dispatch = createEventDispatcher();
 
@@ -75,13 +76,27 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 	let activityHistoryElement: HTMLDivElement | null = $state(null); // Reference to scrollable container
 	let currentScrollTop = $state(0); // Track current scroll position for reactivity
 	
-	// Self-hosted mode state
+	// Self-hosted mode state is now managed by serverStatusStore
+	// isSelfHosted is imported from the store (initialized once at app load to prevent UI flashing)
 	// When true, legal chats (privacy, terms, imprint) are hidden from the sidebar.
-	// The self-hosted edition is for personal/internal team use only, so legal docs aren't needed:
-	// - No imprint: only required for commercial/public-facing websites
-	// - No privacy policy: GDPR "household exemption" applies to personal/private use
-	// - No terms of service: no third-party service relationship exists
-	let isSelfHosted = $state(false);
+
+	// --- Reactive Effects ---
+	
+	// Reactive sync: Update selectedChatId when activeChatStore changes (e.g., from deep links)
+	// This ensures the chat gets highlighted when loaded via deep link after component mount
+	// IMPORTANT: $effect must be at the top level, not inside onMount (Svelte 5 requirement)
+	$effect(() => {
+		const activeChat = $activeChatStore;
+		console.debug('[Chats] $effect triggered - activeChat:', activeChat, 'selectedChatId:', selectedChatId);
+		if (activeChat && activeChat !== selectedChatId) {
+			console.debug('[Chats] Syncing selectedChatId with activeChatStore:', activeChat);
+			selectedChatId = activeChat;
+		} else if (activeChat && activeChat === selectedChatId) {
+			console.debug('[Chats] selectedChatId already matches activeChat:', activeChat);
+		} else if (!activeChat) {
+			console.debug('[Chats] activeChat is null/empty');
+		}
+	});
 
 	// --- Reactive Computations for Display ---
 
@@ -119,7 +134,7 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 		// - No privacy policy: GDPR "household exemption" applies to personal/private use
 		// - No terms of service: no third-party service relationship exists
 		let legalChats: ChatType[] = [];
-		if (!isSelfHosted) {
+		if (!$isSelfHosted) {
 			// Filter out hidden legal chats for authenticated users (uses same hidden_demo_chats mechanism)
 			// Legal chats skip translation (they use plain text, not translation keys)
 			legalChats = LEGAL_CHATS
@@ -668,22 +683,8 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 	}
 
 	onMount(async () => {
-		// Check server status to determine if this is a self-hosted instance
-		// This affects whether legal chats (imprint, privacy, terms) are shown
-		try {
-			const serverStatusResponse = await fetch(getApiEndpoint('/v1/settings/server-status'));
-			if (serverStatusResponse.ok) {
-				const serverStatus = await serverStatusResponse.json();
-				isSelfHosted = serverStatus.is_self_hosted || false;
-				console.debug(`[Chats] Server status: isSelfHosted=${isSelfHosted}`);
-			} else {
-				console.warn('[Chats] Failed to fetch server status, defaulting to non-self-hosted');
-				isSelfHosted = false;
-			}
-		} catch (error) {
-			console.error('[Chats] Error fetching server status:', error);
-			isSelfHosted = false;
-		}
+		// NOTE: Server status (isSelfHosted) is now managed by serverStatusStore
+		// and initialized once at app load in +layout.svelte to prevent UI flashing
 		
 		// CRITICAL: Check auth state FIRST before loading chats
 		// If user is not authenticated, clear any stale chat data immediately
@@ -721,20 +722,8 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 			console.debug('[Chats] Restored active chat from store:', currentActiveChat);
 		}
 
-		// Reactive sync: Update selectedChatId when activeChatStore changes (e.g., from deep links)
-		// This ensures the chat gets highlighted when loaded via deep link after component mount
-		$effect(() => {
-			const activeChat = $activeChatStore;
-			console.debug('[Chats] $effect triggered - activeChat:', activeChat, 'selectedChatId:', selectedChatId);
-			if (activeChat && activeChat !== selectedChatId) {
-				console.debug('[Chats] Syncing selectedChatId with activeChatStore:', activeChat);
-				selectedChatId = activeChat;
-			} else if (activeChat && activeChat === selectedChatId) {
-				console.debug('[Chats] selectedChatId already matches activeChat:', activeChat);
-			} else if (!activeChat) {
-				console.debug('[Chats] activeChat is null/empty');
-			}
-		});
+		// NOTE: Reactive sync of selectedChatId with activeChatStore is handled by
+		// the $effect at the top level of the script (Svelte 5 requires $effect at top level)
 		
 		// CHANGED: For non-authenticated users, don't show syncing indicator
 		// Demo chats are loaded synchronously, no sync needed

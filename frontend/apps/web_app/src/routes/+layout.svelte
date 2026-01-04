@@ -19,6 +19,7 @@
         // Stores
         theme,
         initializeTheme,
+        initializeServerStatus,
         // i18n
         isValidLocale
     } from '@repo/ui';
@@ -44,6 +45,10 @@
         await loadMetaTags();
 
         initializeTheme();
+        
+        // Initialize server status early to prevent UI flashing
+        // (e.g., legal chats briefly appearing on self-hosted instances)
+        initializeServerStatus();
 
         // Load meta tags after translations are ready (i18n setup happens elsewhere)
         await loadMetaTags();
