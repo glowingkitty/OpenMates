@@ -351,9 +351,10 @@
 
 /* Group Header */
 :global(.ProseMirror .embed-group-container .group-header) {
-    color: var(--color-grey-100);
+    color: var(--color-grey-60);
     margin-bottom: 8px;
     padding: 0 4px;
+    font-size: 14px;
 }
 
 /* Group Scroll Container */

@@ -2,31 +2,32 @@
   frontend/packages/ui/src/components/embeds/MapsSearchEmbedFullscreen.svelte
   
   Fullscreen view for Maps Search skill embeds.
-  Uses UnifiedEmbedFullscreen as base and provides skill-specific content.
+  Uses UnifiedEmbedFullscreen as base with unified child embed loading.
   
   Shows:
-  - Search query and provider
+  - Header with search query and "via {provider}" formatting (60px top margin, 40px bottom margin)
   - Desktop: Results list on left, OpenStreetMap on right
   - Mobile: Map on top, scrollable results list below
   - Each place shows name, address, rating, and location
   - Clicking a place centers the map on it
-  - Basic infos bar at the bottom
-  - Top bar with open, copy, and minimize buttons
+  - Consistent BasicInfosBar at the bottom (matches preview - "Search" + "Completed")
+  - Top bar with share, copy, and minimize buttons
+  
+  Child embeds are automatically loaded by UnifiedEmbedFullscreen from embedIds prop.
 -->
 
 <script lang="ts">
-  import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
-  import BasicInfosBar from '../BasicInfosBar.svelte';
+  import UnifiedEmbedFullscreen, { type ChildEmbedContext } from '../UnifiedEmbedFullscreen.svelte';
   import { onMount, onDestroy } from 'svelte';
-  // @ts-ignore - @repo/ui module exists at runtime
   import { text } from '@repo/ui';
   import 'leaflet/dist/leaflet.css';
-  import type { Map, Marker } from 'leaflet';
+  import type { Map, Marker, DivIcon, TileLayer } from 'leaflet';
   
   /**
-   * Place search result interface
+   * Place search result interface (transformed from child embeds)
    */
   interface PlaceSearchResult {
+    embed_id: string;
     displayName?: string;
     formattedAddress?: string;
     location?: {
@@ -41,13 +42,16 @@
   
   /**
    * Props for maps search embed fullscreen
+   * Child embeds are loaded automatically via UnifiedEmbedFullscreen
    */
   interface Props {
     /** Search query */
     query: string;
     /** Search provider (e.g., 'Google') */
     provider: string;
-    /** Search results */
+    /** Pipe-separated embed IDs or array of embed IDs for child place embeds */
+    embedIds?: string | string[];
+    /** Legacy: Search results (fallback if embedIds not provided) */
     results?: PlaceSearchResult[];
     /** Close handler */
     onClose: () => void;
@@ -58,7 +62,8 @@
   let {
     query,
     provider,
-    results = [],
+    embedIds,
+    results: resultsProp = [],
     onClose,
     embedId
   }: Props = $props();
@@ -72,9 +77,12 @@
   let mapContainer = $state<HTMLDivElement | null>(null);
   let map = $state<Map | null>(null);
   let markers: Marker[] = [];
-  let L: any; // Leaflet instance
-  let customIcon: any = null;
+  let L: typeof import('leaflet') | null = null; // Leaflet instance
+  let customIcon: DivIcon | null = null;
   let selectedPlaceIndex = $state<number | null>(null);
+  
+  // Cached place results for map initialization
+  let cachedPlaceResults = $state<PlaceSearchResult[]>([]);
   
   // Check dark mode
   let isDarkMode = $derived(() => {
@@ -84,8 +92,74 @@
     return systemDarkMode || websiteDarkMode;
   });
   
-  // Format the search query with provider name for title
-  let displayTitle = $derived(`${query} via ${provider}`);
+  // Get skill name from translations (matches preview)
+  let skillName = $derived($text('embeds.search.text') || 'Search');
+  
+  // Get "via {provider}" text from translations
+  let viaProvider = $derived(
+    `${$text('embeds.via.text') || 'via'} ${provider}`
+  );
+  
+  /**
+   * Transform raw embed content to PlaceSearchResult format
+   * Used by UnifiedEmbedFullscreen's childEmbedTransformer
+   */
+  function transformToPlaceResult(embedId: string, content: Record<string, unknown>): PlaceSearchResult {
+    const location = content.location as Record<string, number> | undefined;
+    
+    return {
+      embed_id: embedId,
+      displayName: content.displayName as string | undefined,
+      formattedAddress: content.formattedAddress as string | undefined,
+      location: location ? {
+        latitude: location.latitude,
+        longitude: location.longitude
+      } : undefined,
+      rating: content.rating as number | undefined,
+      userRatingCount: content.userRatingCount as number | undefined,
+      websiteUri: content.websiteUri as string | undefined,
+      placeId: content.placeId as string | undefined
+    };
+  }
+  
+  /**
+   * Transform legacy results to PlaceSearchResult format (for backwards compatibility)
+   */
+  function transformLegacyResults(results: unknown[]): PlaceSearchResult[] {
+    return (results as Array<Record<string, unknown>>).map((r, i) => {
+      const location = r.location as Record<string, number> | undefined;
+      
+      return {
+        embed_id: `legacy-${i}`,
+        displayName: r.displayName as string | undefined,
+        formattedAddress: r.formattedAddress as string | undefined,
+        location: location ? {
+          latitude: location.latitude,
+          longitude: location.longitude
+        } : undefined,
+        rating: r.rating as number | undefined,
+        userRatingCount: r.userRatingCount as number | undefined,
+        websiteUri: r.websiteUri as string | undefined,
+        placeId: r.placeId as string | undefined
+      };
+    });
+  }
+  
+  /**
+   * Get place results from context (children or legacy)
+   * Children are cast to PlaceSearchResult[] since we pass transformToPlaceResult as transformer
+   */
+  function getPlaceResults(ctx: ChildEmbedContext): PlaceSearchResult[] {
+    // Use loaded children if available (cast since transformer returns PlaceSearchResult)
+    if (ctx.children && ctx.children.length > 0) {
+      return ctx.children as PlaceSearchResult[];
+    }
+    // Fallback to legacy results
+    if (ctx.legacyResults && ctx.legacyResults.length > 0) {
+      return transformLegacyResults(ctx.legacyResults);
+    }
+    return [];
+  }
   
   // Handle share - opens share settings menu for this specific maps search embed
   async function handleShare() {
@@ -93,8 +167,7 @@
       console.debug('[MapsSearchEmbedFullscreen] Opening share settings for maps search embed:', {
         embedId,
         query,
-        provider,
-        resultsCount: results.length
+        provider
       });
 
       // Check if we have embed_id for proper sharing
@@ -115,12 +188,11 @@
         type: 'maps_search',
         embed_id: embedId,
         query: query,
-        provider: provider,
-        results_count: results.length
+        provider: provider
       };
 
       // Store embed context for SettingsShare
-      (window as any).__embedShareContext = embedContext;
+      (window as unknown as { __embedShareContext?: unknown }).__embedShareContext = embedContext;
 
       // Navigate to share settings
       navigateToSettings('shared/share', 'Share Maps Search', 'share', 'settings.share.share_maps_search.text');
@@ -144,47 +216,6 @@
     // Create Google Maps search URL
     const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
     window.open(mapsUrl, '_blank', 'noopener,noreferrer');
-  }
-  
-  // Handle copy YAML of search results
-  async function handleCopyYAML() {
-    try {
-      const yamlData = {
-        query: query,
-        provider: provider,
-        results: results.map(r => ({
-          name: r.displayName,
-          address: r.formattedAddress,
-          rating: r.rating,
-          location: r.location
-        }))
-      };
-      
-      // Convert to YAML format
-      let yaml = `query: "${query}"\n`;
-      yaml += `provider: "${provider}"\n`;
-      yaml += `results:\n`;
-      
-      results.forEach((result) => {
-        yaml += `  - name: "${result.displayName || ''}"\n`;
-        if (result.formattedAddress) {
-          yaml += `    address: "${result.formattedAddress.replace(/"/g, '\\"')}"\n`;
-        }
-        if (result.rating !== undefined) {
-          yaml += `    rating: ${result.rating}\n`;
-        }
-        if (result.location) {
-          yaml += `    location:\n`;
-          yaml += `      latitude: ${result.location.latitude}\n`;
-          yaml += `      longitude: ${result.location.longitude}\n`;
-        }
-      });
-      
-      await navigator.clipboard.writeText(yaml);
-      console.debug('[MapsSearchEmbedFullscreen] Copied YAML to clipboard');
-    } catch (error) {
-      console.error('[MapsSearchEmbedFullscreen] Failed to copy YAML:', error);
-    }
   }
   
   // Handle opening place in Google Maps
@@ -225,13 +256,17 @@
     }
   }
   
-  // Initialize map
-  onMount(async () => {
-    if (!mapContainer || results.length === 0) return;
+  /**
+   * Initialize map with the given place results
+   * Called when child embeds finish loading
+   */
+  async function initializeMapWithResults(placeResults: PlaceSearchResult[]) {
+    if (!mapContainer || placeResults.length === 0) return;
+    if (map) return; // Already initialized
     
     try {
       // Dynamically import Leaflet
-      L = (await import('leaflet')).default;
+      L = await import('leaflet');
       
       // Create custom marker icon
       customIcon = L.divIcon({
@@ -242,7 +277,7 @@
       });
       
       // Get all valid locations
-      const validLocations = results
+      const validLocations = placeResults
         .map((r, i) => ({ place: r, index: i }))
         .filter(({ place }) => place.location?.latitude && place.location?.longitude);
       
@@ -263,7 +298,7 @@
       });
       
       // Add OpenStreetMap tile layer
-      const tileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      const tileLayer: TileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         maxZoom: 19,
         attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
         className: isDarkMode() ? 'dark-tiles' : ''
@@ -275,7 +310,7 @@
         const lng = place.location!.longitude!;
         
         const marker = L.marker([lat, lng], {
-          icon: customIcon,
+          icon: customIcon!,
           opacity: 0.7
         }).addTo(map!);
         
@@ -319,8 +354,18 @@
       const darkModeQuery = window.matchMedia('(prefers-color-scheme: dark)');
       darkModeQuery.addEventListener('change', updateTileLayer);
       
+      console.debug('[MapsSearchEmbedFullscreen] Map initialized with', markers.length, 'markers');
     } catch (error) {
       console.error('[MapsSearchEmbedFullscreen] Error initializing map:', error);
+    }
+  }
+  
+  // Initialize map on mount with legacy results if available
+  onMount(async () => {
+    // If using legacy results (no embedIds), initialize map immediately
+    if (!embedIds && resultsProp.length > 0) {
+      const legacyResults = transformLegacyResults(resultsProp);
+      await initializeMapWithResults(legacyResults);
     }
   });
   
@@ -332,21 +377,57 @@
     }
     markers = [];
   });
+  
+  /**
+   * Effect to initialize map when child embeds finish loading
+   */
+  $effect(() => {
+    if (cachedPlaceResults.length > 0 && !map) {
+      initializeMapWithResults(cachedPlaceResults);
+    }
+  });
 </script>
 
+<!-- 
+  Pass skillName and showStatus to UnifiedEmbedFullscreen for consistent BasicInfosBar
+  that matches the embed preview (shows "Search" + "Completed", not the query)
+  
+  Child embeds are loaded automatically via embedIds prop and passed to content snippet
+  The childEmbedTransformer converts raw embed data to PlaceSearchResult format
+-->
 <UnifiedEmbedFullscreen
   onShare={handleShare}
   appId="maps"
   skillId="search"
-  title={displayTitle}
+  title=""
   {onClose}
   onOpen={handleOpenInProvider}
-  onCopy={handleCopyYAML}
+  skillIconName="search"
+  status="finished"
+  {skillName}
+  showStatus={true}
+  {embedIds}
+  childEmbedTransformer={transformToPlaceResult}
+  legacyResults={resultsProp}
 >
-  {#snippet content()}
-    {#if results.length === 0}
+  {#snippet content(ctx)}
+    {@const placeResults = getPlaceResults(ctx)}
+    <!-- Cache results for map initialization -->
+    {(() => { cachedPlaceResults = placeResults; return ''; })()}
+    
+    <!-- Header with search query and provider - 60px top margin, 40px bottom margin -->
+    <div class="fullscreen-header">
+      <div class="search-query">{query}</div>
+      <div class="search-provider">{viaProvider}</div>
+    </div>
+    
+    {#if ctx.isLoadingChildren}
+      <div class="loading-state">
+        <p>{$text('embeds.loading.text') || 'Loading...'}</p>
+      </div>
+    {:else if placeResults.length === 0}
       <div class="no-results">
-        <p>No search results available.</p>
+        <p>{$text('embeds.no_results.text') || 'No search results available.'}</p>
       </div>
     {:else}
       <!-- Desktop: Side-by-side layout (list left, map right) -->
@@ -355,7 +436,7 @@
         <!-- Results list -->
         <div class="results-list-container" class:mobile={isMobile}>
           <div class="results-list" class:mobile={isMobile}>
-            {#each results as place, index}
+            {#each placeResults as place, index}
               <div 
                 class="place-item" 
                 class:selected={selectedPlaceIndex === index}
@@ -406,36 +487,59 @@
         <!-- Map container -->
         <div class="map-container" class:mobile={isMobile} bind:this={mapContainer}>
           {#if !map}
-            <div class="map-loading">Loading map...</div>
+            <div class="map-loading">{$text('embeds.loading_map.text') || 'Loading map...'}</div>
           {/if}
         </div>
       </div>
     {/if}
   {/snippet}
-  
-  {#snippet bottomBar()}
-    <div class="bottom-bar-wrapper">
-      <BasicInfosBar
-        appId="maps"
-        skillId="search"
-        skillIconName="search"
-        status="finished"
-        skillName={query}
-        showStatus={false}
-        {isMobile}
-      />
-    </div>
-  {/snippet}
 </UnifiedEmbedFullscreen>
 
 <style>
-  /* No results message */
+  /* ===========================================
+     Fullscreen Header - Query and Provider
+     =========================================== */
+  
+  .fullscreen-header {
+    margin-top: 60px;
+    margin-bottom: 40px;
+    padding: 0 16px;
+    text-align: center;
+  }
+  
+  .search-query {
+    font-size: 24px;
+    font-weight: 600;
+    color: var(--color-font-primary);
+    line-height: 1.3;
+    word-break: break-word;
+    /* Limit to 3 lines with ellipsis */
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  
+  .search-provider {
+    font-size: 16px;
+    color: var(--color-font-secondary);
+    margin-top: 8px;
+  }
+  
+  /* ===========================================
+     Loading and No Results States
+     =========================================== */
+  
+  .loading-state,
   .no-results {
     display: flex;
     align-items: center;
     justify-content: center;
     height: 200px;
     color: var(--color-font-secondary);
+    font-size: 16px;
   }
   
   /* Main container */

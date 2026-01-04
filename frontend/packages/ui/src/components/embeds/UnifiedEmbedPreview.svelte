@@ -633,7 +633,7 @@
   
   .unified-embed-preview {
     position: relative;
-    background-color: var(--color-grey-30);
+    background-color: var(--color-grey-20);
     border-radius: 30px;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
     /* Smooth transition for transform (tilt effect) and box-shadow (hover glow) */

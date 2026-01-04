@@ -18,7 +18,6 @@
   // Import shared highlighting utilities (includes all language support + Svelte)
   import { highlightToElement } from './codeHighlighting';
   import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
-  import BasicInfosBar from '../BasicInfosBar.svelte';
   import { text } from '@repo/ui';
   import { downloadCodeFile } from '../../../services/zipExportService';
   import { notificationStore } from '../../../stores/notificationStore';
@@ -189,12 +188,12 @@
     }
   }
   
-  // Determine if mobile layout
-  let isMobile = $derived(
-    typeof window !== 'undefined' && window.innerWidth <= 500
-  );
 </script>
 
+<!-- 
+  Pass BasicInfosBar props to UnifiedEmbedFullscreen for consistent bottom bar
+  Code embeds show: filename + line count/language info
+-->
 <UnifiedEmbedFullscreen
   appId="code"
   skillId="code"
@@ -203,6 +202,12 @@
   onCopy={handleCopy}
   onDownload={handleDownload}
   onShare={handleShare}
+  skillIconName={skillIconName}
+  status="finished"
+  {skillName}
+  showStatus={true}
+  customStatusText={statusText}
+  showSkillIcon={false}
 >
   {#snippet content()}
     {#if renderCodeContent}
@@ -219,22 +224,6 @@
         <p>No code content available.</p>
       </div>
     {/if}
-  {/snippet}
-  
-  {#snippet bottomBar()}
-    <div class="bottom-bar-wrapper">
-      <BasicInfosBar
-        appId="code"
-        skillId="code"
-        {skillIconName}
-        status="finished"
-        {skillName}
-        showStatus={true}
-        customStatusText={statusText}
-        showSkillIcon={false}
-        {isMobile}
-      />
-    </div>
   {/snippet}
 </UnifiedEmbedFullscreen>
 
