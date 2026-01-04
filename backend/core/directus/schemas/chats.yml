@@ -101,6 +101,16 @@ chats:
       default: false
       note: "Whether this chat has been shared (share link generated). Set to true on client when share link is created, then synced to server. Used to track which chats appear in the 'Shared' menu. When unsharing, both is_private and is_shared are updated."
 
+    last_disclaimer_type:
+      type: string
+      nullable: true
+      note: "Type of the last disclaimer injected into this chat: 'financial', 'medical', 'legal', or 'mental_health'. Used to prevent repeating same disclaimer type. Not encrypted since this is non-sensitive metadata."
+
+    last_disclaimer_timestamp:
+      type: integer
+      nullable: true
+      note: "Unix timestamp (seconds) when the last disclaimer was injected. Used with last_disclaimer_type to determine if a new disclaimer is needed."
+
     shared_encrypted_title:
       type: text
       nullable: true

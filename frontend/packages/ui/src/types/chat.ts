@@ -406,6 +406,7 @@ export interface Phase1LastChatPayload {
     chat_id: string;
     chat_details: Partial<Chat>; // Partial Chat object from server (may not have all fields)
     messages: Message[];
+    server_message_count?: number | null;  // Server's message count for validation (detects data inconsistency)
     embeds?: SyncEmbed[];  // Embeds for the chat (client-encrypted)
     embed_keys?: EmbedKeyEntry[];  // Embed keys needed to decrypt embed content
     new_chat_suggestions?: NewChatSuggestion[];  // New chat suggestions for Phase 1

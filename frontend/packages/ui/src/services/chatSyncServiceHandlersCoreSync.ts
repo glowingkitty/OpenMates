@@ -195,6 +195,7 @@ export async function handlePhase1LastChatImpl(
         chat_id: payload.chat_id,
         has_chat_details: !!payload.chat_details,
         messages_count: payload.messages?.length || 0,
+        server_message_count: payload.server_message_count,
         embeds_count: payload.embeds?.length || 0,
         suggestions_count: payload.new_chat_suggestions?.length || 0,
         already_synced: payload.already_synced
@@ -211,6 +212,51 @@ export async function handlePhase1LastChatImpl(
     // CRITICAL: According to sync.md, Phase 1 must save data to IndexedDB BEFORE opening chat
     // This ensures chat is available when Chats.svelte tries to load it
     try {
+        // CRITICAL FIX: Validate message count when server skips sending messages
+        // If server sends server_message_count but no messages (empty array), validate local data
+        // This detects data inconsistency where version matches but messages are missing
+        if (payload.chat_id && payload.server_message_count !== undefined && payload.server_message_count !== null) {
+            const messagesFromServer = payload.messages?.length || 0;
+            
+            // Server skipped sending messages (empty array) - validate local message count
+            if (messagesFromServer === 0 && payload.server_message_count > 0) {
+                const localMessages = await chatDB.getMessagesForChat(payload.chat_id);
+                const localMessageCount = localMessages?.length || 0;
+                
+                console.info(`[ChatSyncService:CoreSync] Phase 1 - Message count validation for chat ${payload.chat_id}: ` +
+                    `server_count=${payload.server_message_count}, local_count=${localMessageCount}`);
+                
+                // DATA INCONSISTENCY DETECTED: Local has fewer messages than server
+                // This happens when messages_v matches but IndexedDB messages were lost/corrupted
+                if (localMessageCount < payload.server_message_count) {
+                    console.warn(
+                        `[ChatSyncService:CoreSync] ⚠️ DATA INCONSISTENCY DETECTED for chat ${payload.chat_id}: ` +
+                        `Local has ${localMessageCount} messages but server has ${payload.server_message_count}. ` +
+                        `Resetting local messages_v to 0 to force re-sync on next load.`
+                    );
+                    
+                    // Reset the local chat's messages_v to 0 to force a full re-sync
+                    // This will cause the next sync to fetch all messages from the server
+                    const existingChat = await chatDB.getChat(payload.chat_id);
+                    if (existingChat) {
+                        const resetChat = {
+                            ...existingChat,
+                            messages_v: 0  // Reset to force re-sync
+                        };
+                        await chatDB.addChat(resetChat);
+                        console.info(`[ChatSyncService:CoreSync] Reset messages_v to 0 for chat ${payload.chat_id}. ` +
+                            `Refresh the page to trigger a full message re-sync.`);
+                    }
+                    
+                    // Dispatch event with a flag indicating re-sync is needed
+                    serviceInstance.dispatchEvent(new CustomEvent('phase_1_last_chat_ready', { 
+                        detail: { ...payload, needsResync: true } 
+                    }));
+                    return;
+                }
+            }
+        }
+        
         // Save Phase 1 chat data to IndexedDB using a single transaction for atomicity
         if (payload.chat_details && payload.messages) {
             console.info("[ChatSyncService:CoreSync] Saving Phase 1 chat data to IndexedDB:", payload.chat_id);

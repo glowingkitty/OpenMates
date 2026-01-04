@@ -28,7 +28,11 @@ from backend.apps.ai.llm_providers.mistral_client import MistralUsage
 from backend.apps.ai.llm_providers.google_client import GoogleUsageMetadata
 from backend.apps.ai.llm_providers.anthropic_client import AnthropicUsageMetadata
 from backend.apps.ai.llm_providers.openai_shared import OpenAIUsageMetadata
-from backend.apps.ai.processing.url_validator import validate_urls_in_paragraph, extract_urls_from_markdown
+from backend.apps.ai.processing.url_validator import (
+    validate_urls_in_paragraph,
+    extract_urls_from_markdown,
+    replace_broken_urls_with_search
+)
 
 logger = logging.getLogger(__name__)
 
@@ -202,6 +206,67 @@ async def _update_chat_metadata(
             content_markdown, log_prefix,
             model_name=model_name
         )
+
+
+async def _update_disclaimer_metadata(
+    cache_service: Optional[CacheService],
+    chat_id: str,
+    disclaimer_type: str,
+    log_prefix: str
+) -> None:
+    """
+    Update chat cache metadata to track when a disclaimer was injected.
+    
+    This enables the cooldown logic to prevent spamming disclaimers while
+    ensuring legal compliance by tracking:
+    - last_disclaimer_type: The type of disclaimer last shown
+    - last_disclaimer_timestamp: Unix timestamp when it was shown
+    
+    Args:
+        cache_service: Cache service for updating chat metadata
+        chat_id: The chat ID to update
+        disclaimer_type: The disclaimer type that was injected ("financial", "medical", "legal", "mental_health")
+        log_prefix: Logging prefix for debug messages
+    """
+    import time
+    import json
+    
+    if not cache_service:
+        logger.warning(f"{log_prefix} No cache service available to update disclaimer metadata")
+        return
+    
+    try:
+        current_timestamp = int(time.time())
+        cache_key = f"chat:{chat_id}:list_item_data"
+        
+        # Get existing cached data
+        cached_data = await cache_service.get(cache_key)
+        
+        if cached_data:
+            if isinstance(cached_data, str):
+                cached_data = json.loads(cached_data)
+        else:
+            cached_data = {}
+        
+        # Update disclaimer tracking fields
+        cached_data["last_disclaimer_type"] = disclaimer_type
+        cached_data["last_disclaimer_timestamp"] = current_timestamp
+        
+        # Save back to cache
+        await cache_service.set(cache_key, json.dumps(cached_data))
+        
+        logger.info(
+            f"{log_prefix} [DISCLAIMER_METADATA] Updated disclaimer metadata: "
+            f"type='{disclaimer_type}', timestamp={current_timestamp}"
+        )
+        
+    except Exception as e:
+        # Don't fail if metadata update fails - the disclaimer was still injected
+        logger.error(
+            f"{log_prefix} [DISCLAIMER_METADATA] Failed to update metadata: {e}",
+            exc_info=True
+        )
+
 
 async def _save_to_cache_and_publish(
     request_data: AskSkillRequest,
@@ -563,22 +628,29 @@ async def _validate_paragraph_urls(
     paragraph: str,
     task_id: str,
     broken_urls_collector: List[Dict[str, Any]],
-    log_prefix: str
+    log_prefix: str,
+    secrets_manager: Optional[SecretsManager] = None
 ) -> None:
     """
     Background task to validate URLs in a paragraph.
     Collects broken URLs in the provided list (thread-safe append).
     This runs asynchronously and doesn't block streaming.
     
+    Uses Webshare proxy and random user agents for anti-detection if secrets_manager
+    is provided. This helps avoid datacenter IP blocking by websites.
+    
     Args:
         paragraph: The paragraph text to validate
         task_id: Task ID for logging
         broken_urls_collector: List to collect broken URLs (will be appended to)
         log_prefix: Log prefix for consistent logging
+        secrets_manager: Optional SecretsManager for Webshare proxy credentials
     """
     try:
-        # Validate URLs in this paragraph
-        validation_results = await validate_urls_in_paragraph(paragraph, task_id)
+        # Validate URLs in this paragraph using proxy and random user agents
+        validation_results = await validate_urls_in_paragraph(
+            paragraph, task_id, secrets_manager=secrets_manager
+        )
         
         # Filter broken URLs (4xx errors, not temporary)
         broken_urls = [
@@ -1428,12 +1500,14 @@ async def _consume_main_processing_stream(
                             # Start background task to validate URLs in this paragraph
                             # This runs asynchronously and doesn't block streaming
                             # Broken URLs will be collected and processed after streaming completes
+                            # Uses Webshare proxy and random user agents for anti-detection
                             validation_task = asyncio.create_task(
                                 _validate_paragraph_urls(
                                     paragraph=chunk,
                                     task_id=task_id,
                                     broken_urls_collector=all_broken_urls,
-                                    log_prefix=log_prefix
+                                    log_prefix=log_prefix,
+                                    secrets_manager=secrets_manager
                                 )
                             )
                             url_validation_tasks.append(validation_task)
@@ -1555,41 +1629,26 @@ async def _consume_main_processing_stream(
                 exc_info=True
             )
         
-        # If broken URLs found, correct the entire response
+        # If broken URLs found, replace them with Brave search URLs
+        # This is a simple, reliable approach that:
+        # - Preserves the original link text so user sees what was intended
+        # - Replaces broken URLs with Brave search for that topic
+        # - No LLM call needed (zero cost, zero latency, can't fail)
         if all_broken_urls:
             logger.info(
-                f"{log_prefix} Correcting full response with {len(all_broken_urls)} broken URL(s)..."
+                f"{log_prefix} Replacing {len(all_broken_urls)} broken URL(s) with Brave search links..."
             )
             
-            # Get the model ID used for main processing (from preprocessing result)
-            main_model_id = preprocessing_result.selected_main_llm_model_id or "gpt-4o-mini"
-            
-            # Extract the last user message from message_history
-            # AskSkillRequest doesn't have message_content, it has message_history (list of AIHistoryMessage)
-            last_user_message = ""
-            if request_data.message_history and len(request_data.message_history) > 0:
-                # Find the last user message in history
-                # Note: message_history contains AIHistoryMessage Pydantic models, not dicts
-                for msg in reversed(request_data.message_history):
-                    if msg.role == "user":
-                        last_user_message = msg.content
-                        break
-            
-            # Import here to avoid circular imports
-            from backend.apps.ai.processing.url_corrector import correct_full_response_with_broken_urls
-            
-            corrected_response = await correct_full_response_with_broken_urls(
-                original_response=aggregated_response,
-                broken_urls=all_broken_urls,
-                user_message=last_user_message,
-                task_id=task_id,
-                model_id=main_model_id,  # Use same model as main processing
-                secrets_manager=secrets_manager
+            # Replace broken URLs with Brave search URLs
+            # Example: [Python docs](broken-url) -> [Python docs](https://search.brave.com/search?q=Python%20docs)
+            corrected_response = replace_broken_urls_with_search(
+                response=aggregated_response,
+                broken_urls=all_broken_urls
             )
             
-            if corrected_response and corrected_response != aggregated_response:
+            if corrected_response != aggregated_response:
                 logger.info(
-                    f"{log_prefix} Successfully corrected response. "
+                    f"{log_prefix} Successfully replaced broken URLs with Brave search. "
                     f"Original length: {len(aggregated_response)}, "
                     f"Corrected length: {len(corrected_response)}"
                 )
@@ -1598,7 +1657,6 @@ async def _consume_main_processing_stream(
                 aggregated_response = corrected_response
                 
                 # Update final_response_chunks to reflect correction (for cache saving)
-                # Rebuild chunks from corrected response (simple approach: single chunk)
                 final_response_chunks = [corrected_response]
                 
                 # Publish corrected response to client (user will see text update)
@@ -1610,14 +1668,16 @@ async def _consume_main_processing_stream(
                 await _publish_to_redis(
                     cache_service, redis_channel_name, correction_payload, log_prefix,
                     f"Published corrected response (seq: {stream_chunk_count + 2}) "
-                    f"with {len(all_broken_urls)} broken URL(s) fixed. Length: {len(corrected_response)}"
+                    f"with {len(all_broken_urls)} broken URL(s) replaced with Brave search. "
+                    f"Length: {len(corrected_response)}"
                 )
                 
                 logger.info(f"{log_prefix} Published corrected response to client")
             else:
+                # This shouldn't happen unless broken_urls didn't contain valid full_match entries
                 logger.warning(
-                    f"{log_prefix} Correction failed or returned same content. "
-                    f"Using original response."
+                    f"{log_prefix} Brave search replacement returned same content. "
+                    f"Broken URLs may not have been in expected format."
                 )
     
     # NOTE: Embed references are now streamed as chunks during skill execution
@@ -1643,6 +1703,76 @@ async def _consume_main_processing_stream(
             f"{log_prefix} Skipped prepending TOON code block (Embeds Architecture active). "
             f"Tool results are handled via Embeds."
         )
+    
+    # --- Hardcoded Advice Disclaimer Injection ---
+    # This is a HARDCODED safety mechanism that GUARANTEES disclaimers appear for sensitive topics.
+    # We do NOT rely on the LLM to include these - they are injected deterministically based on
+    # category detection in preprocessing. This ensures legal compliance for financial, medical,
+    # legal, and mental health advice.
+    if preprocessing_result.requires_advice_disclaimer and not was_revoked_during_stream and not was_soft_limited_during_stream:
+        disclaimer_type = preprocessing_result.requires_advice_disclaimer
+        
+        # Get user's language preference (default to English)
+        # User preferences may contain language setting from frontend
+        user_language = "en"
+        if request_data.user_preferences:
+            user_language = request_data.user_preferences.get("language", "en")
+        
+        # Load translated disclaimer from translation service
+        try:
+            translation_service = TranslationService()
+            disclaimer_text = translation_service.get_nested_translation(
+                f"disclaimers.{disclaimer_type}.text",
+                user_language,
+                {}
+            )
+            
+            if disclaimer_text:
+                logger.info(
+                    f"{log_prefix} [DISCLAIMER_INJECTION] Appending '{disclaimer_type}' "
+                    f"disclaimer in language '{user_language}'"
+                )
+                
+                # Append disclaimer to the aggregated response
+                aggregated_response = aggregated_response.rstrip() + disclaimer_text
+                
+                # Update the final_response_chunks to reflect the disclaimer addition
+                final_response_chunks.append(disclaimer_text)
+                
+                # Publish the corrected response with disclaimer to client
+                if cache_service:
+                    disclaimer_payload = _create_redis_payload(
+                        task_id, request_data, aggregated_response, stream_chunk_count + 2,
+                        is_final=False, model_name=stream_model_name
+                    )
+                    await _publish_to_redis(
+                        cache_service, redis_channel_name, disclaimer_payload, log_prefix,
+                        f"Published response with injected {disclaimer_type} disclaimer "
+                        f"(length: {len(aggregated_response)})"
+                    )
+                
+                # Update chat metadata to track this disclaimer injection
+                # This prevents showing the same disclaimer type again within the cooldown period
+                await _update_disclaimer_metadata(
+                    cache_service=cache_service,
+                    chat_id=request_data.chat_id,
+                    disclaimer_type=disclaimer_type,
+                    log_prefix=log_prefix
+                )
+            else:
+                # Disclaimer text not found in translations - log warning but don't fail
+                logger.warning(
+                    f"{log_prefix} [DISCLAIMER_INJECTION] Failed to load disclaimer text "
+                    f"for type '{disclaimer_type}' in language '{user_language}'. "
+                    f"Check disclaimers.yml translation file."
+                )
+        except Exception as e:
+            # Don't fail the response if disclaimer injection fails
+            # Log the error but continue - the response is still valid
+            logger.error(
+                f"{log_prefix} [DISCLAIMER_INJECTION] Error injecting disclaimer: {e}",
+                exc_info=True
+            )
     
     log_msg_suffix = f"Total chunks: {stream_chunk_count}. Aggregated response length: {len(aggregated_response)}."
     stream_error_message_for_log: Optional[str] = None

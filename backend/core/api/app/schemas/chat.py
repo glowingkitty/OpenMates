@@ -101,6 +101,9 @@ class CachedChatListItemData(BaseModel):
     encrypted_active_focus_id: Optional[str] = None  # Encrypted ID of active focus (encrypted with chat-specific key)
     last_message_timestamp: Optional[int] = None  # Unix timestamp of most recent completed message
     pinned: Optional[bool] = None  # Whether this chat is pinned
+    # Disclaimer tracking for hardcoded advice disclaimers
+    last_disclaimer_type: Optional[str] = None  # "financial", "medical", "legal", or "mental_health"
+    last_disclaimer_timestamp: Optional[int] = None  # Unix timestamp when last disclaimer was injected
     # draft_json is removed as it's now user-specific and in a different cache key
 
 class CachedUserDraftData(BaseModel):

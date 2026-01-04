@@ -666,7 +666,9 @@ async def call_preprocessing_llm(
     def handle_response(response: Union[UnifiedMistralResponse, UnifiedGoogleResponse, UnifiedAnthropicResponse, UnifiedOpenAIResponse], expected_tool_name: str) -> LLMPreprocessingCallResult:
         current_raw_provider_response_summary = response.model_dump(exclude_none=True, exclude={'raw_response'})
         
-        # Sanitize tool_calls_made to remove sensitive content (chat_summary, chat_tags)
+        # Sanitize tool_calls_made to remove sensitive content (title, chat_summary, chat_tags)
+        # Note: In production, detailed logs are skipped entirely (see SERVER_ENVIRONMENT check below).
+        # This sanitization is for development logs to avoid logging user-generated content.
         sanitized_tool_calls = []
         if response.tool_calls_made:
             for tc in response.tool_calls_made:
@@ -674,8 +676,13 @@ async def call_preprocessing_llm(
                 # Sanitize function_arguments_parsed if it contains sensitive fields
                 if "function_arguments_parsed" in tc_dict and isinstance(tc_dict["function_arguments_parsed"], dict):
                     sanitized_args = tc_dict["function_arguments_parsed"].copy()
+                    # Redact title (user-generated content)
+                    if "title" in sanitized_args and isinstance(sanitized_args["title"], str):
+                        sanitized_args["title"] = {"length": len(sanitized_args["title"]), "content": "[REDACTED_CONTENT]"}
+                    # Redact chat_summary (user-generated content)
                     if "chat_summary" in sanitized_args and isinstance(sanitized_args["chat_summary"], str):
                         sanitized_args["chat_summary"] = {"length": len(sanitized_args["chat_summary"]), "content": "[REDACTED_CONTENT]"}
+                    # Redact chat_tags (user-generated content)
                     if "chat_tags" in sanitized_args and isinstance(sanitized_args["chat_tags"], list):
                         sanitized_args["chat_tags"] = {"count": len(sanitized_args["chat_tags"]), "content": "[REDACTED_CONTENT]"}
                     tc_dict["function_arguments_parsed"] = sanitized_args
