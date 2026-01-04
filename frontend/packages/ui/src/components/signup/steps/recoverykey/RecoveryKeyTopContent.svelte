@@ -33,6 +33,11 @@ Security Notes:
     import * as cryptoService from '../../../../services/cryptoService';
     import { userDB } from '../../../../services/userDB';
     import { notificationStore } from '../../../../stores/notificationStore';
+    import { 
+        downloadRecoveryKey, 
+        copyRecoveryKeyToClipboard, 
+        printRecoveryKey 
+    } from '../../../../utils/recoveryKeyUtils';
 
     // State using Svelte 5 runes
     let loading = $state(true);
@@ -152,138 +157,37 @@ Security Notes:
 
     /**
      * Download the recovery key as a text file.
+     * Uses shared utility from recoveryKeyUtils.ts
      */
     function handleDownload() {
-        if (!recoveryKey) return;
-        
-        const content = recoveryKey;
-        const blob = new Blob([content], { type: 'text/plain' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'openmates_recovery_key.txt';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-        
-        hasDownloaded = true;
-        console.log('[RECOVERY_KEY] Recovery key file downloaded');
+        const result = downloadRecoveryKey(recoveryKey);
+        if (result.success) {
+            hasDownloaded = true;
+        }
     }
     
     /**
      * Copy the recovery key to clipboard.
+     * Uses shared utility from recoveryKeyUtils.ts
      */
     async function handleCopy() {
-        if (!recoveryKey) return;
-        
-        try {
-            await navigator.clipboard.writeText(recoveryKey);
+        const result = await copyRecoveryKeyToClipboard(recoveryKey);
+        if (result.success) {
             hasCopied = true;
             notificationStore.success($text('enter_message.press_and_hold_menu.copied_to_clipboard.text'), 3000);
-            console.log('[RECOVERY_KEY] Recovery key copied to clipboard');
-        } catch (err) {
-            console.error('[RECOVERY_KEY] Failed to copy to clipboard:', err);
+        } else {
             notificationStore.error($text('signup.copy_failed.text'), 3000);
         }
     }
     
     /**
      * Open print dialog with the recovery key.
-     * Uses translations for all text content.
+     * Uses shared utility from recoveryKeyUtils.ts
      */
     function handlePrint() {
-        if (!recoveryKey) return;
-        
-        // Get translated strings for the print page
-        const printTitle = $text('signup.recovery_key_print_title.text');
-        const printWarning = $text('signup.recovery_key_print_warning.text');
-        const storageTitle = $text('signup.recovery_key_print_storage_title.text');
-        const storage1 = $text('signup.recovery_key_print_storage_1.text');
-        const storage2 = $text('signup.recovery_key_print_storage_2.text');
-        const storage3 = $text('signup.recovery_key_print_storage_3.text');
-        const storage4 = $text('signup.recovery_key_print_storage_4.text');
-        
-        // Create a printable window with the recovery key
-        const printWindow = window.open('', '_blank');
-        if (printWindow) {
-            printWindow.document.write(`
-                <!DOCTYPE html>
-                <html>
-                <head>
-                    <title>${printTitle}</title>
-                    <style>
-                        body {
-                            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
-                            padding: 40px;
-                            max-width: 600px;
-                            margin: 0 auto;
-                        }
-                        h1 {
-                            color: #333;
-                            font-size: 24px;
-                            margin-bottom: 20px;
-                        }
-                        .warning {
-                            background: #fff3cd;
-                            border: 1px solid #ffc107;
-                            border-radius: 8px;
-                            padding: 16px;
-                            margin-bottom: 24px;
-                        }
-                        .warning p {
-                            margin: 0;
-                            color: #856404;
-                        }
-                        .key-container {
-                            background: #f5f5f5;
-                            border: 2px dashed #ccc;
-                            border-radius: 8px;
-                            padding: 20px;
-                            text-align: center;
-                        }
-                        .recovery-key {
-                            font-family: 'Courier New', monospace;
-                            font-size: 18px;
-                            font-weight: bold;
-                            letter-spacing: 2px;
-                            word-break: break-all;
-                            color: #333;
-                        }
-                        .instructions {
-                            margin-top: 24px;
-                            color: #666;
-                            font-size: 14px;
-                        }
-                        .instructions li {
-                            margin-bottom: 8px;
-                        }
-                    </style>
-                </head>
-                <body>
-                    <h1>🔐 ${printTitle}</h1>
-                    <div class="warning">
-                        <p><strong>⚠️ ${printWarning}</strong></p>
-                    </div>
-                    <div class="key-container">
-                        <div class="recovery-key">${recoveryKey}</div>
-                    </div>
-                    <div class="instructions">
-                        <p><strong>${storageTitle}</strong></p>
-                        <ul>
-                            <li>${storage1}</li>
-                            <li>${storage2}</li>
-                            <li>${storage3}</li>
-                            <li>${storage4}</li>
-                        </ul>
-                    </div>
-                </body>
-                </html>
-            `);
-            printWindow.document.close();
-            printWindow.print();
+        const result = printRecoveryKey(recoveryKey);
+        if (result.success) {
             hasPrinted = true;
-            console.log('[RECOVERY_KEY] Recovery key print dialog opened');
         }
     }
     

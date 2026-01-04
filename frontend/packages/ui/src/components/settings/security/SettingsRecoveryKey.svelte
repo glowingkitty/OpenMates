@@ -5,13 +5,14 @@ This component allows users to:
 1. View their current recovery key status
 2. Generate a new recovery key (which invalidates the old one)
 
-Security Flow:
+Security Flow (matches signup flow):
 1. User must authenticate first (via SecurityAuth component)
 2. New recovery key is generated client-side
-3. Master key is wrapped with new recovery key
-4. Server is updated with new wrapped key and lookup hash
-5. Old recovery key entry is deleted from server
-6. User downloads new recovery key file
+3. User chooses how to save: Download / Copy to Clipboard / Print
+4. User confirms via toggle that they saved it
+5. Only then can they click Continue
+6. Master key is wrapped with new recovery key and uploaded to server
+7. Old recovery key entry is deleted from server
 
 Note: Recovery keys are the ONLY way to recover an account if password/passkey is lost.
 Users should store them securely (offline, in a safe place).
@@ -24,7 +25,14 @@ Users should store them securely (offline, in a safe place).
     import { getApiEndpoint, apiEndpoints } from '../../../config/api';
     import { userProfile, updateProfile } from '../../../stores/userProfile';
     import * as cryptoService from '../../../services/cryptoService';
+    import { notificationStore } from '../../../stores/notificationStore';
+    import { 
+        downloadRecoveryKey, 
+        copyRecoveryKeyToClipboard, 
+        printRecoveryKey 
+    } from '../../../utils/recoveryKeyUtils';
     import SecurityAuth from './SecurityAuth.svelte';
+    import Toggle from '../../Toggle.svelte';
 
     // ========================================================================
     // STATE
@@ -37,7 +45,7 @@ Users should store them securely (offline, in a safe place).
     let recoveryKeyTimestamp = $state<number | null>(null);
 
     /** Current step in the flow */
-    type Step = 'overview' | 'auth' | 'generating' | 'download' | 'confirm';
+    type Step = 'overview' | 'auth' | 'generating' | 'save';
     let currentStep = $state<Step>('overview');
 
     /** Whether authentication is in progress */
@@ -59,8 +67,13 @@ Users should store them securely (offline, in a safe place).
         keyIv: string;
     } | null>(null);
 
-    /** Whether the key has been downloaded */
-    let keyDownloaded = $state(false);
+    /** Track which save methods the user has used (for visual feedback) */
+    let hasDownloaded = $state(false);
+    let hasCopied = $state(false);
+    let hasPrinted = $state(false);
+
+    /** User must confirm they saved the key via toggle before continuing */
+    let hasConfirmedStorage = $state(false);
 
     /** Error message to display */
     let errorMessage = $state<string>('');
@@ -151,6 +164,9 @@ Users should store them securely (offline, in a safe place).
         });
     });
 
+    /** Whether Continue button should be enabled */
+    let canContinue = $derived(hasConfirmedStorage && !isSaving);
+
     // ========================================================================
     // RECOVERY KEY GENERATION
     // ========================================================================
@@ -195,6 +211,7 @@ Users should store them securely (offline, in a safe place).
 
     /**
      * Generate a new recovery key and prepare data for server.
+     * Does NOT auto-download - user must choose how to save.
      */
     async function generateNewRecoveryKey() {
         errorMessage = '';
@@ -237,7 +254,7 @@ Users should store them securely (offline, in a safe place).
             // Step 8: Wrap the master key with the recovery key
             const { wrapped: wrappedMasterKey, iv: keyIv } = await cryptoService.encryptKey(masterKey, wrappingKey);
 
-            // Step 9: Store the data for later submission
+            // Step 9: Store the data for later submission (when user clicks Continue)
             recoveryKeyData = {
                 lookupHash,
                 wrappedMasterKey,
@@ -247,11 +264,8 @@ Users should store them securely (offline, in a safe place).
 
             console.log('[SettingsRecoveryKey] Recovery key generated successfully');
 
-            // Move to download step
-            currentStep = 'download';
-
-            // Auto-download the key
-            downloadRecoveryKey();
+            // Move to save step - user must choose how to save
+            currentStep = 'save';
 
         } catch (error) {
             console.error('[SettingsRecoveryKey] Error generating recovery key:', error);
@@ -260,44 +274,60 @@ Users should store them securely (offline, in a safe place).
         }
     }
 
+    // ========================================================================
+    // SAVE METHODS (using shared utilities from recoveryKeyUtils.ts)
+    // ========================================================================
+
     /**
      * Download the recovery key as a text file.
      */
-    function downloadRecoveryKey() {
-        if (!newRecoveryKey) {
-            console.error('[SettingsRecoveryKey] No recovery key to download');
-            return;
+    function handleDownload() {
+        const result = downloadRecoveryKey(newRecoveryKey);
+        if (result.success) {
+            hasDownloaded = true;
         }
-
-        keyDownloaded = true;
-        const content = newRecoveryKey;
-        const blob = new Blob([content], { type: 'text/plain' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'openmates_recovery_key.txt';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-
-        console.log('[SettingsRecoveryKey] Recovery key file downloaded');
     }
 
     /**
-     * Proceed to confirmation step after download.
+     * Copy the recovery key to clipboard.
      */
-    function proceedToConfirm() {
-        currentStep = 'confirm';
+    async function handleCopy() {
+        const result = await copyRecoveryKeyToClipboard(newRecoveryKey);
+        if (result.success) {
+            hasCopied = true;
+            notificationStore.success($text('enter_message.press_and_hold_menu.copied_to_clipboard.text'), 3000);
+        } else {
+            notificationStore.error($text('signup.copy_failed.text'), 3000);
+        }
     }
+
+    /**
+     * Open print dialog with the recovery key.
+     */
+    function handlePrint() {
+        const result = printRecoveryKey(newRecoveryKey);
+        if (result.success) {
+            hasPrinted = true;
+        }
+    }
+
+    // ========================================================================
+    // SERVER SUBMISSION
+    // ========================================================================
 
     /**
      * Save the new recovery key to the server.
+     * Only called after user confirms storage via toggle and clicks Continue.
      * This replaces the old recovery key.
      */
     async function saveRecoveryKey() {
         if (!recoveryKeyData) {
             errorMessage = 'No recovery key data to save';
+            return;
+        }
+
+        if (!hasConfirmedStorage) {
+            errorMessage = $text('settings.security.recovery_key_confirm_required.text');
             return;
         }
 
@@ -331,11 +361,9 @@ Users should store them securely (offline, in a safe place).
                 // Update local profile
                 updateProfile({ consent_recovery_key_stored_timestamp: recoveryKeyTimestamp });
 
-                // Reset state
+                // Reset state and go back to overview
+                resetState();
                 currentStep = 'overview';
-                newRecoveryKey = '';
-                recoveryKeyData = null;
-                keyDownloaded = false;
             } else {
                 throw new Error(data.message || 'Failed to save recovery key');
             }
@@ -348,14 +376,24 @@ Users should store them securely (offline, in a safe place).
     }
 
     /**
-     * Cancel and go back to overview.
+     * Reset all temporary state.
      */
-    function cancel() {
-        currentStep = 'overview';
+    function resetState() {
         newRecoveryKey = '';
         recoveryKeyData = null;
-        keyDownloaded = false;
+        hasDownloaded = false;
+        hasCopied = false;
+        hasPrinted = false;
+        hasConfirmedStorage = false;
         errorMessage = '';
+    }
+
+    /**
+     * Cancel and go back to overview.
+     */
+    function handleCancel() {
+        resetState();
+        currentStep = 'overview';
     }
 </script>
 
@@ -380,9 +418,9 @@ Users should store them securely (offline, in a safe place).
             <div class="spinner"></div>
             <p class="generating-text">{$text('settings.security.recovery_key_generating.text')}</p>
         </div>
-    {:else if currentStep === 'download'}
-        <!-- Download Step -->
-        <div class="download-container" in:fade>
+    {:else if currentStep === 'save'}
+        <!-- Save Step - User chooses how to save, then confirms via toggle -->
+        <div class="save-container" in:fade>
             <div class="header">
                 <div class="icon header_size warning"></div>
                 <h2>{$text('settings.security.recovery_key_download_title.text')}</h2>
@@ -393,43 +431,55 @@ Users should store them securely (offline, in a safe place).
                 <p>{$text('settings.security.recovery_key_warning.text')}</p>
             </div>
 
-            <div class="download-section">
-                {#if keyDownloaded}
-                    <div class="download-success">
-                        <div class="checkmark-icon"></div>
-                        <p>{$text('settings.security.recovery_key_downloaded.text')}</p>
-                    </div>
-                {/if}
-
-                <button class="download-button" onclick={downloadRecoveryKey}>
-                    <div class="clickable-icon icon_download" style="width: 24px; height: 24px"></div>
-                    <span>{$text('settings.security.recovery_key_download_button.text')}</span>
-                </button>
+            <!-- Save options - same as signup flow -->
+            <div class="save-options">
+                <p class="save-instruction">{$text('signup.choose_how_to_save.text')}</p>
+                
+                <div class="save-buttons">
+                    <!-- Download button -->
+                    <button
+                        class="save-button"
+                        class:used={hasDownloaded}
+                        onclick={handleDownload}
+                    >
+                        <div class="clickable-icon icon_download" style="width: 24px; height: 24px"></div>
+                        <span>{$text('signup.download.text')}</span>
+                        {#if hasDownloaded}
+                            <span class="check-mark">✓</span>
+                        {/if}
+                    </button>
+                    
+                    <!-- Copy button -->
+                    <button
+                        class="save-button"
+                        class:used={hasCopied}
+                        onclick={handleCopy}
+                    >
+                        <div class="clickable-icon icon_copy" style="width: 24px; height: 24px"></div>
+                        <span>{$text('signup.copy.text')}</span>
+                        {#if hasCopied}
+                            <span class="check-mark">✓</span>
+                        {/if}
+                    </button>
+                    
+                    <!-- Print button -->
+                    <button
+                        class="save-button"
+                        class:used={hasPrinted}
+                        onclick={handlePrint}
+                    >
+                        <span class="print-icon">🖨️</span>
+                        <span>{$text('signup.print.text')}</span>
+                        {#if hasPrinted}
+                            <span class="check-mark">✓</span>
+                        {/if}
+                    </button>
+                </div>
             </div>
 
             <div class="important-notice">
-                <p>{@html $text('settings.security.recovery_key_important.text')}</p>
+                <p>{$text('settings.security.recovery_key_important_no_html.text')}</p>
             </div>
-
-            <div class="action-buttons">
-                <button
-                    onclick={proceedToConfirm}
-                    disabled={!keyDownloaded}
-                >
-                    {$text('common.continue.text')}
-                </button>
-            </div>
-        </div>
-    {:else if currentStep === 'confirm'}
-        <!-- Confirmation Step -->
-        <div class="confirm-container" in:fade>
-            <div class="header">
-                <h2>{$text('settings.security.recovery_key_confirm_title.text')}</h2>
-            </div>
-
-            <p class="confirm-description">
-                {$text('settings.security.recovery_key_confirm_description.text')}
-            </p>
 
             {#if errorMessage}
                 <div class="error-message" in:fade>
@@ -437,16 +487,35 @@ Users should store them securely (offline, in a safe place).
                 </div>
             {/if}
 
+            <!-- Confirmation toggle - must be checked before Continue is enabled -->
+            <div class="confirmation-section">
+                <div class="confirmation-row">
+                    <Toggle bind:checked={hasConfirmedStorage} id="confirm-storage-toggle" />
+                    <label for="confirm-storage-toggle" class="confirmation-text">
+                        {$text('signup.i_stored_recovery_key.text')}
+                    </label>
+                </div>
+                <p class="toggle-hint">{$text('signup.click_toggle_to_continue.text')}</p>
+            </div>
+
+            <!-- Action buttons -->
             <div class="action-buttons">
+                <button
+                    class="secondary-button"
+                    onclick={handleCancel}
+                    disabled={isSaving}
+                >
+                    {$text('common.cancel.text')}
+                </button>
                 <button
                     class="primary-button"
                     onclick={saveRecoveryKey}
-                    disabled={isSaving}
+                    disabled={!canContinue}
                 >
                     {#if isSaving}
                         <div class="button-spinner"></div>
                     {:else}
-                        {$text('settings.security.recovery_key_confirm_button.text')}
+                        {$text('common.continue.text')}
                     {/if}
                 </button>
             </div>
@@ -618,7 +687,7 @@ Users should store them securely (offline, in a safe place).
         font-size: 16px;
         font-weight: 500;
         transition: opacity 0.2s, transform 0.2s;
-        min-width: 200px;
+        min-width: 120px;
     }
 
     .primary-button:hover:not(:disabled) {
@@ -631,6 +700,32 @@ Users should store them securely (offline, in a safe place).
     }
 
     .primary-button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    .secondary-button {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 12px 24px;
+        background: var(--color-grey-20);
+        color: var(--color-grey-80);
+        border: 1px solid var(--color-grey-30);
+        border-radius: 12px;
+        cursor: pointer;
+        font-size: 16px;
+        font-weight: 500;
+        transition: opacity 0.2s, transform 0.2s;
+        min-width: 120px;
+    }
+
+    .secondary-button:hover:not(:disabled) {
+        background: var(--color-grey-25);
+    }
+
+    .secondary-button:disabled {
         opacity: 0.5;
         cursor: not-allowed;
     }
@@ -688,9 +783,8 @@ Users should store them securely (offline, in a safe place).
         font-size: 16px;
     }
 
-    /* Download step */
-    .download-container,
-    .confirm-container {
+    /* Save step */
+    .save-container {
         display: flex;
         flex-direction: column;
         gap: 20px;
@@ -724,71 +818,111 @@ Users should store them securely (offline, in a safe place).
         margin: 0;
     }
 
-    .download-section {
+    /* Save options - matching signup flow */
+    .save-options {
+        width: 100%;
         display: flex;
         flex-direction: column;
-        align-items: center;
-        gap: 16px;
-        padding: 20px;
-        background: var(--color-grey-15);
-        border-radius: 16px;
+        gap: 12px;
     }
 
-    .download-success {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        color: var(--color-success, #22c55e);
-        font-weight: 500;
-    }
-
-    .download-success p {
+    .save-instruction {
+        color: var(--color-grey-60);
+        font-size: 14px;
+        text-align: center;
         margin: 0;
     }
 
-    .download-button {
+    .save-buttons {
+        display: flex;
+        gap: 10px;
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+
+    .save-button {
         display: flex;
         align-items: center;
-        gap: 10px;
-        padding: 12px 24px;
-        background: var(--color-primary);
-        color: white;
-        border: none;
-        border-radius: 12px;
+        gap: 8px;
+        padding: 10px 16px;
+        background: var(--color-grey-20);
+        border: 1px solid var(--color-grey-30);
+        border-radius: 10px;
         cursor: pointer;
-        font-size: 16px;
+        font-size: 14px;
         font-weight: 500;
-        transition: transform 0.2s, opacity 0.2s;
+        color: var(--color-grey-80);
+        transition: all 0.2s ease;
+        position: relative;
     }
 
-    .download-button:hover {
-        opacity: 0.9;
-        transform: scale(1.02);
+    .save-button:hover {
+        background: var(--color-grey-25);
+        border-color: var(--color-grey-40);
+        transform: translateY(-1px);
     }
 
-    .download-button:active {
-        transform: scale(0.98);
+    .save-button:active {
+        transform: translateY(0);
+    }
+
+    .save-button.used {
+        background: var(--color-success-bg, rgba(34, 197, 94, 0.1));
+        border-color: var(--color-success, #22c55e);
+    }
+
+    .check-mark {
+        color: var(--color-success, #22c55e);
+        font-weight: bold;
+        font-size: 16px;
+    }
+
+    .print-icon {
+        font-size: 18px;
+        line-height: 1;
     }
 
     .important-notice {
         padding: 16px;
-        background: var(--color-grey-20);
+        background: var(--color-grey-15);
         border-radius: 12px;
     }
 
     .important-notice p {
-        color: var(--color-grey-70);
-        font-size: 14px;
+        color: var(--color-grey-60);
+        font-size: 13px;
         line-height: 1.5;
         text-align: center;
         margin: 0;
     }
 
-    /* Confirm step */
-    .confirm-description {
+    /* Confirmation section */
+    .confirmation-section {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        padding: 16px;
+        background: var(--color-grey-15);
+        border-radius: 12px;
+    }
+
+    .confirmation-row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .confirmation-text {
         color: var(--color-grey-70);
-        text-align: center;
-        line-height: 1.6;
+        font-size: 15px;
+        cursor: pointer;
+    }
+
+    .toggle-hint {
+        color: var(--color-grey-50);
+        font-size: 13px;
+        margin: 0;
+        padding-left: 48px;
     }
 
     /* Messages */
@@ -811,4 +945,3 @@ Users should store them securely (offline, in a safe place).
         margin-bottom: 16px;
     }
 </style>
-

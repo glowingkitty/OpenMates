@@ -2262,6 +2262,52 @@ recovery_key_important:
   cs: <strong>Důležité:</strong> Toto je jediný způsob, jak obnovit svůj účet, pokud ztratíte přístup ke všem přihlašovacím metodám. Uložte jej na bezpečné místo.
   sv: <strong>Viktigt:</strong> Detta är det enda sättet att återställa ditt konto om du förlorar åtkomsten till alla dina inloggningsmetoder. Förvara den på ett säkert ställe.
   verified_by_human: []
+recovery_key_important_no_html:
+  context: Important notice about recovery key (no HTML, for safe rendering)
+  en: "Important: This is the only way to recover your account if you lose access to all your login methods. Store it somewhere safe."
+  de: "Wichtig: Dies ist der einzige Weg, Ihr Konto wiederherzustellen, wenn Sie den Zugang zu allen Ihren Anmeldemethoden verlieren. Bewahren Sie ihn an einem sicheren Ort auf."
+  zh: "重要：如果您失去所有登录方式的访问权限，这是恢复账户的唯一方式。请将其存放在安全的地方。"
+  es: "Importante: Esta es la única forma de recuperar tu cuenta si pierdes el acceso a todos tus métodos de inicio de sesión. Guárdala en un lugar seguro."
+  fr: "Important: C'est le seul moyen de récupérer votre compte si vous perdez l'accès à toutes vos méthodes de connexion. Conservez-la dans un endroit sûr."
+  pt: "Importante: Esta é a única maneira de recuperar sua conta se você perder o acesso a todos os seus métodos de login. Guarde-a em algum lugar seguro."
+  ru: "Важно: Это единственный способ восстановить вашу учетную запись, если вы потеряете доступ ко всем методам входа. Храните его в безопасном месте."
+  ja: "重要：すべてのログイン方法へのアクセスを失った場合、これがアカウントを回復する唯一の方法です。安全な場所に保管してください。"
+  ko: "중요: 모든 로그인 방법에 대한 액세스를 잃어버린 경우 계정을 복구할 수 있는 유일한 방법입니다. 안전한 곳에 보관하세요."
+  it: "Importante: Questo è l'unico modo per recuperare il tuo account se perdi l'accesso a tutti i tuoi metodi di accesso. Conservalo in un posto sicuro."
+  tr: "Önemli: Tüm giriş yöntemlerinize erişiminizi kaybederseniz hesabınızı kurtarmanın tek yolu budur. Güvenli bir yerde saklayın."
+  vi: "Quan trọng: Đây là cách duy nhất để khôi phục tài khoản nếu bạn mất quyền truy cập vào tất cả các phương thức đăng nhập. Hãy lưu trữ ở nơi an toàn."
+  id: "Penting: Ini adalah satu-satunya cara untuk memulihkan akun jika Anda kehilangan akses ke semua metode login. Simpan di tempat yang aman."
+  pl: "Ważne: To jedyny sposób na odzyskanie konta, jeśli stracisz dostęp do wszystkich metod logowania. Przechowuj go w bezpiecznym miejscu."
+  nl: "Belangrijk: Dit is de enige manier om uw account te herstellen als u de toegang tot al uw inlogmethoden verliest. Bewaar het op een veilige plaats."
+  ar: "مهم: هذه هي الطريقة الوحيدة لاستعادة حسابك إذا فقدت الوصول إلى جميع طرق تسجيل الدخول. احفظه في مكان آمن."
+  hi: "महत्वपूर्ण: यदि आप अपने सभी लॉगिन तरीकों तक पहुंच खो देते हैं तो यह आपके खाते को पुनर्प्राप्त करने का एकमात्र तरीका है। इसे किसी सुरक्षित स्थान पर संग्रहीत करें।"
+  th: "สำคัญ: นี่เป็นวิธีเดียวในการกู้คืนบัญชีของคุณหากคุณสูญเสียการเข้าถึงวิธีการเข้าสู่ระบบทั้งหมด เก็บไว้ในที่ปลอดภัย"
+  cs: "Důležité: Toto je jediný způsob, jak obnovit svůj účet, pokud ztratíte přístup ke všem přihlašovacím metodám. Uložte jej na bezpečné místo."
+  sv: "Viktigt: Detta är det enda sättet att återställa ditt konto om du förlorar åtkomsten till alla dina inloggningsmetoder. Förvara den på ett säkert ställe."
+  verified_by_human: []
+recovery_key_confirm_required:
+  context: Error message when user tries to save without confirming storage
+  en: Please confirm that you have saved your recovery key before continuing.
+  de: Bitte bestätigen Sie, dass Sie Ihren Wiederherstellungsschlüssel gespeichert haben, bevor Sie fortfahren.
+  zh: 请在继续之前确认您已保存恢复密钥。
+  es: Por favor, confirma que has guardado tu clave de recuperación antes de continuar.
+  fr: Veuillez confirmer que vous avez enregistré votre clé de récupération avant de continuer.
+  pt: Por favor, confirme que você salvou sua chave de recuperação antes de continuar.
+  ru: Пожалуйста, подтвердите, что вы сохранили ключ восстановления, прежде чем продолжить.
+  ja: 続行する前に、回復キーを保存したことを確認してください。
+  ko: 계속하기 전에 복구 키를 저장했는지 확인해 주세요.
+  it: Per favore, conferma di aver salvato la tua chiave di recupero prima di continuare.
+  tr: Devam etmeden önce kurtarma anahtarınızı kaydettiğinizi onaylayın.
+  vi: Vui lòng xác nhận rằng bạn đã lưu khóa khôi phục trước khi tiếp tục.
+  id: Harap konfirmasi bahwa Anda telah menyimpan kunci pemulihan sebelum melanjutkan.
+  pl: Proszę potwierdzić, że zapisałeś swój klucz odzyskiwania przed kontynuowaniem.
+  nl: Bevestig alstublieft dat u uw herstelsleutel heeft opgeslagen voordat u doorgaat.
+  ar: يرجى تأكيد أنك قمت بحفظ مفتاح الاسترداد قبل المتابعة.
+  hi: जारी रखने से पहले कृपया पुष्टि करें कि आपने अपनी पुनर्प्राप्ति कुंजी सहेज ली है।
+  th: กรุณายืนยันว่าคุณได้บันทึกคีย์กู้คืนของคุณก่อนดำเนินการต่อ
+  cs: Prosím potvrďte, že jste uložili svůj klíč pro obnovení, než budete pokračovat.
+  sv: Vänligen bekräfta att du har sparat din återställningsnyckel innan du fortsätter.
+  verified_by_human: []
 recovery_key_confirm_title:
   context: Title for confirmation step
   en: Confirm Recovery Key Saved
