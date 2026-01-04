@@ -1121,11 +1121,18 @@ async def finalize_login_session(
                 # If username or vault_key_id are missing, this indicates a data integrity issue
                 if not cached_user_data.get("username"):
                     logger.error(f"CRITICAL: Cannot update cache for user {user_id} - username is missing from cached data. This indicates a data integrity issue.")
-                    # Don't update cache with incomplete data - let get_current_user handle the error
+                    # Clear the corrupt cache entry so a fresh fetch can happen
+                    logger.info(f"Clearing corrupt cache entry for user {user_id} (missing username)")
+                    await cache_service.delete_user_cache(user_id)
+                    cached_user_data = None  # Force re-fetch below
                 elif not cached_user_data.get("vault_key_id"):
                     logger.error(f"CRITICAL: Cannot update cache for user {user_id} - vault_key_id is missing from cached data. This indicates a data integrity issue.")
-                    # Don't update cache with incomplete data - let get_current_user handle the error
-                else:
+                    # Clear the corrupt cache entry so a fresh fetch can happen
+                    logger.info(f"Clearing corrupt cache entry for user {user_id} (missing vault_key_id)")
+                    await cache_service.delete_user_cache(user_id)
+                    cached_user_data = None  # Force re-fetch below
+                
+            if cached_user_data:
                     # Ensure user_id is always present in cached data (required for WebSocket auth)
                     if "user_id" not in cached_user_data:
                         cached_user_data["user_id"] = user_id
@@ -1420,9 +1427,18 @@ async def lookup_user(
                         if not user_data_to_cache.get("gifted_credits_for_signup"):
                             user_data_to_cache.pop("gifted_credits_for_signup", None)
                         
-                        # Cache the user data (without refresh_token since this is just lookup)
-                        await cache_service.set_user(user_data_to_cache)
-                        logger.info(f"Cached complete user profile for user {user_id} during lookup")
+                        # CRITICAL: Validate required fields before caching to prevent broken login state
+                        # If username is missing, don't cache incomplete data - let get_current_user handle it
+                        if not user_data_to_cache.get("username"):
+                            logger.error(f"CRITICAL: Cannot cache user profile for user {user_id} during lookup - username is missing. This indicates a data integrity issue (encrypted_username may not have decrypted correctly).")
+                            # Don't cache incomplete data
+                        elif not user_data_to_cache.get("vault_key_id"):
+                            logger.error(f"CRITICAL: Cannot cache user profile for user {user_id} during lookup - vault_key_id is missing.")
+                            # Don't cache incomplete data
+                        else:
+                            # Cache the user data (without refresh_token since this is just lookup)
+                            await cache_service.set_user(user_data_to_cache)
+                            logger.info(f"Cached complete user profile for user {user_id} during lookup")
                         
                         # Predictively warm user cache for instant login UX
                         # This loads phases 1-3 (last opened chat, recent chats, full sync) from Directus to Redis
