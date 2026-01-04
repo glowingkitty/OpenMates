@@ -492,6 +492,9 @@
                 $text('login.error_occurred.text'),
                 5000
             );
+            // CRITICAL: Reset currentStep so user isn't stuck on loading screen
+            // Go back to 2FA setup if they were setting up 2FA, otherwise to setup
+            currentStep = tfaSecret ? '2fa_setup' : 'setup';
         } finally {
             isSettingUp = false;
         }

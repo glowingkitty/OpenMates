@@ -659,10 +659,11 @@
                     8000
                 );
                 
-                // Dispatch back event to return to email step for fresh login
-                // NOTE: Do NOT set showAccountRecovery = false here - it causes a brief flash
-                // of the password form. Let the parent handle the transition.
-                dispatch('back');
+                // Dispatch backToEmail event to FULLY RESET the login interface
+                // This clears the email and returns to the initial login state where
+                // the user must either click "Login with passkey" or enter their email.
+                // NOTE: We use 'backToEmail' (not 'back') because Login.svelte listens for this event.
+                dispatch('backToEmail');
             }}
         />
     {:else if isRateLimited}
