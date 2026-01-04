@@ -643,7 +643,6 @@
                 // The backend resets credentials but does NOT create a session.
                 // User must login with their new credentials.
                 console.log('[PasswordAndTfaOtp] Account reset completed, returning to login');
-                showAccountRecovery = false;
                 
                 // CRITICAL: Clear the old email salt from storage!
                 // After recovery, the server has a NEW user_email_salt.
@@ -661,6 +660,8 @@
                 );
                 
                 // Dispatch back event to return to email step for fresh login
+                // NOTE: Do NOT set showAccountRecovery = false here - it causes a brief flash
+                // of the password form. Let the parent handle the transition.
                 dispatch('back');
             }}
         />
