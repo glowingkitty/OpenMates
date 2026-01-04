@@ -43,6 +43,11 @@ Users should store them securely (offline, in a safe place).
     /** Whether authentication is in progress */
     let isAuthenticating = $state(false);
 
+    /** User authentication methods - needed for SecurityAuth component */
+    let hasPasskey = $state(false);
+    let hasPassword = $state(false);
+    let has2FA = $state(false);
+
     /** The newly generated recovery key */
     let newRecoveryKey = $state<string>('');
 
@@ -82,7 +87,9 @@ Users should store them securely (offline, in a safe place).
     // ========================================================================
 
     /**
-     * Fetch user's recovery key status from profile.
+     * Fetch user's recovery key status and authentication methods.
+     * Auth methods are needed for the SecurityAuth component to know
+     * which authentication options to display (passkey, password, 2FA).
      */
     async function fetchRecoveryKeyStatus() {
         isLoading = true;
@@ -93,27 +100,37 @@ Users should store them securely (offline, in a safe place).
                 hasRecoveryKey = true;
                 recoveryKeyTimestamp = profile.consent_recovery_key_stored_timestamp;
                 console.log('[SettingsRecoveryKey] Recovery key status: has key, timestamp:', recoveryKeyTimestamp);
-            } else {
-                // If not in local profile, fetch from server
-                const response = await fetch(getApiEndpoint(apiEndpoints.payments.getUserAuthMethods), {
-                    method: 'GET',
-                    headers: { 'Content-Type': 'application/json' },
-                    credentials: 'include'
-                });
+            }
 
-                if (response.ok) {
-                    const data = await response.json();
-                    // Check if user has recovery_key in their login methods
+            // Always fetch auth methods from server - needed for SecurityAuth component
+            const response = await fetch(getApiEndpoint(apiEndpoints.payments.getUserAuthMethods), {
+                method: 'GET',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include'
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                // Set recovery key status if not already set from profile
+                if (hasRecoveryKey === null) {
                     hasRecoveryKey = data.has_recovery_key || false;
-                    console.log('[SettingsRecoveryKey] Recovery key status from server:', hasRecoveryKey);
-                } else {
-                    console.error('[SettingsRecoveryKey] Failed to fetch auth methods');
+                }
+                // Set authentication methods for SecurityAuth component
+                hasPasskey = data.has_passkey || false;
+                hasPassword = data.has_password || false;
+                has2FA = data.has_2fa || false;
+                console.log('[SettingsRecoveryKey] Auth methods loaded:', { hasPasskey, hasPassword, has2FA, hasRecoveryKey });
+            } else {
+                console.error('[SettingsRecoveryKey] Failed to fetch auth methods');
+                if (hasRecoveryKey === null) {
                     hasRecoveryKey = false;
                 }
             }
         } catch (error) {
             console.error('[SettingsRecoveryKey] Error fetching recovery key status:', error);
-            hasRecoveryKey = false;
+            if (hasRecoveryKey === null) {
+                hasRecoveryKey = false;
+            }
         } finally {
             isLoading = false;
         }
@@ -345,7 +362,12 @@ Users should store them securely (offline, in a safe place).
 <div class="settings-recovery-key">
     {#if currentStep === 'auth' && isAuthenticating}
         <!-- Authentication Step -->
+        <!-- Pass hasPasskey, hasPassword, has2FA so SecurityAuth knows which auth methods to offer -->
         <SecurityAuth
+            {hasPasskey}
+            {hasPassword}
+            {has2FA}
+            autoStart={hasPasskey}
             onSuccess={handleAuthSuccess}
             onFailed={handleAuthFailed}
             onCancel={handleAuthCancel}

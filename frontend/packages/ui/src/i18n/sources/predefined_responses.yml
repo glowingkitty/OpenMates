@@ -1,46 +1,69 @@
 harmful_or_illegal_detected:
   context: Predefined response for harmful or illegal content
   en: Sorry, I am unable to assist with harmful or illegal requests. Want to talk about something else?
-  de: ''
-  zh: ''
-  es: ''
-  fr: ''
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  de: Entschuldigung, ich kann bei schädlichen oder illegalen Anfragen nicht helfen. Möchtest du über etwas anderes sprechen?
+  zh: 抱歉，我无法协助处理有害或非法的请求。想聊点别的吗？
+  es: Lo siento, no puedo ayudar con solicitudes dañinas o ilegales. ¿Quieres hablar de otra cosa?
+  fr: Désolé, je ne peux pas aider avec des demandes nuisibles ou illégales. Voulez-vous parler d'autre chose?
+  pt: Desculpe, não posso ajudar com pedidos prejudiciais ou ilegais. Quer falar sobre outra coisa?
+  ru: Извините, я не могу помочь с вредными или незаконными запросами. Хотите поговорить о чём-то другом?
+  ja: 申し訳ありませんが、有害または違法なリクエストにはお応えできません。他のことについてお話ししましょうか？
+  ko: 죄송합니다. 유해하거나 불법적인 요청에는 도움을 드릴 수 없습니다. 다른 이야기를 해볼까요?
+  it: Mi dispiace, non posso aiutare con richieste dannose o illegali. Vuoi parlare di qualcos'altro?
+  tr: Üzgünüm, zararlı veya yasadışı isteklerde yardımcı olamam. Başka bir şey hakkında konuşmak ister misin?
+  vi: Xin lỗi, tôi không thể hỗ trợ các yêu cầu có hại hoặc bất hợp pháp. Bạn có muốn nói về điều gì khác không?
+  id: Maaf, saya tidak dapat membantu permintaan yang berbahaya atau ilegal. Mau bicara tentang hal lain?
+  pl: Przepraszam, nie mogę pomóc w szkodliwych lub nielegalnych prośbach. Chcesz porozmawiać o czymś innym?
+  nl: Sorry, ik kan niet helpen met schadelijke of illegale verzoeken. Wil je ergens anders over praten?
+  ar: عذرًا، لا أستطيع المساعدة في الطلبات الضارة أو غير القانونية. هل تريد التحدث عن شيء آخر؟
+  hi: क्षमा करें, मैं हानिकारक या अवैध अनुरोधों में सहायता नहीं कर सकता। क्या आप कुछ और बात करना चाहेंगे?
+  th: ขออภัย ฉันไม่สามารถช่วยเหลือคำขอที่เป็นอันตรายหรือผิดกฎหมายได้ อยากคุยเรื่องอื่นไหม?
+  cs: Omlouvám se, nemohu pomoci se škodlivými nebo nelegálními požadavky. Chceš si popovídat o něčem jiném?
+  sv: Tyvärr kan jag inte hjälpa till med skadliga eller olagliga förfrågningar. Vill du prata om något annat?
   verified_by_human: []
 misuse_detected:
   context: Predefined response for misuse detection
   en: Sorry, I cannot assist with this request as it may be misused to cause harm. Want to talk about something else?
-  de: ''
-  zh: ''
-  es: ''
-  fr: ''
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  de: Entschuldigung, ich kann bei dieser Anfrage nicht helfen, da sie missbraucht werden könnte. Möchtest du über etwas anderes sprechen?
+  zh: 抱歉，我无法处理这个请求，因为它可能被滥用造成伤害。想聊点别的吗？
+  es: Lo siento, no puedo ayudar con esta solicitud ya que podría usarse indebidamente para causar daño. ¿Quieres hablar de otra cosa?
+  fr: Désolé, je ne peux pas aider avec cette demande car elle pourrait être utilisée à mauvais escient. Voulez-vous parler d'autre chose?
+  pt: Desculpe, não posso ajudar com este pedido, pois pode ser usado indevidamente para causar danos. Quer falar sobre outra coisa?
+  ru: Извините, я не могу помочь с этим запросом, так как он может быть использован во вред. Хотите поговорить о чём-то другом?
+  ja: 申し訳ありませんが、このリクエストは悪用される恐れがあるためお応えできません。他のことについてお話ししましょうか？
+  ko: 죄송합니다. 이 요청은 악용되어 피해를 줄 수 있어 도움을 드릴 수 없습니다. 다른 이야기를 해볼까요?
+  it: Mi dispiace, non posso aiutare con questa richiesta perché potrebbe essere usata impropriamente per causare danni. Vuoi parlare di qualcos'altro?
+  tr: Üzgünüm, bu istek zarar vermek için kötüye kullanılabileceğinden yardımcı olamam. Başka bir şey hakkında konuşmak ister misin?
+  vi: Xin lỗi, tôi không thể hỗ trợ yêu cầu này vì nó có thể bị lạm dụng gây hại. Bạn có muốn nói về điều gì khác không?
+  id: Maaf, saya tidak dapat membantu permintaan ini karena dapat disalahgunakan untuk menyebabkan kerugian. Mau bicara tentang hal lain?
+  pl: Przepraszam, nie mogę pomóc w tej prośbie, ponieważ może zostać nadużyta. Chcesz porozmawiać o czymś innym?
+  nl: Sorry, ik kan niet helpen met dit verzoek omdat het misbruikt kan worden om schade aan te richten. Wil je ergens anders over praten?
+  ar: عذرًا، لا أستطيع المساعدة في هذا الطلب لأنه قد يُساء استخدامه للتسبب في ضرر. هل تريد التحدث عن شيء آخر؟
+  hi: क्षमा करें, मैं इस अनुरोध में सहायता नहीं कर सकता क्योंकि इसका दुरुपयोग किया जा सकता है। क्या आप कुछ और बात करना चाहेंगे?
+  th: ขออภัย ฉันไม่สามารถช่วยเหลือคำขอนี้ได้เนื่องจากอาจถูกนำไปใช้ในทางที่ผิด อยากคุยเรื่องอื่นไหม?
+  cs: Omlouvám se, nemohu pomoci s tímto požadavkem, protože by mohl být zneužit. Chceš si popovídat o něčem jiném?
+  sv: Tyvärr kan jag inte hjälpa till med denna förfrågan eftersom den kan missbrukas för att orsaka skada. Vill du prata om något annat?
+  verified_by_human: []
+skill_execution_failed:
+  context: Shown when LLM tried to use a skill but it failed or was unavailable
+  en: Hmm... I wasn't able to use {skill_name} properly. Could you clarify what you'd like me to do so I can try again?
+  de: Hmm... Ich konnte {skill_name} nicht richtig verwenden. Könntest du mir erklären, was du möchtest, damit ich es erneut versuchen kann?
+  zh: 嗯... 我无法正确使用{skill_name}。你能说明一下你想让我做什么，这样我可以再试一次吗？
+  es: Hmm... No pude usar {skill_name} correctamente. ¿Podrías aclarar qué te gustaría que hiciera para poder intentarlo de nuevo?
+  fr: Hmm... Je n'ai pas pu utiliser {skill_name} correctement. Pourriez-vous clarifier ce que vous aimeriez que je fasse pour que je puisse réessayer?
+  pt: Hmm... Não consegui usar {skill_name} corretamente. Poderia esclarecer o que gostaria que eu fizesse para que eu possa tentar novamente?
+  ru: Хм... Мне не удалось правильно использовать {skill_name}. Не могли бы вы уточнить, что вы хотите, чтобы я попробовал снова?
+  ja: うーん... {skill_name}を正しく使用できませんでした。もう一度試せるように、何をしてほしいか教えていただけますか？
+  ko: 음... {skill_name}을(를) 제대로 사용하지 못했습니다. 다시 시도할 수 있도록 무엇을 원하시는지 설명해 주시겠어요?
+  it: Hmm... Non sono riuscito a usare {skill_name} correttamente. Potresti chiarire cosa vorresti che facessi così posso riprovare?
+  tr: Hmm... {skill_name} özelliğini düzgün kullanamadım. Tekrar deneyebilmem için ne yapmamı istediğinizi açıklayabilir misiniz?
+  vi: Hmm... Tôi không thể sử dụng {skill_name} đúng cách. Bạn có thể cho tôi biết bạn muốn tôi làm gì để tôi có thể thử lại không?
+  id: Hmm... Saya tidak dapat menggunakan {skill_name} dengan benar. Bisakah Anda menjelaskan apa yang Anda inginkan agar saya bisa mencoba lagi?
+  pl: Hmm... Nie udało mi się poprawnie użyć {skill_name}. Czy mógłbyś wyjaśnić, co chciałbyś, żebym zrobił, abym mógł spróbować ponownie?
+  nl: Hmm... Ik kon {skill_name} niet goed gebruiken. Kun je verduidelijken wat je wilt dat ik doe, zodat ik het opnieuw kan proberen?
+  ar: همم... لم أتمكن من استخدام {skill_name} بشكل صحيح. هل يمكنك توضيح ما تريد مني فعله حتى أتمكن من المحاولة مرة أخرى؟
+  hi: हम्म... मैं {skill_name} का ठीक से उपयोग नहीं कर पाया। क्या आप बता सकते हैं कि आप क्या चाहते हैं ताकि मैं फिर से कोशिश कर सकूं?
+  th: อืม... ฉันไม่สามารถใช้ {skill_name} ได้อย่างถูกต้อง คุณช่วยบอกได้ไหมว่าต้องการให้ฉันทำอะไร เพื่อที่ฉันจะได้ลองอีกครั้ง?
+  cs: Hmm... Nepodařilo se mi správně použít {skill_name}. Mohl bys upřesnit, co bys chtěl, abych udělal, a já to zkusím znovu?
+  sv: Hmm... Jag kunde inte använda {skill_name} korrekt. Kan du förtydliga vad du vill att jag ska göra så att jag kan försöka igen?
   verified_by_human: []

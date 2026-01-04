@@ -613,7 +613,12 @@ async def _async_process_ai_skill_ask_task(
             all_mates_configs=all_mates_configs,
             discovered_apps_metadata=discovered_apps_metadata,
             cache_service=cache_service_instance,
-            secrets_manager=secrets_manager
+            secrets_manager=secrets_manager,
+            # Pass always-include skills from skill config - these skills are ALWAYS available
+            # to the main LLM regardless of preprocessing preselection.
+            # This is a safety net for critical skills like web-search that should be available
+            # for follow-up queries even when preprocessing fails to detect the user's intent.
+            always_include_skills=skill_config.always_include_skills if skill_config else None
         )
         logger.info(f"[Task ID: {task_id}] Main processing stream consumed.")
 

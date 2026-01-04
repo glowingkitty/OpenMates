@@ -38,6 +38,11 @@ class AskSkillDefaultConfig(BaseModel):
     """Pydantic model for ask skill's specific default configurations from backend.core.api.app.yml."""
     default_llms: Optional[SkillDefaultLLMsConfig] = None
     preprocessing_thresholds: Optional[SkillPreprocessingThresholdsConfig] = None
+    # Always-include skills configuration - these skills are ALWAYS available to the main LLM
+    # regardless of preprocessing preselection. This ensures critical skills like web-search
+    # are available even if the preprocessing LLM fails to preselect them for follow-up queries.
+    # Format: List of skill identifiers like ["web-search", "web-read"]
+    always_include_skills: Optional[List[str]] = None
 
 
 # --- Pydantic models for the /skill/ask endpoint (request/response) ---

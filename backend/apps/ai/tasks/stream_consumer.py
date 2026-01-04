@@ -614,7 +614,8 @@ async def _consume_main_processing_stream(
     all_mates_configs: List[MateConfig],
     discovered_apps_metadata: Dict[str, AppYAML],
     cache_service: Optional[CacheService],
-    secrets_manager: Optional[SecretsManager] = None, # Added SecretsManager
+    secrets_manager: Optional[SecretsManager] = None,
+    always_include_skills: Optional[List[str]] = None,  # Skills to ALWAYS include regardless of preprocessing
 ) -> tuple[str, bool, bool]:
     """
     Consumes the async stream from handle_main_processing, aggregates the response,
@@ -713,7 +714,8 @@ async def _consume_main_processing_stream(
         all_mates_configs=all_mates_configs,
         discovered_apps_metadata=discovered_apps_metadata,
         secrets_manager=secrets_manager, # Pass SecretsManager
-        cache_service=cache_service # Pass CacheService for skill status publishing
+        cache_service=cache_service, # Pass CacheService for skill status publishing
+        always_include_skills=always_include_skills  # Pass always-include skills from config
     )
 
     stream_chunk_count = 0
@@ -915,8 +917,132 @@ async def _consume_main_processing_stream(
                         logger.info(f"{log_prefix} [CODE_BLOCK_DEBUG] content_lines: {repr(content_lines[:5])}{'...' if len(content_lines) > 5 else ''}")
                         logger.info(f"{log_prefix} [CODE_BLOCK_DEBUG] code_content (first 200 chars): {repr(code_content[:200])}")
                         
-                        # Create embed and finalize immediately
-                        if directus_service and encryption_service and user_vault_key_id:
+                        # HARDENING: Detect fake tool calls in code blocks
+                        # This catches cases where the LLM outputs code blocks that look like tool calls
+                        # but are not actual tool calls (because the preprocessing didn't preselect the skill).
+                        # Common patterns:
+                        # - language="tool_code" with JSON containing "tool": "..."
+                        # - language="toon" with nested TOON containing tool definitions
+                        # - language="json" with {"tool": "...", "input": {...}} patterns
+                        is_fake_tool_call = False
+                        fake_tool_name = None
+                        
+                        # Pattern 1: Code block with language "tool_code"
+                        if current_code_language and current_code_language.lower() == 'tool_code':
+                            is_fake_tool_call = True
+                            # Try to extract tool name from content
+                            try:
+                                import json
+                                parsed = json.loads(code_content)
+                                fake_tool_name = parsed.get('tool', 'unknown')
+                            except (json.JSONDecodeError, Exception):
+                                fake_tool_name = 'unknown (parsing failed)'
+                            logger.warning(
+                                f"{log_prefix} [FAKE_TOOL_CALL_DETECTED] LLM output a 'tool_code' code block "
+                                f"with tool='{fake_tool_name}'. This indicates the LLM tried to use a tool "
+                                f"that was not available. Content: {code_content[:500]}"
+                            )
+                        
+                        # Pattern 2: Code block with language "toon" containing nested tool structure
+                        if current_code_language and current_code_language.lower() == 'toon':
+                            # Check if content looks like a tool call (nested structure with 'tool:' or 'tool_code')
+                            if '"tool":' in code_content or 'tool_code' in code_content or 'tool:' in code_content.lower():
+                                is_fake_tool_call = True
+                                fake_tool_name = 'nested_toon_tool'
+                                logger.warning(
+                                    f"{log_prefix} [FAKE_TOOL_CALL_DETECTED] LLM output a 'toon' code block "
+                                    f"containing tool-like structure. This indicates the LLM tried to fake "
+                                    f"a tool result using TOON encoding. Content: {code_content[:500]}"
+                                )
+                        
+                        # Pattern 3: JSON code block with {"tool": "...", "input": {...}} structure
+                        if current_code_language and current_code_language.lower() == 'json':
+                            # Skip embed references (already handled above)
+                            if '"tool"' in code_content and '"input"' in code_content:
+                                try:
+                                    import json
+                                    parsed = json.loads(code_content)
+                                    if 'tool' in parsed and 'input' in parsed:
+                                        is_fake_tool_call = True
+                                        fake_tool_name = parsed.get('tool', 'unknown')
+                                        logger.warning(
+                                            f"{log_prefix} [FAKE_TOOL_CALL_DETECTED] LLM output a JSON code block "
+                                            f"that looks like a tool call definition. Tool='{fake_tool_name}'. "
+                                            f"This indicates the LLM tried to use a tool that was not available. "
+                                            f"Content: {code_content[:500]}"
+                                        )
+                                except (json.JSONDecodeError, Exception):
+                                    pass  # Not a valid JSON, ignore
+                        
+                        # Handle fake tool call: replace with user-friendly message instead of code block
+                        # Users should NEVER see confusing tool_code/toon code blocks
+                        if is_fake_tool_call:
+                            logger.error(
+                                f"{log_prefix} [SKILL_AVAILABILITY_ISSUE] The LLM attempted to use "
+                                f"tool '{fake_tool_name}' but it was not available. This may indicate: "
+                                f"1) Preprocessing LLM failed to preselect the skill for a follow-up query, "
+                                f"2) The skill is not in always_include_skills config, "
+                                f"3) The skill is not assigned to the current Mate. "
+                                f"Consider adding '{fake_tool_name}' to always_include_skills in ai/app.yml."
+                            )
+                            
+                            # Replace fake tool call with user-friendly message from translations
+                            # This ensures users never see confusing code blocks
+                            try:
+                                translation_service = TranslationService()
+                                # Get user's language preference (default to English)
+                                language = "en"
+                                
+                                # Format the skill name for display (convert hyphen to space, capitalize)
+                                display_skill_name = fake_tool_name.replace('-', ' ').replace('_', ' ').title() if fake_tool_name else "a skill"
+                                
+                                # Get the translated fallback message
+                                fallback_message = translation_service.get_nested_translation(
+                                    "predefined_responses.skill_execution_failed.text",
+                                    language,
+                                    {"skill_name": display_skill_name}
+                                )
+                                
+                                if not fallback_message:
+                                    # Hardcoded fallback if translation not found
+                                    fallback_message = f"Hmm... I wasn't able to use {display_skill_name} properly. Could you clarify what you'd like me to do so I can try again?"
+                                
+                                logger.info(
+                                    f"{log_prefix} [FAKE_TOOL_CALL_RECOVERY] Replaced fake tool call "
+                                    f"'{fake_tool_name}' with user-friendly message"
+                                )
+                                
+                                # Replace the code block chunk with the fallback message
+                                # Add line breaks for proper formatting
+                                chunk = f"\n\n{fallback_message}\n\n"
+                                
+                                # Reset code block state and continue to next chunk
+                                in_code_block = False
+                                current_code_language = ""
+                                current_code_filename = None
+                                current_code_content = ""
+                                current_code_embed_id = None
+                                
+                                # Skip the normal code embed creation - continue with the fallback message
+                                # The chunk variable now contains the fallback message instead of code
+                                
+                            except Exception as e:
+                                logger.error(
+                                    f"{log_prefix} [FAKE_TOOL_CALL_RECOVERY_ERROR] Failed to generate "
+                                    f"fallback message for fake tool call '{fake_tool_name}': {e}",
+                                    exc_info=True
+                                )
+                                # If fallback fails, use a simple hardcoded message
+                                chunk = "\n\nI encountered an issue with this request. Could you please clarify what you'd like me to do?\n\n"
+                                in_code_block = False
+                                current_code_language = ""
+                                current_code_filename = None
+                                current_code_content = ""
+                                current_code_embed_id = None
+                        
+                        # Create embed and finalize immediately (only for real code blocks, not fake tool calls)
+                        # Skip embed creation if this was a fake tool call (already handled above with fallback message)
+                        if not is_fake_tool_call and directus_service and encryption_service and user_vault_key_id:
                             try:
                                 from backend.core.api.app.services.embed_service import EmbedService
                                 embed_service = EmbedService(cache_service, directus_service, encryption_service)
@@ -997,7 +1123,22 @@ async def _consume_main_processing_stream(
                                         logger.info(f"{log_prefix} [CODE_BLOCK_DEBUG] Removed language:filename line from code content (multi-chunk)")
                             current_code_content = '\n'.join(content_lines_after_fence)
                         
-                        # Create code embed placeholder
+                        # HARDENING: Check for suspicious languages that indicate fake tool calls
+                        # These should NEVER be shown to users as code blocks
+                        is_suspicious_language = current_code_language and current_code_language.lower() in ('tool_code', 'toon')
+                        if is_suspicious_language:
+                            logger.warning(
+                                f"{log_prefix} [FAKE_TOOL_CALL_DETECTED] Multi-chunk code block started with "
+                                f"suspicious language '{current_code_language}'. This indicates the LLM is trying "
+                                f"to fake a tool call. Will replace with fallback message when code block closes."
+                            )
+                            # Mark this as a suspicious code block - we'll accumulate content
+                            # and replace with fallback message when closing fence is found
+                            # Don't create an embed for suspicious languages
+                            chunk = ""  # Don't emit opening fence
+                            continue  # Skip embed creation, just track the content
+                        
+                        # Create code embed placeholder (only for non-suspicious languages)
                         if directus_service and encryption_service and user_vault_key_id:
                             try:
                                 from backend.core.api.app.services.embed_service import EmbedService
@@ -1124,8 +1265,75 @@ async def _consume_main_processing_stream(
                         code_chunk_content = chunk[:closing_fence_idx]
                         current_code_content += code_chunk_content
                         
-                        # Finalize code embed
-                        if current_code_embed_id and directus_service and encryption_service and user_vault_key_id:
+                        # HARDENING: Check if this was a suspicious code block (fake tool call)
+                        # If so, output fallback message instead of the code block
+                        is_suspicious_language = current_code_language and current_code_language.lower() in ('tool_code', 'toon')
+                        
+                        # Also check for JSON-like fake tool calls in content
+                        is_json_fake_tool = False
+                        fake_tool_name_from_content = None
+                        if current_code_language and current_code_language.lower() == 'json':
+                            if '"tool"' in current_code_content and '"input"' in current_code_content:
+                                try:
+                                    import json
+                                    parsed = json.loads(current_code_content)
+                                    if 'tool' in parsed and 'input' in parsed:
+                                        is_json_fake_tool = True
+                                        fake_tool_name_from_content = parsed.get('tool', 'unknown')
+                                except (json.JSONDecodeError, Exception):
+                                    pass
+                        
+                        if is_suspicious_language or is_json_fake_tool:
+                            # Determine the fake tool name for the message
+                            if fake_tool_name_from_content:
+                                fake_tool_name = fake_tool_name_from_content
+                            elif '"tool":' in current_code_content:
+                                # Try to extract from content
+                                try:
+                                    import json
+                                    parsed = json.loads(current_code_content)
+                                    fake_tool_name = parsed.get('tool', current_code_language)
+                                except (json.JSONDecodeError, Exception):
+                                    fake_tool_name = current_code_language
+                            else:
+                                fake_tool_name = current_code_language or 'unknown'
+                            
+                            logger.error(
+                                f"{log_prefix} [FAKE_TOOL_CALL_DETECTED] Replacing fake tool call "
+                                f"'{fake_tool_name}' (multi-chunk) with user-friendly message. "
+                                f"Content length: {len(current_code_content)} chars"
+                            )
+                            
+                            # Generate fallback message
+                            try:
+                                translation_service = TranslationService()
+                                display_skill_name = fake_tool_name.replace('-', ' ').replace('_', ' ').title()
+                                
+                                fallback_message = translation_service.get_nested_translation(
+                                    "predefined_responses.skill_execution_failed.text",
+                                    "en",
+                                    {"skill_name": display_skill_name}
+                                )
+                                
+                                if not fallback_message:
+                                    fallback_message = f"Hmm... I wasn't able to use {display_skill_name} properly. Could you clarify what you'd like me to do so I can try again?"
+                                
+                                # Emit fallback message as the chunk
+                                chunk = f"\n\n{fallback_message}\n\n"
+                                logger.info(f"{log_prefix} [FAKE_TOOL_CALL_RECOVERY] Replaced multi-chunk fake tool call with fallback message")
+                                
+                            except Exception as e:
+                                logger.error(f"{log_prefix} Error generating fallback for multi-chunk fake tool: {e}", exc_info=True)
+                                chunk = "\n\nI encountered an issue with this request. Could you please clarify what you'd like me to do?\n\n"
+                            
+                            # Reset state
+                            in_code_block = False
+                            current_code_language = ""
+                            current_code_filename = None
+                            current_code_content = ""
+                            current_code_embed_id = None
+                        # Finalize code embed (only for real code blocks, not fake tool calls)
+                        elif current_code_embed_id and directus_service and encryption_service and user_vault_key_id:
                             try:
                                 from backend.core.api.app.services.embed_service import EmbedService
                                 embed_service = EmbedService(cache_service, directus_service, encryption_service)
@@ -1145,15 +1353,15 @@ async def _consume_main_processing_stream(
                             except Exception as e:
                                 logger.error(f"{log_prefix} Error finalizing code embed: {e}", exc_info=True)
                         
-                        # Reset state
-                        in_code_block = False
-                        current_code_language = ""
-                        current_code_filename = None
-                        current_code_content = ""
-                        current_code_embed_id = None
-                        
-                        # Don't include closing fence in response (already replaced with embed reference)
-                        chunk = ""  # Empty chunk - embed reference was already sent
+                            # Reset state (only for real code blocks - fake tool calls already reset above)
+                            in_code_block = False
+                            current_code_language = ""
+                            current_code_filename = None
+                            current_code_content = ""
+                            current_code_embed_id = None
+                            
+                            # Don't include closing fence in response (already replaced with embed reference)
+                            chunk = ""  # Empty chunk - embed reference was already sent
                     else:
                         # Accumulate code content
                         current_code_content += chunk

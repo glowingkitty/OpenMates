@@ -481,7 +481,8 @@ async def handle_main_processing(
     all_mates_configs: List[MateConfig],
     discovered_apps_metadata: Dict[str, AppYAML],
     secrets_manager: Optional[SecretsManager] = None,
-    cache_service: Optional[CacheService] = None
+    cache_service: Optional[CacheService] = None,
+    always_include_skills: Optional[List[str]] = None  # Skills to ALWAYS include regardless of preprocessing
 ) -> AsyncIterator[Union[str, MistralUsage, GoogleUsageMetadata, AnthropicUsageMetadata, OpenAIUsageMetadata]]:
     """
     Handles the main processing of an AI skill request after preprocessing.
@@ -650,19 +651,41 @@ async def handle_main_processing(
     # Generate tool definitions from discovered apps using the tool generator
     # Filter by preselected skills from preprocessing (architecture: only preselected skills are forwarded)
     # Note: Empty list means no skills preselected (valid case), None should not occur
+    # HARDENING: always_include_skills are ALWAYS added to the preselected set regardless of preprocessing
+    # This ensures critical skills like web-search are available even if preprocessing fails to detect intent
     preselected_skills = None
     if hasattr(preprocessing_results, 'relevant_app_skills'):
         if preprocessing_results.relevant_app_skills is not None:
             # Convert list to set for efficient lookup
             preselected_skills = set(preprocessing_results.relevant_app_skills)
             if preselected_skills:
-                logger.debug(f"{log_prefix} Using preselected skills: {preselected_skills}")
+                logger.debug(f"{log_prefix} Using preselected skills from preprocessing: {preselected_skills}")
             else:
-                logger.debug(f"{log_prefix} No skills preselected (empty list) - no tools will be provided to main processing LLM")
+                logger.debug(f"{log_prefix} No skills preselected by preprocessing (empty list)")
         else:
             # None should not occur, but handle gracefully
             logger.warning(f"{log_prefix} relevant_app_skills is None (should be list or empty list). Treating as empty list.")
             preselected_skills = set()  # Empty set means no skills
+    
+    # HARDENING: Merge always_include_skills into preselected_skills
+    # This is a safety net that ensures critical skills (like web-search) are ALWAYS available
+    # to the main LLM, regardless of preprocessing preselection decisions.
+    # Purpose: Handle edge cases where preprocessing LLM fails to detect follow-up query intent.
+    if always_include_skills:
+        if preselected_skills is None:
+            preselected_skills = set()
+        
+        # Log which skills we're force-including
+        skills_to_add = set(always_include_skills) - preselected_skills
+        if skills_to_add:
+            logger.info(
+                f"{log_prefix} [SKILL_HARDENING] Adding always-include skills to preselected set: {skills_to_add}. "
+                f"These skills are configured to always be available regardless of preprocessing."
+            )
+        
+        # Merge the always-include skills into the preselected set
+        preselected_skills = preselected_skills | set(always_include_skills)
+        logger.debug(f"{log_prefix} Final preselected skills (after merging always-include): {preselected_skills}")
     
     assigned_app_ids = selected_mate_config.assigned_apps if selected_mate_config else None
     
