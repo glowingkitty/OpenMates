@@ -140,6 +140,14 @@
 
     // Handle successful login
     async function handleSuccessfulLogin(data: any) {
+        console.debug('[EnterBackupCode] handleSuccessfulLogin called with data:', {
+            hasUser: !!data.user,
+            hasEncryptedKey: !!data.user?.encrypted_key,
+            hasSalt: !!data.user?.salt,
+            hasKeyIv: !!data.user?.key_iv,
+            hasWsToken: !!data.ws_token
+        });
+        
         // CRITICAL: Store WebSocket token FIRST before any auth state changes
         // This must happen before calling setAuthenticatedState to prevent race conditions
         if (data.ws_token) {
@@ -150,82 +158,120 @@
             console.warn('[EnterBackupCode] No ws_token in login response - WebSocket connection may fail on Safari/iPad');
         }
         
+        // CRITICAL: Validate required data for master key decryption
+        // If any required field is missing, show error instead of silently failing
+        if (!data.user) {
+            console.error('[EnterBackupCode] CRITICAL: Login response missing user object!');
+            errorMessage = $text('login.login_failed.text');
+            return;
+        }
+        
+        if (!data.user.encrypted_key) {
+            console.error('[EnterBackupCode] CRITICAL: Login response missing encrypted_key! User object keys:', Object.keys(data.user));
+            errorMessage = $text('login.login_failed.text');
+            return;
+        }
+        
+        if (!data.user.salt) {
+            console.error('[EnterBackupCode] CRITICAL: Login response missing salt! User object keys:', Object.keys(data.user));
+            errorMessage = $text('login.login_failed.text');
+            return;
+        }
+        
         // Decrypt and save master key (Web Crypto API)
-        if (data.user && data.user.encrypted_key && data.user.salt) {
-            try {
-                // Decode salt from base64
-                const saltString = atob(data.user.salt);
-                const salt = new Uint8Array(saltString.length);
-                for (let i = 0; i < saltString.length; i++) {
-                    salt[i] = saltString.charCodeAt(i);
-                }
-
-                // Derive wrapping key from password
-                const wrappingKey = await cryptoService.deriveKeyFromPassword(password, salt);
-
-                // Unwrap master key with IV (Web Crypto API)
-                const keyIv = data.user.key_iv || ''; // IV for key unwrapping
-                const masterKey = await cryptoService.decryptKey(data.user.encrypted_key, keyIv, wrappingKey);
-
-                if (masterKey) {
-                    // Save extractable master key to IndexedDB
-                    // Extractable keys allow wrapping for recovery keys while still using Web Crypto API
-                    // Pass stayLoggedIn to ensure key is cleared on tab/browser close if user didn't check "Stay logged in"
-                    await cryptoService.saveKeyToSession(masterKey, stayLoggedIn);
-                    console.debug('Master key unwrapped and saved to IndexedDB (extractable).');
-
-                    // Save email encrypted with master key for payment processing
-                    const emailStoredSuccessfully = await cryptoService.saveEmailEncryptedWithMasterKey(email, false);
-                    if (!emailStoredSuccessfully) {
-                        console.error('Failed to encrypt and store email with master key during backup code login');
-                    } else {
-                        console.debug('Email encrypted and stored with master key for payment processing');
-                    }
-                    
-                    // Update user profile with received data
-                    if (data.user) {
-                        const userProfileData = {
-                            username: data.user.username || '',
-                            profile_image_url: data.user.profile_image_url || null,
-                            credits: data.user.credits || 0,
-                            is_admin: data.user.is_admin || false,
-                            last_opened: data.user.last_opened || '',
-                            tfa_app_name: data.user.tfa_app_name || null,
-                            tfa_enabled: data.user.tfa_enabled || false,
-                            consent_privacy_and_apps_default_settings: data.user.consent_privacy_and_apps_default_settings || false,
-                            consent_mates_default_settings: data.user.consent_mates_default_settings || false,
-                            language: data.user.language || 'en',
-                            darkmode: data.user.darkmode || false
-                        };
-                        
-                        // Update the user profile store
-                        updateProfile(userProfileData);
-                        console.debug('User profile updated with login data:', userProfileData);
-                    }
-                    
-                    // Check if user is in signup flow based on last_opened path
-                    // Import isSignupPath helper for checking signup paths
-                    const { isSignupPath } = await import('../stores/signupState');
-                    const inSignupFlow = isSignupPath(data.user?.last_opened) || false;
-                    console.debug('Login success (backup code), in signup flow:', inSignupFlow);
-                    
-                    // Clear sensitive data
-                    password = '';
-                    backupCode = '';
-                    
-                    // Dispatch success event
-                    dispatch('loginSuccess', {
-                        user: data.user,
-                        inSignupFlow: inSignupFlow,
-                        backupCodeUsed: true
-                    });
-                } else {
-                    errorMessage = 'Failed to decrypt master key. Please try again.';
-                }
-            } catch (e) {
-                console.error('Error during key decryption:', e);
-                errorMessage = 'Error during key decryption. Please try again.';
+        try {
+            // Decode salt from base64
+            console.debug('[EnterBackupCode] Decoding salt from base64...');
+            const saltString = atob(data.user.salt);
+            const salt = new Uint8Array(saltString.length);
+            for (let i = 0; i < saltString.length; i++) {
+                salt[i] = saltString.charCodeAt(i);
             }
+
+            // Derive wrapping key from password
+            console.debug('[EnterBackupCode] Deriving wrapping key from password...');
+            const wrappingKey = await cryptoService.deriveKeyFromPassword(password, salt);
+
+            // Unwrap master key with IV (Web Crypto API)
+            const keyIv = data.user.key_iv || ''; // IV for key unwrapping
+            console.debug('[EnterBackupCode] Decrypting master key...');
+            const masterKey = await cryptoService.decryptKey(data.user.encrypted_key, keyIv, wrappingKey);
+
+            if (!masterKey) {
+                console.error('[EnterBackupCode] Master key decryption returned null/undefined');
+                errorMessage = 'Failed to decrypt master key. Please try again.';
+                return;
+            }
+            
+            // Save extractable master key to IndexedDB
+            // Extractable keys allow wrapping for recovery keys while still using Web Crypto API
+            // Pass stayLoggedIn to ensure key is cleared on tab/browser close if user didn't check "Stay logged in"
+            // CRITICAL: Wrap in try-catch to handle IndexedDB failures (e.g., blocked by other tabs)
+            console.debug('[EnterBackupCode] Saving master key to IndexedDB...');
+            try {
+                await cryptoService.saveKeyToSession(masterKey, stayLoggedIn);
+                console.debug('[EnterBackupCode] Master key unwrapped and saved to IndexedDB (extractable).');
+            } catch (saveError) {
+                // IndexedDB can fail for various reasons:
+                // - Browser in private/incognito mode with IndexedDB disabled
+                // - Storage quota exceeded
+                // - Database corruption
+                // - Firefox-specific bugs with IndexedDB
+                console.error('[EnterBackupCode] CRITICAL: Failed to save master key to IndexedDB!', saveError);
+                errorMessage = 'Failed to save login data. Please try refreshing the page or using a different browser.';
+                return;
+            }
+
+            // Save email encrypted with master key for payment processing
+            const emailStoredSuccessfully = await cryptoService.saveEmailEncryptedWithMasterKey(email, false);
+            if (!emailStoredSuccessfully) {
+                console.error('[EnterBackupCode] Failed to encrypt and store email with master key during backup code login');
+                // Don't block login for this - it's not critical
+            } else {
+                console.debug('[EnterBackupCode] Email encrypted and stored with master key for payment processing');
+            }
+            
+            // Update user profile with received data
+            if (data.user) {
+                const userProfileData = {
+                    username: data.user.username || '',
+                    profile_image_url: data.user.profile_image_url || null,
+                    credits: data.user.credits || 0,
+                    is_admin: data.user.is_admin || false,
+                    last_opened: data.user.last_opened || '',
+                    tfa_app_name: data.user.tfa_app_name || null,
+                    tfa_enabled: data.user.tfa_enabled || false,
+                    consent_privacy_and_apps_default_settings: data.user.consent_privacy_and_apps_default_settings || false,
+                    consent_mates_default_settings: data.user.consent_mates_default_settings || false,
+                    language: data.user.language || 'en',
+                    darkmode: data.user.darkmode || false
+                };
+                
+                // Update the user profile store
+                updateProfile(userProfileData);
+                console.debug('[EnterBackupCode] User profile updated with login data:', userProfileData);
+            }
+            
+            // Check if user is in signup flow based on last_opened path
+            // Import isSignupPath helper for checking signup paths
+            const { isSignupPath } = await import('../stores/signupState');
+            const inSignupFlow = isSignupPath(data.user?.last_opened) || false;
+            console.debug('[EnterBackupCode] Login success (backup code), in signup flow:', inSignupFlow);
+            
+            // Clear sensitive data
+            password = '';
+            backupCode = '';
+            
+            // Dispatch success event
+            console.debug('[EnterBackupCode] Dispatching loginSuccess event');
+            dispatch('loginSuccess', {
+                user: data.user,
+                inSignupFlow: inSignupFlow,
+                backupCodeUsed: true
+            });
+        } catch (e) {
+            console.error('[EnterBackupCode] Error during key decryption:', e);
+            errorMessage = 'Error during key decryption. Please try again.';
         }
     }
 

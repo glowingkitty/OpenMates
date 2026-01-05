@@ -19,11 +19,16 @@
     let editor: Editor | null = null;
     const dispatch = createEventDispatcher();
     
-
     // Performance optimization: Lazy initialization with Intersection Observer
     // Only create the TipTap editor when the message becomes visible in the viewport
     let isVisible = $state(false);
     let editorCreated = $state(false);
+    
+    // STREAMING FIX: Track minimum height to prevent container collapse during chunk updates
+    // When TipTap's setContent() replaces the document, it momentarily clears the DOM,
+    // causing the container height to collapse to 0px before re-expanding.
+    // We preserve the previous height as min-height to prevent this visual glitch.
+    let preservedMinHeight = $state<number | null>(null);
 
     // Logger for debugging
     const logger = {
@@ -452,6 +457,24 @@
     // Track previous locale to detect changes
     let previousLocale = $state($locale || 'en');
     
+    // STREAMING FIX: Clear preserved min-height when streaming ends
+    // This allows the container to properly resize for subsequent renders
+    $effect(() => {
+        if (!isStreaming && preservedMinHeight !== null) {
+            // Use a small delay to allow the final content to render before releasing min-height
+            // This prevents any final frame flicker when the streaming completes
+            const cleanup = setTimeout(() => {
+                // Clear both the reactive state AND the inline DOM style
+                preservedMinHeight = null;
+                if (editorElement) {
+                    editorElement.style.minHeight = '';
+                }
+            }, 100);
+            
+            return () => clearTimeout(cleanup);
+        }
+    });
+    
     // Reactive statement to update Tiptap editor when 'content' prop OR locale changes using $effect (Svelte 5 runes mode)
     $effect(() => {
         // Include $locale in the effect to trigger re-processing on language change
@@ -476,7 +499,41 @@
             // Force update if locale changed, even if content appears identical
             // This ensures translations are refreshed
             if (contentChanged || localeChanged) {
+                // STREAMING FIX: Preserve current height SYNCHRONOUSLY before content replacement
+                // CRITICAL: We must set min-height directly on the DOM element BEFORE calling setContent()
+                // because Svelte's reactive updates are batched and happen asynchronously.
+                // If we used reactive state, setContent() would execute before the style is applied,
+                // causing the visual collapse we're trying to prevent.
+                if (isStreaming && editorElement) {
+                    const currentHeight = editorElement.offsetHeight;
+                    if (currentHeight > 0) {
+                        // Apply min-height SYNCHRONOUSLY via direct DOM manipulation
+                        // This ensures the height constraint is in place before TipTap clears the content
+                        editorElement.style.minHeight = `${currentHeight}px`;
+                        // Also update the reactive state for consistency (used when streaming ends)
+                        preservedMinHeight = currentHeight;
+                    }
+                }
+                
+                // Now safely replace content - the min-height prevents visual collapse
                 editor.commands.setContent(newProcessedContent, { emitUpdate: false });
+                
+                // STREAMING FIX: After content renders, update min-height if content grew taller
+                // This allows smooth upward growth while preventing any shrinkage during streaming
+                if (isStreaming && editorElement) {
+                    requestAnimationFrame(() => {
+                        if (!editorElement) return;
+                        const newHeight = editorElement.offsetHeight;
+                        const currentMinHeight = preservedMinHeight || 0;
+                        
+                        if (newHeight > currentMinHeight) {
+                            // Content grew - update min-height to the new larger value
+                            editorElement.style.minHeight = `${newHeight}px`;
+                            preservedMinHeight = newHeight;
+                        }
+                        // If content is shorter, keep the previous min-height to prevent collapse
+                    });
+                }
             }
         } else if (editor && !content) {
             // Handle case where content becomes null/undefined after editor initialization
@@ -503,7 +560,10 @@
     });
 </script>
 
-<div class="read-only-message">
+<div class="read-only-message" class:is-streaming={isStreaming}>
+    <!-- STREAMING FIX: min-height is applied directly to the DOM via JavaScript (synchronously)
+         before TipTap's setContent() clears the content. This prevents the visual collapse/stutter.
+         Direct DOM manipulation is necessary because Svelte's reactive style updates are async. -->
     <div bind:this={editorElement} class="editor-content"></div>
 </div>
 
@@ -515,6 +575,26 @@
         -webkit-user-select: text !important; /* Required for iOS Safari */
         -moz-user-select: text !important;
         -ms-user-select: text !important;
+    }
+    
+    /* STREAMING FIX: Use CSS containment during streaming to prevent layout thrashing.
+       contain: layout prevents the browser from recalculating layout for ancestors
+       when the content inside this element changes. This significantly reduces
+       the visual stutter during streaming updates. */
+    .read-only-message.is-streaming {
+        contain: layout;
+    }
+    
+    /* STREAMING FIX: Ensure editor-content transitions smoothly during streaming.
+       The will-change hint tells the browser to optimize for height changes. */
+    .editor-content {
+        /* Prevent sudden height collapse by ensuring content always takes space */
+        min-height: 1em;
+    }
+    
+    .read-only-message.is-streaming .editor-content {
+        /* Hint to browser that height will change, enabling GPU optimization */
+        will-change: contents;
     }
 
     /* Style overrides for read-only mode */
