@@ -3698,6 +3698,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     class:side-panel={showSideBySideFullscreen}
                     class:overlay-mode={!showSideBySideFullscreen}
                 >
+                <!-- Key block forces complete recreation when embed changes -->
+                <!-- This resets internal component state (e.g., selectedWebsite in WebSearchEmbedFullscreen) -->
+                <!-- Without this, switching between same-type embeds would preserve stale child overlay state -->
+                {#key embedFullscreenData.embedId}
                 {#if embedFullscreenData.embedType === 'app-skill-use'}
                     {@const skillId = embedFullscreenData.decodedContent?.skill_id || ''}
                     {@const appId = embedFullscreenData.decodedContent?.app_id || ''}
@@ -3845,6 +3849,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         </div>
                     </div>
                 {/if}
+                {/key}
                 </div>
             {/if}
             
