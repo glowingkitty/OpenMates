@@ -24,6 +24,11 @@
     import * as cryptoService from '../services/cryptoService';
     // Import sessionStorage draft service to clear drafts when returning to demo
     import { clearAllSessionStorageDrafts } from '../services/drafts/sessionStorageDraftService';
+    // Import for report issue button functionality
+    import { panelState } from '../stores/panelStateStore';
+    import { settingsDeepLink } from '../stores/settingsDeepLinkStore';
+    import { settingsMenuVisible } from '../components/Settings.svelte';
+    import { tooltip } from '../actions/tooltip';
     
     const dispatch = createEventDispatcher();
 
@@ -126,6 +131,29 @@
         } catch (error) {
             console.warn('[Login] Error clearing pendingDraftAfterSignup:', error);
         }
+    }
+
+    /**
+     * Handler for the report issue button click.
+     * Opens the settings menu and navigates to the report issue page.
+     * This allows users to easily report login and signup issues.
+     */
+    async function handleReportIssue() {
+        console.debug("[Login] Report issue button clicked, opening report issue settings");
+        
+        // Set settingsMenuVisible to true first
+        // Settings.svelte watches settingsMenuVisible store and will sync isMenuVisible
+        settingsMenuVisible.set(true);
+        
+        // Also open via panelState for consistency
+        panelState.openSettings();
+        
+        // Wait for store update to propagate and DOM to update
+        await tick();
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+        // Navigate to the report issue settings page
+        settingsDeepLink.set('report_issue');
     }
 
     // --- Inactivity Timer (Login/2FA/Device Verify) ---
@@ -1894,6 +1922,17 @@
 
 {#if !$authStore.isAuthenticated || $isInSignupProcess}
     <div class="login-container" bind:this={loginContainer} in:fade={{ duration: 300 }} out:fade={{ duration: 300 }}>
+        <!-- Report issue button - fixed to top left for easy access during login/signup -->
+        <div class="report-issue-button-wrapper">
+            <button
+                class="clickable-icon icon_bug report-issue-button"
+                aria-label={$text('header.report_issue.text')}
+                onclick={handleReportIssue}
+                use:tooltip
+            >
+            </button>
+        </div>
+        
         {#if showDesktopGrids && gridsReady}
             <AppIconGrid iconGrid={leftIconGrid} shifted="columns" size={DESKTOP_ICON_SIZE}/>
         {/if}
@@ -2393,6 +2432,33 @@
 
     .tab-button:active:not(.active) {
         transform: scale(0.98);
+    }
+
+    /* Report issue button - positioned at top left of login container */
+    .report-issue-button-wrapper {
+        position: absolute;
+        top: 15px;
+        left: 15px;
+        z-index: 100; /* Above app icon grids */
+        background-color: var(--color-grey-10);
+        border-radius: 40px;
+        padding: 8px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .report-issue-button {
+        margin: 5px;
+    }
+
+    /* Adjust position on mobile */
+    @media (max-width: 600px) {
+        .report-issue-button-wrapper {
+            top: 10px;
+            left: 10px;
+        }
     }
 
 </style>
