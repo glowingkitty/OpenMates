@@ -226,7 +226,20 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 			}
 		}
 		
-		return [...visiblePublicChats, ...realChatsFromDB, ...sessionStorageChats, ...sharedChats, ..._incognitoChats];
+		// CRITICAL SAFEGUARD: Deduplicate the final array by chat_id
+		// This prevents duplicate chats from appearing in the sidebar, even if a bug elsewhere creates duplicates
+		const combinedChats = [...visiblePublicChats, ...realChatsFromDB, ...sessionStorageChats, ...sharedChats, ..._incognitoChats];
+		const seenIds = new Set<string>();
+		const deduplicatedChats: ChatType[] = [];
+		for (const chat of combinedChats) {
+			if (!seenIds.has(chat.chat_id)) {
+				seenIds.add(chat.chat_id);
+				deduplicatedChats.push(chat);
+			} else {
+				console.warn(`[Chats] DUPLICATE CHAT DETECTED AND FILTERED: ${chat.chat_id} - this indicates a bug in chat creation`);
+			}
+		}
+		return deduplicatedChats;
 	})());
 
 	// Sort all chats (demo + real) using the utility function

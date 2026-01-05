@@ -12,6 +12,7 @@ export interface DraftEditorState {
 	newlyCreatedChatIdToSelect: string | null; // chat_id of a new chat to be selected by UI.
 	lastSavedContentMarkdown: string | null; // Stores the cleartext markdown of the last successfully saved draft (for comparison)
 	isSwitchingContext: boolean; // Flag to prevent draft deletion during context switching
+	isSaveInProgress: boolean; // Lock to prevent concurrent draft saves from creating duplicate chats
 }
 
 // Represents a draft as stored in IndexedDB or managed in client-side state per user per chat.

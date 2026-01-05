@@ -246,6 +246,15 @@ export const saveDraftDebounced = debounce(async (chatIdFromMessageInput?: strin
 
     const isAuthenticated = get(authStore).isAuthenticated;
     const currentState = get(draftEditorUIState);
+    
+    // CRITICAL FIX: Check save lock to prevent race conditions
+    // If another save is in progress, skip this one to prevent duplicate chat creation
+    // The debounce should normally prevent this, but async operations can cause overlap
+    if (currentState.isSaveInProgress) {
+        console.debug('[DraftService] Save already in progress, skipping to prevent duplicate chat creation');
+        return;
+    }
+    
     let currentChatIdForOperation = currentState.currentChatId;
     
     // CRITICAL: Don't save drafts for incognito chats
@@ -537,11 +546,13 @@ export const saveDraftDebounced = debounce(async (chatIdFromMessageInput?: strin
     }
 
     // Saving non-empty, changed content
-    draftEditorUIState.update((s) => ({ ...s, hasUnsavedChanges: true }));
+    // CRITICAL: Acquire save lock to prevent race conditions that create duplicate chats
+    draftEditorUIState.update((s) => ({ ...s, hasUnsavedChanges: true, isSaveInProgress: true }));
 
     let userDraft: Chat | null = null;
     let versionBeforeSave = 0;
 
+    try {
     if (!currentChatIdForOperation) {
         console.info(`[DraftService] Creating new chat for draft. currentChatIdForOperation is falsy: ${currentChatIdForOperation}`);
         try {
@@ -566,12 +577,13 @@ export const saveDraftDebounced = debounce(async (chatIdFromMessageInput?: strin
             newlyCreatedChatIdToSelect: currentChatIdForOperation, // Signal UI to select this new chat
             hasUnsavedChanges: false,
             lastSavedContentMarkdown: contentMarkdown, // Store cleartext markdown for comparison
+            isSaveInProgress: false, // Release lock on success
         }));
         console.info(`[DraftService] Created new local chat ${currentChatIdForOperation} with encrypted draft. Version: ${userDraft.draft_v}. Updated lastSavedContentMarkdown.`);
         } catch (error) {
             console.error(`[DraftService] Error creating new chat for draft:`, error);
             // If chat creation fails, we can't save the draft
-            draftEditorUIState.update(s => ({ ...s, hasUnsavedChanges: true }));
+            draftEditorUIState.update(s => ({ ...s, hasUnsavedChanges: true, isSaveInProgress: false }));
             return;
         }
     } else {
@@ -596,32 +608,51 @@ export const saveDraftDebounced = debounce(async (chatIdFromMessageInput?: strin
                 existingChat = await chatDB.getChat(currentChatIdForOperation);
             } catch (error) {
                 console.error(`[DraftService] Error during database lookup for chat ${currentChatIdForOperation}:`, error);
-                draftEditorUIState.update(s => ({ ...s, hasUnsavedChanges: true }));
+                draftEditorUIState.update(s => ({ ...s, hasUnsavedChanges: true, isSaveInProgress: false }));
                 return;
             }
         }
         
         if (!existingChat) {
-            // Chat doesn't exist in local database - create a new one
-            // CRITICAL: Don't create incognito chats from drafts - they're created on message send
-            console.info(`[DraftService] Chat ${currentChatIdForOperation} not found in local DB. Creating new chat with draft.`);
+            // CRITICAL FIX: Chat ID exists in state but not in IndexedDB
+            // This can happen after login when state is restored but DB is cleared
+            // Instead of creating a new chat with a DIFFERENT random UUID (which causes duplicate chats),
+            // create a chat using the EXISTING ID from state
+            console.warn(`[DraftService] Chat ${currentChatIdForOperation} not found in local DB. Creating chat with the SAME ID to prevent duplicates.`);
             try {
-                // Create regular chat in IndexedDB (incognito chats are created on message send, not draft save)
-                const newChat = await chatDB.createNewChatWithCurrentUserDraft(encryptedMarkdown, encryptedPreview);
-                currentChatIdForOperation = newChat.chat_id; // Update to use the new chat ID
-                userDraft = newChat;
+                // Create a chat object with the EXISTING ID (not a new random UUID)
+                const nowTimestamp = Math.floor(Date.now() / 1000);
+                const chatToCreate: Chat = {
+                    chat_id: currentChatIdForOperation, // USE THE EXISTING ID!
+                    encrypted_title: null,
+                    messages_v: 0,
+                    title_v: 0,
+                    draft_v: 1,
+                    encrypted_draft_md: encryptedMarkdown,
+                    encrypted_draft_preview: encryptedPreview,
+                    last_edited_overall_timestamp: nowTimestamp,
+                    unread_count: 0,
+                    created_at: nowTimestamp,
+                    updated_at: nowTimestamp,
+                };
+                
+                // Save directly to IndexedDB using addChat (not createNewChatWithCurrentUserDraft which generates a new UUID)
+                await chatDB.addChat(chatToCreate);
+                userDraft = chatToCreate;
+                
                 draftEditorUIState.update(s => ({
                     ...s,
-                    currentChatId: currentChatIdForOperation, // Update to the new chat ID
+                    // Keep the same currentChatId - DO NOT change it
                     currentUserDraftVersion: userDraft.draft_v,
-                    newlyCreatedChatIdToSelect: currentChatIdForOperation, // Signal UI to select this new chat
+                    newlyCreatedChatIdToSelect: currentChatIdForOperation, // Signal UI to select this chat
                     hasUnsavedChanges: false,
-                    lastSavedContentMarkdown: contentMarkdown, // Store cleartext markdown for comparison
+                    lastSavedContentMarkdown: contentMarkdown,
+                    isSaveInProgress: false, // Release lock on success
                 }));
-                console.info(`[DraftService] Created new local chat ${currentChatIdForOperation} with encrypted draft. Version: ${userDraft.draft_v}. Updated lastSavedContentMarkdown.`);
+                console.info(`[DraftService] Created chat ${currentChatIdForOperation} (using existing ID) with encrypted draft. Version: ${userDraft.draft_v}`);
             } catch (error) {
-                console.error(`[DraftService] Error creating new chat for non-existent chat ${currentChatIdForOperation}:`, error);
-                draftEditorUIState.update(s => ({ ...s, hasUnsavedChanges: true }));
+                console.error(`[DraftService] Error creating chat with existing ID ${currentChatIdForOperation}:`, error);
+                draftEditorUIState.update(s => ({ ...s, hasUnsavedChanges: true, isSaveInProgress: false }));
                 return;
             }
         } else {
@@ -633,7 +664,8 @@ export const saveDraftDebounced = debounce(async (chatIdFromMessageInput?: strin
                 draftEditorUIState.update(s => ({
                     ...s,
                     hasUnsavedChanges: false,
-                    lastSavedContentMarkdown: contentMarkdown
+                    lastSavedContentMarkdown: contentMarkdown,
+                    isSaveInProgress: false, // Release lock
                 }));
                 return;
             }
@@ -649,11 +681,12 @@ export const saveDraftDebounced = debounce(async (chatIdFromMessageInput?: strin
                     currentUserDraftVersion: userDraft.draft_v,
                     hasUnsavedChanges: false,
                     lastSavedContentMarkdown: contentMarkdown, // Store cleartext markdown for comparison
+                    isSaveInProgress: false, // Release lock on success
                 }));
                 console.info(`[DraftService] Saved encrypted draft locally for chat ${currentChatIdForOperation}, new version: ${userDraft.draft_v}. Updated lastSavedContentMarkdown.`);
             } else {
                 console.error(`[DraftService] Failed to save draft locally for chat ${currentChatIdForOperation}.`);
-                draftEditorUIState.update(s => ({ ...s, hasUnsavedChanges: true }));
+                draftEditorUIState.update(s => ({ ...s, hasUnsavedChanges: true, isSaveInProgress: false }));
                 return; // Stop if local save failed
             }
         }
@@ -661,7 +694,7 @@ export const saveDraftDebounced = debounce(async (chatIdFromMessageInput?: strin
 
     if (!userDraft || !currentChatIdForOperation) {
         console.error("[DraftService] Critical error: UserDraft object or ID is null after local save attempt.");
-        draftEditorUIState.update(s => ({ ...s, hasUnsavedChanges: true }));
+        draftEditorUIState.update(s => ({ ...s, hasUnsavedChanges: true, isSaveInProgress: false }));
         return;
     }
 
@@ -683,7 +716,7 @@ export const saveDraftDebounced = debounce(async (chatIdFromMessageInput?: strin
             console.info(`[DraftService] Successfully sent encrypted draft to server for chat ${currentChatIdForOperation}.`);
         } catch (wsError) {
             console.error(`[DraftService] Error sending draft update via WS for chat ${currentChatIdForOperation}:`, wsError);
-            draftEditorUIState.update(s => ({ ...s, hasUnsavedChanges: true }));
+            draftEditorUIState.update(s => ({ ...s, hasUnsavedChanges: true, isSaveInProgress: false }));
         }
     } else {
         console.info(`[DraftService] WebSocket status is '${wsStatus.status}', not 'connected'. Queuing draft update for chat ${currentChatIdForOperation}.`);
@@ -694,7 +727,11 @@ export const saveDraftDebounced = debounce(async (chatIdFromMessageInput?: strin
             version_before_edit: versionBeforeSave,
         };
         await chatSyncService.queueOfflineChange(offlineChange);
-        draftEditorUIState.update(s => ({ ...s, hasUnsavedChanges: true }));
+        draftEditorUIState.update(s => ({ ...s, hasUnsavedChanges: true, isSaveInProgress: false }));
+    }
+    } finally {
+        // CRITICAL: Ensure save lock is always released, even if an unexpected error occurs
+        draftEditorUIState.update(s => ({ ...s, isSaveInProgress: false }));
     }
 }, 1200);
 

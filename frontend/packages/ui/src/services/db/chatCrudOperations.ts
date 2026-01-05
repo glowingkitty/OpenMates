@@ -707,17 +707,22 @@ export async function saveCurrentUserChatDraft(
 
 /**
  * Create a new chat with a draft
+ * NOTE: This function generates a NEW random UUID for the chat.
+ * If you need to create a chat with a specific ID, use addChat() directly instead.
  */
 export async function createNewChatWithCurrentUserDraft(
     dbInstance: ChatDatabaseInstance,
     draft_content: string,
     draft_preview: string | null = null
 ): Promise<Chat> {
+    // Log stack trace to help debug duplicate chat creation issues
     console.debug(`[ChatDatabase] createNewChatWithCurrentUserDraft called with draft_content length: ${draft_content?.length}, draft_preview length: ${draft_preview?.length}`);
+    console.debug('[ChatDatabase] createNewChatWithCurrentUserDraft caller stack:', new Error().stack?.split('\n').slice(1, 5).join('\n'));
+    
     await dbInstance.init();
     const nowTimestamp = Math.floor(Date.now() / 1000);
     const newChatId = crypto.randomUUID();
-    console.debug(`[ChatDatabase] Creating new chat ${newChatId} with current user's draft`);
+    console.info(`[ChatDatabase] Creating NEW chat ${newChatId} with current user's draft (generates random UUID)`);
 
     const chatToCreate: Chat = {
         chat_id: newChatId,

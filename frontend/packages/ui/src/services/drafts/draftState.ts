@@ -9,6 +9,7 @@ export const initialDraftEditorState: DraftEditorState = {
 	newlyCreatedChatIdToSelect: null,
 	lastSavedContentMarkdown: null, // Stores the cleartext markdown of the last successfully saved draft
 	isSwitchingContext: false, // Flag to prevent draft deletion during context switching
+	isSaveInProgress: false, // Lock to prevent concurrent draft saves from creating duplicate chats
 };
 
 export const draftEditorUIState = writable<DraftEditorState>(initialDraftEditorState); // Renamed for clarity
