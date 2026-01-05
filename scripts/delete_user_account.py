@@ -247,7 +247,7 @@ def print_preview(user_data: dict, preview: dict):
     print("\n" + "-" * 60)
     print("REFUND POLICY:")
     print("-" * 60)
-    print("  • Eligible purchases from last 14 days will be refunded")
+    print("  • All unused credits will be refunded")
     print("  • Credits from gift card redemptions are NOT refunded")
     
     print("\n" + "=" * 60)

@@ -14,20 +14,18 @@ This document describes the architecture for user account deletion, including th
 
 **Before showing deletion form, fetch deletion preview**:
 - Call `GET /api/v1/settings/delete-account-preview` to get:
-  - Credits older than 14 days (if any exist)
-  - Auto-refund information (eligible purchases from last 14 days)
-  - Gift card purchases that will be deleted
+  - Total credits and refundable credits
+  - Credits from gift card redemptions (not refundable)
+  - Auto-refund information (eligible invoices)
 
 **Display Logic**:
-- **Credits Loss Warning**: Only show if `credits_older_than_14_days > 0`
-  - Display: "You will lose {count} credits that are older than 14 days"
-  - Show confirmation toggle: "I understand that I will lose {count} credits older than 14 days"
-- **Auto-Refund Information**: Show if any eligible refunds exist
+- **Auto-Refund Information**: Show if any refundable credits exist
   - Display summary of refunds that will be processed:
     - Number of invoices eligible for refund
     - Total refund amount (in currency)
     - Total unused credits to be refunded
-    - Gift card purchases that will be deleted (cannot be refunded once used)
+- **Gift Card Credits Notice**: Show if user has credits from gift card redemptions
+  - Display: "You have {count} credits from gift card redemptions that cannot be refunded"
 - **Data Deletion Warning**: Always show
   - Confirmation toggle: "I understand that all my data will be permanently deleted and cannot be recovered, including chats, embeds, uploaded files, settings, memories, etc."
 
@@ -36,8 +34,7 @@ This document describes the architecture for user account deletion, including th
 **Requirements**:
 - User must authenticate again before deletion (passkey or 2FA OTP, depending on what they have set up)
 - User must confirm required toggles:
-  1. **Loss of Credits** (conditional): Only required if `credits_older_than_14_days > 0`
-  2. **Data Deletion**: Always required
+  1. **Data Deletion**: Always required
 
 ### 3. Immediate Response
 
@@ -96,8 +93,8 @@ The actual deletion happens via Celery task to avoid blocking the user response.
    - Delete Stripe customer (`stripe_customer_id`) if exists
    - Note: Payment methods are encrypted; Stripe-side cleanup may be needed
 
-9. **Auto-Refund Processing** (Purchases from last 14 days)
-   - Find all invoices from last 14 days (`date >= now() - 14 days`)
+9. **Auto-Refund Processing** (All unused credits)
+   - Find all invoices for the user
    - For each eligible invoice:
      - Check if refund is valid:
        - Invoice is not already refunded (`refunded_at` is null)
@@ -109,7 +106,7 @@ The actual deletion happens via Celery task to avoid blocking the user response.
        - Update invoice with `refunded_at`, `encrypted_refunded_credits`, `encrypted_refund_amount`, `refund_status = "completed"`
        - Log refund via `ComplianceService.log_refund_request()`
        - Update user credits (subtract refunded credits)
-   - **Note**: Credits from purchases older than 14 days are NOT refunded and will be lost
+   - **Policy**: All unused credits are refunded EXCEPT credits from gift card redemptions
 
 10. **Gift Cards**
     - Delete purchased gift cards (`gift_cards` where `purchaser_user_id_hash` matches user)
@@ -181,7 +178,7 @@ def delete_user_account_task(
     reason: str = "User requested account deletion",
     ip_address: str = None,
     device_fingerprint: str = None,
-    refund_invoices: bool = True  # Auto-refund purchases from last 14 days
+    refund_invoices: bool = True  # Auto-refund all unused credits (except gift card credits)
 ):
     """
     Asynchronously delete user account and all associated data.
@@ -199,7 +196,7 @@ def delete_user_account_task(
         reason: Reason for deletion
         ip_address: IP address of deletion request
         device_fingerprint: Device fingerprint of deletion request
-        refund_invoices: Whether to auto-refund eligible purchases from last 14 days
+        refund_invoices: Whether to auto-refund all unused credits (except gift card credits)
     """
     # Implementation follows priority order above
     pass
@@ -246,14 +243,14 @@ def delete_user_account_task(
 ```
 
 **Calculation Logic**:
-1. **Credits Older Than 14 Days**:
-   - Get all invoices older than 14 days (`date < now() - 14 days`)
+1. **Refundable Credits**:
+   - Get all invoices for the user
    - For each invoice, calculate unused credits: `total_credits - used_credits`
-   - Sum all unused credits from invoices older than 14 days
-   - Note: Only credits from purchases older than 14 days are lost (credits from recent purchases are refunded)
+   - Sum all unused credits (excluding gift card redemptions)
+   - All unused credits are refunded
 
 2. **Auto-Refund Eligibility**:
-   - Find all invoices from last 14 days (`date >= now() - 14 days`)
+   - Find all invoices for the user
    - For each invoice:
      - Check if already refunded (`refunded_at` is null)
      - Check if not a gift card purchase (`is_gift_card` is false)
@@ -261,10 +258,11 @@ def delete_user_account_task(
      - If unused credits > 0, calculate refund amount
    - Sum total refund amounts and unused credits
 
-3. **Gift Card Purchases**:
+3. **Gift Card Credits**:
+   - Credits from gift card redemptions are NOT refundable
    - Find all gift cards purchased by user (`purchaser_user_id_hash` matches)
-   - Check if each gift card is redeemed
-   - Note: Unredeemed gift cards will be deleted (cannot be refunded once used)
+   - Purchased gift cards will be deleted
+   - Note: Gift card credits cannot be refunded
 
 #### POST `/api/v1/settings/delete-account`
 
@@ -290,7 +288,6 @@ def delete_user_account_task(
 1. Validate authentication (passkey or 2FA OTP)
 2. Validate required confirmation toggles:
    - `confirm_data_deletion` must be `true` (always required)
-   - `confirm_credits_loss` must be `true` only if user has credits older than 14 days
 3. Trigger Celery task with deletion details
 4. Logout user immediately
 5. Return success response
@@ -305,30 +302,27 @@ When account deletion is initiated:
 
 ### Credits Calculation Logic
 
-**Credits Older Than 14 Days**:
-- Purpose: Identify credits that will be lost (not eligible for refund)
+**Refundable Credits**:
+- Purpose: Identify credits that will be refunded
+- Policy: All unused credits are refunded EXCEPT credits from gift card redemptions
 - Calculation:
-  1. Get all invoices older than 14 days (`date < now() - 14 days`)
-  2. For each invoice:
+  1. Get all invoices for the user
+  2. For each invoice (excluding gift card purchases):
      - Decrypt `encrypted_credits_purchased` to get `total_credits`
      - Get all usage entries created after invoice date
      - Sum credits from usage entries to get `used_credits`
      - Calculate `unused_credits = total_credits - used_credits`
-  3. Sum all `unused_credits` from invoices older than 14 days
-- Display: Only show warning if `credits_older_than_14_days > 0`
-- Example: If user has 5,000 unused credits from a purchase 20 days ago, they will lose those credits
+  3. Sum all `unused_credits` from eligible invoices
+- Display: Show total refundable amount
 
 **Current Credit Balance**:
 - The user's current credit balance includes:
-  - Credits from purchases older than 14 days (will be lost)
-  - Credits from purchases within 14 days (will be refunded if unused)
+  - Credits from purchases (will be refunded if unused)
   - Credits from gift card redemptions (cannot be refunded)
-  - Credits from subscription renewals (cannot be refunded)
 
 ### Auto-Refund Logic
 
 **Eligibility Criteria**:
-- Invoice date is within last 14 days (`date >= now() - 14 days`)
 - Invoice is not already refunded (`refunded_at` is null)
 - Invoice is not a gift card purchase (`is_gift_card` is false)
 - Invoice has unused credits (calculated: `total_credits - used_credits`)
@@ -345,10 +339,10 @@ When account deletion is initiated:
 4. Log refund via `ComplianceService.log_refund_request()`
 5. Generate credit note PDF (if applicable)
 
-**Gift Card Purchases**:
-- Gift cards purchased within 14 days cannot be refunded once used/redeemed
-- Unredeemed gift cards will be deleted (cannot be refunded)
-- Display information about gift card purchases that will be deleted
+**Gift Card Credits**:
+- Credits from gift card redemptions cannot be refunded
+- Purchased gift cards will be deleted
+- Display information about gift card credits that cannot be refunded
 
 ### Error Handling
 
@@ -405,6 +399,52 @@ When account deletion is initiated:
 ### Compliance
 - [ ] Log account deletion via `ComplianceService.log_account_deletion()`
 
+## Admin-Initiated Deletion
+
+For administrative purposes, user accounts can also be deleted via the admin helper script located at `scripts/delete_user_account.py`.
+
+### Admin Script Usage
+
+```bash
+# Must be run from within a Docker container with access to backend services
+
+# Dry-run (preview only):
+docker compose exec backend python scripts/delete_user_account.py --email user@example.com --dry-run
+
+# Delete with confirmation prompt:
+docker compose exec backend python scripts/delete_user_account.py --email user@example.com
+
+# Delete without confirmation (scripted use):
+docker compose exec backend python scripts/delete_user_account.py --email user@example.com --yes
+
+# For policy violations:
+docker compose exec backend python scripts/delete_user_account.py --email user@example.com \
+    --deletion-type policy_violation \
+    --reason "Terms of service violation"
+```
+
+### Admin Script Flow
+
+1. **Email Hashing**: Email is hashed using Vault HMAC (same as user authentication)
+2. **User Lookup**: User is found by `hashed_email` (privacy-preserving)
+3. **Preview Generation**: Shows passkey count, API key count, chat count
+4. **Confirmation**: Requires typing "DELETE" (unless `--yes` flag is used)
+5. **Task Trigger**: Triggers the same `delete_user_account` Celery task as user-initiated deletion
+
+### Admin Deletion Types
+
+- `admin_action` (default): Admin-initiated deletion
+- `policy_violation`: User violated terms of service
+- `user_requested`: Admin acting on user's behalf (e.g., support request)
+
+### Compliance Logging
+
+Admin-initiated deletions are logged with:
+- `ip_address`: "admin_script"
+- `device_fingerprint`: "admin_cli"
+- `deletion_type`: As specified (default: "admin_action")
+- `reason`: As specified (default: "Admin-initiated account deletion")
+
 ## Security Considerations
 
 1. **Authentication Validation**: User must re-authenticate before deletion (prevents unauthorized deletion)
@@ -412,6 +452,7 @@ When account deletion is initiated:
 3. **Priority Deletion**: Authentication data deleted first (prevents re-login during deletion)
 4. **Device Logout**: All devices logged out immediately (prevents continued access)
 5. **Compliance Logging**: All deletions logged for audit purposes
+6. **Admin Script Security**: Admin script requires Docker container access and explicit confirmation
 
 ## Future Enhancements
 
