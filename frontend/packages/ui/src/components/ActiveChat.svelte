@@ -27,7 +27,7 @@
     import VideoTranscriptEmbedFullscreen from './embeds/videos/VideoTranscriptEmbedFullscreen.svelte';
     import WebReadEmbedFullscreen from './embeds/web/WebReadEmbedFullscreen.svelte';
     import WebsiteEmbedFullscreen from './embeds/web/WebsiteEmbedFullscreen.svelte';
-    import { userProfile, loadUserProfileFromDB } from '../stores/userProfile';
+    import { userProfile } from '../stores/userProfile';
     import { 
         isInSignupProcess, 
         currentSignupStep, 
@@ -45,8 +45,8 @@
         STEP_TFA_APP_REMINDER,
         STEP_CREDITS,
         STEP_PAYMENT,
-        STEP_AUTO_TOP_UP,
-        STEP_COMPLETION
+        STEP_AUTO_TOP_UP
+        // Note: STEP_COMPLETION is not imported as it's not a visible step - users go directly to the app after auto top-up
     } from '../stores/signupState';
     import { signupStore } from '../stores/signupStore';
     import SignupStatusbar from './signup/SignupStatusbar.svelte';
@@ -63,13 +63,13 @@
     import { activeEmbedStore } from '../stores/activeEmbedStore'; // For managing embed URL hash
     import { settingsDeepLink } from '../stores/settingsDeepLinkStore'; // For opening settings to specific page (share)
     import { settingsMenuVisible } from '../components/Settings.svelte'; // Import settingsMenuVisible store to control Settings visibility
-    import { videoIframeStore, type VideoIframeState } from '../stores/videoIframeStore'; // For standalone VideoIframe component with CSS-based PiP
+    import { videoIframeStore } from '../stores/videoIframeStore'; // For standalone VideoIframe component with CSS-based PiP
     import { DEMO_CHATS, LEGAL_CHATS, getDemoMessages, isPublicChat, translateDemoChat } from '../demo_chats'; // Import demo chat utilities
     import { convertDemoChatToChat } from '../demo_chats/convertToChat'; // Import conversion function
     import { incognitoChatService } from '../services/incognitoChatService'; // Import incognito chat service
     import { incognitoMode } from '../stores/incognitoModeStore'; // Import incognito mode store
     import { isDesktop } from '../utils/platform'; // Import desktop detection for conditional auto-focus
-    import { waitLocale, locale } from 'svelte-i18n'; // Import waitLocale and locale for waiting for translations to load
+    import { waitLocale } from 'svelte-i18n'; // Import waitLocale for waiting for translations to load
     import { get } from 'svelte/store'; // Import get to read store values
     
     const dispatch = createEventDispatcher();
@@ -440,7 +440,7 @@
                     // Clean up on error
                     try {
                         sessionStorage.removeItem('pendingDraftAfterSignup');
-                    } catch (e) {
+                    } catch {
                         // Ignore cleanup errors
                     }
                 }
@@ -985,6 +985,14 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     let isMedium = $derived(containerWidth > 730 && containerWidth <= 1099);
     let isWide = $derived(containerWidth > 1099 && containerWidth <= 1700);
     let isExtraWide = $derived(containerWidth > 1700);
+    
+    // Ultra-wide mode: When container is > 1300px, show fullscreen embeds side-by-side with chat
+    // instead of as overlays. This provides a better experience on large displays.
+    let isUltraWide = $derived(containerWidth > 1300);
+    
+    // Determine if we should use side-by-side layout for fullscreen embeds
+    // Only use side-by-side when ultra-wide AND an embed fullscreen is open
+    let showSideBySideFullscreen = $derived(isUltraWide && showEmbedFullscreen && embedFullscreenData);
 
     // Debug suggestions visibility
     $effect(() => {
@@ -1186,7 +1194,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
     // Convert plain text to Tiptap JSON for UI rendering only
     // CRITICAL: This is only for UI display, never stored in database
-    function plainTextToTiptapJson(text: string): TiptapJSON {
+    // Prefixed with underscore as currently unused but kept for potential future use
+    function _plainTextToTiptapJson(text: string): TiptapJSON {
         return {
             type: 'doc',
             content: [
@@ -1358,8 +1367,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     if (incognitoChat) {
                         isIncognitoChat = true;
                     }
-                } catch (error) {
-                    // Not an incognito chat
+                } catch {
+                    // Not an incognito chat - silently ignore
                 }
                 
                 if (isIncognitoChat) {
@@ -1479,8 +1488,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                 if (incognitoChat) {
                                     isIncognitoChat = true;
                                 }
-                            } catch (error) {
-                                // Not an incognito chat
+                            } catch {
+                                // Not an incognito chat - silently ignore
                             }
 
                             if (isIncognitoChat) {
@@ -1512,8 +1521,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         if (incognitoChat) {
                             isIncognitoChat = true;
                         }
-                    } catch (error) {
-                        // Not an incognito chat
+                    } catch {
+                        // Not an incognito chat - silently ignore
                     }
                     
                     if (isIncognitoChat) {
@@ -1995,7 +2004,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         // Removed the messages_v based reload from DB here. Updates should come from explicit message data in events.
     }
 
-    async function loadMessagesForCurrentChat() {
+    // Prefixed with underscore as currently unused but kept for potential future use
+    async function _loadMessagesForCurrentChat() {
         if (currentChat?.chat_id) {
             console.debug(`[ActiveChat] Reloading messages for chat: ${currentChat.chat_id}`);
             currentMessages = await chatDB.getMessagesForChat(currentChat.chat_id);
@@ -3472,9 +3482,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             in:fade={{ duration: 300 }} 
             out:fade={{ duration: 200 }}
             class="content-container"
+            class:side-by-side={showSideBySideFullscreen}
         >
             <!-- Main content wrapper that will handle the fullscreen layout -->
-            <div class="chat-wrapper" class:fullscreen={isFullscreen}>
+            <!-- When side-by-side mode is active, chat takes left portion -->
+            <div class="chat-wrapper" class:fullscreen={isFullscreen} class:side-by-side-chat={showSideBySideFullscreen}>
                 <!-- Incognito mode banner - shows for incognito chats or new chats when incognito mode is active -->
                 {#if currentChat?.is_incognito || (showWelcome && $incognitoMode)}
                     <div class="incognito-banner">
@@ -3670,9 +3682,14 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             {/if}
             
             <!-- Embed fullscreen view (app-skill-use, website, etc.) -->
-            <!-- DEBUG: Check if condition is met -->
+            <!-- Container switches between overlay mode (default) and side panel mode (ultra-wide screens) -->
+            <!-- Side-by-side mode shows embed next to chat for better large display usage -->
             {#if showEmbedFullscreen && embedFullscreenData}
-                <!-- DEBUG: Template block is rendering -->
+                <div 
+                    class="fullscreen-embed-container"
+                    class:side-panel={showSideBySideFullscreen}
+                    class:overlay-mode={!showSideBySideFullscreen}
+                >
                 {#if embedFullscreenData.embedType === 'app-skill-use'}
                     {@const skillId = embedFullscreenData.decodedContent?.skill_id || ''}
                     {@const appId = embedFullscreenData.decodedContent?.app_id || ''}
@@ -3820,6 +3837,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         </div>
                     </div>
                 {/if}
+                </div>
             {/if}
             
             <!-- 
@@ -3917,6 +3935,97 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         display: flex;
         flex-direction: column;
         height: 100%;
+        position: relative;
+    }
+    
+    /* ===========================================
+       Side-by-Side Layout for Ultra-Wide Screens (>1300px)
+       Shows embed fullscreen next to chat instead of overlay
+       =========================================== */
+    
+    /* When side-by-side mode is active, content-container uses row layout */
+    .content-container.side-by-side {
+        flex-direction: row;
+        gap: 0; /* No gap - divider provides visual separation */
+    }
+    
+    /* Chat wrapper shrinks to make room for side panel - limited to 400px for maximum fullscreen space */
+    .chat-wrapper.side-by-side-chat {
+        flex: 0 0 400px;
+        max-width: 400px;
+        min-width: 400px; /* Fixed width for consistent layout */
+        position: relative;
+        border-right: 1px solid var(--color-grey-30); /* Visual separator */
+        transition: flex 0.4s cubic-bezier(0.4, 0, 0.2, 1), 
+                    max-width 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+                    min-width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    
+    /* Fullscreen embed container - handles both overlay and side panel modes */
+    .fullscreen-embed-container {
+        position: relative;
+        height: 100%;
+    }
+    
+    /* Overlay mode (default): Absolute positioning over everything */
+    .fullscreen-embed-container.overlay-mode {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 100;
+    }
+    
+    /* Side panel mode: Flex child taking remaining space */
+    .fullscreen-embed-container.side-panel {
+        flex: 1;
+        min-width: 0;
+        position: relative;
+        z-index: 1;
+        /* Smooth transition when appearing/disappearing */
+        animation: slideInFromRight 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    
+    /* Animation for side panel appearing */
+    @keyframes slideInFromRight {
+        from {
+            opacity: 0;
+            transform: translateX(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateX(0);
+        }
+    }
+    
+    /* Override UnifiedEmbedFullscreen overlay styles when in side panel mode */
+    /* The :global is needed because the overlay class is in the child component */
+    .fullscreen-embed-container.side-panel :global(.unified-embed-fullscreen-overlay) {
+        position: relative;
+        top: auto;
+        left: auto;
+        right: auto;
+        bottom: auto;
+        height: 100%;
+        border-radius: 0;
+        box-shadow: none;
+        transform: none !important; /* Override animation transforms */
+        opacity: 1 !important;
+        /* Remove the opening animation since we have slide-in on container */
+    }
+    
+    /* In side-panel mode, the fullscreen should use all available space */
+    .fullscreen-embed-container.side-panel :global(.unified-embed-fullscreen-overlay.animating-in) {
+        transform: none !important;
+    }
+    
+    /* Adjust border-radius for side panel mode - only round right corners */
+    .fullscreen-embed-container.side-panel :global(.unified-embed-fullscreen-overlay) {
+        border-top-left-radius: 0;
+        border-bottom-left-radius: 0;
+        border-top-right-radius: 17px;
+        border-bottom-right-radius: 17px;
     }
 
     .center-content {
