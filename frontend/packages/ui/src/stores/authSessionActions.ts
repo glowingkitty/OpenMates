@@ -199,6 +199,15 @@ export async function checkAuth(deviceSignals?: Record<string, string | null>, f
                 return false;
             }
 
+            // CRITICAL FIX: Reset forcedLogoutInProgress flag when authentication succeeds with valid master key
+            // This handles the race condition where the flag was set (e.g., during page load detecting
+            // "profile exists but no master key") but the user then successfully authenticates.
+            // Without this reset, the flag stays true and causes getChat() to return null for encrypted chats.
+            if (get(forcedLogoutInProgress)) {
+                console.debug("[AuthSessionActions] Resetting forcedLogoutInProgress to false - auth succeeded with valid master key");
+                forcedLogoutInProgress.set(false);
+            }
+
             needsDeviceVerification.set(false);
             
             // CRITICAL: Check URL hash directly - hash takes absolute precedence over everything

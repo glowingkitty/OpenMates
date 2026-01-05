@@ -555,6 +555,15 @@
 		if (hasLocalAuthData) {
 			// User has local data - optimistically set as authenticated
 			console.debug('[+page.svelte] ✅ Local auth data found - setting optimistic auth state BEFORE deep link processing');
+			
+			// CRITICAL FIX: Reset forcedLogoutInProgress if it was set but auth data is now valid
+			// This handles race conditions where the flag was set during a previous load cycle
+			// but the user has since logged in (e.g., in another tab)
+			if (get(forcedLogoutInProgress)) {
+				console.debug('[+page.svelte] Resetting forcedLogoutInProgress to false - valid auth data found');
+				forcedLogoutInProgress.set(false);
+			}
+			
 			authStore.update(state => ({
 				...state,
 				isAuthenticated: true,
