@@ -12,10 +12,16 @@
   
   Child embeds are automatically loaded by UnifiedEmbedFullscreen from embedIds prop.
   
-  Website Fullscreen Navigation:
-  - When a website result is clicked, shows WebsiteEmbedFullscreen with full details
-  - When WebsiteEmbedFullscreen is closed (minimized), returns to this search results view
-  - Provides seamless navigation between search results and individual website details
+  Website Fullscreen Navigation (Overlay Pattern):
+  - Search results grid is ALWAYS rendered (base layer)
+  - When a website result is clicked, WebsiteEmbedFullscreen renders as an OVERLAY on top
+  - When WebsiteEmbedFullscreen is closed, overlay is removed revealing search results beneath
+  
+  Benefits of overlay approach:
+  - No re-animation when returning to search results (they're already rendered beneath)
+  - No re-loading of child embeds
+  - Scroll position is preserved on search results
+  - Instant "close" transition since search results are always visible
   
   Supports both contexts:
   - Embed context: receives embedIds for child embed loading
@@ -25,6 +31,7 @@
 
 <script lang="ts">
   import UnifiedEmbedFullscreen, { type ChildEmbedContext } from '../UnifiedEmbedFullscreen.svelte';
+  import ChildEmbedOverlay from '../ChildEmbedOverlay.svelte';
   import WebsiteEmbedPreview from './WebsiteEmbedPreview.svelte';
   import WebsiteEmbedFullscreen from './WebsiteEmbedFullscreen.svelte';
   import { text } from '@repo/ui';
@@ -242,84 +249,92 @@
 </script>
 
 <!-- 
-  Conditional rendering:
-  - If a website is selected, show WebsiteEmbedFullscreen with full details
-  - Otherwise, show the search results grid via UnifiedEmbedFullscreen
+  Overlay-based rendering approach for smooth transitions:
+  - WebSearchEmbedFullscreen (search results grid) is ALWAYS mounted
+  - WebsiteEmbedFullscreen renders as an OVERLAY on top when a website is selected
   
-  This provides seamless navigation between search results and website details
+  Benefits of this approach:
+  - No re-animation when returning to search results (already visible beneath)
+  - No re-loading of child embeds
+  - Scroll position is preserved on search results
+  - Instant "close" transition since search results are already there
 -->
-{#if selectedWebsite}
-  <!-- Website fullscreen view - shows selected website with full details -->
-  <WebsiteEmbedFullscreen
-    url={selectedWebsite.url}
-    title={selectedWebsite.title}
-    description={selectedWebsite.description || selectedWebsite.snippet}
-    favicon={selectedWebsite.favicon_url}
-    image={selectedWebsite.preview_image_url}
-    snippets={selectedWebsite.snippets}
-    onClose={handleWebsiteFullscreenClose}
-    embedId={selectedWebsite.embed_id}
-  />
-{:else}
-  <!-- Search results view - shows grid of website results -->
-  <!-- 
-    Pass skillName and showStatus to UnifiedEmbedFullscreen for consistent BasicInfosBar
-    that matches the embed preview (shows "Search" + "Completed", not the query)
+
+<!-- Search results view - ALWAYS rendered (base layer) -->
+<!-- 
+  Pass skillName and showStatus to UnifiedEmbedFullscreen for consistent BasicInfosBar
+  that matches the embed preview (shows "Search" + "Completed", not the query)
+  
+  Child embeds are loaded automatically via embedIds prop and passed to content snippet
+  The childEmbedTransformer converts raw embed data to WebSearchResult format
+-->
+<UnifiedEmbedFullscreen
+  appId="web"
+  skillId="search"
+  title=""
+  onClose={handleMainClose}
+  onShare={handleShare}
+  skillIconName="search"
+  status="finished"
+  {skillName}
+  showStatus={true}
+  {embedIds}
+  childEmbedTransformer={transformToWebResult}
+  legacyResults={legacyResults}
+>
+  {#snippet content(ctx)}
+    {@const webResults = getWebResults(ctx)}
     
-    Child embeds are loaded automatically via embedIds prop and passed to content snippet
-    The childEmbedTransformer converts raw embed data to WebSearchResult format
-  -->
-  <UnifiedEmbedFullscreen
-    appId="web"
-    skillId="search"
-    title=""
-    onClose={handleMainClose}
-    onShare={handleShare}
-    skillIconName="search"
-    status="finished"
-    {skillName}
-    showStatus={true}
-    {embedIds}
-    childEmbedTransformer={transformToWebResult}
-    legacyResults={legacyResults}
-  >
-    {#snippet content(ctx)}
-      {@const webResults = getWebResults(ctx)}
-      
-      <!-- Header with search query and provider - 60px top margin, 40px bottom margin -->
-      <div class="fullscreen-header">
-        <div class="search-query">{query}</div>
-        <div class="search-provider">{viaProvider}</div>
+    <!-- Header with search query and provider - 60px top margin, 40px bottom margin -->
+    <div class="fullscreen-header">
+      <div class="search-query">{query}</div>
+      <div class="search-provider">{viaProvider}</div>
+    </div>
+    
+    {#if ctx.isLoadingChildren}
+      <div class="loading-state">
+        <p>{$text('embeds.loading.text') || 'Loading...'}</p>
       </div>
-      
-      {#if ctx.isLoadingChildren}
-        <div class="loading-state">
-          <p>{$text('embeds.loading.text') || 'Loading...'}</p>
-        </div>
-      {:else if webResults.length === 0}
-        <div class="no-results">
-          <p>{$text('embeds.no_results.text') || 'No search results available.'}</p>
-        </div>
-      {:else}
-        <!-- Website embeds grid - responsive auto-fill columns -->
-        <div class="website-embeds-grid" class:mobile={isMobile}>
-          {#each webResults as result}
-            <WebsiteEmbedPreview
-              id={result.embed_id}
-              url={result.url}
-              title={result.title}
-              description={result.snippet}
-              favicon={result.favicon_url}
-              image={result.preview_image_url}
-              status="finished"
-              isMobile={false}
-              onFullscreen={() => handleWebsiteFullscreen(result)}
-            />
-          {/each}
-        </div>
-      {/if}
-    {/snippet}
-  </UnifiedEmbedFullscreen>
+    {:else if webResults.length === 0}
+      <div class="no-results">
+        <p>{$text('embeds.no_results.text') || 'No search results available.'}</p>
+      </div>
+    {:else}
+      <!-- Website embeds grid - responsive auto-fill columns -->
+      <div class="website-embeds-grid" class:mobile={isMobile}>
+        {#each webResults as result}
+          <WebsiteEmbedPreview
+            id={result.embed_id}
+            url={result.url}
+            title={result.title}
+            description={result.snippet}
+            favicon={result.favicon_url}
+            image={result.preview_image_url}
+            status="finished"
+            isMobile={false}
+            onFullscreen={() => handleWebsiteFullscreen(result)}
+          />
+        {/each}
+      </div>
+    {/if}
+  {/snippet}
+</UnifiedEmbedFullscreen>
+
+<!-- Website fullscreen overlay - rendered ON TOP when a website is selected -->
+<!-- Uses ChildEmbedOverlay for consistent overlay positioning across all search fullscreens -->
+{#if selectedWebsite}
+  <ChildEmbedOverlay>
+    <WebsiteEmbedFullscreen
+      url={selectedWebsite.url}
+      title={selectedWebsite.title}
+      description={selectedWebsite.description || selectedWebsite.snippet}
+      favicon={selectedWebsite.favicon_url}
+      image={selectedWebsite.preview_image_url}
+      snippets={selectedWebsite.snippets}
+      onClose={handleWebsiteFullscreenClose}
+      embedId={selectedWebsite.embed_id}
+    />
+  </ChildEmbedOverlay>
 {/if}
 
 <style>
