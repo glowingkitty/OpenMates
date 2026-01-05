@@ -57,6 +57,14 @@
     onClose: () => void;
     /** Optional: Embed ID for sharing (from embed:{embed_id} contentRef) */
     embedId?: string;
+    /** Whether there is a previous embed to navigate to */
+    hasPreviousEmbed?: boolean;
+    /** Whether there is a next embed to navigate to */
+    hasNextEmbed?: boolean;
+    /** Handler to navigate to the previous embed */
+    onNavigatePrevious?: () => void;
+    /** Handler to navigate to the next embed */
+    onNavigateNext?: () => void;
   }
   
   let {
@@ -65,7 +73,11 @@
     embedIds,
     results: resultsProp = [],
     onClose,
-    embedId
+    embedId,
+    hasPreviousEmbed = false,
+    hasNextEmbed = false,
+    onNavigatePrevious,
+    onNavigateNext
   }: Props = $props();
   
   // Determine if mobile layout
@@ -409,6 +421,10 @@
   {embedIds}
   childEmbedTransformer={transformToPlaceResult}
   legacyResults={resultsProp}
+  {hasPreviousEmbed}
+  {hasNextEmbed}
+  {onNavigatePrevious}
+  {onNavigateNext}
 >
   {#snippet content(ctx)}
     {@const placeResults = getPlaceResults(ctx)}

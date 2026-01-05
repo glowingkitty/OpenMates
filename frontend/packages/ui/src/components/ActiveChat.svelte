@@ -71,6 +71,8 @@
     import { isDesktop } from '../utils/platform'; // Import desktop detection for conditional auto-focus
     import { waitLocale } from 'svelte-i18n'; // Import waitLocale for waiting for translations to load
     import { get } from 'svelte/store'; // Import get to read store values
+    import { extractEmbedReferences } from '../services/embedResolver'; // Import for embed navigation
+    import { tipTapToCanonicalMarkdown } from '../message_parsing/serializers'; // Import for embed navigation
     
     const dispatch = createEventDispatcher();
     
@@ -717,6 +719,115 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             activeChatStore.setActiveChat(currentChat.chat_id);
             console.debug('[ActiveChat] Restored chat URL hash after closing embed:', currentChat.chat_id);
         }
+    }
+    
+    // ===========================================
+    // Embed Navigation Logic
+    // ===========================================
+    // Extracts embed IDs from chat messages and provides navigation between them
+    
+    /**
+     * Extract all embed IDs from messages in order of appearance
+     * This creates a flat list of all embeds that can be displayed in fullscreen
+     * @param messages - Array of chat messages
+     * @returns Array of embed IDs in order of appearance
+     */
+    function extractEmbedIdsFromMessages(messages: ChatMessageModel[]): string[] {
+        const embedIds: string[] = [];
+        
+        for (const message of messages) {
+            // Get message content as markdown string
+            let markdownContent = '';
+            if (typeof message.content === 'string') {
+                markdownContent = message.content;
+            } else if (message.content && typeof message.content === 'object') {
+                // Convert TipTap JSON to markdown to extract embed references
+                markdownContent = tipTapToCanonicalMarkdown(message.content);
+            }
+            
+            // Extract embed references from markdown content
+            const refs = extractEmbedReferences(markdownContent);
+            for (const ref of refs) {
+                // Avoid duplicates
+                if (!embedIds.includes(ref.embed_id)) {
+                    embedIds.push(ref.embed_id);
+                }
+            }
+        }
+        
+        return embedIds;
+    }
+    
+    // Derived list of all embed IDs in the current chat (in order of appearance)
+    // This updates whenever currentMessages changes
+    let chatEmbedIds = $derived(extractEmbedIdsFromMessages(currentMessages));
+    
+    // Derived current embed index - finds position of current embed in the chat's embed list
+    let currentEmbedIndex = $derived.by(() => {
+        if (!embedFullscreenData?.embedId || chatEmbedIds.length === 0) {
+            return -1;
+        }
+        return chatEmbedIds.indexOf(embedFullscreenData.embedId);
+    });
+    
+    // Derived navigation states
+    let hasPreviousEmbed = $derived(currentEmbedIndex > 0);
+    let hasNextEmbed = $derived(currentEmbedIndex >= 0 && currentEmbedIndex < chatEmbedIds.length - 1);
+    
+    /**
+     * Navigate to the previous embed in the chat
+     * Dispatches an embedfullscreen event with the previous embed's ID
+     */
+    async function handleNavigatePreviousEmbed() {
+        if (!hasPreviousEmbed) {
+            console.debug('[ActiveChat] No previous embed to navigate to');
+            return;
+        }
+        
+        const previousEmbedId = chatEmbedIds[currentEmbedIndex - 1];
+        console.debug('[ActiveChat] Navigating to previous embed:', previousEmbedId, 'from index', currentEmbedIndex, 'to', currentEmbedIndex - 1);
+        
+        // Create a synthetic embedfullscreen event to open the previous embed
+        // This reuses the existing handleEmbedFullscreen logic
+        const event = new CustomEvent('embedfullscreen', {
+            detail: {
+                embedId: previousEmbedId,
+                embedData: null, // Will be loaded from embedStore
+                decodedContent: null, // Will be loaded from embedStore
+                embedType: null, // Will be resolved from embed data
+                attrs: {}
+            }
+        });
+        
+        await handleEmbedFullscreen(event);
+    }
+    
+    /**
+     * Navigate to the next embed in the chat
+     * Dispatches an embedfullscreen event with the next embed's ID
+     */
+    async function handleNavigateNextEmbed() {
+        if (!hasNextEmbed) {
+            console.debug('[ActiveChat] No next embed to navigate to');
+            return;
+        }
+        
+        const nextEmbedId = chatEmbedIds[currentEmbedIndex + 1];
+        console.debug('[ActiveChat] Navigating to next embed:', nextEmbedId, 'from index', currentEmbedIndex, 'to', currentEmbedIndex + 1);
+        
+        // Create a synthetic embedfullscreen event to open the next embed
+        // This reuses the existing handleEmbedFullscreen logic
+        const event = new CustomEvent('embedfullscreen', {
+            detail: {
+                embedId: nextEmbedId,
+                embedData: null, // Will be loaded from embedStore
+                decodedContent: null, // Will be loaded from embedStore
+                embedType: null, // Will be resolved from embed data
+                attrs: {}
+            }
+        });
+        
+        await handleEmbedFullscreen(event);
     }
     
     // Reference to PiP container for moving iframe
@@ -3714,6 +3825,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             results={embedFullscreenData.decodedContent?.results || []}
                             embedId={embedFullscreenData.embedId}
                             onClose={handleCloseEmbedFullscreen}
+                            {hasPreviousEmbed}
+                            {hasNextEmbed}
+                            onNavigatePrevious={handleNavigatePreviousEmbed}
+                            onNavigateNext={handleNavigateNextEmbed}
                         />
                     {:else if appId === 'news' && skillId === 'search'}
                         <!-- News Search Fullscreen -->
@@ -3723,6 +3838,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             results={embedFullscreenData.decodedContent?.results || []}
                             embedId={embedFullscreenData.embedId}
                             onClose={handleCloseEmbedFullscreen}
+                            {hasPreviousEmbed}
+                            {hasNextEmbed}
+                            onNavigatePrevious={handleNavigatePreviousEmbed}
+                            onNavigateNext={handleNavigateNextEmbed}
                         />
                     {:else if appId === 'videos' && skillId === 'search'}
                         <!-- Videos Search Fullscreen -->
@@ -3732,6 +3851,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             results={embedFullscreenData.decodedContent?.results || []}
                             embedId={embedFullscreenData.embedId}
                             onClose={handleCloseEmbedFullscreen}
+                            {hasPreviousEmbed}
+                            {hasNextEmbed}
+                            onNavigatePrevious={handleNavigatePreviousEmbed}
+                            onNavigateNext={handleNavigateNextEmbed}
                         />
                     {:else if appId === 'maps' && skillId === 'search'}
                         <!-- Maps Search Fullscreen -->
@@ -3741,6 +3864,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             results={embedFullscreenData.decodedContent?.results || []}
                             embedId={embedFullscreenData.embedId}
                             onClose={handleCloseEmbedFullscreen}
+                            {hasPreviousEmbed}
+                            {hasNextEmbed}
+                            onNavigatePrevious={handleNavigatePreviousEmbed}
+                            onNavigateNext={handleNavigateNextEmbed}
                         />
                     {:else if appId === 'videos' && skillId === 'get_transcript'}
                         <!-- Video Transcript Fullscreen -->
@@ -3766,6 +3893,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             previewData={previewData}
                             embedId={embedFullscreenData.embedId}
                             onClose={handleCloseEmbedFullscreen}
+                            {hasPreviousEmbed}
+                            {hasNextEmbed}
+                            onNavigatePrevious={handleNavigatePreviousEmbed}
+                            onNavigateNext={handleNavigateNextEmbed}
                         />
                     {:else if appId === 'web' && skillId === 'read'}
                         <!-- Web Read Fullscreen -->
@@ -3778,6 +3909,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         <WebReadEmbedFullscreen 
                             previewData={previewData}
                             onClose={handleCloseEmbedFullscreen}
+                            {hasPreviousEmbed}
+                            {hasNextEmbed}
+                            onNavigatePrevious={handleNavigatePreviousEmbed}
+                            onNavigateNext={handleNavigateNextEmbed}
                         />
                     {:else}
                         <!-- Generic app skill fullscreen (fallback) -->
@@ -3799,11 +3934,15 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             description={embedFullscreenData.decodedContent?.description || embedFullscreenData.attrs?.description}
                             favicon={embedFullscreenData.decodedContent?.meta_url_favicon || embedFullscreenData.decodedContent?.favicon || embedFullscreenData.attrs?.favicon}
                             image={embedFullscreenData.decodedContent?.thumbnail_original || embedFullscreenData.decodedContent?.image || embedFullscreenData.attrs?.image}
-                            snippets={embedFullscreenData.decodedContent?.snippets}
+                            extra_snippets={embedFullscreenData.decodedContent?.extra_snippets}
                             meta_url_favicon={embedFullscreenData.decodedContent?.meta_url_favicon}
                             thumbnail_original={embedFullscreenData.decodedContent?.thumbnail_original}
                             embedId={embedFullscreenData.embedId}
                             onClose={handleCloseEmbedFullscreen}
+                            {hasPreviousEmbed}
+                            {hasNextEmbed}
+                            onNavigatePrevious={handleNavigatePreviousEmbed}
+                            onNavigateNext={handleNavigateNextEmbed}
                         />
                     {/if}
                 {:else if embedFullscreenData.embedType === 'code-code'}
@@ -3816,6 +3955,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             lineCount={embedFullscreenData.decodedContent?.lineCount || embedFullscreenData.attrs?.lineCount || 0}
                             embedId={embedFullscreenData.embedId}
                             onClose={handleCloseEmbedFullscreen}
+                            {hasPreviousEmbed}
+                            {hasNextEmbed}
+                            onNavigatePrevious={handleNavigatePreviousEmbed}
+                            onNavigateNext={handleNavigateNextEmbed}
                         />
                     {/if}
                 {:else if embedFullscreenData.embedType === 'videos-video'}
@@ -3835,6 +3978,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                 embedId={embedFullscreenData.embedId}
                                 restoreFromPip={restoreFromPip}
                                 onClose={handleCloseEmbedFullscreen}
+                                {hasPreviousEmbed}
+                                {hasNextEmbed}
+                                onNavigatePrevious={handleNavigatePreviousEmbed}
+                                onNavigateNext={handleNavigateNextEmbed}
                             />
                         {/await}
                     {/if}

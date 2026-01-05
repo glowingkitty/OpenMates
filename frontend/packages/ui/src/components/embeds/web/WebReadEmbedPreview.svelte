@@ -7,15 +7,28 @@
   Supports both contexts:
   - Skill preview context: receives previewData from skillPreviewService
   - Embed context: receives results directly
+  
+  Layout (per Figma design):
+  - Details section:
+    - Favicon (rounded, top-left of title)
+    - Title: page title or hostname
+    - Subtitle: "via Firecrawl: {wordCount} words"
+  - Basic infos bar:
+    - Web app icon (gradient circle)
+    - Text skill icon
+    - "Read" / "Completed" (or "Processing")
 -->
 
 <script lang="ts">
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
   import { chatSyncService } from '../../../services/chatSyncService';
   import type { BaseSkillPreviewData } from '../../../types/appSkills';
-  // @ts-ignore - @repo/ui module exists at runtime
+  // @ts-expect-error - @repo/ui module exists at runtime
   import { text } from '@repo/ui';
   
+  /**
+   * Web read result interface based on read_skill.py
+   */
   interface WebReadResult {
     type: string;
     url: string;
@@ -28,17 +41,31 @@
     hash?: string;
   }
   
+  /**
+   * Preview data interface for web read skill
+   */
   interface WebReadPreviewData extends BaseSkillPreviewData {
     results: WebReadResult[];
   }
   
+  /**
+   * Props for web read embed preview
+   * Supports both skill preview data format and direct embed format
+   */
   interface Props {
+    /** Unique embed ID */
     id: string;
+    /** Processing status */
     status?: 'processing' | 'finished' | 'error';
+    /** Web read results */
     results?: WebReadResult[];
+    /** Task ID for cancellation */
     taskId?: string;
+    /** Skill preview data (skill preview context) */
     previewData?: WebReadPreviewData;
+    /** Whether to use mobile layout */
     isMobile?: boolean;
+    /** Click handler for fullscreen */
     onFullscreen?: () => void;
   }
   
@@ -52,12 +79,18 @@
     onFullscreen
   }: Props = $props();
   
+  // Extract values from either previewData (skill preview context) or direct props (embed context)
   let status = $derived(previewData?.status || statusProp || 'processing');
   let results = $derived(previewData?.results || resultsProp || []);
   let taskId = $derived(previewData?.task_id || taskIdProp);
   
+  // Get first result for main display
   let firstResult = $derived(results[0]);
   
+  /**
+   * Safely extract hostname from URL
+   * Falls back to stripping the scheme if URL parsing fails
+   */
   function safeHostname(url?: string): string {
     if (!url) return '';
     try {
@@ -69,24 +102,53 @@
     }
   }
   
+  // Extract hostname from first result's URL
   let hostname = $derived(safeHostname(firstResult?.url));
-  let displayTitle = $derived(firstResult?.title || hostname || ($text('embeds.web_read.text') || 'Web Read'));
-  let pageCount = $derived(results.length);
   
-  // Prefer favicon from result for BasicInfosBar title favicon.
+  // Display title: page title or fallback to hostname
+  let displayTitle = $derived(
+    firstResult?.title || 
+    hostname || 
+    ($text('embeds.web_read.text') || 'Web Read')
+  );
+  
+  // Favicon URL for display (prefer result favicon)
   let faviconUrl = $derived(firstResult?.favicon || undefined);
   
-  let snippetText = $derived(() => {
-    const markdown = firstResult?.markdown || '';
-    if (!markdown) return '';
-    // First non-empty line as a tiny preview.
-    const firstNonEmptyLine = markdown.split('\n').map(l => l.trim()).find(Boolean) || '';
-    return firstNonEmptyLine.length > 140 ? `${firstNonEmptyLine.slice(0, 140)}…` : firstNonEmptyLine;
+  /**
+   * Calculate total word count across all results
+   * Word count is used in the "via Firecrawl: X words" subtitle
+   */
+  let totalWordCount = $derived(() => {
+    let count = 0;
+    for (const result of results) {
+      if (result.markdown) {
+        // Simple word count: split on whitespace and count non-empty strings
+        const words = result.markdown.trim().split(/\s+/).filter(Boolean);
+        count += words.length;
+      }
+    }
+    return count;
   });
   
-  const skillIconName = 'book';
-  let skillName = $derived($text('embeds.web_read.text') || 'Web Read');
+  // Subtitle text: "via Firecrawl: X words" (matches Figma design)
+  let subtitleText = $derived(() => {
+    const wordCount = totalWordCount();
+    if (wordCount > 0) {
+      return `via Firecrawl:\n${wordCount.toLocaleString()} words`;
+    }
+    return 'via Firecrawl';
+  });
   
+  // Skill icon name - "text" icon as per Figma design
+  const skillIconName = 'text';
+  
+  // Skill display name from translations
+  let skillName = $derived($text('embeds.web_read.text') || 'Read');
+  
+  /**
+   * Handle stop button click - cancel the running task
+   */
   async function handleStop() {
     if (status === 'processing' && taskId) {
       try {
@@ -114,28 +176,30 @@
 >
   {#snippet details({ isMobile: isMobileLayout })}
     <div class="web-read-details" class:mobile={isMobileLayout}>
-      <div class="read-title">{displayTitle}</div>
-      <div class="read-subtitle">
-        {#if hostname}
-          {hostname}
-        {:else}
-          {$text('embeds.web_read.reading.text', { default: 'Reading page' })}
+      <!-- Title row with favicon -->
+      <div class="title-row">
+        {#if faviconUrl}
+          <img 
+            src={faviconUrl} 
+            alt="" 
+            class="title-favicon"
+            onerror={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+          />
         {/if}
-        {#if pageCount > 1}
-          <span class="read-count">· {pageCount} {$text('embeds.pages.text', { default: 'pages' })}</span>
-        {/if}
+        <div class="read-title">{displayTitle}</div>
       </div>
-      {#if status === 'finished' && snippetText}
-        <div class="read-snippet">{snippetText}</div>
-      {/if}
-      {#if status === 'processing'}
-        <div class="processing-text">{$text('embeds.processing.text')}</div>
-      {/if}
+      
+      <!-- Subtitle: "via Firecrawl: X words" -->
+      <div class="read-subtitle">{subtitleText()}</div>
     </div>
   {/snippet}
 </UnifiedEmbedPreview>
 
 <style>
+  /* ===========================================
+     Web Read Details Content
+     =========================================== */
+  
   .web-read-details {
     display: flex;
     flex-direction: column;
@@ -143,19 +207,43 @@
     height: 100%;
   }
   
+  /* Desktop layout: vertically centered content */
   .web-read-details:not(.mobile) {
     justify-content: center;
   }
   
+  /* Mobile layout: top-aligned content */
   .web-read-details.mobile {
     justify-content: flex-start;
   }
   
+  /* Title row with favicon and title text */
+  .title-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  
+  /* Favicon next to title - rounded with white border */
+  .title-favicon {
+    width: 19px;
+    height: 19px;
+    min-width: 19px;
+    border-radius: 9.5px;
+    border: 1px solid white;
+    background-color: white;
+    object-fit: cover;
+    flex-shrink: 0;
+    margin-top: 2px; /* Align with first line of title */
+  }
+  
+  /* Page title */
   .read-title {
     font-size: 16px;
-    font-weight: 600;
+    font-weight: 700;
     color: var(--color-grey-100);
     line-height: 1.3;
+    /* Limit to 2 lines with ellipsis */
     display: -webkit-box;
     -webkit-line-clamp: 2;
     line-clamp: 2;
@@ -171,41 +259,31 @@
     line-clamp: 3;
   }
   
+  /* Subtitle: "via Firecrawl: X words" */
   .read-subtitle {
     font-size: 14px;
+    font-weight: 700;
     color: var(--color-grey-70);
-    line-height: 1.3;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    align-items: center;
+    line-height: 1.4;
+    white-space: pre-line; /* Preserve line breaks */
   }
   
   .web-read-details.mobile .read-subtitle {
     font-size: 12px;
   }
   
-  .read-count {
-    color: var(--color-grey-60);
-    white-space: nowrap;
+  /* ===========================================
+     Skill Icon Styling (text icon)
+     =========================================== */
+  
+  /* Web Read skill icon - "text" icon as per Figma design */
+  :global(.unified-embed-preview .skill-icon[data-skill-icon="text"]) {
+    -webkit-mask-image: url('@openmates/ui/static/icons/text.svg');
+    mask-image: url('@openmates/ui/static/icons/text.svg');
   }
   
-  .read-snippet {
-    font-size: 13px;
-    color: var(--color-grey-80);
-    line-height: 1.35;
-    display: -webkit-box;
-    -webkit-line-clamp: 3;
-    line-clamp: 3;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    word-break: break-word;
-  }
-  
-  .processing-text {
-    font-size: 13px;
-    color: var(--color-grey-60);
+  :global(.unified-embed-preview.mobile .skill-icon[data-skill-icon="text"]) {
+    -webkit-mask-image: url('@openmates/ui/static/icons/text.svg');
+    mask-image: url('@openmates/ui/static/icons/text.svg');
   }
 </style>
-

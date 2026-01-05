@@ -50,8 +50,8 @@
     snippet?: string;
     /** Additional description (may be longer than snippet) */
     description?: string;
-    /** Snippets array for fullscreen view */
-    snippets?: string[];
+    /** Extra snippets from backend TOON (pipe-delimited string or array) */
+    extra_snippets?: string | string[];
   }
   
   /**
@@ -73,6 +73,14 @@
     onClose: () => void;
     /** Optional: Embed ID for sharing (from embed:{embed_id} contentRef) */
     embedId?: string;
+    /** Whether there is a previous embed to navigate to */
+    hasPreviousEmbed?: boolean;
+    /** Whether there is a next embed to navigate to */
+    hasNextEmbed?: boolean;
+    /** Handler to navigate to the previous embed */
+    onNavigatePrevious?: () => void;
+    /** Handler to navigate to the next embed */
+    onNavigateNext?: () => void;
   }
   
   let {
@@ -82,7 +90,11 @@
     results: resultsProp,
     previewData,
     onClose,
-    embedId
+    embedId,
+    hasPreviousEmbed = false,
+    hasNextEmbed = false,
+    onNavigatePrevious,
+    onNavigateNext
   }: Props = $props();
   
   // ============================================
@@ -120,7 +132,7 @@
       preview_image_url: (content.preview_image_url || content.thumbnail_original || content.image) as string | undefined,
       snippet: (content.snippet as string) || (content.description as string),
       description: content.description as string | undefined,
-      snippets: content.snippets as string[] | undefined
+      extra_snippets: content.extra_snippets as string | string[] | undefined
     };
   }
   
@@ -136,7 +148,7 @@
       preview_image_url: (r.preview_image_url || r.thumbnail_original || r.image) as string | undefined,
       snippet: (r.snippet as string) || (r.description as string),
       description: r.description as string | undefined,
-      snippets: r.snippets as string[] | undefined
+      extra_snippets: r.extra_snippets as string | string[] | undefined
     }));
   }
   
@@ -276,6 +288,10 @@
   {embedIds}
   childEmbedTransformer={transformToWebResult}
   legacyResults={legacyResults}
+  {hasPreviousEmbed}
+  {hasNextEmbed}
+  {onNavigatePrevious}
+  {onNavigateNext}
 >
   {#snippet content(ctx)}
     {@const webResults = getWebResults(ctx)}
@@ -326,7 +342,7 @@
       description={selectedWebsite.description || selectedWebsite.snippet}
       favicon={selectedWebsite.favicon_url}
       image={selectedWebsite.preview_image_url}
-      snippets={selectedWebsite.snippets}
+      extra_snippets={selectedWebsite.extra_snippets}
       onClose={handleWebsiteFullscreenClose}
       embedId={selectedWebsite.embed_id}
     />

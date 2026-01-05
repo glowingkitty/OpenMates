@@ -8,14 +8,24 @@
   - Skill preview context: receives previewData from skillPreviewService
   - Embed context: receives results directly
   
-  Shows website metadata and full markdown content.
+  Layout (per Figma design):
+  - File widget at top: shows website title with app icon
+  - "Full viewing experience:" label with "Open on {hostname}" CTA button
+  - "Text only preview, via Firecrawl: {wordCount} words" label
+  - White content card with rendered markdown
+  - Bottom bar: web icon + text icon + "Read" / "Completed"
 -->
 
 <script lang="ts">
   import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
+  import BasicInfosBar from '../BasicInfosBar.svelte';
   import type { BaseSkillPreviewData } from '../../../types/appSkills';
+  // @ts-expect-error - @repo/ui module exists at runtime
+  import { text } from '@repo/ui';
   
-  // Define result structure based on read_skill.py
+  /**
+   * Web read result interface based on read_skill.py
+   */
   interface WebReadResult {
     type: string;
     url: string;
@@ -28,6 +38,9 @@
     hash?: string;
   }
   
+  /**
+   * Preview data interface for web read skill
+   */
   interface WebReadPreviewData extends BaseSkillPreviewData {
     results: WebReadResult[];
   }
@@ -43,12 +56,27 @@
     previewData?: WebReadPreviewData;
     /** Close handler */
     onClose: () => void;
+    /** Optional: Embed ID for sharing */
+    embedId?: string;
+    /** Whether there is a previous embed to navigate to */
+    hasPreviousEmbed?: boolean;
+    /** Whether there is a next embed to navigate to */
+    hasNextEmbed?: boolean;
+    /** Handler to navigate to the previous embed */
+    onNavigatePrevious?: () => void;
+    /** Handler to navigate to the next embed */
+    onNavigateNext?: () => void;
   }
   
   let {
     results: resultsProp,
     previewData,
-    onClose
+    onClose,
+    embedId,
+    hasPreviousEmbed = false,
+    hasNextEmbed = false,
+    onNavigatePrevious,
+    onNavigateNext
   }: Props = $props();
   
   // Extract values from either previewData (skill preview context) or direct props (embed context)
@@ -57,6 +85,10 @@
   // Get first result for main display
   let firstResult = $derived(results[0]);
   
+  /**
+   * Safely extract hostname from URL
+   * Falls back to stripping the scheme if URL parsing fails
+   */
   function safeHostname(url?: string): string {
     if (!url) return '';
     try {
@@ -67,24 +99,54 @@
     }
   }
   
-  // Format display title
+  // Extract hostname for display
+  let hostname = $derived(safeHostname(firstResult?.url));
+  
+  // Display title: page title or fallback to hostname
   let displayTitle = $derived(
     firstResult?.title || 
-    safeHostname(firstResult?.url) ||
+    hostname ||
     'Web Read'
   );
   
-  // Handle opening website
-  function handleOpenWebsite() {
-    if (firstResult?.url) {
-      window.open(firstResult.url, '_blank', 'noopener,noreferrer');
+  // Truncated title for file widget (max ~40 chars)
+  let truncatedTitle = $derived(() => {
+    const title = displayTitle;
+    if (title.length > 40) {
+      return title.slice(0, 37) + '...';
     }
-  }
+    return title;
+  });
   
-  // Render markdown as HTML using markdown-it
-  // Store rendered HTML for each result
+  // Favicon URL from first result
+  let faviconUrl = $derived(firstResult?.favicon || undefined);
+  
+  /**
+   * Calculate total word count across all results
+   */
+  let totalWordCount = $derived(() => {
+    let count = 0;
+    for (const result of results) {
+      if (result.markdown) {
+        const words = result.markdown.trim().split(/\s+/).filter(Boolean);
+        count += words.length;
+      }
+    }
+    return count;
+  });
+  
+  // Skill name from translations
+  let skillName = $derived($text('embeds.web_read.text') || 'Read');
+  
+  // "Open on {hostname}" button text
+  let openButtonText = $derived(`Open on ${hostname || 'website'}`);
+  
+  // Store rendered HTML for markdown
   let renderedMarkdowns = $state<Map<number, string>>(new Map());
   
+  /**
+   * Render markdown to HTML using markdown-it
+   */
   async function renderMarkdown(markdown: string, index: number): Promise<void> {
     if (!markdown) {
       renderedMarkdowns.set(index, '');
@@ -124,277 +186,356 @@
       }
     });
   });
+  
+  /**
+   * Handle opening the website in a new tab
+   */
+  function handleOpenWebsite() {
+    if (firstResult?.url) {
+      window.open(firstResult.url, '_blank', 'noopener,noreferrer');
+    }
+  }
+  
+  /**
+   * Handle share button click
+   */
+  async function handleShare() {
+    try {
+      console.debug('[WebReadEmbedFullscreen] Opening share settings:', { embedId, url: firstResult?.url });
+      
+      if (!embedId) {
+        console.warn('[WebReadEmbedFullscreen] No embed_id available - cannot create share link');
+        const { notificationStore } = await import('../../../stores/notificationStore');
+        notificationStore.error('Unable to share this embed. Missing embed ID.');
+        return;
+      }
+      
+      // Import required modules
+      const { navigateToSettings } = await import('../../../stores/settingsNavigationStore');
+      const { settingsDeepLink } = await import('../../../stores/settingsDeepLinkStore');
+      const { panelState } = await import('../../../stores/panelStateStore');
+      
+      // Set embed context for SettingsShare
+      const embedContext = {
+        type: 'web_read',
+        embed_id: embedId,
+        url: firstResult?.url,
+        title: displayTitle
+      };
+      
+      (window as unknown as { __embedShareContext?: unknown }).__embedShareContext = embedContext;
+      
+      // Navigate to share settings
+      navigateToSettings('shared/share', 'Share', 'share', 'settings.share.text');
+      settingsDeepLink.set('shared/share');
+      panelState.openSettings();
+      
+    } catch (error) {
+      console.error('[WebReadEmbedFullscreen] Error opening share settings:', error);
+      const { notificationStore } = await import('../../../stores/notificationStore');
+      notificationStore.error('Failed to open share menu. Please try again.');
+    }
+  }
 </script>
 
 <UnifiedEmbedFullscreen
   appId="web"
   skillId="read"
-  title={displayTitle}
+  title=""
   {onClose}
-  onOpen={handleOpenWebsite}
+  onShare={handleShare}
+  skillIconName="text"
+  status="finished"
+  {skillName}
+  showStatus={true}
+  {hasPreviousEmbed}
+  {hasNextEmbed}
+  {onNavigatePrevious}
+  {onNavigateNext}
 >
-  {#snippet headerExtra()}
-    {#if results.length > 1}
-      <div class="results-indicator">
-        <div class="icon_rounded web"></div>
-        <span class="results-count">+{results.length - 1} more</span>
-      </div>
-    {/if}
-    
-    <!-- @ts-expect-error - onclick is valid Svelte 5 syntax -->
-    <button class="open-button" onclick={handleOpenWebsite}>
-      Open Website
-    </button>
-  {/snippet}
-  
   {#snippet content()}
-    {#if results.length === 0}
-      <div class="no-results">
-        <p>No read results available.</p>
+    <div class="web-read-fullscreen-content">
+      <!-- File widget showing website title (mini preview) -->
+      <div class="file-widget">
+        <div class="file-widget-icon">
+          <div class="icon_rounded web"></div>
+        </div>
+        {#if faviconUrl}
+          <img 
+            src={faviconUrl} 
+            alt="" 
+            class="file-widget-favicon"
+            onerror={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+          />
+        {/if}
+        <div class="file-widget-title">{truncatedTitle()}</div>
       </div>
-    {:else}
-      {#each results as result, index}
-        <div class="read-result">
-          <!-- Website metadata section -->
-          <div class="metadata-section">
-            <div class="metadata-content">
-              {#if result.title}
-                <div class="website-title">{result.title}</div>
-              {/if}
-              
-              {#if result.url}
-                <div class="website-url">
-                  <a href={result.url} target="_blank" rel="noopener noreferrer" class="url-link">
-                    {result.url}
-                  </a>
+      
+      <!-- "Full viewing experience:" label -->
+      <div class="full-view-label">
+        {$text('embeds.web_read_full_view.text') || 'Full viewing experience:'}
+      </div>
+      
+      <!-- CTA Button: "Open on {hostname}" -->
+      <button 
+        class="open-website-button"
+        onclick={handleOpenWebsite}
+        type="button"
+      >
+        {openButtonText}
+      </button>
+      
+      <!-- "Text only preview, via Firecrawl: X words" label -->
+      <div class="text-preview-label">
+        <span>{$text('embeds.web_read_text_preview.text') || 'Text only preview,'}</span>
+        <span>via Firecrawl: {totalWordCount().toLocaleString()} words</span>
+      </div>
+      
+      <!-- Content card with rendered markdown -->
+      {#if results.length === 0}
+        <div class="no-results">
+          <p>{$text('embeds.web_read_no_content.text') || 'No content available.'}</p>
+        </div>
+      {:else}
+        <div class="content-card">
+          {#each results as result, index}
+            <div class="result-content">
+              {#if renderedMarkdowns.has(index)}
+                <div class="markdown-content">
+                  {@html renderedMarkdowns.get(index) || ''}
                 </div>
-              {/if}
-              
-              {#if result.og_sitename || result.language}
-                <div class="metadata-info">
-                  {#if result.og_sitename}
-                    <span class="info-item">Site: {result.og_sitename}</span>
-                  {/if}
-                  {#if result.language}
-                    <span class="info-item">Language: {result.language}</span>
-                  {/if}
+              {:else if result.markdown}
+                <div class="markdown-loading">
+                  <p>{$text('embeds.loading.text') || 'Loading content...'}</p>
+                </div>
+              {:else}
+                <div class="no-content">
+                  <p>{$text('embeds.web_read_no_content.text') || 'No content available for this page.'}</p>
                 </div>
               {/if}
             </div>
             
-            {#if result.favicon}
-              <div class="favicon-container">
-                <img 
-                  src={result.favicon} 
-                  alt="Website favicon"
-                  class="favicon"
-                  onerror={(e) => { e.currentTarget.style.display = 'none'; }}
-                />
-              </div>
+            {#if index < results.length - 1}
+              <hr class="result-divider" />
             {/if}
-          </div>
-          
-          <!-- Markdown content section -->
-          {#if result.markdown}
-            <div class="markdown-section">
-              <div class="markdown-header">
-                <h3>Content</h3>
-                {#if result.markdown.length}
-                  <span class="char-count">{result.markdown.length.toLocaleString()} characters</span>
-                {/if}
-              </div>
-              
-              <div class="markdown-content">
-                {#if renderedMarkdowns.has(index)}
-                  {@html renderedMarkdowns.get(index) || ''}
-                {:else if result.markdown}
-                  <!-- Loading markdown... -->
-                  <p>Loading content...</p>
-                {:else}
-                  <p>No content available.</p>
-                {/if}
-              </div>
-            </div>
-          {:else}
-            <div class="no-content">
-              <p>No content available for this page.</p>
-            </div>
-          {/if}
+          {/each}
         </div>
-        
-        {#if index < results.length - 1}
-          <hr class="result-divider" />
-        {/if}
-      {/each}
-    {/if}
+      {/if}
+    </div>
+  {/snippet}
+  
+  {#snippet bottomBar()}
+    <BasicInfosBar
+      appId="web"
+      skillId="read"
+      skillIconName="text"
+      status="finished"
+      {skillName}
+      showStatus={true}
+    />
   {/snippet}
 </UnifiedEmbedFullscreen>
 
 <style>
-  .results-indicator {
+  /* ===========================================
+     Web Read Fullscreen Content
+     =========================================== */
+  
+  .web-read-fullscreen-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding-top: 70px; /* Space for top action buttons */
+    padding-bottom: 120px; /* Space for bottom bar */
+  }
+  
+  /* ===========================================
+     File Widget (mini preview at top)
+     =========================================== */
+  
+  .file-widget {
     display: flex;
     align-items: center;
     gap: 8px;
-    margin-top: 8px;
+    background-color: var(--color-grey-30);
+    border-radius: 30px;
+    height: 61px;
+    padding: 0 20px 0 0;
+    max-width: 300px;
+    width: 100%;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+    margin-bottom: 24px;
   }
   
-  .results-count {
+  .file-widget-icon {
+    width: 61px;
+    height: 61px;
+    min-width: 61px;
+    border-radius: 50%;
+    background: var(--color-app-web);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  
+  .file-widget-icon .icon_rounded {
+    width: 26px;
+    height: 26px;
+    position: relative;
+    bottom: auto;
+    left: auto;
+    background: transparent !important;
+  }
+  
+  .file-widget-icon .icon_rounded::after {
+    filter: brightness(0) invert(1);
+  }
+  
+  .file-widget-favicon {
+    width: 19px;
+    height: 19px;
+    min-width: 19px;
+    border-radius: 9.5px;
+    border: 1px solid white;
+    background-color: white;
+    object-fit: cover;
+    flex-shrink: 0;
+  }
+  
+  .file-widget-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--color-grey-100);
+    line-height: 1.3;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex: 1;
+    min-width: 0;
+  }
+  
+  /* ===========================================
+     Full View Label and CTA Button
+     =========================================== */
+  
+  .full-view-label {
     font-size: 14px;
-    color: var(--color-font-secondary);
+    font-weight: 700;
+    color: var(--color-grey-70);
+    text-align: center;
+    margin-bottom: 12px;
   }
   
-  .open-button {
-    margin-top: 12px;
-    padding: 12px 24px;
-    background-color: var(--color-primary);
+  .open-website-button {
+    background-color: var(--color-cta);
     color: white;
     border: none;
-    border-radius: 20px;
+    border-radius: 15px;
+    padding: 12px 24px;
     font-size: 16px;
     font-weight: 500;
     cursor: pointer;
     transition: background-color 0.2s, transform 0.2s;
+    margin-bottom: 24px;
   }
   
-  .open-button:hover {
-    background-color: var(--color-primary-dark);
+  .open-website-button:hover {
+    background-color: var(--color-cta-hover, var(--color-cta));
     transform: translateY(-2px);
   }
+  
+  .open-website-button:active {
+    transform: translateY(0);
+  }
+  
+  /* ===========================================
+     Text Preview Label
+     =========================================== */
+  
+  .text-preview-label {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--color-grey-70);
+    text-align: center;
+    margin-bottom: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  
+  /* ===========================================
+     Content Card (white background with markdown)
+     =========================================== */
   
   .no-results {
     display: flex;
     align-items: center;
     justify-content: center;
     height: 200px;
-    color: var(--color-font-secondary);
+    color: var(--color-grey-70);
+    font-size: 16px;
   }
   
-  .read-result {
-    margin-bottom: 32px;
+  .content-card {
+    background-color: white;
+    border-radius: 30px 30px 0 0;
+    padding: 24px;
+    width: calc(100% - 40px);
+    max-width: 722px;
+    margin: 0 auto;
+    box-shadow: 0 -4px 8px rgba(0, 0, 0, 0.1);
+    min-height: 300px;
   }
   
-  /* Metadata section */
-  .metadata-section {
-    display: flex;
-    gap: 16px;
-    margin-bottom: 24px;
-    padding: 16px;
-    background-color: var(--color-grey-15);
-    border-radius: 12px;
-    align-items: flex-start;
-  }
-  
-  .metadata-content {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-  }
-  
-  .website-title {
-    font-size: 18px;
-    font-weight: 600;
-    color: var(--color-font-primary);
-    line-height: 1.4;
-  }
-  
-  .website-url {
-    font-size: 14px;
-    color: var(--color-font-secondary);
-  }
-  
-  .url-link {
-    color: var(--color-primary);
-    text-decoration: none;
-    word-break: break-all;
-  }
-  
-  .url-link:hover {
-    text-decoration: underline;
-  }
-  
-  .metadata-info {
-    display: flex;
-    gap: 16px;
-    flex-wrap: wrap;
-    font-size: 14px;
-    color: var(--color-font-tertiary);
-  }
-  
-  .info-item {
-    background-color: var(--color-grey-20);
-    padding: 4px 12px;
-    border-radius: 12px;
-  }
-  
-  .favicon-container {
-    flex-shrink: 0;
-  }
-  
-  .favicon {
-    width: 32px;
-    height: 32px;
-    border-radius: 4px;
-    object-fit: contain;
-  }
-  
-  /* Markdown section */
-  .markdown-section {
+  .result-content {
     margin-bottom: 24px;
   }
   
-  .markdown-header {
+  .result-content:last-child {
+    margin-bottom: 0;
+  }
+  
+  .markdown-loading,
+  .no-content {
     display: flex;
     align-items: center;
-    gap: 12px;
-    margin-bottom: 16px;
-    flex-wrap: wrap;
-  }
-  
-  .markdown-header h3 {
-    font-size: 20px;
-    font-weight: 600;
-    color: var(--color-font-primary);
-    margin: 0;
-  }
-  
-  .char-count {
+    justify-content: center;
+    min-height: 100px;
+    color: var(--color-grey-70);
     font-size: 14px;
-    color: var(--color-font-secondary);
-    background-color: var(--color-grey-15);
-    padding: 4px 12px;
-    border-radius: 12px;
   }
+  
+  /* ===========================================
+     Markdown Content Styling
+     =========================================== */
   
   .markdown-content {
-    background-color: var(--color-grey-15);
-    border-radius: 12px;
-    padding: 24px;
-    font-size: 15px;
+    font-size: 16px;
     line-height: 1.7;
-    color: var(--color-font-primary);
+    color: var(--color-grey-100);
     word-wrap: break-word;
   }
   
   .markdown-content :global(h1) {
-    font-size: 24px;
-    font-weight: 600;
-    margin: 24px 0 16px 0;
-    color: var(--color-font-primary);
+    font-size: 22px;
+    font-weight: 700;
+    margin: 20px 0 12px 0;
+    color: var(--color-grey-100);
   }
   
   .markdown-content :global(h2) {
-    font-size: 20px;
-    font-weight: 600;
-    margin: 20px 0 12px 0;
-    color: var(--color-font-primary);
+    font-size: 18px;
+    font-weight: 700;
+    margin: 16px 0 10px 0;
+    color: var(--color-grey-100);
   }
   
   .markdown-content :global(h3) {
-    font-size: 18px;
-    font-weight: 600;
-    margin: 16px 0 10px 0;
-    color: var(--color-font-primary);
+    font-size: 16px;
+    font-weight: 700;
+    margin: 14px 0 8px 0;
+    color: var(--color-grey-100);
   }
   
   .markdown-content :global(p) {
@@ -402,21 +543,36 @@
   }
   
   .markdown-content :global(strong) {
-    font-weight: 600;
-    color: var(--color-font-primary);
+    font-weight: 700;
+    color: var(--color-grey-100);
   }
   
   .markdown-content :global(em) {
     font-style: italic;
   }
   
+  /* Links styled with purple gradient (matches Figma design) */
   .markdown-content :global(a) {
-    color: var(--color-primary);
+    background: linear-gradient(133.68deg, rgba(89, 81, 208, 1) 9.04%, rgba(125, 116, 255, 1) 90.06%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
     text-decoration: none;
+    font-weight: 700;
   }
   
   .markdown-content :global(a:hover) {
     text-decoration: underline;
+  }
+  
+  .markdown-content :global(ul),
+  .markdown-content :global(ol) {
+    margin: 12px 0;
+    padding-left: 24px;
+  }
+  
+  .markdown-content :global(li) {
+    margin: 6px 0;
   }
   
   .markdown-content :global(code) {
@@ -440,29 +596,51 @@
     padding: 0;
   }
   
-  .no-content {
-    padding: 16px;
-    background-color: var(--color-grey-15);
-    border-radius: 12px;
-    text-align: center;
-    color: var(--color-font-secondary);
+  .markdown-content :global(blockquote) {
+    border-left: 3px solid var(--color-grey-40);
+    padding-left: 16px;
+    margin: 16px 0;
+    color: var(--color-grey-80);
+    font-style: italic;
   }
   
   /* Result divider */
   .result-divider {
     border: none;
-    border-top: 1px solid var(--color-grey-20);
-    margin: 32px 0;
+    border-top: 1px solid var(--color-grey-30);
+    margin: 24px 0;
   }
   
-  /* Responsive adjustments */
-  @media (max-width: 768px) {
-    .metadata-section {
-      flex-direction: column;
+  /* ===========================================
+     Container Query Responsive Adjustments
+     =========================================== */
+  
+  @container fullscreen (max-width: 500px) {
+    .web-read-fullscreen-content {
+      padding-top: 80px;
     }
     
-    .favicon {
-      align-self: flex-start;
+    .file-widget {
+      max-width: 280px;
     }
+    
+    .content-card {
+      width: calc(100% - 20px);
+      padding: 16px;
+    }
+    
+    .markdown-content {
+      font-size: 15px;
+    }
+  }
+  
+  /* ===========================================
+     Skill Icon Styling (text icon)
+     =========================================== */
+  
+  /* Web Read skill icon - "text" icon as per Figma design */
+  :global(.basic-infos-bar .skill-icon[data-skill-icon="text"]) {
+    -webkit-mask-image: url('@openmates/ui/static/icons/text.svg');
+    mask-image: url('@openmates/ui/static/icons/text.svg');
   }
 </style>

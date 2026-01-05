@@ -138,6 +138,19 @@
     customStatusText?: string;
     /** Whether to show status text in BasicInfosBar */
     showStatus?: boolean;
+    
+    /* ============================================
+       Embed Navigation Props
+       ============================================ */
+    
+    /** Whether there is a previous embed to navigate to */
+    hasPreviousEmbed?: boolean;
+    /** Whether there is a next embed to navigate to */
+    hasNextEmbed?: boolean;
+    /** Handler to navigate to the previous embed */
+    onNavigatePrevious?: () => void;
+    /** Handler to navigate to the next embed */
+    onNavigateNext?: () => void;
   }
   
   let {
@@ -164,7 +177,12 @@
     faviconUrl,
     showSkillIcon = true,
     customStatusText,
-    showStatus = true
+    showStatus = true,
+    // Embed navigation props
+    hasPreviousEmbed = false,
+    hasNextEmbed = false,
+    onNavigatePrevious,
+    onNavigateNext
   }: Props = $props();
   
   // ============================================
@@ -322,6 +340,22 @@
     }
   }
   
+  // Handle navigate to previous embed
+  function handleNavigatePrevious() {
+    if (onNavigatePrevious && hasPreviousEmbed) {
+      console.debug('[UnifiedEmbedFullscreen] Navigating to previous embed');
+      onNavigatePrevious();
+    }
+  }
+  
+  // Handle navigate to next embed
+  function handleNavigateNext() {
+    if (onNavigateNext && hasNextEmbed) {
+      console.debug('[UnifiedEmbedFullscreen] Navigating to next embed');
+      onNavigateNext();
+    }
+  }
+  
   // Handle report issue action - opens settings with report issue page
   // The SettingsReportIssue component will auto-generate the embed share URL
   async function handleReportIssue() {
@@ -377,8 +411,21 @@
   <div class="fullscreen-container">
     <!-- Top bar with action buttons -->
     <div class="top-bar">
-      <!-- Left side: Share, Open, Report Issue, Copy, and Download buttons -->
+      <!-- Left side: Previous button, Share, Copy, Download, Report Issue buttons -->
       <div class="top-bar-left">
+        <!-- Previous embed navigation button - only shown if there is a previous embed -->
+        {#if hasPreviousEmbed && onNavigatePrevious}
+          <div class="button-wrapper">
+            <button
+              class="action-button nav-button nav-previous"
+              onclick={handleNavigatePrevious}
+              aria-label="Previous embed"
+              title="Previous embed"
+            >
+              <span class="clickable-icon icon_back"></span>
+            </button>
+          </div>
+        {/if}
         <!-- Share button - always shown -->
         <div class="button-wrapper">
           <button
@@ -429,8 +476,21 @@
           </div>
       </div>
       
-      <!-- Right side: Minimize button -->
+      <!-- Right side: Next button and Minimize button -->
       <div class="top-bar-right">
+        <!-- Next embed navigation button - only shown if there is a next embed -->
+        {#if hasNextEmbed && onNavigateNext}
+          <div class="button-wrapper">
+            <button
+              class="action-button nav-button nav-next"
+              onclick={handleNavigateNext}
+              aria-label="Next embed"
+              title="Next embed"
+            >
+              <span class="clickable-icon icon_back icon_forward"></span>
+            </button>
+          </div>
+        {/if}
         <div class="button-wrapper">
           <button
             class="action-button minimize-button"
@@ -633,6 +693,11 @@
   .action-button .clickable-icon {
     width: 24px;
     height: 24px;
+  }
+  
+  /* Navigation buttons - using back icon, forward icon is rotated 180deg */
+  .nav-button .icon_forward {
+    transform: rotate(180deg);
   }
   
   /* Header section */

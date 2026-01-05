@@ -147,7 +147,7 @@ async function initializeRegistry(): Promise<void> {
         description: data.decodedContent?.description || data.attrs?.description,
         favicon: data.decodedContent?.meta_url_favicon || data.decodedContent?.favicon || data.attrs?.favicon,
         image: data.decodedContent?.thumbnail_original || data.decodedContent?.image || data.attrs?.image,
-        snippets: data.decodedContent?.snippets,
+        extra_snippets: data.decodedContent?.extra_snippets, // Backend TOON format: pipe-delimited string
         meta_url_favicon: data.decodedContent?.meta_url_favicon,
         thumbnail_original: data.decodedContent?.thumbnail_original,
         onClose: data.onClose,
