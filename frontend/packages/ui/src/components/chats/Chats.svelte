@@ -211,19 +211,18 @@ const UPDATE_DEBOUNCE_MS = 300; // 300ms debounce for updateChatListFromDB calls
 			
 			// Include shared chats from IndexedDB for non-authenticated users
 			// These are chats that were loaded via share links and stored in IndexedDB
-			// They're tracked in sessionStorage for cleanup on session close
-			try {
-				const sharedChatIds = JSON.parse(sessionStorage.getItem('shared_chats') || '[]');
-				for (const sharedChatId of sharedChatIds) {
-					// Check if chat exists in IndexedDB
-					const sharedChat = realChatsFromDB.find(c => c.chat_id === sharedChatId);
-					if (sharedChat && !existingChatIds.has(sharedChatId)) {
-						sharedChats.push(sharedChat);
-						console.debug('[Chats] Added shared chat to list:', sharedChatId);
+			// Shared chat keys are now stored in IndexedDB (sharedChatKeyStorage) instead of sessionStorage
+			// The sharedChats array will be populated asynchronously via loadSharedChatsForNonAuth()
+			// For now, include any chats that have keys in the memory cache (chatDB.chatKeys)
+			for (const chat of realChatsFromDB) {
+				if (!existingChatIds.has(chat.chat_id)) {
+					// Check if we have a key for this chat (indicating it's a shared chat we can decrypt)
+					const hasKey = chatDB.getChatKey(chat.chat_id) !== null;
+					if (hasKey) {
+						sharedChats.push(chat);
+						console.debug('[Chats] Added shared chat to list (has key in cache):', chat.chat_id);
 					}
 				}
-			} catch (e) {
-				console.warn('[Chats] Error reading shared chats from sessionStorage:', e);
 			}
 		}
 		
@@ -1539,8 +1538,9 @@ async function updateChatListFromDBInternal(force = false) {
 					throw initError;
 				}
 				
-				// Get shared chat IDs and demo chat IDs from sessionStorage
-				const sharedChatIds = JSON.parse(sessionStorage.getItem('shared_chats') || '[]');
+				// Get shared chat IDs from IndexedDB (sharedChatKeyStorage) and demo chat IDs from sessionStorage
+				const { getStoredSharedChatIds } = await import('../../services/sharedChatKeyStorage');
+				const sharedChatIds = await getStoredSharedChatIds();
 				const demoChatIds = JSON.parse(sessionStorage.getItem('demo_chats') || '[]');
 				
 				// Combine shared and demo chat IDs
