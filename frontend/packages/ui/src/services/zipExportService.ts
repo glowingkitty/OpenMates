@@ -12,6 +12,7 @@ import type { Chat, Message } from '../types/chat';
 import { convertChatToYaml, generateChatFilename } from './chatExportService';
 import { extractEmbedReferences, loadEmbeds, decodeToonContent } from './embedResolver';
 import { tipTapToCanonicalMarkdown } from '../message_parsing/serializers';
+import { parseCodeEmbedContent } from '../components/embeds/code/codeEmbedContent';
 
 /**
  * Converts a single message to markdown format
@@ -110,18 +111,27 @@ async function loadCodeEmbedsRecursively(embedIds: string[], loadedEmbedIds: Set
 
       // If this is a code embed, process it
       if (embed.type === 'code' && decodedContent && typeof decodedContent === 'object') {
-        const codeContent = decodedContent.code || decodedContent.content || '';
-        const language = decodedContent.language || decodedContent.lang || 'text';
-        // Get filename from TOON content (inside the code block)
-        const filename = decodedContent.filename || undefined;
-        // Get file_path from embed-level field (stored in EmbedStore) OR TOON content OR filename
-        // Priority: embed.file_path > decodedContent.file_path > filename (if it contains path separator)
+        const rawCodeContent = decodedContent.code || decodedContent.content || '';
+        const hintLanguage = decodedContent.language || decodedContent.lang || 'text';
+        const hintFilename = decodedContent.filename || undefined;
+        
+        // Parse code content to extract filename from header (e.g., "dockerfile:app/Dockerfile")
+        // This also strips the header line from the code content
+        const parsed = parseCodeEmbedContent(rawCodeContent, { language: hintLanguage, filename: hintFilename });
+        const codeContent = parsed.code;
+        const language = parsed.language || hintLanguage;
+        // Get filename from parsed header if not already provided
+        const filename = hintFilename || parsed.filename || undefined;
+        
+        // Get file_path from embed-level field (stored in EmbedStore) OR TOON content OR parsed filename
+        // Priority: embed.file_path > decodedContent.file_path > parsed.filename (if it contains path separator)
         // The filename can be a full path when specified as `language:path/to/file.ext` in markdown
         let filePath = embed.file_path || decodedContent.file_path || undefined;
         
         // If no explicit file_path but filename contains path separators, use filename as path
-        if (!filePath && filename && (filename.includes('/') || filename.includes('\\'))) {
-          filePath = filename;
+        const filenameForPath = filename || parsed.filename;
+        if (!filePath && filenameForPath && (filenameForPath.includes('/') || filenameForPath.includes('\\'))) {
+          filePath = filenameForPath;
         }
 
         if (codeContent) {
@@ -612,6 +622,7 @@ export interface CodeFileData {
 /**
  * Downloads multiple code files as a zip archive
  * Used for downloading all code files from a code embed group
+ * Parses each code file to extract filename from language:filepath header if present
  */
 export async function downloadCodeFilesAsZip(
   codeFiles: CodeFileData[]
@@ -637,14 +648,24 @@ export async function downloadCodeFilesAsZip(
     for (let i = 0; i < codeFiles.length; i++) {
       const file = codeFiles[i];
       
-      // Determine filename
+      // Parse code content to extract filename from header (e.g., "dockerfile:app/Dockerfile")
+      // This also strips the header line from the code content
+      const parsed = parseCodeEmbedContent(file.code, { language: file.language, filename: file.filename });
+      const finalCode = parsed.code;
+      const finalLanguage = parsed.language || file.language;
+      
+      // Determine filename - use provided filename or extract from parsed header
       let downloadFilename: string;
       if (file.filename) {
         // Extract just the filename from any path
         const pathParts = file.filename.split(/[/\\]/);
         downloadFilename = pathParts[pathParts.length - 1];
+      } else if (parsed.filename) {
+        // Use filename extracted from header (extract basename)
+        const pathParts = parsed.filename.split(/[/\\]/);
+        downloadFilename = pathParts[pathParts.length - 1];
       } else {
-        const ext = getFileExtensionForLanguage(file.language);
+        const ext = getFileExtensionForLanguage(finalLanguage);
         downloadFilename = `code_snippet.${ext}`;
       }
 
@@ -660,7 +681,8 @@ export async function downloadCodeFilesAsZip(
       }
       usedFilenames.add(finalFilename.toLowerCase());
 
-      zip.file(finalFilename, file.code);
+      // Add the parsed (header-stripped) code to the zip
+      zip.file(finalFilename, finalCode);
     }
 
     // Generate and download zip
@@ -688,6 +710,7 @@ export async function downloadCodeFilesAsZip(
 
 /**
  * Downloads a code file with appropriate naming
+ * Parses the code content to extract filename from language:filepath header if present
  */
 export async function downloadCodeFile(
   codeContent: string,
@@ -697,17 +720,37 @@ export async function downloadCodeFile(
   try {
     console.debug('[ZipExportService] Downloading code file:', { language, filename });
 
-    // Determine filename
+    // Parse code content to extract filename from header (e.g., "dockerfile:app/Dockerfile")
+    // This also strips the header line from the code content
+    const parsed = parseCodeEmbedContent(codeContent, { language, filename });
+    
+    // Use parsed values - the parser extracts filename from header if not already provided
+    const finalCode = parsed.code;
+    const finalLanguage = parsed.language || language;
+    // For download, extract just the filename from the full path
     let downloadFilename: string;
     if (filename) {
-      downloadFilename = filename;
+      // Use explicitly provided filename (extract basename if it's a path)
+      const pathParts = filename.split(/[/\\]/);
+      downloadFilename = pathParts[pathParts.length - 1];
+    } else if (parsed.filename) {
+      // Use filename extracted from header (extract basename if it's a path)
+      const pathParts = parsed.filename.split(/[/\\]/);
+      downloadFilename = pathParts[pathParts.length - 1];
     } else {
-      const ext = getFileExtensionForLanguage(language);
+      // Fallback to generic name with language-appropriate extension
+      const ext = getFileExtensionForLanguage(finalLanguage);
       downloadFilename = `code_snippet.${ext}`;
     }
 
-    // Create blob and download
-    const blob = new Blob([codeContent], { type: 'text/plain;charset=utf-8' });
+    console.debug('[ZipExportService] Resolved download filename:', { 
+      originalFilename: filename, 
+      parsedFilename: parsed.filename,
+      downloadFilename 
+    });
+
+    // Create blob and download with the parsed (header-stripped) code
+    const blob = new Blob([finalCode], { type: 'text/plain;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
