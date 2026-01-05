@@ -315,6 +315,7 @@
     --color-grey-0: #ffffff;
     --color-grey-10: #f9f9f9;
     --color-grey-20: #f3f3f3;
+    --color-grey-25: #e8e8e8;
     --color-grey-30: #e3e3e3;
     --color-grey-40: #c4c4c4;
     --color-grey-50: #a6a6a6;
@@ -488,6 +489,7 @@ main::-webkit-scrollbar-thumb {
     --color-grey-0: #171717;
     --color-grey-10: #1c1c1c;
     --color-grey-20: #212121;
+    --color-grey-25: #252525;
     --color-grey-30: #2c2c2c;
     --color-grey-40: #404040;
     --color-grey-50: #606060;

@@ -134,7 +134,12 @@
     
     // Determine menu type and embed type based on embed type
     if (node.type.name === 'embed') {
-      if (node.attrs.type === 'code') {
+      // Code embeds can have different type values: 'code', 'code-code', 'code-block', 'code-code-group'
+      const isCodeEmbed = node.attrs.type === 'code' || 
+                          node.attrs.type === 'code-code' || 
+                          node.attrs.type === 'code-block' || 
+                          node.attrs.type?.startsWith('code-code');
+      if (isCodeEmbed) {
         menuType = 'code';
         embedType = 'code';
       } else if (node.attrs.type === 'pdf') {
@@ -183,7 +188,8 @@
     const type = selectedNode?.attrs?.type;
     if (type === 'website' || type === 'website-group') return 'website';
     if (type === 'videos-video') return 'video';
-    if (type === 'code') return 'code';
+    // Code embeds can have different type values
+    if (type === 'code' || type === 'code-code' || type === 'code-block' || type?.startsWith('code-code')) return 'code';
     if (type === 'pdf') return 'pdf';
     return type || 'embed';
   }
@@ -313,7 +319,12 @@
     }
 
     // Handle actions for code embeds
-    if (menuType === 'code' && selectedNode.type.name === 'embed' && selectedNode.attrs.type === 'code') {
+    // Code embeds can have different type values: 'code', 'code-code', 'code-block', etc.
+    const isCodeEmbed = selectedNode.attrs.type === 'code' || 
+                        selectedNode.attrs.type === 'code-code' || 
+                        selectedNode.attrs.type === 'code-block' || 
+                        selectedNode.attrs.type?.startsWith('code-code');
+    if (menuType === 'code' && selectedNode.type.name === 'embed' && isCodeEmbed) {
       const embedId = getEmbedIdFromNode(selectedNode);
 
       try {
@@ -660,6 +671,11 @@
       {#if showMenu}
         {@const showCopyAction = menuType === 'code' || menuType === 'video' || menuType === 'video-transcript' || menuType === 'web'}
         {@const showDownloadAction = menuType === 'code' || menuType === 'video-transcript' || menuType === 'pdf'}
+        <!-- 
+          EmbedContextMenu uses callback props instead of Svelte events because
+          the menu element is moved to document.body to escape stacking contexts,
+          which breaks Svelte's event dispatching system.
+        -->
         <EmbedContextMenu
           x={menuX}
           y={menuY}
@@ -669,14 +685,14 @@
           showShare={true}
           showCopy={showCopyAction}
           showDownload={showDownloadAction}
-          on:close={() => {
+          onClose={() => {
             showMenu = false;
             selectedNode = null;
           }}
-          on:view={() => handleMenuAction('view')}
-          on:share={() => handleMenuAction('share')}
-          on:copy={() => handleMenuAction('copy')}
-          on:download={() => handleMenuAction('download')}
+          onView={() => handleMenuAction('view')}
+          onShare={() => handleMenuAction('share')}
+          onCopy={() => handleMenuAction('copy')}
+          onDownload={() => handleMenuAction('download')}
         />
       {/if}
     </div>
