@@ -1,5 +1,5 @@
 <!--
-  frontend/packages/ui/src/components/embeds/VideosSearchEmbedFullscreen.svelte
+  frontend/packages/ui/src/components/embeds/videos/VideosSearchEmbedFullscreen.svelte
   
   Fullscreen view for Videos Search skill embeds.
   Uses UnifiedEmbedFullscreen as base with unified child embed loading.
@@ -12,11 +12,24 @@
   - Top bar with share, copy, and minimize buttons
   
   Child embeds are automatically loaded by UnifiedEmbedFullscreen from embedIds prop.
+  
+  Video Fullscreen Navigation (Overlay Pattern):
+  - Search results grid is ALWAYS rendered (base layer)
+  - When a video result is clicked, VideoEmbedFullscreen renders as an OVERLAY on top
+  - When VideoEmbedFullscreen is closed, overlay is removed revealing search results beneath
+  
+  Benefits of overlay approach:
+  - No re-animation when returning to search results (they're already rendered beneath)
+  - No re-loading of child embeds
+  - Scroll position preserved on search results
+  - Instant close transition since search results are always visible
 -->
 
 <script lang="ts">
   import UnifiedEmbedFullscreen, { type ChildEmbedContext } from '../UnifiedEmbedFullscreen.svelte';
+  import ChildEmbedOverlay from '../ChildEmbedOverlay.svelte';
   import WebsiteEmbedPreview from '../web/WebsiteEmbedPreview.svelte';
+  import VideoEmbedFullscreen from './VideoEmbedFullscreen.svelte';
   import { text } from '@repo/ui';
   
   /**
@@ -58,6 +71,13 @@
     onClose,
     embedId
   }: Props = $props();
+  
+  // ============================================
+  // State: Track which video is shown in fullscreen
+  // ============================================
+  
+  /** Currently selected video for fullscreen view (null = show search results) */
+  let selectedVideo = $state<VideoSearchResult | null>(null);
   
   // Determine if mobile layout
   let isMobile = $derived(
@@ -176,23 +196,56 @@
     }
   }
   
-  // Handle opening search in provider
-  function handleOpenInProvider() {
-    const searchUrl = `https://search.brave.com/search?q=${encodeURIComponent(query)}`;
-    window.open(searchUrl, '_blank', 'noopener,noreferrer');
+  /**
+   * Handle video click - shows the video in fullscreen mode
+   * Uses VideoEmbedFullscreen for full video player experience
+   */
+  function handleVideoFullscreen(videoData: VideoSearchResult) {
+    console.debug('[VideosSearchEmbedFullscreen] Opening video fullscreen:', {
+      embedId: videoData.embed_id,
+      url: videoData.url,
+      title: videoData.title
+    });
+    selectedVideo = videoData;
   }
   
+  /**
+   * Handle closing the video fullscreen - returns to search results
+   * Called when user clicks minimize button on VideoEmbedFullscreen
+   */
+  function handleVideoFullscreenClose() {
+    console.debug('[VideosSearchEmbedFullscreen] Closing video fullscreen, returning to search results');
+    selectedVideo = null;
+  }
   
-  // Handle video fullscreen (from WebsiteEmbedPreview)
-  function handleVideoFullscreen(videoData: VideoSearchResult) {
-    // For now, just open the video in a new tab
-    // In the future, we could show a video player fullscreen view
-    if (videoData.url) {
-      window.open(videoData.url, '_blank', 'noopener,noreferrer');
+  /**
+   * Handle closing the entire search fullscreen
+   * Called when user closes the main VideosSearchEmbedFullscreen
+   */
+  function handleMainClose() {
+    // If a video is open, first close it and return to search results
+    if (selectedVideo) {
+      selectedVideo = null;
+    } else {
+      // Otherwise, close the entire fullscreen
+      onClose();
     }
   }
 </script>
 
+<!-- 
+  Overlay-based rendering approach for smooth transitions:
+  - VideosSearchEmbedFullscreen (search results grid) is ALWAYS mounted
+  - VideoEmbedFullscreen renders as an OVERLAY on top when a video is selected
+  
+  Benefits of this approach:
+  - No re-animation when returning to search results (already visible beneath)
+  - No re-loading of child embeds
+  - Scroll position is preserved on search results
+  - Instant close transition since search results are already there
+-->
+
+<!-- Search results view - ALWAYS rendered (base layer) -->
 <!-- 
   Pass skillName and showStatus to UnifiedEmbedFullscreen for consistent BasicInfosBar
   that matches the embed preview (shows "Search" + "Completed", not the query)
@@ -205,8 +258,7 @@
   appId="videos"
   skillId="search"
   title=""
-  {onClose}
-  onOpen={handleOpenInProvider}
+  onClose={handleMainClose}
   skillIconName="search"
   status="finished"
   {skillName}
@@ -252,6 +304,19 @@
     {/if}
   {/snippet}
 </UnifiedEmbedFullscreen>
+
+<!-- Video fullscreen overlay - rendered ON TOP when a video is selected -->
+<!-- Uses ChildEmbedOverlay for consistent overlay positioning across all search fullscreens -->
+{#if selectedVideo}
+  <ChildEmbedOverlay>
+    <VideoEmbedFullscreen
+      url={selectedVideo.url}
+      title={selectedVideo.title}
+      onClose={handleVideoFullscreenClose}
+      embedId={selectedVideo.embed_id}
+    />
+  </ChildEmbedOverlay>
+{/if}
 
 <style>
   /* ===========================================

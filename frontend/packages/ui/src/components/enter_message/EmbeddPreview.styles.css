@@ -355,6 +355,28 @@
     margin-bottom: 8px;
     padding: 0 4px;
     font-size: 14px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+/* Download icon in group header - matches the group header text color */
+:global(.ProseMirror .embed-group-container .group-header .group-download-icon) {
+    width: 16px;
+    height: 16px;
+    min-width: 16px;
+    background-color: var(--color-grey-60);
+    cursor: pointer;
+    opacity: 0.8;
+    transition: opacity 0.15s ease;
+}
+
+:global(.ProseMirror .embed-group-container .group-header .group-download-icon:hover) {
+    opacity: 1;
+}
+
+:global(.ProseMirror .embed-group-container .group-header .group-download-icon:active) {
+    opacity: 0.7;
 }
 
 /* Group Scroll Container */

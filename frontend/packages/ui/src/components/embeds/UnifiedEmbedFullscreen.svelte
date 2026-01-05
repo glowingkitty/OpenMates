@@ -27,7 +27,6 @@
 
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
-  // @ts-expect-error - @repo/ui module exists at runtime
   import { text } from '@repo/ui';
   import BasicInfosBar from './BasicInfosBar.svelte';
   import { panelState } from '../../stores/panelStateStore';
@@ -38,6 +37,11 @@
   // Track whether the opening animation has completed
   // Start as false (collapsed state), then animate to true (expanded state)
   let isAnimatingIn = $state(false);
+  
+  // Reference to the overlay element for animation targeting
+  // IMPORTANT: Must use ref instead of document.querySelector to avoid targeting wrong element
+  // when multiple fullscreens are nested (e.g., WebSearchEmbedFullscreen + WebsiteEmbedFullscreen)
+  let overlayRef: HTMLElement | undefined;
   
   /**
    * Context passed to the content snippet when child embeds are used
@@ -73,8 +77,6 @@
     title: string;
     /** Close handler */
     onClose: () => void;
-    /** Optional open handler (for top-left open button) */
-    onOpen?: () => void;
     /** Optional copy handler (for copy button) - copies text version of embed */
     onCopy?: () => void;
     /** Optional download handler (for download button) - downloads the embed */
@@ -144,7 +146,6 @@
     skillId,
     title,
     onClose,
-    onOpen,
     onCopy,
     onDownload,
     onShare,
@@ -278,11 +279,12 @@
   });
   
   // Handle smooth closing animation
+  // IMPORTANT: Uses overlayRef instead of document.querySelector to target THIS overlay
+  // This prevents targeting the wrong element when nested (parent + child fullscreens)
   function handleClose() {
-    const overlay = document.querySelector('.unified-embed-fullscreen-overlay') as HTMLElement;
-    if (overlay) {
-      overlay.style.transform = 'scale(0.5)';
-      overlay.style.opacity = '0';
+    if (overlayRef) {
+      overlayRef.style.transform = 'scale(0.5)';
+      overlayRef.style.opacity = '0';
     }
     
     // Delay the actual close callback to allow animation to play
@@ -366,6 +368,7 @@
 </script>
 
 <div
+  bind:this={overlayRef}
   class="unified-embed-fullscreen-overlay"
   class:animating-in={isAnimatingIn}
   style="--preview-center-x: var(--preview-center-x, 50vw); --preview-center-y: var(--preview-center-y, 50vh);"
@@ -386,19 +389,6 @@
             <span class="clickable-icon icon_share"></span>
           </button>
         </div>
-        <!-- Open in external button - only shown if onOpen is provided -->
-        {#if onOpen}
-          <div class="button-wrapper">
-            <button
-              class="action-button open-button"
-              onclick={onOpen}
-              aria-label={$text('embeds.open_external.text') || 'Open in browser'}
-              title={$text('embeds.open_external.text') || 'Open in browser'}
-            >
-              <span class="clickable-icon icon_external_link"></span>
-            </button>
-          </div>
-        {/if}
         <!-- Copy button -->
         {#if onCopy}
           <div class="button-wrapper">
@@ -541,7 +531,7 @@
     left: 0;
     right: 0;
     bottom: 0;
-    background-color: var(--color-grey-20);
+    background-color: var(--color-grey-10);
     border-radius: 17px;
     box-shadow: 0 0 12px rgba(0, 0, 0, 0.25);
     z-index: 100;

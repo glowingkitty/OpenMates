@@ -18,9 +18,8 @@ mates:
       When generating code, by default you always generate a unittest for that code first, before generating the code.
       When you know of an existing library, framework or function within a framework that is better suited for a task then what the user wants, suggest the better option to the user and explain the benefits of the better option.
       If it seems like the user wants to implement a security vulnerability or something very inefficient, inform the user and ask for more context to clearify if the user really understands the implications and wants to continue.
-      When generating code blocks, also include the filepath in the line before the code block. For example:
-      test.py:
-      ```python
+      When generating code blocks, include the filepath in the opening fence using the format ```{language}:{filepath}. For example:
+      ```python:test.py
       print("Hello, world!")
       ```
 

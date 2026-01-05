@@ -13,17 +13,24 @@
     import { locale } from 'svelte-i18n';
 
     // Props using Svelte 5 runes mode
-    let { content, isStreaming = false }: { content: any; isStreaming?: boolean } = $props(); // The message content from Tiptap JSON
+    // _embedUpdateTimestamp is used to force re-render when embed data becomes available
+    // (bypasses content cache since markdown string is unchanged but embed data is now decryptable)
+    let { content, isStreaming = false, _embedUpdateTimestamp = 0 }: { content: any; isStreaming?: boolean; _embedUpdateTimestamp?: number } = $props(); // The message content from Tiptap JSON
 
     let editorElement: HTMLElement;
     let editor: Editor | null = null;
     const dispatch = createEventDispatcher();
     
-
     // Performance optimization: Lazy initialization with Intersection Observer
     // Only create the TipTap editor when the message becomes visible in the viewport
     let isVisible = $state(false);
     let editorCreated = $state(false);
+    
+    // STREAMING FIX: Track minimum height to prevent container collapse during chunk updates
+    // When TipTap's setContent() replaces the document, it momentarily clears the DOM,
+    // causing the container height to collapse to 0px before re-expanding.
+    // We preserve the previous height as min-height to prevent this visual glitch.
+    let preservedMinHeight = $state<number | null>(null);
 
     // Logger for debugging
     const logger = {
@@ -267,17 +274,34 @@
 
                 // Performance optimization: Check cache before parsing
                 // Include locale in cache key to invalidate cache on language change
+                // CRITICAL: When _embedUpdateTimestamp is set, bypass cache to force re-render
+                // This handles the case where embed data becomes available after initial render
+                // (the markdown is unchanged but embeds can now be decrypted and rendered)
                 const currentLocale = $locale || 'en';
                 const cacheKey = `${currentLocale}:${inputContent}`;
-                const cached = contentCache.get(cacheKey);
-                if (cached) {
-                    logger.debug('Using cached content for markdown parsing');
-                    return cached;
+                
+                // Bypass cache if embed update is pending - forces fresh parsing and re-rendering
+                // This is necessary because embed NodeViews need to call resolveEmbed() again
+                // to get the newly available embed data
+                const bypassCache = _embedUpdateTimestamp && _embedUpdateTimestamp > 0;
+                
+                if (!bypassCache) {
+                    const cached = contentCache.get(cacheKey);
+                    if (cached) {
+                        logger.debug('Using cached content for markdown parsing');
+                        return cached;
+                    }
+                } else {
+                    logger.debug('Bypassing cache due to embed update timestamp:', _embedUpdateTimestamp);
                 }
 
                 // Parse markdown text to TipTap JSON with unified parsing (includes embed parsing)
                 const parsed = parse_message(inputContent, 'read', { unifiedParsingEnabled: true });
-                contentCache.set(cacheKey, parsed);
+                
+                // Only cache if not bypassing (avoid polluting cache with stale embed state)
+                if (!bypassCache) {
+                    contentCache.set(cacheKey, parsed);
+                }
                 return parsed;
             }
             
@@ -452,11 +476,34 @@
     // Track previous locale to detect changes
     let previousLocale = $state($locale || 'en');
     
+    // STREAMING FIX: Clear preserved min-height when streaming ends
+    // This allows the container to properly resize for subsequent renders
+    $effect(() => {
+        if (!isStreaming && preservedMinHeight !== null) {
+            // Use a small delay to allow the final content to render before releasing min-height
+            // This prevents any final frame flicker when the streaming completes
+            const cleanup = setTimeout(() => {
+                // Clear both the reactive state AND the inline DOM style
+                preservedMinHeight = null;
+                if (editorElement) {
+                    editorElement.style.minHeight = '';
+                }
+            }, 100);
+            
+            return () => clearTimeout(cleanup);
+        }
+    });
+    
     // Reactive statement to update Tiptap editor when 'content' prop OR locale changes using $effect (Svelte 5 runes mode)
     $effect(() => {
         // Include $locale in the effect to trigger re-processing on language change
         const currentLocale = $locale || 'en';
         const localeChanged = currentLocale !== previousLocale;
+        
+        // CRITICAL: Track embed update timestamp to force re-render when embed data arrives
+        // This handles the race condition where embeds are initially unreadable (keys not cached)
+        // but become decryptable after send_embed_data finishes processing
+        const hasEmbedUpdate = _embedUpdateTimestamp && _embedUpdateTimestamp > 0;
         
         if (localeChanged) {
             previousLocale = currentLocale;
@@ -473,10 +520,49 @@
             const currentEditorContent = editor.getJSON();
             const contentChanged = JSON.stringify(currentEditorContent) !== JSON.stringify(newProcessedContent);
             
-            // Force update if locale changed, even if content appears identical
-            // This ensures translations are refreshed
-            if (contentChanged || localeChanged) {
+            // Force update if locale changed, embed update occurred, or content actually changed
+            // Embed updates require re-render even if parsed content is identical, because:
+            // - The embed NodeViews need to call resolveEmbed() again
+            // - Embed keys may now be available in cache for decryption
+            if (contentChanged || localeChanged || hasEmbedUpdate) {
+                if (hasEmbedUpdate) {
+                    logger.debug('Forcing re-render due to embed update at:', _embedUpdateTimestamp);
+                }
+                // STREAMING FIX: Preserve current height SYNCHRONOUSLY before content replacement
+                // CRITICAL: We must set min-height directly on the DOM element BEFORE calling setContent()
+                // because Svelte's reactive updates are batched and happen asynchronously.
+                // If we used reactive state, setContent() would execute before the style is applied,
+                // causing the visual collapse we're trying to prevent.
+                if (isStreaming && editorElement) {
+                    const currentHeight = editorElement.offsetHeight;
+                    if (currentHeight > 0) {
+                        // Apply min-height SYNCHRONOUSLY via direct DOM manipulation
+                        // This ensures the height constraint is in place before TipTap clears the content
+                        editorElement.style.minHeight = `${currentHeight}px`;
+                        // Also update the reactive state for consistency (used when streaming ends)
+                        preservedMinHeight = currentHeight;
+                    }
+                }
+                
+                // Now safely replace content - the min-height prevents visual collapse
                 editor.commands.setContent(newProcessedContent, { emitUpdate: false });
+                
+                // STREAMING FIX: After content renders, update min-height if content grew taller
+                // This allows smooth upward growth while preventing any shrinkage during streaming
+                if (isStreaming && editorElement) {
+                    requestAnimationFrame(() => {
+                        if (!editorElement) return;
+                        const newHeight = editorElement.offsetHeight;
+                        const currentMinHeight = preservedMinHeight || 0;
+                        
+                        if (newHeight > currentMinHeight) {
+                            // Content grew - update min-height to the new larger value
+                            editorElement.style.minHeight = `${newHeight}px`;
+                            preservedMinHeight = newHeight;
+                        }
+                        // If content is shorter, keep the previous min-height to prevent collapse
+                    });
+                }
             }
         } else if (editor && !content) {
             // Handle case where content becomes null/undefined after editor initialization
@@ -503,7 +589,10 @@
     });
 </script>
 
-<div class="read-only-message">
+<div class="read-only-message" class:is-streaming={isStreaming}>
+    <!-- STREAMING FIX: min-height is applied directly to the DOM via JavaScript (synchronously)
+         before TipTap's setContent() clears the content. This prevents the visual collapse/stutter.
+         Direct DOM manipulation is necessary because Svelte's reactive style updates are async. -->
     <div bind:this={editorElement} class="editor-content"></div>
 </div>
 
@@ -515,6 +604,26 @@
         -webkit-user-select: text !important; /* Required for iOS Safari */
         -moz-user-select: text !important;
         -ms-user-select: text !important;
+    }
+    
+    /* STREAMING FIX: Use CSS containment during streaming to prevent layout thrashing.
+       contain: layout prevents the browser from recalculating layout for ancestors
+       when the content inside this element changes. This significantly reduces
+       the visual stutter during streaming updates. */
+    .read-only-message.is-streaming {
+        contain: layout;
+    }
+    
+    /* STREAMING FIX: Ensure editor-content transitions smoothly during streaming.
+       The will-change hint tells the browser to optimize for height changes. */
+    .editor-content {
+        /* Prevent sudden height collapse by ensuring content always takes space */
+        min-height: 1em;
+    }
+    
+    .read-only-message.is-streaming .editor-content {
+        /* Hint to browser that height will change, enabling GPU optimization */
+        will-change: contents;
     }
 
     /* Style overrides for read-only mode */

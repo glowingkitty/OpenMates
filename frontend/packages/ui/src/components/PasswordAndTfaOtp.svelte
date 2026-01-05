@@ -330,6 +330,9 @@
                 if (data.tfa_required) {
                     // Check if 2FA is actually configured (tfa_enabled indicates encrypted_tfa_secret exists)
                     // tfa_app_name is optional and doesn't indicate if 2FA is configured
+                    // CRITICAL: Only check tfa_enabled if user object is present
+                    // When auth fails, backend omits user object for anti-enumeration
+                    const hasUserData = data.user !== undefined && data.user !== null;
                     const isTfaConfigured = data.user?.tfa_enabled === true;
                     // Import isSignupPath helper for checking signup paths
                     const { isSignupPath } = await import('../stores/signupState');
@@ -338,7 +341,8 @@
                     // If 2FA is required but not actually configured (tfa_enabled is false) AND user is in signup flow,
                     // redirect to signup instead of asking for a 2FA code
                     // This handles the case where user hasn't completed 2FA setup during signup
-                    if (!isTfaConfigured && isInSignupFlow) {
+                    // CRITICAL: Only do this if we have user data - otherwise we can't determine signup flow
+                    if (hasUserData && !isTfaConfigured && isInSignupFlow) {
                         console.debug('[PasswordAndTfaOtp] 2FA required but not configured - redirecting to signup flow');
                         // Update profile with user data if available
                         if (data.user) {
@@ -383,10 +387,21 @@
                         return;
                     }
                     
-                    // CRITICAL: Only show 2FA input if 2FA is actually configured (tfa_enabled === true)
-                    // If tfa_enabled is false, don't show 2FA input even if tfa_required is true
-                    // (tfa_required=True with tfa_enabled=False is only for anti-enumeration)
-                    if (isTfaConfigured) {
+                    // CRITICAL FIX: When we have no user data, we cannot determine if 2FA is configured
+                    // Backend intentionally omits user data on failed auth to prevent email enumeration
+                    // In this case, we should:
+                    // 1. Keep the 2FA field visible if it was already shown (tfaRequiredState was true)
+                    // 2. Show appropriate error message based on whether code was submitted
+                    if (!hasUserData) {
+                        // No user data = auth failed (wrong password/lookup_hash) or account doesn't exist
+                        // Keep 2FA field visible and show password error since we can't determine 2FA status
+                        console.debug('[PasswordAndTfaOtp] Auth failed, no user data (anti-enumeration). Keeping 2FA visible, showing password error.');
+                        tfaRequiredState = true; // Keep 2FA field visible
+                        // Show error on password field - the password/lookup_hash is likely wrong
+                        errorMessage = $text('login.email_or_password_wrong.text');
+                        tfaErrorMessage = null;
+                    } else if (isTfaConfigured) {
+                        // User data present and 2FA is configured
                         // Update local tfa_required state if server indicates it's needed AND 2FA is configured
                         tfaRequiredState = true;
                         // Show TFA-specific error message only for TFA field
@@ -402,8 +417,8 @@
                             errorMessage = null;
                         }
                     } else {
-                        // 2FA is not configured (tfa_enabled === false) - don't show 2FA input
-                        // Even if tfa_required is true (anti-enumeration), we know 2FA isn't set up
+                        // User data present but 2FA is not configured (tfa_enabled === false)
+                        // Don't show 2FA input
                         console.debug('[PasswordAndTfaOtp] 2FA required but not configured - not showing 2FA input');
                         tfaRequiredState = false;
                         tfaErrorMessage = null;
@@ -429,6 +444,14 @@
 
     // Handle successful login
     async function handleSuccessfulLogin(data: any) {
+        console.debug('[PasswordAndTfaOtp] handleSuccessfulLogin called with data:', {
+            hasUser: !!data.user,
+            hasEncryptedKey: !!data.user?.encrypted_key,
+            hasSalt: !!data.user?.salt,
+            hasKeyIv: !!data.user?.key_iv,
+            hasWsToken: !!data.ws_token
+        });
+        
         // CRITICAL: Store WebSocket token FIRST before any auth state changes
         // This must happen before calling setAuthenticatedState to prevent race conditions
         if (data.ws_token) {
@@ -439,125 +462,170 @@
             console.warn('[PasswordAndTfaOtp] No ws_token in login response - WebSocket connection may fail on Safari/iPad');
         }
         
+        // CRITICAL: Validate required data for master key decryption
+        // If any required field is missing, show error instead of silently failing
+        if (!data.user) {
+            console.error('[PasswordAndTfaOtp] CRITICAL: Login response missing user object!');
+            errorMessage = $text('login.login_failed.text');
+            return;
+        }
+        
+        if (!data.user.encrypted_key) {
+            console.error('[PasswordAndTfaOtp] CRITICAL: Login response missing encrypted_key! User object keys:', Object.keys(data.user));
+            errorMessage = $text('login.login_failed.text');
+            return;
+        }
+        
+        if (!data.user.salt) {
+            console.error('[PasswordAndTfaOtp] CRITICAL: Login response missing salt! User object keys:', Object.keys(data.user));
+            errorMessage = $text('login.login_failed.text');
+            return;
+        }
+        
         // Decrypt and save master key (Web Crypto API)
-        if (data.user && data.user.encrypted_key && data.user.salt) {
-            try {
-                // Decode salt from base64
-                const saltString = atob(data.user.salt);
-                const salt = new Uint8Array(saltString.length);
-                for (let i = 0; i < saltString.length; i++) {
-                    salt[i] = saltString.charCodeAt(i);
-                }
-
-                // Derive wrapping key from password
-                const wrappingKey = await cryptoService.deriveKeyFromPassword(password, salt);
-
-                // Unwrap master key with IV (Web Crypto API)
-                const keyIv = data.user.key_iv || ''; // IV for key unwrapping
-                const masterKey = await cryptoService.decryptKey(data.user.encrypted_key, keyIv, wrappingKey);
-
-                if (masterKey) {
-                    // Save extractable master key to IndexedDB
-                    // Extractable keys allow wrapping for recovery keys while still using Web Crypto API
-                    // Pass stayLoggedIn to ensure key is cleared on tab/browser close if user didn't check "Stay logged in"
-                    await cryptoService.saveKeyToSession(masterKey, stayLoggedIn);
-                    console.debug('Master key unwrapped and saved to IndexedDB (extractable).');
-
-                    // Save email encrypted with master key for payment processing
-                    const emailStoredSuccessfully = await cryptoService.saveEmailEncryptedWithMasterKey(email, false);
-                    if (!emailStoredSuccessfully) {
-                        console.error('Failed to encrypt and store email with master key during login');
-                    } else {
-                        console.debug('Email encrypted and stored with master key for payment processing');
-                    }
-                    
-                    // Check if user is in signup flow BEFORE updating profile
-                    // A user is in signup flow if:
-                    // 1. last_opened starts with '/signup/' or '#signup/' (explicit signup path), OR
-                    // 2. tfa_enabled is false (2FA not set up - signup incomplete)
-                    // This handles cases where last_opened was overwritten to demo-welcome in a previous session
-                    const { isInSignupProcess, currentSignupStep, getStepFromPath, STEP_ONE_TIME_CODES, isSignupPath } = await import('../stores/signupState');
-                    const inSignupFlow = isSignupPath(data.user?.last_opened) || 
-                                        (data.user?.tfa_enabled === false);
-                    console.debug('Login success, in signup flow:', inSignupFlow, {
-                        last_opened: data.user?.last_opened,
-                        tfa_enabled: data.user?.tfa_enabled
-                    });
-                    
-                    // If in signup flow, set signup state IMMEDIATELY before any other operations
-                    // This prevents WebSocket from sending set_active_chat and overwriting last_opened
-                    if (inSignupFlow) {
-                        // Determine step: use last_opened if it's a signup path, otherwise default to one_time_codes
-                        // (the actual OTP setup step, not the app reminder step)
-                        const stepName = isSignupPath(data.user?.last_opened)
-                            ? getStepFromPath(data.user.last_opened)
-                            : STEP_ONE_TIME_CODES; // Default to one_time_codes (OTP setup) if last_opened doesn't indicate signup
-                        currentSignupStep.set(stepName);
-                        isInSignupProcess.set(true);
-                        console.debug('[PasswordAndTfaOtp] Signup flow detected - set isInSignupProcess=true immediately, step:', stepName);
-                    }
-                    
-                    // Update user profile with received data
-                    if (data.user) {
-                        // Log auto top-up fields from backend response - ERROR if missing
-                        const hasAutoTopupFields = 'auto_topup_low_balance_enabled' in data.user;
-                        if (!hasAutoTopupFields) {
-                            console.error('[PasswordAndTfaOtp] ERROR: Auto top-up fields missing from backend response (successful login)!');
-                            console.error('[PasswordAndTfaOtp] Received user object keys:', Object.keys(data.user));
-                            console.error('[PasswordAndTfaOtp] Full user object:', data.user);
-                        } else {
-                            console.debug('[PasswordAndTfaOtp] Auto top-up fields from backend (successful login):', {
-                                enabled: data.user.auto_topup_low_balance_enabled,
-                                threshold: data.user.auto_topup_low_balance_threshold,
-                                amount: data.user.auto_topup_low_balance_amount,
-                                currency: data.user.auto_topup_low_balance_currency
-                            });
-                        }
-                        
-                        // Save to IndexedDB first
-                        const { userDB } = await import('../services/userDB');
-                        await userDB.saveUserData(data.user);
-                        
-                        const userProfileData = {
-                            username: data.user.username || '',
-                            profile_image_url: data.user.profile_image_url || null,
-                            credits: data.user.credits || 0,
-                            is_admin: data.user.is_admin || false,
-                            last_opened: data.user.last_opened || '',
-                            tfa_app_name: data.user.tfa_app_name || null,
-                            tfa_enabled: data.user.tfa_enabled || false,
-                            consent_privacy_and_apps_default_settings: data.user.consent_privacy_and_apps_default_settings || false,
-                            consent_mates_default_settings: data.user.consent_mates_default_settings || false,
-                            language: data.user.language || 'en',
-                            darkmode: data.user.darkmode || false,
-                            // Low balance auto top-up fields
-                            auto_topup_low_balance_enabled: data.user.auto_topup_low_balance_enabled ?? false,
-                            auto_topup_low_balance_threshold: data.user.auto_topup_low_balance_threshold,
-                            auto_topup_low_balance_amount: data.user.auto_topup_low_balance_amount,
-                            auto_topup_low_balance_currency: data.user.auto_topup_low_balance_currency
-                        };
-                        
-                        // Update the user profile store
-                        updateProfile(userProfileData);
-                        console.debug('User profile updated with login data:', userProfileData);
-                    }
-                    
-                    // Clear sensitive data
-                    password = '';
-                    tfaCode = '';
-                    
-                    // Dispatch success event
-                    dispatch('loginSuccess', {
-                        user: data.user,
-                        inSignupFlow: inSignupFlow
-                    });
-                } else {
-                    errorMessage = 'Failed to decrypt master key. Please try again.';
-                }
-            } catch (e) {
-                console.error('Error during key decryption:', e);
-                errorMessage = 'Error during key decryption. Please try again.';
+        try {
+            // Decode salt from base64
+            console.debug('[PasswordAndTfaOtp] Decoding salt from base64...');
+            const saltString = atob(data.user.salt);
+            const salt = new Uint8Array(saltString.length);
+            for (let i = 0; i < saltString.length; i++) {
+                salt[i] = saltString.charCodeAt(i);
             }
+
+            // Derive wrapping key from password
+            console.debug('[PasswordAndTfaOtp] Deriving wrapping key from password...');
+            const wrappingKey = await cryptoService.deriveKeyFromPassword(password, salt);
+
+            // Unwrap master key with IV (Web Crypto API)
+            const keyIv = data.user.key_iv || ''; // IV for key unwrapping
+            console.debug('[PasswordAndTfaOtp] Decrypting master key...');
+            const masterKey = await cryptoService.decryptKey(data.user.encrypted_key, keyIv, wrappingKey);
+
+            if (!masterKey) {
+                console.error('[PasswordAndTfaOtp] Master key decryption returned null/undefined');
+                errorMessage = 'Failed to decrypt master key. Please try again.';
+                return;
+            }
+            
+            // Save extractable master key to IndexedDB
+            // Extractable keys allow wrapping for recovery keys while still using Web Crypto API
+            // Pass stayLoggedIn to ensure key is cleared on tab/browser close if user didn't check "Stay logged in"
+            // CRITICAL: Wrap in try-catch to handle IndexedDB failures (e.g., blocked by other tabs)
+            console.debug('[PasswordAndTfaOtp] Saving master key to IndexedDB...');
+            try {
+                await cryptoService.saveKeyToSession(masterKey, stayLoggedIn);
+                console.debug('[PasswordAndTfaOtp] Master key unwrapped and saved to IndexedDB (extractable).');
+            } catch (saveError) {
+                // IndexedDB can fail for various reasons:
+                // - Browser in private/incognito mode with IndexedDB disabled
+                // - Storage quota exceeded
+                // - Database corruption
+                // - Firefox-specific bugs with IndexedDB
+                console.error('[PasswordAndTfaOtp] CRITICAL: Failed to save master key to IndexedDB!', saveError);
+                errorMessage = 'Failed to save login data. Please try refreshing the page or using a different browser.';
+                return;
+            }
+
+            // Save email encrypted with master key for payment processing
+            const emailStoredSuccessfully = await cryptoService.saveEmailEncryptedWithMasterKey(email, false);
+            if (!emailStoredSuccessfully) {
+                console.error('[PasswordAndTfaOtp] Failed to encrypt and store email with master key during login');
+                // Don't block login for this - it's not critical
+            } else {
+                console.debug('[PasswordAndTfaOtp] Email encrypted and stored with master key for payment processing');
+            }
+            
+            // Check if user is in signup flow BEFORE updating profile
+            // A user is in signup flow if:
+            // 1. last_opened starts with '/signup/' or '#signup/' (explicit signup path), OR
+            // 2. tfa_enabled is false (2FA not set up - signup incomplete)
+            // This handles cases where last_opened was overwritten to demo-welcome in a previous session
+            const { isInSignupProcess, currentSignupStep, getStepFromPath, STEP_ONE_TIME_CODES, isSignupPath } = await import('../stores/signupState');
+            const inSignupFlow = isSignupPath(data.user?.last_opened) || 
+                                (data.user?.tfa_enabled === false);
+            console.debug('[PasswordAndTfaOtp] Login success, in signup flow:', inSignupFlow, {
+                last_opened: data.user?.last_opened,
+                tfa_enabled: data.user?.tfa_enabled
+            });
+            
+            // If in signup flow, set signup state IMMEDIATELY before any other operations
+            // This prevents WebSocket from sending set_active_chat and overwriting last_opened
+            if (inSignupFlow) {
+                // Determine step: use last_opened if it's a signup path, otherwise default to one_time_codes
+                // (the actual OTP setup step, not the app reminder step)
+                const stepName = isSignupPath(data.user?.last_opened)
+                    ? getStepFromPath(data.user.last_opened)
+                    : STEP_ONE_TIME_CODES; // Default to one_time_codes (OTP setup) if last_opened doesn't indicate signup
+                currentSignupStep.set(stepName);
+                isInSignupProcess.set(true);
+                console.debug('[PasswordAndTfaOtp] Signup flow detected - set isInSignupProcess=true immediately, step:', stepName);
+            }
+            
+            // Update user profile with received data
+            if (data.user) {
+                // Log auto top-up fields from backend response - ERROR if missing
+                const hasAutoTopupFields = 'auto_topup_low_balance_enabled' in data.user;
+                if (!hasAutoTopupFields) {
+                    console.error('[PasswordAndTfaOtp] ERROR: Auto top-up fields missing from backend response (successful login)!');
+                    console.error('[PasswordAndTfaOtp] Received user object keys:', Object.keys(data.user));
+                    console.error('[PasswordAndTfaOtp] Full user object:', data.user);
+                } else {
+                    console.debug('[PasswordAndTfaOtp] Auto top-up fields from backend (successful login):', {
+                        enabled: data.user.auto_topup_low_balance_enabled,
+                        threshold: data.user.auto_topup_low_balance_threshold,
+                        amount: data.user.auto_topup_low_balance_amount,
+                        currency: data.user.auto_topup_low_balance_currency
+                    });
+                }
+                
+                // Save to IndexedDB first - wrap in try-catch for IndexedDB failures
+                console.debug('[PasswordAndTfaOtp] Saving user data to IndexedDB...');
+                try {
+                    const { userDB } = await import('../services/userDB');
+                    await userDB.saveUserData(data.user);
+                    console.debug('[PasswordAndTfaOtp] User data saved to IndexedDB');
+                } catch (userDbError) {
+                    console.error('[PasswordAndTfaOtp] Failed to save user data to IndexedDB:', userDbError);
+                    // Don't block login for this - profile store update below is more important
+                }
+                
+                const userProfileData = {
+                    username: data.user.username || '',
+                    profile_image_url: data.user.profile_image_url || null,
+                    credits: data.user.credits || 0,
+                    is_admin: data.user.is_admin || false,
+                    last_opened: data.user.last_opened || '',
+                    tfa_app_name: data.user.tfa_app_name || null,
+                    tfa_enabled: data.user.tfa_enabled || false,
+                    consent_privacy_and_apps_default_settings: data.user.consent_privacy_and_apps_default_settings || false,
+                    consent_mates_default_settings: data.user.consent_mates_default_settings || false,
+                    language: data.user.language || 'en',
+                    darkmode: data.user.darkmode || false,
+                    // Low balance auto top-up fields
+                    auto_topup_low_balance_enabled: data.user.auto_topup_low_balance_enabled ?? false,
+                    auto_topup_low_balance_threshold: data.user.auto_topup_low_balance_threshold,
+                    auto_topup_low_balance_amount: data.user.auto_topup_low_balance_amount,
+                    auto_topup_low_balance_currency: data.user.auto_topup_low_balance_currency
+                };
+                
+                // Update the user profile store
+                updateProfile(userProfileData);
+                console.debug('[PasswordAndTfaOtp] User profile updated with login data:', userProfileData);
+            }
+            
+            // Clear sensitive data
+            password = '';
+            tfaCode = '';
+            
+            // Dispatch success event
+            console.debug('[PasswordAndTfaOtp] Dispatching loginSuccess event');
+            dispatch('loginSuccess', {
+                user: data.user,
+                inSignupFlow: inSignupFlow
+            });
+        } catch (e) {
+            console.error('[PasswordAndTfaOtp] Error during key decryption:', e);
+            errorMessage = 'Error during key decryption. Please try again.';
         }
     }
 

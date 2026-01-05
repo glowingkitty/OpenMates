@@ -42,6 +42,7 @@
     full_content_length?: number; // Length of full content for reference
     original_message?: GlobalMessage; // Store original message for full content loading
     appCards?: any[]; // App skill preview cards
+    _embedUpdateTimestamp?: number; // Forces re-render when embed data becomes available
   }
 
   // Helper function to map incoming message structure to InternalMessage
@@ -84,7 +85,8 @@
       is_truncated: shouldTruncate,
       full_content_length: shouldTruncate ? incomingMessage.content.length : 0,
       original_message: incomingMessage, // Store original for full content loading
-      appCards: (incomingMessage as any).appCards // Preserve appCards if present
+      appCards: (incomingMessage as any).appCards, // Preserve appCards if present
+      _embedUpdateTimestamp: (incomingMessage as any)._embedUpdateTimestamp // Force re-render when embed data arrives
     };
   }
  
@@ -594,6 +596,7 @@
                         original_message={msg.original_message}
                         containerWidth={containerWidth}
                         appCards={msg.appCards}
+                        _embedUpdateTimestamp={msg._embedUpdateTimestamp}
                     />
                 </div>
             {/each}

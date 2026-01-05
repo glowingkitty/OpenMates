@@ -1,5 +1,5 @@
 <!--
-  frontend/packages/ui/src/components/embeds/NewsSearchEmbedFullscreen.svelte
+  frontend/packages/ui/src/components/embeds/news/NewsSearchEmbedFullscreen.svelte
   
   Fullscreen view for News Search skill embeds.
   Uses UnifiedEmbedFullscreen as base with unified child embed loading.
@@ -11,11 +11,24 @@
   - Top bar with share, copy, and minimize buttons
   
   Child embeds are automatically loaded by UnifiedEmbedFullscreen from embedIds prop.
+  
+  News Article Fullscreen Navigation (Overlay Pattern):
+  - Search results grid is ALWAYS rendered (base layer)
+  - When a news article is clicked, NewsEmbedFullscreen renders as an OVERLAY on top
+  - When NewsEmbedFullscreen is closed, overlay is removed revealing search results beneath
+  
+  Benefits of overlay approach:
+  - No re-animation when returning to search results (they're already rendered beneath)
+  - No re-loading of child embeds
+  - Scroll position preserved on search results
+  - Instant close transition since search results are always visible
 -->
 
 <script lang="ts">
   import UnifiedEmbedFullscreen, { type ChildEmbedContext } from '../UnifiedEmbedFullscreen.svelte';
+  import ChildEmbedOverlay from '../ChildEmbedOverlay.svelte';
   import WebsiteEmbedPreview from '../web/WebsiteEmbedPreview.svelte';
+  import NewsEmbedFullscreen from './NewsEmbedFullscreen.svelte';
   import { text } from '@repo/ui';
   
   /**
@@ -57,6 +70,13 @@
     onClose,
     embedId
   }: Props = $props();
+  
+  // ============================================
+  // State: Track which article is shown in fullscreen
+  // ============================================
+  
+  /** Currently selected article for fullscreen view (null = show search results) */
+  let selectedArticle = $state<NewsSearchResult | null>(null);
   
   // Determine if mobile layout
   let isMobile = $derived(
@@ -175,22 +195,56 @@
     }
   }
   
-  // Handle opening search in provider
-  function handleOpenInProvider() {
-    const searchUrl = `https://search.brave.com/search?q=${encodeURIComponent(query)}`;
-    window.open(searchUrl, '_blank', 'noopener,noreferrer');
+  /**
+   * Handle article click - shows the article in fullscreen mode
+   * Uses NewsEmbedFullscreen for full article view experience
+   */
+  function handleArticleFullscreen(articleData: NewsSearchResult) {
+    console.debug('[NewsSearchEmbedFullscreen] Opening article fullscreen:', {
+      embedId: articleData.embed_id,
+      url: articleData.url,
+      title: articleData.title
+    });
+    selectedArticle = articleData;
   }
   
-  // Handle article fullscreen (from WebsiteEmbedPreview)
-  function handleArticleFullscreen(articleData: NewsSearchResult) {
-    // For now, just open the article in a new tab
-    // In the future, we could show a reader view fullscreen
-    if (articleData.url) {
-      window.open(articleData.url, '_blank', 'noopener,noreferrer');
+  /**
+   * Handle closing the article fullscreen - returns to search results
+   * Called when user clicks minimize button on NewsEmbedFullscreen
+   */
+  function handleArticleFullscreenClose() {
+    console.debug('[NewsSearchEmbedFullscreen] Closing article fullscreen, returning to search results');
+    selectedArticle = null;
+  }
+  
+  /**
+   * Handle closing the entire search fullscreen
+   * Called when user closes the main NewsSearchEmbedFullscreen
+   */
+  function handleMainClose() {
+    // If an article is open, first close it and return to search results
+    if (selectedArticle) {
+      selectedArticle = null;
+    } else {
+      // Otherwise, close the entire fullscreen
+      onClose();
     }
   }
 </script>
 
+<!-- 
+  Overlay-based rendering approach for smooth transitions:
+  - NewsSearchEmbedFullscreen (search results grid) is ALWAYS mounted
+  - NewsEmbedFullscreen renders as an OVERLAY on top when an article is selected
+  
+  Benefits of this approach:
+  - No re-animation when returning to search results (already visible beneath)
+  - No re-loading of child embeds
+  - Scroll position is preserved on search results
+  - Instant close transition since search results are already there
+-->
+
+<!-- Search results view - ALWAYS rendered (base layer) -->
 <!-- 
   Pass skillName and showStatus to UnifiedEmbedFullscreen for consistent BasicInfosBar
   that matches the embed preview (shows "Search" + "Completed", not the query)
@@ -203,8 +257,7 @@
   appId="news"
   skillId="search"
   title=""
-  {onClose}
-  onOpen={handleOpenInProvider}
+  onClose={handleMainClose}
   skillIconName="search"
   status="finished"
   {skillName}
@@ -250,6 +303,22 @@
     {/if}
   {/snippet}
 </UnifiedEmbedFullscreen>
+
+<!-- Article fullscreen overlay - rendered ON TOP when an article is selected -->
+<!-- Uses ChildEmbedOverlay for consistent overlay positioning across all search fullscreens -->
+{#if selectedArticle}
+  <ChildEmbedOverlay>
+    <NewsEmbedFullscreen
+      url={selectedArticle.url}
+      title={selectedArticle.title}
+      description={selectedArticle.description}
+      favicon={selectedArticle.favicon_url}
+      thumbnail={selectedArticle.thumbnail}
+      onClose={handleArticleFullscreenClose}
+      embedId={selectedArticle.embed_id}
+    />
+  </ChildEmbedOverlay>
+{/if}
 
 <style>
   /* ===========================================

@@ -1,40 +1,36 @@
 <!--
-  frontend/packages/ui/src/components/embeds/WebsiteEmbedFullscreen.svelte
+  frontend/packages/ui/src/components/embeds/news/NewsEmbedFullscreen.svelte
   
-  Fullscreen view for Website embeds.
-  Uses UnifiedEmbedFullscreen as base and provides website-specific content.
+  Fullscreen view for individual News article embeds.
+  Uses UnifiedEmbedFullscreen as base and provides news-specific content.
   
   Shows:
-  - Website title, favicon, and URL
-  - Preview image (if available)
-  - Description
-  - Snippets (if available)
-  - "Open in new tab" button
+  - Article title, favicon, and URL
+  - Thumbnail image (if available)
+  - Description/snippet
+  - "Read article" button to open in new tab
+  
+  Used as child fullscreen from NewsSearchEmbedFullscreen via ChildEmbedOverlay pattern.
 -->
 
 <script lang="ts">
   import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
+  import { text } from '@repo/ui';
   
   /**
-   * Props for website embed fullscreen
+   * Props for news embed fullscreen
    */
   interface Props {
-    /** Website URL */
+    /** Article URL */
     url: string;
-    /** Website title */
+    /** Article title */
     title?: string;
-    /** Website description */
+    /** Article description */
     description?: string;
     /** Favicon URL */
     favicon?: string;
-    /** Preview image URL */
-    image?: string;
-    /** Snippets array */
-    snippets?: string[];
-    /** Meta URL favicon (alternative source) */
-    meta_url_favicon?: string;
-    /** Thumbnail original (alternative image source) */
-    thumbnail_original?: string;
+    /** Thumbnail image URL */
+    thumbnail?: string;
     /** Close handler */
     onClose: () => void;
     /** Optional: Embed ID for sharing (from embed:{embed_id} contentRef) */
@@ -46,39 +42,45 @@
     title,
     description,
     favicon,
-    image,
-    snippets = [],
-    meta_url_favicon,
-    thumbnail_original,
+    thumbnail,
     onClose,
     embedId
   }: Props = $props();
   
-  // Get display values
-  let displayTitle = $derived(title || new URL(url).hostname);
+  // Get display values with fallbacks
+  let displayTitle = $derived(title || getHostname(url));
   let displayDescription = $derived(description || '');
   let faviconUrl = $derived(
-    meta_url_favicon || 
     favicon || 
     `https://preview.openmates.org/api/v1/favicon?url=${encodeURIComponent(url)}`
   );
-  let imageUrl = $derived(
-    thumbnail_original || 
-    image || 
+  let thumbnailUrl = $derived(
+    thumbnail || 
     `https://preview.openmates.org/api/v1/image?url=${encodeURIComponent(url)}`
   );
   
-  // Handle opening website in new tab
-  function handleOpenInNewTab() {
+  /**
+   * Safely extract hostname from URL
+   */
+  function getHostname(urlStr: string): string {
+    try {
+      return new URL(urlStr).hostname;
+    } catch {
+      return urlStr;
+    }
+  }
+  
+  // Handle opening article in new tab
+  function handleOpenArticle() {
     if (url) {
       window.open(url, '_blank', 'noopener,noreferrer');
     }
   }
   
-  // Handle share - opens share settings menu for this specific website embed
+  // Handle share - opens share settings menu for this specific news embed
   async function handleShare() {
     try {
-      console.debug('[WebsiteEmbedFullscreen] Opening share settings for website embed:', {
+      console.debug('[NewsEmbedFullscreen] Opening share settings for news embed:', {
         embedId,
         url,
         title: displayTitle,
@@ -87,9 +89,9 @@
 
       // Check if we have embed_id for proper sharing
       if (!embedId) {
-        console.warn('[WebsiteEmbedFullscreen] No embed_id available - cannot create encrypted share link');
+        console.warn('[NewsEmbedFullscreen] No embed_id available - cannot create encrypted share link');
         const { notificationStore } = await import('../../../stores/notificationStore');
-        notificationStore.error('Unable to share this website embed. Missing embed ID.');
+        notificationStore.error('Unable to share this news article. Missing embed ID.');
         return;
       }
 
@@ -100,21 +102,20 @@
 
       // Set embed context with embed_id for proper encrypted sharing
       const embedContext = {
-        type: 'website',
+        type: 'news',
         embed_id: embedId,
         url: url,
         title: displayTitle,
         description: displayDescription,
         favicon: faviconUrl,
-        image: imageUrl,
-        snippets: snippets
+        thumbnail: thumbnailUrl
       };
 
       // Store embed context for SettingsShare
       (window as unknown as { __embedShareContext?: unknown }).__embedShareContext = embedContext;
 
       // Navigate to share settings
-      navigateToSettings('shared/share', 'Share Website', 'share', 'settings.share.share_website.text');
+      navigateToSettings('shared/share', 'Share News Article', 'share', 'settings.share.share_news.text');
       
       // Also set settingsDeepLink to ensure Settings component navigates properly
       settingsDeepLink.set('shared/share');
@@ -122,9 +123,9 @@
       // Open settings panel
       panelState.openSettings();
 
-      console.debug('[WebsiteEmbedFullscreen] Opened share settings for website embed');
+      console.debug('[NewsEmbedFullscreen] Opened share settings for news embed');
     } catch (error) {
-      console.error('[WebsiteEmbedFullscreen] Error opening share settings:', error);
+      console.error('[NewsEmbedFullscreen] Error opening share settings:', error);
       const { notificationStore } = await import('../../../stores/notificationStore');
       notificationStore.error('Failed to open share menu. Please try again.');
     }
@@ -132,49 +133,49 @@
 </script>
 
 <!-- 
-  WebsiteEmbedFullscreen uses UnifiedEmbedFullscreen as base
-  Shows website title in header, with favicon, URL, and "Open in new tab" button
+  NewsEmbedFullscreen uses UnifiedEmbedFullscreen as base
+  Shows article title in header, with favicon, URL, and "Read article" button
   
   BasicInfosBar at bottom shows:
-  - App icon (web app gradient)
-  - Website favicon next to title
-  - Website title (from displayTitle)
-  - No status text (showStatus=false) since this is an individual website, not a skill
+  - App icon (news app gradient)
+  - Article favicon next to title
+  - Article title (from displayTitle)
+  - No status text (showStatus=false) since this is an individual article, not a skill
 -->
 <UnifiedEmbedFullscreen
-  appId="web"
-  skillId="website"
+  appId="news"
+  skillId="article"
   title={displayTitle}
   {onClose}
   onShare={handleShare}
-  skillIconName="website"
+  skillIconName="article"
   skillName={displayTitle}
   faviconUrl={faviconUrl}
   showSkillIcon={false}
   showStatus={false}
 >
   {#snippet headerExtra()}
-    <div class="website-header-info">
+    <div class="news-header-info">
       {#if faviconUrl}
         <img src={faviconUrl} alt="" class="favicon" />
       {/if}
-      <div class="url">{new URL(url).hostname}</div>
+      <div class="url">{getHostname(url)}</div>
     </div>
     
-    <button class="open-button" onclick={handleOpenInNewTab}>
-      Open in new tab
+    <button class="read-button" onclick={handleOpenArticle}>
+      {$text('embeds.read_article.text') || 'Read article'}
     </button>
   {/snippet}
   
   <!-- eslint-disable-next-line @typescript-eslint/no-unused-vars -->
   {#snippet content(_)}
-    <!-- Preview image -->
-    {#if imageUrl}
-      <div class="preview-image-container">
+    <!-- Thumbnail image -->
+    {#if thumbnailUrl}
+      <div class="thumbnail-container">
         <img 
-          src={imageUrl} 
+          src={thumbnailUrl} 
           alt={displayTitle}
-          class="preview-image"
+          class="thumbnail-image"
           loading="lazy"
           onerror={(e) => {
             (e.target as HTMLImageElement).style.display = 'none';
@@ -190,20 +191,10 @@
       </div>
     {/if}
     
-    <!-- Snippets -->
-    {#if snippets && snippets.length > 0}
-      <div class="snippets">
-        <h3>Snippets</h3>
-        {#each snippets as snippet}
-          <div class="snippet">{snippet}</div>
-        {/each}
-      </div>
-    {/if}
-    
-    <!-- Open button (duplicate for better UX) -->
+    <!-- Read button (duplicate for better UX) -->
     <div class="action-section">
-      <button class="open-button" onclick={handleOpenInNewTab}>
-        Open in new tab
+      <button class="read-button" onclick={handleOpenArticle}>
+        {$text('embeds.read_article.text') || 'Read article'}
       </button>
     </div>
   {/snippet}
@@ -211,7 +202,7 @@
 
 <style>
   /* Header extra content */
-  .website-header-info {
+  .news-header-info {
     display: flex;
     align-items: center;
     gap: 8px;
@@ -230,35 +221,44 @@
     color: var(--color-font-secondary);
   }
   
-  /* Open button */
-  .open-button {
+  /* Read button */
+  .read-button {
     margin-top: 12px;
     padding: 12px 24px;
-    background-color: var(--color-error);
-    color: white;
+    background-color: var(--color-button-primary);
+    color: var(--color-font-button);
     border: none;
     border-radius: 20px;
     font-size: 16px;
     font-weight: 500;
     cursor: pointer;
     transition: background-color 0.2s, transform 0.2s;
+    filter: drop-shadow(0px 4px 4px rgba(0, 0, 0, 0.25));
   }
   
-  .open-button:hover {
-    background-color: var(--color-error-dark);
+  .read-button:hover {
+    background-color: var(--color-button-primary-hover);
     transform: translateY(-2px);
   }
   
-  /* Preview image */
-  .preview-image-container {
+  .read-button:active {
+    background-color: var(--color-button-primary-pressed);
+    transform: translateY(0);
+    filter: none;
+  }
+  
+  /* Thumbnail image */
+  .thumbnail-container {
     width: 100%;
-    margin-bottom: 16px;
+    max-width: 780px;
+    margin: 20px auto 16px;
     border-radius: 12px;
     overflow: hidden;
     background-color: var(--color-grey-15);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   }
   
-  .preview-image {
+  .thumbnail-image {
     width: 100%;
     height: auto;
     display: block;
@@ -270,35 +270,18 @@
     font-size: 16px;
     line-height: 1.6;
     color: var(--color-font-primary);
-    margin-bottom: 16px;
-  }
-  
-  /* Snippets */
-  .snippets {
-    margin-bottom: 24px;
-  }
-  
-  .snippets h3 {
-    font-size: 16px;
-    font-weight: 500;
-    color: var(--color-font-primary);
-    margin-bottom: 12px;
-  }
-  
-  .snippet {
-    font-size: 14px;
-    line-height: 1.5;
-    color: var(--color-font-secondary);
-    padding: 12px;
-    background-color: var(--color-grey-15);
-    border-radius: 8px;
-    margin-bottom: 8px;
+    margin: 16px auto;
+    max-width: 780px;
+    padding: 0 16px;
   }
   
   /* Action section */
   .action-section {
-    margin-top: 24px;
-    margin-bottom: 16px;
+    margin: 24px auto 16px;
+    max-width: 780px;
+    padding: 0 16px;
+    display: flex;
+    justify-content: center;
   }
 </style>
 

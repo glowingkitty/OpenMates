@@ -1,7 +1,6 @@
 # Drafts System Architecture
 
-> **Status**: ✅ Implemented  
-> **Last Updated**: 2025-10-01
+> **Status**: ✅ Implemented
 
 This document describes the draft saving and synchronization system that allows users to maintain unsent message drafts across multiple devices with zero-knowledge encryption.
 
@@ -15,6 +14,7 @@ The [draftSave service](../../frontend/packages/ui/src/services/drafts/draftSave
 - Content is encrypted using the user's master key
 - Draft is saved to IndexedDB via [chatDB](../../frontend/packages/ui/src/services/db.ts)
 - UI state is updated in [draftState](../../frontend/packages/ui/src/services/drafts/draftState.ts)
+- A save lock (`isSaveInProgress`) prevents concurrent saves from creating duplicate chats
 
 ### 3. Server Synchronization
 If online, the encrypted draft is sent to the server via WebSocket:

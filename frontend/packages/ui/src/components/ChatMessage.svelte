@@ -42,7 +42,8 @@
     is_truncated = false,
     full_content_length = 0,
     original_message = null,
-    containerWidth = 0
+    containerWidth = 0,
+    _embedUpdateTimestamp = 0
   }: {
     role?: MessageRole;
     category?: string;
@@ -58,6 +59,7 @@
     full_content_length?: number;
     original_message?: any;
     containerWidth?: number;
+    _embedUpdateTimestamp?: number; // Used to force re-render when embed data becomes available
   } = $props();
 
   // State for truncated message handling
@@ -617,12 +619,14 @@
           <ReadOnlyMessage 
               content={fullContent}
               isStreaming={status === 'streaming'}
+              {_embedUpdateTimestamp}
               on:message-embed-click={handleEmbedClick}
           />
         {:else}
           <ReadOnlyMessage 
               {content}
               isStreaming={status === 'streaming'}
+              {_embedUpdateTimestamp}
               on:message-embed-click={handleEmbedClick}
           />
         {/if}

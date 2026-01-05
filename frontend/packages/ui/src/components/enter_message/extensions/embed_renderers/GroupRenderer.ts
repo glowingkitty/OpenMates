@@ -5,6 +5,7 @@ import type { EmbedRenderer, EmbedRenderContext } from './types';
 import type { EmbedNodeAttributes } from '../../../../message_parsing/types';
 import { groupHandlerRegistry } from '../../../../message_parsing/groupHandlers';
 import { resolveEmbed, decodeToonContent } from '../../../../services/embedResolver';
+import { downloadCodeFilesAsZip, type CodeFileData } from '../../../../services/zipExportService';
 import { mount, unmount } from 'svelte';
 import WebsiteEmbedPreview from '../../../embeds/web/WebsiteEmbedPreview.svelte';
 import VideoEmbedPreview from '../../../embeds/videos/VideoEmbedPreview.svelte';
@@ -474,6 +475,7 @@ export class GroupRenderer implements EmbedRenderer {
   /**
    * Render code embed group with horizontal scrolling
    * Similar to renderAppSkillUseGroup but for code embeds
+   * Includes a download icon to download all code files as a zip
    */
   private async renderCodeGroup(args: {
     baseType: string;
@@ -492,9 +494,38 @@ export class GroupRenderer implements EmbedRenderer {
     const groupWrapper = document.createElement('div');
     groupWrapper.className = `${baseType}-preview-group`;
 
+    // Create header with text and download icon
     const header = document.createElement('div');
     header.className = 'group-header';
-    header.textContent = groupDisplayName;
+    
+    // Text span for the count
+    const headerText = document.createElement('span');
+    headerText.textContent = groupDisplayName;
+    header.appendChild(headerText);
+    
+    // Download icon for code groups
+    const downloadIcon = document.createElement('span');
+    downloadIcon.className = 'clickable-icon icon_download group-download-icon';
+    downloadIcon.title = 'Download all code files';
+    downloadIcon.setAttribute('role', 'button');
+    downloadIcon.setAttribute('tabindex', '0');
+    
+    // Add click handler to download all code files
+    downloadIcon.addEventListener('click', async (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      await this.downloadAllCodeFiles(items);
+    });
+    
+    // Also support keyboard activation
+    downloadIcon.addEventListener('keydown', async (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        await this.downloadAllCodeFiles(items);
+      }
+    });
+    
+    header.appendChild(downloadIcon);
 
     const scrollContainer = document.createElement('div');
     scrollContainer.className = 'group-scroll-container';
@@ -512,6 +543,59 @@ export class GroupRenderer implements EmbedRenderer {
       scrollContainer.appendChild(itemWrapper);
 
       await this.mountCodePreview(item, itemWrapper);
+    }
+  }
+  
+  /**
+   * Downloads all code files from a code group as a zip
+   * Resolves each embed, extracts code content, and creates a zip download
+   */
+  private async downloadAllCodeFiles(items: EmbedNodeAttributes[]): Promise<void> {
+    console.debug('[GroupRenderer] Downloading all code files from group:', items.length);
+    
+    const codeFiles: CodeFileData[] = [];
+    
+    for (const item of items) {
+      try {
+        // Resolve content for this code item
+        const embedId = item.contentRef?.startsWith('embed:') ? item.contentRef.replace('embed:', '') : '';
+        
+        let decodedContent: any = null;
+        
+        if (embedId) {
+          const embedData = await resolveEmbed(embedId);
+          decodedContent = embedData?.content ? await decodeToonContent(embedData.content) : null;
+        }
+        
+        // Get code content - for preview embeds use item.code, for real embeds use decodedContent
+        let codeContent = '';
+        if (item.contentRef?.startsWith('preview:')) {
+          codeContent = item.code || '';
+        } else {
+          codeContent = decodedContent?.code || '';
+        }
+        
+        if (codeContent) {
+          codeFiles.push({
+            code: codeContent,
+            language: decodedContent?.language || item.language || 'text',
+            filename: decodedContent?.filename || item.filename
+          });
+        }
+      } catch (error) {
+        console.warn('[GroupRenderer] Error loading code embed for download:', error);
+      }
+    }
+    
+    if (codeFiles.length > 0) {
+      try {
+        await downloadCodeFilesAsZip(codeFiles);
+        console.debug('[GroupRenderer] Code files download initiated:', codeFiles.length, 'files');
+      } catch (error) {
+        console.error('[GroupRenderer] Error downloading code files:', error);
+      }
+    } else {
+      console.warn('[GroupRenderer] No code files found to download');
     }
   }
 

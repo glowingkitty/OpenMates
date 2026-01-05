@@ -8,9 +8,20 @@
   - Header with search query and "via {provider}" formatting (60px top margin, 40px bottom margin)
   - Website embeds in a grid (auto-responsive columns)
   - Consistent BasicInfosBar at the bottom (matches preview - "Search" + "Completed")
-  - Top bar with share, copy, and minimize buttons
+  - Top bar with share and minimize buttons
   
   Child embeds are automatically loaded by UnifiedEmbedFullscreen from embedIds prop.
+  
+  Website Fullscreen Navigation (Overlay Pattern):
+  - Search results grid is ALWAYS rendered (base layer)
+  - When a website result is clicked, WebsiteEmbedFullscreen renders as an OVERLAY on top
+  - When WebsiteEmbedFullscreen is closed, overlay is removed revealing search results beneath
+  
+  Benefits of overlay approach:
+  - No re-animation when returning to search results (they're already rendered beneath)
+  - No re-loading of child embeds
+  - Scroll position is preserved on search results
+  - Instant "close" transition since search results are always visible
   
   Supports both contexts:
   - Embed context: receives embedIds for child embed loading
@@ -20,12 +31,15 @@
 
 <script lang="ts">
   import UnifiedEmbedFullscreen, { type ChildEmbedContext } from '../UnifiedEmbedFullscreen.svelte';
+  import ChildEmbedOverlay from '../ChildEmbedOverlay.svelte';
   import WebsiteEmbedPreview from './WebsiteEmbedPreview.svelte';
+  import WebsiteEmbedFullscreen from './WebsiteEmbedFullscreen.svelte';
   import { text } from '@repo/ui';
   import type { WebSearchSkillPreviewData } from '../../../types/appSkills';
   
   /**
    * Web search result interface (transformed from child embeds)
+   * Contains all data needed to display website in both preview and fullscreen
    */
   interface WebSearchResult {
     embed_id: string;
@@ -34,6 +48,10 @@
     favicon_url?: string;
     preview_image_url?: string;
     snippet?: string;
+    /** Additional description (may be longer than snippet) */
+    description?: string;
+    /** Snippets array for fullscreen view */
+    snippets?: string[];
   }
   
   /**
@@ -67,6 +85,13 @@
     embedId
   }: Props = $props();
   
+  // ============================================
+  // State: Track which website is shown in fullscreen
+  // ============================================
+  
+  /** Currently selected website for fullscreen view (null = show search results) */
+  let selectedWebsite = $state<WebSearchResult | null>(null);
+  
   // Extract values from either previewData (skill preview context) or direct props (embed context)
   let query = $derived(previewData?.query || queryProp || '');
   let provider = $derived(previewData?.provider || providerProp || 'Brave Search');
@@ -89,15 +114,18 @@
   /**
    * Transform raw embed content to WebSearchResult format
    * Used by UnifiedEmbedFullscreen's childEmbedTransformer
+   * Extracts all available fields for both preview and fullscreen views
    */
   function transformToWebResult(embedId: string, content: Record<string, unknown>): WebSearchResult {
     return {
       embed_id: embedId,
       title: content.title as string | undefined,
       url: content.url as string,
-      favicon_url: content.favicon_url as string | undefined,
-      preview_image_url: content.preview_image_url as string | undefined,
-      snippet: (content.snippet as string) || (content.description as string)
+      favicon_url: (content.favicon_url || content.meta_url_favicon) as string | undefined,
+      preview_image_url: (content.preview_image_url || content.thumbnail_original || content.image) as string | undefined,
+      snippet: (content.snippet as string) || (content.description as string),
+      description: content.description as string | undefined,
+      snippets: content.snippets as string[] | undefined
     };
   }
   
@@ -109,9 +137,11 @@
       embed_id: `legacy-${i}`,
       title: r.title as string | undefined,
       url: r.url as string,
-      favicon_url: r.favicon_url as string | undefined,
-      preview_image_url: r.preview_image_url as string | undefined,
-      snippet: (r.snippet as string) || (r.description as string)
+      favicon_url: (r.favicon_url || r.meta_url_favicon) as string | undefined,
+      preview_image_url: (r.preview_image_url || r.thumbnail_original || r.image) as string | undefined,
+      snippet: (r.snippet as string) || (r.description as string),
+      description: r.description as string | undefined,
+      snippets: r.snippets as string[] | undefined
     }));
   }
   
@@ -131,18 +161,39 @@
     return [];
   }
   
-  // Handle opening search in provider
-  function handleOpenInProvider() {
-    const searchUrl = `https://search.brave.com/search?q=${encodeURIComponent(query)}`;
-    window.open(searchUrl, '_blank', 'noopener,noreferrer');
+  /**
+   * Handle website click - shows the website in fullscreen mode
+   * Instead of opening in new tab, we display WebsiteEmbedFullscreen
+   */
+  function handleWebsiteFullscreen(websiteData: WebSearchResult) {
+    console.debug('[WebSearchEmbedFullscreen] Opening website fullscreen:', {
+      embedId: websiteData.embed_id,
+      url: websiteData.url,
+      title: websiteData.title
+    });
+    selectedWebsite = websiteData;
   }
   
-  // Handle website fullscreen (from WebsiteEmbedPreview)
-  function handleWebsiteFullscreen(websiteData: WebSearchResult) {
-    // For now, just open the website in a new tab
-    // In the future, we could show a website fullscreen view
-    if (websiteData.url) {
-      window.open(websiteData.url, '_blank', 'noopener,noreferrer');
+  /**
+   * Handle closing the website fullscreen - returns to search results
+   * Called when user clicks minimize button on WebsiteEmbedFullscreen
+   */
+  function handleWebsiteFullscreenClose() {
+    console.debug('[WebSearchEmbedFullscreen] Closing website fullscreen, returning to search results');
+    selectedWebsite = null;
+  }
+  
+  /**
+   * Handle closing the entire search fullscreen
+   * Called when user closes the main WebSearchEmbedFullscreen
+   */
+  function handleMainClose() {
+    // If a website is open, first close it and return to search results
+    if (selectedWebsite) {
+      selectedWebsite = null;
+    } else {
+      // Otherwise, close the entire fullscreen
+      onClose();
     }
   }
 
@@ -198,6 +249,19 @@
 </script>
 
 <!-- 
+  Overlay-based rendering approach for smooth transitions:
+  - WebSearchEmbedFullscreen (search results grid) is ALWAYS mounted
+  - WebsiteEmbedFullscreen renders as an OVERLAY on top when a website is selected
+  
+  Benefits of this approach:
+  - No re-animation when returning to search results (already visible beneath)
+  - No re-loading of child embeds
+  - Scroll position is preserved on search results
+  - Instant "close" transition since search results are already there
+-->
+
+<!-- Search results view - ALWAYS rendered (base layer) -->
+<!-- 
   Pass skillName and showStatus to UnifiedEmbedFullscreen for consistent BasicInfosBar
   that matches the embed preview (shows "Search" + "Completed", not the query)
   
@@ -208,8 +272,7 @@
   appId="web"
   skillId="search"
   title=""
-  {onClose}
-  onOpen={handleOpenInProvider}
+  onClose={handleMainClose}
   onShare={handleShare}
   skillIconName="search"
   status="finished"
@@ -256,6 +319,23 @@
     {/if}
   {/snippet}
 </UnifiedEmbedFullscreen>
+
+<!-- Website fullscreen overlay - rendered ON TOP when a website is selected -->
+<!-- Uses ChildEmbedOverlay for consistent overlay positioning across all search fullscreens -->
+{#if selectedWebsite}
+  <ChildEmbedOverlay>
+    <WebsiteEmbedFullscreen
+      url={selectedWebsite.url}
+      title={selectedWebsite.title}
+      description={selectedWebsite.description || selectedWebsite.snippet}
+      favicon={selectedWebsite.favicon_url}
+      image={selectedWebsite.preview_image_url}
+      snippets={selectedWebsite.snippets}
+      onClose={handleWebsiteFullscreenClose}
+      embedId={selectedWebsite.embed_id}
+    />
+  </ChildEmbedOverlay>
+{/if}
 
 <style>
   /* ===========================================
