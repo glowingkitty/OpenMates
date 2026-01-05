@@ -98,11 +98,6 @@
   // Legacy results from previewData or direct results prop (used as fallback)
   let legacyResults = $derived(previewData?.results || resultsProp || []);
   
-  // Determine if mobile layout
-  let isMobile = $derived(
-    typeof window !== 'undefined' && window.innerWidth <= 500
-  );
-  
   // Get skill name from translations (matches preview)
   let skillName = $derived($text('embeds.search.text') || 'Search');
   
@@ -300,8 +295,9 @@
         <p>{$text('embeds.no_results.text') || 'No search results available.'}</p>
       </div>
     {:else}
-      <!-- Website embeds grid - responsive auto-fill columns -->
-      <div class="website-embeds-grid" class:mobile={isMobile}>
+      <!-- Website embeds grid - uses CSS container queries for responsive layout -->
+      <!-- No JavaScript-based mobile detection; CSS handles responsive columns automatically -->
+      <div class="website-embeds-grid">
         {#each webResults as result}
           <WebsiteEmbedPreview
             id={result.embed_id}
@@ -340,6 +336,7 @@
 <style>
   /* ===========================================
      Fullscreen Header - Query and Provider
+     Uses container queries for responsive sizing
      =========================================== */
   
   .fullscreen-header {
@@ -370,6 +367,22 @@
     margin-top: 8px;
   }
   
+  /* Container query: smaller text on narrow containers */
+  @container fullscreen (max-width: 500px) {
+    .fullscreen-header {
+      margin-top: 70px; /* More space for action buttons */
+      margin-bottom: 24px;
+    }
+    
+    .search-query {
+      font-size: 20px;
+    }
+    
+    .search-provider {
+      font-size: 14px;
+    }
+  }
+  
   /* ===========================================
      Loading and No Results States
      =========================================== */
@@ -386,6 +399,8 @@
   
   /* ===========================================
      Website Embeds Grid - Responsive Layout
+     Uses CSS container queries for container-based responsiveness
+     (not viewport-based) so it works correctly in split views
      =========================================== */
   
   .website-embeds-grid {
@@ -397,12 +412,16 @@
     padding: 0 10px;
     padding-bottom: 120px; /* Space for bottom bar + gradient */
     /* Responsive: auto-fit columns with minimum 280px width */
+    /* This naturally becomes single column when container is narrow */
     grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   }
   
-  /* Mobile: single column (stacked) */
-  .website-embeds-grid.mobile {
-    grid-template-columns: 1fr;
+  /* Container query: when fullscreen container is narrow (< 500px), single column */
+  /* Uses container query on the 'fullscreen' container defined in UnifiedEmbedFullscreen */
+  @container fullscreen (max-width: 500px) {
+    .website-embeds-grid {
+      grid-template-columns: 1fr;
+    }
   }
   
   /* Ensure each embed maintains proper size */

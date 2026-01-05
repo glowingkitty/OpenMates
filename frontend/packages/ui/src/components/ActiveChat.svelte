@@ -182,8 +182,7 @@
         lineCount: 0
     });
 
-    // Add state to track logout from signup
-    let isLoggingOutFromSignup = false;
+    // Note: isLoggingOutFromSignup state removed as it was set but never read
 
     async function handleLoginSuccess(event) {
         const { user, inSignupFlow } = event.detail;
@@ -246,8 +245,6 @@
 
     // Modify handleLogout to track signup state and reset signup step
     async function handleLogout() {
-        // Set the flag if we're in signup process
-        isLoggingOutFromSignup = $isInSignupProcess;
         isLoggingOut.set(true);
         
         // Reset signup step to 1
@@ -301,8 +298,6 @@
     // Reset the flags when auth state changes using Svelte 5 $effect
     $effect(() => {
         if (!$authStore.isAuthenticated) {
-            isLoggingOutFromSignup = false;
-            
             // Clear video iframe state on logout
             videoIframeStore.clear();
             
@@ -955,7 +950,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     // Add state variable for scaling animation on the container using $state
     let activeScaling = $state(false);
 
-    let aiTaskStateTrigger = 0; // Reactive trigger for AI task state changes
+    // Reactive trigger for AI task state changes - incremented when AI tasks start/end
+    // Note: Prefixed with underscore as linter reports unused, but it's used as a reactivity trigger
+    let _aiTaskStateTrigger = 0;
 
     // Track if the message input has content (draft) using $state
     let messageInputHasContent = $state(false);
@@ -993,6 +990,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     // Determine if we should use side-by-side layout for fullscreen embeds
     // Only use side-by-side when ultra-wide AND an embed fullscreen is open
     let showSideBySideFullscreen = $derived(isUltraWide && showEmbedFullscreen && embedFullscreenData);
+    
+    // Effective narrow mode: True when chat container is narrow OR when in side-by-side mode
+    // In side-by-side mode, the chat is limited to 400px which requires narrow/mobile styling
+    // This is used for container-based responsive behavior instead of viewport-based
+    let isEffectivelyNarrow = $derived(isNarrow || showSideBySideFullscreen);
 
     // Debug suggestions visibility
     $effect(() => {
@@ -1137,7 +1139,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     // Then shows: "{mate} is typing...<br>Powered by {model_name} via {provider_name}" when AI is responding
     // Using Svelte 5 $derived for typing indicator text
     let typingIndicatorText = $derived((() => {
-        // aiTaskStateTrigger is a top-level reactive variable.
+        // _aiTaskStateTrigger is a top-level reactive variable.
         // Its change will trigger re-evaluation of this derived value.
         
         // Check if there's a processing message (user message waiting for AI to start)
@@ -2031,7 +2033,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             console.debug('[ActiveChat] handleMessageStatusChanged: Updating currentChat with metadata from event:', chatMetadata);
             // Only update fields that are defined to avoid overwriting with undefined values
             const validMetadata = Object.fromEntries(
-                Object.entries(chatMetadata).filter(([key, value]) => value !== undefined)
+                Object.entries(chatMetadata).filter(([_key, value]) => value !== undefined)
             );
             currentChat = { ...currentChat, ...validMetadata }; // Ensure currentChat is updated with latest metadata like messages_v
         }
@@ -2788,7 +2790,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         
         // Add event listener for video PiP restore fullscreen events
         // This is triggered when user clicks the overlay on PiP video (via VideoIframe component)
-        const videoPipRestoreHandler = (event: CustomEvent) => {
+        const videoPipRestoreHandler = (_event: CustomEvent) => {
             handlePipOverlayClick();
         };
         document.addEventListener('videopip-restore-fullscreen', videoPipRestoreHandler as EventListener);
@@ -3161,13 +3163,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         chatHistoryRef.updateMessages(currentMessages);
                     }
                 }
-                aiTaskStateTrigger++;
+                _aiTaskStateTrigger++;
             }
         }) as EventListener;
 
         const aiTaskEndedHandler = ((event: CustomEvent<{ chatId: string }>) => {
             if (event.detail.chatId === currentChat?.chat_id) {
-                aiTaskStateTrigger++;
+                _aiTaskStateTrigger++;
             }
         }) as EventListener;
 
@@ -3455,10 +3457,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     class:dimmed={isDimmed} 
     class:login-mode={!showChat} 
     class:scaled={activeScaling}
-    class:narrow={isNarrow}
-    class:medium={isMedium}
-    class:wide={isWide}
+    class:narrow={isEffectivelyNarrow}
+    class:medium={isMedium && !showSideBySideFullscreen}
+    class:wide={isWide && !showSideBySideFullscreen}
     class:extra-wide={isExtraWide}
+    class:side-by-side-active={showSideBySideFullscreen}
     bind:clientWidth={containerWidth}
 >
     {#if !showChat}
@@ -3741,7 +3744,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             success_count: embedFullscreenData.decodedContent?.success_count || 0,
                             failed_count: embedFullscreenData.decodedContent?.failed_count || 0
                         }}
-                        {@const debugRender = (() => {
+                        {@const _debugRender = (() => {
                             console.debug('[ActiveChat] Rendering VideoTranscriptEmbedFullscreen:', {
                                 appId,
                                 skillId,
@@ -3946,19 +3949,41 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     /* When side-by-side mode is active, content-container uses row layout */
     .content-container.side-by-side {
         flex-direction: row;
-        gap: 0; /* No gap - divider provides visual separation */
+        gap: 10px; /* Gap between chat card and fullscreen card */
     }
     
     /* Chat wrapper shrinks to make room for side panel - limited to 400px for maximum fullscreen space */
+    /* At 400px width, the chat should use narrow/mobile-like styling */
     .chat-wrapper.side-by-side-chat {
         flex: 0 0 400px;
         max-width: 400px;
         min-width: 400px; /* Fixed width for consistent layout */
         position: relative;
-        border-right: 1px solid var(--color-grey-30); /* Visual separator */
+        /* Rounded edges to look like a separate card (chat remains in main container) */
+        border-radius: 17px;
+        overflow: hidden;
         transition: flex 0.4s cubic-bezier(0.4, 0, 0.2, 1), 
                     max-width 0.4s cubic-bezier(0.4, 0, 0.2, 1),
                     min-width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    
+    /* Force narrow/mobile styling on chat wrapper in side-by-side mode */
+    /* This ensures mobile-friendly layouts are used when chat is 400px wide */
+    .chat-wrapper.side-by-side-chat .top-buttons {
+        top: 10px;
+        left: 10px;
+    }
+    
+    .chat-wrapper.side-by-side-chat .message-input-container {
+        padding: 10px;
+    }
+    
+    .chat-wrapper.side-by-side-chat .typing-indicator {
+        font-size: 0.75rem;
+    }
+    
+    .chat-wrapper.side-by-side-chat .center-content {
+        top: 30%;
     }
     
     /* Fullscreen embed container - handles both overlay and side panel modes */
@@ -3977,12 +4002,17 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         z-index: 100;
     }
     
-    /* Side panel mode: Flex child taking remaining space */
+    /* Side panel mode: Flex child taking remaining space - styled as separate card */
     .fullscreen-embed-container.side-panel {
         flex: 1;
         min-width: 0;
         position: relative;
         z-index: 1;
+        /* Card styling - matches active-chat-container design */
+        background-color: var(--color-grey-20);
+        border-radius: 17px;
+        box-shadow: 0 0 12px rgba(0, 0, 0, 0.25);
+        overflow: hidden;
         /* Smooth transition when appearing/disappearing */
         animation: slideInFromRight 0.4s cubic-bezier(0.4, 0, 0.2, 1);
     }
@@ -4008,7 +4038,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         right: auto;
         bottom: auto;
         height: 100%;
+        /* Remove margin since we want it to fill the card container */
+        margin: 0;
+        /* Border radius handled by parent container */
         border-radius: 0;
+        /* Remove shadow since parent has it */
         box-shadow: none;
         transform: none !important; /* Override animation transforms */
         opacity: 1 !important;
@@ -4020,12 +4054,23 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         transform: none !important;
     }
     
-    /* Adjust border-radius for side panel mode - only round right corners */
-    .fullscreen-embed-container.side-panel :global(.unified-embed-fullscreen-overlay) {
-        border-top-left-radius: 0;
-        border-bottom-left-radius: 0;
-        border-top-right-radius: 17px;
-        border-bottom-right-radius: 17px;
+    /* Active chat container adjustments when side-by-side is active */
+    /* The container itself becomes the outer wrapper, chat + fullscreen are cards inside */
+    .active-chat-container.side-by-side-active {
+        background-color: var(--color-grey-0); /* Lighter background to show separation */
+        box-shadow: none; /* Remove shadow since child cards have shadows */
+        padding: 10px; /* Add padding to show gap around cards */
+    }
+    
+    /* Ensure content-container fills the padded area */
+    .active-chat-container.side-by-side-active .content-container {
+        height: 100%;
+    }
+    
+    /* Chat wrapper in side-by-side mode should look like a card */
+    .active-chat-container.side-by-side-active .chat-wrapper.side-by-side-chat {
+        background-color: var(--color-grey-20);
+        box-shadow: 0 0 12px rgba(0, 0, 0, 0.25);
     }
 
     .center-content {

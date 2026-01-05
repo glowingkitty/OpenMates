@@ -10,15 +10,24 @@
   - All available actions from the embed (Copy, Download, etc.)
   
   Works on both mouse (right-click) and touch (long-press).
+  
+  IMPORTANT: This component uses callback props instead of Svelte events because
+  the menu element is moved to document.body to escape stacking contexts.
+  When an element is moved outside its Svelte component tree, createEventDispatcher
+  events don't bubble properly to parent components' on:event handlers.
 -->
 
 <script lang="ts">
-  import { createEventDispatcher, onMount, tick } from 'svelte';
-  // @ts-ignore - @repo/ui module exists at runtime
+  import { onMount, tick } from 'svelte';
+  // @ts-expect-error - @repo/ui module exists at runtime
   import { text } from '@repo/ui';
 
   /**
    * Props interface for embed context menu
+   * 
+   * Uses callback props (onClose, onView, etc.) instead of Svelte events
+   * because the menu element is moved to document.body for z-index purposes,
+   * which breaks Svelte's event dispatching system.
    */
   interface Props {
     /** X position of the menu (in pixels) */
@@ -37,22 +46,35 @@
     showCopy?: boolean;
     /** Whether to show Download action */
     showDownload?: boolean;
+    /** Callback when menu should close */
+    onClose?: () => void;
+    /** Callback when View action is triggered */
+    onView?: () => void;
+    /** Callback when Share action is triggered */
+    onShare?: () => void;
+    /** Callback when Copy action is triggered */
+    onCopy?: () => void;
+    /** Callback when Download action is triggered */
+    onDownload?: () => void;
   }
 
   let {
     x = 0,
     y = 0,
     show = false,
+    // embedType is accepted for future use but not currently used
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     embedType = 'default',
     showView = true,
     showShare = true,
     showCopy = false,
-    showDownload = false
+    showDownload = false,
+    onClose,
+    onView,
+    onShare,
+    onCopy,
+    onDownload
   }: Props = $props();
-
-  const dispatch: {
-    (e: 'close' | 'view' | 'share' | 'copy' | 'download', detail?: any): void;
-  } = createEventDispatcher();
 
   let menuElement = $state<HTMLDivElement>();
   let adjustedX = $state(x);
@@ -153,27 +175,50 @@
    */
   function handleClickOutside(event: MouseEvent | TouchEvent) {
     if (menuElement && !menuElement.contains(event.target as Node)) {
-      dispatch('close');
+      onClose?.();
+    }
+  }
+
+  /**
+   * Action type for menu items
+   */
+  type MenuAction = 'view' | 'share' | 'copy' | 'download';
+
+  /**
+   * Get the callback for a given action
+   */
+  function getActionCallback(action: MenuAction): (() => void) | undefined {
+    switch (action) {
+      case 'view': return onView;
+      case 'share': return onShare;
+      case 'copy': return onCopy;
+      case 'download': return onDownload;
+      default: return undefined;
     }
   }
 
   /**
    * Unified handler for both mouse and touch events
+   * Calls the appropriate callback prop and then closes the menu
    */
-  function handleMenuAction(action: Parameters<typeof dispatch>[0], event: MouseEvent | TouchEvent) {
+  function handleMenuAction(action: MenuAction, event: MouseEvent | TouchEvent) {
     event.stopPropagation();
     event.preventDefault();
 
     console.debug('[EmbedContextMenu] Menu action triggered:', action, 'Event type:', event.type);
 
-    dispatch(action);
-    dispatch('close');
+    // Call the action callback
+    const callback = getActionCallback(action);
+    callback?.();
+    
+    // Close the menu
+    onClose?.();
   }
 
   /**
    * Single event handler that works for all input types (iOS-compatible)
    */
-  function handleButtonClick(action: Parameters<typeof dispatch>[0], event: Event) {
+  function handleButtonClick(action: MenuAction, event: Event) {
     event.stopPropagation();
     event.preventDefault();
     
@@ -194,7 +239,7 @@
    */
   function handleScroll() {
     if (show) {
-      dispatch('close');
+      onClose?.();
     }
   }
 

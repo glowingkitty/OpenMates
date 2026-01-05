@@ -34,14 +34,13 @@
   import { embedStore } from '../../services/embedStore';
   import { decodeToonContent } from '../../services/embedResolver';
   
-  // Track whether the opening animation has completed
-  // Start as false (collapsed state), then animate to true (expanded state)
+  // Animation state: controls both open and close animations via CSS classes
+  // - false: collapsed state (initial + closing)
+  // - true: expanded state (after mount animation completes)
   let isAnimatingIn = $state(false);
   
-  // Reference to the overlay element for animation targeting
-  // IMPORTANT: Must use ref instead of document.querySelector to avoid targeting wrong element
-  // when multiple fullscreens are nested (e.g., WebSearchEmbedFullscreen + WebsiteEmbedFullscreen)
-  let overlayRef: HTMLElement | undefined;
+  // Track if we're in the process of closing (for animation timing)
+  let isClosing = $state(false);
   
   /**
    * Context passed to the content snippet when child embeds are used
@@ -279,15 +278,18 @@
   });
   
   // Handle smooth closing animation
-  // IMPORTANT: Uses overlayRef instead of document.querySelector to target THIS overlay
-  // This prevents targeting the wrong element when nested (parent + child fullscreens)
+  // Uses CSS class-based animation for consistent behavior
+  // The animation is controlled by removing the 'animating-in' class
   function handleClose() {
-    if (overlayRef) {
-      overlayRef.style.transform = 'scale(0.5)';
-      overlayRef.style.opacity = '0';
-    }
+    // Prevent double-close
+    if (isClosing) return;
+    isClosing = true;
     
-    // Delay the actual close callback to allow animation to play
+    // Toggle animation state to trigger CSS transition (scale down + fade out)
+    isAnimatingIn = false;
+    
+    // Wait for animation to complete before calling onClose
+    // Animation duration is 300ms (matches CSS transition)
     setTimeout(() => {
       onClose();
     }, 300);
@@ -368,7 +370,6 @@
 </script>
 
 <div
-  bind:this={overlayRef}
   class="unified-embed-fullscreen-overlay"
   class:animating-in={isAnimatingIn}
   style="--preview-center-x: var(--preview-center-x, 50vw); --preview-center-y: var(--preview-center-y, 50vh);"
@@ -527,13 +528,15 @@
   
   .unified-embed-fullscreen-overlay {
     position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
+    /* Add margin to create visual separation from parent container */
+    /* This creates the "floating card" effect similar to ActiveChat */
+    top: 8px;
+    left: 8px;
+    right: 8px;
+    bottom: 8px;
     background-color: var(--color-grey-10);
     border-radius: 17px;
-    box-shadow: 0 0 12px rgba(0, 0, 0, 0.25);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
     z-index: 100;
     display: flex;
     flex-direction: column;
@@ -543,6 +546,10 @@
     transition: transform 300ms cubic-bezier(0.4, 0, 0.2, 1),
                 opacity 300ms cubic-bezier(0.4, 0, 0.2, 1);
     overflow: hidden;
+    
+    /* Enable container queries so child components can detect their container width */
+    container-type: inline-size;
+    container-name: fullscreen;
     
     /* Initial state: collapsed and slightly transparent */
     /* This creates the starting point for the opening animation */

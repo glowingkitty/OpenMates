@@ -194,6 +194,12 @@
       chatSyncService.removeEventListener('embedUpdated', embedUpdateListener);
       embedUpdateListener = null;
     }
+    
+    // Clean up context menu reset timer
+    if (contextMenuResetTimer) {
+      clearTimeout(contextMenuResetTimer);
+      contextMenuResetTimer = null;
+    }
   });
   
   // DEBUG: Log when details snippet is missing - this helps identify which embed is broken
@@ -219,7 +225,47 @@
   let previewElement = $state<HTMLElement | null>(null);
   
   // Track if we're handling a context menu to prevent normal click from firing
+  // This flag prevents a right-click from also triggering a left-click action
   let isContextMenuHandled = $state(false);
+  
+  // Timer to auto-reset isContextMenuHandled after context menu closes
+  // This ensures the flag doesn't "stick" and block future clicks
+  let contextMenuResetTimer: ReturnType<typeof setTimeout> | null = null;
+  
+  /**
+   * Reset the context menu handled flag and clear any pending timer
+   * Called when we want to allow normal click handling again
+   */
+  function resetContextMenuFlag() {
+    isContextMenuHandled = false;
+    if (contextMenuResetTimer) {
+      clearTimeout(contextMenuResetTimer);
+      contextMenuResetTimer = null;
+    }
+  }
+  
+  /**
+   * Mark that a context menu is being handled and schedule auto-reset
+   * The auto-reset ensures the flag doesn't block clicks if the menu closes
+   * without an action (e.g., clicking elsewhere to dismiss)
+   */
+  function markContextMenuHandled() {
+    isContextMenuHandled = true;
+    
+    // Clear any existing timer
+    if (contextMenuResetTimer) {
+      clearTimeout(contextMenuResetTimer);
+    }
+    
+    // Auto-reset after a short delay
+    // This gives enough time for the context menu to capture clicks,
+    // but ensures we don't permanently block normal clicks if the menu
+    // closes without an action (e.g., clicking elsewhere to dismiss)
+    contextMenuResetTimer = setTimeout(() => {
+      isContextMenuHandled = false;
+      contextMenuResetTimer = null;
+    }, 300);
+  }
   
   // ===========================================
   // Mouse tracking for tilt effect (3D hover)
@@ -328,8 +374,8 @@
       if (touchTarget && previewElement) {
         console.debug('[UnifiedEmbedPreview] Long-press detected - triggering context menu');
         
-        // Mark that we're handling a context menu
-        isContextMenuHandled = true;
+        // Mark that we're handling a context menu (with auto-reset)
+        markContextMenuHandled();
         
         // Get container rect for menu positioning
         const rect = previewElement.getBoundingClientRect();
@@ -407,9 +453,11 @@
   // CRITICAL: Stop event propagation to prevent ReadOnlyMessage from showing context menu
   // BUT: Don't stop context menu events - let them bubble up for proper context menu handling
   function handleClick(e: MouseEvent) {
-    // If this was triggered after a context menu, don't handle it
+    // If this was triggered right after a context menu opened, skip this click
+    // The context menu flag auto-resets after 300ms, so this only blocks the
+    // immediate click that might fire alongside the right-click
     if (isContextMenuHandled) {
-      isContextMenuHandled = false;
+      resetContextMenuFlag();
       return;
     }
     
@@ -479,7 +527,8 @@
     e.stopPropagation();
     
     // Mark that we're handling a context menu to prevent normal click from firing
-    isContextMenuHandled = true;
+    // Uses auto-reset to ensure flag doesn't block clicks if menu closes without action
+    markContextMenuHandled();
     
     // Dispatch a custom event that ReadOnlyMessage can listen to.
     // This ensures right-click always opens EmbedContextMenu (and not the browser menu).
