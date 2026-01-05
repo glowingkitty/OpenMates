@@ -528,13 +528,14 @@
   
   .unified-embed-fullscreen-overlay {
     position: absolute;
-    /* Add margin to create visual separation from parent container */
-    /* This creates the "floating card" effect similar to ActiveChat */
-    top: 8px;
-    left: 8px;
-    right: 8px;
-    bottom: 8px;
-    background-color: var(--color-grey-10);
+    /* Fill the entire parent container - no margins needed */
+    /* In overlay mode, this fills the ActiveChat container */
+    /* In side-panel mode, this fills the fullscreen-embed-container */
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: var(--color-grey-20);
     border-radius: 17px;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
     z-index: 100;

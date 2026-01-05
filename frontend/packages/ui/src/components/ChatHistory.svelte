@@ -611,6 +611,7 @@
     left: 0;
     right: 0;
     overflow-y: auto;
+    overflow-x: hidden; /* Prevent horizontal scrollbar from appearing at certain viewport widths */
     padding: 10px;
     box-sizing: border-box;
     -webkit-overflow-scrolling: touch;

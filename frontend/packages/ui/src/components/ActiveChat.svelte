@@ -995,6 +995,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     // In side-by-side mode, the chat is limited to 400px which requires narrow/mobile styling
     // This is used for container-based responsive behavior instead of viewport-based
     let isEffectivelyNarrow = $derived(isNarrow || showSideBySideFullscreen);
+    
+    // Effective chat width: The actual width of the chat area
+    // In side-by-side mode, the chat is constrained to 400px regardless of container width
+    // This is passed to ChatHistory/ChatMessage for proper responsive behavior
+    let effectiveChatWidth = $derived(showSideBySideFullscreen ? 400 : containerWidth);
 
     // Debug suggestions visibility
     $effect(() => {
@@ -3584,7 +3589,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     <ChatHistory
                         bind:this={chatHistoryRef}
                         messageInputHeight={isFullscreen ? 0 : messageInputHeight + 40}
-                        containerWidth={containerWidth}
+                        containerWidth={effectiveChatWidth}
                         on:messagesChange={handleMessagesChange}
                         on:chatUpdated={handleChatUpdated}
                         on:scrollPositionUI={handleScrollPositionUI}
