@@ -8,9 +8,14 @@
   - Header with search query and "via {provider}" formatting (60px top margin, 40px bottom margin)
   - Website embeds in a grid (auto-responsive columns)
   - Consistent BasicInfosBar at the bottom (matches preview - "Search" + "Completed")
-  - Top bar with share, copy, and minimize buttons
+  - Top bar with share and minimize buttons
   
   Child embeds are automatically loaded by UnifiedEmbedFullscreen from embedIds prop.
+  
+  Website Fullscreen Navigation:
+  - When a website result is clicked, shows WebsiteEmbedFullscreen with full details
+  - When WebsiteEmbedFullscreen is closed (minimized), returns to this search results view
+  - Provides seamless navigation between search results and individual website details
   
   Supports both contexts:
   - Embed context: receives embedIds for child embed loading
@@ -21,11 +26,13 @@
 <script lang="ts">
   import UnifiedEmbedFullscreen, { type ChildEmbedContext } from '../UnifiedEmbedFullscreen.svelte';
   import WebsiteEmbedPreview from './WebsiteEmbedPreview.svelte';
+  import WebsiteEmbedFullscreen from './WebsiteEmbedFullscreen.svelte';
   import { text } from '@repo/ui';
   import type { WebSearchSkillPreviewData } from '../../../types/appSkills';
   
   /**
    * Web search result interface (transformed from child embeds)
+   * Contains all data needed to display website in both preview and fullscreen
    */
   interface WebSearchResult {
     embed_id: string;
@@ -34,6 +41,10 @@
     favicon_url?: string;
     preview_image_url?: string;
     snippet?: string;
+    /** Additional description (may be longer than snippet) */
+    description?: string;
+    /** Snippets array for fullscreen view */
+    snippets?: string[];
   }
   
   /**
@@ -67,6 +78,13 @@
     embedId
   }: Props = $props();
   
+  // ============================================
+  // State: Track which website is shown in fullscreen
+  // ============================================
+  
+  /** Currently selected website for fullscreen view (null = show search results) */
+  let selectedWebsite = $state<WebSearchResult | null>(null);
+  
   // Extract values from either previewData (skill preview context) or direct props (embed context)
   let query = $derived(previewData?.query || queryProp || '');
   let provider = $derived(previewData?.provider || providerProp || 'Brave Search');
@@ -89,15 +107,18 @@
   /**
    * Transform raw embed content to WebSearchResult format
    * Used by UnifiedEmbedFullscreen's childEmbedTransformer
+   * Extracts all available fields for both preview and fullscreen views
    */
   function transformToWebResult(embedId: string, content: Record<string, unknown>): WebSearchResult {
     return {
       embed_id: embedId,
       title: content.title as string | undefined,
       url: content.url as string,
-      favicon_url: content.favicon_url as string | undefined,
-      preview_image_url: content.preview_image_url as string | undefined,
-      snippet: (content.snippet as string) || (content.description as string)
+      favicon_url: (content.favicon_url || content.meta_url_favicon) as string | undefined,
+      preview_image_url: (content.preview_image_url || content.thumbnail_original || content.image) as string | undefined,
+      snippet: (content.snippet as string) || (content.description as string),
+      description: content.description as string | undefined,
+      snippets: content.snippets as string[] | undefined
     };
   }
   
@@ -109,9 +130,11 @@
       embed_id: `legacy-${i}`,
       title: r.title as string | undefined,
       url: r.url as string,
-      favicon_url: r.favicon_url as string | undefined,
-      preview_image_url: r.preview_image_url as string | undefined,
-      snippet: (r.snippet as string) || (r.description as string)
+      favicon_url: (r.favicon_url || r.meta_url_favicon) as string | undefined,
+      preview_image_url: (r.preview_image_url || r.thumbnail_original || r.image) as string | undefined,
+      snippet: (r.snippet as string) || (r.description as string),
+      description: r.description as string | undefined,
+      snippets: r.snippets as string[] | undefined
     }));
   }
   
@@ -131,18 +154,39 @@
     return [];
   }
   
-  // Handle opening search in provider
-  function handleOpenInProvider() {
-    const searchUrl = `https://search.brave.com/search?q=${encodeURIComponent(query)}`;
-    window.open(searchUrl, '_blank', 'noopener,noreferrer');
+  /**
+   * Handle website click - shows the website in fullscreen mode
+   * Instead of opening in new tab, we display WebsiteEmbedFullscreen
+   */
+  function handleWebsiteFullscreen(websiteData: WebSearchResult) {
+    console.debug('[WebSearchEmbedFullscreen] Opening website fullscreen:', {
+      embedId: websiteData.embed_id,
+      url: websiteData.url,
+      title: websiteData.title
+    });
+    selectedWebsite = websiteData;
   }
   
-  // Handle website fullscreen (from WebsiteEmbedPreview)
-  function handleWebsiteFullscreen(websiteData: WebSearchResult) {
-    // For now, just open the website in a new tab
-    // In the future, we could show a website fullscreen view
-    if (websiteData.url) {
-      window.open(websiteData.url, '_blank', 'noopener,noreferrer');
+  /**
+   * Handle closing the website fullscreen - returns to search results
+   * Called when user clicks minimize button on WebsiteEmbedFullscreen
+   */
+  function handleWebsiteFullscreenClose() {
+    console.debug('[WebSearchEmbedFullscreen] Closing website fullscreen, returning to search results');
+    selectedWebsite = null;
+  }
+  
+  /**
+   * Handle closing the entire search fullscreen
+   * Called when user closes the main WebSearchEmbedFullscreen
+   */
+  function handleMainClose() {
+    // If a website is open, first close it and return to search results
+    if (selectedWebsite) {
+      selectedWebsite = null;
+    } else {
+      // Otherwise, close the entire fullscreen
+      onClose();
     }
   }
 
@@ -198,64 +242,85 @@
 </script>
 
 <!-- 
-  Pass skillName and showStatus to UnifiedEmbedFullscreen for consistent BasicInfosBar
-  that matches the embed preview (shows "Search" + "Completed", not the query)
+  Conditional rendering:
+  - If a website is selected, show WebsiteEmbedFullscreen with full details
+  - Otherwise, show the search results grid via UnifiedEmbedFullscreen
   
-  Child embeds are loaded automatically via embedIds prop and passed to content snippet
-  The childEmbedTransformer converts raw embed data to WebSearchResult format
+  This provides seamless navigation between search results and website details
 -->
-<UnifiedEmbedFullscreen
-  appId="web"
-  skillId="search"
-  title=""
-  {onClose}
-  onOpen={handleOpenInProvider}
-  onShare={handleShare}
-  skillIconName="search"
-  status="finished"
-  {skillName}
-  showStatus={true}
-  {embedIds}
-  childEmbedTransformer={transformToWebResult}
-  legacyResults={legacyResults}
->
-  {#snippet content(ctx)}
-    {@const webResults = getWebResults(ctx)}
+{#if selectedWebsite}
+  <!-- Website fullscreen view - shows selected website with full details -->
+  <WebsiteEmbedFullscreen
+    url={selectedWebsite.url}
+    title={selectedWebsite.title}
+    description={selectedWebsite.description || selectedWebsite.snippet}
+    favicon={selectedWebsite.favicon_url}
+    image={selectedWebsite.preview_image_url}
+    snippets={selectedWebsite.snippets}
+    onClose={handleWebsiteFullscreenClose}
+    embedId={selectedWebsite.embed_id}
+  />
+{:else}
+  <!-- Search results view - shows grid of website results -->
+  <!-- 
+    Pass skillName and showStatus to UnifiedEmbedFullscreen for consistent BasicInfosBar
+    that matches the embed preview (shows "Search" + "Completed", not the query)
     
-    <!-- Header with search query and provider - 60px top margin, 40px bottom margin -->
-    <div class="fullscreen-header">
-      <div class="search-query">{query}</div>
-      <div class="search-provider">{viaProvider}</div>
-    </div>
-    
-    {#if ctx.isLoadingChildren}
-      <div class="loading-state">
-        <p>{$text('embeds.loading.text') || 'Loading...'}</p>
+    Child embeds are loaded automatically via embedIds prop and passed to content snippet
+    The childEmbedTransformer converts raw embed data to WebSearchResult format
+  -->
+  <UnifiedEmbedFullscreen
+    appId="web"
+    skillId="search"
+    title=""
+    onClose={handleMainClose}
+    onShare={handleShare}
+    skillIconName="search"
+    status="finished"
+    {skillName}
+    showStatus={true}
+    {embedIds}
+    childEmbedTransformer={transformToWebResult}
+    legacyResults={legacyResults}
+  >
+    {#snippet content(ctx)}
+      {@const webResults = getWebResults(ctx)}
+      
+      <!-- Header with search query and provider - 60px top margin, 40px bottom margin -->
+      <div class="fullscreen-header">
+        <div class="search-query">{query}</div>
+        <div class="search-provider">{viaProvider}</div>
       </div>
-    {:else if webResults.length === 0}
-      <div class="no-results">
-        <p>{$text('embeds.no_results.text') || 'No search results available.'}</p>
-      </div>
-    {:else}
-      <!-- Website embeds grid - responsive auto-fill columns -->
-      <div class="website-embeds-grid" class:mobile={isMobile}>
-        {#each webResults as result}
-          <WebsiteEmbedPreview
-            id={result.embed_id}
-            url={result.url}
-            title={result.title}
-            description={result.snippet}
-            favicon={result.favicon_url}
-            image={result.preview_image_url}
-            status="finished"
-            isMobile={false}
-            onFullscreen={() => handleWebsiteFullscreen(result)}
-          />
-        {/each}
-      </div>
-    {/if}
-  {/snippet}
-</UnifiedEmbedFullscreen>
+      
+      {#if ctx.isLoadingChildren}
+        <div class="loading-state">
+          <p>{$text('embeds.loading.text') || 'Loading...'}</p>
+        </div>
+      {:else if webResults.length === 0}
+        <div class="no-results">
+          <p>{$text('embeds.no_results.text') || 'No search results available.'}</p>
+        </div>
+      {:else}
+        <!-- Website embeds grid - responsive auto-fill columns -->
+        <div class="website-embeds-grid" class:mobile={isMobile}>
+          {#each webResults as result}
+            <WebsiteEmbedPreview
+              id={result.embed_id}
+              url={result.url}
+              title={result.title}
+              description={result.snippet}
+              favicon={result.favicon_url}
+              image={result.preview_image_url}
+              status="finished"
+              isMobile={false}
+              onFullscreen={() => handleWebsiteFullscreen(result)}
+            />
+          {/each}
+        </div>
+      {/if}
+    {/snippet}
+  </UnifiedEmbedFullscreen>
+{/if}
 
 <style>
   /* ===========================================

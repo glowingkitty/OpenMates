@@ -1316,6 +1316,21 @@ export async function handleEmbedUpdateImpl(
                             console.debug(`[ChatSyncService:AI] embed_update: Using cached embed key for ${payload.embed_id}`);
                         }
                         
+                        // CRITICAL: Cache the embed key immediately after generation/retrieval
+                        // This prevents race conditions where concurrent operations try to access the key
+                        embedStore.setEmbedKeyInCache(payload.embed_id, embedKey, hashedChatId);
+                        embedStore.setEmbedKeyInCache(payload.embed_id, embedKey, undefined); // master fallback
+                        console.debug(`[ChatSyncService:AI] embed_update: ✅ Cached embed key immediately for ${payload.embed_id}`);
+                        
+                        // If this embed has child embed_ids, pre-cache the key for children immediately
+                        if (existingEmbed.embed_ids && Array.isArray(existingEmbed.embed_ids) && existingEmbed.embed_ids.length > 0) {
+                            console.debug(`[ChatSyncService:AI] embed_update: Pre-caching parent key for ${existingEmbed.embed_ids.length} known child embeds`);
+                            for (const childEmbedId of existingEmbed.embed_ids) {
+                                embedStore.setEmbedKeyInCache(childEmbedId, embedKey, hashedChatId);
+                                embedStore.setEmbedKeyInCache(childEmbedId, embedKey, undefined); // 'master' fallback
+                            }
+                        }
+                        
                         // Encrypt the content
                         const plaintextContent = existingEmbed.content;
                         const encryptedContent = await encryptWithEmbedKey(plaintextContent, embedKey);
@@ -1396,18 +1411,8 @@ export async function handleEmbedUpdateImpl(
                         // Clear plaintext content (it's now encrypted)
                         delete existingEmbed.content;
                         
-                        // Cache the key for this embed
-                        embedStore.setEmbedKeyInCache(payload.embed_id, embedKey, hashedChatId);
-                        embedStore.setEmbedKeyInCache(payload.embed_id, embedKey, undefined); // master fallback
-                        
-                        // If this embed has child embed_ids, cache the key for children too
-                        if (existingEmbed.embed_ids && Array.isArray(existingEmbed.embed_ids)) {
-                            for (const childEmbedId of existingEmbed.embed_ids) {
-                                embedStore.setEmbedKeyInCache(childEmbedId, embedKey, hashedChatId);
-                                embedStore.setEmbedKeyInCache(childEmbedId, embedKey, undefined);
-                                console.debug(`[ChatSyncService:AI] embed_update: Cached parent key for child ${childEmbedId}`);
-                            }
-                        }
+                        // NOTE: Primary key caching is now done immediately after key generation (above)
+                        // This section kept as safety fallback - won't hurt to re-cache the same values
                         
                         // Build encrypted embed object for putEncrypted (new format with separate fields)
                         // This is the same format used by handleSendEmbedDataImpl for finalized embeds
@@ -1731,21 +1736,48 @@ export async function handleSendEmbedDataImpl(
             if (isChildEmbed) {
                 // Child embed: Use parent embed's key (key inheritance - Option A)
                 console.debug(`[ChatSyncService:AI] Child embed detected (parent: ${parentEmbedId}), using parent embed key`);
-                // Use a retry mechanism since parent might still be processing
-                let parentKey = await embedStore.getEmbedKey(parentEmbedId!, hashedChatId);
                 
-                if (!parentKey) {
-                    // One-time retry after a short delay in case of extreme race condition
-                    console.debug(`[ChatSyncService:AI] Parent key not found for child ${embedData.embed_id}, retrying once...`);
-                    await new Promise(resolve => setTimeout(resolve, 500));
+                // Use exponential backoff retry mechanism since parent might still be processing
+                // This handles race conditions where child embed arrives before parent finishes
+                const maxRetries = 5;
+                const baseDelay = 100; // Start with 100ms
+                let parentKey: Uint8Array | null = null;
+                
+                for (let attempt = 0; attempt <= maxRetries; attempt++) {
                     parentKey = await embedStore.getEmbedKey(parentEmbedId!, hashedChatId);
+                    
+                    if (parentKey) {
+                        if (attempt > 0) {
+                            console.info(`[ChatSyncService:AI] ✅ Parent key found on attempt ${attempt + 1} for child ${embedData.embed_id}`);
+                        }
+                        break;
+                    }
+                    
+                    if (attempt < maxRetries) {
+                        // Exponential backoff: 100ms, 200ms, 400ms, 800ms, 1600ms (total ~3s max wait)
+                        const delay = baseDelay * Math.pow(2, attempt);
+                        console.debug(`[ChatSyncService:AI] Parent key not found for child ${embedData.embed_id}, retry ${attempt + 1}/${maxRetries} in ${delay}ms...`);
+                        await new Promise(resolve => setTimeout(resolve, delay));
+                    }
                 }
 
                 if (!parentKey) {
-                    throw new Error(`Failed to get parent embed key for child embed ${embedData.embed_id} (parent: ${parentEmbedId})`);
+                    // Log detailed error for debugging
+                    console.error(`[ChatSyncService:AI] ❌ CRITICAL: Failed to get parent embed key after ${maxRetries} retries`, {
+                        childEmbedId: embedData.embed_id,
+                        parentEmbedId,
+                        hashedChatId: hashedChatId?.substring(0, 16) + '...'
+                    });
+                    throw new Error(`Failed to get parent embed key for child embed ${embedData.embed_id} (parent: ${parentEmbedId}) after ${maxRetries} retries`);
                 }
                 embedKey = parentKey;
                 console.debug(`[ChatSyncService:AI] Using parent embed key for child embed ${embedData.embed_id}`);
+                
+                // CRITICAL: Cache the child embed's key immediately so it's available for decryption
+                // This prevents race conditions where the embed is stored but key lookup fails
+                embedStore.setEmbedKeyInCache(embedData.embed_id, embedKey, hashedChatId);
+                embedStore.setEmbedKeyInCache(embedData.embed_id, embedKey, undefined); // 'master' fallback
+                console.debug(`[ChatSyncService:AI] Cached inherited key for child embed ${embedData.embed_id}`);
             } else {
                 // Parent embed: Use already cached key or generate new unique key
                 const cachedKey = await embedStore.getEmbedKey(embedData.embed_id, hashedChatId);
@@ -1755,6 +1787,26 @@ export async function handleSendEmbedDataImpl(
                 } else {
                     embedKey = generateEmbedKey();
                     console.debug(`[ChatSyncService:AI] Generated new embed_key for finalized parent embed ${embedData.embed_id}`);
+                }
+                
+                // CRITICAL: Cache the parent embed key immediately after generation/retrieval
+                // This ensures the key is available for:
+                // 1. Child embeds that may be processed concurrently
+                // 2. UI decryption when embedUpdated event is dispatched
+                // 3. Any other code that needs the key before IndexedDB storage completes
+                embedStore.setEmbedKeyInCache(embedData.embed_id, embedKey, hashedChatId);
+                embedStore.setEmbedKeyInCache(embedData.embed_id, embedKey, undefined); // 'master' fallback
+                console.debug(`[ChatSyncService:AI] ✅ Cached embed key immediately for parent embed ${embedData.embed_id}`);
+                
+                // CRITICAL: Pre-cache parent key for all known child embeds
+                // This prevents race conditions where child embeds try to get parent key before it's cached
+                if (embedData.embed_ids && Array.isArray(embedData.embed_ids) && embedData.embed_ids.length > 0) {
+                    console.debug(`[ChatSyncService:AI] Pre-caching parent key for ${embedData.embed_ids.length} known child embeds`);
+                    for (const childEmbedId of embedData.embed_ids) {
+                        embedStore.setEmbedKeyInCache(childEmbedId, embedKey, hashedChatId);
+                        embedStore.setEmbedKeyInCache(childEmbedId, embedKey, undefined); // 'master' fallback
+                    }
+                    console.debug(`[ChatSyncService:AI] ✅ Pre-cached parent key for children: ${embedData.embed_ids.join(', ')}`);
                 }
             }
             
@@ -1959,15 +2011,15 @@ export async function handleSendEmbedDataImpl(
                 console.debug(`[ChatSyncService:AI] Skipping key wrapper sending for child embed ${embedData.embed_id} (uses parent key)`);
             }
 
-            // 11. If this is a parent embed with child embeds, cache the parent key for all children
-            // This ensures child embeds can use the parent key for decryption (key inheritance)
+            // 11. SAFETY FALLBACK: Re-cache parent key for children at the end
+            // NOTE: Primary key caching now happens early (right after key generation) to prevent race conditions.
+            // This fallback ensures keys are cached even if the early caching was somehow missed,
+            // or if new child embed IDs were discovered during processing.
             if (!isChildEmbed && embedData.embed_ids && Array.isArray(embedData.embed_ids) && embedData.embed_ids.length > 0) {
-                console.debug(`[ChatSyncService:AI] Parent embed ${embedData.embed_id} has ${embedData.embed_ids.length} child embeds - caching parent key for children`);
+                console.debug(`[ChatSyncService:AI] [FALLBACK] Re-caching parent key for ${embedData.embed_ids.length} child embeds (safety measure)`);
                 for (const childEmbedId of embedData.embed_ids) {
-                    // Cache parent key for child embed with both hashed_chat_id and 'master' fallback
                     embedStore.setEmbedKeyInCache(childEmbedId, embedKey, hashedChatId);
                     embedStore.setEmbedKeyInCache(childEmbedId, embedKey, undefined); // 'master' fallback
-                    console.debug(`[ChatSyncService:AI] Cached parent key for child embed ${childEmbedId}`);
                 }
             }
 

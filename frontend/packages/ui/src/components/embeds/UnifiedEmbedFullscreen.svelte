@@ -73,8 +73,6 @@
     title: string;
     /** Close handler */
     onClose: () => void;
-    /** Optional open handler (for top-left open button) */
-    onOpen?: () => void;
     /** Optional copy handler (for copy button) - copies text version of embed */
     onCopy?: () => void;
     /** Optional download handler (for download button) - downloads the embed */
@@ -144,7 +142,6 @@
     skillId,
     title,
     onClose,
-    onOpen,
     onCopy,
     onDownload,
     onShare,
@@ -386,19 +383,6 @@
             <span class="clickable-icon icon_share"></span>
           </button>
         </div>
-        <!-- Open in external button - only shown if onOpen is provided -->
-        {#if onOpen}
-          <div class="button-wrapper">
-            <button
-              class="action-button open-button"
-              onclick={onOpen}
-              aria-label={$text('embeds.open_external.text') || 'Open in browser'}
-              title={$text('embeds.open_external.text') || 'Open in browser'}
-            >
-              <span class="clickable-icon icon_external_link"></span>
-            </button>
-          </div>
-        {/if}
         <!-- Copy button -->
         {#if onCopy}
           <div class="button-wrapper">
@@ -541,7 +525,7 @@
     left: 0;
     right: 0;
     bottom: 0;
-    background-color: var(--color-grey-20);
+    background-color: var(--color-grey-10);
     border-radius: 17px;
     box-shadow: 0 0 12px rgba(0, 0, 0, 0.25);
     z-index: 100;

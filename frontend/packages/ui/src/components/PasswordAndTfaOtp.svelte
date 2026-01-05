@@ -330,6 +330,9 @@
                 if (data.tfa_required) {
                     // Check if 2FA is actually configured (tfa_enabled indicates encrypted_tfa_secret exists)
                     // tfa_app_name is optional and doesn't indicate if 2FA is configured
+                    // CRITICAL: Only check tfa_enabled if user object is present
+                    // When auth fails, backend omits user object for anti-enumeration
+                    const hasUserData = data.user !== undefined && data.user !== null;
                     const isTfaConfigured = data.user?.tfa_enabled === true;
                     // Import isSignupPath helper for checking signup paths
                     const { isSignupPath } = await import('../stores/signupState');
@@ -338,7 +341,8 @@
                     // If 2FA is required but not actually configured (tfa_enabled is false) AND user is in signup flow,
                     // redirect to signup instead of asking for a 2FA code
                     // This handles the case where user hasn't completed 2FA setup during signup
-                    if (!isTfaConfigured && isInSignupFlow) {
+                    // CRITICAL: Only do this if we have user data - otherwise we can't determine signup flow
+                    if (hasUserData && !isTfaConfigured && isInSignupFlow) {
                         console.debug('[PasswordAndTfaOtp] 2FA required but not configured - redirecting to signup flow');
                         // Update profile with user data if available
                         if (data.user) {
@@ -383,10 +387,21 @@
                         return;
                     }
                     
-                    // CRITICAL: Only show 2FA input if 2FA is actually configured (tfa_enabled === true)
-                    // If tfa_enabled is false, don't show 2FA input even if tfa_required is true
-                    // (tfa_required=True with tfa_enabled=False is only for anti-enumeration)
-                    if (isTfaConfigured) {
+                    // CRITICAL FIX: When we have no user data, we cannot determine if 2FA is configured
+                    // Backend intentionally omits user data on failed auth to prevent email enumeration
+                    // In this case, we should:
+                    // 1. Keep the 2FA field visible if it was already shown (tfaRequiredState was true)
+                    // 2. Show appropriate error message based on whether code was submitted
+                    if (!hasUserData) {
+                        // No user data = auth failed (wrong password/lookup_hash) or account doesn't exist
+                        // Keep 2FA field visible and show password error since we can't determine 2FA status
+                        console.debug('[PasswordAndTfaOtp] Auth failed, no user data (anti-enumeration). Keeping 2FA visible, showing password error.');
+                        tfaRequiredState = true; // Keep 2FA field visible
+                        // Show error on password field - the password/lookup_hash is likely wrong
+                        errorMessage = $text('login.email_or_password_wrong.text');
+                        tfaErrorMessage = null;
+                    } else if (isTfaConfigured) {
+                        // User data present and 2FA is configured
                         // Update local tfa_required state if server indicates it's needed AND 2FA is configured
                         tfaRequiredState = true;
                         // Show TFA-specific error message only for TFA field
@@ -402,8 +417,8 @@
                             errorMessage = null;
                         }
                     } else {
-                        // 2FA is not configured (tfa_enabled === false) - don't show 2FA input
-                        // Even if tfa_required is true (anti-enumeration), we know 2FA isn't set up
+                        // User data present but 2FA is not configured (tfa_enabled === false)
+                        // Don't show 2FA input
                         console.debug('[PasswordAndTfaOtp] 2FA required but not configured - not showing 2FA input');
                         tfaRequiredState = false;
                         tfaErrorMessage = null;

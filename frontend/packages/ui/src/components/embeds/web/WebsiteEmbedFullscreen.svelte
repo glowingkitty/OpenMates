@@ -13,10 +13,7 @@
 -->
 
 <script lang="ts">
-  import { get } from 'svelte/store';
   import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
-  // @ts-ignore - @repo/ui module exists at runtime
-  import { text } from '@repo/ui';
   
   /**
    * Props for website embed fullscreen
@@ -114,7 +111,7 @@
       };
 
       // Store embed context for SettingsShare
-      (window as any).__embedShareContext = embedContext;
+      (window as unknown as { __embedShareContext?: unknown }).__embedShareContext = embedContext;
 
       // Navigate to share settings
       navigateToSettings('shared/share', 'Share Website', 'share', 'settings.share.share_website.text');
@@ -134,12 +131,27 @@
   }
 </script>
 
+<!-- 
+  WebsiteEmbedFullscreen uses UnifiedEmbedFullscreen as base
+  Shows website title in header, with favicon, URL, and "Open in new tab" button
+  
+  BasicInfosBar at bottom shows:
+  - App icon (web app gradient)
+  - Website favicon next to title
+  - Website title (from displayTitle)
+  - No status text (showStatus=false) since this is an individual website, not a skill
+-->
 <UnifiedEmbedFullscreen
   appId="web"
   skillId="website"
   title={displayTitle}
   {onClose}
   onShare={handleShare}
+  skillIconName="website"
+  skillName={displayTitle}
+  faviconUrl={faviconUrl}
+  showSkillIcon={false}
+  showStatus={false}
 >
   {#snippet headerExtra()}
     <div class="website-header-info">
@@ -154,7 +166,8 @@
     </button>
   {/snippet}
   
-  {#snippet content()}
+  <!-- eslint-disable-next-line @typescript-eslint/no-unused-vars -->
+  {#snippet content(_)}
     <!-- Preview image -->
     {#if imageUrl}
       <div class="preview-image-container">

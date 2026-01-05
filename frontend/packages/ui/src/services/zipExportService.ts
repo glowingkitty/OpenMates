@@ -601,6 +601,92 @@ export async function downloadChatsAsZip(chats: Chat[], messagesMap: Map<string,
 }
 
 /**
+ * Interface for code file data used in group downloads
+ */
+export interface CodeFileData {
+  code: string;
+  language: string;
+  filename?: string;
+}
+
+/**
+ * Downloads multiple code files as a zip archive
+ * Used for downloading all code files from a code embed group
+ */
+export async function downloadCodeFilesAsZip(
+  codeFiles: CodeFileData[]
+): Promise<void> {
+  try {
+    console.debug('[ZipExportService] Downloading code files as zip:', { fileCount: codeFiles.length });
+
+    if (codeFiles.length === 0) {
+      throw new Error('No code files to download');
+    }
+
+    // If only one file, download it directly without zip
+    if (codeFiles.length === 1) {
+      const file = codeFiles[0];
+      await downloadCodeFile(file.code, file.language, file.filename);
+      return;
+    }
+
+    const zip = new JSZip();
+    const usedFilenames = new Set<string>();
+
+    // Add each code file to the zip
+    for (let i = 0; i < codeFiles.length; i++) {
+      const file = codeFiles[i];
+      
+      // Determine filename
+      let downloadFilename: string;
+      if (file.filename) {
+        // Extract just the filename from any path
+        const pathParts = file.filename.split(/[/\\]/);
+        downloadFilename = pathParts[pathParts.length - 1];
+      } else {
+        const ext = getFileExtensionForLanguage(file.language);
+        downloadFilename = `code_snippet.${ext}`;
+      }
+
+      // Ensure unique filenames by appending index if needed
+      let finalFilename = downloadFilename;
+      if (usedFilenames.has(downloadFilename.toLowerCase())) {
+        const ext = downloadFilename.lastIndexOf('.');
+        if (ext > 0) {
+          finalFilename = `${downloadFilename.slice(0, ext)}_${i + 1}${downloadFilename.slice(ext)}`;
+        } else {
+          finalFilename = `${downloadFilename}_${i + 1}`;
+        }
+      }
+      usedFilenames.add(finalFilename.toLowerCase());
+
+      zip.file(finalFilename, file.code);
+    }
+
+    // Generate and download zip
+    const zipBlob = await zip.generateAsync({ type: 'blob' });
+    const url = URL.createObjectURL(zipBlob);
+    const link = document.createElement('a');
+    link.href = url;
+    
+    // Generate zip filename with timestamp
+    const now = new Date();
+    const zipDateStr = now.toISOString().slice(0, 19).replace(/[:-]/g, '-').replace('T', '_');
+    link.download = `code_files_${zipDateStr}.zip`;
+    
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    console.debug('[ZipExportService] Code files zip download completed:', codeFiles.length, 'files');
+  } catch (error) {
+    console.error('[ZipExportService] Error downloading code files as zip:', error);
+    throw new Error('Failed to download code files');
+  }
+}
+
+/**
  * Downloads a code file with appropriate naming
  */
 export async function downloadCodeFile(

@@ -13,7 +13,9 @@
     import { locale } from 'svelte-i18n';
 
     // Props using Svelte 5 runes mode
-    let { content, isStreaming = false }: { content: any; isStreaming?: boolean } = $props(); // The message content from Tiptap JSON
+    // _embedUpdateTimestamp is used to force re-render when embed data becomes available
+    // (bypasses content cache since markdown string is unchanged but embed data is now decryptable)
+    let { content, isStreaming = false, _embedUpdateTimestamp = 0 }: { content: any; isStreaming?: boolean; _embedUpdateTimestamp?: number } = $props(); // The message content from Tiptap JSON
 
     let editorElement: HTMLElement;
     let editor: Editor | null = null;
@@ -272,17 +274,34 @@
 
                 // Performance optimization: Check cache before parsing
                 // Include locale in cache key to invalidate cache on language change
+                // CRITICAL: When _embedUpdateTimestamp is set, bypass cache to force re-render
+                // This handles the case where embed data becomes available after initial render
+                // (the markdown is unchanged but embeds can now be decrypted and rendered)
                 const currentLocale = $locale || 'en';
                 const cacheKey = `${currentLocale}:${inputContent}`;
-                const cached = contentCache.get(cacheKey);
-                if (cached) {
-                    logger.debug('Using cached content for markdown parsing');
-                    return cached;
+                
+                // Bypass cache if embed update is pending - forces fresh parsing and re-rendering
+                // This is necessary because embed NodeViews need to call resolveEmbed() again
+                // to get the newly available embed data
+                const bypassCache = _embedUpdateTimestamp && _embedUpdateTimestamp > 0;
+                
+                if (!bypassCache) {
+                    const cached = contentCache.get(cacheKey);
+                    if (cached) {
+                        logger.debug('Using cached content for markdown parsing');
+                        return cached;
+                    }
+                } else {
+                    logger.debug('Bypassing cache due to embed update timestamp:', _embedUpdateTimestamp);
                 }
 
                 // Parse markdown text to TipTap JSON with unified parsing (includes embed parsing)
                 const parsed = parse_message(inputContent, 'read', { unifiedParsingEnabled: true });
-                contentCache.set(cacheKey, parsed);
+                
+                // Only cache if not bypassing (avoid polluting cache with stale embed state)
+                if (!bypassCache) {
+                    contentCache.set(cacheKey, parsed);
+                }
                 return parsed;
             }
             
@@ -481,6 +500,11 @@
         const currentLocale = $locale || 'en';
         const localeChanged = currentLocale !== previousLocale;
         
+        // CRITICAL: Track embed update timestamp to force re-render when embed data arrives
+        // This handles the race condition where embeds are initially unreadable (keys not cached)
+        // but become decryptable after send_embed_data finishes processing
+        const hasEmbedUpdate = _embedUpdateTimestamp && _embedUpdateTimestamp > 0;
+        
         if (localeChanged) {
             previousLocale = currentLocale;
             // Clear cache for this component's content
@@ -496,9 +520,14 @@
             const currentEditorContent = editor.getJSON();
             const contentChanged = JSON.stringify(currentEditorContent) !== JSON.stringify(newProcessedContent);
             
-            // Force update if locale changed, even if content appears identical
-            // This ensures translations are refreshed
-            if (contentChanged || localeChanged) {
+            // Force update if locale changed, embed update occurred, or content actually changed
+            // Embed updates require re-render even if parsed content is identical, because:
+            // - The embed NodeViews need to call resolveEmbed() again
+            // - Embed keys may now be available in cache for decryption
+            if (contentChanged || localeChanged || hasEmbedUpdate) {
+                if (hasEmbedUpdate) {
+                    logger.debug('Forcing re-render due to embed update at:', _embedUpdateTimestamp);
+                }
                 // STREAMING FIX: Preserve current height SYNCHRONOUSLY before content replacement
                 // CRITICAL: We must set min-height directly on the DOM element BEFORE calling setContent()
                 // because Svelte's reactive updates are batched and happen asynchronously.
