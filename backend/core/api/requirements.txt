@@ -28,7 +28,7 @@ google-genai==1.19.0
 tiktoken==0.9.0
 anthropic==0.57.1
 stripe==12.2.0
-timezonefinder==6.5.9
+timezonefinder==8.2.0
 pytz==2025.2
 pynacl==1.6.2
 openai==1.99.3
