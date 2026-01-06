@@ -271,7 +271,6 @@
   {isMobile}
   {onFullscreen}
   onStop={handleStop}
-  faviconUrl={faviconUrl()}
   onEmbedDataUpdated={handleEmbedDataUpdated}
 >
   {#snippet details({ isMobile: isMobileLayout })}

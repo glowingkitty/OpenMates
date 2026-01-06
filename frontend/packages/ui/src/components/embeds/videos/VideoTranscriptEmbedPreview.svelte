@@ -8,9 +8,15 @@
   - Skill preview context: receives previewData from skillPreviewService
   - Embed context: receives results, status, taskId directly
   
-  Details content structure:
-  - Processing: "Processing transcript..."
-  - Finished: video title + word count + video count (if multiple)
+  Layout (per Figma design, matching WebReadEmbedPreview):
+  - Details section:
+    - Thumbnail (rounded, top-left of title) - YouTube video thumbnail
+    - Title: video title or hostname
+    - Subtitle: "via YouTube Transcript API:\n{wordCount} words"
+  - Basic infos bar:
+    - Videos app icon (gradient circle)
+    - Transcript skill icon
+    - "Transcript" / "Completed" (or "Processing")
 -->
 
 <script lang="ts">
@@ -44,6 +50,8 @@
     status?: 'processing' | 'finished' | 'error';
     /** Task ID for cancellation (direct format) */
     taskId?: string;
+    /** Direct URL from embed content (from processing placeholder) */
+    url?: string;
     /** Skill preview data (skill preview context) */
     previewData?: VideoTranscriptSkillPreviewData;
     /** Whether to use mobile layout */
@@ -57,6 +65,7 @@
     results: resultsProp,
     status: statusProp,
     taskId: taskIdProp,
+    url: urlProp,
     previewData,
     isMobile = false,
     onFullscreen
@@ -68,6 +77,7 @@
   // via the onEmbedDataUpdated callback from UnifiedEmbedPreview
   // ===========================================
   let localResults = $state<VideoTranscriptResult[]>([]);
+  let localUrl = $state<string>('');
   let localStatus = $state<'processing' | 'finished' | 'error'>('processing');
   
   // Initialize local state from props
@@ -75,9 +85,11 @@
     // Initialize from previewData or direct props
     if (previewData) {
       localResults = previewData.results || [];
+      localUrl = previewData.url || '';
       localStatus = previewData.status || 'processing';
     } else {
       localResults = resultsProp || [];
+      localUrl = urlProp || '';
       localStatus = statusProp || 'processing';
     }
   });
@@ -86,6 +98,19 @@
   let results = $derived(localResults);
   let status = $derived(localStatus);
   let taskId = $derived(previewData?.task_id || taskIdProp);
+  
+  // Get first result for main display (may be undefined if results are empty)
+  let firstResult = $derived(results[0]);
+  
+  // Get URL from multiple sources (priority: results > localUrl > previewData > direct prop)
+  // CRITICAL: Even if results are empty, we may have URL from the processing placeholder
+  let effectiveUrl = $derived(
+    firstResult?.url || 
+    localUrl ||
+    previewData?.url || 
+    urlProp || 
+    ''
+  );
   
   /**
    * Handle embed data updates from UnifiedEmbedPreview
@@ -111,32 +136,63 @@
         console.debug(`[VideoTranscriptEmbedPreview] ✅ Updated results from callback:`, content.results.length);
         localResults = content.results as VideoTranscriptResult[];
       }
+      
+      // Update URL if available
+      if (content.url && typeof content.url === 'string') {
+        localUrl = content.url;
+      }
     }
   }
   
+  /**
+   * Safely extract hostname from URL
+   * Falls back to stripping the scheme if URL parsing fails
+   */
+  function safeHostname(url?: string): string {
+    if (!url) return '';
+    try {
+      return new URL(url).hostname;
+    } catch {
+      // Fallback: try to strip scheme if present, then take host part.
+      const withoutScheme = url.replace(/^[a-zA-Z]+:\/\//, '');
+      return withoutScheme.split('/')[0] || '';
+    }
+  }
+  
+  // Extract hostname from effective URL
+  let hostname = $derived(safeHostname(effectiveUrl));
+  
   // Get skill name from translations
-  let skillName = $derived($text('embeds.video_transcript.text') || 'Video Transcript');
+  let skillName = $derived($text('embeds.video_transcript.text') || 'Transcript');
   
   // Map skillId to icon name
   const skillIconName = 'transcript';
   
-  // Extract video information from results
-  let firstResult = $derived(results[0] || {});
-  let videoTitle = $derived(
-    firstResult.metadata?.title || 
-    firstResult.url || 
+  // Display title: video title from results, or fallback to hostname
+  // CRITICAL: Use effectiveUrl-derived hostname if results are empty
+  let displayTitle = $derived(
+    firstResult?.metadata?.title || 
+    hostname || 
     ($text('embeds.video_transcript.text') || 'Video Transcript')
   );
-  let wordCount = $derived(firstResult.word_count || 0);
-  let videoCount = $derived(previewData?.video_count || previewData?.success_count || results.length || 0);
   
-  // Extract YouTube video ID and thumbnail URL from the first result's URL
+  // Calculate total word count across all results
+  let totalWordCount = $derived.by(() => {
+    let count = 0;
+    for (const result of results) {
+      if (result.word_count) {
+        count += result.word_count;
+      }
+    }
+    return count;
+  });
+  
+  // Extract YouTube video ID from the effective URL for thumbnail
   let videoId = $derived.by(() => {
-    const url = firstResult.url;
-    if (url) {
+    if (effectiveUrl) {
       try {
         // YouTube URL patterns
-        const youtubeMatch = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\n?#]+)/);
+        const youtubeMatch = effectiveUrl.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\n?#]+)/);
         if (youtubeMatch) {
           return youtubeMatch[1];
         }
@@ -147,19 +203,38 @@
     return '';
   });
   
-  let thumbnailUrl = $derived(
-    videoId ? `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg` : ''
-  );
+  // Thumbnail URL - use YouTube video thumbnail (medium quality for small display)
+  let thumbnailUrl = $derived(() => {
+    if (videoId) {
+      // Use mqdefault (320x180) for small thumbnail display - loads faster than maxresdefault
+      return `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`;
+    }
+    return undefined;
+  });
   
-  // For processing state, show a generic message if no video info is available
-  let processingTitle = $derived(
-    videoTitle !== ($text('embeds.video_transcript.text') || 'Video Transcript')
-      ? videoTitle
-      : ($text('embeds.processing_transcript.text') || 'Processing transcript...')
-  );
+  // Subtitle text: "via YouTube Transcript API:\nX words" (matches WebReadEmbedPreview pattern)
+  let subtitleText = $derived(() => {
+    const wordCount = totalWordCount;
+    if (wordCount > 0) {
+      return `via YouTube Transcript API:\n${wordCount.toLocaleString()} words`;
+    }
+    return 'via YouTube Transcript API';
+  });
   
-  // Get "via YouTube Transcript API" text
-  let viaText = $derived($text('embeds.via_youtube_transcript.text') || 'via YouTube Transcript API');
+  // Debug logging to help trace data flow issues
+  $effect(() => {
+    console.debug('[VideoTranscriptEmbedPreview] Rendering with:', {
+      id,
+      status,
+      resultsCount: results.length,
+      effectiveUrl,
+      hostname,
+      displayTitle,
+      wordCount: totalWordCount,
+      hasPreviewData: !!previewData,
+      hasUrlProp: !!urlProp
+    });
+  });
   
   // Handle stop button click
   async function handleStop() {
@@ -185,85 +260,25 @@
   {isMobile}
   {onFullscreen}
   onStop={handleStop}
-  hasFullWidthImage={true}
   onEmbedDataUpdated={handleEmbedDataUpdated}
 >
   {#snippet details({ isMobile: isMobileLayout })}
     <div class="video-transcript-details" class:mobile={isMobileLayout}>
-      {#if status === 'processing'}
-        <!-- Processing state: show thumbnail if available, otherwise show hostname -->
-        {#if videoId && thumbnailUrl}
-          <div class="video-thumbnail-container">
-            <img 
-              src={thumbnailUrl} 
-              alt={videoTitle}
-              class="video-thumbnail"
-              loading="lazy"
-              onerror={(e) => {
-                (e.target as HTMLImageElement).style.display = 'none';
-              }}
-            />
-          </div>
-        {:else}
-          <div class="video-hostname">
-            {#if firstResult.url}
-              {@const urlObj = new URL(firstResult.url)}
-              {urlObj.hostname}
-            {:else}
-              {processingTitle}
-            {/if}
-          </div>
+      <!-- Title row with thumbnail -->
+      <div class="title-row">
+        {#if thumbnailUrl()}
+          <img 
+            src={thumbnailUrl()} 
+            alt="" 
+            class="title-thumbnail"
+            onerror={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+          />
         {/if}
-      {:else if status === 'finished'}
-        <!-- Finished state: show thumbnail if available -->
-        {#if videoId && thumbnailUrl}
-          <div class="video-thumbnail-container">
-            <img 
-              src={thumbnailUrl} 
-              alt={videoTitle}
-              class="video-thumbnail"
-              loading="lazy"
-              onerror={(e) => {
-                (e.target as HTMLImageElement).style.display = 'none';
-              }}
-            />
-          </div>
-        {:else}
-          <!-- Fallback: show URL hostname -->
-          <div class="video-hostname">
-            {#if firstResult.url}
-              {@const urlObj = new URL(firstResult.url)}
-              {urlObj.hostname}
-            {:else}
-              {videoTitle}
-            {/if}
-          </div>
-        {/if}
-      {:else}
-        <!-- Error state: show thumbnail if available, otherwise show error -->
-        {#if videoId && thumbnailUrl}
-          <div class="video-thumbnail-container">
-            <img 
-              src={thumbnailUrl} 
-              alt={videoTitle}
-              class="video-thumbnail"
-              loading="lazy"
-              onerror={(e) => {
-                (e.target as HTMLImageElement).style.display = 'none';
-              }}
-            />
-          </div>
-        {:else}
-          <div class="video-error">
-            {#if firstResult.url}
-              {@const urlObj = new URL(firstResult.url)}
-              {urlObj.hostname}
-            {:else}
-              {videoTitle}
-            {/if}
-          </div>
-        {/if}
-      {/if}
+        <div class="transcript-title">{displayTitle}</div>
+      </div>
+      
+      <!-- Subtitle: "via YouTube Transcript API:\nX words" -->
+      <div class="transcript-subtitle">{subtitleText()}</div>
     </div>
   {/snippet}
 </UnifiedEmbedPreview>
@@ -271,17 +286,18 @@
 <style>
   /* ===========================================
      Video Transcript Details Content
+     Matches WebReadEmbedPreview layout
      =========================================== */
   
   .video-transcript-details {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 6px;
     height: 100%;
   }
   
-  /* Desktop layout: vertically centered content (only for text, not images) */
-  .video-transcript-details:not(.mobile):not(:has(.video-thumbnail-container)) {
+  /* Desktop layout: vertically centered content */
+  .video-transcript-details:not(.mobile) {
     justify-content: center;
   }
   
@@ -290,49 +306,57 @@
     justify-content: flex-start;
   }
   
-  /* When thumbnail is present, fill the full height */
-  .video-transcript-details:has(.video-thumbnail-container) {
-    gap: 0;
+  /* Title row with thumbnail and title text */
+  .title-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
   }
   
-  /* Video thumbnail container - full width and height */
-  .video-thumbnail-container {
-    position: relative;
-    width: 100%;
-    height: 100%;
-    border-radius: 8px;
-    overflow: hidden;
-    background-color: var(--color-grey-15);
-    flex: 1;
-    min-height: 0;
-  }
-  
-  .video-thumbnail {
-    width: 100%;
-    height: 100%;
+  /* Thumbnail next to title - rounded rectangle (video aspect ratio hint) */
+  .title-thumbnail {
+    width: 32px;
+    height: 18px;
+    min-width: 32px;
+    border-radius: 4px;
+    background-color: var(--color-grey-30);
     object-fit: cover;
-    display: block;
+    flex-shrink: 0;
+    margin-top: 2px; /* Align with first line of title */
   }
   
-  /* Video hostname (for fallback states) */
-  .video-hostname {
+  /* Video title */
+  .transcript-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--color-grey-100);
+    line-height: 1.3;
+    /* Limit to 2 lines with ellipsis */
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    word-break: break-word;
+  }
+  
+  .video-transcript-details.mobile .transcript-title {
     font-size: 14px;
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
+  }
+  
+  /* Subtitle: "via YouTube Transcript API:\nX words" */
+  .transcript-subtitle {
+    font-size: 14px;
+    font-weight: 700;
     color: var(--color-grey-70);
-    line-height: 1.3;
+    line-height: 1.4;
+    white-space: pre-line; /* Preserve line breaks */
   }
   
-  .video-transcript-details.mobile .video-hostname {
-    font-size: 12px;
-  }
-  
-  /* Error state */
-  .video-error {
-    font-size: 14px;
-    color: var(--color-error);
-    line-height: 1.3;
-  }
-  
-  .video-transcript-details.mobile .video-error {
+  .video-transcript-details.mobile .transcript-subtitle {
     font-size: 12px;
   }
   

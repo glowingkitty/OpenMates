@@ -4214,9 +4214,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     
     /* Force narrow/mobile styling on chat wrapper in side-by-side mode */
     /* This ensures mobile-friendly layouts are used when chat is 400px wide */
+    /* Top buttons positioned at top-right in side-by-side mode for better UX */
     .chat-wrapper.side-by-side-chat .top-buttons {
         top: 10px;
-        left: 10px;
+        left: auto;
+        right: 10px;
     }
     
     .chat-wrapper.side-by-side-chat .message-input-container {

@@ -308,6 +308,11 @@ div.clickable-icon {
   mask-image: url('@openmates/ui/static/icons/back.svg');
 }
 
+.clickable-icon.icon_chat {
+  -webkit-mask-image: url('@openmates/ui/static/icons/chat.svg');
+  mask-image: url('@openmates/ui/static/icons/chat.svg');
+}
+
 .clickable-icon.icon_close_up {
   -webkit-mask-image: url('@openmates/ui/static/icons/back.svg');
   mask-image: url('@openmates/ui/static/icons/back.svg');

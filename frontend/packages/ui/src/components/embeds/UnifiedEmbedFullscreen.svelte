@@ -596,7 +596,7 @@
         {/if}
         <!-- Previous embed navigation button - only shown if there is a previous embed -->
         {#if hasPreviousEmbed && onNavigatePrevious}
-          <div class="button-wrapper">
+          <div class="button-wrapper nav-button-wrapper">
             <button
               class="action-button nav-button nav-previous"
               onclick={handleNavigatePrevious}
@@ -661,7 +661,7 @@
       <div class="top-bar-right">
         <!-- Next embed navigation button - only shown if there is a next embed -->
         {#if hasNextEmbed && onNavigateNext}
-          <div class="button-wrapper">
+          <div class="button-wrapper nav-button-wrapper">
             <button
               class="action-button nav-button nav-next"
               onclick={handleNavigateNext}
@@ -881,10 +881,11 @@
     transform: rotate(180deg);
   }
   
-  /* Hide navigation buttons on narrow screens (< 500px) to prevent UI crowding */
+  /* Hide navigation button wrappers on narrow screens (< 500px) to prevent UI crowding */
   /* Uses container query since container-type: inline-size is set on the overlay */
+  /* Target the wrapper (not just the button) to hide the entire container including background */
   @container fullscreen (max-width: 500px) {
-    .nav-button {
+    .nav-button-wrapper {
       display: none;
     }
   }
