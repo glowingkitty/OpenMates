@@ -881,6 +881,14 @@
     transform: rotate(180deg);
   }
   
+  /* Hide navigation buttons on narrow screens (< 500px) to prevent UI crowding */
+  /* Uses container query since container-type: inline-size is set on the overlay */
+  @container fullscreen (max-width: 500px) {
+    .nav-button {
+      display: none;
+    }
+  }
+  
   /* Header section */
   .header {
     margin-top: 16px;

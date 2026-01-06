@@ -279,6 +279,17 @@
       
       // SECURITY: Sanitize HTML to prevent XSS attacks
       // Allow common HTML tags for rich content display, but block scripts/events
+      
+      // Add hook to force all links to open in new tab
+      // This runs after sanitization but before returning the HTML
+      DOMPurify.addHook('afterSanitizeAttributes', (node) => {
+        // Force all anchor links to open in new tab with proper security attributes
+        if (node.tagName === 'A') {
+          node.setAttribute('target', '_blank');
+          node.setAttribute('rel', 'noopener noreferrer');
+        }
+      });
+      
       const sanitizedHtml = DOMPurify.sanitize(rawHtml, {
         ALLOWED_TAGS: [
           // Text formatting
@@ -305,13 +316,15 @@
           'start', 'type', 'reversed', // List attributes
           'open', // Details attribute
           'datetime', // Time/date attributes
-          'lang', 'dir' // Language/direction
+          'lang', 'dir', // Language/direction
+          'target', 'rel' // Link security attributes (set by hook)
         ],
-        // Force all links to open in new tab safely
-        ADD_ATTR: ['target', 'rel'],
         // Forbid dangerous protocols in URLs
         ALLOWED_URI_REGEXP: /^(?:(?:(?:f|ht)tps?|mailto|tel|callto|sms|cid|xmpp):|[^a-z]|[a-z+.-]+(?:[^a-z+.-:]|$))/i
       });
+      
+      // Remove hook after use to prevent memory leaks and avoid affecting other sanitization calls
+      DOMPurify.removeHook('afterSanitizeAttributes');
       
       console.debug(`[WebReadEmbedFullscreen] ✅ Rendered & sanitized markdown for index ${index}, HTML length: ${sanitizedHtml.length}`);
       
@@ -498,14 +511,17 @@
   {/snippet}
   
   {#snippet bottomBar()}
-    <BasicInfosBar
-      appId="web"
-      skillId="read"
-      skillIconName="text"
-      status="finished"
-      {skillName}
-      showStatus={true}
-    />
+    <!-- Wrapper to match UnifiedEmbedFullscreen's .basic-infos-bar-wrapper styling (300px max-width) -->
+    <div class="basic-infos-bar-wrapper">
+      <BasicInfosBar
+        appId="web"
+        skillId="read"
+        skillIconName="text"
+        status="finished"
+        {skillName}
+        showStatus={true}
+      />
+    </div>
   {/snippet}
 </UnifiedEmbedFullscreen>
 
@@ -673,8 +689,8 @@
   }
   
   .content-card {
-    background-color: white;
-    border-radius: 30px 30px 0 0;
+    background-color: var(--color-grey-0);
+    border-radius: 30px;
     padding: 24px;
     width: calc(100% - 40px);
     max-width: 722px;
@@ -827,6 +843,26 @@
     .markdown-content {
       font-size: 15px;
     }
+  }
+  
+  /* ===========================================
+     BasicInfosBar Wrapper (matches UnifiedEmbedFullscreen styling)
+     =========================================== */
+  
+  /* BasicInfosBar wrapper - max-width 300px, centered */
+  .basic-infos-bar-wrapper {
+    width: 100%;
+    max-width: 300px;
+    border: none;
+    background: transparent;
+    padding: 0;
+    cursor: default;
+  }
+  
+  /* Ensure BasicInfosBar inside wrapper respects max-width */
+  .basic-infos-bar-wrapper :global(.basic-infos-bar) {
+    width: 100%;
+    max-width: 300px;
   }
   
   /* ===========================================
