@@ -33,6 +33,7 @@
   import { settingsDeepLink } from '../../stores/settingsDeepLinkStore';
   import { embedStore } from '../../services/embedStore';
   import { decodeToonContent } from '../../services/embedResolver';
+  import { chatSyncService } from '../../services/chatSyncService';
   
   // Animation state: controls both open and close animations via CSS classes
   // - false: collapsed state (initial + closing)
@@ -151,6 +152,24 @@
     onNavigatePrevious?: () => void;
     /** Handler to navigate to the next embed */
     onNavigateNext?: () => void;
+    
+    /* ============================================
+       Embed Data Update Props (for reactive updates during streaming)
+       ============================================ */
+    
+    /**
+     * Current embed ID being displayed (for subscription to updates)
+     * When provided, subscribes to embedUpdated events for this embed
+     * and calls onEmbedDataUpdated when data changes
+     */
+    currentEmbedId?: string;
+    
+    /**
+     * Callback when embed data is updated (e.g., during streaming)
+     * Called with decoded content when the embed is updated
+     * Similar to UnifiedEmbedPreview's onEmbedDataUpdated
+     */
+    onEmbedDataUpdated?: (data: { status: string; decodedContent: Record<string, unknown>; results?: unknown[] }) => void;
   }
   
   let {
@@ -182,7 +201,10 @@
     hasPreviousEmbed = false,
     hasNextEmbed = false,
     onNavigatePrevious,
-    onNavigateNext
+    onNavigateNext,
+    // Embed data update props
+    currentEmbedId,
+    onEmbedDataUpdated
   }: Props = $props();
   
   // ============================================
@@ -289,6 +311,80 @@
     loadedChildren = children;
     isLoadingChildren = false;
     console.debug('[UnifiedEmbedFullscreen] Finished loading', children.length, 'child embeds');
+  }
+  
+  // ============================================
+  // Embed Data Update Subscription (for reactive updates during streaming)
+  // ============================================
+  
+  /** Event listener for embed updates - stored for cleanup */
+  let embedUpdateListener: ((e: CustomEvent) => void) | null = null;
+  
+  /**
+   * Handle embed updates from chatSyncService
+   * When an embedUpdated event fires for the current embed ID, refetch data from store
+   * and notify the parent component via onEmbedDataUpdated callback
+   */
+  function handleEmbedUpdate(event: CustomEvent) {
+    // Check if this update is for our embed
+    const { embed_id, contentRef, status: newStatus } = event.detail;
+    const matchesEmbedId = embed_id === currentEmbedId;
+    const matchesContentRef = contentRef === `embed:${currentEmbedId}`;
+    
+    if (!matchesEmbedId && !matchesContentRef) {
+      return;
+    }
+    
+    console.debug(`[UnifiedEmbedFullscreen] 🔄 Received embedUpdated for ${currentEmbedId}:`, {
+      newStatus,
+      embed_id,
+      contentRef
+    });
+    
+    // Refetch from store to get full data and notify parent component
+    refetchCurrentEmbed();
+  }
+  
+  /**
+   * Refetch current embed data from the store and notify parent via callback
+   * This ensures we have the latest data after an update during streaming
+   */
+  async function refetchCurrentEmbed() {
+    if (!currentEmbedId || !onEmbedDataUpdated) {
+      return;
+    }
+    
+    try {
+      const embedData = await embedStore.get(`embed:${currentEmbedId}`);
+      if (!embedData) {
+        console.warn(`[UnifiedEmbedFullscreen] Embed not found in store: ${currentEmbedId}`);
+        return;
+      }
+      
+      console.debug(`[UnifiedEmbedFullscreen] Refetched data from store for ${currentEmbedId}:`, {
+        status: embedData.status,
+        hasContent: !!embedData.content,
+        hasResults: !!embedData.results,
+        resultsCount: embedData.results?.length || 0
+      });
+      
+      // Decode TOON content if needed
+      let decodedContent = embedData.content;
+      if (typeof decodedContent === 'string') {
+        decodedContent = await decodeToonContent(decodedContent);
+      }
+      
+      // Notify parent component with decoded content and results
+      if (decodedContent) {
+        onEmbedDataUpdated({
+          status: embedData.status || 'processing',
+          decodedContent: decodedContent as Record<string, unknown>,
+          results: embedData.results || (decodedContent as Record<string, unknown>)?.results as unknown[]
+        });
+      }
+    } catch (error) {
+      console.error(`[UnifiedEmbedFullscreen] Error refetching from store for ${currentEmbedId}:`, error);
+    }
   }
   
   /**
@@ -401,6 +497,21 @@
     // Listen for chat selection events to close fullscreen
     window.addEventListener('globalChatSelected', handleChatSelected);
     
+    // Subscribe to embed updates if currentEmbedId is provided
+    // This enables reactive updates during streaming
+    if (currentEmbedId && onEmbedDataUpdated) {
+      console.debug(`[UnifiedEmbedFullscreen] Subscribing to embedUpdated for ${currentEmbedId}`);
+      embedUpdateListener = handleEmbedUpdate;
+      // Type-safe event listener subscription
+      const service = chatSyncService as unknown as { 
+        addEventListener: (type: string, listener: (e: CustomEvent) => void) => void 
+      };
+      service.addEventListener('embedUpdated', embedUpdateListener);
+      
+      // Initial fetch to ensure we have the latest data
+      refetchCurrentEmbed();
+    }
+    
     // Load child embeds if embedIds is provided
     if (embedIds) {
       loadChildEmbeds();
@@ -417,6 +528,15 @@
   
   onDestroy(() => {
     window.removeEventListener('globalChatSelected', handleChatSelected);
+    
+    // Clean up embed update listener
+    if (embedUpdateListener) {
+      const service = chatSyncService as unknown as { 
+        removeEventListener: (type: string, listener: (e: CustomEvent) => void) => void 
+      };
+      service.removeEventListener('embedUpdated', embedUpdateListener);
+      embedUpdateListener = null;
+    }
   });
 </script>
 

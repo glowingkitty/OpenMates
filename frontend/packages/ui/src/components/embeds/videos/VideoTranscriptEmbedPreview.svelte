@@ -15,7 +15,7 @@
 
 <script lang="ts">
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
-  // @ts-ignore - @repo/ui module exists at runtime
+  // @ts-expect-error - @repo/ui module exists at runtime
   import { text } from '@repo/ui';
   import { chatSyncService } from '../../../services/chatSyncService';
   import type { VideoTranscriptSkillPreviewData } from '../../../types/appSkills';
@@ -62,10 +62,57 @@
     onFullscreen
   }: Props = $props();
   
-  // Extract values from either previewData (skill preview context) or direct props (embed context)
-  let results = $derived(previewData?.results || resultsProp || []);
-  let status = $derived(previewData?.status || statusProp || 'processing');
+  // ===========================================
+  // Local state for embed data (updated via onEmbedDataUpdated callback)
+  // CRITICAL: Using $state allows us to update these values when we receive embed updates
+  // via the onEmbedDataUpdated callback from UnifiedEmbedPreview
+  // ===========================================
+  let localResults = $state<VideoTranscriptResult[]>([]);
+  let localStatus = $state<'processing' | 'finished' | 'error'>('processing');
+  
+  // Initialize local state from props
+  $effect(() => {
+    // Initialize from previewData or direct props
+    if (previewData) {
+      localResults = previewData.results || [];
+      localStatus = previewData.status || 'processing';
+    } else {
+      localResults = resultsProp || [];
+      localStatus = statusProp || 'processing';
+    }
+  });
+  
+  // Use local state as the source of truth (allows updates from embed events)
+  let results = $derived(localResults);
+  let status = $derived(localStatus);
   let taskId = $derived(previewData?.task_id || taskIdProp);
+  
+  /**
+   * Handle embed data updates from UnifiedEmbedPreview
+   * Called when the parent component receives and decodes updated embed data
+   * This is the CENTRALIZED way to receive updates - no need for custom subscription
+   */
+  function handleEmbedDataUpdated(data: { status: string; decodedContent: Record<string, unknown> }) {
+    console.debug(`[VideoTranscriptEmbedPreview] 🔄 Received embed data update for ${id}:`, {
+      status: data.status,
+      hasContent: !!data.decodedContent
+    });
+    
+    // Update status
+    if (data.status === 'processing' || data.status === 'finished' || data.status === 'error') {
+      localStatus = data.status;
+    }
+    
+    // Update video-transcript-specific fields from decoded content
+    const content = data.decodedContent;
+    if (content) {
+      // Update results if available
+      if (content.results && Array.isArray(content.results) && content.results.length > 0) {
+        console.debug(`[VideoTranscriptEmbedPreview] ✅ Updated results from callback:`, content.results.length);
+        localResults = content.results as VideoTranscriptResult[];
+      }
+    }
+  }
   
   // Get skill name from translations
   let skillName = $derived($text('embeds.video_transcript.text') || 'Video Transcript');
@@ -139,6 +186,7 @@
   {onFullscreen}
   onStop={handleStop}
   hasFullWidthImage={true}
+  onEmbedDataUpdated={handleEmbedDataUpdated}
 >
   {#snippet details({ isMobile: isMobileLayout })}
     <div class="video-transcript-details" class:mobile={isMobileLayout}>

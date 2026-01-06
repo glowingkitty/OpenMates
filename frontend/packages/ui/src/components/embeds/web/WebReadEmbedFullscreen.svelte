@@ -87,20 +87,69 @@
     onNavigateNext
   }: Props = $props();
   
-  // Extract values from either previewData (skill preview context) or direct props (embed context)
-  let results = $derived(previewData?.results || resultsProp || []);
+  // ===========================================
+  // Local state for embed data (updated via onEmbedDataUpdated callback)
+  // CRITICAL: Using $state allows us to update these values when we receive embed updates
+  // via the onEmbedDataUpdated callback from UnifiedEmbedFullscreen
+  // ===========================================
+  let localResults = $state<WebReadResult[]>([]);
+  let localUrl = $state<string>('');
+  
+  // Initialize local state from props
+  $effect(() => {
+    // Initialize from previewData or direct props
+    if (previewData) {
+      localResults = previewData.results || [];
+      localUrl = previewData.url || '';
+    } else {
+      localResults = resultsProp || [];
+      localUrl = urlProp || '';
+    }
+  });
+  
+  // Use local state as the source of truth (allows updates from embed events)
+  let results = $derived(localResults);
   
   // Get first result for main display (may be undefined if results are empty)
   let firstResult = $derived(results[0]);
   
-  // Get URL from multiple sources (priority: results > previewData > direct prop)
+  // Get URL from multiple sources (priority: results > localUrl > previewData > direct prop)
   // CRITICAL: Even if results are empty, we may have URL from the processing placeholder
   let effectiveUrl = $derived(
     firstResult?.url || 
+    localUrl ||
     previewData?.url || 
     urlProp || 
     ''
   );
+  
+  /**
+   * Handle embed data updates from UnifiedEmbedFullscreen
+   * Called when the parent component receives and decodes updated embed data
+   * This is the CENTRALIZED way to receive updates - no need for custom subscription
+   */
+  function handleEmbedDataUpdated(data: { status: string; decodedContent: Record<string, unknown>; results?: unknown[] }) {
+    console.debug(`[WebReadEmbedFullscreen] 🔄 Received embed data update for ${embedId}:`, {
+      status: data.status,
+      hasContent: !!data.decodedContent,
+      hasResults: !!data.results,
+      resultsCount: data.results?.length || 0
+    });
+    
+    // Update web-read-specific fields from decoded content or results
+    if (data.results && Array.isArray(data.results) && data.results.length > 0) {
+      console.debug(`[WebReadEmbedFullscreen] ✅ Updated results from callback:`, data.results.length);
+      localResults = data.results as WebReadResult[];
+    } else if (data.decodedContent?.results && Array.isArray(data.decodedContent.results)) {
+      console.debug(`[WebReadEmbedFullscreen] ✅ Updated results from decodedContent:`, data.decodedContent.results.length);
+      localResults = data.decodedContent.results as WebReadResult[];
+    }
+    
+    // Update URL if available
+    if (data.decodedContent?.url && typeof data.decodedContent.url === 'string') {
+      localUrl = data.decodedContent.url;
+    }
+  }
   
   /**
    * Safely extract hostname from URL
@@ -180,7 +229,8 @@
       displayTitle,
       wordCount: totalWordCount(),
       hasPreviewData: !!previewData,
-      hasUrlProp: !!urlProp
+      hasUrlProp: !!urlProp,
+      hasLocalResults: localResults.length > 0
     });
   });
   
@@ -287,6 +337,8 @@
   onShare={handleShare}
   skillIconName="text"
   status="finished"
+  currentEmbedId={embedId}
+  onEmbedDataUpdated={handleEmbedDataUpdated}
   {skillName}
   showStatus={true}
   {hasPreviousEmbed}

@@ -14,7 +14,7 @@
 <script lang="ts">
   import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
   import BasicInfosBar from '../BasicInfosBar.svelte';
-  // @ts-ignore - @repo/ui module exists at runtime
+  // @ts-expect-error - @repo/ui module exists at runtime
   import { text } from '@repo/ui';
   import type { VideoTranscriptSkillPreviewData, VideoTranscriptResult } from '../../../types/appSkills';
   
@@ -29,8 +29,6 @@
     previewData?: VideoTranscriptSkillPreviewData;
     /** Close handler */
     onClose: () => void;
-    /** Optional embed ID for the video embed (used to open video fullscreen) */
-    videoEmbedId?: string;
     /** Optional: Embed ID for sharing (from embed:{embed_id} contentRef) */
     embedId?: string;
     /** Whether there is a previous embed to navigate to */
@@ -47,7 +45,6 @@
     results: resultsProp,
     previewData,
     onClose,
-    videoEmbedId,
     embedId,
     hasPreviousEmbed = false,
     hasNextEmbed = false,
@@ -55,8 +52,48 @@
     onNavigateNext
   }: Props = $props();
   
-  // Extract values from either previewData (skill preview context) or direct props (embed context)
-  let results = $derived(previewData?.results || resultsProp || []);
+  // ===========================================
+  // Local state for embed data (updated via onEmbedDataUpdated callback)
+  // CRITICAL: Using $state allows us to update these values when we receive embed updates
+  // via the onEmbedDataUpdated callback from UnifiedEmbedFullscreen
+  // ===========================================
+  let localResults = $state<VideoTranscriptResult[]>([]);
+  
+  // Initialize local state from props
+  $effect(() => {
+    // Initialize from previewData or direct props
+    if (previewData) {
+      localResults = previewData.results || [];
+    } else {
+      localResults = resultsProp || [];
+    }
+  });
+  
+  // Use local state as the source of truth (allows updates from embed events)
+  let results = $derived(localResults);
+  
+  /**
+   * Handle embed data updates from UnifiedEmbedFullscreen
+   * Called when the parent component receives and decodes updated embed data
+   * This is the CENTRALIZED way to receive updates - no need for custom subscription
+   */
+  function handleEmbedDataUpdated(data: { status: string; decodedContent: Record<string, unknown>; results?: unknown[] }) {
+    console.debug(`[VideoTranscriptEmbedFullscreen] 🔄 Received embed data update for ${embedId}:`, {
+      status: data.status,
+      hasContent: !!data.decodedContent,
+      hasResults: !!data.results,
+      resultsCount: data.results?.length || 0
+    });
+    
+    // Update video-transcript-specific fields from decoded content or results
+    if (data.results && Array.isArray(data.results) && data.results.length > 0) {
+      console.debug(`[VideoTranscriptEmbedFullscreen] ✅ Updated results from callback:`, data.results.length);
+      localResults = data.results as VideoTranscriptResult[];
+    } else if (data.decodedContent?.results && Array.isArray(data.decodedContent.results)) {
+      console.debug(`[VideoTranscriptEmbedFullscreen] ✅ Updated results from decodedContent:`, data.decodedContent.results.length);
+      localResults = data.decodedContent.results as VideoTranscriptResult[];
+    }
+  }
   
   // DEBUG: Log results to understand data format
   $effect(() => {
@@ -390,6 +427,8 @@
   skillIconName="transcript"
   status="finished"
   skillName={transcriptSkillName}
+  currentEmbedId={embedId}
+  onEmbedDataUpdated={handleEmbedDataUpdated}
   showSkillIcon={true}
   {hasPreviousEmbed}
   {hasNextEmbed}

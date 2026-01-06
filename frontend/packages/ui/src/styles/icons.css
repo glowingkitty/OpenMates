@@ -630,6 +630,13 @@ div.clickable-icon {
   }
 }
 
+.icon_rounded.news {
+  background: var(--color-app-news);
+  &::after {
+    background-image: url('@openmates/ui/static/icons/news.svg');
+  }
+}
+
 .icon_rounded.recording {
   background: var(--color-app-audio);
   &::after {
