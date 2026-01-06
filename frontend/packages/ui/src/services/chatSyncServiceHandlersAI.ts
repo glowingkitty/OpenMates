@@ -1279,7 +1279,25 @@ export async function handleEmbedUpdateImpl(
             // CRITICAL FIX: If transitioning from processing to finished, we need to:
             // 1. Encrypt the content and persist key wrappers
             // 2. This ensures the key survives page refresh
-            if (wasProcessing && isNowFinished && existingEmbed.content) {
+            // 
+            // IMPORTANT: SKIP this if the content is still the "processing" placeholder!
+            // The `send_embed_data` event with the actual finished content should handle encryption/storage.
+            // This prevents a race condition where `embed_update` arrives before `send_embed_data` finishes,
+            // causing the OLD placeholder content to be encrypted and stored to Directus.
+            // 
+            // Detection: If existingEmbed.content contains 'status: processing' or 'status: "processing"',
+            // it's still the placeholder and we should NOT encrypt it here.
+            const contentString = typeof existingEmbed.content === 'string' ? existingEmbed.content : '';
+            const isStillPlaceholderContent = contentString.includes('status: processing') || 
+                                              contentString.includes('status: "processing"') ||
+                                              contentString.includes("status: 'processing'");
+            
+            if (isStillPlaceholderContent) {
+                console.warn(
+                    `[ChatSyncService:AI] embed_update: SKIPPING encryption for ${payload.embed_id} - ` +
+                    `content still contains "processing" status. The send_embed_data event with actual content should handle this.`
+                );
+            } else if (wasProcessing && isNowFinished && existingEmbed.content) {
                 console.info(`[ChatSyncService:AI] embed_update: Transitioning ${payload.embed_id} from processing to finished - encrypting and persisting keys`);
                 
                 try {

@@ -378,6 +378,57 @@ class EmbedMethods:
             logger.error(f"Error fetching embed_keys by embed_id {embed_id}: {e}", exc_info=True)
             return []
 
+    async def get_embed_keys_by_embed_id_and_type(
+        self,
+        hashed_embed_id: str,
+        key_type: str,
+        hashed_chat_id: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
+        """
+        Fetch embed_keys entries matching the exact hashed_embed_id, key_type, and hashed_chat_id.
+        
+        Used for deduplication - checking if a specific key already exists before creating it.
+        This prevents race conditions where multiple handlers might try to store the same key.
+        
+        Args:
+            hashed_embed_id: SHA256 hash of the embed_id (already hashed)
+            key_type: Either 'master' or 'chat'
+            hashed_chat_id: For chat keys, the SHA256 hash of chat_id. None for master keys.
+            
+        Returns:
+            List of matching embed_keys entries (should be 0 or 1)
+        """
+        logger.debug(
+            f"Checking for existing embed_key: hashed_embed_id={hashed_embed_id[:16]}..., "
+            f"key_type={key_type}, hashed_chat_id={hashed_chat_id[:16] if hashed_chat_id else 'null'}..."
+        )
+        
+        # Build filter for exact match
+        params = {
+            'filter[hashed_embed_id][_eq]': hashed_embed_id,
+            'filter[key_type][_eq]': key_type,
+            'fields': EMBED_KEY_ALL_FIELDS,
+            'limit': 1
+        }
+        
+        # For chat keys, also filter by hashed_chat_id
+        # For master keys, hashed_chat_id should be null
+        if key_type == 'chat' and hashed_chat_id:
+            params['filter[hashed_chat_id][_eq]'] = hashed_chat_id
+        elif key_type == 'master':
+            params['filter[hashed_chat_id][_null]'] = 'true'
+        
+        try:
+            response = await self.directus_service.get_items('embed_keys', params=params, no_cache=True)
+            if response and isinstance(response, list):
+                logger.debug(f"Found {len(response)} existing embed_key(s) matching criteria")
+                return response
+            else:
+                return []
+        except Exception as e:
+            logger.error(f"Error checking for existing embed_key: {e}", exc_info=True)
+            return []
+
     async def create_embed_key(self, embed_key_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         """
         Create a new embed_key entry in Directus.

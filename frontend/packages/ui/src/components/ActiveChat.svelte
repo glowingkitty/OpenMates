@@ -3826,9 +3826,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     
                     {#if appId === 'web' && skillId === 'search'}
                         <!-- Web Search Fullscreen -->
+                        <!-- Pass embedIds for proper child embed loading (has extra_snippets, page_age, etc.) -->
+                        <!-- Falls back to results if embedIds not available (legacy embeds) -->
                         <WebSearchEmbedFullscreen 
                             query={embedFullscreenData.decodedContent?.query || ''}
                             provider={embedFullscreenData.decodedContent?.provider || 'Brave'}
+                            embedIds={embedFullscreenData.decodedContent?.embed_ids || embedFullscreenData.embedData?.embed_ids}
                             results={embedFullscreenData.decodedContent?.results || []}
                             embedId={embedFullscreenData.embedId}
                             onClose={handleCloseEmbedFullscreen}
@@ -3839,9 +3842,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         />
                     {:else if appId === 'news' && skillId === 'search'}
                         <!-- News Search Fullscreen -->
+                        <!-- Pass embedIds for proper child embed loading -->
                         <NewsSearchEmbedFullscreen 
                             query={embedFullscreenData.decodedContent?.query || ''}
                             provider={embedFullscreenData.decodedContent?.provider || 'Brave'}
+                            embedIds={embedFullscreenData.decodedContent?.embed_ids || embedFullscreenData.embedData?.embed_ids}
                             results={embedFullscreenData.decodedContent?.results || []}
                             embedId={embedFullscreenData.embedId}
                             onClose={handleCloseEmbedFullscreen}
@@ -3852,9 +3857,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         />
                     {:else if appId === 'videos' && skillId === 'search'}
                         <!-- Videos Search Fullscreen -->
+                        <!-- Pass embedIds for proper child embed loading -->
                         <VideosSearchEmbedFullscreen 
                             query={embedFullscreenData.decodedContent?.query || ''}
                             provider={embedFullscreenData.decodedContent?.provider || 'Brave'}
+                            embedIds={embedFullscreenData.decodedContent?.embed_ids || embedFullscreenData.embedData?.embed_ids}
                             results={embedFullscreenData.decodedContent?.results || []}
                             embedId={embedFullscreenData.embedId}
                             onClose={handleCloseEmbedFullscreen}
@@ -3865,9 +3872,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         />
                     {:else if appId === 'maps' && skillId === 'search'}
                         <!-- Maps Search Fullscreen -->
+                        <!-- Pass embedIds for proper child embed loading -->
                         <MapsSearchEmbedFullscreen 
                             query={embedFullscreenData.decodedContent?.query || ''}
                             provider={embedFullscreenData.decodedContent?.provider || 'Google'}
+                            embedIds={embedFullscreenData.decodedContent?.embed_ids || embedFullscreenData.embedData?.embed_ids}
                             results={embedFullscreenData.decodedContent?.results || []}
                             embedId={embedFullscreenData.embedId}
                             onClose={handleCloseEmbedFullscreen}

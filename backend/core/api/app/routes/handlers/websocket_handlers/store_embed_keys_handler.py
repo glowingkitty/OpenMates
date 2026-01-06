@@ -87,9 +87,23 @@ async def handle_store_embed_keys(
                     # For master key type, hashed_chat_id should be null
                     hashed_chat_id = None
 
+                # Check for existing key to avoid duplicates
+                # This handles race conditions where both send_embed_data and embed_update handlers
+                # might try to store keys for the same embed
+                existing_keys = await directus_service.embed.get_embed_keys_by_embed_id_and_type(
+                    hashed_embed_id, key_type, hashed_chat_id
+                )
+                
+                if existing_keys and len(existing_keys) > 0:
+                    logger.debug(
+                        f"Skipping duplicate embed_key: key_type={key_type}, "
+                        f"hashed_embed_id={hashed_embed_id[:16]}..., already exists"
+                    )
+                    # Count as success since key already exists
+                    created_count += 1
+                    continue
+                
                 # Create embed_key entry in Directus
-                # Note: Client is responsible for ensuring no duplicate keys are sent
-                # Backend does not check for duplicates to avoid unnecessary database queries
                 embed_key_data = {
                     "hashed_embed_id": hashed_embed_id,
                     "key_type": key_type,

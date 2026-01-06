@@ -97,6 +97,19 @@
     onNavigateNext
   }: Props = $props();
   
+  // Debug: Log what props WebSearchEmbedFullscreen receives
+  $effect(() => {
+    console.debug('[WebSearchEmbedFullscreen] Props received:', {
+      embedIds,
+      embedIds_type: typeof embedIds,
+      hasEmbedIds: !!embedIds,
+      hasPreviewData: !!previewData,
+      previewDataResultsCount: previewData?.results?.length || 0,
+      resultsPropCount: resultsProp?.length || 0,
+      query: queryProp || previewData?.query
+    });
+  });
+  
   // ============================================
   // State: Track which website is shown in fullscreen
   // ============================================
