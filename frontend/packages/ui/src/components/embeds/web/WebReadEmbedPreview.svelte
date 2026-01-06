@@ -27,7 +27,6 @@
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
   import { chatSyncService } from '../../../services/chatSyncService';
   import type { BaseSkillPreviewData } from '../../../types/appSkills';
-  // @ts-expect-error - @repo/ui module exists at runtime
   import { text } from '@repo/ui';
   
   /**

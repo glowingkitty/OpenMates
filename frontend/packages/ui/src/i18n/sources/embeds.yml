@@ -483,26 +483,26 @@ web_read_full_view:
   verified_by_human: []
 web_read_text_preview:
   context: Label above markdown content in web read fullscreen
-  en: 'Text only preview,'
-  de: 'Nur-Text-Vorschau,'
-  zh: 仅文本预览，
-  es: 'Vista previa de solo texto,'
-  fr: 'Aperçu texte uniquement,'
-  pt: 'Visualização somente texto,'
-  ru: 'Только текстовый просмотр,'
-  ja: テキストのみのプレビュー、
-  ko: '텍스트만 미리보기,'
-  it: 'Anteprima solo testo,'
-  tr: 'Sadece metin önizlemesi,'
-  vi: 'Xem trước chỉ văn bản,'
-  id: 'Pratinjau teks saja,'
-  pl: 'Podgląd tylko tekstowy,'
-  nl: 'Alleen tekstvoorbeeld,'
-  ar: 'معاينة نصية فقط،'
-  hi: 'केवल टेक्स्ट पूर्वावलोकन,'
-  th: 'ตัวอย่างข้อความเท่านั้น,'
-  cs: 'Pouze textový náhled,'
-  sv: 'Endast textförhandsgranskning,'
+  en: 'Article preview,'
+  de: 'Artikelvorschau,'
+  zh: 文章预览，
+  es: 'Vista previa del artículo,'
+  fr: "Aperçu de l'article,"
+  pt: 'Visualização do artigo,'
+  ru: 'Предпросмотр статьи,'
+  ja: 記事のプレビュー、
+  ko: '기사 미리보기,'
+  it: "Anteprima dell'articolo,"
+  tr: 'Makale önizlemesi,'
+  vi: 'Xem trước bài viết,'
+  id: 'Pratinjau artikel,'
+  pl: 'Podgląd artykułu,'
+  nl: 'Artikelvoorbeeld,'
+  ar: 'معاينة المقالة،'
+  hi: 'लेख पूर्वावलोकन,'
+  th: 'ตัวอย่างบทความ,'
+  cs: 'Náhled článku,'
+  sv: 'Artikelförhandsgranskning,'
   verified_by_human: []
 web_read_no_content:
   context: Message shown when no content is available for web read
@@ -526,4 +526,27 @@ web_read_no_content:
   th: ไม่มีเนื้อหาที่พร้อมใช้งาน
   cs: Žádný obsah není k dispozici.
   sv: Inget innehåll tillgängligt.
+  verified_by_human: []
+web_read_loading_content:
+  context: Message shown when web read content is still loading
+  en: Loading content...
+  de: Inhalt wird geladen...
+  zh: 正在加载内容...
+  es: Cargando contenido...
+  fr: Chargement du contenu...
+  pt: Carregando conteúdo...
+  ru: Загрузка контента...
+  ja: コンテンツを読み込み中...
+  ko: 콘텐츠 로드 중...
+  it: Caricamento contenuto...
+  tr: İçerik yükleniyor...
+  vi: Đang tải nội dung...
+  id: Memuat konten...
+  pl: Ładowanie treści...
+  nl: Inhoud laden...
+  ar: جاري تحميل المحتوى...
+  hi: सामग्री लोड हो रही है...
+  th: กำลังโหลดเนื้อหา...
+  cs: Načítání obsahu...
+  sv: Laddar innehåll...
   verified_by_human: []

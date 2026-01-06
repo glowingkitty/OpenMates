@@ -217,10 +217,10 @@
   });
   
   // Skill name from translations
-  let skillName = $derived($text('embeds.web_read.text') || 'Read');
+  let skillName = $derived($text('embeds.web_read.text'));
   
-  // "Open on {hostname}" button text
-  let openButtonText = $derived(`Open on ${hostname || 'website'}`);
+  // "Open on {hostname}" button text - uses open_on_provider translation with hostname placeholder
+  let openButtonText = $derived($text('embeds.open_on_provider.text').replace('{provider}', hostname));
   
   // Store rendered HTML for markdown
   // CRITICAL: Using object instead of Map for proper Svelte 5 reactivity
@@ -448,12 +448,11 @@
       {#if effectiveUrl}
         <!-- "Full viewing experience:" label -->
         <div class="full-view-label">
-          {$text('embeds.web_read_full_view.text') || 'Full viewing experience:'}
+          {$text('embeds.web_read_full_view.text')}
         </div>
         
         <!-- CTA Button: "Open on {hostname}" -->
         <button 
-          class="open-website-button"
           onclick={handleOpenWebsite}
           type="button"
         >
@@ -464,7 +463,7 @@
       <!-- "Text only preview, via Firecrawl: X words" label - only show if we have content -->
       {#if totalWordCount() > 0}
         <div class="text-preview-label">
-          <span>{$text('embeds.web_read_text_preview.text') || 'Text only preview,'}</span>
+          <span>{$text('embeds.web_read_text_preview.text')}</span>
           <span>via Firecrawl: {totalWordCount().toLocaleString()} words</span>
         </div>
       {/if}
@@ -476,10 +475,10 @@
           {#if effectiveUrl}
             <div class="pending-content">
               <p class="pending-url">{effectiveUrl}</p>
-              <p class="pending-message">{$text('embeds.web_read_loading_content.text') || 'Loading content...'}</p>
+              <p class="pending-message">{$text('embeds.web_read_loading_content.text')}</p>
             </div>
           {:else}
-            <p>{$text('embeds.web_read_no_content.text') || 'No content available.'}</p>
+            <p>{$text('embeds.web_read_no_content.text')}</p>
           {/if}
         </div>
       {:else}
@@ -492,11 +491,11 @@
                 </div>
               {:else if result.markdown}
                 <div class="markdown-loading">
-                  <p>{$text('embeds.loading.text') || 'Loading content...'}</p>
+                  <p>{$text('embeds.web_read_loading_content.text')}</p>
                 </div>
               {:else}
                 <div class="no-content">
-                  <p>{$text('embeds.web_read_no_content.text') || 'No content available for this page.'}</p>
+                  <p>{$text('embeds.web_read_no_content.text')}</p>
                 </div>
               {/if}
             </div>
@@ -615,29 +614,6 @@
     text-align: center;
     margin-bottom: 12px;
   }
-  
-  .open-website-button {
-    background-color: var(--color-cta);
-    color: white;
-    border: none;
-    border-radius: 15px;
-    padding: 12px 24px;
-    font-size: 16px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: background-color 0.2s, transform 0.2s;
-    margin-bottom: 24px;
-  }
-  
-  .open-website-button:hover {
-    background-color: var(--color-cta-hover, var(--color-cta));
-    transform: translateY(-2px);
-  }
-  
-  .open-website-button:active {
-    transform: translateY(0);
-  }
-  
   /* ===========================================
      Text Preview Label
      =========================================== */
@@ -651,6 +627,7 @@
     display: flex;
     flex-direction: column;
     gap: 2px;
+    margin-top: 15px;
   }
   
   /* ===========================================
@@ -813,6 +790,15 @@
     margin: 16px 0;
     color: var(--color-grey-80);
     font-style: italic;
+  }
+  
+  /* Images - constrain large images, keep small ones at natural size */
+  .markdown-content :global(img) {
+    max-width: 100%;
+    border-radius: 10px;
+    height: auto;
+    display: block;
+    margin: 16px 0;
   }
   
   /* Result divider */

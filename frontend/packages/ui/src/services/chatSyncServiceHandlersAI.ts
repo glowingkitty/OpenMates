@@ -1293,10 +1293,29 @@ export async function handleEmbedUpdateImpl(
                                               contentString.includes("status: 'processing'");
             
             if (isStillPlaceholderContent) {
+                // CRITICAL FIX: Don't store to IndexedDB when content is still placeholder!
+                // Only update the in-memory status - the send_embed_data (finished) event will store the actual content.
+                // Previously, this was calling embedStore.put() with placeholder content, overwriting memory-only data.
                 console.warn(
-                    `[ChatSyncService:AI] embed_update: SKIPPING encryption for ${payload.embed_id} - ` +
-                    `content still contains "processing" status. The send_embed_data event with actual content should handle this.`
+                    `[ChatSyncService:AI] embed_update: SKIPPING storage for ${payload.embed_id} - ` +
+                    `content still contains "processing" status. The send_embed_data event with actual content should handle storage.`
                 );
+                
+                // existingEmbed.status was already updated above (line 1268)
+                // Since memory-only embeds are references, this update persists in the cache
+                
+                // Dispatch event for UI refresh (status changed, but content still loading)
+                serviceInstance.dispatchEvent(new CustomEvent('embedUpdated', {
+                    detail: {
+                        embed_id: payload.embed_id,
+                        chat_id: payload.chat_id,
+                        message_id: payload.message_id,
+                        status: payload.status,
+                        child_embed_ids: payload.child_embed_ids,
+                        isWaitingForContent: true  // Flag to indicate content is still coming
+                    }
+                }));
+                return; // CRITICAL: Early return - don't call embedStore.put() with placeholder content
             } else if (wasProcessing && isNowFinished && existingEmbed.content) {
                 console.info(`[ChatSyncService:AI] embed_update: Transitioning ${payload.embed_id} from processing to finished - encrypting and persisting keys`);
                 
@@ -1574,9 +1593,12 @@ export async function handleSendEmbedDataImpl(
         console.warn('[ChatSyncService:AI] Received send_embed_data payload without embed_id. Raw payload:', payload);
         return;
     }
+    // Enhanced logging for send_embed_data events
+    const contentPreview = typeof embedData.content === 'string' ? embedData.content.substring(0, 150) : 'NOT_STRING';
+    const hasResults = typeof embedData.content === 'string' && embedData.content.includes('results:');
     console.info(
         `[ChatSyncService:AI] [EMBED_EVENT] Received 'send_embed_data' for embed ${embedData.embed_id} ` +
-        `(status=${embedData.status}, type=${embedData.type}, chat_id=${embedData.chat_id}, message_id=${embedData.message_id})`
+        `(status=${embedData.status}, type=${embedData.type}, hasResults=${hasResults}, contentPreview="${contentPreview}...")`
     );
 
     // DEBUG: Check if embedData contains any Promises
