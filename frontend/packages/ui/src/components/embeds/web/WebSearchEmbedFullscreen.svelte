@@ -105,14 +105,19 @@
   
   // Debug: Log what props WebSearchEmbedFullscreen receives
   $effect(() => {
-    console.debug('[WebSearchEmbedFullscreen] Props received:', {
+    console.debug('[WebSearchEmbedFullscreen] 🔎 Props received:', {
+      query: queryProp || previewData?.query,
+      provider: providerProp || previewData?.provider,
       embedIds,
       embedIds_type: typeof embedIds,
-      hasEmbedIds: !!embedIds,
+      embedIds_isArray: Array.isArray(embedIds),
+      embedIds_length: Array.isArray(embedIds) ? embedIds.length : (typeof embedIds === 'string' ? embedIds.length : 0),
+      embedIds_value: embedIds,
       hasPreviewData: !!previewData,
       previewDataResultsCount: previewData?.results?.length || 0,
       resultsPropCount: resultsProp?.length || 0,
-      query: queryProp || previewData?.query
+      resultsProp_sample: resultsProp?.slice(0, 2),
+      embedId
     });
   });
   

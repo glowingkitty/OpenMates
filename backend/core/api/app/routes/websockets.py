@@ -21,6 +21,7 @@ from .handlers.websocket_handlers.get_chat_messages_handler import handle_get_ch
 from .handlers.websocket_handlers.delete_draft_handler import handle_delete_draft
 from .handlers.websocket_handlers.chat_content_batch_handler import handle_chat_content_batch # New handler
 from .handlers.websocket_handlers.cancel_ai_task_handler import handle_cancel_ai_task # New handler for cancelling AI tasks
+from .handlers.websocket_handlers.cancel_skill_handler import handle_cancel_skill # Handler for cancelling individual skill executions
 from .handlers.websocket_handlers.ai_response_completed_handler import handle_ai_response_completed # Handler for completed AI responses
 from .handlers.websocket_handlers.encrypted_chat_metadata_handler import handle_encrypted_chat_metadata # Handler for encrypted chat metadata
 from .handlers.websocket_handlers.post_processing_metadata_handler import handle_post_processing_metadata # Handler for post-processing metadata sync
@@ -897,6 +898,17 @@ async def websocket_endpoint(
                     user_id=user_id,
                     device_fingerprint_hash=device_fingerprint_hash,
                     payload=payload
+                )
+            elif message_type == "cancel_skill":
+                # Handle request to cancel an individual skill execution
+                # This cancels only the specific skill, NOT the entire AI response
+                await handle_cancel_skill(
+                    websocket=websocket,
+                    manager=manager,
+                    user_id=user_id,
+                    device_fingerprint_hash=device_fingerprint_hash,
+                    payload=payload,
+                    cache_service=cache_service
                 )
             elif message_type == "ai_response_completed":
                 # Handle completed AI response sent by client for encrypted Directus storage

@@ -492,11 +492,28 @@
                         finalDecodedContent = await decodeToonContent(freshEmbedData.content);
                     }
                     
-                    console.debug('[ActiveChat] Loaded fresh embed data from EmbedStore:', {
+                    console.debug('[ActiveChat] 🔍 Loaded fresh embed data from EmbedStore:', {
                         embedId,
                         status: freshEmbedData.status,
+                        type: freshEmbedData.type,
+                        // Check content structure
+                        hasContent: !!freshEmbedData.content,
+                        contentType: typeof freshEmbedData.content,
+                        contentPreview: typeof freshEmbedData.content === 'string' 
+                            ? freshEmbedData.content.substring(0, 200) 
+                            : JSON.stringify(freshEmbedData.content).substring(0, 200),
+                        // Check results  
                         hasResults: !!finalDecodedContent?.results,
-                        resultsCount: finalDecodedContent?.results?.length || 0
+                        resultsCount: finalDecodedContent?.results?.length || 0,
+                        // Check embed_ids from both sources
+                        embedDataHasEmbedIds: !!freshEmbedData.embed_ids,
+                        embedDataEmbedIds: freshEmbedData.embed_ids,
+                        embedIdsCount: freshEmbedData.embed_ids?.length || 0,
+                        decodedContentHasEmbedIds: !!finalDecodedContent?.embed_ids,
+                        decodedContentEmbedIds: finalDecodedContent?.embed_ids,
+                        decodedEmbedIdsCount: finalDecodedContent?.embed_ids?.length || 0,
+                        // Check decoded content keys
+                        decodedContentKeys: finalDecodedContent ? Object.keys(finalDecodedContent) : []
                     });
                 } else if (!finalEmbedData) {
                     // Only error if we have no data at all
@@ -567,6 +584,17 @@
             const childEmbedIds: string[] = typeof rawEmbedIds === 'string' 
                 ? rawEmbedIds.split('|').filter((id: string) => id.length > 0)
                 : Array.isArray(rawEmbedIds) ? rawEmbedIds : [];
+            
+            // DEBUG: Log embed_ids discovery for composite embeds
+            console.debug('[ActiveChat] Checking embed_ids for composite embed:', {
+                appId,
+                skillId,
+                decodedContentEmbedIds: finalDecodedContent.embed_ids,
+                embedDataEmbedIds: finalEmbedData?.embed_ids,
+                rawEmbedIds,
+                childEmbedIds,
+                childEmbedIdsCount: childEmbedIds.length
+            });
             
             if (appId === 'web' && skillId === 'search' && childEmbedIds.length > 0) {
 console.debug('[ActiveChat] Loading child website embeds for web search fullscreen:', childEmbedIds);

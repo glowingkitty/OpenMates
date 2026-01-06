@@ -543,6 +543,11 @@ div.clickable-icon {
   mask-image: url('@openmates/ui/static/icons/instagram.svg');
 }
 
+.clickable-icon.icon_quote {
+  -webkit-mask-image: url('@openmates/ui/static/icons/quote.svg');
+  mask-image: url('@openmates/ui/static/icons/quote.svg');
+}
+
 .help-button {
   width: 24px;
   height: 24px;

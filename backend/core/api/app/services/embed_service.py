@@ -88,6 +88,7 @@ class EmbedService:
         user_id_hash: str,
         user_vault_key_id: str,
         task_id: Optional[str] = None,
+        skill_task_id: Optional[str] = None,
         metadata: Optional[Dict[str, Any]] = None,
         log_prefix: str = ""
     ) -> Optional[Dict[str, Any]]:
@@ -105,7 +106,9 @@ class EmbedService:
             user_id: User ID (UUID)
             user_id_hash: Hashed user ID
             user_vault_key_id: User's vault key ID for encryption
-            task_id: Optional task ID for tracking
+            task_id: Optional main AI task ID for tracking
+            skill_task_id: Optional unique ID for this specific skill invocation (for cancellation).
+                          If not provided, one will be generated automatically.
             metadata: Optional metadata (query, provider, etc.)
             log_prefix: Logging prefix for this operation
 
@@ -113,6 +116,7 @@ class EmbedService:
             Dictionary with:
             - embed_id: The embed_id of the placeholder
             - embed_reference: JSON string for embedding in message markdown
+            - skill_task_id: The unique skill task ID for cancellation
             None if creation fails
         """
         try:
@@ -120,6 +124,12 @@ class EmbedService:
             hashed_chat_id = hashlib.sha256(chat_id.encode()).hexdigest()
             hashed_message_id = hashlib.sha256(message_id.encode()).hexdigest()
             hashed_task_id = hashlib.sha256(task_id.encode()).hexdigest() if task_id else None
+            
+            # Generate skill_task_id if not provided - this is used for individual skill cancellation
+            # CRITICAL: skill_task_id allows cancelling a single skill without stopping the entire AI response
+            if not skill_task_id:
+                skill_task_id = str(uuid.uuid4())
+            hashed_skill_task_id = hashlib.sha256(skill_task_id.encode()).hexdigest()
 
             # Generate embed_id for placeholder
             embed_id = str(uuid.uuid4())
@@ -127,10 +137,15 @@ class EmbedService:
             # Create minimal placeholder content with metadata
             # CRITICAL: Include all metadata (query, provider, etc.) in placeholder
             # This ensures the frontend can display the query immediately while skill executes
+            # CRITICAL: Include task_id and skill_task_id so frontend can:
+            #   - task_id: Cancel the entire AI response
+            #   - skill_task_id: Cancel just this specific skill (AI continues)
             placeholder_content = {
                 "app_id": app_id,
                 "skill_id": skill_id,
                 "status": "processing",
+                **({"task_id": task_id} if task_id else {}),
+                "skill_task_id": skill_task_id,  # For individual skill cancellation
                 **(metadata or {})
             }
             
@@ -161,6 +176,7 @@ class EmbedService:
                 "hashed_chat_id": hashed_chat_id,
                 "hashed_message_id": hashed_message_id,
                 "hashed_task_id": hashed_task_id,
+                "hashed_skill_task_id": hashed_skill_task_id,  # For individual skill cancellation
                 "status": "processing",
                 "hashed_user_id": user_id_hash,
                 "is_private": False,
@@ -193,7 +209,10 @@ class EmbedService:
                 log_prefix=log_prefix
             )
 
-            logger.info(f"{log_prefix} Created processing placeholder embed {embed_id} for {app_id}.{skill_id}")
+            logger.info(
+                f"{log_prefix} Created processing placeholder embed {embed_id} for {app_id}.{skill_id} "
+                f"with skill_task_id={skill_task_id}"
+            )
 
             # Generate embed reference JSON
             embed_reference = json.dumps({
@@ -203,7 +222,8 @@ class EmbedService:
 
             return {
                 "embed_id": embed_id,
-                "embed_reference": embed_reference
+                "embed_reference": embed_reference,
+                "skill_task_id": skill_task_id  # Return skill_task_id for cancellation tracking
             }
 
         except Exception as e:

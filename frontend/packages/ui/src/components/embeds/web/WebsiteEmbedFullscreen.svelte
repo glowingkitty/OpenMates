@@ -416,19 +416,11 @@
           <div class="snippets-list">
             {#each snippets as snippet}
               <div class="snippet-card">
-                <!-- Opening quote icon (bottom-left) -->
-                <div class="quote-icon quote-open">
-                  <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M8.5 10H5.5C5.5 7.5 7 6 9 5.5L8.5 4C5.5 4.5 3 7 3 10.5V15H8.5V10ZM16 10H13C13 7.5 14.5 6 16.5 5.5L16 4C13 4.5 10.5 7 10.5 10.5V15H16V10Z" fill="#FF553B"/>
-                  </svg>
-                </div>
+                <!-- Opening quote icon (bottom-left) - uses quote.svg from icons system -->
+                <div class="quote-icon quote-open clickable-icon icon_quote"></div>
                 
-                <!-- Closing quote icon (top-right) -->
-                <div class="quote-icon quote-close">
-                  <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M11.5 10H14.5C14.5 12.5 13 14 11 14.5L11.5 16C14.5 15.5 17 13 17 9.5V5H11.5V10ZM4 10H7C7 12.5 5.5 14 3.5 14.5L4 16C7 15.5 9.5 13 9.5 9.5V5H4V10Z" fill="#FF553B"/>
-                  </svg>
-                </div>
+                <!-- Closing quote icon (top-right) - rotated 180deg -->
+                <div class="quote-icon quote-close clickable-icon icon_quote"></div>
                 
                 <p class="snippet-text">{snippet}</p>
               </div>
@@ -518,7 +510,6 @@
   
   .date-info {
     font-family: 'Lexend Deca', sans-serif;
-    font-size: 14px;
     font-weight: 700;
     color: #858585;
     width: 100%;
@@ -592,7 +583,6 @@
   
   .snippets-source {
     font-family: 'Lexend Deca', sans-serif;
-    font-size: 14px;
     font-weight: 700;
     color: #858585;
     margin-bottom: 16px;
@@ -616,11 +606,14 @@
     min-height: 60px;
   }
   
-  /* Quote icons positioning */
+  /* Quote icons positioning - uses CSS mask with quote.svg from icons system */
   .quote-icon {
     position: absolute;
     width: 20px;
     height: 20px;
+    /* Override default clickable-icon color to black */
+    background: var(--color-grey-100) !important;
+    cursor: default;
   }
   
   .quote-open {
@@ -631,13 +624,15 @@
   .quote-close {
     right: 12px;
     top: 12px;
+    /* Rotate 180 degrees to create closing quote appearance */
+    transform: rotate(180deg);
   }
   
   .snippet-text {
     font-family: 'Lexend Deca', sans-serif;
     font-size: 16px;
     font-weight: 500;
-    color: var(--color-grey-80);
+    color: var(--color-grey-100);
     line-height: 1.5;
     margin: 0;
     word-break: break-word;
@@ -673,13 +668,8 @@
     }
     
     .cta-button {
-      font-size: 14px;
       padding: 10px 20px;
       min-width: 160px;
-    }
-    
-    .description {
-      font-size: 14px;
     }
     
     .snippets-title {
@@ -689,10 +679,6 @@
     .snippet-card {
       padding: 20px 32px;
       border-radius: 20px;
-    }
-    
-    .snippet-text {
-      font-size: 14px;
     }
   }
   

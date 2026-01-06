@@ -251,9 +251,12 @@
     
     // If no embed IDs, skip loading (use legacyResults if provided)
     if (embedIdList.length === 0) {
-      console.debug('[UnifiedEmbedFullscreen] No embedIds to load, using legacyResults if available:', {
+      console.debug('[UnifiedEmbedFullscreen] ⚠️ No embedIds to load - checking why:', {
         appId,
         skillId,
+        embedIdsProp: embedIds,
+        embedIdsPropType: typeof embedIds,
+        embedIdsPropLength: Array.isArray(embedIds) ? embedIds.length : (typeof embedIds === 'string' ? embedIds.length : 0),
         legacyResultsCount: legacyResults?.length || 0
       });
       isLoadingChildren = false;

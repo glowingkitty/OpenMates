@@ -8,14 +8,25 @@
 # - rate_limiting.py: Provider API rate limit enforcement
 # - celery_helpers.py: Celery task execution for long-running skills
 # - content_sanitization.py: Prompt injection protection for external data
+#
+# SKILL CANCELLATION:
+# Each skill invocation gets a unique skill_task_id. Users can cancel individual
+# skills without cancelling the entire AI response. Cancelled skill_task_ids are
+# stored in Redis and checked before/during execution. When a skill is cancelled,
+# the main processor continues with empty results.
 
 import logging
 import json
+import uuid
 from typing import Dict, Any, List, Optional
 import httpx
-import asyncio
 
 logger = logging.getLogger(__name__)
+
+# Redis key prefix for cancelled skill tasks
+CANCELLED_SKILLS_KEY_PREFIX = "cancelled_skill:"
+# TTL for cancelled skill entries (1 hour - skills should complete well before this)
+CANCELLED_SKILL_TTL = 3600
 
 # Import helper modules
 from backend.apps.ai.processing.rate_limiting import (
@@ -35,8 +46,94 @@ __all__ = [
     "execute_skill_via_celery",
     "get_celery_task_status",
     "sanitize_external_content",
-    "RateLimitScheduledException"
+    "RateLimitScheduledException",
+    # Skill cancellation functions
+    "generate_skill_task_id",
+    "cancel_skill_task",
+    "is_skill_cancelled",
+    "SkillCancelledException"
 ]
+
+
+class SkillCancelledException(Exception):
+    """
+    Exception raised when a skill is cancelled by the user.
+    The main processor should catch this and continue with empty results.
+    """
+    def __init__(self, skill_task_id: str, app_id: str, skill_id: str):
+        self.skill_task_id = skill_task_id
+        self.app_id = app_id
+        self.skill_id = skill_id
+        super().__init__(f"Skill {app_id}.{skill_id} (task_id={skill_task_id}) was cancelled by user")
+
+
+def generate_skill_task_id() -> str:
+    """
+    Generate a unique task ID for a skill invocation.
+    This ID is used to track and cancel individual skill executions.
+    
+    Returns:
+        A unique skill_task_id string (UUID format)
+    """
+    return str(uuid.uuid4())
+
+
+async def cancel_skill_task(cache_service: Any, skill_task_id: str) -> bool:
+    """
+    Mark a skill task as cancelled in Redis.
+    The skill executor will check this before/during execution.
+    
+    Args:
+        cache_service: The cache service for Redis operations
+        skill_task_id: The unique skill task ID to cancel
+        
+    Returns:
+        True if successfully marked as cancelled, False otherwise
+    """
+    if not cache_service or not skill_task_id:
+        logger.warning("Cannot cancel skill task: missing cache_service or skill_task_id")
+        return False
+    
+    try:
+        client = await cache_service.client
+        if client:
+            key = f"{CANCELLED_SKILLS_KEY_PREFIX}{skill_task_id}"
+            # Set the cancellation flag with TTL
+            await client.setex(key, CANCELLED_SKILL_TTL, "cancelled")
+            logger.info(f"[SkillCancellation] Marked skill_task_id {skill_task_id} as cancelled")
+            return True
+        else:
+            logger.error("[SkillCancellation] Redis client not available")
+            return False
+    except Exception as e:
+        logger.error(f"[SkillCancellation] Error cancelling skill {skill_task_id}: {e}", exc_info=True)
+        return False
+
+
+async def is_skill_cancelled(cache_service: Any, skill_task_id: str) -> bool:
+    """
+    Check if a skill task has been cancelled.
+    
+    Args:
+        cache_service: The cache service for Redis operations
+        skill_task_id: The unique skill task ID to check
+        
+    Returns:
+        True if the skill was cancelled, False otherwise
+    """
+    if not cache_service or not skill_task_id:
+        return False
+    
+    try:
+        client = await cache_service.client
+        if client:
+            key = f"{CANCELLED_SKILLS_KEY_PREFIX}{skill_task_id}"
+            result = await client.get(key)
+            return result is not None
+        return False
+    except Exception as e:
+        logger.debug(f"[SkillCancellation] Error checking cancellation for {skill_task_id}: {e}")
+        return False
 
 # Default port for app services
 DEFAULT_APP_INTERNAL_PORT = 8000
@@ -51,7 +148,9 @@ async def execute_skill(
     arguments: Dict[str, Any],
     timeout: float = 30.0,
     chat_id: Optional[str] = None,
-    message_id: Optional[str] = None
+    message_id: Optional[str] = None,
+    skill_task_id: Optional[str] = None,
+    cache_service: Optional[Any] = None
 ) -> Dict[str, Any]:
     """
     Executes a skill by routing to the correct app service.
@@ -63,15 +162,24 @@ async def execute_skill(
         timeout: Request timeout in seconds
         chat_id: Optional chat ID for linking usage entries to chat sessions
         message_id: Optional message ID for linking usage entries to messages
+        skill_task_id: Optional unique ID for this skill invocation (for cancellation)
+        cache_service: Optional cache service for checking cancellation status
     
     Returns:
         Dict containing the skill execution result
     
     Raises:
+        SkillCancelledException: If the skill was cancelled by the user
         httpx.HTTPStatusError: If the skill execution fails with an HTTP error
         httpx.RequestError: If there's a network error
         Exception: For other errors
     """
+    # Check if skill was cancelled BEFORE starting execution
+    if skill_task_id and cache_service:
+        if await is_skill_cancelled(cache_service, skill_task_id):
+            logger.info(f"[SkillCancellation] Skill '{app_id}.{skill_id}' (task_id={skill_task_id}) cancelled before execution")
+            raise SkillCancelledException(skill_task_id, app_id, skill_id)
+    
     # Construct the skill endpoint URL
     # BaseApp registers routes as /skills/{skill_id}
     skill_url = f"http://app-{app_id}:{DEFAULT_APP_INTERNAL_PORT}/skills/{skill_id}"
@@ -95,6 +203,13 @@ async def execute_skill(
             )
             response.raise_for_status()
             
+            # Check if skill was cancelled AFTER getting response
+            # This handles cases where cancellation happened during HTTP request
+            if skill_task_id and cache_service:
+                if await is_skill_cancelled(cache_service, skill_task_id):
+                    logger.info(f"[SkillCancellation] Skill '{app_id}.{skill_id}' (task_id={skill_task_id}) cancelled after execution")
+                    raise SkillCancelledException(skill_task_id, app_id, skill_id)
+            
             # Try to parse as JSON, fallback to text
             try:
                 result = response.json()
@@ -104,6 +219,9 @@ async def execute_skill(
             logger.debug(f"Skill '{app_id}.{skill_id}' executed successfully")
             return result
             
+    except SkillCancelledException:
+        # Re-raise cancellation exceptions
+        raise
     except httpx.HTTPStatusError as e:
         logger.error(f"HTTP error executing skill '{app_id}.{skill_id}': {e.response.status_code} - {e.response.text}")
         raise
@@ -121,7 +239,9 @@ async def execute_skill_with_multiple_requests(
     arguments: Dict[str, Any],
     timeout: float = 30.0,
     chat_id: Optional[str] = None,
-    message_id: Optional[str] = None
+    message_id: Optional[str] = None,
+    skill_task_id: Optional[str] = None,
+    cache_service: Optional[Any] = None
 ) -> List[Dict[str, Any]]:
     """
     Executes a skill with support for multiple parallel requests.
@@ -137,9 +257,14 @@ async def execute_skill_with_multiple_requests(
         timeout: Request timeout in seconds per request
         chat_id: Optional chat ID for linking usage entries to chat sessions
         message_id: Optional message ID for linking usage entries to messages
+        skill_task_id: Optional unique ID for this skill invocation (for cancellation)
+        cache_service: Optional cache service for checking cancellation status
     
     Returns:
         List of results from skill execution (one per request)
+        
+    Raises:
+        SkillCancelledException: If the skill was cancelled by the user
     """
     # Extract metadata fields from arguments if present (they might have been added by caller)
     # Don't modify the original arguments dict - create a copy for processing
@@ -167,12 +292,20 @@ async def execute_skill_with_multiple_requests(
             
             logger.info(f"Executing skill '{app_id}.{skill_id}' with {len(arguments['requests'])} requests in a single call")
             # Make ONE call to the skill with all requests - the skill handles parallel processing
-            result = await execute_skill(app_id, skill_id, arguments, timeout, extracted_chat_id, extracted_message_id)
+            result = await execute_skill(
+                app_id, skill_id, arguments, timeout, 
+                extracted_chat_id, extracted_message_id,
+                skill_task_id, cache_service
+            )
             # Skills return a response with a "results" array - return as list for consistency
             return [result]
         elif len(requests_list) == 1:
             # Single request in array format - execute normally
-            result = await execute_skill(app_id, skill_id, arguments, timeout, extracted_chat_id, extracted_message_id)
+            result = await execute_skill(
+                app_id, skill_id, arguments, timeout, 
+                extracted_chat_id, extracted_message_id,
+                skill_task_id, cache_service
+            )
             return [result]
         else:
             # Empty requests array
@@ -197,11 +330,19 @@ async def execute_skill_with_multiple_requests(
         standard_arguments = {"requests": multiple_requests}
         logger.info(f"Executing skill '{app_id}.{skill_id}' with {len(multiple_requests)} requests in a single call (converted from legacy format)")
         # Make ONE call to the skill with all requests
-        result = await execute_skill(app_id, skill_id, standard_arguments, timeout, extracted_chat_id, extracted_message_id)
+        result = await execute_skill(
+            app_id, skill_id, standard_arguments, timeout, 
+            extracted_chat_id, extracted_message_id,
+            skill_task_id, cache_service
+        )
         return [result]
     
     # Single request - execute normally
-    result = await execute_skill(app_id, skill_id, arguments, timeout, extracted_chat_id, extracted_message_id)
+    result = await execute_skill(
+        app_id, skill_id, arguments, timeout, 
+        extracted_chat_id, extracted_message_id,
+        skill_task_id, cache_service
+    )
     return [result]
 
 

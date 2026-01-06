@@ -311,6 +311,16 @@ export class ChatSynchronizationService extends EventTarget {
     public async sendCancelAiTask(taskId: string): Promise<void> {
         await senders.sendCancelAiTaskImpl(this, taskId);
     }
+    /**
+     * Cancel a specific skill execution without stopping the entire AI response.
+     * Use this when you want to skip a long-running skill but continue AI processing.
+     * 
+     * @param skillTaskId - Unique ID for the skill invocation (from embed content)
+     * @param embedId - Optional embed ID for logging purposes
+     */
+    public async sendCancelSkill(skillTaskId: string, embedId?: string): Promise<void> {
+        await senders.sendCancelSkillImpl(this, skillTaskId, embedId);
+    }
     public async sendStoreEmbed(payload: StoreEmbedPayload): Promise<void> {
         await senders.sendStoreEmbedImpl(this, payload);
     }

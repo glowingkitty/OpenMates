@@ -65,8 +65,10 @@
     results?: WebReadResult[];
     /** Direct URL from embed content (from processing placeholder) */
     url?: string;
-    /** Task ID for cancellation */
+    /** Task ID for cancellation of entire AI response */
     taskId?: string;
+    /** Skill task ID for cancellation of just this skill (allows AI to continue) */
+    skillTaskId?: string;
     /** Skill preview data (skill preview context) */
     previewData?: WebReadPreviewData;
     /** Whether to use mobile layout */
@@ -81,6 +83,7 @@
     results: resultsProp,
     url: urlProp,
     taskId: taskIdProp,
+    skillTaskId: skillTaskIdProp,
     previewData,
     isMobile = false,
     onFullscreen
@@ -94,6 +97,7 @@
   let localResults = $state<WebReadResult[]>([]);
   let localUrl = $state<string>('');
   let localStatus = $state<'processing' | 'finished' | 'error'>('processing');
+  let localSkillTaskId = $state<string | undefined>(undefined);
   
   // Initialize local state from props
   $effect(() => {
@@ -102,10 +106,13 @@
       localResults = previewData.results || [];
       localUrl = previewData.url || '';
       localStatus = previewData.status || 'processing';
+      // skill_task_id might be in previewData for skill-level cancellation
+      localSkillTaskId = (previewData as any).skill_task_id;
     } else {
       localResults = resultsProp || [];
       localUrl = urlProp || '';
       localStatus = statusProp || 'processing';
+      localSkillTaskId = skillTaskIdProp;
     }
   });
   
@@ -113,6 +120,7 @@
   let status = $derived(localStatus);
   let results = $derived(localResults);
   let taskId = $derived(previewData?.task_id || taskIdProp);
+  let skillTaskId = $derived(localSkillTaskId);
   
   // Get first result for main display (may be undefined if results are empty)
   let firstResult = $derived(results[0]);
@@ -155,6 +163,11 @@
       // Update URL if available
       if (content.url && typeof content.url === 'string') {
         localUrl = content.url;
+      }
+      
+      // Extract skill_task_id for individual skill cancellation
+      if (content.skill_task_id && typeof content.skill_task_id === 'string') {
+        localSkillTaskId = content.skill_task_id;
       }
     }
   }
@@ -245,10 +258,21 @@
   });
   
   /**
-   * Handle stop button click - cancel the running task
+   * Handle stop button click - cancels this specific skill, not the entire AI response
+   * Uses skill_task_id for individual skill cancellation (AI processing continues)
    */
   async function handleStop() {
-    if (status === 'processing' && taskId) {
+    if (status !== 'processing') return;
+    
+    if (skillTaskId) {
+      try {
+        await chatSyncService.sendCancelSkill(skillTaskId, id);
+        console.debug(`[WebReadEmbedPreview] Sent cancel_skill request for skill_task_id ${skillTaskId}`);
+      } catch (error) {
+        console.error(`[WebReadEmbedPreview] Failed to cancel skill ${skillTaskId}:`, error);
+      }
+    } else if (taskId) {
+      console.warn(`[WebReadEmbedPreview] No skill_task_id, falling back to task cancellation`);
       try {
         await chatSyncService.sendCancelAiTask(taskId);
         console.debug(`[WebReadEmbedPreview] Sent cancel request for task ${taskId}`);

@@ -89,6 +89,20 @@
     onShowChat
   }: Props = $props();
   
+  // Debug: Log what props NewsSearchEmbedFullscreen receives
+  $effect(() => {
+    console.debug('[NewsSearchEmbedFullscreen] 📰 Props received:', {
+      query,
+      provider,
+      embedIds,
+      embedIds_type: typeof embedIds,
+      embedIds_length: Array.isArray(embedIds) ? embedIds.length : (typeof embedIds === 'string' ? embedIds.length : 0),
+      resultsProp_length: resultsProp?.length || 0,
+      resultsProp_sample: resultsProp?.slice(0, 2),
+      embedId
+    });
+  });
+  
   // ============================================
   // State: Track which article is shown in fullscreen
   // ============================================

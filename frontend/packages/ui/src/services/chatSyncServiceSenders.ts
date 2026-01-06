@@ -591,6 +591,41 @@ export async function sendCancelAiTaskImpl(
     }
 }
 
+/**
+ * Cancel a specific skill execution without stopping the entire AI response.
+ * This allows users to skip a long-running skill while the main AI processing continues.
+ * 
+ * @param skillTaskId - Unique ID for the skill invocation (different from main task_id)
+ * @param embedId - Optional embed ID for logging purposes
+ */
+export async function sendCancelSkillImpl(
+    serviceInstance: ChatSynchronizationService,
+    skillTaskId: string,
+    embedId?: string
+): Promise<void> {
+    if (!serviceInstance.webSocketConnected_FOR_SENDERS_ONLY) {
+        notificationStore.error("Cannot cancel skill: Not connected to server.");
+        return;
+    }
+    if (!skillTaskId) {
+        console.warn('[ChatSyncService:Senders] Cannot cancel skill: No skill_task_id provided');
+        return;
+    }
+    
+    const payload = { 
+        skill_task_id: skillTaskId,
+        embed_id: embedId // Optional, for better logging on backend
+    };
+    
+    try {
+        await webSocketService.sendMessage('cancel_skill', payload);
+        console.info(`[ChatSyncService:Senders] Sent cancel_skill request for skill_task_id: ${skillTaskId}`);
+    } catch (error) {
+        console.error(`[ChatSyncService:Senders] Error sending cancel_skill for skill_task_id: ${skillTaskId}:`, error);
+        notificationStore.error("Failed to send skill cancellation request.");
+    }
+}
+
 export async function queueOfflineChangeImpl(
     serviceInstance: ChatSynchronizationService,
     change: Omit<OfflineChange, 'change_id'>

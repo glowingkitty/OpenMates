@@ -31,7 +31,11 @@ from backend.core.api.app.services.translations import TranslationService
 # Import tool generator
 from backend.apps.ai.processing.tool_generator import generate_tools_from_apps
 # Import skill executor
-from backend.apps.ai.processing.skill_executor import execute_skill_with_multiple_requests
+from backend.apps.ai.processing.skill_executor import (
+    execute_skill_with_multiple_requests,
+    SkillCancelledException,
+    generate_skill_task_id
+)
 # Import billing utilities
 from backend.shared.python_utils.billing_utils import calculate_total_credits, MINIMUM_CREDITS_CHARGED
 
@@ -1239,14 +1243,73 @@ async def handle_main_processing(
 
                 # STEP 2: Execute skill with support for multiple parallel requests
                 # Pass chat_id and message_id so skills can use them when recording usage
-                results = await execute_skill_with_multiple_requests(
-                    app_id=app_id,
-                    skill_id=skill_id,
-                    arguments=parsed_args,
-                    timeout=30.0,
-                    chat_id=request_data.chat_id,
-                    message_id=request_data.message_id
-                )
+                # Pass skill_task_id for individual skill cancellation (allows user to cancel just this skill)
+                
+                # Get skill_task_id from placeholder (generated during create_processing_embed_placeholder)
+                # This ID is stored in embed content and allows frontend to cancel this specific skill
+                # without cancelling the entire AI response
+                skill_task_id = None
+                if placeholder_embed_data:
+                    skill_task_id = placeholder_embed_data.get("skill_task_id")
+                    if not skill_task_id:
+                        # Handle multiple placeholders case
+                        if isinstance(placeholder_embed_data.get("placeholders"), list):
+                            # For multiple requests, use first placeholder's skill_task_id
+                            # (all requests in a tool call share the same cancellation scope)
+                            first_placeholder = placeholder_embed_data.get("placeholders", [{}])[0]
+                            skill_task_id = first_placeholder.get("skill_task_id")
+                
+                # Generate skill_task_id if not found (fallback for legacy placeholders)
+                if not skill_task_id:
+                    skill_task_id = generate_skill_task_id()
+                    logger.debug(f"{log_prefix} Generated fallback skill_task_id: {skill_task_id}")
+                
+                # Track if skill was cancelled
+                skill_was_cancelled = False
+                
+                try:
+                    results = await execute_skill_with_multiple_requests(
+                        app_id=app_id,
+                        skill_id=skill_id,
+                        arguments=parsed_args,
+                        timeout=30.0,
+                        chat_id=request_data.chat_id,
+                        message_id=request_data.message_id,
+                        skill_task_id=skill_task_id,
+                        cache_service=cache_service
+                    )
+                except SkillCancelledException:
+                    # User cancelled this specific skill - continue with cancelled result
+                    # The main AI response will continue, just without this skill's data
+                    logger.info(
+                        f"{log_prefix} Skill '{app_id}.{skill_id}' was cancelled by user "
+                        f"(skill_task_id={skill_task_id}). Main processing will continue."
+                    )
+                    skill_was_cancelled = True
+                    # Create cancelled result that tells the LLM the skill was cancelled
+                    results = [{
+                        "status": "cancelled",
+                        "message": f"The {skill_id} skill was cancelled by the user. Please continue without this information.",
+                        "app_id": app_id,
+                        "skill_id": skill_id
+                    }]
+                    
+                    # Update embed status to "cancelled" so frontend shows appropriate state
+                    if cache_service and placeholder_embed_data:
+                        try:
+                            embed_id = placeholder_embed_data.get("embed_id")
+                            if embed_id:
+                                await _publish_skill_status(
+                                    cache_service=cache_service,
+                                    task_id=task_id,
+                                    request_data=request_data,
+                                    app_id=app_id,
+                                    skill_id=skill_id,
+                                    status="cancelled",
+                                    preview_data={"embed_id": embed_id, "cancelled_by_user": True}
+                                )
+                        except Exception as status_error:
+                            logger.error(f"{log_prefix} Error publishing cancelled status: {status_error}")
 
                 # Normalize skill responses that wrap actual results in a "results" field (e.g., web search)
                 # execute_skill_with_multiple_requests returns one entry per request, but search skills return

@@ -614,6 +614,77 @@ Some app skills take seconds or minutes to complete (e.g., image generation, vid
 }
 ```
 
+## Skill-Level Cancellation
+
+Embeds support individual skill cancellation, allowing users to cancel a specific skill execution (via the stop button on an embed preview) without stopping the entire AI response. This is useful when:
+- A skill is taking too long and the user wants to proceed without its results
+- The user realizes they don't need the skill output
+- The user wants the AI to continue without waiting for a slow skill
+
+### `skill_task_id` in Embed Content
+
+Each embed placeholder includes a `skill_task_id` field (UUID) that uniquely identifies the skill invocation. This is distinct from the main AI `task_id` and is used exclusively for individual skill cancellation.
+
+**Embed Placeholder Content (TOON format)**:
+```json
+{
+  "app_id": "web",
+  "skill_id": "search",
+  "status": "processing",
+  "task_id": "main-ai-task-uuid",      // Main AI response task (Celery)
+  "skill_task_id": "skill-specific-uuid", // Unique ID for THIS skill invocation
+  "query": "user search query",
+  "provider": "Brave Search"
+}
+```
+
+### Cancellation Flow
+
+1. **Embed Placeholder Created**: Backend generates `skill_task_id` and includes it in the placeholder content sent to frontend
+2. **User Clicks Stop Button**: Frontend extracts `skill_task_id` from decoded embed content
+3. **Frontend Sends `cancel_skill`**: WebSocket message with `skill_task_id` (not `task_id`)
+4. **Backend Sets Cancellation Flag**: Redis key `skill_cancel:{skill_task_id}` is set
+5. **Skill Executor Checks Flag**: Before/during execution, skill checks `is_skill_cancelled()`
+6. **Graceful Cancellation**: Skill returns "cancelled" result, AI continues processing
+
+### WebSocket Message: `cancel_skill` (Client → Server)
+
+```json
+{
+  "type": "cancel_skill",
+  "payload": {
+    "skill_task_id": "skill-specific-uuid",
+    "embed_id": "embed-uuid" // Optional, for logging
+  }
+}
+```
+
+**Response**: `skill_cancel_requested` event confirming cancellation was initiated.
+
+### Difference from Task Cancellation
+
+| Feature | Skill Cancellation | Task Cancellation |
+|---------|-------------------|-------------------|
+| ID Used | `skill_task_id` | `task_id` (Celery) |
+| WebSocket Message | `cancel_skill` | `cancel_ai_task` |
+| Scope | Single skill execution | Entire AI response |
+| AI Continues | Yes, with "cancelled" result | No, response stops |
+| Embed Status | Updated to "cancelled" | May remain "processing" |
+
+### Embed Status After Cancellation
+
+When a skill is cancelled:
+- Embed status changes from `"processing"` to `"cancelled"`
+- Frontend renders appropriate "cancelled" state in embed preview
+- Main AI response continues, LLM receives a "cancelled" result for that skill
+
+### Implementation Files
+
+- **Backend**: [`skill_executor.py`](../../backend/apps/ai/processing/skill_executor.py) - `cancel_skill_task()`, `is_skill_cancelled()`, `SkillCancelledException`
+- **Backend**: [`cancel_skill_handler.py`](../../backend/core/api/app/routes/handlers/websocket_handlers/cancel_skill_handler.py) - WebSocket handler
+- **Frontend**: [`chatSyncServiceSenders.ts`](../../frontend/packages/ui/src/services/chatSyncServiceSenders.ts) - `sendCancelSkillImpl()`
+- **Frontend**: Embed preview components - Extract `skill_task_id` and call `sendCancelSkill()`
+
 ## WebSocket Events for Embed Transfer
 
 All embed data transfer happens via WebSocket (not HTTP) to maintain real-time synchronization and zero-knowledge architecture.
@@ -639,6 +710,7 @@ All embed data transfer happens via WebSocket (not HTTP) to maintain real-time s
     "chat_id": "abc123...", // Plaintext chat_id (client will hash before sending to server)
     "message_id": "def456...", // Plaintext message_id (client will hash before sending to server)
     "task_id": "ghi789...", // Optional, for long-running tasks (client will hash)
+    "skill_task_id": "jkl012...", // For individual skill cancellation (see Skill-Level Cancellation section)
     "embed_ids": ["child1", "child2"], // For composite embeds (app_skill_use)
     "parent_embed_id": null, // For versioned embeds
     "version_number": 1,

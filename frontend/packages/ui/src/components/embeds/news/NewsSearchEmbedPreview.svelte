@@ -48,8 +48,10 @@
     status: 'processing' | 'finished' | 'error';
     /** Search results (for finished state) */
     results?: NewsSearchResult[];
-    /** Task ID for cancellation */
+    /** Task ID for cancellation of entire AI response */
     taskId?: string;
+    /** Skill task ID for cancellation of just this skill (allows AI to continue) */
+    skillTaskId?: string;
     /** Whether to use mobile layout */
     isMobile?: boolean;
     /** Click handler for fullscreen */
@@ -63,6 +65,7 @@
     status: statusProp,
     results: resultsProp = [],
     taskId: taskIdProp,
+    skillTaskId: skillTaskIdProp,
     isMobile = false,
     onFullscreen
   }: Props = $props();
@@ -73,6 +76,7 @@
   let localStatus = $state<'processing' | 'finished' | 'error'>('processing');
   let localResults = $state<NewsSearchResult[]>([]);
   let localTaskId = $state<string | undefined>(undefined);
+  let localSkillTaskId = $state<string | undefined>(undefined);
   
   // Initialize local state from props
   $effect(() => {
@@ -81,6 +85,7 @@
     localStatus = statusProp || 'processing';
     localResults = resultsProp || [];
     localTaskId = taskIdProp;
+    localSkillTaskId = skillTaskIdProp;
   });
   
   // Use local state as the source of truth
@@ -89,6 +94,7 @@
   let status = $derived(localStatus);
   let results = $derived(localResults);
   let taskId = $derived(localTaskId);
+  let skillTaskId = $derived(localSkillTaskId);
   
   /**
    * Handle embed data updates from UnifiedEmbedPreview
@@ -106,6 +112,10 @@
       if (content.provider) localProvider = content.provider;
       if (content.results && Array.isArray(content.results)) {
         localResults = content.results;
+      }
+      // Extract skill_task_id for individual skill cancellation
+      if (content.skill_task_id) {
+        localSkillTaskId = content.skill_task_id;
       }
     }
   }
@@ -132,9 +142,19 @@
     Math.max(0, (results?.length || 0) - 1)
   );
   
-  // Handle stop button click
+  // Handle stop button click - cancels this specific skill, not the entire AI response
   async function handleStop() {
-    if (status === 'processing' && taskId) {
+    if (status !== 'processing') return;
+    
+    if (skillTaskId) {
+      try {
+        await chatSyncService.sendCancelSkill(skillTaskId, id);
+        console.debug(`[NewsSearchEmbedPreview] Sent cancel_skill request for skill_task_id ${skillTaskId}`);
+      } catch (error) {
+        console.error(`[NewsSearchEmbedPreview] Failed to cancel skill ${skillTaskId}:`, error);
+      }
+    } else if (taskId) {
+      console.warn(`[NewsSearchEmbedPreview] No skill_task_id, falling back to task cancellation`);
       try {
         await chatSyncService.sendCancelAiTask(taskId);
         console.debug(`[NewsSearchEmbedPreview] Sent cancel request for task ${taskId}`);

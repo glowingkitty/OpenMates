@@ -1593,12 +1593,17 @@ export async function handleSendEmbedDataImpl(
         console.warn('[ChatSyncService:AI] Received send_embed_data payload without embed_id. Raw payload:', payload);
         return;
     }
-    // Enhanced logging for send_embed_data events
-    const contentPreview = typeof embedData.content === 'string' ? embedData.content.substring(0, 150) : 'NOT_STRING';
-    const hasResults = typeof embedData.content === 'string' && embedData.content.includes('results:');
+    // Enhanced logging for send_embed_data events (helps debug composite embed issues)
+    const contentPreview = typeof embedData.content === 'string' ? embedData.content.substring(0, 300) : 'NOT_STRING';
+    const hasResultsInContent = typeof embedData.content === 'string' && embedData.content.includes('results:');
+    const hasEmbedIdsInContent = typeof embedData.content === 'string' && embedData.content.includes('embed_ids:');
+    const embedIdsInPayload = embedData.embed_ids;
     console.info(
-        `[ChatSyncService:AI] [EMBED_EVENT] Received 'send_embed_data' for embed ${embedData.embed_id} ` +
-        `(status=${embedData.status}, type=${embedData.type}, hasResults=${hasResults}, contentPreview="${contentPreview}...")`
+        `[ChatSyncService:AI] [EMBED_EVENT] 📦 Received 'send_embed_data' for embed ${embedData.embed_id}:\n` +
+        `  status=${embedData.status}, type=${embedData.type}\n` +
+        `  hasResultsInContent=${hasResultsInContent}, hasEmbedIdsInContent=${hasEmbedIdsInContent}\n` +
+        `  embedIdsInPayload=${JSON.stringify(embedIdsInPayload)} (count=${embedIdsInPayload?.length || 0})\n` +
+        `  contentPreview="${contentPreview}..."`
     );
 
     // DEBUG: Check if embedData contains any Promises
