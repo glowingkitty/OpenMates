@@ -55,6 +55,84 @@ ACCEPT_LANGUAGES = [
     "de-DE,de;q=0.9,en;q=0.8",
 ]
 
+# Localhost patterns to skip during URL validation
+# These URLs are local development addresses that won't be accessible from the server
+LOCALHOST_PATTERNS = [
+    "localhost",
+    "127.0.0.1",
+    "127.0.0.0",
+    "0.0.0.0",
+    "::1",  # IPv6 localhost
+    "[::1]",  # IPv6 localhost in URL format
+]
+
+
+def _is_localhost_url(url: str) -> bool:
+    """
+    Check if URL points to localhost or local network address.
+    
+    These URLs should be skipped during validation because:
+    1. They won't be accessible from the server (local to user's machine)
+    2. They're typically development/testing URLs
+    3. Attempting to validate them would always fail or timeout
+    
+    Matches:
+    - localhost (with any port)
+    - 127.x.x.x (entire loopback range)
+    - 0.0.0.0
+    - ::1 (IPv6 localhost)
+    
+    Args:
+        url: URL string to check
+        
+    Returns:
+        True if URL is a localhost/local address, False otherwise
+    """
+    try:
+        # Extract host from URL (handle both http:// and https://)
+        # URL format: scheme://host:port/path
+        url_lower = url.lower()
+        
+        # Remove scheme
+        if url_lower.startswith("https://"):
+            host_part = url_lower[8:]
+        elif url_lower.startswith("http://"):
+            host_part = url_lower[7:]
+        else:
+            # No scheme, assume it starts with host
+            host_part = url_lower
+        
+        # Extract host (everything before first / or end of string)
+        host_with_port = host_part.split("/")[0]
+        
+        # Remove port if present (host:port format)
+        # Handle IPv6 format [::1]:port
+        if host_with_port.startswith("["):
+            # IPv6 address - find closing bracket
+            bracket_end = host_with_port.find("]")
+            if bracket_end != -1:
+                host = host_with_port[:bracket_end + 1]
+            else:
+                host = host_with_port
+        else:
+            # IPv4 or hostname - split on last colon for port
+            host = host_with_port.rsplit(":", 1)[0]
+        
+        # Check against localhost patterns
+        for pattern in LOCALHOST_PATTERNS:
+            if host == pattern:
+                return True
+        
+        # Check for 127.x.x.x range (entire loopback block)
+        if host.startswith("127."):
+            return True
+        
+        return False
+        
+    except Exception as e:
+        logger.debug(f"Error checking if URL is localhost: {url}, error: {e}")
+        return False
+
 
 def _generate_random_user_agent() -> str:
     """
@@ -194,6 +272,10 @@ async def check_url_status(
     **Security**: URL fragments (#{text}) are removed before validation as a security measure.
     Fragments can contain malicious content and are not needed for URL validation.
     
+    **Localhost URLs**: URLs pointing to localhost (127.0.0.1, localhost, ::1, etc.) are
+    automatically treated as valid without making HTTP requests, since these are local
+    development addresses that aren't accessible from the server.
+    
     Args:
         url: URL to check
         timeout: Timeout in seconds for the HTTP request
@@ -202,6 +284,17 @@ async def check_url_status(
     Returns:
         Dict with validation results
     """
+    # Skip localhost URLs - they're local development addresses that won't be accessible
+    # from the server. Treat them as valid to avoid false positives.
+    if _is_localhost_url(url):
+        logger.debug(f"Skipping localhost URL validation (treating as valid): {url[:50]}...")
+        return {
+            'is_valid': True,
+            'status_code': None,
+            'error_type': None,
+            'is_temporary': False
+        }
+    
     # Sanitize URL by removing fragment parameters (#{text}) as a security measure
     # Fragments can contain malicious content and are not needed for URL validation
     sanitized_url = sanitize_url_remove_fragment(url)
