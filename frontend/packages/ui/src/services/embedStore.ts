@@ -1547,6 +1547,134 @@ export class EmbedStore {
   }
 
   /**
+   * DEBUG: Get fully decrypted embed content with all fields decoded
+   * This function is intended for debugging purposes - call from browser console:
+   *   await window.debugGetDecryptedEmbed('your-embed-id')
+   * 
+   * @param embedId - The embed_id to retrieve and decrypt
+   * @returns Object with all embed fields decrypted and TOON content decoded
+   */
+  async debugGetDecryptedEmbed(embedId: string): Promise<{
+    raw: Record<string, unknown>;
+    decrypted: Record<string, unknown> | null;
+    toonDecoded: Record<string, unknown> | null;
+    metadata: {
+      embedId: string;
+      contentRef: string;
+      type: string | undefined;
+      status: string | undefined;
+      hasEncryptedContent: boolean;
+      hasContent: boolean;
+      decryptionSuccess: boolean;
+      toonDecodeSuccess: boolean;
+    };
+  } | null> {
+    console.log('[EmbedStore DEBUG] Getting decrypted embed for:', embedId);
+    
+    const normalizedEmbedId = embedId.startsWith('embed:') ? embedId : embedId;
+    const contentRef = embedId.startsWith('embed:') ? embedId : `embed:${embedId}`;
+    
+    try {
+      // Step 1: Get raw entry from IndexedDB/cache (without decryption)
+      let rawEntry: EmbedStoreEntry | undefined;
+      
+      // Check memory cache first
+      rawEntry = embedCache.get(contentRef);
+      
+      // If not in cache, try IndexedDB
+      if (!rawEntry) {
+        try {
+          const transaction = await chatDB.getTransaction([EMBEDS_STORE_NAME], 'readonly');
+          const store = transaction.objectStore(EMBEDS_STORE_NAME);
+          
+          rawEntry = await new Promise<EmbedStoreEntry | undefined>((resolve, reject) => {
+            const request = store.get(contentRef);
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error);
+          });
+        } catch (error) {
+          console.error('[EmbedStore DEBUG] Error loading from IndexedDB:', error);
+        }
+      }
+      
+      if (!rawEntry) {
+        console.error('[EmbedStore DEBUG] Embed not found:', contentRef);
+        return null;
+      }
+      
+      console.log('[EmbedStore DEBUG] Raw entry:', rawEntry);
+      
+      // Step 2: Get decrypted embed using standard get() method
+      const decryptedEmbed = await this.get(contentRef);
+      console.log('[EmbedStore DEBUG] Decrypted embed:', decryptedEmbed);
+      
+      // Step 3: Decode TOON content if present
+      let toonDecoded: Record<string, unknown> | null = null;
+      let toonDecodeSuccess = false;
+      
+      if (decryptedEmbed?.content) {
+        try {
+          toonDecoded = await decodeToonContentLocal(decryptedEmbed.content);
+          toonDecodeSuccess = toonDecoded !== null;
+          console.log('[EmbedStore DEBUG] TOON decoded content:', toonDecoded);
+        } catch (error) {
+          console.error('[EmbedStore DEBUG] TOON decode failed:', error);
+        }
+      }
+      
+      // Step 4: Build result object with all information
+      const result = {
+        raw: {
+          contentRef: rawEntry.contentRef,
+          type: rawEntry.type,
+          embed_id: rawEntry.embed_id,
+          status: rawEntry.status,
+          hashed_chat_id: rawEntry.hashed_chat_id,
+          hashed_message_id: rawEntry.hashed_message_id,
+          hashed_task_id: rawEntry.hashed_task_id,
+          hashed_user_id: rawEntry.hashed_user_id,
+          parent_embed_id: rawEntry.parent_embed_id,
+          embed_ids: rawEntry.embed_ids,
+          app_id: rawEntry.app_id,
+          skill_id: rawEntry.skill_id,
+          createdAt: rawEntry.createdAt,
+          updatedAt: rawEntry.updatedAt,
+          hasEncryptedContent: !!rawEntry.encrypted_content,
+          hasEncryptedType: !!rawEntry.encrypted_type,
+          hasData: !!rawEntry.data,
+          encryptedContentLength: rawEntry.encrypted_content?.length || 0,
+          dataLength: typeof rawEntry.data === 'string' ? rawEntry.data.length : 0,
+        },
+        decrypted: decryptedEmbed,
+        toonDecoded: toonDecoded,
+        metadata: {
+          embedId: normalizedEmbedId,
+          contentRef: contentRef,
+          type: rawEntry.type || decryptedEmbed?.type || decryptedEmbed?.embed_type,
+          status: rawEntry.status || decryptedEmbed?.status,
+          hasEncryptedContent: !!rawEntry.encrypted_content,
+          hasContent: !!decryptedEmbed?.content,
+          decryptionSuccess: !!decryptedEmbed?.content && !decryptedEmbed?._decryptionFailed,
+          toonDecodeSuccess: toonDecodeSuccess,
+        }
+      };
+      
+      // Pretty print the result for console viewing
+      console.log('[EmbedStore DEBUG] ====== FULL EMBED DEBUG OUTPUT ======');
+      console.log('[EmbedStore DEBUG] Metadata:', result.metadata);
+      console.log('[EmbedStore DEBUG] Raw entry info:', result.raw);
+      console.log('[EmbedStore DEBUG] Decrypted embed:', result.decrypted);
+      console.log('[EmbedStore DEBUG] TOON decoded (full content):', result.toonDecoded);
+      console.log('[EmbedStore DEBUG] =====================================');
+      
+      return result;
+    } catch (error) {
+      console.error('[EmbedStore DEBUG] Error in debugGetDecryptedEmbed:', error);
+      return null;
+    }
+  }
+
+  /**
    * Delete a specific chat's key for an embed (without deleting the embed itself)
    * Used when an embed is shared with multiple chats
    * @param hashedEmbedId - SHA256 hash of the embed_id
@@ -1578,3 +1706,14 @@ export class EmbedStore {
 
 // Export singleton instance
 export const embedStore = new EmbedStore();
+
+// ============================================
+// DEBUG: Expose debug function on window for console access
+// Usage: await window.debugGetDecryptedEmbed('your-embed-id')
+// ============================================
+if (typeof window !== 'undefined') {
+  (window as unknown as Record<string, unknown>).debugGetDecryptedEmbed = async (embedId: string) => {
+    return embedStore.debugGetDecryptedEmbed(embedId);
+  };
+  console.debug('[EmbedStore] Debug function exposed: window.debugGetDecryptedEmbed(embedId)');
+}
