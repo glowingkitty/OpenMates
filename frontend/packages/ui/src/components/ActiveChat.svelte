@@ -539,8 +539,10 @@
         let resolvedEmbedType = normalizeEmbedType(embedType) || embedType;
         const inferredType = normalizeEmbedType(finalEmbedData?.type) || finalEmbedData?.type;
         
-        // Only override the event type when it's a placeholder (deep-link default) and inference is more specific.
-        if (inferredType && (resolvedEmbedType === 'app-skill-use' || resolvedEmbedType === 'app_skill_use')) {
+        // Use inferred type from embed data when:
+        // 1. No type was provided in the event (null/undefined) - e.g., navigation between embeds
+        // 2. Type is a placeholder (app-skill-use) and we can infer more specific type from stored data
+        if (inferredType && (!resolvedEmbedType || resolvedEmbedType === 'app-skill-use' || resolvedEmbedType === 'app_skill_use')) {
             resolvedEmbedType = inferredType;
         }
         
@@ -757,22 +759,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         
         return embedIds;
     }
-    
-    // Derived list of all embed IDs in the current chat (in order of appearance)
-    // This updates whenever currentMessages changes
-    let chatEmbedIds = $derived(extractEmbedIdsFromMessages(currentMessages));
-    
-    // Derived current embed index - finds position of current embed in the chat's embed list
-    let currentEmbedIndex = $derived.by(() => {
-        if (!embedFullscreenData?.embedId || chatEmbedIds.length === 0) {
-            return -1;
-        }
-        return chatEmbedIds.indexOf(embedFullscreenData.embedId);
-    });
-    
-    // Derived navigation states
-    let hasPreviousEmbed = $derived(currentEmbedIndex > 0);
-    let hasNextEmbed = $derived(currentEmbedIndex >= 0 && currentEmbedIndex < chatEmbedIds.length - 1);
     
     /**
      * Navigate to the previous embed in the chat
@@ -1134,6 +1120,27 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     let currentChat = $state<Chat | null>(null);
     let currentMessages = $state<ChatMessageModel[]>([]); // Holds messages for the currentChat - MUST use $state for Svelte 5 reactivity
     let currentTypingStatus: AITypingStatus | null = null;
+    
+    // ===========================================
+    // Embed Navigation Derived States
+    // ===========================================
+    // These derived values enable navigation between embeds in the current chat
+    
+    // Derived list of all embed IDs in the current chat (in order of appearance)
+    // This updates whenever currentMessages changes
+    let chatEmbedIds = $derived(extractEmbedIdsFromMessages(currentMessages));
+    
+    // Derived current embed index - finds position of current embed in the chat's embed list
+    let currentEmbedIndex = $derived.by(() => {
+        if (!embedFullscreenData?.embedId || chatEmbedIds.length === 0) {
+            return -1;
+        }
+        return chatEmbedIds.indexOf(embedFullscreenData.embedId);
+    });
+    
+    // Derived navigation states - determine if prev/next buttons should be shown
+    let hasPreviousEmbed = $derived(currentEmbedIndex > 0);
+    let hasNextEmbed = $derived(currentEmbedIndex >= 0 && currentEmbedIndex < chatEmbedIds.length - 1);
     
     // Reactive variable to determine when to show action buttons in MessageInput
     // Shows when: input has content OR input is focused
