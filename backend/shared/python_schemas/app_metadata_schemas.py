@@ -51,6 +51,21 @@ class AppMemoryFieldDefinition(BaseModel):
     schema_definition: Optional[Dict[str, Any]] = Field(default=None, alias="schema") # Optional JSON schema
     stage: Optional[str] = Field(default=None, description="Stage of the memory field: 'planning', 'development', or 'production'. Components with stage='planning' are excluded from API responses.")
 
+
+class AppInstructionDefinition(BaseModel):
+    """
+    Defines the structure for app-specific instructions that are dynamically loaded
+    into the system prompt ONLY when the app is available.
+    
+    This prevents the AI from being instructed about capabilities that don't exist
+    (e.g., instructing about web search when the web app is unavailable).
+    """
+    instruction: str  # The actual instruction text to inject into the system prompt
+    categories: Optional[List[str]] = Field(
+        default=None,
+        description="Optional list of categories where this instruction is most relevant. If provided, the instruction is only injected when the conversation category matches."
+    )
+
 class AppYAML(BaseModel):
     """
     Pydantic model representing the structure of an app.yml file.
@@ -64,6 +79,10 @@ class AppYAML(BaseModel):
     skills: List[AppSkillDefinition] = []
     focuses: List[AppFocusDefinition] = Field(default=[], alias="focus_modes") # Allow 'focus_modes' as alias
     memory_fields: List[AppMemoryFieldDefinition] = Field(default=[], alias="memory") # Allow 'memory' as alias
+    # App-specific instructions that are dynamically loaded into the system prompt
+    # ONLY when this app is available. This prevents the AI from being instructed about
+    # capabilities that don't exist (e.g., instructing about web search when web app is down)
+    instructions: List[AppInstructionDefinition] = Field(default=[], description="App-specific instructions to inject into system prompt when this app is available")
     
     @model_validator(mode='after')
     def validate_description(self):
@@ -116,6 +135,12 @@ class AppYAML(BaseModel):
         """Ensures memory_fields list is initialized even if 'memory' is missing or None."""
         # Return the value if it's not None, otherwise return empty list
         # The alias 'memory' is handled by the Field definition
+        return v if v is not None else []
+    
+    @field_validator('instructions', mode='before')
+    @classmethod
+    def set_instructions_default(cls, v):
+        """Ensures instructions list is initialized even if missing or None."""
         return v if v is not None else []
     
     # Pydantic v2 configuration: allows using field names and aliases interchangeably

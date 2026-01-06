@@ -54,6 +54,45 @@ INTERNAL_API_BASE_URL = os.getenv("INTERNAL_API_BASE_URL", "http://api:8000")
 INTERNAL_API_SHARED_TOKEN = os.getenv("INTERNAL_API_SHARED_TOKEN")
 INTERNAL_API_TIMEOUT = 10.0  # Timeout for internal API requests in seconds
 
+# Critical apps that should normally be available for full functionality
+# If these are missing, the AI will have reduced capabilities
+CRITICAL_APPS = ["web", "ai"]
+
+
+def _check_critical_apps_availability(
+    discovered_apps_metadata: Dict[str, AppYAML],
+    task_id: str
+) -> None:
+    """
+    Check if critical apps are available and log warnings if they're missing.
+    
+    This helps diagnose issues where important apps (like 'web') are unavailable,
+    which would cause the AI to be instructed about capabilities it doesn't have.
+    
+    Args:
+        discovered_apps_metadata: Dict of discovered app_id -> AppYAML
+        task_id: Task ID for logging
+    """
+    available_app_ids = set(discovered_apps_metadata.keys())
+    missing_critical_apps = []
+    
+    for critical_app in CRITICAL_APPS:
+        if critical_app not in available_app_ids:
+            missing_critical_apps.append(critical_app)
+    
+    if missing_critical_apps:
+        logger.warning(
+            f"[Task ID: {task_id}] [CRITICAL_APPS] WARNING: Critical app(s) NOT AVAILABLE: {', '.join(missing_critical_apps)}. "
+            f"Available apps: {', '.join(available_app_ids) if available_app_ids else 'None'}. "
+            f"This may indicate app containers are not running or not healthy. "
+            f"The AI will NOT have access to these apps' skills (e.g., web-search, web-read if 'web' is missing). "
+            f"Check docker-compose logs and the /v1/health endpoint."
+        )
+    else:
+        logger.debug(
+            f"[Task ID: {task_id}] [CRITICAL_APPS] All critical apps available: {', '.join(CRITICAL_APPS)}"
+        )
+
 
 async def _fetch_and_cache_apps_metadata(
     cache_service_instance: CacheService,
@@ -267,6 +306,9 @@ async def _async_process_ai_skill_ask_task(
                     skill_ids = [skill.id for skill in metadata.skills] if metadata.skills else []
                     skill_identifiers = [f"{app_id}.{skill_id}" for skill_id in skill_ids]
                     logger.info(f"[Task ID: {task_id}]   App '{app_id}': Skills: {', '.join(skill_identifiers) if skill_identifiers else 'None'}")
+                
+                # Check for critical apps that should normally be available
+                _check_critical_apps_availability(discovered_apps_metadata, task_id)
             else:
                 # FALLBACK: Cache is empty (expired or flushed) - fetch from API and re-cache
                 # This prevents the LLM from having no tools available due to cache expiration
@@ -290,6 +332,9 @@ async def _async_process_ai_skill_ask_task(
                         skill_ids = [skill.id for skill in metadata.skills] if metadata.skills else []
                         skill_identifiers = [f"{app_id}-{skill_id}" for skill_id in skill_ids]  # Use hyphen format for consistency
                         logger.info(f"[Task ID: {task_id}]   App '{app_id}': Skills: {', '.join(skill_identifiers) if skill_identifiers else 'None'}")
+                    
+                    # Check for critical apps that should normally be available
+                    _check_critical_apps_availability(discovered_apps_metadata, task_id)
                 else:
                     logger.error(
                         f"[Task ID: {task_id}] CRITICAL: Failed to load discovered_apps_metadata from both cache and API. "

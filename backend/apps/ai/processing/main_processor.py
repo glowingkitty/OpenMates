@@ -616,9 +616,48 @@ async def handle_main_processing(
     
     prompt_parts.append(base_instructions.get("follow_up_instruction", ""))
     prompt_parts.append(base_instructions.get("base_link_encouragement_instruction", ""))
-    # Add proactive skill usage instruction to encourage using web search BEFORE answering time-sensitive queries
-    # This ensures the chatbot gathers current information instead of relying on potentially outdated training data
-    prompt_parts.append(base_instructions.get("base_proactive_skill_usage_instruction", ""))
+    
+    # === DYNAMIC APP-SPECIFIC INSTRUCTIONS ===
+    # Load instructions from each available app's app.yml configuration.
+    # These instructions are ONLY included when the app is actually discovered/available.
+    # This prevents the AI from being instructed about capabilities it doesn't have
+    # (e.g., "use web-search" when the web app is unavailable).
+    app_instructions_added = []
+    if discovered_apps_metadata:
+        # Get the conversation category from preprocessing for category-filtered instructions
+        conversation_category = preprocessing_results.category if preprocessing_results else None
+        
+        for app_id, app_metadata in discovered_apps_metadata.items():
+            if app_metadata.instructions:
+                for instruction_def in app_metadata.instructions:
+                    # Check if instruction has category filtering
+                    if instruction_def.categories:
+                        # Only include if conversation category matches
+                        if conversation_category and conversation_category in instruction_def.categories:
+                            prompt_parts.append(instruction_def.instruction)
+                            app_instructions_added.append(f"{app_id} (category: {conversation_category})")
+                        # Skip if categories specified but don't match
+                    else:
+                        # No category filter - always include when app is available
+                        prompt_parts.append(instruction_def.instruction)
+                        app_instructions_added.append(app_id)
+        
+        if app_instructions_added:
+            logger.info(f"{log_prefix} [APP_INSTRUCTIONS] Loaded instructions from available apps: {', '.join(app_instructions_added)}")
+        else:
+            logger.debug(f"{log_prefix} [APP_INSTRUCTIONS] No app-specific instructions to load (apps: {list(discovered_apps_metadata.keys())})")
+    else:
+        logger.warning(f"{log_prefix} [APP_INSTRUCTIONS] No discovered apps - app-specific instructions unavailable")
+    
+    # Add generic proactive skill usage instruction (only when apps are available)
+    # This encourages using available skills proactively for time-sensitive queries
+    if discovered_apps_metadata:
+        prompt_parts.append(base_instructions.get("base_proactive_skill_usage_instruction", ""))
+    else:
+        # When no apps available, skip the proactive skill usage instruction
+        # to avoid confusing the AI about capabilities it doesn't have
+        logger.info(f"{log_prefix} Skipping base_proactive_skill_usage_instruction - no apps available")
+    
     prompt_parts.append(base_instructions.get("base_url_sourcing_instruction", ""))
     # Add code block formatting instruction to ensure proper language and filename syntax
     # This helps with consistent parsing and rendering of code embeds
