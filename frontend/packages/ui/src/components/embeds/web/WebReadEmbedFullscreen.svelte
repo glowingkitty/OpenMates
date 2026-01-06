@@ -24,7 +24,6 @@
   import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
   import BasicInfosBar from '../BasicInfosBar.svelte';
   import type { BaseSkillPreviewData } from '../../../types/appSkills';
-  // @ts-expect-error - @repo/ui module exists at runtime
   import { text } from '@repo/ui';
   
   /**
@@ -218,7 +217,9 @@
   let openButtonText = $derived(`Open on ${hostname || 'website'}`);
   
   // Store rendered HTML for markdown
-  let renderedMarkdowns = $state<Map<number, string>>(new Map());
+  // CRITICAL: Using object instead of Map for proper Svelte 5 reactivity
+  // Map.set() mutations don't trigger re-renders, but object property assignments do
+  let renderedMarkdowns = $state<Record<number, string>>({});
   
   // Debug logging
   $effect(() => {
@@ -236,42 +237,100 @@
   
   /**
    * Render markdown to HTML using markdown-it
+   * CRITICAL: Uses object property assignment for proper Svelte 5 reactivity
+   * 
+   * SECURITY: Uses DOMPurify to sanitize rendered HTML against XSS attacks.
+   * Backend sanitization (sanitize_external_content) protects against prompt injection,
+   * but does NOT sanitize HTML/JS. DOMPurify is the XSS protection layer.
    */
   async function renderMarkdown(markdown: string, index: number): Promise<void> {
+    console.debug(`[WebReadEmbedFullscreen] renderMarkdown called for index ${index}, markdown length: ${markdown?.length || 0}`);
+    
     if (!markdown) {
-      renderedMarkdowns.set(index, '');
+      renderedMarkdowns[index] = '';
       return;
     }
     
     try {
+      // Import markdown-it and DOMPurify for XSS protection
+      const [MarkdownItModule, DOMPurifyModule] = await Promise.all([
+        import('markdown-it'),
+        import('dompurify')
+      ]);
+      const MarkdownIt = MarkdownItModule.default;
+      const DOMPurify = DOMPurifyModule.default;
+      
       // Use markdown-it for proper markdown rendering
-      const MarkdownIt = (await import('markdown-it')).default;
       const md = new MarkdownIt({
-        html: true,
+        html: true,  // Allow HTML in markdown (will be sanitized by DOMPurify)
         linkify: true,
         typographer: true,
         breaks: false
       });
       
       // Render markdown to HTML
-      const html = md.render(markdown);
-      renderedMarkdowns.set(index, html);
+      const rawHtml = md.render(markdown);
+      
+      // SECURITY: Sanitize HTML to prevent XSS attacks
+      // Allow common HTML tags for rich content display, but block scripts/events
+      const sanitizedHtml = DOMPurify.sanitize(rawHtml, {
+        ALLOWED_TAGS: [
+          // Text formatting
+          'p', 'br', 'hr',
+          'strong', 'b', 'em', 'i', 'u', 's', 'strike', 'del', 'ins',
+          'mark', 'small', 'sub', 'sup', 'kbd', 'code', 'pre', 'samp', 'var',
+          // Headings
+          'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+          // Lists
+          'ul', 'ol', 'li', 'dl', 'dt', 'dd',
+          // Tables
+          'table', 'thead', 'tbody', 'tfoot', 'tr', 'th', 'td', 'caption', 'colgroup', 'col',
+          // Links and media (images are allowed, will be sandboxed)
+          'a', 'img', 'figure', 'figcaption',
+          // Block elements
+          'div', 'span', 'blockquote', 'q', 'cite', 'abbr', 'address',
+          // Details/Summary (collapsible content)
+          'details', 'summary'
+        ],
+        ALLOWED_ATTR: [
+          'href', 'src', 'alt', 'title', 'width', 'height',
+          'class', 'id', 'name',
+          'colspan', 'rowspan', 'scope', 'headers',
+          'start', 'type', 'reversed', // List attributes
+          'open', // Details attribute
+          'datetime', // Time/date attributes
+          'lang', 'dir' // Language/direction
+        ],
+        // Force all links to open in new tab safely
+        ADD_ATTR: ['target', 'rel'],
+        // Forbid dangerous protocols in URLs
+        ALLOWED_URI_REGEXP: /^(?:(?:(?:f|ht)tps?|mailto|tel|callto|sms|cid|xmpp):|[^a-z]|[a-z+.-]+(?:[^a-z+.-:]|$))/i
+      });
+      
+      console.debug(`[WebReadEmbedFullscreen] ✅ Rendered & sanitized markdown for index ${index}, HTML length: ${sanitizedHtml.length}`);
+      
+      // CRITICAL: Use object property assignment for reactivity (not Map.set)
+      renderedMarkdowns[index] = sanitizedHtml;
     } catch (error) {
       console.error('[WebReadEmbedFullscreen] Error rendering markdown:', error);
-      // Fallback: escape HTML and preserve line breaks
+      // Fallback: escape HTML and preserve line breaks (safe by default)
       const html = markdown
         .replace(/&/g, '&amp;')
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;')
         .replace(/\n/g, '<br>');
-      renderedMarkdowns.set(index, html);
+      renderedMarkdowns[index] = html;
     }
   }
   
   // Render markdown for all results when they change
+  // CRITICAL: Uses object property check (index in obj) instead of Map.has()
   $effect(() => {
+    console.debug(`[WebReadEmbedFullscreen] Markdown render effect triggered, results count: ${results.length}`);
     results.forEach((result, index) => {
-      if (result.markdown && !renderedMarkdowns.has(index)) {
+      const alreadyRendered = index in renderedMarkdowns;
+      console.debug(`[WebReadEmbedFullscreen] Check index ${index}: hasMarkdown=${!!result.markdown}, alreadyRendered=${alreadyRendered}`);
+      if (result.markdown && !alreadyRendered) {
         renderMarkdown(result.markdown, index);
       }
     });
@@ -406,9 +465,9 @@
         <div class="content-card">
           {#each results as result, index}
             <div class="result-content">
-              {#if renderedMarkdowns.has(index)}
+              {#if index in renderedMarkdowns && renderedMarkdowns[index]}
                 <div class="markdown-content">
-                  {@html renderedMarkdowns.get(index) || ''}
+                  {@html renderedMarkdowns[index]}
                 </div>
               {:else if result.markdown}
                 <div class="markdown-loading">
