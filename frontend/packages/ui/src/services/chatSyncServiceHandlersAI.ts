@@ -1279,7 +1279,44 @@ export async function handleEmbedUpdateImpl(
             // CRITICAL FIX: If transitioning from processing to finished, we need to:
             // 1. Encrypt the content and persist key wrappers
             // 2. This ensures the key survives page refresh
-            if (wasProcessing && isNowFinished && existingEmbed.content) {
+            // 
+            // IMPORTANT: SKIP this if the content is still the "processing" placeholder!
+            // The `send_embed_data` event with the actual finished content should handle encryption/storage.
+            // This prevents a race condition where `embed_update` arrives before `send_embed_data` finishes,
+            // causing the OLD placeholder content to be encrypted and stored to Directus.
+            // 
+            // Detection: If existingEmbed.content contains 'status: processing' or 'status: "processing"',
+            // it's still the placeholder and we should NOT encrypt it here.
+            const contentString = typeof existingEmbed.content === 'string' ? existingEmbed.content : '';
+            const isStillPlaceholderContent = contentString.includes('status: processing') || 
+                                              contentString.includes('status: "processing"') ||
+                                              contentString.includes("status: 'processing'");
+            
+            if (isStillPlaceholderContent) {
+                // CRITICAL FIX: Don't store to IndexedDB when content is still placeholder!
+                // Only update the in-memory status - the send_embed_data (finished) event will store the actual content.
+                // Previously, this was calling embedStore.put() with placeholder content, overwriting memory-only data.
+                console.warn(
+                    `[ChatSyncService:AI] embed_update: SKIPPING storage for ${payload.embed_id} - ` +
+                    `content still contains "processing" status. The send_embed_data event with actual content should handle storage.`
+                );
+                
+                // existingEmbed.status was already updated above (line 1268)
+                // Since memory-only embeds are references, this update persists in the cache
+                
+                // Dispatch event for UI refresh (status changed, but content still loading)
+                serviceInstance.dispatchEvent(new CustomEvent('embedUpdated', {
+                    detail: {
+                        embed_id: payload.embed_id,
+                        chat_id: payload.chat_id,
+                        message_id: payload.message_id,
+                        status: payload.status,
+                        child_embed_ids: payload.child_embed_ids,
+                        isWaitingForContent: true  // Flag to indicate content is still coming
+                    }
+                }));
+                return; // CRITICAL: Early return - don't call embedStore.put() with placeholder content
+            } else if (wasProcessing && isNowFinished && existingEmbed.content) {
                 console.info(`[ChatSyncService:AI] embed_update: Transitioning ${payload.embed_id} from processing to finished - encrypting and persisting keys`);
                 
                 try {
@@ -1556,9 +1593,17 @@ export async function handleSendEmbedDataImpl(
         console.warn('[ChatSyncService:AI] Received send_embed_data payload without embed_id. Raw payload:', payload);
         return;
     }
+    // Enhanced logging for send_embed_data events (helps debug composite embed issues)
+    const contentPreview = typeof embedData.content === 'string' ? embedData.content.substring(0, 300) : 'NOT_STRING';
+    const hasResultsInContent = typeof embedData.content === 'string' && embedData.content.includes('results:');
+    const hasEmbedIdsInContent = typeof embedData.content === 'string' && embedData.content.includes('embed_ids:');
+    const embedIdsInPayload = embedData.embed_ids;
     console.info(
-        `[ChatSyncService:AI] [EMBED_EVENT] Received 'send_embed_data' for embed ${embedData.embed_id} ` +
-        `(status=${embedData.status}, type=${embedData.type}, chat_id=${embedData.chat_id}, message_id=${embedData.message_id})`
+        `[ChatSyncService:AI] [EMBED_EVENT] 📦 Received 'send_embed_data' for embed ${embedData.embed_id}:\n` +
+        `  status=${embedData.status}, type=${embedData.type}\n` +
+        `  hasResultsInContent=${hasResultsInContent}, hasEmbedIdsInContent=${hasEmbedIdsInContent}\n` +
+        `  embedIdsInPayload=${JSON.stringify(embedIdsInPayload)} (count=${embedIdsInPayload?.length || 0})\n` +
+        `  contentPreview="${contentPreview}..."`
     );
 
     // DEBUG: Check if embedData contains any Promises

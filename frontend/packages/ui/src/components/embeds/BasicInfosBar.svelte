@@ -115,7 +115,7 @@
     <div class="status-text-container" class:single-line={!showStatus}>
       <span class="status-label">{skillName}</span>
       {#if showStatus}
-        <span class="status-value">{statusText()}</span>
+        <span class="status-value" class:processing-shimmer={status === 'processing'}>{statusText()}</span>
       {/if}
     </div>
     
@@ -155,7 +155,7 @@
         <span class="title-text">{skillName}</span>
       </span>
       {#if showStatus}
-        <span class="status-value">{statusText()}</span>
+        <span class="status-value" class:processing-shimmer={status === 'processing'}>{statusText()}</span>
       {/if}
     </div>
     
@@ -286,6 +286,32 @@
     line-height: 1.2;
   }
   
+  /* Processing shimmer animation for status text */
+  .basic-infos-bar.desktop .status-value.processing-shimmer {
+    background: linear-gradient(
+      90deg,
+      var(--color-grey-70) 0%,
+      var(--color-grey-70) 40%,
+      var(--color-grey-50) 50%,
+      var(--color-grey-70) 60%,
+      var(--color-grey-70) 100%
+    );
+    background-size: 200% 100%;
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+    animation: shimmer 1.5s infinite linear;
+  }
+  
+  @keyframes shimmer {
+    0% {
+      background-position: 200% 0;
+    }
+    100% {
+      background-position: -200% 0;
+    }
+  }
+  
   /* Single line mode: center the label vertically */
   .basic-infos-bar.desktop .status-text.single-line {
     justify-content: center;
@@ -330,6 +356,7 @@
   }
   
   /* Stop button icon - red color matching MessageInput stop button */
+  /* Includes pulsing animation while processing to indicate interactive state */
   .basic-infos-bar.desktop .stop-button .clickable-icon.icon_stop_processing {
     width: 35px;
     height: 35px;
@@ -342,10 +369,24 @@
     mask-position: center;
     -webkit-mask-repeat: no-repeat;
     mask-repeat: no-repeat;
+    /* Pulsing animation for processing state */
+    animation: stopButtonPulse 1.2s ease-in-out infinite;
   }
   
   .basic-infos-bar.desktop .stop-button:hover .clickable-icon.icon_stop_processing {
     background: darkred !important;
+    /* Pause animation on hover for better UX */
+    animation-play-state: paused;
+  }
+  
+  /* Pulsing animation for stop button - subtle opacity changes */
+  @keyframes stopButtonPulse {
+    0%, 100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.5;
+    }
   }
   
   /* ===========================================
@@ -442,6 +483,23 @@
     line-height: 1.2;
   }
   
+  /* Processing shimmer animation for status text (mobile) */
+  .basic-infos-bar.mobile .status-text-container .status-value.processing-shimmer {
+    background: linear-gradient(
+      90deg,
+      var(--color-grey-70) 0%,
+      var(--color-grey-70) 40%,
+      var(--color-grey-50) 50%,
+      var(--color-grey-70) 60%,
+      var(--color-grey-70) 100%
+    );
+    background-size: 200% 100%;
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+    animation: shimmer 1.5s infinite linear;
+  }
+  
   /* Single line mode for mobile */
   .basic-infos-bar.mobile .status-text-container.single-line {
     justify-content: center;
@@ -485,6 +543,7 @@
   }
   
   /* Stop button icon - red color matching MessageInput stop button */
+  /* Includes pulsing animation while processing to indicate interactive state */
   .basic-infos-bar.mobile .stop-button .clickable-icon.icon_stop_processing {
     width: 35px;
     height: 35px;
@@ -497,10 +556,14 @@
     mask-position: center;
     -webkit-mask-repeat: no-repeat;
     mask-repeat: no-repeat;
+    /* Pulsing animation for processing state */
+    animation: stopButtonPulse 1.2s ease-in-out infinite;
   }
   
   .basic-infos-bar.mobile .stop-button:hover .clickable-icon.icon_stop_processing {
     background: darkred !important;
+    /* Pause animation on hover for better UX */
+    animation-play-state: paused;
   }
 </style>
 

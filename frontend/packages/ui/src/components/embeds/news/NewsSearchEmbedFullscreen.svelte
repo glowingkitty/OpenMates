@@ -60,6 +60,18 @@
     onClose: () => void;
     /** Optional: Embed ID for sharing (from embed:{embed_id} contentRef) */
     embedId?: string;
+    /** Whether there is a previous embed to navigate to */
+    hasPreviousEmbed?: boolean;
+    /** Whether there is a next embed to navigate to */
+    hasNextEmbed?: boolean;
+    /** Handler to navigate to the previous embed */
+    onNavigatePrevious?: () => void;
+    /** Handler to navigate to the next embed */
+    onNavigateNext?: () => void;
+    /** Whether to show the "chat" button to restore chat visibility (ultra-wide forceOverlayMode) */
+    showChatButton?: boolean;
+    /** Callback when user clicks the "chat" button to restore chat visibility */
+    onShowChat?: () => void;
   }
   
   let {
@@ -68,8 +80,28 @@
     embedIds,
     results: resultsProp = [],
     onClose,
-    embedId
+    embedId,
+    hasPreviousEmbed = false,
+    hasNextEmbed = false,
+    onNavigatePrevious,
+    onNavigateNext,
+    showChatButton = false,
+    onShowChat
   }: Props = $props();
+  
+  // Debug: Log what props NewsSearchEmbedFullscreen receives
+  $effect(() => {
+    console.debug('[NewsSearchEmbedFullscreen] 📰 Props received:', {
+      query,
+      provider,
+      embedIds,
+      embedIds_type: typeof embedIds,
+      embedIds_length: Array.isArray(embedIds) ? embedIds.length : (typeof embedIds === 'string' ? embedIds.length : 0),
+      resultsProp_length: resultsProp?.length || 0,
+      resultsProp_sample: resultsProp?.slice(0, 2),
+      embedId
+    });
+  });
   
   // ============================================
   // State: Track which article is shown in fullscreen
@@ -265,6 +297,12 @@
   {embedIds}
   childEmbedTransformer={transformToNewsResult}
   legacyResults={resultsProp}
+  {hasPreviousEmbed}
+  {hasNextEmbed}
+  {onNavigatePrevious}
+  {onNavigateNext}
+  {showChatButton}
+  {onShowChat}
 >
   {#snippet content(ctx)}
     {@const newsResults = getNewsResults(ctx)}

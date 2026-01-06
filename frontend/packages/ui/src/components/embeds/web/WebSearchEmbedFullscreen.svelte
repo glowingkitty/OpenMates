@@ -50,8 +50,8 @@
     snippet?: string;
     /** Additional description (may be longer than snippet) */
     description?: string;
-    /** Snippets array for fullscreen view */
-    snippets?: string[];
+    /** Extra snippets from backend TOON (pipe-delimited string or array) */
+    extra_snippets?: string | string[];
   }
   
   /**
@@ -73,6 +73,18 @@
     onClose: () => void;
     /** Optional: Embed ID for sharing (from embed:{embed_id} contentRef) */
     embedId?: string;
+    /** Whether there is a previous embed to navigate to */
+    hasPreviousEmbed?: boolean;
+    /** Whether there is a next embed to navigate to */
+    hasNextEmbed?: boolean;
+    /** Handler to navigate to the previous embed */
+    onNavigatePrevious?: () => void;
+    /** Handler to navigate to the next embed */
+    onNavigateNext?: () => void;
+    /** Whether to show the "chat" button to restore chat visibility (ultra-wide forceOverlayMode) */
+    showChatButton?: boolean;
+    /** Callback when user clicks the "chat" button to restore chat visibility */
+    onShowChat?: () => void;
   }
   
   let {
@@ -82,8 +94,32 @@
     results: resultsProp,
     previewData,
     onClose,
-    embedId
+    embedId,
+    hasPreviousEmbed = false,
+    hasNextEmbed = false,
+    onNavigatePrevious,
+    onNavigateNext,
+    showChatButton = false,
+    onShowChat
   }: Props = $props();
+  
+  // Debug: Log what props WebSearchEmbedFullscreen receives
+  $effect(() => {
+    console.debug('[WebSearchEmbedFullscreen] 🔎 Props received:', {
+      query: queryProp || previewData?.query,
+      provider: providerProp || previewData?.provider,
+      embedIds,
+      embedIds_type: typeof embedIds,
+      embedIds_isArray: Array.isArray(embedIds),
+      embedIds_length: Array.isArray(embedIds) ? embedIds.length : (typeof embedIds === 'string' ? embedIds.length : 0),
+      embedIds_value: embedIds,
+      hasPreviewData: !!previewData,
+      previewDataResultsCount: previewData?.results?.length || 0,
+      resultsPropCount: resultsProp?.length || 0,
+      resultsProp_sample: resultsProp?.slice(0, 2),
+      embedId
+    });
+  });
   
   // ============================================
   // State: Track which website is shown in fullscreen
@@ -112,7 +148,16 @@
    * Extracts all available fields for both preview and fullscreen views
    */
   function transformToWebResult(embedId: string, content: Record<string, unknown>): WebSearchResult {
-    return {
+    // Debug: Log raw content to see what fields are available
+    console.debug('[WebSearchEmbedFullscreen] transformToWebResult raw content:', {
+      embedId,
+      contentKeys: Object.keys(content),
+      extra_snippets: content.extra_snippets,
+      extra_snippets_type: typeof content.extra_snippets,
+      page_age: content.page_age
+    });
+    
+    const result: WebSearchResult = {
       embed_id: embedId,
       title: content.title as string | undefined,
       url: content.url as string,
@@ -120,8 +165,16 @@
       preview_image_url: (content.preview_image_url || content.thumbnail_original || content.image) as string | undefined,
       snippet: (content.snippet as string) || (content.description as string),
       description: content.description as string | undefined,
-      snippets: content.snippets as string[] | undefined
+      extra_snippets: content.extra_snippets as string | string[] | undefined
     };
+    
+    console.debug('[WebSearchEmbedFullscreen] Transformed result:', {
+      embedId,
+      hasExtraSnippets: !!result.extra_snippets,
+      extra_snippets: result.extra_snippets
+    });
+    
+    return result;
   }
   
   /**
@@ -136,7 +189,7 @@
       preview_image_url: (r.preview_image_url || r.thumbnail_original || r.image) as string | undefined,
       snippet: (r.snippet as string) || (r.description as string),
       description: r.description as string | undefined,
-      snippets: r.snippets as string[] | undefined
+      extra_snippets: r.extra_snippets as string | string[] | undefined
     }));
   }
   
@@ -164,7 +217,10 @@
     console.debug('[WebSearchEmbedFullscreen] Opening website fullscreen:', {
       embedId: websiteData.embed_id,
       url: websiteData.url,
-      title: websiteData.title
+      title: websiteData.title,
+      extra_snippets: websiteData.extra_snippets,
+      extra_snippets_type: typeof websiteData.extra_snippets,
+      hasExtraSnippets: !!websiteData.extra_snippets
     });
     selectedWebsite = websiteData;
   }
@@ -276,6 +332,12 @@
   {embedIds}
   childEmbedTransformer={transformToWebResult}
   legacyResults={legacyResults}
+  {hasPreviousEmbed}
+  {hasNextEmbed}
+  {onNavigatePrevious}
+  {onNavigateNext}
+  {showChatButton}
+  {onShowChat}
 >
   {#snippet content(ctx)}
     {@const webResults = getWebResults(ctx)}
@@ -326,7 +388,7 @@
       description={selectedWebsite.description || selectedWebsite.snippet}
       favicon={selectedWebsite.favicon_url}
       image={selectedWebsite.preview_image_url}
-      snippets={selectedWebsite.snippets}
+      extra_snippets={selectedWebsite.extra_snippets}
       onClose={handleWebsiteFullscreenClose}
       embedId={selectedWebsite.embed_id}
     />

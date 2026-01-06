@@ -71,6 +71,8 @@
     import { isDesktop } from '../utils/platform'; // Import desktop detection for conditional auto-focus
     import { waitLocale } from 'svelte-i18n'; // Import waitLocale for waiting for translations to load
     import { get } from 'svelte/store'; // Import get to read store values
+    import { extractEmbedReferences } from '../services/embedResolver'; // Import for embed navigation
+    import { tipTapToCanonicalMarkdown } from '../message_parsing/serializers'; // Import for embed navigation
     
     const dispatch = createEventDispatcher();
     
@@ -490,11 +492,28 @@
                         finalDecodedContent = await decodeToonContent(freshEmbedData.content);
                     }
                     
-                    console.debug('[ActiveChat] Loaded fresh embed data from EmbedStore:', {
+                    console.debug('[ActiveChat] 🔍 Loaded fresh embed data from EmbedStore:', {
                         embedId,
                         status: freshEmbedData.status,
+                        type: freshEmbedData.type,
+                        // Check content structure
+                        hasContent: !!freshEmbedData.content,
+                        contentType: typeof freshEmbedData.content,
+                        contentPreview: typeof freshEmbedData.content === 'string' 
+                            ? freshEmbedData.content.substring(0, 200) 
+                            : JSON.stringify(freshEmbedData.content).substring(0, 200),
+                        // Check results  
                         hasResults: !!finalDecodedContent?.results,
-                        resultsCount: finalDecodedContent?.results?.length || 0
+                        resultsCount: finalDecodedContent?.results?.length || 0,
+                        // Check embed_ids from both sources
+                        embedDataHasEmbedIds: !!freshEmbedData.embed_ids,
+                        embedDataEmbedIds: freshEmbedData.embed_ids,
+                        embedIdsCount: freshEmbedData.embed_ids?.length || 0,
+                        decodedContentHasEmbedIds: !!finalDecodedContent?.embed_ids,
+                        decodedContentEmbedIds: finalDecodedContent?.embed_ids,
+                        decodedEmbedIdsCount: finalDecodedContent?.embed_ids?.length || 0,
+                        // Check decoded content keys
+                        decodedContentKeys: finalDecodedContent ? Object.keys(finalDecodedContent) : []
                     });
                 } else if (!finalEmbedData) {
                     // Only error if we have no data at all
@@ -537,8 +556,10 @@
         let resolvedEmbedType = normalizeEmbedType(embedType) || embedType;
         const inferredType = normalizeEmbedType(finalEmbedData?.type) || finalEmbedData?.type;
         
-        // Only override the event type when it's a placeholder (deep-link default) and inference is more specific.
-        if (inferredType && (resolvedEmbedType === 'app-skill-use' || resolvedEmbedType === 'app_skill_use')) {
+        // Use inferred type from embed data when:
+        // 1. No type was provided in the event (null/undefined) - e.g., navigation between embeds
+        // 2. Type is a placeholder (app-skill-use) and we can infer more specific type from stored data
+        if (inferredType && (!resolvedEmbedType || resolvedEmbedType === 'app-skill-use' || resolvedEmbedType === 'app_skill_use')) {
             resolvedEmbedType = inferredType;
         }
         
@@ -563,6 +584,17 @@
             const childEmbedIds: string[] = typeof rawEmbedIds === 'string' 
                 ? rawEmbedIds.split('|').filter((id: string) => id.length > 0)
                 : Array.isArray(rawEmbedIds) ? rawEmbedIds : [];
+            
+            // DEBUG: Log embed_ids discovery for composite embeds
+            console.debug('[ActiveChat] Checking embed_ids for composite embed:', {
+                appId,
+                skillId,
+                decodedContentEmbedIds: finalDecodedContent.embed_ids,
+                embedDataEmbedIds: finalEmbedData?.embed_ids,
+                rawEmbedIds,
+                childEmbedIds,
+                childEmbedIdsCount: childEmbedIds.length
+            });
             
             if (appId === 'web' && skillId === 'search' && childEmbedIds.length > 0) {
 console.debug('[ActiveChat] Loading child website embeds for web search fullscreen:', childEmbedIds);
@@ -707,6 +739,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         showEmbedFullscreen = false;
         embedFullscreenData = null;
         
+        // Reset forceOverlayMode when embed is closed
+        // This ensures the next time an embed is opened, it uses the default layout based on screen size
+        forceOverlayMode = false;
+        
         // Clear embed URL hash when embed is closed
         activeEmbedStore.clearActiveEmbed();
         console.debug('[ActiveChat] Cleared embed from URL hash');
@@ -717,6 +753,99 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             activeChatStore.setActiveChat(currentChat.chat_id);
             console.debug('[ActiveChat] Restored chat URL hash after closing embed:', currentChat.chat_id);
         }
+    }
+    
+    // ===========================================
+    // Embed Navigation Logic
+    // ===========================================
+    // Extracts embed IDs from chat messages and provides navigation between them
+    
+    /**
+     * Extract all embed IDs from messages in order of appearance
+     * This creates a flat list of all embeds that can be displayed in fullscreen
+     * @param messages - Array of chat messages
+     * @returns Array of embed IDs in order of appearance
+     */
+    function extractEmbedIdsFromMessages(messages: ChatMessageModel[]): string[] {
+        const embedIds: string[] = [];
+        
+        for (const message of messages) {
+            // Get message content as markdown string
+            let markdownContent = '';
+            if (typeof message.content === 'string') {
+                markdownContent = message.content;
+            } else if (message.content && typeof message.content === 'object') {
+                // Convert TipTap JSON to markdown to extract embed references
+                markdownContent = tipTapToCanonicalMarkdown(message.content);
+            }
+            
+            // Extract embed references from markdown content
+            const refs = extractEmbedReferences(markdownContent);
+            for (const ref of refs) {
+                // Avoid duplicates
+                if (!embedIds.includes(ref.embed_id)) {
+                    embedIds.push(ref.embed_id);
+                }
+            }
+        }
+        
+        return embedIds;
+    }
+    
+    /**
+     * Navigate to the previous embed in the chat
+     * Dispatches an embedfullscreen event with the previous embed's ID
+     */
+    async function handleNavigatePreviousEmbed() {
+        if (!hasPreviousEmbed) {
+            console.debug('[ActiveChat] No previous embed to navigate to');
+            return;
+        }
+        
+        const previousEmbedId = chatEmbedIds[currentEmbedIndex - 1];
+        console.debug('[ActiveChat] Navigating to previous embed:', previousEmbedId, 'from index', currentEmbedIndex, 'to', currentEmbedIndex - 1);
+        
+        // Create a synthetic embedfullscreen event to open the previous embed
+        // This reuses the existing handleEmbedFullscreen logic
+        const event = new CustomEvent('embedfullscreen', {
+            detail: {
+                embedId: previousEmbedId,
+                embedData: null, // Will be loaded from embedStore
+                decodedContent: null, // Will be loaded from embedStore
+                embedType: null, // Will be resolved from embed data
+                attrs: {}
+            }
+        });
+        
+        await handleEmbedFullscreen(event);
+    }
+    
+    /**
+     * Navigate to the next embed in the chat
+     * Dispatches an embedfullscreen event with the next embed's ID
+     */
+    async function handleNavigateNextEmbed() {
+        if (!hasNextEmbed) {
+            console.debug('[ActiveChat] No next embed to navigate to');
+            return;
+        }
+        
+        const nextEmbedId = chatEmbedIds[currentEmbedIndex + 1];
+        console.debug('[ActiveChat] Navigating to next embed:', nextEmbedId, 'from index', currentEmbedIndex, 'to', currentEmbedIndex + 1);
+        
+        // Create a synthetic embedfullscreen event to open the next embed
+        // This reuses the existing handleEmbedFullscreen logic
+        const event = new CustomEvent('embedfullscreen', {
+            detail: {
+                embedId: nextEmbedId,
+                embedData: null, // Will be loaded from embedStore
+                decodedContent: null, // Will be loaded from embedStore
+                embedType: null, // Will be resolved from embed data
+                attrs: {}
+            }
+        });
+        
+        await handleEmbedFullscreen(event);
     }
     
     // Reference to PiP container for moving iframe
@@ -987,9 +1116,18 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     // instead of as overlays. This provides a better experience on large displays.
     let isUltraWide = $derived(containerWidth > 1300);
     
+    // Force overlay mode: When true, forces the embed fullscreen to use overlay mode even on ultra-wide screens
+    // This is toggled by the "minimize chat" button in the chat's top bar when in side-by-side mode
+    // User can click this to temporarily hide the chat and show only the embed fullscreen
+    let forceOverlayMode = $state(false);
+    
     // Determine if we should use side-by-side layout for fullscreen embeds
-    // Only use side-by-side when ultra-wide AND an embed fullscreen is open
-    let showSideBySideFullscreen = $derived(isUltraWide && showEmbedFullscreen && embedFullscreenData);
+    // Only use side-by-side when ultra-wide AND an embed fullscreen is open AND not forcing overlay mode
+    let showSideBySideFullscreen = $derived(isUltraWide && showEmbedFullscreen && embedFullscreenData && !forceOverlayMode);
+    
+    // Determine if we should show the "Show Chat" button in fullscreen embed views
+    // Shows when ultra-wide screen has an embed fullscreen open but chat is hidden (forceOverlayMode)
+    let showChatButtonInFullscreen = $derived(isUltraWide && showEmbedFullscreen && embedFullscreenData && forceOverlayMode);
     
     // Effective narrow mode: True when chat container is narrow OR when in side-by-side mode
     // In side-by-side mode, the chat is limited to 400px which requires narrow/mobile styling
@@ -1023,6 +1161,27 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     let currentChat = $state<Chat | null>(null);
     let currentMessages = $state<ChatMessageModel[]>([]); // Holds messages for the currentChat - MUST use $state for Svelte 5 reactivity
     let currentTypingStatus: AITypingStatus | null = null;
+    
+    // ===========================================
+    // Embed Navigation Derived States
+    // ===========================================
+    // These derived values enable navigation between embeds in the current chat
+    
+    // Derived list of all embed IDs in the current chat (in order of appearance)
+    // This updates whenever currentMessages changes
+    let chatEmbedIds = $derived(extractEmbedIdsFromMessages(currentMessages));
+    
+    // Derived current embed index - finds position of current embed in the chat's embed list
+    let currentEmbedIndex = $derived.by(() => {
+        if (!embedFullscreenData?.embedId || chatEmbedIds.length === 0) {
+            return -1;
+        }
+        return chatEmbedIds.indexOf(embedFullscreenData.embedId);
+    });
+    
+    // Derived navigation states - determine if prev/next buttons should be shown
+    let hasPreviousEmbed = $derived(currentEmbedIndex > 0);
+    let hasNextEmbed = $derived(currentEmbedIndex >= 0 && currentEmbedIndex < chatEmbedIds.length - 1);
     
     // Reactive variable to determine when to show action buttons in MessageInput
     // Shows when: input has content OR input is focused
@@ -1938,6 +2097,27 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         // 1. Open the menu if not already open (line 1103 in Settings.svelte)
         // 2. Navigate to the specified path after a brief delay (line 1117)
         settingsDeepLink.set('report_issue');
+    }
+
+    /**
+     * Handler for minimizing the chat in side-by-side mode.
+     * When in ultra-wide mode with side-by-side layout, this hides the chat
+     * and shows only the embed fullscreen in overlay mode.
+     * The user can restore the chat by clicking the "chat" button in the fullscreen view.
+     */
+    function handleMinimizeChat() {
+        console.debug('[ActiveChat] Minimize chat clicked - switching to overlay mode');
+        forceOverlayMode = true;
+    }
+    
+    /**
+     * Handler for showing the chat from fullscreen view.
+     * Called when user clicks the "chat" button in the embed fullscreen view.
+     * Restores the side-by-side layout by disabling overlay mode.
+     */
+    function handleShowChat() {
+        console.debug('[ActiveChat] Show chat clicked - switching to side-by-side mode');
+        forceOverlayMode = false;
     }
 
     // Update handler for chat updates to be more selective
@@ -3552,7 +3732,20 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
                         <!-- Right side buttons -->
                         <div class="right-buttons">
-                            <!-- Bug icon for reporting issues -->
+                            <!-- Minimize chat button - only shows in side-by-side mode -->
+                            <!-- When clicked, hides the chat and shows only the embed fullscreen (overlay mode) -->
+                            {#if showSideBySideFullscreen}
+                                <div class="new-chat-button-wrapper">
+                                    <button
+                                        class="clickable-icon icon_minimize top-button"
+                                        aria-label={$text('chat.minimize.text', { default: 'Minimize' })}
+                                        onclick={handleMinimizeChat}
+                                        use:tooltip
+                                        style="margin: 5px;"
+                                    >
+                                    </button>
+                                </div>
+                            {/if}
                             
                             <!-- Activate buttons once features are implemented -->
                             <!-- Video call button -->
@@ -3698,45 +3891,82 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     class:side-panel={showSideBySideFullscreen}
                     class:overlay-mode={!showSideBySideFullscreen}
                 >
+                <!-- Key block forces complete recreation when embed changes -->
+                <!-- This resets internal component state (e.g., selectedWebsite in WebSearchEmbedFullscreen) -->
+                <!-- Without this, switching between same-type embeds would preserve stale child overlay state -->
+                {#key embedFullscreenData.embedId}
                 {#if embedFullscreenData.embedType === 'app-skill-use'}
                     {@const skillId = embedFullscreenData.decodedContent?.skill_id || ''}
                     {@const appId = embedFullscreenData.decodedContent?.app_id || ''}
                     
                     {#if appId === 'web' && skillId === 'search'}
                         <!-- Web Search Fullscreen -->
+                        <!-- Pass embedIds for proper child embed loading (has extra_snippets, page_age, etc.) -->
+                        <!-- Falls back to results if embedIds not available (legacy embeds) -->
                         <WebSearchEmbedFullscreen 
                             query={embedFullscreenData.decodedContent?.query || ''}
                             provider={embedFullscreenData.decodedContent?.provider || 'Brave'}
+                            embedIds={embedFullscreenData.decodedContent?.embed_ids || embedFullscreenData.embedData?.embed_ids}
                             results={embedFullscreenData.decodedContent?.results || []}
                             embedId={embedFullscreenData.embedId}
                             onClose={handleCloseEmbedFullscreen}
+                            {hasPreviousEmbed}
+                            {hasNextEmbed}
+                            onNavigatePrevious={handleNavigatePreviousEmbed}
+                            onNavigateNext={handleNavigateNextEmbed}
+                            showChatButton={showChatButtonInFullscreen}
+                            onShowChat={handleShowChat}
                         />
                     {:else if appId === 'news' && skillId === 'search'}
                         <!-- News Search Fullscreen -->
+                        <!-- Pass embedIds for proper child embed loading -->
                         <NewsSearchEmbedFullscreen 
                             query={embedFullscreenData.decodedContent?.query || ''}
                             provider={embedFullscreenData.decodedContent?.provider || 'Brave'}
+                            embedIds={embedFullscreenData.decodedContent?.embed_ids || embedFullscreenData.embedData?.embed_ids}
                             results={embedFullscreenData.decodedContent?.results || []}
                             embedId={embedFullscreenData.embedId}
                             onClose={handleCloseEmbedFullscreen}
+                            {hasPreviousEmbed}
+                            {hasNextEmbed}
+                            onNavigatePrevious={handleNavigatePreviousEmbed}
+                            onNavigateNext={handleNavigateNextEmbed}
+                            showChatButton={showChatButtonInFullscreen}
+                            onShowChat={handleShowChat}
                         />
                     {:else if appId === 'videos' && skillId === 'search'}
                         <!-- Videos Search Fullscreen -->
+                        <!-- Pass embedIds for proper child embed loading -->
                         <VideosSearchEmbedFullscreen 
                             query={embedFullscreenData.decodedContent?.query || ''}
                             provider={embedFullscreenData.decodedContent?.provider || 'Brave'}
+                            embedIds={embedFullscreenData.decodedContent?.embed_ids || embedFullscreenData.embedData?.embed_ids}
                             results={embedFullscreenData.decodedContent?.results || []}
                             embedId={embedFullscreenData.embedId}
                             onClose={handleCloseEmbedFullscreen}
+                            {hasPreviousEmbed}
+                            {hasNextEmbed}
+                            onNavigatePrevious={handleNavigatePreviousEmbed}
+                            onNavigateNext={handleNavigateNextEmbed}
+                            showChatButton={showChatButtonInFullscreen}
+                            onShowChat={handleShowChat}
                         />
                     {:else if appId === 'maps' && skillId === 'search'}
                         <!-- Maps Search Fullscreen -->
+                        <!-- Pass embedIds for proper child embed loading -->
                         <MapsSearchEmbedFullscreen 
                             query={embedFullscreenData.decodedContent?.query || ''}
                             provider={embedFullscreenData.decodedContent?.provider || 'Google'}
+                            embedIds={embedFullscreenData.decodedContent?.embed_ids || embedFullscreenData.embedData?.embed_ids}
                             results={embedFullscreenData.decodedContent?.results || []}
                             embedId={embedFullscreenData.embedId}
                             onClose={handleCloseEmbedFullscreen}
+                            {hasPreviousEmbed}
+                            {hasNextEmbed}
+                            onNavigatePrevious={handleNavigatePreviousEmbed}
+                            onNavigateNext={handleNavigateNextEmbed}
+                            showChatButton={showChatButtonInFullscreen}
+                            onShowChat={handleShowChat}
                         />
                     {:else if appId === 'videos' && skillId === 'get_transcript'}
                         <!-- Video Transcript Fullscreen -->
@@ -3762,18 +3992,36 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             previewData={previewData}
                             embedId={embedFullscreenData.embedId}
                             onClose={handleCloseEmbedFullscreen}
+                            {hasPreviousEmbed}
+                            {hasNextEmbed}
+                            onNavigatePrevious={handleNavigatePreviousEmbed}
+                            onNavigateNext={handleNavigateNextEmbed}
+                            showChatButton={showChatButtonInFullscreen}
+                            onShowChat={handleShowChat}
                         />
                     {:else if appId === 'web' && skillId === 'read'}
                         <!-- Web Read Fullscreen -->
+                        <!-- Pass URL from decoded content (from processing placeholder or original_metadata) -->
+                        {@const webReadUrl = embedFullscreenData.decodedContent?.url || 
+                            embedFullscreenData.decodedContent?.original_metadata?.url || 
+                            embedFullscreenData.decodedContent?.results?.[0]?.url || ''}
                         {@const previewData = {
                             app_id: appId,
                             skill_id: skillId,
                             status: embedFullscreenData.embedData?.status || 'finished',
-                            results: embedFullscreenData.decodedContent?.results || []
+                            results: embedFullscreenData.decodedContent?.results || [],
+                            url: webReadUrl
                         }}
                         <WebReadEmbedFullscreen 
                             previewData={previewData}
+                            url={webReadUrl}
                             onClose={handleCloseEmbedFullscreen}
+                            {hasPreviousEmbed}
+                            {hasNextEmbed}
+                            onNavigatePrevious={handleNavigatePreviousEmbed}
+                            onNavigateNext={handleNavigateNextEmbed}
+                            showChatButton={showChatButtonInFullscreen}
+                            onShowChat={handleShowChat}
                         />
                     {:else}
                         <!-- Generic app skill fullscreen (fallback) -->
@@ -3795,11 +4043,18 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             description={embedFullscreenData.decodedContent?.description || embedFullscreenData.attrs?.description}
                             favicon={embedFullscreenData.decodedContent?.meta_url_favicon || embedFullscreenData.decodedContent?.favicon || embedFullscreenData.attrs?.favicon}
                             image={embedFullscreenData.decodedContent?.thumbnail_original || embedFullscreenData.decodedContent?.image || embedFullscreenData.attrs?.image}
-                            snippets={embedFullscreenData.decodedContent?.snippets}
+                            extra_snippets={embedFullscreenData.decodedContent?.extra_snippets}
                             meta_url_favicon={embedFullscreenData.decodedContent?.meta_url_favicon}
                             thumbnail_original={embedFullscreenData.decodedContent?.thumbnail_original}
+                            dataDate={embedFullscreenData.decodedContent?.page_age}
                             embedId={embedFullscreenData.embedId}
                             onClose={handleCloseEmbedFullscreen}
+                            {hasPreviousEmbed}
+                            {hasNextEmbed}
+                            onNavigatePrevious={handleNavigatePreviousEmbed}
+                            onNavigateNext={handleNavigateNextEmbed}
+                            showChatButton={showChatButtonInFullscreen}
+                            onShowChat={handleShowChat}
                         />
                     {/if}
                 {:else if embedFullscreenData.embedType === 'code-code'}
@@ -3812,6 +4067,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             lineCount={embedFullscreenData.decodedContent?.lineCount || embedFullscreenData.attrs?.lineCount || 0}
                             embedId={embedFullscreenData.embedId}
                             onClose={handleCloseEmbedFullscreen}
+                            {hasPreviousEmbed}
+                            {hasNextEmbed}
+                            onNavigatePrevious={handleNavigatePreviousEmbed}
+                            onNavigateNext={handleNavigateNextEmbed}
+                            showChatButton={showChatButtonInFullscreen}
+                            onShowChat={handleShowChat}
                         />
                     {/if}
                 {:else if embedFullscreenData.embedType === 'videos-video'}
@@ -3831,6 +4092,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                 embedId={embedFullscreenData.embedId}
                                 restoreFromPip={restoreFromPip}
                                 onClose={handleCloseEmbedFullscreen}
+                                {hasPreviousEmbed}
+                                {hasNextEmbed}
+                                onNavigatePrevious={handleNavigatePreviousEmbed}
+                                onNavigateNext={handleNavigateNextEmbed}
+                                showChatButton={showChatButtonInFullscreen}
+                                onShowChat={handleShowChat}
                             />
                         {/await}
                     {/if}
@@ -3845,6 +4112,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         </div>
                     </div>
                 {/if}
+                {/key}
                 </div>
             {/if}
             
@@ -3974,9 +4242,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     
     /* Force narrow/mobile styling on chat wrapper in side-by-side mode */
     /* This ensures mobile-friendly layouts are used when chat is 400px wide */
+    /* Top buttons positioned at top-right in side-by-side mode for better UX */
     .chat-wrapper.side-by-side-chat .top-buttons {
         top: 10px;
-        left: 10px;
+        left: auto;
+        right: 10px;
     }
     
     .chat-wrapper.side-by-side-chat .message-input-container {

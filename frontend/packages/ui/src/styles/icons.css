@@ -308,6 +308,11 @@ div.clickable-icon {
   mask-image: url('@openmates/ui/static/icons/back.svg');
 }
 
+.clickable-icon.icon_chat {
+  -webkit-mask-image: url('@openmates/ui/static/icons/chat.svg');
+  mask-image: url('@openmates/ui/static/icons/chat.svg');
+}
+
 .clickable-icon.icon_close_up {
   -webkit-mask-image: url('@openmates/ui/static/icons/back.svg');
   mask-image: url('@openmates/ui/static/icons/back.svg');
@@ -538,6 +543,11 @@ div.clickable-icon {
   mask-image: url('@openmates/ui/static/icons/instagram.svg');
 }
 
+.clickable-icon.icon_quote {
+  -webkit-mask-image: url('@openmates/ui/static/icons/quote.svg');
+  mask-image: url('@openmates/ui/static/icons/quote.svg');
+}
+
 .help-button {
   width: 24px;
   height: 24px;
@@ -627,6 +637,13 @@ div.clickable-icon {
   background: var(--color-app-web);
   &::after {
     background-image: url('@openmates/ui/static/icons/web.svg');
+  }
+}
+
+.icon_rounded.news {
+  background: var(--color-app-news);
+  &::after {
+    background-image: url('@openmates/ui/static/icons/news.svg');
   }
 }
 

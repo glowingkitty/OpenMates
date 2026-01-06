@@ -174,6 +174,8 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     const provider = decodedContent?.provider || 'Brave Search';
     const status = decodedContent?.status || embedData?.status || attrs.status || 'processing';
     const taskId = decodedContent?.task_id || '';
+    // CRITICAL: skill_task_id is used for individual skill cancellation (allows AI to continue)
+    const skillTaskId = decodedContent?.skill_task_id || '';
     
     // Parse embed_ids to get results count (for display)
     // embed_ids may be a pipe-separated string OR an array
@@ -218,6 +220,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
           status: status as 'processing' | 'finished' | 'error',
           results,
           taskId,
+          skillTaskId, // For individual skill cancellation
           isMobile: false, // Default to desktop in message view
           onFullscreen: handleFullscreen
         }
@@ -255,6 +258,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     const provider = decodedContent?.provider || 'Brave Search';
     const status = decodedContent?.status || embedData?.status || attrs.status || 'processing';
     const taskId = decodedContent?.task_id || '';
+    const skillTaskId = decodedContent?.skill_task_id || ''; // For individual skill cancellation
     const results = decodedContent?.results || [];
     
     // Cleanup any existing mounted component
@@ -284,6 +288,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
           status: status as 'processing' | 'finished' | 'error',
           results,
           taskId,
+          skillTaskId, // For individual skill cancellation
           isMobile: false,
           onFullscreen: handleFullscreen
         }
@@ -311,6 +316,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     const provider = decodedContent?.provider || 'Brave Search';
     const status = decodedContent?.status || embedData?.status || attrs.status || 'processing';
     const taskId = decodedContent?.task_id || '';
+    const skillTaskId = decodedContent?.skill_task_id || ''; // For individual skill cancellation
     const results = decodedContent?.results || [];
     
     // Cleanup any existing mounted component
@@ -340,6 +346,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
           status: status as 'processing' | 'finished' | 'error',
           results,
           taskId,
+          skillTaskId, // For individual skill cancellation
           isMobile: false,
           onFullscreen: handleFullscreen
         }
@@ -367,6 +374,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     const provider = decodedContent?.provider || 'Google';
     const status = decodedContent?.status || embedData?.status || attrs.status || 'processing';
     const taskId = decodedContent?.task_id || '';
+    const skillTaskId = decodedContent?.skill_task_id || ''; // For individual skill cancellation
     const results = decodedContent?.results || [];
     
     // Cleanup any existing mounted component
@@ -396,6 +404,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
           status: status as 'processing' | 'finished' | 'error',
           results,
           taskId,
+          skillTaskId, // For individual skill cancellation
           isMobile: false,
           onFullscreen: handleFullscreen
         }
@@ -503,7 +512,13 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     // CRITICAL: Handle null decodedContent and embedData gracefully
     const status = decodedContent?.status || embedData?.status || attrs.status || 'processing';
     const taskId = decodedContent?.task_id || '';
+    const skillTaskId = decodedContent?.skill_task_id || ''; // For individual skill cancellation
     const results = decodedContent?.results || [];
+    
+    // CRITICAL: Extract URL from decodedContent for processing placeholders
+    // The processing placeholder stores url at the root level (not in results)
+    // This ensures we can display the website info even before results are available
+    const url = decodedContent?.url || '';
     
     // Cleanup any existing mounted component
     const existingComponent = mountedComponents.get(content);
@@ -529,14 +544,21 @@ export class AppSkillUseRenderer implements EmbedRenderer {
           id: embedId,
           status: status as 'processing' | 'finished' | 'error',
           results,
+          url, // Pass URL from processing placeholder content
           taskId,
+          skillTaskId, // For individual skill cancellation
           isMobile: false,
           onFullscreen: handleFullscreen
         }
       });
       
       mountedComponents.set(content, component);
-      console.debug('[AppSkillUseRenderer] Mounted WebReadEmbedPreview component:', { embedId, status, resultsCount: results.length });
+      console.debug('[AppSkillUseRenderer] Mounted WebReadEmbedPreview component:', { 
+        embedId, 
+        status, 
+        resultsCount: results.length,
+        url: url ? url.substring(0, 50) + '...' : 'none'
+      });
     } catch (error) {
       console.error('[AppSkillUseRenderer] Error mounting WebReadEmbedPreview:', error);
       this.renderWebReadFallbackHTML(attrs, embedData, decodedContent, content);
@@ -557,6 +579,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     const results = decodedContent?.results || [];
     const status = decodedContent?.status || embedData?.status || attrs.status || 'processing';
     const taskId = decodedContent?.task_id || '';
+    const skillTaskId = decodedContent?.skill_task_id || ''; // For individual skill cancellation
     
     // Cleanup any existing mounted component
     const existingComponent = mountedComponents.get(content);
@@ -587,6 +610,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
           results,
           status: status as 'processing' | 'finished' | 'error',
           taskId,
+          skillTaskId, // For individual skill cancellation
           isMobile: false, // Default to desktop in message view
           onFullscreen: handleFullscreen
         }
@@ -671,8 +695,9 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     const results = decodedContent?.results || [];
     const firstResult = results[0] || {};
     
-    // Extract website information from first result
-    const url = firstResult.url || '';
+    // Extract website information - check both result and root level (processing placeholder)
+    // Processing placeholder stores URL at root level, finished embed stores in results
+    const url = firstResult.url || decodedContent?.url || '';
     const title = firstResult.title || '';
     let hostname = '';
     if (url) {
@@ -683,7 +708,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
         hostname = withoutScheme.split('/')[0] || '';
       }
     }
-    const displayTitle = title || hostname || 'Website';
+    const displayTitle = title || hostname || 'Web Read';
     const resultCount = results.length;
     
     // Render web read preview - no need for embed-unified-container wrapper

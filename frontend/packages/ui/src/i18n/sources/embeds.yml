@@ -435,3 +435,118 @@ video_transcript:
   cs: Přepis
   sv: Transkription
   verified_by_human: []
+web_read:
+  context: Web Read skill label
+  en: Read
+  de: Lesen
+  zh: 阅读
+  es: Leer
+  fr: Lire
+  pt: Ler
+  ru: Чтение
+  ja: 読む
+  ko: 읽기
+  it: Leggi
+  tr: Oku
+  vi: Đọc
+  id: Baca
+  pl: Czytaj
+  nl: Lezen
+  ar: قراءة
+  hi: पढ़ें
+  th: อ่าน
+  cs: Přečíst
+  sv: Läs
+  verified_by_human: []
+web_read_full_view:
+  context: Label above the open website button in web read fullscreen
+  en: 'Full viewing experience:'
+  de: 'Vollständige Ansicht:'
+  zh: 完整查看体验：
+  es: 'Experiencia de visualización completa:'
+  fr: 'Expérience de visualisation complète :'
+  pt: 'Experiência de visualização completa:'
+  ru: 'Полный просмотр:'
+  ja: フル表示：
+  ko: '전체 보기 경험:'
+  it: 'Esperienza di visualizzazione completa:'
+  tr: 'Tam görüntüleme deneyimi:'
+  vi: 'Trải nghiệm xem đầy đủ:'
+  id: 'Pengalaman tampilan lengkap:'
+  pl: 'Pełne doświadczenie przeglądania:'
+  nl: 'Volledige weergave-ervaring:'
+  ar: 'تجربة العرض الكاملة:'
+  hi: 'पूर्ण देखने का अनुभव:'
+  th: 'ประสบการณ์การดูเต็มรูปแบบ:'
+  cs: 'Plná prohlížecí zkušenost:'
+  sv: 'Fullständig visningsupplevelse:'
+  verified_by_human: []
+web_read_text_preview:
+  context: Label above markdown content in web read fullscreen
+  en: 'Article preview,'
+  de: 'Artikelvorschau,'
+  zh: 文章预览，
+  es: 'Vista previa del artículo,'
+  fr: "Aperçu de l'article,"
+  pt: 'Visualização do artigo,'
+  ru: 'Предпросмотр статьи,'
+  ja: 記事のプレビュー、
+  ko: '기사 미리보기,'
+  it: "Anteprima dell'articolo,"
+  tr: 'Makale önizlemesi,'
+  vi: 'Xem trước bài viết,'
+  id: 'Pratinjau artikel,'
+  pl: 'Podgląd artykułu,'
+  nl: 'Artikelvoorbeeld,'
+  ar: 'معاينة المقالة،'
+  hi: 'लेख पूर्वावलोकन,'
+  th: 'ตัวอย่างบทความ,'
+  cs: 'Náhled článku,'
+  sv: 'Artikelförhandsgranskning,'
+  verified_by_human: []
+web_read_no_content:
+  context: Message shown when no content is available for web read
+  en: No content available.
+  de: Kein Inhalt verfügbar.
+  zh: 没有可用的内容。
+  es: No hay contenido disponible.
+  fr: Aucun contenu disponible.
+  pt: Nenhum conteúdo disponível.
+  ru: Контент недоступен.
+  ja: コンテンツがありません。
+  ko: 사용 가능한 콘텐츠가 없습니다.
+  it: Nessun contenuto disponibile.
+  tr: İçerik mevcut değil.
+  vi: Không có nội dung nào.
+  id: Tidak ada konten tersedia.
+  pl: Brak dostępnej treści.
+  nl: Geen inhoud beschikbaar.
+  ar: لا يوجد محتوى متاح.
+  hi: कोई सामग्री उपलब्ध नहीं है।
+  th: ไม่มีเนื้อหาที่พร้อมใช้งาน
+  cs: Žádný obsah není k dispozici.
+  sv: Inget innehåll tillgängligt.
+  verified_by_human: []
+web_read_loading_content:
+  context: Message shown when web read content is still loading
+  en: Loading content...
+  de: Inhalt wird geladen...
+  zh: 正在加载内容...
+  es: Cargando contenido...
+  fr: Chargement du contenu...
+  pt: Carregando conteúdo...
+  ru: Загрузка контента...
+  ja: コンテンツを読み込み中...
+  ko: 콘텐츠 로드 중...
+  it: Caricamento contenuto...
+  tr: İçerik yükleniyor...
+  vi: Đang tải nội dung...
+  id: Memuat konten...
+  pl: Ładowanie treści...
+  nl: Inhoud laden...
+  ar: جاري تحميل المحتوى...
+  hi: सामग्री लोड हो रही है...
+  th: กำลังโหลดเนื้อหา...
+  cs: Načítání obsahu...
+  sv: Laddar innehåll...
+  verified_by_human: []

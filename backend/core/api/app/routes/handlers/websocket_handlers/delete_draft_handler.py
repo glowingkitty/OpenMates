@@ -97,21 +97,7 @@ async def handle_delete_draft(
             if delete_successful:
                 logger.info(
                     f"User {user_id}, Device {device_fingerprint_hash}: Successfully deleted draft {draft_to_delete_id} "
-                )
-                # Send confirmation receipt to the originating client
-                await manager.send_personal_message(
-                    message={"type": "draft_delete_receipt", "payload": {"chat_id": chat_id, "success": True}},
-                    user_id=user_id,
-                    device_fingerprint_hash=device_fingerprint_hash
-                )
-                # Broadcast to other devices of the same user that the draft was deleted
-                await manager.broadcast_to_user(
-                    message={
-                        "type": "draft_deleted",
-                        "payload": {"chat_id": chat_id}
-                    },
-                    user_id=user_id,
-                    exclude_device_hash=device_fingerprint_hash
+                    f"(chat_id: {chat_id}) from Directus."
                 )
             else:
                 logger.error(
@@ -123,10 +109,38 @@ async def handle_delete_draft(
                     user_id=user_id,
                     device_fingerprint_hash=device_fingerprint_hash
                 )
+                return  # Exit early on Directus deletion failure
         else:
             logger.info(
                 f"User {user_id}, Device {device_fingerprint_hash}: No draft found in Directus for chat_id: {chat_id} to delete."
             )
+        
+        # CRITICAL FIX: ALWAYS send confirmation and broadcast draft_deleted, even if no draft existed in Directus
+        # This ensures consistent state across all user devices. Other devices might have a locally cached draft
+        # that needs to be cleared, even if the draft was never synced to the server (e.g., server cache expired,
+        # or draft was only saved locally on the other device).
+        # Previously, the broadcast only happened if a draft was found and deleted from Directus, causing stale
+        # drafts to persist on other devices.
+        
+        # Send confirmation receipt to the originating client
+        await manager.send_personal_message(
+            message={"type": "draft_delete_receipt", "payload": {"chat_id": chat_id, "success": True}},
+            user_id=user_id,
+            device_fingerprint_hash=device_fingerprint_hash
+        )
+        
+        # Broadcast to other devices of the same user that the draft was deleted
+        await manager.broadcast_to_user(
+            message={
+                "type": "draft_deleted",
+                "payload": {"chat_id": chat_id}
+            },
+            user_id=user_id,
+            exclude_device_hash=device_fingerprint_hash
+        )
+        logger.info(
+            f"User {user_id}, Device {device_fingerprint_hash}: Broadcasted draft_deleted to other devices for chat_id: {chat_id}."
+        )
 
     except Exception as e:
         logger.error(

@@ -33,6 +33,7 @@
   import { settingsDeepLink } from '../../stores/settingsDeepLinkStore';
   import { embedStore } from '../../services/embedStore';
   import { decodeToonContent } from '../../services/embedResolver';
+  import { chatSyncService } from '../../services/chatSyncService';
   
   // Animation state: controls both open and close animations via CSS classes
   // - false: collapsed state (initial + closing)
@@ -138,6 +139,53 @@
     customStatusText?: string;
     /** Whether to show status text in BasicInfosBar */
     showStatus?: boolean;
+    
+    /* ============================================
+       Embed Navigation Props
+       ============================================ */
+    
+    /** Whether there is a previous embed to navigate to */
+    hasPreviousEmbed?: boolean;
+    /** Whether there is a next embed to navigate to */
+    hasNextEmbed?: boolean;
+    /** Handler to navigate to the previous embed */
+    onNavigatePrevious?: () => void;
+    /** Handler to navigate to the next embed */
+    onNavigateNext?: () => void;
+    
+    /* ============================================
+       Embed Data Update Props (for reactive updates during streaming)
+       ============================================ */
+    
+    /**
+     * Current embed ID being displayed (for subscription to updates)
+     * When provided, subscribes to embedUpdated events for this embed
+     * and calls onEmbedDataUpdated when data changes
+     */
+    currentEmbedId?: string;
+    
+    /**
+     * Callback when embed data is updated (e.g., during streaming)
+     * Called with decoded content when the embed is updated
+     * Similar to UnifiedEmbedPreview's onEmbedDataUpdated
+     */
+    onEmbedDataUpdated?: (data: { status: string; decodedContent: Record<string, unknown>; results?: unknown[] }) => void;
+    
+    /* ============================================
+       Chat Toggle Props (for side-by-side mode)
+       ============================================ */
+    
+    /**
+     * Whether to show the "chat" button to restore chat visibility
+     * Only shown when chat is hidden (forceOverlayMode is true on ultra-wide screens)
+     */
+    showChatButton?: boolean;
+    
+    /**
+     * Callback when user clicks the "chat" button to restore chat visibility
+     * This toggles forceOverlayMode back to false in ActiveChat
+     */
+    onShowChat?: () => void;
   }
   
   let {
@@ -164,7 +212,18 @@
     faviconUrl,
     showSkillIcon = true,
     customStatusText,
-    showStatus = true
+    showStatus = true,
+    // Embed navigation props
+    hasPreviousEmbed = false,
+    hasNextEmbed = false,
+    onNavigatePrevious,
+    onNavigateNext,
+    // Embed data update props
+    currentEmbedId,
+    onEmbedDataUpdated,
+    // Chat toggle props (for side-by-side mode)
+    showChatButton = false,
+    onShowChat
   }: Props = $props();
   
   // ============================================
@@ -192,9 +251,12 @@
     
     // If no embed IDs, skip loading (use legacyResults if provided)
     if (embedIdList.length === 0) {
-      console.debug('[UnifiedEmbedFullscreen] No embedIds to load, using legacyResults if available:', {
+      console.debug('[UnifiedEmbedFullscreen] ⚠️ No embedIds to load - checking why:', {
         appId,
         skillId,
+        embedIdsProp: embedIds,
+        embedIdsPropType: typeof embedIds,
+        embedIdsPropLength: Array.isArray(embedIds) ? embedIds.length : (typeof embedIds === 'string' ? embedIds.length : 0),
         legacyResultsCount: legacyResults?.length || 0
       });
       isLoadingChildren = false;
@@ -221,9 +283,26 @@
         
         // Decode TOON content if needed
         let decodedContent = embedData.content;
+        
+        // Debug: Log raw content before decoding
+        console.debug('[UnifiedEmbedFullscreen] Child embed raw content:', {
+          childEmbedId,
+          contentType: typeof decodedContent,
+          isString: typeof decodedContent === 'string',
+          contentPreview: typeof decodedContent === 'string' ? decodedContent.substring(0, 200) : 'not a string'
+        });
+        
         if (typeof decodedContent === 'string') {
           decodedContent = await decodeToonContent(decodedContent);
         }
+        
+        // Debug: Log decoded content
+        console.debug('[UnifiedEmbedFullscreen] Child embed decoded content:', {
+          childEmbedId,
+          contentKeys: decodedContent ? Object.keys(decodedContent) : [],
+          extra_snippets: decodedContent?.extra_snippets,
+          extra_snippets_type: typeof decodedContent?.extra_snippets
+        });
         
         if (!decodedContent) {
           console.warn('[UnifiedEmbedFullscreen] Failed to decode child embed content:', childEmbedId);
@@ -254,6 +333,80 @@
     loadedChildren = children;
     isLoadingChildren = false;
     console.debug('[UnifiedEmbedFullscreen] Finished loading', children.length, 'child embeds');
+  }
+  
+  // ============================================
+  // Embed Data Update Subscription (for reactive updates during streaming)
+  // ============================================
+  
+  /** Event listener for embed updates - stored for cleanup */
+  let embedUpdateListener: ((e: CustomEvent) => void) | null = null;
+  
+  /**
+   * Handle embed updates from chatSyncService
+   * When an embedUpdated event fires for the current embed ID, refetch data from store
+   * and notify the parent component via onEmbedDataUpdated callback
+   */
+  function handleEmbedUpdate(event: CustomEvent) {
+    // Check if this update is for our embed
+    const { embed_id, contentRef, status: newStatus } = event.detail;
+    const matchesEmbedId = embed_id === currentEmbedId;
+    const matchesContentRef = contentRef === `embed:${currentEmbedId}`;
+    
+    if (!matchesEmbedId && !matchesContentRef) {
+      return;
+    }
+    
+    console.debug(`[UnifiedEmbedFullscreen] 🔄 Received embedUpdated for ${currentEmbedId}:`, {
+      newStatus,
+      embed_id,
+      contentRef
+    });
+    
+    // Refetch from store to get full data and notify parent component
+    refetchCurrentEmbed();
+  }
+  
+  /**
+   * Refetch current embed data from the store and notify parent via callback
+   * This ensures we have the latest data after an update during streaming
+   */
+  async function refetchCurrentEmbed() {
+    if (!currentEmbedId || !onEmbedDataUpdated) {
+      return;
+    }
+    
+    try {
+      const embedData = await embedStore.get(`embed:${currentEmbedId}`);
+      if (!embedData) {
+        console.warn(`[UnifiedEmbedFullscreen] Embed not found in store: ${currentEmbedId}`);
+        return;
+      }
+      
+      console.debug(`[UnifiedEmbedFullscreen] Refetched data from store for ${currentEmbedId}:`, {
+        status: embedData.status,
+        hasContent: !!embedData.content,
+        hasResults: !!embedData.results,
+        resultsCount: embedData.results?.length || 0
+      });
+      
+      // Decode TOON content if needed
+      let decodedContent = embedData.content;
+      if (typeof decodedContent === 'string') {
+        decodedContent = await decodeToonContent(decodedContent);
+      }
+      
+      // Notify parent component with decoded content and results
+      if (decodedContent) {
+        onEmbedDataUpdated({
+          status: embedData.status || 'processing',
+          decodedContent: decodedContent as Record<string, unknown>,
+          results: embedData.results || (decodedContent as Record<string, unknown>)?.results as unknown[]
+        });
+      }
+    } catch (error) {
+      console.error(`[UnifiedEmbedFullscreen] Error refetching from store for ${currentEmbedId}:`, error);
+    }
   }
   
   /**
@@ -322,6 +475,33 @@
     }
   }
   
+  // Handle navigate to previous embed
+  function handleNavigatePrevious() {
+    if (onNavigatePrevious && hasPreviousEmbed) {
+      console.debug('[UnifiedEmbedFullscreen] Navigating to previous embed');
+      onNavigatePrevious();
+    }
+  }
+  
+  // Handle navigate to next embed
+  function handleNavigateNext() {
+    if (onNavigateNext && hasNextEmbed) {
+      console.debug('[UnifiedEmbedFullscreen] Navigating to next embed');
+      onNavigateNext();
+    }
+  }
+  
+  // Handle show chat action - restores chat visibility in side-by-side mode
+  // Called when user clicks the "chat" button to toggle back to side-by-side layout
+  function handleShowChatClick() {
+    if (onShowChat) {
+      console.debug('[UnifiedEmbedFullscreen] Show chat button clicked - restoring chat visibility');
+      onShowChat();
+    } else {
+      console.debug('[UnifiedEmbedFullscreen] Show chat action (no handler provided)');
+    }
+  }
+  
   // Handle report issue action - opens settings with report issue page
   // The SettingsReportIssue component will auto-generate the embed share URL
   async function handleReportIssue() {
@@ -350,6 +530,21 @@
     // Listen for chat selection events to close fullscreen
     window.addEventListener('globalChatSelected', handleChatSelected);
     
+    // Subscribe to embed updates if currentEmbedId is provided
+    // This enables reactive updates during streaming
+    if (currentEmbedId && onEmbedDataUpdated) {
+      console.debug(`[UnifiedEmbedFullscreen] Subscribing to embedUpdated for ${currentEmbedId}`);
+      embedUpdateListener = handleEmbedUpdate;
+      // Type-safe event listener subscription
+      const service = chatSyncService as unknown as { 
+        addEventListener: (type: string, listener: (e: CustomEvent) => void) => void 
+      };
+      service.addEventListener('embedUpdated', embedUpdateListener);
+      
+      // Initial fetch to ensure we have the latest data
+      refetchCurrentEmbed();
+    }
+    
     // Load child embeds if embedIds is provided
     if (embedIds) {
       loadChildEmbeds();
@@ -366,6 +561,15 @@
   
   onDestroy(() => {
     window.removeEventListener('globalChatSelected', handleChatSelected);
+    
+    // Clean up embed update listener
+    if (embedUpdateListener) {
+      const service = chatSyncService as unknown as { 
+        removeEventListener: (type: string, listener: (e: CustomEvent) => void) => void 
+      };
+      service.removeEventListener('embedUpdated', embedUpdateListener);
+      embedUpdateListener = null;
+    }
   });
 </script>
 
@@ -377,8 +581,35 @@
   <div class="fullscreen-container">
     <!-- Top bar with action buttons -->
     <div class="top-bar">
-      <!-- Left side: Share, Open, Report Issue, Copy, and Download buttons -->
+      <!-- Left side: Chat button (when hidden), Previous button, Share, Copy, Download, Report Issue buttons -->
       <div class="top-bar-left">
+        <!-- Show Chat button - only shown when chat is hidden (forceOverlayMode active on ultra-wide) -->
+        <!-- Allows user to restore the side-by-side layout -->
+        {#if showChatButton && onShowChat}
+          <div class="button-wrapper">
+            <button
+              class="action-button chat-button"
+              onclick={handleShowChatClick}
+              aria-label={$text('chat.show_chat.text', { default: 'Show Chat' })}
+              title={$text('chat.show_chat.text', { default: 'Show Chat' })}
+            >
+              <span class="clickable-icon icon_chat"></span>
+            </button>
+          </div>
+        {/if}
+        <!-- Previous embed navigation button - only shown if there is a previous embed -->
+        {#if hasPreviousEmbed && onNavigatePrevious}
+          <div class="button-wrapper nav-button-wrapper">
+            <button
+              class="action-button nav-button nav-previous"
+              onclick={handleNavigatePrevious}
+              aria-label="Previous embed"
+              title="Previous embed"
+            >
+              <span class="clickable-icon icon_back"></span>
+            </button>
+          </div>
+        {/if}
         <!-- Share button - always shown -->
         <div class="button-wrapper">
           <button
@@ -429,8 +660,21 @@
           </div>
       </div>
       
-      <!-- Right side: Minimize button -->
+      <!-- Right side: Next button and Minimize button -->
       <div class="top-bar-right">
+        <!-- Next embed navigation button - only shown if there is a next embed -->
+        {#if hasNextEmbed && onNavigateNext}
+          <div class="button-wrapper nav-button-wrapper">
+            <button
+              class="action-button nav-button nav-next"
+              onclick={handleNavigateNext}
+              aria-label="Next embed"
+              title="Next embed"
+            >
+              <span class="clickable-icon icon_back icon_forward"></span>
+            </button>
+          </div>
+        {/if}
         <div class="button-wrapper">
           <button
             class="action-button minimize-button"
@@ -633,6 +877,20 @@
   .action-button .clickable-icon {
     width: 24px;
     height: 24px;
+  }
+  
+  /* Navigation buttons - using back icon, forward icon is rotated 180deg */
+  .nav-button .icon_forward {
+    transform: rotate(180deg);
+  }
+  
+  /* Hide navigation button wrappers on narrow screens (< 500px) to prevent UI crowding */
+  /* Uses container query since container-type: inline-size is set on the overlay */
+  /* Target the wrapper (not just the button) to hide the entire container including background */
+  @container fullscreen (max-width: 500px) {
+    .nav-button-wrapper {
+      display: none;
+    }
   }
   
   /* Header section */

@@ -40,6 +40,18 @@
     restoreFromPip?: boolean;
     /** Optional: Embed ID for sharing (from embed:{embed_id} contentRef) */
     embedId?: string;
+    /** Whether there is a previous embed to navigate to */
+    hasPreviousEmbed?: boolean;
+    /** Whether there is a next embed to navigate to */
+    hasNextEmbed?: boolean;
+    /** Handler to navigate to the previous embed */
+    onNavigatePrevious?: () => void;
+    /** Handler to navigate to the next embed */
+    onNavigateNext?: () => void;
+    /** Whether to show the "chat" button to restore chat visibility (ultra-wide forceOverlayMode) */
+    showChatButton?: boolean;
+    /** Callback when user clicks the "chat" button to restore chat visibility */
+    onShowChat?: () => void;
   }
   
   let {
@@ -48,7 +60,13 @@
     onClose,
     videoId: propVideoId,
     restoreFromPip = false,
-    embedId
+    embedId,
+    hasPreviousEmbed = false,
+    hasNextEmbed = false,
+    onNavigatePrevious,
+    onNavigateNext,
+    showChatButton = false,
+    onShowChat
   }: Props = $props();
   
   // Extract video ID and thumbnail for YouTube URLs
@@ -344,6 +362,12 @@
   skillName={displayTitle}
   showSkillIcon={false}
   showStatus={false}
+  {hasPreviousEmbed}
+  {hasNextEmbed}
+  {onNavigatePrevious}
+  {onNavigateNext}
+  {showChatButton}
+  {onShowChat}
 >
   {#snippet content()}
     <div class="video-container">
