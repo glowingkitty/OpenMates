@@ -3907,14 +3907,20 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         />
                     {:else if appId === 'web' && skillId === 'read'}
                         <!-- Web Read Fullscreen -->
+                        <!-- Pass URL from decoded content (from processing placeholder or original_metadata) -->
+                        {@const webReadUrl = embedFullscreenData.decodedContent?.url || 
+                            embedFullscreenData.decodedContent?.original_metadata?.url || 
+                            embedFullscreenData.decodedContent?.results?.[0]?.url || ''}
                         {@const previewData = {
                             app_id: appId,
                             skill_id: skillId,
                             status: embedFullscreenData.embedData?.status || 'finished',
-                            results: embedFullscreenData.decodedContent?.results || []
+                            results: embedFullscreenData.decodedContent?.results || [],
+                            url: webReadUrl
                         }}
                         <WebReadEmbedFullscreen 
                             previewData={previewData}
+                            url={webReadUrl}
                             onClose={handleCloseEmbedFullscreen}
                             {hasPreviousEmbed}
                             {hasNextEmbed}
@@ -3944,6 +3950,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             extra_snippets={embedFullscreenData.decodedContent?.extra_snippets}
                             meta_url_favicon={embedFullscreenData.decodedContent?.meta_url_favicon}
                             thumbnail_original={embedFullscreenData.decodedContent?.thumbnail_original}
+                            dataDate={embedFullscreenData.decodedContent?.page_age}
                             embedId={embedFullscreenData.embedId}
                             onClose={handleCloseEmbedFullscreen}
                             {hasPreviousEmbed}

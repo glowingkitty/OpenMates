@@ -262,11 +262,18 @@ async def search_web(
                 if not isinstance(extra_snippets, list):
                     extra_snippets = []
                 
+                # Extract page_age from 'age' field (human-readable string like "2 days ago")
+                # Note: Brave Search does not always return 'age' for all results - it's optional metadata
+                page_age = result.get("age", "")
+                
+                # Debug log to track age field availability
+                logger.debug(f"Brave result for '{result.get('url', '')}': age='{page_age}', extra_snippets_count={len(extra_snippets)}")
+                
                 formatted_result = {
                     "title": result.get("title", ""),
                     "url": result.get("url", ""),
                     "description": result.get("description", ""),
-                    "page_age": result.get("age", ""),  # When the page was indexed (renamed from "age" to "page_age")
+                    "page_age": page_age,  # When the page was indexed (human-readable, e.g., "2 days ago")
                     "meta_url": meta_url,  # Full meta_url object
                     "language": result.get("language", ""),
                     "family_friendly": result.get("family_friendly", True),

@@ -139,6 +139,14 @@ async function initializeRegistry(): Promise<void> {
     const url = data.decodedContent?.url || data.attrs?.url || '';
     if (!url) return null;
     
+    // Debug logging for website embed props
+    console.debug('[embedFullscreenHandler] Website embed props:', {
+      url,
+      extra_snippets: data.decodedContent?.extra_snippets,
+      page_age: data.decodedContent?.page_age,
+      hasDecodedContent: !!data.decodedContent
+    });
+    
     return {
       component,
       props: {
@@ -150,6 +158,7 @@ async function initializeRegistry(): Promise<void> {
         extra_snippets: data.decodedContent?.extra_snippets, // Backend TOON format: pipe-delimited string
         meta_url_favicon: data.decodedContent?.meta_url_favicon,
         thumbnail_original: data.decodedContent?.thumbnail_original,
+        dataDate: data.decodedContent?.page_age, // Map page_age to dataDate for display
         onClose: data.onClose,
         embedId: data.embedId // Add embedId for sharing functionality
       }

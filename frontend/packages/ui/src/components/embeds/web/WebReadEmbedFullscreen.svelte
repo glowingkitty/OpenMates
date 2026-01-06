@@ -8,6 +8,10 @@
   - Skill preview context: receives previewData from skillPreviewService
   - Embed context: receives results directly
   
+  Data sources (in priority order):
+  1. results[0] - Contains full read results with markdown (from finished embed)
+  2. url prop - Direct URL from embed content (from processing placeholder)
+  
   Layout (per Figma design):
   - File widget at top: shows website title with app icon
   - "Full viewing experience:" label with "Open on {hostname}" CTA button
@@ -29,8 +33,8 @@
   interface WebReadResult {
     type: string;
     url: string;
-    title: string;
-    markdown: string;
+    title?: string;
+    markdown?: string;
     language?: string;
     favicon?: string;
     og_image?: string;
@@ -43,6 +47,7 @@
    */
   interface WebReadPreviewData extends BaseSkillPreviewData {
     results: WebReadResult[];
+    url?: string; // URL from processing placeholder content
   }
   
   /**
@@ -52,6 +57,8 @@
   interface Props {
     /** Web read results (direct format) */
     results?: WebReadResult[];
+    /** Direct URL from embed content (from processing placeholder) */
+    url?: string;
     /** Skill preview data (skill preview context) */
     previewData?: WebReadPreviewData;
     /** Close handler */
@@ -70,6 +77,7 @@
   
   let {
     results: resultsProp,
+    url: urlProp,
     previewData,
     onClose,
     embedId,
@@ -82,8 +90,17 @@
   // Extract values from either previewData (skill preview context) or direct props (embed context)
   let results = $derived(previewData?.results || resultsProp || []);
   
-  // Get first result for main display
+  // Get first result for main display (may be undefined if results are empty)
   let firstResult = $derived(results[0]);
+  
+  // Get URL from multiple sources (priority: results > previewData > direct prop)
+  // CRITICAL: Even if results are empty, we may have URL from the processing placeholder
+  let effectiveUrl = $derived(
+    firstResult?.url || 
+    previewData?.url || 
+    urlProp || 
+    ''
+  );
   
   /**
    * Safely extract hostname from URL
@@ -99,10 +116,10 @@
     }
   }
   
-  // Extract hostname for display
-  let hostname = $derived(safeHostname(firstResult?.url));
+  // Extract hostname from effective URL
+  let hostname = $derived(safeHostname(effectiveUrl));
   
-  // Display title: page title or fallback to hostname
+  // Display title: page title from results, or fallback to hostname
   let displayTitle = $derived(
     firstResult?.title || 
     hostname ||
@@ -118,8 +135,18 @@
     return title;
   });
   
-  // Favicon URL from first result
-  let faviconUrl = $derived(firstResult?.favicon || undefined);
+  // Favicon URL for display
+  // Priority: result favicon > generated from URL > undefined
+  let faviconUrl = $derived(() => {
+    if (firstResult?.favicon) {
+      return firstResult.favicon;
+    }
+    // Generate favicon URL from effectiveUrl if available
+    if (effectiveUrl) {
+      return `https://preview.openmates.org/api/v1/favicon?url=${encodeURIComponent(effectiveUrl)}`;
+    }
+    return undefined;
+  });
   
   /**
    * Calculate total word count across all results
@@ -143,6 +170,19 @@
   
   // Store rendered HTML for markdown
   let renderedMarkdowns = $state<Map<number, string>>(new Map());
+  
+  // Debug logging
+  $effect(() => {
+    console.debug('[WebReadEmbedFullscreen] Rendering with:', {
+      resultsCount: results.length,
+      effectiveUrl,
+      hostname,
+      displayTitle,
+      wordCount: totalWordCount(),
+      hasPreviewData: !!previewData,
+      hasUrlProp: !!urlProp
+    });
+  });
   
   /**
    * Render markdown to HTML using markdown-it
@@ -189,10 +229,11 @@
   
   /**
    * Handle opening the website in a new tab
+   * Uses effectiveUrl which includes fallback to urlProp
    */
   function handleOpenWebsite() {
-    if (firstResult?.url) {
-      window.open(firstResult.url, '_blank', 'noopener,noreferrer');
+    if (effectiveUrl) {
+      window.open(effectiveUrl, '_blank', 'noopener,noreferrer');
     }
   }
   
@@ -201,7 +242,7 @@
    */
   async function handleShare() {
     try {
-      console.debug('[WebReadEmbedFullscreen] Opening share settings:', { embedId, url: firstResult?.url });
+      console.debug('[WebReadEmbedFullscreen] Opening share settings:', { embedId, url: effectiveUrl });
       
       if (!embedId) {
         console.warn('[WebReadEmbedFullscreen] No embed_id available - cannot create share link');
@@ -219,7 +260,7 @@
       const embedContext = {
         type: 'web_read',
         embed_id: embedId,
-        url: firstResult?.url,
+        url: effectiveUrl,
         title: displayTitle
       };
       
@@ -260,9 +301,9 @@
         <div class="file-widget-icon">
           <div class="icon_rounded web"></div>
         </div>
-        {#if faviconUrl}
+        {#if faviconUrl()}
           <img 
-            src={faviconUrl} 
+            src={faviconUrl()} 
             alt="" 
             class="file-widget-favicon"
             onerror={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
@@ -271,30 +312,43 @@
         <div class="file-widget-title">{truncatedTitle()}</div>
       </div>
       
-      <!-- "Full viewing experience:" label -->
-      <div class="full-view-label">
-        {$text('embeds.web_read_full_view.text') || 'Full viewing experience:'}
-      </div>
+      <!-- Show "Full viewing experience" and open button only if we have a URL -->
+      {#if effectiveUrl}
+        <!-- "Full viewing experience:" label -->
+        <div class="full-view-label">
+          {$text('embeds.web_read_full_view.text') || 'Full viewing experience:'}
+        </div>
+        
+        <!-- CTA Button: "Open on {hostname}" -->
+        <button 
+          class="open-website-button"
+          onclick={handleOpenWebsite}
+          type="button"
+        >
+          {openButtonText}
+        </button>
+      {/if}
       
-      <!-- CTA Button: "Open on {hostname}" -->
-      <button 
-        class="open-website-button"
-        onclick={handleOpenWebsite}
-        type="button"
-      >
-        {openButtonText}
-      </button>
-      
-      <!-- "Text only preview, via Firecrawl: X words" label -->
-      <div class="text-preview-label">
-        <span>{$text('embeds.web_read_text_preview.text') || 'Text only preview,'}</span>
-        <span>via Firecrawl: {totalWordCount().toLocaleString()} words</span>
-      </div>
+      <!-- "Text only preview, via Firecrawl: X words" label - only show if we have content -->
+      {#if totalWordCount() > 0}
+        <div class="text-preview-label">
+          <span>{$text('embeds.web_read_text_preview.text') || 'Text only preview,'}</span>
+          <span>via Firecrawl: {totalWordCount().toLocaleString()} words</span>
+        </div>
+      {/if}
       
       <!-- Content card with rendered markdown -->
       {#if results.length === 0}
+        <!-- No results yet - show URL info if available, otherwise placeholder -->
         <div class="no-results">
-          <p>{$text('embeds.web_read_no_content.text') || 'No content available.'}</p>
+          {#if effectiveUrl}
+            <div class="pending-content">
+              <p class="pending-url">{effectiveUrl}</p>
+              <p class="pending-message">{$text('embeds.web_read_loading_content.text') || 'Loading content...'}</p>
+            </div>
+          {:else}
+            <p>{$text('embeds.web_read_no_content.text') || 'No content available.'}</p>
+          {/if}
         </div>
       {:else}
         <div class="content-card">
@@ -475,6 +529,28 @@
     height: 200px;
     color: var(--color-grey-70);
     font-size: 16px;
+    text-align: center;
+  }
+  
+  /* Pending content display when URL is available but results haven't loaded */
+  .pending-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+  }
+  
+  .pending-url {
+    font-size: 14px;
+    color: var(--color-grey-80);
+    word-break: break-all;
+    max-width: 400px;
+  }
+  
+  .pending-message {
+    font-size: 14px;
+    color: var(--color-grey-60);
+    font-style: italic;
   }
   
   .content-card {

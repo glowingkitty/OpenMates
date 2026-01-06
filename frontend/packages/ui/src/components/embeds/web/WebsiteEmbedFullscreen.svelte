@@ -76,14 +76,38 @@
     onNavigateNext
   }: Props = $props();
   
+  // Debug: Log all props when component is initialized
+  // This helps trace data flow issues with extra_snippets and page_age
+  $effect(() => {
+    console.debug('[WebsiteEmbedFullscreen] Props received:', {
+      url,
+      title,
+      extra_snippets,
+      extra_snippets_type: typeof extra_snippets,
+      extra_snippets_length: typeof extra_snippets === 'string' ? extra_snippets.length : (Array.isArray(extra_snippets) ? extra_snippets.length : 'N/A'),
+      dataDate,
+      embedId
+    });
+  });
+  
   /**
    * Parse extra_snippets from backend TOON format:
    * - Pipe-delimited string: "snippet1|snippet2|snippet3"
    * - Or already an array: ["snippet1", "snippet2"]
    * Returns a normalized array of snippet strings
+   * 
+   * Note: Brave Search sometimes includes a " *" marker at the end of snippets
+   * which indicates truncated content - we preserve this as-is.
    */
   let snippets = $derived.by(() => {
+    console.debug('[WebsiteEmbedFullscreen] Processing extra_snippets:', {
+      type: typeof extra_snippets,
+      value: extra_snippets,
+      isArray: Array.isArray(extra_snippets)
+    });
+    
     if (!extra_snippets) {
+      console.debug('[WebsiteEmbedFullscreen] No extra_snippets provided');
       return [];
     }
     
@@ -96,10 +120,11 @@
     // If it's a pipe-delimited string, split it
     if (typeof extra_snippets === 'string' && extra_snippets.trim()) {
       const parsed = extra_snippets.split('|').filter(s => s.trim());
-      console.debug('[WebsiteEmbedFullscreen] Parsed extra_snippets string:', parsed.length, 'items');
+      console.debug('[WebsiteEmbedFullscreen] Parsed extra_snippets string:', parsed.length, 'items', parsed);
       return parsed;
     }
     
+    console.debug('[WebsiteEmbedFullscreen] extra_snippets is empty or invalid');
     return [];
   });
   
@@ -129,25 +154,112 @@
     `https://preview.openmates.org/api/v1/image?url=${encodeURIComponent(url)}`
   );
   
-  // Format the data date for display (e.g., "Data from 2025/01/05")
-  let formattedDate = $derived(() => {
-    if (dataDate) {
-      try {
-        const date = new Date(dataDate);
-        const year = date.getFullYear();
-        const month = String(date.getMonth() + 1).padStart(2, '0');
-        const day = String(date.getDate()).padStart(2, '0');
-        return `Data from ${year}/${month}/${day}`;
-      } catch {
-        return dataDate;
-      }
+  /**
+   * Parse relative time strings from Brave Search API (e.g., "2 weeks ago", "3 days ago")
+   * and convert to actual Date objects.
+   * 
+   * Brave Search returns human-readable strings, not ISO dates, so we need to parse them.
+   * 
+   * @param relativeTime - String like "2 weeks ago", "3 days ago", "1 month ago"
+   * @returns Date object or null if parsing fails
+   */
+  function parseRelativeTime(relativeTime: string): Date | null {
+    if (!relativeTime || typeof relativeTime !== 'string') {
+      return null;
     }
-    // Default to current date if not provided
+    
+    const trimmed = relativeTime.trim().toLowerCase();
+    
+    // Try to parse as ISO date first (fallback for any ISO dates)
+    const isoDate = new Date(relativeTime);
+    if (!isNaN(isoDate.getTime())) {
+      return isoDate;
+    }
+    
+    // Parse relative time patterns like "2 weeks ago", "3 days ago", etc.
+    // Patterns: X second(s)/minute(s)/hour(s)/day(s)/week(s)/month(s)/year(s) ago
+    const relativePattern = /^(\d+)\s+(second|minute|hour|day|week|month|year)s?\s+ago$/i;
+    const match = trimmed.match(relativePattern);
+    
+    if (!match) {
+      // Handle special cases
+      if (trimmed === 'yesterday') {
+        const date = new Date();
+        date.setDate(date.getDate() - 1);
+        return date;
+      }
+      if (trimmed === 'today' || trimmed === 'just now') {
+        return new Date();
+      }
+      
+      console.debug('[WebsiteEmbedFullscreen] Could not parse relative time:', relativeTime);
+      return null;
+    }
+    
+    const amount = parseInt(match[1], 10);
+    const unit = match[2].toLowerCase();
     const now = new Date();
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    const day = String(now.getDate()).padStart(2, '0');
-    return `Data from ${year}/${month}/${day}`;
+    
+    switch (unit) {
+      case 'second':
+        now.setSeconds(now.getSeconds() - amount);
+        break;
+      case 'minute':
+        now.setMinutes(now.getMinutes() - amount);
+        break;
+      case 'hour':
+        now.setHours(now.getHours() - amount);
+        break;
+      case 'day':
+        now.setDate(now.getDate() - amount);
+        break;
+      case 'week':
+        now.setDate(now.getDate() - (amount * 7));
+        break;
+      case 'month':
+        now.setMonth(now.getMonth() - amount);
+        break;
+      case 'year':
+        now.setFullYear(now.getFullYear() - amount);
+        break;
+      default:
+        return null;
+    }
+    
+    return now;
+  }
+  
+  // Format the data date for display (e.g., "Data from 2025/01/05")
+  // Only shows a date when dataDate is explicitly provided (e.g., from web search results)
+  // Returns null when no date is available - we don't want to mislead users by showing
+  // the current date when we don't actually know when the data was fetched
+  //
+  // Brave Search API returns relative time strings like "2 weeks ago", "3 days ago"
+  // which we parse into actual dates and display in YYYY/MM/DD format
+  let formattedDate = $derived(() => {
+    if (!dataDate) {
+      // No date provided - don't show anything rather than showing potentially incorrect date
+      return null;
+    }
+    
+    try {
+      // Parse the relative time string from Brave Search (e.g., "2 weeks ago")
+      const date = parseRelativeTime(dataDate);
+      
+      if (!date) {
+        console.debug('[WebsiteEmbedFullscreen] Could not parse dataDate:', dataDate);
+        return null;
+      }
+      
+      // Format as YYYY/MM/DD - language-neutral format
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `Data from ${year}/${month}/${day}`;
+    } catch (error) {
+      console.warn('[WebsiteEmbedFullscreen] Error parsing dataDate:', dataDate, error);
+      return null;
+    }
   });
   
   // Handle opening website in new tab
@@ -272,8 +384,10 @@
         <h1 class="website-title">{displayTitle}</h1>
       </div>
       
-      <!-- Date metadata -->
-      <div class="date-info">{formattedDate()}</div>
+      <!-- Date metadata - only shown when we have a specific date from backend (e.g., web search results) -->
+      {#if formattedDate()}
+        <div class="date-info">{formattedDate()}</div>
+      {/if}
       
       <!-- CTA Button - "Open on [hostname]" -->
       <button class="cta-button" onclick={handleOpenInNewTab}>

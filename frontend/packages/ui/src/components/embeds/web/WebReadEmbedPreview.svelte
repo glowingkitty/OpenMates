@@ -8,6 +8,10 @@
   - Skill preview context: receives previewData from skillPreviewService
   - Embed context: receives results directly
   
+  Data sources (in priority order):
+  1. results[0] - Contains full read results with markdown (from finished embed)
+  2. url prop - Direct URL from embed content (from processing placeholder)
+  
   Layout (per Figma design):
   - Details section:
     - Favicon (rounded, top-left of title)
@@ -46,6 +50,7 @@
    */
   interface WebReadPreviewData extends BaseSkillPreviewData {
     results: WebReadResult[];
+    url?: string; // URL from processing placeholder content
   }
   
   /**
@@ -57,8 +62,10 @@
     id: string;
     /** Processing status */
     status?: 'processing' | 'finished' | 'error';
-    /** Web read results */
+    /** Web read results (from finished embed) */
     results?: WebReadResult[];
+    /** Direct URL from embed content (from processing placeholder) */
+    url?: string;
     /** Task ID for cancellation */
     taskId?: string;
     /** Skill preview data (skill preview context) */
@@ -73,6 +80,7 @@
     id,
     status: statusProp,
     results: resultsProp,
+    url: urlProp,
     taskId: taskIdProp,
     previewData,
     isMobile = false,
@@ -84,8 +92,17 @@
   let results = $derived(previewData?.results || resultsProp || []);
   let taskId = $derived(previewData?.task_id || taskIdProp);
   
-  // Get first result for main display
+  // Get first result for main display (may be undefined if results are empty)
   let firstResult = $derived(results[0]);
+  
+  // Get URL from multiple sources (priority: results > previewData > direct prop)
+  // CRITICAL: Even if results are empty, we may have URL from the processing placeholder
+  let effectiveUrl = $derived(
+    firstResult?.url || 
+    previewData?.url || 
+    urlProp || 
+    ''
+  );
   
   /**
    * Safely extract hostname from URL
@@ -102,18 +119,29 @@
     }
   }
   
-  // Extract hostname from first result's URL
-  let hostname = $derived(safeHostname(firstResult?.url));
+  // Extract hostname from effective URL
+  let hostname = $derived(safeHostname(effectiveUrl));
   
-  // Display title: page title or fallback to hostname
+  // Display title: page title from results, or fallback to hostname
+  // CRITICAL: Use effectiveUrl-derived hostname if results are empty
   let displayTitle = $derived(
     firstResult?.title || 
     hostname || 
     ($text('embeds.web_read.text') || 'Web Read')
   );
   
-  // Favicon URL for display (prefer result favicon)
-  let faviconUrl = $derived(firstResult?.favicon || undefined);
+  // Favicon URL for display
+  // Priority: result favicon > generated from URL > undefined
+  let faviconUrl = $derived(() => {
+    if (firstResult?.favicon) {
+      return firstResult.favicon;
+    }
+    // Generate favicon URL from effectiveUrl if available
+    if (effectiveUrl) {
+      return `https://preview.openmates.org/api/v1/favicon?url=${encodeURIComponent(effectiveUrl)}`;
+    }
+    return undefined;
+  });
   
   /**
    * Calculate total word count across all results
@@ -146,6 +174,21 @@
   // Skill display name from translations
   let skillName = $derived($text('embeds.web_read.text') || 'Read');
   
+  // Debug logging to help trace data flow issues
+  $effect(() => {
+    console.debug('[WebReadEmbedPreview] Rendering with:', {
+      id,
+      status,
+      resultsCount: results.length,
+      effectiveUrl,
+      hostname,
+      displayTitle,
+      wordCount: totalWordCount(),
+      hasPreviewData: !!previewData,
+      hasUrlProp: !!urlProp
+    });
+  });
+  
   /**
    * Handle stop button click - cancel the running task
    */
@@ -172,15 +215,15 @@
   {isMobile}
   {onFullscreen}
   onStop={handleStop}
-  {faviconUrl}
+  faviconUrl={faviconUrl()}
 >
   {#snippet details({ isMobile: isMobileLayout })}
     <div class="web-read-details" class:mobile={isMobileLayout}>
       <!-- Title row with favicon -->
       <div class="title-row">
-        {#if faviconUrl}
+        {#if faviconUrl()}
           <img 
-            src={faviconUrl} 
+            src={faviconUrl()} 
             alt="" 
             class="title-favicon"
             onerror={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}

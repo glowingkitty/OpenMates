@@ -505,6 +505,11 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     const taskId = decodedContent?.task_id || '';
     const results = decodedContent?.results || [];
     
+    // CRITICAL: Extract URL from decodedContent for processing placeholders
+    // The processing placeholder stores url at the root level (not in results)
+    // This ensures we can display the website info even before results are available
+    const url = decodedContent?.url || '';
+    
     // Cleanup any existing mounted component
     const existingComponent = mountedComponents.get(content);
     if (existingComponent) {
@@ -529,6 +534,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
           id: embedId,
           status: status as 'processing' | 'finished' | 'error',
           results,
+          url, // Pass URL from processing placeholder content
           taskId,
           isMobile: false,
           onFullscreen: handleFullscreen
@@ -536,7 +542,12 @@ export class AppSkillUseRenderer implements EmbedRenderer {
       });
       
       mountedComponents.set(content, component);
-      console.debug('[AppSkillUseRenderer] Mounted WebReadEmbedPreview component:', { embedId, status, resultsCount: results.length });
+      console.debug('[AppSkillUseRenderer] Mounted WebReadEmbedPreview component:', { 
+        embedId, 
+        status, 
+        resultsCount: results.length,
+        url: url ? url.substring(0, 50) + '...' : 'none'
+      });
     } catch (error) {
       console.error('[AppSkillUseRenderer] Error mounting WebReadEmbedPreview:', error);
       this.renderWebReadFallbackHTML(attrs, embedData, decodedContent, content);
@@ -671,8 +682,9 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     const results = decodedContent?.results || [];
     const firstResult = results[0] || {};
     
-    // Extract website information from first result
-    const url = firstResult.url || '';
+    // Extract website information - check both result and root level (processing placeholder)
+    // Processing placeholder stores URL at root level, finished embed stores in results
+    const url = firstResult.url || decodedContent?.url || '';
     const title = firstResult.title || '';
     let hostname = '';
     if (url) {
@@ -683,7 +695,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
         hostname = withoutScheme.split('/')[0] || '';
       }
     }
-    const displayTitle = title || hostname || 'Website';
+    const displayTitle = title || hostname || 'Web Read';
     const resultCount = results.length;
     
     // Render web read preview - no need for embed-unified-container wrapper
