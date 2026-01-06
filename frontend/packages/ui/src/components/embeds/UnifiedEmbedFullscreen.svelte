@@ -239,9 +239,26 @@
         
         // Decode TOON content if needed
         let decodedContent = embedData.content;
+        
+        // Debug: Log raw content before decoding
+        console.debug('[UnifiedEmbedFullscreen] Child embed raw content:', {
+          childEmbedId,
+          contentType: typeof decodedContent,
+          isString: typeof decodedContent === 'string',
+          contentPreview: typeof decodedContent === 'string' ? decodedContent.substring(0, 200) : 'not a string'
+        });
+        
         if (typeof decodedContent === 'string') {
           decodedContent = await decodeToonContent(decodedContent);
         }
+        
+        // Debug: Log decoded content
+        console.debug('[UnifiedEmbedFullscreen] Child embed decoded content:', {
+          childEmbedId,
+          contentKeys: decodedContent ? Object.keys(decodedContent) : [],
+          extra_snippets: decodedContent?.extra_snippets,
+          extra_snippets_type: typeof decodedContent?.extra_snippets
+        });
         
         if (!decodedContent) {
           console.warn('[UnifiedEmbedFullscreen] Failed to decode child embed content:', childEmbedId);

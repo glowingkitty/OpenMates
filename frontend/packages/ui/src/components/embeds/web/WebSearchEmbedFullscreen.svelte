@@ -124,7 +124,16 @@
    * Extracts all available fields for both preview and fullscreen views
    */
   function transformToWebResult(embedId: string, content: Record<string, unknown>): WebSearchResult {
-    return {
+    // Debug: Log raw content to see what fields are available
+    console.debug('[WebSearchEmbedFullscreen] transformToWebResult raw content:', {
+      embedId,
+      contentKeys: Object.keys(content),
+      extra_snippets: content.extra_snippets,
+      extra_snippets_type: typeof content.extra_snippets,
+      page_age: content.page_age
+    });
+    
+    const result: WebSearchResult = {
       embed_id: embedId,
       title: content.title as string | undefined,
       url: content.url as string,
@@ -134,6 +143,14 @@
       description: content.description as string | undefined,
       extra_snippets: content.extra_snippets as string | string[] | undefined
     };
+    
+    console.debug('[WebSearchEmbedFullscreen] Transformed result:', {
+      embedId,
+      hasExtraSnippets: !!result.extra_snippets,
+      extra_snippets: result.extra_snippets
+    });
+    
+    return result;
   }
   
   /**
@@ -176,7 +193,10 @@
     console.debug('[WebSearchEmbedFullscreen] Opening website fullscreen:', {
       embedId: websiteData.embed_id,
       url: websiteData.url,
-      title: websiteData.title
+      title: websiteData.title,
+      extra_snippets: websiteData.extra_snippets,
+      extra_snippets_type: typeof websiteData.extra_snippets,
+      hasExtraSnippets: !!websiteData.extra_snippets
     });
     selectedWebsite = websiteData;
   }
