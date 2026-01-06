@@ -170,6 +170,22 @@
      * Similar to UnifiedEmbedPreview's onEmbedDataUpdated
      */
     onEmbedDataUpdated?: (data: { status: string; decodedContent: Record<string, unknown>; results?: unknown[] }) => void;
+    
+    /* ============================================
+       Chat Toggle Props (for side-by-side mode)
+       ============================================ */
+    
+    /**
+     * Whether to show the "chat" button to restore chat visibility
+     * Only shown when chat is hidden (forceOverlayMode is true on ultra-wide screens)
+     */
+    showChatButton?: boolean;
+    
+    /**
+     * Callback when user clicks the "chat" button to restore chat visibility
+     * This toggles forceOverlayMode back to false in ActiveChat
+     */
+    onShowChat?: () => void;
   }
   
   let {
@@ -204,7 +220,10 @@
     onNavigateNext,
     // Embed data update props
     currentEmbedId,
-    onEmbedDataUpdated
+    onEmbedDataUpdated,
+    // Chat toggle props (for side-by-side mode)
+    showChatButton = false,
+    onShowChat
   }: Props = $props();
   
   // ============================================
@@ -469,6 +488,17 @@
     }
   }
   
+  // Handle show chat action - restores chat visibility in side-by-side mode
+  // Called when user clicks the "chat" button to toggle back to side-by-side layout
+  function handleShowChatClick() {
+    if (onShowChat) {
+      console.debug('[UnifiedEmbedFullscreen] Show chat button clicked - restoring chat visibility');
+      onShowChat();
+    } else {
+      console.debug('[UnifiedEmbedFullscreen] Show chat action (no handler provided)');
+    }
+  }
+  
   // Handle report issue action - opens settings with report issue page
   // The SettingsReportIssue component will auto-generate the embed share URL
   async function handleReportIssue() {
@@ -548,8 +578,22 @@
   <div class="fullscreen-container">
     <!-- Top bar with action buttons -->
     <div class="top-bar">
-      <!-- Left side: Previous button, Share, Copy, Download, Report Issue buttons -->
+      <!-- Left side: Chat button (when hidden), Previous button, Share, Copy, Download, Report Issue buttons -->
       <div class="top-bar-left">
+        <!-- Show Chat button - only shown when chat is hidden (forceOverlayMode active on ultra-wide) -->
+        <!-- Allows user to restore the side-by-side layout -->
+        {#if showChatButton && onShowChat}
+          <div class="button-wrapper">
+            <button
+              class="action-button chat-button"
+              onclick={handleShowChatClick}
+              aria-label={$text('chat.show_chat.text', { default: 'Show Chat' })}
+              title={$text('chat.show_chat.text', { default: 'Show Chat' })}
+            >
+              <span class="clickable-icon icon_chat"></span>
+            </button>
+          </div>
+        {/if}
         <!-- Previous embed navigation button - only shown if there is a previous embed -->
         {#if hasPreviousEmbed && onNavigatePrevious}
           <div class="button-wrapper">

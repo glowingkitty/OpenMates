@@ -68,6 +68,10 @@
     onNavigatePrevious?: () => void;
     /** Handler to navigate to the next embed */
     onNavigateNext?: () => void;
+    /** Whether to show the "chat" button to restore chat visibility (ultra-wide forceOverlayMode) */
+    showChatButton?: boolean;
+    /** Callback when user clicks the "chat" button to restore chat visibility */
+    onShowChat?: () => void;
   }
   
   let {
@@ -80,7 +84,9 @@
     hasPreviousEmbed = false,
     hasNextEmbed = false,
     onNavigatePrevious,
-    onNavigateNext
+    onNavigateNext,
+    showChatButton = false,
+    onShowChat
   }: Props = $props();
   
   // ============================================
@@ -281,6 +287,8 @@
   {hasNextEmbed}
   {onNavigatePrevious}
   {onNavigateNext}
+  {showChatButton}
+  {onShowChat}
 >
   {#snippet content(ctx)}
     {@const newsResults = getNewsResults(ctx)}

@@ -711,6 +711,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         showEmbedFullscreen = false;
         embedFullscreenData = null;
         
+        // Reset forceOverlayMode when embed is closed
+        // This ensures the next time an embed is opened, it uses the default layout based on screen size
+        forceOverlayMode = false;
+        
         // Clear embed URL hash when embed is closed
         activeEmbedStore.clearActiveEmbed();
         console.debug('[ActiveChat] Cleared embed from URL hash');
@@ -1084,9 +1088,18 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     // instead of as overlays. This provides a better experience on large displays.
     let isUltraWide = $derived(containerWidth > 1300);
     
+    // Force overlay mode: When true, forces the embed fullscreen to use overlay mode even on ultra-wide screens
+    // This is toggled by the "minimize chat" button in the chat's top bar when in side-by-side mode
+    // User can click this to temporarily hide the chat and show only the embed fullscreen
+    let forceOverlayMode = $state(false);
+    
     // Determine if we should use side-by-side layout for fullscreen embeds
-    // Only use side-by-side when ultra-wide AND an embed fullscreen is open
-    let showSideBySideFullscreen = $derived(isUltraWide && showEmbedFullscreen && embedFullscreenData);
+    // Only use side-by-side when ultra-wide AND an embed fullscreen is open AND not forcing overlay mode
+    let showSideBySideFullscreen = $derived(isUltraWide && showEmbedFullscreen && embedFullscreenData && !forceOverlayMode);
+    
+    // Determine if we should show the "Show Chat" button in fullscreen embed views
+    // Shows when ultra-wide screen has an embed fullscreen open but chat is hidden (forceOverlayMode)
+    let showChatButtonInFullscreen = $derived(isUltraWide && showEmbedFullscreen && embedFullscreenData && forceOverlayMode);
     
     // Effective narrow mode: True when chat container is narrow OR when in side-by-side mode
     // In side-by-side mode, the chat is limited to 400px which requires narrow/mobile styling
@@ -2056,6 +2069,27 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         // 1. Open the menu if not already open (line 1103 in Settings.svelte)
         // 2. Navigate to the specified path after a brief delay (line 1117)
         settingsDeepLink.set('report_issue');
+    }
+
+    /**
+     * Handler for minimizing the chat in side-by-side mode.
+     * When in ultra-wide mode with side-by-side layout, this hides the chat
+     * and shows only the embed fullscreen in overlay mode.
+     * The user can restore the chat by clicking the "chat" button in the fullscreen view.
+     */
+    function handleMinimizeChat() {
+        console.debug('[ActiveChat] Minimize chat clicked - switching to overlay mode');
+        forceOverlayMode = true;
+    }
+    
+    /**
+     * Handler for showing the chat from fullscreen view.
+     * Called when user clicks the "chat" button in the embed fullscreen view.
+     * Restores the side-by-side layout by disabling overlay mode.
+     */
+    function handleShowChat() {
+        console.debug('[ActiveChat] Show chat clicked - switching to side-by-side mode');
+        forceOverlayMode = false;
     }
 
     // Update handler for chat updates to be more selective
@@ -3670,7 +3704,20 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
                         <!-- Right side buttons -->
                         <div class="right-buttons">
-                            <!-- Bug icon for reporting issues -->
+                            <!-- Minimize chat button - only shows in side-by-side mode -->
+                            <!-- When clicked, hides the chat and shows only the embed fullscreen (overlay mode) -->
+                            {#if showSideBySideFullscreen}
+                                <div class="new-chat-button-wrapper">
+                                    <button
+                                        class="clickable-icon icon_minimize top-button"
+                                        aria-label={$text('chat.minimize.text', { default: 'Minimize' })}
+                                        onclick={handleMinimizeChat}
+                                        use:tooltip
+                                        style="margin: 5px;"
+                                    >
+                                    </button>
+                                </div>
+                            {/if}
                             
                             <!-- Activate buttons once features are implemented -->
                             <!-- Video call button -->
@@ -3839,6 +3886,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             {hasNextEmbed}
                             onNavigatePrevious={handleNavigatePreviousEmbed}
                             onNavigateNext={handleNavigateNextEmbed}
+                            showChatButton={showChatButtonInFullscreen}
+                            onShowChat={handleShowChat}
                         />
                     {:else if appId === 'news' && skillId === 'search'}
                         <!-- News Search Fullscreen -->
@@ -3854,6 +3903,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             {hasNextEmbed}
                             onNavigatePrevious={handleNavigatePreviousEmbed}
                             onNavigateNext={handleNavigateNextEmbed}
+                            showChatButton={showChatButtonInFullscreen}
+                            onShowChat={handleShowChat}
                         />
                     {:else if appId === 'videos' && skillId === 'search'}
                         <!-- Videos Search Fullscreen -->
@@ -3869,6 +3920,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             {hasNextEmbed}
                             onNavigatePrevious={handleNavigatePreviousEmbed}
                             onNavigateNext={handleNavigateNextEmbed}
+                            showChatButton={showChatButtonInFullscreen}
+                            onShowChat={handleShowChat}
                         />
                     {:else if appId === 'maps' && skillId === 'search'}
                         <!-- Maps Search Fullscreen -->
@@ -3884,6 +3937,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             {hasNextEmbed}
                             onNavigatePrevious={handleNavigatePreviousEmbed}
                             onNavigateNext={handleNavigateNextEmbed}
+                            showChatButton={showChatButtonInFullscreen}
+                            onShowChat={handleShowChat}
                         />
                     {:else if appId === 'videos' && skillId === 'get_transcript'}
                         <!-- Video Transcript Fullscreen -->
@@ -3913,6 +3968,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             {hasNextEmbed}
                             onNavigatePrevious={handleNavigatePreviousEmbed}
                             onNavigateNext={handleNavigateNextEmbed}
+                            showChatButton={showChatButtonInFullscreen}
+                            onShowChat={handleShowChat}
                         />
                     {:else if appId === 'web' && skillId === 'read'}
                         <!-- Web Read Fullscreen -->
@@ -3935,6 +3992,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             {hasNextEmbed}
                             onNavigatePrevious={handleNavigatePreviousEmbed}
                             onNavigateNext={handleNavigateNextEmbed}
+                            showChatButton={showChatButtonInFullscreen}
+                            onShowChat={handleShowChat}
                         />
                     {:else}
                         <!-- Generic app skill fullscreen (fallback) -->
@@ -3966,6 +4025,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             {hasNextEmbed}
                             onNavigatePrevious={handleNavigatePreviousEmbed}
                             onNavigateNext={handleNavigateNextEmbed}
+                            showChatButton={showChatButtonInFullscreen}
+                            onShowChat={handleShowChat}
                         />
                     {/if}
                 {:else if embedFullscreenData.embedType === 'code-code'}
@@ -3982,6 +4043,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             {hasNextEmbed}
                             onNavigatePrevious={handleNavigatePreviousEmbed}
                             onNavigateNext={handleNavigateNextEmbed}
+                            showChatButton={showChatButtonInFullscreen}
+                            onShowChat={handleShowChat}
                         />
                     {/if}
                 {:else if embedFullscreenData.embedType === 'videos-video'}
@@ -4005,6 +4068,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                 {hasNextEmbed}
                                 onNavigatePrevious={handleNavigatePreviousEmbed}
                                 onNavigateNext={handleNavigateNextEmbed}
+                                showChatButton={showChatButtonInFullscreen}
+                                onShowChat={handleShowChat}
                             />
                         {/await}
                     {/if}

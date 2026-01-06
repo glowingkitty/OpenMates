@@ -56,6 +56,10 @@
     onNavigatePrevious?: () => void;
     /** Handler to navigate to the next embed */
     onNavigateNext?: () => void;
+    /** Whether to show the "chat" button to restore chat visibility (ultra-wide forceOverlayMode) */
+    showChatButton?: boolean;
+    /** Callback when user clicks the "chat" button to restore chat visibility */
+    onShowChat?: () => void;
   }
   
   let {
@@ -73,7 +77,9 @@
     hasPreviousEmbed = false,
     hasNextEmbed = false,
     onNavigatePrevious,
-    onNavigateNext
+    onNavigateNext,
+    showChatButton = false,
+    onShowChat
   }: Props = $props();
   
   // Debug: Log all props when component is initialized
@@ -354,6 +360,8 @@
   {hasNextEmbed}
   {onNavigatePrevious}
   {onNavigateNext}
+  {showChatButton}
+  {onShowChat}
 >
   <!-- eslint-disable-next-line @typescript-eslint/no-unused-vars -->
   {#snippet content(_)}
@@ -602,7 +610,7 @@
   
   .snippet-card {
     position: relative;
-    background-color: white;
+    background-color: var(--color-grey-0);
     border-radius: 30px;
     padding: 24px 40px;
     min-height: 60px;
@@ -629,7 +637,7 @@
     font-family: 'Lexend Deca', sans-serif;
     font-size: 16px;
     font-weight: 500;
-    color: #5a5a5a;
+    color: var(--color-grey-80);
     line-height: 1.5;
     margin: 0;
     word-break: break-word;
