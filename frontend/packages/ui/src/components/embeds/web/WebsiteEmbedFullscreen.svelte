@@ -602,7 +602,7 @@
     position: relative;
     background-color: var(--color-grey-0);
     border-radius: 30px;
-    padding: 24px 40px;
+    padding: 24px 50px;
     min-height: 60px;
   }
   
@@ -677,7 +677,7 @@
     }
     
     .snippet-card {
-      padding: 20px 32px;
+      padding: 20px 50px;
       border-radius: 20px;
     }
   }
@@ -706,7 +706,7 @@
     }
     
     .snippet-card {
-      padding: 16px 24px;
+      padding: 16px 40px;
     }
     
     .quote-icon {
