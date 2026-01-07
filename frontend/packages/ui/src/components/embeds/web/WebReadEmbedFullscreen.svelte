@@ -241,6 +241,48 @@
     });
   });
   
+  // ===========================================
+  // Image Proxy Configuration
+  // ===========================================
+  
+  /**
+   * Preview server base URL for image proxying
+   * Using the OpenMates preview server to:
+   * 1. Protect user privacy (hide IP from image source)
+   * 2. Resize images to reasonable dimensions (reduce bandwidth)
+   * 3. Cache images for better performance
+   */
+  const IMAGE_PROXY_BASE_URL = 'https://preview.openmates.org/api/v1/image';
+  
+  /**
+   * Maximum image width for proxied images
+   * 800px is reasonable for the content card (max-width: 722px)
+   * Allows some margin for retina displays while avoiding huge downloads
+   */
+  const IMAGE_PROXY_MAX_WIDTH = 800;
+  
+  /**
+   * Convert an image URL to use the preview server proxy
+   * This ensures privacy and limits image resolution to reduce bandwidth
+   * 
+   * @param imageUrl - Original image URL
+   * @returns Proxied image URL via preview.openmates.org
+   */
+  function proxyImageUrl(imageUrl: string): string {
+    // Skip if already using our proxy or if it's a data URL
+    if (imageUrl.startsWith(IMAGE_PROXY_BASE_URL) || imageUrl.startsWith('data:')) {
+      return imageUrl;
+    }
+    
+    // Build proxied URL with max_width parameter
+    const params = new URLSearchParams({
+      url: imageUrl,
+      max_width: IMAGE_PROXY_MAX_WIDTH.toString()
+    });
+    
+    return `${IMAGE_PROXY_BASE_URL}?${params.toString()}`;
+  }
+  
   /**
    * Render markdown to HTML using markdown-it
    * CRITICAL: Uses object property assignment for proper Svelte 5 reactivity
@@ -248,6 +290,11 @@
    * SECURITY: Uses DOMPurify to sanitize rendered HTML against XSS attacks.
    * Backend sanitization (sanitize_external_content) protects against prompt injection,
    * but does NOT sanitize HTML/JS. DOMPurify is the XSS protection layer.
+   * 
+   * PRIVACY: All images are proxied through preview.openmates.org to:
+   * - Hide user's IP from image source servers
+   * - Resize images to max 800px width (reduces bandwidth)
+   * - Cache images for faster subsequent loads
    */
   async function renderMarkdown(markdown: string, index: number): Promise<void> {
     console.debug(`[WebReadEmbedFullscreen] renderMarkdown called for index ${index}, markdown length: ${markdown?.length || 0}`);
@@ -280,13 +327,26 @@
       // SECURITY: Sanitize HTML to prevent XSS attacks
       // Allow common HTML tags for rich content display, but block scripts/events
       
-      // Add hook to force all links to open in new tab
+      // Add hook to process attributes after sanitization
       // This runs after sanitization but before returning the HTML
       DOMPurify.addHook('afterSanitizeAttributes', (node) => {
         // Force all anchor links to open in new tab with proper security attributes
         if (node.tagName === 'A') {
           node.setAttribute('target', '_blank');
           node.setAttribute('rel', 'noopener noreferrer');
+        }
+        
+        // PRIVACY: Proxy all images through preview.openmates.org
+        // This hides user IP from image sources and limits resolution
+        if (node.tagName === 'IMG') {
+          const originalSrc = node.getAttribute('src');
+          if (originalSrc) {
+            const proxiedSrc = proxyImageUrl(originalSrc);
+            if (proxiedSrc !== originalSrc) {
+              node.setAttribute('src', proxiedSrc);
+              console.debug(`[WebReadEmbedFullscreen] Proxied image: ${originalSrc.substring(0, 50)}...`);
+            }
+          }
         }
       });
       
