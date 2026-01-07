@@ -2,7 +2,6 @@ import type { Editor } from '@tiptap/core';
 import { get } from 'svelte/store'; // Import get
 import { isDesktop } from '../../../utils/platform';
 import { hasActualContent, vibrateMessageField } from '../utils';
-import { convertToMarkdown } from '../utils/editorHelpers';
 import { Extension } from '@tiptap/core';
 import { chatDB } from '../../../services/db';
 import { chatSyncService } from '../../../services/chatSyncService'; // Import chatSyncService
@@ -10,27 +9,156 @@ import type { Message } from '../../../types/chat'; // Import Message type
 import { draftEditorUIState } from '../../../services/drafts/draftState';
 import { clearCurrentDraft } from '../../../services/drafts/draftSave'; // Import clearCurrentDraft
 import { tipTapToCanonicalMarkdown } from '../../../message_parsing/serializers'; // Import TipTap to markdown converter
-import { LOCAL_CHAT_LIST_CHANGED_EVENT } from '../../../services/drafts/draftConstants';
 import { isPublicChat } from '../../../demo_chats/convertToChat';
 import { websocketStatus } from '../../../stores/websocketStatusStore'; // Import WebSocket status store
 import { chatListCache } from '../../../services/chatListCache';
+import { createEmbedFromUrl } from '../services/urlMetadataService'; // Import URL-to-embed creation
 
 // Removed sendMessageToAPI as it will be handled by chatSyncService
 
+// =============================================================================
+// URL Detection and Processing
+// =============================================================================
+
 /**
- * Creates a message payload from the TipTap editor content
- * @param editorContent The TipTap document JSON
+ * Regular expression to detect URLs in text content.
+ * Matches http and https URLs.
+ */
+const URL_REGEX = /https?:\/\/[^\s\])"'<>]+/g;
+
+/**
+ * Detects all URLs in the given text content.
+ * Returns array of URL matches with their positions.
+ * Excludes URLs that are already inside JSON code blocks (embed references).
+ * 
+ * @param text The text content to search
+ * @returns Array of {url, startPos, endPos} objects
+ */
+function detectUrlsInText(text: string): Array<{url: string, startPos: number, endPos: number}> {
+    const urls: Array<{url: string, startPos: number, endPos: number}> = [];
+    
+    // Find all code block ranges to exclude URLs within them
+    const codeBlockRanges: Array<{start: number, end: number}> = [];
+    const codeBlockPattern = /```[\s\S]*?```/g;
+    let blockMatch;
+    while ((blockMatch = codeBlockPattern.exec(text)) !== null) {
+        codeBlockRanges.push({
+            start: blockMatch.index,
+            end: blockMatch.index + blockMatch[0].length
+        });
+    }
+    
+    // Find all URLs
+    let match;
+    URL_REGEX.lastIndex = 0; // Reset regex state
+    
+    while ((match = URL_REGEX.exec(text)) !== null) {
+        const url = match[0];
+        const startPos = match.index;
+        const endPos = startPos + url.length;
+        
+        // Check if URL is inside a code block - skip if so
+        const isInsideCodeBlock = codeBlockRanges.some(range => 
+            startPos >= range.start && endPos <= range.end
+        );
+        
+        if (!isInsideCodeBlock) {
+            urls.push({ url, startPos, endPos });
+        }
+    }
+    
+    return urls;
+}
+
+/**
+ * Process all URLs in the message content and convert them to embeds.
+ * This is called BEFORE sending a message to ensure URL metadata is fetched
+ * and embeds are created with proper embed_ids.
+ * 
+ * @param markdown The markdown content to process
+ * @returns Updated markdown with URLs replaced by embed references
+ */
+async function processUrlsBeforeSend(markdown: string): Promise<string> {
+    const urls = detectUrlsInText(markdown);
+    
+    if (urls.length === 0) {
+        console.debug('[sendHandlers] No URLs to process in message');
+        return markdown;
+    }
+    
+    console.info('[sendHandlers] Processing', urls.length, 'URL(s) before send');
+    
+    // Process URLs in parallel for better performance
+    const embedPromises = urls.map(async (urlInfo) => {
+        try {
+            console.debug('[sendHandlers] Creating embed for URL:', urlInfo.url);
+            const embedResult = await createEmbedFromUrl(urlInfo.url);
+            return { urlInfo, embedResult };
+        } catch (error) {
+            console.error('[sendHandlers] Error creating embed for URL:', urlInfo.url, error);
+            return { urlInfo, embedResult: null };
+        }
+    });
+    
+    const embedResults = await Promise.all(embedPromises);
+    
+    // Replace URLs with embed references from end to beginning to maintain positions
+    const sortedResults = [...embedResults].sort((a, b) => b.urlInfo.startPos - a.urlInfo.startPos);
+    let processedMarkdown = markdown;
+    
+    for (const { urlInfo, embedResult } of sortedResults) {
+        if (!embedResult) {
+            console.warn('[sendHandlers] Skipping URL - embed creation failed:', urlInfo.url);
+            continue;
+        }
+        
+        console.info('[sendHandlers] Replacing URL with embed reference:', {
+            url: urlInfo.url,
+            embed_id: embedResult.embed_id,
+            type: embedResult.type
+        });
+        
+        // Replace URL with embed reference block
+        const beforeUrl = processedMarkdown.substring(0, urlInfo.startPos);
+        const afterUrl = processedMarkdown.substring(urlInfo.endPos);
+        
+        // Ensure proper spacing around the embed reference block
+        let processedBeforeUrl = beforeUrl;
+        let processedAfterUrl = afterUrl;
+        
+        // Add newline before if there's content and it doesn't end with newline
+        if (processedBeforeUrl.length > 0 && !processedBeforeUrl.endsWith('\n')) {
+            processedBeforeUrl += '\n';
+        }
+        
+        // Add newline after if there's content
+        if (processedAfterUrl.length > 0 && !processedAfterUrl.startsWith('\n')) {
+            processedAfterUrl = '\n' + processedAfterUrl;
+        }
+        
+        processedMarkdown = processedBeforeUrl + embedResult.embedReference + processedAfterUrl;
+    }
+    
+    console.debug('[sendHandlers] URL processing complete. Processed', embedResults.filter(r => r.embedResult).length, 'URL(s)');
+    
+    return processedMarkdown;
+}
+
+// =============================================================================
+// Message Creation
+// =============================================================================
+
+/**
+ * Creates a message payload from markdown content
+ * @param markdown The processed markdown content (with URLs already converted to embeds)
  * @param chatId The ID of the current chat
  * @returns Message payload object with markdown content
  */
-function createMessagePayload(editorContent: any, chatId: string): Message {
-    // Convert TipTap content to canonical markdown
-    const markdown = tipTapToCanonicalMarkdown(editorContent);
-    
+function createMessagePayload(markdown: string, chatId: string): Message {
     // Validate markdown content
     if (!markdown || typeof markdown !== 'string') {
-        console.error('Invalid markdown content generated from editor:', editorContent);
-        throw new Error('Invalid markdown content generated from editor');
+        console.error('Invalid markdown content:', markdown);
+        throw new Error('Invalid markdown content');
     }
 
     const message_id = `${chatId.slice(-10)}-${crypto.randomUUID()}`;
@@ -83,30 +211,13 @@ function resetEditorContent(editor: Editor, shouldKeepFocus?: boolean) {
     }
 }
 
-/**
- * Combines new content with existing message content
- */
-function combineMessageContent(existingContent: any, newContent: any): any {
-    // Ensure both contents have the expected structure
-    if (!existingContent?.content || !newContent?.content) {
-        throw new Error('Invalid content structure');
-    }
-
-    // Create a deep copy of existing content
-    const combinedContent = JSON.parse(JSON.stringify(existingContent));
-
-    // Simply concatenate the new content's paragraphs
-    combinedContent.content = combinedContent.content.concat(newContent.content);
-
-    return combinedContent;
-}
 
 /**
  * Handles sending a message via the message input
  */
 export async function handleSend(
     editor: Editor | null,
-    dispatch: (type: string, detail?: any) => void,
+    dispatch: (type: string, detail?: Record<string, unknown>) => void,
     setHasContent: (value: boolean) => void,
     currentChatId?: string
 ) {
@@ -123,8 +234,22 @@ export async function handleSend(
         return;
     }
     
-    // Convert to markdown for debugging
-    const markdown = tipTapToCanonicalMarkdown(editorContent);
+    // Convert to markdown
+    let markdown = tipTapToCanonicalMarkdown(editorContent);
+    
+    // CRITICAL: Process URLs before sending to convert them to proper embeds
+    // This ensures that when user types "summarize https://example.com" and presses Enter,
+    // the URL is converted to an embed with metadata fetched from the preview server.
+    // The embed will be:
+    // 1. Stored in EmbedStore for client-side access
+    // 2. Sent with the message to the server
+    // 3. Cached server-side for LLM inference (so LLM gets the URL metadata)
+    try {
+        markdown = await processUrlsBeforeSend(markdown);
+    } catch (error) {
+        console.error('[handleSend] Error processing URLs before send:', error);
+        // Continue with original markdown if URL processing fails
+    }
     
     // Debug logging: Show the markdown that will be sent to server
     console.log('[handleSend] 📤 Sending markdown to server:', {
@@ -249,8 +374,9 @@ export async function handleSend(
         
         // No need to fetch current title - server will send metadata after preprocessing
 
-        // Create new message payload using the editor content and determined chatIdToUse
-        messagePayload = createMessagePayload(editorContent, chatIdToUse);
+        // Create new message payload using the processed markdown and determined chatIdToUse
+        // The markdown has already been processed to convert URLs to embed references
+        messagePayload = createMessagePayload(markdown, chatIdToUse);
 
         // Optimistically cache the last message so the chat list can show "Sending..." immediately
         // (prevents a brief empty chat row while active chat selection/metadata settles)
@@ -332,7 +458,7 @@ export async function handleSend(
                 if (existingChat) {
                     isIncognitoChat = true;
                 }
-            } catch (error) {
+            } catch {
                 // Not an incognito chat, continue to check IndexedDB
             }
             

@@ -112,9 +112,12 @@ class WebSocketService extends EventTarget {
     private readonly AUTH_FAILURE_THRESHOLD = 2; // After 2 consecutive 1006 failures, treat as auth error
 
     // Add a set of message types that are allowed to have no handler (e.g., ack/info types)
+    // These are acknowledgment messages from the server that confirm operations completed successfully.
+    // The frontend handles these operations optimistically, so we don't need explicit handlers.
     private readonly allowedNoHandlerTypes = new Set<string>([
         'active_chat_set_ack',
         'pong', // Pong responses to ping - handler registered in constructor
+        'draft_delete_receipt', // Server acknowledgment that draft deletion was processed successfully
         // Add more types here if needed
     ]);
 
