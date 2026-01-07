@@ -4,7 +4,7 @@
 /**
  * Status of a skill execution
  */
-export type SkillExecutionStatus = 'processing' | 'finished' | 'error';
+export type SkillExecutionStatus = 'processing' | 'finished' | 'error' | 'cancelled';
 
 /**
  * Base interface for all app skill preview data

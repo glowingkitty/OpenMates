@@ -180,6 +180,18 @@ export async function embedDataToNodeAttributes(
       nodeAttrs.description = decodedContent.description;
       nodeAttrs.favicon = decodedContent.meta_url_favicon || decodedContent.favicon;
       nodeAttrs.image = decodedContent.thumbnail_original || decodedContent.image;
+    } else if (embedType === 'video') {
+      // Extract video-specific fields (YouTube, etc.)
+      nodeAttrs.url = decodedContent.url;
+      nodeAttrs.title = decodedContent.title;
+      nodeAttrs.description = decodedContent.description;
+      // Video-specific fields
+      (nodeAttrs as any).video_id = decodedContent.video_id;
+      (nodeAttrs as any).channel_name = decodedContent.channel_name;
+      (nodeAttrs as any).thumbnail = decodedContent.thumbnail;
+      (nodeAttrs as any).duration_seconds = decodedContent.duration_seconds;
+      (nodeAttrs as any).duration_formatted = decodedContent.duration_formatted;
+      (nodeAttrs as any).view_count = decodedContent.view_count;
     } else if (embedType === 'code') {
       nodeAttrs.language = decodedContent.language;
       nodeAttrs.filename = decodedContent.filename;
@@ -206,6 +218,7 @@ function mapEmbedTypeToNodeType(embedType: string): string {
   const typeMap: Record<string, string> = {
     'app_skill_use': 'app-skill-use', // New type for app skill results
     'website': 'web-website',
+    'video': 'videos-video', // YouTube and other video embeds
     'place': 'maps-place',
     'event': 'maps-event',
     'code': 'code-code',

@@ -116,6 +116,8 @@ export class EmbedStore {
         return 'app-skill-use' as EmbedType;
       case 'website':
         return 'web-website' as EmbedType;
+      case 'video':
+        return 'videos-video' as EmbedType;
       case 'code':
         return 'code-code' as EmbedType;
       default:

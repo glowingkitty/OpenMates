@@ -6,6 +6,10 @@
   
   Design based on Figma: https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=3643-50967
   
+  Features:
+  - Receives metadata from WebsiteEmbedPreview when user clicks to open fullscreen
+  - Proxies images through preview server for privacy and optimization
+  
   Layout Structure:
   - Header image (large rounded preview)
   - Favicon + Title
@@ -88,6 +92,8 @@
     console.debug('[WebsiteEmbedFullscreen] Props received:', {
       url,
       title,
+      description,
+      image,
       extra_snippets,
       extra_snippets_type: typeof extra_snippets,
       extra_snippets_length: typeof extra_snippets === 'string' ? extra_snippets.length : (Array.isArray(extra_snippets) ? extra_snippets.length : 'N/A'),
@@ -134,10 +140,42 @@
     return [];
   });
   
+  /**
+   * Extract the main domain from a hostname, stripping subdomains.
+   * Examples:
+   * - www.theverge.com → theverge.com
+   * - docs.openai.com → openai.com
+   * - api.example.co.uk → example.co.uk
+   * 
+   * Handles common two-part TLDs like .co.uk, .com.au, .co.nz, etc.
+   */
+  function getMainDomain(fullHostname: string): string {
+    const parts = fullHostname.split('.');
+    
+    // If 2 or fewer parts, return as-is (already a main domain)
+    if (parts.length <= 2) {
+      return fullHostname;
+    }
+    
+    // Check for common two-part TLDs (e.g., .co.uk, .com.au, .co.nz, .org.uk)
+    // These need 3 parts: domain + two-part TLD
+    const twoPartTLDs = ['co.uk', 'com.au', 'co.nz', 'org.uk', 'com.br', 'co.jp', 'co.kr', 'co.in', 'com.mx', 'com.cn'];
+    const lastTwoParts = parts.slice(-2).join('.');
+    
+    if (twoPartTLDs.includes(lastTwoParts)) {
+      // Take last 3 parts (domain + two-part TLD)
+      return parts.slice(-3).join('.');
+    }
+    
+    // Default: take last 2 parts (domain + single TLD)
+    return parts.slice(-2).join('.');
+  }
+  
   // Get display values
   let hostname = $derived(() => {
     try {
-      return new URL(url).hostname;
+      const fullHostname = new URL(url).hostname;
+      return getMainDomain(fullHostname);
     } catch {
       return url;
     }

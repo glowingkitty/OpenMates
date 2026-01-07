@@ -94,6 +94,56 @@ curl -X POST "http://localhost:8080/api/v1/metadata" \
 }
 ```
 
+### `GET /api/v1/youtube`
+
+Extract YouTube video metadata.
+
+```bash
+# Using full URL
+curl "http://localhost:8080/api/v1/youtube?url=https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+
+# Using video ID only
+curl "http://localhost:8080/api/v1/youtube?url=dQw4w9WgXcQ"
+```
+
+**Supported URL formats:**
+- `https://www.youtube.com/watch?v=VIDEO_ID`
+- `https://youtu.be/VIDEO_ID`
+- `https://www.youtube.com/embed/VIDEO_ID`
+- `https://www.youtube.com/shorts/VIDEO_ID`
+- Just the 11-character video ID
+
+**Response:**
+```json
+{
+  "video_id": "dQw4w9WgXcQ",
+  "url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+  "title": "Rick Astley - Never Gonna Give You Up",
+  "description": "The official video for \"Never Gonna Give You Up\"...",
+  "channel_name": "Rick Astley",
+  "channel_id": "UCuAXFkgsw1L7xaCfnd5JJOw",
+  "thumbnails": {
+    "default": "https://i.ytimg.com/vi/dQw4w9WgXcQ/default.jpg",
+    "medium": "https://i.ytimg.com/vi/dQw4w9WgXcQ/mqdefault.jpg",
+    "high": "https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg",
+    "standard": "https://i.ytimg.com/vi/dQw4w9WgXcQ/sddefault.jpg",
+    "maxres": "https://i.ytimg.com/vi/dQw4w9WgXcQ/maxresdefault.jpg"
+  },
+  "duration": {
+    "total_seconds": 212,
+    "formatted": "3:32"
+  },
+  "view_count": 1500000000,
+  "like_count": 15000000,
+  "published_at": "2009-10-25T06:57:33Z"
+}
+```
+
+**API Quota:**
+- Cost: 1 quota unit per unique video
+- Daily limit: 10,000 units (free tier)
+- Results cached for 24 hours
+
 ### `GET /health`
 
 Health check for load balancers.
@@ -139,6 +189,28 @@ For reliable metadata fetching, configure Webshare rotating residential proxy. W
 | `PREVIEW_USE_PROXY_FOR_IMAGES` | false | Use proxy for image fetching |
 
 Get credentials from: https://webshare.io/
+
+### YouTube API (For Video Metadata)
+
+To enable YouTube video metadata extraction, configure a YouTube Data API v3 key.
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `SECRET__YOUTUBE__API_KEY` | (empty) | YouTube Data API v3 key (same as main backend) |
+| `PREVIEW_YOUTUBE_API_KEY` | (empty) | Alternative: preview-specific key |
+| `PREVIEW_YOUTUBE_CACHE_TTL_SECONDS` | 86400 | YouTube metadata cache TTL (24 hours) |
+
+**Setup:**
+1. Go to [Google Cloud Console](https://console.cloud.google.com/apis/credentials)
+2. Create a new project or select existing
+3. Enable "YouTube Data API v3" in the [API Library](https://console.cloud.google.com/apis/library/youtube.googleapis.com)
+4. Create an API key in Credentials
+5. Set `SECRET__YOUTUBE__API_KEY` in your `.env`
+
+**Quota:**
+- Free tier: 10,000 units/day
+- `videos.list` costs: 1 unit per request
+- With 24-hour caching: ~10,000 unique videos/day
 
 **Note:** The preview server accepts credentials in two formats:
 - `SECRET__WEBSHARE__PROXY_USERNAME` / `SECRET__WEBSHARE__PROXY_PASSWORD` (same as main backend, for shared `.env`)

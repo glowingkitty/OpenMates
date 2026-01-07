@@ -53,7 +53,7 @@
     /** Icon name for the skill icon (e.g., 'search', 'videos', 'book') - passed from skill-specific components */
     skillIconName: string;
     /** Processing status */
-    status: 'processing' | 'finished' | 'error';
+    status: 'processing' | 'finished' | 'error' | 'cancelled';
     /** Skill display name (shown in basic_infos bar) */
     skillName: string;
     /** Optional task ID for cancellation */
@@ -102,7 +102,7 @@
   
   // Local reactive state for status - can be updated when embedUpdated fires
   // This overrides the prop when we receive updates from the server
-  let localStatus = $state<'processing' | 'finished' | 'error'>('processing');
+  let localStatus = $state<'processing' | 'finished' | 'error' | 'cancelled'>('processing');
   
   // Initialize local status from prop
   $effect(() => {
@@ -130,7 +130,7 @@
     });
     
     // Update status immediately from event if provided
-    if (newStatus && (newStatus === 'processing' || newStatus === 'finished' || newStatus === 'error')) {
+    if (newStatus && (newStatus === 'processing' || newStatus === 'finished' || newStatus === 'error' || newStatus === 'cancelled')) {
       localStatus = newStatus;
     }
     
@@ -153,7 +153,7 @@
         });
         
         // Update status from fetched data
-        if (embedData.status && (embedData.status === 'processing' || embedData.status === 'finished' || embedData.status === 'error')) {
+        if (embedData.status && (embedData.status === 'processing' || embedData.status === 'finished' || embedData.status === 'error' || embedData.status === 'cancelled')) {
           localStatus = embedData.status;
         }
         

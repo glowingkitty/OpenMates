@@ -8,7 +8,7 @@ Manages all configuration settings for the preview server including:
 """
 
 from typing import Optional
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import Field, AliasChoices
 
 
@@ -188,6 +188,29 @@ class Settings(BaseSettings):
     )
     
     # ===========================================
+    # YouTube API Settings
+    # ===========================================
+    
+    # YouTube Data API v3 key for fetching video metadata
+    # Get from: https://console.cloud.google.com/apis/credentials
+    # Enable "YouTube Data API v3" in the API library
+    # Cost: 1 quota unit per videos.list request (10,000 units/day free)
+    youtube_api_key: Optional[str] = Field(
+        default=None,
+        validation_alias=AliasChoices(
+            "SECRET__YOUTUBE__API_KEY",  # Main backend format (shared .env)
+            "PREVIEW_YOUTUBE_API_KEY"  # Preview-specific with env_prefix
+        ),
+        description="YouTube Data API v3 key for video metadata"
+    )
+    
+    # YouTube metadata cache TTL (default: 24 hours, same as website metadata)
+    youtube_cache_ttl_seconds: int = Field(
+        default=86400,
+        description="YouTube metadata cache TTL (24 hours)"
+    )
+    
+    # ===========================================
     # Logging Settings
     # ===========================================
     
@@ -202,11 +225,13 @@ class Settings(BaseSettings):
     # Leave empty for public access (with rate limiting)
     api_key: Optional[str] = Field(default=None, description="Optional API key for authentication")
     
-    class Config:
-        """Pydantic config for environment variable prefix."""
-        env_prefix = "PREVIEW_"
-        env_file = ".env"
-        env_file_encoding = "utf-8"
+    # Use model_config (Pydantic v2 style) instead of inner Config class
+    # This ensures validation_alias with AliasChoices works correctly for env vars
+    model_config = SettingsConfigDict(
+        env_prefix="PREVIEW_",
+        env_file=".env",
+        env_file_encoding="utf-8",
+    )
     
     @property
     def cors_origins_list(self) -> list[str]:

@@ -46,13 +46,8 @@
     import { generateUUID } from '../../message_parsing/utils';
     import { isDesktop } from '../../utils/platform';
     
-    // URL metadata service
-    import { 
-        fetchUrlMetadata, 
-        createJsonEmbedCodeBlock, 
-        createWebsiteMetadataFromUrl,
-        extractUrlFromJsonEmbedBlock
-    } from './services/urlMetadataService';
+    // URL metadata service - creates proper embeds with embed_id for LLM context
+    import { createEmbedFromUrl } from './services/urlMetadataService';
 
     // Handlers
     import { handleSend } from './handlers/sendHandlers';
@@ -422,7 +417,18 @@
     // This avoids client-side complexity and draft serialization issues
     
     /**
-     * Process closed URLs by fetching metadata and storing them for the unified parser
+     * Process closed URLs by creating proper embeds with embed_id.
+     * 
+     * This function:
+     * 1. Fetches metadata from preview server (website or YouTube)
+     * 2. Creates proper embeds with embed_id stored in EmbedStore
+     * 3. Replaces URLs with embed references: {"type": "...", "embed_id": "..."}
+     * 
+     * The embeds will be:
+     * - Extracted by extractEmbedReferences() when message is sent
+     * - Loaded from EmbedStore and sent to server
+     * - Cached server-side for LLM inference
+     * - Resolved for AI context building
      */
     async function processClosedUrls(editor: Editor, closedUrls: Array<{url: string, startPos: number, endPos: number}>) {
         console.debug('[MessageInput] Processing closed URLs:', closedUrls);
@@ -433,49 +439,44 @@
         isConvertingEmbeds = true;
         
         try {
-            // Fetch metadata for all URLs in parallel to improve performance
-            const metadataPromises = closedUrls.map(async (urlInfo) => {
+            // Create embeds for all URLs in parallel to improve performance
+            // This fetches metadata and stores embeds in EmbedStore
+            const embedPromises = closedUrls.map(async (urlInfo) => {
                 try {
-                    console.info('[MessageInput] Fetching metadata for URL:', urlInfo.url);
-                    const metadata = await fetchUrlMetadata(urlInfo.url);
-                    return { urlInfo, metadata };
+                    console.info('[MessageInput] Creating embed for URL:', urlInfo.url);
+                    const embedResult = await createEmbedFromUrl(urlInfo.url);
+                    return { urlInfo, embedResult };
                 } catch (error) {
-                    console.warn('[MessageInput] Error fetching metadata for URL:', urlInfo.url, error);
-                    return { urlInfo, metadata: null };
+                    console.error('[MessageInput] Error creating embed for URL:', urlInfo.url, error);
+                    return { urlInfo, embedResult: null };
                 }
             });
             
-            const metadataResults = await Promise.all(metadataPromises);
+            const embedResults = await Promise.all(embedPromises);
             
-            // Replace URLs with json_embed blocks in the preserved markdown content
-            // This ensures existing json_embed blocks are maintained
+            // Replace URLs with embed reference blocks in the preserved markdown content
             // Process URLs from end to beginning to maintain position integrity when replacing
-            const sortedResults = [...metadataResults].sort((a, b) => b.urlInfo.startPos - a.urlInfo.startPos);
+            const sortedResults = [...embedResults].sort((a, b) => b.urlInfo.startPos - a.urlInfo.startPos);
             let currentText = originalMarkdown || editor.getText();
             
-            for (const { urlInfo, metadata } of sortedResults) {
+            for (const { urlInfo, embedResult } of sortedResults) {
+                if (!embedResult) {
+                    console.warn('[MessageInput] Skipping URL - embed creation failed:', urlInfo.url);
+                    continue;
+                }
+                
                 try {
-                    // Always create json_embed block, regardless of metadata fetch success
-                    let websiteMetadata;
-                    if (metadata) {
-                        // Use the fetched metadata directly
-                        websiteMetadata = metadata;
-                        console.info('[MessageInput] Successfully fetched metadata for URL:', {
-                            url: urlInfo.url,
-                            title: metadata.title?.substring(0, 50) + '...' || 'No title'
-                        });
-                    } else {
-                        // Create minimal metadata with URL only (metadata fetch failed)
-                        websiteMetadata = createWebsiteMetadataFromUrl(urlInfo.url);
-                        console.info('[MessageInput] Metadata fetch failed, storing URL only in json_embed:', urlInfo.url);
-                    }
+                    console.info('[MessageInput] Successfully created embed for URL:', {
+                        url: urlInfo.url,
+                        embed_id: embedResult.embed_id,
+                        type: embedResult.type
+                    });
                     
-                    // Replace URL with json_embed block in text content
-                    const jsonEmbedBlock = createJsonEmbedCodeBlock(websiteMetadata);
+                    // Replace URL with embed reference block in text content
                     const beforeUrl = currentText.substring(0, urlInfo.startPos);
                     const afterUrl = currentText.substring(urlInfo.endPos);
                     
-                    // Ensure proper newline spacing around the json_embed block
+                    // Ensure proper newline spacing around the embed reference block
                     let processedBeforeUrl = beforeUrl;
                     let processedAfterUrl = afterUrl;
                     
@@ -486,8 +487,6 @@
                     
                     // ALWAYS ensure single newline after the block if there's content after
                     // This prevents the text from being on the same line as the closing fence
-                    // The createJsonEmbedCodeBlock already includes a trailing newline, so we need to ensure
-                    // there's proper separation when there's content after
                     if (processedAfterUrl.length > 0) {
                         // Only trim if there's actual content (not just whitespace)
                         // Don't remove the space the user just typed!
@@ -500,11 +499,12 @@
                         // If it's just whitespace (like a single space), keep it as-is
                     }
                     
-                    currentText = processedBeforeUrl + jsonEmbedBlock + processedAfterUrl;
+                    currentText = processedBeforeUrl + embedResult.embedReference + processedAfterUrl;
                     
-                    console.debug('[MessageInput] Replaced URL with json_embed block in text:', {
+                    console.debug('[MessageInput] Replaced URL with embed reference:', {
                         url: urlInfo.url,
-                        hasMetadata: !!metadata
+                        embed_id: embedResult.embed_id,
+                        type: embedResult.type
                     });
                     
                 } catch (error) {
@@ -513,10 +513,10 @@
             }
             
             // Update the original markdown and then re-parse with unified parser
-            console.debug('[MessageInput] Updated originalMarkdown with new json_embed blocks:', {
+            console.debug('[MessageInput] Updated originalMarkdown with embed references:', {
                 previousLength: originalMarkdown?.length || 0,
                 newLength: currentText.length,
-                hasJsonEmbed: currentText.includes('```json_embed'),
+                hasEmbedRef: currentText.includes('"embed_id"'),
                 preview: currentText.substring(0, 100) + (currentText.length > 100 ? '...' : '')
             });
             originalMarkdown = currentText;

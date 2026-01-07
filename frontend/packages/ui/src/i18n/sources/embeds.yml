@@ -412,6 +412,29 @@ error:
   cs: Chyba
   sv: Fel
   verified_by_human: []
+cancelled:
+  context: Status text when skill execution was cancelled by user
+  en: Cancelled
+  de: Abgebrochen
+  zh: 已取消
+  es: Cancelado
+  fr: Annulé
+  pt: Cancelado
+  ru: Отменено
+  ja: キャンセル済み
+  ko: 취소됨
+  it: Annullato
+  tr: İptal edildi
+  vi: Đã hủy
+  id: Dibatalkan
+  pl: Anulowane
+  nl: Geannuleerd
+  ar: تم الإلغاء
+  hi: रद्द किया गया
+  th: ยกเลิกแล้ว
+  cs: Zrušeno
+  sv: Avbruten
+  verified_by_human: []
 video_transcript:
   context: Video transcript skill label
   en: Transcript

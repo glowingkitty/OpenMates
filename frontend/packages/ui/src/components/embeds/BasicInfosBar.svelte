@@ -28,7 +28,7 @@
     /** Icon name for the skill icon (e.g., 'search', 'videos', 'book') */
     skillIconName: string;
     /** Processing status */
-    status: 'processing' | 'finished' | 'error';
+    status: 'processing' | 'finished' | 'error' | 'cancelled';
     /** Skill display name (shown in status text) */
     skillName: string;
     /** Optional task ID for cancellation */
@@ -69,11 +69,13 @@
       return customStatusText;
     }
     
-    // Otherwise use default status text
+    // Otherwise use default status text based on current status
     if (status === 'processing') {
       return $text('embeds.processing.text');
     } else if (status === 'finished') {
       return $text('embeds.completed.text');
+    } else if (status === 'cancelled') {
+      return $text('embeds.cancelled.text');
     }
     return $text('embeds.error.text');
   });

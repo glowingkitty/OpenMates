@@ -14,6 +14,7 @@ function mapEmbedReferenceType(embedType: string): string {
   const typeMap: Record<string, string> = {
     'app_skill_use': 'app-skill-use', // New type for app skill results
     'website': 'web-website',
+    'video': 'videos-video', // YouTube and other video embeds
     'place': 'maps-place',
     'event': 'maps-event',
     'code': 'code-code',
