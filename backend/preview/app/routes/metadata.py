@@ -104,8 +104,8 @@ async def get_metadata(
     try:
         metadata = await metadata_service.get_metadata(url)
         
-        logger.info(
-            f"[Metadata] Extracted for {url[:50]}...: "
+        logger.debug(
+            f"[Metadata] Returning metadata for {url[:50]}...: "
             f"title='{(metadata.get('title') or 'N/A')[:30]}...'"
         )
         
