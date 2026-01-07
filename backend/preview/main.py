@@ -6,7 +6,8 @@ FastAPI application for image/favicon proxying and URL metadata extraction.
 This server provides:
 - /api/v1/favicon - Favicon proxy with caching
 - /api/v1/image - Image proxy with resizing and caching
-- /api/v1/metadata - Open Graph metadata extraction
+- /api/v1/metadata - Open Graph metadata extraction for websites
+- /api/v1/youtube - YouTube video metadata extraction
 - /health - Health check endpoints
 
 Key features:
@@ -14,6 +15,7 @@ Key features:
 - Disk-based caching with LRU eviction
 - Image resizing and quality optimization
 - CORS support for frontend integration
+- YouTube Data API v3 integration
 
 Run with:
     uvicorn main:app --host 0.0.0.0 --port 8080 --reload
@@ -27,8 +29,8 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
 from app.config import settings
-from app.routes import favicon_router, image_router, metadata_router, health_router
-from app.services import fetch_service, cache_service
+from app.routes import favicon_router, image_router, metadata_router, youtube_router, health_router
+from app.services import fetch_service, youtube_service, cache_service
 
 # ===========================================
 # Logging Configuration
@@ -75,6 +77,7 @@ async def lifespan(app: FastAPI):
     # Shutdown
     logger.info("Shutting down Preview Server...")
     await fetch_service.close()
+    await youtube_service.close()
     cache_service.close()
     logger.info("Preview Server stopped")
 
@@ -86,10 +89,10 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="OpenMates Preview Server",
     description=(
-        "Image and favicon proxy with caching, plus URL metadata extraction. "
+        "Image and favicon proxy with caching, plus URL and YouTube metadata extraction. "
         "Provides privacy-preserving content proxying for the OpenMates platform."
     ),
-    version="1.0.0",
+    version="1.1.0",
     docs_url="/docs" if settings.debug else None,  # Disable docs in production
     redoc_url="/redoc" if settings.debug else None,
     lifespan=lifespan
@@ -330,6 +333,7 @@ app.include_router(health_router)
 app.include_router(favicon_router)
 app.include_router(image_router)
 app.include_router(metadata_router)
+app.include_router(youtube_router)
 
 
 # ===========================================

@@ -8,12 +8,17 @@
   1. Shows video thumbnail preview image (780px max width)
   2. Shows play button overlay on thumbnail
   3. When play is clicked, signals ActiveChat to start VideoIframe
-  4. Shows "Open on YouTube" button
-  5. Shows PiP button (when video is playing)
-  6. Shows "Tip Creator" button
+  4. Shows video metadata (title, channel, duration, view count)
+  5. Shows "Open on YouTube" button
+  6. Shows PiP button (when video is playing)
+  7. Shows "Tip Creator" button
   
   The VideoIframe component lives in ActiveChat (not here).
   This separation allows the iframe to persist when this fullscreen view closes (for PiP).
+  
+  Data Flow:
+  - Receives metadata from VideoEmbedPreview via props (already fetched, no re-fetch needed)
+  - Falls back to extracting video ID and fetching if metadata not provided
 -->
 
 <script lang="ts">
@@ -21,8 +26,21 @@
   import { get } from 'svelte/store';
   import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
   import { videoIframeStore } from '../../../stores/videoIframeStore';
-  // @ts-ignore - @repo/ui module exists at runtime
+  // @ts-expect-error - @repo/ui module exists at runtime
   import { text } from '@repo/ui';
+  
+  // Import VideoMetadata type from preview component
+  import type { VideoMetadata } from './VideoEmbedPreview.svelte';
+  
+  // ===========================================
+  // Constants: Preview Server Image Proxy
+  // ===========================================
+  
+  // Preview server base URL for image proxying
+  // This ensures user privacy by not making direct requests to YouTube/Google CDN
+  const PREVIEW_SERVER = 'https://preview.openmates.org';
+  // Max width for fullscreen thumbnail (2x for retina displays on 780px container)
+  const FULLSCREEN_IMAGE_MAX_WIDTH = 1560;
   
   /**
    * Props for video embed fullscreen
@@ -52,6 +70,8 @@
     showChatButton?: boolean;
     /** Callback when user clicks the "chat" button to restore chat visibility */
     onShowChat?: () => void;
+    /** Metadata passed from VideoEmbedPreview (already fetched from preview server) */
+    metadata?: VideoMetadata;
   }
   
   let {
@@ -66,15 +86,24 @@
     onNavigatePrevious,
     onNavigateNext,
     showChatButton = false,
-    onShowChat
+    onShowChat,
+    metadata
   }: Props = $props();
   
-  // Extract video ID and thumbnail for YouTube URLs
-  // Use propVideoId if provided (from PiP restoration), otherwise extract from URL
-  let videoId = $state(propVideoId || '');
-  let thumbnailUrl = $state('');
-  let displayTitle = $state(title || 'YouTube Video');
-  let hostname = $state('');
+  // ===========================================
+  // State: Video Information
+  // ===========================================
+  
+  // Use metadata from preview if available, otherwise extract from URL
+  // Priority: metadata props > direct props > extracted from URL
+  let videoId = $state(metadata?.videoId || propVideoId || '');
+  // Raw thumbnail URL (direct YouTube CDN) - will be proxied for display
+  let rawThumbnailUrl = $state(metadata?.thumbnailUrl || '');
+  let displayTitle = $state(metadata?.title || title || 'YouTube Video');
+  let channelName = $state(metadata?.channelName || '');
+  let duration = $state(metadata?.duration);
+  let viewCount = $state(metadata?.viewCount);
+  let publishedAt = $state(metadata?.publishedAt);
   
   // Track whether video is playing (iframe is active)
   // Subscribe to videoIframeStore to check if video is playing
@@ -105,25 +134,44 @@
       : ''
   );
   
-  // Process URL to extract video information
+  // Proxied thumbnail URL through preview server for privacy
+  // This prevents users' browsers from making direct requests to YouTube/Google CDN
+  let thumbnailUrl = $derived.by(() => {
+    if (!rawThumbnailUrl) return '';
+    return `${PREVIEW_SERVER}/api/v1/image?url=${encodeURIComponent(rawThumbnailUrl)}&max_width=${FULLSCREEN_IMAGE_MAX_WIDTH}`;
+  });
+  
+  // ===========================================
+  // URL Processing Effect
+  // ===========================================
+  
+  // Process URL to extract video information (fallback when metadata not provided)
   $effect(() => {
     if (url) {
       try {
-        const urlObj = new URL(url);
-        hostname = urlObj.hostname;
+        // If we have metadata, use it (already set in initial state)
+        if (metadata) {
+          console.debug('[VideoEmbedFullscreen] Using metadata from preview:', {
+            videoId: metadata.videoId,
+            title: metadata.title?.substring(0, 50),
+            channelName: metadata.channelName,
+            duration: metadata.duration?.formatted
+          });
+          return;
+        }
         
         // If videoId was provided as prop (from PiP restoration), use it
         // Otherwise, extract from URL
         if (propVideoId) {
-          // Use provided videoId and generate thumbnail
+          // Use provided videoId and generate raw thumbnail URL (will be proxied)
           videoId = propVideoId;
-          thumbnailUrl = `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`;
+          rawThumbnailUrl = `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`;
         } else {
           // YouTube URL patterns - extract video ID from URL
           const youtubeMatch = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\n?#]+)/);
           if (youtubeMatch) {
             videoId = youtubeMatch[1];
-            thumbnailUrl = `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`;
+            rawThumbnailUrl = `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`;
             if (!title) {
               displayTitle = 'YouTube Video';
             }
@@ -131,12 +179,11 @@
         }
       } catch (e) {
         console.debug('[VideoEmbedFullscreen] Error parsing URL:', e);
-        hostname = url;
       }
     }
     
-    // Update displayTitle if title prop changes
-    if (title) {
+    // Update displayTitle if title prop changes (but not if we have metadata)
+    if (title && !metadata?.title) {
       displayTitle = title;
     }
   });
@@ -149,6 +196,57 @@
       videoIframeStore.exitPipMode();
     }
   });
+  
+  // ===========================================
+  // Formatting Helpers
+  // ===========================================
+  
+  /**
+   * Format view count with localized number formatting
+   * e.g., 1500000 -> "1.5M views"
+   */
+  function formatViewCount(count: number | undefined): string {
+    if (!count) return '';
+    
+    if (count >= 1_000_000_000) {
+      return `${(count / 1_000_000_000).toFixed(1)}B views`;
+    }
+    if (count >= 1_000_000) {
+      return `${(count / 1_000_000).toFixed(1)}M views`;
+    }
+    if (count >= 1_000) {
+      return `${(count / 1_000).toFixed(1)}K views`;
+    }
+    return `${count} views`;
+  }
+  
+  /**
+   * Format published date as relative time
+   * e.g., "2 years ago"
+   */
+  function formatPublishedDate(dateStr: string | undefined): string {
+    if (!dateStr) return '';
+    
+    try {
+      const date = new Date(dateStr);
+      const now = new Date();
+      const diffMs = now.getTime() - date.getTime();
+      const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+      
+      if (diffDays < 1) return 'Today';
+      if (diffDays === 1) return 'Yesterday';
+      if (diffDays < 7) return `${diffDays} days ago`;
+      if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`;
+      if (diffDays < 365) return `${Math.floor(diffDays / 30)} months ago`;
+      return `${Math.floor(diffDays / 365)} years ago`;
+    } catch {
+      return '';
+    }
+  }
+  
+  // ===========================================
+  // Event Handlers
+  // ===========================================
   
   // Handle play button click - signals ActiveChat to start VideoIframe
   function handlePlayClick() {
@@ -172,13 +270,6 @@
       embedUrl,
       thumbnailUrl
     });
-  }
-  
-  // Handle opening video on YouTube
-  function handleOpenOnYouTube() {
-    if (url) {
-      window.open(url, '_blank', 'noopener,noreferrer');
-    }
   }
   
   // Handle tip creator - opens tip settings menu
@@ -266,6 +357,7 @@
       };
 
       // Store embed context for SettingsShare
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (window as any).__embedShareContext = embedContext;
 
       // Navigate to share settings
@@ -381,10 +473,11 @@
             class="video-thumbnail"
             loading="lazy"
             onerror={(e) => {
-              // Try fallback thumbnail quality
+              // Try fallback thumbnail quality (also proxied)
               const img = e.target as HTMLImageElement;
               if (img.src.includes('maxresdefault')) {
-                img.src = `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
+                const fallbackRaw = `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
+                img.src = `${PREVIEW_SERVER}/api/v1/image?url=${encodeURIComponent(fallbackRaw)}&max_width=${FULLSCREEN_IMAGE_MAX_WIDTH}`;
               } else {
                 img.style.display = 'none';
               }
@@ -399,11 +492,32 @@
           >
             <span class="play-icon"></span>
           </button>
+          <!-- Duration badge overlay -->
+          {#if duration}
+            <div class="duration-badge">{duration.formatted}</div>
+          {/if}
         </div>
       {:else if isVideoPlaying}
         <!-- Video is playing - VideoIframe shows the actual video -->
         <!-- This spacer maintains layout so buttons stay below the video -->
         <div class="video-playing-spacer"></div>
+      {/if}
+      
+      <!-- Video metadata info -->
+      {#if (channelName || viewCount || publishedAt) && !isVideoPlaying}
+        <div class="video-metadata">
+          {#if channelName}
+            <span class="channel-name">{channelName}</span>
+          {/if}
+          {#if viewCount}
+            <span class="metadata-separator">•</span>
+            <span class="view-count">{formatViewCount(viewCount)}</span>
+          {/if}
+          {#if publishedAt}
+            <span class="metadata-separator">•</span>
+            <span class="published-date">{formatPublishedDate(publishedAt)}</span>
+          {/if}
+        </div>
       {/if}
       
       <!-- Action buttons - moves down when video is playing to avoid collision -->
@@ -452,7 +566,7 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 24px;
+    gap: 16px;
     width: 100%;
     margin-top: 20px;
   }
@@ -519,6 +633,50 @@
     background-position: center;
     filter: brightness(0) invert(1); /* Make icon white */
     pointer-events: none;
+  }
+  
+  /* Duration badge overlay - bottom right of thumbnail */
+  .duration-badge {
+    position: absolute;
+    bottom: 10px;
+    right: 10px;
+    background: rgba(0, 0, 0, 0.85);
+    color: var(--color-grey-100);
+    font-size: 13px;
+    font-weight: 500;
+    padding: 3px 7px;
+    border-radius: 4px;
+    font-family: var(--font-mono, monospace);
+    letter-spacing: 0.3px;
+  }
+  
+  /* ===========================================
+     Video Metadata Info
+     =========================================== */
+  
+  .video-metadata {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    color: var(--color-grey-60);
+    margin-top: 32px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  
+  .channel-name {
+    color: var(--color-grey-80);
+    font-weight: 500;
+  }
+  
+  .metadata-separator {
+    color: var(--color-grey-40);
+  }
+  
+  .view-count,
+  .published-date {
+    color: var(--color-grey-60);
   }
   
   /* ===========================================

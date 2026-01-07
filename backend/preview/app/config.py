@@ -188,6 +188,29 @@ class Settings(BaseSettings):
     )
     
     # ===========================================
+    # YouTube API Settings
+    # ===========================================
+    
+    # YouTube Data API v3 key for fetching video metadata
+    # Get from: https://console.cloud.google.com/apis/credentials
+    # Enable "YouTube Data API v3" in the API library
+    # Cost: 1 quota unit per videos.list request (10,000 units/day free)
+    youtube_api_key: Optional[str] = Field(
+        default=None,
+        validation_alias=AliasChoices(
+            "SECRET__YOUTUBE__API_KEY",  # Main backend format (shared .env)
+            "PREVIEW_YOUTUBE_API_KEY"  # Preview-specific with env_prefix
+        ),
+        description="YouTube Data API v3 key for video metadata"
+    )
+    
+    # YouTube metadata cache TTL (default: 24 hours, same as website metadata)
+    youtube_cache_ttl_seconds: int = Field(
+        default=86400,
+        description="YouTube metadata cache TTL (24 hours)"
+    )
+    
+    # ===========================================
     # Logging Settings
     # ===========================================
     
