@@ -58,8 +58,8 @@ Uses the shared SecurityAuth component for unified authentication (passkey, 2FA 
     // ========================================================================
     
     /** User authentication methods - needed for SecurityAuth component */
+    /** Note: We only use passkey and 2FA for account deletion (not password) */
     let hasPasskey = $state(false);
-    let hasPassword = $state(false);  // Not used for deletion, but SecurityAuth needs it
     let has2FA = $state(false);
     
     /** Whether the SecurityAuth modal is shown */
@@ -132,9 +132,8 @@ Uses the shared SecurityAuth component for unified authentication (passkey, 2FA 
             if (response.ok) {
                 const data = await response.json();
                 hasPasskey = data.has_passkey || false;
-                hasPassword = data.has_password || false;
                 has2FA = data.has_2fa || false;
-                console.log('[SettingsDeleteAccount] Auth methods fetched:', { hasPasskey, hasPassword, has2FA });
+                console.log('[SettingsDeleteAccount] Auth methods fetched:', { hasPasskey, has2FA });
             }
         } catch (error) {
             console.error('[SettingsDeleteAccount] Error fetching auth methods:', error);
@@ -419,11 +418,12 @@ Uses the shared SecurityAuth component for unified authentication (passkey, 2FA 
     {/if}
 </div>
 
-<!-- SecurityAuth Modal - Unified authentication component (passkey or 2FA) -->
+<!-- SecurityAuth Modal - Unified authentication component (passkey or 2FA OTP only) -->
+<!-- Note: We pass hasPassword={false} to skip password auth - account deletion only accepts passkey or 2FA OTP -->
 {#if showAuthModal}
     <SecurityAuth
         {hasPasskey}
-        {hasPassword}
+        hasPassword={false}
         has2FA={has2FA}
         title={$text('settings.account.delete_account_auth_title.text')}
         description={$text('settings.account.delete_account_auth_description.text')}

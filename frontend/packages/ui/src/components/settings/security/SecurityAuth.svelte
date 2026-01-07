@@ -569,11 +569,11 @@ Svelte 5: Uses callback props instead of event dispatcher for parent communicati
         left: 0;
         right: 0;
         bottom: 0;
-        background: rgba(0, 0, 0, 0.5);
+        background: rgba(0, 0, 0, 0.7);
         display: flex;
         align-items: center;
         justify-content: center;
-        z-index: 1000;
+        z-index: 10000; /* Higher than settings menu (1006) to ensure proper overlay */
     }
 
     .auth-modal {
@@ -582,7 +582,9 @@ Svelte 5: Uses callback props instead of event dispatcher for parent communicati
         padding: 24px;
         max-width: 400px;
         width: 90%;
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+        position: relative;
+        z-index: 10001; /* Ensure modal content is above overlay */
     }
 
     .auth-header {
