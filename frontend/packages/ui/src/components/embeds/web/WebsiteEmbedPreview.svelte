@@ -63,10 +63,18 @@
     favicon || 
     `https://preview.openmates.org/api/v1/favicon?url=${encodeURIComponent(url)}`
   );
-  let imageUrl = $derived(
-    image || 
-    `https://preview.openmates.org/api/v1/image?url=${encodeURIComponent(url)}`
-  );
+  // Preview image URL - proxy through preview server with max_width for optimization
+  // The preview thumbnail is 100x100px, so we request 200px for retina displays
+  // Note: We only proxy if we have an actual image URL (not the webpage URL itself)
+  const PREVIEW_IMAGE_MAX_WIDTH = 200; // 2x for retina displays (100px container)
+  
+  let imageUrl = $derived.by(() => {
+    if (!image) {
+      return null; // No fallback to webpage URL - would cause 415 error
+    }
+    // Proxy through preview server with max_width to optimize image size
+    return `https://preview.openmates.org/api/v1/image?url=${encodeURIComponent(image)}&max_width=${PREVIEW_IMAGE_MAX_WIDTH}`;
+  });
   
   // Handle stop button click (not applicable for websites, but included for consistency)
   async function handleStop() {

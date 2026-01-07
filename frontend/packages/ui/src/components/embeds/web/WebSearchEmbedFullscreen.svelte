@@ -143,17 +143,55 @@
   );
   
   /**
+   * Helper to extract nested field from content object
+   * Supports both flat and nested formats (e.g., 'thumbnail.original' or 'thumbnail_original')
+   */
+  function getNestedField(obj: Record<string, unknown>, ...paths: string[]): string | undefined {
+    for (const path of paths) {
+      // Try nested path first (e.g., 'thumbnail.original')
+      if (path.includes('.')) {
+        const parts = path.split('.');
+        let value: unknown = obj;
+        for (const part of parts) {
+          if (value && typeof value === 'object' && part in (value as Record<string, unknown>)) {
+            value = (value as Record<string, unknown>)[part];
+          } else {
+            value = undefined;
+            break;
+          }
+        }
+        if (typeof value === 'string' && value) return value;
+      } else {
+        // Try flat path
+        const value = obj[path];
+        if (typeof value === 'string' && value) return value;
+      }
+    }
+    return undefined;
+  }
+
+  /**
    * Transform raw embed content to WebSearchResult format
    * Used by UnifiedEmbedFullscreen's childEmbedTransformer
    * Extracts all available fields for both preview and fullscreen views
+   * 
+   * Backend saves nested objects like thumbnail.original and meta_url.favicon
+   * This transformer handles both nested and flat field formats for compatibility
    */
   function transformToWebResult(embedId: string, content: Record<string, unknown>): WebSearchResult {
+    // Extract nested fields - backend saves as thumbnail.original, meta_url.favicon
+    const faviconUrl = getNestedField(content, 'meta_url.favicon', 'favicon_url', 'meta_url_favicon');
+    const thumbnailUrl = getNestedField(content, 'thumbnail.original', 'preview_image_url', 'thumbnail_original', 'image');
+    
     // Debug: Log raw content to see what fields are available
     console.debug('[WebSearchEmbedFullscreen] transformToWebResult raw content:', {
       embedId,
       contentKeys: Object.keys(content),
+      thumbnail: content.thumbnail,
+      meta_url: content.meta_url,
+      extractedFavicon: faviconUrl,
+      extractedThumbnail: thumbnailUrl,
       extra_snippets: content.extra_snippets,
-      extra_snippets_type: typeof content.extra_snippets,
       page_age: content.page_age
     });
     
@@ -161,8 +199,8 @@
       embed_id: embedId,
       title: content.title as string | undefined,
       url: content.url as string,
-      favicon_url: (content.favicon_url || content.meta_url_favicon) as string | undefined,
-      preview_image_url: (content.preview_image_url || content.thumbnail_original || content.image) as string | undefined,
+      favicon_url: faviconUrl,
+      preview_image_url: thumbnailUrl,
       snippet: (content.snippet as string) || (content.description as string),
       description: content.description as string | undefined,
       extra_snippets: content.extra_snippets as string | string[] | undefined
@@ -170,8 +208,9 @@
     
     console.debug('[WebSearchEmbedFullscreen] Transformed result:', {
       embedId,
-      hasExtraSnippets: !!result.extra_snippets,
-      extra_snippets: result.extra_snippets
+      hasFavicon: !!result.favicon_url,
+      hasThumbnail: !!result.preview_image_url,
+      hasExtraSnippets: !!result.extra_snippets
     });
     
     return result;
@@ -179,14 +218,15 @@
   
   /**
    * Transform legacy results to WebSearchResult format (for backwards compatibility)
+   * Handles both nested and flat field formats
    */
   function transformLegacyResults(results: unknown[]): WebSearchResult[] {
     return (results as Array<Record<string, unknown>>).map((r, i) => ({
       embed_id: `legacy-${i}`,
       title: r.title as string | undefined,
       url: r.url as string,
-      favicon_url: (r.favicon_url || r.meta_url_favicon) as string | undefined,
-      preview_image_url: (r.preview_image_url || r.thumbnail_original || r.image) as string | undefined,
+      favicon_url: getNestedField(r, 'meta_url.favicon', 'favicon_url', 'meta_url_favicon'),
+      preview_image_url: getNestedField(r, 'thumbnail.original', 'preview_image_url', 'thumbnail_original', 'image'),
       snippet: (r.snippet as string) || (r.description as string),
       description: r.description as string | undefined,
       extra_snippets: r.extra_snippets as string | string[] | undefined

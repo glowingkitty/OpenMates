@@ -1,0 +1,101 @@
+# Caddyfile for OpenMates Preview Server
+#
+# This is a standalone Caddy configuration for the preview server,
+# typically deployed on a separate VM (preview.openmates.org).
+#
+# SECURITY: This server is exclusively for the OpenMates webapp.
+# All requests (except health checks) MUST have a valid Referer header
+# from openmates.org domains. Direct API access is blocked.
+#
+# USAGE:
+# 1. Copy this file to Caddyfile (gitignored)
+# 2. Replace <YOUR_EMAIL> with your email for Let's Encrypt
+# 3. Replace <PREVIEW_DOMAIN> with your preview domain (e.g., preview.openmates.org)
+# 4. Replace <PREVIEW_UPSTREAM> with the upstream address:
+#    - If Caddy runs on the same machine: localhost:8080
+#    - If using Docker network: preview:8080
+#
+# INSTALL CADDY (if not using Docker):
+#   sudo apt install -y debian-keyring debian-archive-keyring apt-transport-https curl
+#   curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | sudo gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
+#   curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' | sudo tee /etc/apt/sources.list.d/caddy-stable.list
+#   sudo apt update && sudo apt install caddy
+#
+# APPLY CONFIGURATION:
+#   sudo cp Caddyfile /etc/caddy/Caddyfile
+#   sudo systemctl reload caddy
+
+{
+	# Email for ACME account (Let's Encrypt certificate notifications)
+	email <YOUR_EMAIL>
+}
+
+# Preview Server Domain Configuration
+<PREVIEW_DOMAIN> {
+	# ===========================================
+	# Logging
+	# ===========================================
+	log {
+		output file /var/log/caddy/preview.log {
+			roll_size 50mb
+			roll_keep 5
+			roll_keep_for 168h  # 7 days
+		}
+		format json
+		level INFO
+	}
+
+	# ===========================================
+	# Compression
+	# ===========================================
+	encode gzip zstd
+
+	# ===========================================
+	# Security Headers
+	# ===========================================
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Permissions-Policy "geolocation=(), microphone=(), camera=(), interest-cohort=()"
+		-Server
+	}
+
+	# ===========================================
+	# Referer Validation (Webapp Only)
+	# ===========================================
+	# Health endpoints: always accessible (no referer check)
+	# All other endpoints: MUST have valid openmates.org referer
+	# Empty referers are BLOCKED (webapp always sends referer)
+	
+	# Health endpoints - always allowed (for monitoring/load balancers)
+	@health_endpoints path /health /health/*
+	handle @health_endpoints {
+		reverse_proxy <PREVIEW_UPSTREAM> {
+			header_up Host {http.request.host}
+			header_up X-Real-IP {remote_host}
+			header_up X-Forwarded-For {remote_host}
+			header_up X-Forwarded-Proto {scheme}
+		}
+	}
+
+	# Valid referers from openmates.org domains only
+	# Matches: openmates.org, app.openmates.org, app.dev.openmates.org, etc.
+	@valid_referer expression {header.Referer}.matches("^https://([a-zA-Z0-9-]+\\.)*openmates\\.org(/.*)?$")
+	
+	# Handle valid webapp requests
+	handle @valid_referer {
+		reverse_proxy <PREVIEW_UPSTREAM> {
+			header_up Host {http.request.host}
+			header_up X-Real-IP {remote_host}
+			header_up X-Forwarded-For {remote_host}
+			header_up X-Forwarded-Proto {scheme}
+		}
+	}
+
+	# Block everything else (missing referer, invalid referer, direct API calls)
+	handle {
+		respond "Access denied: requests must originate from openmates.org" 403
+	}
+}

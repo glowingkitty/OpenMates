@@ -153,12 +153,21 @@
     `https://preview.openmates.org/api/v1/favicon?url=${encodeURIComponent(url)}`
   );
   
-  // Header image URL with fallback chain
-  let imageUrl = $derived(
-    thumbnail_original || 
-    image || 
-    `https://preview.openmates.org/api/v1/image?url=${encodeURIComponent(url)}`
-  );
+  // Header image URL - proxy through preview server with max_width for optimization
+  // The header image container is max 511px wide, so we request 1024px for retina displays
+  // Note: We only proxy if we have an actual image URL (not the webpage URL itself)
+  // If no image URL is available, we simply don't show a header image
+  const HEADER_IMAGE_MAX_WIDTH = 1024; // 2x for retina displays (container is 511px max)
+  
+  let imageUrl = $derived.by(() => {
+    const originalImageUrl = thumbnail_original || image;
+    if (!originalImageUrl) {
+      return null;
+    }
+    // Proxy through preview server with max_width to optimize image size
+    // This also provides caching and privacy benefits
+    return `https://preview.openmates.org/api/v1/image?url=${encodeURIComponent(originalImageUrl)}&max_width=${HEADER_IMAGE_MAX_WIDTH}`;
+  });
   
   /**
    * Parse relative time strings from Brave Search API (e.g., "2 weeks ago", "3 days ago")

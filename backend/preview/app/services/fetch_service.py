@@ -151,7 +151,8 @@ class FetchService:
     async def fetch_image(
         self,
         url: str,
-        max_size: Optional[int] = None
+        max_size: Optional[int] = None,
+        min_size: int = 0
     ) -> Tuple[bytes, str]:
         """
         Fetch an image from URL.
@@ -159,6 +160,7 @@ class FetchService:
         Args:
             url: Image URL
             max_size: Maximum allowed size in bytes (uses default if not provided)
+            min_size: Minimum required size in bytes (default: 0, no minimum)
             
         Returns:
             Tuple of (image_bytes, content_type)
@@ -223,6 +225,18 @@ class FetchService:
                     chunks.append(chunk)
                 
                 image_data = b"".join(chunks)
+                
+                # Check minimum size requirement
+                if min_size > 0 and len(image_data) < min_size:
+                    logger.warning(
+                        f"[FetchService] Image too small: {len(image_data)} bytes "
+                        f"(min: {min_size}) for {url[:50]}..."
+                    )
+                    raise FetchError(
+                        f"Image too small: {len(image_data)} bytes (min: {min_size})",
+                        422  # Unprocessable Entity
+                    )
+                
                 logger.debug(
                     f"[FetchService] Fetched image ({len(image_data)} bytes, {content_type}) "
                     f"from {url[:50]}..."
@@ -270,7 +284,8 @@ class FetchService:
                 logger.debug(f"[FetchService] Trying favicon URL: {favicon_url}")
                 return await self.fetch_image(
                     favicon_url,
-                    max_size=settings.max_favicon_size_bytes
+                    max_size=settings.max_favicon_size_bytes,
+                    min_size=settings.min_favicon_size_bytes
                 )
             except FetchError as e:
                 last_error = e

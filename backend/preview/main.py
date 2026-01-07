@@ -182,9 +182,19 @@ if settings.validate_referer:
         # Get Referer header
         referer = request.headers.get("referer", "")
         
-        # Allow empty referer (privacy settings, direct navigation in some browsers)
+        # Handle empty referer based on configuration
+        # When allow_empty_referer is False (webapp-only mode), block empty referers
         if not referer:
-            return await call_next(request)
+            if settings.allow_empty_referer:
+                return await call_next(request)
+            else:
+                logger.warning(
+                    f"[RefererValidation] Blocked request with empty referer for path: {request.url.path}"
+                )
+                return JSONResponse(
+                    status_code=403,
+                    content={"detail": "Access denied: Referer header required"}
+                )
         
         # Check against allowed patterns
         for pattern in settings.allowed_referers_list:
