@@ -104,7 +104,9 @@ Detailed health with cache statistics.
 
 ## Configuration
 
-Copy `.env.example` to `.env` and adjust as needed.
+Set environment variables as needed. The preview server uses the `PREVIEW_` prefix for most settings, but reuses the main backend's `SECRET__WEBSHARE__*` credentials for proxy configuration.
+
+### Core Settings
 
 | Variable | Default | Description |
 |----------|---------|-------------|
@@ -124,6 +126,21 @@ Copy `.env.example` to `.env` and adjust as needed.
 | `PREVIEW_API_KEY` | (empty) | Optional API key for auth |
 | `PREVIEW_VALIDATE_REFERER` | true | Enable Referer header validation |
 | `PREVIEW_ALLOWED_REFERERS` | see below | Allowed Referer patterns |
+
+### Webshare Proxy (RECOMMENDED)
+
+For reliable metadata fetching, configure Webshare rotating residential proxy. Without a proxy, many websites will block direct server requests.
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `SECRET__WEBSHARE__PROXY_USERNAME` | (empty) | Webshare username (same as main backend) |
+| `SECRET__WEBSHARE__PROXY_PASSWORD` | (empty) | Webshare password (same as main backend) |
+| `PREVIEW_USE_PROXY_FOR_METADATA` | true | Use proxy for HTML/metadata fetching |
+| `PREVIEW_USE_PROXY_FOR_IMAGES` | false | Use proxy for image fetching |
+
+Get credentials from: https://webshare.io/
+
+**Note:** These are the same credentials used by the main backend (defined in `.env.example` lines 71-72). If running preview on the same server, you can share the same `.env` file.
 
 ## Architecture
 

@@ -74,7 +74,7 @@ class MetadataService:
         
         logger.info(
             f"[MetadataService] Extracted metadata for {url[:50]}...: "
-            f"title={metadata.get('title', 'N/A')[:30]}..."
+            f"title={(metadata.get('title') or 'N/A')[:30]}..."
         )
         
         return metadata
