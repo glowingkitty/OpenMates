@@ -14,7 +14,7 @@
 
 <script lang="ts">
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
-  // @ts-ignore - @repo/ui module exists at runtime
+  // @ts-expect-error - @repo/ui module exists at runtime
   import { text } from '@repo/ui';
   import { chatSyncService } from '../../../services/chatSyncService';
   
@@ -99,7 +99,7 @@
   /**
    * Handle embed data updates from UnifiedEmbedPreview
    */
-  function handleEmbedDataUpdated(data: { status: string; decodedContent: any }) {
+  function handleEmbedDataUpdated(data: { status: string; decodedContent: Record<string, unknown> }) {
     console.debug(`[NewsSearchEmbedPreview] 🔄 Received embed data update for ${id}`);
     
     if (data.status === 'processing' || data.status === 'finished' || data.status === 'error') {
@@ -108,13 +108,13 @@
     
     const content = data.decodedContent;
     if (content) {
-      if (content.query) localQuery = content.query;
-      if (content.provider) localProvider = content.provider;
+      if (typeof content.query === 'string') localQuery = content.query;
+      if (typeof content.provider === 'string') localProvider = content.provider;
       if (content.results && Array.isArray(content.results)) {
-        localResults = content.results;
+        localResults = content.results as NewsSearchResult[];
       }
       // Extract skill_task_id for individual skill cancellation
-      if (content.skill_task_id) {
+      if (typeof content.skill_task_id === 'string') {
         localSkillTaskId = content.skill_task_id;
       }
     }
@@ -193,14 +193,17 @@
           {#if faviconResults.length > 0}
             <div class="favicon-row">
               {#each faviconResults as result, index}
-                {@const faviconUrl = result.meta_url?.favicon || result.favicon_url}
-                <img 
-                  src={faviconUrl}
-                  alt=""
-                  class="favicon"
-                  style="z-index: {faviconResults.length - index};"
-                  loading="lazy"
-                />
+                {@const faviconSrc = result.meta_url?.favicon || result.favicon_url}
+                {#if faviconSrc}
+                  <img 
+                    src={faviconSrc}
+                    alt=""
+                    class="favicon"
+                    style="z-index: {faviconResults.length - index};"
+                    loading="lazy"
+                    onerror={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+                  />
+                {/if}
               {/each}
             </div>
           {/if}

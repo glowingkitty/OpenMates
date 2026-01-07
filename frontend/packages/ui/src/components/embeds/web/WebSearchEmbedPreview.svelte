@@ -20,20 +20,40 @@
 
 <script lang="ts">
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
-  // @ts-ignore - @repo/ui module exists at runtime
+  // @ts-expect-error - @repo/ui module exists at runtime
   import { text } from '@repo/ui';
   import { chatSyncService } from '../../../services/chatSyncService';
   import type { WebSearchSkillPreviewData } from '../../../types/appSkills';
   
   /**
    * Web search result interface for favicon display
+   * Supports both flat (favicon_url) and nested (meta_url.favicon) structures
+   * depending on how the data arrives from backend
    */
   interface WebSearchResult {
     title?: string;
     url: string;
+    /** Direct favicon URL (transformed format) */
     favicon_url?: string;
+    /** Nested meta_url structure from Brave Search (raw backend format) */
+    meta_url?: {
+      favicon?: string;
+    };
     preview_image_url?: string;
     snippet?: string;
+  }
+  
+  /**
+   * Extract favicon URL from result (handles both formats)
+   * @param result - Search result object
+   * @returns Favicon URL or undefined
+   */
+  function getFaviconUrl(result: WebSearchResult): string | undefined {
+    // Check flat format first (transformed data)
+    if (result.favicon_url) return result.favicon_url;
+    // Check nested format (raw backend data)
+    if (result.meta_url?.favicon) return result.meta_url.favicon;
+    return undefined;
   }
   
   /**
@@ -96,7 +116,7 @@
       localResults = previewData.results || [];
       localTaskId = previewData.task_id;
       // skill_task_id might be in previewData for skill-level cancellation
-      localSkillTaskId = (previewData as any).skill_task_id;
+      localSkillTaskId = (previewData as WebSearchSkillPreviewData & { skill_task_id?: string }).skill_task_id;
     } else {
       localQuery = queryProp || '';
       localProvider = providerProp || 'Brave Search';
@@ -119,7 +139,7 @@
    * Handle embed data updates from UnifiedEmbedPreview
    * Called when the parent component receives and decodes updated embed data
    */
-  function handleEmbedDataUpdated(data: { status: string; decodedContent: any }) {
+  function handleEmbedDataUpdated(data: { status: string; decodedContent: Record<string, unknown> }) {
     console.debug(`[WebSearchEmbedPreview] 🔄 Received embed data update for ${id}:`, {
       status: data.status,
       hasContent: !!data.decodedContent
@@ -133,14 +153,14 @@
     // Update web-search-specific fields from decoded content
     const content = data.decodedContent;
     if (content) {
-      if (content.query) localQuery = content.query;
-      if (content.provider) localProvider = content.provider;
+      if (typeof content.query === 'string') localQuery = content.query;
+      if (typeof content.provider === 'string') localProvider = content.provider;
       if (content.results && Array.isArray(content.results)) {
-        localResults = content.results;
+        localResults = content.results as WebSearchResult[];
         console.debug(`[WebSearchEmbedPreview] Updated results from callback:`, localResults.length);
       }
       // Extract skill_task_id for individual skill cancellation
-      if (content.skill_task_id) {
+      if (typeof content.skill_task_id === 'string') {
         localSkillTaskId = content.skill_task_id;
       }
     }
@@ -158,8 +178,9 @@
   );
   
   // Get first 3 results with favicons for display
+  // Checks both favicon_url and meta_url.favicon formats
   let faviconResults = $derived(
-    results?.filter(r => r.favicon_url).slice(0, 3) || []
+    results?.filter(r => getFaviconUrl(r)).slice(0, 3) || []
   );
   
   // Get remaining results count
@@ -224,13 +245,17 @@
           {#if faviconResults.length > 0}
             <div class="favicon-row">
               {#each faviconResults as result, index}
-                <img 
-                  src={result.favicon_url}
-                  alt=""
-                  class="favicon"
-                  style="z-index: {faviconResults.length - index};"
-                  loading="lazy"
-                />
+                {@const faviconSrc = getFaviconUrl(result)}
+                {#if faviconSrc}
+                  <img 
+                    src={faviconSrc}
+                    alt=""
+                    class="favicon"
+                    style="z-index: {faviconResults.length - index};"
+                    loading="lazy"
+                    onerror={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+                  />
+                {/if}
               {/each}
             </div>
           {/if}

@@ -12,13 +12,14 @@ Features:
 - Quality optimization for JPEG/WebP
 - Disk-based caching with LRU eviction
 - Cache key includes dimensions for multiple variants
+- ETag support for conditional requests (enables browser caching validation)
 """
 
 import logging
 import hashlib
 from typing import Optional
 
-from fastapi import APIRouter, Query, Response, HTTPException
+from fastapi import APIRouter, Query, Response, HTTPException, Request
 
 from ..services.cache_service import cache_service
 from ..services.fetch_service import fetch_service, FetchError
@@ -60,8 +61,17 @@ def _generate_cache_key(
     return hashlib.sha256(key_parts.encode("utf-8")).hexdigest()
 
 
+def _generate_etag(data: bytes) -> str:
+    """
+    Generate an ETag from image data using MD5 hash.
+    ETag enables browser conditional requests (If-None-Match) for efficient caching.
+    """
+    return f'"{hashlib.md5(data).hexdigest()}"'
+
+
 @router.get("/image")
 async def get_image(
+    request: Request,
     url: str = Query(..., description="Image URL to fetch and proxy"),
     max_width: Optional[int] = Query(
         None,
@@ -152,13 +162,30 @@ async def get_image(
         # We use the image cache but with our custom key
         cached = cache_service.get_image(cache_key)
         if cached:
-            logger.debug(f"[Image] Cache HIT for {url[:50]}... (key: {cache_key[:16]})")
             image_bytes, content_type = cached
+            etag = _generate_etag(image_bytes)
+            
+            # Check If-None-Match for conditional request
+            # Returns 304 if client already has this exact content
+            if_none_match = request.headers.get("if-none-match")
+            if if_none_match and if_none_match == etag:
+                logger.debug(f"[Image] 304 Not Modified for {url[:50]}... (ETag match)")
+                return Response(
+                    status_code=304,
+                    headers={
+                        "Cache-Control": "public, max-age=604800, immutable",
+                        "ETag": etag,
+                        "X-Cache": "HIT"
+                    }
+                )
+            
+            logger.debug(f"[Image] Cache HIT for {url[:50]}... (key: {cache_key[:16]})")
             return Response(
                 content=image_bytes,
                 media_type=content_type,
                 headers={
-                    "Cache-Control": "public, max-age=604800",  # 7 days
+                    "Cache-Control": "public, max-age=604800, immutable",  # 7 days, immutable
+                    "ETag": etag,
                     "X-Cache": "HIT",
                     "X-Processed": "true"
                 }
@@ -200,11 +227,15 @@ async def get_image(
             expire=settings.image_cache_ttl_seconds
         )
         
+        # Generate ETag for the new content
+        etag = _generate_etag(processed_bytes)
+        
         return Response(
             content=processed_bytes,
             media_type=output_content_type,
             headers={
-                "Cache-Control": "public, max-age=604800",  # 7 days
+                "Cache-Control": "public, max-age=604800, immutable",  # 7 days, immutable
+                "ETag": etag,
                 "X-Cache": "MISS",
                 "X-Processed": "true",
                 "X-Original-Size": str(len(raw_image_bytes)),
