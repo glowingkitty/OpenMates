@@ -137,13 +137,10 @@
     console.debug('[WebsiteEmbedPreview] Fetching metadata for URL:', urlToFetch);
     
     try {
-      const response = await fetch(`https://preview.openmates.org/api/v1/metadata`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ url: urlToFetch })
-      });
+      // Use GET endpoint to avoid CORS preflight (POST with JSON requires OPTIONS preflight)
+      const response = await fetch(
+        `https://preview.openmates.org/api/v1/metadata?url=${encodeURIComponent(urlToFetch)}`
+      );
       
       if (!response.ok) {
         console.warn('[WebsiteEmbedPreview] Metadata fetch failed:', response.status, response.statusText);
