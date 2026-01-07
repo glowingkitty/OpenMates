@@ -7,43 +7,37 @@ their email address. It performs the same deletion process as when a
 user manually deletes their account via the Settings > Account > Delete Account UI.
 
 Security:
-- The email is hashed using the same Vault HMAC process used in the application
+- The email is hashed using SHA-256 (same as frontend during signup)
 - User lookup is done by hashed_email (never stores/logs plaintext email)
 - Requires explicit confirmation before deletion
 - Supports dry-run mode to preview what would happen
 
-Usage:
-    # Must be run from within a Docker container that has access to backend services
-    # (Vault, Directus, Redis, Celery)
-    
+Usage (from Docker):
     # Interactive mode (prompts for confirmation):
-    python scripts/delete_user_account.py --email user@example.com
+    docker exec -it api python /app/backend/scripts/delete_user_account.py --email user@example.com
     
     # Dry-run mode (preview without actually deleting):
-    python scripts/delete_user_account.py --email user@example.com --dry-run
+    docker exec -it api python /app/backend/scripts/delete_user_account.py --email user@example.com --dry-run
     
     # Skip confirmation (for scripted use - USE WITH CAUTION):
-    python scripts/delete_user_account.py --email user@example.com --yes
+    docker exec -it api python /app/backend/scripts/delete_user_account.py --email user@example.com --yes
     
     # With custom deletion reason (for compliance logging):
-    python scripts/delete_user_account.py --email user@example.com --reason "Policy violation"
-    
-Running from Docker:
-    # Option 1: Execute in running backend container
-    docker compose exec backend python scripts/delete_user_account.py --email user@example.com
-    
-    # Option 2: Run as a one-off container
-    docker compose run --rm backend python scripts/delete_user_account.py --email user@example.com
+    docker exec -it api python /app/backend/scripts/delete_user_account.py --email user@example.com --reason "Policy violation"
 """
 
 import argparse
 import asyncio
+import base64
+import hashlib
 import logging
 import sys
 import os
+from typing import Optional
 
-# Add backend to path for imports when running as script
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+# Add /app to path for imports when running as script (fallback if PYTHONPATH not set)
+# Script is at /app/backend/scripts/, imports need /app to find backend.core.api...
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
 
 # Configure logging
 logging.basicConfig(
@@ -85,32 +79,47 @@ async def initialize_services():
     return cache_service, encryption_service, directus_service
 
 
+def hash_email_sha256(email: str) -> str:
+    """
+    Hash email using SHA-256 (same method used by frontend during signup).
+    
+    This matches how hashed_email is computed and stored in the database:
+    - Lowercase and strip the email
+    - SHA-256 hash
+    - Base64 encode
+    
+    Args:
+        email: The plaintext email address
+        
+    Returns:
+        Base64-encoded SHA-256 hash of the email
+    """
+    normalized_email = email.lower().strip()
+    email_bytes = normalized_email.encode('utf-8')
+    hashed_email_buffer = hashlib.sha256(email_bytes).digest()
+    return base64.b64encode(hashed_email_buffer).decode('utf-8')
+
+
 async def lookup_user_by_email(
     email: str,
-    encryption_service,
     directus_service
-) -> dict | None:
+) -> Optional[dict]:
     """
     Look up a user by their email address.
     
-    The email is hashed using Vault HMAC before lookup to match
-    how users are stored in the database (privacy-preserving).
+    The email is hashed using SHA-256 (same as frontend) before lookup
+    to match how users are stored in the database.
     
     Args:
         email: The plaintext email address to look up
-        encryption_service: EncryptionService instance for hashing
         directus_service: DirectusService instance for database queries
         
     Returns:
         User data dict if found, None otherwise
     """
-    # Hash the email using Vault HMAC (same process as user registration/login)
+    # Hash the email using SHA-256 (same process as frontend during signup)
     logger.info(f"Hashing email for lookup (email length: {len(email)})")
-    hashed_email = await encryption_service.hash_email(email)
-    
-    if not hashed_email:
-        logger.error("Failed to hash email - check Vault connectivity")
-        return None
+    hashed_email = hash_email_sha256(email)
     
     # Only log first 8 chars of hash for debugging (privacy)
     logger.debug(f"Email hashed successfully (hash prefix: {hashed_email[:8]}...)")
@@ -126,7 +135,7 @@ async def lookup_user_by_email(
     return user_data
 
 
-async def get_user_preview_info(user_id: str, directus_service) -> dict:
+async def get_user_preview_info(user_id: str, directus_service, encryption_service, vault_key_id: str, user_data: dict) -> dict:
     """
     Get preview information about what will happen during deletion.
     
@@ -135,6 +144,9 @@ async def get_user_preview_info(user_id: str, directus_service) -> dict:
     Args:
         user_id: The user's ID
         directus_service: DirectusService instance
+        encryption_service: EncryptionService instance for decrypting data
+        vault_key_id: User's vault key ID for decryption
+        user_data: User data from Directus (contains encrypted fields)
         
     Returns:
         Dict with preview information
@@ -146,6 +158,9 @@ async def get_user_preview_info(user_id: str, directus_service) -> dict:
         'has_api_keys': False,
         'api_key_count': 0,
         'chat_count': 0,
+        'credit_balance': 0,
+        'gifted_credits': 0,
+        'refundable_credits': 0,
     }
     
     try:
@@ -166,15 +181,44 @@ async def get_user_preview_info(user_id: str, directus_service) -> dict:
     
     try:
         # Count chats (using hashed_user_id as chats table uses this field for privacy)
-        import hashlib
-        hashed_user_id = hashlib.sha256(user_id.encode()).hexdigest()
+        user_id_hash = hashlib.sha256(user_id.encode()).hexdigest()
         chats = await directus_service.get_items(
             "chats",
-            params={"filter": {"hashed_user_id": {"_eq": hashed_user_id}}, "limit": 1000}
+            params={"filter": {"hashed_user_id": {"_eq": user_id_hash}}, "limit": 1000}
         )
         preview['chat_count'] = len(chats) if chats else 0
     except Exception as e:
         logger.warning(f"Could not fetch chat count: {e}")
+    
+    # Get user's credit balance and gifted credits for refund calculation
+    try:
+        # Decrypt credit balance
+        encrypted_credits = user_data.get('encrypted_credit_balance')
+        if encrypted_credits and vault_key_id:
+            try:
+                decrypted = await encryption_service.decrypt_with_user_key(encrypted_credits, vault_key_id)
+                if decrypted:
+                    preview['credit_balance'] = int(decrypted)
+            except Exception as e:
+                logger.debug(f"Could not decrypt credit balance: {e}")
+        
+        # Decrypt gifted credits (from signup bonuses, etc. - these are NOT refunded)
+        encrypted_gifted = user_data.get('encrypted_gifted_credits_for_signup')
+        if encrypted_gifted and vault_key_id:
+            try:
+                decrypted = await encryption_service.decrypt_with_user_key(encrypted_gifted, vault_key_id)
+                if decrypted:
+                    preview['gifted_credits'] = int(decrypted)
+            except Exception as e:
+                logger.debug(f"Could not decrypt gifted credits: {e}")
+        
+        # Calculate refundable credits (total balance minus gifted credits)
+        # Gifted credits and gift card redemptions are not refunded
+        refundable = preview['credit_balance'] - preview['gifted_credits']
+        preview['refundable_credits'] = max(0, refundable)  # Can't be negative
+        
+    except Exception as e:
+        logger.warning(f"Could not fetch credit information: {e}")
     
     return preview
 
@@ -244,11 +288,33 @@ def print_preview(user_data: dict, preview: dict):
     print("  • All sessions and authentication tokens")
     print("  • User profile and settings")
     
+    # Display credit balance and refund information
+    print("\n" + "-" * 60)
+    print("CREDIT BALANCE & REFUNDS:")
+    print("-" * 60)
+    
+    credit_balance = preview.get('credit_balance', 0)
+    gifted_credits = preview.get('gifted_credits', 0)
+    refundable_credits = preview.get('refundable_credits', 0)
+    
+    print(f"  • Current credit balance: {credit_balance} credits")
+    
+    if gifted_credits > 0:
+        print(f"  • Gifted credits (not refunded): {gifted_credits} credits")
+    
+    print()
+    if refundable_credits > 0:
+        print(f"  ✅ REFUNDABLE CREDITS: {refundable_credits} credits")
+        print("     (All unused purchased credits will be refunded)")
+    else:
+        print("  • No credits eligible for refund")
+    
     print("\n" + "-" * 60)
     print("REFUND POLICY:")
     print("-" * 60)
-    print("  • All unused credits will be refunded")
-    print("  • Credits from gift card redemptions are NOT refunded")
+    print("  • ALL unused purchased credits are refunded")
+    print("  • Gifted credits (signup bonuses) are NOT refunded")
+    print("  • Gift card redemptions are NOT refunded")
     
     print("\n" + "=" * 60)
 
@@ -338,7 +404,7 @@ Examples:
     
     try:
         # Look up user by email
-        user_data = await lookup_user_by_email(email, encryption_service, directus_service)
+        user_data = await lookup_user_by_email(email, directus_service)
         
         if not user_data:
             print(f"\n❌ No user found with email: {email}")
@@ -346,10 +412,11 @@ Examples:
             sys.exit(1)
         
         user_id = user_data.get('id')
+        vault_key_id = user_data.get('vault_key_id')
         print(f"✅ User found: {user_id}")
         
-        # Get preview information
-        preview = await get_user_preview_info(user_id, directus_service)
+        # Get preview information (including refund calculations)
+        preview = await get_user_preview_info(user_id, directus_service, encryption_service, vault_key_id, user_data)
         
         # Print preview
         print_preview(user_data, preview)
