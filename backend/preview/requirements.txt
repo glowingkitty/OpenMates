@@ -9,6 +9,9 @@ uvicorn[standard]==0.34.0
 httpx==0.28.1
 aiohttp==3.13.3
 
+# Brotli decompression support (for Accept-Encoding: br)
+brotli==1.2.0
+
 # HTML parsing for Open Graph metadata extraction
 beautifulsoup4==4.12.3
 lxml==5.3.0

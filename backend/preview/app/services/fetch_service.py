@@ -114,11 +114,12 @@ class FetchService:
     ]
     
     # Browser-like headers for better compatibility
+    # NOTE: Don't set Accept-Encoding manually - httpx handles it automatically
+    # and will only advertise encodings it can decode (gzip, deflate, br if brotli installed)
     BROWSER_HEADERS = {
         "User-Agent": settings.user_agent,
         "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
         "Accept-Language": "en-US,en;q=0.9",
-        "Accept-Encoding": "gzip, deflate, br",
         "Cache-Control": "no-cache",
         "Pragma": "no-cache",
         "Sec-Ch-Ua": '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
@@ -416,11 +417,12 @@ class FetchService:
         # Generate fresh random User-Agent for each request
         user_agent = _generate_random_user_agent()
         
+        # NOTE: Don't set Accept-Encoding manually - httpx handles it automatically
+        # and will only advertise encodings it can decode (gzip, deflate, br if brotli installed)
         return {
             "User-Agent": user_agent,
             "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
             "Accept-Language": random.choice(accept_languages),
-            "Accept-Encoding": "gzip, deflate, br",
             "Cache-Control": "no-cache",
             "Pragma": "no-cache",
             "DNT": random.choice(["1", "0"]),
