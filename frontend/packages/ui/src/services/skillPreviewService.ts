@@ -11,6 +11,15 @@ import type { SkillExecutionStatusUpdatePayload, WebSearchSkillPreviewData, Vide
 const skillPreviewCache = new Map<string, WebSearchSkillPreviewData | VideoTranscriptSkillPreviewData>();
 
 /**
+ * Payload for skill cancellation confirmation from backend
+ */
+interface SkillCancelRequestedPayload {
+  skill_task_id: string;
+  embed_id?: string;
+  status: string; // 'cancellation_requested'
+}
+
+/**
  * Event target for skill preview updates
  */
 class SkillPreviewService extends EventTarget {
@@ -18,6 +27,11 @@ class SkillPreviewService extends EventTarget {
    * Stored handler reference for unregistering
    */
   private skillStatusHandler?: (payload: SkillExecutionStatusUpdatePayload) => void;
+  
+  /**
+   * Handler for skill cancellation confirmation
+   */
+  private skillCancelHandler?: (payload: SkillCancelRequestedPayload) => void;
   
   /**
    * Register WebSocket handlers for skill execution updates
@@ -30,8 +44,17 @@ class SkillPreviewService extends EventTarget {
       this.handleSkillStatusUpdate(payload);
     };
     
+    // Handler for skill cancellation confirmation from backend
+    this.skillCancelHandler = (payload: SkillCancelRequestedPayload) => {
+      this.handleSkillCancelRequested(payload);
+    };
+    
     // Handler for skill execution status updates
     webSocketService.on('skill_execution_status', this.skillStatusHandler);
+    
+    // Handler for skill cancellation confirmation
+    // Backend sends this when cancel_skill request is processed
+    webSocketService.on('skill_cancel_requested', this.skillCancelHandler);
   }
   
   /**
@@ -43,6 +66,41 @@ class SkillPreviewService extends EventTarget {
       webSocketService.off('skill_execution_status', this.skillStatusHandler);
       this.skillStatusHandler = undefined;
     }
+    if (this.skillCancelHandler) {
+      webSocketService.off('skill_cancel_requested', this.skillCancelHandler);
+      this.skillCancelHandler = undefined;
+    }
+  }
+  
+  /**
+   * Handle skill cancellation confirmation from backend
+   * This is sent when the backend has processed a cancel_skill request
+   */
+  private handleSkillCancelRequested(payload: SkillCancelRequestedPayload): void {
+    console.debug('[SkillPreviewService] Received skill cancellation confirmation:', payload);
+    
+    const { skill_task_id, embed_id, status } = payload;
+    
+    if (!skill_task_id) {
+      console.warn('[SkillPreviewService] Skill cancellation payload missing skill_task_id');
+      return;
+    }
+    
+    // Update preview data if it exists
+    const existingPreviewData = skillPreviewCache.get(skill_task_id);
+    if (existingPreviewData) {
+      existingPreviewData.status = 'cancelled';
+      skillPreviewCache.set(skill_task_id, existingPreviewData);
+    }
+    
+    // Dispatch event for UI updates (e.g., embed previews can react to cancellation)
+    this.dispatchEvent(new CustomEvent('skillCancelled', {
+      detail: {
+        skill_task_id,
+        embed_id,
+        status
+      }
+    }));
   }
   
   /**
