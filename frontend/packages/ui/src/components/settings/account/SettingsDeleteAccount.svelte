@@ -148,11 +148,15 @@ Uses SecurityAuth component for passkey/2FA verification.
         showAuthModal = true;
     }
 
-    async function handleAuthSuccess(data: { method: 'passkey' | 'password' | '2fa'; credentialId?: string }) {
+    async function handleAuthSuccess(data: { method: 'passkey' | 'password' | '2fa'; credentialId?: string; tfaCode?: string }) {
         showAuthModal = false;
         
+        // Determine auth method and code based on the authentication type used
         const authMethod = data.method === 'passkey' ? 'passkey' : '2fa_otp';
-        const authCode = data.credentialId || '';
+        // Use credentialId for passkey, tfaCode for 2FA
+        const authCode = data.method === 'passkey' ? (data.credentialId || '') : (data.tfaCode || '');
+        
+        console.log(`[SettingsDeleteAccount] Auth success - method: ${authMethod}, code present: ${!!authCode}`);
         
         await submitDeletionRequest(authMethod, authCode);
     }

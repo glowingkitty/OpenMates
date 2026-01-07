@@ -18,7 +18,11 @@ Svelte 5: Uses callback props instead of event dispatcher for parent communicati
     // ========================================================================
     
     /** Auth result data passed to onSuccess callback */
-    type AuthSuccessData = { method: 'passkey' | 'password' | '2fa'; credentialId?: string };
+    type AuthSuccessData = { 
+        method: 'passkey' | 'password' | '2fa'; 
+        credentialId?: string;  // For passkey authentication
+        tfaCode?: string;       // For 2FA authentication
+    };
     
     let { 
         hasPasskey = false,
@@ -381,9 +385,9 @@ Svelte 5: Uses callback props instead of event dispatcher for parent communicati
                 throw new Error(data.message || 'Invalid 2FA code');
             }
 
-            // Authentication successful
+            // Authentication successful - pass the OTP code for downstream verification
             console.log('[SecurityAuth] 2FA authentication successful');
-            onSuccess({ method: '2fa' });
+            onSuccess({ method: '2fa', tfaCode });
         } catch (error) {
             console.error('[SecurityAuth] 2FA authentication error:', error);
             const errMsg = error instanceof Error ? error.message : '2FA verification failed';
