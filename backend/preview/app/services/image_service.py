@@ -190,11 +190,14 @@ class ImageService:
         """
         Determine the best output format for the image.
         
-        Priority:
-        1. Requested format (if specified)
-        2. PNG for images with transparency
-        3. Original format (if supported)
-        4. JPEG as fallback
+        ALWAYS uses WebP because:
+        - WebP has excellent browser support (97%+ as of 2024)
+        - WebP is 25-35% smaller than JPEG at same quality
+        - WebP supports both lossy and lossless compression
+        - WebP supports transparency (alpha channel)
+        - Only unsupported in IE11 (deprecated) and very old Safari (pre-2020)
+        
+        The only exception is if a specific format is explicitly requested.
         
         Args:
             img: PIL Image object
@@ -205,7 +208,7 @@ class ImageService:
         Returns:
             Tuple of (pillow_format, content_type)
         """
-        # If specific format requested
+        # If specific format requested, honor it
         if requested_format:
             format_map = {
                 "jpeg": ("JPEG", "image/jpeg"),
@@ -217,29 +220,8 @@ class ImageService:
             if requested_format.lower() in format_map:
                 return format_map[requested_format.lower()]
         
-        # Check for transparency
-        has_transparency = (
-            img.mode in ("RGBA", "LA", "P") or 
-            (img.mode == "P" and "transparency" in img.info)
-        )
-        
-        if has_transparency:
-            # Preserve transparency with PNG
-            return ("PNG", "image/png")
-        
-        # Try to keep original format
-        format_content_map = {
-            "JPEG": ("JPEG", "image/jpeg"),
-            "PNG": ("PNG", "image/png"),
-            "WEBP": ("WEBP", "image/webp"),
-            "GIF": ("GIF", "image/gif"),
-        }
-        
-        if original_format and original_format in format_content_map:
-            return format_content_map[original_format]
-        
-        # Default to JPEG for unknown formats (good compression)
-        return ("JPEG", "image/jpeg")
+        # ALWAYS use WebP - best compression, supports transparency, excellent browser support
+        return ("WEBP", "image/webp")
     
     def _save_image(
         self,
@@ -260,7 +242,7 @@ class ImageService:
         """
         output = io.BytesIO()
         
-        # Convert mode if necessary
+        # Convert mode if necessary based on format
         if format == "JPEG" and img.mode in ("RGBA", "LA", "P"):
             # JPEG doesn't support transparency - convert to RGB with white background
             if img.mode == "P":
@@ -273,6 +255,13 @@ class ImageService:
             img = background
         elif format == "JPEG" and img.mode != "RGB":
             img = img.convert("RGB")
+        elif format == "WEBP":
+            # WebP supports transparency - convert P mode to RGBA to preserve it
+            if img.mode == "P":
+                img = img.convert("RGBA")
+            # For non-transparent images, convert to RGB for slightly better compression
+            elif img.mode not in ("RGBA", "LA", "RGB"):
+                img = img.convert("RGB")
         
         # Save with appropriate options
         save_kwargs = {}
@@ -291,6 +280,7 @@ class ImageService:
             save_kwargs = {
                 "quality": quality,
                 "method": 4,  # Compression method (0-6, higher = slower but smaller)
+                "lossless": False,  # Use lossy compression for better file size
             }
         
         img.save(output, format=format, **save_kwargs)
