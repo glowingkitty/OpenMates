@@ -65,6 +65,16 @@ services:
       PREVIEW_VALIDATE_REFERER: "${PREVIEW_VALIDATE_REFERER:-true}"
       PREVIEW_ALLOW_EMPTY_REFERER: "${PREVIEW_ALLOW_EMPTY_REFERER:-false}"
       PREVIEW_ALLOWED_REFERERS: "${PREVIEW_ALLOWED_REFERERS:-https://openmates.org/*,https://*.openmates.org/*}"
+      
+      # YouTube API key for video metadata (optional but recommended)
+      # Get from: https://console.cloud.google.com/apis/credentials
+      # Uses AliasChoices so it accepts either format
+      SECRET__YOUTUBE__API_KEY: "${SECRET__YOUTUBE__API_KEY:-}"
+      
+      # Webshare proxy credentials (for metadata fetching through residential IPs)
+      # Uses AliasChoices so it accepts either format  
+      SECRET__WEBSHARE__PROXY_USERNAME: "${SECRET__WEBSHARE__PROXY_USERNAME:-}"
+      SECRET__WEBSHARE__PROXY_PASSWORD: "${SECRET__WEBSHARE__PROXY_PASSWORD:-}"
     
     # Port mapping
     ports:

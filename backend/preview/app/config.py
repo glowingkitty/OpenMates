@@ -8,7 +8,7 @@ Manages all configuration settings for the preview server including:
 """
 
 from typing import Optional
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import Field, AliasChoices
 
 
@@ -225,11 +225,13 @@ class Settings(BaseSettings):
     # Leave empty for public access (with rate limiting)
     api_key: Optional[str] = Field(default=None, description="Optional API key for authentication")
     
-    class Config:
-        """Pydantic config for environment variable prefix."""
-        env_prefix = "PREVIEW_"
-        env_file = ".env"
-        env_file_encoding = "utf-8"
+    # Use model_config (Pydantic v2 style) instead of inner Config class
+    # This ensures validation_alias with AliasChoices works correctly for env vars
+    model_config = SettingsConfigDict(
+        env_prefix="PREVIEW_",
+        env_file=".env",
+        env_file_encoding="utf-8",
+    )
     
     @property
     def cors_origins_list(self) -> list[str]:
