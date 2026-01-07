@@ -24,7 +24,6 @@ import sys
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
-from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.config import settings
@@ -98,17 +97,93 @@ app = FastAPI(
 
 
 # ===========================================
-# CORS Middleware
+# CORS Middleware with Dynamic Origin Support
 # ===========================================
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=settings.cors_origins_list,
-    allow_credentials=True,
-    allow_methods=["GET", "POST", "OPTIONS"],
-    allow_headers=["*"],
-    expose_headers=["X-Cache", "X-Processed", "X-Original-Size", "X-Processed-Size"]
-)
+def is_allowed_origin(origin: str) -> bool:
+    """
+    Check if an origin is allowed for CORS.
+    
+    Supports:
+    - Exact matches from cors_origins_list
+    - Wildcard subdomain pattern: *.openmates.org
+    - Localhost with any port
+    
+    Args:
+        origin: The Origin header value
+        
+    Returns:
+        True if the origin is allowed
+    """
+    import re
+    
+    if not origin:
+        return False
+    
+    # Check exact matches first
+    if origin in settings.cors_origins_list:
+        return True
+    
+    # Allow all origins if "*" is in the list
+    if "*" in settings.cors_origins_list:
+        return True
+    
+    # Allow any *.openmates.org subdomain
+    if re.match(r'^https://([a-zA-Z0-9-]+\.)*openmates\.org$', origin):
+        return True
+    
+    # Allow localhost with any port (for development)
+    if re.match(r'^http://localhost:\d+$', origin):
+        return True
+    
+    return False
+
+
+# Use custom CORS middleware that supports wildcard subdomains
+# The standard CORSMiddleware doesn't support patterns like *.openmates.org
+@app.middleware("http")
+async def cors_middleware(request: Request, call_next):
+    """
+    Custom CORS middleware with dynamic origin checking.
+    
+    Supports wildcard subdomains (*.openmates.org) which the standard
+    CORSMiddleware doesn't handle.
+    """
+    origin = request.headers.get("origin", "")
+    
+    # Handle preflight OPTIONS requests
+    if request.method == "OPTIONS":
+        if is_allowed_origin(origin):
+            return JSONResponse(
+                content={},
+                status_code=200,
+                headers={
+                    "Access-Control-Allow-Origin": origin,
+                    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+                    "Access-Control-Allow-Headers": "*",
+                    "Access-Control-Allow-Credentials": "true",
+                    "Access-Control-Expose-Headers": "X-Cache, X-Processed, X-Original-Size, X-Processed-Size",
+                    "Access-Control-Max-Age": "86400",  # Cache preflight for 24 hours
+                }
+            )
+        else:
+            # Origin not allowed - return 403 for preflight
+            logger.warning(f"[CORS] Blocked preflight from unauthorized origin: {origin}")
+            return JSONResponse(
+                content={"detail": "Origin not allowed"},
+                status_code=403
+            )
+    
+    # Handle actual requests
+    response = await call_next(request)
+    
+    # Add CORS headers if origin is allowed
+    if is_allowed_origin(origin):
+        response.headers["Access-Control-Allow-Origin"] = origin
+        response.headers["Access-Control-Allow-Credentials"] = "true"
+        response.headers["Access-Control-Expose-Headers"] = "X-Cache, X-Processed, X-Original-Size, X-Processed-Size"
+    
+    return response
 
 
 # ===========================================
