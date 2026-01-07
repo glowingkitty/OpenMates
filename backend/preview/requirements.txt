@@ -7,7 +7,7 @@ uvicorn[standard]==0.34.0
 
 # HTTP client for fetching external resources
 httpx==0.28.1
-aiohttp==3.11.11
+aiohttp==3.13.3
 
 # HTML parsing for Open Graph metadata extraction
 beautifulsoup4==4.12.3
