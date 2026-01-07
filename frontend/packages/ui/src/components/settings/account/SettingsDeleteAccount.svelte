@@ -11,6 +11,7 @@ Uses SecurityAuth component for passkey/2FA verification.
     import { panelState } from '../../../stores/panelStateStore';
     import { settingsMenuVisible } from '../../Settings.svelte';
     import { phasedSyncState } from '../../../stores/phasedSyncStateStore';
+    import { isInSignupProcess, currentSignupStep } from '../../../stores/signupState';
     import Toggle from '../../Toggle.svelte';
     import SecurityAuth from '../security/SecurityAuth.svelte';
 
@@ -196,13 +197,21 @@ Uses SecurityAuth component for passkey/2FA verification.
                 successMessage = data.message || $text('settings.account.delete_account_success.text');
                 
                 setTimeout(async () => {
+                    // Close settings panel
                     settingsMenuVisible.set(false);
                     panelState.closeSettings();
+                    
+                    // Close signup flow if user was in signup process
+                    isInSignupProcess.set(false);
+                    currentSignupStep.set('');
+                    
+                    // Notify other components that user is logging out
                     window.dispatchEvent(new CustomEvent('userLoggingOut'));
                     
                     await new Promise(resolve => setTimeout(resolve, 50));
                     activeChatStore.setActiveChat('demo-welcome');
                     
+                    // Reset URL to demo welcome page
                     if (typeof window !== 'undefined') {
                         window.location.hash = 'chat-id=demo-welcome';
                     }
@@ -210,6 +219,8 @@ Uses SecurityAuth component for passkey/2FA verification.
                     phasedSyncState.markSyncCompleted();
                     await new Promise(resolve => setTimeout(resolve, 200));
                     authStore.logout();
+                    
+                    console.log('[SettingsDeleteAccount] Account deleted, user logged out, signup flow closed');
                 }, 2000);
             } else {
                 throw new Error(data.message || 'Account deletion failed');
