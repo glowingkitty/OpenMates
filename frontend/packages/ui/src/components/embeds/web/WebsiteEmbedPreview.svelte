@@ -129,7 +129,12 @@
     isLoadingMetadata = true;
     metadataError = false;
     
-    console.debug('[WebsiteEmbedPreview] Fetching metadata for URL:', url);
+    // CRITICAL: Mark this URL as fetched BEFORE the request to prevent infinite loops
+    // Even if the fetch fails, we don't want to retry indefinitely
+    const urlToFetch = url;
+    fetchedForUrl = urlToFetch;
+    
+    console.debug('[WebsiteEmbedPreview] Fetching metadata for URL:', urlToFetch);
     
     try {
       const response = await fetch(`https://preview.openmates.org/api/v1/metadata`, {
@@ -137,7 +142,7 @@
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ url })
+        body: JSON.stringify({ url: urlToFetch })
       });
       
       if (!response.ok) {
@@ -153,10 +158,9 @@
       fetchedDescription = data.description;
       fetchedFavicon = data.favicon;
       fetchedImage = data.image;
-      fetchedForUrl = url;
       
       console.info('[WebsiteEmbedPreview] Successfully fetched metadata:', {
-        url: url.substring(0, 50) + '...',
+        url: urlToFetch.substring(0, 50) + '...',
         title: data.title?.substring(0, 50) || 'No title',
         hasDescription: !!data.description,
         hasImage: !!data.image,
