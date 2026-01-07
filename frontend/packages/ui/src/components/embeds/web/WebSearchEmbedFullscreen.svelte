@@ -52,6 +52,8 @@
     description?: string;
     /** Extra snippets from backend TOON (pipe-delimited string or array) */
     extra_snippets?: string | string[];
+    /** Page age from Brave Search - can be ISO date (page_age) or relative time (age) like "2 weeks ago" */
+    page_age?: string;
   }
   
   /**
@@ -195,6 +197,10 @@
       page_age: content.page_age
     });
     
+    // Extract page age - prefer 'age' (relative time like "2 weeks ago") over 'page_age' (ISO date)
+    // WebsiteEmbedFullscreen parses relative time strings for display
+    const pageAge = (content.age as string) || (content.page_age as string) || undefined;
+    
     const result: WebSearchResult = {
       embed_id: embedId,
       title: content.title as string | undefined,
@@ -203,14 +209,16 @@
       preview_image_url: thumbnailUrl,
       snippet: (content.snippet as string) || (content.description as string),
       description: content.description as string | undefined,
-      extra_snippets: content.extra_snippets as string | string[] | undefined
+      extra_snippets: content.extra_snippets as string | string[] | undefined,
+      page_age: pageAge
     };
     
     console.debug('[WebSearchEmbedFullscreen] Transformed result:', {
       embedId,
       hasFavicon: !!result.favicon_url,
       hasThumbnail: !!result.preview_image_url,
-      hasExtraSnippets: !!result.extra_snippets
+      hasExtraSnippets: !!result.extra_snippets,
+      pageAge: result.page_age
     });
     
     return result;
@@ -229,7 +237,9 @@
       preview_image_url: getNestedField(r, 'thumbnail.original', 'preview_image_url', 'thumbnail_original', 'image'),
       snippet: (r.snippet as string) || (r.description as string),
       description: r.description as string | undefined,
-      extra_snippets: r.extra_snippets as string | string[] | undefined
+      extra_snippets: r.extra_snippets as string | string[] | undefined,
+      // Extract page age - prefer 'age' (relative time) over 'page_age' (ISO date)
+      page_age: (r.age as string) || (r.page_age as string) || undefined
     }));
   }
   
@@ -260,7 +270,8 @@
       title: websiteData.title,
       extra_snippets: websiteData.extra_snippets,
       extra_snippets_type: typeof websiteData.extra_snippets,
-      hasExtraSnippets: !!websiteData.extra_snippets
+      hasExtraSnippets: !!websiteData.extra_snippets,
+      page_age: websiteData.page_age
     });
     selectedWebsite = websiteData;
   }
@@ -429,6 +440,7 @@
       favicon={selectedWebsite.favicon_url}
       image={selectedWebsite.preview_image_url}
       extra_snippets={selectedWebsite.extra_snippets}
+      dataDate={selectedWebsite.page_age}
       onClose={handleWebsiteFullscreenClose}
       embedId={selectedWebsite.embed_id}
     />

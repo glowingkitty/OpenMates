@@ -159,8 +159,9 @@ async def get_image(
     
     # Check cache first (unless refresh requested)
     if not refresh:
-        # We use the image cache but with our custom key
-        cached = cache_service.get_image(cache_key)
+        # IMPORTANT: Use _image_cache directly with our custom cache_key
+        # Don't use cache_service.get_image() as it would double-hash the key
+        cached = cache_service._image_cache.get(cache_key)
         if cached:
             image_bytes, content_type = cached
             etag = _generate_etag(image_bytes)

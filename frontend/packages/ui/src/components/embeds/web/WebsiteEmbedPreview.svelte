@@ -4,15 +4,35 @@
   Preview component for Website embeds.
   Uses UnifiedEmbedPreview as base and provides website-specific details content.
   
+  Features:
+  - Auto-fetches metadata from preview server when not provided
+  - Displays title, description, favicon and OG image
+  - Proxies images through preview server to prevent direct external connections
+  
   Details content structure:
-  - Processing: URL hostname
-  - Finished: title + hostname + preview image (if available)
+  - Processing/Loading: URL hostname
+  - Finished: title + description + preview image (if available)
+  - Error: hostname with error styling
 -->
 
 <script lang="ts">
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
-  // @ts-ignore - @repo/ui module exists at runtime
-  import { text } from '@repo/ui';
+  
+  // ===========================================
+  // Types
+  // ===========================================
+  
+  /**
+   * Metadata response from preview server
+   */
+  interface MetadataResponse {
+    url: string;
+    title?: string;
+    description?: string;
+    image?: string;
+    favicon?: string;
+    site_name?: string;
+  }
   
   /**
    * Props for website embed preview
@@ -22,13 +42,13 @@
     id: string;
     /** Website URL */
     url: string;
-    /** Website title */
+    /** Website title (if not provided, will be fetched from preview server) */
     title?: string;
-    /** Website description */
+    /** Website description (if not provided, will be fetched from preview server) */
     description?: string;
-    /** Favicon URL */
+    /** Favicon URL (if not provided, will be fetched from preview server) */
     favicon?: string;
-    /** Preview image URL */
+    /** Preview image URL (if not provided, will be fetched from preview server) */
     image?: string;
     /** Processing status */
     status: 'processing' | 'finished' | 'error';
@@ -39,6 +59,10 @@
     /** Click handler for fullscreen */
     onFullscreen?: () => void;
   }
+  
+  // ===========================================
+  // Props and State
+  // ===========================================
   
   let {
     id,
@@ -53,28 +77,167 @@
     onFullscreen
   }: Props = $props();
   
+  // State for fetched metadata (when props are not provided)
+  let fetchedTitle = $state<string | undefined>(undefined);
+  let fetchedDescription = $state<string | undefined>(undefined);
+  let fetchedFavicon = $state<string | undefined>(undefined);
+  let fetchedImage = $state<string | undefined>(undefined);
+  let isLoadingMetadata = $state(false);
+  let metadataError = $state(false);
+  
+  // Track which URL we've fetched metadata for to avoid re-fetching
+  let fetchedForUrl = $state<string | null>(null);
+  
   // Map skillId to icon name
   const skillIconName = 'website';
   
-  // Get display values
-  let displayTitle = $derived(title || new URL(url).hostname);
-  let hostname = $derived(new URL(url).hostname);
+  // ===========================================
+  // Metadata Fetching
+  // ===========================================
+  
+  /**
+   * Determine if we need to fetch metadata from the preview server.
+   * We fetch when:
+   * - No title, description, and image are provided as props
+   * - The URL hasn't been fetched yet
+   * - Not currently loading
+   */
+  let needsMetadataFetch = $derived.by(() => {
+    // If we already have metadata from props, no need to fetch
+    if (title || description || image) {
+      return false;
+    }
+    // If we already fetched for this URL, no need to re-fetch
+    if (fetchedForUrl === url) {
+      return false;
+    }
+    // If currently loading, don't trigger another fetch
+    if (isLoadingMetadata) {
+      return false;
+    }
+    return true;
+  });
+  
+  /**
+   * Fetch metadata from the preview server when needed.
+   * Uses the /api/v1/metadata endpoint which extracts OG tags, title, etc.
+   * Images and favicons are loaded via their respective proxy endpoints.
+   */
+  async function fetchMetadata() {
+    if (!url) return;
+    
+    isLoadingMetadata = true;
+    metadataError = false;
+    
+    console.debug('[WebsiteEmbedPreview] Fetching metadata for URL:', url);
+    
+    try {
+      const response = await fetch(`https://preview.openmates.org/api/v1/metadata`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ url })
+      });
+      
+      if (!response.ok) {
+        console.warn('[WebsiteEmbedPreview] Metadata fetch failed:', response.status, response.statusText);
+        metadataError = true;
+        return;
+      }
+      
+      const data: MetadataResponse = await response.json();
+      
+      // Store fetched values
+      fetchedTitle = data.title;
+      fetchedDescription = data.description;
+      fetchedFavicon = data.favicon;
+      fetchedImage = data.image;
+      fetchedForUrl = url;
+      
+      console.info('[WebsiteEmbedPreview] Successfully fetched metadata:', {
+        url: url.substring(0, 50) + '...',
+        title: data.title?.substring(0, 50) || 'No title',
+        hasDescription: !!data.description,
+        hasImage: !!data.image,
+        hasFavicon: !!data.favicon
+      });
+      
+    } catch (error) {
+      console.error('[WebsiteEmbedPreview] Error fetching metadata:', error);
+      metadataError = true;
+    } finally {
+      isLoadingMetadata = false;
+    }
+  }
+  
+  // Trigger metadata fetch when needed
+  $effect(() => {
+    if (needsMetadataFetch) {
+      fetchMetadata();
+    }
+  });
+  
+  // ===========================================
+  // Derived Display Values
+  // ===========================================
+  
+  // Use prop values if provided, otherwise use fetched values
+  let effectiveTitle = $derived(title || fetchedTitle);
+  let effectiveDescription = $derived(description || fetchedDescription);
+  let effectiveFavicon = $derived(favicon || fetchedFavicon);
+  let effectiveImage = $derived(image || fetchedImage);
+  
+  // Get hostname for fallback display
+  let hostname = $derived.by(() => {
+    try {
+      return new URL(url).hostname;
+    } catch {
+      return url;
+    }
+  });
+  
+  // Display title: use effective title or fall back to hostname
+  let displayTitle = $derived(effectiveTitle || hostname);
+  
+  // Favicon URL: use effective favicon or fall back to preview server endpoint
   let faviconUrl = $derived(
-    favicon || 
+    effectiveFavicon || 
     `https://preview.openmates.org/api/v1/favicon?url=${encodeURIComponent(url)}`
   );
+  
   // Preview image URL - proxy through preview server with max_width for optimization
   // The preview thumbnail is 100x100px, so we request 200px for retina displays
   // Note: We only proxy if we have an actual image URL (not the webpage URL itself)
   const PREVIEW_IMAGE_MAX_WIDTH = 200; // 2x for retina displays (100px container)
   
   let imageUrl = $derived.by(() => {
-    if (!image) {
+    if (!effectiveImage) {
       return null; // No fallback to webpage URL - would cause 415 error
     }
     // Proxy through preview server with max_width to optimize image size
-    return `https://preview.openmates.org/api/v1/image?url=${encodeURIComponent(image)}&max_width=${PREVIEW_IMAGE_MAX_WIDTH}`;
+    return `https://preview.openmates.org/api/v1/image?url=${encodeURIComponent(effectiveImage)}&max_width=${PREVIEW_IMAGE_MAX_WIDTH}`;
   });
+  
+  // Compute effective status: if we're loading metadata, show as processing
+  // But only if the original status was 'finished' (don't override explicit processing state)
+  // If metadata fetch failed but we still have some data (or the original status was finished),
+  // show as finished to display what we have (hostname at minimum)
+  let effectiveStatus = $derived.by(() => {
+    if (isLoadingMetadata && status === 'finished') {
+      return 'processing';
+    }
+    // If metadata fetch failed, still show as finished so user sees the hostname/link
+    // Don't show error state just because metadata couldn't be fetched
+    if (metadataError && status === 'finished') {
+      return 'finished';
+    }
+    return status;
+  });
+  
+  // ===========================================
+  // Event Handlers
+  // ===========================================
   
   // Handle stop button click (not applicable for websites, but included for consistency)
   async function handleStop() {
@@ -88,7 +251,7 @@
   appId="web"
   skillId="website"
   skillIconName={skillIconName}
-  {status}
+  status={effectiveStatus}
   skillName={displayTitle}
   {taskId}
   {isMobile}
@@ -100,15 +263,15 @@
 >
   {#snippet details({ isMobile: isMobileLayout })}
     <div class="website-details" class:mobile={isMobileLayout}>
-      {#if status === 'processing'}
-        <!-- Processing state: show hostname only -->
+      {#if effectiveStatus === 'processing'}
+        <!-- Processing/Loading state: show hostname only -->
         <div class="website-hostname">{hostname}</div>
-      {:else if status === 'finished'}
+      {:else if effectiveStatus === 'finished'}
         <!-- Finished state: description on left, image on right (if available) -->
         <!-- Title and favicon are shown in BasicInfosBar, not here -->
         <div class="website-content-row">
-          {#if description}
-            <div class="website-description">{description}</div>
+          {#if effectiveDescription}
+            <div class="website-description">{effectiveDescription}</div>
           {/if}
           
           {#if imageUrl && !isMobileLayout}

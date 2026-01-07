@@ -50,6 +50,7 @@
   interface WebReadPreviewData extends BaseSkillPreviewData {
     results: WebReadResult[];
     url?: string; // URL from processing placeholder content
+    skill_task_id?: string; // Skill task ID for individual cancellation
   }
   
   /**
@@ -106,8 +107,8 @@
       localResults = previewData.results || [];
       localUrl = previewData.url || '';
       localStatus = previewData.status || 'processing';
-      // skill_task_id might be in previewData for skill-level cancellation
-      localSkillTaskId = (previewData as any).skill_task_id;
+      // skill_task_id for skill-level cancellation
+      localSkillTaskId = previewData.skill_task_id;
     } else {
       localResults = resultsProp || [];
       localUrl = urlProp || '';
@@ -198,13 +199,11 @@
     ($text('embeds.web_read.text') || 'Web Read')
   );
   
-  // Favicon URL for display
-  // Priority: result favicon > generated from URL > undefined
+  // Favicon URL for display - ALWAYS use preview server for privacy and caching
+  // Preview server provides: privacy (hides user IP), caching, consistent sizing
   let faviconUrl = $derived(() => {
-    if (firstResult?.favicon) {
-      return firstResult.favicon;
-    }
-    // Generate favicon URL from effectiveUrl if available
+    // Always use preview server proxy, even if we have a direct favicon URL
+    // This ensures privacy and consistent caching behavior
     if (effectiveUrl) {
       return `https://preview.openmates.org/api/v1/favicon?url=${encodeURIComponent(effectiveUrl)}`;
     }
