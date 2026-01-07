@@ -26,14 +26,10 @@ export async function fetchUrlMetadata(url: string): Promise<UrlMetadata | null>
     try {
         console.debug('[urlMetadataService] Fetching metadata for URL:', url);
         
-        // Make request to preview.openmates.org API v1 endpoint
-        const response = await fetch(`https://preview.openmates.org/api/v1/metadata`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ url })
-        });
+        // Use GET endpoint to avoid CORS preflight (POST with JSON requires OPTIONS preflight)
+        const response = await fetch(
+            `https://preview.openmates.org/api/v1/metadata?url=${encodeURIComponent(url)}`
+        );
         
         if (!response.ok) {
             console.warn('[urlMetadataService] Failed to fetch metadata:', response.status, response.statusText);
