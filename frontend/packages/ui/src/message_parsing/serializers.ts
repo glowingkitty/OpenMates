@@ -119,11 +119,26 @@ export function parseEmbedClipboardData(data: EmbedClipboardData): EmbedNodeAttr
 
 /**
  * Serialize embed node to canonical markdown format
+ * 
+ * For embeds with contentRef (proper embeds stored in EmbedStore), we serialize to:
+ *   ```json
+ *   {"type": "website", "embed_id": "..."}
+ *   ```
+ * 
+ * For legacy embeds without contentRef, we use the old json_embed format with inline data.
  */
 function serializeEmbedToMarkdown(attrs: EmbedNodeAttributes): string {
   switch (attrs.type) {
     case 'web-website':
-      // Serialize website embeds back to json_embed blocks
+      // Check if this is a proper embed with embed_id (stored in EmbedStore)
+      if (attrs.contentRef?.startsWith('embed:')) {
+        // Serialize to proper embed reference format
+        const embed_id = attrs.contentRef.replace('embed:', '');
+        const embedRef = JSON.stringify({ type: 'website', embed_id }, null, 2);
+        return `\`\`\`json\n${embedRef}\n\`\`\``;
+      }
+      
+      // Legacy: Serialize website embeds to json_embed blocks with inline metadata
       const websiteData: any = {
         type: 'website',
         url: attrs.url
@@ -137,6 +152,17 @@ function serializeEmbedToMarkdown(attrs: EmbedNodeAttributes): string {
       
       const jsonContent = JSON.stringify(websiteData, null, 2);
       return `\`\`\`json_embed\n${jsonContent}\n\`\`\``;
+    
+    case 'videos-video':
+      // Check if this is a proper embed with embed_id (stored in EmbedStore)
+      if (attrs.contentRef?.startsWith('embed:')) {
+        // Serialize to proper embed reference format
+        const embed_id = attrs.contentRef.replace('embed:', '');
+        const embedRef = JSON.stringify({ type: 'video', embed_id }, null, 2);
+        return `\`\`\`json\n${embedRef}\n\`\`\``;
+      }
+      // Legacy: return URL
+      return attrs.url || '';
     
     case 'code-code':
       const languagePrefix = attrs.language ? `${attrs.language}` : '';
@@ -163,9 +189,6 @@ function serializeEmbedToMarkdown(attrs: EmbedNodeAttributes): string {
       tableResult += '|----------|----------|\n';
       tableResult += '| Data     | Data     |';
       return tableResult;
-    
-    case 'videos-video':
-      return attrs.url || '';
     
     default:
       // Check if this is a group type that can be handled by a group handler
