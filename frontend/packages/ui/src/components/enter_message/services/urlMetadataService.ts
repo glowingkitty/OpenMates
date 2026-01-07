@@ -12,18 +12,22 @@ export interface UrlMetadata {
 
 /**
  * Fetches metadata for a given URL from preview.openmates.org
+ * Uses the /api/v1/metadata endpoint which extracts:
+ * - Title (from og:title, twitter:title, or <title>)
+ * - Description (from og:description, twitter:description, or meta description)
+ * - Image (from og:image or twitter:image)  
+ * - Favicon (link rel="icon", rel="shortcut icon")
+ * - Site name (from og:site_name)
+ * 
  * @param url The URL to fetch metadata for
  * @returns Promise with metadata or null if failed
- * 
- * TODO: Implement the preview endpoint at preview.openmates.org/api/metadata
- * Currently the endpoint is not available, so this will always return null
  */
 export async function fetchUrlMetadata(url: string): Promise<UrlMetadata | null> {
     try {
         console.debug('[urlMetadataService] Fetching metadata for URL:', url);
         
-        // Make request to preview.openmates.org
-        const response = await fetch(`https://preview.openmates.org/api/metadata`, {
+        // Make request to preview.openmates.org API v1 endpoint
+        const response = await fetch(`https://preview.openmates.org/api/v1/metadata`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -106,7 +110,8 @@ export function extractUrlFromJsonEmbedBlock(jsonEmbedBlock: string): string | n
         }
         
         return null;
-    } catch (error) {
+    } catch {
+        // JSON parsing failed - not a valid json_embed block
         return null;
     }
 }
@@ -127,7 +132,8 @@ export function parseJsonEmbedBlock(jsonEmbedBlock: string): UrlMetadata | null 
         }
         
         return null;
-    } catch (error) {
+    } catch {
+        // JSON parsing failed - not a valid json_embed block
         return null;
     }
 }
