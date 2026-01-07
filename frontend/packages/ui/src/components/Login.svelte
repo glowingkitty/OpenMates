@@ -29,6 +29,14 @@
     import { settingsDeepLink } from '../stores/settingsDeepLinkStore';
     import { settingsMenuVisible } from '../components/Settings.svelte';
     import { tooltip } from '../actions/tooltip';
+    // Import chunk error handler for graceful handling of stale cache errors
+    import { 
+        isChunkLoadError, 
+        logChunkLoadError, 
+        CHUNK_ERROR_MESSAGE, 
+        CHUNK_ERROR_NOTIFICATION_DURATION 
+    } from '../utils/chunkErrorHandler';
+    import { notificationStore } from '../stores/notificationStore';
     
     const dispatch = createEventDispatcher();
 
@@ -944,6 +952,16 @@
                 // User cancelled - already handled
                 return;
             }
+            
+            // Check for chunk loading errors (stale cache after deployment)
+            if (isChunkLoadError(error)) {
+                logChunkLoadError('Login.passkeyLogin', error);
+                notificationStore.error(CHUNK_ERROR_MESSAGE, CHUNK_ERROR_NOTIFICATION_DURATION);
+                isPasskeyLoading = false;
+                isLoading = false;
+                return;
+            }
+            
             loginFailedWarning = true;
             isPasskeyLoading = false;
             isLoading = false;
@@ -1099,6 +1117,13 @@
                 return;
             }
             console.error('[Login] Error in conditional UI passkey flow:', error);
+            
+            // Check for chunk loading errors (stale cache after deployment)
+            if (isChunkLoadError(error)) {
+                logChunkLoadError('Login.conditionalUIPasskey', error);
+                notificationStore.error(CHUNK_ERROR_MESSAGE, CHUNK_ERROR_NOTIFICATION_DURATION);
+            }
+            
             // Reset abort controller on error so it can be retried
             conditionalUIAbortController = null;
         }
@@ -1424,6 +1449,16 @@
             
         } catch (error: any) {
             console.error('[Login] Error processing passkey assertion:', error);
+            
+            // Check for chunk loading errors (stale cache after deployment)
+            if (isChunkLoadError(error)) {
+                logChunkLoadError('Login.processPasskeyAssertion', error);
+                notificationStore.error(CHUNK_ERROR_MESSAGE, CHUNK_ERROR_NOTIFICATION_DURATION);
+                isPasskeyLoading = false;
+                isLoading = false;
+                return;
+            }
+            
             loginFailedWarning = true;
             isPasskeyLoading = false;
             isLoading = false;

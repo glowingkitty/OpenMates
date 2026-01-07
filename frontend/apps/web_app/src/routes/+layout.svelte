@@ -20,15 +20,22 @@
         theme,
         initializeTheme,
         initializeServerStatus,
-        // i18n
-        isValidLocale
+        notificationStore
     } from '@repo/ui';
     import { onMount } from 'svelte';
     import { browser } from '$app/environment';
-    import { waitLocale, locale } from 'svelte-i18n';
+    import { waitLocale } from 'svelte-i18n';
+    import { updated } from '$app/state';
+    import { beforeNavigate } from '$app/navigation';
 
     let loaded = $state(false);
     let { children } = $props();
+    
+    /**
+     * Track if we've already shown the update notification.
+     * Prevents showing multiple notifications for the same update.
+     */
+    let updateNotificationShown = $state(false);
 
     onMount(async () => {
         // Import font CSS only in the browser to avoid SSR issues
@@ -54,31 +61,48 @@
         await loadMetaTags();
     });
 
-    // Reset to system preference
-    function resetToSystemPreference() {
-        if (browser) {
-            localStorage.removeItem('theme_preference');
-            localStorage.removeItem('theme');
-            initializeTheme();
-        }
-    }
-
-    // Helper function to safely check localStorage
-    function getThemePreference() {
-        if (browser) {
-            return localStorage?.getItem('theme_preference');
-        }
-        return null;
-    }
-
     // Watch theme changes and update document attribute
     $effect(() => {
         if (browser) {
             document.documentElement.setAttribute('data-theme', $theme);
         }
     });
-
-    // Removed reactive block setting $locale
+    
+    /**
+     * Show notification when a new app version is detected.
+     * Uses SvelteKit's built-in version detection via $app/state.
+     */
+    $effect(() => {
+        if (browser && updated.current && !updateNotificationShown) {
+            console.log('[Layout] New app version detected, showing notification');
+            updateNotificationShown = true;
+            
+            // Show a persistent info notification (no auto-dismiss)
+            // User can dismiss it, or page will auto-refresh on next navigation
+            notificationStore.info(
+                'A new version is available. The page will refresh on your next navigation, or refresh now.',
+                0, // 0 = persistent, no auto-dismiss
+                true // dismissible
+            );
+        }
+    });
+    
+    /**
+     * Auto-refresh on navigation when an update is detected.
+     * This prevents chunk loading errors (404s for old JS chunks) during navigation.
+     * 
+     * When user navigates and an update is available:
+     * - Instead of client-side navigation (which might fail due to missing chunks)
+     * - We do a full page reload to get the fresh version
+     * 
+     * This is the recommended pattern from SvelteKit docs for handling version skew.
+     */
+    beforeNavigate(({ willUnload, to }) => {
+        if (updated.current && !willUnload && to?.url) {
+            console.log('[Layout] New version detected, forcing full reload on navigation');
+            location.href = to.url.href;
+        }
+    });
 </script>
 
 {#if loaded}
@@ -93,4 +117,4 @@
     :global(body) {
         background-color: var(--color-grey-0);
     }
-</style> 
+</style>

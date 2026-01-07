@@ -102,6 +102,14 @@ export {
 
 // Utils - export computeSHA256 for hashing
 export { computeSHA256 } from "./src/message_parsing/utils";
+// Utils - export chunk error handler for graceful handling of stale cache errors
+export { 
+    isChunkLoadError, 
+    logChunkLoadError, 
+    forcePageReload,
+    CHUNK_ERROR_MESSAGE, 
+    CHUNK_ERROR_NOTIFICATION_DURATION 
+} from "./src/utils/chunkErrorHandler";
 
 // Styles
 export * from "./src/styles/constants";

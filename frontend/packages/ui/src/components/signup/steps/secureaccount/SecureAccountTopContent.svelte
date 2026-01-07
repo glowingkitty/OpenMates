@@ -18,6 +18,12 @@
     import { checkAuth, authStore } from '../../../../stores/authStore';
     import { userProfile } from '../../../../stores/userProfile';
     import { notificationStore } from '../../../../stores/notificationStore';
+    import { 
+        isChunkLoadError, 
+        logChunkLoadError, 
+        CHUNK_ERROR_MESSAGE, 
+        CHUNK_ERROR_NOTIFICATION_DURATION 
+    } from '../../../../utils/chunkErrorHandler';
     
     const dispatch = createEventDispatcher();
     
@@ -532,6 +538,17 @@
             
         } catch (error) {
             console.error('Error registering passkey:', error);
+            
+            // Check for chunk loading errors (stale cache after deployment)
+            // These happen when dynamic imports fail because old JS references non-existent chunks
+            if (isChunkLoadError(error)) {
+                logChunkLoadError('SecureAccountTopContent', error);
+                notificationStore.error(CHUNK_ERROR_MESSAGE, CHUNK_ERROR_NOTIFICATION_DURATION);
+                isRegisteringPasskey = false;
+                selectedOption = null;
+                return;
+            }
+            
             errorMessage = 'An unexpected error occurred during signup. Please try again.';
             notificationStore.error(errorMessage, 8000);
             isRegisteringPasskey = false;
