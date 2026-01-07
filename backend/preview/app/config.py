@@ -60,6 +60,10 @@ class Settings(BaseSettings):
     # Maximum favicon size to fetch (in bytes, default: 1MB)
     max_favicon_size_bytes: int = Field(default=1048576, description="Max favicon size to fetch")
     
+    # Minimum favicon size to accept (in bytes, default: 50 bytes)
+    # Favicons smaller than this are treated as invalid and skipped
+    min_favicon_size_bytes: int = Field(default=50, description="Min favicon size to accept")
+    
     # Image resizing (0 = no resize, otherwise max width/height)
     max_image_width: int = Field(default=1920, description="Max image width (0 = no resize)")
     max_image_height: int = Field(default=1080, description="Max image height (0 = no resize)")
@@ -118,10 +122,13 @@ class Settings(BaseSettings):
     # Note: Referer can be spoofed by non-browser clients, use with rate limiting
     validate_referer: bool = Field(default=True, description="Enable Referer header validation")
     
+    # Allow empty Referer header (for direct navigation, privacy settings)
+    # Set to False for webapp-only access (browsers always send Referer from webapp)
+    allow_empty_referer: bool = Field(default=False, description="Allow requests with empty Referer header")
+    
     # Allowed Referer patterns (comma-separated, supports wildcards with *)
-    # Empty referer is always allowed (direct navigation, privacy settings)
     allowed_referers: str = Field(
-        default="https://openmates.org/*,https://app.openmates.org/*,https://*.openmates.org/*,http://localhost:*/*",
+        default="https://openmates.org/*,https://*.openmates.org/*",
         description="Allowed Referer patterns (comma-separated)"
     )
     

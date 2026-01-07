@@ -182,7 +182,22 @@ PREVIEW_ALLOWED_REFERERS=https://openmates.org/*,https://*.openmates.org/*,http:
    ```bash
    docker compose -f docker-compose.preview.yml up -d
    ```
-5. Set up reverse proxy (Caddy/Nginx) with SSL
+5. Set up Caddy reverse proxy with SSL:
+   ```bash
+   # Copy and configure the Caddyfile
+   cp Caddyfile.example Caddyfile
+   # Edit Caddyfile: replace <YOUR_EMAIL>, <PREVIEW_DOMAIN>, <PREVIEW_UPSTREAM>
+   
+   # Install Caddy (if not installed)
+   sudo apt install -y debian-keyring debian-archive-keyring apt-transport-https curl
+   curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | sudo gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
+   curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' | sudo tee /etc/apt/sources.list.d/caddy-stable.list
+   sudo apt update && sudo apt install caddy
+   
+   # Apply configuration
+   sudo cp Caddyfile /etc/caddy/Caddyfile
+   sudo systemctl reload caddy
+   ```
 
 ### Self-Hosted (Same Server)
 

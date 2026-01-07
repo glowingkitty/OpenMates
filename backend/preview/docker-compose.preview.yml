@@ -60,9 +60,11 @@ services:
       # CORS - adjust for your domains
       PREVIEW_CORS_ORIGINS: "${PREVIEW_CORS_ORIGINS:-https://openmates.org,https://app.openmates.org}"
       
-      # Referer validation - blocks requests not from your domains
+      # Referer validation - webapp only, no direct API access
+      # Empty referers are NOT allowed (webapp always sends referer)
       PREVIEW_VALIDATE_REFERER: "${PREVIEW_VALIDATE_REFERER:-true}"
-      PREVIEW_ALLOWED_REFERERS: "${PREVIEW_ALLOWED_REFERERS:-https://openmates.org/*,https://app.openmates.org/*,https://*.openmates.org/*}"
+      PREVIEW_ALLOW_EMPTY_REFERER: "${PREVIEW_ALLOW_EMPTY_REFERER:-false}"
+      PREVIEW_ALLOWED_REFERERS: "${PREVIEW_ALLOWED_REFERERS:-https://openmates.org/*,https://*.openmates.org/*}"
     
     # Port mapping
     ports:
