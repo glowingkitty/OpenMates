@@ -78,6 +78,45 @@ docker exec -it api python /app/backend/scripts/show_user_chats.py abc12345-6789
 
 ---
 
+### Delete User Account by Email
+
+**Purpose:** Delete a user account by email address. Performs the same deletion process as when a user manually deletes their account via the Settings UI.
+
+**Command:**
+```bash
+# Interactive mode (prompts for confirmation):
+docker exec -it api python /app/backend/scripts/delete_user_account.py --email user@example.com
+
+# Dry-run mode (preview without actually deleting):
+docker exec -it api python /app/backend/scripts/delete_user_account.py --email user@example.com --dry-run
+
+# Skip confirmation (for scripted use - USE WITH CAUTION):
+docker exec -it api python /app/backend/scripts/delete_user_account.py --email user@example.com --yes
+
+# With custom deletion reason (for compliance logging):
+docker exec -it api python /app/backend/scripts/delete_user_account.py --email user@example.com --reason "Policy violation"
+```
+
+**What it does:**
+- Hashes the email using SHA-256 (same as frontend during signup - never logs plaintext)
+- Looks up user by hashed email
+- Shows preview of what will be deleted (passkeys, API keys, chats, etc.)
+- Shows credit balance and refundable credits
+- Triggers the same Celery deletion task used by the UI
+- Auto-refunds ALL unused purchased credits (except gifted/gift card credits)
+
+**Options:**
+- `--email`: Email address of the user to delete (required)
+- `--dry-run`: Preview what would be deleted without actually deleting
+- `--yes, -y`: Skip confirmation prompt (use with caution)
+- `--reason`: Reason for deletion (for compliance logging)
+- `--deletion-type`: Type of deletion (admin_action, policy_violation, user_requested)
+- `--verbose, -v`: Enable verbose/debug logging
+
+**Use case:** Admin-initiated account deletion for policy violations, user requests via support, or GDPR compliance.
+
+---
+
 ### Delete Users Without Chats
 
 **Purpose:** Remove users who have no chats created in the system.

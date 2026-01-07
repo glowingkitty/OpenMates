@@ -1,0 +1,100 @@
+# OpenMates Preview Server - Standalone Docker Compose
+#
+# This is the standalone deployment for the preview server,
+# intended for running on a separate VM (preview.openmates.org).
+#
+# For self-hosted instances where everything runs on one server,
+# use the commented-out preview service in the main docker-compose.yml instead.
+#
+# Usage:
+#   # Development (with hot reload)
+#   docker compose -f docker-compose.preview.yml up
+#
+#   # Production
+#   docker compose -f docker-compose.preview.yml up -d
+#
+# Environment variables can be set in .env file or passed directly.
+
+name: openmates-preview
+
+services:
+  # ===========================================
+  # Preview Server
+  # ===========================================
+  preview:
+    container_name: preview
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    
+    # Environment configuration
+    environment:
+      # Server settings
+      PREVIEW_HOST: "0.0.0.0"
+      PREVIEW_PORT: "8080"
+      PREVIEW_ENVIRONMENT: "${PREVIEW_ENVIRONMENT:-production}"
+      PREVIEW_DEBUG: "${PREVIEW_DEBUG:-false}"
+      PREVIEW_LOG_LEVEL: "${PREVIEW_LOG_LEVEL:-INFO}"
+      # Workers for concurrent image processing (default: 4)
+      # Each worker can process 1 image at a time
+      # More workers = more concurrent requests, but more RAM usage (~300MB each)
+      UVICORN_WORKERS: "${UVICORN_WORKERS:-4}"
+      
+      # Cache settings (adjust based on available disk space)
+      # Total disk usage ≈ CACHE_MAX_SIZE_MB + METADATA_CACHE_MAX_SIZE_MB + ~2GB (Docker, OS, etc.)
+      # For CAX11 (40GB disk): 10GB image cache leaves plenty of room
+      PREVIEW_CACHE_DIR: "/app/cache"
+      PREVIEW_CACHE_MAX_SIZE_MB: "${PREVIEW_CACHE_MAX_SIZE_MB:-10240}"       # 10GB for images
+      PREVIEW_METADATA_CACHE_MAX_SIZE_MB: "${PREVIEW_METADATA_CACHE_MAX_SIZE_MB:-500}"  # 500MB for metadata
+      
+      # Image processing
+      PREVIEW_MAX_IMAGE_WIDTH: "${PREVIEW_MAX_IMAGE_WIDTH:-1920}"
+      PREVIEW_MAX_IMAGE_HEIGHT: "${PREVIEW_MAX_IMAGE_HEIGHT:-1080}"
+      PREVIEW_JPEG_QUALITY: "${PREVIEW_JPEG_QUALITY:-85}"
+      
+      # Security
+      PREVIEW_BLOCK_PRIVATE_IPS: "${PREVIEW_BLOCK_PRIVATE_IPS:-true}"
+      PREVIEW_API_KEY: "${PREVIEW_API_KEY:-}"  # Optional: set for API key auth
+      
+      # CORS - adjust for your domains
+      PREVIEW_CORS_ORIGINS: "${PREVIEW_CORS_ORIGINS:-https://openmates.org,https://app.openmates.org}"
+      
+      # Referer validation - blocks requests not from your domains
+      PREVIEW_VALIDATE_REFERER: "${PREVIEW_VALIDATE_REFERER:-true}"
+      PREVIEW_ALLOWED_REFERERS: "${PREVIEW_ALLOWED_REFERERS:-https://openmates.org/*,https://app.openmates.org/*,https://*.openmates.org/*}"
+    
+    # Port mapping
+    ports:
+      - "${PREVIEW_PORT:-8080}:8080"
+    
+    # Persistent cache storage
+    volumes:
+      - preview-cache:/app/cache
+    
+    # Resource limits
+    # For Hetzner CAX11 (4GB RAM, 2 CPU cores):
+    # - 4 uvicorn workers (handles 4 concurrent image processing tasks)
+    # - Each worker uses ~200-300MB when processing
+    # - Total: ~1.5GB RAM during peak load
+    deploy:
+      resources:
+        limits:
+          memory: 2G   # Room for 4 workers processing simultaneously
+          cpus: '2'
+        reservations:
+          memory: 512M
+    
+    # Health check
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+# Named volumes for persistence
+volumes:
+  preview-cache:
+    name: openmates-preview-cache
+

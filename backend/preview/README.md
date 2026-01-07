@@ -1,0 +1,229 @@
+# OpenMates Preview Server
+
+Image/favicon proxy and URL metadata extraction service for the OpenMates platform.
+
+## Features
+
+- **Image Proxy**: Fetch, resize, and cache images from external URLs
+- **Favicon Proxy**: Fetch and cache website favicons
+- **Metadata Extraction**: Extract Open Graph/Twitter Card metadata from URLs
+- **Privacy**: Hides user IP from target servers
+- **Security**: SSRF protection, content validation, optional API key auth
+- **Performance**: Disk-based LRU caching with configurable limits
+
+## Quick Start
+
+### Development
+
+```bash
+# Install dependencies
+pip install -r requirements.txt
+
+# Run with hot reload
+uvicorn main:app --host 0.0.0.0 --port 8080 --reload
+```
+
+### Docker (Standalone)
+
+```bash
+# Build and run
+docker compose -f docker-compose.preview.yml up
+
+# Production (detached)
+docker compose -f docker-compose.preview.yml up -d
+```
+
+### Self-Hosted (Main Stack)
+
+Uncomment the `preview` service in `backend/core/docker-compose.yml`.
+
+## API Endpoints
+
+### `GET /api/v1/image`
+
+Fetch and resize images.
+
+```bash
+# Basic usage
+curl "http://localhost:8080/api/v1/image?url=https://example.com/photo.jpg"
+
+# With resizing
+curl "http://localhost:8080/api/v1/image?url=https://example.com/photo.jpg&max_width=800&max_height=600"
+
+# With quality adjustment
+curl "http://localhost:8080/api/v1/image?url=https://example.com/photo.jpg&quality=75"
+```
+
+**Parameters:**
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `url` | string | required | Image URL to fetch |
+| `max_width` | int | 1920 | Maximum width (0 = no limit) |
+| `max_height` | int | 1080 | Maximum height (0 = no limit) |
+| `quality` | int | 85 | JPEG/WebP quality (1-100) |
+| `format` | string | auto | Output format (jpeg, png, webp) |
+| `refresh` | bool | false | Bypass cache |
+
+### `GET /api/v1/favicon`
+
+Fetch website favicon.
+
+```bash
+curl "http://localhost:8080/api/v1/favicon?url=https://github.com"
+```
+
+### `POST /api/v1/metadata`
+
+Extract website metadata.
+
+```bash
+curl -X POST "http://localhost:8080/api/v1/metadata" \
+  -H "Content-Type: application/json" \
+  -d '{"url": "https://github.com/openai"}'
+```
+
+**Response:**
+```json
+{
+  "url": "https://github.com/openai",
+  "title": "OpenAI",
+  "description": "OpenAI is an AI research and deployment company...",
+  "image": "https://github.githubassets.com/images/modules/open_graph/github-octocat.png",
+  "favicon": "https://github.com/favicon.ico",
+  "site_name": "GitHub"
+}
+```
+
+### `GET /health`
+
+Health check for load balancers.
+
+### `GET /health/detailed`
+
+Detailed health with cache statistics.
+
+## Configuration
+
+Copy `.env.example` to `.env` and adjust as needed.
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `PREVIEW_PORT` | 8080 | Server port |
+| `UVICORN_WORKERS` | 4 | Worker processes for concurrent image processing |
+| `PREVIEW_ENVIRONMENT` | development | Environment name |
+| `PREVIEW_DEBUG` | false | Enable debug mode (API docs) |
+| `PREVIEW_LOG_LEVEL` | INFO | Log level |
+| `PREVIEW_CACHE_DIR` | /app/cache | Cache directory |
+| `PREVIEW_CACHE_MAX_SIZE_MB` | 10240 | Image cache size limit (10GB) |
+| `PREVIEW_METADATA_CACHE_MAX_SIZE_MB` | 500 | Metadata cache size limit (500MB) |
+| `PREVIEW_MAX_IMAGE_WIDTH` | 1920 | Default max image width |
+| `PREVIEW_MAX_IMAGE_HEIGHT` | 1080 | Default max image height |
+| `PREVIEW_JPEG_QUALITY` | 85 | Default JPEG quality |
+| `PREVIEW_BLOCK_PRIVATE_IPS` | true | SSRF protection |
+| `PREVIEW_CORS_ORIGINS` | see below | Allowed CORS origins |
+| `PREVIEW_API_KEY` | (empty) | Optional API key for auth |
+| `PREVIEW_VALIDATE_REFERER` | true | Enable Referer header validation |
+| `PREVIEW_ALLOWED_REFERERS` | see below | Allowed Referer patterns |
+
+## Architecture
+
+```
+backend/preview/
+├── main.py              # FastAPI application entry point
+├── app/
+│   ├── config.py        # Configuration settings
+│   ├── routes/          # API route handlers
+│   │   ├── favicon.py   # Favicon proxy endpoint
+│   │   ├── image.py     # Image proxy endpoint
+│   │   ├── metadata.py  # Metadata extraction endpoint
+│   │   └── health.py    # Health check endpoints
+│   └── services/        # Business logic
+│       ├── cache_service.py    # Disk-based LRU caching
+│       ├── fetch_service.py    # External URL fetching with SSRF protection
+│       ├── image_service.py    # Image resizing and optimization
+│       └── metadata_service.py # Open Graph metadata parsing
+├── Dockerfile           # Docker image definition
+├── docker-compose.preview.yml  # Standalone deployment
+└── requirements.txt     # Python dependencies
+```
+
+## Security
+
+- **Referer Validation**: Blocks requests not originating from your domains (prevents hotlinking)
+- **SSRF Protection**: Blocks requests to private/internal IP addresses
+- **Content Validation**: Validates MIME types and enforces size limits
+- **No Tracking**: Doesn't forward cookies or referrers to target servers
+- **API Key Auth**: Optional authentication via `X-API-Key` header
+- **Rate Limiting**: Recommended at Caddy/reverse proxy level
+
+### Referer Validation
+
+By default, the preview server validates the `Referer` header to ensure requests come from your domains. This prevents other websites from hotlinking your preview server.
+
+**Configuration:**
+```bash
+# Enable/disable referer validation
+PREVIEW_VALIDATE_REFERER=true
+
+# Allowed referer patterns (supports wildcards)
+PREVIEW_ALLOWED_REFERERS=https://openmates.org/*,https://*.openmates.org/*,http://localhost:*/*
+```
+
+**Note:** Empty referers are always allowed (for privacy settings and direct navigation). Referer headers can be spoofed by non-browser clients, so combine with rate limiting for full protection.
+
+## Deployment
+
+### Production (Separate VM)
+
+1. Set up a VM at `preview.openmates.org`
+2. Copy `backend/preview/` to the VM
+3. Configure environment variables in `.env`
+4. Run with Docker Compose:
+   ```bash
+   docker compose -f docker-compose.preview.yml up -d
+   ```
+5. Set up reverse proxy (Caddy/Nginx) with SSL
+
+### Self-Hosted (Same Server)
+
+1. Uncomment the `preview` service in `backend/core/docker-compose.yml`
+2. Uncomment the `preview-cache` volume
+3. Restart the stack: `docker compose up -d`
+
+## Cache Management
+
+The server uses **disk-based caching** (via `diskcache`) with automatic LRU eviction. No Redis/Dragonfly needed.
+
+- **Images**: 10GB default, 7-day TTL
+- **Favicons**: 1GB default, 7-day TTL
+- **Metadata**: 500MB default, 24-hour TTL
+
+When cache exceeds size limit, least-recently-used entries are automatically deleted.
+
+View cache statistics:
+```bash
+curl "http://localhost:8080/health/cache"
+```
+
+## Concurrency
+
+The server runs **4 uvicorn workers** by default for parallel image processing:
+
+```bash
+# Adjust workers based on your VM resources
+UVICORN_WORKERS=4  # Default: 4 concurrent image processing tasks
+```
+
+| Workers | RAM Usage | Concurrent Processing |
+|---------|-----------|----------------------|
+| 2 | ~800MB | 2 images at once |
+| 4 | ~1.5GB | 4 images at once (default) |
+| 8 | ~3GB | 8 images at once |
+
+## Recommended Hardware
+
+**Hetzner CAX11** (€3.79/month):
+- 2 ARM cores, 4GB RAM, 40GB SSD
+- Supports 4 workers + 10GB cache
+- Sufficient for moderate traffic
+
