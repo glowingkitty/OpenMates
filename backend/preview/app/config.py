@@ -9,7 +9,7 @@ Manages all configuration settings for the preview server including:
 
 from typing import Optional
 from pydantic_settings import BaseSettings
-from pydantic import Field
+from pydantic import Field, AliasChoices
 
 
 class Settings(BaseSettings):
@@ -79,15 +79,21 @@ class Settings(BaseSettings):
     
     # Webshare credentials for rotating residential proxy
     # Used to fetch website metadata from sites that block datacenter IPs
-    # Uses same env var names as main backend: SECRET__WEBSHARE__PROXY_USERNAME/PASSWORD
+    # Accepts both: SECRET__WEBSHARE__PROXY_USERNAME (main backend) or PREVIEW_WEBSHARE_USERNAME
     webshare_username: Optional[str] = Field(
         default=None,
-        alias="SECRET__WEBSHARE__PROXY_USERNAME",
+        validation_alias=AliasChoices(
+            "SECRET__WEBSHARE__PROXY_USERNAME",  # Main backend format (shared .env)
+            "PREVIEW_WEBSHARE_USERNAME"  # Preview-specific with env_prefix
+        ),
         description="Webshare proxy username (same as main backend)"
     )
     webshare_password: Optional[str] = Field(
         default=None,
-        alias="SECRET__WEBSHARE__PROXY_PASSWORD", 
+        validation_alias=AliasChoices(
+            "SECRET__WEBSHARE__PROXY_PASSWORD",  # Main backend format (shared .env)
+            "PREVIEW_WEBSHARE_PASSWORD"  # Preview-specific with env_prefix  
+        ),
         description="Webshare proxy password (same as main backend)"
     )
     
@@ -201,9 +207,6 @@ class Settings(BaseSettings):
         env_prefix = "PREVIEW_"
         env_file = ".env"
         env_file_encoding = "utf-8"
-        # Allow both field name (with PREVIEW_ prefix) and alias to populate fields
-        # This lets Webshare credentials use SECRET__WEBSHARE__* format (same as main backend)
-        populate_by_name = True
     
     @property
     def cors_origins_list(self) -> list[str]:

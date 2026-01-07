@@ -154,7 +154,8 @@ class FetchService:
             logger.info("[FetchService] Initialized with Webshare proxy")
         else:
             logger.warning(
-                "[FetchService] No proxy configured (PREVIEW_WEBSHARE_PROXY_URL not set). "
+                "[FetchService] No proxy configured. Set SECRET__WEBSHARE__PROXY_USERNAME "
+                "and SECRET__WEBSHARE__PROXY_PASSWORD env vars. "
                 "Metadata fetching may fail on sites that block direct requests."
             )
     

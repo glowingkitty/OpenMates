@@ -140,7 +140,11 @@ For reliable metadata fetching, configure Webshare rotating residential proxy. W
 
 Get credentials from: https://webshare.io/
 
-**Note:** These are the same credentials used by the main backend (defined in `.env.example` lines 71-72). If running preview on the same server, you can share the same `.env` file.
+**Note:** The preview server accepts credentials in two formats:
+- `SECRET__WEBSHARE__PROXY_USERNAME` / `SECRET__WEBSHARE__PROXY_PASSWORD` (same as main backend, for shared `.env`)
+- `PREVIEW_WEBSHARE_USERNAME` / `PREVIEW_WEBSHARE_PASSWORD` (preview-specific with prefix)
+
+The first format matching will be used.
 
 ## Architecture
 
