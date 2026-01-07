@@ -9,7 +9,7 @@ Manages all configuration settings for the preview server including:
 
 from typing import Optional
 from pydantic_settings import BaseSettings
-from pydantic import Field
+from pydantic import Field, AliasChoices
 
 
 class Settings(BaseSettings):
@@ -72,15 +72,70 @@ class Settings(BaseSettings):
     jpeg_quality: int = Field(default=85, description="JPEG quality for resized images")
     
     # ===========================================
+    # Proxy Settings (Webshare)
+    # ===========================================
+    # Reuses the same env var names as the main backend for consistency.
+    # These are the same credentials defined in .env.example lines 71-72.
+    
+    # Webshare credentials for rotating residential proxy
+    # Used to fetch website metadata from sites that block datacenter IPs
+    # Accepts both: SECRET__WEBSHARE__PROXY_USERNAME (main backend) or PREVIEW_WEBSHARE_USERNAME
+    webshare_username: Optional[str] = Field(
+        default=None,
+        validation_alias=AliasChoices(
+            "SECRET__WEBSHARE__PROXY_USERNAME",  # Main backend format (shared .env)
+            "PREVIEW_WEBSHARE_USERNAME"  # Preview-specific with env_prefix
+        ),
+        description="Webshare proxy username (same as main backend)"
+    )
+    webshare_password: Optional[str] = Field(
+        default=None,
+        validation_alias=AliasChoices(
+            "SECRET__WEBSHARE__PROXY_PASSWORD",  # Main backend format (shared .env)
+            "PREVIEW_WEBSHARE_PASSWORD"  # Preview-specific with env_prefix  
+        ),
+        description="Webshare proxy password (same as main backend)"
+    )
+    
+    # Webshare proxy host (default is their rotating residential proxy endpoint)
+    webshare_proxy_host: str = Field(
+        default="proxy.webshare.io",
+        description="Webshare proxy host"
+    )
+    webshare_proxy_port: int = Field(
+        default=80,
+        description="Webshare proxy port"
+    )
+    
+    # Whether to use proxy for HTML/metadata fetching (recommended: True)
+    use_proxy_for_metadata: bool = Field(
+        default=True,
+        description="Use proxy for metadata/HTML fetching"
+    )
+    
+    # Whether to use proxy for image fetching (can be False to save proxy bandwidth)
+    use_proxy_for_images: bool = Field(
+        default=False,
+        description="Use proxy for image fetching"
+    )
+    
+    @property
+    def webshare_proxy_url(self) -> Optional[str]:
+        """Build Webshare proxy URL from credentials if available."""
+        if self.webshare_username and self.webshare_password:
+            return f"http://{self.webshare_username}:{self.webshare_password}@{self.webshare_proxy_host}:{self.webshare_proxy_port}"
+        return None
+    
+    # ===========================================
     # Security Settings
     # ===========================================
     
     # Request timeout in seconds
     request_timeout_seconds: int = Field(default=10, description="External request timeout")
     
-    # User agent for outgoing requests
+    # User agent for outgoing requests (use a realistic browser UA for better compatibility)
     user_agent: str = Field(
-        default="OpenMates-Preview/1.0 (https://openmates.org)",
+        default="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
         description="User agent for outgoing requests"
     )
     

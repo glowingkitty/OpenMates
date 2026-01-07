@@ -59,11 +59,11 @@ class MetadataService:
         if use_cache:
             cached = cache_service.get_metadata(normalized_url)
             if cached:
-                logger.debug(f"[MetadataService] Using cached metadata for {url[:50]}...")
+                logger.info(f"[MetadataService] CACHE_HIT for {url[:50]}...")
                 return cached
         
-        # Fetch HTML content
-        logger.debug(f"[MetadataService] Fetching metadata for {url[:50]}...")
+        # Cache miss - fetch HTML content
+        logger.info(f"[MetadataService] CACHE_MISS - fetching {url[:50]}...")
         html = await fetch_service.fetch_html(normalized_url)
         
         # Parse metadata
@@ -73,8 +73,8 @@ class MetadataService:
         cache_service.set_metadata(normalized_url, metadata)
         
         logger.info(
-            f"[MetadataService] Extracted metadata for {url[:50]}...: "
-            f"title={metadata.get('title', 'N/A')[:30]}..."
+            f"[MetadataService] Extracted and cached: "
+            f"title={(metadata.get('title') or 'N/A')[:30]}..."
         )
         
         return metadata

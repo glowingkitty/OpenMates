@@ -7,7 +7,10 @@ uvicorn[standard]==0.34.0
 
 # HTTP client for fetching external resources
 httpx==0.28.1
-aiohttp==3.11.11
+aiohttp==3.13.3
+
+# Brotli decompression support (for Accept-Encoding: br)
+brotli==1.2.0
 
 # HTML parsing for Open Graph metadata extraction
 beautifulsoup4==4.12.3
@@ -24,6 +27,9 @@ validators==0.34.0
 
 # Security - prevent SSRF attacks
 ipaddress>=1.0.23
+
+# Anti-detection - random User-Agent generation
+user-agents==2.2.0
 
 # Environment and configuration
 python-dotenv==1.0.1

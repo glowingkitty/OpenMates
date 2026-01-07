@@ -21,6 +21,13 @@
     import * as cryptoService from '../../../../services/cryptoService';
     import { get } from 'svelte/store';
     import { generateDeviceName } from '../../../../utils/deviceName';
+    import { notificationStore } from '../../../../stores/notificationStore';
+    import { 
+        isChunkLoadError, 
+        logChunkLoadError, 
+        CHUNK_ERROR_MESSAGE, 
+        CHUNK_ERROR_NOTIFICATION_DURATION 
+    } from '../../../../utils/chunkErrorHandler';
     
     const dispatch = createEventDispatcher();
     
@@ -381,6 +388,15 @@
             
         } catch (error) {
             console.error('Error registering passkey:', error);
+            
+            // Check for chunk loading errors (stale cache after deployment)
+            // These happen when dynamic imports fail because old JS references non-existent chunks
+            if (isChunkLoadError(error)) {
+                logChunkLoadError('PasskeyRegistrationBottomContent', error);
+                notificationStore.error(CHUNK_ERROR_MESSAGE, CHUNK_ERROR_NOTIFICATION_DURATION);
+            } else {
+                notificationStore.error('An unexpected error occurred during passkey registration. Please try again.', 8000);
+            }
         } finally {
             isLoading = false;
         }

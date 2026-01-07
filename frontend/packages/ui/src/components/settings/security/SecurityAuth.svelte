@@ -18,7 +18,11 @@ Svelte 5: Uses callback props instead of event dispatcher for parent communicati
     // ========================================================================
     
     /** Auth result data passed to onSuccess callback */
-    type AuthSuccessData = { method: 'passkey' | 'password' | '2fa'; credentialId?: string };
+    type AuthSuccessData = { 
+        method: 'passkey' | 'password' | '2fa'; 
+        credentialId?: string;  // For passkey authentication
+        tfaCode?: string;       // For 2FA authentication
+    };
     
     let { 
         hasPasskey = false,
@@ -381,9 +385,9 @@ Svelte 5: Uses callback props instead of event dispatcher for parent communicati
                 throw new Error(data.message || 'Invalid 2FA code');
             }
 
-            // Authentication successful
+            // Authentication successful - pass the OTP code for downstream verification
             console.log('[SecurityAuth] 2FA authentication successful');
-            onSuccess({ method: '2fa' });
+            onSuccess({ method: '2fa', tfaCode });
         } catch (error) {
             console.error('[SecurityAuth] 2FA authentication error:', error);
             const errMsg = error instanceof Error ? error.message : '2FA verification failed';
@@ -569,20 +573,19 @@ Svelte 5: Uses callback props instead of event dispatcher for parent communicati
         left: 0;
         right: 0;
         bottom: 0;
-        background: rgba(0, 0, 0, 0.5);
+        background: var(--color-grey-20);
         display: flex;
         align-items: center;
         justify-content: center;
-        z-index: 1000;
+        z-index: 10000;
     }
 
     .auth-modal {
-        background: var(--color-grey-5);
+        background: var(--color-grey-20);
         border-radius: 12px;
         padding: 24px;
         max-width: 400px;
         width: 90%;
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
     }
 
     .auth-header {
