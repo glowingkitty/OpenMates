@@ -2420,7 +2420,7 @@ async def delete_account(
             
             # Verify 2FA code
             from backend.core.api.app.routes.auth_routes.auth_2fa_verify import verify_device_2fa
-            from backend.core.api.app.schemas.auth import VerifyDevice2FARequest
+            from backend.core.api.app.schemas.auth_2fa import VerifyDevice2FARequest
             
             verify_request = VerifyDevice2FARequest(tfa_code=delete_request.auth_code)
             verify_response = await verify_device_2fa(
