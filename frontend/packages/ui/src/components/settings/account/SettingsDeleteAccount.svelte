@@ -1,5 +1,6 @@
 <!--
 Delete Account Settings - Component for deleting user account with preview, confirmation, and authentication
+Uses the shared SecurityAuth component for unified authentication (passkey, 2FA OTP).
 -->
 
 <script lang="ts">
@@ -7,14 +8,16 @@ Delete Account Settings - Component for deleting user account with preview, conf
     import { text, activeChatStore } from '@repo/ui';
     import { getApiEndpoint, apiEndpoints } from '../../../config/api';
     import { authStore } from '../../../stores/authStore';
-    import * as cryptoService from '../../../services/cryptoService';
-    import { getSessionId } from '../../../utils/sessionId';
     import { panelState } from '../../../stores/panelStateStore';
     import { settingsMenuVisible } from '../../Settings.svelte';
     import { phasedSyncState } from '../../../stores/phasedSyncStateStore';
     import Toggle from '../../Toggle.svelte';
+    import SecurityAuth from '../security/SecurityAuth.svelte';
 
-    // State for preview data
+    // ========================================================================
+    // STATE - Preview Data
+    // ========================================================================
+    
     // Policy: All unused credits are refunded EXCEPT credits from gift card redemptions
     let previewData = $state<{
         total_credits: number;  // User's current total credit balance
@@ -41,26 +44,49 @@ Delete Account Settings - Component for deleting user account with preview, conf
         };
     } | null>(null);
 
-    // State for loading and errors
+    // ========================================================================
+    // STATE - UI
+    // ========================================================================
+    
     let isLoadingPreview = $state(false);
     let isLoadingDeletion = $state(false);
     let errorMessage: string | null = $state(null);
     let successMessage: string | null = $state(null);
 
-    // State for user authentication methods
+    // ========================================================================
+    // STATE - Authentication
+    // ========================================================================
+    
+    /** User authentication methods - needed for SecurityAuth component */
     let hasPasskey = $state(false);
+    let hasPassword = $state(false);  // Not used for deletion, but SecurityAuth needs it
+    let has2FA = $state(false);
+    
+    /** Whether the SecurityAuth modal is shown */
+    let showAuthModal = $state(false);
 
-    // State for confirmations
+    // ========================================================================
+    // STATE - Confirmations
+    // ========================================================================
+    
     // Note: No credits loss confirmation needed - all unused credits are refunded (except gift card credits)
     let confirmDataDeletion = $state(false);
 
+    // ========================================================================
+    // LIFECYCLE
+    // ========================================================================
+
     /**
-     * Fetch preview data when component mounts
+     * Fetch preview data and auth methods when component mounts
      */
     onMount(async () => {
         await fetchPreview();
         await fetchAuthMethods();
     });
+
+    // ========================================================================
+    // DATA FETCHING
+    // ========================================================================
 
     /**
      * Fetch preview data about what will happen during account deletion
@@ -84,7 +110,7 @@ Delete Account Settings - Component for deleting user account with preview, conf
             const data = await response.json();
             previewData = data;
         } catch (error) {
-            console.error('Error fetching deletion preview:', error);
+            console.error('[SettingsDeleteAccount] Error fetching deletion preview:', error);
             errorMessage = error instanceof Error ? error.message : 'Failed to load deletion preview';
         } finally {
             isLoadingPreview = false;
@@ -93,6 +119,7 @@ Delete Account Settings - Component for deleting user account with preview, conf
 
     /**
      * Fetch user authentication methods (passkey, 2FA)
+     * Both are supported for account deletion authentication via SecurityAuth.
      */
     async function fetchAuthMethods() {
         try {
@@ -104,13 +131,19 @@ Delete Account Settings - Component for deleting user account with preview, conf
 
             if (response.ok) {
                 const data = await response.json();
-                hasPasskey = data.has_passkey;
-                // Note: 2FA authentication for account deletion is not yet supported
+                hasPasskey = data.has_passkey || false;
+                hasPassword = data.has_password || false;
+                has2FA = data.has_2fa || false;
+                console.log('[SettingsDeleteAccount] Auth methods fetched:', { hasPasskey, hasPassword, has2FA });
             }
         } catch (error) {
-            console.error('Error fetching auth methods:', error);
+            console.error('[SettingsDeleteAccount] Error fetching auth methods:', error);
         }
     }
+
+    // ========================================================================
+    // COMPUTED
+    // ========================================================================
 
     /**
      * Format credits for display
@@ -133,19 +166,25 @@ Delete Account Settings - Component for deleting user account with preview, conf
     /**
      * Check if deletion can proceed (data deletion confirmation must be toggled on)
      * Note: No credits loss confirmation needed - all unused credits are refunded (except gift card credits)
-     * Using $derived.by() to compute the boolean value from a function
      */
     let canProceed = $derived.by(() => {
         const hasPreviewData = !!previewData;
         const hasConfirmation = confirmDataDeletion;
         const result = hasPreviewData && hasConfirmation;
-        console.log('[SettingsDeleteAccount] canProceed check:', { hasPreviewData, hasConfirmation, result });
         return result;
     });
+    
+    /**
+     * Check if user has any authentication method available
+     */
+    let hasAnyAuthMethod = $derived(hasPasskey || has2FA);
+
+    // ========================================================================
+    // AUTHENTICATION FLOW
+    // ========================================================================
 
     /**
-     * Start deletion process - triggers passkey authentication inline
-     * Note: Currently only passkey authentication is supported for account deletion.
+     * Start deletion process - opens SecurityAuth modal for authentication
      */
     function startDeletion() {
         // CRITICAL: Prevent deletion if confirmation toggle is not checked
@@ -159,177 +198,68 @@ Delete Account Settings - Component for deleting user account with preview, conf
             return;
         }
         
-        // Check if user has passkey set up (required for account deletion)
-        if (!hasPasskey) {
-            errorMessage = 'Passkey authentication required. Please set up a passkey first in Security settings.';
+        // Check if user has any authentication method set up
+        if (!hasAnyAuthMethod) {
+            errorMessage = $text('settings.account.delete_account_no_auth_method.text');
+            console.log('[SettingsDeleteAccount] Deletion blocked - no auth method available');
             return;
         }
 
-        // Directly call handleDeleteAccount which handles passkey auth internally
-        handleDeleteAccount();
+        // Show the unified SecurityAuth modal
+        console.log('[SettingsDeleteAccount] Opening SecurityAuth modal');
+        errorMessage = null;
+        showAuthModal = true;
     }
 
     /**
-     * Handle passkey authentication for deletion
-     * This is similar to PaymentAuth but we need to capture the credential_id
+     * Called when authentication succeeds via SecurityAuth
+     * Proceeds to submit the deletion request with auth data
      */
-    async function handlePasskeyAuthForDeletion(): Promise<string | null> {
-        try {
-            // Get user email for passkey authentication
-            const email = await cryptoService.getEmailDecryptedWithMasterKey();
-            if (!email) {
-                throw new Error('Email not available');
-            }
-
-            // Hash email for lookup
-            const emailHash = await cryptoService.hashEmail(email);
-
-            // Initiate passkey assertion
-            const initiateResponse = await fetch(getApiEndpoint(apiEndpoints.auth.passkey_assertion_initiate), {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                credentials: 'include',
-                body: JSON.stringify({
-                    hashed_email: emailHash,
-                    session_id: getSessionId()
-                })
-            });
-
-            if (!initiateResponse.ok) {
-                throw new Error('Failed to initiate passkey authentication');
-            }
-
-            const initiateData = await initiateResponse.json();
-            if (!initiateData.success) {
-                throw new Error(initiateData.message || 'Passkey authentication failed');
-            }
-
-            // Convert base64url to ArrayBuffer
-            function base64UrlToArrayBuffer(base64url: string): ArrayBuffer {
-                let base64 = base64url.replace(/-/g, '+').replace(/_/g, '/');
-                while (base64.length % 4) {
-                    base64 += '=';
-                }
-                const binary = window.atob(base64);
-                const bytes = new Uint8Array(binary.length);
-                for (let i = 0; i < binary.length; i++) {
-                    bytes[i] = binary.charCodeAt(i);
-                }
-                return bytes.buffer;
-            }
-
-            if (!initiateData.challenge || !initiateData.rp?.id) {
-                throw new Error('Invalid passkey challenge response');
-            }
-
-            const challenge = base64UrlToArrayBuffer(initiateData.challenge);
-            const prfEvalFirst = initiateData.extensions?.prf?.eval?.first || initiateData.challenge;
-            const prfEvalFirstBuffer = base64UrlToArrayBuffer(prfEvalFirst);
-
-            const publicKeyCredentialRequestOptions = {
-                challenge: challenge,
-                rpId: initiateData.rp.id,
-                timeout: initiateData.timeout,
-                userVerification: initiateData.userVerification as 'required' | 'preferred' | 'discouraged',
-                allowCredentials: initiateData.allowCredentials?.length > 0
-                    ? initiateData.allowCredentials.map((cred: { type: string; id: string; transports?: string[] }) => ({
-                        type: 'public-key' as const,
-                        id: base64UrlToArrayBuffer(cred.id),
-                        transports: cred.transports as ('usb' | 'nfc' | 'ble' | 'internal' | 'hybrid')[]
-                    }))
-                    : [],
-                extensions: {
-                    prf: {
-                        eval: {
-                            first: prfEvalFirstBuffer
-                        }
-                    }
-                }
-            };
-
-            // Request passkey authentication
-            const credential = await navigator.credentials.get({
-                publicKey: publicKeyCredentialRequestOptions
-            }) as PublicKeyCredential;
-
-            if (!credential) {
-                throw new Error('Passkey authentication cancelled');
-            }
-
-            // Extract credential ID
-            const uint8ArrayToBase64 = (arr: Uint8Array) => {
-                return btoa(String.fromCharCode(...arr))
-                    .replace(/\+/g, '-')
-                    .replace(/\//g, '_')
-                    .replace(/=/g, '');
-            };
-
-            const credentialId = uint8ArrayToBase64(new Uint8Array(credential.rawId));
-
-            // Verify passkey assertion
-            const verifyResponse = await fetch(getApiEndpoint(apiEndpoints.auth.passkey_assertion_verify), {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                credentials: 'include',
-                body: JSON.stringify({
-                    credential_id: credentialId,
-                    assertion_response: {
-                        authenticatorData: uint8ArrayToBase64(new Uint8Array((credential.response as AuthenticatorAssertionResponse).authenticatorData)),
-                        clientDataJSON: uint8ArrayToBase64(new Uint8Array((credential.response as AuthenticatorAssertionResponse).clientDataJSON)),
-                        signature: uint8ArrayToBase64(new Uint8Array((credential.response as AuthenticatorAssertionResponse).signature)),
-                        userHandle: (credential.response as AuthenticatorAssertionResponse).userHandle 
-                            ? uint8ArrayToBase64(new Uint8Array((credential.response as AuthenticatorAssertionResponse).userHandle!))
-                            : null
-                    },
-                    client_data_json: uint8ArrayToBase64(new Uint8Array((credential.response as AuthenticatorAssertionResponse).clientDataJSON)),
-                    authenticator_data: uint8ArrayToBase64(new Uint8Array((credential.response as AuthenticatorAssertionResponse).authenticatorData)),
-                    session_id: getSessionId()
-                })
-            });
-
-            if (!verifyResponse.ok) {
-                const errorData = await verifyResponse.json();
-                throw new Error(errorData.message || 'Passkey verification failed');
-            }
-
-            const verifyData = await verifyResponse.json();
-            if (!verifyData.success) {
-                throw new Error(verifyData.message || 'Passkey verification failed');
-            }
-
-            return credentialId;
-        } catch (error) {
-            console.error('Passkey authentication error:', error);
-            throw error;
-        }
+    async function handleAuthSuccess(data: { method: 'passkey' | 'password' | '2fa'; credentialId?: string }) {
+        console.log('[SettingsDeleteAccount] Authentication successful:', data.method);
+        showAuthModal = false;
+        
+        // Store auth data and submit deletion
+        // Map 'password' auth method to '2fa' for backend (backend only accepts passkey or 2fa_otp)
+        // Note: Password auth alone is not sufficient for account deletion - 
+        // if password auth triggers 2FA, SecurityAuth will handle that
+        const authMethod = data.method === 'passkey' ? 'passkey' : '2fa_otp';
+        const authCode = data.credentialId || '';  // For 2FA, the code was already verified by SecurityAuth
+        
+        await submitDeletionRequest(authMethod, authCode);
     }
 
+    /**
+     * Called when authentication fails via SecurityAuth
+     */
+    function handleAuthFailed(message: string) {
+        console.log('[SettingsDeleteAccount] Authentication failed:', message);
+        showAuthModal = false;
+        errorMessage = message || $text('settings.account.delete_account_auth_failed.text');
+    }
 
     /**
-     * Submit account deletion request
+     * Called when user cancels authentication via SecurityAuth
      */
-    async function handleDeleteAccount() {
-        if (!canProceed) return;
+    function handleAuthCancel() {
+        console.log('[SettingsDeleteAccount] Authentication cancelled');
+        showAuthModal = false;
+    }
 
+    // ========================================================================
+    // DELETION REQUEST
+    // ========================================================================
+
+    /**
+     * Submit the account deletion request to the server
+     * @param authMethod - 'passkey' or '2fa_otp'
+     * @param authCode - credential_id for passkey, empty for 2FA (already verified)
+     */
+    async function submitDeletionRequest(authMethod: string, authCode: string) {
         isLoadingDeletion = true;
         errorMessage = null;
 
         try {
-            // Perform passkey authentication
-            // Note: Currently only passkey is supported. 2FA support can be added later.
-            if (!hasPasskey) {
-                throw new Error('Passkey authentication required. Please set up a passkey first.');
-            }
-
-            const credentialId = await handlePasskeyAuthForDeletion();
-            if (!credentialId) {
-                throw new Error('Passkey authentication failed');
-            }
-
-            // For passkey, we use the credential_id as the auth code
-            const authCode = credentialId;
-            const authMethod = 'passkey';
-
             // Submit deletion request
             // Note: All unused credits are automatically refunded (except gift card credits)
             const response = await fetch(getApiEndpoint(apiEndpoints.settings.deleteAccount), {
@@ -350,7 +280,7 @@ Delete Account Settings - Component for deleting user account with preview, conf
 
             const data = await response.json();
             if (data.success) {
-                successMessage = data.message || 'Account deletion initiated successfully';
+                successMessage = data.message || $text('settings.account.delete_account_success.text');
                 
                 // Perform logout actions after a short delay to show success message
                 setTimeout(async () => {
@@ -393,7 +323,7 @@ Delete Account Settings - Component for deleting user account with preview, conf
                 throw new Error(data.message || 'Account deletion failed');
             }
         } catch (error) {
-            console.error('Error deleting account:', error);
+            console.error('[SettingsDeleteAccount] Error deleting account:', error);
             errorMessage = error instanceof Error ? error.message : 'Failed to delete account';
         } finally {
             isLoadingDeletion = false;
@@ -443,45 +373,45 @@ Delete Account Settings - Component for deleting user account with preview, conf
         {/if}
 
         <!-- Data Deletion Warning with Toggle -->
-    <div class="warning-box data-warning">
-        <h3>{$text('settings.account.delete_account_data_deletion_warning_title.text')}</h3>
-        <p>{$text('settings.account.delete_account_data_deletion_warning_message.text')}</p>
-        <div class="toggle-label">
-            <Toggle 
-                bind:checked={confirmDataDeletion}
-                disabled={isLoadingDeletion}
-                ariaLabel={$text('settings.account.delete_account_data_deletion_warning_confirm.text')}
-            />
-            <span>{$text('settings.account.delete_account_data_deletion_warning_confirm.text')}</span>
+        <div class="warning-box data-warning">
+            <h3>{$text('settings.account.delete_account_data_deletion_warning_title.text')}</h3>
+            <p>{$text('settings.account.delete_account_data_deletion_warning_message.text')}</p>
+            <div class="toggle-label">
+                <Toggle 
+                    bind:checked={confirmDataDeletion}
+                    disabled={isLoadingDeletion}
+                    ariaLabel={$text('settings.account.delete_account_data_deletion_warning_confirm.text')}
+                />
+                <span>{$text('settings.account.delete_account_data_deletion_warning_confirm.text')}</span>
+            </div>
         </div>
-    </div>
 
-    <!-- Error Message -->
-    {#if errorMessage}
-        <div class="error-message">{errorMessage}</div>
-    {/if}
+        <!-- Error Message -->
+        {#if errorMessage}
+            <div class="error-message">{errorMessage}</div>
+        {/if}
 
-    <!-- Success Message -->
-    {#if successMessage}
-        <div class="success-message">{successMessage}</div>
-    {/if}
+        <!-- Success Message -->
+        {#if successMessage}
+            <div class="success-message">{successMessage}</div>
+        {/if}
 
-    <!-- Delete Button - disabled when confirmation toggle is off or deletion is in progress -->
-    <div class="action-buttons">
-        <button
-            class="delete-button"
-            class:disabled={!confirmDataDeletion || isLoadingDeletion}
-            onclick={startDeletion}
-            disabled={!confirmDataDeletion || isLoadingDeletion}
-        >
-            {#if isLoadingDeletion}
-                {$text('settings.account.delete_account_deleting.text')}
-            {:else}
-                {$text('settings.account.delete_account_delete_button.text')}
-            {/if}
-        </button>
-    </div>
-{:else if errorMessage}
+        <!-- Delete Button - disabled when confirmation toggle is off or deletion is in progress -->
+        <div class="action-buttons">
+            <button
+                class="delete-button"
+                class:disabled={!confirmDataDeletion || isLoadingDeletion}
+                onclick={startDeletion}
+                disabled={!confirmDataDeletion || isLoadingDeletion}
+            >
+                {#if isLoadingDeletion}
+                    {$text('settings.account.delete_account_deleting.text')}
+                {:else}
+                    {$text('settings.account.delete_account_delete_button.text')}
+                {/if}
+            </button>
+        </div>
+    {:else if errorMessage}
         <div class="error-message">{errorMessage}</div>
         <button class="retry-button" onclick={fetchPreview}>
             {$text('settings.account.delete_account_retry.text')}
@@ -489,8 +419,22 @@ Delete Account Settings - Component for deleting user account with preview, conf
     {/if}
 </div>
 
-<style>
+<!-- SecurityAuth Modal - Unified authentication component (passkey or 2FA) -->
+{#if showAuthModal}
+    <SecurityAuth
+        {hasPasskey}
+        {hasPassword}
+        has2FA={has2FA}
+        title={$text('settings.account.delete_account_auth_title.text')}
+        description={$text('settings.account.delete_account_auth_description.text')}
+        autoStart={true}
+        onSuccess={handleAuthSuccess}
+        onFailed={handleAuthFailed}
+        onCancel={handleAuthCancel}
+    />
+{/if}
 
+<style>
     .loading-message {
         text-align: center;
         padding: 40px;
@@ -587,7 +531,7 @@ Delete Account Settings - Component for deleting user account with preview, conf
         width: 100%;
         padding: 14px 24px;
         background: var(--color-danger);
-        color: white;
+        color: var(--color-grey-100);
         border: none;
         border-radius: 8px;
         font-size: 16px;
@@ -611,7 +555,7 @@ Delete Account Settings - Component for deleting user account with preview, conf
     .retry-button {
         padding: 12px 24px;
         background: var(--color-primary);
-        color: white;
+        color: var(--color-grey-100);
         border: none;
         border-radius: 8px;
         font-size: 14px;
@@ -623,7 +567,4 @@ Delete Account Settings - Component for deleting user account with preview, conf
     .retry-button:hover {
         background: var(--color-primary-dark);
     }
-
 </style>
-
-

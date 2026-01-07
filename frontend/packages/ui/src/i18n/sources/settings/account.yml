@@ -642,6 +642,259 @@ delete_account_retry:
   cs: Zkusit znovu
   sv: Försök igen
   verified_by_human: []
+delete_account_no_auth_method:
+  context: Error message when user has no authentication method (no passkey and no 2FA) for account deletion
+  en: Authentication required. Please set up a passkey or 2FA in Security settings first.
+  de: Authentifizierung erforderlich. Bitte richten Sie zuerst einen Passkey oder 2FA in den Sicherheitseinstellungen ein.
+  zh: 需要身份验证。请先在安全设置中设置密钥或双因素认证。
+  es: Se requiere autenticación. Por favor, configure primero una clave de acceso o 2FA en Configuración de seguridad.
+  fr: Authentification requise. Veuillez d'abord configurer une clé d'accès ou 2FA dans les paramètres de sécurité.
+  pt: Autenticação necessária. Por favor, configure primeiro uma chave de acesso ou 2FA nas configurações de segurança.
+  ru: Требуется аутентификация. Пожалуйста, сначала настройте ключ доступа или 2FA в настройках безопасности.
+  ja: 認証が必要です。まずセキュリティ設定でパスキーまたは2FAを設定してください。
+  ko: 인증이 필요합니다. 먼저 보안 설정에서 패스키 또는 2FA를 설정하세요.
+  it: Autenticazione richiesta. Per favore, configura prima una passkey o 2FA nelle impostazioni di sicurezza.
+  tr: Kimlik doğrulama gerekli. Lütfen önce Güvenlik ayarlarında bir geçiş anahtarı veya 2FA kurun.
+  vi: Yêu cầu xác thực. Vui lòng thiết lập passkey hoặc 2FA trong cài đặt Bảo mật trước.
+  id: Autentikasi diperlukan. Silakan atur kunci sandi atau 2FA di pengaturan Keamanan terlebih dahulu.
+  pl: Wymagane uwierzytelnienie. Najpierw skonfiguruj klucz dostępu lub 2FA w ustawieniach bezpieczeństwa.
+  nl: Authenticatie vereist. Stel eerst een toegangssleutel of 2FA in bij Beveiligingsinstellingen.
+  ar: المصادقة مطلوبة. يرجى إعداد مفتاح المرور أو المصادقة الثنائية في إعدادات الأمان أولاً.
+  hi: प्रमाणीकरण आवश्यक है। कृपया पहले सुरक्षा सेटिंग्स में पासकी या 2FA सेट करें।
+  th: ต้องการการยืนยันตัวตน กรุณาตั้งค่า passkey หรือ 2FA ในการตั้งค่าความปลอดภัยก่อน
+  cs: Vyžadována autentizace. Nejprve prosím nastavte přístupový klíč nebo 2FA v nastavení zabezpečení.
+  sv: Autentisering krävs. Vänligen konfigurera först en nyckel eller 2FA i säkerhetsinställningarna.
+  verified_by_human: []
+delete_account_passkey_failed:
+  context: Error message when passkey authentication fails during account deletion
+  en: Passkey authentication failed. Please try again.
+  de: Passkey-Authentifizierung fehlgeschlagen. Bitte versuchen Sie es erneut.
+  zh: 密钥验证失败。请重试。
+  es: La autenticación con clave de acceso falló. Por favor, inténtalo de nuevo.
+  fr: L'authentification par clé d'accès a échoué. Veuillez réessayer.
+  pt: Autenticação por chave de acesso falhou. Por favor, tente novamente.
+  ru: Аутентификация по ключу доступа не удалась. Пожалуйста, попробуйте снова.
+  ja: パスキー認証に失敗しました。もう一度お試しください。
+  ko: 패스키 인증에 실패했습니다. 다시 시도해 주세요.
+  it: Autenticazione passkey fallita. Per favore, riprova.
+  tr: Geçiş anahtarı kimlik doğrulaması başarısız oldu. Lütfen tekrar deneyin.
+  vi: Xác thực passkey không thành công. Vui lòng thử lại.
+  id: Autentikasi kunci sandi gagal. Silakan coba lagi.
+  pl: Uwierzytelnienie kluczem dostępu nie powiodło się. Spróbuj ponownie.
+  nl: Authenticatie met toegangssleutel mislukt. Probeer het opnieuw.
+  ar: فشلت مصادقة مفتاح المرور. يرجى المحاولة مرة أخرى.
+  hi: पासकी प्रमाणीकरण विफल। कृपया पुनः प्रयास करें।
+  th: การยืนยันตัวตนด้วย passkey ล้มเหลว กรุณาลองอีกครั้ง
+  cs: Autentizace přístupovým klíčem selhala. Zkuste to prosím znovu.
+  sv: Passkey-autentisering misslyckades. Försök igen.
+  verified_by_human: []
+delete_account_2fa_title:
+  context: Title for 2FA input section during account deletion
+  en: Enter 2FA Code
+  de: 2FA-Code eingeben
+  zh: 输入双因素认证码
+  es: Ingresa el código 2FA
+  fr: Entrez le code 2FA
+  pt: Digite o código 2FA
+  ru: Введите код 2FA
+  ja: 2FAコードを入力
+  ko: 2FA 코드 입력
+  it: Inserisci il codice 2FA
+  tr: 2FA Kodunu Girin
+  vi: Nhập mã 2FA
+  id: Masukkan Kode 2FA
+  pl: Wprowadź kod 2FA
+  nl: Voer 2FA-code in
+  ar: أدخل رمز المصادقة الثنائية
+  hi: 2FA कोड दर्ज करें
+  th: ใส่รหัส 2FA
+  cs: Zadejte kód 2FA
+  sv: Ange 2FA-kod
+  verified_by_human: []
+delete_account_2fa_description:
+  context: Description for 2FA input during account deletion
+  en: Please enter the 6-digit code from your authenticator app to confirm account deletion.
+  de: Bitte geben Sie den 6-stelligen Code aus Ihrer Authenticator-App ein, um die Kontolöschung zu bestätigen.
+  zh: 请输入您身份验证器应用程序中的6位数代码以确认删除帐户。
+  es: Por favor, ingresa el código de 6 dígitos de tu aplicación de autenticación para confirmar la eliminación de la cuenta.
+  fr: Veuillez entrer le code à 6 chiffres de votre application d'authentification pour confirmer la suppression du compte.
+  pt: Por favor, digite o código de 6 dígitos do seu aplicativo autenticador para confirmar a exclusão da conta.
+  ru: Пожалуйста, введите 6-значный код из вашего приложения-аутентификатора для подтверждения удаления аккаунта.
+  ja: アカウント削除を確認するため、認証アプリの6桁のコードを入力してください。
+  ko: 계정 삭제를 확인하려면 인증 앱의 6자리 코드를 입력하세요.
+  it: Per favore, inserisci il codice a 6 cifre dalla tua app di autenticazione per confermare l'eliminazione dell'account.
+  tr: Hesap silme işlemini onaylamak için kimlik doğrulama uygulamanızdaki 6 haneli kodu girin.
+  vi: Vui lòng nhập mã 6 chữ số từ ứng dụng xác thực của bạn để xác nhận xóa tài khoản.
+  id: Silakan masukkan kode 6 digit dari aplikasi autentikator Anda untuk mengonfirmasi penghapusan akun.
+  pl: Proszę wprowadzić 6-cyfrowy kod z aplikacji uwierzytelniającej, aby potwierdzić usunięcie konta.
+  nl: Voer de 6-cijferige code van uw authenticator-app in om het verwijderen van het account te bevestigen.
+  ar: يرجى إدخال الرمز المكون من 6 أرقام من تطبيق المصادقة لتأكيد حذف الحساب.
+  hi: कृपया खाता हटाने की पुष्टि के लिए अपने प्रमाणक ऐप से 6 अंकों का कोड दर्ज करें।
+  th: กรุณาใส่รหัส 6 หลักจากแอปยืนยันตัวตนของคุณเพื่อยืนยันการลบบัญชี
+  cs: Zadejte prosím 6místný kód z vaší autentizační aplikace pro potvrzení smazání účtu.
+  sv: Ange den 6-siffriga koden från din autentiseringsapp för att bekräfta kontoborttagningen.
+  verified_by_human: []
+delete_account_2fa_cancel:
+  context: Cancel button text in 2FA input section
+  en: Cancel
+  de: Abbrechen
+  zh: 取消
+  es: Cancelar
+  fr: Annuler
+  pt: Cancelar
+  ru: Отмена
+  ja: キャンセル
+  ko: 취소
+  it: Annulla
+  tr: İptal
+  vi: Hủy
+  id: Batal
+  pl: Anuluj
+  nl: Annuleren
+  ar: إلغاء
+  hi: रद्द करें
+  th: ยกเลิก
+  cs: Zrušit
+  sv: Avbryt
+  verified_by_human: []
+delete_account_2fa_invalid:
+  context: Error message when 2FA code is invalid
+  en: Invalid 2FA code. Please try again.
+  de: Ungültiger 2FA-Code. Bitte versuchen Sie es erneut.
+  zh: 无效的双因素认证码。请重试。
+  es: Código 2FA inválido. Por favor, inténtalo de nuevo.
+  fr: Code 2FA invalide. Veuillez réessayer.
+  pt: Código 2FA inválido. Por favor, tente novamente.
+  ru: Неверный код 2FA. Пожалуйста, попробуйте снова.
+  ja: 2FAコードが無効です。もう一度お試しください。
+  ko: 잘못된 2FA 코드입니다. 다시 시도해 주세요.
+  it: Codice 2FA non valido. Per favore, riprova.
+  tr: Geçersiz 2FA kodu. Lütfen tekrar deneyin.
+  vi: Mã 2FA không hợp lệ. Vui lòng thử lại.
+  id: Kode 2FA tidak valid. Silakan coba lagi.
+  pl: Nieprawidłowy kod 2FA. Spróbuj ponownie.
+  nl: Ongeldige 2FA-code. Probeer het opnieuw.
+  ar: رمز المصادقة الثنائية غير صالح. يرجى المحاولة مرة أخرى.
+  hi: अमान्य 2FA कोड। कृपया पुनः प्रयास करें।
+  th: รหัส 2FA ไม่ถูกต้อง กรุณาลองอีกครั้ง
+  cs: Neplatný kód 2FA. Zkuste to prosím znovu.
+  sv: Ogiltig 2FA-kod. Försök igen.
+  verified_by_human: []
+delete_account_2fa_failed:
+  context: Error message when 2FA authentication fails
+  en: 2FA authentication failed. Please try again.
+  de: 2FA-Authentifizierung fehlgeschlagen. Bitte versuchen Sie es erneut.
+  zh: 双因素认证失败。请重试。
+  es: La autenticación 2FA falló. Por favor, inténtalo de nuevo.
+  fr: L'authentification 2FA a échoué. Veuillez réessayer.
+  pt: Autenticação 2FA falhou. Por favor, tente novamente.
+  ru: Аутентификация 2FA не удалась. Пожалуйста, попробуйте снова.
+  ja: 2FA認証に失敗しました。もう一度お試しください。
+  ko: 2FA 인증에 실패했습니다. 다시 시도해 주세요.
+  it: Autenticazione 2FA fallita. Per favore, riprova.
+  tr: 2FA kimlik doğrulaması başarısız oldu. Lütfen tekrar deneyin.
+  vi: Xác thực 2FA không thành công. Vui lòng thử lại.
+  id: Autentikasi 2FA gagal. Silakan coba lagi.
+  pl: Uwierzytelnienie 2FA nie powiodło się. Spróbuj ponownie.
+  nl: 2FA-authenticatie mislukt. Probeer het opnieuw.
+  ar: فشلت مصادقة 2FA. يرجى المحاولة مرة أخرى.
+  hi: 2FA प्रमाणीकरण विफल। कृपया पुनः प्रयास करें।
+  th: การยืนยันตัวตน 2FA ล้มเหลว กรุณาลองอีกครั้ง
+  cs: Autentizace 2FA selhala. Zkuste to prosím znovu.
+  sv: 2FA-autentisering misslyckades. Försök igen.
+  verified_by_human: []
+delete_account_auth_title:
+  context: Title for the SecurityAuth modal when deleting account
+  en: Confirm Account Deletion
+  de: Kontolöschung bestätigen
+  zh: 确认删除账户
+  es: Confirmar eliminación de cuenta
+  fr: Confirmer la suppression du compte
+  pt: Confirmar exclusão da conta
+  ru: Подтвердить удаление аккаунта
+  ja: アカウント削除を確認
+  ko: 계정 삭제 확인
+  it: Conferma eliminazione account
+  tr: Hesap Silme İşlemini Onayla
+  vi: Xác nhận xóa tài khoản
+  id: Konfirmasi Penghapusan Akun
+  pl: Potwierdź usunięcie konta
+  nl: Bevestig accountverwijdering
+  ar: تأكيد حذف الحساب
+  hi: खाता हटाने की पुष्टि करें
+  th: ยืนยันการลบบัญชี
+  cs: Potvrdit smazání účtu
+  sv: Bekräfta kontoborttagning
+  verified_by_human: []
+delete_account_auth_description:
+  context: Description for the SecurityAuth modal when deleting account
+  en: Please authenticate to confirm that you want to permanently delete your account.
+  de: Bitte authentifizieren Sie sich, um zu bestätigen, dass Sie Ihr Konto dauerhaft löschen möchten.
+  zh: 请验证身份以确认您要永久删除您的账户。
+  es: Por favor, autentícate para confirmar que deseas eliminar permanentemente tu cuenta.
+  fr: Veuillez vous authentifier pour confirmer que vous souhaitez supprimer définitivement votre compte.
+  pt: Por favor, autentique-se para confirmar que deseja excluir permanentemente sua conta.
+  ru: Пожалуйста, подтвердите свою личность, чтобы подтвердить удаление аккаунта.
+  ja: アカウントを完全に削除することを確認するために認証してください。
+  ko: 계정을 영구적으로 삭제할 것인지 확인하려면 인증하세요.
+  it: Si prega di autenticarsi per confermare che si desidera eliminare permanentemente il proprio account.
+  tr: Hesabınızı kalıcı olarak silmek istediğinizi onaylamak için lütfen kimlik doğrulaması yapın.
+  vi: Vui lòng xác thực để xác nhận rằng bạn muốn xóa vĩnh viễn tài khoản của mình.
+  id: Silakan autentikasi untuk mengonfirmasi bahwa Anda ingin menghapus akun Anda secara permanen.
+  pl: Proszę się uwierzytelnić, aby potwierdzić, że chcesz trwale usunąć swoje konto.
+  nl: Verifieer uzelf om te bevestigen dat u uw account permanent wilt verwijderen.
+  ar: يرجى المصادقة لتأكيد رغبتك في حذف حسابك نهائياً.
+  hi: कृपया पुष्टि करने के लिए प्रमाणित करें कि आप अपना खाता स्थायी रूप से हटाना चाहते हैं।
+  th: กรุณายืนยันตัวตนเพื่อยืนยันว่าคุณต้องการลบบัญชีของคุณอย่างถาวร
+  cs: Prosím, ověřte se, abyste potvrdili, že chcete trvale smazat svůj účet.
+  sv: Vänligen autentisera för att bekräfta att du vill ta bort ditt konto permanent.
+  verified_by_human: []
+delete_account_auth_failed:
+  context: Error message when authentication fails during account deletion
+  en: Authentication failed. Please try again.
+  de: Authentifizierung fehlgeschlagen. Bitte versuchen Sie es erneut.
+  zh: 身份验证失败。请重试。
+  es: La autenticación falló. Por favor, inténtalo de nuevo.
+  fr: L'authentification a échoué. Veuillez réessayer.
+  pt: A autenticação falhou. Por favor, tente novamente.
+  ru: Аутентификация не удалась. Пожалуйста, попробуйте снова.
+  ja: 認証に失敗しました。もう一度お試しください。
+  ko: 인증에 실패했습니다. 다시 시도해 주세요.
+  it: Autenticazione fallita. Per favore, riprova.
+  tr: Kimlik doğrulama başarısız oldu. Lütfen tekrar deneyin.
+  vi: Xác thực không thành công. Vui lòng thử lại.
+  id: Autentikasi gagal. Silakan coba lagi.
+  pl: Uwierzytelnienie nie powiodło się. Spróbuj ponownie.
+  nl: Authenticatie mislukt. Probeer het opnieuw.
+  ar: فشلت المصادقة. يرجى المحاولة مرة أخرى.
+  hi: प्रमाणीकरण विफल। कृपया पुनः प्रयास करें।
+  th: การยืนยันตัวตนล้มเหลว กรุณาลองอีกครั้ง
+  cs: Autentizace selhala. Zkuste to prosím znovu.
+  sv: Autentiseringen misslyckades. Försök igen.
+  verified_by_human: []
+delete_account_success:
+  context: Success message when account deletion is initiated
+  en: Account deletion initiated. You will be logged out shortly.
+  de: Kontolöschung eingeleitet. Sie werden in Kürze abgemeldet.
+  zh: 账户删除已启动。您将很快被登出。
+  es: Eliminación de cuenta iniciada. Serás desconectado en breve.
+  fr: Suppression du compte initiée. Vous serez déconnecté sous peu.
+  pt: Exclusão da conta iniciada. Você será desconectado em breve.
+  ru: Удаление аккаунта запущено. Вы будете отключены в ближайшее время.
+  ja: アカウント削除が開始されました。まもなくログアウトされます。
+  ko: 계정 삭제가 시작되었습니다. 곧 로그아웃됩니다.
+  it: Eliminazione account avviata. Verrai disconnesso a breve.
+  tr: Hesap silme işlemi başlatıldı. Kısa süre içinde çıkış yapılacak.
+  vi: Đã bắt đầu xóa tài khoản. Bạn sẽ bị đăng xuất trong giây lát.
+  id: Penghapusan akun dimulai. Anda akan segera keluar.
+  pl: Rozpoczęto usuwanie konta. Wkrótce zostaniesz wylogowany.
+  nl: Accountverwijdering gestart. U wordt binnenkort uitgelogd.
+  ar: بدأ حذف الحساب. سيتم تسجيل خروجك قريباً.
+  hi: खाता हटाना शुरू हो गया है। आप जल्द ही लॉग आउट हो जाएंगे।
+  th: เริ่มการลบบัญชีแล้ว คุณจะถูกออกจากระบบในไม่ช้า
+  cs: Mazání účtu zahájeno. Brzy budete odhlášeni.
+  sv: Kontoborttagning påbörjad. Du kommer snart att loggas ut.
+  verified_by_human: []
 
 # --- Export Account (GDPR Article 20 - Data Portability) ---
 export:
