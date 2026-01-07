@@ -1,6 +1,6 @@
 # backend/providers/alibaba.yml
 # Alibaba provider config (Qwen models).
-# Qwen models can be accessed via OpenRouter (with Cerebras backend), directly via Cerebras API, or via Google Cloud Vertex AI.
+# Qwen models can be accessed directly via Cerebras API or via OpenRouter (as fallback).
 
 provider_id: "alibaba"
 name: "Alibaba"
@@ -10,7 +10,7 @@ logo_svg: "logos/alibaba.svg"
 models:
   - id: "qwen3-235b-a22b-2507"
     name: "Qwen3 235B A22B (2507)"
-    description: "Qwen3 235B A22B with ultra-fast inference. Can be served via OpenRouter (with Cerebras backend), directly via Cerebras API, or via Google Cloud Vertex AI. Strong general and reasoning performance."
+    description: "Qwen3 235B A22B with ultra-fast inference. Served via Cerebras API (primary) with OpenRouter as fallback. Strong general and reasoning performance."
     input_types:
       - text
       - image
@@ -21,14 +21,11 @@ models:
       - id: "cerebras"
         name: "Cerebras"
         model_id: "qwen-3-235b-a22b-instruct-2507"  # Direct Cerebras model identifier (Preview model)
-      - id: "google"
-        name: "Google Cloud Vertex AI"
-        model_id: "qwen/qwen3-235b-a22b-instruct-2507-maas"  # Google Vertex AI model identifier (with publisher prefix)
       - id: "openrouter"
         name: "OpenRouter"
-        model_id: "qwen/qwen3-235b-a22b-2507"  # OpenRouter's model identifier
-    # Provider overrides for OpenRouter routing:
-    # Leave unset to let OpenRouter auto-select the best available upstream provider.
+        model_id: "qwen/qwen3-235b-a22b-2507"  # OpenRouter's model identifier (fallback when Cerebras is unavailable)
+    # Note: Google Vertex AI removed as fallback - model was not accessible (404 errors).
+    # OpenRouter is now the primary fallback with auto-provider selection.
     pricing:
       tokens:
         input:
