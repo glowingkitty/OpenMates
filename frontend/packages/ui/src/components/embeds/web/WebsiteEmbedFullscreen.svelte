@@ -6,6 +6,10 @@
   
   Design based on Figma: https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=3643-50967
   
+  Features:
+  - Receives metadata from WebsiteEmbedPreview when user clicks to open fullscreen
+  - Proxies images through preview server for privacy and optimization
+  
   Layout Structure:
   - Header image (large rounded preview)
   - Favicon + Title
@@ -88,6 +92,8 @@
     console.debug('[WebsiteEmbedFullscreen] Props received:', {
       url,
       title,
+      description,
+      image,
       extra_snippets,
       extra_snippets_type: typeof extra_snippets,
       extra_snippets_length: typeof extra_snippets === 'string' ? extra_snippets.length : (Array.isArray(extra_snippets) ? extra_snippets.length : 'N/A'),

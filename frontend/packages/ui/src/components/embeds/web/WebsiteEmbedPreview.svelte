@@ -8,11 +8,17 @@
   - Auto-fetches metadata from preview server when not provided
   - Displays title, description, favicon and OG image
   - Proxies images through preview server to prevent direct external connections
+  - Large thumbnail image on the RIGHT side of the preview card
+  - Passes fetched metadata to fullscreen view for consistent display
   
   Details content structure:
   - Processing/Loading: URL hostname
-  - Finished: title + description + preview image (if available)
+  - Finished: Description on LEFT, larger thumbnail image on RIGHT
   - Error: hostname with error styling
+  
+  Data Flow:
+  - When preview fetches metadata (title, description, image), this data is passed
+    to the fullscreen view via the customFullscreenData event detail.
 -->
 
 <script lang="ts">
@@ -32,6 +38,17 @@
     image?: string;
     favicon?: string;
     site_name?: string;
+  }
+  
+  /**
+   * Metadata passed to fullscreen when user clicks to open
+   * Contains the effective values (props or fetched from preview server)
+   */
+  export interface WebsiteMetadata {
+    title?: string;
+    description?: string;
+    favicon?: string;
+    image?: string;
   }
   
   /**
@@ -56,8 +73,8 @@
     taskId?: string;
     /** Whether to use mobile layout */
     isMobile?: boolean;
-    /** Click handler for fullscreen */
-    onFullscreen?: () => void;
+    /** Click handler for fullscreen - receives fetched metadata so fullscreen can display it */
+    onFullscreen?: (metadata: WebsiteMetadata) => void;
   }
   
   // ===========================================
@@ -208,9 +225,9 @@
   );
   
   // Preview image URL - proxy through preview server with max_width for optimization
-  // The preview thumbnail is 100x100px, so we request 200px for retina displays
+  // The preview thumbnail is now larger (full-width ~260px), so we request 520px for retina displays
   // Note: We only proxy if we have an actual image URL (not the webpage URL itself)
-  const PREVIEW_IMAGE_MAX_WIDTH = 200; // 2x for retina displays (100px container)
+  const PREVIEW_IMAGE_MAX_WIDTH = 520; // 2x for retina displays (260px container)
   
   let imageUrl = $derived.by(() => {
     if (!effectiveImage) {
@@ -219,6 +236,9 @@
     // Proxy through preview server with max_width to optimize image size
     return `https://preview.openmates.org/api/v1/image?url=${encodeURIComponent(effectiveImage)}&max_width=${PREVIEW_IMAGE_MAX_WIDTH}`;
   });
+  
+  // Track image loading errors for graceful fallback
+  let imageLoadError = $state(false);
   
   // Compute effective status: if we're loading metadata, show as processing
   // But only if the original status was 'finished' (don't override explicit processing state)
@@ -240,6 +260,31 @@
   // Event Handlers
   // ===========================================
   
+  /**
+   * Handle fullscreen open - passes fetched metadata to fullscreen component
+   * This ensures fullscreen displays the same data as the preview without re-fetching
+   */
+  function handleFullscreen() {
+    if (!onFullscreen) return;
+    
+    // Pass the effective metadata values (props or fetched) to fullscreen
+    const metadata: WebsiteMetadata = {
+      title: effectiveTitle,
+      description: effectiveDescription,
+      favicon: effectiveFavicon,
+      image: effectiveImage
+    };
+    
+    console.debug('[WebsiteEmbedPreview] Opening fullscreen with metadata:', {
+      title: metadata.title?.substring(0, 50) || 'none',
+      hasDescription: !!metadata.description,
+      hasImage: !!metadata.image,
+      hasFavicon: !!metadata.favicon
+    });
+    
+    onFullscreen(metadata);
+  }
+  
   // Handle stop button click (not applicable for websites, but included for consistency)
   async function handleStop() {
     // Websites don't have cancellable tasks, but we include this for API consistency
@@ -256,7 +301,7 @@
   skillName={displayTitle}
   {taskId}
   {isMobile}
-  {onFullscreen}
+  onFullscreen={handleFullscreen}
   onStop={handleStop}
   showStatus={false}
   faviconUrl={faviconUrl}
@@ -268,22 +313,23 @@
         <!-- Processing/Loading state: show hostname only -->
         <div class="website-hostname">{hostname}</div>
       {:else if effectiveStatus === 'finished'}
-        <!-- Finished state: description on left, image on right (if available) -->
+        <!-- Finished state: description on LEFT, larger image on RIGHT -->
         <!-- Title and favicon are shown in BasicInfosBar, not here -->
         <div class="website-content-row">
           {#if effectiveDescription}
             <div class="website-description">{effectiveDescription}</div>
           {/if}
           
-          {#if imageUrl && !isMobileLayout}
-            <!-- Preview image on the right (desktop only) -->
+          {#if imageUrl && !imageLoadError && !isMobileLayout}
+            <!-- Large preview image on the right (desktop only) -->
             <div class="website-preview-image">
               <img 
                 src={imageUrl} 
                 alt={displayTitle}
                 loading="lazy"
-                onerror={(e) => {
-                  (e.target as HTMLImageElement).style.display = 'none';
+                onerror={() => {
+                  imageLoadError = true;
+                  console.debug('[WebsiteEmbedPreview] Image load error, hiding image');
                 }}
               />
             </div>
@@ -319,45 +365,60 @@
     justify-content: flex-start;
   }
   
-  /* Website content row: description on left, image on right */
+  /* ===========================================
+     Website Content Row (description left, image right)
+     =========================================== */
+  
   .website-content-row {
     display: flex;
     gap: 12px;
-    align-items: flex-start;
-    margin-top: 8px;
+    align-items: stretch; /* Stretch items to fill height */
     flex: 1;
     min-height: 0;
+    height: 100%;
   }
   
-  /* Website description on the left */
+  /* ===========================================
+     Website Description (Left side)
+     =========================================== */
+  
   .website-description {
     font-size: 14px;
     color: var(--color-grey-70);
     line-height: 1.4;
     flex: 1;
     min-width: 0;
-    /* Limit to 3 lines with ellipsis */
+    /* Limit lines with ellipsis */
     display: -webkit-box;
-    -webkit-line-clamp: 3;
-    line-clamp: 3;
+    -webkit-line-clamp: 5;
+    line-clamp: 5;
     -webkit-box-orient: vertical;
     overflow: hidden;
     text-overflow: ellipsis;
     word-break: break-word;
+    /* Vertically align text to top */
+    align-self: flex-start;
+    padding-top: 4px;
   }
   
   .website-details.mobile .website-description {
     font-size: 12px;
-    -webkit-line-clamp: 4;
-    line-clamp: 4;
+    -webkit-line-clamp: 6;
+    line-clamp: 6;
   }
   
-  /* Preview image on the right (desktop only) */
+  /* ===========================================
+     Large Preview Image (Right side)
+     =========================================== */
+  
   .website-preview-image {
-    width: 100px;
-    min-width: 100px;
-    height: 100px;
-    border-radius: 8px;
+    /* Larger image: takes up significant portion of the card */
+    width: 130px;
+    min-width: 130px;
+    /* Use full available height */
+    height: 100%;
+    min-height: 110px;
+    border-radius: 15px;
     overflow: hidden;
     background-color: var(--color-grey-15);
     flex-shrink: 0;
@@ -376,7 +437,10 @@
     max-width: 100%;
   }
   
-  /* Website hostname (for processing state) */
+  /* ===========================================
+     Website Hostname (Processing state)
+     =========================================== */
+  
   .website-hostname {
     font-size: 14px;
     color: var(--color-grey-70);
@@ -387,7 +451,10 @@
     font-size: 12px;
   }
   
-  /* Error state */
+  /* ===========================================
+     Error State
+     =========================================== */
+  
   .website-error {
     font-size: 14px;
     color: var(--color-error);

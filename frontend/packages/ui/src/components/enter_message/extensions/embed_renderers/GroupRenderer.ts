@@ -714,9 +714,28 @@ export class GroupRenderer implements EmbedRenderer {
     
     // Mount the Svelte component
     try {
-      // Create a handler for fullscreen that dispatches the event
-      const handleFullscreen = () => {
-        this.openFullscreen(item, embedData, decodedContent);
+      // Create a handler for fullscreen that receives metadata from preview
+      // The preview passes its effective values (props or fetched from preview server)
+      // so fullscreen can display the same data without re-fetching
+      const handleFullscreen = (metadata?: { title?: string; description?: string; favicon?: string; image?: string }) => {
+        // Merge preview's fetched metadata with decoded content
+        // Preview metadata takes priority since it may have been fetched fresh
+        const enrichedContent = {
+          ...decodedContent,
+          // Override with preview's fetched metadata if provided
+          title: metadata?.title || decodedContent?.title,
+          description: metadata?.description || decodedContent?.description,
+          favicon: metadata?.favicon || decodedContent?.meta_url_favicon || decodedContent?.favicon,
+          image: metadata?.image || decodedContent?.thumbnail_original || decodedContent?.image
+        };
+        
+        console.debug('[GroupRenderer] Opening website fullscreen with metadata from preview:', {
+          hasPreviewTitle: !!metadata?.title,
+          hasPreviewDescription: !!metadata?.description,
+          hasPreviewImage: !!metadata?.image
+        });
+        
+        this.openFullscreen(item, embedData, enrichedContent);
       };
       
       const component = mount(WebsiteEmbedPreview, {
