@@ -13,7 +13,8 @@
 
 <script lang="ts">
   import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
-  import BasicInfosBar from '../BasicInfosBar.svelte';
+  import VideoEmbedPreview from './VideoEmbedPreview.svelte';
+  import type { VideoMetadata } from './VideoEmbedPreview.svelte';
   // @ts-expect-error - @repo/ui module exists at runtime
   import { text } from '@repo/ui';
   import type { VideoTranscriptSkillPreviewData, VideoTranscriptResult } from '../../../types/appSkills';
@@ -132,54 +133,6 @@
     results.reduce((sum, result) => sum + (result.word_count || 0), 0)
   );
   
-  // Format duration (ISO 8601 to readable format)
-  function formatDuration(duration?: string): string {
-    if (!duration) return '';
-    
-    // Parse ISO 8601 duration (e.g., PT9M41S)
-    const match = duration.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
-    if (!match) return duration;
-    
-    const hours = parseInt(match[1] || '0', 10);
-    const minutes = parseInt(match[2] || '0', 10);
-    const seconds = parseInt(match[3] || '0', 10);
-    
-    if (hours > 0) {
-      return `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-    }
-    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
-  }
-  
-  // Format date for top BasicInfosBar (from metadata.published_at)
-  let formattedDate = $derived.by(() => {
-    if (firstResult?.metadata?.published_at) {
-      const date = new Date(firstResult.metadata.published_at);
-      return date.toLocaleDateString('en-US', { 
-        month: 'short', 
-        day: 'numeric', 
-        year: 'numeric' 
-      });
-    }
-    return '';
-  });
-  
-  // Format duration for top BasicInfosBar
-  let formattedDuration = $derived(
-    firstResult?.metadata?.duration ? formatDuration(firstResult.metadata.duration) : ''
-  );
-  
-  // Format date and duration string for top BasicInfosBar (e.g., "29:26, Jul 31, 2025")
-  let dateDurationString = $derived.by(() => {
-    const parts = [];
-    if (formattedDuration) {
-      parts.push(formattedDuration);
-    }
-    if (formattedDate) {
-      parts.push(formattedDate);
-    }
-    return parts.join(', ');
-  });
-  
   // Get transcript text from results (handles both formats)
   let transcriptText = $derived.by(() => {
     if (!results || results.length === 0) {
@@ -247,9 +200,10 @@
   let parsedTranscriptHtml = $derived(parseTranscriptToHtml(transcriptText));
   
   // Handle opening video embed in fullscreen mode
+  // Called by VideoEmbedPreview's onFullscreen callback with the fetched metadata
   // Dispatches embedfullscreen event with videos-video embed type
   // ActiveChat will handle closing current fullscreen and opening new one
-  async function handleVideoFullscreen() {
+  function handleVideoFullscreen(metadata: VideoMetadata) {
     if (!videoUrl) {
       console.debug('[VideoTranscriptEmbedFullscreen] No video URL available');
       return;
@@ -258,16 +212,25 @@
     try {
       // Dispatch event to open video fullscreen
       // ActiveChat will handle closing the current fullscreen and opening the new one
+      // Pass the full metadata from VideoEmbedPreview so fullscreen can display it
       const event = new CustomEvent('embedfullscreen', {
         detail: {
           embedType: 'videos-video',
           attrs: {
             url: videoUrl,
-            title: videoTitle
+            title: metadata.title || videoTitle
           },
           decodedContent: {
             url: videoUrl,
-            title: videoTitle
+            title: metadata.title || videoTitle,
+            // Pass metadata to fullscreen view
+            channelName: metadata.channelName,
+            channelThumbnail: metadata.channelThumbnail,
+            thumbnailUrl: metadata.thumbnailUrl,
+            duration: metadata.duration,
+            viewCount: metadata.viewCount,
+            likeCount: metadata.likeCount,
+            publishedAt: metadata.publishedAt
           },
           onClose: () => {
             console.debug('[VideoTranscriptEmbedFullscreen] Video fullscreen closed');
@@ -414,12 +377,6 @@
     }
   }
   
-  // Handle opening video on YouTube
-  function handleOpenOnYouTube() {
-    if (firstResult?.url) {
-      window.open(firstResult.url, '_blank', 'noopener,noreferrer');
-    }
-  }
 </script>
 
 <UnifiedEmbedFullscreen
@@ -450,22 +407,19 @@
       </div>
     {:else}
       <div class="transcript-container">
-        <!-- Top: Clickable VideoEmbedPreview-style BasicInfosBar (max-width 300px) -->
-        <button 
-          class="video-basic-infos-bar-wrapper"
-          onclick={handleVideoFullscreen}
-          type="button"
-        >
-          <BasicInfosBar
-            appId="videos"
-            skillId="video"
-            skillIconName="video"
-            status="finished"
-            skillName={videoTitle}
-            showSkillIcon={false}
-            showStatus={false}
-          />
-        </button>
+        <!-- Top: Fully rendered VideoEmbedPreview - clickable to open video fullscreen -->
+        <!-- Uses the video URL from transcript results - VideoEmbedPreview fetches its own metadata -->
+        {#if videoUrl}
+          <div class="video-preview-wrapper">
+            <VideoEmbedPreview
+              id={`transcript-video-${embedId || 'preview'}`}
+              url={videoUrl}
+              title={videoTitle}
+              status="finished"
+              onFullscreen={handleVideoFullscreen}
+            />
+          </div>
+        {/if}
         
         <!-- Word count centered above transcript -->
         {#if totalWordCount > 0}
@@ -534,40 +488,23 @@
     margin-top: 80px;
   }
   
-  /* Video BasicInfosBar wrapper - full width but max 300px */
-  .video-basic-infos-bar-wrapper {
-    width: 100%;
-    max-width: 300px;
+  /* Video preview wrapper - centers the VideoEmbedPreview component */
+  /* VideoEmbedPreview is 300x200px by default */
+  .video-preview-wrapper {
     display: flex;
-    justify-content: flex-start;
+    justify-content: center;
     margin-bottom: 8px;
-    background: transparent;
-    border: none;
-    padding: 0;
-    cursor: pointer;
-    transition: opacity 0.2s;
   }
   
-  /* Ensure BasicInfosBar inside wrapper respects max-width and has grey-30 background */
-  .video-basic-infos-bar-wrapper :global(.basic-infos-bar) {
-    width: 100%;
-    max-width: 300px;
-    background-color: var(--color-grey-30) !important;
+  /* Remove the 3D tilt effect from the video preview in fullscreen context */
+  /* The tilt effect looks odd when clicking opens another fullscreen layer */
+  .video-preview-wrapper :global(.unified-embed-preview) {
+    /* Keep the hover scale effect but reduce the tilt */
+    transition: transform 0.15s ease-out, box-shadow 0.2s ease-out;
   }
   
-  /* Ensure text is left-aligned in the BasicInfosBar */
-  .video-basic-infos-bar-wrapper :global(.basic-infos-bar .status-text) {
-    text-align: left;
-    align-items: flex-start;
-  }
-  
-  .video-basic-infos-bar-wrapper :global(.basic-infos-bar .status-label) {
-    text-align: left;
-    justify-content: flex-start;
-  }
-  
-  .video-basic-infos-bar-wrapper:hover {
-    opacity: 0.9;
+  .video-preview-wrapper :global(.unified-embed-preview:hover) {
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
   }
   
   /* Word count header - centered above transcript */

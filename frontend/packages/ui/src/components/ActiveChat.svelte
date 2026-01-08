@@ -1125,9 +1125,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     let isWide = $derived(containerWidth > 1099 && containerWidth <= 1700);
     let isExtraWide = $derived(containerWidth > 1700);
     
-    // Ultra-wide mode: When container is > 1300px, show fullscreen embeds side-by-side with chat
-    // instead of as overlays. This provides a better experience on large displays.
-    let isUltraWide = $derived(containerWidth > 1300);
+    // Side-by-side mode: When container is >= 1024px, show fullscreen embeds side-by-side with chat
+    // instead of as overlays. This threshold accommodates iPad landscape (1024px+) and wider displays.
+    // The chat panel is fixed at 400px, leaving 600+ px for the embed fullscreen content.
+    let isUltraWide = $derived(containerWidth >= 1024);
     
     // Force overlay mode: When true, forces the embed fullscreen to use overlay mode even on ultra-wide screens
     // This is toggled by the "minimize chat" button in the chat's top bar when in side-by-side mode
@@ -4247,8 +4248,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     }
     
     /* ===========================================
-       Side-by-Side Layout for Ultra-Wide Screens (>1300px)
+       Side-by-Side Layout for Wide Screens (>=1024px)
        Shows embed fullscreen next to chat instead of overlay
+       Threshold set for iPad landscape (1024px+) and wider displays
        =========================================== */
     
     /* When side-by-side mode is active, content-container uses row layout */

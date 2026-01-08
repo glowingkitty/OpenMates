@@ -764,6 +764,24 @@ export async function sendNewMessageImpl(
                     
                     for (const embed of embeds) {
                         try {
+                            // CRITICAL LOGGING: Track embed_keys generation for debugging
+                            console.info(`[ChatSyncService:Senders] Processing embed for Directus storage:`, {
+                                embed_id: embed.embed_id,
+                                type: embed.type,
+                                hasContent: !!embed.content,
+                                contentLength: embed.content?.length || 0
+                            });
+                            
+                            // Validate embed has required fields
+                            if (!embed.embed_id) {
+                                console.error(`[ChatSyncService:Senders] Embed missing embed_id, skipping:`, embed);
+                                continue;
+                            }
+                            if (!embed.content) {
+                                console.error(`[ChatSyncService:Senders] Embed missing content, skipping:`, embed.embed_id);
+                                continue;
+                            }
+                            
                             // Generate unique embed key for this embed
                             const embedKey = generateEmbedKey();
                             const hashedEmbedId = await computeSHA256(embed.embed_id);
@@ -783,9 +801,19 @@ export async function sendNewMessageImpl(
                             const wrappedWithChat = await wrapEmbedKeyWithChatKey(embedKey, chatKey);
                             
                             if (!wrappedWithMaster || !wrappedWithChat) {
-                                console.warn(`[ChatSyncService:Senders] Failed to wrap embed key for ${embed.embed_id}, skipping Directus storage`);
+                                console.error(`[ChatSyncService:Senders] ❌ CRITICAL: Failed to wrap embed key for ${embed.embed_id}, skipping Directus storage`, {
+                                    wrappedWithMaster: !!wrappedWithMaster,
+                                    wrappedWithChat: !!wrappedWithChat,
+                                    hasChatKey: !!chatKey
+                                });
                                 continue;
                             }
+                            
+                            console.info(`[ChatSyncService:Senders] ✅ Successfully wrapped embed key for ${embed.embed_id}:`, {
+                                hashedEmbedId: hashedEmbedId.substring(0, 16) + '...',
+                                masterKeyLength: wrappedWithMaster?.length || 0,
+                                chatKeyLength: wrappedWithChat?.length || 0
+                            });
                             
                             const now = Date.now();
                             
@@ -813,6 +841,13 @@ export async function sendNewMessageImpl(
                             embedStore.setEmbedKeyInCache(embed.embed_id, embedKey, hashedChatId);
                             embedStore.setEmbedKeyInCache(embed.embed_id, embedKey, undefined); // Master fallback
                             
+                            // Log embed_keys that will be stored
+                            console.info(`[ChatSyncService:Senders] 🔑 Created ${embedKeys.length} embed_keys for ${embed.embed_id}:`, {
+                                hashedEmbedId: hashedEmbedId.substring(0, 16) + '...',
+                                keyTypes: embedKeys.map(k => k.key_type),
+                                hashedChatId: hashedChatId.substring(0, 16) + '...'
+                            });
+                            
                             encryptedEmbeds.push({
                                 embed_id: embed.embed_id,
                                 encrypted_type: encryptedType,
@@ -828,7 +863,7 @@ export async function sendNewMessageImpl(
                                 embed_keys: embedKeys
                             });
                             
-                            console.debug(`[ChatSyncService:Senders] Encrypted embed ${embed.embed_id} for Directus storage`);
+                            console.info(`[ChatSyncService:Senders] ✅ Encrypted embed ${embed.embed_id} for Directus storage with ${embedKeys.length} keys`);
                             
                         } catch (embedError) {
                             console.error(`[ChatSyncService:Senders] Error encrypting embed ${embed.embed_id}:`, embedError);
