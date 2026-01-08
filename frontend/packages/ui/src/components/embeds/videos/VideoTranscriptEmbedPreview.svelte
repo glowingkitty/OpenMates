@@ -21,10 +21,9 @@
 
 <script lang="ts">
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
-  // @ts-expect-error - @repo/ui module exists at runtime
   import { text } from '@repo/ui';
   import { chatSyncService } from '../../../services/chatSyncService';
-  import type { VideoTranscriptSkillPreviewData } from '../../../types/appSkills';
+  import type { VideoTranscriptSkillPreviewData, SkillExecutionStatus } from '../../../types/appSkills';
   
   /**
    * Video transcript result interface
@@ -81,18 +80,34 @@
   // ===========================================
   let localResults = $state<VideoTranscriptResult[]>([]);
   let localUrl = $state<string>('');
+  // Status type matches UnifiedEmbedPreview expectations (excludes 'cancelled')
+  // We map 'cancelled' to 'error' for display purposes
   let localStatus = $state<'processing' | 'finished' | 'error'>('processing');
   let localSkillTaskId = $state<string | undefined>(undefined);
+  
+  /**
+   * Map SkillExecutionStatus to UnifiedEmbedPreview status
+   * 'cancelled' is mapped to 'error' since UnifiedEmbedPreview doesn't support it
+   */
+  function mapStatusToEmbedStatus(status: SkillExecutionStatus): 'processing' | 'finished' | 'error' {
+    if (status === 'cancelled') {
+      return 'error';
+    }
+    return status;
+  }
   
   // Initialize local state from props
   $effect(() => {
     // Initialize from previewData or direct props
     if (previewData) {
       localResults = previewData.results || [];
-      localUrl = previewData.url || '';
-      localStatus = previewData.status || 'processing';
+      // URL comes from the first result, not directly from previewData
+      // The effectiveUrl derived value will handle extracting it from results
+      localUrl = '';
+      localStatus = mapStatusToEmbedStatus(previewData.status);
       // skill_task_id might be in previewData for skill-level cancellation
-      localSkillTaskId = (previewData as any).skill_task_id;
+      // Check if it exists as a property (it's not in the type but may be present at runtime)
+      localSkillTaskId = 'skill_task_id' in previewData ? (previewData as Record<string, unknown>).skill_task_id as string | undefined : undefined;
     } else {
       localResults = resultsProp || [];
       localUrl = urlProp || '';
@@ -110,12 +125,12 @@
   // Get first result for main display (may be undefined if results are empty)
   let firstResult = $derived(results[0]);
   
-  // Get URL from multiple sources (priority: results > localUrl > previewData > direct prop)
+  // Get URL from multiple sources (priority: results > localUrl > direct prop)
   // CRITICAL: Even if results are empty, we may have URL from the processing placeholder
+  // Note: previewData doesn't have a direct url property - URLs come from results[].url
   let effectiveUrl = $derived(
     firstResult?.url || 
     localUrl ||
-    previewData?.url || 
     urlProp || 
     ''
   );
@@ -131,9 +146,9 @@
       hasContent: !!data.decodedContent
     });
     
-    // Update status
-    if (data.status === 'processing' || data.status === 'finished' || data.status === 'error') {
-      localStatus = data.status;
+    // Update status - map SkillExecutionStatus to embed status
+    if (data.status === 'processing' || data.status === 'finished' || data.status === 'error' || data.status === 'cancelled') {
+      localStatus = mapStatusToEmbedStatus(data.status as SkillExecutionStatus);
     }
     
     // Update video-transcript-specific fields from decoded content
@@ -216,8 +231,14 @@
     return '';
   });
   
-  // Thumbnail URL - use YouTube video thumbnail (medium quality for small display)
-  let thumbnailUrl = $derived(() => {
+  // Preview server base URL for image proxying
+  // This ensures user privacy by not making direct requests to YouTube/Google CDN
+  const PREVIEW_SERVER = 'https://preview.openmates.org';
+  // Max width for small thumbnail display (32px display, 2x for retina = 64px)
+  const THUMBNAIL_MAX_WIDTH = 64;
+  
+  // Raw thumbnail URL (direct YouTube CDN) - will be proxied for display
+  let rawThumbnailUrl = $derived.by(() => {
     if (videoId) {
       // Use mqdefault (320x180) for small thumbnail display - loads faster than maxresdefault
       return `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`;
@@ -225,8 +246,15 @@
     return undefined;
   });
   
+  // Proxied thumbnail URL through preview server for privacy
+  // This prevents users' browsers from making direct requests to YouTube/Google CDN
+  let thumbnailUrl = $derived.by(() => {
+    if (!rawThumbnailUrl) return undefined;
+    return `${PREVIEW_SERVER}/api/v1/image?url=${encodeURIComponent(rawThumbnailUrl)}&max_width=${THUMBNAIL_MAX_WIDTH}`;
+  });
+  
   // Subtitle text: "via YouTube Transcript API:\nX words" (matches WebReadEmbedPreview pattern)
-  let subtitleText = $derived(() => {
+  let subtitleText = $derived.by(() => {
     const wordCount = totalWordCount;
     if (wordCount > 0) {
       return `via YouTube Transcript API:\n${wordCount.toLocaleString()} words`;
@@ -289,9 +317,9 @@
     <div class="video-transcript-details" class:mobile={isMobileLayout}>
       <!-- Title row with thumbnail -->
       <div class="title-row">
-        {#if thumbnailUrl()}
+        {#if thumbnailUrl}
           <img 
-            src={thumbnailUrl()} 
+            src={thumbnailUrl} 
             alt="" 
             class="title-thumbnail"
             onerror={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
@@ -301,7 +329,7 @@
       </div>
       
       <!-- Subtitle: "via YouTube Transcript API:\nX words" -->
-      <div class="transcript-subtitle">{subtitleText()}</div>
+      <div class="transcript-subtitle">{subtitleText}</div>
     </div>
   {/snippet}
 </UnifiedEmbedPreview>

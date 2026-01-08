@@ -34,7 +34,7 @@ import httpx
 
 from ..config import settings
 from .cache_service import cache_service
-from .content_sanitization import sanitize_metadata_text
+from .content_sanitization import sanitize_metadata_fields
 
 logger = logging.getLogger(__name__)
 
@@ -341,33 +341,19 @@ class YouTubeService:
             # instructions targeting LLMs. We sanitize these fields before
             # caching/returning. Thumbnail URLs are NOT sanitized (they're URLs,
             # not text that will be processed by LLMs).
+            #
+            # NOTE: Using batch sanitization - all fields are processed in a
+            # SINGLE LLM API call for efficiency.
             # ==================================================================
             
             logger.info(f"{log_prefix}Sanitizing text fields for prompt injection protection...")
             
-            # Sanitize title
-            if metadata.get("title"):
-                metadata["title"] = await sanitize_metadata_text(
-                    metadata["title"],
-                    field_name="title",
-                    log_prefix=log_prefix
-                )
-            
-            # Sanitize description
-            if metadata.get("description"):
-                metadata["description"] = await sanitize_metadata_text(
-                    metadata["description"],
-                    field_name="description",
-                    log_prefix=log_prefix
-                )
-            
-            # Sanitize channel_name
-            if metadata.get("channel_name"):
-                metadata["channel_name"] = await sanitize_metadata_text(
-                    metadata["channel_name"],
-                    field_name="channel_name",
-                    log_prefix=log_prefix
-                )
+            # Batch sanitize all text fields in a SINGLE API call
+            metadata = await sanitize_metadata_fields(
+                metadata,
+                text_fields=["title", "description", "channel_name"],
+                log_prefix=log_prefix
+            )
             
             # Cache the sanitized result
             cache_service.set_metadata(
@@ -541,25 +527,17 @@ class YouTubeService:
             
             # ==================================================================
             # SECURITY: Sanitize text fields for prompt injection protection
+            # NOTE: Using batch sanitization - all fields in a SINGLE API call
             # ==================================================================
             
             logger.info(f"{log_prefix}Sanitizing text fields...")
             
-            # Sanitize title (channel name)
-            if channel_metadata.get("title"):
-                channel_metadata["title"] = await sanitize_metadata_text(
-                    channel_metadata["title"],
-                    field_name="channel_title",
-                    log_prefix=log_prefix
-                )
-            
-            # Sanitize description
-            if channel_metadata.get("description"):
-                channel_metadata["description"] = await sanitize_metadata_text(
-                    channel_metadata["description"],
-                    field_name="channel_description",
-                    log_prefix=log_prefix
-                )
+            # Batch sanitize all text fields in a SINGLE API call
+            channel_metadata = await sanitize_metadata_fields(
+                channel_metadata,
+                text_fields=["title", "description"],
+                log_prefix=log_prefix
+            )
             
             # Cache the sanitized result (same TTL as video metadata)
             cache_service.set_metadata(

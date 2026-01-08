@@ -28,7 +28,7 @@ from bs4 import BeautifulSoup
 
 from .fetch_service import fetch_service
 from .cache_service import cache_service
-from .content_sanitization import sanitize_metadata_text
+from .content_sanitization import sanitize_metadata_fields
 
 logger = logging.getLogger(__name__)
 
@@ -93,33 +93,19 @@ class MetadataService:
         # targeting LLMs. We sanitize these fields before caching/returning.
         # Image URLs and favicon URLs are NOT sanitized (they're URLs, not text
         # that will be processed by LLMs).
+        #
+        # NOTE: Using batch sanitization - all fields are processed in a
+        # SINGLE LLM API call for efficiency.
         # =======================================================================
         
         logger.info(f"{log_prefix}Sanitizing text fields for prompt injection protection...")
         
-        # Sanitize title
-        if metadata.get("title"):
-            metadata["title"] = await sanitize_metadata_text(
-                metadata["title"],
-                field_name="title",
-                log_prefix=log_prefix
-            )
-        
-        # Sanitize description
-        if metadata.get("description"):
-            metadata["description"] = await sanitize_metadata_text(
-                metadata["description"],
-                field_name="description",
-                log_prefix=log_prefix
-            )
-        
-        # Sanitize site_name
-        if metadata.get("site_name"):
-            metadata["site_name"] = await sanitize_metadata_text(
-                metadata["site_name"],
-                field_name="site_name",
-                log_prefix=log_prefix
-            )
+        # Batch sanitize all text fields in a SINGLE API call
+        metadata = await sanitize_metadata_fields(
+            metadata,
+            text_fields=["title", "description", "site_name"],
+            log_prefix=log_prefix
+        )
         
         # Cache the sanitized result
         cache_service.set_metadata(normalized_url, metadata)
