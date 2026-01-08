@@ -541,10 +541,11 @@
     justify-content: center;
   }
   
-  /* When thumbnail is present, use flex layout to share space with channel info */
+  /* When thumbnail is present, use relative positioning for channel info overlay */
   .video-details:has(.video-thumbnail-container) {
     gap: 0;
-    /* Channel info at bottom will take its natural height, thumbnail takes the rest */
+    position: relative;
+    /* Channel info will be positioned absolutely at the bottom */
   }
   
   /* Mobile layout: top-aligned content */
@@ -552,16 +553,16 @@
     justify-content: flex-start;
   }
   
-  /* Video thumbnail container - full width and height */
+  /* Video thumbnail container - full width and fills all available height */
+  /* The thumbnail extends into the BasicInfosBar area to fill rounded corners */
   .video-thumbnail-container {
-    position: relative;
-    width: 100%;
-    height: 100%;
-    border-radius: 8px;
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
     overflow: hidden;
     background-color: var(--color-grey-15);
-    flex: 1;
-    min-height: 0;
   }
   
   .video-thumbnail {
@@ -576,13 +577,24 @@
      Shows: channel thumbnail + title, duration + date
      =========================================== */
   
+  /* Channel info bar - overlays the bottom of the thumbnail */
+  /* Uses semi-transparent background for readability over the video thumbnail */
   .video-channel-info {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
     display: flex;
     flex-direction: column;
     gap: 2px;
-    padding: 6px 4px 2px;
-    min-height: 0;
-    flex-shrink: 0;
+    padding: 6px 8px 4px;
+    background: linear-gradient(
+      to top,
+      rgba(0, 0, 0, 0.75) 0%,
+      rgba(0, 0, 0, 0.5) 60%,
+      rgba(0, 0, 0, 0) 100%
+    );
+    z-index: 1;
   }
   
   /* Line 1: Channel thumbnail + name */
@@ -594,60 +606,65 @@
   }
   
   /* Circular channel thumbnail (profile picture) - 29x29px (58px for retina) */
+  /* Has subtle border for visibility on dark gradient background */
   .video-channel-thumbnail {
     width: 29px;
     height: 29px;
     border-radius: 50%;
     object-fit: cover;
     flex-shrink: 0;
-    background-color: var(--color-grey-20);
+    background-color: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
   }
   
-  /* Video title text in info bar */
+  /* Video title text in info bar - white text for readability on dark gradient */
   .video-title-text {
     font-size: 12px;
     font-weight: 500;
-    color: var(--color-grey-90);
+    color: rgba(255, 255, 255, 0.95);
     line-height: 1.2;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
     min-width: 0;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
   }
   
-  /* Line 2: Duration + upload date */
+  /* Line 2: Duration + upload date - lighter text on dark gradient */
   .video-meta-row {
     display: flex;
     align-items: center;
     gap: 4px;
     font-size: 11px;
-    color: var(--color-grey-60);
+    color: rgba(255, 255, 255, 0.75);
     line-height: 1.2;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
   }
-  
+
   .video-meta-item {
     white-space: nowrap;
   }
-  
+
   .video-meta-separator {
-    color: var(--color-grey-40);
+    color: rgba(255, 255, 255, 0.5);
   }
   
-  /* Mobile adjustments for channel info */
+  /* Mobile adjustments for channel info overlay */
   .video-details.mobile .video-channel-info {
-    padding: 4px 2px 0;
+    padding: 4px 6px 2px;
     gap: 1px;
   }
-  
+
   .video-details.mobile .video-channel-thumbnail {
     width: 24px;
     height: 24px;
   }
-  
+
   .video-details.mobile .video-title-text {
     font-size: 11px;
   }
-  
+
   .video-details.mobile .video-meta-row {
     font-size: 10px;
     gap: 3px;

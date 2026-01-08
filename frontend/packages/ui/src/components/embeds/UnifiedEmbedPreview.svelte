@@ -794,10 +794,13 @@
   }
   
   /* Full-width image content: remove padding and add negative margin at bottom */
+  /* The negative margin allows the image to extend into the BasicInfosBar area */
+  /* to fill the rounded corners and reach approximately the center of the bar */
+  /* BasicInfosBar is 61px tall, so -55px extends roughly to its center */
   .desktop-layout .details-section.full-width-image {
     padding-right: 0;
     padding-left: 0;
-    margin-bottom: -35px;
+    margin-bottom: -55px;
   }
   
   /* ===========================================

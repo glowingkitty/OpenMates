@@ -739,6 +739,8 @@ export async function sendNewMessageImpl(
                 // Only proceed if we have a chat key (user_id is optional - server fills it in)
                 if (chatKey) {
                     // Prepare encrypted embeds for Directus storage
+                    // IMPORTANT: Use snake_case for Directus fields (created_at, updated_at)
+                    // and Unix timestamps in SECONDS (not milliseconds)
                     interface EncryptedEmbedForDirectus {
                         embed_id: string;
                         encrypted_type: string;
@@ -749,8 +751,8 @@ export async function sendNewMessageImpl(
                         hashed_message_id: string;
                         hashed_user_id: string;
                         embed_ids?: string[];
-                        createdAt?: number;
-                        updatedAt?: number;
+                        created_at: number;  // Unix timestamp in SECONDS (snake_case for Directus)
+                        updated_at: number;  // Unix timestamp in SECONDS (snake_case for Directus)
                         embed_keys?: Array<{
                             hashed_embed_id: string;
                             key_type: 'master' | 'chat';
@@ -819,7 +821,6 @@ export async function sendNewMessageImpl(
                             // The database field is an INTEGER which can't hold milliseconds (13 digits)
                             // Milliseconds would cause "VALUE_OUT_OF_RANGE" error in Directus
                             const nowSeconds = Math.floor(Date.now() / 1000);
-                            const nowMs = Date.now();
                             
                             // Prepare embed keys for storage
                             const embedKeys: EncryptedEmbedForDirectus['embed_keys'] = [
@@ -862,9 +863,10 @@ export async function sendNewMessageImpl(
                                 hashed_message_id: hashedMessageId,
                                 hashed_user_id: hashedUserId,
                                 embed_ids: embed.embed_ids,
-                                // Use milliseconds for createdAt/updatedAt (these are used locally, not in DB)
-                                createdAt: embed.createdAt || nowMs,
-                                updatedAt: embed.updatedAt || nowMs,
+                                // CRITICAL: Use snake_case for Directus fields and Unix timestamps in SECONDS
+                                // embed.createdAt/updatedAt are in milliseconds (from IndexedDB), must convert to seconds
+                                created_at: embed.createdAt ? Math.floor(embed.createdAt / 1000) : nowSeconds,
+                                updated_at: embed.updatedAt ? Math.floor(embed.updatedAt / 1000) : nowSeconds,
                                 embed_keys: embedKeys
                             });
                             
