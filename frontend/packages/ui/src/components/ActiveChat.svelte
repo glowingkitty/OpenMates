@@ -4077,14 +4077,32 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     {/if}
                 {:else if embedFullscreenData.embedType === 'videos-video'}
                     <!-- Video Fullscreen -->
+                    <!-- Constructs VideoMetadata from decodedContent (backend TOON format: snake_case) -->
+                    <!-- This ensures all video details (channel, duration, thumbnail, etc.) display in fullscreen -->
                     {#if embedFullscreenData.decodedContent?.url || embedFullscreenData.attrs?.url}
                         {@const VideoEmbedFullscreenPromise = import('../components/embeds/videos/VideoEmbedFullscreen.svelte')}
                         {#await VideoEmbedFullscreenPromise then module}
                             {@const VideoEmbedFullscreen = module.default}
                             {@const videoUrl = embedFullscreenData.decodedContent?.url || embedFullscreenData.attrs?.url || ''}
                             {@const videoTitle = embedFullscreenData.decodedContent?.title || embedFullscreenData.attrs?.title}
-                            {@const videoId = embedFullscreenData.decodedContent?.videoId || embedFullscreenData.attrs?.videoId}
+                            {@const videoId = embedFullscreenData.decodedContent?.video_id || embedFullscreenData.decodedContent?.videoId || embedFullscreenData.attrs?.videoId}
                             {@const restoreFromPip = embedFullscreenData.restoreFromPip || false}
+                            <!-- Construct VideoMetadata from decoded content (snake_case -> camelCase) -->
+                            {@const videoMetadata = {
+                                videoId: videoId || '',
+                                title: videoTitle,
+                                description: embedFullscreenData.decodedContent?.description,
+                                channelName: embedFullscreenData.decodedContent?.channel_name,
+                                channelId: embedFullscreenData.decodedContent?.channel_id,
+                                thumbnailUrl: embedFullscreenData.decodedContent?.thumbnail,
+                                duration: (embedFullscreenData.decodedContent?.duration_seconds || embedFullscreenData.decodedContent?.duration_formatted) ? {
+                                    totalSeconds: embedFullscreenData.decodedContent?.duration_seconds || 0,
+                                    formatted: embedFullscreenData.decodedContent?.duration_formatted || ''
+                                } : undefined,
+                                viewCount: embedFullscreenData.decodedContent?.view_count,
+                                likeCount: embedFullscreenData.decodedContent?.like_count,
+                                publishedAt: embedFullscreenData.decodedContent?.published_at
+                            }}
                             <VideoEmbedFullscreen
                                 url={videoUrl}
                                 title={videoTitle}
@@ -4098,6 +4116,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                 onNavigateNext={handleNavigateNextEmbed}
                                 showChatButton={showChatButtonInFullscreen}
                                 onShowChat={handleShowChat}
+                                metadata={videoMetadata}
                             />
                         {/await}
                     {/if}
