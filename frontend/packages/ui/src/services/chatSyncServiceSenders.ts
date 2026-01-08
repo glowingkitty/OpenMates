@@ -815,7 +815,11 @@ export async function sendNewMessageImpl(
                                 chatKeyLength: wrappedWithChat?.length || 0
                             });
                             
-                            const now = Date.now();
+                            // CRITICAL FIX: Use Unix timestamp in SECONDS (not milliseconds!)
+                            // The database field is an INTEGER which can't hold milliseconds (13 digits)
+                            // Milliseconds would cause "VALUE_OUT_OF_RANGE" error in Directus
+                            const nowSeconds = Math.floor(Date.now() / 1000);
+                            const nowMs = Date.now();
                             
                             // Prepare embed keys for storage
                             const embedKeys: EncryptedEmbedForDirectus['embed_keys'] = [
@@ -825,7 +829,7 @@ export async function sendNewMessageImpl(
                                     hashed_chat_id: null, // Master key wrapper has no chat association
                                     encrypted_embed_key: wrappedWithMaster,
                                     hashed_user_id: hashedUserId,
-                                    created_at: now
+                                    created_at: nowSeconds  // Unix timestamp in seconds
                                 },
                                 {
                                     hashed_embed_id: hashedEmbedId,
@@ -833,7 +837,7 @@ export async function sendNewMessageImpl(
                                     hashed_chat_id: hashedChatId,
                                     encrypted_embed_key: wrappedWithChat,
                                     hashed_user_id: hashedUserId,
-                                    created_at: now
+                                    created_at: nowSeconds  // Unix timestamp in seconds
                                 }
                             ];
                             
@@ -858,8 +862,9 @@ export async function sendNewMessageImpl(
                                 hashed_message_id: hashedMessageId,
                                 hashed_user_id: hashedUserId,
                                 embed_ids: embed.embed_ids,
-                                createdAt: embed.createdAt || now,
-                                updatedAt: embed.updatedAt || now,
+                                // Use milliseconds for createdAt/updatedAt (these are used locally, not in DB)
+                                createdAt: embed.createdAt || nowMs,
+                                updatedAt: embed.updatedAt || nowMs,
                                 embed_keys: embedKeys
                             });
                             
