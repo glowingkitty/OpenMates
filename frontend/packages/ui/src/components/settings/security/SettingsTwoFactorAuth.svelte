@@ -24,6 +24,7 @@ Props:
     import * as cryptoService from '../../../services/cryptoService';
     import QRCode from 'qrcode-svg';
     import SecurityAuth from './SecurityAuth.svelte';
+    import { copyToClipboard } from '../../../utils/clipboardUtils';
 
     // ========================================================================
     // PROPS
@@ -422,30 +423,47 @@ Props:
     
     /**
      * Copy secret to clipboard.
+     * Uses Safari-compatible clipboard utility with fallback.
+     * Note: The secret is already visible in the settings UI, so no need for alert fallback.
      */
     async function copySecret() {
         if (!tfaSecret) return;
         
-        await navigator.clipboard.writeText(tfaSecret);
-        showCopiedText = true;
+        const result = await copyToClipboard(tfaSecret);
         
-        setTimeout(() => {
-            showCopiedText = false;
-        }, 2000);
+        if (result.success) {
+            showCopiedText = true;
+            
+            setTimeout(() => {
+                showCopiedText = false;
+            }, 2000);
+        } else {
+            // Secret is already visible in UI, user can manually select and copy
+            console.warn('[SettingsTwoFactorAuth] Clipboard copy failed, secret visible for manual copy');
+        }
     }
     
     /**
      * Copy backup codes to clipboard.
+     * Uses Safari-compatible clipboard utility with fallback.
+     * Note: Backup codes are already visible in the UI, so no need for alert fallback.
      */
     async function copyBackupCodes() {
         if (backupCodes.length === 0) return;
         
-        await navigator.clipboard.writeText(backupCodes.join('\n'));
-        showCopiedText = true;
+        const codesText = backupCodes.join('\n');
+        const result = await copyToClipboard(codesText);
         
-        setTimeout(() => {
-            showCopiedText = false;
-        }, 2000);
+        if (result.success) {
+            showCopiedText = true;
+            
+            setTimeout(() => {
+                showCopiedText = false;
+            }, 2000);
+        } else {
+            // Backup codes are already visible in UI, user can manually select and copy
+            console.warn('[SettingsTwoFactorAuth] Clipboard copy failed, codes visible for manual copy');
+        }
     }
     
     /**

@@ -117,10 +117,12 @@ step_4_top_content_svelte:
     import QRCode from 'qrcode-svg';
     import { signupStore } from '../../../../stores/signupStore'; // Import signupStore for email
     import * as cryptoService from '../../../../services/cryptoService'; // Import cryptoService for email encryption
+    import { copyToClipboard } from '../../../../utils/clipboardUtils'; // Safari-compatible clipboard
 
     // State variables using Svelte 5 runes
     let showQrCode = $state(false);
     let showCopiedText = $state(false);
+    let showSecretCode = $state(false);  // Shows the secret code for manual copying
     let loading = $state(true);
     let error = $state(false);
     let errorMessage = $state('');
@@ -259,17 +261,38 @@ step_4_top_content_svelte:
         dispatch('actionClicked'); // Dispatch event
     }
 
+    /**
+     * Copy the 2FA secret to clipboard.
+     * Uses Safari-compatible clipboard utility with fallback for older browsers.
+     * Always shows the secret code in the UI so user can manually select/copy if needed.
+     */
     async function copySecret() {
         if (!secret) return;
         
-        await navigator.clipboard.writeText(secret);
-        showCopiedText = true;
+        // Always show the secret code so user can manually copy if needed
+        showSecretCode = true;
         dispatch('actionClicked'); // Dispatch event
+        
+        const result = await copyToClipboard(secret);
+        
+        if (result.success) {
+            showCopiedText = true;
 
-        // Reset copied text after 2 seconds
-        setTimeout(() => {
-            showCopiedText = false;
-        }, 2000);
+            // Reset copied text after 2 seconds (but keep secret visible)
+            setTimeout(() => {
+                showCopiedText = false;
+            }, 2000);
+        } else {
+            // Clipboard failed - secret is still visible for manual copying
+            console.warn('[OneTimeCodesTopContent] Clipboard copy failed, secret displayed for manual copy');
+        }
+    }
+    
+    /**
+     * Toggle visibility of the secret code display.
+     */
+    function toggleSecretCode() {
+        showSecretCode = !showSecretCode;
     }
 
     function retrySetup() {
@@ -382,6 +405,24 @@ step_4_top_content_svelte:
                     </span>
                 </button>
             </div>
+            
+            <!-- Secret code display - shown when user clicks copy for manual selection -->
+            {#if showSecretCode && secret}
+            <div class="secret-code-container" transition:fade>
+                <div class="secret-code-label">{$text('signup.your_secret_key.text')}</div>
+                <input 
+                    type="text" 
+                    class="secret-code-input" 
+                    value={secret} 
+                    readonly 
+                    onclick={(e) => e.currentTarget.select()}
+                    aria-label="2FA Secret Key"
+                />
+                <button class="hide-secret-button" onclick={toggleSecretCode}>
+                    {$text('signup.hide_secret.text')}
+                </button>
+            </div>
+            {/if}
         </div>
     {/if} <!-- End of outer {:else if setupComplete} -->
 </div>
@@ -554,5 +595,63 @@ step_4_top_content_svelte:
     .text-button:disabled {
         opacity: 0.5;
         cursor: not-allowed;
+    }
+
+    /* Secret code display for manual copying */
+    .secret-code-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+        margin-top: 16px;
+        padding: 16px;
+        background: var(--color-bg-secondary, #f5f5f5);
+        border-radius: 8px;
+        width: 100%;
+        max-width: 320px;
+    }
+
+    .secret-code-label {
+        font-size: 12px;
+        color: var(--color-text-secondary, #666);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .secret-code-input {
+        width: 100%;
+        padding: 12px;
+        font-family: 'Courier New', Courier, monospace;
+        font-size: 14px;
+        font-weight: bold;
+        letter-spacing: 1px;
+        text-align: center;
+        background: var(--color-bg-primary, #fff);
+        border: 2px dashed var(--color-border, #ccc);
+        border-radius: 6px;
+        color: var(--color-text-primary, #333);
+        cursor: text;
+        /* Allow text selection for manual copying */
+        user-select: all;
+        -webkit-user-select: all;
+    }
+
+    .secret-code-input:focus {
+        outline: none;
+        border-color: var(--color-primary, #007bff);
+    }
+
+    .hide-secret-button {
+        padding: 6px 12px;
+        font-size: 12px;
+        color: var(--color-text-secondary, #666);
+        background: transparent;
+        border: none;
+        cursor: pointer;
+        text-decoration: underline;
+    }
+
+    .hide-secret-button:hover {
+        color: var(--color-text-primary, #333);
     }
 </style>
