@@ -7,6 +7,8 @@
 - App skill is processing text which contains malicious instructions targeting the assistant (website text, video transcript, emails, etc.)
 - User uploads PDFs or code snippets which, unknown to them, contain malicious instructions targeting the assistant
 - URL parameters or hidden metadata containing malicious prompt injection attempts
+- **Website metadata (Open Graph, meta tags)** - malicious websites can embed prompt injection attacks in their title, description, or site name. When users paste URLs and the preview server fetches metadata, these fields could contain hidden instructions targeting the LLM. See [Preview Server Sanitization](#preview-server-sanitization) below.
+- **YouTube video metadata** - video titles, descriptions, and channel names fetched from the YouTube API could contain prompt injection attempts designed to manipulate the LLM when users share video links.
 - **Code loaded from external repository URLs** (GitHub, GitLab, Bitbucket, etc.) - when users paste links to specific files, the fetched code may contain hidden malicious instructions in comments, strings, docstrings, or obfuscated within seemingly legitimate code. See [Code App - Get code skill](./apps/code.md#get-code) for implementation details.
 - **ASCII smuggling attacks** - malicious actors embed hidden instructions using invisible Unicode characters that bypass human review but are processed by LLMs. See [ASCII Smuggling Protection](#0-ascii-smuggling-protection) below.
 
@@ -188,6 +190,49 @@ For programmatic access to OpenMates (REST API, npm package, pip package, CLI), 
 
 This override applies only to programmatic access methods. The web interface always enforces prompt injection protection.
 
+## Preview Server Sanitization
+
+The preview server (`backend/preview/`) fetches metadata from external websites and YouTube videos. This metadata (title, description, site_name, channel_name) flows to the LLM when users paste URLs and embeds are resolved for AI context.
+
+### Protected Fields
+
+| Source | Fields Sanitized | Not Sanitized (URLs) |
+|--------|------------------|---------------------|
+| Website Metadata | title, description, site_name | image, favicon, url |
+| YouTube Video | title, description, channel_name | thumbnails, url |
+| YouTube Channel | title, description | thumbnails, custom_url |
+
+### Implementation
+
+The preview server applies the same two-layer defense:
+
+1. **ASCII Smuggling Protection**: [`backend/preview/app/services/text_sanitization.py`](../../backend/preview/app/services/text_sanitization.py)
+2. **LLM-Based Detection**: [`backend/preview/app/services/content_sanitization.py`](../../backend/preview/app/services/content_sanitization.py)
+
+### Configuration
+
+The preview server requires a Groq API key for LLM-based sanitization:
+
+```bash
+# In .env file
+SECRET__GROQ__API_KEY=your-groq-api-key
+# Or preview-specific:
+PREVIEW_GROQ_API_KEY=your-groq-api-key
+```
+
+Additional settings in `backend/preview/app/config.py`:
+- `enable_llm_sanitization`: Enable/disable LLM-based detection (default: True)
+- `content_sanitization_model`: Groq model ID (default: `llama-3.3-70b-versatile`)
+- `sanitization_block_threshold`: Score to block content (default: 7.0)
+- `sanitization_review_threshold`: Score to flag for review (default: 5.0)
+
+### Graceful Degradation
+
+If Groq API is unavailable:
+- ASCII smuggling protection still runs (no external dependency)
+- LLM-based detection is skipped with a warning log
+- Content is returned with only character-level sanitization
+
 ## Implementation Notes
 
 - **Problem Status**: Solvable, but best solution needs continued testing via various LLMs and system prompts
@@ -195,3 +240,4 @@ This override applies only to programmatic access methods. The web interface alw
 - **Monitoring**: Log all detected prompt injection attempts for security analysis and model refinement
 - **Execution Order**: ASCII smuggling sanitization runs FIRST at entry points, then LLM-based detection runs as the **last step** before app skill endpoints return external data
 - **Two-Layer Defense**: Character-level sanitization (ASCII smuggling) → Semantic-level detection (LLM-based)
+- **Preview Server**: Sanitization happens at metadata fetch time, before caching. Cached metadata is already sanitized.
