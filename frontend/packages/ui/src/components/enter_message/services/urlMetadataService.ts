@@ -49,6 +49,7 @@ export interface YouTubeMetadata {
     description?: string;
     channel_name?: string;
     channel_id?: string;
+    channel_thumbnail?: string;  // Channel profile picture URL (fetched from channels.list API)
     thumbnails?: {
         default?: string;
         medium?: string;
@@ -180,6 +181,7 @@ export async function fetchYouTubeMetadata(url: string): Promise<YouTubeMetadata
             description: data.description,
             channel_name: data.channel_name,
             channel_id: data.channel_id,
+            channel_thumbnail: data.channel_thumbnail,  // Channel profile picture URL
             thumbnails: data.thumbnails,
             duration: data.duration,
             view_count: data.view_count,
@@ -322,6 +324,8 @@ export async function createYouTubeEmbed(metadata: YouTubeMetadata): Promise<Emb
         description: metadata.description || null,
         channel_name: metadata.channel_name || null,
         channel_id: metadata.channel_id || null,
+        // Channel profile picture for rendering alongside channel name
+        channel_thumbnail: metadata.channel_thumbnail || null,
         // Only store useful thumbnail URLs for rendering
         thumbnail: metadata.thumbnails?.maxres || 
                    metadata.thumbnails?.high || 

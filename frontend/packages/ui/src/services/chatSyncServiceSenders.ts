@@ -724,22 +724,20 @@ export async function sendNewMessageImpl(
                 const hashedChatId = await computeSHA256(message.chat_id);
                 const hashedMessageId = await computeSHA256(message.message_id);
                 
-                // Get user_id from the chat object (set when chat was created)
+                // Get user_id from the chat object if available (may be empty for new chats)
+                // Server will fill in hashed_user_id if client doesn't provide it
                 const userId = chat?.user_id || '';
-                if (!userId) {
-                    console.warn('[ChatSyncService:Senders] No user_id found on chat, skipping embed encryption for Directus');
-                }
                 const hashedUserId = userId ? await computeSHA256(userId) : '';
                 
-                // Get chat key for wrapping embed keys
-                // Chat key is required for wrapEmbedKeyWithChatKey
-                const chatKey = chatDB.getChatKey(message.chat_id);
+                // Get or generate chat key for wrapping embed keys
+                // This ensures we always have a key, even for new chats
+                const chatKey = chatDB.getOrGenerateChatKey(message.chat_id);
                 if (!chatKey) {
-                    console.warn('[ChatSyncService:Senders] No chat key found, skipping embed encryption for Directus');
+                    console.error('[ChatSyncService:Senders] Failed to get or generate chat key, this should not happen');
                 }
                 
-                // Only proceed if we have user_id and chat key
-                if (userId && chatKey) {
+                // Only proceed if we have a chat key (user_id is optional - server fills it in)
+                if (chatKey) {
                     // Prepare encrypted embeds for Directus storage
                     interface EncryptedEmbedForDirectus {
                         embed_id: string;

@@ -6,14 +6,16 @@
   
   Features:
   - Auto-fetches metadata from preview server when not provided
-  - Displays title, description, channel name, channel thumbnail (profile picture), and video thumbnail
-  - Shows video duration and relative upload date (e.g., "2 years ago")
+  - Displays video thumbnail (clean, no overlays)
+  - Info bar below thumbnail:
+    - Line 1: Channel thumbnail (29x29px round) + shortened video title
+    - Line 2: Duration + upload date (e.g., "29:26, Jul 31, 2025")
   - Proxies all thumbnails through preview server for privacy
   - Passes fetched metadata to fullscreen view for consistent display
   
   Details content structure:
   - Processing: URL hostname
-  - Finished: video thumbnail with duration badge, channel info row (thumbnail + name), meta row (duration + upload date)
+  - Finished: video thumbnail, info bar with channel thumb + title + duration + date
   - Error: hostname with error styling
   
   Data Flow:
@@ -322,41 +324,37 @@
     }
   });
   
+  // Shortened video title (truncate if too long for preview info bar)
+  let shortenedTitle = $derived.by(() => {
+    const titleToShorten = effectiveTitle || 'YouTube Video';
+    // Max ~30 chars for preview layout in the info bar
+    const maxLength = 30;
+    if (titleToShorten.length <= maxLength) return titleToShorten;
+    return titleToShorten.substring(0, maxLength - 1) + '…';
+  });
+  
   /**
-   * Format relative time from ISO date string (e.g., "2 years ago", "3 months ago")
-   * Used for displaying video upload date in a human-readable format
+   * Format upload date as "Mon DD, YYYY" (e.g., "Jul 31, 2025")
+   * Used for displaying video upload date in a compact format
    */
-  function formatRelativeTime(isoDateString: string | undefined): string {
+  function formatUploadDate(isoDateString: string | undefined): string {
     if (!isoDateString) return '';
     
     try {
       const date = new Date(isoDateString);
-      const now = new Date();
-      const diffMs = now.getTime() - date.getTime();
-      const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-      
-      if (diffDays < 1) return 'Today';
-      if (diffDays === 1) return 'Yesterday';
-      if (diffDays < 7) return `${diffDays} days ago`;
-      if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`;
-      if (diffDays < 365) return `${Math.floor(diffDays / 30)} months ago`;
-      return `${Math.floor(diffDays / 365)} years ago`;
+      // Format as "Mon DD, YYYY" (e.g., "Jul 31, 2025")
+      return date.toLocaleDateString('en-US', { 
+        month: 'short', 
+        day: 'numeric', 
+        year: 'numeric' 
+      });
     } catch {
       return '';
     }
   }
   
-  // Derived relative upload date
-  let relativeUploadDate = $derived(formatRelativeTime(fetchedPublishedAt));
-  
-  // Shortened channel name (truncate if too long for preview)
-  let shortenedChannelName = $derived.by(() => {
-    if (!fetchedChannelName) return '';
-    // Max ~25 chars for preview layout
-    const maxLength = 25;
-    if (fetchedChannelName.length <= maxLength) return fetchedChannelName;
-    return fetchedChannelName.substring(0, maxLength - 1) + '…';
-  });
+  // Formatted upload date (e.g., "Jul 31, 2025")
+  let formattedUploadDate = $derived(formatUploadDate(fetchedPublishedAt));
   
   // Compute effective status: if we're loading metadata, show as processing
   // But only if the original status was 'finished' (don't override explicit processing state)
@@ -445,9 +443,9 @@
         <!-- Processing state: show hostname only -->
         <div class="video-hostname">{hostname}</div>
       {:else if effectiveStatus === 'finished'}
-        <!-- Finished state: show thumbnail with duration overlay and channel info -->
+        <!-- Finished state: show thumbnail (no duration badge - shown in info bar) and channel info -->
         {#if effectiveVideoId && thumbnailUrl}
-          <!-- Video thumbnail with duration badge -->
+          <!-- Video thumbnail (clean, no overlays) -->
           <div class="video-thumbnail-container">
             <img 
               src={thumbnailUrl} 
@@ -465,47 +463,39 @@
                 }
               }}
             />
-            <!-- Duration overlay -->
-            {#if fetchedDuration}
-              <div class="video-duration-badge">{fetchedDuration.formatted}</div>
-            {/if}
           </div>
           
-          <!-- Channel info below thumbnail: channel thumbnail + name, duration + upload date -->
-          {#if (channelThumbnailUrl && shortenedChannelName) || (fetchedDuration && relativeUploadDate)}
+          <!-- Info bar below thumbnail: channel thumbnail + title, duration + upload date -->
+          {#if channelThumbnailUrl || shortenedTitle || fetchedDuration || formattedUploadDate}
             <div class="video-channel-info">
-              <!-- Line 1: Channel thumbnail + shortened channel name -->
-              {#if channelThumbnailUrl || shortenedChannelName}
-                <div class="video-channel-row">
-                  {#if channelThumbnailUrl}
-                    <img 
-                      src={channelThumbnailUrl}
-                      alt={fetchedChannelName || 'Channel'}
-                      class="video-channel-thumbnail"
-                      loading="lazy"
-                      onerror={(e) => {
-                        // Hide if thumbnail fails to load
-                        (e.target as HTMLImageElement).style.display = 'none';
-                      }}
-                    />
-                  {/if}
-                  {#if shortenedChannelName}
-                    <span class="video-channel-name">{shortenedChannelName}</span>
-                  {/if}
-                </div>
-              {/if}
+              <!-- Line 1: Channel thumbnail + shortened video title -->
+              <div class="video-channel-row">
+                {#if channelThumbnailUrl}
+                  <img 
+                    src={channelThumbnailUrl}
+                    alt={fetchedChannelName || 'Channel'}
+                    class="video-channel-thumbnail"
+                    loading="lazy"
+                    onerror={(e) => {
+                      // Hide if thumbnail fails to load
+                      (e.target as HTMLImageElement).style.display = 'none';
+                    }}
+                  />
+                {/if}
+                <span class="video-title-text">{shortenedTitle}</span>
+              </div>
               
-              <!-- Line 2: Duration + upload date -->
-              {#if fetchedDuration || relativeUploadDate}
+              <!-- Line 2: Duration + upload date (e.g., "29:26, Jul 31, 2025") -->
+              {#if fetchedDuration || formattedUploadDate}
                 <div class="video-meta-row">
                   {#if fetchedDuration}
                     <span class="video-meta-item">{fetchedDuration.formatted}</span>
                   {/if}
-                  {#if fetchedDuration && relativeUploadDate}
-                    <span class="video-meta-separator">•</span>
+                  {#if fetchedDuration && formattedUploadDate}
+                    <span class="video-meta-separator">,</span>
                   {/if}
-                  {#if relativeUploadDate}
-                    <span class="video-meta-item">{relativeUploadDate}</span>
+                  {#if formattedUploadDate}
+                    <span class="video-meta-item">{formattedUploadDate}</span>
                   {/if}
                 </div>
               {/if}
@@ -581,23 +571,9 @@
     display: block;
   }
   
-  /* Duration badge overlay - bottom right of thumbnail */
-  .video-duration-badge {
-    position: absolute;
-    bottom: 6px;
-    right: 6px;
-    background: rgba(0, 0, 0, 0.8);
-    color: var(--color-grey-100);
-    font-size: 11px;
-    font-weight: 500;
-    padding: 2px 5px;
-    border-radius: 3px;
-    font-family: var(--font-mono, monospace);
-    letter-spacing: 0.3px;
-  }
-  
   /* ===========================================
-     Channel Info Section (below thumbnail)
+     Info Bar Section (below thumbnail)
+     Shows: channel thumbnail + title, duration + date
      =========================================== */
   
   .video-channel-info {
@@ -627,9 +603,11 @@
     background-color: var(--color-grey-20);
   }
   
-  .video-channel-name {
+  /* Video title text in info bar */
+  .video-title-text {
     font-size: 12px;
-    color: var(--color-grey-80);
+    font-weight: 500;
+    color: var(--color-grey-90);
     line-height: 1.2;
     white-space: nowrap;
     overflow: hidden;
@@ -666,7 +644,7 @@
     height: 24px;
   }
   
-  .video-details.mobile .video-channel-name {
+  .video-details.mobile .video-title-text {
     font-size: 11px;
   }
   

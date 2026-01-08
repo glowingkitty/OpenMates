@@ -102,6 +102,7 @@
   let displayTitle = $state(metadata?.title || title || 'YouTube Video');
   let channelName = $state(metadata?.channelName || '');
   let channelId = $state(metadata?.channelId || '');
+  let rawChannelThumbnail = $state(metadata?.channelThumbnail || '');  // Channel profile picture URL
   let description = $state(metadata?.description || '');
   let duration = $state(metadata?.duration);
   let viewCount = $state(metadata?.viewCount);
@@ -121,7 +122,8 @@
       viewCount,
       likeCount,
       publishedAt,
-      hasThumbnail: !!rawThumbnailUrl
+      hasThumbnail: !!rawThumbnailUrl,
+      hasChannelThumbnail: !!rawChannelThumbnail
     });
   });
   
@@ -159,6 +161,13 @@
   let thumbnailUrl = $derived.by(() => {
     if (!rawThumbnailUrl) return '';
     return `${PREVIEW_SERVER}/api/v1/image?url=${encodeURIComponent(rawThumbnailUrl)}&max_width=${FULLSCREEN_IMAGE_MAX_WIDTH}`;
+  });
+  
+  // Proxied channel thumbnail URL (29x29px display, 58px for retina)
+  const CHANNEL_THUMBNAIL_MAX_WIDTH = 58;
+  let channelThumbnailUrl = $derived.by(() => {
+    if (!rawChannelThumbnail) return '';
+    return `${PREVIEW_SERVER}/api/v1/image?url=${encodeURIComponent(rawChannelThumbnail)}&max_width=${CHANNEL_THUMBNAIL_MAX_WIDTH}`;
   });
   
   // ===========================================
@@ -530,10 +539,6 @@
           >
             <span class="play-icon"></span>
           </button>
-          <!-- Duration badge overlay -->
-          {#if duration}
-            <div class="duration-badge">{duration.formatted}</div>
-          {/if}
         </div>
       {:else if isVideoPlaying}
         <!-- Video is playing - VideoIframe shows the actual video -->
@@ -541,33 +546,37 @@
         <div class="video-playing-spacer"></div>
       {/if}
       
-      <!-- Video title - displayed prominently below thumbnail -->
+      <!-- Video title with channel thumbnail - displayed prominently below thumbnail -->
       {#if displayTitle && displayTitle !== 'YouTube Video' && !isVideoPlaying}
-        <h2 class="video-title">{displayTitle}</h2>
+        <div class="video-title-row">
+          {#if channelThumbnailUrl}
+            <img 
+              src={channelThumbnailUrl}
+              alt={channelName || 'Channel'}
+              class="title-channel-thumbnail"
+              loading="lazy"
+              onerror={(e) => {
+                (e.target as HTMLImageElement).style.display = 'none';
+              }}
+            />
+          {/if}
+          <h2 class="video-title">{displayTitle}</h2>
+        </div>
       {/if}
       
-      <!-- Video metadata info: channel, views, date -->
-      {#if (channelName || viewCount || publishedAt) && !isVideoPlaying}
+      <!-- Video metadata info: channel name, duration, upload date -->
+      {#if (channelName || duration || publishedAt) && !isVideoPlaying}
         <div class="video-metadata">
-          <!-- Channel info with YouTube icon -->
-          {#if channelName}
-            <div class="channel-info">
-              <span class="channel-icon icon_youtube"></span>
-              <span class="channel-name">{channelName}</span>
-            </div>
-          {/if}
-          <!-- Stats row: views, likes, date -->
-          <div class="video-stats">
-            {#if viewCount}
-              <span class="stat-item">{formatViewCount(viewCount)}</span>
+          <!-- Meta row: "by {channelName}, {date} uploaded" -->
+          <div class="video-meta-line">
+            {#if channelName}
+              <span class="meta-text">by {channelName}</span>
             {/if}
-            {#if likeCount}
-              <span class="metadata-separator">•</span>
-              <span class="stat-item">{formatLikeCount(likeCount)}</span>
+            {#if channelName && publishedAt}
+              <span class="meta-separator">,</span>
             {/if}
             {#if publishedAt}
-              <span class="metadata-separator">•</span>
-              <span class="stat-item">{formatPublishedDate(publishedAt)}</span>
+              <span class="meta-text">{formatPublishedDate(publishedAt)} uploaded</span>
             {/if}
           </div>
         </div>
@@ -612,6 +621,21 @@
             </button>
           {/if}
         </div>
+        
+        <!-- Views and likes - displayed below the Open on YouTube button -->
+        {#if (viewCount || likeCount) && !isVideoPlaying}
+          <div class="video-stats-row">
+            {#if viewCount}
+              <span class="stat-item">{formatViewCount(viewCount)}</span>
+            {/if}
+            {#if viewCount && likeCount}
+              <span class="stat-separator">•</span>
+            {/if}
+            {#if likeCount}
+              <span class="stat-item">{formatLikeCount(likeCount)}</span>
+            {/if}
+          </div>
+        {/if}
       {/if}
     </div>
   {/snippet}
@@ -695,32 +719,37 @@
     pointer-events: none;
   }
   
-  /* Duration badge overlay - bottom right of thumbnail */
-  .duration-badge {
-    position: absolute;
-    bottom: 10px;
-    right: 10px;
-    background: rgba(0, 0, 0, 0.85);
-    color: var(--color-grey-100);
-    font-size: 13px;
-    font-weight: 500;
-    padding: 3px 7px;
-    border-radius: 4px;
-    font-family: var(--font-mono, monospace);
-    letter-spacing: 0.3px;
-  }
   
   /* ===========================================
-     Video Title
+     Video Title with Channel Thumbnail
      =========================================== */
+  
+  .video-title-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    margin: 48px 0 8px 0;
+    max-width: 780px;
+    width: 100%;
+  }
+  
+  /* Channel thumbnail next to title (29x29px, round) */
+  .title-channel-thumbnail {
+    width: 29px;
+    height: 29px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+    background-color: var(--color-grey-20);
+  }
   
   .video-title {
     font-size: 18px;
     font-weight: 600;
     color: var(--color-font-primary);
-    margin: 48px 0 8px 0;
-    text-align: center;
-    max-width: 780px;
+    margin: 0;
+    text-align: left;
     line-height: 1.4;
     /* Limit to 2 lines with ellipsis */
     display: -webkit-box;
@@ -738,49 +767,50 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 8px;
+    gap: 4px;
     font-size: 14px;
     color: var(--color-grey-60);
-    margin-top: 8px;
+    margin-top: 4px;
     max-width: 780px;
     width: 100%;
   }
   
-  /* Channel info row with icon */
-  .channel-info {
+  /* Meta line: "by {channel}, {date} uploaded" */
+  .video-meta-line {
     display: flex;
     align-items: center;
-    gap: 8px;
-  }
-  
-  .channel-icon {
-    width: 20px;
-    height: 20px;
-    opacity: 0.8;
-  }
-  
-  .channel-name {
-    color: var(--color-grey-80);
-    font-weight: 500;
-    font-size: 15px;
-  }
-  
-  /* Stats row: views, likes, date */
-  .video-stats {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    flex-wrap: wrap;
-    justify-content: center;
+    gap: 4px;
+    font-size: 14px;
     color: var(--color-grey-60);
+  }
+  
+  .meta-text {
+    color: var(--color-grey-60);
+  }
+  
+  .meta-separator {
+    color: var(--color-grey-50);
+  }
+  
+  /* ===========================================
+     Video Stats (Views/Likes) - Below Buttons
+     =========================================== */
+  
+  .video-stats-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
     font-size: 13px;
+    color: var(--color-grey-60);
+    margin-top: 12px;
   }
   
   .stat-item {
     color: var(--color-grey-60);
   }
   
-  .metadata-separator {
+  .stat-separator {
     color: var(--color-grey-40);
   }
   
