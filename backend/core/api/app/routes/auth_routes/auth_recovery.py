@@ -365,14 +365,18 @@ async def verify_recovery_code(
         
         # Look up user to check if they have 2FA configured
         # This info is needed by frontend to determine if 2FA setup is required
+        # CRITICAL: Check encrypted_tfa_secret existence - this is the actual 2FA data
+        # Note: There is NO tfa_enabled field in Directus schema - it only exists in cache
+        # The presence of encrypted_tfa_secret is the source of truth for 2FA status
         hashed_email = _hash_email(email)
         has_2fa = False
         try:
             exists, user_data, _ = await directus_service.get_user_by_hashed_email(hashed_email)
             if exists and user_data:
-                # tfa_enabled indicates if user has 2FA secret configured (vault encrypted)
-                has_2fa = bool(user_data.get("tfa_enabled", False))
-                logger.info(f"User 2FA status: {has_2fa}")
+                # User has 2FA if they have an encrypted secret stored in the database
+                # This is consistent with auth_login.py which also checks encrypted_tfa_secret
+                has_2fa = bool(user_data.get("encrypted_tfa_secret"))
+                logger.info(f"User 2FA status: has_2fa={has_2fa} (encrypted_tfa_secret exists: {has_2fa})")
         except Exception as e:
             logger.warning(f"Could not check user 2FA status: {e}")
             # Default to requiring 2FA setup if we can't determine status
