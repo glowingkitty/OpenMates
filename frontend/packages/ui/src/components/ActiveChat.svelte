@@ -4029,6 +4029,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         <WebReadEmbedFullscreen 
                             previewData={previewData}
                             url={webReadUrl}
+                            embedId={embedFullscreenData.embedId}
                             onClose={handleCloseEmbedFullscreen}
                             {hasPreviousEmbed}
                             {hasNextEmbed}

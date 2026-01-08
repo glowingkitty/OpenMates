@@ -434,11 +434,83 @@ class FetchService:
             "Connection": "close",  # Force connection close for IP rotation with proxy
         }
     
+    async def _fetch_html_with_client(
+        self, 
+        client: httpx.AsyncClient, 
+        url: str, 
+        headers: dict, 
+        max_size: int,
+        client_name: str
+    ) -> str:
+        """
+        Internal method to fetch HTML with a specific client.
+        
+        Args:
+            client: HTTP client to use
+            url: Validated URL to fetch
+            headers: HTTP headers to send
+            max_size: Maximum HTML size in bytes
+            client_name: Name for logging (e.g., "proxy", "direct")
+            
+        Returns:
+            HTML content as string
+            
+        Raises:
+            httpx.TimeoutException: On timeout
+            httpx.RequestError: On network error
+            FetchError: On HTTP error or size limit
+        """
+        async with client.stream("GET", url, headers=headers) as response:
+            if response.status_code != 200:
+                logger.warning(
+                    f"[FetchService] HTML fetch failed ({client_name}): "
+                    f"{response.status_code} for {url[:50]}..."
+                )
+                raise FetchError(
+                    f"Failed to fetch page: HTTP {response.status_code}",
+                    response.status_code
+                )
+            
+            # Check content length
+            content_length = response.headers.get("content-length")
+            if content_length and int(content_length) > max_size:
+                logger.warning(f"[FetchService] HTML too large: {content_length} bytes")
+                raise FetchError(f"Page too large: {content_length} bytes", 413)
+            
+            # Download with size limit
+            chunks = []
+            total_size = 0
+            
+            async for chunk in response.aiter_bytes(chunk_size=8192):
+                total_size += len(chunk)
+                if total_size > max_size:
+                    # For HTML, we can still use partial content
+                    break
+                chunks.append(chunk)
+            
+            # Decode HTML
+            content = b"".join(chunks)
+            
+            # Try to detect encoding from response or default to utf-8
+            encoding = response.encoding or "utf-8"
+            try:
+                html = content.decode(encoding)
+            except UnicodeDecodeError:
+                # Fallback to utf-8 with error handling
+                html = content.decode("utf-8", errors="replace")
+            
+            logger.debug(
+                f"[FetchService] Fetched HTML ({len(html)} chars, {client_name}) from {url[:50]}..."
+            )
+            
+            return html
+    
     async def fetch_html(self, url: str, max_size: int = 5 * 1024 * 1024) -> str:
         """
         Fetch HTML content from URL for metadata extraction.
         
         Uses Webshare proxy if configured (recommended for reliable fetching).
+        Falls back to direct connection if proxy fails with network errors.
         Randomizes headers to avoid bot detection.
         
         Args:
@@ -454,63 +526,44 @@ class FetchService:
         # Validate URL first
         validated_url = await self._validate_url(url)
         
-        # Decide which client to use - proxy for metadata if configured
+        # Use randomized headers for each request
+        headers = self._get_randomized_headers()
+        
+        # Try proxy first if configured
         use_proxy = settings.use_proxy_for_metadata and self._proxy_client is not None
-        client = self._proxy_client if use_proxy else self._client
         
         if use_proxy:
-            logger.debug(f"[FetchService] Using Webshare proxy for HTML fetch: {url[:50]}...")
-        else:
-            logger.debug(f"[FetchService] Using direct connection for HTML fetch: {url[:50]}...")
-        
-        try:
-            # Use randomized headers for each request
-            headers = self._get_randomized_headers()
-            
-            async with client.stream("GET", validated_url, headers=headers) as response:
-                if response.status_code != 200:
-                    logger.warning(
-                        f"[FetchService] HTML fetch failed: {response.status_code} for {url[:50]}..."
-                    )
-                    raise FetchError(
-                        f"Failed to fetch page: HTTP {response.status_code}",
-                        response.status_code
-                    )
-                
-                # Check content length
-                content_length = response.headers.get("content-length")
-                if content_length and int(content_length) > max_size:
-                    logger.warning(f"[FetchService] HTML too large: {content_length} bytes")
-                    raise FetchError(f"Page too large: {content_length} bytes", 413)
-                
-                # Download with size limit
-                chunks = []
-                total_size = 0
-                
-                async for chunk in response.aiter_bytes(chunk_size=8192):
-                    total_size += len(chunk)
-                    if total_size > max_size:
-                        # For HTML, we can still use partial content
-                        break
-                    chunks.append(chunk)
-                
-                # Decode HTML
-                content = b"".join(chunks)
-                
-                # Try to detect encoding from response or default to utf-8
-                encoding = response.encoding or "utf-8"
-                try:
-                    html = content.decode(encoding)
-                except UnicodeDecodeError:
-                    # Fallback to utf-8 with error handling
-                    html = content.decode("utf-8", errors="replace")
-                
-                logger.debug(
-                    f"[FetchService] Fetched HTML ({len(html)} chars) from {url[:50]}..."
+            logger.debug(f"[FetchService] Trying Webshare proxy for HTML fetch: {url[:50]}...")
+            try:
+                return await self._fetch_html_with_client(
+                    self._proxy_client, validated_url, headers, max_size, "proxy"
                 )
-                
-                return html
-                
+            except httpx.TimeoutException:
+                logger.warning(
+                    f"[FetchService] Proxy timeout for {url[:50]}... falling back to direct"
+                )
+            except httpx.RequestError as e:
+                logger.warning(
+                    f"[FetchService] Proxy request error for {url[:50]}...: {e}. "
+                    f"Falling back to direct connection"
+                )
+            except FetchError as e:
+                # For HTTP errors (4xx/5xx), also try direct - the proxy might be causing issues
+                if e.status_code >= 400 and e.status_code < 500:
+                    logger.warning(
+                        f"[FetchService] Proxy returned HTTP {e.status_code} for {url[:50]}... "
+                        f"falling back to direct"
+                    )
+                else:
+                    # For server errors (5xx), re-raise
+                    raise
+        
+        # Direct connection (either as primary or fallback)
+        logger.debug(f"[FetchService] Using direct connection for HTML fetch: {url[:50]}...")
+        try:
+            return await self._fetch_html_with_client(
+                self._client, validated_url, headers, max_size, "direct"
+            )
         except httpx.TimeoutException:
             logger.warning(f"[FetchService] Timeout fetching HTML: {url[:50]}...")
             raise FetchError("Request timeout", 504)

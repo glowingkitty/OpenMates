@@ -13,6 +13,7 @@ import { isPublicChat } from '../../../demo_chats/convertToChat';
 import { websocketStatus } from '../../../stores/websocketStatusStore'; // Import WebSocket status store
 import { chatListCache } from '../../../services/chatListCache';
 import { createEmbedFromUrl } from '../services/urlMetadataService'; // Import URL-to-embed creation
+import { authStore } from '../../../stores/authStore'; // Import authStore for authentication check
 
 // Removed sendMessageToAPI as it will be handled by chatSyncService
 
@@ -647,6 +648,23 @@ export function createKeyboardHandlingExtension() {
                     }
 
                     if (hasActualContent(editor)) {
+                        // CRITICAL: Check authentication status before sending
+                        // Unauthenticated users should be prompted to sign in, not have their message sent
+                        // (which would fail because WebSocket requires authentication)
+                        const isAuthenticated = get(authStore).isAuthenticated;
+                        
+                        if (!isAuthenticated) {
+                            // Dispatch sign-in event instead of send event for unauthenticated users
+                            // This triggers the sign-in flow which saves the draft and opens login interface
+                            const signInEvent = new Event('custom-sign-in-click', {
+                                bubbles: true,
+                                cancelable: true
+                            });
+                            editor.view.dom.dispatchEvent(signInEvent);
+                            console.debug('[KeyboardShortcuts] User not authenticated, triggering sign-in flow instead of send');
+                            return true; // We've handled the event.
+                        }
+                        
                         // Dispatch our custom event to send the message.
                         const sendEvent = new Event('custom-send-message', {
                             bubbles: true,

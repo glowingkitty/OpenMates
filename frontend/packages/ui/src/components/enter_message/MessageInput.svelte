@@ -1165,6 +1165,7 @@
         document.addEventListener('mateclick', handleMateClick as EventListener);
         editorElement?.addEventListener('paste', handlePaste);
         editorElement?.addEventListener('custom-send-message', handleSendMessage as EventListener);
+        editorElement?.addEventListener('custom-sign-in-click', handleSignInClick as EventListener); // Handle Enter key for unauthenticated users
         editorElement?.addEventListener('keydown', handleKeyDown);
         editorElement?.addEventListener('codefullscreen', handleCodeFullscreen as EventListener);
         window.addEventListener('saveDraftBeforeSwitch', flushSaveDraft);
@@ -1241,6 +1242,7 @@
         document.removeEventListener('mateclick', handleMateClick as EventListener);
         editorElement?.removeEventListener('paste', handlePaste);
         editorElement?.removeEventListener('custom-send-message', handleSendMessage as EventListener);
+        editorElement?.removeEventListener('custom-sign-in-click', handleSignInClick as EventListener);
         editorElement?.removeEventListener('keydown', handleKeyDown);
         editorElement?.removeEventListener('codefullscreen', handleCodeFullscreen as EventListener);
         window.removeEventListener('saveDraftBeforeSwitch', flushSaveDraft);

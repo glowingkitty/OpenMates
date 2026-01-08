@@ -213,8 +213,9 @@ async def _get_webshare_proxy_url(secrets_manager: SecretsManager) -> Optional[s
             return None
         
         # Webshare proxy endpoint (rotating residential)
-        # Format: http://username:password@proxy.webshare.io:80
-        proxy_url = f"http://{ws_username}:{ws_password}@proxy.webshare.io:80"
+        # Format: http://username:password@p.webshare.io:80
+        # NOTE: Use p.webshare.io for rotating residential proxies (not proxy.webshare.io which is for datacenter)
+        proxy_url = f"http://{ws_username}:{ws_password}@p.webshare.io:80"
         logger.debug("Webshare proxy configured for URL validation")
         return proxy_url
         
